@@ -36,6 +36,7 @@ const info: StreamInfo = {
   viewerCount: 0,
   startedAt: null,
   language: 'en',
+  isBrandedContent: false,
 };
 
 beforeEach(() => {

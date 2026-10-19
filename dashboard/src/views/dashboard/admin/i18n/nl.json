@@ -298,6 +298,8 @@
           "establishedStrikeFreeDays": "Dagen zonder waarschuwing voordat een kijker als gevestigd telt"
         },
         "dequalifyBelowQualify": "Het vrijpleitaandeel moet onder het campagne-aandeel blijven, zodat een groep op de grens niet heen en weer kan schieten.",
+        "maxWindowBelowWindow": "De langste tijd dat een groep open blijft moet minstens zo lang zijn als hoe lang een groep wordt gevolgd, anders wint altijd de kortere grens.",
+        "lockdownMaxBelowLockdown": "De langste tijd dat de chat beperkt blijft moet minstens zo lang zijn als hoe lang hij beperkt blijft, anders wint altijd de kortere grens.",
         "inactiveBadge": "Nog niet actief",
         "inactiveArrives": "Dit gaat werken met werkitem {slice}. Je waarde is opgeslagen en wordt vanaf dan gebruikt.",
         "explain": "Dit zijn de waarden waarmee elk nieuw kanaal begint. Een kanaal dat nooit een instelling heeft gewijzigd blijft deze volgen, dus hier iets aanpassen verplaatst ze allemaal tegelijk.",

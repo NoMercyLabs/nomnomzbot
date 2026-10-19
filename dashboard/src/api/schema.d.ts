@@ -7710,7 +7710,7 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Read the channel's audio mix (100 and 100 until it is changed). */
+        /** Read the channel's audio mix (the defaults and limits ride along, so the dashboard keeps no copy). */
         get: {
             parameters: {
                 query?: never;
@@ -16850,6 +16850,108 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/actions/run": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Run one action. A run that starts and fails is a 200 with `success: false`; an unknown
+         *         action type is a 404 and a caller without the permission a 403.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["ChannelActionRunRequest"];
+                    "text/json": components["schemas"]["ChannelActionRunRequest"];
+                    "application/*+json": components["schemas"]["ChannelActionRunRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfChannelActionRunResponse"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/scopes": {
         parameters: {
             query?: never;
@@ -17484,7 +17586,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** List all channels the current user owns or moderates. With deleted=true it lists instead the channels the caller owns that are soft-deleted and still inside the restore window, each with its delete date and restore deadline. */
+        /**
+         * List all channels the current user owns or moderates. With `deleted=true` it lists instead the
+         *     channels the caller OWNS that are soft-deleted and still inside the restore window, each with its delete
+         *     date and restore deadline (only an owner sees their deleted channels).
+         */
         get: {
             parameters: {
                 query?: {
@@ -19160,7 +19266,7 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * What resetting this channel to defaults clears, counted from the real database.
+         * What a channel reset clears, counted from the real configuration rows, grouped by settings area.
          *     A separate route from delete-preview because a reset has no restore window or external consequences,
          *     so the response shape differs; the reset confirm MUST render this before it can be armed.
          */
@@ -27878,6 +27984,12 @@ export interface paths {
             parameters: {
                 query?: {
                     Page?: number | string;
+                    /**
+                     * @description Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-
+                     *     convention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to
+                     *     nothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the
+                     *     data was invisible. Both query keys now populate the same value.
+                     */
                     Take?: number | string;
                     PageSize?: number | string;
                     Sort?: string;
@@ -29902,6 +30014,346 @@ export interface paths {
         put?: never;
         post?: never;
         delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/discord/connections/{connectionId}/live-role": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Read the "currently live" role rule of a guild connection (empty when none is set). */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    connectionId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfIReadOnlyListOfDiscordLiveRoleConfig"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        /** Update the "currently live" role rule of a guild connection. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    connectionId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["UpdateDiscordLiveRoleConfigRequest"];
+                    "text/json": components["schemas"]["UpdateDiscordLiveRoleConfigRequest"];
+                    "application/*+json": components["schemas"]["UpdateDiscordLiveRoleConfigRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfDiscordLiveRoleConfig"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        /** Create the "currently live" role rule of a guild connection. */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    connectionId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["CreateDiscordLiveRoleConfigRequest"];
+                    "text/json": components["schemas"]["CreateDiscordLiveRoleConfigRequest"];
+                    "application/*+json": components["schemas"]["CreateDiscordLiveRoleConfigRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfDiscordLiveRoleConfig"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        /** Delete the "currently live" role rule of a guild connection. */
+        delete: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    connectionId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
         options?: never;
         head?: never;
         patch?: never;
@@ -33222,7 +33674,7 @@ export interface paths {
         };
         /**
          * Reads one page of the channel's journal, newest first, with the channel's head position. Filters are
-         *     optional: <c>eventType</c> and <c>source</c> match exactly, <c>from</c> and <c>to</c> bound the time the
+         *     optional: `eventType` and `source` match exactly, `from` and `to` bound the time the
          *     event happened. Rows carry no payload (it can hold sealed personal data). Only the resolved channel's own
          *     stream is read.
          */
@@ -33234,7 +33686,17 @@ export interface paths {
                     from?: string;
                     to?: string;
                     Page?: number | string;
+                    /**
+                     * @description Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-
+                     *     convention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to
+                     *     nothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the
+                     *     data was invisible. Both query keys now populate the same value.
+                     */
                     Take?: number | string;
+                    PageSize?: number | string;
+                    Sort?: string;
+                    Order?: string;
+                    Search?: string;
                 };
                 header?: never;
                 path: {
@@ -51611,6 +52073,185 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/moderation/network-block-opt-in": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * Whether an admin network block also bans its blocked actor in this channel. Off by default: the channel
+         *     owner opts in.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfNetworkBlockOptIn"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        /** The channel owner turns admin network blocks for this channel on or off. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["NetworkBlockOptIn"];
+                    "text/json": components["schemas"]["NetworkBlockOptIn"];
+                    "application/*+json": components["schemas"]["NetworkBlockOptIn"];
+                };
+            };
+            responses: {
+                /** @description No Content */
+                204: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": unknown;
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/moderation/shoutout-overrides": {
         parameters: {
             query?: never;
@@ -58805,7 +59446,11 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** The channel's OBS connection. view=full (default) is the configuration and needs obs:config:read; view=status is only the connection state and needs obs:control, so a moderator's panels can tell whether OBS is on. */
+        /**
+         * The channel's OBS connection. `view=full` (default) is the configuration (defaults when none is
+         *     stored yet) and needs `obs:config:read`; `view=status` is only the connection state and
+         *     needs `obs:control`, so a moderator's panels can tell whether OBS is on.
+         */
         get: {
             parameters: {
                 query?: {
@@ -58826,7 +59471,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseOfObsConnection"] | components["schemas"]["StatusResponseOfObsConnectionStatus"];
+                        "application/json": components["schemas"]["StatusResponseOfObsConnectionStatus"];
                     };
                 };
                 /** @description Bad Request */
@@ -66689,6 +67334,182 @@ export interface paths {
                 };
             };
         };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/music/player-buttons": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The channel's pinned player buttons, in display order. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfIReadOnlyListOfPlayerButton"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        /** Replace the channel's pinned player buttons. */
+        put: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["PlayerButton"][];
+                    "text/json": components["schemas"]["PlayerButton"][];
+                    "application/*+json": components["schemas"]["PlayerButton"][];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfIReadOnlyListOfPlayerButton"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        post?: never;
         delete?: never;
         options?: never;
         head?: never;
@@ -76747,6 +77568,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/trust/policy/defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The shipped trust defaults (never pinned), so the editor can show "default" next to every
+         *     value and offer a reset without carrying its own copy of the numbers.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfTrustPolicy"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/tts/overlay": {
         parameters: {
             query?: never;
@@ -84975,194 +85892,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v{version}/channels/{channelId}/actions/run": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        get?: never;
-        put?: never;
-        /**
-         * Run one action. A run that starts and fails is a 200 with `success: false`; an unknown
-         *     action type is a 404 and a caller without the permission a 403.
-         */
-        post: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    channelId: string;
-                    version: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["ChannelActionRunRequest"];
-                    "text/json": components["schemas"]["ChannelActionRunRequest"];
-                    "application/*+json": components["schemas"]["ChannelActionRunRequest"];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfChannelActionRunResponse"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-            };
-        };
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
-    "/api/v{version}/channels/{channelId}/music/player-buttons": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /** The channel's pinned player buttons, in display order. */
-        get: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    channelId: string;
-                    version: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfIReadOnlyListOfPlayerButton"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-            };
-        };
-        /** Replace the channel's pinned player buttons. */
-        put: {
-            parameters: {
-                query?: never;
-                header?: never;
-                path: {
-                    channelId: string;
-                    version: string;
-                };
-                cookie?: never;
-            };
-            requestBody: {
-                content: {
-                    "application/json": components["schemas"]["PlayerButton"][];
-                    "text/json": components["schemas"]["PlayerButton"][];
-                    "application/*+json": components["schemas"]["PlayerButton"][];
-                };
-            };
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfIReadOnlyListOfPlayerButton"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-            };
-        };
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v{version}/channels/{channelId}/widgets/preview-action": {
         parameters: {
             query?: never;
@@ -85455,14 +86184,14 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v{version}/channels/{channelId}/overlays/required": {
+    "/api/v{version}/channels/{channelId}/widgets/templates": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** The channel's required (system) overlays: get-or-creates every system surface and returns each with its OBS browser-source URL and live state, for the one Required overlays panel on the OBS page. */
+        /** List the starter templates offered when creating a new custom widget. */
         get: {
             parameters: {
                 query?: never;
@@ -85481,7 +86210,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseOfListOfRequiredOverlay"];
+                        "application/json": components["schemas"]["StatusResponseOfIReadOnlyListOfWidgetTemplate"];
                     };
                 };
                 /** @description Bad Request */
@@ -85548,14 +86277,18 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v{version}/channels/{channelId}/widgets/templates": {
+    "/api/v{version}/channels/{channelId}/overlays/required": {
         parameters: {
             query?: never;
             header?: never;
             path?: never;
             cookie?: never;
         };
-        /** List the starter templates offered when creating a new custom widget. */
+        /**
+         * The channel's required (system) overlays (widgets-overlays.md §1.2): get-or-creates every system surface
+         *     and returns each with its OBS browser-source URL and live state, for the one Required overlays panel on the
+         *     OBS page. Never a gallery browse/install.
+         */
         get: {
             parameters: {
                 query?: never;
@@ -85574,7 +86307,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseOfIReadOnlyListOfWidgetTemplate"];
+                        "application/json": components["schemas"]["StatusResponseOfListOfRequiredOverlay"];
                     };
                 };
                 /** @description Bad Request */
@@ -88257,14 +88990,17 @@ export interface components {
         BotOAuthUrl: {
             oauthUrl: string;
         };
-        /** @description DTO describing the connected bot account. */
+        /**
+         * @description DTO describing the bot that speaks in a channel. UsesSharedBot is true when that bot is
+         *     the platform's shared system bot rather than an account the channel registered itself.
+         */
         BotStatus: {
             connected: boolean;
             login?: null | string;
             displayName?: null | string;
             profileImageUrl?: null | string;
-            /** @description True when the bot that speaks in the channel is the platform's shared system bot rather than an account the channel registered itself. */
-            usesSharedBot?: boolean;
+            /** @default false */
+            usesSharedBot: boolean;
         };
         /** @description A built-in command as one channel sees it. */
         BuiltinCommand: {
@@ -88480,6 +89216,28 @@ export interface components {
             /** Format: date-time */
             createdAt: string;
         };
+        /**
+         * @description An action to run: its type, its parameters and the variables that seed its context (for example
+         *         `target.id` and `target.name` for a user, `song.name` for a track).
+         */
+        ChannelActionRunRequest: {
+            actionType: string;
+            parameters?: null | {
+                [key: string]: unknown;
+            };
+            variables?: null | {
+                [key: string]: string;
+            };
+        };
+        /** @description What the action did: whether it succeeded, its output text, its error and the variables it set. */
+        ChannelActionRunResponse: {
+            success: boolean;
+            output?: null | string;
+            error?: null | string;
+            variables: {
+                [key: string]: string;
+            };
+        };
         /** @description One day of the per-channel aggregate (analytics.md §4, schema M.8) — the chart/time-series row. */
         ChannelAnalyticsDaily: {
             /** Format: date */
@@ -88594,6 +89352,26 @@ export interface components {
             masterVolume: number | string;
             /** Format: int32 */
             ttsVolume: number | string;
+            /**
+             * Format: int32
+             * @description The master volume a channel with no saved mix gets; the dashboard shows it, never its own copy.
+             */
+            defaultMasterVolume?: number | string;
+            /**
+             * Format: int32
+             * @description The TTS volume a channel with no saved mix gets.
+             */
+            defaultTtsVolume?: number | string;
+            /**
+             * Format: int32
+             * @description Lowest accepted volume.
+             */
+            minVolume?: number | string;
+            /**
+             * Format: int32
+             * @description Highest accepted volume.
+             */
+            maxVolume?: number | string;
             /**
              * Format: double
              * @description The 0..1 gain for text-to-speech playback: tts volume times master volume.
@@ -89401,6 +90179,9 @@ export interface components {
             /** Format: date-time */
             lastSeen?: null | string;
             color?: null | string;
+            /** @default false */
+            gifted: boolean;
+            gifter?: null | string;
         };
         /** @description The authored source to compile-on-save into the widget's next append-only version. */
         CompileWidgetRequest: {
@@ -89589,9 +90370,14 @@ export interface components {
             description?: null | string;
             payloadJson: string;
         };
+        CreateDiscordLiveRoleConfigRequest: {
+            roleId: string;
+            discordMemberId: string;
+            /** @default true */
+            enabled: boolean;
+        };
         CreateDiscordNotificationConfigRequest: {
             triggerType: string;
-            enabled: boolean;
             targetChannelId: string;
             /**
              * Format: ulid
@@ -89603,6 +90389,8 @@ export interface components {
             milestoneType?: null | string;
             /** Format: int32 */
             milestoneThreshold?: null | number | string;
+            /** @default true */
+            enabled: boolean;
         };
         CreateDiscordNotificationRoleRequest: {
             discordRoleId: string;
@@ -90387,6 +91175,26 @@ export interface components {
             /** @default 0 */
             permissions: string;
         };
+        DiscordLiveRoleConfig: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            id: string;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            guildConnectionId: string;
+            roleId: string;
+            discordMemberId: string;
+            enabled: boolean;
+            isCurrentlyApplied: boolean;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: date-time */
+            updatedAt: string;
+        };
         DiscordMemberOptInRequest: {
             discordMemberId: string;
             source: string;
@@ -90505,7 +91313,10 @@ export interface components {
                 [key: string]: unknown;
             };
         };
-        /** @description Edit payload (quotes.md §3). The per-channel `Number` is immutable and not editable. `QuotedAt` moves the date the line was said; null keeps the saved date. */
+        /**
+         * @description Edit payload (quotes.md §3). The per-channel `Number` is immutable and not editable. `QuotedAt`
+         *     moves the date the line was said; null keeps the saved date.
+         */
         EditQuoteRequest: {
             text: string;
             quotedDisplayName?: null | string;
@@ -90698,9 +91509,15 @@ export interface components {
              */
             samplePayloadJson?: null | string;
         };
-        /** @description One journal row as the dashboard lists it. The payload is deliberately absent: it can hold sealed personal data, and the list only needs to show what happened, when, where it came from and who did it. */
+        /**
+         * @description One journal row as the dashboard lists it. The payload is deliberately absent: it can hold sealed personal
+         *     data, and the list only needs to show what happened, when, where it came from and who did it.
+         */
         EventJournalEntry: {
-            /** Format: ulid */
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
             eventId: string;
             /** Format: int64 */
             streamPosition: number | string;
@@ -90710,7 +91527,10 @@ export interface components {
             occurredAt: string;
             /** Format: date-time */
             recordedAt: string;
-            /** Format: ulid */
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
             actorUserId?: null | string;
             actorExternalUserId?: null | string;
             actorProvider?: null | string;
@@ -92219,6 +93039,9 @@ export interface components {
             maxQueueLength: number | string;
             /** Format: int32 */
             perUserCooldownSeconds: number | string;
+            eligibilityJson?: null | string;
+            /** Format: int32 */
+            configSchemaVersion: number | string;
         };
         /** @description One media-share queue item (media-share.md §3). */
         MediaShareRequest: {
@@ -92585,6 +93408,10 @@ export interface components {
             broadcasterId: string;
             channelName: string;
         };
+        /** @description Whether an admin network block reaches this channel (off until the channel owner says so). */
+        NetworkBlockOptIn: {
+            accepts: boolean;
+        };
         /**
          * @description The counted blast radius of a network-wide block, computed fresh — required reading BEFORE an operator
          *     can commit to applying one. int NetworkBlockPreviewDto.TenantCount is echoed back on apply
@@ -92744,13 +93571,13 @@ export interface components {
          *     configuration: no host, port, password flags, event mask or error text (an error can carry the host).
          */
         ObsConnectionStatus: {
-            mode?: string;
-            isEnabled?: boolean;
+            mode: string;
+            isEnabled: boolean;
             /** Format: date-time */
             lastConnectedAt?: null | string;
         };
         /**
-         * @description Which shape of the OBS connection a read returns (query option view).
+         * @description Which shape of the OBS connection a read returns (query option `view`).
          * @enum {unknown}
          */
         ObsConnectionView: "Full" | "Status";
@@ -92928,7 +93755,10 @@ export interface components {
         };
         /**
          * @description OBS performance stats (obs-websocket v5 `GetStats`) — CPU/memory load and the
-         *                 render-thread vs. output-thread frame counters used to detect dropped frames.
+         *                 render-thread vs. output-thread frame counters, plus what OBS's own status bar adds from
+         *                 `GetStreamStatus` / `GetRecordStatus` / `GetVideoSettings`: the stream output's own
+         *                 skipped/total frames (OBS's "Dropped Frames"), byte counters (bitrate = delta between two reads),
+         *                 timecodes, congestion, and the target FPS.
          */
         ObsStats: {
             /** Format: double */
@@ -92945,23 +93775,45 @@ export interface components {
             outputTotalFrames: number | string;
             /** Format: int32 */
             outputSkippedFrames: number | string;
+            /** @default false */
             streamActive: boolean;
+            /** @default false */
             streamReconnecting: boolean;
-            /** Format: double */
+            /**
+             * Format: double
+             * @default 0
+             */
             streamCongestion: number | string;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @default 0
+             */
             streamBytes: number | string;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @default 0
+             */
             streamTotalFrames: number | string;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @default 0
+             */
             streamSkippedFrames: number | string;
             streamTimecode?: null | string;
+            /** @default false */
             recordActive: boolean;
+            /** @default false */
             recordPaused: boolean;
-            /** Format: int64 */
+            /**
+             * Format: int64
+             * @default 0
+             */
             recordBytes: number | string;
             recordTimecode?: null | string;
-            /** Format: double */
+            /**
+             * Format: double
+             * @default 0
+             */
             targetFps: number | string;
         };
         /** @description REST body for the studio-mode route: turn studio mode on or off. */
@@ -93132,6 +93984,8 @@ export interface components {
          * @description One widget in the overlay manifest. string OverlayWidgetEntry.TrustTier (first_party | verified_community | unverified) is
          *     derived from the widget's `Source` and drives the render-time CSP tier — a self-authored (custom) widget is
          *     always `unverified` (fail-closed).
+         *     string? OverlayWidgetEntry.GalleryKey is the natural key of the gallery item the widget was made from (null for a widget with
+         *     none); it is how the host page recognises the system Audio widget without trusting a user setting.
          */
         OverlayWidgetEntry: {
             /**
@@ -93148,6 +94002,7 @@ export interface components {
             settings: {
                 [key: string]: unknown;
             };
+            galleryKey?: null | string;
         };
         PaginatedResponseOfAdminChannel: {
             data?: components["schemas"]["AdminChannel"][];
@@ -93509,15 +94364,6 @@ export interface components {
             /** Format: int32 */
             total?: null | number | string;
         };
-        PaginatedResponseOfStreamRecap: {
-            data?: components["schemas"]["StreamRecap"][];
-            /** Format: int32 */
-            nextPage?: null | number | string;
-            hasMore?: boolean;
-            nextCursor?: null | string;
-            /** Format: int32 */
-            total?: null | number | string;
-        };
         PaginatedResponseOfInvoice: {
             data?: components["schemas"]["Invoice"][];
             /** Format: int32 */
@@ -93727,6 +94573,15 @@ export interface components {
         };
         PaginatedResponseOfStreamListItem: {
             data?: components["schemas"]["StreamListItem"][];
+            /** Format: int32 */
+            nextPage?: null | number | string;
+            hasMore?: boolean;
+            nextCursor?: null | string;
+            /** Format: int32 */
+            total?: null | number | string;
+        };
+        PaginatedResponseOfStreamRecap: {
+            data?: components["schemas"]["StreamRecap"][];
             /** Format: int32 */
             nextPage?: null | number | string;
             hasMore?: boolean;
@@ -94508,6 +95363,20 @@ export interface components {
         PlayContext: {
             contextUri: string;
         };
+        /**
+         * @description One button the streamer pinned to the Now playing panel. Pressing it runs ActionType with
+         *     Parameters through the channel action runner. Icon is a dashboard icon
+         *     key (lowercase letters, digits and hyphens). Id is assigned by the server when empty.
+         */
+        PlayerButton: {
+            id: string;
+            label: string;
+            icon: string;
+            actionType: string;
+            parameters: {
+                [key: string]: unknown;
+            };
+        };
         /** @description Play a game (economy.md §4). int PlayGameRequest.RoleLevel is the caller's resolved community level. */
         PlayGameRequest: {
             /**
@@ -94849,11 +95718,20 @@ export interface components {
          *     each further one, and the points when raids are level.
          */
         RaidBalanceWeights: {
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @default 0
+             */
             owedBaseWeight: number | string;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @default 0
+             */
             owedExtraWeight: number | string;
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @default 0
+             */
             reciprocalWeight: number | string;
         };
         /** @description A liked category: its name, its points and the reason text. */
@@ -94877,11 +95755,18 @@ export interface components {
         };
         /** @description Points by time since the last outgoing raid: never, within each step, or older than all steps. */
         RaidRecencyRules: {
-            /** Format: int32 */
+            /**
+             * Format: int32
+             * @default 0
+             */
             neverRaidedWeight: number | string;
-            steps: components["schemas"]["RaidRecencyStep"][];
-            /** Format: int32 */
+            steps?: components["schemas"]["RaidRecencyStep"][];
+            /**
+             * Format: int32
+             * @default 0
+             */
             olderWeight: number | string;
+            /** @default  */
             olderNote: string;
         };
         /** @description A raid that happened less than WithinDays days ago. */
@@ -94894,29 +95779,36 @@ export interface components {
         };
         /**
          * @description One channel's raid-target preferences. The scorer owns no rule of its own: every point it hands
-         *     out comes from this object. A rule with weight 0 adds nothing and shows no reason.
+         *     out comes from this object. A rule with weight 0 adds nothing and shows no reason. A key a stored
+         *     blob or request body leaves out takes its value from RaidScoringDefaults; pass the
+         *     deserialized object through RaidScoringRules RaidScoringDefaults.Resolve(RaidScoringRules? raw) before use.
          */
         RaidScoringRules: {
             /** @description Categories this channel likes, matched by name ignoring case, first match wins. */
-            preferredCategories: components["schemas"]["RaidCategoryRule"][];
+            preferredCategories?: components["schemas"]["RaidCategoryRule"][];
             /**
              * Format: int32
              * @description Points for a category that is not in PreferredCategories.
+             * @default 0
              */
             otherCategoryWeight: number | string;
-            /** @description Reason text for that case; the category name is appended in brackets. */
+            /**
+             * @description Reason text for that case; the category name is appended in brackets.
+             * @default
+             */
             otherCategoryLabel: string;
             /** @description Tag and title signals, checked in order, first matching rule wins. */
-            keywords: components["schemas"]["RaidKeywordRule"][];
+            keywords?: components["schemas"]["RaidKeywordRule"][];
             /** @description Viewer-count bands, checked in order, first band that holds the count wins. */
-            viewerBands: components["schemas"]["RaidViewerBand"][];
+            viewerBands?: components["schemas"]["RaidViewerBand"][];
             /** @description How long ago this channel last raided the candidate. */
-            recency: components["schemas"]["RaidRecencyRules"];
+            recency?: components["schemas"]["RaidRecencyRules"];
             /** @description Who owes whom a raid. */
-            balance: components["schemas"]["RaidBalanceWeights"];
+            balance?: components["schemas"]["RaidBalanceWeights"];
             /**
              * Format: int32
              * @description Points when the broadcaster follows the candidate.
+             * @default 0
              */
             followedWeight: number | string;
         };
@@ -95084,6 +95976,15 @@ export interface components {
             broadcasterId?: null | string;
             requestedBy: string;
             scope: string;
+        };
+        /**
+         * @description One channel-owned system surface (widgets-overlays.md §1.2) for the OBS page's Required overlays panel.
+         *     string RequiredOverlay.Key is the surface's stable catalogue key (`audio`, `alerts`, ...) so the client can
+         *     name and describe it in the viewer's language; WidgetDetail RequiredOverlay.Widget is the provisioned widget.
+         */
+        RequiredOverlay: {
+            key: string;
+            widget: components["schemas"]["WidgetDetail"];
         };
         /**
          * @description The full breakdown of a caller's resolved authorization for a channel (roles-permissions §4) — each
@@ -96368,6 +97269,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseOfChannelActionRunResponse: {
+            status?: string;
+            data?: null | components["schemas"]["ChannelActionRunResponse"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseOfChannelAnalyticsSummary: {
             status?: string;
             data?: null | components["schemas"]["ChannelAnalyticsSummary"];
@@ -96906,6 +97820,19 @@ export interface components {
         StatusResponseOfDiscordGuildInfo: {
             status?: string;
             data?: null | components["schemas"]["DiscordGuildInfo"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfDiscordLiveRoleConfig: {
+            status?: string;
+            data?: null | components["schemas"]["DiscordLiveRoleConfig"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -97829,6 +98756,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseOfIReadOnlyListOfDiscordLiveRoleConfig: {
+            status?: string;
+            data?: null | components["schemas"]["DiscordLiveRoleConfig"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseOfIReadOnlyListOfDiscordNotificationConfig: {
             status?: string;
             data?: null | components["schemas"]["DiscordNotificationConfig"][];
@@ -98336,6 +99276,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseOfIReadOnlyListOfPlayerButton: {
+            status?: string;
+            data?: null | components["schemas"]["PlayerButton"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseOfIReadOnlyListOfPollPredictionHistoryItem: {
             status?: string;
             data?: null | components["schemas"]["PollPredictionHistoryItem"][];
@@ -98700,19 +99653,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        StatusResponseOfListOfRequiredOverlay: {
-            status?: string;
-            data?: null | components["schemas"]["RequiredOverlay"][];
-            message?: null | string;
-            /**
-             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
-             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
-             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
-             *     generic error toast) reads this field.
-             */
-            code?: null | string;
-            args?: null | unknown[];
-        };
         StatusResponseOfIReadOnlyListOfWidgetTemplate: {
             status?: string;
             data?: null | components["schemas"]["WidgetTemplate"][];
@@ -98976,6 +99916,19 @@ export interface components {
         StatusResponseOfListOfPronoun: {
             status?: string;
             data?: null | components["schemas"]["Pronoun"][];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfListOfRequiredOverlay: {
+            status?: string;
+            data?: null | components["schemas"]["RequiredOverlay"][];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -99380,6 +100333,19 @@ export interface components {
         StatusResponseOfNetworkBlock: {
             status?: string;
             data?: null | components["schemas"]["NetworkBlock"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfNetworkBlockOptIn: {
+            status?: string;
+            data?: null | components["schemas"]["NetworkBlockOptIn"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -101080,50 +102046,6 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
-        /** @description An action to run: its type, its parameters and the variables that seed its context (for example
-         *     `target.id` and `target.name` for a user, `song.name` for a track). */
-        ChannelActionRunRequest: {
-            actionType: string;
-            parameters?: null | {
-                [key: string]: unknown;
-            };
-            variables?: null | {
-                [key: string]: string;
-            };
-        };
-        /** @description What the action did: whether it succeeded, its output text, its error and the variables it set. */
-        ChannelActionRunResponse: {
-            success: boolean;
-            output?: null | string;
-            error?: null | string;
-            variables: {
-                [key: string]: string;
-            };
-        };
-        /** @description One button the streamer pinned to the Now playing panel. */
-        PlayerButton: {
-            id: string;
-            label: string;
-            icon: string;
-            actionType: string;
-            parameters: {
-                [key: string]: unknown;
-            };
-        };
-        StatusResponseOfChannelActionRunResponse: {
-            status?: string;
-            data?: null | components["schemas"]["ChannelActionRunResponse"];
-            message?: null | string;
-            code?: null | string;
-            args?: null | unknown[];
-        };
-        StatusResponseOfIReadOnlyListOfPlayerButton: {
-            status?: string;
-            data?: null | components["schemas"]["PlayerButton"][];
-            message?: null | string;
-            code?: null | string;
-            args?: null | unknown[];
-        };
         StatusResponseOfWidgetPreviewActionResponse: {
             status?: string;
             data?: null | components["schemas"]["WidgetPreviewActionResponse"];
@@ -101249,7 +102171,8 @@ export interface components {
             /** Format: date-time */
             lastStreamedAt?: null | string;
             contentLabels?: null | string[];
-            isBrandedContent?: boolean;
+            /** @default false */
+            isBrandedContent: boolean;
         };
         /** @description One stream in the channel's history list, newest first — the per-stream entry point. */
         StreamListItem: {
@@ -101333,7 +102256,6 @@ export interface components {
             topChatters?: null | components["schemas"]["StreamStatsNamedCount"][];
             commandsRun?: null | components["schemas"]["StreamStatsRanked"];
         };
-        /** @description Chat activity of a stream. */
         /** @description The channel a stream belongs to. */
         StreamStatsChannel: {
             /** @description The channel display name. */
@@ -101341,6 +102263,7 @@ export interface components {
             /** @description The channel profile picture URL. Null when the platform gave none. */
             avatarUrl?: null | string;
         };
+        /** @description Chat activity of a stream. */
         StreamStatsChat: {
             /**
              * Format: int32
@@ -102209,14 +103132,10 @@ export interface components {
             modApprovalRequired: boolean;
             /** Format: int32 */
             minBitsToTts?: null | number | string;
-            /** @default true */
             viewerVoiceSelfServiceEnabled: boolean;
-            /** @default false */
             hasAzureByokKey: boolean;
-            /** @default false */
             hasElevenLabsByokKey: boolean;
             azureRegion?: null | string;
-            /** @default false */
             followsPlatformDefaultVoice: boolean;
         };
         TtsDispatchDisposition: number;
@@ -102736,6 +103655,11 @@ export interface components {
             isEnabled?: null | boolean;
             speakWithTts?: null | boolean;
         };
+        UpdateDiscordLiveRoleConfigRequest: {
+            roleId: string;
+            discordMemberId: string;
+            enabled: boolean;
+        };
         UpdateDiscordNotificationConfigRequest: {
             enabled: boolean;
             targetChannelId: string;
@@ -102797,7 +103721,7 @@ export interface components {
             genericConfig?: null | components["schemas"]["GenericInboundConfig"];
             isEnabled?: null | boolean;
         };
-        /** @description Update body for the media-share config (media-share.md §5). */
+        /** @description Update body for the media-share config (media-share.md §5). A null EligibilityJson keeps the stored rules. */
         UpdateMediaShareConfigRequest: {
             isEnabled: boolean;
             requireApproval: boolean;
@@ -102811,6 +103735,7 @@ export interface components {
             maxQueueLength: number | string;
             /** Format: int32 */
             perUserCooldownSeconds: number | string;
+            eligibilityJson?: null | string;
         };
         UpdateModerationRuleRequest: {
             name?: null | string;
@@ -102979,7 +103904,7 @@ export interface components {
             gameName?: null | string;
             tags?: null | string[];
             contentLabels?: null | string[];
-            isBrandedContent?: boolean | null;
+            isBrandedContent?: null | boolean;
         };
         UpdateTagsRequest: {
             tags: string[];
@@ -103083,7 +104008,7 @@ export interface components {
         /** @description Request to update TTS configuration; every field optional — only what is sent changes. */
         UpdateTtsConfig: {
             isEnabled?: null | boolean;
-            /** @description Dispatch plane: client_edge | byok | self_host. */
+            /** @description Dispatch plane: byok | self_host (client_edge is retired and reads as self_host). */
             mode?: null | string;
             /** @description Preferred synthesis provider: edge | azure | elevenlabs. */
             defaultProvider?: null | string;
@@ -103106,6 +104031,8 @@ export interface components {
             minBitsToTts?: null | number | string;
             /** @description When true, viewers may pick their own voice via `!voice`; false locks it to mods only. */
             viewerVoiceSelfServiceEnabled?: null | boolean;
+            /** @description Azure Cognitive Services region for the channel's BYOK key; an empty string clears it. */
+            azureRegion?: null | string;
         };
         /**
          * @description Update the channel's Twitch AutoMod levels. Twitch treats `OverallLevel` and the per-category
@@ -103430,6 +104357,9 @@ export interface components {
             isVip?: null | boolean;
             isModerator?: null | boolean;
             isArtist?: null | boolean;
+            isSubscriber?: null | boolean;
+            gifted?: null | boolean;
+            gifter?: null | string;
         };
         /**
          * @description One external identity linked to the caller's account (platform-identity §4). Never carries tokens — those
@@ -103964,11 +104894,6 @@ export interface components {
         WebLoginExchangeRequest: {
             code: string;
         };
-        /** @description One channel-owned system surface for the OBS page's Required overlays panel. Key is the surface's stable catalogue key so the client can name and describe it in the viewer's language; Widget is the provisioned widget. */
-        RequiredOverlay: {
-            key: string;
-            widget: components["schemas"]["WidgetDetail"];
-        };
         /**
          * @description A widget's full detail. The authored source and compiled bundle are NOT here — they live on append-only
          *     `WidgetVersion` rows; Guid? WidgetDetail.ActiveVersionId names the version the overlay currently serves.
@@ -104048,7 +104973,9 @@ export interface components {
          *     IReadOnlyList&lt;WidgetSettingsFieldOption&gt;? WidgetSettingsField.Options), or `json` (raw-JSON textarea for a structural map/list the schema does not flatten).
          *     object? WidgetSettingsField.Default is the catalogue default (so a cleared field falls back to the widget's shipped value);
          *     double? WidgetSettingsField.Min/double? WidgetSettingsField.Max/double? WidgetSettingsField.Step bound a numeric control; LocalizedText WidgetSettingsField.Group lets the form
-         *     section the fields. LocalizedText WidgetSettingsField.Label, LocalizedText? WidgetSettingsField.Help, and LocalizedText WidgetSettingsField.Group are all
+         *     section the fields. string? WidgetSettingsField.Picker (a `text` field only) names a pipeline resource-picker kind
+         *     (`twitch_reward`, `obs_audio_input`, …): the form then offers a searchable list instead of a typed box,
+         *     and the saved value is that kind's option value. LocalizedText WidgetSettingsField.Label, LocalizedText? WidgetSettingsField.Help, and LocalizedText WidgetSettingsField.Group are all
          *     LocalizedText (S-SCHEMA-I18N-redesign) — a translation KEY only; the dashboard resolves each
          *     against `strings.xml` for the viewer's locale instead of the backend serving a hardcoded English literal.
          */

@@ -27,7 +27,19 @@ export type ScheduleSegment = components['schemas']['TwitchScheduleSegment'];
 export type ScheduleSettings = components['schemas']['UpdateScheduleSettings'];
 export type NewSegment = components['schemas']['CreateScheduleSegmentRequest'];
 export type SegmentChange = components['schemas']['UpdateScheduleSegmentRequest'];
-export type RaidRules = components['schemas']['RaidScoringRules'];
+type RaidRulesWire = components['schemas']['RaidScoringRules'];
+
+// The server fills every key a stored blob left out (RaidScoringDefaults.Resolve) before it answers,
+// so a read always carries the full set even though the contract marks defaulted keys optional.
+export type RaidRules = Required<Omit<RaidRulesWire, 'recency' | 'balance'>> & {
+  recency: Required<components['schemas']['RaidRecencyRules']>;
+  balance: Required<components['schemas']['RaidBalanceWeights']>;
+};
+
+function resolvedRules(rules: RaidRulesWire | null | undefined): RaidRules | null {
+  return (rules ?? null) as RaidRules | null;
+}
+
 export type Commercial = components['schemas']['TwitchCommercial'];
 
 export type SegmentEdit = {
@@ -154,7 +166,7 @@ async function readRaidRules(channelId: string): Promise<RaidRules | null> {
   if (error !== undefined)
     throw failed('raid-rules', response.status, error);
 
-  return data?.data ?? null;
+  return resolvedRules(data?.data);
 }
 
 // This channel's own raid target rules. A channel that never saved any gets the neutral set.
@@ -184,7 +196,7 @@ export function useSaveRaidRules(
       if (error !== undefined)
         throw failed('raid-rules-save', response.status, error);
 
-      return data?.data ?? null;
+      return resolvedRules(data?.data);
     },
     onSuccess: (saved: RaidRules | null) => {
       const key = raidRulesKey(toValue(channelId));
