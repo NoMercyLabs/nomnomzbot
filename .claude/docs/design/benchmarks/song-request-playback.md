@@ -6,16 +6,22 @@ The owner question (Stoney, 2026-10-19, verbatim): "I don't know what stream ele
 
 Answer from the sources: StreamElements has a "Backup playlist: a YouTube playlist that plays whenever the request queue is empty". Nightbot and Moobot have the same idea with a saved personal list. 3 of 4 products document a fallback playlist (N of M = 3 of 4). Streamlabs Media Share describes none on the two pages read.
 
+Added later the same day, two things:
+
+1. bamo16, a streamer who runs his own bot, answered Stoney's chat question "what to do when youtube songs are empty in the queue? what do you normally play?". The answer is recorded verbatim in `.claude/docs/design/dashboard-owner-words.md` (the 2026-10-19 entry that starts "Stoney asked bamo16 in chat"), and the bamo16 rows below quote that file. It is one streamer's account in chat, not a product page. With it, 4 of 5 sources describe a fallback pool (N of M = 4 of 5); Streamlabs is the one that does not.
+2. The question "can the YouTube IFrame Player API play a YouTube Mix and move on to the next video by itself" was run in a real browser (section "YouTube Mix embed proof"). Result: the embed refuses a Mix list with error 150 and never plays it. The Mix rows below point at that section.
+
 ## Products
 
 - StreamElements Media Request (song request module) https://docs.streamelements.com/chatbot/modules/songrequest
 - Nightbot Song Requests https://docs.nightbot.tv/control-panel/song-requests (also https://docs.nightbot.tv/commands/songs and https://docs.nightbot.tv/faq)
 - Moobot song requests https://moo.bot/docs/song-requests-music-through-twitch-bot
 - Streamlabs Media Share + Cloudbot song requests https://streamlabs.com/content-hub/post/how-to-use-song-requests-in-cloudbot and https://streamlabs.com/content-hub/post/how-to-set-up-media-sharing-in-streamlabs
+- bamo16 (streamer, own bot; a first-person account, no product page) chat answer of 2026-10-19, recorded verbatim in `.claude/docs/design/dashboard-owner-words.md` (grep "bamo16") of the repo https://github.com/NoMercyLabs/nomnomzbot (the file is committed locally and not pushed, so that URL may not show it yet)
 
 ## Features
 
-Short names in the Source column: SE = the StreamElements URL, NB = the Nightbot song requests URL, NBS = the Nightbot `!songs` URL, NBF = the Nightbot FAQ URL, MB = the Moobot URL, SL1 = the Streamlabs song request article, SL2 = the Streamlabs Media Share setup guide (full URLs in Products).
+Short names in the Source column: SE = the StreamElements URL, NB = the Nightbot song requests URL, NBS = the Nightbot `!songs` URL, NBF = the Nightbot FAQ URL, MB = the Moobot URL, SL1 = the Streamlabs song request article, SL2 = the Streamlabs Media Share setup guide (full URLs in Products), BM = bamo16's chat answer in `.claude/docs/design/dashboard-owner-words.md`, PP = the YouTube player parameters doc https://developers.google.com/youtube/player_parameters, PI = the YouTube Data API doc https://developers.google.com/youtube/v3/docs/playlistItems/list, Mix run = a test run in the section "YouTube Mix embed proof" below.
 
 | Feature | Seen in | Source | Ours | Status | Slice |
 | --- | --- | --- | --- | --- | --- |
@@ -30,6 +36,14 @@ Short names in the Source column: SE = the StreamElements URL, NB = the Nightbot
 | Streamer can turn requests off and play only the own list | Moobot, Nightbot (Enable & Disable) | MB ("disable requests entirely, using the song player to play exclusively from your own playlist"); NB (Enable & Disable) | MusicConfigDtos.cs:28,40-41 (RequestsOpen: music keeps playing, queue stays; but no own list to play) | partial | S-SR-FALLBACK-PLAYLIST |
 | Requests limited to songs already in the own list (pre-approved songs) | Nightbot, Moobot | NB (Limits > "Limit to Playlist"); MB ("Only accept songs from the secondary playlist") | none | missing | S-SR-PLAYLIST-ONLY |
 | Dead-air warning in the docs: fill the fallback list | Moobot | MB ("add some songs to your Secondary playlist so you don't experience dead air") | none (no empty-fallback hint in the dashboard was read) | missing | S-SR-FALLBACK-PLAYLIST |
+| Fallback pool built from the unique video IDs across many of the streamer's own playlists | bamo16 | BM ("I pulled from many of my playlists I track in a local database"; "I select from the set of unique video IDs across all the playlists I want to include") | MusicConfigDtos.cs:24-25 (one BangerPlaylistId and one provider, the `!banger` target); no pool over several playlists and no de-duplication by video ID | missing | S-SR-FALLBACK-POOL |
+| Pool exclusion: no very long songs | bamo16 | BM ("no super long songs") | MusicService.cs:1077 and MusicConfigDtos.cs:29 (MaxSongSeconds cap on requests; operators exempt, MusicService.cs:1071); no fallback pick exists to apply it to | partial | S-SR-FALLBACK-FILTERS |
+| Pool exclusion: no song that is already in the queue | bamo16 | BM ("no songs that are already in the queue") | FairQueue.cs:57 TryEnqueueUnique and MusicService.cs:1174-1189 refuse a duplicate request ("is already in the queue"); no fallback pick goes through that gate | partial | S-SR-FALLBACK-FILTERS |
+| Check when each new song starts: if nothing is queued next, add one | bamo16 | BM ("I perform a check each time a new song starts playing to see if there is something queued up next and that is when I would add if it's empty") | PlaybackDirector.Playing.cs:285-295 lines up the next queued item 15 s before the end (PlaybackDirector.cs:33 QueueAheadMs), and only when a queue head exists; with an empty queue the director decides at the end of the song (PlaybackDirector.Owner.cs:202-223, then Idle) | missing | S-SR-FALLBACK-LOOKAHEAD |
+| Random fallback pick that does not repeat a recent song | bamo16, Moobot | BM (his claim about StreamElements' backup playlist: "it does a really bad job of keeping it random"; the SE page read says only "A YouTube playlist that plays whenever the request queue is empty", so the claim is not verified here; he does not describe how his own pick stays random); MB ("Moobot will randomly choose from it when the Primary playlist has no requests") | PlayedHistory.cs:15-19 keeps the last played items for Previous only; no random pick and no no-repeat window | missing | S-SR-FALLBACK-RANDOM |
+| A YouTube Mix (auto-generated radio list, `list=RD` + a video ID) plays in the IFrame embed | none of the five (tested here) | Mix run A, C and D: list RDM7lc1UVf-VE in three embed forms and RD96URE_-aj-8 in one: onError 150 every time, no video plays; the same page plays a plain video and a `PL` playlist (state 1); PP says the playlist ID value starts with `PL` | music_player.vue:176,206 plays one video at a time with loadVideoById; no playlist mode | not-doing | Reason: YouTube refuses the Mix with error 150 in every form tried, so there is nothing to build on. Named S-SR-FALLBACK-YT-MIX so a later re-test has a home |
+| A Mix loaded with `player.loadPlaylist()` starts and moves on to the next video by itself | none of the five (tested here) | Mix run B: no error and no state change for 18 s; state 5 (cued), getPlaylist() = [] (empty), no video ID; then playVideo() and nextVideo(): onError 2, state -1 | none | not-doing | Reason: the Mix never starts, so it cannot move on. S-SR-FALLBACK-YT-MIX |
+| Mix items can be listed through the YouTube Data API (playlistItems.list), so the bot could play a Mix one video at a time | none of the five | PI (page read: playlistId is "the unique ID of the playlist"; the page never names a Mix or an RD list; its error table has playlistOperationUnsupported, watchHistoryNotAccessible and watchLaterNotAccessible); no API call was made (not checked); oEmbed for the Mix returned HTTP 404 | none | not-doing | Reason: the doc does not say a Mix can be listed, nothing was called, and the pool in S-SR-FALLBACK-POOL needs no Mix. Re-check by a real call only if S-SR-FALLBACK-YT-MIX is reopened |
 | Spotify as a request source | none of the four | SE ("YouTube is the only media source - there is no Spotify or SoundCloud integration"); NB providers are YouTube and SoundCloud; MB and SL1/SL2 describe YouTube links only | MusicConfigDtos.cs:21-22 (AllowYouTube, AllowSpotify); SpotifyPlaybackEngine.cs | have | |
 | Mixing Spotify and YouTube without both playing | none of the four | not described on any page read | music-sr.md:489-493 (four rules); PlaybackDirector.Owner.cs:232 SilenceForeignAsync | have | |
 | Owner's own Spotify resumes when a YouTube request ends and the queue is empty | none of the four | not described on any page read | PlaybackDirector.Owner.cs:205-220 (resume when the owner music was playing before); music-sr.md:493 | have | |
@@ -66,13 +80,47 @@ Short names in the Source column: SE = the StreamElements URL, NB = the Nightbot
 | Request by link, video ID or search words | StreamElements, Nightbot, Moobot, Streamlabs (link only) | SE; NBS (`!songs request`); MB; SL1 ("You can only request with a link") | MusicService.cs:889 (SongSearchRanker on search text); MusicService.cs:958 (links) | have | |
 | Music audio captured apart from the voice so VODs can leave it out | Moobot | MB (OBS Application Audio Capture of the player window) | spec/music-playback-determinism.md:201-237 (two system widgets, two audio levels) | have | |
 
+## YouTube Mix embed proof (2026-10-19)
+
+Question: can the YouTube IFrame Player API play a YouTube Mix (the auto-generated radio list, `list=RD` + a video ID, here `RDM7lc1UVf-VE`) in an embed, and does it move on to a next video by itself?
+
+Method: a one-file test page served from `http://127.0.0.1:8741` (Python `http.server`), opened in a real browser (Chrome DevTools MCP, one reused page). The page loads `https://www.youtube.com/iframe_api`, sends the Referer policy `strict-origin-when-cross-origin` and the `origin` player parameter (the project's own fix, commit 3c2b55a74, records that YouTube answers error 153 without a Referer), starts muted with `autoplay: 1`, and logs every `onReady`, `onStateChange` and `onError` with `getVideoData().video_id`, `getPlaylist()` and `getPlaylistIndex()`. The two controls prove the page and the browser can play an embed at all. The test page and the server were deleted after the runs.
+
+| Run | Embed form | List or video | What happened |
+| --- | --- | --- | --- |
+| Control 1 | `new YT.Player(el, { videoId })` | `M7lc1UVf-VE` | onReady, then onStateChange 1 (playing); video_id `M7lc1UVf-VE`; duration 1343.661 s |
+| Control 2 | `playerVars: { listType: 'playlist', list }` | `PLC77007E23FF423C6` (the sample list in PP) | onReady, then onStateChange 1; video_id `96URE_-aj-8`; getPlaylist() = `["96URE_-aj-8"]`; index 0. A one-video list, so it has no next video to test |
+| A | `playerVars: { listType: 'playlist', list: 'RDM7lc1UVf-VE', autoplay: 1, mute: 1 }` | `RDM7lc1UVf-VE` | onReady, then onError 150 in the same millisecond; state -1; getPlaylist() null; no video_id. Run twice, same result. The iframe src was `embed/?autoplay=1&mute=1&origin=...&list=RDM7lc1UVf-VE&listType=playlist&enablejsapi=1` |
+| A2 | same as A | `RD96URE_-aj-8` (that video plays inside Control 2) | onReady, then onError 150 |
+| C | `videoId` plus `playerVars: { list, listType }` | `M7lc1UVf-VE` + `RDM7lc1UVf-VE` | onReady, then onError 150, although the same video alone plays (Control 1) |
+| D | a raw `<iframe src="https://www.youtube.com/embed/M7lc1UVf-VE?list=RDM7lc1UVf-VE&enablejsapi=1">` wrapped by `YT.Player` | same | onReady, then onError 150 |
+| B | `new YT.Player` without a list, then in onReady `loadPlaylist({ list: 'RDM7lc1UVf-VE', listType: 'playlist' })` | `RDM7lc1UVf-VE` | no onError and no state change for 18 s; getPlayerState() = 5 (cued); getPlaylist() = `[]`; getVideoData().list = `RDM7lc1UVf-VE`; no video_id. After playVideo() and nextVideo() (called 4 s apart): one onError 2, state -1 |
+
+Result: a Mix is refused with error 150 when it is the player's list (A, A2, C, D) and never starts when it is loaded with `loadPlaylist` (B). No first video ever played, so `nextVideo()`, `seekTo(duration - 2)` and a natural end could not be tried: there was no Mix video to advance from.
+
+Limits of the proof, stated so the rows are not read as stronger than they are:
+
+- Two seeds were tried: `M7lc1UVf-VE` (A, C, D, B) and `96URE_-aj-8` (A2). `M7lc1UVf-VE` plays as a plain video (Control 1) and `96URE_-aj-8` plays inside a normal list (Control 2).
+- A seed that failed as a plain video does not count: `dQw4w9WgXcQ` gave error 150 by itself, so `RDdQw4w9WgXcQ` says nothing.
+- A guessed list ID, `PLFgquLnL59alCl_2TQvOiD5Vgm1hCaGSI`, gave onError 150 in form A (it may not exist, so it proves nothing). A public list found by search, `PL6fhs6TSspZv0F0YgsG-p7Mn189CU2XKS`, also gave onError 150 in form A and the same stuck cue (state 5, empty list) in form B. So the stuck cue after `loadPlaylist` is not proof about Mixes by itself. The Mix claim rests on the error 150 runs, and run B shows it does not start.
+- The Mix exists on YouTube: the watch page `https://www.youtube.com/watch?v=M7lc1UVf-VE&list=RDM7lc1UVf-VE` (fetched as raw HTML) carries `"playlistId":"RDM7lc1UVf-VE"` 55 times, and its first video IDs are `M7lc1UVf-VE`, `D5WkP8JZgdw`, `XBu54nfzxAQ`, `s7KhLuc3Mck`, `KelVjoBilYg`. That is a lead from page HTML, not a documented interface.
+- oEmbed (`https://www.youtube.com/oembed?url=https://www.youtube.com/playlist?list=<id>&format=json`, status code only) returned 404 for `RDM7lc1UVf-VE` and 200 for `PLC77007E23FF423C6`. It also returned 200 for `PL6fhs6TSspZv0F0YgsG-p7Mn189CU2XKS`, which the embed refuses, so it is a side signal, not a test.
+
+What the docs say: PP, "Loading a playlist": "the `list` parameter value specifies a YouTube playlist ID. In the parameter value, you need to prepend the playlist ID with the letters `PL`". A text search of PP for "mix", "RD", "radio" and "auto-generated" found no match. PI (read in a real browser) names no Mix or RD list and has no API call made for this proof (not checked by a call).
+
+What it means for the work: a Mix cannot be the fallback source in our player. The fallback has to be a list of video IDs the bot holds and starts one at a time, which is what `music_player.vue:176,206` already does with `loadVideoById`. That matches bamo16's approach (a pool of unique video IDs, one pick at a time). Stoney's follow-up in the same record ("we probably need something that can provide us tracks to the taste of the streamer but not sure how we can do this with a similar quality as youtube") is an open question about taste-based suggestions; it is not a feature row here.
+
 ## Slices this benchmark adds (each partial or missing row maps to one)
 
-S-SR-FALLBACK-PLAYLIST (core: EndOfQueueAsync at PlaybackDirector.Owner.cs:222 starts a fallback item instead of Idle when the owner has no Spotify music to resume), S-SR-FALLBACK-YT-SOURCE, S-SR-FALLBACK-SAVED-LIST, S-SR-FALLBACK-RANDOM, S-SR-FALLBACK-COLLECTIONS, S-SR-FALLBACK-YIELD, S-SR-PLAYLIST-ONLY, S-SR-PLAYER-SURFACES, S-SR-PLAYER-PRESENCE-ALERT, S-SR-ETA-REPLY, S-SR-PRIORITY-LANE, S-SR-VOTESKIP, S-SR-WRONGSONG-CHECK, S-SR-SESSION-CAP-WHEN-FILLING, S-SR-POINTS-COST, S-SR-APPROVAL-QUEUE, S-SR-TITLE-FILTER, S-SR-VIEWER-BLOCK, S-SR-RATING-FILTER, S-SR-REQUEST-RANGE.
+S-SR-FALLBACK-PLAYLIST (core: EndOfQueueAsync at PlaybackDirector.Owner.cs:222 starts a fallback item instead of Idle when the owner has no Spotify music to resume), S-SR-FALLBACK-YT-SOURCE, S-SR-FALLBACK-SAVED-LIST, S-SR-FALLBACK-RANDOM (also covers bamo16's "random without repeats": a no-repeat window over the pool), S-SR-FALLBACK-COLLECTIONS, S-SR-FALLBACK-YIELD, S-SR-PLAYLIST-ONLY, S-SR-PLAYER-SURFACES, S-SR-PLAYER-PRESENCE-ALERT, S-SR-ETA-REPLY, S-SR-PRIORITY-LANE, S-SR-VOTESKIP, S-SR-WRONGSONG-CHECK, S-SR-SESSION-CAP-WHEN-FILLING, S-SR-POINTS-COST, S-SR-APPROVAL-QUEUE, S-SR-TITLE-FILTER, S-SR-VIEWER-BLOCK, S-SR-RATING-FILTER, S-SR-REQUEST-RANGE.
+
+Added from bamo16's account: S-SR-FALLBACK-POOL (a pool over several of the streamer's playlists, de-duplicated by video ID), S-SR-FALLBACK-FILTERS (the length cap and the not-already-queued gate applied to fallback picks; bamo16 adds "maybe some other rules" without naming them, so ask him or Stoney which before building more), S-SR-FALLBACK-LOOKAHEAD (decide at the start of each song, not at its end, whether the next one needs a fallback pick).
+
+Parked with a reason (a not-doing row, no build): S-SR-FALLBACK-YT-MIX (the YouTube embed refuses a Mix, see the proof above).
 
 ## Coverage ledger
 
-Sources opened: 8 of 8 checked (N of M = 8 of 8).
+Sources opened: 14 of 14 checked (N of M = 14 of 14). The first 8 are the product pages; the last 6 were added with the bamo16 rows and the Mix proof.
 
 | Source | How opened | Status |
 | --- | --- | --- |
@@ -84,5 +132,11 @@ Sources opened: 8 of 8 checked (N of M = 8 of 8).
 | https://support.streamlabs.com/hc/en-us/articles/360051406434-How-to-Use-Song-Requests-in-Cloudbot | plain fetch refused (HTTP 403); opened in a real browser, redirected to the content-hub copy below | checked |
 | https://streamlabs.com/content-hub/post/how-to-use-song-requests-in-cloudbot | real browser, snapshot read | checked |
 | https://streamlabs.com/content-hub/post/how-to-set-up-media-sharing-in-streamlabs | real browser, snapshot searched by term (playlist, skip, vote, limit, duration, price, approve) | checked |
+| `.claude/docs/design/dashboard-owner-words.md` (bamo16's chat answer, line 114 of the file; Stoney's follow-up, line 115) | file read in full from line 105 to the end | checked |
+| https://developers.google.com/youtube/v3/docs/playlistItems/list | real browser (it redirected to https://developers.google.com/youtube/data/reference/rest/v3/playlistItems/list); page text read for playlistId, mix, RD, quota and the error table | checked |
+| https://developers.google.com/youtube/player_parameters | raw fetch, text stripped; the "Loading a playlist" text and the `list` and `listType` parameter text read; searched for mix, RD, radio, auto-generated (no match) | checked |
+| `http://127.0.0.1:8741` test page loading https://www.youtube.com/iframe_api | run in a real browser, 13 page loads (the runs in the section "YouTube Mix embed proof" plus the excluded ones listed under its limits); the page and the server were deleted after | checked |
+| https://www.youtube.com/oembed?url=https://www.youtube.com/playlist?list=<id>&format=json | curl, HTTP status code only, for 7 list IDs | checked (status only) |
+| https://www.youtube.com/watch?v=M7lc1UVf-VE&list=RDM7lc1UVf-VE | curl of the raw HTML, searched for the list ID and the first video IDs | checked (a lead, not documentation) |
 
 Not opened: other bots (Fossabot, WizeBot, PhantomBot, Mix It Up). This run's time and context budget ended after the four named products. They are leads for a second pass, not part of this table.
