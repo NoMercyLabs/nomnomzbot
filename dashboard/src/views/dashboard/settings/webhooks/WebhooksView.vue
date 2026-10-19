@@ -45,6 +45,7 @@ import { errorText, fieldErrorLines } from '@/lib/errors';
 import InboundWebhookRow from './components/InboundWebhookRow.vue';
 import OutboundWebhookDialog from './components/OutboundWebhookDialog.vue';
 import OutboundWebhookRow from './components/OutboundWebhookRow.vue';
+import SigningSecretDialog from './components/SigningSecretDialog.vue';
 
 const { t, te } = useI18n();
 const { channelId } = useCurrentChannel();
@@ -70,6 +71,7 @@ const inboundRows = computed(() => inbound.data.value ?? []);
 const editorOpen = ref(false);
 const editing = ref<OutboundWebhook | null>(null);
 const saveError = ref<string | undefined>(undefined);
+const revealedSecret = ref<string | null>(null);
 const pageError = ref<string | undefined>(undefined);
 const busy = ref(false);
 
@@ -88,7 +90,7 @@ async function submit(draft: OutboundWebhookDraft): Promise<void> {
   saveError.value = undefined;
 
   try {
-    await save.mutateAsync({ id: editing.value?.id ?? null, draft });
+    revealedSecret.value = await save.mutateAsync({ id: editing.value?.id ?? null, draft });
     editorOpen.value = false;
   } catch (failure) {
     saveError.value = [errorText(failure, t), ...fieldErrorLines(failure)].join(' ');
@@ -117,16 +119,19 @@ function flipOutbound(endpoint: OutboundWebhook): Promise<void> {
     fqdn: endpoint.fqdn,
     path: endpoint.path ?? null,
     subscribedEventTypes: endpoint.subscribedEventTypes,
+    bodyTemplate: null,
+    bodyIsJson: endpoint.bodyIsJson,
+    customHeaders: null,
     isEnabled: !endpoint.isEnabled,
   };
 
-  return run(() =>
-    save.mutateAsync({ id: endpoint.id, draft }));
+  return run(async () => {
+    await save.mutateAsync({ id: endpoint.id, draft });
+  });
 }
 
 function flipInbound(endpoint: InboundWebhook): Promise<void> {
-  return run(() =>
-    setInbound.mutateAsync({ id: endpoint.id, isEnabled: !endpoint.isEnabled }));
+  return run(() => setInbound.mutateAsync({ id: endpoint.id, isEnabled: !endpoint.isEnabled }));
 }
 
 function categoryLabel(key: string): string {
@@ -144,7 +149,8 @@ function consequenceLines(blast: WebhookBlastRadius) {
     t('dashboard.settings.webhooks.delete.line', {
       count: Number(category.count),
       what: categoryLabel(category.categoryKey),
-    }));
+    }),
+  );
 
   if (lines.length === 0)
     return [t('dashboard.settings.webhooks.delete.nothing')] as const satisfies readonly string[];
@@ -198,7 +204,10 @@ async function confirmDelete(): Promise<void> {
 </script>
 
 <template>
-  <PageHeader :title="$t('frame.nav.settingsPages.webhooks')" :crumb="$t('dashboard.settings.crumb')" />
+  <PageHeader
+    :title="$t('frame.nav.settingsPages.webhooks')"
+    :crumb="$t('dashboard.settings.crumb')"
+  />
 
   <PageBody>
     <PanelCard
@@ -214,7 +223,7 @@ async function confirmDelete(): Promise<void> {
       <template v-if="can('webhooks:outbound:write')" #actions>
         <Button data-new-outbound @click="openEditor(null)">
           <Add class="size-5" />
-          {{ $t('dashboard.settings.webhooks.outbound.new') }}
+          {{ $t("dashboard.settings.webhooks.outbound.new") }}
         </Button>
       </template>
       <RowGroup>
@@ -262,9 +271,14 @@ async function confirmDelete(): Promise<void> {
     :error="saveError"
     @submit="submit"
   />
+  <SigningSecretDialog :secret="revealedSecret" @done="revealedSecret = null" />
   <ConfirmDialog
     v-model:open="confirmOpen"
-    :title="$t('dashboard.settings.webhooks.delete.title', { name: deletingOutbound?.name ?? deletingInbound?.name ?? '' })"
+    :title="
+      $t('dashboard.settings.webhooks.delete.title', {
+        name: deletingOutbound?.name ?? deletingInbound?.name ?? '',
+      })
+    "
     :description="$t('dashboard.settings.webhooks.delete.description')"
     :consequences="consequences"
     :action="$t('dashboard.settings.webhooks.delete.action')"

@@ -24,7 +24,22 @@
           "host": "Host",
           "hostHelp": "Only the host name, without https://.",
           "path": "Path",
-          "eventsTitle": "Events to send"
+          "eventsTitle": "Events to send",
+          "bodyTemplate": "Message body",
+          "bodyTemplateHelp": "What each delivery sends. Leave it empty to send the default event body.",
+          "bodyIsJson": "Body is JSON",
+          "bodyIsJsonHelp": "On, the body is checked as JSON when you save. Off, it is sent as plain text, for example a form post.",
+          "headers": "Custom headers",
+          "headersHelp": "One header per line, as Name: value.",
+          "headersKept": "Saved headers stay hidden. Leave this empty to keep them, or type new lines to replace them.",
+          "headersInvalid": "This line is not a header: {line}",
+          "secret": {
+            "title": "Your signing secret",
+            "description": "Use this secret on your server to check that a delivery really comes from this bot.",
+            "warning": "This is the only time the secret is shown. Copy it now and keep it safe.",
+            "copy": "Copy secret",
+            "done": "I saved it"
+          }
         },
         "inbound": {
           "title": "Inbound webhooks",

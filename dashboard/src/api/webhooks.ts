@@ -112,14 +112,24 @@ export function useWebhookEventCatalog(
 
 export type SaveOutboundWebhook = { id: string | null; draft: OutboundWebhookDraft };
 
-// No id creates the endpoint; an id sends the editable fields (the address of an endpoint is fixed once made).
+type CreatedAnswer = components['schemas']['StatusResponseOfObject'];
+
+// The create answer carries the signing secret once; the schema types its data as untyped.
+function signingSecretOf(answer: CreatedAnswer | undefined): string | null {
+  const created = answer?.data as { signingSecret?: string } | null | undefined;
+
+  return created?.signingSecret ?? null;
+}
+
+// No id creates the endpoint and returns its signing secret (shown once, never readable again); an id sends
+// the editable fields (the address of an endpoint is fixed once made) and returns null.
 export function useSaveOutboundWebhook(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, SaveOutboundWebhook, undefined> {
+): UseMutationReturnType<string | null, Error, SaveOutboundWebhook, undefined> {
   const queries = useQueryClient();
 
-  return useMutation<void, Error, SaveOutboundWebhook, undefined>({
-    mutationFn: async ({ id, draft }: SaveOutboundWebhook): Promise<void> => {
+  return useMutation<string | null, Error, SaveOutboundWebhook, undefined>({
+    mutationFn: async ({ id, draft }: SaveOutboundWebhook): Promise<string | null> => {
       const channel = toValue(channelId) as string;
 
       const answer = id === null
@@ -136,12 +146,19 @@ export function useSaveOutboundWebhook(
             body: {
               name: draft.name,
               subscribedEventTypes: draft.subscribedEventTypes,
+              bodyTemplate: draft.bodyTemplate,
+              bodyIsJson: draft.bodyIsJson,
+              customHeaders: draft.customHeaders,
               isEnabled: draft.isEnabled,
             },
           });
 
       if (answer.error !== undefined)
         throw refusal('save outbound webhook', answer.error, answer.response.status);
+
+      return id === null
+        ? signingSecretOf(answer.data)
+        : null;
     },
     onSuccess: async (): Promise<void> => {
       await queries.invalidateQueries({ queryKey: outboundWebhooksKey(toValue(channelId)) });

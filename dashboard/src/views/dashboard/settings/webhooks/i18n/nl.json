@@ -24,7 +24,22 @@
           "host": "Host",
           "hostHelp": "Alleen de hostnaam, zonder https://.",
           "path": "Pad",
-          "eventsTitle": "Events om te versturen"
+          "eventsTitle": "Events om te versturen",
+          "bodyTemplate": "Inhoud van het bericht",
+          "bodyTemplateHelp": "Wat elke levering verstuurt. Laat leeg om de standaard eventinhoud te sturen.",
+          "bodyIsJson": "Inhoud is JSON",
+          "bodyIsJsonHelp": "Aan: de inhoud wordt bij het opslaan als JSON gecontroleerd. Uit: hij gaat als gewone tekst, bijvoorbeeld een formulierpost.",
+          "headers": "Eigen headers",
+          "headersHelp": "Een header per regel, als Naam: waarde.",
+          "headersKept": "Opgeslagen headers blijven verborgen. Laat dit leeg om ze te houden, of typ nieuwe regels om ze te vervangen.",
+          "headersInvalid": "Deze regel is geen header: {line}",
+          "secret": {
+            "title": "Je ondertekeningsgeheim",
+            "description": "Gebruik dit geheim op je server om te controleren dat een levering echt van deze bot komt.",
+            "warning": "Dit is de enige keer dat het geheim zichtbaar is. Kopieer het nu en bewaar het veilig.",
+            "copy": "Kopieer geheim",
+            "done": "Ik heb het bewaard"
+          }
         },
         "inbound": {
           "title": "Inkomende webhooks",

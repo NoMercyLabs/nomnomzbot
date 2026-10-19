@@ -78,6 +78,15 @@ vi.mock('@/api/client', () => {
           params: options.params,
         });
 
+        if (method === 'POST' && path.endsWith('/webhooks/outbound'))
+          return {
+            data: {
+              status: 'success',
+              data: { endpoint: outboundRow, signingSecret: 'whsec_once' },
+            },
+            response: { status: 200, ok: true },
+          };
+
         if (method !== 'GET')
           return { response: { status: 200, ok: true } };
 
@@ -168,6 +177,14 @@ async function click(el: HTMLElement): Promise<void> {
   await settle();
 }
 
+async function typeInto(selector: string, value: string): Promise<void> {
+  const input = q(selector) as HTMLInputElement;
+
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  await settle();
+}
+
 const callTo = (method: string, suffix: string): Call | undefined =>
   calls.find((call) => call.method === method && call.path.endsWith(suffix));
 
@@ -252,7 +269,58 @@ describe('Webhooks page', () => {
       fqdn: 'a.example.com',
       path: null,
       subscribedEventTypes: ['follow'],
+      bodyTemplate: null,
+      bodyIsJson: true,
+      customHeaders: null,
       isEnabled: true,
+    });
+  });
+
+  it('sends the body template, the JSON flag and the custom headers a person fills in', async () => {
+    await open();
+    await click(q('[data-new-outbound]'));
+    await typeInto('[data-field="name"]', 'Mine');
+    await typeInto('[data-field="host"]', 'a.example.com');
+    await typeInto('[data-field="body-template"]', 'a=1');
+    await typeInto('[data-field="headers"]', 'X-Token: abc\nX-Env: live');
+    await click(q('[data-field="body-is-json"] button[role="switch"]'));
+    await click(q('[data-form-action]'));
+
+    expect(callTo('POST', '/webhooks/outbound')?.body).toMatchObject({
+      bodyTemplate: 'a=1',
+      bodyIsJson: false,
+      customHeaders: { 'X-Token': 'abc', 'X-Env': 'live' },
+    });
+  });
+
+  it('shows the signing secret from a create once, copyable, with a warning, and drops it on close', async () => {
+    await open();
+    await click(q('[data-new-outbound]'));
+    await typeInto('[data-field="name"]', 'Mine');
+    await typeInto('[data-field="host"]', 'a.example.com');
+    await click(q('[data-form-action]'));
+
+    const reveal = q('[data-signing-secret]');
+
+    expect(reveal.textContent).toContain('whsec_once');
+    expect(document.body.textContent).toContain('only time');
+    expect(q('[data-copy-secret]')).not.toBeNull();
+
+    await click(q('[data-secret-done]'));
+
+    expect(document.body.textContent).not.toContain('whsec_once');
+  });
+
+  it('edits the template and the flag with the PUT, and keeps stored headers when left empty', async () => {
+    await open();
+    await click(q('[data-outbound-edit]'));
+    await typeInto('[data-field="body-template"]', 'b=2');
+    await click(q('[data-form-action]'));
+
+    expect(callTo('PUT', '/outbound/{endpointId}')?.body).toMatchObject({
+      bodyTemplate: 'b=2',
+      bodyIsJson: true,
+      customHeaders: null,
     });
   });
 });

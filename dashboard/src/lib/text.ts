@@ -20,6 +20,32 @@ export function humanize(key: string): string {
   return words.charAt(0).toUpperCase() + words.slice(1);
 }
 
+// "Name: value" lines to a name/value map. A blank line is skipped; a line with no colon or no name is
+// returned in `invalid` so the caller can say so instead of dropping it.
+export function parseHeaderLines(text: string) {
+  const headers: Record<string, string> = {};
+  const invalid: string[] = [];
+
+  for (const raw of text.split('\n')) {
+    const line = raw.trim();
+    const colon = line.indexOf(':');
+
+    if (line === '') continue;
+
+    if (colon < 1) {
+      invalid.push(line);
+      continue;
+    }
+
+    headers[line.slice(0, colon).trim()] = line.slice(colon + 1).trim();
+  }
+
+  return { headers, invalid } as const satisfies {
+    headers: Record<string, string>;
+    invalid: string[];
+  };
+}
+
 // Two letters for an avatar without a picture: "Stoney_Eagle" -> "ST".
 export function initials(name: string): string {
   return name

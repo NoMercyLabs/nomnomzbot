@@ -11,11 +11,16 @@
 // Makes or edits one outbound webhook: the name, the address (fixed once made) and the events it follows.
 // The events come from the bot's catalog, so the streamer ticks them and types nothing blind.
 import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import type { OutboundWebhook, OutboundWebhookDraft, WebhookEventEntry } from '@/api/webhooks';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
+import TemplateField from '@/components/layout/TemplateField.vue';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
+import { Textarea } from '@/components/ui/textarea';
+import { parseHeaderLines } from '@/lib/text';
 
 const props = defineProps<{
   endpoint: OutboundWebhook | null;
@@ -24,6 +29,8 @@ const props = defineProps<{
   error?: string;
 }>();
 
+const { t } = useI18n();
+
 const emit = defineEmits<{ submit: [draft: OutboundWebhookDraft] }>();
 const open = defineModel<boolean>('open', { required: true });
 
@@ -31,8 +38,22 @@ const name = ref('');
 const fqdn = ref('');
 const path = ref('');
 const events = ref<string[]>([]);
+const bodyTemplate = ref('');
+const bodyIsJson = ref(true);
+const headerText = ref('');
 
 const saved = computed(() => props.endpoint !== null);
+const parsedHeaders = computed(() => parseHeaderLines(headerText.value));
+const invalidHeaders = computed(() => parsedHeaders.value.invalid.length > 0);
+
+const headersNote = computed(() => {
+  if (invalidHeaders.value)
+    return t('dashboard.settings.webhooks.outbound.headersInvalid', { line: parsedHeaders.value.invalid[0] });
+
+  return t(saved.value
+    ? 'dashboard.settings.webhooks.outbound.headersKept'
+    : 'dashboard.settings.webhooks.outbound.headersHelp');
+});
 
 watch(open, (isOpen) => {
   if (!isOpen) return;
@@ -41,7 +62,28 @@ watch(open, (isOpen) => {
   fqdn.value = props.endpoint?.fqdn ?? '';
   path.value = props.endpoint?.path ?? '';
   events.value = props.endpoint?.subscribedEventTypes.slice() ?? [];
+  bodyTemplate.value = props.endpoint?.bodyTemplate ?? '';
+  bodyIsJson.value = props.endpoint?.bodyIsJson ?? true;
+  headerText.value = '';
 });
+
+// An empty template is null (use the default body). On an edit, a template that was there and is now empty
+// goes as an empty string, which the bot reads as a clear; null would keep the old one.
+function templateToSend(): string | null {
+  if (bodyTemplate.value.trim() !== '')
+    return bodyTemplate.value;
+
+  return props.endpoint?.bodyTemplate
+    ? ''
+    : null;
+}
+
+// Stored headers are never sent back to the page, so an empty box keeps them (null) instead of erasing them.
+function headersToSend(): Record<string, string> | null {
+  return Object.keys(parsedHeaders.value.headers).length === 0
+    ? null
+    : parsedHeaders.value.headers;
+}
 
 function tick(eventType: string, on: boolean): void {
   events.value = on
@@ -59,6 +101,9 @@ function submit(): void {
       ? null
       : trimmedPath,
     subscribedEventTypes: events.value,
+    bodyTemplate: templateToSend(),
+    bodyIsJson: bodyIsJson.value,
+    customHeaders: headersToSend(),
     isEnabled: props.endpoint?.isEnabled ?? true,
   });
 }
@@ -73,6 +118,7 @@ function submit(): void {
     :action="saved ? $t('dashboard.settings.webhooks.outbound.save') : $t('dashboard.settings.webhooks.outbound.create')"
     :pending="pending"
     :error="error"
+    :disabled="invalidHeaders"
     @submit="submit"
   >
     <label class="grid gap-1.5 text-sm font-medium">
@@ -111,5 +157,33 @@ function submit(): void {
         {{ entry.label }}
       </label>
     </fieldset>
+    <TemplateField
+      v-model="bodyTemplate"
+      context="webhook"
+      data-field="body-template"
+      :label="$t('dashboard.settings.webhooks.outbound.bodyTemplate')"
+      :help="$t('dashboard.settings.webhooks.outbound.bodyTemplateHelp')"
+      :rows="4"
+    />
+    <LabeledSwitch
+      v-model="bodyIsJson"
+      data-field="body-is-json"
+      :label="$t('dashboard.settings.webhooks.outbound.bodyIsJson')"
+      :help="$t('dashboard.settings.webhooks.outbound.bodyIsJsonHelp')"
+    />
+    <label class="grid gap-1.5 text-sm font-medium">
+      {{ $t('dashboard.settings.webhooks.outbound.headers') }}
+      <Textarea
+        v-model="headerText"
+        data-field="headers"
+        class="font-mono"
+        rows="3"
+        placeholder="X-Token: value"
+        :aria-invalid="invalidHeaders"
+      />
+      <span class="text-sm font-normal" :class="invalidHeaders ? 'text-destructive' : 'text-muted-foreground'">
+        {{ headersNote }}
+      </span>
+    </label>
   </FormDialog>
 </template>
