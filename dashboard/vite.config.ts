@@ -84,6 +84,8 @@ export default defineConfig({
     VitePWA({
       // The page asks first; a new deploy shows a toast and the user picks the moment to reload.
       registerType: 'prompt',
+      // The dev server serves the manifest too, so an install from it gets the dark splash and bars.
+      devOptions: { enabled: true, type: 'module' },
       includeAssets: ['favicon.ico', 'apple-touch-icon-180x180.png'],
       manifest: {
         name: 'NomNomzBot',
