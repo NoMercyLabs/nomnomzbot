@@ -14,10 +14,12 @@ import { ref } from 'vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 const mutateAsync = vi.fn<(twitchId: string) => Promise<{ id: string } | null>>();
+const moderatedFailed = vi.hoisted(() => ({ value: false }));
 
 vi.mock('@/api/channels', () => ({
   useMyChannels: () => ({
     isPending: ref(false),
+    isError: ref(false),
     data: ref([
       {
         id: 'own-id',
@@ -39,6 +41,7 @@ vi.mock('@/api/channels', () => ({
   }),
   useModeratedChannels: () => ({
     isPending: ref(false),
+    isError: ref(moderatedFailed.value),
     data: ref([
       {
         id: 'tw-1',
@@ -60,9 +63,20 @@ vi.mock('@/api/channels', () => ({
 beforeEach(() => {
   localStorage.clear();
   mutateAsync.mockReset();
+  moderatedFailed.value = false;
 });
 
 describe('the channel being managed', () => {
+  it('is loaded when both lists answered', () => {
+    expect(useCurrentChannel().isLoaded.value).toBe(true);
+  });
+
+  it('is not loaded when a list failed, so a refused request never reads as no access', () => {
+    moderatedFailed.value = true;
+
+    expect(useCurrentChannel().isLoaded.value).toBe(false);
+  });
+
   it('lists the own channel, the set-up moderated channel once, and the one not set up yet', () => {
     const channels = useCurrentChannel();
 

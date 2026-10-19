@@ -144,7 +144,14 @@ export function useCurrentChannel(): CurrentChannel {
     current,
     channelId: computed(() => current.value?.channelId ?? null),
     isPending: computed(() => enter.isPending.value),
-    isLoaded: computed(() => !mine.isPending.value && !moderated.isPending.value),
+    // A failed list is not a loaded one: a refused request must never read as "no access to this channel".
+    isLoaded: computed(
+      () =>
+        !mine.isPending.value &&
+        !moderated.isPending.value &&
+        !mine.isError.value &&
+        !moderated.isError.value,
+    ),
     choose,
   } as const satisfies CurrentChannel;
 }

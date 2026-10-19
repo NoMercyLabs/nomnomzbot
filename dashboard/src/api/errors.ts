@@ -494,6 +494,8 @@ export const apiOperations = {
   'test outbound webhook': 'settings',
   'outbound webhook deliveries': 'settings',
   'retry outbound delivery': 'settings',
+  'my channels': 'settings',
+  'moderated channels': 'settings',
   'channel info': 'settings',
   'deleted channels': 'settings',
   'join channel': 'settings',

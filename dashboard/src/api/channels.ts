@@ -19,6 +19,7 @@ import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import type { components } from './schema';
 import { client } from './client';
+import { problemError } from './errors';
 
 export type ChannelSummary = components['schemas']['ChannelSummary'];
 export type ModeratedChannel = components['schemas']['ModeratedChannel'];
@@ -33,14 +34,22 @@ const version = { path: { version: '1' } };
 // GET /channels declares Channel in the OpenAPI document but returns ChannelSummary rows
 // (checked against the running bot, 2026-10-13), so the rows are read as the summary.
 async function fetchMyChannels(): Promise<ChannelSummary[]> {
-  const { data } = await client.GET('/api/v{version}/channels', { params: version });
+  const { data, error, response } = await client.GET('/api/v{version}/channels', {
+    params: version,
+  });
+
+  if (!response.ok) throw problemError('my channels', response.status, error);
 
   // eslint-disable-next-line no-restricted-syntax -- the document types the rows as Channel, so the cast must go through the wire's true type
   return (data?.data ?? []) as unknown as ChannelSummary[];
 }
 
 async function fetchModeratedChannels(): Promise<ModeratedChannel[]> {
-  const { data } = await client.GET('/api/v{version}/channels/moderated', { params: version });
+  const { data, error, response } = await client.GET('/api/v{version}/channels/moderated', {
+    params: version,
+  });
+
+  if (!response.ok) throw problemError('moderated channels', response.status, error);
 
   return data?.data ?? [];
 }
