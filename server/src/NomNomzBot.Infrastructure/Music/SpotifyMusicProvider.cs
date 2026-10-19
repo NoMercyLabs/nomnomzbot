@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
 using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json;
@@ -73,6 +74,15 @@ public sealed class SpotifyMusicProvider
     /// <summary>S003 — a live 403 whose reason is NOT <c>PREMIUM_REQUIRED</c>: the token is alive but the
     /// account/grant lacks permission for the call. Cleared the same way as <see cref="NeedsReauthCapabilityKey"/>.</summary>
     internal const string ForbiddenCapabilityKey = "auth.forbidden";
+
+    private static readonly TimeSpan RefusedReadLogWindow = TimeSpan.FromMinutes(5);
+
+    /// <summary>When a refused now-playing read was last logged, per channel and status (process-wide:
+    /// the provider itself is not a singleton).</summary>
+    private static readonly ConcurrentDictionary<
+        (Guid, int),
+        DateTimeOffset
+    > RefusedReadLastLogged = new();
 
     private const int LibraryUrisPerRequest = 40; // /me/library hard cap per live reference
     private const int ContainsIdsPerRequest = 50; // GET /me/tracks/contains hard cap per live reference
@@ -303,7 +313,10 @@ public sealed class SpotifyMusicProvider
             return null;
 
         if (!response.IsSuccessStatusCode)
+        {
+            await LogRefusedReadAsync(response, broadcasterId, cancellationToken);
             return null;
+        }
 
         SpotifyPlaybackState? json = await response.Content.ReadFromJsonAsync<SpotifyPlaybackState>(
             cancellationToken: cancellationToken
@@ -1916,6 +1929,50 @@ public sealed class SpotifyMusicProvider
                 request.Method,
                 request.RequestUri
             );
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// A refused read (401/403/429 and any other non-success) used to vanish into a bare <c>null</c>, which
+    /// looks exactly like "nothing playing". Logs the status and Spotify's own error message (never the
+    /// token), at most once per channel per status per <see cref="RefusedReadLogWindow"/> so a one-second
+    /// poll cannot flood the log. The visible integration status is set by <see cref="ClassifyAuthAsync"/>.
+    /// </summary>
+    private async Task LogRefusedReadAsync(
+        HttpResponseMessage response,
+        Guid broadcasterId,
+        CancellationToken cancellationToken
+    )
+    {
+        DateTimeOffset now = _timeProvider.GetUtcNow();
+        (Guid, int) key = (broadcasterId, (int)response.StatusCode);
+        DateTimeOffset lastLogged = RefusedReadLastLogged.GetOrAdd(key, DateTimeOffset.MinValue);
+        if (now - lastLogged < RefusedReadLogWindow)
+            return;
+
+        RefusedReadLastLogged[key] = now;
+        string? message = await ReadErrorMessageAsync(response, cancellationToken);
+        _logger.LogWarning(
+            "Spotify refused the now-playing read for {BroadcasterId}: {Status} {Message}",
+            broadcasterId,
+            (int)response.StatusCode,
+            message ?? response.ReasonPhrase ?? "no error message"
+        );
+    }
+
+    private static async Task<string?> ReadErrorMessageAsync(
+        HttpResponseMessage response,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            string body = await response.Content.ReadAsStringAsync(cancellationToken);
+            return JsonSerializer.Deserialize<SpotifyErrorEnvelope>(body)?.Error?.Message;
+        }
+        catch (JsonException)
+        {
             return null;
         }
     }
