@@ -98,10 +98,16 @@ function subscriptionRow(event: ActivityEvent, kind: SubscriptionRow['kind']) {
 
 const receivedGiftType = 'channel.subscription.gift.received';
 
-function gifterOf(data: ActivityData): Person {
-  const name = pickText(data, 'gifterDisplayName');
+// The journal stores a received gift with dotted keys (user, user.id, gifter, gifter.id, anonymous);
+// the camelCase keys are the projection shape. Both are read.
+function isAnonymousGift(data: ActivityData): boolean {
+  return data.isAnonymous === true || data.anonymous === true || data.anonymous === 'true';
+}
 
-  return data.isAnonymous === true || name === null
+function gifterOf(data: ActivityData): Person {
+  const name = pickText(data, 'gifterDisplayName', 'gifter');
+
+  return isAnonymousGift(data) || name === null
     ? {
         userId: null,
         name: null,
@@ -109,7 +115,7 @@ function gifterOf(data: ActivityData): Person {
         anonymous: true,
       }
     : {
-        userId: pickText(data, 'gifterUserId'),
+        userId: pickText(data, 'gifterUserId', 'gifter.id'),
         name,
         color: null,
         anonymous: false,
@@ -131,7 +137,7 @@ function nearestReceived(
   for (const candidate of received) {
     const data = parseActivityData(candidate.data);
 
-    if (recipientId === null || pickText(data, 'recipientUserId') !== recipientId) continue;
+    if (recipientId === null || pickText(data, 'recipientUserId', 'user.id') !== recipientId) continue;
 
     if (
       best === null ||
@@ -147,12 +153,12 @@ function nearestReceived(
 // A received gift with no subscribe row of its own: the recipient is the actor, the gifter rides in the data.
 function receivedGiftRow(event: ActivityEvent): SubscriptionRow {
   const data = parseActivityData(event.data);
-  const name = pickText(data, 'recipientDisplayName') ?? event.username ?? null;
+  const name = pickText(data, 'recipientDisplayName', 'user') ?? event.username ?? null;
 
   return {
     id: event.id,
     person: {
-      userId: pickText(data, 'recipientUserId') ?? event.twitchUserId ?? null,
+      userId: pickText(data, 'recipientUserId', 'user.id') ?? event.twitchUserId ?? null,
       name,
       color: event.color ?? null,
       anonymous: false,

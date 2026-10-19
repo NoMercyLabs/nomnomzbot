@@ -108,6 +108,60 @@ describe('subscriptionRows', () => {
     });
   });
 
+  it('reads the gifter and recipient from the dotted keys the live journal stores', () => {
+    const rows = subscriptionRows([
+      event('1', 'channel.subscription.gift.received', 'Poggers_Bear', {
+        tier: '1000',
+        user: 'Poggers_Bear',
+        'user.id': 'u-pog',
+        gifter: 'finwo_',
+        'gifter.id': 'u-fin',
+        anonymous: 'false',
+      }),
+    ]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.person.userId).toBe('u-pog');
+    expect(rows[0]?.person.name).toBe('Poggers_Bear');
+
+    expect(rows[0]?.gifter).toEqual({
+      userId: 'u-fin',
+      name: 'finwo_',
+      color: null,
+      anonymous: false,
+    });
+  });
+
+  it('pairs a gifted subscribe row with the dotted received-gift event of its recipient', () => {
+    const rows = subscriptionRows([
+      event('1', 'channel.subscribe', 'ann', { tier: '1000', isGift: true }),
+      event('2', 'channel.subscription.gift.received', null, {
+        user: 'ann',
+        'user.id': 'u-ann',
+        gifter: 'bob',
+        'gifter.id': 'u-bob',
+        anonymous: 'false',
+      }),
+    ]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.gifter?.name).toBe('bob');
+  });
+
+  it('treats the string anonymous flag of the live journal as an anonymous gifter', () => {
+    const rows = subscriptionRows([
+      event('1', 'channel.subscription.gift.received', 'ann', {
+        user: 'ann',
+        'user.id': 'u-ann',
+        gifter: 'ignored',
+        anonymous: 'true',
+      }),
+    ]);
+
+    expect(rows[0]?.gifter?.anonymous).toBe(true);
+    expect(rows[0]?.gifter?.name).toBeNull();
+  });
+
   it('shows an anonymous gifter of a received sub as anonymous without a profile', () => {
     const rows = subscriptionRows([
       event('1', 'channel.subscribe', 'ann', { tier: '1000', isGift: true }),
