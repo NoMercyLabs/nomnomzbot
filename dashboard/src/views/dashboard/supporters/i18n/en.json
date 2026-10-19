@@ -15,6 +15,8 @@
         "empty": "No Twitch subscriptions or gifts in the recent activity.",
         "error": "The Twitch subscriptions could not be loaded.",
         "giftMark": "Gift",
+        "subscribeMark": "Subscription",
+        "resubscribeMark": "Resubscription",
         "receivedGift": "received as a gift",
         "receivedGiftDetail": "· received as a gift",
         "giftedBy": "from",

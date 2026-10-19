@@ -15,6 +15,8 @@
         "empty": "Geen abonnementen of cadeaus in de recente activiteit.",
         "error": "De abonnementen konden niet worden geladen.",
         "giftMark": "Cadeau",
+        "subscribeMark": "Abonnement",
+        "resubscribeMark": "Verlengd abonnement",
         "receivedGift": "cadeau gekregen",
         "receivedGiftDetail": "· cadeau gekregen",
         "giftedBy": "van",

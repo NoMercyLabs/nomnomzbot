@@ -28,6 +28,7 @@
     "cancel": "Annuleren",
     "resetToDefaults": "Standaardwaarden herstellen",
     "copied": "Gekopieerd",
+    "showMore": "Meer tonen ({count} over)",
     "fieldInfo": "Meer over dit veld",
     "readOnly": "Je kunt dit bekijken, maar je rol kan het niet wijzigen.",
     "state": {

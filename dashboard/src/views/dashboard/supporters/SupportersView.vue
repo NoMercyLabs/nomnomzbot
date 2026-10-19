@@ -21,14 +21,18 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import StatStrip from '@/components/layout/StatStrip.vue';
 import StatTile from '@/components/layout/StatTile.vue';
+import ShowMoreFooter from '@/components/layout/ShowMoreFooter.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import UserName from '@/components/layout/UserName.vue';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+import { useShowMore } from '@/composables/useShowMore';
 import { useTime } from '@/composables/useTime';
 
 import GiftCard from '~icons/nnz/gift-card';
+import Repeat from '~icons/nnz/repeat';
+import Star from '~icons/nnz/star';
 
 import ConnectionsPanel from './ConnectionsPanel.vue';
 import {
@@ -57,6 +61,10 @@ const cheers = computed<CheerRow[]>(() => cheerRows(activity.data.value ?? []));
 const cheerers = computed(() => topCheerers(cheers.value));
 const gifters = computed(() => topGifters(subscriptions.value));
 const subscriberCount = computed<number>(() => Number(stats.data.value?.subscriberCount ?? 0));
+
+const shownSubscriptions = useShowMore(subscriptions);
+const shownCheers = useShowMore(cheers);
+const shownEvents = useShowMore(() => events.data.value ?? []);
 
 const subscriptionsState = usePanelState(activity, () =>
   subscriptions.value.length === 0);
@@ -144,7 +152,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
       >
         <RowGroup>
           <SummaryRow
-            v-for="row in subscriptions"
+            v-for="row in shownSubscriptions.visible.value"
             :key="row.id"
             :title="row.person.name ?? ''"
             :detail="subscriptionDetail(row)"
@@ -157,7 +165,18 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
                 role="img"
                 :aria-label="t('dashboard.supporters.subs.giftMark')"
               />
-              <span v-else class="size-5 shrink-0" aria-hidden="true" />
+              <Repeat
+                v-else-if="row.kind === 'resubscribe'"
+                class="size-5 shrink-0 text-muted-foreground"
+                role="img"
+                :aria-label="t('dashboard.supporters.subs.resubscribeMark')"
+              />
+              <Star
+                v-else
+                class="size-5 shrink-0 text-muted-foreground"
+                role="img"
+                :aria-label="t('dashboard.supporters.subs.subscribeMark')"
+              />
             </template>
             <template #title>
               <UserName
@@ -183,6 +202,12 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
             </template>
           </SummaryRow>
         </RowGroup>
+        <template v-if="shownSubscriptions.hasMore.value" #footer>
+          <ShowMoreFooter
+            :remaining="shownSubscriptions.remaining.value"
+            @more="shownSubscriptions.more()"
+          />
+        </template>
       </PanelCard>
       <PanelCard
         v-if="can('dashboard:read')"
@@ -194,7 +219,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
       >
         <RowGroup>
           <SummaryRow
-            v-for="row in cheers"
+            v-for="row in shownCheers.visible.value"
             :key="row.id"
             :title="row.person.name ?? ''"
             :detail="t('dashboard.supporters.cheers.bits', { count: row.bits }, row.bits)"
@@ -211,6 +236,9 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
             </template>
           </SummaryRow>
         </RowGroup>
+        <template v-if="shownCheers.hasMore.value" #footer>
+          <ShowMoreFooter :remaining="shownCheers.remaining.value" @more="shownCheers.more()" />
+        </template>
       </PanelCard>
       <PanelCard
         v-if="can('dashboard:read')"
@@ -272,13 +300,16 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
       >
         <RowGroup>
           <SummaryRow
-            v-for="event in events.data.value ?? []"
+            v-for="event in shownEvents.visible.value"
             :key="event.id"
             :title="event.supporterDisplayName"
             :detail="tipDetail(event)"
             :meta="when(event.receivedAt)"
           />
         </RowGroup>
+        <template v-if="shownEvents.hasMore.value" #footer>
+          <ShowMoreFooter :remaining="shownEvents.remaining.value" @more="shownEvents.more()" />
+        </template>
       </PanelCard>
       <ConnectionsPanel class="lg:col-span-2" />
     </div>

@@ -167,6 +167,29 @@ function receivedGiftRow(event: ActivityEvent): SubscriptionRow {
   };
 }
 
+// Twitch sends a subscribe and a resub message for one resub the viewer shares a message with.
+// Both rows are the same action when they come from one person within this window.
+const sameActionMs = 60_000;
+
+function isSameAction(subscribe: SubscriptionRow, resub: SubscriptionRow): boolean {
+  return (
+    subscribe.person.userId !== null &&
+    subscribe.person.userId === resub.person.userId &&
+    gapMs(subscribe.timestamp, resub.timestamp) <= sameActionMs
+  );
+}
+
+function foldResubs(rows: readonly SubscriptionRow[]): SubscriptionRow[] {
+  const resubs = rows.filter((row) => row.kind === 'resubscribe');
+
+  return rows.filter(
+    (row) =>
+      row.kind !== 'subscribe' ||
+      row.receivedAsGift ||
+      !resubs.some((resub) => isSameAction(row, resub)),
+  );
+}
+
 export function subscriptionRows(events: readonly ActivityEvent[]): SubscriptionRow[] {
   const rows: SubscriptionRow[] = [];
   const received = events.filter((event) => event.type === receivedGiftType);
@@ -202,7 +225,7 @@ export function subscriptionRows(events: readonly ActivityEvent[]): Subscription
     }
   }
 
-  return rows;
+  return foldResubs(rows);
 }
 
 export function cheerRows(events: readonly ActivityEvent[]): CheerRow[] {

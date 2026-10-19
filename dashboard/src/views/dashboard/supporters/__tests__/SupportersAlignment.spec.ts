@@ -96,6 +96,6 @@ describe('the sub list rows', () => {
       expect(first?.classList.contains('size-5')).toBe(true);
     }
 
-    expect(mounted.findAll('[role="img"]')).toHaveLength(1);
+    expect(mounted.findAll('[role="img"]')).toHaveLength(2);
   });
 });

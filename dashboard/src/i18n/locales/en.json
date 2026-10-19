@@ -28,6 +28,7 @@
     "cancel": "Cancel",
     "resetToDefaults": "Reset to defaults",
     "copied": "Copied",
+    "showMore": "Show more ({count} left)",
     "fieldInfo": "More about this field",
     "readOnly": "You can view this, but your role cannot change it.",
     "state": {

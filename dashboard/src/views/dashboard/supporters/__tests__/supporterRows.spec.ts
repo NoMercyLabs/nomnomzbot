@@ -32,6 +32,35 @@ function event(id: string, type: string, username: string | null, data: object):
 }
 
 describe('subscriptionRows', () => {
+  it('folds the subscribe and the resub message of one action into one resub row', () => {
+    const rows = subscriptionRows([
+      event('1', 'channel.subscribe', 'kani', { tier: '1000' }),
+      event('2', 'channel.subscription.message', 'kani', { tier: '1000', cumulativeMonths: 3 }),
+      event('3', 'channel.subscribe', 'other', { tier: '1000' }),
+    ]);
+
+    expect(rows.map((row) => row.id)).toEqual(['2', '3']);
+
+    expect(rows[0]).toMatchObject({
+      kind: 'resubscribe',
+      months: 3,
+    });
+  });
+
+  it('keeps a subscribe and a resub of the same person that are far apart in time', () => {
+    const later = {
+      ...event('2', 'channel.subscription.message', 'kani', { tier: '1000', cumulativeMonths: 4 }),
+      timestamp: '2026-11-15T12:00:00Z',
+    };
+
+    const rows = subscriptionRows([
+      event('1', 'channel.subscribe', 'kani', { tier: '1000' }),
+      later,
+    ]);
+
+    expect(rows).toHaveLength(2);
+  });
+
   it('marks a gifted sub and keeps other events out', () => {
     const rows = subscriptionRows([
       event('1', 'channel.subscribe', 'ann', { tier: '1000', isGift: true }),
