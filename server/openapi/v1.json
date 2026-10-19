@@ -107680,6 +107680,7 @@
           "cost",
           "isEnabled",
           "permission",
+          "target",
           "cooldownSeconds",
           "cooldownPerUser",
           "sortOrder",
@@ -107732,6 +107733,16 @@
             ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BindingTarget"
+              }
+            ]
           },
           "cooldownSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -111157,6 +111168,16 @@
               "string"
             ],
             "format": "int32"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BindingTarget"
+              }
+            ]
           }
         },
         "description": "Create a catalog item (economy.md §4)."
@@ -115057,8 +115078,7 @@
           "updatedAt",
           "followsPlatformDefault",
           "speakWithTts",
-          "toneLines",
-          "target"
+          "toneLines"
         ],
         "type": "object",
         "properties": {
@@ -115115,16 +115135,6 @@
             "items": {
               "type": "string"
             }
-          },
-          "target": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/BindingTarget"
-              }
-            ]
           }
         },
         "description": "An event response configuration, as the runtime performs it: while FollowsPlatformDefault\r\nis true the enabled flag, type and message are the platform default, not the stored channel row.\r\nToneLines are the lines the bot picks from while the row follows the default: the\r\nplatform admin's text alone when set, else the catalogue lines for the channel's tone. Empty for a row\r\nwith its own text. A following row's Message is the first of them."
@@ -149917,6 +149927,16 @@
               "string"
             ],
             "format": "int32"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BindingTarget"
+              }
+            ]
           }
         },
         "description": "Partial update of a catalog item (PATCH semantics — null = unchanged) (economy.md §4)."
@@ -150497,17 +150517,6 @@
               "boolean"
             ],
             "description": "A chat_message response also speaks its resolved text through the channel's TTS. Absent leaves it unchanged."
-          },
-          "target": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "description": "What the response runs when its type is pipeline: a command (by id), a pipeline or an action. Wins\r\nover Guid? UpdateEventResponseDto.PipelineId when both are sent; absent leaves the binding unchanged. The command\r\nmust exist in the channel.",
-                "$ref": "#/components/schemas/BindingTarget"
-              }
-            ]
           }
         },
         "description": "Request to update an event response configuration."

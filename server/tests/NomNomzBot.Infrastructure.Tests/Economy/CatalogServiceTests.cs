@@ -10,6 +10,8 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Domain.Economy.Events;
@@ -17,6 +19,7 @@ using NomNomzBot.Infrastructure.Economy;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Tests.EventStore;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NSubstitute;
 using FakeTimeProvider = Microsoft.Extensions.Time.Testing.FakeTimeProvider;
 
 namespace NomNomzBot.Infrastructure.Tests.Economy;
@@ -53,7 +56,14 @@ public sealed class CatalogServiceTests
         TenantSequenceAllocator allocator = new(db);
         RecordingEventBus bus = new();
         CurrencyAccountService accounts = new(db, allocator, uow, bus, Clock);
-        CatalogService sut = new(db, accounts, bus, Clock);
+        CatalogService sut = new(
+            db,
+            accounts,
+            bus,
+            Clock,
+            Substitute.For<ICommandInvoker>(),
+            NullLogger<CatalogService>.Instance
+        );
         return (sut, db, bus);
     }
 

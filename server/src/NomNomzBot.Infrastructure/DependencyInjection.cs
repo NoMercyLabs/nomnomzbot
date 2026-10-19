@@ -1155,6 +1155,7 @@ public static class DependencyInjection
         services.AddScoped<ICommandBindingGuard, CommandBindingGuard>();
         services.AddScoped<IBindingUsageSource, Rewards.RewardBindingUsageSource>();
         services.AddScoped<IBindingUsageSource, Giveaways.GiveawayBindingUsageSource>();
+        services.AddScoped<IBindingUsageSource, Economy.CatalogItemBindingUsageSource>();
         services.AddScoped<IBindingUsageSource, Commands.TimerBindingUsageSource>();
         services.AddScoped<IBindingUsageSource, Commands.ChatTriggerBindingUsageSource>();
         services.AddScoped<IBindingUsageSource, Commands.ScheduledTaskBindingUsageSource>();

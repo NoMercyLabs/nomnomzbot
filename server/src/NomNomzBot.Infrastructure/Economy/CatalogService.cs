@@ -10,14 +10,19 @@
 
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
+using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Domain.Economy.Events;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -37,7 +42,9 @@ public sealed class CatalogService(
     IApplicationDbContext db,
     ICurrencyAccountService accounts,
     IEventBus eventBus,
-    TimeProvider clock
+    TimeProvider clock,
+    ICommandInvoker invoker,
+    ILogger<CatalogService> logger
 ) : ICatalogService
 {
     public async Task<Result<PagedList<CatalogItemDto>>> ListItemsAsync(
@@ -114,6 +121,15 @@ public sealed class CatalogService(
         if (pipelineOk.IsFailure)
             return pipelineOk.ToTyped<CatalogItemDto>();
 
+        Result targetOk = await BindingTargetBinder.ValidateAsync(
+            db,
+            broadcasterId,
+            request.Target,
+            ct
+        );
+        if (targetOk.IsFailure)
+            return targetOk.ToTyped<CatalogItemDto>();
+
         CatalogItem item = new()
         {
             BroadcasterId = broadcasterId,
@@ -135,6 +151,7 @@ public sealed class CatalogService(
             MaxPerViewerPerStream = request.MaxPerViewerPerStream,
             SortOrder = request.SortOrder,
         };
+        BindingTargetBinder.ApplyTo(item, request.Target, item.PipelineId);
         db.CatalogItems.Add(item);
         await db.SaveChangesAsync(ct);
         await PublishConfigChangedAsync(broadcasterId, item.Id, "created", ct);
@@ -196,6 +213,15 @@ public sealed class CatalogService(
                 return pipelineOk.ToTyped<CatalogItemDto>();
             item.PipelineId = request.PipelineId;
         }
+        Result targetOk = await BindingTargetBinder.ValidateAsync(
+            db,
+            broadcasterId,
+            request.Target,
+            ct
+        );
+        if (targetOk.IsFailure)
+            return targetOk.ToTyped<CatalogItemDto>();
+        BindingTargetBinder.ApplyTo(item, request.Target, item.PipelineId);
         if (request.CooldownSeconds is { } cooldown)
             item.CooldownSeconds = cooldown;
         if (request.CooldownPerUser is { } perUser)
@@ -429,7 +455,61 @@ public sealed class CatalogService(
             },
             ct
         );
+
+        await RunDirectTargetAsync(broadcasterId, item, purchase, request, ct);
         return Result.Success(ToDto(purchase));
+    }
+
+    // An item bound straight to a command or an action runs through the one invoker, with the buyer as the
+    // invoker and no wrapper pipeline. The buyer is already charged, so a fault is logged and never unwinds
+    // the purchase, same as the pipeline path.
+    private async Task RunDirectTargetAsync(
+        Guid broadcasterId,
+        CatalogItem item,
+        CatalogPurchase purchase,
+        PurchaseRequest request,
+        CancellationToken ct
+    )
+    {
+        BindingTarget? target = item.GetBindingTarget();
+        if (target is not { Kind: BindingTargetKind.Command or BindingTargetKind.Action })
+            return;
+
+        try
+        {
+            User? buyer = await db
+                .Users.AsNoTracking()
+                .FirstOrDefaultAsync(u => u.Id == request.BuyerUserId, ct);
+            Result<InvocationOutcome> run = await invoker.InvokeAsync(
+                broadcasterId,
+                target,
+                new(
+                    buyer?.TwitchUserId ?? request.BuyerUserId.ToString(),
+                    buyer?.DisplayName,
+                    request.InputArgs ?? string.Empty,
+                    "catalog"
+                ),
+                ct
+            );
+            if (run.IsFailure || !run.Value!.Succeeded)
+                logger.LogWarning(
+                    "Catalog item {ItemId} purchase {PurchaseId} could not run its {Kind} target: {Error}",
+                    item.Id,
+                    purchase.Id,
+                    target.Kind,
+                    run.IsFailure ? run.ErrorMessage : run.Value!.Error
+                );
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            logger.LogError(
+                ex,
+                "Catalog item {ItemId} purchase {PurchaseId} {Kind} target failed",
+                item.Id,
+                purchase.Id,
+                target.Kind
+            );
+        }
     }
 
     public async Task<Result<CatalogPurchaseDto>> RefundPurchaseAsync(
@@ -605,6 +685,7 @@ public sealed class CatalogService(
             i.IsEnabled,
             i.Permission,
             i.PipelineId,
+            i.GetBindingTarget(),
             i.CooldownSeconds,
             i.CooldownPerUser,
             i.StockLimit,

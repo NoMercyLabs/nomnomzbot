@@ -580,7 +580,14 @@ public class ExpandedBlastRadiusTests
         };
 
     private static CatalogService NewCatalog(BlastRadiusTestDbContext db) =>
-        new(db, Substitute.For<ICurrencyAccountService>(), Substitute.For<IEventBus>(), Clock);
+        new(
+            db,
+            Substitute.For<ICurrencyAccountService>(),
+            Substitute.For<IEventBus>(),
+            Clock,
+            Substitute.For<ICommandInvoker>(),
+            NullLogger<CatalogService>.Instance
+        );
 
     [Fact]
     public async Task Leaderboard_config_preview_counts_the_snapshots_it_would_orphan()

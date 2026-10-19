@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Commands.ValueObjects;
+
 namespace NomNomzBot.Application.DTOs.Economy;
 
 /// <summary>One channel earning rule (economy.md §4). <c>Source</c> is an <c>EarningSource</c> token.</summary>
@@ -92,6 +94,7 @@ public sealed record CatalogItemDto(
     bool IsEnabled,
     string Permission,
     Guid? PipelineId,
+    BindingTarget? Target,
     int CooldownSeconds,
     bool CooldownPerUser,
     int? StockLimit,

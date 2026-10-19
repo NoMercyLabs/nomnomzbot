@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Commands.ValueObjects;
+
 namespace NomNomzBot.Application.DTOs.Economy;
 
 /// <summary>Upsert a channel's currency definition (economy.md §4).</summary>
@@ -108,7 +110,8 @@ public sealed record CreateCatalogItemRequest(
     bool CooldownPerUser,
     int? StockLimit,
     int? MaxPerViewerPerStream,
-    int SortOrder
+    int SortOrder,
+    BindingTarget? Target = null
 );
 
 /// <summary>Partial update of a catalog item (PATCH semantics — null = unchanged) (economy.md §4).</summary>
@@ -124,7 +127,8 @@ public sealed record UpdateCatalogItemRequest(
     bool? CooldownPerUser,
     int? StockLimit,
     int? MaxPerViewerPerStream,
-    int? SortOrder
+    int? SortOrder,
+    BindingTarget? Target = null
 );
 
 /// <summary>Redeem a catalog item (economy.md §4).</summary>

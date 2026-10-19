@@ -11,7 +11,9 @@
 using FluentAssertions;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Domain.Economy.Entities;
@@ -21,6 +23,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Economy;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Tests.EventStore;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Economy;
 
@@ -83,7 +86,14 @@ public sealed class CatalogStockConcurrencyTests : IDisposable
         EventStoreTestUnitOfWork uow = new(db);
         TenantSequenceAllocator allocator = new(db);
         CurrencyAccountService accounts = new(db, allocator, uow, new NoOpEventBus(), Clock);
-        return new(db, accounts, new NoOpEventBus(), Clock);
+        return new(
+            db,
+            accounts,
+            new NoOpEventBus(),
+            Clock,
+            Substitute.For<ICommandInvoker>(),
+            NullLogger<CatalogService>.Instance
+        );
     }
 
     [Fact]
