@@ -148,6 +148,7 @@ async function submit(): Promise<void> {
 <template>
   <PanelCard
     data-view="engagement"
+    class="max-w-3xl shrink-0"
     pad
     :title="$t('dashboard.settings.engagement.title')"
     :description="$t('dashboard.settings.engagement.description')"

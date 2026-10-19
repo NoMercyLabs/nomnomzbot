@@ -232,6 +232,12 @@ describe('Greetings and streaks', () => {
     ]);
   });
 
+  it('never shrinks the panel inside the page body, so the page scrolls once and the panel does not', async () => {
+    await open();
+
+    expect(q('[data-view="engagement"]').classList.contains('shrink-0')).toBe(true);
+  });
+
   it('offers no reset to a person without the write key', async () => {
     held = ['engagement:read'];
     await open();
