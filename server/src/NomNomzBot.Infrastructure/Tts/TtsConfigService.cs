@@ -78,16 +78,39 @@ public class TtsConfigService : ITtsConfigService
         return Result.Success(await ToDtoAsync(config ?? new TtsConfig(), cancellationToken));
     }
 
+    /// <summary>Upper bound of the bits gate; mirrors the <c>[Range]</c> on <see cref="UpdateTtsConfigDto.MinBitsToTts"/>.</summary>
+    private const int MinBitsToTtsMax = 1_000_000;
+
+    private static Result<TtsConfigDto> Refuse(string message, string key, string field) =>
+        Result.Failure<TtsConfigDto>(
+            message,
+            "VALIDATION_FAILED",
+            errorData: new TtsConfigViolation(key, field)
+        );
+
     public async Task<Result<TtsConfigDto>> UpdateConfigAsync(
         Guid broadcasterId,
         UpdateTtsConfigDto request,
         CancellationToken cancellationToken = default
     )
     {
+        if (request.MaxCharacters is < 1 or > TtsConfigOptions.MaxCharactersLimit)
+            return Refuse(
+                $"{nameof(UpdateTtsConfigDto.MaxCharacters)} must be between 1 and {TtsConfigOptions.MaxCharactersLimit}.",
+                TtsConfigViolation.MaxCharactersOutOfRange,
+                "maxCharacters"
+            );
         if (request.CooldownSeconds is < 0 or > TtsConfigOptions.CooldownSecondsMax)
-            return Result.Failure<TtsConfigDto>(
+            return Refuse(
                 $"{nameof(UpdateTtsConfigDto.CooldownSeconds)} must be between 0 and {TtsConfigOptions.CooldownSecondsMax}.",
-                "VALIDATION_FAILED"
+                TtsConfigViolation.CooldownOutOfRange,
+                "cooldownSeconds"
+            );
+        if (request.MinBitsToTts is < 0 or > MinBitsToTtsMax)
+            return Refuse(
+                $"{nameof(UpdateTtsConfigDto.MinBitsToTts)} must be between 0 and {MinBitsToTtsMax}.",
+                TtsConfigViolation.MinBitsOutOfRange,
+                "minBitsToTts"
             );
 
         TtsConfig? config = await _db.TtsConfigs.FirstOrDefaultAsync(

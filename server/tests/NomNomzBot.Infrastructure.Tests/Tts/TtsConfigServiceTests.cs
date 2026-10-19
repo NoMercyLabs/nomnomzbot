@@ -295,10 +295,65 @@ public sealed class TtsConfigServiceTests
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
         result.ErrorMessage.Should().Contain(nameof(UpdateTtsConfigDto.CooldownSeconds));
         result.ErrorMessage.Should().Contain(TtsConfigOptions.CooldownSecondsMax.ToString());
+        result
+            .ErrorData.Should()
+            .Be(new TtsConfigViolation(TtsConfigViolation.CooldownOutOfRange, "cooldownSeconds"));
         (await db.TtsConfigs.SingleAsync())
             .CooldownSeconds.Should()
             .Be(20, "a refused write changes nothing");
         bus.Published.Should().BeEmpty("a refused write tells no dashboard to refetch");
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(TtsConfigOptions.MaxCharactersLimit + 1)]
+    public async Task MaxCharacters_out_of_range_is_refused_with_the_field_data_and_writes_nothing(
+        int characters
+    )
+    {
+        (TtsConfigService sut, TtsTestDbContext db, RecordingEventBus bus) = Build();
+        await sut.UpdateConfigAsync(Channel, new() { MaxCharacters = 100 });
+        bus.Published.Clear();
+
+        Result<TtsConfigDto> result = await sut.UpdateConfigAsync(
+            Channel,
+            new() { MaxCharacters = characters }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        result
+            .ErrorData.Should()
+            .Be(
+                new TtsConfigViolation(TtsConfigViolation.MaxCharactersOutOfRange, "maxCharacters")
+            );
+        (await db.TtsConfigs.SingleAsync()).MaxCharacters.Should().Be(100);
+        bus.Published.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(1_000_001)]
+    public async Task MinBitsToTts_out_of_range_is_refused_with_the_field_data_and_writes_nothing(
+        int bits
+    )
+    {
+        (TtsConfigService sut, TtsTestDbContext db, RecordingEventBus bus) = Build();
+        await sut.UpdateConfigAsync(Channel, new() { MinBitsToTts = 50 });
+        bus.Published.Clear();
+
+        Result<TtsConfigDto> result = await sut.UpdateConfigAsync(
+            Channel,
+            new() { MinBitsToTts = bits }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        result
+            .ErrorData.Should()
+            .Be(new TtsConfigViolation(TtsConfigViolation.MinBitsOutOfRange, "minBitsToTts"));
+        (await db.TtsConfigs.SingleAsync()).MinBitsToTts.Should().Be(50);
+        bus.Published.Should().BeEmpty();
     }
 
     [Fact]
