@@ -44,8 +44,11 @@ const props = withDefaults(
     // The owner holds the primary off while the form cannot be sent yet (a preview still loading).
     disabled?: boolean;
     error?: string;
+    // A confirm that takes something away (deactivate, revoke) gets the destructive treatment, not the lead one.
+    destructive?: boolean;
   }>(),
   {
+    destructive: false,
     description: undefined,
     pending: false,
     disabled: false,
@@ -113,7 +116,10 @@ function focusFirstField(event: Event): void {
         @submit.prevent="submit"
         @keydown.enter="submitFromField"
       >
-        <div data-form-header class="flex flex-none items-start justify-between gap-4 px-6 pt-6 pb-4">
+        <div
+          data-form-header
+          class="flex flex-none items-start justify-between gap-4 px-6 pt-6 pb-4"
+        >
           <div class="grid gap-1.5">
             <DialogTitle class="text-lg font-semibold">{{ title }}</DialogTitle>
             <DialogDescription v-if="description" class="text-sm text-muted-foreground">
@@ -143,9 +149,14 @@ function focusFirstField(event: Event): void {
             :disabled="pending"
             @click="setOpen(false)"
           >
-            {{ $t('common.cancel') }}
+            {{ $t("common.cancel") }}
           </Button>
-          <Button data-form-action type="submit" :disabled="pending || disabled || locked">
+          <Button
+            data-form-action
+            type="submit"
+            :variant="destructive ? 'destructive' : 'default'"
+            :disabled="pending || disabled || locked"
+          >
             <Spinner v-if="pending" />
             {{ action }}
           </Button>

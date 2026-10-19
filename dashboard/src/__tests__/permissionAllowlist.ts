@@ -25,6 +25,7 @@ export const permissionAllowlist = [
     reason:
       'Local-only UI that changes no stored data: pager, back, close, retry, copy link, panel toggle, display preference, row pick, lookup, dev-only catalog page.',
     files: {
+      'admin/AdminAccessView.vue': 1,
       'admin/AdminChannelsView.vue': 2,
       'admin/AdminContentView.vue': 1,
       'admin/AdminSupportView.vue': 1,

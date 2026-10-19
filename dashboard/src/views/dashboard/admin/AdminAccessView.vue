@@ -240,15 +240,20 @@ async function startImpersonation(): Promise<void> {
 
 <template>
   <PageHeader :title="$t('dashboard.admin.access.title')" :crumb="$t('dashboard.admin.crumb')" />
-  <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
+  <div
+    data-page-body
+    class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 overflow-y-auto p-6 max-md:p-4"
+  >
     <LabeledSwitch
       v-model="hideInactive"
       data-hide-inactive
+      data-page-inset
       :label="$t('dashboard.admin.access.hideInactive')"
       :help="$t('dashboard.admin.access.hideInactiveHelp')"
     />
 
     <PanelCard
+      class="shrink-0"
       tier="lead"
       :title="$t('dashboard.admin.access.principals.title')"
       :description="$t('dashboard.admin.access.principals.description')"
@@ -264,7 +269,7 @@ async function startImpersonation(): Promise<void> {
           data-principal-row
           class="flex flex-wrap items-center gap-3 py-3"
         >
-          <div class="min-w-0 flex-1">
+          <div class="min-w-0 flex-1 max-md:basis-full">
             <UserName
               :user-id="row.userId"
               :name="row.name"
@@ -298,9 +303,9 @@ async function startImpersonation(): Promise<void> {
               v-for="held in row.activeAssignments"
               :key="held.id"
               data-assignment
-              class="inline-flex h-9 items-center gap-1 rounded-md border border-border pr-0.5 pl-2 text-xs"
+              class="inline-flex min-h-9 flex-wrap items-center gap-x-1 rounded-md border border-border pr-0.5 pl-2 text-xs"
             >
-              {{ held.roleName }}
+              <span class="whitespace-nowrap">{{ held.roleName }}</span>
               <span v-if="held.scopeChannelId" data-assignment-scope class="text-muted-foreground">
                 {{
                   $t("dashboard.admin.access.principals.scope", { channel: held.scopeChannelId })
@@ -327,12 +332,9 @@ async function startImpersonation(): Promise<void> {
               <Button variant="outline" data-assign @click="open('assign', row)">{{
                 $t("dashboard.admin.access.actions.assign")
               }}</Button>
-              <Button
-                variant="ghost"
-                class="text-destructive hover:text-destructive"
-                data-deactivate
-                @click="open('deactivate', row)"
-              >{{ $t("dashboard.admin.access.actions.deactivate") }}</Button>
+              <Button variant="destructive" data-deactivate @click="open('deactivate', row)">{{
+                $t("dashboard.admin.access.actions.deactivate")
+              }}</Button>
             </template>
             <Button
               v-else
@@ -355,6 +357,7 @@ async function startImpersonation(): Promise<void> {
     </PanelCard>
 
     <PanelCard
+      class="shrink-0"
       :title="$t('dashboard.admin.access.roles.title')"
       :description="$t('dashboard.admin.access.roles.description')"
       :state="roleState"
@@ -416,6 +419,7 @@ async function startImpersonation(): Promise<void> {
 
     <PanelCard
       v-if="showSession"
+      class="shrink-0"
       tier="quiet"
       :title="$t('dashboard.admin.access.session.title')"
       :description="$t('dashboard.admin.access.session.description')"
@@ -474,6 +478,7 @@ async function startImpersonation(): Promise<void> {
       :title="dialogTitle"
       :description="consequence"
       :action="dialogAction"
+      :destructive="step === 'deactivate' || step === 'revoke'"
       :pending="pending"
       :error="error"
       @update:open="close"

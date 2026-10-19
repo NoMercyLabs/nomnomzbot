@@ -436,7 +436,8 @@ describe('AdminAccessView', () => {
     await settle();
 
     const post = calls.find((call) => call.method === 'POST')!;
-    const sent = (post.options?.body as { expiresAt?: string }).expiresAt!;
+    const body = post.options?.body as { expiresAt?: string } | undefined;
+    const sent = body?.expiresAt ?? '';
 
     expect(new Date(sent).getTime()).toBe(new Date('2027-01-15T10:30').getTime());
   });
@@ -451,7 +452,9 @@ describe('AdminAccessView', () => {
 
     const post = calls.find((call) => call.method === 'POST')!;
 
-    expect((post.options?.body as { expiresAt?: string | null }).expiresAt ?? null).toBeNull();
+    const body = post.options?.body as { expiresAt?: string | null } | undefined;
+
+    expect(body?.expiresAt ?? null).toBeNull();
   });
 
   it('uses a styled select for the role, not a native one', async () => {
@@ -530,9 +533,28 @@ describe('AdminAccessView', () => {
     const deactivate = document.body.querySelector('[data-deactivate]')!;
     const assign = document.body.querySelector('[data-assign]')!;
 
-    expect(deactivate.className).toContain('text-destructive');
-    expect(assign.className).not.toContain('text-destructive');
+    expect(deactivate.className).toContain('bg-(--kit-danger)');
+    expect(assign.className).not.toContain('bg-(--kit-danger)');
     expect(document.body.querySelector('[data-assignment]')!.className).toContain('h-9');
+  });
+
+  it('gives the deactivate confirm the destructive look and the assign confirm the lead look', async () => {
+    await open();
+    (document.body.querySelector('[data-deactivate]') as HTMLElement).click();
+    await settle();
+
+    expect(document.body.querySelector('[data-form-action]')!.className).toContain(
+      'bg-(--kit-danger)',
+    );
+
+    byText('[role="dialog"] button', 'Cancel')!.click();
+    await settle();
+    (document.body.querySelector('[data-assign]') as HTMLElement).click();
+    await settle();
+
+    expect(document.body.querySelector('[data-form-action]')!.className).not.toContain(
+      'bg-(--kit-danger)',
+    );
   });
 
   it('reloads the page when the hub says another operator changed access', () => {
