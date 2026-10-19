@@ -83,6 +83,11 @@ public sealed class PlaybackStateChangedEvent : DomainEventBase
     /// so the engine reports it to the director and a consumer must not report it a second time.</summary>
     public bool FedToEngine { get; init; }
 
+    /// <summary>True when the publisher kept the end of this track from the director on purpose, because a play-once
+    /// resume handler restarts the interrupted track first. A consumer must not report this event either; the
+    /// director then starts the next request after the resumed track ends.</summary>
+    public bool ReportWithheld { get; init; }
+
     /// <summary>True when the player lets the bot change the repeat mode.</summary>
     public bool CanSetRepeat { get; init; } = true;
 

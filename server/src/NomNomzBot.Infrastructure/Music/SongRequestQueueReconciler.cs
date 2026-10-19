@@ -110,7 +110,7 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
         // director; reporting it here too would feed the director a second track end. The director has
         // already acted by now, so the rows it removed cannot be counted here: such an event always syncs.
         int before = queue.Count;
-        if (!@event.FedToEngine)
+        if (!@event.FedToEngine && !@event.ReportWithheld)
             await _sink.ReportAsync(
                 @event.BroadcasterId,
                 ToSignal(@event, @event.TrackUri),

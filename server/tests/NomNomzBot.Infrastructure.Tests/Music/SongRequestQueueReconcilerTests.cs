@@ -354,15 +354,48 @@ public sealed class SongRequestQueueReconcilerTests
         queue.GetSnapshot().Select(e => e.Item.TrackUri).Should().Equal(expectedQueue);
     }
 
+    /// <summary>A play-once end whose resume is pending is kept from the director on purpose; an unfed event
+    /// without that mark is still reported.</summary>
+    [Theory]
+    [InlineData(true, new[] { "spotify:track:a", "spotify:track:b" })]
+    [InlineData(false, new[] { "spotify:track:b" })]
+    public async Task An_end_withheld_for_a_pending_resume_is_not_reported_to_the_director(
+        bool reportWithheld,
+        string[] expectedQueue
+    )
+    {
+        SongRequestQueueStore store = new();
+        FairQueue<SongRequestEntry> queue = store.GetOrCreate(ChannelId.ToString());
+        queue.Enqueue("viewer-a", Entry("spotify:track:a", "Track a"));
+        queue.Enqueue("viewer-b", Entry("spotify:track:b", "Track b"));
+        RecordingEventBus bus = new();
+        PlaybackDirectorTestKit.FakeEngineFactory engines = new();
+        PlaybackDirectorRegistry registry = new(store, engines, bus, TimeProvider.System);
+        await registry.SendAsync(ChannelId, new RequestAdded());
+        SongRequestQueueReconciler sut = new(
+            store,
+            new RecordingHandover(),
+            new NoOpSongRequestQueuePersistence(),
+            bus,
+            registry
+        );
+
+        await sut.HandleAsync(PlaybackOf("spotify:track:a", reportWithheld: reportWithheld));
+
+        queue.GetSnapshot().Select(e => e.Item.TrackUri).Should().Equal(expectedQueue);
+    }
+
     private static PlaybackStateChangedEvent PlaybackOf(
         string trackUri,
         string provider = "spotify",
         bool isPlaying = true,
-        bool fedToEngine = false
+        bool fedToEngine = false,
+        bool reportWithheld = false
     ) =>
         new()
         {
             FedToEngine = fedToEngine,
+            ReportWithheld = reportWithheld,
             BroadcasterId = ChannelId,
             IsPlaying = isPlaying,
             TrackUri = trackUri,

@@ -83,8 +83,9 @@ public sealed class YouTubePlayerReportService(
         // A play-once video that ended is no director item, so it advances nothing.
         // A play-once video that ended with a resume pending is the exception: the resume handler restarts the
         // interrupted video off the event below, so the director must not also start the waiting request.
+        bool withheld = ended && changed && ResumePending(broadcasterId, videoId);
         bool fed =
-            !(ended && changed && ResumePending(broadcasterId, videoId))
+            !withheld
             && await FeedAsync(broadcasterId, videoId, parsed, positionMs, cancellationToken);
 
         // Announced before the playback change below, whose queue reconciler drops the failed request.
@@ -108,6 +109,7 @@ public sealed class YouTubePlayerReportService(
                 known,
                 ended,
                 fed,
+                withheld,
                 cancellationToken
             );
         return Result.Success();
@@ -165,6 +167,7 @@ public sealed class YouTubePlayerReportService(
         YouTubeQueuedTrack? known,
         bool trackEnded,
         bool fedToEngine,
+        bool reportWithheld,
         CancellationToken cancellationToken
     ) =>
         eventBus.PublishAsync(
@@ -174,6 +177,7 @@ public sealed class YouTubePlayerReportService(
                 IsPlaying = state == YouTubePlayerState.Playing,
                 TrackEnded = trackEnded,
                 FedToEngine = fedToEngine,
+                ReportWithheld = reportWithheld,
                 TrackName = known?.Title,
                 Artist = known?.Artist,
                 DurationMs = known?.DurationMs ?? 0,
