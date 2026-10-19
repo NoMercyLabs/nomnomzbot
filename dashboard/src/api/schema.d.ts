@@ -52797,6 +52797,99 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/music/config/defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The config a channel with nothing saved resolves to, so the dashboard shows the real defaults. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    version: string;
+                    channelId: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfMusicConfig"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/music/sr-page-token": {
         parameters: {
             query?: never;
@@ -88860,8 +88953,19 @@ export interface components {
             provider: string;
             apiVersion: string;
         };
-        /** @description Data-plane pipeline invocation; the pipeline may be named by id or by (unique) name. */
+        /**
+         * @description Data-plane invocation. Name the target with string? AutomationInvokeRequest.Kind + string? AutomationInvokeRequest.Id (+ string? AutomationInvokeRequest.ActionType and
+         *     IReadOnlyDictionary&lt;string, JsonElement&gt;? AutomationInvokeRequest.Params for an action), or the older way: a pipeline by id or by (unique) name.
+         */
         AutomationInvokeRequest: {
+            /** @description `command | pipeline | action`; when set it wins over Guid? AutomationInvokeRequest.PipelineId/string? AutomationInvokeRequest.PipelineName. */
+            kind?: null | string;
+            /** @description The command id (or built-in key) or the pipeline id (a guid). */
+            id?: null | string;
+            actionType?: null | string;
+            params?: null | {
+                [key: string]: unknown;
+            };
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
@@ -88883,13 +88987,18 @@ export interface components {
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            pipelineId: string;
+            pipelineId?: null | string;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             executionId: string;
+            /** @description True when the run was enqueued. */
             accepted: boolean;
+            /** @description The target kind that was run: `command | pipeline | action`. */
+            kind?: null | string;
+            /** @description The command or pipeline id, or the action type. */
+            targetId?: null | string;
         };
         /**
          * @description Current playback state (music-automation-controls.md §3.2/§3.3) — the position-anchor shape a
@@ -89009,6 +89118,19 @@ export interface components {
             trackCount: number | string;
             imageUrl?: null | string;
         };
+        /**
+         * @description The wire shape of one BindingTarget on the automation API: `kind` is
+         *     `command | pipeline | action` (any casing); `id` names the command or pipeline; an action names its
+         *     `actionType` and carries its `params` instead.
+         */
+        AutomationTarget: {
+            kind: string;
+            id?: null | string;
+            actionType?: null | string;
+            params?: null | {
+                [key: string]: unknown;
+            };
+        };
         /** @description An automation API token as the dashboard sees it — the secret never appears here. */
         AutomationToken: {
             /**
@@ -89020,6 +89142,7 @@ export interface components {
             tokenPrefix: string;
             scopes: string[];
             allowedPipelineIds: string[];
+            allowedTargets: components["schemas"]["AutomationTarget"][];
             /** Format: date-time */
             lastUsedAt?: null | string;
             /** Format: date-time */
@@ -90434,6 +90557,11 @@ export interface components {
             scopes: string[];
             /** @description When set, `invoke` is pinned to exactly these pipelines; null/empty = any. */
             allowedPipelineIds?: null | string[];
+            /**
+             * @description When set, `invoke` is also pinned to these targets (commands, pipelines, actions); they add to
+             *     IReadOnlyList&lt;Guid&gt;? CreateAutomationTokenRequest.AllowedPipelineIds. Null/empty on both = any target.
+             */
+            allowedTargets?: null | components["schemas"]["AutomationTarget"][];
             /** Format: date-time */
             expiresAt?: null | string;
         };
@@ -93531,7 +93659,6 @@ export interface components {
         MusicQueue: {
             nowPlaying: null | components["schemas"]["NowPlaying"];
             queue: components["schemas"]["QueueItem"][];
-            /** @default true */
             requestsOpen: boolean;
         };
         /** @description An item in the music playback queue. Cost is 0 for a free request. */

@@ -62507,6 +62507,104 @@
         }
       }
     },
+    "/api/v{version}/channels/{channelId}/music/config/defaults": {
+      "get": {
+        "tags": [
+          "Music"
+        ],
+        "summary": "The config a channel with nothing saved resolves to, so the dashboard shows the real defaults.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "channelId",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfMusicConfig"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/channels/{channelId}/music/sr-page-token": {
       "get": {
         "tags": [
@@ -106262,6 +106360,36 @@
       "AutomationInvokeRequest": {
         "type": "object",
         "properties": {
+          "kind": {
+            "maxLength": 20,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "`command | pipeline | action`; when set it wins over Guid? AutomationInvokeRequest.PipelineId/string? AutomationInvokeRequest.PipelineName."
+          },
+          "id": {
+            "maxLength": 200,
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The command id (or built-in key) or the pipeline id (a guid)."
+          },
+          "actionType": {
+            "maxLength": 200,
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "params": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": { }
+          },
           "pipelineId": {
             "type": [
               "null",
@@ -106296,18 +106424,20 @@
             }
           }
         },
-        "description": "Data-plane pipeline invocation; the pipeline may be named by id or by (unique) name."
+        "description": "Data-plane invocation. Name the target with string? AutomationInvokeRequest.Kind + string? AutomationInvokeRequest.Id (+ string? AutomationInvokeRequest.ActionType and\r\nIReadOnlyDictionary&lt;string, JsonElement&gt;? AutomationInvokeRequest.Params for an action), or the older way: a pipeline by id or by (unique) name."
       },
       "AutomationInvokeResult": {
         "required": [
-          "pipelineId",
           "executionId",
           "accepted"
         ],
         "type": "object",
         "properties": {
           "pipelineId": {
-            "type": "string",
+            "type": [
+              "null",
+              "string"
+            ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
           },
@@ -106317,7 +106447,22 @@
             "format": "ulid"
           },
           "accepted": {
-            "type": "boolean"
+            "type": "boolean",
+            "description": "True when the run was enqueued."
+          },
+          "kind": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The target kind that was run: `command | pipeline | action`."
+          },
+          "targetId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The command or pipeline id, or the action type."
           }
         },
         "description": "The invoke outcome. Execution is fire-and-forget (automation-api.md D5): bool AutomationInvokeResult.Accepted\r\nmeans enqueued, and Guid AutomationInvokeResult.ExecutionId is the correlation id minted at enqueue time (also\r\nvisible to the pipeline as `{{automation.correlation_id}}`) — not a promise of completion."
@@ -106616,6 +106761,37 @@
         },
         "description": "One of the broadcaster's playlists on the active music provider."
       },
+      "AutomationTarget": {
+        "required": [
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string"
+          },
+          "id": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "actionType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "params": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": { }
+          }
+        },
+        "description": "The wire shape of one BindingTarget on the automation API: `kind` is\r\n`command | pipeline | action` (any casing); `id` names the command or pipeline; an action names its\r\n`actionType` and carries its `params` instead."
+      },
       "AutomationToken": {
         "required": [
           "id",
@@ -106623,6 +106799,7 @@
           "tokenPrefix",
           "scopes",
           "allowedPipelineIds",
+          "allowedTargets",
           "createdAt"
         ],
         "type": "object",
@@ -106650,6 +106827,12 @@
               "type": "string",
               "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
               "format": "ulid"
+            }
+          },
+          "allowedTargets": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/AutomationTarget"
             }
           },
           "lastUsedAt": {
@@ -110835,6 +111018,16 @@
               "format": "ulid"
             },
             "description": "When set, `invoke` is pinned to exactly these pipelines; null/empty = any."
+          },
+          "allowedTargets": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/AutomationTarget"
+            },
+            "description": "When set, `invoke` is also pinned to these targets (commands, pipelines, actions); they add to\r\nIReadOnlyList&lt;Guid&gt;? CreateAutomationTokenRequest.AllowedPipelineIds. Null/empty on both = any target."
           },
           "expiresAt": {
             "type": [
@@ -119525,7 +119718,8 @@
       "MusicQueue": {
         "required": [
           "nowPlaying",
-          "queue"
+          "queue",
+          "requestsOpen"
         ],
         "type": "object",
         "properties": {
@@ -119546,8 +119740,7 @@
             }
           },
           "requestsOpen": {
-            "type": "boolean",
-            "default": true
+            "type": "boolean"
           }
         },
         "description": "Full music queue including now playing and upcoming tracks."
