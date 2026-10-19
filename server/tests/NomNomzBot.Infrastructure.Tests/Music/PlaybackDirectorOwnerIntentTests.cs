@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.ValueObjects;
 using static NomNomzBot.Infrastructure.Tests.Music.PlaybackDirectorTestKit;
 
@@ -217,6 +218,39 @@ public sealed partial class PlaybackDirectorTests
         rig.Director.State.Should().Be(PlaybackState.PausedByOwner(EngineKind.YouTube, a));
         rig.Spotify.Calls.Should().Equal(new EngineCall("Pause"));
         rig.Journal.Last().Reason.Should().Be("foreign_engine_silenced");
+    }
+
+    [Fact]
+    public async Task ForeignEngineKeepsReportingPlaying_PollsNeverPublishAFromEqualsToTransition()
+    {
+        Rig rig = new();
+        PlaybackItem a = await rig.StartPlaying(EngineKind.YouTube);
+        int before = rig.Journal.Count;
+
+        for (int poll = 0; poll < 3; poll++)
+        {
+            rig.Clock.Advance(TimeSpan.FromSeconds(5));
+            await rig.OwnerPlays(rig.Spotify, Mine, 1_000 + (poll * 5_000));
+        }
+
+        rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.YouTube, a));
+        rig.Spotify.Calls.Count(c => c.Name == "Pause").Should().Be(3);
+        rig.Journal.Skip(before).Should().BeEmpty();
+        rig.Journal.Should().OnlyContain(e => e.From != e.To);
+    }
+
+    [Fact]
+    public async Task RealChangeStillPublishesWithTheRightFromToAndReason()
+    {
+        Rig rig = new();
+        PlaybackItem a = await rig.StartPlaying(EngineKind.YouTube);
+
+        await rig.Paused(rig.YouTube, a.Uri, 50_000);
+
+        PlaybackTransitionedEvent last = rig.Journal.Last();
+        last.From.Should().Be("Playing");
+        last.To.Should().Be("PausedByOwner");
+        last.Reason.Should().Be("owner_pause_detected");
     }
 
     [Fact]
