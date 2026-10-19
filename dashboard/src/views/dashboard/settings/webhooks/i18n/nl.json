@@ -1,7 +1,6 @@
 {
   "dashboard": {
     "settings": {
-      "crumb": "Instellingen",
       "webhooks": {
         "outbound": {
           "title": "Uitgaande webhooks",

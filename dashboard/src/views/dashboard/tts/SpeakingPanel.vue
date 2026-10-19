@@ -12,6 +12,7 @@
 // and the bot and profanity filters. Each control names its default; the footer button returns the
 // rules to those defaults. Switches and choices save at once; the character cap saves on blur or Enter.
 import { computed, ref, watch } from 'vue';
+import type { AcceptableValue } from 'reka-ui';
 import { useI18n } from 'vue-i18n';
 
 import { useTtsConfig, type TtsConfig } from '@/api/tts';
@@ -163,7 +164,7 @@ function commitCharacters(): void {
   }
 }
 
-function pickStanding(value: unknown): void {
+function pickStanding(value: AcceptableValue): void {
   if (typeof value === 'string') {
     change({ minPermission: value });
   }

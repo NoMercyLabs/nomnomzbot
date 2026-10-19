@@ -115,7 +115,9 @@ function spans(wrapper: VueWrapper): number[][] {
 
 // jsdom has no layout: a list box ends at boxBottom, and the nth child of a list ends at (n + 1) * rowHeight.
 function withLayout(boxBottom: number, rowHeight: number): void {
-  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (
+    this: HTMLElement,
+  ) {
     const parent = this.parentElement;
     const index = parent
       ? Array.from(parent.children).indexOf(this)
@@ -144,7 +146,9 @@ describe('raid_recap widget', () => {
     const wrapper = show(fixture);
 
     await flushPromises();
-    const blocks: string[] = wrapper.findAll('[data-block]').map((b) => b.attributes('data-block') ?? '');
+    const blocks: string[] = wrapper
+      .findAll('[data-block]')
+      .map((b) => b.attributes('data-block') ?? '');
 
     expect(blocks).toEqual(
       expect.arrayContaining([
@@ -173,7 +177,11 @@ describe('raid_recap widget', () => {
     show(fixture, { metrics: ['followers', 'raidsIn'] });
 
     await flushPromises();
-    expect(sdk.data.streamStats).toHaveBeenLastCalledWith({ stream: 's1', metrics: ['followers', 'raidsIn', 'channel', 'hypeTrain'] });
+
+    expect(sdk.data.streamStats).toHaveBeenLastCalledWith({
+      stream: 's1',
+      metrics: ['followers', 'raidsIn', 'channel', 'hypeTrain'],
+    });
   });
 
   it('reflows a quiet stream: zero cards are gone and the rest fill the row', async () => {
@@ -199,11 +207,20 @@ describe('raid_recap widget', () => {
     const wrapper = show(quiet);
 
     await flushPromises();
-    const blocks: string[] = wrapper.findAll('.grid [data-block]').map((b) => b.attributes('data-block') ?? '');
+    const blocks: string[] = wrapper
+      .findAll('.grid [data-block]')
+      .map((b) => b.attributes('data-block') ?? '');
 
     expect(blocks).toEqual(['chatters', 'followers']);
-    expect(spans(wrapper)).toEqual([[6, 1], [6, 1]]);
-    expect(wrapper.find('.grid').attributes('style')).toContain('grid-template-rows: repeat(1, minmax(0, 1fr))');
+
+    expect(spans(wrapper)).toEqual([
+      [6, 1],
+      [6, 1],
+    ]);
+
+    expect(wrapper.find('.grid').attributes('style')).toContain(
+      'grid-template-rows: repeat(1, minmax(0, 1fr))',
+    );
   });
 
   it('removes a block with no data', async () => {
@@ -352,7 +369,16 @@ describe('raid_recap widget', () => {
     });
 
     it('uses the plural forms for more than one raid and for one viewer', async () => {
-      const wrapper = show({ ...streamRecap, raidsIn: [{ name: 'a', viewers: 1 }, { name: 'b', viewers: 0 }] }, { labels });
+      const wrapper = show(
+        {
+          ...streamRecap,
+          raidsIn: [
+            { name: 'a', viewers: 1 },
+            { name: 'b', viewers: 0 },
+          ],
+        },
+        { labels },
+      );
 
       await flushPromises();
       expect(wrapper.find('[data-block="raids"] .big').text()).toBe('2raids · 1 viewer');
@@ -375,14 +401,19 @@ describe('raid_recap widget', () => {
     });
 
     it('hides top chatters when there is no chat data and keeps every card that has data', async () => {
-      const wrapper = show({
-        ...streamRecap,
-        chat: null,
-        topChatters: [],
-      }, { labels });
+      const wrapper = show(
+        {
+          ...streamRecap,
+          chat: null,
+          topChatters: [],
+        },
+        { labels },
+      );
 
       await flushPromises();
-      const blocks: string[] = wrapper.findAll('.grid [data-block]').map((b) => b.attributes('data-block') ?? '');
+      const blocks: string[] = wrapper
+        .findAll('.grid [data-block]')
+        .map((b) => b.attributes('data-block') ?? '');
 
       expect(blocks).toEqual(['raids', 'songs', 'bits', 'followers', 'redemptions', 'topCommands']);
     });
@@ -391,11 +422,33 @@ describe('raid_recap widget', () => {
       const wrapper = show(streamRecap, { labels });
 
       await flushPromises();
-      const blocks: string[] = wrapper.findAll('.grid [data-block]').map((b) => b.attributes('data-block') ?? '');
+      const blocks: string[] = wrapper
+        .findAll('.grid [data-block]')
+        .map((b) => b.attributes('data-block') ?? '');
 
-      expect(blocks).toEqual(['chatters', 'raids', 'songs', 'bits', 'followers', 'redemptions', 'topCommands']);
-      expect(spans(wrapper)).toEqual([[3, 2], [3, 1], [3, 1], [3, 1], [3, 1], [3, 1], [3, 1]]);
-      expect(wrapper.find('.grid').attributes('style')).toContain('grid-template-rows: repeat(2, minmax(0, 1fr))');
+      expect(blocks).toEqual([
+        'chatters',
+        'raids',
+        'songs',
+        'bits',
+        'followers',
+        'redemptions',
+        'topCommands',
+      ]);
+
+      expect(spans(wrapper)).toEqual([
+        [3, 2],
+        [3, 1],
+        [3, 1],
+        [3, 1],
+        [3, 1],
+        [3, 1],
+        [3, 1],
+      ]);
+
+      expect(wrapper.find('.grid').attributes('style')).toContain(
+        'grid-template-rows: repeat(2, minmax(0, 1fr))',
+      );
     });
 
     it('fills every row to the full width whatever the count: 6 blocks are 3 over 3, 5 are 3 over 2, 4 are 2 over 2', async () => {
@@ -415,9 +468,29 @@ describe('raid_recap widget', () => {
         counts[name] = spans(wrapper);
       }
 
-      expect(counts.six).toEqual([[4, 1], [4, 1], [4, 1], [4, 1], [4, 1], [4, 1]]);
-      expect(counts.five).toEqual([[4, 1], [4, 1], [4, 1], [6, 1], [6, 1]]);
-      expect(counts.four).toEqual([[6, 1], [6, 1], [6, 1], [6, 1]]);
+      expect(counts.six).toEqual([
+        [4, 1],
+        [4, 1],
+        [4, 1],
+        [4, 1],
+        [4, 1],
+        [4, 1],
+      ]);
+
+      expect(counts.five).toEqual([
+        [4, 1],
+        [4, 1],
+        [4, 1],
+        [6, 1],
+        [6, 1],
+      ]);
+
+      expect(counts.four).toEqual([
+        [6, 1],
+        [6, 1],
+        [6, 1],
+        [6, 1],
+      ]);
     });
 
     it('never places more than eight blocks and every row adds up to the full width', async () => {
@@ -458,14 +531,21 @@ describe('raid_recap widget', () => {
       const wrapper = show(streamRecap, { labels });
 
       await flushPromises();
-      expect(wrapper.find('header .thanks').text()).toBe('Thank you for 9 hours of coding, tunes and vibes.');
+
+      expect(wrapper.find('header .thanks').text()).toBe(
+        'Thank you for 9 hours of coding, tunes and vibes.',
+      );
     });
 
-    it('falls back to the catalogue words when the installed settings have no labels', async () => {
+    it('falls back to the catalog words when the installed settings have no labels', async () => {
       const wrapper = show(streamRecap, { labels: {} });
 
       await flushPromises();
-      expect(wrapper.find('header .thanks').text()).toBe('Thank you for 9 hours of coding, tunes and vibes.');
+
+      expect(wrapper.find('header .thanks').text()).toBe(
+        'Thank you for 9 hours of coding, tunes and vibes.',
+      );
+
       expect(wrapper.text()).toContain('chatters');
       expect(wrapper.find('[data-block="raids"] .big').text()).toBe('1raid · 11 viewers');
       expect(wrapper.text()).toContain('requests');
@@ -473,7 +553,10 @@ describe('raid_recap widget', () => {
     });
 
     it('groups numbers the en-US way whatever the browser locale is', async () => {
-      vi.spyOn(Number.prototype, 'toLocaleString').mockImplementation(function (this: number, locale?: Intl.LocalesArgument) {
+      vi.spyOn(Number.prototype, 'toLocaleString').mockImplementation(function (
+        this: number,
+        locale?: Intl.LocalesArgument,
+      ) {
         return new Intl.NumberFormat(locale ?? 'nl-NL').format(this);
       });
 
@@ -484,38 +567,56 @@ describe('raid_recap widget', () => {
       expect(wrapper.text()).not.toContain('1.107');
     });
 
-    it('keeps DEFAULT_LABELS equal to the labels of the catalogue', () => {
+    it('keeps DEFAULT_LABELS equal to the labels of the catalog', () => {
       const root = '../../../server/src/NomNomzBot.Infrastructure/Content/Widgets';
       const widget = readLabels(`${root}/Assets/raid_recap.vue`, 'const DEFAULT_LABELS', '};');
-      const catalogue = readLabels(`${root}/FirstPartyWidgetCatalogue.cs`, '["labels"] = new Dictionary<string, object>', '},', 'Key: "raid_recap"');
+      const catalog = readLabels(
+        // cspell:disable-next-line -- the server file keeps its British name
+        `${root}/FirstPartyWidgetCatalogue.cs`,
+        '["labels"] = new Dictionary<string, object>',
+        '},',
+        'Key: "raid_recap"',
+      );
 
-      expect(Object.keys(catalogue).length).toBeGreaterThan(20);
-      expect(widget).toEqual(catalogue);
+      expect(Object.keys(catalog).length).toBeGreaterThan(20);
+      expect(widget).toEqual(catalog);
     });
 
     it('names one hour in the singular', async () => {
       const wrapper = show({ ...streamRecap, duration: 3600 }, { labels });
 
       await flushPromises();
-      expect(wrapper.find('header .thanks').text()).toBe('Thank you for 1 hour of coding, tunes and vibes.');
+
+      expect(wrapper.find('header .thanks').text()).toBe(
+        'Thank you for 1 hour of coding, tunes and vibes.',
+      );
     });
 
     it('shows the hype train level in the subscriptions card and hides the line without a train', async () => {
       const subs = { ...streamRecap.subs, total: 3 };
-      const withTrain = show({
-        ...streamRecap,
-        subs,
-        hypeTrain: { level: 5, trains: 2 },
-      }, { labels });
+      const withTrain = show(
+        {
+          ...streamRecap,
+          subs,
+          hypeTrain: { level: 5, trains: 2 },
+        },
+        { labels },
+      );
 
       await flushPromises();
-      expect(withTrain.find('[data-block="subs"] .hype').text()).toBe('Hype train reached level 5.');
 
-      const without = show({
-        ...streamRecap,
-        subs,
-        hypeTrain: null,
-      }, { labels });
+      expect(withTrain.find('[data-block="subs"] .hype').text()).toBe(
+        'Hype train reached level 5.',
+      );
+
+      const without = show(
+        {
+          ...streamRecap,
+          subs,
+          hypeTrain: null,
+        },
+        { labels },
+      );
 
       await flushPromises();
       expect(without.find('.hype').exists()).toBe(false);
