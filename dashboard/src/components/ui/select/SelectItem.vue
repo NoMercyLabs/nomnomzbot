@@ -10,7 +10,12 @@ import {
   SelectItemText,
   useForwardProps,
 } from 'reka-ui'
+import { i18n } from '@/i18n'
 import { cn } from '@/lib/utils'
+
+// reka-ui copies an item's label once, when the item mounts, and SelectValue reads that copy. After a language
+// switch the copy stays in the old language, so the item text remounts with the language (a picker on every page).
+const locale = i18n.global.locale
 
 const props = defineProps<SelectItemProps & { class?: HTMLAttributes['class'] }>()
 
@@ -38,7 +43,7 @@ const forwardedProps = useForwardProps(delegatedProps)
       </SelectItemIndicator>
     </span>
 
-    <SelectItemText>
+    <SelectItemText :key="locale">
       <slot />
     </SelectItemText>
   </SelectItem>
