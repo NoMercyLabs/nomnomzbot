@@ -492,7 +492,7 @@ describe('CommandsView editor', () => {
       document.body.querySelector('[data-slot="list-detail-detail"]')!.className;
 
     // Nothing open: the hint keeps its own height. A command open: the editor fills the column again.
-    expect(detail()).toContain('md:*:last:flex-none');
+    expect(detail()).toContain('md:*:last:flex-1');
 
     await pick('socials');
 
@@ -738,6 +738,42 @@ describe('CommandsView editor', () => {
     const footer = buttonByText('Reset to preset').parentElement;
 
     expect(footer?.classList.contains('flex-wrap')).toBe(true);
+  });
+
+  it('makes the footer buttons and New command 36px on a phone', async () => {
+    rows[0] = command('hug', { presetKey: 'hug' });
+    await open('/app/commands?command=hug');
+
+    const labels = ['Delete', 'Reset to preset', 'Discard', 'Save changes'];
+
+    for (const label of labels) {
+      expect(buttonByText(label).classList.contains('max-md:h-9'), label).toBe(true);
+    }
+
+    expect(buttonByText('New command').classList.contains('max-md:h-9')).toBe(true);
+  });
+
+  it('hides the sort and tabs bar on a phone while a command is open, and keeps it on the list', async () => {
+    await open('/app/commands?command=hello');
+
+    const bar = document.body.querySelector('[data-slot="page-bar"]')!;
+
+    expect(bar.classList.contains('max-md:hidden')).toBe(true);
+
+    await router.push('/app/commands');
+    await settle();
+
+    expect(
+      document.body.querySelector('[data-slot="page-bar"]')!.classList.contains('max-md:hidden'),
+    ).toBe(false);
+  });
+
+  it('lets the empty detail pane fill the column like the list', async () => {
+    await open('/app/commands');
+
+    const detail = document.body.querySelector('[data-slot="list-detail-detail"]')!;
+
+    expect(detail.className).not.toContain('md:*:last:flex-none');
   });
 
   it('resets to the preset only after the confirm, naming what changes, then reads the list again', async () => {

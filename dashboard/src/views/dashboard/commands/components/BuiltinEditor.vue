@@ -458,6 +458,7 @@ const unsaved = computed<string>(() =>
         type="button"
         variant="outline"
         size="sm"
+        class="max-md:h-9"
         :disabled="locked"
         @click="customized = true"
       >
@@ -468,6 +469,7 @@ const unsaved = computed<string>(() =>
           type="button"
           variant="outline"
           size="sm"
+          class="max-md:h-9"
           :disabled="dirtyCount === 0"
           @click="discard"
         >
@@ -476,6 +478,7 @@ const unsaved = computed<string>(() =>
         <Button
           type="button"
           size="sm"
+          class="max-md:h-9"
           :disabled="dirtyCount === 0 || pending || locked"
           @click="save"
         >

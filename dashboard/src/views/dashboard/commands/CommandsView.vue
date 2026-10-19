@@ -142,12 +142,17 @@ const creating = ref(false);
 </script>
 
 <template>
-  <PageHeader :title="$t('dashboard.commands.title')" :crumb="$t('dashboard.commands.crumb')">
+  <PageHeader
+    :title="$t('dashboard.commands.title')"
+    :crumb="$t('dashboard.commands.crumb')"
+    :bar-hidden-on-phone="open"
+  >
     <template #actions>
       <Button v-if="canWrite"
               type="button"
               variant="outline"
               size="sm"
+              class="max-md:h-9"
               @click="creating = true"
       >
         <Plus aria-hidden="true" />
@@ -165,7 +170,7 @@ const creating = ref(false);
       <PageTabs :tabs="tabs" />
     </template>
   </PageHeader>
-  <ListDetail :show-detail="open" :detail-idle="!open">
+  <ListDetail :show-detail="open">
     <template #list>
       <BuiltinList v-if="!listed" :selected="selectedBuiltin" @pick="selectBuiltin" />
       <CommandList

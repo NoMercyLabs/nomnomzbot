@@ -26,6 +26,8 @@ defineProps<{
   crumb?: string;
   back?: RouteLocationRaw;
   backLabel?: string;
+  // The control bar holds list controls (filters, sort): a phone that shows only the open detail hides it.
+  barHiddenOnPhone?: boolean;
 }>();
 
 // Typed slots: a page that fills a slot name this header does not have fails the type check.
@@ -76,6 +78,7 @@ const frameActions: Component | null = inject(frameActionsKey, null);
       v-if="$slots.bar"
       data-slot="page-bar"
       class="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-6 py-1.5"
+      :class="barHiddenOnPhone ? 'max-md:hidden' : ''"
     >
       <slot name="bar" />
     </div>

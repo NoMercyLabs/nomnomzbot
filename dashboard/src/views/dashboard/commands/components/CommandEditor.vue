@@ -352,7 +352,12 @@ function remove(): void {
     </div>
     <template #footer>
       <!-- Delete sits apart at the far left, away from Save, quiet; its confirm carries the danger. -->
-      <Button type="button" variant="outline" size="sm" @click="confirmOpen = true">
+      <Button type="button"
+              variant="outline"
+              size="sm"
+              class="max-md:h-9"
+              @click="confirmOpen = true"
+      >
         <Trash2 aria-hidden="true" />
         {{ $t("dashboard.commands.editor.delete") }}
       </Button>
@@ -361,6 +366,7 @@ function remove(): void {
         type="button"
         variant="outline"
         size="sm"
+        class="max-md:h-9"
         :disabled="resetToPreset.isPending.value"
         @click="resetOpen = true"
       >
@@ -368,12 +374,18 @@ function remove(): void {
         {{ $t("dashboard.commands.editor.reset") }}
       </Button>
       <span data-unsaved class="mr-auto text-sm text-muted-foreground">{{ unsaved }}</span>
-      <Button type="button" variant="outline" size="sm" @click="discard">{{
+      <Button type="button"
+              variant="outline"
+              size="sm"
+              class="max-md:h-9"
+              @click="discard"
+      >{{
         $t("dashboard.commands.editor.discard")
       }}</Button>
       <Button
         type="button"
         size="sm"
+        class="max-md:h-9"
         :disabled="dirtyCount === 0 || !valid || update.isPending.value"
         @click="save"
       >

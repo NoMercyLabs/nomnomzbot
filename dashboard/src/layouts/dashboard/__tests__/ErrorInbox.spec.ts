@@ -147,6 +147,16 @@ describe('a failed save in the inbox', () => {
   });
 });
 
+describe('ErrorInbox button size', () => {
+  it('is a 36px button with or without a count', async () => {
+    await openInbox();
+    const withCount = document.body.querySelector('[data-error-inbox]')!;
+
+    expect(withCount.className).toContain('h-9');
+    expect(withCount.className).not.toContain('h-8');
+  });
+});
+
 describe('ErrorInbox dismiss', () => {
   it('posts the id of the dismissed item and drops only that item from the list', async () => {
     await openInbox();
