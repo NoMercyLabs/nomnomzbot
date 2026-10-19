@@ -58,13 +58,38 @@ public sealed record DiscordNotificationConfigDto(
 
 public sealed record CreateDiscordNotificationConfigRequest(
     string TriggerType,
-    bool Enabled,
     string TargetChannelId,
     Guid? PingRoleId,
     string? MessageTemplate,
     DiscordEmbedDto? EmbedConfig,
     string? MilestoneType,
-    int? MilestoneThreshold
+    int? MilestoneThreshold,
+    bool Enabled = Domain.Discord.DiscordConfigDefaults.NotificationEnabled
+);
+
+// ── Live-role rule ──────────────────────────────────────────────────────────
+
+public sealed record DiscordLiveRoleConfigDto(
+    Guid Id,
+    Guid GuildConnectionId,
+    string RoleId,
+    string DiscordMemberId,
+    bool Enabled,
+    bool IsCurrentlyApplied,
+    DateTime CreatedAt,
+    DateTime UpdatedAt
+);
+
+public sealed record CreateDiscordLiveRoleConfigRequest(
+    string RoleId,
+    string DiscordMemberId,
+    bool Enabled = Domain.Discord.DiscordConfigDefaults.LiveRoleEnabled
+);
+
+public sealed record UpdateDiscordLiveRoleConfigRequest(
+    string RoleId,
+    string DiscordMemberId,
+    bool Enabled
 );
 
 public sealed record UpdateDiscordNotificationConfigRequest(

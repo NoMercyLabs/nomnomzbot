@@ -107,7 +107,7 @@ public sealed class DiscordTemplateEngineUnificationTests
             Result<DiscordNotificationConfigDto> created = await configService.CreateConfigAsync(
                 channel,
                 connectionId,
-                new("go_live", true, "discord-chan-1", null, template, null, null, null)
+                new("go_live", "discord-chan-1", null, template, null, null, null, true)
             );
             created.IsSuccess.Should().BeTrue(created.ErrorMessage);
             configId = created.Value.Id;

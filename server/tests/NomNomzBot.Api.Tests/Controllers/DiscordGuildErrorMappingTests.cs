@@ -35,6 +35,7 @@ public sealed class DiscordGuildErrorMappingTests
         DiscordController controller = new(
             Substitute.For<IDiscordGuildService>(),
             Substitute.For<IDiscordNotificationConfigService>(),
+            Substitute.For<IDiscordLiveRoleConfigService>(),
             Substitute.For<IDiscordNotificationRoleService>(),
             Substitute.For<IDiscordNotificationDispatcher>(),
             directory

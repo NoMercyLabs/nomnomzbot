@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using Microsoft.EntityFrameworkCore.Storage.ValueConversion;
 using Newtonsoft.Json;
+using NomNomzBot.Domain.Discord;
 using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Domain.Discord.ValueObjects;
 
@@ -30,7 +31,10 @@ public class DiscordNotificationConfigConfiguration
         builder.Property(e => e.TriggerType).IsRequired().HasMaxLength(30);
         builder.Property(e => e.TargetChannelId).IsRequired().HasMaxLength(50);
         builder.Property(e => e.MilestoneType).HasMaxLength(20);
-        builder.Property(e => e.ConfigSchemaVersion).IsRequired().HasDefaultValue(1);
+        builder
+            .Property(e => e.ConfigSchemaVersion)
+            .IsRequired()
+            .HasDefaultValue(DiscordConfigDefaults.EmbedConfigVersion);
 
         // [VC:JSON] — the EmbedConfig value object is serialized to a single text column via Newtonsoft
         // (project rule: Newtonsoft for app-JSON value converters; no jsonb column type).

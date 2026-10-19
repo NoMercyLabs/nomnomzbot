@@ -33,7 +33,7 @@ public class DiscordNotificationConfig : SoftDeletableEntity, ITenantScoped
     [MaxLength(30)]
     public string TriggerType { get; set; } = null!;
 
-    public bool Enabled { get; set; }
+    public bool Enabled { get; set; } = DiscordConfigDefaults.NotificationEnabled;
 
     /// <summary>The target Discord channel snowflake id — an indexed attribute, never a key.</summary>
     [MaxLength(50)]
@@ -54,7 +54,7 @@ public class DiscordNotificationConfig : SoftDeletableEntity, ITenantScoped
     public int? MilestoneThreshold { get; set; }
 
     /// <summary>Per-row upcast anchor for <see cref="EmbedConfig"/> (default 1); consumed on read by the config service.</summary>
-    public int ConfigSchemaVersion { get; set; } = 1;
+    public int ConfigSchemaVersion { get; set; } = DiscordConfigDefaults.EmbedConfigVersion;
 
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;

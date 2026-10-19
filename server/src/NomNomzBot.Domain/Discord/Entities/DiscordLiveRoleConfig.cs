@@ -50,7 +50,7 @@ public class DiscordLiveRoleConfig : SoftDeletableEntity, ITenantScoped
     [MaxLength(50)]
     public string DiscordMemberId { get; set; } = null!;
 
-    public bool Enabled { get; set; }
+    public bool Enabled { get; set; } = DiscordConfigDefaults.LiveRoleEnabled;
 
     /// <summary>True while the role is believed applied — the idempotency + reconciliation flag.</summary>
     public bool IsCurrentlyApplied { get; set; }

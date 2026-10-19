@@ -48,7 +48,7 @@ public sealed class DiscordNotificationConfigServiceTests
             Result<DiscordNotificationConfigDto> result = await service.CreateConfigAsync(
                 channel,
                 connectionId,
-                new("go_live", true, "chan-123", null, "{broadcaster} live", embed, null, null)
+                new("go_live", "chan-123", null, "{broadcaster} live", embed, null, null, true)
             );
             result.IsSuccess.Should().BeTrue(result.ErrorMessage);
             created = result.Value;
@@ -80,13 +80,13 @@ public sealed class DiscordNotificationConfigServiceTests
 
         CreateDiscordNotificationConfigRequest request = new(
             "go_live",
-            true,
             "chan-1",
             null,
             "msg",
             null,
             null,
-            null
+            null,
+            true
         );
 
         await using (DiscordTestDbContext db = database.NewContext())
@@ -117,13 +117,13 @@ public sealed class DiscordNotificationConfigServiceTests
                 connectionId,
                 new(
                     "milestone",
-                    true,
                     "chan-1",
                     null,
                     "msg",
                     null,
                     MilestoneType: null, // missing — required for milestone
-                    MilestoneThreshold: null
+                    MilestoneThreshold: null,
+                    Enabled: true
                 )
             );
 
@@ -147,13 +147,13 @@ public sealed class DiscordNotificationConfigServiceTests
                     connectionId,
                     new(
                         "go_live",
-                        true,
                         "chan-1",
                         null,
                         "{channel.name} playing {channel.game}",
                         null,
                         null,
-                        null
+                        null,
+                        true
                     )
                 );
             configId = created.Value.Id;

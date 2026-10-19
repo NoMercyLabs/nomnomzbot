@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
+using NomNomzBot.Domain.Discord;
 using NomNomzBot.Domain.Discord.Entities;
 
 namespace NomNomzBot.Infrastructure.Discord;
@@ -28,7 +29,7 @@ namespace NomNomzBot.Infrastructure.Discord;
 public sealed class DiscordNotificationConfigService : IDiscordNotificationConfigService
 {
     /// <summary>The current EmbedConfig shape version. Only a breaking reshape raises it + adds an upcast step.</summary>
-    private const int CurrentEmbedConfigVersion = 1;
+    private const int CurrentEmbedConfigVersion = DiscordConfigDefaults.EmbedConfigVersion;
 
     private static readonly string[] AllowedTriggers =
     [

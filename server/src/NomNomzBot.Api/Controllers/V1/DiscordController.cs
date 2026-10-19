@@ -35,6 +35,7 @@ public class DiscordController : BaseController
 {
     private readonly IDiscordGuildService _guilds;
     private readonly IDiscordNotificationConfigService _configs;
+    private readonly IDiscordLiveRoleConfigService _liveRoles;
     private readonly IDiscordNotificationRoleService _roles;
     private readonly IDiscordNotificationDispatcher _dispatcher;
     private readonly IDiscordGuildDirectoryService _directory;
@@ -42,6 +43,7 @@ public class DiscordController : BaseController
     public DiscordController(
         IDiscordGuildService guilds,
         IDiscordNotificationConfigService configs,
+        IDiscordLiveRoleConfigService liveRoles,
         IDiscordNotificationRoleService roles,
         IDiscordNotificationDispatcher dispatcher,
         IDiscordGuildDirectoryService directory
@@ -49,6 +51,7 @@ public class DiscordController : BaseController
     {
         _guilds = guilds;
         _configs = configs;
+        _liveRoles = liveRoles;
         _roles = roles;
         _dispatcher = dispatcher;
         _directory = directory;
@@ -276,6 +279,55 @@ public class DiscordController : BaseController
         Guid configId,
         CancellationToken ct
     ) => ResultResponse(await _configs.PreviewAsync(channelId, configId, ct));
+
+    // ── Live-role rule ────────────────────────────────────────────────────────
+
+    /// <summary>Read the "currently live" role rule of a guild connection (empty when none is set).</summary>
+    [RequireAction("discord:config:read")]
+    [HttpGet("connections/{connectionId:guid}/live-role")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<DiscordLiveRoleConfigDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetLiveRole(
+        Guid channelId,
+        Guid connectionId,
+        CancellationToken ct
+    ) => ResultResponse(await _liveRoles.GetAsync(channelId, connectionId, ct));
+
+    /// <summary>Create the "currently live" role rule of a guild connection.</summary>
+    [RequireAction("discord:config:write")]
+    [HttpPost("connections/{connectionId:guid}/live-role")]
+    [ProducesResponseType<StatusResponseDto<DiscordLiveRoleConfigDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> CreateLiveRole(
+        Guid channelId,
+        Guid connectionId,
+        [FromBody] CreateDiscordLiveRoleConfigRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await _liveRoles.CreateAsync(channelId, connectionId, request, ct));
+
+    /// <summary>Update the "currently live" role rule of a guild connection.</summary>
+    [RequireAction("discord:config:write")]
+    [HttpPut("connections/{connectionId:guid}/live-role")]
+    [ProducesResponseType<StatusResponseDto<DiscordLiveRoleConfigDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> UpdateLiveRole(
+        Guid channelId,
+        Guid connectionId,
+        [FromBody] UpdateDiscordLiveRoleConfigRequest request,
+        CancellationToken ct
+    ) => ResultResponse(await _liveRoles.UpdateAsync(channelId, connectionId, request, ct));
+
+    /// <summary>Delete the "currently live" role rule of a guild connection.</summary>
+    [RequireAction("discord:config:write")]
+    [NotDestructive(
+        "Deletes one DiscordLiveRoleConfig row; nothing references it, and a rule whose role is applied right now is refused."
+    )]
+    [HttpDelete("connections/{connectionId:guid}/live-role")]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> DeleteLiveRole(
+        Guid channelId,
+        Guid connectionId,
+        CancellationToken ct
+    ) => ResultResponse(await _liveRoles.DeleteAsync(channelId, connectionId, ct));
 
     // ── Notify roles + opt-in ─────────────────────────────────────────────────
 
