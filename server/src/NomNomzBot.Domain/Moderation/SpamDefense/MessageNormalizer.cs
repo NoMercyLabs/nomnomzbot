@@ -191,7 +191,9 @@ public static class MessageNormalizer
         // NFKD manufactures combining marks out of innocent characters — `¯` (U+00AF) decomposes to
         // space + combining macron — so scanning after decomposition reports zalgo in a kaomoji and
         // punishes ordinary chat, the exact SD0 failure. Scan the original; decompose only to match.
-        bool cosmeticAbuse = HasCosmeticAbuse(original);
+        // NFC first: a keyboard that sends `a` + combining tilde for `ã` is ordinary Portuguese, not zalgo.
+        // NFC composes every accent that has a letter of its own and leaves only real stacking behind.
+        bool cosmeticAbuse = HasCosmeticAbuse(original.Normalize(NormalizationForm.FormC));
 
         // 1 + 2 + 3. NFKD, then strip the marks and invisibles so they cannot break up a match.
         string visibleText = StripCosmetic(original);

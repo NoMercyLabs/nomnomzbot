@@ -63,6 +63,10 @@ public class MessageNormalizerTests
     [InlineData("مرحبا كيف حالك")] // Arabic
     [InlineData("¯\\_(ツ)_/¯")] // kaomoji
     [InlineData("gg ez clap")] // ordinary English chat
+    [InlineData("não sei, você está bem? ação")] // Portuguese, precomposed
+    [InlineData("não sei, você está bem? ação")] // Portuguese as a decomposed keyboard sends it
+    [InlineData("Énglîs hãs nö sígǹs, which îś great!")] // a viewer on the wrong keyboard layout
+    [InlineData("Tiếng Việt rất hay")] // Vietnamese, two marks on one letter
     public void RealViewerChat_IsNeverFlaggedAsCosmeticAbuse(string message)
     {
         NormalizedMessage result = MessageNormalizer.Normalize(message);
