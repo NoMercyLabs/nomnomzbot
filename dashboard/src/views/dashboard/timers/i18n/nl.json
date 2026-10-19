@@ -78,6 +78,7 @@
         "name": "Naam",
         "messages": "Berichten",
         "messagesHelp": "Een bericht per regel. De timer plaatst ze om de beurt.",
+        "messagesPlaceholder": "Tijd om water te drinken en te rekken, chat!",
         "interval": "Minuten tussen berichten",
         "intervalHelp": "Standaard {minutes}. De timer wacht zo lang tussen berichten.",
         "intervalProblem": "Gebruik een heel getal van {minMinutes} tot {maxMinutes} minuten.",

@@ -180,6 +180,7 @@ function remove(): void {
         :rows="4"
         :label="$t('dashboard.timers.editor.messages')"
         :help="$t('dashboard.timers.editor.messagesHelp')"
+        :placeholder="$t('dashboard.timers.editor.messagesPlaceholder')"
       />
 
       <!-- What it runs besides the lines above: one command, action or pipeline. -->

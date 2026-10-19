@@ -78,6 +78,7 @@
         "name": "Name",
         "messages": "Messages",
         "messagesHelp": "One message per line. The timer posts them in turn.",
+        "messagesPlaceholder": "Time to hydrate and stretch, chat!",
         "interval": "Minutes between posts",
         "intervalHelp": "Default {minutes}. The timer waits this long between posts.",
         "intervalProblem": "Use a whole number from {minMinutes} to {maxMinutes} minutes.",

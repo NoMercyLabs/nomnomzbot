@@ -291,6 +291,17 @@ describe('the helper panel', () => {
     expect(document.activeElement).toBe(area);
   });
 
+  it('shows the helper toggle at rest as a 36px control, not only while the field has focus', async () => {
+    await host('ab cd');
+
+    const toggle = document.body.querySelector<HTMLElement>('[data-helper-toggle]')!;
+
+    expect(toggle.className).not.toContain('opacity-0');
+    expect(toggle.className).not.toContain('h-6');
+    expect(toggle.className).toContain('h-9');
+    expect(toggle.className).not.toContain('text-xs');
+  });
+
   it('opens its own full helper panel and inserts the pressed helper at the caret', async () => {
     const area: HTMLTextAreaElement = await host('ab cd');
 

@@ -119,6 +119,7 @@ async function submit(): Promise<void> {
       context="timer"
       :rows="3"
       :label="$t('dashboard.timers.editor.messages')"
+      :placeholder="$t('dashboard.timers.editor.messagesPlaceholder')"
     />
     <Field>
       <FieldLabel>{{ $t("dashboard.timers.editor.target") }}</FieldLabel>

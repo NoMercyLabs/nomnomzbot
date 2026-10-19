@@ -186,9 +186,8 @@ defineExpose({ insert });
 </script>
 
 <template>
-  <!-- The helper toggle sits in the label row and shows only on the field being edited, so a page
-       with many template fields carries one visible toggle instead of one per field. -->
-  <Field class="group/template">
+  <!-- The helper toggle sits in the label row, always visible at the 36px control size. -->
+  <Field>
     <div class="flex items-center gap-1.5">
       <FieldLabel :for="id">{{ label }}</FieldLabel>
       <FieldInfo v-if="help">{{ help }}</FieldInfo>
@@ -196,9 +195,7 @@ defineExpose({ insert });
         v-if="panel && !disabled"
         type="button"
         variant="ghost"
-        size="sm"
-        class="ml-auto h-6! px-2! text-xs!"
-        :class="panelOpen ? '' : 'opacity-0 group-focus-within/template:opacity-100 focus-visible:opacity-100'"
+        class="ml-auto"
         data-helper-toggle
         :aria-expanded="panelOpen"
         @mousedown.prevent

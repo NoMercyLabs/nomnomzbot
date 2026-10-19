@@ -242,6 +242,17 @@ describe('Triggers and timers page', () => {
     expect(field('Messages').value).toBe('Join us\nLink in bio');
   });
 
+  it('shows an example line as the placeholder of an empty Messages field, in the editor and the dialog', async () => {
+    await open();
+    await click(rowOf('Discord invite'));
+
+    expect(field('Messages').placeholder).toBe('Time to hydrate and stretch, chat!');
+
+    await click(buttonByText('New timer'));
+
+    expect(field('Messages').placeholder).toBe('Time to hydrate and stretch, chat!');
+  });
+
   it('names the default of the interval and of the chat lines in the field hints', async () => {
     await open();
     await click(rowOf('Discord invite'));
