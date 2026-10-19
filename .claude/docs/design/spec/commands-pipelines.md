@@ -1515,3 +1515,6 @@ One runner (`ICommandInvoker`, replacing the unused `CommandService.ExecuteAsync
 
 Decided by Stoney (2026-10-19): Q1 skip cooldown and permission on a direct run; Q3 yes, three target kinds (command, pipeline, action), so single-action wrappers also go; Q5 a reply-text command sends its reply in the bot voice and honors its TTS flag; Q6 one allowed-targets list on automation tokens, existing tokens migrated in place so they keep working.
 Arc's decision, pending Stoney (taken overnight so the build does not stop): Q2 a trigger with no human runs as the channel's bot identity with the broadcaster role; Q4 built-in commands are selectable targets; Q7 deleting or disabling a bound command is blocked with a blast-radius list.
+
+- Arc's decision, pending Stoney: `AutomationTargetDto` stays a thin adapter over `BindingTarget` (it carries `Kind` as a string; `BindingTarget.Kind` serializes as an integer on every other surface). Moving all surfaces to a string-enum converter would be a cross-surface wire migration that also touches the Kotlin client; not done.
+- Arc's decision, pending Stoney: scheduled tasks gain their direct target through the `schedule_pipeline` pipeline action (no REST route exists); the Timer DTO carries `target`.
