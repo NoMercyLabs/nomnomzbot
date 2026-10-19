@@ -342,6 +342,39 @@ describe('Triggers and timers page', () => {
     expect(rowNames()).toContain('Hydrate');
   });
 
+  it('sends the command chosen in the create dialog as the new timer target', async () => {
+    Element.prototype.hasPointerCapture = (): boolean => false;
+    Element.prototype.releasePointerCapture = (): void => undefined;
+    Element.prototype.scrollIntoView = (): void => undefined;
+
+    await open();
+    await click(buttonByText('New timer'));
+    await type(field('Name'), 'Hydrate');
+    await type(field('Messages'), 'Drink water');
+
+    const trigger = document.body.querySelector('[data-target-picker] [data-slot="select-trigger"]')!;
+
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await settle();
+
+    const item = [...document.body.querySelectorAll<HTMLElement>('[data-slot="select-item"]')]
+      .find((candidate) => candidate.textContent?.includes('!hello'));
+
+    item!.dispatchEvent(new PointerEvent('pointerup', {
+      bubbles: true,
+      button: 0,
+      pointerType: 'mouse',
+    }));
+
+    await settle();
+    await click(buttonByText('Create timer'));
+
+    expect(writes('POST')[0]!.body).toMatchObject({
+      name: 'Hydrate',
+      target: { kind: 0, id: 'c1' },
+    });
+  });
+
   it('refuses an interval outside 1 to 1440 before sending and says why', async () => {
     await open();
     await click(rowOf('Follow reminder'));

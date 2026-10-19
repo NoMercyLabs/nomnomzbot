@@ -15,10 +15,12 @@ import { useI18n } from 'vue-i18n';
 
 import { useCreateTimer } from '@/api/timers';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import TargetPicker from '@/components/layout/TargetPicker.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { targetToWire, type PickedTarget } from '@/lib/bindingTarget';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
 import { defaultMinutes, messagesOf, timerLimits } from './timerDraft';
@@ -32,6 +34,7 @@ const create = useCreateTimer(channelId);
 const name = ref('');
 const messages = ref('');
 const minutes = ref(defaultMinutes);
+const target = ref<PickedTarget | null>(null);
 const error = ref<string | undefined>(undefined);
 
 watch(open, (isOpen: boolean): void => {
@@ -40,6 +43,7 @@ watch(open, (isOpen: boolean): void => {
   name.value = '';
   messages.value = '';
   minutes.value = defaultMinutes;
+  target.value = null;
   error.value = undefined;
 });
 
@@ -75,6 +79,9 @@ async function submit(): Promise<void> {
       name: name.value.trim(),
       messages: lines,
       intervalMinutes: minutes.value,
+      ...(target.value
+        ? { target: targetToWire(target.value) }
+        : {}),
     });
   } catch (failure) {
     error.value = [errorText(failure, t), ...fieldErrorLines(failure)].join(' ');
@@ -113,6 +120,15 @@ async function submit(): Promise<void> {
       :rows="3"
       :label="$t('dashboard.timers.editor.messages')"
     />
+    <Field>
+      <FieldLabel>{{ $t("dashboard.timers.editor.target") }}</FieldLabel>
+      <TargetPicker
+        v-model:target="target"
+        clearable
+        :kinds="['command', 'pipeline', 'action']"
+        :label="$t('dashboard.timers.editor.target')"
+      />
+    </Field>
     <Field>
       <FieldLabel for="new-timer-interval">{{ $t("dashboard.timers.editor.interval") }}</FieldLabel>
       <Input
