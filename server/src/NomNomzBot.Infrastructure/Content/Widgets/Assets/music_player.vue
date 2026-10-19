@@ -35,6 +35,7 @@ interface YouTubePlayerHandle {
   stopVideo(): void
   seekTo(seconds: number, allowSeekAhead: boolean): void
   getCurrentTime(): number
+  getDuration(): number
   getPlayerState(): number
   getVideoData(): { video_id: string }
   isMuted(): boolean
@@ -98,6 +99,11 @@ const YT_STATE_NAMES: Record<number, string> = { 0: 'ENDED', 1: 'PLAYING', 2: 'P
 // request over this one. A playing or paused video is re-reported well inside that window.
 const YT_HEARTBEAT_MS: number = 5000
 let ytHeartbeat: number | undefined
+// The bot hears ENDING once, this long before a video ends, so it can bring a paused Spotify song back in time.
+const YT_ENDING_LEAD_SECONDS: number = 3
+let ytEndingTimer: number | undefined
+// The video whose ENDING was already reported: a seek or a resume afterwards never reports it a second time.
+let ytEndingReportedFor: string | null = null
 
 function loadYouTubeApi(): Promise<void> {
   if (ytApiPromise) return ytApiPromise
@@ -122,14 +128,41 @@ function applyPendingYouTubeCommands(player: YouTubePlayerHandle): void {
 }
 
 function reportYouTubeState(player: YouTubePlayerHandle, code: number): void {
+  // Any state change (pause, buffering after a seek, end) makes the armed ENDING timer wrong; PLAYING arms it anew.
+  clearYouTubeEnding()
   const state: string | undefined = YT_STATE_NAMES[code]
   if (!state) return
   if (state === 'PLAYING') {
     applyPendingYouTubeCommands(player)
     ensureYouTubeAudible(player)
+    armYouTubeEnding(player, player.getCurrentTime())
   }
   NomNomz.reportYouTubePlayerState(player.getVideoData().video_id, state, Math.round(player.getCurrentTime() * 1000))
     .catch(() => { /* offline: the next state change reports again */ })
+}
+
+function clearYouTubeEnding(): void {
+  if (ytEndingTimer !== undefined) window.clearTimeout(ytEndingTimer)
+  ytEndingTimer = undefined
+}
+
+// One timer per video, set for the moment YT_ENDING_LEAD_SECONDS are left. A live stream or a video that has not
+// loaded its metadata reports a duration of 0: it has no known end, so nothing is armed. With the lead already
+// passed (a seek near the end) the timer fires at once.
+function armYouTubeEnding(player: YouTubePlayerHandle, positionSeconds: number): void {
+  clearYouTubeEnding()
+  const videoId: string = player.getVideoData().video_id
+  const durationSeconds: number = player.getDuration()
+  if (!(durationSeconds > 0) || ytEndingReportedFor === videoId) return
+  const delayMs: number = Math.max(0, (durationSeconds - positionSeconds - YT_ENDING_LEAD_SECONDS) * 1000)
+  ytEndingTimer = window.setTimeout(() => reportYouTubeEnding(player, videoId), delayMs)
+}
+
+function reportYouTubeEnding(player: YouTubePlayerHandle, videoId: string): void {
+  ytEndingTimer = undefined
+  ytEndingReportedFor = videoId
+  NomNomz.reportYouTubePlayerState(videoId, 'ENDING', Math.round(player.getCurrentTime() * 1000))
+    .catch(() => { /* offline: the bot treats the end like any other and starts the next request at ENDED */ })
 }
 
 // A page without a user gesture lets YouTube autoplay only muted, and it still reports PLAYING: unmute it, and
@@ -157,6 +190,7 @@ function reportYouTubeHeartbeat(): void {
 // id of a video it refused, so the one the bot asked for is reported.
 function reportYouTubeError(player: YouTubePlayerHandle, code: number): void {
   const videoId: string = ytRequestedVideoId || player.getVideoData().video_id
+  clearYouTubeEnding()
   ytLoading = false
   ytPendingSeekSeconds = null
   ytPendingPause = false
@@ -173,6 +207,8 @@ async function onYouTubePlay(d: NnzWidgetEventMap['youtube.play'] | null | undef
   ytLoading = true
   ytPendingSeekSeconds = null
   ytPendingPause = false
+  clearYouTubeEnding()
+  ytEndingReportedFor = null
   if (ytPlayer) { ytPlayer.loadVideoById(videoId); return }
   if (ytStarting) return
   ytStarting = true
@@ -223,6 +259,8 @@ function onYouTubeSeek(d: NnzWidgetEventMap['youtube.seek'] | null | undefined):
   const seconds: number = d.positionMs / 1000
   if (ytLoading || !ytPlayer) { ytPendingSeekSeconds = seconds; return }
   ytPlayer.seekTo(seconds, true)
+  // A playing video has a new end time; a paused one is armed again when it resumes.
+  if (YT_STATE_NAMES[ytPlayer.getPlayerState()] === 'PLAYING') armYouTubeEnding(ytPlayer, seconds)
 }
 
 function onYouTubeVolume(d: NnzWidgetEventMap['youtube.volume'] | null | undefined): void {
@@ -239,6 +277,7 @@ function onYouTubeStop(d?: NnzWidgetEventMap['youtube.stop'] | null): void {
   ytLoading = false
   ytPendingSeekSeconds = null
   ytPendingPause = false
+  clearYouTubeEnding()
   if (!ytPlayer) {
     // Stopped before the player was ready: onYouTubeReady stops it, and the bot still hears the end.
     if (requested && !handoff)
@@ -451,6 +490,7 @@ onUnmounted(() => {
   if (typeof NomNomz !== 'undefined') NomNomz.off('now_playing', onAudioNowPlaying)
   if (musicPoll) window.clearInterval(musicPoll)
   if (ytHeartbeat) window.clearInterval(ytHeartbeat)
+  clearYouTubeEnding()
   disconnectSpotify()
 })
 </script>
