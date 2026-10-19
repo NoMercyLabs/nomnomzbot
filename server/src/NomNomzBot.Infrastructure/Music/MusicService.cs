@@ -428,18 +428,13 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
             OutboundSanction.ChannelConfiguration("music:playback_control")
         );
 
-        try
-        {
-            await provider.SkipAsync(tenantId, cancellationToken);
-        }
-        catch (PremiumRequiredException ex)
-        {
-            return PremiumRequired(ex);
-        }
-        catch (NoActiveDeviceException ex)
-        {
-            return NothingPlaying(ex.Provider);
-        }
+        // The director stops the playing song and starts the next head; the provider's own skip is never
+        // called. An engine that refuses leaves the director Blocked, and that reason is the answer.
+        await _playbackInput.SendAsync(tenantId, new OwnerSkip(), cancellationToken);
+
+        PlaybackState state = _playbackState.StateOf(tenantId);
+        if (state.Kind == PlaybackStateKind.Blocked)
+            return BlockedOnSkip(provider, state.Reason, skippedTrack?.TrackName ?? string.Empty);
 
         if (skippedTrack?.TrackName is { } skippedTrackName)
             await _eventBus.PublishAsync(
@@ -1293,6 +1288,18 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
                 _ => ProviderErrorOnQueue(trackName),
             }
             : ProviderErrorOnQueue(trackName);
+
+    /// <summary>Turns the director's Blocked reason into the typed refusal the skipper sees.</summary>
+    private static Result BlockedOnSkip(
+        IMusicProvider provider,
+        string? reason,
+        string trackName
+    ) =>
+        Enum.TryParse(reason, out EngineBlockReason block)
+        && block == EngineBlockReason.NoOutput
+        && provider.Provider != "youtube"
+            ? NothingPlaying(provider.Provider)
+            : BlockedOnQueue(provider, reason, trackName);
 
     /// <summary>The accepted-request side effects, identical whether the request went straight to the
     /// provider or is waiting its turn: the log line, the analytics fact, and the fresh queue snapshot the
