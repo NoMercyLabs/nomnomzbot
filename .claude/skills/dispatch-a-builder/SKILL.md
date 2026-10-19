@@ -7,8 +7,9 @@ description: Brief and supervise a subagent building a NomNomzBot slice, and jud
 
 ## Parallelism
 
-Cap it at about **three** concurrent agents. Beyond that the shared tree thrashes and the
-orchestrator loses track of who owns which file. Give each agent a **disjoint file set**.
+At most **2** agents that build or test code and **6** read-only agents at once (the global
+rule). Give each agent a **disjoint file set**, or the shared tree thrashes and nobody knows who
+owns which file.
 
 Two isolation choices:
 
@@ -19,41 +20,55 @@ Two isolation choices:
   own branch**, not the main tree. Never sweep worktrees while an agent is still live; clean up
   only completed ones. Land a finished worktree branch with `scripts/land-worktree.ps1`.
 
-## Every brief must carry
+## Before every dispatch: brief-check
 
-1. **The exact slice** — start and finish, the files it owns, and nothing else.
-2. **Explicit types, never `var`.** `.editorconfig` flags IDE0008 as an **error**. This has been
-   silently violated before; it goes in every C#-writing brief, verbatim. **C# only:** a dashboard
-   (TypeScript/Vue) brief says the opposite: no annotation the value already has, constant tables
-   as `as const satisfies`, and `eslint --fix` before the gate.
-3. **The license header** for every new source file (AGPL-3.0, NoMercy Labs).
-4. **For any brief that writes UI: "load the `sleak` skill before writing the screen", verbatim.**
-   Then name the three rules the agent will be judged against, because an agent that only reads
-   `frontend-design-system.md` gets correct tokens and no hierarchy: **one primary action per group**
-   (a row of equal-weight buttons is a defect — siblings outline/ghost, destructive distinct),
-   **concentric radius** (nested rounded container never reuses the parent radius when padding > 0),
-   **scarce accent** (full chroma marks one task per page). This is the design equivalent of the
-   `var` rule above: it has been silently skipped before, so it goes in the brief every time.
-5. **The gate it must run before committing** — `scripts/slice-check.ps1` with its own
-   `-TestProject`, `-Filter` and `-Paths`; frontend: `jvmTest` **and** `compileKotlinWasmJs`.
-6. **The testing bar**: assert state changes, emitted events, side effects. Smoke tests
-   ("returned non-null", "did not throw", "the mock was called") are void and do not count.
-   **Tests come first in the work order, every time:** the brief lists "write the test, run it, save
-   the failing output" BEFORE any production edit. Never "write the code first" (2026-10-03: a brief
-   said so and a worker wrote ~118 labels with no test). A worker continuing a code-first handoff
-   proves failing-first by running the new test against `git show HEAD:<file>` copies.
-7. **A reading budget**: at most ~40k tokens of reading before the first test file is written; find a
-   symbol with `grep -n`, then read only that range; never read a whole file over 300 lines. A
-   re-dispatch from a handoff says "do not re-research; your next tool call after the merge writes the
-   first test". A worker's context budget is at least 140k: about 30k is fixed start-up context.
-8. **The report shape** you want back: what changed, the evidence, the first real error on
-   failure — not file dumps.
-9. **Do not push.** Pushing is the orchestrator's decision.
-10. **Never bypass a hook** (`--no-verify`, `-c core.hooksPath=...`): it also skips the attribution
-    guard. A failing hook means stop and report its output.
-11. **A time budget line** (`Time budget: 25 minutes`). 40 minutes or more also needs
-   `Executor: Arc because <reason>`, or executor-guard refuses the dispatch. Name the model
-   (Haiku checks, Sonnet pattern work, Opus hard cases).
+Write the brief to the session scratchpad, then run
+`sh scripts/brief-check.sh <draft.md> --type <subagent_type> --model <model>`. It names every gap of
+every dispatch guard at once, with the full text of each rule the brief must cite. Fix them all and
+run it again until it prints PASS. Then dispatch the same text with the same type and model.
+
+## Every brief starts from this skeleton
+
+It passes every dispatch guard as it stands. Fill in the angle brackets and keep every line.
+
+```text
+You are one <builder | researcher> worker. Model: <haiku | sonnet | opus>.
+Executor: Arc because <why Arc runs it now>      (only with a time budget of 40 minutes or more)
+Task (one item): <the slice: its start and finish, in one sentence>.
+Work in: <absolute repo or worktree path>. Files you own: <paths>. Touch nothing else.
+- Write the failing test, run it, save the failing output.
+- <the change>
+- <the gate>
+Gates before you commit: <scripts/slice-check.ps1 -TestProject ... -Filter ... -Paths ...>. Commit by explicit pathspec. Do not push. Never bypass a hook.
+Time budget: <N> minutes.
+Context budget 150k: at 100k, write or update a handoff file in the session scratchpad and report its path.
+Report: one sentence; details go to a file.
+
+Rules applied:
+- <rule id>: <how this brief follows it>
+```
+
+- **One item, steps as bullets.** A line that starts with `2.`, `2)`, `b.` or `Item 2` is a second
+  work item, and the guard refuses it. Give that item its own builder and run the two in parallel.
+- **The details file** holds what changed, the evidence, and the first real error on failure. It
+  never holds file dumps.
+- **Tests come first, every time.** The test step comes before any production edit. A worker that
+  continues a code-first handoff proves failing-first against `git show HEAD:<file>` copies.
+- **The testing bar**: assert state changes, emitted events and side effects. Smoke tests
+  ("returned non-null", "did not throw", "the mock was called") do not count.
+- **A reading budget**: at most ~40k tokens of reading before the first test file. Find a symbol
+  with `grep -n` and read only that range. A re-dispatch from a handoff says "do not re-research",
+  and carries `Previous run: <model> <N>k.` with a larger budget or a stronger model.
+- **C# briefs**: "Explicit types, never `var`" verbatim (`.editorconfig` IDE0008 is an error), and
+  the license header on every new source file. **Dashboard (TypeScript/Vue) briefs** say the
+  opposite: no annotation the value already has, constant tables `as const satisfies`, and
+  `eslint --fix` before the gate.
+- **UI briefs**: "load the `sleak` skill before writing the screen", verbatim, plus the three rules
+  the work is judged on: **one primary action per group**, **concentric radius**, **scarce accent**.
+- **Read-only jobs** go to a read-only type: Explore (search, measure, read-only commands) or
+  wf-checker. A general agent with a read-only brief is refused. A brief that orders a write
+  ("commit it", "fix the ...") is a writing brief, whatever else it calls read-only.
+- **Manager briefs** also need the wait lines and the lanes; brief-check names the exact words.
 
 ## Judging what comes back
 

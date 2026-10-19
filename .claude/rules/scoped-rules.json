@@ -79,6 +79,24 @@
    ]
   },
   {
+   "id": "brief-edit-with-edit-tool",
+   "text": "Change files only with the Edit and Write tools. Never sed -i, perl -i, or a python/node script or heredoc that rewrites a file: restore-guard refuses them, and the retry costs a turn. Scripts run things (gates, scans); they never replace text.",
+   "source": "Stoney 2026-10-13 (translated from Dutch): \"Just the edit file tool.\" 2026-10-19: restore-guard refused 635 sed -i and 666 heredoc edits in 7 days, 1438 of 1669 from agents; the rule lived only in memory and never reached a brief.",
+   "covers": [
+    "feedback-edit-tool-not-python-scripts.md",
+    "Change files only with the Edit and Write tools"
+   ]
+  },
+  {
+   "id": "brief-check-before-dispatch",
+   "text": "Before any Agent call (a manager starting a worker), write the brief to the session scratchpad and run `sh scripts/brief-check.sh <draft.md> --type <subagent_type> --model <model>` until it prints PASS. Then dispatch the same text with the same type and model. It names every gap of every dispatch guard at once, with the rules the brief must cite.",
+   "source": "Stoney 2026-10-19: \"your flow is broken, you have to constantly redo things instead of doing it right the first time ... so the guards don't need to tell you to try again\". 7 days: 934 of 3119 Agent calls refused, 459 of them from managers; one dispatch took 36 tries.",
+   "covers": [
+    "feedback-brief-check-before-dispatch.md",
+    "Check every brief before the Agent call"
+   ]
+  },
+  {
    "id": "brief-no-backslash-heredoc",
    "text": "Any script or JSON text you generate that contains a backslash (regex, \\n escapes, Windows paths) is written to a file with the Write tool and run/loaded as a file, never piped through a Bash heredoc.",
    "source": "memory feedback-no-backslash-through-heredoc.md",
@@ -301,8 +319,9 @@
     "**/dashboard/**/*.vue"
    ],
    "brief": [
-    "dashboard",
-    "explicit type"
+    "dashboard/",
+    "\\.vue\\b",
+    "\\.ts\\b"
    ],
    "text": "Dashboard TypeScript: no annotation when the value already has the type (`const queries = useQueryClient()`, `computed(...)` without ComputedRef). Widen or narrow only through the generic (`ref<T | null>(null)`). A constant table is `{ ... } as const satisfies Record<K, V>`; a table read by a computed string key, an exported string-keyed table, or a list keeps its widening annotation. The lint rule app/no-redundant-type-annotation enforces it, and unused-imports/no-unused-imports deletes unused imports: run `eslint --fix`, never sweep by hand. Never write \"explicit types on locals\" in a dashboard brief.",
    "source": "Stoney 2026-10-13: \"don't type variables if the return type of the value matches and does not change for things like this: const queries: QueryClient = useQueryClient()\"; \"use a linter, don't do them by hand\"; \"use as const satisfies type\"; \"also add a linter that removes unused imports\"; memory feedback-ts-no-redundant-annotations.md",
@@ -315,8 +334,9 @@
     "**/dashboard/**/*.vue"
    ],
    "brief": [
-    "dashboard",
-    "format"
+    "dashboard/",
+    "\\.vue\\b",
+    "\\.ts\\b"
    ],
    "text": "Dashboard layout: a ternary puts `? a` and `: b` on their own lines; an arrow whose body is a ternary starts it on the next line without brackets (app/arrow-ternary-body); an expression arrow that is the LAST call argument and shares its line with an earlier argument ends that line at `=>` and starts its body on the next line, one level in (app/trailing-arrow-argument; a lone or first callback, an arrow with more arguments after it, and a block body stay). An if body is a bare `return`/`break`/`continue` on the if line, a returned or thrown value on the next line one level in (no braces), or a braced block for anything else; a loop body (for, for-in, for-of, while, do) is always a braced block. A blank line sets apart each statement group, and every if, loop, switch and try. ESLint enforces it (@stylistic/multiline-ternary, operator-linebreak, indent, padding-line-between-statements, app/body-shape); Prettier undoes the ternary and if breaks, so format with `npm run format` (Prettier, then `eslint --fix`), never Prettier alone and never by hand.",
    "source": "Stoney 2026-10-13: \"i prefer\" `return typeof options.queryKey === 'function'` / `? options.queryKey(variables)` / `: options.queryKey`; \"if statements may only directly return void, when a value is set then i want a proper codeblock, and when a value is returned i want the return on the next line indented\"; \"and also space inside functions with empty lines for proper organization for readability\"; memory feedback-ts-layout-ternary-if.md",
@@ -328,7 +348,9 @@
     "**/dashboard/src/lib/**"
    ],
    "brief": [
-    "dashboard"
+    "dashboard/",
+    "\\.vue\\b",
+    "\\.ts\\b"
    ],
    "text": "Dashboard helpers live in one file per KIND (`src/lib/array.ts` for array and key helpers, and so on), never one function per file. A new helper joins the file for its kind; make a new kind file only when no kind fits. `src/lib/utils.ts` is shadcn's `cn` file: leave it alone.",
    "source": "Stoney 2026-10-13: \"you now placed it in its own file while it is an array type of utility, you can make multiple util files but not one function per file, that is overcorrecting my words\"; memory feedback-utils-grouped-by-kind.md",
@@ -340,7 +362,9 @@
     "**/dashboard/**"
    ],
    "brief": [
-    "dashboard"
+    "dashboard/",
+    "\\.vue\\b",
+    "\\.ts\\b"
    ],
    "text": "American English in every dashboard name, comment, test title and string: color, gray, canceled, labeled, catalog, serialize, behavior. `cspell.config.yaml` lists the British words as flagWords; `npm run lint:spelling` and the commit gate fail on one. A new British word that slips through goes into flagWords.",
    "source": "Stoney 2026-10-13: \"why are we STILL speaking brittish english?\"; memory feedback-american-english.md",
@@ -353,7 +377,9 @@
     "**/dashboard/eslint-rules/**"
    ],
    "brief": [
-    "dashboard"
+    "dashboard/",
+    "\\.vue\\b",
+    "\\.ts\\b"
    ],
    "text": "Calls nest at most 2 deep in one expression (`app/max-call-nesting`). Give each inner step a named const or a small named function instead, so a line reads as one step. `expect(...)` does not count, and a callback or object property starts the count over.",
    "source": "Stoney 2026-10-13: \"lets also reduce the complexity for things like this, its a challenge to parse what this does\"; memory feedback-max-call-nesting.md",
@@ -365,7 +391,9 @@
     "**/dashboard/src/**"
    ],
    "brief": [
-    "dashboard"
+    "dashboard/",
+    "\\.vue\\b",
+    "\\.ts\\b"
    ],
    "text": "Join lists with `merge(a, b, c)` from `@/lib/array`, never `[...a, ...b]`. It returns a new read-only list and keeps tuple positions typed for `as const` input. ESLint `no-restricted-syntax` flags an array that starts with two spreads.",
    "source": "Stoney 2026-10-13: \"turn [...channelHandlers, ...communityHandlers, ...chatHandlers] into merge(channelHandlers, communityHandlers, chatHandlers) and return as const if possible\"",
@@ -377,7 +405,9 @@
     "**/dashboard/src/**"
    ],
    "brief": [
-    "dashboard"
+    "dashboard/",
+    "\\.vue\\b",
+    "\\.ts\\b"
    ],
    "text": "An object type or object literal with 3 or more entries puts each entry on its own line, even when it fits on one line. ESLint `app/members-per-line` flags it and `eslint --fix` wraps it.",
    "source": "Stoney 2026-10-13: \"lets make this lenght wrap in formatted object: type PanelQuery<T> = { data: Ref<T | undefined>; isPending: Ref<boolean>; isError: Ref<boolean> }\" and \"i like this: return { ...labels, ...words('codeEditor.testRun'), roles: words('codeEditor.testRun.roles') } [one entry per line] over return { ...labels, ...words('codeEditor.testRun'), roles: words('codeEditor.testRun.roles') }\"",
@@ -523,7 +553,7 @@
    "brief": [
     "docs/sdk",
     "SDK doc",
-    "\batlas\b"
+    "\\batlas\\b"
    ],
    "text": "An SDK doc page (docs/sdk) lands only when `python scripts/check-sdk-docs.py` passes for it: the page names its plan slices on a `<!-- slices: ... -->` line and none is still open; the claim audit has a `## <path>` section with `<!-- audited sha256:<hash> -->` for the page's current text; every claim row's verdict starts with `true`. The .githooks/pre-commit hook refuses the commit otherwise. Write a page only after its slice is closed; one page per writer. Drafts live on the local branch docs/sdk-draft, never pushed.",
    "source": "Stoney 2026-10-03: \"i need good docs so why did you write bad ones?\" (62 stale, 8 wrong of 399 claims); memory feedback-one-item-per-builder-and-checked-docs.md",
@@ -714,6 +744,101 @@
    "covers": [
     "feedback-kmp-frozen-keep-working-only.md",
     "The KMP app (`app/`) is frozen"
+   ]
+  },
+  {
+   "id": "dashboard-semicolons",
+   "paths": [
+    "**/dashboard/src/**",
+    "**/dashboard/eslint-rules/**"
+   ],
+   "brief": [
+    "dashboard/",
+    "\\.vue\\b",
+    "\\.ts\\b"
+   ],
+   "text": "Dashboard TypeScript and Vue code ends statements and object-type members with semicolons. ESLint is the only formatter (no Prettier): the `app/format` stylistic preset (semi: true) fails the gate on a missing one and `eslint --fix` adds it.",
+   "source": "Stoney 2026-10-13: \"force semicolons\"",
+   "covers": []
+  },
+  {
+   "id": "dashboard-generics-over-annotations",
+   "paths": [
+    "**/dashboard/src/**"
+   ],
+   "brief": [
+    "dashboard/",
+    "\\.vue\\b",
+    "\\.ts\\b"
+   ],
+   "text": "Dashboard code passes a type to a generic call instead of annotating the variable: `computed<T>(...)`, `ref<T>(...)`, `new Set<T>(...)`, never `const x: ComputedRef<T> = computed(...)`. ESLint `app/generic-over-annotation` flags it and `eslint --fix` moves the type.",
+   "source": "Stoney 2026-10-13: \"prefer const primaryRoute = computed<{ name: string; label: string } | null>(() => { over const primaryRoute: ComputedRef<{ name: string; label: string } | null> = computed(() => {\" and \"this is basically a use generics wherever supported\"",
+   "covers": [
+    "feedback-ts-no-redundant-annotations.md"
+   ]
+  },
+  {
+   "id": "every-action-reachable-everywhere",
+   "paths": [
+    "**/server/src/**/PipelineActions/**",
+    "**/server/src/**/CustomCode/**",
+    "**/server/src/**/DevPlatform/**",
+    "**/server/src/**/AutomationApi/**"
+   ],
+   "brief": [
+    "[Pp]ipeline action",
+    "SDK",
+    "bot\\.call"
+   ],
+   "text": "Every bot action is reachable from every surface where a user creates actions and reactions: pipelines (commands, rewards, event responses, timers), the code scripts SDK, overlays and the automation API. A new action is exposed on every surface in the same slice, and the parity test fails when one is missing.",
+   "source": "Stoney 2026-10-13: \"this is the same rule as i said earlier, every action must be reachable form any place if the user desires this, that is why we have an SDK, it must all be exposed everywhere a user can create actions and reactions\"",
+   "covers": [
+    "feedback-every-action-reachable-everywhere.md"
+   ]
+  },
+  {
+   "id": "no-license-header-on-throwaway-files",
+   "paths": [],
+   "brief": [
+    "\\bscratch\\b",
+    "[Tt]hrowaway"
+   ],
+   "text": "A throwaway file (a scratchpad script, a one-off commit or probe script, a report dump) gets no license header. The AGPL header is for committed source only (CLAUDE.md Code Quality Bar).",
+   "source": "Stoney 2026-10-13 (translated from Dutch): \"And by the way, for all those silly loose scripts, stop adding all that license information. That is completely useless. You are not going to waste tokens on a license header in throwaway files, come on.\" Brief-only since 2026-10-19: it sat in session_only, where the gate never read it; as a path rule it would refuse the first scratchpad write of every session, and \"[Ss]cratch\" matched the \"scratchpad\" every context-budget line carries.",
+   "covers": [
+    "feedback-no-license-header-on-throwaway-files.md"
+   ]
+  },
+  {
+   "id": "docs-english-only",
+   "paths": [
+    "**/CLAUDE.md",
+    "**/.claude/docs/**",
+    "**/.claude/skills/**",
+    "**/.scratch/layout-mockups/inventory/**",
+    "**/dashboard/src/**",
+    "**/scripts/**"
+   ],
+   "brief": [
+    "[Oo]wner words",
+    "[Vv]erbatim",
+    "[Qq]uote",
+    "[Tt]ranslat"
+   ],
+   "text": "Every doc, comment and owner-words ledger is English, including local-only files. Quote Stoney's Dutch words as a faithful English translation, marked: Stoney, <date> (translated from Dutch): \"...\". Fix spelling and clear voice mishearings, drop filler words, keep the meaning; write ... where a word is unclear instead of guessing. No Dutch copy stays on disk; the chat transcript is the raw record. Only the Dutch translation files (nl.json, values-nl) hold Dutch. Gate: python scripts/check-english-docs.py.",
+   "source": "Stoney 2026-10-13 (translated from Dutch): \"And I want you to translate all my words into English. I want no Dutch words of mine anywhere in documentation. This must be understandable for everyone, and not everyone speaks Dutch. Even though it is local only, it must all be in English.\" In rules since 2026-10-19: it sat in session_only, where the gate never read it; its check now reads only the edited file (RULES_GATE_FILE), so one old line elsewhere cannot block every edit.",
+   "check": {
+    "match": [
+     "**/CLAUDE.md",
+     "**/.claude/docs/**",
+     "**/.scratch/layout-mockups/inventory/**",
+     "**/dashboard/src/**"
+    ],
+    "cwd": "C:/Projects/NoMercyLabs/nomnomzbot",
+    "command": "python scripts/check-english-docs.py \"%RULES_GATE_FILE%\""
+   },
+   "covers": [
+    "feedback-docs-english-only.md"
    ]
   }
  ],
@@ -1393,100 +1518,6 @@
    "source": "memory amend-sweeps-the-index.md",
    "covers": [
     "amend-sweeps-the-index.md"
-   ]
-  },
-  {
-   "id": "docs-english-only",
-   "paths": [
-    "**/CLAUDE.md",
-    "**/.claude/docs/**",
-    "**/.claude/skills/**",
-    "**/.scratch/layout-mockups/inventory/**",
-    "**/dashboard/src/**",
-    "**/scripts/**"
-   ],
-   "brief": [
-    "[Oo]wner words",
-    "[Vv]erbatim",
-    "[Qq]uote",
-    "[Tt]ranslat"
-   ],
-   "text": "Every doc, comment and owner-words ledger is English, including local-only files. Quote Stoney's Dutch words as a faithful English translation, marked: Stoney, <date> (translated from Dutch): \"...\". Fix spelling and clear voice mishearings, drop filler words, keep the meaning; write ... where a word is unclear instead of guessing. No Dutch copy stays on disk; the chat transcript is the raw record. Only the Dutch translation files (nl.json, values-nl) hold Dutch. Gate: python scripts/check-english-docs.py.",
-   "source": "Stoney 2026-10-13 (translated from Dutch): \"And I want you to translate all my words into English. I want no Dutch words of mine anywhere in documentation. This must be understandable for everyone, and not everyone speaks Dutch. Even though it is local only, it must all be in English.\"",
-   "check": {
-    "match": [
-     "**/CLAUDE.md",
-     "**/.claude/docs/**",
-     "**/.scratch/layout-mockups/inventory/**",
-     "**/dashboard/src/**"
-    ],
-    "cwd": "C:/Projects/NoMercyLabs/nomnomzbot",
-    "command": "python scripts/check-english-docs.py"
-   },
-   "covers": [
-    "feedback-docs-english-only.md"
-   ]
-  },
-  {
-   "id": "dashboard-semicolons",
-   "paths": [
-    "**/dashboard/src/**",
-    "**/dashboard/eslint-rules/**"
-   ],
-   "brief": [
-    "dashboard"
-   ],
-   "text": "Dashboard TypeScript and Vue code ends statements and object-type members with semicolons. ESLint is the only formatter (no Prettier): the `app/format` stylistic preset (semi: true) fails the gate on a missing one and `eslint --fix` adds it.",
-   "source": "Stoney 2026-10-13: \"force semicolons\"",
-   "covers": []
-  },
-  {
-   "id": "dashboard-generics-over-annotations",
-   "paths": [
-    "**/dashboard/src/**"
-   ],
-   "brief": [
-    "dashboard"
-   ],
-   "text": "Dashboard code passes a type to a generic call instead of annotating the variable: `computed<T>(...)`, `ref<T>(...)`, `new Set<T>(...)`, never `const x: ComputedRef<T> = computed(...)`. ESLint `app/generic-over-annotation` flags it and `eslint --fix` moves the type.",
-   "source": "Stoney 2026-10-13: \"prefer const primaryRoute = computed<{ name: string; label: string } | null>(() => { over const primaryRoute: ComputedRef<{ name: string; label: string } | null> = computed(() => {\" and \"this is basically a use generics wherever supported\"",
-   "covers": [
-    "feedback-ts-no-redundant-annotations.md"
-   ]
-  },
-  {
-   "id": "every-action-reachable-everywhere",
-   "paths": [
-    "**/server/src/**/PipelineActions/**",
-    "**/server/src/**/CustomCode/**",
-    "**/server/src/**/DevPlatform/**",
-    "**/server/src/**/AutomationApi/**"
-   ],
-   "brief": [
-    "[Pp]ipeline action",
-    "SDK",
-    "bot\\.call"
-   ],
-   "text": "Every bot action is reachable from every surface where a user creates actions and reactions: pipelines (commands, rewards, event responses, timers), the code scripts SDK, overlays and the automation API. A new action is exposed on every surface in the same slice, and the parity test fails when one is missing.",
-   "source": "Stoney 2026-10-13: \"this is the same rule as i said earlier, every action must be reachable form any place if the user desires this, that is why we have an SDK, it must all be exposed everywhere a user can create actions and reactions\"",
-   "covers": [
-    "feedback-every-action-reachable-everywhere.md"
-   ]
-  },
-  {
-   "id": "no-license-header-on-throwaway-files",
-   "paths": [
-    "**/AppData/Local/Temp/claude/**",
-    "**/.scratch/**"
-   ],
-   "brief": [
-    "[Ss]cratch",
-    "[Tt]hrowaway"
-   ],
-   "text": "A throwaway file (a scratchpad script, a one-off commit or probe script, a report dump) gets no license header. The AGPL header is for committed source only (CLAUDE.md Code Quality Bar).",
-   "source": "Stoney 2026-10-13 (translated from Dutch): \"And by the way, for all those silly loose scripts, stop adding all that license information. That is completely useless. You are not going to waste tokens on a license header in throwaway files, come on.\"",
-   "covers": [
-    "feedback-no-license-header-on-throwaway-files.md"
    ]
   }
  ]
