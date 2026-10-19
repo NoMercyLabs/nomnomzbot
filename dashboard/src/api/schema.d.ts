@@ -89468,6 +89468,7 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             pipelineId?: null | string;
+            target: null | components["schemas"]["BindingTarget"];
             /** Format: int32 */
             cooldownSeconds: number | string;
             cooldownPerUser: boolean;
@@ -90600,6 +90601,7 @@ export interface components {
             maxPerViewerPerStream?: null | number | string;
             /** Format: int32 */
             sortOrder: number | string;
+            target?: null | components["schemas"]["BindingTarget"];
         };
         /** @description Request to create/onboard a new channel. */
         CreateChannelRequest: {
@@ -91836,6 +91838,31 @@ export interface components {
             /** Format: int32 */
             timeoutSeconds?: null | number | string;
         };
+        /** @description The values a channel with no saved policy resolves to, for "reset to default" and hints. */
+        EscalationPolicyDefaults: {
+            isEnabled: boolean;
+            ladder: components["schemas"]["EscalationLadderStep"][];
+            /** Format: int32 */
+            offenseWindowHours: number | string;
+            countAutoModViolations: boolean;
+            /** Format: int32 */
+            defaultTimeoutSeconds: number | string;
+        };
+        /** @description The ranges a save must keep (the same numbers the service enforces). */
+        EscalationPolicyLimits: {
+            /** Format: int32 */
+            minOffenseWindowHours: number | string;
+            /** Format: int32 */
+            maxOffenseWindowHours: number | string;
+            /** Format: int32 */
+            minTimeoutSeconds: number | string;
+            /** Format: int32 */
+            maxTimeoutSeconds: number | string;
+            /** Format: int32 */
+            minLadderSteps: number | string;
+            /** Format: int32 */
+            maxLadderSteps: number | string;
+        };
         /**
          * @description One row of the developer-facing event catalog (dev-platform.md §8, `GET /api/v1/sdk/event-catalog`):
          *     a visible event's stable wire name, its visibility tier, and the reflected JSON Schema of its payload.
@@ -92326,6 +92353,8 @@ export interface components {
             payoutMultiplier?: null | number | string;
             /** Format: int32 */
             cooldownSeconds: number | string;
+            /** Format: int32 */
+            cooldownFloorSeconds: number | string;
             /** Format: int32 */
             maxPlaysPerStream?: null | number | string;
             permission: string;
@@ -93493,6 +93522,8 @@ export interface components {
             countAutoModViolations: boolean;
             /** Format: int32 */
             defaultTimeoutSeconds: number | string;
+            defaults: components["schemas"]["EscalationPolicyDefaults"];
+            limits: components["schemas"]["EscalationPolicyLimits"];
         };
         /** @description One row of the queryable `ModerationHistoryEntry` log. */
         ModerationHistoryEntry: {
@@ -103949,6 +103980,7 @@ export interface components {
             maxPerViewerPerStream?: null | number | string;
             /** Format: int32 */
             sortOrder?: null | number | string;
+            target?: null | components["schemas"]["BindingTarget"];
         };
         /**
          * @description MusicDuckPercent left out keeps the stored value, so a client that predates ducking
