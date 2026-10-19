@@ -255,13 +255,20 @@ public sealed class RewardServiceUpdateTests
         Result<RewardDetail> result = await sut.UpdateAsync(
             Channel.ToString(),
             RewardId.ToString(),
-            new() { PipelineId = pipelineId, TimerDurationSeconds = 60 }
+            new()
+            {
+                PipelineId = pipelineId,
+                TimerDurationSeconds = 60,
+                SpeaksViaTts = true,
+            }
         );
 
         result.IsSuccess.Should().BeTrue();
         Reward row = await db.Rewards.SingleAsync(r => r.Id == RewardId);
         row.PipelineId.Should().Be(pipelineId);
         row.TimerDurationSeconds.Should().Be(60);
+        row.SpeaksViaTts.Should().BeTrue();
+        result.Value.SpeaksViaTts.Should().BeTrue();
         await points
             .DidNotReceiveWithAnyArgs()
             .UpdateCustomRewardAsync(default, default!, default!);

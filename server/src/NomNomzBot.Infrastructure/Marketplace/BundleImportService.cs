@@ -591,6 +591,7 @@ public class BundleImportService : IBundleImportService
                         Prompt = export.Description,
                         Response = export.Response,
                         TimerDurationSeconds = export.TimerDurationSeconds,
+                        SpeaksViaTts = export.SpeaksViaTts,
                         PipelineId = export.PipelineName is not null
                             ? pipelineIdsByName.GetValueOrDefault(export.PipelineName)
                             : null,

@@ -167,6 +167,7 @@ public class RewardService : IRewardService
                 TwitchRewardId = tr.Id,
                 IsPlatform = true,
                 TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds),
+                SpeaksViaTts = request.SpeaksViaTts,
                 PipelineId = request.PipelineId,
             };
             ApplyTwitchConfirmedFields(reward, tr);
@@ -192,6 +193,7 @@ public class RewardService : IRewardService
                 IsManageable = true,
                 IsUserInputRequired = request.IsUserInputRequired,
                 TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds),
+                SpeaksViaTts = request.SpeaksViaTts,
                 PipelineId = request.PipelineId,
             };
         }
@@ -329,6 +331,8 @@ public class RewardService : IRewardService
             reward.IsUserInputRequired = request.IsUserInputRequired.Value;
         if (request.TimerDurationSeconds.HasValue)
             reward.TimerDurationSeconds = NormalizeTimerDuration(request.TimerDurationSeconds);
+        if (request.SpeaksViaTts.HasValue)
+            reward.SpeaksViaTts = request.SpeaksViaTts.Value;
         // Absent leaves the binding unchanged; Guid.Empty clears it; a real id binds that pipeline.
         if (request.PipelineId.HasValue)
             reward.PipelineId =
@@ -1409,6 +1413,7 @@ public class RewardService : IRewardService
             r.PipelineId,
             r.GetBindingTarget(),
             r.CreatedAt,
-            r.UpdatedAt
+            r.UpdatedAt,
+            r.SpeaksViaTts
         );
 }

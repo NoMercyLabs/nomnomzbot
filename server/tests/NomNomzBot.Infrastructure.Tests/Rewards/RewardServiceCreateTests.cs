@@ -244,6 +244,41 @@ public sealed class RewardServiceCreateTests
     }
 
     [Fact]
+    public async Task CreateAsync_persists_the_speaks_via_tts_flag_and_returns_it()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi points) = Build();
+        points
+            .GetCustomRewardsAsync(
+                Channel,
+                Arg.Any<IReadOnlyList<string>?>(),
+                onlyManageableRewards: false,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success<IReadOnlyList<TwitchCustomReward>>([]));
+        points
+            .CreateCustomRewardAsync(
+                Channel,
+                Arg.Any<CreateCustomRewardRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(CreatedReward("Say it", 100)));
+
+        Result<RewardDetail> result = await sut.CreateAsync(
+            Channel.ToString(),
+            new()
+            {
+                Title = "Say it",
+                Cost = 100,
+                SpeaksViaTts = true,
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.SpeaksViaTts.Should().BeTrue();
+        db.Rewards.Should().ContainSingle(r => r.Title == "Say it" && r.SpeaksViaTts);
+    }
+
+    [Fact]
     public async Task CreateAsync_actually_creates_the_reward_on_twitch_and_stores_its_confirmed_state()
     {
         // The core bug this closes: Create used to insert ONLY a local row and never call Helix at all, so

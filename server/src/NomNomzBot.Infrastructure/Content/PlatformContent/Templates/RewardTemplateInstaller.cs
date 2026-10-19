@@ -83,6 +83,7 @@ public sealed partial class RewardTemplateInstaller(
                 MaxPerUserPerStream = payload.MaxPerUserPerStream,
                 GlobalCooldownSeconds = payload.GlobalCooldownSeconds,
                 TimerDurationSeconds = payload.TimerDurationSeconds,
+                SpeaksViaTts = payload.SpeaksViaTts,
                 PipelineId = install.PipelineId == Guid.Empty ? null : install.PipelineId,
             },
             pushToTwitch: true,
@@ -165,6 +166,7 @@ public sealed partial class RewardTemplateInstaller(
                 MaxPerUserPerStream = payload.MaxPerUserPerStream,
                 GlobalCooldownSeconds = payload.GlobalCooldownSeconds,
                 TimerDurationSeconds = payload.TimerDurationSeconds,
+                SpeaksViaTts = payload.SpeaksViaTts,
             },
             ct
         );

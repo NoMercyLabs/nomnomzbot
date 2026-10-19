@@ -450,6 +450,7 @@ public class BundleExportService : IBundleExportService
                     Response = reward.Response,
                     Cost = reward.Cost ?? 0,
                     TimerDurationSeconds = reward.TimerDurationSeconds,
+                    SpeaksViaTts = reward.SpeaksViaTts,
                     PipelineName = pipelineName,
                     IsEnabled = reward.IsEnabled,
                 };

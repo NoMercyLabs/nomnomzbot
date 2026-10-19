@@ -16,6 +16,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Commands.Enums;
@@ -128,6 +129,10 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
                 );
         }
 
+        // A reward that speaks reads the viewer's text aloud in their own voice. Orthogonal to the response.
+        if (reward is { SpeaksViaTts: true } && !string.IsNullOrWhiteSpace(@event.UserInput))
+            await SpeakRedemptionTextAsync(scope, db, broadcasterId, @event, cancellationToken);
+
         // A reward bound straight to a command or an action runs it through the one invoker: no wrapper pipeline.
         // A pipeline target (or none) keeps the path below unchanged.
         if (
@@ -222,6 +227,51 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
             variables,
             cancellationToken
         );
+    }
+
+    private async Task SpeakRedemptionTextAsync(
+        IServiceScope scope,
+        IApplicationDbContext db,
+        Guid broadcasterId,
+        RewardRedeemedEvent @event,
+        CancellationToken cancellationToken
+    )
+    {
+        ITtsDispatchService? tts = scope.ServiceProvider.GetService<ITtsDispatchService>();
+        if (tts is null)
+            return;
+
+        Guid viewerUserId = await db
+            .Users.Where(u => u.TwitchUserId == @event.UserId)
+            .Select(u => u.Id)
+            .FirstOrDefaultAsync(cancellationToken);
+
+        // The redemption already paid for the line, and Twitch has its own cooldown: skip the per-viewer one.
+        Result<TtsDispatchOutcome> spoken = await tts.RequestSpeakAsync(
+            new TtsSpeakRequest(
+                BroadcasterId: broadcasterId,
+                RequestedByUserId: viewerUserId,
+                RequestedByTwitchUserId: @event.UserId,
+                RequestedByDisplayName: @event.UserDisplayName,
+                Text: @event.UserInput!,
+                VoiceIdOverride: null,
+                BitsAmount: 0,
+                CommunityStanding: "everyone",
+                SourceMessageId: null,
+                StreamId: null,
+                Speaker: TtsSpeaker.Viewer,
+                SpokenNames: [@event.UserDisplayName],
+                BypassCooldown: true
+            ),
+            cancellationToken
+        );
+        if (spoken.IsFailure)
+            _logger.LogWarning(
+                "Reward {RewardId} in {Channel} could not speak the redemption text: {Error}",
+                @event.RewardId,
+                broadcasterId,
+                spoken.ErrorMessage
+            );
     }
 
     private async Task RunDirectTargetAsync(

@@ -34,6 +34,8 @@ public class RewardConfiguration : IEntityTypeConfiguration<Reward>
 
         builder.Property(e => e.IsEnabled).HasDefaultValue(true);
 
+        builder.Property(e => e.SpeaksViaTts).HasDefaultValue(new Reward().SpeaksViaTts);
+
         builder.Property(e => e.Description).HasMaxLength(500);
 
         builder.Property(e => e.PipelineJson).HasColumnType("jsonb");

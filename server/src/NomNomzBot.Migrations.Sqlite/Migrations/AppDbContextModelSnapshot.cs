@@ -10836,6 +10836,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("SpeaksViaTts")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(false);
+
                     b.Property<string>("TargetActionParamsJson")
                         .HasColumnType("TEXT");
 

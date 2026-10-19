@@ -169,6 +169,9 @@ public sealed record RewardExport
     /// <summary>Opt-in countdown for a time-limited reward (seconds); null = a normal reward.</summary>
     public int? TimerDurationSeconds { get; init; }
 
+    /// <summary>True when a redemption with viewer text speaks that text through TTS in the viewer's voice.</summary>
+    public bool SpeaksViaTts { get; init; }
+
     /// <summary>The bundled pipeline redeeming this reward runs, by manifest item name; null when none.</summary>
     public string? PipelineName { get; init; }
 

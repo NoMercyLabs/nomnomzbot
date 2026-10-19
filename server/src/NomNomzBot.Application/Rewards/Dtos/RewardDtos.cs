@@ -79,7 +79,9 @@ public sealed record RewardDetail(
     // pipeline). Null when nothing is bound.
     BindingTarget? Target,
     DateTime CreatedAt,
-    DateTime UpdatedAt
+    DateTime UpdatedAt,
+    // True when a redemption with viewer text speaks that text through TTS in the viewer's voice.
+    bool SpeaksViaTts = false
 );
 
 public sealed record CreateRewardRequest
@@ -99,6 +101,9 @@ public sealed record CreateRewardRequest
 
     /// <summary>Opt-in countdown (seconds, capped at 24h) — makes this a time-limited reward.</summary>
     public int? TimerDurationSeconds { get; init; }
+
+    /// <summary>Speak the viewer's redemption text through TTS in their voice.</summary>
+    public bool SpeaksViaTts { get; init; }
 
     /// <summary>Optional saved-pipeline binding — redeeming this reward runs that pipeline.</summary>
     public Guid? PipelineId { get; init; }
@@ -133,6 +138,9 @@ public sealed record UpdateRewardRequest
 
     /// <summary>Countdown seconds for a time-limited reward; 0 clears it, absent leaves it unchanged.</summary>
     public int? TimerDurationSeconds { get; init; }
+
+    /// <summary>Speak the viewer's redemption text through TTS; absent leaves it unchanged.</summary>
+    public bool? SpeaksViaTts { get; init; }
 
     /// <summary>Saved-pipeline binding; <see cref="Guid.Empty"/> clears it, absent leaves it unchanged.</summary>
     public Guid? PipelineId { get; init; }

@@ -103,6 +103,12 @@ public class Reward : SoftDeletableEntity, ITenantScoped, IPlatformSourced, IBin
     public int? TimerDurationSeconds { get; set; }
 
     /// <summary>
+    /// When true, a redemption that carries viewer text speaks that text through TTS in the viewer's own
+    /// voice. The redemption is the payment, so the per-viewer TTS cooldown does not apply. Off by default.
+    /// </summary>
+    public bool SpeaksViaTts { get; set; }
+
+    /// <summary>
     /// Optional binding to a saved <c>Pipeline</c>: when set, redeeming this reward dispatches that pipeline's
     /// compiled graph through <c>IPipelineEngine</c> (the reward analogue of a timer's <c>PipelineId</c>) — the
     /// path a reward-triggered <c>play_sound</c> takes. Takes precedence over the inline <see cref="PipelineJson"/>

@@ -29,6 +29,7 @@ public sealed record RewardTemplatePayload
     public int? MaxPerUserPerStream { get; init; }
     public int? GlobalCooldownSeconds { get; init; }
     public int? TimerDurationSeconds { get; init; }
+    public bool SpeaksViaTts { get; init; }
 
     public static RewardTemplatePayload FromEntity(Reward row) =>
         new()
@@ -43,6 +44,7 @@ public sealed record RewardTemplatePayload
             MaxPerUserPerStream = row.MaxPerUserPerStream,
             GlobalCooldownSeconds = row.GlobalCooldownSeconds,
             TimerDurationSeconds = row.TimerDurationSeconds,
+            SpeaksViaTts = row.SpeaksViaTts,
         };
 
     public string ComputeHash() => PlatformTemplateJson.Hash(this);

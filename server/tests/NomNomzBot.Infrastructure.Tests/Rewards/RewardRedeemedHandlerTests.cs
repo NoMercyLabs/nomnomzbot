@@ -17,6 +17,7 @@ using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
@@ -47,7 +48,8 @@ public sealed class RewardRedeemedHandlerTests
         IEventResponseExecutor Executor,
         IRewardService Rewards,
         IChatProvider Chat,
-        IBuiltinResponseComposer Composer
+        IBuiltinResponseComposer Composer,
+        ITtsDispatchService Tts
     );
 
     private const string ViewerTwitchId = "twitch-viewer-1";
@@ -90,6 +92,13 @@ public sealed class RewardRedeemedHandlerTests
         composer
             .ComposeAsync(Arg.Any<BuiltinResponseRequest>(), Arg.Any<CancellationToken>())
             .Returns(call => "composed:" + call.Arg<BuiltinResponseRequest>().Slot);
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        tts.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(TtsDispatchDisposition.Dispatched, "v", "p", 1, 1, null)
+                )
+            );
         IRoleResolver roles = Substitute.For<IRoleResolver>();
         roles
             .ResolveEffectiveLevelAsync(
@@ -119,6 +128,7 @@ public sealed class RewardRedeemedHandlerTests
             .AddSingleton(chat)
             .AddSingleton(composer)
             .AddSingleton(roles)
+            .AddSingleton(tts)
             .BuildServiceProvider();
 
         RewardRedeemedHandler handler = new(
@@ -128,10 +138,10 @@ public sealed class RewardRedeemedHandlerTests
             NullLogger<RewardRedeemedHandler>.Instance
         );
 
-        return new(handler, db, engine, executor, rewards, chat, composer);
+        return new(handler, db, engine, executor, rewards, chat, composer, tts);
     }
 
-    private static RewardRedeemedEvent Redemption(string twitchRewardId) =>
+    private static RewardRedeemedEvent Redemption(string twitchRewardId, string? input = null) =>
         new()
         {
             BroadcasterId = Channel,
@@ -141,6 +151,7 @@ public sealed class RewardRedeemedHandlerTests
             UserId = ViewerTwitchId,
             UserDisplayName = "Viewer",
             Cost = 100,
+            UserInput = input,
         };
 
     [Fact]
@@ -194,6 +205,68 @@ public sealed class RewardRedeemedHandlerTests
         await h
             .Executor.DidNotReceiveWithAnyArgs()
             .ExecuteAsync(default, default!, default, default, default!);
+    }
+
+    private static async Task<Harness> BuildWithRewardAsync(bool speaksViaTts)
+    {
+        Harness h = Build();
+        h.Db.Rewards.Add(
+            new()
+            {
+                Id = Guid.CreateVersion7(),
+                BroadcasterId = Channel,
+                Title = "Say it",
+                TwitchRewardId = "tw-tts-1",
+                SpeaksViaTts = speaksViaTts,
+            }
+        );
+        await h.Db.SaveChangesAsync();
+        return h;
+    }
+
+    [Fact]
+    public async Task A_speaks_via_tts_reward_speaks_the_redemption_text_in_the_viewers_voice_past_the_cooldown()
+    {
+        Harness h = await BuildWithRewardAsync(speaksViaTts: true);
+
+        await h.Handler.HandleAsync(Redemption("tw-tts-1", "hello chat"));
+
+        await h
+            .Tts.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r =>
+                    r.BroadcasterId == Channel
+                    && r.Text == "hello chat"
+                    && r.Speaker == TtsSpeaker.Viewer
+                    && r.BypassCooldown
+                    && r.RequestedByTwitchUserId == ViewerTwitchId
+                    && r.RequestedByUserId == ViewerUserId
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_reward_without_the_flag_does_not_speak()
+    {
+        Harness h = await BuildWithRewardAsync(speaksViaTts: false);
+
+        await h.Handler.HandleAsync(Redemption("tw-tts-1", "hello chat"));
+
+        await h.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!, default);
+    }
+
+    [Theory]
+    [InlineData(null)]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task A_speaks_via_tts_reward_with_blank_input_does_not_speak(string? input)
+    {
+        Harness h = await BuildWithRewardAsync(speaksViaTts: true);
+
+        await h.Handler.HandleAsync(Redemption("tw-tts-1", input));
+
+        await h.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!, default);
     }
 
     [Fact]
