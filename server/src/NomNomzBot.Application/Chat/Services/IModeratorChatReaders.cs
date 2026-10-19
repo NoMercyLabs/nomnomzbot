@@ -44,6 +44,9 @@ public enum ModeratorChatReaderState
 
     /// <summary>The moderator's session is full: Twitch allows 300 subscription cost per session.</summary>
     OverCap,
+
+    /// <summary>The bot could not create or read the channel's owner or tenant record, so the channel is not read.</summary>
+    TenantFailed,
 }
 
 /// <summary>One moderated channel and why it is, or is not, being read.</summary>

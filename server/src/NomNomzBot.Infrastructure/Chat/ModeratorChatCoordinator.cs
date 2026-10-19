@@ -31,6 +31,9 @@ public sealed class ModeratorChatCoordinator : IModeratorChatReaders
     private const string NoTokenReason =
         "Your Twitch connection is missing or expired. Sign in again to read this channel.";
 
+    private const string TenantFailedReason =
+        "NomNomzBot could not prepare this channel for reading. It tries again on the next sync.";
+
     private static readonly string MissingScopeReason =
         $"Your Twitch connection lacks the {TwitchScopes.UserReadChat} permission. Allow chat reading to read this channel.";
 
@@ -150,8 +153,25 @@ public sealed class ModeratorChatCoordinator : IModeratorChatReaders
         if (IsHeld(channelId))
             return;
 
-        if (await IsOnboardedAsync(userId, channel, services, ct))
+        Result<ChannelDto> tenant = await ProvisionTenantAsync(channel, services, ct);
+        if (tenant.IsFailure)
+        {
+            _logger.LogWarning(
+                "Moderator chat: preparing {Channel} for {UserId} failed: {Error}",
+                channelId,
+                userId,
+                tenant.ErrorMessage
+            );
+            SetStatus(userId, channelId, ModeratorChatReaderState.TenantFailed, TenantFailedReason);
             return;
+        }
+
+        // A channel the bot already serves is read by the bot itself.
+        if (tenant.Value.IsOnboarded)
+        {
+            ClearTenantFailed(channelId);
+            return;
+        }
 
         ModeratorChatReader? reader = ReaderOf(userId);
         if (reader is { ChannelCount: >= ModeratorChatReader.MaxChannels })
@@ -184,10 +204,9 @@ public sealed class ModeratorChatCoordinator : IModeratorChatReaders
         SetStatus(userId, channelId, ModeratorChatReaderState.Reading, null);
     }
 
-    // Provisions the lightweight tenant the dashboard needs to admit the moderator; a channel the bot already
-    // serves is read by the bot itself.
-    private static async Task<bool> IsOnboardedAsync(
-        Guid userId,
+    // Provisions the lightweight tenant the dashboard needs to admit the moderator (the owner's User row and the
+    // Channel row) and returns the channel row, so the caller can tell whether the bot serves it.
+    private static async Task<Result<ChannelDto>> ProvisionTenantAsync(
         TwitchModeratedChannel channel,
         IServiceProvider services,
         CancellationToken ct
@@ -203,20 +222,24 @@ public sealed class ModeratorChatCoordinator : IModeratorChatReaders
             cancellationToken: ct
         );
         if (owner.IsFailure)
-            return true;
+            return owner.ToTyped<ChannelDto>();
+
+        if (!Guid.TryParse(owner.Value.Id, out Guid ownerUserId))
+            return Result.Failure<ChannelDto>(
+                $"The owner id '{owner.Value.Id}' of {channel.BroadcasterLogin} is not a Guid."
+            );
 
         Result<Guid> tenant = await channels.EnsureModeratedTenantAsync(
             channel.BroadcasterId,
             channel.BroadcasterLogin,
             channel.BroadcasterName,
-            Guid.Parse(owner.Value.Id),
+            ownerUserId,
             ct
         );
         if (tenant.IsFailure)
-            return true;
+            return tenant.ToTyped<ChannelDto>();
 
-        Result<ChannelDto> row = await channels.GetAsync(tenant.Value.ToString(), ct);
-        return row.IsFailure || row.Value.IsOnboarded;
+        return await channels.GetAsync(tenant.Value.ToString(), ct);
     }
 
     private async Task<Result> EnsureReaderAsync(
@@ -315,6 +338,17 @@ public sealed class ModeratorChatCoordinator : IModeratorChatReaders
     {
         lock (_state)
             _statuses[channelId] = new(channelId, state, userId, reason);
+    }
+
+    // A channel that failed to prepare and was onboarded since has nothing left to report.
+    private void ClearTenantFailed(string channelId)
+    {
+        lock (_state)
+            if (
+                _statuses.GetValueOrDefault(channelId)?.State
+                == ModeratorChatReaderState.TenantFailed
+            )
+                _statuses.Remove(channelId);
     }
 
     private void SetStatusUnlessHeldByOther(

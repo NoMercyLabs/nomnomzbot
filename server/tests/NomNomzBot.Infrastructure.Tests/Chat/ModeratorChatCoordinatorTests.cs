@@ -54,6 +54,16 @@ public sealed class ModeratorChatCoordinatorTests
     private readonly IChannelService _channels = Substitute.For<IChannelService>();
     private readonly IUserService _users = Substitute.For<IUserService>();
     private readonly List<(string TwitchId, Guid OwnerUserId)> _ensured = [];
+    private readonly Dictionary<string, ProvisionStep> _provisionFailures = [];
+
+    /// <summary>The place where provisioning a moderated channel's tenant can break.</summary>
+    public enum ProvisionStep
+    {
+        OwnerUser,
+        OwnerIdMalformed,
+        Tenant,
+        TenantRead,
+    }
 
     private sealed class Moderator
     {
@@ -90,7 +100,7 @@ public sealed class ModeratorChatCoordinatorTests
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(call => Task.FromResult(Result.Success(OwnerOf(call.ArgAt<string>(0)))));
+            .Returns(call => Task.FromResult(UserFor(call.ArgAt<string>(0))));
         _channels
             .EnsureModeratedTenantAsync(
                 Arg.Any<string>(),
@@ -103,11 +113,15 @@ public sealed class ModeratorChatCoordinatorTests
             {
                 string twitchId = call.ArgAt<string>(0);
                 _ensured.Add((twitchId, call.ArgAt<Guid>(3)));
-                return Task.FromResult(Result.Success(TenantOf(twitchId)));
+                return Task.FromResult(
+                    FailsAt(twitchId, ProvisionStep.Tenant)
+                        ? Result.Failure<Guid>("tenant insert failed", "TENANT_INSERT_FAILED")
+                        : Result.Success(TenantOf(twitchId))
+                );
             });
         _channels
             .GetAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(call => Task.FromResult(Result.Success(ChannelOf(call.ArgAt<string>(0)))));
+            .Returns(call => Task.FromResult(RowFor(call.ArgAt<string>(0))));
 
         IServiceScopeFactory scopes = new ServiceCollection()
             .AddScoped(_ => identity)
@@ -134,6 +148,33 @@ public sealed class ModeratorChatCoordinatorTests
             mod.Channels.Select(id => new TwitchModeratedChannel(id, $"login-{id}", $"Name {id}"))
         );
         return Result.Success<IReadOnlyList<TwitchModeratedChannel>>(list);
+    }
+
+    private bool FailsAt(string twitchId, ProvisionStep step) =>
+        _provisionFailures.TryGetValue(twitchId, out ProvisionStep failing) && failing == step;
+
+    private Result<UserDto> UserFor(string twitchId)
+    {
+        if (FailsAt(twitchId, ProvisionStep.OwnerUser))
+            return Result.Failure<UserDto>("user insert failed", "USER_INSERT_FAILED");
+
+        UserDto owner = OwnerOf(twitchId);
+        return Result.Success(
+            FailsAt(twitchId, ProvisionStep.OwnerIdMalformed)
+                ? owner with
+                {
+                    Id = "not-a-guid",
+                }
+                : owner
+        );
+    }
+
+    private Result<ChannelDto> RowFor(string tenantId)
+    {
+        string twitchId = _tenants.First(t => t.Value.ToString() == tenantId).Key;
+        return FailsAt(twitchId, ProvisionStep.TenantRead)
+            ? Result.Failure<ChannelDto>("channel row unreadable", "CHANNEL_READ_FAILED")
+            : Result.Success(ChannelOf(tenantId));
     }
 
     private static UserDto OwnerOf(string twitchId) =>
@@ -456,6 +497,87 @@ public sealed class ModeratorChatCoordinatorTests
         _ensured
             .Should()
             .NotContain(e => e.TwitchId == "alice-tw", "the own channel is never provisioned here");
+    }
+
+    [Theory]
+    [InlineData(ProvisionStep.OwnerUser)]
+    [InlineData(ProvisionStep.OwnerIdMalformed)]
+    [InlineData(ProvisionStep.Tenant)]
+    [InlineData(ProvisionStep.TenantRead)]
+    public async Task A_channel_whose_tenant_cannot_be_provisioned_is_tenant_failed_with_a_reason_and_not_read(
+        ProvisionStep failingStep
+    )
+    {
+        Guid alice = AddModerator("alice-tw", "ch-1", "ch-2");
+        _provisionFailures["ch-1"] = failingStep;
+        ModeratorChatCoordinator coordinator = NewCoordinator();
+
+        await coordinator.SyncUserAsync(alice);
+
+        IReadOnlyList<ModeratorChatReaderStatus> snapshot = coordinator.Snapshot();
+        ModeratorChatReaderStatus failed = snapshot.Single(s => s.TwitchBroadcasterId == "ch-1");
+        failed.State.Should().Be(ModeratorChatReaderState.TenantFailed);
+        failed.ModeratorUserId.Should().Be(alice);
+        failed.Reason.Should().NotBeNullOrWhiteSpace("the moderator is told why the chat is empty");
+        snapshot
+            .Single(s => s.TwitchBroadcasterId == "ch-2")
+            .State.Should()
+            .Be(ModeratorChatReaderState.Reading, "one broken channel never stops the others");
+        _sessions
+            .Subscriptions.Select(s => s.Condition["broadcaster_user_id"])
+            .Distinct()
+            .Should()
+            .BeEquivalentTo(["ch-2"], "the failed channel is not subscribed");
+    }
+
+    [Fact]
+    public async Task A_tenant_failed_channel_is_read_on_the_next_sync_once_provisioning_works()
+    {
+        Guid alice = AddModerator("alice-tw", "ch-1");
+        _provisionFailures["ch-1"] = ProvisionStep.Tenant;
+        ModeratorChatCoordinator coordinator = NewCoordinator();
+        await coordinator.SyncUserAsync(alice);
+        coordinator
+            .Snapshot()
+            .Should()
+            .ContainSingle()
+            .Which.State.Should()
+            .Be(ModeratorChatReaderState.TenantFailed);
+
+        _provisionFailures.Clear();
+        await coordinator.SyncUserAsync(alice);
+
+        coordinator
+            .Snapshot()
+            .Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be(
+                new ModeratorChatReaderStatus("ch-1", ModeratorChatReaderState.Reading, alice, null)
+            );
+        _sessions.Subscriptions.Should().HaveCount(8);
+    }
+
+    [Fact]
+    public async Task A_tenant_failed_channel_the_bot_has_since_onboarded_loses_its_failure_status()
+    {
+        Guid alice = AddModerator("alice-tw", "ch-1");
+        _provisionFailures["ch-1"] = ProvisionStep.Tenant;
+        ModeratorChatCoordinator coordinator = NewCoordinator();
+        await coordinator.SyncUserAsync(alice);
+        coordinator
+            .Snapshot()
+            .Should()
+            .ContainSingle()
+            .Which.State.Should()
+            .Be(ModeratorChatReaderState.TenantFailed);
+
+        _provisionFailures.Clear();
+        _onboarded.Add("ch-1");
+        await coordinator.SyncUserAsync(alice);
+
+        coordinator.Snapshot().Should().BeEmpty("the bot reads an onboarded channel itself");
+        _sessions.Subscriptions.Should().BeEmpty();
     }
 
     private sealed record CapturedSubscription(
