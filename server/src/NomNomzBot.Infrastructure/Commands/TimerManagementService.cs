@@ -16,6 +16,7 @@ using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
@@ -181,6 +182,15 @@ public class TimerManagementService : ITimerManagementService
         if (pipelineOk.IsFailure)
             return pipelineOk.ToTyped<TimerDto>();
 
+        Result targetOk = await BindingTargetBinder.ValidateAsync(
+            _db,
+            broadcaster,
+            request.Target,
+            cancellationToken
+        );
+        if (targetOk.IsFailure)
+            return targetOk.ToTyped<TimerDto>();
+
         DomainTimer timer = new()
         {
             BroadcasterId = broadcaster,
@@ -193,6 +203,7 @@ public class TimerManagementService : ITimerManagementService
             FireOnce = request.FireOnce,
             SpeakWithTts = request.SpeakWithTts,
         };
+        BindingTargetBinder.ApplyTo(timer, request.Target, timer.PipelineId);
 
         _db.Timers.Add(timer);
         await _db.SaveChangesAsync(cancellationToken);
@@ -255,6 +266,16 @@ public class TimerManagementService : ITimerManagementService
             timer.PipelineId =
                 request.PipelineId.Value == Guid.Empty ? null : request.PipelineId.Value;
         }
+        // An explicit target wins over the legacy pipeline field.
+        Result targetOk = await BindingTargetBinder.ValidateAsync(
+            _db,
+            broadcaster,
+            request.Target,
+            cancellationToken
+        );
+        if (targetOk.IsFailure)
+            return targetOk.ToTyped<TimerDto>();
+        BindingTargetBinder.ApplyTo(timer, request.Target, timer.PipelineId);
         if (request.IntervalMinutes.HasValue)
             timer.IntervalMinutes = request.IntervalMinutes.Value;
         if (request.MinChatActivity.HasValue)
@@ -382,5 +403,6 @@ public class TimerManagementService : ITimerManagementService
         )
         {
             SpeakWithTts = t.SpeakWithTts,
+            Target = t.GetBindingTarget(),
         };
 }

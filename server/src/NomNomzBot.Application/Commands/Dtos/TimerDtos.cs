@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
+using NomNomzBot.Domain.Commands.ValueObjects;
 
 namespace NomNomzBot.Application.Commands.Dtos;
 
@@ -29,6 +30,9 @@ public sealed record TimerDto(
 )
 {
     public bool SpeakWithTts { get; init; }
+
+    /// <summary>What a firing runs when bound directly: a command, an action or a pipeline. Null for a plain message timer.</summary>
+    public BindingTarget? Target { get; init; }
 }
 
 /// <summary>Lightweight timer info for list views.</summary>
@@ -69,6 +73,12 @@ public sealed record CreateTimerDto
     public bool FireOnce { get; init; }
 
     public bool SpeakWithTts { get; init; }
+
+    /// <summary>
+    /// What a firing runs: a command (by id), a pipeline or an action. Wins over <see cref="PipelineId"/>
+    /// when both are sent. The command must exist in the channel.
+    /// </summary>
+    public BindingTarget? Target { get; init; }
 }
 
 /// <summary>Request to update an existing timer.</summary>
@@ -93,4 +103,10 @@ public sealed record UpdateTimerDto
     public bool? FireOnce { get; init; }
 
     public bool? SpeakWithTts { get; init; }
+
+    /// <summary>
+    /// The new target; absent leaves the binding unchanged. A pipeline target with no id clears the binding.
+    /// Wins over <see cref="PipelineId"/> when both are sent. A command target must exist in the channel.
+    /// </summary>
+    public BindingTarget? Target { get; init; }
 }

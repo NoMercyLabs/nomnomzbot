@@ -16,8 +16,12 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands.Jobs;
 using NomNomzBot.Infrastructure.Tests.Common;
@@ -45,7 +49,8 @@ public sealed class TimerServiceTests
         IChatProvider Chat,
         IPipelineEngine Engine,
         IRunOnceGuard Guard,
-        ILogger<TimerService> Logger
+        ILogger<TimerService> Logger,
+        ICommandInvoker Invoker
     );
 
     private static Harness Build(IRunOnceGuard? guard = null, ILogger<TimerService>? logger = null)
@@ -107,7 +112,18 @@ public sealed class TimerServiceTests
             )
             .Returns(callInfo => callInfo.ArgAt<string>(0));
 
+        ICommandInvoker invoker = Substitute.For<ICommandInvoker>();
+        invoker
+            .InvokeAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<BindingTarget>(),
+                Arg.Any<InvocationContext>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new InvocationOutcome(true, "ok", null)));
+
         ServiceProvider provider = new ServiceCollection()
+            .AddSingleton(invoker)
             .AddSingleton<IApplicationDbContext>(db)
             .AddSingleton(chat)
             .AddSingleton(engine)
@@ -122,7 +138,7 @@ public sealed class TimerServiceTests
             logger
         );
 
-        return new(service, db, chat, engine, guard, logger);
+        return new(service, db, chat, engine, guard, logger, invoker);
     }
 
     private static Timer SeedTimer(
@@ -195,6 +211,80 @@ public sealed class TimerServiceTests
         Timer persisted = h.Db.Timers.Single(t => t.Id == timer.Id);
         persisted.NextMessageIndex.Should().Be(1, "the rotation advanced to the next entry");
         persisted.LastFiredAt.Should().Be(Now.UtcDateTime);
+    }
+
+    [Fact]
+    public async Task A_timer_bound_to_a_command_runs_it_through_the_invoker_with_no_pipeline_and_no_chat_line()
+    {
+        Harness h = Build();
+        Guid commandId = Guid.CreateVersion7();
+        Timer timer = SeedTimer(h.Db, pipelineId: null, ["alice", "bob"]);
+        timer.SetBindingTarget(new(BindingTargetKind.Command, commandId.ToString()));
+        h.Db.SaveChanges();
+
+        await h.Service.TickAsync(CancellationToken.None);
+
+        await h
+            .Invoker.Received(1)
+            .InvokeAsync(
+                Channel,
+                Arg.Is<BindingTarget>(t =>
+                    t.Kind == BindingTargetKind.Command && t.Id == commandId.ToString()
+                ),
+                Arg.Is<InvocationContext>(c =>
+                    c.TriggerSource == "timer"
+                    && c.UserId == null
+                    && c.Variables!["timer.name"] == "auto-shoutout"
+                    && c.Variables["timer.message"] == "alice"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        Timer persisted = h.Db.Timers.Single(t => t.Id == timer.Id);
+        persisted.LastFiredAt.Should().Be(Now.UtcDateTime);
+        persisted.NextMessageIndex.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_timer_bound_to_an_action_runs_the_action_and_a_failed_run_still_stamps_the_fire()
+    {
+        Harness h = Build();
+        h.Invoker.InvokeAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<BindingTarget>(),
+                Arg.Any<InvocationContext>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure<InvocationOutcome>("nope", "NOT_FOUND"));
+        Timer timer = SeedTimer(h.Db, pipelineId: null, []);
+        timer.SetBindingTarget(new(BindingTargetKind.Action, ActionType: "clear_chat"));
+        h.Db.SaveChanges();
+
+        await h.Service.TickAsync(CancellationToken.None);
+
+        await h
+            .Invoker.Received(1)
+            .InvokeAsync(
+                Channel,
+                Arg.Is<BindingTarget>(t =>
+                    t.Kind == BindingTargetKind.Action && t.ActionType == "clear_chat"
+                ),
+                Arg.Any<InvocationContext>(),
+                Arg.Any<CancellationToken>()
+            );
+        h.Db.Timers.Single(t => t.Id == timer.Id).LastFiredAt.Should().Be(Now.UtcDateTime);
+    }
+
+    [Fact]
+    public async Task A_message_timer_never_touches_the_invoker()
+    {
+        Harness h = Build();
+        SeedTimer(h.Db, pipelineId: null, ["hello chat!"]);
+
+        await h.Service.TickAsync(CancellationToken.None);
+
+        await h.Invoker.DidNotReceiveWithAnyArgs().InvokeAsync(default, default!, default!);
     }
 
     [Fact]

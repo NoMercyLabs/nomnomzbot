@@ -16,8 +16,12 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Tts.PipelineActions;
 using Timer = NomNomzBot.Domain.Commands.Entities.Timer;
@@ -135,7 +139,15 @@ public sealed class TimerService : BackgroundService
         {
             try
             {
-                await ProcessTimerAsync(db, chat, pipelineEngine, timer, now, ct);
+                await ProcessTimerAsync(
+                    scope.ServiceProvider,
+                    db,
+                    chat,
+                    pipelineEngine,
+                    timer,
+                    now,
+                    ct
+                );
             }
             catch (Exception ex)
             {
@@ -145,6 +157,7 @@ public sealed class TimerService : BackgroundService
     }
 
     private async Task ProcessTimerAsync(
+        IServiceProvider services,
         IApplicationDbContext db,
         IChatProvider chat,
         IPipelineEngine pipelineEngine,
@@ -183,9 +196,16 @@ public sealed class TimerService : BackgroundService
             }
         }
 
-        bool fired = timer.PipelineId is { } pipelineId
-            ? await FirePipelineAsync(db, pipelineEngine, timer, pipelineId, channelCtx, ct)
-            : await FireMessageAsync(chat, pipelineEngine, timer, channelCtx, ct);
+        bool fired;
+        if (
+            timer.GetBindingTarget() is
+            { Kind: BindingTargetKind.Command or BindingTargetKind.Action } target
+        )
+            fired = await FireTargetAsync(services, timer, target, ct);
+        else
+            fired = timer.PipelineId is { } pipelineId
+                ? await FirePipelineAsync(db, pipelineEngine, timer, pipelineId, channelCtx, ct)
+                : await FireMessageAsync(chat, pipelineEngine, timer, channelCtx, ct);
         if (!fired)
             return;
 
@@ -201,6 +221,36 @@ public sealed class TimerService : BackgroundService
 
         // Record message count snapshot for next activity check
         _messageCountAtLastFire[timer.Id] = channelCtx.MessageCount;
+    }
+
+    /// <summary>
+    /// A timer bound straight to a command or an action runs it through the one invoker, no wrapper pipeline.
+    /// Always true (the attempt stamps <c>LastFiredAt</c>): a failed run retries on the next interval, never
+    /// in a 30-second error loop.
+    /// </summary>
+    private async Task<bool> FireTargetAsync(
+        IServiceProvider services,
+        Timer timer,
+        BindingTarget target,
+        CancellationToken ct
+    )
+    {
+        ICommandInvoker invoker = services.GetRequiredService<ICommandInvoker>();
+        Result<InvocationOutcome> outcome = await invoker.InvokeAsync(
+            timer.BroadcasterId,
+            target,
+            new(null, null, string.Empty, "timer", Variables: BuildVariables(timer)),
+            ct
+        );
+        if (outcome.IsFailure)
+            _logger.LogWarning(
+                "Timer {Name} could not run its {Kind} target in channel {BroadcasterId}: {Error}",
+                timer.Name,
+                target.Kind,
+                timer.BroadcasterId,
+                outcome.ErrorMessage
+            );
+        return true;
     }
 
     /// <summary>The classic timer: sends the next round-robin chat line. True when a line was sent.</summary>
