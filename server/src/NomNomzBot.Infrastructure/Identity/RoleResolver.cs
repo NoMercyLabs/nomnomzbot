@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
@@ -110,7 +111,13 @@ public sealed class RoleResolver(
 
         DateTime now = clock.GetUtcNow().UtcDateTime;
 
-        // A direct capability grant for exactly this action is sufficient, except while viewing as a lower role.
+        // A direct capability grant for exactly this action, or for the Bot manager bundle that covers it, is
+        // sufficient, except while viewing as a lower role.
+        List<Guid?> grantedActionIds =
+        [
+            action.Id,
+            .. await BundleActionIdsAsync(actionKey, cancellationToken),
+        ];
         bool directGrant =
             viewAs.CeilingLevel is null
             && await db.PermitGrants.AnyAsync(
@@ -118,7 +125,7 @@ public sealed class RoleResolver(
                     p.BroadcasterId == broadcasterId
                     && p.UserId == userId
                     && p.GrantType == PermitGrantType.Capability
-                    && p.ActionDefinitionId == action.Id
+                    && grantedActionIds.Contains(p.ActionDefinitionId)
                     && p.RevokedAt == null
                     && p.DeletedAt == null
                     && (p.ExpiresAt == null || p.ExpiresAt > now),
@@ -131,6 +138,19 @@ public sealed class RoleResolver(
         int required = await EffectiveActionLevelAsync(broadcasterId, action, cancellationToken);
         AccessFacts facts = await LoadFactsAsync(userId, broadcasterId, cancellationToken);
         return Result.Success(facts.EffectiveLevel >= required);
+    }
+
+    /// <summary>The id of the Bot manager bundle key when the bundle covers <paramref name="actionKey"/>, else none.</summary>
+    private async Task<List<Guid?>> BundleActionIdsAsync(string actionKey, CancellationToken ct)
+    {
+        if (!BotManagerBundle.Covers(actionKey))
+            return [];
+
+        Guid bundleId = await db
+            .ActionDefinitions.Where(a => a.ActionKey == BotManagerBundle.Key)
+            .Select(a => a.Id)
+            .FirstOrDefaultAsync(ct);
+        return bundleId == Guid.Empty ? [] : [bundleId];
     }
 
     /// <summary>Loads the three plane contributions and folds them into the effective level + winning source.</summary>
@@ -280,13 +300,19 @@ public sealed class RoleResolver(
             )
             .ToDictionaryAsync(o => o.ActionDefinitionId, o => o.OverrideLevel, ct);
         HashSet<string> directGrants = new(facts.PermitCapabilities, StringComparer.Ordinal);
+        bool holdsBundle = directGrants.Contains(BotManagerBundle.Key);
 
         List<string> held = [];
         foreach (ActionDefinition action in actions)
         {
             int? overrideLevel = overrides.TryGetValue(action.Id, out int level) ? level : null;
             int required = ActionLevelPolicy.EffectiveRequiredLevel(action, overrideLevel);
-            if (facts.EffectiveLevel >= required || directGrants.Contains(action.ActionKey))
+            bool viaBundle = holdsBundle && BotManagerBundle.Covers(action.ActionKey);
+            if (
+                facts.EffectiveLevel >= required
+                || directGrants.Contains(action.ActionKey)
+                || viaBundle
+            )
                 held.Add(action.ActionKey);
         }
         held.Sort(StringComparer.Ordinal);

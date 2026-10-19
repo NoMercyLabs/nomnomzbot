@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Content;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Chat.Decoration;
+using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 
@@ -212,9 +213,11 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // Bot-internal tooling (sandboxed Jint execution, not a Twitch-native or credential action): the
         // owner reported feeling over-restricted authoring code scripts as a moderator on channels he does
         // not own. Opened to the Moderator default like commands/pipelines/music; stays Critical tier and
-        // NOT permit-grantable (a permit can never hand code authorship to a viewer below Moderator), and the
-        // broadcaster may still raise the requirement via a ChannelActionOverride.
-        M("code:script:author", Mod, DangerTier.Critical, grant: false);
+        // grantable to a named user (roles-permissions §0.3), directly or through the Bot manager bundle, and
+        // the broadcaster may still raise the requirement via a ChannelActionOverride.
+        M("code:script:author", Mod, DangerTier.Critical);
+        // Bot manager bundle key (§0.3): expands to BotManagerBundle.Members, granted to one named user.
+        M(BotManagerBundle.Key, Broadcaster, DangerTier.Critical);
 
         // Discord (not permit-grantable)
         M("discord:connection:read", Mod, grant: false);
@@ -367,7 +370,10 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // broadcast bundle (start/stop stream & recording, raw requests) stays broadcaster-only.
         M("obs:config:read", Broadcaster);
         M("obs:config:write", Broadcaster, DangerTier.Critical, grant: false);
-        M("obs:control", Mod);
+        // roles-permissions §0.3: any OBS write needs Editor; below that only a named per-user grant.
+        // Listing the live scenes and sources is the separate Moderator-level read key.
+        M("obs:control", Editor, DangerTier.Critical);
+        M("obs:scene:read", Mod);
         M("obs:control:broadcast", Broadcaster, DangerTier.Critical);
 
         // VTube Studio (vtube-studio.md §5): the plugin token is minted by the in-VTS approval, never

@@ -141,7 +141,7 @@ public sealed class ActionDefinitionClassificationTests
         "eventsub:read",
         "eventstore:projection:read",
         "twitch:diagnostics:read",
-        "obs:control",
+        "obs:scene:read",
         "vts:config:read",
         "vts:control",
         "discord:connection:read",
@@ -221,6 +221,9 @@ public sealed class ActionDefinitionClassificationTests
     private static readonly string[] OtherKeys =
     [
         "bundles:publish",
+        // roles-permissions §0.3: OBS writes sit at the Editor floor; the Bot manager bundle key is Broadcaster-issued.
+        "obs:control",
+        "bot:manager:author",
         "roles:read",
         "discord:config:read",
         "discord:config:write",

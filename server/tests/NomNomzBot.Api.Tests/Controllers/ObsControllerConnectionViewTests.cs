@@ -27,7 +27,7 @@ namespace NomNomzBot.Api.Tests.Controllers;
 
 /// <summary>
 /// The OBS connection read has two views. <c>status</c> is the connection state alone and is open to anyone
-/// holding <c>obs:control</c> (the moderator panels need it); <c>full</c> is the configuration and still needs
+/// holding <c>obs:scene:read</c> (the moderator panels need it); <c>full</c> is the configuration and still needs
 /// <c>obs:config:read</c>. The status shape must carry no configuration field at all.
 /// </summary>
 public sealed class ObsControllerConnectionViewTests
@@ -162,12 +162,12 @@ public sealed class ObsControllerConnectionViewTests
     }
 
     [Fact]
-    public void Connection_read_is_gated_by_obs_control_so_the_status_view_is_reachable()
+    public void Connection_read_is_gated_by_obs_scene_read_so_the_status_view_is_reachable()
     {
         MethodInfo read = typeof(ObsController).GetMethod(nameof(ObsController.GetConnection))!;
 
         RequireActionAttribute gate = read.GetCustomAttribute<RequireActionAttribute>()!;
 
-        gate.ActionKey.Should().Be("obs:control");
+        gate.ActionKey.Should().Be("obs:scene:read");
     }
 }

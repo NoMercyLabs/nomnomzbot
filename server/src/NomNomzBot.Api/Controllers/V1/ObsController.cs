@@ -53,7 +53,7 @@ public class ObsController(
 
     /// <summary>Live OBS state (current scene, stream/record/replay status).</summary>
     [HttpGet("state")]
-    [RequireAction("obs:control")]
+    [RequireAction("obs:scene:read")]
     [ProducesResponseType<StatusResponseDto<ObsStateDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetState(Guid channelId, CancellationToken ct) =>
         ObsReadResponse(
@@ -63,14 +63,14 @@ public class ObsController(
 
     /// <summary>The scene list (current one flagged).</summary>
     [HttpGet("scenes")]
-    [RequireAction("obs:control")]
+    [RequireAction("obs:scene:read")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<ObsSceneDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetScenes(Guid channelId, CancellationToken ct) =>
         ObsReadResponse(await control.GetScenesAsync(channelId, ct), []);
 
     /// <summary>The input list.</summary>
     [HttpGet("inputs")]
-    [RequireAction("obs:control")]
+    [RequireAction("obs:scene:read")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<ObsInputDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetInputs(Guid channelId, CancellationToken ct) =>
         ObsReadResponse(await control.GetInputsAsync(channelId, ct), []);
@@ -78,7 +78,7 @@ public class ObsController(
     /// <summary>The items placed in one scene, with their per-scene visibility — distinct from
     /// <c>GET inputs</c>, which only sees global audio/video inputs, never per-scene placement.</summary>
     [HttpGet("scene-items")]
-    [RequireAction("obs:control")]
+    [RequireAction("obs:scene:read")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<ObsSceneItemDto>>>(
         StatusCodes.Status200OK
     )]
@@ -90,21 +90,21 @@ public class ObsController(
 
     /// <summary>Whether the virtual camera output is currently running.</summary>
     [HttpGet("virtual-cam/status")]
-    [RequireAction("obs:control")]
+    [RequireAction("obs:scene:read")]
     [ProducesResponseType<StatusResponseDto<ObsVirtualCamStatusDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetVirtualCamStatus(Guid channelId, CancellationToken ct) =>
         ObsReadResponse(await control.GetVirtualCamStatusAsync(channelId, ct), new(false));
 
     /// <summary>OBS performance stats — CPU/memory load and render/output frame counters.</summary>
     [HttpGet("stats")]
-    [RequireAction("obs:control")]
+    [RequireAction("obs:scene:read")]
     [ProducesResponseType<StatusResponseDto<ObsStatsDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStats(Guid channelId, CancellationToken ct) =>
         ObsReadResponse(await control.GetStatsAsync(channelId, ct), new(0, 0, 0, 0, 0, 0, 0));
 
     /// <summary>The scene transitions OBS knows about, with the currently active one flagged.</summary>
     [HttpGet("scene-transitions")]
-    [RequireAction("obs:control")]
+    [RequireAction("obs:scene:read")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<ObsTransitionDto>>>(
         StatusCodes.Status200OK
     )]
@@ -113,7 +113,7 @@ public class ObsController(
 
     /// <summary>The scene collections OBS knows about, with the loaded one flagged.</summary>
     [HttpGet("scene-collections")]
-    [RequireAction("obs:control")]
+    [RequireAction("obs:scene:read")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<ObsSceneCollectionDto>>>(
         StatusCodes.Status200OK
     )]
@@ -122,14 +122,14 @@ public class ObsController(
 
     /// <summary>The OBS profiles, with the active one flagged.</summary>
     [HttpGet("profiles")]
-    [RequireAction("obs:control")]
+    [RequireAction("obs:scene:read")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<ObsProfileDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetProfiles(Guid channelId, CancellationToken ct) =>
         ObsReadResponse(await control.GetProfilesAsync(channelId, ct), []);
 
     /// <summary>The filters attached to one source (scene or input).</summary>
     [HttpGet("source-filters")]
-    [RequireAction("obs:control")]
+    [RequireAction("obs:scene:read")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<ObsFilterDto>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetSourceFilters(
         Guid channelId,
@@ -139,14 +139,14 @@ public class ObsController(
 
     /// <summary>Whether studio mode (preview/program) is currently on.</summary>
     [HttpGet("studio-mode")]
-    [RequireAction("obs:control")]
+    [RequireAction("obs:scene:read")]
     [ProducesResponseType<StatusResponseDto<ObsStudioModeStatusDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetStudioMode(Guid channelId, CancellationToken ct) =>
         ObsReadResponse(await control.GetStudioModeEnabledAsync(channelId, ct), new(false));
 
     /// <summary>The hotkey names OBS knows about — the enumeration a hotkey-trigger picker needs.</summary>
     [HttpGet("hotkeys")]
-    [RequireAction("obs:control")]
+    [RequireAction("obs:scene:read")]
     [ProducesResponseType<StatusResponseDto<IReadOnlyList<string>>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetHotkeys(Guid channelId, CancellationToken ct) =>
         ObsReadResponse(await control.GetHotkeyListAsync(channelId, ct), []);
@@ -160,7 +160,7 @@ public class ObsController(
     /// whether OBS is live.
     /// </summary>
     [HttpGet("probe")]
-    [RequireAction("obs:control")]
+    [RequireAction("obs:scene:read")]
     [ProducesResponseType<StatusResponseDto<ObsProbeDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> Probe(Guid channelId, CancellationToken ct)
     {
@@ -531,10 +531,10 @@ public class ObsController(
     /// <summary>
     /// The channel's OBS connection. <c>view=full</c> (default) is the configuration (defaults when none is
     /// stored yet) and needs <c>obs:config:read</c>; <c>view=status</c> is only the connection state and
-    /// needs <c>obs:control</c>, so a moderator's panels can tell whether OBS is on.
+    /// needs <c>obs:scene:read</c>, so a moderator's panels can tell whether OBS is on.
     /// </summary>
     [HttpGet("connection")]
-    [RequireAction("obs:control")]
+    [RequireAction("obs:scene:read")]
     [ProducesResponseType<StatusResponseDto<ObsConnectionDto>>(StatusCodes.Status200OK)]
     [ProducesResponseType<StatusResponseDto<ObsConnectionStatusDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetConnection(
