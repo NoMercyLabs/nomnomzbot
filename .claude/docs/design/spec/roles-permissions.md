@@ -24,7 +24,42 @@ This subsystem owns **three authorization planes** and the **two gates** that re
 - **`!permit`** — individual grants. **Effective level = MAX(Twitch-badge role, bot-role grants, individual capability grants)**, with two guardrails: **no escalation above the grantor's own level** (applies to every grantor), and **default-deny** (only capabilities whose `ActionDefinition.IsGrantableViaPermit == true` may be granted). The **Broadcaster (channel owner) is fully trusted and MAY grant Critical-tier capabilities** — paternalistic caps on what the owner can delegate do not exist; the owner is the sole authority over their channel. Critical grants are **always to a named individual user, never raised on a whole role tier** (§0.2), and the floor-tier guards that block a dangerous capability from being applied to a low *role* tier still hold.
 
 ### 0.2 Dangerous capabilities are delegated to a named individual, never raised on a role tier
-A Critical- or ToS-tier capability is delegated by **granting it to a specific user** (a `PermitGrant` of `GrantType=Capability` naming one `UserId`), **never** by lowering the action's required level on a whole `ManagementRole` tier via a `ChannelActionOverride`. The override mechanism may **raise** a floor for everyone but must **not** be used to drop a dangerous capability onto an entire tier. The canonical case: *"one of my mods runs my stream deck and I want them to start and stop the broadcast."* The decision is to **grant that one person** the capability (`!permit @thatuser obs:control:broadcast`, owner-issued — a Critical-tier, permit-grantable key), **not** to make every Editor able to start and stop the stream. A Critical action that is **not** permit-grantable (for example `code:script:author`) cannot be delegated per user at all; its floor and a raise via `ChannelActionOverride` are the only levers. This keeps the blast radius of a dangerous capability to the exact individual the Broadcaster trusts, while the role tiers stay at their safe defaults. `SetActionOverrideAsync` rejects an override that would set a Critical-tier action's level below its `FloorLevel` (`VALIDATION_FAILED`); per-user reach into Critical capabilities is **only** via the Broadcaster-issued `PermitGrant` path.
+A Critical- or ToS-tier capability is delegated by **granting it to a specific user** (a `PermitGrant` of `GrantType=Capability` naming one `UserId`), **never** by lowering the action's required level on a whole `ManagementRole` tier via a `ChannelActionOverride`. The override mechanism may **raise** a floor for everyone but must **not** be used to drop a dangerous capability onto an entire tier. The canonical case: *"one of my mods runs my stream deck and I want them to start and stop the broadcast."* The decision is to **grant that one person** the capability (`!permit @thatuser obs:control:broadcast`, owner-issued — a Critical-tier, permit-grantable key), **not** to make every Editor able to start and stop the stream. A Critical action that is **not** permit-grantable (for example `roles:manage`) cannot be delegated per user at all; its floor and a raise via `ChannelActionOverride` are the only levers. This keeps the blast radius of a dangerous capability to the exact individual the Broadcaster trusts, while the role tiers stay at their safe defaults. `SetActionOverrideAsync` rejects an override that would set a Critical-tier action's level below its `FloorLevel` (`VALIDATION_FAILED`); per-user reach into Critical capabilities is **only** via the Broadcaster-issued `PermitGrant` path.
+
+### 0.3 OBS control and the Bot manager role (decided 2026-10-19, owner words in `dashboard-owner-words.md`)
+**OBS.** Any OBS write (scene switch, source toggle or edit, OBS settings, start/stop of the broadcast) needs **Editor (Channel editor) or higher**. A plain Moderator is refused. Below Editor the only way in is a **manual per-user grant**: the Broadcaster issues the existing `PermitGrant` of `GrantType=Capability` for `obs:control` to one named user (`!permit @user obs:control`, or the dashboard permit dialog) and can revoke it at any time (`!unpermit` / `RevokedAt`, optional `ExpiresAt`). This is the §0.2 pattern exactly: the floor of `obs:control` is Editor and is not lowered for a whole tier; reach below the floor is only a named-individual grant, and `obs:control` is Critical-tier and permit-grantable. The start/stop of the broadcast stays its own key (`obs:control:broadcast`, Broadcaster floor, same grant path). **OBS reads:** the live scene and source listing needs `obs:scene:read` (Moderator); the OBS connection settings and credentials need `obs:config:read` (Broadcaster, as before); `obs:config:write` stays Broadcaster and non-grantable.
+
+**Bot manager.** A **Bot manager** is a named user the Broadcaster trusts to run the bot's authoring surfaces without any moderation or channel-admin power. It is a **capability bundle on its own axis**, not a rung of the ladder: it never changes `LevelValue`, it is not a `ManagementRole`, and it is **additive** with every other role (a user can be a Moderator and a Bot manager, a plain viewer and a Bot manager, or an Editor and a Bot manager). The Broadcaster assigns it by granting the bundle key `bot:manager:author` (Critical, permit-grantable, Broadcaster floor) to a named user through the same `PermitGrant` path (`!permit @user bot:manager:author`), and revokes it the same way. No role tier ever receives it by override (§0.2).
+
+`IActionAuthorizationService.AuthorizeActionAsync` / `IRoleResolver.HasCapabilityAsync` treat a live (not revoked, not expired) `bot:manager:author` grant as satisfying every key in the **bot-manager bundle**. The bundle is a fixed set of action keys in `NomNomzBot.Domain/Identity/BotManagerBundle.cs` (no column, no schema change), exactly:
+- Read and write of the authoring surfaces: `commands:*`, `pipelines:*`, `eventresponses:*`, `chattriggers:*`, `voicetriggers:*`, `chatpolls:*`, `timers:*`, `widget:*`, `sounds:*`, `quotes:*`, `sdk:read`, `code:script:author`.
+- Bundles: `bundles:read`, `bundles:export`, `bundles:import` (not `bundles:publish`).
+- Voice and music authoring: `tts:config:*`, `tts:voice:*`, `music:config:*`, `music:library:write`.
+
+The bundle **never** includes: any moderation key (`moderation:*`, ban, timeout, delete, automod, `spam:*`, `trust:*`), any channel-editor power (channel settings, `obs:*`, `live-ops:*`, `integration:*`, `webhooks:*`, `automation:tokens:*`), role and permit management (`roles:*`, `permit:issue`), credentials and billing. Extending the bundle is a seed-catalogue change to `BotManagerBundle`, never a per-channel edit. A Moderator keeps the authoring defaults in the seed catalogue; the bundle exists so a user who is **not** a Moderator can hold them without a moderation badge.
+
+#### Surface access matrix
+`Read` and `Write` name the lowest role that passes by default (role names only, never numbers). `Grant override` names what else passes: **Bot manager** = holder of `bot:manager:author`; **named grant** = a Broadcaster-issued `PermitGrant` for that exact key.
+
+| Surface | Read | Write | Grant override |
+|---|---|---|---|
+| OBS scenes and sources (listing) | Moderator (`obs:scene:read`) | Editor (`obs:control`) | Write: named grant for `obs:control`; Bot manager does not apply |
+| OBS settings and credentials | Broadcaster (`obs:config:read`) | Broadcaster (`obs:config:write`) | None (not grantable for write) |
+| OBS start and stop of the broadcast | Moderator (`obs:scene:read`) | Broadcaster (`obs:control:broadcast`) | Named grant for `obs:control:broadcast` |
+| Scripts and code editor | Moderator (`sdk:read`) | Moderator (`code:script:author`) | Bot manager, or named grant |
+| Overlays and widgets | Moderator (`widget:read`) | Moderator (`widget:write`, `widget:install`) | Bot manager, or named grant |
+| Pipelines | Moderator (`pipelines:read`) | Moderator (`pipelines:write`) | Bot manager, or named grant |
+| Commands (custom and built-in) | Moderator (`commands:read`) | Moderator (`commands:write`, `commands:builtin:write`) | Bot manager, or named grant |
+| Event responses | Moderator (`eventresponses:read`) | Moderator (`eventresponses:write`) | Bot manager, or named grant |
+| Triggers (chat and voice) | Moderator (`chattriggers:read`, `voicetriggers:read`) | Moderator (`chattriggers:write`, `voicetriggers:write`) | Bot manager, or named grant |
+| Timers | Moderator (`timers:read`) | Moderator (`timers:write`) | Bot manager, or named grant |
+| Library: sounds | Moderator (`sounds:read`) | Moderator (`sounds:write`) | Bot manager, or named grant |
+| Library: quotes | Vip (`quotes:read`) | Vip (`quotes:write`) | Bot manager, or named grant |
+| Bundles and templates (export, import) | Moderator (`bundles:read`) | Editor (`bundles:export`, `bundles:import`) | Bot manager, or named grant; publish is Broadcaster only |
+| TTS configuration and voices | Moderator (`tts:config:read`) | Moderator (`tts:config:write`) | Bot manager, or named grant |
+| Music configuration and library | Moderator (`music:config:read`) | Editor (`music:config:write`); Moderator (`music:library:write`) | Bot manager, or named grant |
+| Moderation (ban, timeout, delete, automod) | Moderator | Moderator and up | Bot manager does not apply |
+| Roles, permits, channel settings, integrations | Per seed catalogue | Broadcaster or Editor per key | Bot manager does not apply |
 
 ### 0.1 Migration note (do NOT silently "fix")
 The original code used `string BroadcasterId` / `string userId` (`ITenantScoped.BroadcasterId : string`, `Permission.Id : int`, `ChannelAccessService` string args). The LOCKED schema (§1.1/§1.2) **widens `ITenantScoped.BroadcasterId` `string → Guid`** and makes all PKs `guid`. This spec targets the **locked `Guid` shape** for entities and for the six authorization services below. **Exception:** `IChannelAccessService` keeps `string` ids (the JWT `sub` and the tenant key in string form, parsed inside the impl) — its authoritative contract is `platform-conventions.md` §3.2. The generic `Permission` entity and `IPermissionService` string-permission methods are **replaced** by `ActionDefinitions` + `ChannelActionOverrides` + `PermitGrants` and the typed services below (schema §B note: *"Replaces the current generic `Permission`"*). `IPermissionService` (`Application/Identity/Services/IPermissionService.cs`, `Infrastructure/Identity/PermissionService.cs`, and the legacy `PermissionsController`) is **dead legacy**: no authorization path calls it, it is superseded by `IActionAuthorizationService` + `IPermitService`, and it is **deleted by S-RETIRE-LEGACY**. Do not grow it and do not call it.
@@ -486,7 +521,7 @@ These are the `[GLOBAL, seed]` rows the seeders (`ActionDefinitionSeeder`, `IamC
 **Rule:** unless a row shows an explicit `Default X, Floor Y`, `DefaultLevel = FloorLevel`. `DefaultLevel` is the **out-of-the-box** required level — the action's Twitch base role — so a lower-standing viewer (e.g. a VIP or Sub) gets **nothing extra by default**. `FloorLevel` is the **lowest a broadcaster may set** via `ChannelActionOverride`: the override is clamped to `[FloorLevel, Broadcaster(40)]`, so a broadcaster may **raise** an action as high as Broadcaster **or lower** it as far as its floor — never below `FloorLevel`, and Critical-tier rows are not lowerable at all. A floor sits **below** the default only where abusing the action **cannot cause irreversible or serious harm** — non-destructive reads and reversible, non-destructive writes — so the broadcaster can *choose* to open them to a trusted VIP/Sub. Destructive, irreversible, Twitch-mutating, currency, or role/IAM actions keep `Floor = Default` at Moderator+ (or Broadcaster/Critical) and can never be lowered to VIP. **Moderator default for bot-internal tooling is intentional (commit 609ae0fc2).** Reversible, auditable, non-Twitch-mutating automation tooling (commands, pipelines, event responses, timers, widgets, code scripts, feature toggles, and similar) defaults to Moderator so a moderator can build and adjust the bot on the channel they moderate; a broadcaster may still raise any of them via `ChannelActionOverride`. The per-spec §5 controller tables are the **source** of these rows and must stay in sync — a §5 cell whose action key is absent here is a seed bug.
 
 ### ActionDefinitions — Management plane
-`Plane = Management`; `DefaultLevel = FloorLevel`, `Tier = Low`, and `Grant = true` unless noted. A `Default X, Floor Y` cell marks a **broadcaster-lowerable** action: it defaults to `X` (its base role) but the broadcaster may lower the requirement as far as `Y`. (220 keys.)
+`Plane = Management`; `DefaultLevel = FloorLevel`, `Tier = Low`, and `Grant = true` unless noted. A `Default X, Floor Y` cell marks a **broadcaster-lowerable** action: it defaults to `X` (its base role) but the broadcaster may lower the requirement as far as `Y`. (222 keys.)
 
 | ActionKey | Floor | Tier | Grant |
 |---|---|---|---|
@@ -515,7 +550,8 @@ These are the `[GLOBAL, seed]` rows the seeders (`ActionDefinitionSeeder`, `IamC
 | roles:read | Moderator(10) | Low | true |
 | roles:manage | Broadcaster(40) | Critical | false |
 | permit:issue | **Default Broadcaster(40), Floor Editor(30)** | Low | true |
-| code:script:author | Moderator(10) | Critical | false |
+| code:script:author | Moderator(10) | Critical | true |
+| bot:manager:author | Broadcaster(40) | Critical | true |
 | discord:connection:read | Moderator(10) | Low | false |
 | discord:connection:write | Broadcaster(40) | Low | false |
 | discord:config:read | Moderator(10) | Low | false |
@@ -622,7 +658,8 @@ These are the `[GLOBAL, seed]` rows the seeders (`ActionDefinitionSeeder`, `IamC
 | automation:tokens:write | Broadcaster(40) | Critical | false |
 | obs:config:read | Broadcaster(40) | Low | true |
 | obs:config:write | Broadcaster(40) | Critical | false |
-| obs:control | Moderator(10) | Low | true |
+| obs:scene:read | Moderator(10) | Low | true |
+| obs:control | Editor(30) | Critical | true |
 | obs:control:broadcast | Broadcaster(40) | Critical | true |
 | vts:config:read | Moderator(10) | Low | true |
 | vts:config:write | Broadcaster(40) | Low | true |
