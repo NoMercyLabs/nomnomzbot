@@ -63,12 +63,20 @@ public sealed class MusicServiceQueuePushFailureTests
             && url.Contains("/me/player/queue", StringComparison.Ordinal)
         );
 
-    /// <summary>The call the Spotify engine makes to start a track: a PUT to the play endpoint.</summary>
+    /// <summary>
+    /// The calls the Spotify engine makes to start a track: a push to Spotify's queue, then a skip to it.
+    /// </summary>
     private static bool IsStartTrack(HttpRequestMessage r) =>
-        r.Method == HttpMethod.Put
-        && r.RequestUri!.AbsolutePath.EndsWith("/me/player/play", StringComparison.Ordinal);
+        r.Method == HttpMethod.Post
+        && (
+            r.RequestUri!.AbsolutePath.EndsWith("/me/player/queue", StringComparison.Ordinal)
+            || r.RequestUri.AbsolutePath.EndsWith("/me/player/next", StringComparison.Ordinal)
+        );
 
-    private static int StartTrackCount(RecordingHttpHandler handler) =>
+    /// <summary>One start is one push; a skip alone also posts to next.</summary>
+    private static int StartTrackCount(RecordingHttpHandler handler) => QueuePushCount(handler);
+
+    private static int ReplacePlaylistCount(RecordingHttpHandler handler) =>
         handler.RequestUrls.Count(url =>
             url.StartsWith("PUT", StringComparison.Ordinal)
             && url.Contains("/me/player/play", StringComparison.Ordinal)
@@ -104,9 +112,56 @@ public sealed class MusicServiceQueuePushFailureTests
         (await sut.GetQueueAsync(ChannelId.ToString()))
             .Queue.Should()
             .BeEmpty("a start that never reached the player must not leave a phantom queue entry");
-        QueuePushCount(handler)
+        StartTrackCount(handler)
             .Should()
-            .Be(0, "the director starts the track, nothing is queued at the provider");
+            .Be(1, "the one start push is the call the player refused");
+    }
+
+    /// <summary>
+    /// Live 2026-10-19: a start sent as PUT /me/player/play with one track replaced the owner's playlist,
+    /// so when that track did not play the owner's music was gone. The start goes through Spotify's own
+    /// queue and a skip, which leaves the owner's context to carry on after the request.
+    /// </summary>
+    [Fact]
+    public async Task A_request_starts_through_the_spotify_queue_and_never_replaces_the_owner_playlist()
+    {
+        (MusicService sut, RecordingHttpHandler handler, _, _, _, _) = Build();
+        RespondWithResolvedTrack(handler);
+        handler.RespondWhen(
+            r =>
+                r.Method != HttpMethod.Get
+                && (
+                    r.RequestUri!.AbsolutePath.EndsWith("/me/player/play", StringComparison.Ordinal)
+                    || r.RequestUri.AbsolutePath.EndsWith(
+                        "/me/player/queue",
+                        StringComparison.Ordinal
+                    )
+                    || r.RequestUri.AbsolutePath.EndsWith(
+                        "/me/player/next",
+                        StringComparison.Ordinal
+                    )
+                ),
+            HttpStatusCode.NoContent,
+            null
+        );
+
+        await sut.RequestTrackAsync(
+            ChannelId.ToString(),
+            $"https://open.spotify.com/track/{TrackId}",
+            "viewer1"
+        );
+
+        QueuePushCount(handler).Should().Be(1);
+        handler
+            .RequestUrls.Count(url =>
+                url.StartsWith("POST", StringComparison.Ordinal)
+                && url.Contains("/me/player/next", StringComparison.Ordinal)
+            )
+            .Should()
+            .Be(1);
+        ReplacePlaylistCount(handler)
+            .Should()
+            .Be(0, "a PUT play with uris wipes the owner's playlist");
     }
 
     [Fact]
@@ -213,7 +268,6 @@ public sealed class MusicServiceQueuePushFailureTests
         );
         int startsAfterRequest = StartTrackCount(handler);
         startsAfterRequest.Should().Be(1);
-        QueuePushCount(handler).Should().Be(0);
 
         Result skip = await sut.SkipAsync(ChannelId.ToString(), "4242");
 
@@ -221,7 +275,6 @@ public sealed class MusicServiceQueuePushFailureTests
         // A skip only advances the provider. Starting the entry again here would play the same track a
         // second time, which is exactly the double-play the old dequeue-and-push skip produced.
         StartTrackCount(handler).Should().Be(startsAfterRequest);
-        QueuePushCount(handler).Should().Be(0);
         // The entry stays pending until the live playback state confirms it is the track now playing.
         (await sut.GetQueueAsync(ChannelId.ToString()))
             .Queue.Should()

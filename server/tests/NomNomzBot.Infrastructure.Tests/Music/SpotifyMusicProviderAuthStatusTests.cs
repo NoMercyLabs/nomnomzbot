@@ -158,8 +158,11 @@ public sealed class SpotifyMusicProviderAuthStatusTests
         (MusicService sut, RecordingHttpHandler handler, _, _) = Build();
         handler.RespondWhen(
             r =>
-                r.Method == HttpMethod.Put
-                && r.RequestUri!.AbsolutePath.EndsWith("/me/player/play", StringComparison.Ordinal),
+                r.Method == HttpMethod.Post
+                && r.RequestUri!.AbsolutePath.EndsWith(
+                    "/me/player/queue",
+                    StringComparison.Ordinal
+                ),
             HttpStatusCode.Unauthorized,
             NeedsReauthJson
         );
@@ -177,8 +180,11 @@ public sealed class SpotifyMusicProviderAuthStatusTests
         (MusicService sut, RecordingHttpHandler handler, _, _) = Build();
         handler.RespondWhen(
             r =>
-                r.Method == HttpMethod.Put
-                && r.RequestUri!.AbsolutePath.EndsWith("/me/player/play", StringComparison.Ordinal),
+                r.Method == HttpMethod.Post
+                && r.RequestUri!.AbsolutePath.EndsWith(
+                    "/me/player/queue",
+                    StringComparison.Ordinal
+                ),
             HttpStatusCode.Forbidden,
             ForbiddenJson
         );

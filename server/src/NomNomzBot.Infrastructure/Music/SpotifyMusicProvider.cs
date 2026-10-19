@@ -615,10 +615,10 @@ public sealed class SpotifyMusicProvider
     }
 
     /// <summary>
-    /// Starts exactly this track: <c>PUT /me/player/play</c> with <c>uris</c> plays it now and leaves
-    /// Spotify's own waiting queue alone, so a stray queued track can never start in its place (a queue
-    /// push followed by a skip plays the head of that queue, which is not always the pushed track). Same
-    /// outcome and exceptions as <see cref="AddToQueueAsync"/>.
+    /// Starts this track through Spotify's own queue: push it, then skip to it. A <c>PUT /me/player/play</c>
+    /// with <c>uris</c> would replace the owner's playlist with this one track, so a track that does not play
+    /// leaves the owner with no music at all (live 2026-10-19). Same outcome and exceptions as
+    /// <see cref="AddToQueueAsync"/>.
     /// </summary>
     public async Task<bool> StartTrackAsync(
         Guid broadcasterId,
@@ -626,16 +626,18 @@ public sealed class SpotifyMusicProvider
         CancellationToken cancellationToken = default
     )
     {
+        if (!await AddToQueueAsync(broadcasterId, trackUri, cancellationToken))
+            return false;
+
         string? token = await GetTokenAsync(broadcasterId, cancellationToken);
         if (token is null)
             throw new MusicAuthenticationFailedException(ProviderName);
 
-        object body = new { uris = new[] { NormalizeTrackUri(trackUri) } };
         HttpResponseMessage? response = await SendPlayerCommandAsync(
-            HttpMethod.Put,
-            $"{SpotifyApiBase}/me/player/play",
+            HttpMethod.Post,
+            $"{SpotifyApiBase}/me/player/next",
             token,
-            body,
+            null,
             broadcasterId,
             cancellationToken
         );
@@ -2109,6 +2111,14 @@ public sealed class SpotifyMusicProvider
                     ) ?? response;
             }
         }
+
+        _logger.LogInformation(
+            "Spotify player command {Method} {Path} for {BroadcasterId} answered {Status}",
+            method,
+            new Uri(url).AbsolutePath,
+            broadcasterId,
+            (int)response.StatusCode
+        );
 
         if (response.IsSuccessStatusCode)
             _capabilities.Report(broadcasterId, ProviderName, PremiumCapabilityKey, true);
