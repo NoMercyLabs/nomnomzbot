@@ -123,7 +123,7 @@ public sealed class SpotifyPlaybackEngineTests
             { new NoActiveDeviceException("spotify"), EngineBlockReason.NoOutput },
             { new MusicAuthenticationFailedException("spotify"), EngineBlockReason.NotConnected },
             { new MusicForbiddenException("spotify"), EngineBlockReason.Forbidden },
-            { new PremiumRequiredException("spotify"), EngineBlockReason.Forbidden },
+            { new PremiumRequiredException("spotify"), EngineBlockReason.PremiumRequired },
         };
 
     [Fact]

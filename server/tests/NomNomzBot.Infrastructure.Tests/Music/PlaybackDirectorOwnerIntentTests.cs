@@ -148,6 +148,35 @@ public sealed partial class PlaybackDirectorTests
         rig.Journal.Last().Reason.Should().Be("held_paused");
     }
 
+    [Theory]
+    [InlineData(EngineKind.Spotify)]
+    [InlineData(EngineKind.YouTube)]
+    public async Task PausedByOwner_SeekVolumeAndMute_AdjustThePausedEngineAndStayPaused(
+        EngineKind kind
+    )
+    {
+        Rig rig = new();
+        PlaybackItem a = await rig.StartPlaying(kind);
+        await rig.Director.HandleAsync(new OwnerPause());
+
+        await rig.Director.HandleAsync(new OwnerSeek(12_000));
+        await rig.Director.HandleAsync(new OwnerVolume(25));
+        await rig.Director.HandleAsync(new OwnerMute(true));
+
+        rig.Director.State.Should().Be(PlaybackState.PausedByOwner(kind, a));
+        rig.Engine(kind)
+            .Calls.Should()
+            .Equal(
+                new EngineCall("Start", "a"),
+                new EngineCall("Pause"),
+                new EngineCall("Seek", "12000"),
+                new EngineCall("SetVolume", "25"),
+                new EngineCall("SetVolume", "0")
+            );
+        rig.Other(kind).Calls.Should().BeEmpty();
+        rig.Journal.Last().Reason.Should().Be("mute");
+    }
+
     [Fact]
     public async Task Row10_OwnerPausesInTheYouTubeWidget_PausedByOwnerAndSpotifyIsNeverCalled()
     {

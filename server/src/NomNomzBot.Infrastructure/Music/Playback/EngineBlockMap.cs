@@ -25,7 +25,8 @@ internal static class EngineBlockMap
         {
             NoActiveDeviceException => EngineBlockReason.NoOutput,
             MusicAuthenticationFailedException => EngineBlockReason.NotConnected,
-            MusicForbiddenException or PremiumRequiredException => EngineBlockReason.Forbidden,
+            PremiumRequiredException => EngineBlockReason.PremiumRequired,
+            MusicForbiddenException => EngineBlockReason.Forbidden,
             _ => null,
         };
 }

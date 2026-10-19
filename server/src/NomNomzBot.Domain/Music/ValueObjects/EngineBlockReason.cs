@@ -22,6 +22,9 @@ public enum EngineBlockReason
     /// <summary>Nothing to play on: no Spotify device, or no YouTube player (music widget) open.</summary>
     NoOutput,
 
-    /// <summary>The provider refused the call: missing permission, or a plan without playback control.</summary>
+    /// <summary>The provider refused the call: missing permission.</summary>
     Forbidden,
+
+    /// <summary>The provider refused the call because the account has no plan with playback control (Premium).</summary>
+    PremiumRequired,
 }

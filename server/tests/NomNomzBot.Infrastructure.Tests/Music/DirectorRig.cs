@@ -35,6 +35,16 @@ internal sealed class DirectorRig
 
     public ScriptableEngineFactory Engines { get; }
 
+    /// <summary>Attaches the output and reports a playing Spotify track, so the director is Playing on Spotify.</summary>
+    public async Task PlaySpotifyAsync(Guid broadcasterId)
+    {
+        await Registry.SendAsync(broadcasterId, new OutputAttached());
+        await Registry.SendAsync(
+            broadcasterId,
+            new EngineReport(EngineKind.Spotify, "spotify:track:x", true, 1_000, 200_000)
+        );
+    }
+
     public RecordingBus Bus { get; }
 
     public PlaybackDirectorRegistry Registry { get; }

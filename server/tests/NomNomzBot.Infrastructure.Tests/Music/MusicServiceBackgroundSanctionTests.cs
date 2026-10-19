@@ -68,6 +68,77 @@ public sealed class MusicServiceBackgroundSanctionTests
         IMusicProvider Provider
     ) BuildSut(IPlaybackInputSink? input = null)
     {
+        (MusicService service, OutboundSanctionAccessor sanctions, IMusicProvider provider, _, _) =
+            BuildCore(input, wrap: null);
+        return (service, sanctions, provider);
+    }
+
+    private sealed record OwnerMusicSut(
+        MusicService Service,
+        OutboundSanctionAccessor Sanctions,
+        IMusicProvider Provider,
+        SanctionProbeSink Probe,
+        DirectorRig Rig
+    );
+
+    /// <summary>Records the sanction in force, and the input, at the moment a control reaches the director.</summary>
+    private sealed class SanctionProbeSink(
+        IPlaybackInputSink inner,
+        OutboundSanctionAccessor sanctions
+    ) : IPlaybackInputSink
+    {
+        public OutboundSanction? Observed { get; private set; }
+
+        public PlaybackInput? Sent { get; private set; }
+
+        public Task SendAsync(
+            Guid broadcasterId,
+            PlaybackInput input,
+            CancellationToken ct = default
+        )
+        {
+            Observed = sanctions.Current;
+            Sent = input;
+            return inner.SendAsync(broadcasterId, input, ct);
+        }
+    }
+
+    /// <summary>A service over a real director that already plays the owner's Spotify music, optionally paused.</summary>
+    private static async Task<OwnerMusicSut> BuildOwnerMusicAsync(bool paused)
+    {
+        (
+            MusicService service,
+            OutboundSanctionAccessor sanctions,
+            IMusicProvider provider,
+            SanctionProbeSink? probe,
+            DirectorRig rig
+        ) = BuildCore(
+            input: null,
+            wrap: (inner, accessor) => new SanctionProbeSink(inner, accessor)
+        );
+        await rig.Registry.SendAsync(ChannelId, new OutputAttached());
+        await rig
+            .Engines.EngineOf(ChannelId, EngineKind.Spotify)
+            .EmitAsync(
+                new EngineReport(EngineKind.Spotify, "spotify:track:x", true, 1_000, 200_000)
+            );
+        if (paused)
+            await rig.Registry.SendAsync(ChannelId, new OwnerPause());
+
+        return new(service, sanctions, provider, probe!, rig);
+    }
+
+    private static (
+        MusicService Service,
+        OutboundSanctionAccessor Sanctions,
+        IMusicProvider Provider,
+        SanctionProbeSink? Probe,
+        DirectorRig Rig
+    ) BuildCore(
+        IPlaybackInputSink? input,
+        Func<IPlaybackInputSink, OutboundSanctionAccessor, SanctionProbeSink>? wrap
+    )
+    {
         MusicTestDbContext db = MusicTestDbContext.New();
         SeedConnectedSpotify(db);
         db.SaveChanges();
@@ -77,12 +148,16 @@ public sealed class MusicServiceBackgroundSanctionTests
         provider.Provider.Returns("spotify");
         provider.Capabilities.Returns(AllControlCapabilities);
 
+        SongRequestQueueStore directorStore = DirectorRig.NewStore(out SongRequestQueueStore _);
+        DirectorRig rig = DirectorRig.Of(directorStore);
+        SanctionProbeSink? probe = wrap?.Invoke(rig.Registry, sanctions);
+
         MusicService service = new(
             [provider],
             db,
             new RecordingEventBus(),
             new BlockedTrackService(db),
-            DirectorRig.NewStore(out SongRequestQueueStore directorStore),
+            directorStore,
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
@@ -92,63 +167,57 @@ public sealed class MusicServiceBackgroundSanctionTests
             sanctions,
             Substitute.For<IUserIdentityService>(),
             Substitute.For<IForeignLinkTitleLookup>(),
-            input ?? DirectorRig.Of(directorStore).Registry,
-            DirectorRig.Of(directorStore).Registry
+            input ?? (IPlaybackInputSink?)probe ?? rig.Registry,
+            rig.Registry
         );
 
-        return (service, sanctions, provider);
+        return (service, sanctions, provider, probe, rig);
     }
 
     [Fact]
-    public async Task PlayAsync_establishes_a_channel_configuration_sanction_before_the_provider_call()
+    public async Task PlayAsync_establishes_a_channel_configuration_sanction_before_the_director_call()
     {
-        (MusicService sut, OutboundSanctionAccessor sanctions, IMusicProvider provider) =
-            BuildSut();
-        OutboundSanction? observed = null;
-        provider
-            .PlayAsync(ChannelId, Arg.Any<CancellationToken>())
-            .Returns(_ =>
-            {
-                observed = sanctions.Current;
-                return Task.CompletedTask;
-            });
+        OwnerMusicSut sut = await BuildOwnerMusicAsync(paused: true);
+        sut.Sanctions.Current.Should().BeNull();
 
-        sanctions.Current.Should().BeNull();
-
-        Result result = await sut.PlayAsync(ChannelId.ToString());
+        Result result = await sut.Service.PlayAsync(ChannelId.ToString());
 
         result.IsSuccess.Should().BeTrue();
-        observed.Should().NotBeNull("the provider write must carry a sanction it can be traced to");
-        observed!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
-        observed.Detail.Should().Be("music:playback_control");
-        sanctions.Current.Should().BeNull("the sanction must not leak past the write");
+        sut.Probe.Sent.Should()
+            .BeOfType<OwnerResume>("the control reaches the director as the owner's input");
+        sut.Probe.Observed.Should()
+            .NotBeNull("the director call must carry a sanction it can be traced to");
+        sut.Probe.Observed!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
+        sut.Probe.Observed.Detail.Should().Be("music:playback_control");
+        sut.Sanctions.Current.Should().BeNull("the sanction must not leak past the control");
+        sut.Rig.Engines.EngineOf(ChannelId, EngineKind.Spotify)
+            .Calls.Select(c => c.Name + ":" + c.Argument)
+            .Should()
+            .EndWith("Resume:");
+        await sut.Provider.DidNotReceiveWithAnyArgs().PauseAsync(default, default);
     }
 
     [Fact]
-    public async Task PauseAsync_establishes_a_channel_configuration_sanction_before_the_provider_call()
+    public async Task PauseAsync_establishes_a_channel_configuration_sanction_before_the_director_call()
     {
-        // The concretely-known live gap: PlayOnceResumeHandler calls this off a PlaybackStateChangedEvent
-        // the poller published on its own schedule — no person present, no HTTP request behind it.
-        (MusicService sut, OutboundSanctionAccessor sanctions, IMusicProvider provider) =
-            BuildSut();
-        OutboundSanction? observed = null;
-        provider
-            .PauseAsync(ChannelId, Arg.Any<CancellationToken>())
-            .Returns(_ =>
-            {
-                observed = sanctions.Current;
-                return Task.CompletedTask;
-            });
+        OwnerMusicSut sut = await BuildOwnerMusicAsync(paused: false);
+        sut.Sanctions.Current.Should().BeNull();
 
-        sanctions.Current.Should().BeNull();
-
-        Result result = await sut.PauseAsync(ChannelId.ToString());
+        Result result = await sut.Service.PauseAsync(ChannelId.ToString());
 
         result.IsSuccess.Should().BeTrue();
-        observed.Should().NotBeNull("the provider write must carry a sanction it can be traced to");
-        observed!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
-        observed.Detail.Should().Be("music:playback_control");
-        sanctions.Current.Should().BeNull("the sanction must not leak past the write");
+        sut.Probe.Sent.Should()
+            .BeOfType<OwnerPause>("the control reaches the director as the owner's input");
+        sut.Probe.Observed.Should()
+            .NotBeNull("the director call must carry a sanction it can be traced to");
+        sut.Probe.Observed!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
+        sut.Probe.Observed.Detail.Should().Be("music:playback_control");
+        sut.Sanctions.Current.Should().BeNull("the sanction must not leak past the control");
+        sut.Rig.Engines.EngineOf(ChannelId, EngineKind.Spotify)
+            .Calls.Select(c => c.Name + ":" + c.Argument)
+            .Should()
+            .EndWith("Pause:");
+        await sut.Provider.DidNotReceiveWithAnyArgs().PauseAsync(default, default);
     }
 
     [Fact]
@@ -183,80 +252,72 @@ public sealed class MusicServiceBackgroundSanctionTests
     }
 
     [Fact]
-    public async Task PreviousAsync_establishes_a_channel_configuration_sanction_before_the_provider_call()
+    public async Task PreviousAsync_establishes_a_channel_configuration_sanction_before_the_director_call()
     {
-        (MusicService sut, OutboundSanctionAccessor sanctions, IMusicProvider provider) =
-            BuildSut();
-        OutboundSanction? observed = null;
-        provider
-            .PreviousAsync(ChannelId, Arg.Any<CancellationToken>())
-            .Returns(_ =>
-            {
-                observed = sanctions.Current;
-                return Task.CompletedTask;
-            });
+        OwnerMusicSut sut = await BuildOwnerMusicAsync(paused: false);
+        sut.Sanctions.Current.Should().BeNull();
 
-        sanctions.Current.Should().BeNull();
-
-        Result result = await sut.PreviousAsync(ChannelId.ToString());
+        Result result = await sut.Service.PreviousAsync(ChannelId.ToString());
 
         result.IsSuccess.Should().BeTrue();
-        observed.Should().NotBeNull("the provider write must carry a sanction it can be traced to");
-        observed!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
-        observed.Detail.Should().Be("music:playback_control");
-        sanctions.Current.Should().BeNull("the sanction must not leak past the write");
+        sut.Probe.Sent.Should()
+            .BeOfType<OwnerPrevious>("the control reaches the director as the owner's input");
+        sut.Probe.Observed.Should()
+            .NotBeNull("the director call must carry a sanction it can be traced to");
+        sut.Probe.Observed!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
+        sut.Probe.Observed.Detail.Should().Be("music:playback_control");
+        sut.Sanctions.Current.Should().BeNull("the sanction must not leak past the control");
+        sut.Rig.Engines.EngineOf(ChannelId, EngineKind.Spotify)
+            .Calls.Select(c => c.Name + ":" + c.Argument)
+            .Should()
+            .EndWith("Seek:0");
+        await sut.Provider.DidNotReceiveWithAnyArgs().PauseAsync(default, default);
     }
 
     [Fact]
-    public async Task SetVolumeAsync_establishes_a_channel_configuration_sanction_before_the_provider_call()
+    public async Task SetVolumeAsync_establishes_a_channel_configuration_sanction_before_the_director_call()
     {
-        (MusicService sut, OutboundSanctionAccessor sanctions, IMusicProvider provider) =
-            BuildSut();
-        OutboundSanction? observed = null;
-        provider
-            .SetVolumeAsync(ChannelId, Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(_ =>
-            {
-                observed = sanctions.Current;
-                return Task.CompletedTask;
-            });
+        OwnerMusicSut sut = await BuildOwnerMusicAsync(paused: false);
+        sut.Sanctions.Current.Should().BeNull();
 
-        sanctions.Current.Should().BeNull();
-
-        Result result = await sut.SetVolumeAsync(ChannelId.ToString(), 50);
+        Result result = await sut.Service.SetVolumeAsync(ChannelId.ToString(), 50);
 
         result.IsSuccess.Should().BeTrue();
-        observed.Should().NotBeNull("the provider write must carry a sanction it can be traced to");
-        observed!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
-        observed.Detail.Should().Be("music:volume_control");
-        sanctions.Current.Should().BeNull("the sanction must not leak past the write");
+        sut.Probe.Sent.Should()
+            .BeOfType<OwnerVolume>("the control reaches the director as the owner's input");
+        sut.Probe.Observed.Should()
+            .NotBeNull("the director call must carry a sanction it can be traced to");
+        sut.Probe.Observed!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
+        sut.Probe.Observed.Detail.Should().Be("music:volume_control");
+        sut.Sanctions.Current.Should().BeNull("the sanction must not leak past the control");
+        sut.Rig.Engines.EngineOf(ChannelId, EngineKind.Spotify)
+            .Calls.Select(c => c.Name + ":" + c.Argument)
+            .Should()
+            .EndWith("SetVolume:50");
+        await sut.Provider.DidNotReceiveWithAnyArgs().PauseAsync(default, default);
     }
 
     [Fact]
-    public async Task SeekAsync_establishes_a_channel_configuration_sanction_before_the_provider_call()
+    public async Task SeekAsync_establishes_a_channel_configuration_sanction_before_the_director_call()
     {
-        // The concretely-known live gap: PlayOnceResumeHandler calls this off a PlaybackStateChangedEvent
-        // the poller published on its own schedule — no person present, no HTTP request behind it.
-        (MusicService sut, OutboundSanctionAccessor sanctions, IMusicProvider provider) =
-            BuildSut();
-        OutboundSanction? observed = null;
-        provider
-            .SeekAsync(ChannelId, Arg.Any<int>(), Arg.Any<CancellationToken>())
-            .Returns(_ =>
-            {
-                observed = sanctions.Current;
-                return Task.CompletedTask;
-            });
+        OwnerMusicSut sut = await BuildOwnerMusicAsync(paused: false);
+        sut.Sanctions.Current.Should().BeNull();
 
-        sanctions.Current.Should().BeNull();
-
-        Result result = await sut.SeekAsync(ChannelId.ToString(), 15_000);
+        Result result = await sut.Service.SeekAsync(ChannelId.ToString(), 15_000);
 
         result.IsSuccess.Should().BeTrue();
-        observed.Should().NotBeNull("the provider write must carry a sanction it can be traced to");
-        observed!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
-        observed.Detail.Should().Be("music:seek_control");
-        sanctions.Current.Should().BeNull("the sanction must not leak past the write");
+        sut.Probe.Sent.Should()
+            .BeOfType<OwnerSeek>("the control reaches the director as the owner's input");
+        sut.Probe.Observed.Should()
+            .NotBeNull("the director call must carry a sanction it can be traced to");
+        sut.Probe.Observed!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
+        sut.Probe.Observed.Detail.Should().Be("music:seek_control");
+        sut.Sanctions.Current.Should().BeNull("the sanction must not leak past the control");
+        sut.Rig.Engines.EngineOf(ChannelId, EngineKind.Spotify)
+            .Calls.Select(c => c.Name + ":" + c.Argument)
+            .Should()
+            .EndWith("Seek:15000");
+        await sut.Provider.DidNotReceiveWithAnyArgs().PauseAsync(default, default);
     }
 
     [Fact]

@@ -45,7 +45,7 @@ public sealed class SpotifyMusicProviderTransportTests
     [Fact]
     public async Task Premium_403_on_volume_maps_to_PREMIUM_REQUIRED_not_a_throw()
     {
-        (MusicService sut, _, RecordingHttpHandler handler, _) = Build();
+        (MusicService sut, _, RecordingHttpHandler handler, _) = await BuildPlayingAsync();
         handler.RespondWhen(
             r => r.RequestUri!.AbsolutePath.EndsWith("/me/player/volume", StringComparison.Ordinal),
             HttpStatusCode.Forbidden,
@@ -62,7 +62,8 @@ public sealed class SpotifyMusicProviderTransportTests
     [Fact]
     public async Task Premium_403_on_pause_maps_to_PREMIUM_REQUIRED_and_publishes_nothing()
     {
-        (MusicService sut, RecordingEventBus bus, RecordingHttpHandler handler, _) = Build();
+        (MusicService sut, RecordingEventBus bus, RecordingHttpHandler handler, _) =
+            await BuildPlayingAsync();
         handler.RespondWhen(
             r => r.RequestUri!.AbsolutePath.EndsWith("/me/player/pause", StringComparison.Ordinal),
             HttpStatusCode.Forbidden,
@@ -80,13 +81,10 @@ public sealed class SpotifyMusicProviderTransportTests
     [Fact]
     public async Task Premium_403_on_previous_maps_to_PREMIUM_REQUIRED()
     {
-        (MusicService sut, _, RecordingHttpHandler handler, _) = Build();
+        // Early in the song the director restarts it, which is a seek to 0 on the playing engine.
+        (MusicService sut, _, RecordingHttpHandler handler, _) = await BuildPlayingAsync();
         handler.RespondWhen(
-            r =>
-                r.RequestUri!.AbsolutePath.EndsWith(
-                    "/me/player/previous",
-                    StringComparison.Ordinal
-                ),
+            r => r.RequestUri!.AbsolutePath.EndsWith("/me/player/seek", StringComparison.Ordinal),
             HttpStatusCode.Forbidden,
             PremiumRequiredJson
         );
@@ -104,7 +102,7 @@ public sealed class SpotifyMusicProviderTransportTests
             _,
             RecordingHttpHandler handler,
             InMemoryIntegrationCapabilityStore store
-        ) = Build();
+        ) = await BuildPlayingAsync();
         handler.RespondWhen(
             r => r.RequestUri!.AbsolutePath.EndsWith("/me/player/volume", StringComparison.Ordinal),
             HttpStatusCode.Forbidden,
@@ -127,7 +125,7 @@ public sealed class SpotifyMusicProviderTransportTests
             _,
             RecordingHttpHandler handler,
             InMemoryIntegrationCapabilityStore store
-        ) = Build();
+        ) = await BuildPlayingAsync();
         handler.RespondWhen(
             r => r.RequestUri!.AbsolutePath.EndsWith("/me/player/volume", StringComparison.Ordinal),
             HttpStatusCode.NoContent
@@ -150,7 +148,7 @@ public sealed class SpotifyMusicProviderTransportTests
             _,
             RecordingHttpHandler handler,
             InMemoryIntegrationCapabilityStore store
-        ) = Build();
+        ) = await BuildPlayingAsync();
         handler.RespondWhen(
             r => r.RequestUri!.AbsolutePath.EndsWith("/me/player/volume", StringComparison.Ordinal),
             HttpStatusCode.Forbidden,
@@ -209,7 +207,7 @@ public sealed class SpotifyMusicProviderTransportTests
         RecordingEventBus Bus,
         RecordingHttpHandler Handler,
         InMemoryIntegrationCapabilityStore Store
-    ) Build()
+    ) BuildCore(out SongRequestQueueStore directorStore)
     {
         MusicTestDbContext db = MusicTestDbContext.New();
         // Routing seed: MusicService.GetActiveProviderAsync selects the active provider by which
@@ -248,12 +246,15 @@ public sealed class SpotifyMusicProviderTransportTests
         );
 
         RecordingEventBus bus = new();
+        DirectorRig.NewStore(out directorStore);
+        // The real Spotify engine over this provider: the provider's own HTTP answer decides the refusal.
+        DirectorRig.Of(directorStore).Engines.UseRealSpotify(ChannelId, spotify);
         MusicService sut = new(
             [spotify],
             db,
             bus,
             new BlockedTrackService(db),
-            DirectorRig.NewStore(out SongRequestQueueStore directorStore),
+            directorStore,
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             store,
@@ -266,6 +267,32 @@ public sealed class SpotifyMusicProviderTransportTests
             DirectorRig.Of(directorStore).Registry,
             DirectorRig.Of(directorStore).Registry
         );
+        return (sut, bus, handler, store);
+    }
+
+    private static (
+        MusicService Sut,
+        RecordingEventBus Bus,
+        RecordingHttpHandler Handler,
+        InMemoryIntegrationCapabilityStore Store
+    ) Build() => BuildCore(out SongRequestQueueStore _);
+
+    /// <summary>Builds the service over a director that already plays Spotify, because the owner controls are
+    /// director inputs: with nothing playing there is nothing to control.</summary>
+    private static async Task<(
+        MusicService Sut,
+        RecordingEventBus Bus,
+        RecordingHttpHandler Handler,
+        InMemoryIntegrationCapabilityStore Store
+    )> BuildPlayingAsync()
+    {
+        (
+            MusicService sut,
+            RecordingEventBus bus,
+            RecordingHttpHandler handler,
+            InMemoryIntegrationCapabilityStore store
+        ) = BuildCore(out SongRequestQueueStore directorStore);
+        await DirectorRig.Of(directorStore).PlaySpotifyAsync(ChannelId);
         return (sut, bus, handler, store);
     }
 }

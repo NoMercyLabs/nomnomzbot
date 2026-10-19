@@ -21,6 +21,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
@@ -46,11 +47,21 @@ public sealed class MusicServicePlaybackPublishTests
     [Fact]
     public async Task PlayAsync_publishes_the_freshly_read_state_on_success()
     {
-        (MusicService sut, RecordingEventBus bus, _) = Build(TrackJson("Song A", isPlaying: true));
+        (MusicService sut, RecordingEventBus bus, _, DirectorRig rig) = await BuildOwnerMusicAsync(
+            TrackJson("Song A", isPlaying: true),
+            paused: true
+        );
 
         Result ok = await sut.PlayAsync(ChannelId.ToString());
 
         ok.IsSuccess.Should().BeTrue();
+        rig.Registry.StateOf(ChannelId)
+            .Should()
+            .Be(PlaybackState.Playing(EngineKind.Spotify, null));
+        rig.Engines.EngineOf(ChannelId, EngineKind.Spotify)
+            .Calls.Select(c => c.Name)
+            .Should()
+            .Equal("Pause", "Resume");
         PlaybackStateChangedEvent published = bus
             .Published.OfType<PlaybackStateChangedEvent>()
             .Single();
@@ -82,10 +93,10 @@ public sealed class MusicServicePlaybackPublishTests
             ChannelId.ToString(),
             new("spotify:track:x", "Song A", "Artist", null, 200000, "viewer1", 0, null, "")
         );
-        (MusicService sut, RecordingEventBus bus, _) = Build(
+        (MusicService sut, RecordingEventBus bus, _, _) = await BuildOwnerMusicAsync(
             TrackJson("Song A", isPlaying: true),
-            new NowPlayingCache(),
-            queueStore
+            paused: true,
+            queueStore: queueStore
         );
 
         Result ok = await sut.PlayAsync(ChannelId.ToString());
@@ -118,10 +129,10 @@ public sealed class MusicServicePlaybackPublishTests
                 ""
             )
         );
-        (MusicService sut, RecordingEventBus bus, _) = Build(
+        (MusicService sut, RecordingEventBus bus, _, _) = await BuildOwnerMusicAsync(
             TrackJson("Song A", isPlaying: true),
-            new NowPlayingCache(),
-            queueStore
+            paused: true,
+            queueStore: queueStore
         );
 
         Result ok = await sut.PlayAsync(ChannelId.ToString());
@@ -133,11 +144,21 @@ public sealed class MusicServicePlaybackPublishTests
     [Fact]
     public async Task PauseAsync_publishes_state_reflecting_paused()
     {
-        (MusicService sut, RecordingEventBus bus, _) = Build(TrackJson("Song A", isPlaying: false));
+        (MusicService sut, RecordingEventBus bus, _, DirectorRig rig) = await BuildOwnerMusicAsync(
+            TrackJson("Song A", isPlaying: false),
+            paused: false
+        );
 
         Result ok = await sut.PauseAsync(ChannelId.ToString());
 
         ok.IsSuccess.Should().BeTrue();
+        rig.Registry.StateOf(ChannelId)
+            .Should()
+            .Be(PlaybackState.PausedByOwner(EngineKind.Spotify, null));
+        rig.Engines.EngineOf(ChannelId, EngineKind.Spotify)
+            .Calls.Select(c => c.Name)
+            .Should()
+            .Equal("Pause");
         PlaybackStateChangedEvent published = bus
             .Published.OfType<PlaybackStateChangedEvent>()
             .Single();
@@ -159,10 +180,12 @@ public sealed class MusicServicePlaybackPublishTests
     public async Task PauseAsync_skips_the_second_provider_round_trip_when_the_cache_is_warm()
     {
         INowPlayingCache cache = new NowPlayingCache();
-        (MusicService sut, RecordingEventBus bus, FakeSpotifyHttpHandler handler) = Build(
-            TrackJson("Song A", isPlaying: true),
-            cache
-        );
+        (MusicService sut, RecordingEventBus bus, FakeSpotifyHttpHandler handler, _) =
+            await BuildOwnerMusicAsync(
+                TrackJson("Song A", isPlaying: true),
+                paused: false,
+                cache: cache
+            );
 
         // Warms the cache exactly the way the poller does: one real read.
         await sut.GetNowPlayingAsync(ChannelId.ToString());
@@ -191,9 +214,8 @@ public sealed class MusicServicePlaybackPublishTests
     [Fact]
     public async Task PauseAsync_falls_back_to_a_real_fetch_when_nothing_is_cached_yet()
     {
-        (MusicService sut, RecordingEventBus bus, FakeSpotifyHttpHandler handler) = Build(
-            TrackJson("Song A", isPlaying: false)
-        );
+        (MusicService sut, RecordingEventBus bus, FakeSpotifyHttpHandler handler, _) =
+            await BuildOwnerMusicAsync(TrackJson("Song A", isPlaying: false), paused: false);
 
         Result ok = await sut.PauseAsync(ChannelId.ToString());
 
@@ -208,10 +230,12 @@ public sealed class MusicServicePlaybackPublishTests
     public async Task PauseAsync_ignores_a_stale_cache_entry_and_refetches()
     {
         INowPlayingCache cache = new NowPlayingCache();
-        (MusicService sut, RecordingEventBus bus, FakeSpotifyHttpHandler handler) = Build(
-            TrackJson("Song A", isPlaying: true),
-            cache
-        );
+        (MusicService sut, RecordingEventBus bus, FakeSpotifyHttpHandler handler, _) =
+            await BuildOwnerMusicAsync(
+                TrackJson("Song A", isPlaying: true),
+                paused: false,
+                cache: cache
+            );
         await sut.GetNowPlayingAsync(ChannelId.ToString());
         handler.NowPlayingReadCount.Should().Be(1);
 
@@ -588,6 +612,41 @@ public sealed class MusicServicePlaybackPublishTests
             DirectorRig.Of(queueStore).Registry
         );
         return (sut, bus, handler);
+    }
+
+    /// <summary>
+    /// Builds the service over a director that already plays the owner's own Spotify music, optionally paused,
+    /// because pause and resume are director inputs: with nothing playing there is nothing to control.
+    /// </summary>
+    private static async Task<(
+        MusicService Sut,
+        RecordingEventBus Bus,
+        FakeSpotifyHttpHandler Handler,
+        DirectorRig Rig
+    )> BuildOwnerMusicAsync(
+        string currentTrackJson,
+        bool paused,
+        INowPlayingCache? cache = null,
+        SongRequestQueueStore? queueStore = null
+    )
+    {
+        SongRequestQueueStore store = queueStore ?? new SongRequestQueueStore();
+        (MusicService sut, RecordingEventBus bus, FakeSpotifyHttpHandler handler) = Build(
+            currentTrackJson,
+            cache ?? new NowPlayingCache(),
+            store
+        );
+        DirectorRig rig = DirectorRig.Of(store);
+        await rig.Registry.SendAsync(ChannelId, new OutputAttached());
+        await rig
+            .Engines.EngineOf(ChannelId, EngineKind.Spotify)
+            .EmitAsync(
+                new EngineReport(EngineKind.Spotify, "spotify:track:x", true, 1_000, 200_000)
+            );
+        if (paused)
+            await rig.Registry.SendAsync(ChannelId, new OwnerPause());
+
+        return (sut, bus, handler, rig);
     }
 
     private static string TrackJson(string name, bool isPlaying) =>

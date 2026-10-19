@@ -90,7 +90,7 @@ public sealed class SpotifyMusicProviderAuthStatusTests
     {
         // PREMIUM_REQUIRED is its own long-standing signal (music-sr.md §3.5) — S003 must not conflate
         // "needs Premium" with "the grant is broken".
-        (MusicService sut, RecordingHttpHandler handler, _, _) = Build();
+        (MusicService sut, RecordingHttpHandler handler, _, _) = await BuildPlayingAsync();
         handler.RespondWhen(
             r => r.RequestUri!.AbsolutePath.EndsWith("/me/player/pause", StringComparison.Ordinal),
             HttpStatusCode.Forbidden,
@@ -197,7 +197,7 @@ public sealed class SpotifyMusicProviderAuthStatusTests
         RecordingHttpHandler Handler,
         InMemoryIntegrationCapabilityStore CapabilityStore,
         FakeIntegrationTokenVault Vault
-    ) Build()
+    ) BuildCore(out SongRequestQueueStore directorStore)
     {
         MusicTestDbContext db = MusicTestDbContext.New();
         // Routing seed: MusicService.GetActiveProviderAsync selects the active provider by which
@@ -235,7 +235,7 @@ public sealed class SpotifyMusicProviderAuthStatusTests
             new OutboundSanctionAccessor()
         );
 
-        DirectorRig.NewStore(out SongRequestQueueStore directorStore);
+        DirectorRig.NewStore(out directorStore);
         // The real Spotify engine over this provider: the start's HTTP answer decides the typed refusal.
         DirectorRig.Of(directorStore).Engines.UseRealSpotify(ChannelId, spotify);
         MusicService sut = new(
@@ -257,6 +257,32 @@ public sealed class SpotifyMusicProviderAuthStatusTests
             DirectorRig.Of(directorStore).Registry
         );
 
+        return (sut, handler, capabilityStore, vault);
+    }
+
+    private static (
+        MusicService Sut,
+        RecordingHttpHandler Handler,
+        InMemoryIntegrationCapabilityStore CapabilityStore,
+        FakeIntegrationTokenVault Vault
+    ) Build() => BuildCore(out SongRequestQueueStore _);
+
+    /// <summary>Builds the service over a director that already plays Spotify, because the owner controls are
+    /// director inputs: with nothing playing there is nothing to control.</summary>
+    private static async Task<(
+        MusicService Sut,
+        RecordingHttpHandler Handler,
+        InMemoryIntegrationCapabilityStore CapabilityStore,
+        FakeIntegrationTokenVault Vault
+    )> BuildPlayingAsync()
+    {
+        (
+            MusicService sut,
+            RecordingHttpHandler handler,
+            InMemoryIntegrationCapabilityStore capabilityStore,
+            FakeIntegrationTokenVault vault
+        ) = BuildCore(out SongRequestQueueStore directorStore);
+        await DirectorRig.Of(directorStore).PlaySpotifyAsync(ChannelId);
         return (sut, handler, capabilityStore, vault);
     }
 }

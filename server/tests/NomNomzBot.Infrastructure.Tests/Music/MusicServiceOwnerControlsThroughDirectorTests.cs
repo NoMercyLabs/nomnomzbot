@@ -26,10 +26,13 @@ namespace NomNomzBot.Infrastructure.Tests.Music;
 /// </summary>
 public sealed class MusicServiceOwnerControlsThroughDirectorTests
 {
-    public static TheoryData<EngineKind> Engines => new() { EngineKind.Spotify, EngineKind.YouTube };
+    public static TheoryData<EngineKind> Engines =>
+        new() { EngineKind.Spotify, EngineKind.YouTube };
 
     private static string UriOf(EngineKind engine) =>
-        engine == EngineKind.Spotify ? "spotify:track:own1" : "https://www.youtube.com/watch?v=own1";
+        engine == EngineKind.Spotify
+            ? "spotify:track:own1"
+            : "https://www.youtube.com/watch?v=own1";
 
     /// <summary>The owner plays music on the given engine; the director observes it and goes Playing(engine, null).</summary>
     private static async Task<(
@@ -188,13 +191,8 @@ public sealed class MusicServiceOwnerControlsThroughDirectorTests
         EngineKind engine
     )
     {
-        (
-            MusicService sut,
-            RecordingHttpHandler handler,
-            DirectorRig rig,
-            FakeEngine playing,
-            _
-        ) = await OwnerPlayingAsync(engine);
+        (MusicService sut, RecordingHttpHandler handler, DirectorRig rig, FakeEngine playing, _) =
+            await OwnerPlayingAsync(engine);
         playing.BlockCommands = EngineBlockReason.Forbidden;
 
         Result result = await sut.PauseAsync(SpotifyChannel.ToString());

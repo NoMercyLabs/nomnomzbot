@@ -29,6 +29,10 @@ public sealed partial class PlaybackDirector
             case OwnerSkip:
                 await OnPausedSkipAsync(engine, input, ct);
                 break;
+            case OwnerSeek or OwnerVolume or OwnerMute:
+                // The owner can still set the level or the position while paused; the state stays PausedByOwner.
+                await OnOwnerIntentAsync(input, ct);
+                break;
             case RequestAdded:
                 await MoveAsync(State, input, "held_paused");
                 break;

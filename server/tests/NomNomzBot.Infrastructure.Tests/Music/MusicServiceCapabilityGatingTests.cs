@@ -15,6 +15,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
@@ -22,6 +23,7 @@ using NomNomzBot.Infrastructure.Notifications;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
+using static NomNomzBot.Infrastructure.Tests.Music.PlaybackDirectorTestKit;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
@@ -61,31 +63,29 @@ public sealed class MusicServiceCapabilityGatingTests
     }
 
     [Fact]
-    public async Task Seek_crosses_the_seam_in_whole_seconds_and_reaches_Spotify_in_milliseconds()
+    public async Task Seek_reaches_the_playing_engine_in_milliseconds_not_the_provider()
     {
-        (MusicService sut, RecordingHttpHandler handler) = Build(connectedService: "spotify");
+        (MusicService sut, RecordingHttpHandler handler, DirectorRig rig) = BuildWithRig();
+        FakeEngine engine = await StartOwnerSpotifyAsync(rig);
 
         Result ok = await sut.SeekAsync(ChannelId.ToString(), 93_500);
 
         ok.IsSuccess.Should().BeTrue();
-        handler
-            .RequestUrls.Should()
-            .ContainSingle(url => url.Contains("/me/player/seek?position_ms=93000"));
+        engine.Calls.Should().EndWith(new EngineCall("Seek", "93500"));
+        handler.RequestUrls.Should().BeEmpty("the engine, not the provider, carries the control");
     }
 
     [Fact]
-    public async Task Volume_reaches_Spotify_with_the_exact_volume_percent_query()
+    public async Task Volume_reaches_the_playing_engine_with_the_exact_level()
     {
-        (MusicService sut, RecordingHttpHandler handler) = Build(connectedService: "spotify");
+        (MusicService sut, RecordingHttpHandler handler, DirectorRig rig) = BuildWithRig();
+        FakeEngine engine = await StartOwnerSpotifyAsync(rig);
 
         Result ok = await sut.SetVolumeAsync(ChannelId.ToString(), 63);
 
         ok.IsSuccess.Should().BeTrue();
-        handler
-            .RequestUrls.Should()
-            .ContainSingle(url =>
-                url.StartsWith("PUT ") && url.Contains("/me/player/volume?volume_percent=63")
-            );
+        engine.Calls.Should().EndWith(new EngineCall("SetVolume", "63"));
+        handler.RequestUrls.Should().BeEmpty("the engine, not the provider, carries the control");
     }
 
     [Theory]
@@ -102,16 +102,21 @@ public sealed class MusicServiceCapabilityGatingTests
     }
 
     [Fact]
-    public async Task Previous_reaches_Spotify_on_the_previous_endpoint()
+    public async Task Previous_early_in_the_song_restarts_it_on_the_playing_engine()
     {
-        (MusicService sut, RecordingHttpHandler handler) = Build(connectedService: "spotify");
+        (MusicService sut, RecordingHttpHandler handler, DirectorRig rig) = BuildWithRig();
+        FakeEngine engine = await StartOwnerSpotifyAsync(rig);
 
         Result ok = await sut.PreviousAsync(ChannelId.ToString());
 
         ok.IsSuccess.Should().BeTrue();
+        engine.Calls.Should().EndWith(new EngineCall("Seek", "0"));
         handler
             .RequestUrls.Should()
-            .Contain(url => url.StartsWith("POST ") && url.EndsWith("/me/player/previous"));
+            .NotContain(
+                url => url.Contains("/me/player/previous") || url.Contains("/me/player/seek"),
+                "the engine, not the provider, carries the control (the GET is the state re-read)"
+            );
     }
 
     [Fact]
@@ -269,6 +274,30 @@ public sealed class MusicServiceCapabilityGatingTests
         string[]? scopes = null
     )
     {
+        (MusicService sut, RecordingHttpHandler handler, _) = BuildWithRig(
+            connectedService,
+            scopes
+        );
+        return (sut, handler);
+    }
+
+    /// <summary>The owner plays Spotify music: the director observes it and goes Playing on the Spotify engine.</summary>
+    private static async Task<FakeEngine> StartOwnerSpotifyAsync(DirectorRig rig)
+    {
+        FakeEngine engine = rig.Engines.EngineOf(ChannelId, EngineKind.Spotify);
+        await rig.Registry.SendAsync(ChannelId, new OutputAttached());
+        await engine.EmitAsync(
+            new EngineReport(EngineKind.Spotify, "spotify:track:x", true, 1_000, 200_000)
+        );
+
+        return engine;
+    }
+
+    private static (MusicService Sut, RecordingHttpHandler Handler, DirectorRig Rig) BuildWithRig(
+        string? connectedService = "spotify",
+        string[]? scopes = null
+    )
+    {
         MusicTestDbContext db = MusicTestDbContext.New();
         FakeIntegrationTokenVault vault = new(db);
         if (connectedService is not null)
@@ -328,6 +357,6 @@ public sealed class MusicServiceCapabilityGatingTests
             DirectorRig.Of(directorStore).Registry,
             DirectorRig.Of(directorStore).Registry
         );
-        return (sut, handler);
+        return (sut, handler, DirectorRig.Of(directorStore));
     }
 }

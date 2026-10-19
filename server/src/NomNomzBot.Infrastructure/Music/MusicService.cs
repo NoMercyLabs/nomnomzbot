@@ -224,18 +224,14 @@ public sealed class MusicService : IMusicService
             OutboundSanction.ChannelConfiguration("music:playback_control")
         );
 
-        try
-        {
-            await provider.PlayAsync(tenantId, cancellationToken);
-        }
-        catch (PremiumRequiredException ex)
-        {
-            return PremiumRequired(ex);
-        }
-        catch (NoActiveDeviceException ex)
-        {
-            return NothingPlaying(ex.Provider);
-        }
+        Result control = await SendOwnerControlAsync(
+            tenantId,
+            provider,
+            new OwnerResume(),
+            cancellationToken
+        );
+        if (control.IsFailure)
+            return control;
 
         await PublishPlaybackStateChangedAsync(
             tenantId,
@@ -350,18 +346,14 @@ public sealed class MusicService : IMusicService
             OutboundSanction.ChannelConfiguration("music:playback_control")
         );
 
-        try
-        {
-            await provider.PauseAsync(tenantId, cancellationToken);
-        }
-        catch (PremiumRequiredException ex)
-        {
-            return PremiumRequired(ex);
-        }
-        catch (NoActiveDeviceException ex)
-        {
-            return NothingPlaying(ex.Provider);
-        }
+        Result control = await SendOwnerControlAsync(
+            tenantId,
+            provider,
+            new OwnerPause(),
+            cancellationToken
+        );
+        if (control.IsFailure)
+            return control;
 
         await PublishPlaybackStateChangedAsync(
             tenantId,
@@ -480,14 +472,14 @@ public sealed class MusicService : IMusicService
             OutboundSanction.ChannelConfiguration("music:playback_control")
         );
 
-        try
-        {
-            await provider.PreviousAsync(tenantId, cancellationToken);
-        }
-        catch (PremiumRequiredException ex)
-        {
-            return PremiumRequired(ex);
-        }
+        Result control = await SendOwnerControlAsync(
+            tenantId,
+            provider,
+            new OwnerPrevious(),
+            cancellationToken
+        );
+        if (control.IsFailure)
+            return control;
 
         await PublishPlaybackStateChangedAsync(tenantId, provider, cancellationToken);
         return Result.Success();
@@ -1281,13 +1273,41 @@ public sealed class MusicService : IMusicService
             ? block switch
             {
                 EngineBlockReason.NotConnected => AuthFailedOnQueue(trackName),
-                EngineBlockReason.Forbidden => ForbiddenOnQueue(trackName),
+                EngineBlockReason.Forbidden or EngineBlockReason.PremiumRequired =>
+                    ForbiddenOnQueue(trackName),
                 EngineBlockReason.NoOutput when provider.Provider == "youtube" =>
                     NoOverlayPlayerOnQueue(trackName),
                 EngineBlockReason.NoOutput => NoActiveDeviceOnQueue(trackName),
                 _ => ProviderErrorOnQueue(trackName),
             }
             : ProviderErrorOnQueue(trackName);
+
+    /// <summary>
+    /// Sends an owner control (pause, resume, previous, seek, volume) to the playback director, which commands
+    /// the engine that plays and no other. An engine that refuses leaves the director Blocked and that reason is
+    /// the answer; an Idle director has nothing to control.
+    /// </summary>
+    private async Task<Result> SendOwnerControlAsync(
+        Guid tenantId,
+        IMusicProvider provider,
+        PlaybackInput input,
+        CancellationToken cancellationToken
+    )
+    {
+        await _playbackInput.SendAsync(tenantId, input, cancellationToken);
+
+        PlaybackState state = _playbackState.StateOf(tenantId);
+        return state.Kind switch
+        {
+            PlaybackStateKind.Blocked
+                when state.Reason == nameof(EngineBlockReason.PremiumRequired) => PremiumRequired(
+                new PremiumRequiredException(provider.Provider)
+            ),
+            PlaybackStateKind.Blocked => BlockedOnSkip(provider, state.Reason, string.Empty),
+            PlaybackStateKind.Idle => NothingPlaying(provider.Provider),
+            _ => Result.Success(),
+        };
+    }
 
     /// <summary>Turns the director's Blocked reason into the typed refusal the skipper sees.</summary>
     private static Result BlockedOnSkip(
@@ -1365,20 +1385,12 @@ public sealed class MusicService : IMusicService
             OutboundSanction.ChannelConfiguration("music:volume_control")
         );
 
-        try
-        {
-            await provider.SetVolumeAsync(tenantId, volume, cancellationToken);
-        }
-        catch (PremiumRequiredException ex)
-        {
-            return PremiumRequired(ex);
-        }
-        catch (NoActiveDeviceException ex)
-        {
-            return NothingPlaying(ex.Provider);
-        }
-
-        return Result.Success();
+        return await SendOwnerControlAsync(
+            tenantId,
+            provider,
+            new OwnerVolume(volume),
+            cancellationToken
+        );
     }
 
     /// <summary>
@@ -2138,17 +2150,12 @@ public sealed class MusicService : IMusicService
             OutboundSanction.ChannelConfiguration("music:seek_control")
         );
 
-        try
-        {
-            // The §3.5 seam speaks whole seconds; the legacy wire contract still carries milliseconds.
-            await provider.SeekAsync(tenantId, positionMs / 1000, cancellationToken);
-        }
-        catch (PremiumRequiredException ex)
-        {
-            return PremiumRequired(ex);
-        }
-
-        return Result.Success();
+        return await SendOwnerControlAsync(
+            tenantId,
+            provider,
+            new OwnerSeek(positionMs),
+            cancellationToken
+        );
     }
 
     public async Task<Result> SetShuffleAsync(
