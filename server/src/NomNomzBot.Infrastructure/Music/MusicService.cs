@@ -426,7 +426,7 @@ public sealed class MusicService : IMusicService
 
         PlaybackState state = _playbackState.StateOf(tenantId);
         if (state.Kind == PlaybackStateKind.Blocked)
-            return BlockedOnSkip(provider, state.Reason, skippedTrack?.TrackName ?? string.Empty);
+            return BlockedOnSkip(provider, state.Reason);
 
         if (skippedTrack?.TrackName is { } skippedTrackName)
             await _eventBus.PublishAsync(
@@ -1303,23 +1303,35 @@ public sealed class MusicService : IMusicService
                 when state.Reason == nameof(EngineBlockReason.PremiumRequired) => PremiumRequired(
                 new PremiumRequiredException(provider.Provider)
             ),
-            PlaybackStateKind.Blocked => BlockedOnSkip(provider, state.Reason, string.Empty),
+            PlaybackStateKind.Blocked => BlockedOnSkip(provider, state.Reason),
             PlaybackStateKind.Idle => NothingPlaying(provider.Provider),
             _ => Result.Success(),
         };
     }
 
     /// <summary>Turns the director's Blocked reason into the typed refusal the skipper sees.</summary>
-    private static Result BlockedOnSkip(
-        IMusicProvider provider,
-        string? reason,
-        string trackName
-    ) =>
+    private static Result BlockedOnSkip(IMusicProvider provider, string? reason) =>
         Enum.TryParse(reason, out EngineBlockReason block)
-        && block == EngineBlockReason.NoOutput
-        && provider.Provider != "youtube"
-            ? NothingPlaying(provider.Provider)
-            : BlockedOnQueue(provider, reason, trackName);
+            ? block switch
+            {
+                EngineBlockReason.NotConnected => Result.Failure(
+                    "Couldn't skip — the music connection needs to be reconnected.",
+                    "MUSIC_AUTH_FAILED"
+                ),
+                EngineBlockReason.Forbidden or EngineBlockReason.PremiumRequired => Result.Failure(
+                    "Couldn't skip — the music connection doesn't have permission for that.",
+                    "MUSIC_FORBIDDEN"
+                ),
+                EngineBlockReason.NoOutput => NothingPlaying(provider.Provider),
+                _ => ProviderErrorOnSkip(),
+            }
+            : ProviderErrorOnSkip();
+
+    private static Result ProviderErrorOnSkip() =>
+        Result.Failure(
+            "Couldn't skip — the music service had a problem. Try again in a moment.",
+            "PROVIDER_ERROR"
+        );
 
     /// <summary>The accepted-request side effects, identical whether the request went straight to the
     /// provider or is waiting its turn: the log line, the analytics fact, and the fresh queue snapshot the

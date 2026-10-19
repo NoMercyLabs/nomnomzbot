@@ -876,6 +876,30 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.Skip.Key,
+            BuiltinResponseSlots.Skip.NotConnected,
+            variables: [],
+            informative: ["Couldn't skip — the music connection needs to be reconnected."],
+            friendly: ["I couldn't skip — the music connection needs to be reconnected."],
+            sassy: ["Can't skip with a dead music connection. Reconnect it."],
+            hype: ["NO SKIP! THE MUSIC CONNECTION NEEDS RECONNECTING!"],
+            chill: ["couldn't skip. the music connection needs reconnecting."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.Skip.Key,
+            BuiltinResponseSlots.Skip.Forbidden,
+            variables: [],
+            informative: ["Couldn't skip — the music connection doesn't have permission for that."],
+            friendly: ["I couldn't skip — the music connection doesn't have permission for that."],
+            sassy: ["The music connection isn't allowed to skip. Fix its permissions."],
+            hype: ["NO SKIP! THE MUSIC CONNECTION LACKS PERMISSION!"],
+            chill: ["couldn't skip. the music connection lacks permission."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.Skip.Key,
             BuiltinResponseSlots.Skip.Usage,
             variables: [],
             informative:

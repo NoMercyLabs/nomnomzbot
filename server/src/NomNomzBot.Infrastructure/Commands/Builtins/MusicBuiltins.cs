@@ -178,6 +178,20 @@ public sealed class SkipBuiltin(
                 "The music service needs a Premium account to skip.",
                 ct: ct
             ),
+            "MUSIC_AUTH_FAILED" => composer.ComposeAsync(
+                context,
+                BuiltinKey,
+                BuiltinResponseSlots.Skip.NotConnected,
+                "Couldn't skip — the music connection needs to be reconnected.",
+                ct: ct
+            ),
+            "MUSIC_FORBIDDEN" => composer.ComposeAsync(
+                context,
+                BuiltinKey,
+                BuiltinResponseSlots.Skip.Forbidden,
+                "Couldn't skip — the music connection doesn't have permission for that.",
+                ct: ct
+            ),
             _ => composer.ComposeAsync(
                 context,
                 BuiltinKey,

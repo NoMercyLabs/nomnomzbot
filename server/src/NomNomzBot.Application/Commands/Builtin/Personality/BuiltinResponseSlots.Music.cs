@@ -208,6 +208,12 @@ public static partial class BuiltinResponseSlots
         /// <summary>The music service needs a Premium account to skip — no variables.</summary>
         public const string PremiumRequired = "premiumrequired";
 
+        /// <summary>The music connection is dead and needs reconnecting — no variables.</summary>
+        public const string NotConnected = "notconnected";
+
+        /// <summary>The music connection lacks the permission to skip — no variables.</summary>
+        public const string Forbidden = "forbidden";
+
         /// <summary><c>!skip N</c> got a value that is not a positive number — no variables.</summary>
         public const string Usage = "usage";
 
