@@ -11,16 +11,22 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Common.Picking;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Widgets.Dtos;
+using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
+using NomNomzBot.Infrastructure.Tts.PipelineActions;
 using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
 namespace NomNomzBot.Infrastructure.Commands;
@@ -30,7 +36,9 @@ public sealed class CommandInvoker(
     IApplicationDbContext db,
     IPipelineEngine pipelineEngine,
     IOwnerActionService ownerActions,
-    IChannelTwitchBotResolver bots
+    IChannelTwitchBotResolver bots,
+    ITemplateResolver templateResolver,
+    IChatProvider chat
 ) : ICommandInvoker
 {
     // With no dedicated bot account the streamer's own account speaks (IChannelTwitchBotResolver), so the
@@ -52,6 +60,12 @@ public sealed class CommandInvoker(
                 cancellationToken
             ),
             BindingTargetKind.Action => RunActionAsync(
+                broadcasterId,
+                target,
+                context,
+                cancellationToken
+            ),
+            BindingTargetKind.Command => RunCommandAsync(
                 broadcasterId,
                 target,
                 context,
@@ -87,12 +101,161 @@ public sealed class CommandInvoker(
         if (pipeline is null)
             return Errors.NotFound<InvocationOutcome>("Pipeline", target.Id!);
 
+        return await ExecutePipelineAsync(
+            broadcasterId,
+            pipeline.Id,
+            pipeline.GraphJsonCache,
+            false,
+            context,
+            cancellationToken
+        );
+    }
+
+    // Direct runs skip the cooldown and permission gates (Stoney 2026-10-19, Q1): nothing here consults them.
+    private async Task<Result<InvocationOutcome>> RunCommandAsync(
+        Guid broadcasterId,
+        BindingTarget target,
+        InvocationContext context,
+        CancellationToken cancellationToken
+    )
+    {
+        if (!Guid.TryParse(target.Id, out Guid commandId))
+            return Result.Failure<InvocationOutcome>(
+                "A command target needs a command id.",
+                "VALIDATION_FAILED"
+            );
+
+        Command? command = await db
+            .Commands.AsNoTracking()
+            .FirstOrDefaultAsync(
+                c => c.Id == commandId && c.BroadcasterId == broadcasterId && c.IsEnabled,
+                cancellationToken
+            );
+        if (command is null)
+            return Errors.NotFound<InvocationOutcome>("Command", target.Id!);
+
+        return command.Tier switch
+        {
+            "template" => await RunTemplateAsync(
+                broadcasterId,
+                command,
+                context,
+                cancellationToken
+            ),
+            "pipeline" or "code" => await RunBoundPipelineAsync(
+                broadcasterId,
+                command,
+                context,
+                cancellationToken
+            ),
+            _ => Result.Failure<InvocationOutcome>(
+                $"A '{command.Tier}' command cannot be run directly yet.",
+                "NOT_SUPPORTED"
+            ),
+        };
+    }
+
+    // A "code" command's reaction is a single run_code pipeline, so it takes the same path as a "pipeline" one.
+    private async Task<Result<InvocationOutcome>> RunBoundPipelineAsync(
+        Guid broadcasterId,
+        Command command,
+        InvocationContext context,
+        CancellationToken cancellationToken
+    )
+    {
+        PipelineEntity? pipeline = command.PipelineId is null
+            ? null
+            : await db
+                .Pipelines.AsNoTracking()
+                .FirstOrDefaultAsync(
+                    p =>
+                        p.Id == command.PipelineId
+                        && p.BroadcasterId == broadcasterId
+                        && p.IsEnabled,
+                    cancellationToken
+                );
+        if (pipeline is null || string.IsNullOrEmpty(pipeline.GraphJsonCache))
+            return Errors.NotFound<InvocationOutcome>(
+                "Pipeline",
+                command.PipelineId?.ToString() ?? command.Name
+            );
+
+        return await ExecutePipelineAsync(
+            broadcasterId,
+            pipeline.Id,
+            pipeline.GraphJsonCache,
+            command.SpeakWithTts,
+            context,
+            cancellationToken
+        );
+    }
+
+    // Outside chat there is no message to reply to, so the reply goes out as a plain message in the one bot voice.
+    private async Task<Result<InvocationOutcome>> RunTemplateAsync(
+        Guid broadcasterId,
+        Command command,
+        InvocationContext context,
+        CancellationToken cancellationToken
+    )
+    {
+        string[] responses =
+            command.TemplateResponses is { Count: > 0 } ? [.. command.TemplateResponses]
+            : string.IsNullOrWhiteSpace(command.TemplateResponse) ? []
+            : [command.TemplateResponse];
+        if (responses.Length == 0)
+            return Result.Failure<InvocationOutcome>(
+                "The command has no reply text.",
+                "VALIDATION_FAILED"
+            );
+
+        Invoker invoker = await ResolveInvokerAsync(broadcasterId, context, cancellationToken);
+        string resolved = await templateResolver.ResolveAsync(
+            NoImmediateRepeatPicker.Pick(responses, $"{broadcasterId}:{command.Name}"),
+            ChatMentionName.ForChat(BuildVariables(context, invoker)),
+            broadcasterId,
+            cancellationToken
+        );
+
+        bool sent = await chat.SendMessageAsync(broadcasterId, resolved, cancellationToken);
+        if (!sent)
+            return Result.Success(
+                new InvocationOutcome(false, null, "The reply could not be sent to chat.")
+            );
+
+        if (command.SpeakWithTts && !string.IsNullOrWhiteSpace(resolved))
+        {
+            // Bot-authored speech: the bot identity is the speaker, never the human who triggered the run.
+            Invoker bot = await ResolveBotAsync(broadcasterId, cancellationToken);
+            await ReplyTtsPipeline.QueueAsync(
+                pipelineEngine,
+                broadcasterId,
+                bot.UserId,
+                bot.DisplayName,
+                null,
+                resolved,
+                cancellationToken
+            );
+        }
+
+        return Result.Success(new InvocationOutcome(true, resolved, null));
+    }
+
+    private async Task<Result<InvocationOutcome>> ExecutePipelineAsync(
+        Guid broadcasterId,
+        Guid pipelineId,
+        string? graphJson,
+        bool speakWithTts,
+        InvocationContext context,
+        CancellationToken cancellationToken
+    )
+    {
         Invoker invoker = await ResolveInvokerAsync(broadcasterId, context, cancellationToken);
         PipelineRequest request = new()
         {
             BroadcasterId = broadcasterId,
-            PipelineId = pipeline.Id,
-            PipelineJson = pipeline.GraphJsonCache ?? "{}",
+            PipelineId = pipelineId,
+            PipelineJson = graphJson ?? "{}",
+            SpeakWithTts = speakWithTts,
             TriggeredByUserId = invoker.UserId,
             TriggeredByDisplayName = invoker.DisplayName,
             RawMessage = context.Args,
@@ -171,6 +334,14 @@ public sealed class CommandInvoker(
                 ChatRole.ToToken(ChatRole.Parse(context.EffectiveRole))
             );
 
+        return await ResolveBotAsync(broadcasterId, cancellationToken);
+    }
+
+    private async Task<Invoker> ResolveBotAsync(
+        Guid broadcasterId,
+        CancellationToken cancellationToken
+    )
+    {
         ChannelTwitchBot? bot = await bots.ResolveAsync(broadcasterId, cancellationToken);
         return new Invoker(
             bot?.TwitchUserId ?? broadcasterId.ToString(),
