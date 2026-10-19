@@ -12,8 +12,10 @@ using System.Text.Json;
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Widgets.Dtos;
@@ -49,6 +51,7 @@ public sealed class CommandInvokerTests
         public required IChannelTwitchBotResolver Bots { get; init; }
         public required IChatProvider Chat { get; init; }
         public required ITemplateResolver Templates { get; init; }
+        public required IBuiltinCommandCatalog Catalog { get; init; }
     }
 
     private static Guid AddCommand(
@@ -129,9 +132,22 @@ public sealed class CommandInvokerTests
         chat.SendMessageAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(true);
 
+        IBuiltinCommandCatalog catalog = Substitute.For<IBuiltinCommandCatalog>();
+        catalog.Get(Arg.Any<string>()).Returns((IBuiltinCommand?)null);
+
         return new Harness
         {
-            Invoker = new CommandInvoker(db, engine, actions, bots, templates, chat),
+            Invoker = new CommandInvoker(
+                db,
+                engine,
+                actions,
+                bots,
+                templates,
+                chat,
+                catalog,
+                Substitute.For<IOutboundSanctionAccessor>()
+            ),
+            Catalog = catalog,
             Db = db,
             Chat = chat,
             Templates = templates,
@@ -317,6 +333,107 @@ public sealed class CommandInvokerTests
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
         await h.Actions.DidNotReceiveWithAnyArgs().RunAsync(default!, default);
+    }
+
+    private static IBuiltinCommand AddBuiltin(Harness h, string key, Result<string> reply)
+    {
+        IBuiltinCommand builtin = Substitute.For<IBuiltinCommand>();
+        builtin.BuiltinKey.Returns(key);
+        builtin.DefaultMinPermissionLevel.Returns(40);
+        builtin.DefaultCooldownSeconds.Returns(30);
+        builtin
+            .ExecuteAsync(Arg.Any<BuiltinCommandContext>(), Arg.Any<CancellationToken>())
+            .Returns(reply);
+        h.Catalog.Get(key).Returns(builtin);
+        return builtin;
+    }
+
+    private static BuiltinCommandContext RanWith(IBuiltinCommand builtin) =>
+        (BuiltinCommandContext)
+            builtin
+                .ReceivedCalls()
+                .First(call => call.GetMethodInfo().Name == nameof(IBuiltinCommand.ExecuteAsync))
+                .GetArguments()[0]!;
+
+    [Fact]
+    public async Task Built_in_target_runs_with_the_bot_identity_and_args_and_delivers_the_output()
+    {
+        Harness h = Build();
+        IBuiltinCommand builtin = AddBuiltin(h, "followage", Result.Success("kitte follows 3y"));
+
+        Result<InvocationOutcome> result = await h.Invoker.InvokeAsync(
+            Channel,
+            new BindingTarget(BindingTargetKind.Command, "followage"),
+            new InvocationContext(null, null, "@kitte", "reward")
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value!.Succeeded.Should().BeTrue();
+        result.Value.Output.Should().Be("kitte follows 3y");
+        BuiltinCommandContext ran = RanWith(builtin);
+        ran.BroadcasterId.Should().Be(Channel);
+        ran.TriggeringUserId.Should().Be("bot-9");
+        ran.TriggeringUserDisplayName.Should().Be("NomNomzBotLive");
+        ran.RoleLevel.Should().Be(40);
+        ran.Args.Should().Be("@kitte");
+        await h
+            .Chat.Received(1)
+            .SendMessageAsync(Channel, "kitte follows 3y", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Built_in_target_with_a_human_keeps_that_user_and_role_and_skips_floor_and_cooldown()
+    {
+        Harness h = Build();
+        IBuiltinCommand builtin = AddBuiltin(h, "uptime", Result.Success("up 2h"));
+        InvocationContext context = new("u-1", "Viewer One", "", "reward", "vip");
+        BindingTarget target = new(BindingTargetKind.Command, "uptime");
+
+        Result<InvocationOutcome> first = await h.Invoker.InvokeAsync(Channel, target, context);
+        Result<InvocationOutcome> second = await h.Invoker.InvokeAsync(Channel, target, context);
+
+        first.IsSuccess.Should().BeTrue();
+        second.IsSuccess.Should().BeTrue();
+        await builtin
+            .Received(2)
+            .ExecuteAsync(Arg.Any<BuiltinCommandContext>(), Arg.Any<CancellationToken>());
+        BuiltinCommandContext ran = RanWith(builtin);
+        ran.TriggeringUserId.Should().Be("u-1");
+        ran.RoleLevel.Should().BeLessThan(40);
+        await h.Bots.DidNotReceiveWithAnyArgs().ResolveAsync(default, default);
+    }
+
+    [Fact]
+    public async Task Unknown_built_in_is_not_found_and_sends_nothing()
+    {
+        Harness h = Build();
+
+        Result<InvocationOutcome> result = await h.Invoker.InvokeAsync(
+            Channel,
+            new BindingTarget(BindingTargetKind.Command, "nosuchbuiltin"),
+            new InvocationContext(null, null, "", "reward")
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+    }
+
+    [Fact]
+    public async Task Built_in_that_fails_returns_its_error_and_sends_nothing()
+    {
+        Harness h = Build();
+        AddBuiltin(h, "so", Result.Failure<string>("no such streamer", "NOT_FOUND"));
+
+        Result<InvocationOutcome> result = await h.Invoker.InvokeAsync(
+            Channel,
+            new BindingTarget(BindingTargetKind.Command, "so"),
+            new InvocationContext(null, null, "x", "reward")
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorMessage.Should().Be("no such streamer");
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
     }
 
     [Fact]

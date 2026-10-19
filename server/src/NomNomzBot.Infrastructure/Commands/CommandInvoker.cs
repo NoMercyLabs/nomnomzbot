@@ -13,9 +13,11 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Common.Picking;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Widgets.Dtos;
@@ -38,7 +40,9 @@ public sealed class CommandInvoker(
     IOwnerActionService ownerActions,
     IChannelTwitchBotResolver bots,
     ITemplateResolver templateResolver,
-    IChatProvider chat
+    IChatProvider chat,
+    IBuiltinCommandCatalog builtins,
+    IOutboundSanctionAccessor sanctions
 ) : ICommandInvoker
 {
     // With no dedicated bot account the streamer's own account speaks (IChannelTwitchBotResolver), so the
@@ -119,11 +123,15 @@ public sealed class CommandInvoker(
         CancellationToken cancellationToken
     )
     {
-        if (!Guid.TryParse(target.Id, out Guid commandId))
+        if (string.IsNullOrWhiteSpace(target.Id))
             return Result.Failure<InvocationOutcome>(
                 "A command target needs a command id.",
                 "VALIDATION_FAILED"
             );
+
+        // A built-in has no command row (it lives in code), so its target id is its catalogue key, not a guid.
+        if (!Guid.TryParse(target.Id, out Guid commandId))
+            return await RunBuiltinAsync(broadcasterId, target.Id, context, cancellationToken);
 
         Command? command = await db
             .Commands.AsNoTracking()
@@ -153,6 +161,54 @@ public sealed class CommandInvoker(
                 "NOT_SUPPORTED"
             ),
         };
+    }
+
+    // The channel's enabled switch, floor and cooldown are skipped like the other tiers: the binding is the choice.
+    private async Task<Result<InvocationOutcome>> RunBuiltinAsync(
+        Guid broadcasterId,
+        string builtinKey,
+        InvocationContext context,
+        CancellationToken cancellationToken
+    )
+    {
+        IBuiltinCommand? builtin = builtins.Get(builtinKey);
+        if (builtin is null)
+            return Errors.NotFound<InvocationOutcome>("Built-in command", builtinKey);
+
+        Invoker invoker = await ResolveInvokerAsync(broadcasterId, context, cancellationToken);
+        BuiltinCommandContext builtinContext = new()
+        {
+            BroadcasterId = broadcasterId,
+            TriggeringUserId = invoker.UserId,
+            TriggeringUserDisplayName = invoker.DisplayName,
+            TriggeringUserLogin = invoker.DisplayName.ToLowerInvariant(),
+            RoleLevel = ChatRole.Parse(invoker.Role).ToLevelValue(),
+            Args = context.Args,
+            CancellationToken = cancellationToken,
+        };
+
+        Result<string> run;
+        using (
+            sanctions.Begin(OutboundSanction.ChannelConfiguration($"builtin:{builtin.BuiltinKey}"))
+        )
+            run = await builtin.ExecuteAsync(builtinContext, cancellationToken);
+        if (run.IsFailure)
+            return Result.Failure<InvocationOutcome>(
+                run.ErrorMessage!,
+                run.ErrorCode!,
+                run.ErrorDetail
+            );
+
+        string reply = run.Value ?? string.Empty;
+        if (reply.Length == 0)
+            return Result.Success(new InvocationOutcome(true, null, null));
+
+        bool sent = await chat.SendMessageAsync(broadcasterId, reply, cancellationToken);
+        return Result.Success(
+            sent
+                ? new InvocationOutcome(true, reply, null)
+                : new InvocationOutcome(false, null, "The reply could not be sent to chat.")
+        );
     }
 
     // A "code" command's reaction is a single run_code pipeline, so it takes the same path as a "pipeline" one.
