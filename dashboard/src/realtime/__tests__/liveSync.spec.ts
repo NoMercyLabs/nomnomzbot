@@ -13,16 +13,18 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { actionRequiredKey } from '@/api/actionRequired';
 import { eventJournalKey } from '@/api/eventJournal';
-import { activityKey, botStatusKey, connectionsKey, homeStatsKey, reviewQueueKey } from '@/api/home';
+import {
+  activityKey,
+  botStatusKey,
+  connectionsKey,
+  homeStatsKey,
+  reviewQueueKey,
+} from '@/api/home';
 import { giveawaysKey } from '@/api/giveaways';
+import { gamesKey } from '@/api/games';
 import { quotesKey } from '@/api/quotes';
 import { pollHistoryKey, pollsKey, predictionsKey, timersKey } from '@/api/liveOps';
-import {
-  musicConfigKey,
-  musicHistoryKey,
-  musicQueueKey,
-  musicTopRequestersKey,
-} from '@/api/music';
+import { musicConfigKey, musicHistoryKey, musicQueueKey, musicTopRequestersKey } from '@/api/music';
 import { currencyConfigKey, earningRulesKey, savingsJarsKey } from '@/api/economy';
 import { communityListsKey, viewerProfilesKey } from '@/api/people';
 import { actionMatrixKey, membersKey, personGrantsKey } from '@/api/permissions';
@@ -98,6 +100,7 @@ const everyKey: Keys[] = [
   personGrantsKey,
   eventJournalKey,
   quotesKey,
+  gamesKey,
 ];
 
 // Each hub event with the keys it must mark stale for the joined channel.
@@ -109,148 +112,181 @@ const eventKeys: (readonly [string, unknown, readonly Keys[]])[] = [
   ],
   // Owner 2026-10-14: "i queued a song and it took too long to show up, why is this not socket based?"
   // The server sends the queue change as a ChannelEvent (DashboardNotifier.NotifyChannelAsync), not as a hub method.
-  ['ChannelEvent', {
-    type: 'sr_queue_changed',
-    broadcasterId: 'x',
-    data: { items: [] },
-  }, [homeStatsKey, activityKey, musicQueueKey, musicHistoryKey, musicTopRequestersKey]],
+  [
+    'ChannelEvent',
+    {
+      type: 'sr_queue_changed',
+      broadcasterId: 'x',
+      data: { items: [] },
+    },
+    [homeStatsKey, activityKey, musicQueueKey, musicHistoryKey, musicTopRequestersKey],
+  ],
   // S-PD-11: the director state (paused by you, blocked) arrives as the one music.nowPlaying ChannelEvent.
-  ['ChannelEvent', {
-    type: 'music.nowPlaying',
-    broadcasterId: 'x',
-    data: { state: 'pausedByOwner' },
-  }, [homeStatsKey, activityKey, musicQueueKey, musicHistoryKey, musicTopRequestersKey]],
+  [
+    'ChannelEvent',
+    {
+      type: 'music.nowPlaying',
+      broadcasterId: 'x',
+      data: { state: 'pausedByOwner' },
+    },
+    [homeStatsKey, activityKey, musicQueueKey, musicHistoryKey, musicTopRequestersKey],
+  ],
   ['RewardRedeemed', { broadcasterId: 'x' }, [homeStatsKey, activityKey]],
   ['RedemptionStatusChanged', { broadcasterId: 'x' }, [homeStatsKey, activityKey]],
   ['RewardChanged', { broadcasterId: 'x', action: 'updated' }, [rewardsKey]],
-  ['AlertTriggered', {
-    type: 'poll_begin',
-    message: null,
-    data: null,
-  }, [
-    homeStatsKey,
-    activityKey,
-    reviewQueueKey,
-    pollsKey,
-    predictionsKey,
-    pollHistoryKey,
-    adScheduleKey,
-  ]],
-  ['PermissionChanged', {
-    subjectType: 'user',
-    subjectId: 'u',
-    resourceType: 'x',
-    resourceId: 'y',
-    value: 1,
-  }, [
-    communityListsKey,
-    actionMatrixKey,
-    membersKey,
-    personGrantsKey,
-  ]],
-  ['ObsBridgeStateChanged', {
-    broadcasterId: 'x',
-    instanceCount: 1,
-    hasLeader: true,
-  }, [
-    connectionsKey,
-    botStatusKey,
-  ]],
+  [
+    'AlertTriggered',
+    {
+      type: 'poll_begin',
+      message: null,
+      data: null,
+    },
+    [
+      homeStatsKey,
+      activityKey,
+      reviewQueueKey,
+      pollsKey,
+      predictionsKey,
+      pollHistoryKey,
+      adScheduleKey,
+    ],
+  ],
+  [
+    'PermissionChanged',
+    {
+      subjectType: 'user',
+      subjectId: 'u',
+      resourceType: 'x',
+      resourceId: 'y',
+      value: 1,
+    },
+    [communityListsKey, actionMatrixKey, membersKey, personGrantsKey],
+  ],
+  [
+    'ObsBridgeStateChanged',
+    {
+      broadcasterId: 'x',
+      instanceCount: 1,
+      hasLeader: true,
+    },
+    [connectionsKey, botStatusKey],
+  ],
   ['ObsLiveStateChanged', { broadcasterId: 'x' }, [connectionsKey, botStatusKey]],
-  ['VtsStatusChanged', { broadcasterId: 'x', status: 'connected' }, [
-    connectionsKey,
-    botStatusKey,
-    vtsConnectionKey,
-    vtsInventoryKey,
-  ]],
+  [
+    'VtsStatusChanged',
+    { broadcasterId: 'x', status: 'connected' },
+    [connectionsKey, botStatusKey, vtsConnectionKey, vtsInventoryKey],
+  ],
   // Owner 2026-10-15: "ALL data must be live updates as it happens". The server sends each poll,
   // prediction and chat poll change as a ChannelEvent; the history list follows every one of them.
-  ...['poll_begin', 'poll_progress', 'poll_end'].map((type) => [
+  ...['poll_begin', 'poll_progress', 'poll_end'].map(
+    (type) =>
+      [
+        'ChannelEvent',
+        {
+          type,
+          broadcasterId: 'x',
+          data: null,
+        },
+        [homeStatsKey, activityKey, pollsKey, pollHistoryKey],
+      ] as const satisfies readonly [string, unknown, Keys[]],
+  ),
+  ...['prediction_begin', 'prediction_progress', 'prediction_lock', 'prediction_end'].map(
+    (type) =>
+      [
+        'ChannelEvent',
+        {
+          type,
+          broadcasterId: 'x',
+          data: null,
+        },
+        [homeStatsKey, activityKey, predictionsKey, pollHistoryKey],
+      ] as const satisfies readonly [string, unknown, Keys[]],
+  ),
+  [
     'ChannelEvent',
     {
-      type,
+      type: 'ChatPollChanged',
       broadcasterId: 'x',
       data: null,
     },
-    [homeStatsKey, activityKey, pollsKey, pollHistoryKey],
-  ] as const satisfies readonly [string, unknown, Keys[]]),
-  ...['prediction_begin', 'prediction_progress', 'prediction_lock', 'prediction_end'].map(
-    (type) => [
-      'ChannelEvent',
-      {
-        type,
-        broadcasterId: 'x',
-        data: null,
-      },
-      [homeStatsKey, activityKey, predictionsKey, pollHistoryKey],
-    ] as const satisfies readonly [string, unknown, Keys[]],
-  ),
-  ['ChannelEvent', {
-    type: 'ChatPollChanged',
-    broadcasterId: 'x',
-    data: null,
-  }, [homeStatsKey, activityKey, pollHistoryKey]],
-  ['ChannelEvent', {
-    type: 'GiveawayChanged',
-    broadcasterId: 'x',
-    data: { giveawayId: 'g1', change: 'drawn' },
-  }, [homeStatsKey, activityKey, giveawaysKey]],
-  ['ChannelEvent', {
-    type: 'follow',
-    broadcasterId: 'x',
-    data: null,
-  }, [homeStatsKey, activityKey]],
-  ['CommandExecuted', {
-    broadcasterId: 'x',
-    commandName: 'hug',
-    succeeded: true,
-  }, [
-    homeStatsKey,
-    activityKey,
-  ]],
-  ['ModAction', {
-    action: 'ban',
-    targetUserId: 't',
-    broadcasterId: 'x',
-  }, [
-    homeStatsKey,
-    activityKey,
-    reviewQueueKey,
-    communityListsKey,
-  ]],
-  ['StreamStatusChanged', {
-    isLive: true,
-    streamId: 's',
-    title: null,
-    gameName: null,
-    startedAt: null,
-  }, [
-    homeStatsKey,
-    activityKey,
-    botStatusKey,
-    adScheduleKey,
-  ]],
-  ['StreamInfoChanged', {
-    broadcasterId: 'x',
-    title: 't',
-    gameName: 'g',
-  }, [homeStatsKey]],
+    [homeStatsKey, activityKey, pollHistoryKey],
+  ],
+  [
+    'ChannelEvent',
+    {
+      type: 'GiveawayChanged',
+      broadcasterId: 'x',
+      data: { giveawayId: 'g1', change: 'drawn' },
+    },
+    [homeStatsKey, activityKey, giveawaysKey],
+  ],
+  [
+    'ChannelEvent',
+    {
+      type: 'follow',
+      broadcasterId: 'x',
+      data: null,
+    },
+    [homeStatsKey, activityKey],
+  ],
+  [
+    'CommandExecuted',
+    {
+      broadcasterId: 'x',
+      commandName: 'hug',
+      succeeded: true,
+    },
+    [homeStatsKey, activityKey],
+  ],
+  [
+    'ModAction',
+    {
+      action: 'ban',
+      targetUserId: 't',
+      broadcasterId: 'x',
+    },
+    [homeStatsKey, activityKey, reviewQueueKey, communityListsKey],
+  ],
+  [
+    'StreamStatusChanged',
+    {
+      isLive: true,
+      streamId: 's',
+      title: null,
+      gameName: null,
+      startedAt: null,
+    },
+    [homeStatsKey, activityKey, botStatusKey, adScheduleKey],
+  ],
+  [
+    'StreamInfoChanged',
+    {
+      broadcasterId: 'x',
+      title: 't',
+      gameName: 'g',
+    },
+    [homeStatsKey],
+  ],
 ];
 
 describe('live events refresh the data they change', () => {
-  it.each(eventKeys)('%s marks its keys stale for the joined channel only', async (event, payload, keys) => {
-    const [queries, connection] = await started();
+  it.each(eventKeys)(
+    '%s marks its keys stale for the joined channel only',
+    async (event, payload, keys) => {
+      const [queries, connection] = await started();
 
-    seed(queries, everyKey);
-    connection.receive(event, payload);
+      seed(queries, everyKey);
+      connection.receive(event, payload);
 
-    expect(staleFor(queries, keys, 'c1')).toEqual(keys.map(() => true));
-    expect(staleFor(queries, keys, 'other')).toEqual(keys.map(() => false));
+      expect(staleFor(queries, keys, 'c1')).toEqual(keys.map(() => true));
+      expect(staleFor(queries, keys, 'other')).toEqual(keys.map(() => false));
 
-    const untouched = everyKey.filter((key) => !keys.includes(key));
+      const untouched = everyKey.filter((key) => !keys.includes(key));
 
-    expect(staleFor(queries, untouched, 'c1')).toEqual(untouched.map(() => false));
-  });
+      expect(staleFor(queries, untouched, 'c1')).toEqual(untouched.map(() => false));
+    },
+  );
 });
 
 describe('the redemption queue follows the hub without a refetch', () => {
@@ -298,7 +334,10 @@ describe('the redemption queue follows the hub without a refetch', () => {
   it('rewrites the status of the row Twitch changed', async () => {
     const [queries, connection] = await started();
 
-    queries.setQueryData(redemptionsKey('c1'), [row('d1', 'unfulfilled'), row('d2', 'unfulfilled')]);
+    queries.setQueryData(redemptionsKey('c1'), [
+      row('d1', 'unfulfilled'),
+      row('d2', 'unfulfilled'),
+    ]);
 
     connection.receive('RedemptionStatusChanged', {
       broadcasterId: 'x',
@@ -337,43 +376,68 @@ const domainKeys: [string, Keys[]][] = [
   ['savings-jar', [savingsJarsKey]],
   ['event-journal', [eventJournalKey]],
   ['quotes', [quotesKey]],
+  ['games', [gamesKey]],
 ];
 
 describe('a saved or removed shoutout message refreshes the open profiles', () => {
-  it.each(['updated', 'deleted'])('the shoutouts domain (%s) marks the profiles of the joined channel stale only', async (action) => {
+  it.each(['updated', 'deleted'])(
+    'the shoutouts domain (%s) marks the profiles of the joined channel stale only',
+    async (action) => {
+      const [queries, connection] = await started();
+
+      seed(queries, [viewerProfilesKey, timersKey]);
+
+      connection.receive('ConfigChanged', {
+        broadcasterId: 'x',
+        domain: 'shoutouts',
+        entityId: null,
+        action,
+      });
+
+      expect(staleFor(queries, [viewerProfilesKey], 'c1')).toEqual([true]);
+      expect(staleFor(queries, [viewerProfilesKey], 'other')).toEqual([false]);
+      expect(staleFor(queries, [timersKey], 'c1')).toEqual([false]);
+    },
+  );
+});
+
+describe('a chat game that starts, settles or is canceled refreshes only the Games page', () => {
+  it('the games domain leaves the other pages of the channel alone', async () => {
     const [queries, connection] = await started();
 
-    seed(queries, [viewerProfilesKey, timersKey]);
+    seed(queries, [gamesKey, timersKey]);
 
     connection.receive('ConfigChanged', {
       broadcasterId: 'x',
-      domain: 'shoutouts',
-      entityId: null,
-      action,
+      domain: 'games',
+      entityId: 'session-1',
+      action: 'created',
     });
 
-    expect(staleFor(queries, [viewerProfilesKey], 'c1')).toEqual([true]);
-    expect(staleFor(queries, [viewerProfilesKey], 'other')).toEqual([false]);
+    expect(staleFor(queries, [gamesKey], 'c1')).toEqual([true]);
     expect(staleFor(queries, [timersKey], 'c1')).toEqual([false]);
   });
 });
 
 describe('every ConfigChanged domain refreshes its page', () => {
-  it.each(domainKeys)('the %s domain marks its keys stale for the joined channel only', async (domain, keys) => {
-    const [queries, connection] = await started();
+  it.each(domainKeys)(
+    'the %s domain marks its keys stale for the joined channel only',
+    async (domain, keys) => {
+      const [queries, connection] = await started();
 
-    seed(queries, everyKey);
+      seed(queries, everyKey);
 
-    connection.receive('ConfigChanged', {
-      broadcasterId: 'x',
-      domain,
-      entityId: null,
-      action: 'updated',
-    });
+      connection.receive('ConfigChanged', {
+        broadcasterId: 'x',
+        domain,
+        entityId: null,
+        action: 'updated',
+      });
 
-    expect(staleFor(queries, keys, 'c1')).toEqual(keys.map(() => true));
-    expect(staleFor(queries, keys, 'other')).toEqual(keys.map(() => false));
-  });
+      expect(staleFor(queries, keys, 'c1')).toEqual(keys.map(() => true));
+      expect(staleFor(queries, keys, 'other')).toEqual(keys.map(() => false));
+    },
+  );
 
   it.each(['catalog', 'picklists'])(
     'the %s domain has no page key of its own and marks every query of the joined channel stale',

@@ -18,6 +18,7 @@ import { engagementConfigKey } from '@/api/engagement';
 import { escalationPolicyKey } from '@/api/escalationPolicy';
 import { eventJournalKey } from '@/api/eventJournal';
 import { featuresKey } from '@/api/features';
+import { gamesKey } from '@/api/games';
 import { botStatusKey, connectionsKey, reviewQueueKey } from '@/api/home';
 import { integrationsKey, spotifyCredentialsKey } from '@/api/integrations';
 import { timersKey } from '@/api/liveOps';
@@ -99,6 +100,7 @@ export const configDomainKeys: Record<string, readonly QueryKeyBuilder[]> = {
   'earning-rules': [earningRulesKey],
   'savings-jar': [savingsJarsKey],
   quotes: [quotesKey],
+  games: [gamesKey],
   supporters: [supporterEventsKey],
   permissions: [membersKey, actionMatrixKey],
   'event-journal': [eventJournalKey],

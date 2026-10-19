@@ -27,7 +27,8 @@ public sealed class ChannelConfigChangedEvent : DomainEventBase
     /// quotes, builtins, channel-settings, roles-permits, savings-jar (pushed to every channel in a jar group,
     /// with the jar id as the entity), network-blocks (the channel's network-block opt-in changed), discord (a
     /// live-role or notification config row changed, the entity is the row id), escalation (the moderation
-    /// escalation ladder policy was saved), channels (the bot joined, left, or the channel was deleted or restored:
+    /// escalation ladder policy was saved), games (a chat game opened, settled or was canceled: the entity is the
+    /// session id), channels (the bot joined, left, or the channel was deleted or restored:
     /// <see cref="Action"/> is joined / left / deleted / restored, the entity is the channel id).
     /// </summary>
     public required string Domain { get; init; }
