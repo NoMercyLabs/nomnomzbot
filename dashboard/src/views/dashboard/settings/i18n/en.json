@@ -54,15 +54,19 @@
         "cooldown": {
           "section": "Pace",
           "title": "Time between greetings",
-          "description": "The bot greets at most one viewer in this time. Use 0 for no limit. Default: 5 seconds.",
-          "unit": "seconds"
+          "description": "The bot greets at most one viewer in this time. Use 0 for no limit.",
+          "unit": "seconds",
+          "default": "Default: {seconds} seconds."
         },
         "defaultOff": "Default: off.",
+        "defaultOn": "Default: on.",
         "reset": "Reset to defaults",
         "milestones": {
           "title": "Streak milestones",
-          "description": "The bot celebrates a viewer when their streak reaches one of these counts. Default: none, which celebrates every stream.",
+          "description": "The bot celebrates a viewer when their streak reaches one of these counts.",
           "item": "Milestone {number}",
+          "defaultNone": "Default: none, which celebrates every stream.",
+          "defaultList": "Default: {counts} streams in a row.",
           "unit": "streams in a row",
           "add": "Add milestone",
           "remove": "Remove milestone {number}",

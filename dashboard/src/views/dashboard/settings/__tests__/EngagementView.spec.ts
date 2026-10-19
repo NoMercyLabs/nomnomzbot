@@ -28,16 +28,32 @@ type Answer = {
 
 const saved: Body[] = [];
 let config: Body = {};
+
+// Deliberately unlike any value the dashboard could have hard-coded: only the API can supply these.
+const serverDefaults = {
+  firstTimeChatterEnabled: false,
+  returningChatterEnabled: true,
+  watchStreakEnabled: false,
+  streakMilestones: [3],
+  greetCooldownSeconds: 7,
+} as const satisfies Body;
 let refusal: string | undefined;
 let held: string[] = [];
+
+function bodyFor(path: string): Body {
+  if (path === accessPath)
+    return { heldActionKeys: held };
+
+  return path.endsWith('/defaults')
+    ? serverDefaults
+    : config;
+}
 
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
     GET: async (path: string): Promise<Answer> => ({
-      data: { data: path === accessPath
-        ? { heldActionKeys: held }
-        : config },
+      data: { data: bodyFor(path) },
       response: { status: 200, ok: true },
     }),
     PUT: async (_path: string, options: { body: Body }): Promise<Answer> => {
@@ -204,9 +220,10 @@ describe('Greetings and streaks', () => {
 
     const text = document.body.textContent ?? '';
 
-    expect(text.match(/Default: off\./g)).toHaveLength(3);
-    expect(text).toContain('Default: 5 seconds.');
-    expect(text).toContain('Default: none, which celebrates every stream.');
+    expect(text.match(/Default: off\./g)).toHaveLength(2);
+    expect(text.match(/Default: on\./g)).toHaveLength(1);
+    expect(text).toContain('Default: 7 seconds.');
+    expect(text).toContain('Default: 3 streams in a row.');
   });
 
   it('puts the defaults in the form on reset and saves them only on Save', async () => {
@@ -215,21 +232,14 @@ describe('Greetings and streaks', () => {
 
     expect(saved).toEqual([]);
     expect(switchFor('First message ever').getAttribute('aria-checked')).toBe('false');
-    expect(q<HTMLInputElement>('[data-cooldown]').value).toBe('5');
-    expect(milestoneInputs()).toHaveLength(0);
+    expect(switchFor('Back after a break').getAttribute('aria-checked')).toBe('true');
+    expect(q<HTMLInputElement>('[data-cooldown]').value).toBe('7');
+    expect(milestoneInputs().map((input) => input.value)).toEqual(['3']);
     expect(q<HTMLButtonElement>('[data-reset-defaults]').disabled).toBe(true);
 
     await click(saveButton());
 
-    expect(saved).toEqual([
-      {
-        firstTimeChatterEnabled: false,
-        returningChatterEnabled: false,
-        watchStreakEnabled: false,
-        streakMilestones: [],
-        greetCooldownSeconds: 5,
-      },
-    ]);
+    expect(saved).toEqual([serverDefaults]);
   });
 
   it('never shrinks the panel inside the page body, so the page scrolls once and the panel does not', async () => {

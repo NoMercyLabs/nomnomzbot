@@ -15,7 +15,11 @@ import Trash from '~icons/nnz/trash';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { engagementDefaults, useEngagementConfig, useSaveEngagementConfig } from '@/api/engagement';
+import {
+  useEngagementConfig,
+  useEngagementDefaults,
+  useSaveEngagementConfig,
+} from '@/api/engagement';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -32,23 +36,26 @@ const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const config = useEngagementConfig(channelId);
+const defaults = useEngagementDefaults(channelId);
 const save = useSaveEngagementConfig(channelId);
 
 const firstTime = ref(false);
 const returning = ref(false);
 const streak = ref(false);
-const cooldown = ref(0);
+const cooldown = ref(Number.NaN);
 const milestones = ref<number[]>([]);
 const error = ref<string | undefined>(undefined);
 
 watch(
   () => config.data.value,
   (row) => {
-    firstTime.value = row?.firstTimeChatterEnabled ?? false;
-    returning.value = row?.returningChatterEnabled ?? false;
-    streak.value = row?.watchStreakEnabled ?? false;
-    cooldown.value = row?.greetCooldownSeconds ?? 0;
-    milestones.value = [...(row?.streakMilestones ?? [])];
+    if (row === undefined) return;
+
+    firstTime.value = row.firstTimeChatterEnabled;
+    returning.value = row.returningChatterEnabled;
+    streak.value = row.watchStreakEnabled;
+    cooldown.value = row.greetCooldownSeconds;
+    milestones.value = [...row.streakMilestones];
   },
   { immediate: true },
 );
@@ -85,26 +92,76 @@ const canSave = computed(
   () => changed.value && cooldownValid.value && milestonesValid.value && !save.isPending.value,
 );
 
-const atDefaults = computed(
-  () =>
-    firstTime.value === engagementDefaults.firstTimeChatterEnabled &&
-    returning.value === engagementDefaults.returningChatterEnabled &&
-    streak.value === engagementDefaults.watchStreakEnabled &&
-    cooldown.value === engagementDefaults.greetCooldownSeconds &&
-    milestones.value.length === engagementDefaults.streakMilestones.length,
-);
+const atDefaults = computed(() => {
+  const row = defaults.data.value;
+
+  if (row === undefined)
+    return true;
+
+  return (
+    firstTime.value === row.firstTimeChatterEnabled &&
+    returning.value === row.returningChatterEnabled &&
+    streak.value === row.watchStreakEnabled &&
+    cooldown.value === row.greetCooldownSeconds &&
+    milestones.value.join(',') === row.streakMilestones.join(',')
+  );
+});
 
 // Puts the defaults in the form. Nothing is sent until the person saves.
 function resetToDefaults(): void {
-  firstTime.value = engagementDefaults.firstTimeChatterEnabled;
-  returning.value = engagementDefaults.returningChatterEnabled;
-  streak.value = engagementDefaults.watchStreakEnabled;
-  cooldown.value = engagementDefaults.greetCooldownSeconds;
-  milestones.value = [...engagementDefaults.streakMilestones];
+  const row = defaults.data.value;
+
+  if (row === undefined) return;
+
+  firstTime.value = row.firstTimeChatterEnabled;
+  returning.value = row.returningChatterEnabled;
+  streak.value = row.watchStreakEnabled;
+  cooldown.value = row.greetCooldownSeconds;
+  milestones.value = [...row.streakMilestones];
 }
 
-const momentHelp = (key: string): string =>
-  `${t(`dashboard.settings.engagement.${key}.description`)} ${t('dashboard.settings.engagement.defaultOff')}`;
+// Every default sentence reads the server's value, so a changed default needs no dashboard change.
+const defaultOnOff = (on: boolean | undefined): string => {
+  if (on === undefined)
+    return '';
+
+  return t(
+    on
+      ? 'dashboard.settings.engagement.defaultOn'
+      : 'dashboard.settings.engagement.defaultOff',
+  );
+};
+
+const momentHelp = (key: string, on: boolean | undefined): string =>
+  `${t(`dashboard.settings.engagement.${key}.description`)} ${defaultOnOff(on)}`.trim();
+
+const cooldownHelp = computed(() => {
+  const row = defaults.data.value;
+  const base = t('dashboard.settings.engagement.cooldown.description');
+
+  if (row === undefined)
+    return base;
+
+  const seconds = row.greetCooldownSeconds;
+
+  return `${base} ${t('dashboard.settings.engagement.cooldown.default', { seconds })}`;
+});
+
+const milestonesHelp = computed(() => {
+  const row = defaults.data.value;
+  const base = t('dashboard.settings.engagement.milestones.description');
+
+  if (row === undefined)
+    return base;
+
+  const counts = row.streakMilestones.join(', ');
+  const fallback =
+    row.streakMilestones.length === 0
+      ? t('dashboard.settings.engagement.milestones.defaultNone')
+      : t('dashboard.settings.engagement.milestones.defaultList', { counts });
+
+  return `${base} ${fallback}`;
+});
 
 function setCooldown(value: string | number): void {
   cooldown.value = value === ''
@@ -160,7 +217,7 @@ async function submit(): Promise<void> {
       <section class="grid gap-2" aria-labelledby="eg-moments">
         <div class="px-3">
           <h3 id="eg-moments" class="text-sm font-semibold">
-            {{ $t('dashboard.settings.engagement.moments.title') }}
+            {{ $t("dashboard.settings.engagement.moments.title") }}
           </h3>
         </div>
         <RowGroup>
@@ -168,19 +225,19 @@ async function submit(): Promise<void> {
             v-model="firstTime"
             :disabled="!can('engagement:write')"
             :title="$t('dashboard.settings.engagement.firstTime.title')"
-            :description="momentHelp('firstTime')"
+            :description="momentHelp('firstTime', defaults.data.value?.firstTimeChatterEnabled)"
           />
           <SettingRow
             v-model="returning"
             :disabled="!can('engagement:write')"
             :title="$t('dashboard.settings.engagement.returning.title')"
-            :description="momentHelp('returning')"
+            :description="momentHelp('returning', defaults.data.value?.returningChatterEnabled)"
           />
           <SettingRow
             v-model="streak"
             :disabled="!can('engagement:write')"
             :title="$t('dashboard.settings.engagement.streak.title')"
-            :description="momentHelp('streak')"
+            :description="momentHelp('streak', defaults.data.value?.watchStreakEnabled)"
           />
         </RowGroup>
       </section>
@@ -188,13 +245,13 @@ async function submit(): Promise<void> {
       <section class="grid gap-2" aria-labelledby="eg-cooldown">
         <div class="px-3">
           <h3 id="eg-cooldown" class="text-sm font-semibold">
-            {{ $t('dashboard.settings.engagement.cooldown.section') }}
+            {{ $t("dashboard.settings.engagement.cooldown.section") }}
           </h3>
         </div>
         <RowGroup>
           <ReadabilityRow
             :title="$t('dashboard.settings.engagement.cooldown.title')"
-            :description="$t('dashboard.settings.engagement.cooldown.description')"
+            :description="cooldownHelp"
           >
             <Input
               class="w-24"
@@ -209,7 +266,7 @@ async function submit(): Promise<void> {
               @update:model-value="setCooldown"
             />
             <span class="text-sm text-muted-foreground">{{
-              $t('dashboard.settings.engagement.cooldown.unit')
+              $t("dashboard.settings.engagement.cooldown.unit")
             }}</span>
           </ReadabilityRow>
         </RowGroup>
@@ -218,10 +275,10 @@ async function submit(): Promise<void> {
       <section class="grid gap-2" aria-labelledby="eg-milestones">
         <div class="px-3">
           <h3 id="eg-milestones" class="text-sm font-semibold">
-            {{ $t('dashboard.settings.engagement.milestones.title') }}
+            {{ $t("dashboard.settings.engagement.milestones.title") }}
           </h3>
           <p class="text-sm text-muted-foreground">
-            {{ $t('dashboard.settings.engagement.milestones.description') }}
+            {{ milestonesHelp }}
           </p>
         </div>
         <RowGroup>
@@ -245,7 +302,7 @@ async function submit(): Promise<void> {
               @update:model-value="setMilestone(index, $event)"
             />
             <span class="text-sm text-muted-foreground">{{
-              $t('dashboard.settings.engagement.milestones.unit')
+              $t("dashboard.settings.engagement.milestones.unit")
             }}</span>
             <Button
               v-if="can('engagement:write')"
@@ -262,7 +319,7 @@ async function submit(): Promise<void> {
             </Button>
           </ReadabilityRow>
           <p v-if="milestones.length === 0" class="px-3 py-2 text-sm text-muted-foreground">
-            {{ $t('dashboard.settings.engagement.milestones.empty') }}
+            {{ $t("dashboard.settings.engagement.milestones.empty") }}
           </p>
         </RowGroup>
         <div v-if="can('engagement:write')" class="px-3">
@@ -274,7 +331,7 @@ async function submit(): Promise<void> {
             @click="addMilestone"
           >
             <Add class="size-4" />
-            {{ $t('dashboard.settings.engagement.milestones.add') }}
+            {{ $t("dashboard.settings.engagement.milestones.add") }}
           </Button>
         </div>
       </section>
@@ -285,7 +342,7 @@ async function submit(): Promise<void> {
       <span
         v-if="changed && !(cooldownValid && milestonesValid)"
         class="mr-auto text-sm text-destructive"
-      >{{ $t('dashboard.settings.engagement.invalid') }}</span>
+      >{{ $t("dashboard.settings.engagement.invalid") }}</span>
       <Button
         type="button"
         variant="outline"
@@ -294,10 +351,10 @@ async function submit(): Promise<void> {
         :disabled="atDefaults"
         @click="resetToDefaults"
       >
-        {{ $t('dashboard.settings.engagement.reset') }}
+        {{ $t("dashboard.settings.engagement.reset") }}
       </Button>
       <Button type="submit" form="engagement-form" size="sm" :disabled="!canSave">
-        {{ $t('dashboard.settings.engagement.save') }}
+        {{ $t("dashboard.settings.engagement.save") }}
       </Button>
     </template>
   </PanelCard>

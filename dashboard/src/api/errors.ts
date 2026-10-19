@@ -225,6 +225,7 @@ export const apiOperations = {
   'mint pairing code': 'settings',
   'approve device': 'settings',
   'engagement config': 'engagement',
+  'engagement defaults': 'engagement',
   'save engagement config': 'engagement',
   'live game catalog': 'games',
   'active live game': 'games',

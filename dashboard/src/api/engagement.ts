@@ -32,16 +32,6 @@ export type EngagementConfig = {
   greetCooldownSeconds: number;
 };
 
-// What the bot uses for a channel that never saved a config (EngagementService.Defaults: every moment off,
-// no milestones so a streak counts on every stream, a 5 second pace).
-export const engagementDefaults: EngagementConfig = {
-  firstTimeChatterEnabled: false,
-  returningChatterEnabled: false,
-  watchStreakEnabled: false,
-  streakMilestones: [],
-  greetCooldownSeconds: 5,
-};
-
 export type EngagementChange = Omit<
   components['schemas']['UpdateEngagementConfigRequest'],
   'streakMilestones' | 'greetCooldownSeconds'
@@ -56,6 +46,22 @@ export const engagementConfigKey = (channelId: string | null): KeyParts => [
   'engagement-config',
 ];
 
+export const engagementDefaultsKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'engagement-defaults',
+];
+
+function toConfig(row: components['schemas']['EngagementConfig']) {
+  return {
+    firstTimeChatterEnabled: row.firstTimeChatterEnabled,
+    returningChatterEnabled: row.returningChatterEnabled,
+    watchStreakEnabled: row.watchStreakEnabled,
+    streakMilestones: row.streakMilestones.map(Number),
+    greetCooldownSeconds: Number(row.greetCooldownSeconds),
+  } as const satisfies EngagementConfig;
+}
+
 async function readConfig(): Promise<EngagementConfig> {
   const { data, error, response } = await client.GET('/api/v{version}/engagement/config', {
     params: { path: { version: '1' } },
@@ -66,13 +72,27 @@ async function readConfig(): Promise<EngagementConfig> {
   if (error !== undefined || row === undefined || row === null)
     throw failed('engagement config', response.status, error);
 
-  return {
-    firstTimeChatterEnabled: row.firstTimeChatterEnabled,
-    returningChatterEnabled: row.returningChatterEnabled,
-    watchStreakEnabled: row.watchStreakEnabled,
-    streakMilestones: row.streakMilestones.map(Number),
-    greetCooldownSeconds: Number(row.greetCooldownSeconds),
-  };
+  return toConfig(row);
+}
+
+// What the bot resolves a channel with nothing saved to. The server owns these values.
+async function readDefaults(): Promise<EngagementConfig> {
+  const { data, error, response } = await client.GET('/api/v{version}/engagement/config/defaults', {
+    params: { path: { version: '1' } },
+  });
+
+  const row = data?.data;
+
+  if (error !== undefined || row === undefined || row === null)
+    throw failed('engagement defaults', response.status, error);
+
+  return toConfig(row);
+}
+
+export function useEngagementDefaults(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<EngagementConfig, Error> {
+  return channelQuery(channelId, engagementDefaultsKey, readDefaults);
 }
 
 export function useEngagementConfig(

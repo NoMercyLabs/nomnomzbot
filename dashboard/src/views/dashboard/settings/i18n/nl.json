@@ -54,15 +54,19 @@
         "cooldown": {
           "section": "Tempo",
           "title": "Tijd tussen begroetingen",
-          "description": "De bot begroet in deze tijd hooguit een kijker. Gebruik 0 voor geen limiet. Standaard: 5 seconden.",
-          "unit": "seconden"
+          "description": "De bot begroet in deze tijd hooguit een kijker. Gebruik 0 voor geen limiet.",
+          "unit": "seconden",
+          "default": "Standaard: {seconds} seconden."
         },
         "defaultOff": "Standaard: uit.",
+        "defaultOn": "Standaard: aan.",
         "reset": "Standaardwaarden herstellen",
         "milestones": {
           "title": "Mijlpalen van reeksen",
-          "description": "De bot viert een kijker wanneer de reeks een van deze aantallen bereikt. Standaard: geen, dan viert hij elke stream.",
+          "description": "De bot viert een kijker wanneer de reeks een van deze aantallen bereikt.",
           "item": "Mijlpaal {number}",
+          "defaultNone": "Standaard: geen, dan viert hij elke stream.",
+          "defaultList": "Standaard: {counts} streams op rij.",
           "unit": "streams achter elkaar",
           "add": "Mijlpaal toevoegen",
           "remove": "Mijlpaal {number} verwijderen",
