@@ -78599,6 +78599,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/tts/config/options": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The choices the TTS settings page may offer (providers, modes, standings) and the longest message cap —
+         *     the same lists the config update validates against, so the page never lists a value the API refuses.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfTtsConfigOptions"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/tts/config/reset": {
         parameters: {
             query?: never;
@@ -101672,6 +101768,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseOfTtsConfigOptions: {
+            status?: string;
+            data?: null | components["schemas"]["TtsConfigOptions"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseOfTtsDispatchOutcome: {
             status?: string;
             data?: null | components["schemas"]["TtsDispatchOutcome"];
@@ -103257,6 +103366,17 @@ export interface components {
             hasElevenLabsByokKey: boolean;
             azureRegion?: null | string;
             followsPlatformDefaultVoice: boolean;
+        };
+        /**
+         * @description What the TTS settings page may offer: the providers, dispatch modes and standings the update accepts, and
+         *     the longest message cap. Served from TtsConfigOptions, the same place the update validates against.
+         */
+        TtsConfigOptions: {
+            providers: string[];
+            modes: string[];
+            minPermissions: string[];
+            /** Format: int32 */
+            maxCharactersLimit: number | string;
         };
         TtsDispatchDisposition: number;
         /** @description The result of a dispatch: what happened, plus the play URL when it was dispatched. */
