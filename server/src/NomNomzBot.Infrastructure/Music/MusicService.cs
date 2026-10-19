@@ -200,14 +200,14 @@ public sealed class MusicService : IMusicService
             .. results
                 .Where(t => YouTubeMusicCategory.Admits(categoryOnly, t, null))
                 .Select(t => new MusicTrack(
-                t.TrackUri,
-                t.TrackName,
-                t.Artist,
-                t.Album,
-                t.AlbumArtUrl,
-                t.DurationMs,
-                t.Provider
-            )),
+                    t.TrackUri,
+                    t.TrackName,
+                    t.Artist,
+                    t.Album,
+                    t.AlbumArtUrl,
+                    t.DurationMs,
+                    t.Provider
+                )),
         ];
     }
 
@@ -874,16 +874,21 @@ public sealed class MusicService : IMusicService
                 SearchCandidateCount,
                 cancellationToken
             );
+        if (searchFailure != MusicProviderFailureReason.None)
+            return (null, searchFailure);
+
         IReadOnlyList<TrackInfo> admitted =
         [
             .. hits.Where(hit => YouTubeMusicCategory.Admits(musicCategoryOnly, hit, null)),
         ];
-        return searchFailure != MusicProviderFailureReason.None
-            ? (null, searchFailure)
-            : (
-                SongSearchRanker.Pick(searchText, WithinLength(admitted, maxDurationMs)),
-                MusicProviderFailureReason.None
-            );
+        // Hits the music-category setting filtered out are refused with its rule, never "not found".
+        if (hits.Count > 0 && admitted.Count == 0)
+            return (null, MusicProviderFailureReason.NotMusic);
+
+        return (
+            SongSearchRanker.Pick(searchText, WithinLength(admitted, maxDurationMs)),
+            MusicProviderFailureReason.None
+        );
     }
 
     /// <summary>The hits that fit the length cap; all of them when none does, so the pick is still refused
@@ -979,7 +984,7 @@ public sealed class MusicService : IMusicService
                 "TRACK_LENGTH_UNKNOWN"
             ),
             MusicProviderFailureReason.NotMusic => Result.Failure<T>(
-                "That video is not a music video, and song requests play music only.",
+                "That video can't be requested. YouTube requests must be in YouTube's Music category or come from an official artist (- Topic) channel.",
                 "TRACK_NOT_MUSIC"
             ),
             MusicProviderFailureReason.QuotaExhausted => Result.Failure<T>(

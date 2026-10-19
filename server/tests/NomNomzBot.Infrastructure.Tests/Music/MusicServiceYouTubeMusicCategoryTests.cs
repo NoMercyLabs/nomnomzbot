@@ -17,7 +17,6 @@ using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Interfaces;
-using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Platform.Security;
@@ -52,6 +51,10 @@ public sealed class MusicServiceYouTubeMusicCategoryTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("TRACK_NOT_MUSIC");
+        result
+            .ErrorMessage.Should()
+            .Contain("Music category")
+            .And.Contain("official artist (- Topic) channel");
         (await QueuedNames(sut)).Should().BeEmpty();
     }
 
@@ -89,7 +92,7 @@ public sealed class MusicServiceYouTubeMusicCategoryTests
     }
 
     [Fact]
-    public async Task A_search_pick_outside_the_music_category_is_passed_over_when_the_setting_is_on()
+    public async Task A_search_whose_every_hit_is_outside_the_music_category_is_refused_with_the_rule()
     {
         MusicService sut = Build(categoryOnly: true, FanUpload());
 
@@ -101,6 +104,27 @@ public sealed class MusicServiceYouTubeMusicCategoryTests
         );
 
         result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("TRACK_NOT_MUSIC");
+        result
+            .ErrorMessage.Should()
+            .Contain("Music category")
+            .And.Contain("official artist (- Topic) channel");
+        (await QueuedNames(sut)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_search_with_no_hits_at_all_is_still_not_found()
+    {
+        MusicService sut = Build(categoryOnly: true, FanUpload(), searchHits: []);
+
+        Result<MusicTrack> result = await sut.RequestTrackAsync(
+            ChannelId.ToString(),
+            "nothing matches this",
+            "viewer1",
+            requesterRoleLevel: PermissionLevel.Broadcaster.ToLevelValue()
+        );
+
+        result.ErrorCode.Should().Be("NOT_FOUND");
         (await QueuedNames(sut)).Should().BeEmpty();
     }
 
@@ -120,8 +144,13 @@ public sealed class MusicServiceYouTubeMusicCategoryTests
             IsMusicCategory = false,
         };
 
-    private static MusicService Build(bool categoryOnly, TrackInfo upload)
+    private static MusicService Build(
+        bool categoryOnly,
+        TrackInfo upload,
+        IReadOnlyList<TrackInfo>? searchHits = null
+    )
     {
+        IReadOnlyList<TrackInfo> hits = searchHits ?? [upload];
         IMusicProvider provider = Substitute.For<IMusicProvider>();
         provider.Provider.Returns("youtube");
         provider.OwnsLink(Arg.Any<string>()).Returns(true);
@@ -139,7 +168,7 @@ public sealed class MusicServiceYouTubeMusicCategoryTests
                 Arg.Any<int>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(((IReadOnlyList<TrackInfo>)[upload], MusicProviderFailureReason.None));
+            .Returns((hits, MusicProviderFailureReason.None));
         provider
             .AddToQueueAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(true);

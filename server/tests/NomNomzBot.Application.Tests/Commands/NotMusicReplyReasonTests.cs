@@ -15,11 +15,16 @@ using NomNomzBot.Domain.Identity.Enums;
 namespace NomNomzBot.Application.Tests.Commands;
 
 /// <summary>
-/// A viewer refused as "not music" must be told why, in every mood: the video is outside YouTube's Music
-/// category and not from an official artist (- Topic) channel, and what to send instead.
+/// A viewer refused as "not music" must be told the rule, in every mood: YouTube requests must be in
+/// YouTube's Music category or come from an official artist (- Topic) channel, and what to send instead.
+/// (Owner, 2026-10-19: "it needs to say that the music can only come from channels marked as artists or
+/// something that makes it super clear in every mood reply".)
 /// </summary>
 public sealed class NotMusicReplyReasonTests
 {
+    private const string RulePattern =
+        @"youtube requests (must|have to) be in youtube's music category or come from an official artist \(- topic\) channel";
+
     public static TheoryData<string> Tones =>
         new()
         {
@@ -32,7 +37,7 @@ public sealed class NotMusicReplyReasonTests
 
     [Theory]
     [MemberData(nameof(Tones))]
-    public void Every_mood_variant_names_the_reason_and_what_to_send_instead(string tone)
+    public void Every_mood_variant_states_the_rule_and_what_to_send_instead(string tone)
     {
         IReadOnlyList<string> variants = ToneTemplateCatalog.Get(
             tone,
@@ -44,11 +49,8 @@ public sealed class NotMusicReplyReasonTests
         foreach (string variant in variants)
         {
             string text = variant.ToLowerInvariant();
-            text.Should().Contain("music category", variant);
-            text.Should().Contain("official artist", variant);
-            text.Should().Contain("- topic", variant);
-            text.Should().Contain("youtube music", variant);
-            text.Should().Contain("spotify", variant);
+            text.Should().MatchRegex(RulePattern, variant);
+            text.Should().Contain("youtube music link", variant);
             text.Should().Contain("song name", variant);
         }
     }

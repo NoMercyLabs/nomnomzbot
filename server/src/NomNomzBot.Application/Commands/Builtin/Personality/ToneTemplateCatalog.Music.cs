@@ -472,23 +472,23 @@ public static partial class ToneTemplateCatalog
             variables: [],
             informative:
             [
-                "That video can't be requested: it isn't in YouTube's Music category and it isn't from an official artist (- Topic) channel. Send a YouTube Music or Spotify link, or a song name.",
+                "That video can't be requested. YouTube requests must be in YouTube's Music category or come from an official artist (- Topic) channel. Send a YouTube Music link, or a song name.",
             ],
             friendly:
             [
-                "Ooh, I can't queue that one! It isn't in YouTube's Music category and it isn't from an official artist (- Topic) channel. Send me a YouTube Music or Spotify link, or just a song name!",
+                "Ooh, I can't queue that one! YouTube requests have to be in YouTube's Music category or come from an official artist (- Topic) channel. Send me a YouTube Music link, or just a song name!",
             ],
             sassy:
             [
-                "Not queuing that. It isn't in YouTube's Music category and it isn't from an official artist (- Topic) channel. Send a YouTube Music or Spotify link, or a song name.",
+                "Not queuing that. YouTube requests must be in YouTube's Music category or come from an official artist (- Topic) channel, and that video is neither. Send a YouTube Music link, or a song name.",
             ],
             hype:
             [
-                "NOT MUSIC! THAT VIDEO ISN'T IN YOUTUBE'S MUSIC CATEGORY AND ISN'T FROM AN OFFICIAL ARTIST (- TOPIC) CHANNEL! SEND A YOUTUBE MUSIC OR SPOTIFY LINK, OR A SONG NAME!",
+                "NOT MUSIC! YOUTUBE REQUESTS MUST BE IN YOUTUBE'S MUSIC CATEGORY OR COME FROM AN OFFICIAL ARTIST (- TOPIC) CHANNEL! SEND A YOUTUBE MUSIC LINK, OR A SONG NAME!",
             ],
             chill:
             [
-                "can't queue that. it isn't in youtube's music category and it isn't from an official artist (- topic) channel. send a youtube music or spotify link, or a song name.",
+                "can't queue that. youtube requests have to be in youtube's music category or come from an official artist (- topic) channel. send a youtube music link, or a song name.",
             ]
         );
 

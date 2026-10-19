@@ -75,8 +75,9 @@ public enum MusicProviderFailureReason
     QuotaExhausted,
 
     /// <summary>The link is a real, playable video, but not a music video: the provider files it outside its
-    /// music category (YouTube: category "Music", id 10, or a "- Topic" artist channel). Song requests play
-    /// music only, so it is refused and never searched as text.</summary>
+    /// music category (YouTube: category "Music", id 10, or a "- Topic" artist channel). A provider only tags
+    /// the track (<see cref="TrackInfo.IsMusicCategory"/>); <c>MusicService</c> raises this when the channel's
+    /// <c>YouTubeMusicCategoryOnly</c> setting is on, so the request is refused and never searched as text.</summary>
     NotMusic,
 }
 

@@ -119981,6 +119981,10 @@
               "string"
             ],
             "format": "int32"
+          },
+          "youTubeMusicCategoryOnly": {
+            "type": "boolean",
+            "default": true
           }
         },
         "description": "Music configuration for a channel."
@@ -151179,6 +151183,13 @@
             ],
             "description": "The most songs one viewer may request in one stream, counting songs that already played. 0 turns the\r\ncap off (null leaves the current value alone); a value of 1 to 100 turns it on.",
             "format": "int32"
+          },
+          "youTubeMusicCategoryOnly": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "When true, a YouTube upload must sit in the Music category or come from a \"- Topic\" artist channel.\r\nWhen false, any on-demand video is admitted (fan uploads). A music.youtube.com link always counts."
           },
           "allowYouTube": {
             "type": [
