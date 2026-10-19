@@ -37,7 +37,10 @@ public sealed class OverlayHostControllerTests
         service
             .GetOverlayManifestAsync(Token, Arg.Any<CancellationToken>())
             .Returns(Result<OverlayManifest>.Success(manifest));
-        return new(service);
+        return new(service)
+        {
+            ControllerContext = new() { HttpContext = new DefaultHttpContext() },
+        };
     }
 
     private static OverlayWidgetEntry VueEntry(
@@ -167,6 +170,36 @@ public sealed class OverlayHostControllerTests
             .MatchRegex("script-src [^;]*https://www\\.youtube\\.com")
             .And.MatchRegex("script-src [^;]*https://sdk\\.scdn\\.co")
             .And.MatchRegex("frame-src [^;]*https://www\\.youtube\\.com");
+    }
+
+    [Fact]
+    public async Task The_music_player_page_sends_its_origin_as_the_referrer_so_youtube_embeds_play()
+    {
+        // qtkitte live, 2026-10-19: the site-wide no-referrer policy made every YouTube embed fail with
+        // Error 153, so no YouTube request ever played. Cross-origin requests get the origin only, never the
+        // token in the page address.
+        OverlayHostController sut = WithManifest(
+            VueEntry(new Dictionary<string, object?>(), "music_player")
+        );
+
+        await sut.Get(WidgetId.ToString(), Token, CancellationToken.None);
+
+        sut.Response.Headers["Referrer-Policy"]
+            .ToString()
+            .Should()
+            .Be("strict-origin-when-cross-origin");
+    }
+
+    [Fact]
+    public async Task A_page_without_the_players_keeps_the_site_referrer_policy()
+    {
+        OverlayHostController sut = WithManifest(
+            VueEntry(new Dictionary<string, object?>(), "chat_box")
+        );
+
+        await sut.Get(WidgetId.ToString(), Token, CancellationToken.None);
+
+        sut.Response.Headers.ContainsKey("Referrer-Policy").Should().BeFalse();
     }
 
     [Fact]

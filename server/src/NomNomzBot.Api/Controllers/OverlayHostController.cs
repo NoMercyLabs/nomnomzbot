@@ -83,6 +83,11 @@ public sealed partial class OverlayHostController : ControllerBase
                 "text/html; charset=utf-8"
             );
 
+        // YouTube refuses an embed whose request carries no Referer (Error 153), and the site-wide policy sends
+        // none. Cross-origin requests from a player page get the origin only, never the token in its address.
+        if (WantsSpotifyPlayback(entry))
+            Response.Headers["Referrer-Policy"] = PlayerReferrerPolicy;
+
         // A vanilla widget's bundle IS the page's HTML — inject config + SDK into it. A framework widget is a
         // self-mounting module the page loads after its runtime.
         if (string.Equals(entry.Framework, "vanilla", StringComparison.OrdinalIgnoreCase))
@@ -143,6 +148,8 @@ public sealed partial class OverlayHostController : ControllerBase
     private const string YouTubeOrigin = "https://www.youtube.com";
 
     private const string AudioPlayerOrigins = SpotifySdkOrigin + " " + YouTubeOrigin;
+
+    private const string PlayerReferrerPolicy = "strict-origin-when-cross-origin";
 
     private static string ContentSecurityPolicy(string nonce, bool allowSpotifyPlayback = false) =>
         "default-src 'none'; "
