@@ -60,7 +60,8 @@ internal sealed class RaidScoringRulesStore(IApplicationDbContext db) : IRaidSco
             return Result.Failure<RaidScoringRules>(
                 validation.ErrorMessage,
                 validation.ErrorCode,
-                validation.ErrorDetail
+                validation.ErrorDetail,
+                validation.ErrorData
             );
 
         string json = JsonSerializer.Serialize(resolved, Json);

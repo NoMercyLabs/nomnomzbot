@@ -297,6 +297,25 @@ public sealed class RaidScoringDefaultsTests : IDisposable
         (await _db.Configurations.CountAsync()).Should().Be(0);
     }
 
+    [Fact]
+    public async Task A_refused_save_hands_the_per_problem_list_to_the_caller()
+    {
+        RaidScoringRules bad = RaidScoringRules.Neutral with
+        {
+            FollowedWeight = 5000,
+            ViewerBands = [new RaidViewerBand(50, 10, 1, "mid")],
+        };
+
+        Result<RaidScoringRules> saved = await _store.SaveAsync(Channel, bad);
+
+        RaidRulesProblems data = saved.ErrorData.Should().BeOfType<RaidRulesProblems>().Subject;
+        data.Problems.Should()
+            .BeEquivalentTo([
+                new RaidRulesProblem(RaidRulesProblem.BandMinAboveMax, "band", "mid", 50, 10),
+                new RaidRulesProblem(RaidRulesProblem.WeightOutOfRange, "followed", "", 5000, 1000),
+            ]);
+    }
+
     public void Dispose()
     {
         _db.Dispose();
