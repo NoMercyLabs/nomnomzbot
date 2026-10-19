@@ -418,6 +418,8 @@ public static class DependencyInjection
             sp.GetRequiredService<PlaybackDirectorRegistry>()
         );
         services.AddSingleton<IEngineFeed>(sp => sp.GetRequiredService<PlaybackDirectorRegistry>());
+        // Bot audio (TTS) ducks the music while it speaks; the director applies the level.
+        services.AddSingleton<IMusicDuckScheduler, MusicDuckScheduler>();
         // Song requests a limit refused, kept 15 minutes so a moderator's !permit can admit them.
         services.AddSingleton<RefusedSongRequestStore>();
 

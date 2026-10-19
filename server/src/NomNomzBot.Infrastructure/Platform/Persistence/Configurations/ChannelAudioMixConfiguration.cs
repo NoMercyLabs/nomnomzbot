@@ -19,6 +19,9 @@ public class ChannelAudioMixConfiguration : IEntityTypeConfiguration<ChannelAudi
     public void Configure(EntityTypeBuilder<ChannelAudioMix> builder)
     {
         builder.HasKey(e => e.Id);
+        builder
+            .Property(e => e.MusicDuckPercent)
+            .HasDefaultValue(AudioMixDefaults.MusicDuckPercent);
         builder.HasIndex(e => e.BroadcasterId).IsUnique();
     }
 }

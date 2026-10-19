@@ -16,6 +16,7 @@ using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Music.Interfaces;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -52,6 +53,7 @@ public sealed class TtsVolumeMixTests
             widgets,
             Substitute.For<IOverlayPresenceRegistry>(),
             MixOf(master, tts),
+            Substitute.For<IMusicDuckScheduler>(),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );
 

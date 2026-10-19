@@ -17,6 +17,7 @@ using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Sound;
 using NSubstitute;
@@ -52,6 +53,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
             widgets,
             Substitute.For<IOverlayPresenceRegistry>(),
             new ChannelAudioMixService(db),
+            Substitute.For<IMusicDuckScheduler>(),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );
 
@@ -106,6 +108,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
             widgets,
             Substitute.For<IOverlayPresenceRegistry>(),
             new ChannelAudioMixService(db),
+            Substitute.For<IMusicDuckScheduler>(),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );
 
@@ -154,6 +157,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
             Substitute.For<IWidgetNotifier>(),
             presence,
             new ChannelAudioMixService(db),
+            Substitute.For<IMusicDuckScheduler>(),
             logger
         );
 
@@ -235,6 +239,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
             Substitute.For<IWidgetNotifier>(),
             Substitute.For<IOverlayPresenceRegistry>(),
             new ChannelAudioMixService(db),
+            Substitute.For<IMusicDuckScheduler>(),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );
 
@@ -288,6 +293,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
             Substitute.For<IWidgetNotifier>(),
             Substitute.For<IOverlayPresenceRegistry>(),
             new ChannelAudioMixService(db),
+            Substitute.For<IMusicDuckScheduler>(),
             NullLogger<TtsSpeakBroadcastHandler>.Instance
         );
 

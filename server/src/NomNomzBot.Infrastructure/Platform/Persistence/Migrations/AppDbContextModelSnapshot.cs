@@ -10448,6 +10448,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<int>("MasterVolume")
                         .HasColumnType("integer");
 
+                    b.Property<int>("MusicDuckPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(100);
+
                     b.Property<int>("TtsVolume")
                         .HasColumnType("integer");
 

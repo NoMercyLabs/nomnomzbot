@@ -23,6 +23,11 @@ public static class AudioMixDefaults
     /// <summary>Text-to-speech volume of a channel with no saved mix.</summary>
     public const int TtsVolume = 100;
 
+    /// <summary>
+    /// Share of the music level that stays while bot audio speaks, 0..100. 100 means the music is not ducked.
+    /// </summary>
+    public const int MusicDuckPercent = 100;
+
     /// <summary>Lowest accepted volume (silent).</summary>
     public const int MinVolume = 0;
 

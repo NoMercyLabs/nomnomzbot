@@ -51,6 +51,12 @@ internal sealed class ChannelAudioMixService(IApplicationDbContext db) : IChanne
                 errorCode: "VALIDATION_FAILED"
             );
 
+        if (request.MusicDuckPercent is { } duck && !IsInRange(duck))
+            return Result.Failure<ChannelAudioMixDto>(
+                "audio_mix_music_duck_percent_out_of_range",
+                errorCode: "VALIDATION_FAILED"
+            );
+
         ChannelAudioMix? row = await db.ChannelAudioMixes.FirstOrDefaultAsync(
             m => m.BroadcasterId == broadcasterId,
             ct
@@ -62,6 +68,7 @@ internal sealed class ChannelAudioMixService(IApplicationDbContext db) : IChanne
         }
         row.MasterVolume = request.MasterVolume;
         row.TtsVolume = request.TtsVolume;
+        row.MusicDuckPercent = request.MusicDuckPercent ?? row.MusicDuckPercent;
         await db.SaveChangesAsync(ct);
         return Result.Success(ToDto(row));
     }
@@ -70,5 +77,5 @@ internal sealed class ChannelAudioMixService(IApplicationDbContext db) : IChanne
         volume is >= AudioMixDefaults.MinVolume and <= AudioMixDefaults.MaxVolume;
 
     private static ChannelAudioMixDto ToDto(ChannelAudioMix row) =>
-        new(row.MasterVolume, row.TtsVolume);
+        new(row.MasterVolume, row.TtsVolume, row.MusicDuckPercent);
 }

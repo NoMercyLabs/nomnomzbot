@@ -30,10 +30,25 @@ public interface IChannelAudioMixService
     );
 }
 
-public sealed record UpdateChannelAudioMixRequest(int MasterVolume, int TtsVolume);
+/// <summary>
+/// <paramref name="MusicDuckPercent"/> left out keeps the stored value, so a client that predates ducking
+/// never resets it.
+/// </summary>
+public sealed record UpdateChannelAudioMixRequest(
+    int MasterVolume,
+    int TtsVolume,
+    int? MusicDuckPercent = null
+);
 
-public sealed record ChannelAudioMixDto(int MasterVolume, int TtsVolume)
+public sealed record ChannelAudioMixDto(
+    int MasterVolume,
+    int TtsVolume,
+    int MusicDuckPercent = AudioMixDefaults.MusicDuckPercent
+)
 {
+    /// <summary>The music duck share a channel with no saved mix gets (100 = no ducking).</summary>
+    public int DefaultMusicDuckPercent => AudioMixDefaults.MusicDuckPercent;
+
     /// <summary>The master volume a channel with no saved mix gets; the dashboard shows it, never its own copy.</summary>
     public int DefaultMasterVolume => AudioMixDefaults.MasterVolume;
 

@@ -10938,6 +10938,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<int>("MasterVolume")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("MusicDuckPercent")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(100);
+
                     b.Property<int>("TtsVolume")
                         .HasColumnType("INTEGER");
 

@@ -26,4 +26,7 @@ public class ChannelAudioMix : BaseEntity, ITenantScoped
 
     /// <summary>Text-to-speech volume, 0..100, applied on top of the master volume.</summary>
     public int TtsVolume { get; set; } = AudioMixDefaults.TtsVolume;
+
+    /// <summary>Share of the music level that stays while bot audio speaks, 0..100; 100 leaves the music alone.</summary>
+    public int MusicDuckPercent { get; set; } = AudioMixDefaults.MusicDuckPercent;
 }

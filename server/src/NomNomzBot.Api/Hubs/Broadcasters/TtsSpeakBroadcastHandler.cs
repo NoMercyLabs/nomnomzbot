@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Events;
 
@@ -32,6 +33,7 @@ public sealed class TtsSpeakBroadcastHandler(
     IWidgetNotifier notifier,
     IOverlayPresenceRegistry presence,
     IChannelAudioMixService mix,
+    IMusicDuckScheduler ducks,
     ILogger<TtsSpeakBroadcastHandler> logger
 ) : IEventHandler<TtsUtteranceDispatchedEvent>
 {
@@ -46,12 +48,19 @@ public sealed class TtsSpeakBroadcastHandler(
         WarnIfNoAudioPage(@event.BroadcasterId);
         // Captions and indicators only need the words: the audio plays once, on the audio page, from the raw
         // TtsSpeak below. A widget event that carried audio would be played by every page that received it.
-        if (@event.AudioUrl is not null)
-        {
-            Result<ChannelAudioMixDto> mixResult = await mix.GetAsync(
+        Result<ChannelAudioMixDto> mixResult = await mix.GetAsync(
+            @event.BroadcasterId,
+            cancellationToken
+        );
+        if (mixResult.IsSuccess)
+            await ducks.DuckAsync(
                 @event.BroadcasterId,
+                mixResult.Value.MusicDuckPercent,
+                @event.DurationMs,
                 cancellationToken
             );
+        if (@event.AudioUrl is not null)
+        {
             TtsSpeakOptions? options = mixResult.IsSuccess
                 ? new TtsSpeakOptions(null, null, mixResult.Value.TtsPlaybackVolume)
                 : null;
