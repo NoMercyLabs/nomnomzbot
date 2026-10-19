@@ -57,7 +57,17 @@ public sealed class TwitchScheduleApi(
             Query: query
         );
 
-        return await transport.GetSingleAsync<TwitchSchedule>(request, ct);
+        Result<TwitchSchedule> schedule = await transport.GetSingleAsync<TwitchSchedule>(
+            request,
+            ct
+        );
+
+        // Twitch answers 404 for a channel that never saved a schedule: that is an empty schedule.
+        return schedule.IsFailure && schedule.ErrorCode == TwitchErrorCodes.NotFound
+            ? Result.Success(
+                new TwitchSchedule([], channel.Value, string.Empty, string.Empty, null)
+            )
+            : schedule;
     }
 
     public async Task<Result<string>> GetICalendarAsync(
