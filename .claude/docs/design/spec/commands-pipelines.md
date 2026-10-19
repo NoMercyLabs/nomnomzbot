@@ -1416,3 +1416,99 @@ primary action of that slot) and **Cancel** (ghost). **Reset to default** is a d
 when overridden; it asks for confirmation, then DELETEs and shows the default again. Locked slots render read-only
 with a lock note. Reply groups that are not commands (`system`, `botstatus`) are reachable from a **Bot replies**
 row at the end of the built-in list.
+
+---
+
+## 12. Binding targets — a command or a pipeline (proposal, 2026-10-19)
+
+Owner words, Stoney 2026-10-19, verbatim: "Oh and why can't I select a command directly instead of a pipeline that calls a single command? Quite useless cpu cycles"
+
+Related owner rule (`action-reach.md`, Stoney 2026-10-13), verbatim: "every action must be reachable form any place if the user desires this, that is why we have an SDK, it must all be exposed everywhere a user can create actions and reactions".
+
+### 12.1 Decision (proposed)
+
+Every place that says "what runs" holds ONE target: `{ kind: "command" | "pipeline", id }`. It is one shared type on the server and one shared picker in the dashboard, not a second column per surface. A `command` target runs the command directly, with no wrapper pipeline. A `pipeline` target behaves exactly as today. Every action stays reachable everywhere (`action-reach.md`): a surface that can run a pipeline can run a command.
+
+### 12.2 Ledger — what each surface can target today (read 2026-10-19)
+
+| Surface | Targets today | Server | Dashboard |
+|---|---|---|---|
+| Chat command (`!name`) | the command row itself: tier `template` (reply text), `pipeline` or `code` (one bound pipeline), or a code-defined built-in | `ChatMessageHandler.cs:270` (built-in), `:466-530` (pipeline-bound), `Command.PipelineId` `Command.cs:74` | `CommandEditor.vue:226` |
+| Reward redemption | pipeline only (`Reward.PipelineId`), then inline `Response`, then the generic event response | `Reward.cs:109`, `RewardRedeemedHandler.cs:140-175` | `RewardEditDialog.vue:346` |
+| Timer | pipeline only, else a chat message | `Timer.cs:42`, `TimerService.cs:186` | `TimerEditor.vue` (picker line not checked) |
+| Event response | `pipeline` mode only (modes: `none`, chat, widget, `pipeline`) | `EventResponse.cs:49`, `EventResponseExecutor.cs:31-32` | `EventResponseEditor.vue:171` |
+| Chat trigger (phrase match) | pipeline only | `ChatTrigger.cs:46`, `ChatMessageHandler.cs:1274-1305` | `ChatTriggerEditor.vue:135` |
+| Scheduled one-shot | pipeline only | `ScheduledPipelineTask.cs:40`, `ScheduledPipelineDispatcher.cs:144` | not checked |
+| Giveaway prize | pipeline only | `GiveawayFulfillment.cs:154` | `GiveawayDialog.vue:339` |
+| Catalog item (economy) | pipeline only | `CatalogItem.PipelineId` | `CatalogDialog.vue:236` |
+| Automation API invoke (tokens) | pipeline only; a token may pin `AllowedPipelineIds`. `GET /automation/v1/commands` lists commands but `POST /invoke` cannot run one | `AutomationCommandService.cs:120-152`, `AutomationApiToken.cs:49` | `CreateTokenDialog.vue:100` |
+| Stream Deck keys | one auto-made single-action pipeline per action type, named by the action type | `AutomationPairingService.cs:447-509` | n/a |
+| Voice trigger | runs nothing itself: it publishes `VoiceTriggerFiredEvent` to widgets | `VoiceTriggerService.cs:281`, `VoiceTriggerWidgetEventHandler.cs:28` | `voice-triggers/` |
+| Widget actions | any registered action directly (`NomNomz.actions.invoke`) | `WidgetActionService.cs` (per `action-reach.md`) | n/a |
+| Code scripts (SDK) | any registered action directly (`nnz.api.actions.invoke`) | `JintScriptExecutor.cs:172-181` (per `action-reach.md`) | n/a |
+| Pipeline step "run command" | does not exist: no `run_command` action in the live `PipelineSteps` table or the action list | §6.1 | n/a |
+| Hotkeys | no hotkey binding in the domain or application layer (grep, 0 hits) | n/a | n/a |
+
+Shared dashboard control: `components/layout/ReplyModeField.vue` (`v-model:pipeline-id`, create-in-place) serves four surfaces (command, reward, event response, chat trigger). `CatalogDialog.vue`, `GiveawayDialog.vue` and `CreateTokenDialog.vue` hand-roll their own pipeline `Select`. Both forms move to the one target picker, with a guard test against the hand-written form.
+
+### 12.3 How a command runs today
+
+- Chat path: the dispatcher resolves the command, checks permission and cooldown, builds variables from the chat event (`BuildInitialVariables`, `ChatMessageHandler.cs:486`), sets `user.role` to the effective role (`:487`), then calls `IPipelineEngine.ExecuteAsync` with the command's `PipelineGraphJson` (`:490-515`). A `template` command picks a reply instead. A built-in runs through `IBuiltinCommand.ExecuteAsync` with a `BuiltinCommandContext` (`:345`).
+- A command owns its own pipeline (`Command.PipelineId`). A direct command target does not remove the engine call. It removes the wrapper pipeline and its extra row.
+- `ICommandService.ExecuteAsync(broadcasterId, commandName, userId, input)` (`CommandService.cs:442`) is a partial non-chat path. It runs only the pipeline tiers, returns template text without sending it, ignores built-ins, sets no `user.role`, and has no caller in `server/src` (grep, 2026-10-19). It is the seed of the direct runner; the gaps need closing.
+
+### 12.4 Live counts (Postgres, SELECT only, 2026-10-19)
+
+"One step" = the cached graph (`Pipelines.GraphJsonCache`, shape `{"steps":[...]}`) has exactly one top-level step. 174 live pipelines have a graph but no `PipelineSteps` rows, so the graph is the correct source.
+
+| Binding | Rows in table | Bound to a pipeline | One-step | Empty graph | Multi-step |
+|---|---|---|---|---|---|
+| `Commands.PipelineId` | 214 | 123 | 51 | 28 | 44 |
+| `EventResponses.PipelineId` | 1462 | 90 | 2 | 0 | 88 |
+| `Rewards.PipelineId` | 107 | 19 | 2 | 2 | 15 |
+| `Timers` / `ChatTriggers` / `CatalogItems` / `ScheduledPipelineTasks` / `PipelineTriggers` | 6 / 4 / 1 / 0 / 0 | 0 | 0 | 0 | 0 |
+
+One-step pipelines by action: commands `run_code` 40, `play_sound` 5, `playlist_add` 3, `song_wrong` 2, `song_ban` 1; event responses `clear_viewer_data` 2; rewards `play_sound` 1, `run_code` 1. Commands by tier: `template` 88, `pipeline` 107, `code` 19. Pipelines by `TriggerKind`: `manual` 122 (116 one-step), `command` 99 (26 one-step), `event` 103 (2 one-step).
+
+Reading: no live step "calls a command" (no such action exists). The real wrappers are one-action pipelines: 51 behind commands, and 116 manual pipelines (what binds them is not checked). Rewards and event responses mostly bind multi-step pipelines today.
+
+### 12.5 Direct command run — the synthetic invocation context
+
+A command run outside chat takes an `InvocationContext` built by the caller:
+
+| Field | Source for a non-chat trigger |
+|---|---|
+| `who` | the user the trigger names (reward redeemer, event actor, chat-trigger sender); else the channel's bot identity as a system invoker; the Automation API uses the token as invoker (`TriggeredByUserId = TokenId`, as today in `AutomationCommandService.cs`) |
+| `args` | the surface's text (reward user input, trigger message, API `Args`); else empty |
+| `trigger.source` | `reward`, `timer`, `event`, `chat_trigger`, `automation`, `schedule` (the Automation path already sets this variable) |
+| `user.role` | the invoker's effective role, resolved as chat does; for a system invoker, the broadcaster role |
+| permission and cooldown | see question 1 |
+| reply routing | `send_reply` has no message to reply to outside chat; it falls back to `send_message` |
+
+One runner (`ICommandInvoker`, replacing the unused `CommandService.ExecuteAsync`) builds the context and calls the engine, the template reply or the built-in. Every surface calls this runner. None re-implements the chat path.
+
+### 12.6 Migration of existing wrapper pipelines
+
+1. Select candidates by script: a pipeline is a wrapper when a surface binds it, it has exactly one top-level step, it is not customized (its `PlatformSourceHash` equals the seeded hash, or for auto-made Stream Deck pipelines the name equals the action type), and nothing else references it (`PipelineStepReferenceScanner`).
+2. Add the `kind` column first with default `pipeline`, in both migration sets (Postgres and SQLite), so old clients keep working.
+3. A wrapper in the safe set is rebound to `{ kind: "command", id }` when its one step is the logic of a command. The command keeps its own pipeline.
+4. A customized wrapper (edited name, edited step config, description, extra triggers, hash mismatch) is kept as it is. Its binding stays `{ kind: "pipeline" }`. The dashboard offers "Run the command directly" as an explicit per-binding action with a preview.
+5. The job writes a report (N of M rebound, N kept, reason per kept row, old pipeline id per rebound row) and never deletes a pipeline row.
+
+### 12.7 Slices
+
+1. Shared type and runner: `ICommandInvoker`, `BindingTarget { Kind, Id }`, OpenAPI snapshot, SDK type. Tests: a reward bound to a `template` command sends the reply; a `code` command runs; a built-in runs with a synthetic user.
+2. Dashboard: one `TargetPicker` replaces the `ReplyModeField` pipeline select and the three hand-rolled selects; a guard test blocks the hand-written form.
+3. Surfaces by live use: reward, event response, timer, chat trigger, schedule, giveaway, catalog.
+4. Automation API: `POST /automation/v1/invoke` accepts `{ kind, id }`.
+5. Migration job (12.6).
+
+### 12.8 Open decisions (questions for Stoney)
+
+1. Cooldown and permission on a direct run: skip both (proposed, the streamer chose the binding), or apply the command's own cooldown so a reward and `!command` share one limit?
+2. Who is `who` when a trigger has no human (timer, schedule)? Proposed: the channel's bot identity with the broadcaster role.
+3. Stream Deck and the SDK already reach any single action (`action-reach.md`). Should "action" become a third target kind (`{ kind: "action", type, params }`) so the auto-made single-action wrapper pipelines also disappear?
+4. Built-in commands (`!followage`, `!so`): selectable as direct targets (proposed yes), or only custom commands?
+5. A `template` command bound to a reward: send the reply as the bot voice (proposed), or also honor its TTS flag (`SpeakWithTts`)?
+6. Automation tokens: replace `AllowedPipelineIds` with an allowed-targets list (breaking for existing tokens, needs a migration), or add `AllowedCommandIds` beside it?
+7. A bound command is deleted or disabled: block with a blast-radius list (proposed, as pipelines do), or clear the binding?
