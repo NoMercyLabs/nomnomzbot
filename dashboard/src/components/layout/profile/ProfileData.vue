@@ -30,6 +30,8 @@ const props = defineProps<{
   profile: PersonProfile;
   twitchUserId: string;
   name: string;
+  // The header counter: Overview and Data show this one number, not a second count of the usage rows.
+  commandsUsed: number;
 }>();
 
 const { t, n, locale } = useI18n();
@@ -64,9 +66,10 @@ const consent = computed<KeyValueItem[]>(() => {
 
 // What a permit grants, in words: a role by its name, a single action by its key, and when it ends.
 function permitText(permit: Permit): string {
-  const role = permit.grantType === ROLE_GRANT && permit.grantedRole !== null
-    ? teamRoles[Number(permit.grantedRole)]?.toLowerCase()
-    : undefined;
+  const role =
+    permit.grantType === ROLE_GRANT && permit.grantedRole !== null
+      ? teamRoles[Number(permit.grantedRole)]?.toLowerCase()
+      : undefined;
   const what = role
     ? t('profile.data.permitRole', { role: t(`profile.manager.${role}`) })
     : t('profile.data.permitAction', { action: permit.capabilityActionKey ?? '' });
@@ -86,7 +89,7 @@ const commands = computed<KeyValueItem[]>(() => {
   const usage = props.profile.commandUsage;
 
   return [
-    { label: t('profile.data.commandsUsed'), value: n(Number(usage.totalCommandsUsed)) },
+    { label: t('profile.data.commandsUsed'), value: n(props.commandsUsed) },
     { label: t('profile.data.commandLast'), value: dateOrNull(usage.lastUsedUtc) },
     {
       label: t('profile.data.songRequests'),
@@ -98,34 +101,39 @@ const commands = computed<KeyValueItem[]>(() => {
 });
 
 const quotes = computed<Quote[]>(() => props.profile.recentQuotes);
-const moreQuotes = computed<number>(() =>
-  Number(props.profile.totalQuoteCount) - quotes.value.length);
+const moreQuotes = computed<number>(
+  () => Number(props.profile.totalQuoteCount) - quotes.value.length,
+);
 </script>
 
 <template>
   <div data-slot="profile-data" class="grid gap-6">
     <div class="grid gap-6 sm:grid-cols-2">
       <section class="grid content-start gap-2">
-        <h3 class="text-sm font-semibold">{{ $t('profile.data.consent') }}</h3>
+        <h3 class="text-sm font-semibold">{{ $t("profile.data.consent") }}</h3>
         <KeyValueList :items="consent" />
-        <h3 class="pt-2 text-sm font-semibold">{{ $t('profile.data.permits') }}</h3>
-        <p v-if="permits.length === 0" class="text-sm text-muted-foreground">{{ $t('profile.data.noPermits') }}</p>
+        <h3 class="pt-2 text-sm font-semibold">{{ $t("profile.data.permits") }}</h3>
+        <p v-if="permits.length === 0" class="text-sm text-muted-foreground">
+          {{ $t("profile.data.noPermits") }}
+        </p>
         <ul v-else data-profile-permits class="grid gap-1 text-sm">
           <li v-for="permit in permits" :key="permit.id" class="grid">
             <span>{{ permitText(permit) }}</span>
-            <span v-if="permit.reason" class="text-xs text-muted-foreground">{{ permit.reason }}</span>
+            <span v-if="permit.reason" class="text-xs text-muted-foreground">{{
+              permit.reason
+            }}</span>
           </li>
         </ul>
       </section>
       <section class="grid content-start gap-2">
-        <h3 class="text-sm font-semibold">{{ $t('profile.data.commands') }}</h3>
+        <h3 class="text-sm font-semibold">{{ $t("profile.data.commands") }}</h3>
         <KeyValueList :items="commands" />
       </section>
     </div>
 
     <section class="grid content-start gap-2">
-      <h3 class="text-sm font-semibold">{{ $t('profile.data.lines') }}</h3>
-      <h4 class="text-sm text-muted-foreground">{{ $t('profile.data.shoutout') }}</h4>
+      <h3 class="text-sm font-semibold">{{ $t("profile.data.lines") }}</h3>
+      <h4 class="text-sm text-muted-foreground">{{ $t("profile.data.shoutout") }}</h4>
       <ProfileShoutoutLine
         :twitch-user-id="twitchUserId"
         :name="name"
@@ -135,28 +143,34 @@ const moreQuotes = computed<number>(() =>
     </section>
 
     <section class="grid content-start gap-2">
-      <h3 class="text-sm font-semibold">{{ $t('profile.data.quotes') }}</h3>
-      <p v-if="quotes.length === 0" class="text-sm text-muted-foreground">{{ $t('profile.data.noQuotes') }}</p>
+      <h3 class="text-sm font-semibold">{{ $t("profile.data.quotes") }}</h3>
+      <p v-if="quotes.length === 0" class="text-sm text-muted-foreground">
+        {{ $t("profile.data.noQuotes") }}
+      </p>
       <ul v-else data-profile-quotes class="grid gap-1 text-sm">
-        <li v-for="quote in quotes" :key="quote.id" class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3">
+        <li
+          v-for="quote in quotes"
+          :key="quote.id"
+          class="grid grid-cols-[auto_minmax(0,1fr)] gap-x-3"
+        >
           <span class="text-muted-foreground tabular-nums">{{
-            $t('profile.data.quoteNumber', { number: quote.number })
+            $t("profile.data.quoteNumber", { number: quote.number })
           }}</span>
           <span class="wrap-anywhere">{{ quote.text }}</span>
         </li>
         <li v-if="moreQuotes > 0" class="text-muted-foreground">
-          {{ $t('profile.data.moreQuotes', { count: moreQuotes }, moreQuotes) }}
+          {{ $t("profile.data.moreQuotes", { count: moreQuotes }, moreQuotes) }}
         </li>
       </ul>
     </section>
 
     <section class="grid content-start gap-2">
-      <h3 class="text-sm font-semibold">{{ $t('profile.data.saved') }}</h3>
+      <h3 class="text-sm font-semibold">{{ $t("profile.data.saved") }}</h3>
       <KeyValueList
         v-if="profile.freeFormData.length > 0"
         :items="profile.freeFormData.map((datum) => ({ label: datum.key, value: datum.value }))"
       />
-      <p v-else class="text-sm text-muted-foreground">{{ $t('profile.data.noSaved') }}</p>
+      <p v-else class="text-sm text-muted-foreground">{{ $t("profile.data.noSaved") }}</p>
     </section>
   </div>
 </template>

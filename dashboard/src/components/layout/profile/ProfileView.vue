@@ -373,7 +373,12 @@ async function banNow(): Promise<void> {
             </TabsContent>
 
             <TabsContent value="data" force-mount :class="PANEL_CLASS">
-              <ProfileData :profile="viewerProfile" :twitch-user-id="userId" :name="title" />
+              <ProfileData
+                :profile="viewerProfile"
+                :twitch-user-id="userId"
+                :name="title"
+                :commands-used="Number(person?.commandsUsed ?? 0)"
+              />
             </TabsContent>
           </template>
 
@@ -381,7 +386,7 @@ async function banNow(): Promise<void> {
             <!-- What the bot keeps about this person, one label column like the Overview (owner 2026-10-14). -->
             <dl
               data-profile-settings
-              class="grid grid-cols-[minmax(6rem,max-content)_minmax(0,1fr)] items-center gap-x-4 gap-y-3 text-sm"
+              class="grid grid-cols-1 gap-x-4 gap-y-1 text-sm sm:grid-cols-[minmax(6rem,max-content)_minmax(0,1fr)] sm:items-center sm:gap-y-3"
             >
               <template v-if="!isOwner">
                 <dt class="text-muted-foreground">{{ $t("profile.botStanding.title") }}</dt>

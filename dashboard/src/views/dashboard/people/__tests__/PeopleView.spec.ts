@@ -541,7 +541,7 @@ describe('PeopleView', () => {
     expect(points).toMatch(/Leaderboard\s*Hidden by their choice/);
     expect(data).toMatch(/Confirmed 18\+ for games\s*Not asked yet/);
     expect(data).toMatch(/Own shoutout line\s*Go follow \{name\}!/);
-    expect(data).toMatch(/Commands used\s*14/);
+    expect(data).toMatch(/Commands used\s*7/);
     expect(data).toMatch(/#42\s*never trust a bot/);
     expect(data).toContain('2 more quotes');
     expect(data).toMatch(/favorite game\s*Celeste/);
@@ -599,6 +599,22 @@ describe('PeopleView', () => {
     expect(router.currentRoute.value.query.u).toBeUndefined();
     expect(router.currentRoute.value.query.view).toBe('moderator');
     expect(document.body.querySelector('[data-person-detail]')).toBeNull();
+  });
+
+  // P6c defect A: Escape with the Timeout menu open closed the menu and the whole profile in one keypress.
+  it('leaves the profile open when Escape is pressed with a menu open', async () => {
+    await open('/app/people?u=alice');
+
+    const menu = document.createElement('div');
+
+    menu.setAttribute('role', 'menu');
+    menu.setAttribute('data-state', 'open');
+    document.body.append(menu);
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await settle();
+    menu.remove();
+
+    expect(router.currentRoute.value.query.u).toBe('alice');
   });
 
   it('leaves the profile open when Escape is pressed while typing in the search', async () => {

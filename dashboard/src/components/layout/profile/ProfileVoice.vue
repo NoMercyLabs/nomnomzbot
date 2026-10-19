@@ -66,18 +66,20 @@ const editOpen = ref(false);
 <template>
   <!-- The value of the Settings list row: the current voice and its actions on one line; the row label names it. -->
   <div data-slot="profile-voice">
-    <p v-if="state === 'empty'" class="text-sm text-muted-foreground">{{ $t('profile.voice.noAccess') }}</p>
+    <p v-if="state === 'empty'" class="text-sm text-muted-foreground">
+      {{ $t("profile.voice.noAccess") }}
+    </p>
     <Skeleton v-else-if="state === 'loading'" class="h-10 rounded-lg" />
     <div v-else-if="state === 'error'" role="alert" class="flex items-center gap-3 text-sm">
-      <span class="flex-1 text-destructive">{{ $t('profile.voice.error') }}</span>
+      <span class="flex-1 text-destructive">{{ $t("profile.voice.error") }}</span>
       <Button type="button" variant="outline" size="sm" @click="personVoice.refetch()">
-        {{ $t('common.panel.retry') }}
+        {{ $t("common.panel.retry") }}
       </Button>
     </div>
-    <div v-else class="flex items-center gap-3">
-      <div class="grid min-w-0 flex-1 text-sm">
-        <span data-profile-voice-name class="truncate font-medium">{{ title }}</span>
-        <span class="truncate text-muted-foreground">{{ detail }}</span>
+    <div v-else class="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div class="grid min-w-48 flex-1 text-sm">
+        <span data-profile-voice-name class="wrap-anywhere font-medium">{{ title }}</span>
+        <span class="wrap-anywhere text-muted-foreground">{{ detail }}</span>
       </div>
       <PlaySampleButton v-if="voice" :voice-id="voice.voiceId" compact />
       <Button
@@ -88,7 +90,7 @@ const editOpen = ref(false);
         size="sm"
         @click="editOpen = true"
       >
-        {{ $t('profile.voice.change') }}
+        {{ $t("profile.voice.change") }}
       </Button>
     </div>
   </div>

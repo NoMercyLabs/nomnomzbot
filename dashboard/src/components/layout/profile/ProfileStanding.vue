@@ -42,8 +42,9 @@ const state = computed(() =>
     ? readState.value
     : 'empty');
 
-const level = computed<StandingLevel | null>(() =>
-  (standing.data.value?.standing as StandingLevel | undefined) ?? null);
+const level = computed<StandingLevel | null>(
+  () => (standing.data.value?.standing as StandingLevel | undefined) ?? null,
+);
 const levelKey = computed(() => level.value ?? 'normal');
 
 // The reason and date of a standing someone set; the default standing has neither.
@@ -62,23 +63,27 @@ const editOpen = ref(false);
 <template>
   <!-- The value of the Settings list row, like the TTS voice: the level, what it does, and Change. -->
   <div data-slot="profile-standing">
-    <p v-if="state === 'empty'" class="text-sm text-muted-foreground">{{ $t('profile.botStanding.noAccess') }}</p>
+    <p v-if="state === 'empty'" class="text-sm text-muted-foreground">
+      {{ $t("profile.botStanding.noAccess") }}
+    </p>
     <Skeleton v-else-if="state === 'loading'" class="h-10 rounded-lg" />
     <div v-else-if="state === 'error'" role="alert" class="flex items-center gap-3 text-sm">
-      <span class="flex-1 text-destructive">{{ $t('profile.botStanding.error') }}</span>
+      <span class="flex-1 text-destructive">{{ $t("profile.botStanding.error") }}</span>
       <Button type="button" variant="outline" size="sm" @click="standing.refetch()">
-        {{ $t('common.panel.retry') }}
+        {{ $t("common.panel.retry") }}
       </Button>
     </div>
-    <div v-else class="flex items-center gap-3">
-      <div class="grid min-w-0 flex-1 text-sm">
+    <div v-else class="flex flex-wrap items-center gap-x-3 gap-y-2">
+      <div class="grid min-w-48 flex-1 text-sm">
         <span data-profile-standing-name class="font-medium">{{
           $t(`profile.botStanding.levels.${levelKey}.name`)
         }}</span>
         <span data-profile-standing-effect class="text-muted-foreground">{{
           $t(`profile.botStanding.levels.${levelKey}.effect`)
         }}</span>
-        <span v-if="note" data-profile-standing-note class="text-muted-foreground wrap-anywhere">{{ note }}</span>
+        <span v-if="note" data-profile-standing-note class="text-muted-foreground wrap-anywhere">{{
+          note
+        }}</span>
       </div>
       <Button
         data-profile-standing-change
@@ -89,7 +94,7 @@ const editOpen = ref(false);
         :title="canWrite ? undefined : $t('profile.botStanding.noWrite')"
         @click="editOpen = true"
       >
-        {{ $t('profile.botStanding.change') }}
+        {{ $t("profile.botStanding.change") }}
       </Button>
     </div>
   </div>

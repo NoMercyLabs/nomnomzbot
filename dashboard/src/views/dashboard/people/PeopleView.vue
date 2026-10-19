@@ -400,12 +400,22 @@ function isTyping(target: EventTarget | null): boolean {
   );
 }
 
+// An open menu or list takes the first Escape itself (it closes in the same keypress), so the profile stays.
+function isMenuOpen(): boolean {
+  return (
+    document.querySelector(
+      '[role="menu"][data-state="open"], [role="listbox"][data-state="open"]',
+    ) !== null
+  );
+}
+
 // Escape closes the open profile, as the Back link and browser Back do. A key meant for the search box stays there.
 function closeOnEscape(event: KeyboardEvent): void {
   if (
     event.key !== 'Escape' ||
     event.defaultPrevented ||
     isTyping(event.target) ||
+    isMenuOpen() ||
     asked.value === ''
   ) return;
 

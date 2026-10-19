@@ -979,6 +979,44 @@ describe('the profile dialog', () => {
     expect(panel?.textContent).toContain('No active permits.');
   });
 
+  // P6c defect B: Overview said 87 commands, Data said 131. Both read the one counter now.
+  it('shows the same command count on the Data tab as in the header', async () => {
+    profiles.g1!.commandUsage = { totalCommandsUsed: 12, lastUsedUtc: null };
+
+    await openPage();
+    await openUser('u1');
+
+    const header = document.body.textContent ?? '';
+
+    expect(header).toContain('7');
+
+    await openTab('Data');
+
+    const row = Array.from(document.body.querySelectorAll('[data-slot="key-value-list"] *')).find(
+      (line) => line.textContent?.trim() === 'Commands used',
+    );
+
+    expect(row?.nextElementSibling?.textContent?.trim()).toBe('7');
+  });
+
+  // P6c defect C: on a phone the settings label, value and button squeezed into a few narrow columns.
+  it('stacks the settings label above its value on a phone and lets the row wrap', async () => {
+    held = [...merge(held, ['tts:voice:read', 'tts:uservoice:write'])];
+
+    await openPage();
+    await openUser('u1');
+    await openTab('Settings');
+
+    const list = document.body.querySelector('[data-profile-settings]')!;
+
+    expect(list.className).toContain('grid-cols-1');
+    expect(list.className).toContain('sm:grid-cols-');
+
+    expect(document.body.querySelector('[data-slot="profile-voice"] > div')?.className).toContain(
+      'flex-wrap',
+    );
+  });
+
   it('says what each active permit grants, until when and why', async () => {
     const permit = {
       userId: 'g1',
