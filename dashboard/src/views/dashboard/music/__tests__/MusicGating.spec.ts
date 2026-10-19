@@ -108,14 +108,25 @@ async function openCard(keys: string[]): Promise<VueWrapper> {
   return mounted;
 }
 
-async function openBulkRemove(keys: string[]): Promise<VueWrapper> {
+// Bamo16 asked twice: the one requester the remove-all row is for.
+const secondSong: QueueItem = {
+  ...song,
+  position: 2,
+  number: 2,
+  trackName: 'Ghosts n Stuff',
+};
+
+async function openBulkRemove(
+  keys: string[],
+  rows: QueueItem[] = [song, secondSong],
+): Promise<VueWrapper> {
   held.keys = keys;
 
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
   mounted = mount(RequesterBulkRemove, {
     attachTo: document.body,
-    props: { rows: [song] },
+    props: { rows },
     global: { plugins: [i18n, [VueQueryPlugin, { queryClient }]] },
   });
 
@@ -166,5 +177,13 @@ describe('music shows only what the person may use', () => {
     const moderator = await openBulkRemove(['music:queue:moderate']);
 
     expect(moderator.find('[data-requester-remove]').exists()).toBe(true);
+  });
+
+  // Stoney 2026-10-19: "extra useless dropdowns". A requester with one song is removed by that row's own button.
+  it('shows no remove-by-requester picker while every requester has one song', async () => {
+    const other: QueueItem = { ...secondSong, requestedBy: 'iFiLLz' };
+    const view = await openBulkRemove(['music:queue:moderate'], [song, other]);
+
+    expect(view.find('[data-requester-remove]').exists()).toBe(false);
   });
 });

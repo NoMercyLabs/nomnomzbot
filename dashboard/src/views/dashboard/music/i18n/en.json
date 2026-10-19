@@ -57,8 +57,7 @@
         "progress": "{position} of {length}"
       },
       "playback": {
-        "menu": "Music settings",
-        "on": "Playback is on",
+        "label": "Playback",
         "help": "Turn this off to stop all playback."
       },
       "queue": {

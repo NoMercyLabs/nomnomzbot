@@ -57,8 +57,7 @@
         "progress": "{position} van {length}"
       },
       "playback": {
-        "menu": "Muziekinstellingen",
-        "on": "Afspelen staat aan",
+        "label": "Afspelen",
         "help": "Zet dit uit om al het afspelen te stoppen."
       },
       "queue": {

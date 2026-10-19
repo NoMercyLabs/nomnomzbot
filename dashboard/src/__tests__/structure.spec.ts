@@ -903,3 +903,75 @@ describe('refusal fields', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+// Stoney 2026-10-14 and 2026-10-19 ("double borders ... a related pattern that keeps coming back"): a closed dialog,
+// sheet, menu, popover or select handed the focus back to its button, and the browser drew a focus ring there. Every
+// wrapper of a focus-returning reka part binds the keyboard-only focus return (lib/focusReturn.ts).
+const focusReturningPart =
+  /import\s*\{[^}]*\b(AlertDialogContent|DialogContent|DrawerContent|DropdownMenuContent|PopoverContent|SelectContent|ContextMenuContent|MenubarContent|ComboboxContent)\b[^}]*\}\s*from\s*'reka-ui'/;
+const keyboardOnlyFocusReturn = '@close-auto-focus="returnFocusOnlyForKeyboard"';
+
+function overlayWrappers(): string[] {
+  return allPaths(join(src, 'components/ui'))
+    .filter((path) => path.endsWith('.vue'))
+    .filter((path) => focusReturningPart.test(readFileSync(path, 'utf8')))
+    .map((path) => relative(src, path).replace(/\\/g, '/'));
+}
+
+describe('focus after an overlay closes', () => {
+  it('spots a wrapper of a focus-returning reka part', () => {
+    expect(focusReturningPart.test('import {\n  DialogContent,\n  DialogPortal,\n} from \'reka-ui\'')).toBe(true);
+    expect(focusReturningPart.test('import type { DialogContentEmits } from \'reka-ui\'')).toBe(false);
+    expect(focusReturningPart.test('import { DialogContent } from \'@/components/ui/dialog\'')).toBe(false);
+  });
+
+  it('hands the focus back only after a keyboard close in every overlay wrapper', () => {
+    const wrappers = overlayWrappers();
+    const unbound = wrappers.filter((path) =>
+      !readFileSync(join(src, path), 'utf8').includes(keyboardOnlyFocusReturn));
+
+    expect(wrappers).toHaveLength(8);
+    expect(unbound).toEqual([]);
+  });
+});
+
+// Stoney 2026-10-19: "extra useless dropdowns". A menu that holds one item is a click with nothing to choose: that
+// item belongs on the page as its own button or switch. A menu whose items come from a v-for is a list, never one.
+const menuBlock = /<DropdownMenuContent\b[\s\S]*?<\/DropdownMenuContent>/g;
+const menuEntry = /<DropdownMenu(?:Checkbox|Radio)?Item\b([^>]*)>|<DropdownMenuSub\b/g;
+
+function singleItemMenus(text: string): number {
+  return [...text.matchAll(menuBlock)].filter((block) => {
+    const entries = [...block[0].matchAll(menuEntry)];
+
+    return entries.length < 2 && !entries.some((entry) => (entry[1] ?? '').includes('v-for'));
+  }).length;
+}
+
+function singleItemMenusIn(path: string): number {
+  const text = readFileSync(join(src, path), 'utf8');
+
+  return singleItemMenus(text);
+}
+
+describe('menus', () => {
+  it('spots a menu with one item, and passes a list or a menu of two', () => {
+    const one = '<DropdownMenuContent><DropdownMenuCheckboxItem :model-value="on" /></DropdownMenuContent>';
+    const two = '<DropdownMenuContent><DropdownMenuItem>a</DropdownMenuItem><DropdownMenuItem>b</DropdownMenuItem></DropdownMenuContent>';
+    const list = '<DropdownMenuContent><DropdownMenuItem v-for="x in xs">x</DropdownMenuItem></DropdownMenuContent>';
+
+    expect(singleItemMenus(one)).toBe(1);
+    expect(singleItemMenus(two)).toBe(0);
+    expect(singleItemMenus(list)).toBe(0);
+  });
+
+  it('opens no menu that holds a single item', () => {
+    const offenders = allPaths(src)
+      .filter((path) => path.endsWith('.vue'))
+      .map((path) => relative(src, path).replace(/\\/g, '/'))
+      .filter((path) => !path.startsWith('components/ui/'))
+      .filter((path) => singleItemMenusIn(path) > 0);
+
+    expect(offenders).toEqual([]);
+  });
+});

@@ -681,34 +681,22 @@ describe('MusicView', () => {
     );
   });
 
-  // Stoney 2026-10-19: "i also don't need the same button twice lol". Music on/off leaves the request rules
-  // and sits in the page's own menu, worded as playback so it never reads as the requests switch.
-  it('turns all playback off from the page menu with one PUT of isEnabled', async () => {
+  // Stoney 2026-10-19: "i also don't need the same button twice lol". Music on/off leaves the request rules, worded
+  // as playback so it never reads as the requests switch. Then: "extra useless dropdowns". It is a switch on the
+  // Now playing panel, never a menu that holds only this one item.
+  it('turns all playback off from the Now playing switch with one PUT of isEnabled', async () => {
     heldActionKeys = ['music:queue:moderate', 'music:config:read', 'music:config:write'];
     answers['/music/config'] = () => ok({ isEnabled: true });
     await open();
 
-    expect(document.body.textContent).not.toContain('Music is on');
+    const playback = document.body.querySelector<HTMLElement>('[data-music-playback]');
+    const toggle = playback?.querySelector<HTMLButtonElement>('[role="switch"]');
 
-    Element.prototype.hasPointerCapture = (): boolean => false;
-    Element.prototype.releasePointerCapture = (): void => undefined;
-    Element.prototype.scrollIntoView = (): void => undefined;
-
-    document.body.querySelector<HTMLButtonElement>('[data-music-menu]')!.dispatchEvent(
-      new KeyboardEvent('keydown', {
-        key: 'Enter',
-        bubbles: true,
-      }),
-    );
-
-    await settle();
-
-    const item = document.body.querySelector<HTMLElement>('[data-music-playback]');
-
-    expect(item?.textContent).toContain('Playback is on');
-    expect(item?.textContent).toContain('Turn this off to stop all playback');
-    expect(item?.textContent).not.toContain('request');
-    item!.click();
+    expect(document.body.querySelector('[data-music-menu]')).toBeNull();
+    expect(playback?.textContent).toContain('Playback');
+    expect(playback?.textContent).not.toContain('request');
+    expect(toggle?.getAttribute('aria-checked')).toBe('true');
+    toggle!.click();
     await settle();
 
     expect(writes()).toHaveLength(1);

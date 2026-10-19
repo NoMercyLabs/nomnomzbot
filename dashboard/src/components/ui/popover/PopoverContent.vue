@@ -7,6 +7,7 @@ import {
   PopoverPortal,
   useForwardPropsEmits,
 } from 'reka-ui'
+import { returnFocusOnlyForKeyboard } from '@/lib/focusReturn'
 import { cn } from '@/lib/utils'
 
 defineOptions({
@@ -32,6 +33,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     <PopoverContent
       data-slot="popover-content"
       v-bind="{ ...$attrs, ...forwarded }"
+      @close-auto-focus="returnFocusOnlyForKeyboard"
       :class="
         cn(
           'bg-popover text-popover-foreground data-open:animate-in data-closed:animate-out data-closed:fade-out-0 data-open:fade-in-0 data-closed:zoom-out-95 data-open:zoom-in-95 data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 ring-foreground/10 flex flex-col gap-4 rounded-md p-4 text-sm shadow-md ring-1 duration-100 z-50 w-72 max-w-(--reka-popover-content-available-width) origin-(--reka-popover-content-transform-origin) outline-hidden',

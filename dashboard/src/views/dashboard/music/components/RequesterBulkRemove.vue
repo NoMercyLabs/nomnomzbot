@@ -35,7 +35,10 @@ const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const removeAll = useRemoveRequesterSongs(channelId);
 
-const requesters = computed<Requester[]>(() => requestersIn(props.rows));
+// A requester with one song is removed by that row's own button. Only someone with more songs needs this, so the
+// picker lists only them and stays away while there is nobody (Stoney 2026-10-19: "extra useless dropdowns").
+const requesters = computed<Requester[]>(() =>
+  requestersIn(props.rows).filter((requester) => requester.count > 1));
 const picked = ref<string>('');
 const confirmOpen = ref<boolean>(false);
 const chosen = computed<Requester | undefined>(() =>

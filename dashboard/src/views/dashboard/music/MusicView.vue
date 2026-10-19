@@ -45,14 +45,8 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
-import MenuDotsHorizontal from '~icons/nnz/menu-dots-horizontal';
+import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import { Button } from '@/components/ui/button';
-import {
-  DropdownMenu,
-  DropdownMenuCheckboxItem,
-  DropdownMenuContent,
-  DropdownMenuTrigger,
-} from '@/components/ui/dropdown-menu';
 import SidePanel from '@/components/layout/SidePanel.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useBoard } from '@/composables/useBoard';
@@ -87,8 +81,8 @@ const configQuery = useMusicConfig(channelId);
 const saveConfig = useSaveMusicConfig(channelId);
 const playbackOn = computed(() => configQuery.data.value?.isEnabled);
 
-function setPlayback(on: boolean | 'indeterminate'): void {
-  saveConfig.mutate({ isEnabled: on === true });
+function setPlayback(on: boolean): void {
+  saveConfig.mutate({ isEnabled: on });
 }
 
 const nowPlaying = computed<NonNullable<typeof queueQuery.data.value>['nowPlaying']>(
@@ -257,31 +251,6 @@ const span = layout.span;
         <IconRules aria-hidden="true" />
         {{ $t("dashboard.music.rules.title") }}
       </Button>
-      <!-- Music on/off is not a request rule: it stops all playback, so it lives in the page menu. -->
-      <DropdownMenu v-if="canWriteConfig && playbackOn !== undefined">
-        <DropdownMenuTrigger as-child>
-          <Button
-            data-music-menu
-            variant="outline"
-            size="icon"
-            :aria-label="$t('dashboard.music.playback.menu')"
-          >
-            <MenuDotsHorizontal class="size-5" aria-hidden="true" />
-          </Button>
-        </DropdownMenuTrigger>
-        <DropdownMenuContent align="end">
-          <DropdownMenuCheckboxItem
-            data-music-playback
-            :model-value="playbackOn"
-            @update:model-value="setPlayback"
-          >
-            <span class="grid">
-              <span>{{ $t("dashboard.music.playback.on") }}</span>
-              <span class="text-muted-foreground">{{ $t("dashboard.music.playback.help") }}</span>
-            </span>
-          </DropdownMenuCheckboxItem>
-        </DropdownMenuContent>
-      </DropdownMenu>
       <!-- The panel's own header carries the close button after the master switch (SidePanel's drawer close);
            h-dvh: a phone's browser bars change the visible height, so the footer must follow it. -->
       <SidePanel
@@ -305,6 +274,18 @@ const span = layout.span;
         :error-text="$t('dashboard.music.now.error')"
         @retry="queueQuery.refetch()"
       >
+        <!-- Music on/off is not a request rule: it stops all playback, so it sits with the player it switches.
+             Stoney 2026-10-19: a page menu holding only this one item was an "extra useless dropdown". -->
+        <template v-if="canWriteConfig && playbackOn !== undefined" #actions>
+          <LabeledSwitch
+            data-music-playback
+            :model-value="playbackOn"
+            :label="$t('dashboard.music.playback.label')"
+            :help="$t('dashboard.music.playback.help')"
+            :disabled="saveConfig.isPending.value"
+            @update:model-value="setPlayback"
+          />
+        </template>
         <NowPlayingCard
           v-if="nowPlaying"
           :track="nowPlaying"

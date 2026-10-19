@@ -146,11 +146,16 @@ describe('the target picker', () => {
 
     await openList(wrapper);
 
+    // The action rows wait for their category words, which load after the list opens; in a full run they
+    // arrive later than one flush.
+    await vi.waitFor(() => {
+      expect(document.querySelectorAll('[data-slot="command-item"]').length).toBeGreaterThan(4);
+    }, { timeout: 5000 });
+
     const rows = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="command-item"]'));
     const bare = rows.filter((row) =>
       row.querySelector('svg.size-5') === null || !row.className.includes('min-h-9'));
 
-    expect(rows.length).toBeGreaterThan(4);
     expect(bare).toEqual([]);
   });
 

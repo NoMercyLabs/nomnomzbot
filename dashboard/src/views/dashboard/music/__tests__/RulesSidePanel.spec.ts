@@ -172,9 +172,13 @@ describe.each([1280, 1920])('music request rules side panel at %i px', (width) =
     expect(sheet()).toBeNull();
   });
 
-  it('leaves no header switch for the rules, since the button is the one control', async () => {
+  // The page's one other switch is playback, on the Now playing panel (Stoney 2026-10-19, "extra useless
+  // dropdowns": it left a one-item menu); the requests switch lives only in the rules panel.
+  it('leaves no rules switch in the header, since the button is the one control', async () => {
     await mountAt(width);
 
-    expect(document.body.querySelector('[role="switch"]')).toBeNull();
+    const switches = [...document.body.querySelectorAll('[role="switch"]')];
+
+    expect(switches.filter((toggle) => !toggle.closest('[data-music-playback]'))).toEqual([]);
   });
 });
