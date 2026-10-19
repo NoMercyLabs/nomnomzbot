@@ -57,7 +57,12 @@ const frameActions: Component | null = inject(frameActionsKey, null);
       <slot name="status" />
       <div
         data-slot="page-actions"
-        class="flex w-full flex-wrap items-center gap-3 @2xl:ml-auto @2xl:w-auto @2xl:shrink-0 @2xl:flex-nowrap"
+        class="flex items-center gap-3"
+        :class="
+          $slots.actions
+            ? 'w-full flex-wrap @2xl:ml-auto @2xl:w-auto @2xl:shrink-0 @2xl:flex-nowrap'
+            : 'ml-auto shrink-0 flex-nowrap'
+        "
       >
         <span v-if="$slots.meta"
               class="hidden text-muted-foreground @4xl:inline"

@@ -33,6 +33,17 @@ describe('PageHeader actions group', () => {
   });
 });
 
+describe('PageHeader without page actions', () => {
+  const wrapper = mount(PageHeader, { props: { title: 'Readability' } });
+  const classes = wrapper.get('[data-slot="page-actions"]').classes();
+
+  it('keeps the frame icons beside the title on a phone instead of a row of their own', () => {
+    expect(classes).not.toContain('w-full');
+    expect(classes).toContain('ml-auto');
+    expect(classes).toContain('flex-nowrap');
+  });
+});
+
 describe('PageHeader back link', () => {
   const router = createRouter({
     history: createMemoryHistory(),

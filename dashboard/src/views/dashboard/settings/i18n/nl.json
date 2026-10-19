@@ -55,17 +55,19 @@
         "cooldown": {
           "section": "Tempo",
           "title": "Tijd tussen begroetingen",
-          "description": "De bot begroet in deze tijd hooguit een kijker. Gebruik 0 voor geen limiet.",
+          "description": "De bot begroet in deze tijd hooguit een kijker. Gebruik 0 voor geen limiet. Standaard: 5 seconden.",
           "unit": "seconden"
         },
+        "defaultOff": "Standaard: uit.",
+        "reset": "Standaardwaarden herstellen",
         "milestones": {
           "title": "Mijlpalen van reeksen",
-          "description": "De bot viert een kijker wanneer de reeks een van deze aantallen bereikt.",
+          "description": "De bot viert een kijker wanneer de reeks een van deze aantallen bereikt. Standaard: geen, dan viert hij elke stream.",
           "item": "Mijlpaal {number}",
           "unit": "streams achter elkaar",
           "add": "Mijlpaal toevoegen",
           "remove": "Mijlpaal {number} verwijderen",
-          "empty": "Geen mijlpalen. Voeg er een toe om reeksen te vieren."
+          "empty": "Geen mijlpalen: de bot viert de reeks van een kijker bij elke stream. Voeg een aantal toe om dat te beperken."
         }
       },
       "basics": {
@@ -103,6 +105,7 @@
         "title": "Leesbaarheid",
         "description": "Hoe tekst eruitziet voor jou op elke pagina. De chat heeft eigen opmaakopties in het paneel Weergave.",
         "footer": "Wijzigingen werken direct en worden op dit apparaat bewaard.",
+        "defaultIs": "Standaard: {value}.",
         "presets": {
           "title": "Begin met een voorinstelling",
           "description": "Een voorinstelling zet alle opties hieronder. Pas daarna elke optie aan. Dyslexievriendelijk gebruikt Lexend op 16 px met meer ruimte en zonder beweging.",
@@ -148,7 +151,9 @@
         },
         "contrast": {
           "title": "Hoog contrast",
-          "description": "Rustige tekst wordt vol sterk en randen worden duidelijker."
+          "description": "Rustige tekst wordt vol sterk en randen worden duidelijker.",
+          "on": "Aan",
+          "off": "Uit"
         },
         "motion": {
           "title": "Minder beweging",

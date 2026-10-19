@@ -205,6 +205,29 @@ describe('Readability options', () => {
     scope.stop();
   });
 
+  it('every option names its default, taken from the defaults table', async () => {
+    await open();
+    const text = document.body.textContent ?? '';
+
+    for (const note of [
+      'Default: Inter.',
+      'Default: 14 px.',
+      'Default: Normal.',
+      'Default: Off.',
+      'Default: Follow system.',
+      'Default: Compact.',
+    ]) {
+      expect(text).toContain(note);
+    }
+  });
+
+  it('the panel does not scroll inside the page, so a phone has one scroll only', async () => {
+    await open();
+    const card = document.body.querySelector('[data-view="readability"]') as HTMLElement;
+
+    expect(card.classList.contains('flex-none')).toBe(true);
+  });
+
   it('says the options are saved on this device, never on the account', async () => {
     await open();
     expect(document.body.textContent).toContain('saved on this device');

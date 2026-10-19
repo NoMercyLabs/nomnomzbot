@@ -20,6 +20,7 @@ import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import {
+  readabilityDefaults,
   readabilitySizeMax,
   readabilitySizeMin,
   useReadability,
@@ -79,6 +80,38 @@ const densities: ComputedRef<Choice<Readability['density']>[]> = computed<
   { value: 'touch', label: t('dashboard.settings.readability.density.touch') },
 ]);
 
+// Every option says what it is when nobody changed it; the value comes from the defaults, never typed here.
+function labelOf<T extends string>(choices: Choice<T>[], value: T): string {
+  return choices.find((choice) => choice.value === value)?.label ?? value;
+}
+
+function withDefault(help: string | undefined, value: string): string {
+  const note = t('dashboard.settings.readability.defaultIs', { value });
+
+  return help
+    ? `${help} ${note}`
+    : note;
+}
+
+const base = 'dashboard.settings.readability';
+
+const help = computed(() => {
+  const defaults = readabilityDefaults;
+  const contrast = t(`${base}.contrast.${defaults.contrast
+    ? 'on'
+    : 'off'}`);
+
+  return {
+    font: withDefault(t(`${base}.font.description`), labelOf(fonts.value, defaults.font)),
+    size: withDefault(t(`${base}.size.description`), t(`${base}.size.value`, { size: defaults.size })),
+    lineSpacing: withDefault(undefined, labelOf(lineSpacings.value, defaults.lh)),
+    spacing: withDefault(t(`${base}.spacing.description`), labelOf(spacings.value, defaults.spacing)),
+    contrast: withDefault(t(`${base}.contrast.description`), contrast),
+    motion: withDefault(t(`${base}.motion.description`), labelOf(motions.value, defaults.motion)),
+    density: withDefault(t(`${base}.density.description`), labelOf(densities.value, defaults.density)),
+  };
+});
+
 function setSize(next: number[] | undefined): void {
   const size = next?.[0];
 
@@ -91,6 +124,7 @@ function setSize(next: number[] | undefined): void {
 <template>
   <PanelCard
     data-view="readability"
+    class="flex-none"
     pad
     :title="$t('dashboard.settings.readability.title')"
     :description="$t('dashboard.settings.readability.description')"
@@ -150,7 +184,7 @@ function setSize(next: number[] | undefined): void {
         <RowGroup>
           <ReadabilityRow
             :title="$t('dashboard.settings.readability.font.title')"
-            :description="$t('dashboard.settings.readability.font.description')"
+            :description="help.font"
           >
             <SegmentedControl
               v-model="settings.font"
@@ -160,7 +194,7 @@ function setSize(next: number[] | undefined): void {
           </ReadabilityRow>
           <ReadabilityRow
             :title="$t('dashboard.settings.readability.size.title')"
-            :description="$t('dashboard.settings.readability.size.description')"
+            :description="help.size"
           >
             <Slider
               class="w-56 **:data-[slot=slider-track]:bg-border"
@@ -175,7 +209,10 @@ function setSize(next: number[] | undefined): void {
               $t('dashboard.settings.readability.size.value', { size: settings.size })
             }}</span>
           </ReadabilityRow>
-          <ReadabilityRow :title="$t('dashboard.settings.readability.lineSpacing.title')">
+          <ReadabilityRow
+            :title="$t('dashboard.settings.readability.lineSpacing.title')"
+            :description="help.lineSpacing"
+          >
             <SegmentedControl
               v-model="settings.lh"
               :label="$t('dashboard.settings.readability.lineSpacing.title')"
@@ -184,7 +221,7 @@ function setSize(next: number[] | undefined): void {
           </ReadabilityRow>
           <ReadabilityRow
             :title="$t('dashboard.settings.readability.spacing.title')"
-            :description="$t('dashboard.settings.readability.spacing.description')"
+            :description="help.spacing"
           >
             <SegmentedControl
               v-model="settings.spacing"
@@ -205,11 +242,11 @@ function setSize(next: number[] | undefined): void {
           <SettingRow
             v-model="settings.contrast"
             :title="$t('dashboard.settings.readability.contrast.title')"
-            :description="$t('dashboard.settings.readability.contrast.description')"
+            :description="help.contrast"
           />
           <ReadabilityRow
             :title="$t('dashboard.settings.readability.motion.title')"
-            :description="$t('dashboard.settings.readability.motion.description')"
+            :description="help.motion"
           >
             <SegmentedControl
               v-model="settings.motion"
@@ -229,7 +266,7 @@ function setSize(next: number[] | undefined): void {
         <RowGroup>
           <ReadabilityRow
             :title="$t('dashboard.settings.readability.density.control')"
-            :description="$t('dashboard.settings.readability.density.description')"
+            :description="help.density"
           >
             <SegmentedControl
               v-model="settings.density"
