@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Music.PipelineActions;
 using NSubstitute;
@@ -174,7 +175,7 @@ public sealed class PlayTrackOnceTests
         PlayOnceResumeHandler handler = new(
             tracker,
             music,
-            Substitute.For<IYouTubePlayerDispatcher>(),
+            Substitute.For<IPlaybackInputSink>(),
             NullLogger<PlayOnceResumeHandler>.Instance
         );
 
@@ -212,7 +213,7 @@ public sealed class PlayTrackOnceTests
         PlayOnceResumeHandler handler = new(
             tracker,
             music,
-            Substitute.For<IYouTubePlayerDispatcher>(),
+            Substitute.For<IPlaybackInputSink>(),
             NullLogger<PlayOnceResumeHandler>.Instance
         );
 
@@ -260,7 +261,7 @@ public sealed class PlayTrackOnceTests
         PlayOnceResumeHandler handler = new(
             tracker,
             music,
-            Substitute.For<IYouTubePlayerDispatcher>(),
+            Substitute.For<IPlaybackInputSink>(),
             NullLogger<PlayOnceResumeHandler>.Instance
         );
 
@@ -293,7 +294,7 @@ public sealed class PlayTrackOnceTests
         PlayOnceResumeHandler handler = new(
             tracker,
             music,
-            Substitute.For<IYouTubePlayerDispatcher>(),
+            Substitute.For<IPlaybackInputSink>(),
             NullLogger<PlayOnceResumeHandler>.Instance
         );
 

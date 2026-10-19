@@ -12,6 +12,8 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music;
@@ -44,19 +46,19 @@ public sealed class PlayOnceResumeHandler : IEventHandler<PlaybackStateChangedEv
 {
     private readonly IPlayOnceResumeTracker _tracker;
     private readonly IMusicService _music;
-    private readonly IYouTubePlayerDispatcher _players;
+    private readonly IPlaybackInputSink _playback;
     private readonly ILogger<PlayOnceResumeHandler> _logger;
 
     public PlayOnceResumeHandler(
         IPlayOnceResumeTracker tracker,
         IMusicService music,
-        IYouTubePlayerDispatcher players,
+        IPlaybackInputSink playback,
         ILogger<PlayOnceResumeHandler> logger
     )
     {
         _tracker = tracker;
         _music = music;
-        _players = players;
+        _playback = playback;
         _logger = logger;
     }
 
@@ -103,9 +105,14 @@ public sealed class PlayOnceResumeHandler : IEventHandler<PlaybackStateChangedEv
                 resumed.ErrorMessage
             );
 
-            // The ended once video left the waiting request for after the resume; with no resume it plays now.
+            // The ended once video left the waiting request for after the resume; with no resume the director
+            // is told a request waits, and starts it when it has nothing playing.
             if (@event.TrackEnded)
-                await _players.HandOverNextAsync(@event.BroadcasterId, cancellationToken);
+                await _playback.SendAsync(
+                    @event.BroadcasterId,
+                    new RequestAdded(),
+                    cancellationToken
+                );
             return;
         }
 

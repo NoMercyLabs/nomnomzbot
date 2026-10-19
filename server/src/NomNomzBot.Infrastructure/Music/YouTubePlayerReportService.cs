@@ -22,8 +22,8 @@ public sealed class YouTubePlayerReportService(
     IYouTubePlayerStateStore store,
     IYouTubePlayerDispatcher players,
     IEventBus eventBus,
-    IPlayOnceResumeTracker resumeTracker,
     IEngineFeed engineFeed,
+    IPlayOnceResumeTracker resumeTracker,
     ILogger<YouTubePlayerReportService> logger
 ) : IYouTubePlayerReportService
 {
@@ -78,14 +78,14 @@ public sealed class YouTubePlayerReportService(
             || !string.Equals(previous.VideoId, videoId, StringComparison.Ordinal);
         bool ended = parsed is YouTubePlayerState.Ended or YouTubePlayerState.Error;
 
-        // A play-once video that ended is followed by the interrupted one, which the resume handler starts
-        // off the event below; the waiting request plays after that one, so it is not handed over here.
-        if (ended && !(changed && ResumePending(broadcasterId, videoId)))
-            await players.HandOverNextAsync(broadcasterId, cancellationToken);
-
         // Every accepted report reaches the engine, a heartbeat of the same state included, so its progress
-        // stays current. When an engine takes it the director owns the failure notice and the queue.
-        bool fed = await FeedAsync(broadcasterId, videoId, parsed, positionMs, cancellationToken);
+        // stays current. An ended video makes the director start the next request; nothing here pushes it.
+        // A play-once video that ended is no director item, so it advances nothing.
+        // A play-once video that ended with a resume pending is the exception: the resume handler restarts the
+        // interrupted video off the event below, so the director must not also start the waiting request.
+        bool fed =
+            !(ended && changed && ResumePending(broadcasterId, videoId))
+            && await FeedAsync(broadcasterId, videoId, parsed, positionMs, cancellationToken);
 
         // Announced before the playback change below, whose queue reconciler drops the failed request.
         // With no director to take the report, this is the only place the failure is announced.
@@ -142,12 +142,6 @@ public sealed class YouTubePlayerReportService(
         }
     }
 
-    // Only the four names: Enum.TryParse alone also takes a number ("7") or a comma list ("Playing, Paused").
-    private static bool TryParseState(string state, out YouTubePlayerState parsed) =>
-        Enum.TryParse(state, ignoreCase: true, out parsed)
-        && Enum.GetNames<YouTubePlayerState>()
-            .Contains(state.Trim(), StringComparer.OrdinalIgnoreCase);
-
     private bool ResumePending(Guid broadcasterId, string videoId) =>
         resumeTracker.TryPeek(broadcasterId, out PlayOnceResumeState pending)
         && pending.PriorTrackUri is not null
@@ -156,6 +150,12 @@ public sealed class YouTubePlayerReportService(
             YouTubeMusicProvider.WatchUrl(videoId),
             StringComparison.Ordinal
         );
+
+    // Only the four names: Enum.TryParse alone also takes a number ("7") or a comma list ("Playing, Paused").
+    private static bool TryParseState(string state, out YouTubePlayerState parsed) =>
+        Enum.TryParse(state, ignoreCase: true, out parsed)
+        && Enum.GetNames<YouTubePlayerState>()
+            .Contains(state.Trim(), StringComparer.OrdinalIgnoreCase);
 
     private Task PublishAsync(
         Guid broadcasterId,

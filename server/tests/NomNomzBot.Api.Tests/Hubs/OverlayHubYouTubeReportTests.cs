@@ -111,8 +111,8 @@ public sealed class OverlayHubYouTubeReportTests
             store,
             Substitute.For<IYouTubePlayerDispatcher>(),
             Substitute.For<IEventBus>(),
-            new PlayOnceResumeTracker(),
             Substitute.For<IEngineFeed>(),
+            new PlayOnceResumeTracker(),
             NullLogger<YouTubePlayerReportService>.Instance
         );
 

@@ -58,6 +58,9 @@ public sealed class YouTubeEndedAdvancesQueueTests
             return Task.CompletedTask;
         }
 
+        public List<string> Of(string eventType) =>
+            [.. Sent.Where(s => s.EventType == eventType).Select(s => s.EventType)];
+
         public List<string> PlayedVideoIds =>
             [
                 .. Sent.Where(s => s.EventType == "youtube.play")
@@ -154,6 +157,18 @@ public sealed class YouTubeEndedAdvancesQueueTests
         }
     }
 
+    /// <summary>The provider is built before the registry that needs it; this hands its inputs on once it exists.</summary>
+    private sealed class LateSink : IPlaybackInputSink
+    {
+        public IPlaybackInputSink? Inner { get; set; }
+
+        public Task SendAsync(
+            Guid broadcasterId,
+            PlaybackInput input,
+            CancellationToken ct = default
+        ) => Inner!.SendAsync(broadcasterId, input, ct);
+    }
+
     private sealed record Rig(
         MusicService Music,
         YouTubeMusicProvider Provider,
@@ -175,7 +190,7 @@ public sealed class YouTubeEndedAdvancesQueueTests
               "status":{"embeddable":true}}]}
             """;
 
-    private static async Task<Rig> BuildAsync()
+    private static async Task<Rig> BuildAsync(bool attached = true)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         MusicTestDbContext musicDb = MusicTestDbContext.New();
@@ -219,6 +234,7 @@ public sealed class YouTubeEndedAdvancesQueueTests
         FakeTimeProvider clock = new(DateTimeOffset.Parse("2026-10-04T12:00:00Z"));
         RecordingWidgetEventNotifier notifier = new();
         RecordingEventBus bus = new();
+        LateSink lateSink = new();
         YouTubePlayerStateStore playerStore = new(clock);
         YouTubePlayerDispatcher players = new(db, presence, notifier, playerStore);
 
@@ -249,7 +265,8 @@ public sealed class YouTubeEndedAdvancesQueueTests
             handler: handler,
             db: db,
             playerState: playerStore,
-            players: players
+            players: players,
+            playback: lateSink
         );
 
         SongRequestQueueStore queues = new();
@@ -271,12 +288,13 @@ public sealed class YouTubeEndedAdvancesQueueTests
         );
         RealYouTubeEngineFactory engines = new(provider, players, playerStore);
         PlaybackDirectorRegistry registry = new(queues, engines, bus, TimeProvider.System);
+        lateSink.Inner = registry;
         YouTubePlayerReportService reports = new(
             playerStore,
             players,
             bus,
-            new PlayOnceResumeTracker(),
             registry,
+            new PlayOnceResumeTracker(),
             NullLogger<YouTubePlayerReportService>.Instance
         );
         SongRequestQueueReconciler reconciler = new(
@@ -286,6 +304,10 @@ public sealed class YouTubeEndedAdvancesQueueTests
             bus,
             registry
         );
+        // The open player attaches before any request exists, which is how a channel gets its director.
+        if (attached)
+            await registry.SendAsync(Broadcaster, new OutputAttached());
+
         return new(music, provider, reports, reconciler, queues, notifier, bus, engines, registry);
     }
 
@@ -317,9 +339,9 @@ public sealed class YouTubeEndedAdvancesQueueTests
             .Select(e => e.Item.TrackUri)
             .ToList();
 
-    private static async Task<Rig> TwoQueuedAsync()
+    private static async Task<Rig> TwoQueuedAsync(bool attached = true)
     {
-        Rig rig = await BuildAsync();
+        Rig rig = await BuildAsync(attached);
         (await rig.Music.AddToQueueAsync(Broadcaster.ToString(), Watch(First), "viewer1"))
             .IsSuccess.Should()
             .BeTrue();
@@ -373,9 +395,8 @@ public sealed class YouTubeEndedAdvancesQueueTests
                 [Second],
                 "the director starts the next request through the engine exactly once"
             );
-        // S-PD-4c: delete players.HandOverNextAsync. The legacy hand-over still pushes the same video to
-        // the player as well, so the player sees the second request twice until that path is removed.
-        rig.Notifier.PlayedVideoIds.Should().Equal(First, Second, Second);
+        rig.Notifier.PlayedVideoIds.Should()
+            .Equal([First, Second], "only the director pushes the next video");
         QueuedUris(rig)
             .Should()
             .Equal([Watch(Second)], "the second is handed over, not yet playing");
@@ -389,8 +410,73 @@ public sealed class YouTubeEndedAdvancesQueueTests
 
         await ReportAsync(rig, Second, "ended");
 
-        rig.Notifier.PlayedVideoIds.Should().Equal(First, Second, Second);
+        rig.Notifier.PlayedVideoIds.Should().Equal(First, Second);
         QueuedUris(rig).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task The_music_widget_becoming_ready_starts_the_idle_head_once_through_the_engine()
+    {
+        Rig rig = await TwoQueuedAsync();
+        // The first request reached the open player through the legacy push; the director has no state yet.
+        await rig.Registry.SendAsync(Broadcaster, new OutputAttached());
+
+        rig.Engines.YouTube!.StartedVideoIds.Should()
+            .Equal([First], "the director starts the head through the engine exactly once");
+        await rig.Registry.SendAsync(Broadcaster, new OutputAttached());
+        rig.Engines.YouTube.StartedVideoIds.Should()
+            .Equal([First], "a second ready while the head is starting starts nothing again");
+        QueuedUris(rig).Should().Equal(Watch(First), Watch(Second));
+    }
+
+    [Fact]
+    public async Task A_play_once_video_with_no_resume_pending_ends_and_the_director_starts_the_waiting_request_once()
+    {
+        Rig rig = await TwoQueuedAsync();
+        await ReportAsync(rig, First, "playing");
+
+        // The play-once video is no request: it is pushed over the playing one, plays, and ends.
+        (await rig.Music.PlayTrackOnceAsync(Broadcaster.ToString(), Watch(Third)))
+            .IsSuccess.Should()
+            .BeTrue();
+        await ReportAsync(rig, Third, "playing");
+        await ReportAsync(rig, Third, "ended");
+
+        // Nothing is left to resume, so the ended once video hands the player to the waiting request.
+        rig.Engines.YouTube!.StartedVideoIds.Should()
+            .Equal([Second], "the director starts the waiting request exactly once");
+        rig.Notifier.PlayedVideoIds.Should().Equal([First, Third, Second]);
+        QueuedUris(rig).Should().Equal([Watch(Second)], "handed over, not yet reported playing");
+    }
+
+    [Fact]
+    public async Task A_skip_on_the_playing_youtube_head_stops_it_and_the_director_starts_the_next()
+    {
+        Rig rig = await TwoQueuedAsync();
+        await rig.Registry.SendAsync(Broadcaster, new RequestAdded());
+        await ReportAsync(rig, First, "playing");
+        rig.Engines.YouTube!.StartedVideoIds.Should().Equal([First]);
+        int playsBeforeSkip = rig.Notifier.PlayedVideoIds.Count;
+
+        await rig.Provider.SkipAsync(Broadcaster);
+
+        rig.Engines.YouTube.StartedVideoIds.Should()
+            .Equal([First], "the director stops the player first and waits for it to confirm");
+        rig.Notifier.Of("youtube.stop").Should().ContainSingle();
+
+        // The player confirms the stop the way it ends a video.
+        await ReportAsync(rig, First, "ended");
+
+        rig.Engines.YouTube.StartedVideoIds.Should()
+            .Equal(
+                [First, Second],
+                "the confirmed stop makes the director start the next request, once"
+            );
+        // The setup's own push of the head (the hand-over plus the explicit RequestAdded) is not the skip's.
+        rig.Notifier.PlayedVideoIds.Skip(playsBeforeSkip)
+            .Should()
+            .Equal([Second], "the skip starts the next request once");
+        QueuedUris(rig).Should().Equal([Watch(Second)]);
     }
 
     [Fact]
@@ -436,8 +522,7 @@ public sealed class YouTubeEndedAdvancesQueueTests
         rig.Bus.Published.Should().HaveCount(published, "a stale report changes nothing");
         rig.Engines.YouTube!.StartedVideoIds.Should()
             .Equal([Second], "the third request waits until the second ends");
-        // S-PD-4c: delete players.HandOverNextAsync (it still pushes the second video once more).
-        rig.Notifier.PlayedVideoIds.Should().Equal(First, Second, Second);
+        rig.Notifier.PlayedVideoIds.Should().Equal(First, Second);
         (await rig.Provider.GetCurrentTrackAsync(Broadcaster))!.TrackUri.Should().Be(Watch(Second));
         (await rig.Provider.GetQueueAsync(Broadcaster))!
             .Select(t => t.TrackUri)
@@ -448,7 +533,8 @@ public sealed class YouTubeEndedAdvancesQueueTests
     [Fact]
     public async Task A_video_the_player_cannot_play_is_announced_and_the_adapter_leaves_the_queue_to_the_director()
     {
-        Rig rig = await TwoQueuedAsync();
+        // No director yet: the report service is the only place the failure is announced.
+        Rig rig = await TwoQueuedAsync(attached: false);
 
         await ReportAsync(rig, First, "error");
 

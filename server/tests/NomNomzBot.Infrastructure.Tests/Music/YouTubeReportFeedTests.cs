@@ -71,8 +71,8 @@ public sealed class YouTubeReportFeedTests
             _store,
             _dispatcher,
             _bus,
-            new PlayOnceResumeTracker(),
             _registry,
+            new PlayOnceResumeTracker(),
             NullLogger<YouTubePlayerReportService>.Instance
         );
     }

@@ -77,6 +77,7 @@ public sealed class YouTubeMusicProvider
     private readonly ILogger<YouTubeMusicProvider> _logger;
     private readonly IYouTubePlayerStateStore _playerState;
     private readonly IYouTubePlayerDispatcher _players;
+    private readonly IPlaybackInputSink _playback;
     private readonly IYouTubeQuotaCooldown _quota;
     private readonly IYouTubeVideoCache _videos;
     private readonly IYouTubeKeylessResolver _keyless;
@@ -88,6 +89,7 @@ public sealed class YouTubeMusicProvider
         IYouTubeAccessTokenProvider accessTokens,
         IYouTubePlayerStateStore playerState,
         IYouTubePlayerDispatcher players,
+        IPlaybackInputSink playback,
         IYouTubeQuotaCooldown quota,
         IYouTubeVideoCache videos,
         IYouTubeKeylessResolver keyless,
@@ -101,6 +103,7 @@ public sealed class YouTubeMusicProvider
         _videos = videos;
         _playerState = playerState;
         _players = players;
+        _playback = playback;
         _http = httpClientFactory.CreateClient("youtube");
         _apiKeys = apiKeys;
         _accessTokens = accessTokens;
@@ -155,12 +158,11 @@ public sealed class YouTubeMusicProvider
 
     public async Task SkipAsync(Guid broadcasterId, CancellationToken cancellationToken = default)
     {
-        // With no player open the hand-over below puts the waiting request back and still answers true,
-        // which would read as a skip that never happened. No player means nothing to skip.
+        // With no player open a skip would read as done while nothing happened. No player means nothing to skip.
         await OwnerAsync(broadcasterId, cancellationToken);
-        bool handedOver = await _players.HandOverNextAsync(broadcasterId, cancellationToken);
-        if (!handedOver)
-            await _players.StopAsync(broadcasterId, cancellationToken);
+
+        // The director owns the skip: it starts the queue head, or stops and goes idle when none waits.
+        await _playback.SendAsync(broadcasterId, new OwnerSkip(), cancellationToken);
     }
 
     public async Task<bool> HasPlayerAsync(

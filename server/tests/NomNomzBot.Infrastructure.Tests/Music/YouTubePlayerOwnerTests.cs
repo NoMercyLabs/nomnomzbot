@@ -64,6 +64,7 @@ public sealed class YouTubePlayerOwnerTests
         public required RecordingEventBus Bus { get; init; }
         public required FakeTimeProvider Clock { get; init; }
         public required HashSet<Guid> Attached { get; init; }
+        public required IEngineFeed Feed { get; init; }
     }
 
     private static Widget Player(Guid id, DateTime createdAt) =>
@@ -118,15 +119,17 @@ public sealed class YouTubePlayerOwnerTests
         RecordingEventBus bus = new();
         YouTubePlayerStateStore store = new(clock);
         YouTubePlayerDispatcher players = new(db, presence, notifier, store);
+        IEngineFeed feed = Substitute.For<IEngineFeed>();
         Rig rig = new()
         {
             Provider = YouTubeProviderFactory.Create(db: db, playerState: store, players: players),
+            Feed = feed,
             Reports = new YouTubePlayerReportService(
                 store,
                 players,
                 bus,
+                feed,
                 new PlayOnceResumeTracker(),
-                Substitute.For<IEngineFeed>(),
                 NullLogger<YouTubePlayerReportService>.Instance
             ),
             Store = store,
@@ -241,16 +244,24 @@ public sealed class YouTubePlayerOwnerTests
     }
 
     [Fact]
-    public async Task The_audio_page_reports_and_receives_the_next_hand_over_alone()
+    public async Task The_audio_page_ended_report_reaches_the_engine_feed_and_pushes_no_video_itself()
     {
         Rig rig = await BuildAsync();
         (await ReportAsync(rig, Audio, First, "playing")).IsSuccess.Should().BeTrue();
         await rig.Provider.AddToQueueAsync(Broadcaster, Watch(Second));
         (await ReportAsync(rig, Audio, First, "ended")).IsSuccess.Should().BeTrue();
 
-        rig.Notifier.Sent.Should().ContainSingle("only the owner is told to play");
-        rig.Notifier.Sent[0].Widget.Should().Be(Audio);
-        VideoOf(rig.Notifier.Sent[0].Data).Should().Be(Second);
+        rig.Notifier.Sent.Should().BeEmpty("the director starts the next request, not the report");
+        rig.Store.PeekNext(Broadcaster)!.VideoId.Should().Be(Second);
+        await rig
+            .Feed.Received(1)
+            .ReportPlayerAsync(
+                Broadcaster,
+                Arg.Is<YouTubePlayerReport>(r =>
+                    r.VideoId == First && r.State == YouTubePlayerState.Ended
+                ),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -269,9 +280,7 @@ public sealed class YouTubePlayerOwnerTests
         await rig.Provider.AddToQueueAsync(Broadcaster, Watch(Second));
         (await ReportAsync(rig, Audio, First, "ended")).IsSuccess.Should().BeTrue();
         rig.Notifier.Sent.Should()
-            .ContainSingle("the stray page never became the owner")
-            .Which.Widget.Should()
-            .Be(Audio);
+            .BeEmpty("the stray page never became the owner and gets no video");
     }
 
     [Fact]

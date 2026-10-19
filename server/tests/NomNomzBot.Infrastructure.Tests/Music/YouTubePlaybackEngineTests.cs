@@ -245,15 +245,14 @@ public sealed class YouTubePlaybackEngineTests
     [Theory]
     [InlineData(YouTubePlayerState.Ended)]
     [InlineData(YouTubePlayerState.Error)]
-    public async Task An_ended_or_errored_player_adds_TrackEnded_after_the_report(
+    public async Task An_ended_or_errored_player_relays_only_TrackEnded_never_a_not_playing_report(
         YouTubePlayerState state
     )
     {
         await _engine.ReportAsync(Report(state, 211_000));
 
-        _signals.Should().HaveCount(2);
-        _signals[0].Should().BeOfType<EngineReport>();
-        _signals[1].Should().Be(new TrackEnded(EngineKind.YouTube, WatchUrl));
+        // A not-playing report before the end would read as an owner pause and the director would ignore the end.
+        _signals.Should().Equal(new TrackEnded(EngineKind.YouTube, WatchUrl));
     }
 
     [Fact]

@@ -79,7 +79,9 @@ public sealed class YouTubeTransportControlTests
         YouTubePlayerStateStore PlayerStore,
         RecordingWidgetEventNotifier Notifier,
         RecordingEventBus Bus,
-        IOverlayPresenceRegistry Presence
+        IOverlayPresenceRegistry Presence,
+        IPlaybackInputSink Sink,
+        IEngineFeed Feed
     );
 
     private static string VideoJson(string id, string title) =>
@@ -141,6 +143,8 @@ public sealed class YouTubeTransportControlTests
         RecordingEventBus bus = new();
         YouTubePlayerStateStore playerStore = new(clock);
         YouTubePlayerDispatcher players = new(db, presence, notifier, playerStore);
+        IPlaybackInputSink sink = Substitute.For<IPlaybackInputSink>();
+        IEngineFeed feed = Substitute.For<IEngineFeed>();
 
         RecordingHttpHandler handler = new();
         foreach (
@@ -163,7 +167,8 @@ public sealed class YouTubeTransportControlTests
             handler: handler,
             db: db,
             playerState: playerStore,
-            players: players
+            players: players,
+            playback: sink
         );
 
         IUserIdentityService identities = Substitute.For<IUserIdentityService>();
@@ -197,8 +202,8 @@ public sealed class YouTubeTransportControlTests
             playerStore,
             players,
             bus,
+            feed,
             resumeTracker,
-            Substitute.For<IEngineFeed>(),
             NullLogger<YouTubePlayerReportService>.Instance
         );
         SongRequestQueueReconciler reconciler = new(
@@ -211,7 +216,7 @@ public sealed class YouTubeTransportControlTests
         PlayOnceResumeHandler resumeHandler = new(
             resumeTracker,
             music,
-            players,
+            sink,
             NullLogger<PlayOnceResumeHandler>.Instance
         );
         return new(
@@ -225,7 +230,9 @@ public sealed class YouTubeTransportControlTests
             playerStore,
             notifier,
             bus,
-            presence
+            presence,
+            sink,
+            feed
         );
     }
 
@@ -423,7 +430,7 @@ public sealed class YouTubeTransportControlTests
     }
 
     [Fact]
-    public async Task Skip_plays_the_second_request_on_the_owner_exactly_once_and_the_first_leaves_the_queue()
+    public async Task Skip_tells_the_director_once_and_pushes_no_video_itself()
     {
         Rig rig = await PlayingFirstWithSecondQueuedAsync();
         rig.Notifier.PlayedVideoIds.Should().Equal(First);
@@ -431,19 +438,16 @@ public sealed class YouTubeTransportControlTests
         Result skipped = await rig.Music.SkipAsync(Broadcaster.ToString(), "viewer3");
 
         skipped.IsSuccess.Should().BeTrue(skipped.ErrorMessage);
-        rig.Notifier.PlayedVideoIds.Should().Equal(First, Second);
-        rig.Notifier.Sent.Last().Widget.Should().Be(OwnerWidget);
-        rig.Notifier.Sent.Last().EventType.Should().Be("youtube.play");
-        QueuedUris(rig).Should().Equal([Watch(Second)], "the skipped first request is gone");
-
-        await ReportAsync(rig, Second, "playing");
-
-        QueuedUris(rig).Should().BeEmpty();
-        rig.Notifier.PlayedVideoIds.Should().Equal([First, Second], "the hand-over ran once");
+        await rig
+            .Sink.Received(1)
+            .SendAsync(Broadcaster, Arg.Any<OwnerSkip>(), Arg.Any<CancellationToken>());
+        rig.Notifier.PlayedVideoIds.Should()
+            .Equal([First], "the director starts the next request, not the provider");
+        rig.Notifier.Of("youtube.stop").Should().BeEmpty();
     }
 
     [Fact]
-    public async Task Skip_with_nothing_next_stops_the_owner_and_the_player_ends_like_an_ended_video()
+    public async Task Skip_with_nothing_next_still_sends_the_skip_to_the_director_which_owns_the_stop()
     {
         Rig rig = await BuildAsync();
         (await rig.Music.AddToQueueAsync(Broadcaster.ToString(), Watch(First), "viewer1"))
@@ -455,7 +459,9 @@ public sealed class YouTubeTransportControlTests
         Result skipped = await rig.Music.SkipAsync(Broadcaster.ToString(), "viewer3");
 
         skipped.IsSuccess.Should().BeTrue(skipped.ErrorMessage);
-        rig.Notifier.Of("youtube.stop").Should().Equal([(OwnerWidget, "youtube.stop")]);
+        await rig
+            .Sink.Received(1)
+            .SendAsync(Broadcaster, Arg.Any<OwnerSkip>(), Arg.Any<CancellationToken>());
         rig.Notifier.PlayedVideoIds.Should().Equal(First);
 
         await ReportAsync(rig, First, "ended");
@@ -500,7 +506,7 @@ public sealed class YouTubeTransportControlTests
     }
 
     [Fact]
-    public async Task Play_once_on_a_busy_player_plays_now_and_the_waiting_request_still_plays_after_it()
+    public async Task Play_once_on_a_busy_player_plays_now_and_the_ended_once_video_pushes_no_request()
     {
         Rig rig = await PlayingFirstWithSecondQueuedAsync();
         rig.PlayerStore.PeekNext(Broadcaster)!.VideoId.Should().Be(Second);
@@ -516,9 +522,9 @@ public sealed class YouTubeTransportControlTests
         await ReportAsync(rig, Third, "playing");
         await ReportAsync(rig, Third, "ended");
 
-        rig.Notifier.PlayedVideoIds.Should().Equal([First, Third, Second]);
-        await ReportAsync(rig, Second, "playing");
-        QueuedUris(rig).Should().BeEmpty();
+        rig.Notifier.PlayedVideoIds.Should()
+            .Equal([First, Third], "the ended once video is no request, so nothing is pushed");
+        QueuedUris(rig).Should().Equal([Watch(Second)]);
     }
 
     [Fact]
@@ -592,6 +598,16 @@ public sealed class YouTubeTransportControlTests
 
         await ReportAsync(rig, Third, "ended", 180_000);
 
+        // The resume handler restarts the interrupted video; the director must not also start the waiting request.
+        await rig
+            .Feed.DidNotReceive()
+            .ReportPlayerAsync(
+                Broadcaster,
+                Arg.Is<YouTubePlayerReport>(r =>
+                    r.VideoId == Third && r.State == YouTubePlayerState.Ended
+                ),
+                Arg.Any<CancellationToken>()
+            );
         rig.Notifier.PlayedVideoIds.Should()
             .Equal(
                 [First, Third, First],
@@ -603,14 +619,16 @@ public sealed class YouTubeTransportControlTests
             .Be(new YouTubeSeekWidgetPayload(42_000));
         rig.ResumeTracker.TryPeek(Broadcaster, out _).Should().BeFalse();
         rig.PlayerStore.PeekNext(Broadcaster)!.VideoId.Should().Be(Second);
+        await rig
+            .Sink.DidNotReceive()
+            .SendAsync(Broadcaster, Arg.Any<RequestAdded>(), Arg.Any<CancellationToken>());
 
         await ReportAsync(rig, First, "playing", 43_000);
         await ReportAsync(rig, First, "ended", 200_000);
 
-        rig.Notifier.PlayedVideoIds.Should()
-            .Equal([First, Third, First, Second], "every request played once, none lost");
-        await ReportAsync(rig, Second, "playing");
-        QueuedUris(rig).Should().BeEmpty();
+        // The resumed video is no request: when it ends the director, not this path, starts the waiting one.
+        rig.Notifier.PlayedVideoIds.Should().Equal([First, Third, First]);
+        QueuedUris(rig).Should().Equal([Watch(Second)]);
     }
 
     [Fact]
@@ -624,10 +642,11 @@ public sealed class YouTubeTransportControlTests
         failing
             .PlayTrackOnceAsync(Arg.Any<string>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure("The resume failed.", "PROVIDER_ERROR"));
+        IPlaybackInputSink director = Substitute.For<IPlaybackInputSink>();
         PlayOnceResumeHandler failingHandler = new(
             rig.ResumeTracker,
             failing,
-            rig.Players,
+            director,
             NullLogger<PlayOnceResumeHandler>.Instance
         );
         int seen = rig.Bus.Published.Count;
@@ -644,9 +663,11 @@ public sealed class YouTubeTransportControlTests
         )
             await failingHandler.HandleAsync(changed);
 
-        rig.Notifier.PlayedVideoIds.Should()
-            .Equal([First, Third, Second], "the waiting request is handed over, not stranded");
+        // The handler pushes nothing itself: it tells the director a request waits, so it is not stranded.
+        rig.Notifier.PlayedVideoIds.Should().Equal([First, Third]);
+        await director
+            .Received(1)
+            .SendAsync(Broadcaster, Arg.Any<RequestAdded>(), Arg.Any<CancellationToken>());
         rig.Notifier.Of("youtube.seek").Should().BeEmpty();
-        rig.PlayerStore.PeekNext(Broadcaster).Should().BeNull();
     }
 }

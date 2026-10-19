@@ -106,12 +106,21 @@ public sealed class YouTubePlaybackEngine(
     ) => Task.FromResult(EngineControlResult<string>.NotSupported);
 
     /// <summary>
-    /// Relays one report from the overlay player. A video that ended or errored adds <see cref="TrackEnded"/>
-    /// after the report, as the report service already treats both as the end.
+    /// Relays one report from the overlay player. A video that ended or errored relays only
+    /// <see cref="TrackEnded"/>, as the report service already treats both as the end.
     /// </summary>
     public async Task ReportAsync(YouTubePlayerReport report)
     {
         string uri = UriFor(report.VideoId);
+
+        // An ended or failed video is the end of the track, not a pause: a failure at 30 s would read as an
+        // owner pause and the director would then ignore the end.
+        if (report.State is YouTubePlayerState.Ended or YouTubePlayerState.Error)
+        {
+            await _relay.RaiseAsync(new TrackEnded(EngineKind.YouTube, uri));
+            return;
+        }
+
         int durationMs = store.PushedTrack(broadcasterId, report.VideoId)?.DurationMs ?? 0;
 
         await _relay.RaiseAsync(
@@ -123,9 +132,6 @@ public sealed class YouTubePlaybackEngine(
                 durationMs
             )
         );
-
-        if (report.State is YouTubePlayerState.Ended or YouTubePlayerState.Error)
-            await _relay.RaiseAsync(new TrackEnded(EngineKind.YouTube, uri));
     }
 
     private async Task CommandAsync(Func<EngineLease, Task> command, CancellationToken ct)

@@ -15,6 +15,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -56,7 +57,8 @@ public sealed class YouTubePlayerHandOverTests
         YouTubePlayerReportService Reports,
         RecordingWidgetEventNotifier Notifier,
         RecordingEventBus Bus,
-        FakeTimeProvider Clock
+        FakeTimeProvider Clock,
+        IEngineFeed Feed
     );
 
     private static async Task<Rig> BuildAsync(
@@ -105,15 +107,16 @@ public sealed class YouTubePlayerHandOverTests
             playerState: store,
             players: players
         );
+        IEngineFeed feed = Substitute.For<IEngineFeed>();
         YouTubePlayerReportService reports = new(
             store,
             players,
             bus,
+            feed,
             new PlayOnceResumeTracker(),
-            Substitute.For<IEngineFeed>(),
             NullLogger<YouTubePlayerReportService>.Instance
         );
-        return new(provider, reports, notifier, bus, clock);
+        return new(provider, reports, notifier, bus, clock, feed);
     }
 
     private static string Watch(string videoId) => $"https://www.youtube.com/watch?v={videoId}";
@@ -156,7 +159,7 @@ public sealed class YouTubePlayerHandOverTests
     }
 
     [Fact]
-    public async Task An_ended_report_pushes_the_buffered_video_and_empties_the_buffer()
+    public async Task An_ended_report_goes_to_the_director_feed_and_pushes_nothing_itself()
     {
         Rig rig = await BuildAsync();
         await rig.Provider.AddToQueueAsync(Broadcaster, Watch("dQw4w9WgXcQ"));
@@ -171,12 +174,19 @@ public sealed class YouTubePlayerHandOverTests
         );
 
         reported.IsSuccess.Should().BeTrue();
-        rig.Notifier.Sent.Should().HaveCount(2);
-        rig.Notifier.Sent[1].EventType.Should().Be("youtube.play");
-        rig.Notifier.Sent[1]
-            .Data.Should()
-            .BeEquivalentTo(new YouTubePlayWidgetPayload("9bZkp7q19f0", Watch("9bZkp7q19f0")));
-        (await rig.Provider.GetQueueAsync(Broadcaster)).Should().NotBeNull().And.BeEmpty();
+        rig.Notifier.Sent.Should()
+            .ContainSingle("only the first video was pushed; the director starts the next one");
+        await rig
+            .Feed.Received(1)
+            .ReportPlayerAsync(
+                Broadcaster,
+                Arg.Is<YouTubePlayerReport>(r =>
+                    r.VideoId == "dQw4w9WgXcQ" && r.State == YouTubePlayerState.Ended
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        IReadOnlyList<TrackInfo>? queue = await rig.Provider.GetQueueAsync(Broadcaster);
+        queue.Should().ContainSingle().Which.TrackUri.Should().Be(Watch("9bZkp7q19f0"));
         PlaybackStateChangedEvent changed = rig
             .Bus.Published.OfType<PlaybackStateChangedEvent>()
             .Should()

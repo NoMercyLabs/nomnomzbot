@@ -24,6 +24,8 @@ using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Domain.Widgets.Events;
@@ -465,7 +467,7 @@ public class OverlayHub : Hub<IOverlayClient>
 
     public async Task WidgetReady(
         string widgetId,
-        [FromServices] ISongRequestHandover songRequests,
+        [FromServices] IPlaybackInputSink playback,
         [FromServices] IYouTubePlayerDispatcher players
     )
     {
@@ -479,14 +481,14 @@ public class OverlayHub : Hub<IOverlayClient>
         )
             return;
 
-        bool replayed = await players.ReplayCurrentAsync(
+        // A page that reloaded mid-video gets that video back; nothing else is pushed from here. The director
+        // starts the queue head when it is idle or blocked and ignores the input while a track plays.
+        await players.ReplayCurrentAsync(
             broadcasterId,
             Context.Items.TryGetValue(YouTubePlayingItem, out object? playing) && playing is true,
             Context.ConnectionAborted
         );
-        if (!replayed)
-            await players.HandOverNextAsync(broadcasterId, Context.ConnectionAborted);
-        await songRequests.HandOverNextAsync(broadcasterId.ToString(), Context.ConnectionAborted);
+        await playback.SendAsync(broadcasterId, new OutputAttached(), Context.ConnectionAborted);
     }
 
     /// <summary>

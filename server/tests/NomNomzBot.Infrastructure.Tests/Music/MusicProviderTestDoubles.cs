@@ -27,6 +27,7 @@ using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.Integrations.YouTube;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Music.YouTubeKeyless;
@@ -478,7 +479,8 @@ internal static class YouTubeProviderFactory
         IYouTubePlayerStateStore? playerState = null,
         IYouTubePlayerDispatcher? players = null,
         IYouTubeApiKeyResolver? keyResolver = null,
-        TimeProvider? time = null
+        TimeProvider? time = null,
+        IPlaybackInputSink? playback = null
     )
     {
         IConfiguration configuration = new ConfigurationBuilder()
@@ -516,6 +518,7 @@ internal static class YouTubeProviderFactory
                     Substitute.For<IWidgetEventNotifier>(),
                     store
                 ),
+            playback ?? Substitute.For<IPlaybackInputSink>(),
             new YouTubeQuotaCooldown(time ?? TimeProvider.System),
             new YouTubeVideoCache(time ?? TimeProvider.System),
             new YouTubeKeylessResolver(

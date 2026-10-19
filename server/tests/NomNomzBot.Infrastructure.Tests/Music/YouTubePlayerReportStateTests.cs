@@ -49,8 +49,8 @@ public sealed class YouTubePlayerReportStateTests
             store,
             players,
             new RecordingEventBus(),
-            new PlayOnceResumeTracker(),
             Substitute.For<IEngineFeed>(),
+            new PlayOnceResumeTracker(),
             NullLogger<YouTubePlayerReportService>.Instance
         );
         return (reports, store);
