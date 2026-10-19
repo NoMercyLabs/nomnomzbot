@@ -409,7 +409,7 @@ public sealed class TtsDispatchServiceTests
     }
 
     [Fact]
-    public async Task RequestSpeakAsync_Cooldown_BypassCooldownSpeaksInsideWindow()
+    public async Task RequestSpeakAsync_Cooldown_AlreadyPaidSpeaksInsideWindow()
     {
         Harness h = Build(cooldownSeconds: 30);
         (await h.Service.RequestSpeakAsync(SpeakAsViewer("one"))).IsSuccess.Should().BeTrue();
@@ -417,12 +417,60 @@ public sealed class TtsDispatchServiceTests
         Result<TtsDispatchOutcome> paid = await h.Service.RequestSpeakAsync(
             SpeakAsViewer("two") with
             {
-                BypassCooldown = true,
+                AlreadyPaid = true,
             }
         );
 
         paid.IsSuccess.Should().BeTrue();
         (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task A_paid_redemption_speaks_on_a_channel_whose_chat_tts_needs_bits()
+    {
+        Harness h = Build(minBitsToTts: 100);
+
+        Result<TtsDispatchOutcome> paid = await h.Service.RequestSpeakAsync(
+            SpeakAsViewer("read my reward") with
+            {
+                AlreadyPaid = true,
+            }
+        );
+
+        paid.IsSuccess.Should().BeTrue();
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_paid_redemption_speaks_on_a_channel_whose_chat_tts_is_for_moderators_only()
+    {
+        Harness h = Build(minPermission: "moderators");
+
+        Result<TtsDispatchOutcome> paid = await h.Service.RequestSpeakAsync(
+            SpeakAsViewer("read my reward") with
+            {
+                AlreadyPaid = true,
+            }
+        );
+
+        paid.IsSuccess.Should().BeTrue();
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_paid_redemption_stays_silent_when_tts_is_off()
+    {
+        Harness h = Build(enabled: false);
+
+        Result<TtsDispatchOutcome> paid = await h.Service.RequestSpeakAsync(
+            SpeakAsViewer("read my reward") with
+            {
+                AlreadyPaid = true,
+            }
+        );
+
+        paid.ErrorCode.Should().Be("FEATURE_DISABLED");
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
     }
 
     [Fact]

@@ -246,7 +246,8 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
             .Select(u => u.Id)
             .FirstOrDefaultAsync(cancellationToken);
 
-        // The redemption already paid for the line, and Twitch has its own cooldown: skip the per-viewer one.
+        // The redemption already paid for the line, and Twitch has its own cooldown: the chat gates (bits floor,
+        // role floor, per-viewer cooldown) do not apply.
         Result<TtsDispatchOutcome> spoken = await tts.RequestSpeakAsync(
             new TtsSpeakRequest(
                 BroadcasterId: broadcasterId,
@@ -261,7 +262,7 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
                 StreamId: null,
                 Speaker: TtsSpeaker.Viewer,
                 SpokenNames: [@event.UserDisplayName],
-                BypassCooldown: true
+                AlreadyPaid: true
             ),
             cancellationToken
         );
@@ -300,14 +301,14 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
                 ),
                 ct
             );
-            succeeded = run.IsSuccess && run.Value!.Succeeded;
+            succeeded = run is { IsSuccess: true, Value.Succeeded: true };
             if (!succeeded)
                 _logger.LogWarning(
                     "Reward {RewardId} in {Channel} could not run its {Kind} target: {Error}",
                     @event.RewardId,
                     broadcasterId,
                     target.Kind,
-                    run.IsFailure ? run.ErrorMessage : run.Value!.Error
+                    run.IsFailure ? run.ErrorMessage : run.Value.Error
                 );
         }
         catch (Exception ex)

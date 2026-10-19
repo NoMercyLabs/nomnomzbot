@@ -112,7 +112,12 @@ public sealed class TtsDispatchService : ITtsDispatchService
             );
 
         // Bits gate (P.1 MinBitsToTts): when set, only messages carrying at least that many bits are read.
-        if (config.MinBitsToTts is { } minBits && request.BitsAmount < minBits)
+        // A request paid elsewhere (a channel point redemption) skips this and the role floor below.
+        if (
+            !request.AlreadyPaid
+            && config.MinBitsToTts is { } minBits
+            && request.BitsAmount < minBits
+        )
             return await RejectRequestAsync(
                 request,
                 "bits_gate",
@@ -124,7 +129,10 @@ public sealed class TtsDispatchService : ITtsDispatchService
         // Community-standing floor (MinPermission). It was stored, editable in the dashboard and read by
         // NOTHING — a channel set to "moderators only" was read out for every viewer, which is the opposite
         // of what the setting says. An unknown standing is treated as the lowest, never waved through.
-        if (!MeetsStandingFloor(request.CommunityStanding, config.MinPermission))
+        if (
+            !request.AlreadyPaid
+            && !MeetsStandingFloor(request.CommunityStanding, config.MinPermission)
+        )
             return await RejectRequestAsync(
                 request,
                 "standing_gate",
@@ -858,7 +866,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
     /// <summary>
     /// True when a viewer's own TTS request lands inside the channel's cooldown after that viewer's last spoken
     /// message. The ledger (<see cref="TtsUsageRecord"/>) is the clock, so the window survives a restart and needs
-    /// no extra state. Bot speech, a paid request (<see cref="TtsSpeakRequest.BypassCooldown"/>), an unknown
+    /// no extra state. Bot speech, a paid request (<see cref="TtsSpeakRequest.AlreadyPaid"/>), an unknown
     /// requester and a cooldown of 0 are never throttled.
     /// </summary>
     private async Task<bool> IsOnCooldownAsync(
@@ -869,7 +877,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
     {
         if (
             request.Speaker != TtsSpeaker.Viewer
-            || request.BypassCooldown
+            || request.AlreadyPaid
             || cooldownSeconds <= 0
             || string.IsNullOrWhiteSpace(request.RequestedByTwitchUserId)
         )

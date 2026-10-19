@@ -238,7 +238,7 @@ public sealed class RewardRedeemedHandlerTests
                     r.BroadcasterId == Channel
                     && r.Text == "hello chat"
                     && r.Speaker == TtsSpeaker.Viewer
-                    && r.BypassCooldown
+                    && r.AlreadyPaid
                     && r.RequestedByTwitchUserId == ViewerTwitchId
                     && r.RequestedByUserId == ViewerUserId
                 ),
@@ -253,7 +253,7 @@ public sealed class RewardRedeemedHandlerTests
 
         await h.Handler.HandleAsync(Redemption("tw-tts-1", "hello chat"));
 
-        await h.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!, default);
+        await h.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!);
     }
 
     [Theory]
@@ -266,7 +266,7 @@ public sealed class RewardRedeemedHandlerTests
 
         await h.Handler.HandleAsync(Redemption("tw-tts-1", input));
 
-        await h.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!, default);
+        await h.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!);
     }
 
     [Fact]
