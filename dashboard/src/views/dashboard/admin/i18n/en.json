@@ -188,7 +188,7 @@
           },
           "confirmTitle": "Confirm this action",
           "confirmConsequence": "The action stays as it is and the review closes.",
-          "overturnTitle": "Overturn this action",
+          "overturnTitle": "Overturn the action on {name}",
           "overturnConsequence": "This reverses the real account action: {preview}"
         },
         "signals": {
@@ -209,7 +209,7 @@
             "lifted": "Lifted"
           },
           "lift": "Lift",
-          "liftTitle": "Lift this block",
+          "liftTitle": "Lift the block on {name}",
           "liftConsequence": "This unbans the account in the {count} channels the block touched.",
           "liftAction": "Lift block"
         },
@@ -222,7 +222,7 @@
           "preview": "Preview block",
           "previewResult": "{name} would be banned in {count} channels.",
           "action": "Apply block",
-          "dialogTitle": "Apply this block",
+          "dialogTitle": "Apply a block to {name}",
           "consequence": "This bans the account in {count} channels now. You can lift it later."
         },
         "failed": "The action failed."

@@ -188,7 +188,7 @@
           },
           "confirmTitle": "Deze actie bevestigen",
           "confirmConsequence": "De actie blijft zoals ze is en de beoordeling sluit.",
-          "overturnTitle": "Deze actie terugdraaien",
+          "overturnTitle": "De actie op {name} terugdraaien",
           "overturnConsequence": "Dit draait de echte accountactie terug: {preview}"
         },
         "signals": {
@@ -209,7 +209,7 @@
             "lifted": "Opgeheven"
           },
           "lift": "Opheffen",
-          "liftTitle": "Deze blokkade opheffen",
+          "liftTitle": "De blokkade op {name} opheffen",
           "liftConsequence": "Dit heft de ban op in de {count} kanalen die de blokkade raakte.",
           "liftAction": "Blokkade opheffen"
         },
@@ -222,7 +222,7 @@
           "preview": "Blokkade voorbeeld",
           "previewResult": "{name} zou in {count} kanalen verbannen worden.",
           "action": "Blokkade toepassen",
-          "dialogTitle": "Deze blokkade toepassen",
+          "dialogTitle": "Een blokkade toepassen op {name}",
           "consequence": "Dit verbant het account nu in {count} kanalen. Je kunt het later opheffen."
         },
         "failed": "De actie is mislukt."

@@ -266,6 +266,42 @@ describe('AdminTrustSafetyView', () => {
     expect(post.options?.params?.path?.blockId).toBe('blk1');
   });
 
+  it('names the account in the title of the overturn, lift and apply dialogs', async () => {
+    await open();
+    await giveReason('weekly review');
+
+    const dialogTitle = (): string =>
+      document.body.querySelector('[role="dialog"] [data-slot="dialog-title"], [role="dialog"] h2')
+        ?.textContent ?? '';
+
+    byText('[data-review-row] button', 'Overturn')!.click();
+    await settle();
+
+    expect(dialogTitle()).toBe('Overturn the action on SpamLord');
+    byText('[role="dialog"] button', 'Cancel')!.click();
+    await settle();
+
+    byText('[data-block-row] button', 'Lift')!.click();
+    await settle();
+
+    expect(dialogTitle()).toBe('Lift the block on BadActor');
+    byText('[role="dialog"] button', 'Cancel')!.click();
+    await settle();
+
+    const target = document.body.querySelector<HTMLInputElement>('[data-block-target]')!;
+
+    target.value = '1234';
+    target.dispatchEvent(new Event('input'));
+    await settle();
+    byText('button', 'Preview block')!.click();
+    await settle();
+    byText('button', 'Apply block')!.click();
+    await settle();
+
+    expect(dialogTitle()).toBe('Apply a block to SpamLord');
+    expect(calls.some((call) => call.method === 'POST')).toBe(false);
+  });
+
   it('previews the blast radius and applies with exactly that confirmed count', async () => {
     await open();
     await giveReason('cross-tenant abuse');

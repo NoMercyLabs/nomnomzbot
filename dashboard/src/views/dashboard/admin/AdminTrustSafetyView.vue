@@ -128,9 +128,25 @@ const actionKeys = {
   apply: 'apply.action',
 } as const satisfies Record<Step['kind'], string>;
 
+// The account the dialog acts on, so the operator never confirms a ban or unban on an unnamed target.
+const targetName = computed<string>(() => {
+  const current = step.value;
+
+  if (current?.kind === 'lift')
+    return current.block.targetDisplayName ?? current.block.targetTwitchUserId;
+
+  if (current?.kind === 'apply')
+    return shownPreview.value?.targetDisplayName ?? targetId.value.trim();
+
+  if (current)
+    return current.item.subjectDisplayName;
+
+  return '';
+});
+
 const dialogTitle = computed<string>(() =>
   step.value
-    ? t(`dashboard.admin.trustSafety.${titleKeys[step.value.kind]}`)
+    ? t(`dashboard.admin.trustSafety.${titleKeys[step.value.kind]}`, { name: targetName.value })
     : '',
 );
 
