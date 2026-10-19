@@ -39,7 +39,7 @@ const rowTemplate = computed<string>(() => `repeat(${props.rows}, minmax(0, 1fr)
 // so the board measures itself and counts columns from what its panels declare they need (minWidth).
 const root = useTemplateRef('root');
 const strip = useTemplateRef('strip');
-const fade = useScrollFade(strip);
+const fade = useScrollFade(() => strip.value?.$el);
 const state = props.board ?? useBoard('board', root, () => props.panels);
 const wide = state.wide;
 const tabbed = state.tabbed;

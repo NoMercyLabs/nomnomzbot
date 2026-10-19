@@ -23,7 +23,7 @@ const props = defineProps<{ tabs: readonly PageTab<View>[] }>();
 const values = computed(() => props.tabs.map((tab) => tab.value));
 const view = usePageView(values);
 const strip = useTemplateRef('strip');
-const fade = useScrollFade(strip);
+const fade = useScrollFade(() => strip.value?.$el);
 </script>
 
 <template>
