@@ -77,7 +77,8 @@ public sealed class MusicPlayerMigrationSource(
             dismissedKeys,
             AudioPrefix,
             "custom_widget_audio",
-            "attention_custom_widget_audio",
+            "attention_custom_widget_audio_title",
+            "attention_custom_widget_audio_message",
             [.. custom.Where(HasAudioOn)]
         );
         AddList(
@@ -85,7 +86,8 @@ public sealed class MusicPlayerMigrationSource(
             dismissedKeys,
             SpotifyPrefix,
             "custom_widget_spotify",
-            "attention_custom_widget_spotify",
+            "attention_custom_widget_spotify_title",
+            "attention_custom_widget_spotify_message",
             await ReadingSpotifyAsync(channelId, custom, cancellationToken)
         );
 
@@ -150,7 +152,8 @@ public sealed class MusicPlayerMigrationSource(
         IReadOnlySet<string> dismissedKeys,
         string prefix,
         string kind,
-        string keyBase,
+        string titleKey,
+        string messageKey,
         List<Widget> widgets
     )
     {
@@ -170,8 +173,8 @@ public sealed class MusicPlayerMigrationSource(
                 Id: id,
                 Kind: kind,
                 Severity: "info",
-                TitleKey: keyBase + "_title",
-                MessageKey: keyBase + "_message",
+                TitleKey: titleKey,
+                MessageKey: messageKey,
                 Parameters: new()
                 {
                     ["widgetNames"] = string.Join(", ", ordered.Select(w => w.Name)),

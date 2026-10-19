@@ -83,4 +83,10 @@
     <string name="attention_source_name_unban_requests">de unban-verzoeken</string>
     <string name="attention_source_name_unknown">een van je controles</string>
     <string name="attention_unknown_title">Er vraagt iets je aandacht</string>
+    <string name="attention_music_player_missing_title">Voeg de Music Player toe aan OBS</string>
+    <string name="attention_music_player_missing_message">Muziek speelt nu af op de Music Player-widget. Voeg die toe als browserbron in OBS met de overlay-URL. Tot die tijd speelt er geen muziek op stream.</string>
+    <string name="attention_custom_widget_audio_title">Eigen widgets met audio aan</string>
+    <string name="attention_custom_widget_audio_message">Deze widgets houden hun eigen audio: %1$s. Muziek speelt nu af op de Music Player. Controleer dat ze hetzelfde nummer niet dubbel afspelen.</string>
+    <string name="attention_custom_widget_spotify_title">Eigen widgets lezen Spotify rechtstreeks</string>
+    <string name="attention_custom_widget_spotify_message">Deze widgets roepen Spotify zelf aan: %1$s. Ze blijven werken voor alleen Spotify. Ze volgen geen YouTube-muziek. We hebben je code niet aangepast.</string>
 </resources>

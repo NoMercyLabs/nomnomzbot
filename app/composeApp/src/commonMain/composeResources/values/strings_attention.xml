@@ -83,4 +83,10 @@
     <string name="attention_source_name_unban_requests">unban requests</string>
     <string name="attention_source_name_unknown">one of your checks</string>
     <string name="attention_unknown_title">Something needs your attention</string>
+    <string name="attention_music_player_missing_title">Add the Music Player to OBS</string>
+    <string name="attention_music_player_missing_message">Music now plays on the Music Player widget. Add it as a browser source in OBS with its overlay URL. Until then, no music plays on stream.</string>
+    <string name="attention_custom_widget_audio_title">Custom widgets with audio on</string>
+    <string name="attention_custom_widget_audio_message">These widgets keep their own audio: %1$s. Music plays on the Music Player now. Check that they do not play the same song twice.</string>
+    <string name="attention_custom_widget_spotify_title">Custom widgets read Spotify directly</string>
+    <string name="attention_custom_widget_spotify_message">These widgets call Spotify themselves: %1$s. They keep working for Spotify only. They do not follow YouTube music. We did not edit your code.</string>
 </resources>

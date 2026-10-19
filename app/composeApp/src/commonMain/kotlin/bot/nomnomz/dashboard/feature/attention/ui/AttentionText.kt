@@ -73,6 +73,12 @@ import nomnomzbot.composeapp.generated.resources.attention_source_name_unban_req
 import nomnomzbot.composeapp.generated.resources.attention_source_name_unknown
 import nomnomzbot.composeapp.generated.resources.attention_source_unavailable_message
 import nomnomzbot.composeapp.generated.resources.attention_source_unavailable_title
+import nomnomzbot.composeapp.generated.resources.attention_custom_widget_audio_message
+import nomnomzbot.composeapp.generated.resources.attention_custom_widget_audio_title
+import nomnomzbot.composeapp.generated.resources.attention_custom_widget_spotify_message
+import nomnomzbot.composeapp.generated.resources.attention_custom_widget_spotify_title
+import nomnomzbot.composeapp.generated.resources.attention_music_player_missing_message
+import nomnomzbot.composeapp.generated.resources.attention_music_player_missing_title
 import nomnomzbot.composeapp.generated.resources.attention_spotify_blocked_message
 import nomnomzbot.composeapp.generated.resources.attention_spotify_blocked_title
 import nomnomzbot.composeapp.generated.resources.attention_unknown_title
@@ -184,6 +190,9 @@ fun attentionTitleOf(item: ActionRequiredItem, now: Instant = Clock.System.now()
                 Res.string.attention_source_unavailable_title,
                 listOf(AttentionArg.Resource(sourceNameOf(item.param("source")))),
             )
+        "attention_music_player_missing_title" -> AttentionText(Res.string.attention_music_player_missing_title)
+        "attention_custom_widget_audio_title" -> AttentionText(Res.string.attention_custom_widget_audio_title)
+        "attention_custom_widget_spotify_title" -> AttentionText(Res.string.attention_custom_widget_spotify_title)
         else -> AttentionText(Res.string.attention_unknown_title)
     }
 }
@@ -309,6 +318,11 @@ fun attentionMessageOf(item: ActionRequiredItem): AttentionText? =
         "attention_spotify_blocked_message" -> AttentionText(Res.string.attention_spotify_blocked_message)
         "attention_source_unavailable_message" ->
             AttentionText(Res.string.attention_source_unavailable_message, listOf(literal(item.param("reason"))))
+        "attention_music_player_missing_message" -> AttentionText(Res.string.attention_music_player_missing_message)
+        "attention_custom_widget_audio_message" ->
+            AttentionText(Res.string.attention_custom_widget_audio_message, listOf(literal(item.param("widgetNames"))))
+        "attention_custom_widget_spotify_message" ->
+            AttentionText(Res.string.attention_custom_widget_spotify_message, listOf(literal(item.param("widgetNames"))))
         else -> null
     }
 
