@@ -42,6 +42,8 @@ public class MusicConfigService : IMusicConfigService
         return Result.Success(config);
     }
 
+    public MusicConfigDto GetDefaults() => ToDto(new());
+
     public async Task<Result<MusicConfigDto>> UpdateConfigAsync(
         string broadcasterId,
         UpdateMusicConfigDto request,

@@ -68,6 +68,13 @@ public class MusicController : BaseController
         return ResultResponse(result);
     }
 
+    /// <summary>The config a channel with nothing saved resolves to, so the dashboard shows the real defaults.</summary>
+    [RequireAction("music:config:read")]
+    [HttpGet("config/defaults")]
+    [ProducesResponseType<StatusResponseDto<MusicConfigDto>>(StatusCodes.Status200OK)]
+    public IActionResult GetConfigDefaults() =>
+        Ok(new StatusResponseDto<MusicConfigDto> { Data = _configService.GetDefaults() });
+
     /// <summary>Update the channel's music integration configuration.</summary>
     [RequireAction("music:config:write")]
     [HttpPut("config")]
@@ -183,7 +190,9 @@ public class MusicController : BaseController
         ];
 
         Result<MusicConfigDto> config = await _configService.GetConfigAsync(channelId, ct);
-        bool requestsOpen = config.IsFailure || config.Value.RequestsOpen;
+        bool requestsOpen = config.IsFailure
+            ? MusicConfigDefaults.RequestsOpen
+            : config.Value.RequestsOpen;
         MusicQueueDto dto = new(nowPlaying, items, requestsOpen);
         return Ok(new StatusResponseDto<MusicQueueDto> { Data = dto });
     }

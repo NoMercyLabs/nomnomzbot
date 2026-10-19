@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Reflection;
 using FluentAssertions;
 using NomNomzBot.Application.Music.Dtos;
 
@@ -43,6 +44,30 @@ public sealed class MusicConfigDefaultsTests
         config.BangerPlaylistId.Should().BeNull();
         config.BangerPlaylistProvider.Should().BeNull();
         config.MaxRequestsPerRole.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task GetDefaults_returns_what_a_channel_with_no_row_resolves_to()
+    {
+        using MusicConfigDbFixture fixture = new();
+
+        MusicConfigDto defaults = fixture.Service.GetDefaults();
+        MusicConfigDto neverSet = (await fixture.Service.GetConfigAsync(Broadcaster)).Value;
+
+        defaults.Should().BeEquivalentTo(neverSet);
+        defaults.RequestsOpen.Should().Be(MusicConfigDefaults.RequestsOpen);
+    }
+
+    [Fact]
+    public void The_queue_dto_carries_no_RequestsOpen_default_of_its_own()
+    {
+        ParameterInfo parameter = typeof(MusicQueueDto)
+            .GetConstructors()
+            .Single()
+            .GetParameters()
+            .Single(p => p.Name == nameof(MusicQueueDto.RequestsOpen));
+
+        parameter.HasDefaultValue.Should().BeFalse();
     }
 
     [Fact]

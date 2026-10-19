@@ -85,5 +85,5 @@ public sealed record NowPlayingDto(
 public sealed record MusicQueueDto(
     NowPlayingDto? NowPlaying,
     IReadOnlyList<QueueItemDto> Queue,
-    bool RequestsOpen = true
+    bool RequestsOpen
 );
