@@ -16,33 +16,36 @@ import { computed, provide, useTemplateRef } from 'vue';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { type Board, useBoard } from '@/composables/useBoard';
 import { usePageView } from '@/composables/usePageView';
+import { useScrollFade } from '@/composables/useScrollFade';
 
 import { boardKey, type BoardPanel } from './board';
 
-const props = withDefaults(defineProps<{
-  panels: readonly BoardPanel<Id>[];
-  rows?: number;
-  // A page with an optional panel builds its own board (useBoard on this component's ref) to know the span and
-  // to draw the drawer; every other page lets the grid count its columns itself.
-  board?: Board;
-}>(), {
-  rows: 2,
-  board: undefined,
-});
+const props = withDefaults(
+  defineProps<{
+    panels: readonly BoardPanel<Id>[];
+    rows?: number;
+    // A page with an optional panel builds its own board (useBoard on this component's ref) to know the span and
+    // to draw the drawer; every other page lets the grid count its columns itself.
+    board?: Board;
+  }>(),
+  {
+    rows: 2,
+    board: undefined,
+  },
+);
 
 const rowTemplate = computed<string>(() => `repeat(${props.rows}, minmax(0, 1fr))`);
 // Stoney 2026-10-14: "constrained layouts need to be considered for". The sidebar takes its share of the window,
 // so the board measures itself and counts columns from what its panels declare they need (minWidth).
 const root = useTemplateRef('root');
+const strip = useTemplateRef('strip');
+const fade = useScrollFade(strip);
 const state = props.board ?? useBoard('board', root, () => props.panels);
 const wide = state.wide;
 const tabbed = state.tabbed;
-const tabPanels = computed(() =>
-  props.panels.filter((panel) =>
-    !panel.optional));
+const tabPanels = computed(() => props.panels.filter((panel) => !panel.optional));
 
-const open = usePageView(() => tabPanels.value.map((panel) =>
-  panel.id), 'panel');
+const open = usePageView(() => tabPanels.value.map((panel) => panel.id), 'panel');
 
 provide(boardKey, (panel: string) =>
   !tabbed.value || open.value === panel);
@@ -56,7 +59,12 @@ provide(boardKey, (panel: string) =>
       data-page-body
       class="flex min-h-0 flex-1 flex-col gap-3 pt-3 pb-4"
     >
-      <Tabs v-model="open" class="min-w-0 flex-none overflow-x-auto overflow-y-hidden px-6 scrollbar-none">
+      <Tabs
+        ref="strip"
+        v-model="open"
+        class="min-w-0 flex-none overflow-x-auto overflow-y-hidden px-6 scrollbar-none"
+        :class="fade"
+      >
         <TabsList>
           <TabsTrigger v-for="panel in tabPanels" :key="panel.id" :value="panel.id">
             {{ panel.label }}
@@ -72,8 +80,7 @@ provide(boardKey, (panel: string) =>
       data-slot="board-grid"
       data-page-body
       :data-board-wide="wide || undefined"
-      class="grid min-h-0 flex-1 auto-rows-[minmax(20rem,auto)] grid-cols-1 gap-4 overflow-y-auto px-6 pt-4 pb-6
-      data-board-wide:grid-cols-12 data-board-wide:grid-rows-(--board-rows) data-board-wide:overflow-visible"
+      class="grid min-h-0 flex-1 auto-rows-[minmax(20rem,auto)] grid-cols-1 gap-4 overflow-y-auto px-6 pt-4 pb-6 data-board-wide:grid-cols-12 data-board-wide:grid-rows-(--board-rows) data-board-wide:overflow-visible"
       :style="{ '--board-rows': rowTemplate }"
     >
       <slot />

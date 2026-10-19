@@ -10,22 +10,30 @@
 <script setup lang="ts" generic="View extends string">
 // The one tab row of a page (C2). The open tab is the route query ?view= (usePageView);
 // the page reads the same composable to choose what to show under the header.
-import { computed } from 'vue';
+import { computed, useTemplateRef } from 'vue';
 import Locked from '~icons/nnz/locked';
 
 import type { PageTab } from '@/components/layout/pageTab';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { usePageView } from '@/composables/usePageView';
+import { useScrollFade } from '@/composables/useScrollFade';
 
 const props = defineProps<{ tabs: readonly PageTab<View>[] }>();
 
 const values = computed(() => props.tabs.map((tab) => tab.value));
 const view = usePageView(values);
+const strip = useTemplateRef('strip');
+const fade = useScrollFade(strip);
 </script>
 
 <template>
-  <!-- A phone swipes a long tab row sideways; it never widens the page. -->
-  <Tabs v-model="view" class="min-w-0 overflow-x-auto overflow-y-hidden scrollbar-none">
+  <!-- A phone swipes a long tab row sideways; it never widens the page. The edge that hides tabs fades. -->
+  <Tabs
+    ref="strip"
+    v-model="view"
+    class="min-w-0 overflow-x-auto overflow-y-hidden scrollbar-none"
+    :class="fade"
+  >
     <TabsList>
       <!-- A locked tab ignores the pointer, so its reason is the tooltip of the wrapper around it. -->
       <span v-for="tab in tabs" :key="tab.value" :title="tab.reason" class="flex flex-1">

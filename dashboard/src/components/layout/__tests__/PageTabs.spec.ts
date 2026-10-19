@@ -88,6 +88,29 @@ describe('the page tabs', () => {
     expect(wrapper.findAll('[role="tab"]')[2]!.text()).toBe('History 12');
   });
 
+  // A phone cuts a long strip at the edge: the edge that still hides tabs fades, so Keys is not a hard cut.
+  it('fades the edge that hides tabs and nothing when all tabs fit', async () => {
+    const { wrapper } = await open('/');
+    const strip = wrapper.get('[data-slot="tabs"]');
+
+    expect(strip.classes().some((name) => name.startsWith('mask-'))).toBe(false);
+
+    const element = strip.element as HTMLElement;
+
+    Object.defineProperty(element, 'scrollWidth', { configurable: true, value: 500 });
+    Object.defineProperty(element, 'clientWidth', { configurable: true, value: 200 });
+    element.scrollLeft = 0;
+    await strip.trigger('scroll');
+    await flushPromises();
+    expect(strip.classes()).toContain('mask-r-from-90%');
+
+    element.scrollLeft = 300;
+    await strip.trigger('scroll');
+    await flushPromises();
+    expect(strip.classes()).toContain('mask-l-from-90%');
+    expect(strip.classes()).not.toContain('mask-r-from-90%');
+  });
+
   // The trigger underline sits 5 px below the strip; inside a sideways scroller it made the strip scroll 4 px vertically.
   it('scrolls sideways only, never vertically', async () => {
     const { wrapper } = await open('/');
