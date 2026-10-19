@@ -28,6 +28,16 @@ namespace NomNomzBot.Infrastructure.Music.PipelineActions;
 /// </summary>
 internal static class MusicControlResult
 {
+    /// <summary>The typed result of an account action (save, follow, playlist) on an item with no counterpart
+    /// on the Spotify account: the item is a YouTube one (music-playback-determinism.md §3, §7 row 29).</summary>
+    public const string NotSupportedForEngine = "NotSupportedForEngine";
+
+    /// <summary>True when a Spotify account action would act on a YouTube item. Callers return
+    /// <see cref="NotSupportedForEngine"/> before any manage-API call.</summary>
+    public static bool IsYouTubeItemOnSpotify(NowPlaying nowPlaying, string provider) =>
+        string.Equals(provider, "spotify", StringComparison.OrdinalIgnoreCase)
+        && string.Equals(nowPlaying.Provider, "youtube", StringComparison.OrdinalIgnoreCase);
+
     public static ActionResult FromMusicResult(Result result, string successOutput) =>
         result.IsSuccess
             ? ActionResult.Success(successOutput)
@@ -857,6 +867,8 @@ public sealed class MusicSaveTrackAction : ICommandAction
             return ActionResult.Failure(provider.ErrorCode ?? "CAPABILITY_UNSUPPORTED");
         if (nowPlaying.IsFailure || nowPlaying.Value.TrackUri is null)
             return ActionResult.Failure("CAPABILITY_UNSUPPORTED");
+        if (MusicControlResult.IsYouTubeItemOnSpotify(nowPlaying.Value, provider.Value))
+            return ActionResult.Failure(MusicControlResult.NotSupportedForEngine);
 
         Result result = await _manageApi.SaveTracksAsync(
             ctx.BroadcasterId,
@@ -927,6 +939,8 @@ public sealed class MusicUnsaveTrackAction : ICommandAction
             return ActionResult.Failure(provider.ErrorCode ?? "CAPABILITY_UNSUPPORTED");
         if (nowPlaying.IsFailure || nowPlaying.Value.TrackUri is null)
             return ActionResult.Failure("CAPABILITY_UNSUPPORTED");
+        if (MusicControlResult.IsYouTubeItemOnSpotify(nowPlaying.Value, provider.Value))
+            return ActionResult.Failure(MusicControlResult.NotSupportedForEngine);
 
         Result result = await _manageApi.RemoveSavedTracksAsync(
             ctx.BroadcasterId,
@@ -980,6 +994,8 @@ public sealed class MusicToggleSavedAction : ICommandAction
             return ActionResult.Failure(provider.ErrorCode ?? "CAPABILITY_UNSUPPORTED");
         if (nowPlaying.IsFailure || nowPlaying.Value.TrackUri is null)
             return ActionResult.Failure("CAPABILITY_UNSUPPORTED");
+        if (MusicControlResult.IsYouTubeItemOnSpotify(nowPlaying.Value, provider.Value))
+            return ActionResult.Failure(MusicControlResult.NotSupportedForEngine);
 
         string trackUri = nowPlaying.Value.TrackUri;
         Result<IReadOnlyList<bool>> savedCheck = await _manageApi.AreTracksSavedAsync(
@@ -1176,6 +1192,8 @@ public sealed class MusicFollowArtistAction : ICommandAction
             return ActionResult.Failure(provider.ErrorCode ?? "CAPABILITY_UNSUPPORTED");
         if (nowPlaying.IsFailure || nowPlaying.Value.ArtistId is null)
             return ActionResult.Failure("CAPABILITY_UNSUPPORTED");
+        if (MusicControlResult.IsYouTubeItemOnSpotify(nowPlaying.Value, provider.Value))
+            return ActionResult.Failure(MusicControlResult.NotSupportedForEngine);
 
         Result result = await _manageApi.FollowAsync(
             ctx.BroadcasterId,
@@ -1216,6 +1234,8 @@ public sealed class MusicUnfollowArtistAction : ICommandAction
             return ActionResult.Failure(provider.ErrorCode ?? "CAPABILITY_UNSUPPORTED");
         if (nowPlaying.IsFailure || nowPlaying.Value.ArtistId is null)
             return ActionResult.Failure("CAPABILITY_UNSUPPORTED");
+        if (MusicControlResult.IsYouTubeItemOnSpotify(nowPlaying.Value, provider.Value))
+            return ActionResult.Failure(MusicControlResult.NotSupportedForEngine);
 
         Result result = await _manageApi.UnfollowAsync(
             ctx.BroadcasterId,

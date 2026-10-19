@@ -93,8 +93,13 @@ internal static class PlaylistProviderChoice
     public static Result<NowPlaying> RequireTrackFrom(NowPlaying nowPlaying, string provider) =>
         string.Equals(nowPlaying.Provider, provider, StringComparison.OrdinalIgnoreCase)
             ? Result.Success(nowPlaying)
-            : Result.Failure<NowPlaying>(
-                $"the track playing now is from {nowPlaying.Provider}, not {provider}; give a {provider} track_uri or pick the {nowPlaying.Provider} service",
-                "PROVIDER_MISMATCH"
-            );
+        : MusicControlResult.IsYouTubeItemOnSpotify(nowPlaying, provider)
+            ? Result.Failure<NowPlaying>(
+                MusicControlResult.NotSupportedForEngine,
+                MusicControlResult.NotSupportedForEngine
+            )
+        : Result.Failure<NowPlaying>(
+            $"the track playing now is from {nowPlaying.Provider}, not {provider}; give a {provider} track_uri or pick the {nowPlaying.Provider} service",
+            "PROVIDER_MISMATCH"
+        );
 }

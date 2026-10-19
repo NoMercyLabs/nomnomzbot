@@ -294,6 +294,7 @@ public abstract class BaseController : ControllerBase
             or "JAR_NOT_OPEN"
             or "JAR_CAP_EXCEEDED"
             or "CAPABILITY_UNSUPPORTED"
+            or "NotSupportedForEngine"
             or "TRACK_BLOCKED"
             or "SR_REVOKED"
             or "MARKETPLACE_NO_PUBLISHER_TOKEN"
