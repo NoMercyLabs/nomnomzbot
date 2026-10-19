@@ -10,13 +10,15 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.PlatformContent;
 
 namespace NomNomzBot.Domain.Rewards.Entities;
 
-public class Reward : SoftDeletableEntity, ITenantScoped, IPlatformSourced
+public class Reward : SoftDeletableEntity, ITenantScoped, IPlatformSourced, IBindingTargetHolder
 {
     public Guid Id { get; set; }
     public Guid BroadcasterId { get; set; }
@@ -107,6 +109,25 @@ public class Reward : SoftDeletableEntity, ITenantScoped, IPlatformSourced
     /// / <see cref="Response"/> fallbacks. Null = no bound pipeline.
     /// </summary>
     public Guid? PipelineId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetKind"/>
+    public BindingTargetKind TargetKind { get; set; } = BindingTargetKind.Pipeline;
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetCommandId"/>
+    public Guid? TargetCommandId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionType"/>
+    [MaxLength(100)]
+    public string? TargetActionType { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionParamsJson"/>
+    public string? TargetActionParamsJson { get; set; }
+
+    Guid? IBindingTargetHolder.LegacyPipelineId
+    {
+        get => PipelineId;
+        set => PipelineId = value;
+    }
 
     public Guid? PlatformSourceDefinitionId { get; set; }
 

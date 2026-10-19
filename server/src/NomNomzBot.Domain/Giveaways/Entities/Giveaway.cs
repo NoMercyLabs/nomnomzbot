@@ -8,6 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.ComponentModel.DataAnnotations;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Giveaways.Entities;
@@ -19,7 +22,7 @@ namespace NomNomzBot.Domain.Giveaways.Entities;
 /// (<c>announce</c> | <c>currency</c> | <c>pipeline</c> | <c>code_pool</c>). One giveaway per channel
 /// may be active (open, or closed-but-undrawn) at a time.
 /// </summary>
-public class Giveaway : SoftDeletableEntity, ITenantScoped
+public class Giveaway : SoftDeletableEntity, ITenantScoped, IBindingTargetHolder
 {
     public Guid Id { get; set; } = MonotonicGuid.Create();
 
@@ -60,6 +63,25 @@ public class Giveaway : SoftDeletableEntity, ITenantScoped
     public bool PrizeFromPot { get; set; }
 
     public Guid? PrizePipelineId { get; set; }
+
+    /// <summary>The prize target when <see cref="PrizeMode"/> runs something (see <see cref="IBindingTargetHolder.TargetKind"/>).</summary>
+    public BindingTargetKind TargetKind { get; set; } = BindingTargetKind.Pipeline;
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetCommandId"/>
+    public Guid? TargetCommandId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionType"/>
+    [MaxLength(100)]
+    public string? TargetActionType { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionParamsJson"/>
+    public string? TargetActionParamsJson { get; set; }
+
+    Guid? IBindingTargetHolder.LegacyPipelineId
+    {
+        get => PrizePipelineId;
+        set => PrizePipelineId = value;
+    }
 
     public Guid? PrizeCodePoolId { get; set; }
 

@@ -11,6 +11,8 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using NomNomzBot.Domain.Billing;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.PlatformContent;
@@ -23,7 +25,7 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// Schema: I.1 (commands-pipelines.md §1).
 /// </summary>
 [CountedResource("timers", ResourceClass.NearFree)]
-public class Timer : SoftDeletableEntity, ITenantScoped, IPlatformSourced
+public class Timer : SoftDeletableEntity, ITenantScoped, IPlatformSourced, IBindingTargetHolder
 {
     public Guid Id { get; set; }
     public Guid BroadcasterId { get; set; }
@@ -40,6 +42,25 @@ public class Timer : SoftDeletableEntity, ITenantScoped, IPlatformSourced
 
     /// <summary>FK to a pipeline this timer should execute when it fires.</summary>
     public Guid? PipelineId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetKind"/>
+    public BindingTargetKind TargetKind { get; set; } = BindingTargetKind.Pipeline;
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetCommandId"/>
+    public Guid? TargetCommandId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionType"/>
+    [MaxLength(100)]
+    public string? TargetActionType { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionParamsJson"/>
+    public string? TargetActionParamsJson { get; set; }
+
+    Guid? IBindingTargetHolder.LegacyPipelineId
+    {
+        get => PipelineId;
+        set => PipelineId = value;
+    }
 
     [ForeignKey(nameof(PipelineId))]
     public virtual Pipeline? Pipeline { get; set; }

@@ -9,6 +9,8 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Commands.Entities;
@@ -28,7 +30,7 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// idempotency guard (a fired row can never fire twice) and so a short audit trail survives; there is no
 /// <c>DeletedAt</c> — a periodic prune of old terminal rows is a separate concern.
 /// </summary>
-public class ScheduledPipelineTask : ITenantScoped
+public class ScheduledPipelineTask : ITenantScoped, IBindingTargetHolder
 {
     public Guid Id { get; set; }
 
@@ -38,6 +40,26 @@ public class ScheduledPipelineTask : ITenantScoped
     /// The target pipeline, resolved to its Guid at schedule time for determinism (the id the sweeper dispatches).
     /// </summary>
     public Guid PipelineId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetKind"/>
+    public BindingTargetKind TargetKind { get; set; } = BindingTargetKind.Pipeline;
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetCommandId"/>
+    public Guid? TargetCommandId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionType"/>
+    [MaxLength(100)]
+    public string? TargetActionType { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionParamsJson"/>
+    public string? TargetActionParamsJson { get; set; }
+
+    /// <summary>This column is not nullable: a row with a non-pipeline target stores <see cref="Guid.Empty"/> here.</summary>
+    Guid? IBindingTargetHolder.LegacyPipelineId
+    {
+        get => PipelineId == Guid.Empty ? null : PipelineId;
+        set => PipelineId = value ?? Guid.Empty;
+    }
 
     /// <summary>
     /// The target pipeline's name at schedule time — a bundle-portable fallback for display/diagnostics; the

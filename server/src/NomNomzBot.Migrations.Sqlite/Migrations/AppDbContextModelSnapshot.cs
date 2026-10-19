@@ -476,6 +476,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<string>("AllowedPipelineIdsJson")
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AllowedTargetsJson")
+                        .HasColumnType("TEXT");
+
                     b.Property<Guid>("BroadcasterId")
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
@@ -1445,6 +1448,22 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("TargetActionParamsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetActionType")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TargetCommandId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<int>("TargetKind")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1);
+
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
 
@@ -1756,6 +1775,22 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.Property<bool>("SpeakWithTts")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("TargetActionParamsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetActionType")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TargetCommandId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<int>("TargetKind")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1);
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
@@ -2364,6 +2399,22 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("TargetActionParamsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetActionType")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TargetCommandId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<int>("TargetKind")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1);
+
                     b.Property<string>("TriggeredByDisplayName")
                         .IsRequired()
                         .HasMaxLength(255)
@@ -2470,6 +2521,22 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(false);
+
+                    b.Property<string>("TargetActionParamsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetActionType")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TargetCommandId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<int>("TargetKind")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1);
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
@@ -3409,6 +3476,22 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.Property<int?>("StockRemaining")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("TargetActionParamsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetActionType")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TargetCommandId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<int>("TargetKind")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1);
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("TEXT");
@@ -4934,6 +5017,22 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasMaxLength(20)
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetActionParamsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetActionType")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TargetCommandId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<int>("TargetKind")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1);
 
                     b.Property<string>("Title")
                         .IsRequired()
@@ -10736,6 +10835,22 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<string>("Response")
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetActionParamsJson")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("TargetActionType")
+                        .HasMaxLength(100)
+                        .HasColumnType("TEXT");
+
+                    b.Property<Guid?>("TargetCommandId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
+                    b.Property<int>("TargetKind")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(1);
 
                     b.Property<int?>("TimerDurationSeconds")
                         .HasColumnType("INTEGER");

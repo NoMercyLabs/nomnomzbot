@@ -8,6 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.ComponentModel.DataAnnotations;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Economy.Entities;
@@ -17,7 +20,7 @@ namespace NomNomzBot.Domain.Economy.Entities;
 /// (often a pipeline). Optional per-item stock, cooldowns, per-viewer-per-stream limits, and a purchase
 /// permission gate (a community-standing token). One per <c>(BroadcasterId, NameNormalized)</c>.
 /// </summary>
-public class CatalogItem : SoftDeletableEntity, ITenantScoped
+public class CatalogItem : SoftDeletableEntity, ITenantScoped, IBindingTargetHolder
 {
     public Guid Id { get; set; } = Guid.CreateVersion7();
     public Guid BroadcasterId { get; set; }
@@ -30,6 +33,25 @@ public class CatalogItem : SoftDeletableEntity, ITenantScoped
     public bool IsEnabled { get; set; }
     public string Permission { get; set; } = "Everyone";
     public Guid? PipelineId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetKind"/>
+    public BindingTargetKind TargetKind { get; set; } = BindingTargetKind.Pipeline;
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetCommandId"/>
+    public Guid? TargetCommandId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionType"/>
+    [MaxLength(100)]
+    public string? TargetActionType { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionParamsJson"/>
+    public string? TargetActionParamsJson { get; set; }
+
+    Guid? IBindingTargetHolder.LegacyPipelineId
+    {
+        get => PipelineId;
+        set => PipelineId = value;
+    }
     public int CooldownSeconds { get; set; }
     public bool CooldownPerUser { get; set; }
     public int? StockLimit { get; set; }

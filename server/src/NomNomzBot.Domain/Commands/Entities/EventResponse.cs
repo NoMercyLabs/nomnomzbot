@@ -10,6 +10,8 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.PlatformContent;
@@ -27,7 +29,11 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// so a per-channel limit on this resource can never be reached and would be decorative. See
 /// commands-pipelines.md §3.8.
 /// </remarks>
-public class EventResponse : SoftDeletableEntity, ITenantScoped, IPlatformSourced
+public class EventResponse
+    : SoftDeletableEntity,
+        ITenantScoped,
+        IPlatformSourced,
+        IBindingTargetHolder
 {
     public Guid Id { get; set; }
     public Guid BroadcasterId { get; set; }
@@ -47,6 +53,25 @@ public class EventResponse : SoftDeletableEntity, ITenantScoped, IPlatformSource
 
     /// <summary>FK to a named pipeline executed when <see cref="ResponseType"/> is pipeline.</summary>
     public Guid? PipelineId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetKind"/>
+    public BindingTargetKind TargetKind { get; set; } = BindingTargetKind.Pipeline;
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetCommandId"/>
+    public Guid? TargetCommandId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionType"/>
+    [MaxLength(100)]
+    public string? TargetActionType { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionParamsJson"/>
+    public string? TargetActionParamsJson { get; set; }
+
+    Guid? IBindingTargetHolder.LegacyPipelineId
+    {
+        get => PipelineId;
+        set => PipelineId = value;
+    }
 
     [ForeignKey(nameof(PipelineId))]
     public virtual Pipeline? Pipeline { get; set; }

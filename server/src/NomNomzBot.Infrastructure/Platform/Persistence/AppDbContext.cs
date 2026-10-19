@@ -448,6 +448,9 @@ public class AppDbContext : DbContext, IApplicationDbContext
         // Apply all IEntityTypeConfiguration<T> from this assembly
         modelBuilder.ApplyConfigurationsFromAssembly(Assembly.GetExecutingAssembly());
 
+        // The shared binding-target columns (TargetKind default pipeline) on every IBindingTargetHolder entity.
+        modelBuilder.ApplyBindingTargetColumns();
+
         // One provider-agnostic model, two providers (deployment-profile). The model is authored Postgres-first;
         // on SQLite (the lite profile) the Npgsql-native column shapes (jsonb / hstore / text[]) and CLR
         // collection/dictionary properties are rewritten to a portable TEXT-as-JSON mapping so the same model

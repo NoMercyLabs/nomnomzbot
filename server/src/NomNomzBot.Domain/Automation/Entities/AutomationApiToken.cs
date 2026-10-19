@@ -10,6 +10,9 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using System.Text.Json;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
 
@@ -47,6 +50,40 @@ public class AutomationApiToken : SoftDeletableEntity, ITenantScoped
 
     /// <summary>JSON <c>Guid[]</c>; null/empty = any pipeline may be invoked.</summary>
     public string? AllowedPipelineIdsJson { get; set; }
+
+    /// <summary>
+    /// JSON <c>BindingTarget[]</c> (<see cref="BindingTargetJson"/>); null/empty = any target may be invoked.
+    /// The migration copied every <see cref="AllowedPipelineIdsJson"/> entry here as a pipeline target; the old
+    /// list stays readable. Read the pinned set with <see cref="GetAllowedTargets"/>.
+    /// </summary>
+    public string? AllowedTargetsJson { get; set; }
+
+    /// <summary>
+    /// The targets this token may invoke: <see cref="AllowedTargetsJson"/> when set, else the old
+    /// <see cref="AllowedPipelineIdsJson"/> list as pipeline targets (a token issued before the migration
+    /// ran). Null = unrestricted.
+    /// </summary>
+    public IReadOnlyList<BindingTarget>? GetAllowedTargets()
+    {
+        IReadOnlyList<BindingTarget> targets = BindingTargetJson.DeserializeList(
+            AllowedTargetsJson
+        );
+
+        if (targets.Count > 0)
+            return targets;
+
+        if (string.IsNullOrWhiteSpace(AllowedPipelineIdsJson))
+            return null;
+
+        List<Guid> pipelineIds =
+            JsonSerializer.Deserialize<List<Guid>>(AllowedPipelineIdsJson) ?? [];
+
+        return pipelineIds.Count == 0
+            ? null
+            : pipelineIds
+                .Select(id => new BindingTarget(BindingTargetKind.Pipeline, id.ToString()))
+                .ToList();
+    }
 
     public DateTime? LastUsedAt { get; set; }
 

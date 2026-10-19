@@ -10,6 +10,8 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
 
@@ -21,7 +23,7 @@ namespace NomNomzBot.Domain.Commands.Entities;
 /// commands can't cover. Responds with a template line OR a bound pipeline (the full reaction chain),
 /// spam-guarded by a per-trigger channel cooldown and an optional role floor.
 /// </summary>
-public class ChatTrigger : SoftDeletableEntity, ITenantScoped
+public class ChatTrigger : SoftDeletableEntity, ITenantScoped, IBindingTargetHolder
 {
     public Guid Id { get; set; }
     public Guid BroadcasterId { get; set; }
@@ -44,6 +46,25 @@ public class ChatTrigger : SoftDeletableEntity, ITenantScoped
 
     /// <summary>Bound pipeline for chained reactions; wins over <see cref="Response"/> when set.</summary>
     public Guid? PipelineId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetKind"/>
+    public BindingTargetKind TargetKind { get; set; } = BindingTargetKind.Pipeline;
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetCommandId"/>
+    public Guid? TargetCommandId { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionType"/>
+    [MaxLength(100)]
+    public string? TargetActionType { get; set; }
+
+    /// <inheritdoc cref="IBindingTargetHolder.TargetActionParamsJson"/>
+    public string? TargetActionParamsJson { get; set; }
+
+    Guid? IBindingTargetHolder.LegacyPipelineId
+    {
+        get => PipelineId;
+        set => PipelineId = value;
+    }
 
     [ForeignKey(nameof(PipelineId))]
     public virtual Pipeline? Pipeline { get; set; }
