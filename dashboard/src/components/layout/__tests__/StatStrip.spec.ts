@@ -13,19 +13,50 @@ import { describe, expect, it } from 'vitest';
 
 import StatStrip from '../StatStrip.vue';
 
-describe('StatStrip', () => {
-  it('lets a lone last tile on a phone span both columns, so no tile sits alone at half width', () => {
-    const strip = mount(StatStrip);
-    const classes: string[] = strip.get('[data-slot="stat-strip"]').classes();
+const STACK_CLASS = 'max-sm:[&:has(>:last-child:nth-child(3))]:grid-cols-1';
+const SPAN_CLASS = 'max-sm:[&>:last-child:nth-child(odd):not(:nth-child(3))]:col-span-2';
+const STACK_SELECTOR = ':has(>:last-child:nth-child(3))';
+const SPAN_SELECTOR = ':last-child:nth-child(odd):not(:nth-child(3))';
 
-    expect(classes).toContain('max-sm:[&>:last-child:nth-child(odd)]:col-span-2');
+function mountStrip(count: number): HTMLElement {
+  const tiles = '<i></i>'.repeat(count);
+  const strip = mount(StatStrip, { slots: { default: tiles } });
+
+  return strip.element as HTMLElement;
+}
+
+describe('StatStrip', () => {
+  it('carries both phone rules and the wide auto-fit row', () => {
+    const classes: string[] = mountStrip(3).classList.value.split(' ');
+
+    expect(classes).toContain(STACK_CLASS);
+    expect(classes).toContain(SPAN_CLASS);
+    expect(classes).toContain('grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]');
   });
 
-  it('keeps the wide layout one auto-fit row', () => {
-    const strip = mount(StatStrip);
+  it('stacks exactly three tiles in one column and never spans the third into a second column', () => {
+    const strip = mountStrip(3);
+    const third = strip.children[2] as HTMLElement;
 
-    expect(strip.get('[data-slot="stat-strip"]').classes()).toContain(
-      'grid-cols-[repeat(auto-fit,minmax(10rem,1fr))]',
-    );
+    expect(strip.matches(STACK_SELECTOR)).toBe(true);
+    expect(third.matches(SPAN_SELECTOR)).toBe(false);
+  });
+
+  it.each([1, 2, 4, 5])('does not stack %i tiles', (count) => {
+    expect(mountStrip(count).matches(STACK_SELECTOR)).toBe(false);
+  });
+
+  it.each([1, 5])('spans the lone last of %i tiles across the phone row', (count) => {
+    const strip = mountStrip(count);
+    const last = strip.children[count - 1] as HTMLElement;
+
+    expect(last.matches(SPAN_SELECTOR)).toBe(true);
+  });
+
+  it.each([2, 4])('spans nothing for %i tiles, which pair evenly', (count) => {
+    const strip = mountStrip(count);
+    const last = strip.children[count - 1] as HTMLElement;
+
+    expect(last.matches(SPAN_SELECTOR)).toBe(false);
   });
 });

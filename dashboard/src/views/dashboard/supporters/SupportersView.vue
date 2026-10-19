@@ -124,7 +124,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
 <template>
   <PageHeader :title="t('dashboard.supporters.title')" />
   <PageBody>
-    <StatStrip v-if="can('dashboard:read')" class="max-sm:grid-cols-1">
+    <StatStrip v-if="can('dashboard:read')">
       <StatTile
         :label="t('dashboard.supporters.stats.subscribers')"
         :value="subscriberCount"
