@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
 
 namespace NomNomzBot.Infrastructure.Music.Playback;
@@ -81,10 +82,22 @@ public sealed partial class PlaybackDirector
         string name = input.GetType().Name;
         if (_queue.Head is { } head)
         {
+            if (head.Engine == engine && HasOwnQueue(engine))
+            {
+                await SkipToHeadAsync(head, name, ct);
+                return;
+            }
+
             if (State.Item is null && head.Engine != engine)
                 _memory = new(engine, true);
 
             await BeginStartAsync(head, name, "owner_skip", engine, ct);
+            return;
+        }
+
+        if (HasOwnQueue(engine))
+        {
+            await SkipToOwnerMusicAsync(engine, name, ct);
             return;
         }
 
@@ -99,6 +112,48 @@ public sealed partial class PlaybackDirector
 
         MarkSent(engine);
         await EndOfQueueAsync(engine, name, ct);
+    }
+
+    /// <summary>True when the engine keeps a queue of its own (Spotify): a skip moves it on and never pauses it.</summary>
+    private bool HasOwnQueue(EngineKind engine) =>
+        _engines.TryGetValue(engine, out IPlaybackEngine? found) && found.LinesUpInItsOwnQueue;
+
+    /// <summary>
+    /// A skip to a head on an engine with its own queue. A head the engine already holds plays through the
+    /// engine's own skip; any other head starts over the current track. The engine is never paused first.
+    /// </summary>
+    private async Task SkipToHeadAsync(PlaybackItem head, string inputName, CancellationToken ct)
+    {
+        if (!_queuedAhead.Contains(head.Id))
+        {
+            await BeginStartAsync(head, inputName, "owner_skip", null, ct);
+            return;
+        }
+
+        if (!await CommandAsync(head.Engine, inputName, e => e.SkipAsync(ct)))
+            return;
+
+        MarkSent(head.Engine);
+        _stopWait = null;
+        _linedUpBehindCurrentTrack = false;
+        await MoveAsync(PlaybackState.Starting(head.Engine, head), inputName, "owner_skip");
+        _startDeadline = _time.GetUtcNow() + StartDeadline;
+    }
+
+    /// <summary>No request waits: the engine moves on to the owner's next track, and the director follows it.</summary>
+    private async Task SkipToOwnerMusicAsync(
+        EngineKind engine,
+        string inputName,
+        CancellationToken ct
+    )
+    {
+        if (!await CommandAsync(engine, inputName, e => e.SkipAsync(ct)))
+            return;
+
+        MarkSent(engine);
+        _ownerReport = null;
+        _memory = null;
+        await MoveAsync(PlaybackState.Playing(engine, null), inputName, "owner_skip");
     }
 
     private async Task OnPreviousAsync(EngineKind engine, PlaybackInput input, CancellationToken ct)

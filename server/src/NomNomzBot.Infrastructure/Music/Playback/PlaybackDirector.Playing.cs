@@ -134,6 +134,15 @@ public sealed partial class PlaybackDirector
 
     private async Task OnBlockedAsync(PlaybackInput input, CancellationToken ct)
     {
+        // Music plays again (the owner started it, or the device came back): the director follows it, so a
+        // waiting request lines up at that track's end.
+        if (input is EngineReport { IsPlaying: true } playing)
+        {
+            await MoveAsync(PlaybackState.Idle, input, "music_playing");
+            await OnReportAsync(playing, ct);
+            return;
+        }
+
         if (input is not (OutputAttached or RequestAdded))
         {
             await IgnoreAsync(input);
@@ -145,8 +154,22 @@ public sealed partial class PlaybackDirector
             input,
             input is OutputAttached ? "output_attached" : "request_added"
         );
+        if (await FollowPlayingMusicAsync(ct))
+            return;
+
         if (_queue.Head is { } head)
             await BeginStartAsync(head, input.GetType().Name, "start_head", null, ct);
+    }
+
+    /// <summary>Music an engine last reported playing is followed, so the head never starts over it.</summary>
+    private async Task<bool> FollowPlayingMusicAsync(CancellationToken ct)
+    {
+        if (_reports.Values.FirstOrDefault(r => r.IsPlaying) is not { } playing)
+            return false;
+
+        await OnReportAsync(playing, ct);
+
+        return State.Kind != PlaybackStateKind.Idle;
     }
 
     private bool IsCurrentTrack(TrackEnded ended) =>

@@ -74,6 +74,14 @@ public sealed class YouTubePlaybackEngine(
     public Task StopAsync(CancellationToken ct = default) =>
         CommandAsync(lease => lease.Dispatcher.StopAsync(broadcasterId, ct), ct);
 
+    /// <summary>True when a Music Player page is open to play the video.</summary>
+    public async Task<bool> CanStartAsync(CancellationToken ct = default)
+    {
+        await using EngineLease lease = open();
+
+        return await GuardFor(lease).IsReadyAsync(ct);
+    }
+
     /// <summary>A page that reloaded mid-video gets that video back; open players are found by the replay.</summary>
     public async Task ReattachOutputAsync(bool pageIsPlaying, CancellationToken ct = default)
     {

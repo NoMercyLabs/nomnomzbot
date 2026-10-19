@@ -30,13 +30,25 @@ public sealed partial class PlaybackDirector
     {
         _stopWait = null;
         _startDeadline = null;
+        _pausedForHandOver = null;
+        _linedUpBehindCurrentTrack = false;
         PlaybackState starting = PlaybackState.Starting(item.Engine, item);
         if (stopEngine is { } old)
         {
+            // The owner's music is never paused for an engine that cannot start: it plays on, and the item
+            // counts a failed start.
+            if (old != item.Engine && !await CanStartOnAsync(item.Engine, ct))
+            {
+                await FailStartAsync(item, inputName, "engine not ready", "start_refused", ct);
+                return;
+            }
+
             if (!await CommandAsync(old, inputName, e => e.StopAsync(ct)))
                 return;
 
             MarkSent(old);
+            if (old != item.Engine)
+                _pausedForHandOver = old;
             if (_ownerReport is not { IsPlaying: false } quiet || quiet.Engine != old)
             {
                 await MoveAsync(starting, inputName, reason);
@@ -68,6 +80,7 @@ public sealed partial class PlaybackDirector
         }
 
         EngineStartResult result = await SendToEngineOnceAsync(engine, item, queueAheadMs, ct);
+        _linedUpBehindCurrentTrack = result.Accepted && queueAheadMs is not null;
         if (result.Accepted)
             _startDeadline =
                 _time.GetUtcNow() + TimeSpan.FromMilliseconds(queueAheadMs ?? 0) + StartDeadline;
@@ -77,7 +90,8 @@ public sealed partial class PlaybackDirector
                 inputName,
                 result.FailureReason ?? "start refused",
                 "start_refused",
-                ct
+                ct,
+                engineBlocked: result.Block is not null
             );
     }
 
@@ -121,6 +135,9 @@ public sealed partial class PlaybackDirector
                 when r.Engine != item.Engine && FindRow(r) is null:
                 await SilenceForeignAsync(r, ct);
                 break;
+            case OwnerSkip when _linedUpBehindCurrentTrack:
+                await SkipToHeadAsync(item, name, ct);
+                break;
             case TrackEnded t when t.Engine == item.Engine && t.Uri == item.Uri:
                 await FailStartAsync(item, name, "player error", "start_failed", ct);
                 break;
@@ -130,6 +147,23 @@ public sealed partial class PlaybackDirector
             default:
                 await IgnoreAsync(input);
                 break;
+        }
+    }
+
+    /// <summary>Asks the engine whether a start could be sent now. An engine that is missing or throws answers no.</summary>
+    private async Task<bool> CanStartOnAsync(EngineKind engine, CancellationToken ct)
+    {
+        if (!_engines.TryGetValue(engine, out IPlaybackEngine? target))
+            return false;
+
+        try
+        {
+            return await target.CanStartAsync(ct);
+        }
+        catch (Exception ex)
+            when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            return false;
         }
     }
 

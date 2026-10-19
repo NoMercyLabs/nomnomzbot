@@ -24,6 +24,10 @@ internal sealed class EngineCommandGuard(
     Func<CancellationToken, Task<EngineBlockReason?>> missingPrecondition
 )
 {
+    /// <summary>True when the precondition holds, so a start would be sent.</summary>
+    public async Task<bool> IsReadyAsync(CancellationToken ct) =>
+        await missingPrecondition(ct) is null;
+
     public async Task<EngineStartResult> StartAsync(
         Func<Task<bool>> start,
         string refusedReason,

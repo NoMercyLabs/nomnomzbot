@@ -25,6 +25,15 @@ public sealed partial class PlaybackDirector
     /// <summary>Items already lined up in the engine's own queue; a retry never lines one up twice.</summary>
     private readonly HashSet<string> _queuedAhead = [];
 
+    /// <summary>The owner's engine the current start paused for a hand-over to another engine; null when none.</summary>
+    private EngineKind? _pausedForHandOver;
+
+    /// <summary>
+    /// True while the starting item waits in the engine's own queue behind the track that plays now (a queue-ahead,
+    /// not a start): a skip then moves the engine on to it.
+    /// </summary>
+    private bool _linedUpBehindCurrentTrack;
+
     /// <summary>
     /// Asks the engine to start the item. A refusal and a throw are the same thing to the director:
     /// a failed start. A cancel from the caller's token is not a failure and still propagates.
@@ -82,18 +91,21 @@ public sealed partial class PlaybackDirector
     /// <summary>
     /// A failed start while the owner's music plays on follows that music and keeps the item. Otherwise the
     /// first failed start blocks the director and keeps the item. The last allowed failure drops the item
-    /// with a notice. Only the director removes the item here.
+    /// with a notice. Only the director removes the item here. An engine that refuses with a typed block
+    /// always shows that block, after the music a hand-over paused plays on again.
     /// </summary>
     private async Task FailStartAsync(
         PlaybackItem item,
         string inputName,
         string blockedReason,
         string journalReason,
-        CancellationToken ct
+        CancellationToken ct,
+        bool engineBlocked = false
     )
     {
         int failures = _failedStarts.GetValueOrDefault(item.Id) + 1;
-        EngineReport? ownerMusic = OwnerMusicPlayingOver(item);
+        EngineReport? handedOver = await OwnerMusicHandedOverAsync(item, inputName, ct);
+        EngineReport? ownerMusic = engineBlocked ? null : OwnerMusicPlayingOver(item) ?? handedOver;
         if (ownerMusic is not null && failures < MaxFailedStartsOverOwnerMusic)
         {
             _failedStarts[item.Id] = failures;
@@ -146,6 +158,39 @@ public sealed partial class PlaybackDirector
         && FindRow(report) is null
             ? report
             : null;
+
+    /// <summary>
+    /// The owner's music on another engine that this item was to take over from. Music the hand-over paused
+    /// plays on again; music it never paused is still playing. Null when no owner music was handed over.
+    /// </summary>
+    private async Task<EngineReport?> OwnerMusicHandedOverAsync(
+        PlaybackItem item,
+        string inputName,
+        CancellationToken ct
+    )
+    {
+        EngineKind? paused = _pausedForHandOver;
+        _pausedForHandOver = null;
+        if (
+            _memory is not { WasPlaying: true } memory
+            || memory.Engine == item.Engine
+            || !_reports.TryGetValue(memory.Engine, out EngineReport? last)
+        )
+            return null;
+
+        if (paused == memory.Engine)
+        {
+            if (!await CommandAsync(memory.Engine, inputName, e => e.ResumeAsync(ct)))
+                return null;
+
+            MarkSent(memory.Engine);
+        }
+
+        return last with
+        {
+            IsPlaying = true,
+        };
+    }
 
     /// <summary>Owner music plays on: the director holds it, so the next hand-over waits for its end.</summary>
     private Task FollowOwnerMusicAsync(

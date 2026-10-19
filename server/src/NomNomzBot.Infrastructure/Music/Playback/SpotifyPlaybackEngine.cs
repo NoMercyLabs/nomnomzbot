@@ -17,7 +17,7 @@ namespace NomNomzBot.Infrastructure.Music.Playback;
 /// <summary>
 /// The Spotify engine of one channel, over the existing provider (music-playback-determinism.md section 11.2).
 /// Start is <c>StartTrackAsync</c>; Stop is a pause; Previous is not here (the director seeks to 0 and starts the
-/// item again, and the provider's previous-track endpoint is never called); the queue is never used. Spotify has
+/// item again, and the provider's previous-track endpoint is never called); Skip moves Spotify's own queue on. Spotify has
 /// no push, so <see cref="ObserveAsync"/> turns each poll into a report and derives the track end.
 /// Every command opens an <see cref="EngineLease"/> and disposes it after, so the scoped provider never outlives it.
 /// </summary>
@@ -91,6 +91,17 @@ public sealed class SpotifyPlaybackEngine(Guid broadcasterId, Func<EngineLease> 
 
     /// <summary>Spotify has no stop: pausing is what forgetting the track means here.</summary>
     public Task StopAsync(CancellationToken ct = default) => PauseAsync(ct);
+
+    /// <summary>Spotify's own next track plays: a lined-up request, else the owner's playlist goes on.</summary>
+    public Task SkipAsync(CancellationToken ct = default) =>
+        CommandAsync(provider => provider.SkipAsync(broadcasterId, ct), ct);
+
+    public async Task<bool> CanStartAsync(CancellationToken ct = default)
+    {
+        await using EngineLease lease = open();
+
+        return await GuardFor(lease).IsReadyAsync(ct);
+    }
 
     /// <summary>Spotify takes whole seconds.</summary>
     public Task SeekAsync(int positionMs, CancellationToken ct = default) =>

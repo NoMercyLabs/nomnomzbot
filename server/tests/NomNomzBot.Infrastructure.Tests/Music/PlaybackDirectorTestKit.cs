@@ -62,7 +62,7 @@ public static class PlaybackDirectorTestKit
         /// <summary>When set, <see cref="StartAsync"/> runs and awaits this before it answers (a test reads ambient state or holds the start open).</summary>
         public Func<PlaybackItem, Task>? DuringStart { get; set; }
 
-        /// <summary>When set, Pause, Resume, Stop, Seek and SetVolume throw the typed block, as a real engine does.</summary>
+        /// <summary>When set, Pause, Resume, Stop, Skip, Seek and SetVolume throw the typed block and a start answers it, as a real engine does.</summary>
         public EngineBlockReason? BlockCommands { get; set; }
 
         public IReadOnlyList<EngineCall> Calls => _calls;
@@ -72,8 +72,17 @@ public static class PlaybackDirectorTestKit
         public Task<EngineStartResult> StartAsync(PlaybackItem item, CancellationToken ct = default)
         {
             _calls.Add(new("Start", item.Id));
+
+            return Answer(item);
+        }
+
+        /// <summary>A blocked engine answers a start with its block, as the real engines' guard does.</summary>
+        private Task<EngineStartResult> Answer(PlaybackItem item)
+        {
             if (StartThrows is not null)
                 throw StartThrows();
+            if (BlockCommands is { } reason)
+                return Task.FromResult(EngineStartResult.BlockedBy(reason));
 
             return DuringStart is null ? Task.FromResult(StartResult) : StartAfterAsync(item);
         }
@@ -87,10 +96,8 @@ public static class PlaybackDirectorTestKit
         )
         {
             _calls.Add(new("QueueNext", item.Id));
-            if (StartThrows is not null)
-                throw StartThrows();
 
-            return DuringStart is null ? Task.FromResult(StartResult) : StartAfterAsync(item);
+            return Answer(item);
         }
 
         private async Task<EngineStartResult> StartAfterAsync(PlaybackItem item)
@@ -105,6 +112,17 @@ public static class PlaybackDirectorTestKit
         public Task ResumeAsync(CancellationToken ct = default) => Record("Resume");
 
         public Task StopAsync(CancellationToken ct = default) => Record("Stop");
+
+        /// <summary>The fake Spotify moves its own queue on; an engine without one stops, as the real ones do.</summary>
+        public Task SkipAsync(CancellationToken ct = default) =>
+            LinesUpInItsOwnQueue ? Record("Skip") : StopAsync(ct);
+
+        /// <summary>What <see cref="CanStartAsync"/> answers. Defaults to ready.</summary>
+        public bool CanStart { get; set; } = true;
+
+        /// <summary>A read, not a command: kept out of <see cref="Calls"/>.</summary>
+        public Task<bool> CanStartAsync(CancellationToken ct = default) =>
+            Task.FromResult(CanStart);
 
         public Task SeekAsync(int positionMs, CancellationToken ct = default) =>
             Record("Seek", positionMs.ToString());

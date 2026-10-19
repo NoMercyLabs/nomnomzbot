@@ -46,6 +46,18 @@ public interface IPlaybackEngine
     /// <summary>Pause and forget the track (used at a hand-over).</summary>
     Task StopAsync(CancellationToken ct = default);
 
+    /// <summary>
+    /// Moves on to the next track in the engine's own queue, so the music never pauses. An engine with no
+    /// queue of its own stops instead.
+    /// </summary>
+    Task SkipAsync(CancellationToken ct = default) => StopAsync(ct);
+
+    /// <summary>
+    /// True when a start can be sent now: the engine's connection or player is there. The director asks
+    /// before it stops another engine's music for a hand-over.
+    /// </summary>
+    Task<bool> CanStartAsync(CancellationToken ct = default) => Task.FromResult(true);
+
     Task SeekAsync(int positionMs, CancellationToken ct = default);
 
     /// <summary>Engine volume, 0 to 100 (the music level).</summary>

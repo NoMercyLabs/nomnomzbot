@@ -337,13 +337,11 @@ public sealed partial class PlaybackDirectorTests
         rig.Journal.Last().Reason.Should().Be("owner_resume");
     }
 
-    [Theory]
-    [InlineData(EngineKind.Spotify)]
-    [InlineData(EngineKind.YouTube)]
-    public async Task OwnerSkip_StopsTheEngineWaitsForItsPausedReportThenStartsTheNextItem(
-        EngineKind kind
-    )
+    /// <summary>YouTube has no queue of its own; a Spotify skip never pauses (PlaybackDirectorMusicNeverSilentTests).</summary>
+    [Fact]
+    public async Task OwnerSkip_OnYouTube_StopsTheEngineWaitsForItsPausedReportThenStartsTheNextItem()
     {
+        const EngineKind kind = EngineKind.YouTube;
         Rig rig = new();
         PlaybackItem a = await rig.StartPlaying(kind);
         PlaybackItem b = Item("b", kind, owner: "bob");

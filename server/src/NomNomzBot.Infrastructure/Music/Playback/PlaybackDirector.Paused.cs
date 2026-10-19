@@ -56,6 +56,12 @@ public sealed partial class PlaybackDirector
     {
         if (_queue.Head is { } head)
         {
+            if (head.Engine == engine && HasOwnQueue(engine))
+            {
+                await SkipToHeadAsync(head, input.GetType().Name, ct);
+                return;
+            }
+
             if (State.Item is null && head.Engine != engine)
                 _memory = new(engine, false);
 

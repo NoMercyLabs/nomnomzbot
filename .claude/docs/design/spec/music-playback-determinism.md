@@ -150,11 +150,13 @@ keeps its place in the queue.
 | Idle | RequestAdded, head ready | Starting(head.engine, head) | start head on its engine |
 | Idle | EngineReport playing (owner music) | Playing(engine, null) | none |
 | Starting(e, i) | EngineReport e plays i.uri | Playing(e, i) | mark i as played (see 6) |
-| Starting(e, i) | StartTimeout | Blocked("did not start") | keep i at head; show error |
+| Starting(e, i) | StartTimeout | Blocked("did not start") | keep i at head; show error. When the start paused the owner's music on another engine, that music resumes and the director follows it |
+| Starting(e, i) | OwnerSkip, i lined up in e's queue behind the playing track | Starting(e, i) | e's skip plays i |
 | Playing(e, null) | RequestAdded | Playing(e, null) | none until near end (6 s) of the owner track |
-| Playing(e, null) | near end, head waits | Starting(head.engine, head) | stop e only if head.engine != e |
+| Playing(e, null) | near end, head waits | Starting(head.engine, head) | stop e only if head.engine != e AND head.engine can start now (player or connection there); otherwise e plays on and the head counts a failed start |
 | Playing(e, i) | TrackEnded(e, i.uri) | Starting(next) or Idle | if next.engine != e: e already ended, start next on its engine |
-| Playing(e, i) | OwnerSkip | Starting(next) or Idle | stop e; wait for e's paused report (max 2 s); start next |
+| Playing(e, *) | OwnerSkip, e has its own queue (Spotify) | Starting(next) or Playing(e, null) | e is never paused: a head e already holds plays through e's skip; another head on e starts over the current track; no head: e's skip moves on to the owner's next track |
+| Playing(e, *) | OwnerSkip, e has no queue of its own (YouTube) or the head is on another engine | Starting(next) or Idle | stop e; wait for e's paused report (max 2 s); start next |
 | Playing(e, *) | OwnerPrevious, progress > 3 s | Playing(e, *) | seek e to 0 |
 | Playing(e, *) | OwnerPrevious, progress <= 3 s | Starting(last.engine, last) | put last played item at head; stop e; start it |
 | Playing(e, *) | OwnerSeek / OwnerVolume / OwnerMute | Playing(e, *) | apply to e (mute: see 3) |
@@ -163,11 +165,17 @@ keeps its place in the queue.
 | Playing(e, *) | OwnerPause | PausedByOwner(e, *) | pause e |
 | PausedByOwner(e, *) | OwnerResume | Playing(e, *) | resume e ONLY |
 | PausedByOwner(e, *) | RequestAdded, EngineReport paused, poll tick | PausedByOwner | none |
-| PausedByOwner(e, *) | OwnerSkip | Starting(next) or Idle | start head |
+| PausedByOwner(e, *) | OwnerSkip | Starting(next) or Idle | start head; a head e already holds in its own queue plays through e's skip |
 | PausedByOwner(e, *) | OwnerSeek / OwnerVolume / OwnerMute | PausedByOwner(e, *) | apply to e. Arc's decision, pending Stoney: OwnerSeek, OwnerVolume, OwnerMute are accepted in PausedByOwner |
 | any | EngineReport of an engine that is not the owner engine, playing | same | pause that engine; log `foreign_engine_silenced` |
+| Blocked | EngineReport playing | Idle, then Playing(engine, null) or Playing(engine, row) | follow that music (journal `music_playing`); a waiting head lines up at its end |
 | Blocked | OutputAttached / token restored | Idle | re-evaluate |
-| Blocked | RequestAdded | Idle, then Starting(head) | re-evaluate the kept head and start it as Idle + RequestAdded does; journal reason `request_added` |
+| Blocked | RequestAdded | Idle, then Starting(head) | an engine whose last report plays is followed first, so the head never starts over it; otherwise re-evaluate the kept head and start it as Idle + RequestAdded does; journal reason `request_added` |
+
+Changed 2026-10-19 (behavior audit). Source: Stoney 2026-10-19, "the music should NEVER EVER be cleared out".
+Arc's reading: a skip, a failed start or a Blocked state never leaves the music paused or stopped. The old
+rows paused Spotify on every skip and left it paused after a failed YouTube hand-over. Row 28 still blocks at
+the device change itself; the next playing report from the new device is followed (no transfer is sent).
 
 Engine switch (Spotify to YouTube or back) happens ONLY at the queue head, in the rows above.
 No timer guesses the gap. The next engine starts after the old engine's `TrackEnded` or its confirmed

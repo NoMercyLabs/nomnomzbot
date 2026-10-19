@@ -83,7 +83,7 @@ public sealed class MusicServiceSkipThroughDirectorTests
         );
 
     [Fact]
-    public async Task Skipping_the_playing_head_stops_it_then_starts_the_next_head_once_and_never_calls_the_provider()
+    public async Task Skipping_the_playing_head_starts_the_next_head_once_without_pausing_Spotify_and_never_calls_the_provider()
     {
         (
             MusicService sut,
@@ -94,16 +94,13 @@ public sealed class MusicServiceSkipThroughDirectorTests
         ) = await PlayingAsync("s1", "s2");
 
         Result result = await sut.SkipAsync(SpotifyChannel.ToString(), Skipper);
-        await spotify.EmitAsync(
-            new EngineReport(EngineKind.Spotify, FirstUri, false, 1_000, 200_000)
-        );
 
         result.IsSuccess.Should().BeTrue();
-        spotify.Calls.Select(c => c.Name).Should().Equal("Start", "Stop", "Start");
+        spotify.Calls.Select(c => c.Name).Should().Equal("Start", "Start");
         PlaybackState state = rig.Registry.StateOf(SpotifyChannel);
         state.Kind.Should().Be(PlaybackStateKind.Starting);
         state.Item!.Uri.Should().Be("spotify:track:s2");
-        spotify.Calls[2].Argument.Should().Be(state.Item.Id, "the second start is the next head");
+        spotify.Calls[1].Argument.Should().Be(state.Item.Id, "the second start is the next head");
         CalledProviderSkip(handler).Should().BeFalse("the director skips, not the provider");
         bus.Published.OfType<SongSkippedEvent>()
             .Should()
@@ -111,7 +108,7 @@ public sealed class MusicServiceSkipThroughDirectorTests
     }
 
     [Fact]
-    public async Task Skipping_with_an_empty_queue_stops_the_song_the_director_goes_Idle_and_the_skip_is_still_announced()
+    public async Task Skipping_with_an_empty_queue_moves_Spotify_on_to_the_owners_music_and_the_skip_is_still_announced()
     {
         (
             MusicService sut,
@@ -124,8 +121,10 @@ public sealed class MusicServiceSkipThroughDirectorTests
         Result result = await sut.SkipAsync(SpotifyChannel.ToString(), Skipper);
 
         result.IsSuccess.Should().BeTrue();
-        spotify.Calls.Select(c => c.Name).Should().Equal("Start", "Stop");
-        rig.Registry.StateOf(SpotifyChannel).Should().Be(PlaybackState.Idle);
+        spotify.Calls.Select(c => c.Name).Should().Equal("Start", "Skip");
+        rig.Registry.StateOf(SpotifyChannel)
+            .Should()
+            .Be(PlaybackState.Playing(EngineKind.Spotify, null));
         CalledProviderSkip(handler).Should().BeFalse();
         bus.Published.OfType<SongSkippedEvent>()
             .Should()

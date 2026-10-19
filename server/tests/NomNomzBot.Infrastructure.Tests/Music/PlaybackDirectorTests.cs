@@ -383,7 +383,10 @@ public sealed partial class PlaybackDirectorTests
 
         rig.Clock.Advance(TimeSpan.FromSeconds(10));
         await rig.Director.CheckDeadlinesAsync();
-        rig.Director.State.Should().Be(PlaybackState.Blocked("did not start"));
+        rig.Director.State.Should()
+            .Be(PlaybackState.Playing(EngineKind.Spotify, null), "the paused owner music plays on");
+        rig.Spotify.Calls.Should().Equal(new EngineCall("Stop"), new EngineCall("Resume"));
+        rig.QueueIds.Should().Equal("y1");
     }
 
     [Fact]
