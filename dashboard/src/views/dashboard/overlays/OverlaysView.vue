@@ -29,6 +29,7 @@ import { usePageView } from '@/composables/usePageView';
 import { keysOf } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 
+import AudioMixPanel from './components/AudioMixPanel.vue';
 import OverlayDetail from './components/OverlayDetail.vue';
 import OverlayRow from './components/OverlayRow.vue';
 
@@ -148,6 +149,7 @@ function back(): void {
   </PageHeader>
   <ListDetail :show-detail="asked !== ''">
     <template #list>
+      <AudioMixPanel v-if="can('sounds:read')" />
       <PanelCard
         v-if="can('widget:read')"
         class="min-h-80 flex-1"

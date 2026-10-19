@@ -7,6 +7,24 @@
       "count": "{count} overlays",
       "noMatch": "Geen overlay past bij \"{query}\".",
       "back": "Terug naar de lijst",
+      "audioMix": {
+        "title": "Audiomix",
+        "description": "Het volume waarop je overlays en de botstem spelen, op elke streaming-pc gelijk.",
+        "loadError": "De audiomix kon niet laden.",
+        "defaultHint": "Standaard {value}",
+        "master": {
+          "title": "Hoofdvolume",
+          "description": "Hoe luid alles klinkt wat je overlays afspelen."
+        },
+        "tts": {
+          "title": "Stemvolume",
+          "description": "Hoe luid de tekst-naar-spraakstem klinkt."
+        },
+        "errors": {
+          "audio_mix_master_volume_out_of_range": "Het hoofdvolume ligt buiten het toegestane bereik. Er is niets opgeslagen.",
+          "audio_mix_tts_volume_out_of_range": "Het stemvolume ligt buiten het toegestane bereik. Er is niets opgeslagen."
+        }
+      },
       "editor": {
         "compiled": "Opgeslagen en gecompileerd. De overlay draait nu deze versie.",
         "samplesFailed": "De voorbeeldgebeurtenissen konden niet worden geladen, dus de vuurbalk verstuurt niets.",

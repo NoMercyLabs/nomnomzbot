@@ -99,6 +99,9 @@ vi.mock('@/api/client', () => ({
         body: undefined,
       });
 
+      if (path.endsWith('/audio-mix'))
+        return { data: { data: null }, response: { status: 200, ok: true } };
+
       if (listFails)
         return { error: { status: 'error' }, response: { status: 500, ok: false } };
 

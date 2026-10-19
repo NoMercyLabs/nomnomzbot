@@ -7,6 +7,24 @@
       "count": "{count} overlays",
       "noMatch": "No overlay matches \"{query}\".",
       "back": "Back to the list",
+      "audioMix": {
+        "title": "Audio mix",
+        "description": "The volume your overlays and the bot voice play at, the same on every streaming PC.",
+        "loadError": "The audio mix could not load.",
+        "defaultHint": "Default {value}",
+        "master": {
+          "title": "Master volume",
+          "description": "The loudness of everything your overlays play."
+        },
+        "tts": {
+          "title": "Voice volume",
+          "description": "The loudness of the text-to-speech voice."
+        },
+        "errors": {
+          "audio_mix_master_volume_out_of_range": "The master volume is outside the allowed range. Nothing was saved.",
+          "audio_mix_tts_volume_out_of_range": "The voice volume is outside the allowed range. Nothing was saved."
+        }
+      },
       "editor": {
         "compiled": "Saved and compiled. The overlay now runs this version.",
         "samplesFailed": "The sample events could not be loaded, so the fire bar sends nothing.",
