@@ -327,7 +327,7 @@ describe('Webhooks page', () => {
     const heading = (category: string): string =>
       q(`[data-event-group="${category}"] > span`).textContent?.trim() ?? '';
 
-    expect(heading('Followers & Subscriptions')).toBe('Followers and subscribers');
+    expect(heading('Followers & Subscriptions')).toBe('Twitch followers and subscribers');
     expect(heading('Chat')).toBe('Chat');
   });
 

@@ -43,7 +43,7 @@
           "headersInvalid": "This line is not a header: {line}",
           "categories": {
             "stream": "Stream",
-            "followers_subscriptions": "Followers and subscribers",
+            "followers_subscriptions": "Twitch followers and subscribers",
             "bits_cheers": "Bits and cheers",
             "raids_shoutouts": "Raids and shoutouts",
             "channel_points": "Channel points",
