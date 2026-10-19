@@ -15,6 +15,7 @@
 // outside the body, so its wrapper adds pr-3. A ghost button has no border, so its ink starts
 // one padding inside it: it gets a negative margin equal to that padding (10px, 8px for icons).
 import { computed } from 'vue';
+import ChevronRight from '~icons/nnz/chevron-right';
 
 defineOptions({ inheritAttrs: false });
 
@@ -25,6 +26,8 @@ const props = withDefaults(
     // A third, smaller line for who or when, under the detail.
     meta?: string;
     pick?: boolean;
+    // A row that opens something else ends with a chevron.
+    chevron?: boolean;
     selected?: boolean;
     // A row in a crowded panel: the text keeps a minimum width and cuts with an ellipsis instead of wrapping
     // one letter per line when the buttons beside it take the room.
@@ -37,6 +40,7 @@ const props = withDefaults(
     detail: undefined,
     meta: undefined,
     pick: false,
+    chevron: false,
     selected: false,
     truncate: false,
     wrap: false,
@@ -89,14 +93,27 @@ const bodyClass = computed<string>(() => {
       <span data-slot="summary-row-text" class="min-w-0 flex-1" :class="textClass">
         <!-- Wrap, never cut: on a phone a cut detail loses its meaning, and a long bot address its end.
              A row that sets truncate cuts instead, and keeps a minimum width. -->
-        <span data-slot="summary-row-title" class="block text-sm font-medium" :class="titleClass"><slot name="title">{{ title }}</slot></span>
+        <span data-slot="summary-row-title"
+              class="block text-sm font-medium"
+              :class="titleClass"
+        ><slot name="title">{{ title }}</slot></span>
         <span v-if="detail" class="flex items-center gap-2 text-sm text-muted-foreground">
           <slot name="detail-lead" />
           <span :class="truncate ? 'truncate' : ''">{{ detail }}</span>
         </span>
-        <span v-if="meta || $slots.meta" data-slot="summary-row-meta" class="block text-xs text-muted-foreground"><slot name="meta">{{ meta }}</slot></span>
+        <span
+          v-if="meta || $slots.meta"
+          data-slot="summary-row-meta"
+          class="block text-xs text-muted-foreground"
+        ><slot name="meta">{{ meta }}</slot></span>
       </span>
       <slot name="end" />
+      <ChevronRight
+        v-if="chevron"
+        data-slot="summary-row-chevron"
+        class="size-4 flex-none text-muted-foreground"
+        aria-hidden="true"
+      />
     </component>
     <div
       v-if="$slots.trailing"

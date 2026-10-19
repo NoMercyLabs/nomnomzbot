@@ -184,6 +184,7 @@ const pronunciationPanels = computed(
           <SummaryRow
             data-settings-row
             pick
+            chevron
             :title="$t('dashboard.tts.settings.voice.title')"
             :detail="voiceDetail"
             @click="view = 'voices'"
@@ -191,6 +192,7 @@ const pronunciationPanels = computed(
           <SummaryRow
             data-settings-row
             pick
+            chevron
             :title="$t('dashboard.tts.settings.who.title')"
             :detail="
               $t('dashboard.tts.settings.who.detail', { permission: settings.minPermission })
@@ -200,6 +202,7 @@ const pronunciationPanels = computed(
           <SummaryRow
             data-settings-row
             pick
+            chevron
             :title="$t('dashboard.tts.settings.limits.title')"
             :detail="limitsDetail"
             @click="view = 'rules'"
@@ -207,6 +210,7 @@ const pronunciationPanels = computed(
           <SummaryRow
             data-settings-row
             pick
+            chevron
             :title="$t('dashboard.tts.settings.words.title')"
             :detail="wordsDetail"
             @click="view = 'rules'"
@@ -215,6 +219,7 @@ const pronunciationPanels = computed(
             data-settings-row
             data-required-overlays-link
             pick
+            chevron
             :title="$t('dashboard.tts.settings.overlay.title')"
             :detail="$t('dashboard.tts.settings.overlay.detail')"
             @click="router.push({ name: 'dashboard-obs', hash: '#required-overlays' })"

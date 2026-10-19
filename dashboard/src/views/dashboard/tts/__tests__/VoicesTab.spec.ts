@@ -303,7 +303,7 @@ describe('VoicesTab', () => {
     answers['GET /tts/voices'] = () => ok(catalog, { hasMore: true, nextPage: 2 });
     await open();
 
-    expect(count()).toBe('4 of 4 voices loaded');
+    expect(count()).toBe('4 voices loaded so far');
 
     answers['GET /tts/voices'] = () =>
       ok([voice('de-DE-KatjaNeural', 'de-DE')], { hasMore: false, nextPage: null });
@@ -334,6 +334,28 @@ describe('VoicesTab', () => {
 
     expect(count()).toBe('4 of 4 voices');
     expect(document.body.querySelector('[data-voice-more]')).toBeNull();
+  });
+
+  it('shows an error with a retry, not "No voices match", when the catalog is refused', async () => {
+    answers['GET /tts/voices'] = () => ({
+      error: { message: 'Too many requests' },
+      response: { status: 429, ok: false },
+    });
+
+    await open();
+
+    const panel = document.body.querySelector('[data-slot="panel-error"]');
+
+    expect(panel?.textContent).toContain('The voices could not be loaded.');
+    expect(document.body.textContent).not.toContain('No voices match.');
+    expect(panel?.querySelector('button')).not.toBeNull();
+
+    answers['GET /tts/voices'] = () => ok(catalog, { hasMore: false, nextPage: null });
+    panel!.querySelector<HTMLElement>('button')!.click();
+    await settle();
+
+    expect(ids()).toContain('en-US-AriaNeural');
+    expect(document.body.querySelector('[data-slot="panel-error"]')).toBeNull();
   });
 
   it('names the voice provider in words, not the raw server id', async () => {
@@ -554,7 +576,7 @@ describe('VoicesTab', () => {
 
     const card: HTMLElement | undefined = [
       ...document.body.querySelectorAll<HTMLElement>('[data-slot="panel-card"]'),
-    ].find((panel) => panel.querySelector('h2')?.textContent?.includes('Voices'));
+    ].find((panel) => panel.querySelector('h2')?.textContent?.includes('Pick a voice'));
 
     expect(card?.getAttribute('data-state')).toBe('error');
     expect(rows()).toHaveLength(0);

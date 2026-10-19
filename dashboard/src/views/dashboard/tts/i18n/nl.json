@@ -47,13 +47,14 @@
         }
       },
       "voices": {
-        "title": "Stemmen",
+        "title": "Kies een stem",
         "empty": "Geen stemmen gevonden.",
         "error": "De stemmen konden niet worden geladen.",
         "search": "Zoek stemmen",
         "language": "Taal",
         "count": "{shown} van {loaded} stemmen",
         "countFirst": "{shown} van {loaded} stemmen geladen",
+        "countLoaded": "{loaded} stemmen tot nu toe geladen",
         "more": "Meer stemmen laden",
         "playSample": "Speel een voorbeeld van {voice}",
         "stopSample": "Stop het voorbeeld van {voice}",

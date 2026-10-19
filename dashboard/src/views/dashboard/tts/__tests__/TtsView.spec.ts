@@ -189,6 +189,20 @@ describe('TtsView overview', () => {
     expect(rowOf('Words and pronunciation').textContent).toContain('Profanity is censored');
   });
 
+  it('ends every settings row with a chevron, because each one opens something', async () => {
+    await open();
+
+    const rowsOpen: HTMLElement[] = [
+      ...panel('Settings').querySelectorAll<HTMLElement>('[data-settings-row]'),
+    ];
+
+    expect(rowsOpen).toHaveLength(5);
+
+    for (const row of rowsOpen) {
+      expect(row.querySelector('[data-slot="summary-row-chevron"]')).not.toBeNull();
+    }
+  });
+
   it('says the channel follows the platform voice when no voice is picked', async () => {
     answers['/tts/config'] = () =>
       ok({
@@ -273,7 +287,9 @@ describe('TtsView polish', () => {
   it('shows an example in the empty Azure region box', async () => {
     await open('?view=keys');
 
-    const region = document.body.querySelector<HTMLInputElement>('input[aria-label="Azure region"]');
+    const region = document.body.querySelector<HTMLInputElement>(
+      'input[aria-label="Azure region"]',
+    );
 
     expect(region?.value).toBe('');
     expect(region?.placeholder).toBe(en.dashboard.tts.keys.regionPlaceholder);
@@ -285,7 +301,8 @@ describe('TtsView polish', () => {
     const labels = ['tts-speaking', 'tts-rules'].map((view) =>
       document.body
         .querySelector(`[data-view="${view}"] footer [data-tts-reset]`)
-        ?.textContent?.trim());
+        ?.textContent?.trim(),
+    );
 
     expect(labels).toEqual(['Reset to defaults', 'Reset to defaults']);
   });

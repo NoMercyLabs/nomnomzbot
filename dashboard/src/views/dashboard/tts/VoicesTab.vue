@@ -161,14 +161,19 @@ const subtitle = computed<string | undefined>(() => {
 });
 
 // While the server has more pages, the loaded voices are not the whole catalog, so the count says "the first".
-const count = computed<string>(() =>
-  t(hasMore.value
-    ? 'dashboard.tts.voices.countFirst'
-    : 'dashboard.tts.voices.count', {
+const count = computed<string>(() => {
+  const params = {
     shown: visible.value.length,
     loaded: loaded.value.length,
-  }),
-);
+  };
+
+  if (!hasMore.value)
+    return t('dashboard.tts.voices.count', params);
+
+  return visible.value.length === loaded.value.length
+    ? t('dashboard.tts.voices.countLoaded', params)
+    : t('dashboard.tts.voices.countFirst', params);
+});
 
 function genderLabel(gender: string): string {
   const key = `dashboard.tts.voices.gender.${gender.toLowerCase()}`;

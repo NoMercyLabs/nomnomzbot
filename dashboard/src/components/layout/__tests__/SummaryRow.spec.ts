@@ -43,6 +43,21 @@ describe('summary row truncation', () => {
   });
 });
 
+describe('summary row chevron', () => {
+  it('ends a row that opens something with a chevron, and no other row', () => {
+    const opening = mount(SummaryRow, { props: {
+      title: 'Voice',
+      pick: true,
+      chevron: true,
+    } });
+    const plain = mount(SummaryRow, { props: { title: 'Voice', pick: true } });
+
+    expect(opening.find('[data-slot="summary-row-chevron"]').exists()).toBe(true);
+    expect(opening.find('[data-slot="summary-row-body"]').element.tagName).toBe('BUTTON');
+    expect(plain.find('[data-slot="summary-row-chevron"]').exists()).toBe(false);
+  });
+});
+
 describe('summary row visual balance', () => {
   it('gives text with no icon and no button the same 12px inset on both sides', () => {
     const wrapper = mountRow();
@@ -85,18 +100,25 @@ describe('summary row visual balance', () => {
 
     expect(trailing.classes()).toContain('pr-3');
     expect(trailing.classes()).toContain(endGhost);
-    expect(trailing.classes()).toContain('[&>[data-variant=ghost][data-size^=icon]:last-child]:-mr-2');
+
+    expect(trailing.classes()).toContain(
+      '[&>[data-variant=ghost][data-size^=icon]:last-child]:-mr-2',
+    );
   });
 
   it('spaces two trailing buttons apart and pulls in only the last ghost one', () => {
     const wrapper = mountRow({
-      trailing: '<button data-variant="ghost">Poll</button><button data-variant="ghost">Prediction</button>',
+      trailing:
+        '<button data-variant="ghost">Poll</button><button data-variant="ghost">Prediction</button>',
     });
     const classes = wrapper.find('[data-slot="summary-row-trailing"]').classes();
 
     expect(classes).toContain('gap-2');
 
-    expect(classes.filter((name) => name.includes('-mr-'))
-      .every((name) => name.includes(':last-child]'))).toBe(true);
+    expect(
+      classes
+        .filter((name) => name.includes('-mr-'))
+        .every((name) => name.includes(':last-child]')),
+    ).toBe(true);
   });
 });

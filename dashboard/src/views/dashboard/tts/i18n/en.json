@@ -47,13 +47,14 @@
         }
       },
       "voices": {
-        "title": "Voices",
+        "title": "Pick a voice",
         "empty": "No voices match.",
         "error": "The voices could not be loaded.",
         "search": "Search voices",
         "language": "Language",
         "count": "{shown} of {loaded} voices",
         "countFirst": "{shown} of {loaded} voices loaded",
+        "countLoaded": "{loaded} voices loaded so far",
         "more": "Load more voices",
         "playSample": "Play a sample of {voice}",
         "stopSample": "Stop the sample of {voice}",

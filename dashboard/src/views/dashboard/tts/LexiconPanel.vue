@@ -176,16 +176,20 @@ function remove(entry: TtsLexiconEntry): void {
       <li
         v-for="entry in entries"
         :key="entry.id"
-        class="flex items-center gap-2 px-3 py-2"
+        class="flex flex-wrap items-center gap-2 px-3 py-2"
         data-lexicon-row
       >
-        <span class="min-w-0 flex flex-1 text-sm gap-1 items-center">
+        <!-- Under sm the text takes its own line and the buttons sit below it, so no word is squeezed into a column. -->
+        <span
+          data-lexicon-text
+          class="min-w-0 basis-full text-sm wrap-break-word sm:flex-1 sm:basis-0"
+        >
           <span class="font-medium">{{ entry.phrase }}</span>
           <span class="text-muted-foreground">
             {{ $t("dashboard.tts.lexicon.saysAs") }}
           </span>
           <span>{{ entry.replacement }}</span>
-          <span class="block text-xs text-muted-foreground leading-none">
+          <span class="block text-xs text-muted-foreground">
             {{ $t(`dashboard.tts.lexicon.kind.${entry.matchKind}`) }}
           </span>
         </span>
