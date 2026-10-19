@@ -32,6 +32,8 @@
         "requireApproval": "Elk item goedkeuren voor het speelt",
         "allowTwitchClips": "Twitch-clips toestaan",
         "allowYouTube": "YouTube-video's toestaan",
+        "subOnly": "Alleen abonnees",
+        "subOnlyHelp": "Alleen abonnees kunnen media delen. Alle anderen worden geweigerd.",
         "maxDurationSeconds": "Langste item (seconden)",
         "entryCost": "Kosten per item (punten)",
         "maxQueueLength": "Langste wachtrij",

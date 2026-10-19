@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
 import { usePanelState } from '@/composables/usePanelState';
+import { readSubOnly, writeSubOnly } from '@/lib/eligibility';
 
 const props = defineProps<{
   query: UseQueryReturnType<MediaShareConfig | null, Error>;
@@ -65,6 +66,16 @@ const dirty = computed<boolean>(() => {
   );
 });
 
+// The one rule the bot enforces is subscribers only; the rest of the stored rules stay as they are.
+const subOnly = computed<boolean>({
+  get: (): boolean => readSubOnly(draft.value?.eligibilityJson),
+  set: (value: boolean): void => {
+    if (draft.value === null) return;
+
+    draft.value.eligibilityJson = writeSubOnly(draft.value.eligibilityJson, value);
+  },
+});
+
 function setNumber(key: (typeof numbers)[number], value: string | number): void {
   if (draft.value === null) return;
 
@@ -101,6 +112,13 @@ function submit(): void {
           v-model="draft[key]"
           :disabled="!can('media:write')"
           :title="$t(`dashboard.mediaShare.config.${key}`)"
+        />
+        <SettingRow
+          v-model="subOnly"
+          data-field="subOnly"
+          :disabled="!can('media:write')"
+          :title="$t('dashboard.mediaShare.config.subOnly')"
+          :description="$t('dashboard.mediaShare.config.subOnlyHelp')"
         />
       </RowGroup>
       <RowGroup>

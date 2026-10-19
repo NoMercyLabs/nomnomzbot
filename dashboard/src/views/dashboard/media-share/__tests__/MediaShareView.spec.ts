@@ -44,15 +44,16 @@ const config = {
   perUserCooldownSeconds: 30,
 };
 
-const item = (id: string, status: string) => ({
-  id,
-  requesterDisplayName: `viewer-${id}`,
-  sourceType: 'twitch_clip',
-  sourceUrl: `https://clips.example/${id}`,
-  title: `Clip ${id}`,
-  status,
-  requestedAt: '2026-10-01T10:00:00Z',
-}) as const satisfies Row;
+const item = (id: string, status: string) =>
+  ({
+    id,
+    requesterDisplayName: `viewer-${id}`,
+    sourceType: 'twitch_clip',
+    sourceUrl: `https://clips.example/${id}`,
+    title: `Clip ${id}`,
+    status,
+    requestedAt: '2026-10-01T10:00:00Z',
+  }) as const satisfies Row;
 
 const answer = (data: unknown): { data: { data: unknown }; response: { status: number } } => ({
   data: { data },
@@ -198,6 +199,26 @@ describe('Media share page', () => {
         method: 'PUT',
         path: '/api/v{version}/media-share/config',
         body: { ...config, maxQueueLength: 25 },
+      },
+    ]);
+  });
+
+  it('saves subscribers only as the one eligibility rule the bot enforces', async () => {
+    await open();
+
+    const rule = document.body.querySelector<HTMLElement>('[data-field="subOnly"] button');
+
+    expect(rule).not.toBeNull();
+
+    rule!.click();
+    await flushPromises();
+    await press(document, '[data-action="save"]');
+
+    expect(calls).toEqual([
+      {
+        method: 'PUT',
+        path: '/api/v{version}/media-share/config',
+        body: { ...config, eligibilityJson: '{"subOnly":true}' },
       },
     ]);
   });
