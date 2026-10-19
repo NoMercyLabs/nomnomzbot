@@ -98,6 +98,54 @@ describe('subscriptionRows', () => {
     });
   });
 
+  it('lists a received gift that has no subscribe row as its own row naming recipient and gifter', () => {
+    const rows = subscriptionRows([
+      {
+        ...event('2', 'channel.subscription.gift.received', 'zed', {
+          recipientUserId: 'u-zed',
+          recipientDisplayName: 'Zed',
+          gifterUserId: 'u-bob',
+          gifterDisplayName: 'bob',
+          tier: '1000',
+          isAnonymous: false,
+        }),
+      },
+    ]);
+
+    expect(rows).toHaveLength(1);
+
+    expect(rows[0]).toMatchObject({
+      kind: 'subscribe',
+      receivedAsGift: true,
+      tier: '1',
+      person: {
+        userId: 'u-zed',
+        name: 'Zed',
+        anonymous: false,
+      },
+      gifter: {
+        userId: 'u-bob',
+        name: 'bob',
+        anonymous: false,
+      },
+    });
+  });
+
+  it('does not list a received gift twice when its subscribe row exists', () => {
+    const rows = subscriptionRows([
+      event('1', 'channel.subscribe', 'ann', { tier: '1000', isGift: true }),
+      event('2', 'channel.subscription.gift.received', 'ann', {
+        recipientUserId: 'u-ann',
+        recipientDisplayName: 'ann',
+        gifterUserId: 'u-bob',
+        gifterDisplayName: 'bob',
+      }),
+    ]);
+
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.gifter?.name).toBe('bob');
+  });
+
   it('leaves the gifter empty when no received-gift event matches the recipient', () => {
     const rows = subscriptionRows([
       event('1', 'channel.subscribe', 'ann', { tier: '1000', isGift: true }),

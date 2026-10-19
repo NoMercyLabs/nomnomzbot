@@ -144,9 +144,33 @@ function nearestReceived(
   return best;
 }
 
+// A received gift with no subscribe row of its own: the recipient is the actor, the gifter rides in the data.
+function receivedGiftRow(event: ActivityEvent): SubscriptionRow {
+  const data = parseActivityData(event.data);
+  const name = pickText(data, 'recipientDisplayName') ?? event.username ?? null;
+
+  return {
+    id: event.id,
+    person: {
+      userId: pickText(data, 'recipientUserId') ?? event.twitchUserId ?? null,
+      name,
+      color: event.color ?? null,
+      anonymous: false,
+    },
+    kind: 'subscribe',
+    tier: tierOf(data.tier),
+    months: null,
+    giftCount: null,
+    receivedAsGift: true,
+    gifter: gifterOf(data),
+    timestamp: event.timestamp,
+  };
+}
+
 export function subscriptionRows(events: readonly ActivityEvent[]): SubscriptionRow[] {
   const rows: SubscriptionRow[] = [];
   const received = events.filter((event) => event.type === receivedGiftType);
+  const matched = new Set<string>();
 
   for (const event of events) {
     const kind = lookup(subscriptionKinds, event.type);
@@ -158,6 +182,10 @@ export function subscriptionRows(events: readonly ActivityEvent[]): Subscription
       ? nearestReceived(row, event.twitchUserId ?? null, received)
       : null;
 
+    if (match !== null) {
+      matched.add(match.id);
+    }
+
     rows.push(
       match === null
         ? row
@@ -166,6 +194,12 @@ export function subscriptionRows(events: readonly ActivityEvent[]): Subscription
             gifter: gifterOf(parseActivityData(match.data)),
           },
     );
+  }
+
+  for (const event of received) {
+    if (!matched.has(event.id)) {
+      rows.push(receivedGiftRow(event));
+    }
   }
 
   return rows;
