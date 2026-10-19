@@ -94291,13 +94291,14 @@ export interface components {
         /**
          * @description One subscribable business event in the outbound webhook catalogue (webhooks.md §9). The string OutboundWebhookEventCatalogueEntry.EventType
          *     is the exact journaled event-type discriminator an endpoint puts in its `SubscribedEventTypes` (or `*`
-         *     for all); string OutboundWebhookEventCatalogueEntry.Label is the human name and string OutboundWebhookEventCatalogueEntry.Category groups it for the subscribe checklist.
-         *     Webhook-lifecycle events are deliberately absent — they are deny-listed to prevent self-amplification.
+         *     for all); string OutboundWebhookEventCatalogueEntry.LabelKey and string OutboundWebhookEventCatalogueEntry.CategoryKey are dashboard string-resource keys (no prose —
+         *     the dashboard owns the translated text). Webhook-lifecycle events are deliberately absent — they are deny-listed to
+         *     prevent self-amplification.
          */
         OutboundWebhookEventCatalogueEntry: {
             eventType: string;
-            label: string;
-            category: string;
+            labelKey: string;
+            categoryKey: string;
         };
         /**
          * @description The public, token-resolved overlay manifest (widgets-overlays.md §4). The single read an OBS browser source

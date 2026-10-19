@@ -14,8 +14,10 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 
 import { i18n } from '@/i18n';
+import { merge } from '@/lib/array';
 import { dashboardSettingsRoutes } from '../../route';
 import en from '../i18n/en.json';
+import nl from '../i18n/nl.json';
 import WebhooksView from '../WebhooksView.vue';
 
 type Body = Record<string, unknown>;
@@ -167,13 +169,13 @@ vi.mock('@/api/client', () => {
           return ok([
             {
               eventType: 'follow',
-              label: 'Follow',
-              category: 'Followers & Subscriptions',
+              labelKey: 'webhook_event_follow_event_label',
+              categoryKey: 'webhook_event_category_followers_subscriptions',
             },
             {
               eventType: 'chat.message',
-              label: 'Chat message',
-              category: 'Chat',
+              labelKey: 'webhook_event_chat_message_received_event_label',
+              categoryKey: 'webhook_event_category_chat',
             },
           ]);
 
@@ -419,19 +421,129 @@ describe('Webhooks page', () => {
         (box) => box.getAttribute('data-event') ?? '',
       );
 
-    expect(eventsOf('Followers & Subscriptions')).toEqual(['follow']);
-    expect(eventsOf('Chat')).toEqual(['chat.message']);
+    expect(eventsOf('webhook_event_category_followers_subscriptions')).toEqual(['follow']);
+    expect(eventsOf('webhook_event_category_chat')).toEqual(['chat.message']);
   });
 
-  it('names each event group through a resource key, not the raw backend category', async () => {
+  it('words each event group and each event through the resource keys the server sends', async () => {
     await open();
     await click(q('[data-new-outbound]'));
 
     const heading = (category: string): string =>
       q(`[data-event-group="${category}"] > span`).textContent?.trim() ?? '';
+    const labelOf = (eventType: string): string =>
+      q(`[data-event="${eventType}"]`).closest('label')?.textContent?.trim() ?? '';
 
-    expect(heading('Followers & Subscriptions')).toBe('Twitch followers and subscribers');
-    expect(heading('Chat')).toBe('Chat');
+    expect(heading('webhook_event_category_followers_subscriptions')).toBe(
+      'Twitch followers and subscribers',
+    );
+
+    expect(heading('webhook_event_category_chat')).toBe('Chat');
+    expect(labelOf('follow')).toBe('New follower');
+    expect(labelOf('chat.message')).toBe('Chat message');
+  });
+
+  it('has words in English and Dutch for every label and category key the server sends', () => {
+    const types = [
+      'ChannelOnline',
+      'ChannelOffline',
+      'ChannelUpdated',
+      'AdBreakBegan',
+      'Follow',
+      'NewSubscription',
+      'Resubscription',
+      'GiftSubscription',
+      'SubscriptionEnded',
+      'Cheer',
+      'BitsUsed',
+      'Raid',
+      'OutgoingRaid',
+      'ShoutoutReceived',
+      'ShoutoutSent',
+      'RewardRedeemed',
+      'RewardRedemptionUpdated',
+      'AutomaticRewardRedeemed',
+      'CustomPowerUpRedeemed',
+      'RewardCreated',
+      'RewardUpdated',
+      'RewardRemoved',
+      'PollBegan',
+      'PollProgress',
+      'PollEnded',
+      'PredictionBegan',
+      'PredictionProgress',
+      'PredictionLocked',
+      'PredictionEnded',
+      'GoalBegan',
+      'GoalProgress',
+      'GoalEnded',
+      'HypeTrainBegan',
+      'HypeTrainProgress',
+      'HypeTrainEnded',
+      'CharityCampaignStarted',
+      'CharityDonation',
+      'CharityCampaignProgress',
+      'CharityCampaignStopped',
+      'ChatMessageReceived',
+      'WhisperReceived',
+      'ChatNotification',
+      'FirstTimeChatterDetected',
+      'UserBanned',
+      'UserTimedOut',
+      'UserUnbanned',
+      'ModeratorAdded',
+      'ModeratorRemoved',
+      'VipAdded',
+      'VipRemoved',
+      'WarningSent',
+      'WarningAcknowledged',
+      'ModerationActionTaken',
+      'ShieldModeBegan',
+      'ShieldModeEnded',
+      'UnbanRequestCreated',
+      'UnbanRequestResolved',
+      'ChatCleared',
+      'ChatMessageDeleted',
+      'SuspiciousUserMessage',
+      'SuspiciousUserUpdated',
+      'GuestStarSessionBegan',
+      'GuestStarSessionEnded',
+      'GuestStarGuestUpdated',
+      'SharedChatBegan',
+      'SharedChatUpdated',
+      'SharedChatEnded',
+    ];
+    const snake = (name: string): string => name.replaceAll(/(?<=.)([A-Z])/g, '_$1').toLowerCase();
+    const labelKeys = [
+      ...types.map((type) => `webhook_event_${snake(type)}_event_label`),
+      'webhook_event_supporter_event_received_label',
+      'webhook_event_custom_data_received_event_label',
+    ];
+    const categoryKeys = [
+      'bits_cheers',
+      'channel_points',
+      'charity',
+      'chat',
+      'collaboration',
+      'followers_subscriptions',
+      'goals',
+      'hype_train',
+      'moderation',
+      'polls_predictions',
+      'raids_shoutouts',
+      'stream',
+      'supporters_custom',
+    ].map((slug) => `webhook_event_category_${slug}`);
+
+    expect(labelKeys).toHaveLength(69);
+
+    for (const words of [en, nl] as Record<string, unknown>[]) {
+      const missing = merge(labelKeys, categoryKeys).filter(
+        (key) => typeof words[key] !== 'string' || words[key] === '',
+      );
+
+      expect(missing).toEqual([]);
+    }
   });
 
   it('shows the delivery status as a worded label, not the backend string', async () => {

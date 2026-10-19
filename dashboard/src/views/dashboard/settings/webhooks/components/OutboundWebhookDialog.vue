@@ -20,7 +20,6 @@ import TemplateField from '@/components/layout/TemplateField.vue';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
-import { useWordsFor } from '@/composables/useWordsFor';
 import { parseHeaderLines } from '@/lib/text';
 
 const props = defineProps<{
@@ -31,7 +30,6 @@ const props = defineProps<{
 }>();
 
 const { t } = useI18n();
-const categoryWords = useWordsFor('dashboard.settings.webhooks.outbound.categories');
 
 const emit = defineEmits<{ submit: [draft: OutboundWebhookDraft] }>();
 const open = defineModel<boolean>('open', { required: true });
@@ -51,10 +49,10 @@ const groups = computed(() => {
   const byCategory = new Map<string, WebhookEventEntry[]>();
 
   for (const entry of props.catalog) {
-    const entries = byCategory.get(entry.category) ?? [];
+    const entries = byCategory.get(entry.categoryKey) ?? [];
 
     entries.push(entry);
-    byCategory.set(entry.category, entries);
+    byCategory.set(entry.categoryKey, entries);
   }
 
   return Array.from(byCategory, ([category, entries]) => ({ category, entries }));
@@ -186,9 +184,7 @@ function submit(): void {
         :data-event-group="group.category"
         class="grid gap-2"
       >
-        <span class="text-sm font-medium text-muted-foreground">{{
-          categoryWords(group.category)
-        }}</span>
+        <span class="text-sm font-medium text-muted-foreground">{{ $t(group.category) }}</span>
         <div class="grid gap-x-4 gap-y-2 sm:grid-cols-2">
           <label
             v-for="entry in group.entries"
@@ -200,7 +196,7 @@ function submit(): void {
               :model-value="events.includes(entry.eventType)"
               @update:model-value="tick(entry.eventType, $event === true)"
             />
-            {{ entry.label }}
+            {{ $t(entry.labelKey) }}
           </label>
         </div>
       </div>
