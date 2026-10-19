@@ -151,3 +151,5 @@ it is really important to keep spotify doing what it does best while we correctl
 2026-10-20: "i want a FULL spam detection event log to do spot validations to see how things are classified and to know when it's safe to turn on automated items"
 2026-10-20: "and i don't know user ids so how am i supposed to ban someone?"
 2026-10-20 (Admin › Data requests: a ledger card of six counts for one request, the export row reading "Requested by self_service" and "2738 rows changed"): "sigh..."
+2026-10-20 (Admin › System: health rows named api, postgresql, pending-migrations, eventsub-handover, shutdown with "0 ms" each; Version 0.1.0.0; Memory 3758 MB; Active channels 0 of 29): "uhhhh"
+2026-10-20 (Admin › Providers: every provider shows open Client ID and New client secret boxes under its stored values): "they are stored so collapse them with an edit button", then: "with modal"
