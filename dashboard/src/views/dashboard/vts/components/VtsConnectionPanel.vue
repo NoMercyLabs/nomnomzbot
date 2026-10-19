@@ -20,6 +20,8 @@ import {
   type VtsConnection,
 } from '@/api/vts';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import DateTime from '@/components/layout/DateTime.vue';
+import EventKindMask from '@/components/layout/EventKindMask.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
@@ -48,19 +50,23 @@ const save = useVtsSaveConnection(channelId);
 const authorize = useVtsAuthorize(channelId);
 const rotate = useVtsRotateBridgeToken(channelId);
 
-const mode = ref<string>('direct');
+// The form shows only once the API has sent the connection (a channel with none stored reads back the
+// server defaults), so these start empty and are filled from it, never from a default written here.
+const mode = ref<string>('');
 const endpoint = ref<string>('');
-const mask = ref<string>('');
+const mask = ref<number>(0);
 const enabled = ref<boolean>(false);
 const confirming = ref<boolean>(false);
 
 watch(
   () => props.connection,
   (connection) => {
-    mode.value = connection?.mode ?? 'direct';
-    endpoint.value = connection?.endpoint ?? '';
-    mask.value = String(connection?.eventSubscriptionsMask ?? '');
-    enabled.value = connection?.isEnabled === true;
+    if (!connection) return;
+
+    mode.value = connection.mode;
+    endpoint.value = connection.endpoint;
+    mask.value = Number(connection.eventSubscriptionsMask);
+    enabled.value = connection.isEnabled;
   },
   { immediate: true },
 );
@@ -83,7 +89,7 @@ function submit(): void {
     {
       mode: mode.value,
       endpoint: endpoint.value,
-      eventSubscriptionsMask: Number.parseInt(mask.value, 10),
+      eventSubscriptionsMask: mask.value,
       isEnabled: enabled.value,
     },
     { onError: toastVtsError },
@@ -116,6 +122,15 @@ function rotateNow(): void {
           <span data-vts-dot class="dot" :class="health.dot" aria-hidden="true" />
         </template>
       </SummaryRow>
+      <SummaryRow
+        v-if="connection?.lastConnectedAt"
+        data-vts-last-connected
+        :title="$t('dashboard.vts.connection.lastConnected')"
+      >
+        <template #detail-lead>
+          <DateTime :value="connection.lastConnectedAt" variant="relative" />
+        </template>
+      </SummaryRow>
       <SummaryRow :title="$t('dashboard.vts.connection.token')" :detail="tokenText">
         <template #detail-lead>
           <span
@@ -127,7 +142,7 @@ function rotateNow(): void {
         </template>
       </SummaryRow>
     </div>
-    <form class="grid gap-3 p-3" @submit.prevent="submit">
+    <form v-if="connection" class="grid gap-3 p-3" @submit.prevent="submit">
       <fieldset :disabled="!can('vts:config:write')" class="grid gap-3">
         <label class="flex items-center justify-between gap-3 text-sm font-medium">
           {{ $t("dashboard.vts.connection.enabled") }}
@@ -147,11 +162,17 @@ function rotateNow(): void {
           {{ $t("dashboard.vts.connection.endpoint") }}
           <Input v-model="endpoint" data-vts-endpoint />
         </label>
-        <label class="grid gap-1 text-sm text-muted-foreground">
+        <div class="grid gap-2 text-sm text-muted-foreground">
           {{ $t("dashboard.vts.connection.mask") }}
-          <Input v-model="mask" data-vts-mask type="number" min="0" />
+          <EventKindMask
+            v-model="mask"
+            data-vts-mask
+            :kinds="connection.eventKinds"
+            prefix="dashboard.vts.connection.kinds"
+            :disabled="!can('vts:config:write')"
+          />
           <span>{{ $t("dashboard.vts.connection.maskHelp") }}</span>
-        </label>
+        </div>
       </fieldset>
       <div v-if="can('vts:config:write')" class="flex flex-wrap justify-end gap-2">
         <Button

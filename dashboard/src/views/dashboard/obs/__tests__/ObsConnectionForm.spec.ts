@@ -66,8 +66,27 @@ function show(hasPassword: boolean): VueWrapper {
         port: 4455,
         hasPassword,
         hasBridgeToken: false,
-        eventSubscriptionsMask: 33,
+        eventSubscriptionsMask: 5,
         isEnabled: true,
+        lastError: 'Connection refused',
+        lastConnectedAt: '2026-10-18T10:00:00Z',
+        eventKinds: [
+          {
+            name: 'General',
+            bit: 1,
+            onByDefault: true,
+          },
+          {
+            name: 'Scenes',
+            bit: 4,
+            onByDefault: true,
+          },
+          {
+            name: 'Inputs',
+            bit: 8,
+            onByDefault: true,
+          },
+        ],
       },
     },
   });
@@ -80,7 +99,7 @@ describe('ObsConnectionForm', () => {
     const view = show(false);
 
     await view.get('[data-obs-password]').setValue('s3cret');
-    await view.get('[data-obs-mask]').setValue('1023');
+    await view.get('[data-kind="Inputs"]').trigger('click');
     await view.get('[data-obs-save]').trigger('click');
     await flushPromises();
 
@@ -92,11 +111,26 @@ describe('ObsConnectionForm', () => {
       host: 'localhost',
       port: 4455,
       password: 's3cret',
-      eventSubscriptionsMask: 1023,
+      eventSubscriptionsMask: 13,
       isEnabled: true,
     });
 
     expect((view.get('[data-obs-password]').element as HTMLInputElement).value).toBe('');
+  });
+
+  it('shows the last error and last connection, and saves the switch state', async () => {
+    const view = show(false);
+
+    expect(view.get('[data-obs-last-error]').text()).toContain('Connection refused');
+    expect(view.find('[data-obs-last-connected] time').exists()).toBe(true);
+
+    await view.get('[data-obs-enabled]').trigger('click');
+    await view.get('[data-obs-save]').trigger('click');
+    await flushPromises();
+
+    const sent = puts[0]?.body as Record<string, unknown> | undefined;
+
+    expect(sent?.isEnabled).toBe(false);
   });
 
   it('keeps a stored password by sending null and never shows it', async () => {

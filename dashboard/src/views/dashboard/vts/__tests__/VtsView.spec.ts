@@ -126,6 +126,23 @@ beforeEach(() => {
     hasPluginToken: true,
     hasBridgeToken: false,
     eventSubscriptionsMask: 255,
+    eventKinds: [
+      {
+        name: 'General',
+        bit: 1,
+        onByDefault: true,
+      },
+      {
+        name: 'Models',
+        bit: 2,
+        onByDefault: true,
+      },
+      {
+        name: 'Hotkeys',
+        bit: 4,
+        onByDefault: false,
+      },
+    ],
     isEnabled: true,
     status: 'connected',
   };
@@ -144,7 +161,7 @@ describe('VtsView', () => {
     const view = await show('connection');
 
     await view.get('[data-vts-endpoint]').setValue('ws://other:8001');
-    await view.get('[data-vts-mask]').setValue('1023');
+    await view.get('[data-kind="Hotkeys"]').trigger('click');
     await view.get('[data-vts-save]').trigger('click');
     await flushPromises();
 
@@ -155,7 +172,7 @@ describe('VtsView', () => {
     expect(put?.body).toEqual({
       mode: 'direct',
       endpoint: 'ws://other:8001',
-      eventSubscriptionsMask: 1023,
+      eventSubscriptionsMask: 251,
       isEnabled: true,
     });
   });

@@ -44,9 +44,15 @@ const linkMeta = computed<string | undefined>(() => {
   if (link.value.dot === 'bad')
     return props.connection?.lastError ?? undefined;
 
-  return props.connection?.host
-    ? `${props.connection.host}:${props.connection.port ?? ''}`
-    : undefined;
+  const host = props.connection?.host;
+  const port = props.connection?.port;
+
+  if (!host)
+    return undefined;
+
+  return port
+    ? `${host}:${port}`
+    : host;
 });
 
 const bridgeDetail = computed<string>(() =>

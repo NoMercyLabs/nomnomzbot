@@ -26,6 +26,18 @@ const connection = {
   hasPluginToken: true,
   hasBridgeToken: false,
   eventSubscriptionsMask: 255,
+  eventKinds: [
+    {
+      name: 'General',
+      bit: 1,
+      onByDefault: true,
+    },
+    {
+      name: 'Models',
+      bit: 2,
+      onByDefault: true,
+    },
+  ],
   isEnabled: true,
   status: 'connected',
 };

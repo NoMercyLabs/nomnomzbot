@@ -14,6 +14,8 @@ import { ref, watch } from 'vue';
 
 import type { ObsConnection } from '@/api/obs';
 import { useObsSaveConnection } from '@/api/obsControl';
+import DateTime from '@/components/layout/DateTime.vue';
+import EventKindMask from '@/components/layout/EventKindMask.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Switch } from '@/components/ui/switch';
@@ -26,9 +28,11 @@ const props = defineProps<{ connection: ObsConnection | null | undefined }>();
 const { channelId } = useCurrentChannel();
 const save = useObsSaveConnection(channelId);
 
+// The form shows only once the API has sent the connection (a channel with none stored reads back the
+// server defaults), so these start empty and are filled from it, never from a default written here.
 const host = ref<string>('');
 const port = ref<string>('');
-const mask = ref<string>('');
+const mask = ref<number>(0);
 const enabled = ref<boolean>(false);
 const password = ref<string>('');
 const clearPassword = ref<boolean>(false);
@@ -36,10 +40,12 @@ const clearPassword = ref<boolean>(false);
 watch(
   () => props.connection,
   (connection) => {
-    host.value = connection?.host ?? '';
-    port.value = String(connection?.port ?? '');
-    mask.value = String(connection?.eventSubscriptionsMask ?? '');
-    enabled.value = connection?.isEnabled === true;
+    if (!connection) return;
+
+    host.value = connection.host ?? '';
+    port.value = String(connection.port ?? '');
+    mask.value = Number(connection.eventSubscriptionsMask);
+    enabled.value = connection.isEnabled;
   },
   { immediate: true },
 );
@@ -55,12 +61,14 @@ function passwordToSend(): string | null {
 }
 
 function submit(): void {
+  if (!props.connection) return;
+
   save.mutate({
-    mode: props.connection?.mode ?? 'direct',
+    mode: props.connection.mode,
     host: host.value,
     port: Number.parseInt(port.value, 10),
     password: passwordToSend(),
-    eventSubscriptionsMask: Number.parseInt(mask.value, 10),
+    eventSubscriptionsMask: mask.value,
     isEnabled: enabled.value,
   }, {
     onSuccess: () => {
@@ -73,7 +81,7 @@ function submit(): void {
 </script>
 
 <template>
-  <form class="grid gap-3 p-3" @submit.prevent="submit">
+  <form v-if="connection" class="grid gap-3 p-3" @submit.prevent="submit">
     <label class="flex items-center justify-between gap-3 text-sm font-medium">
       {{ $t('dashboard.obs.connectionForm.enabled') }}
       <Switch
@@ -119,11 +127,23 @@ function submit(): void {
         {{ $t('dashboard.obs.connectionForm.passwordClear') }}
       </Button>
     </p>
-    <label class="grid gap-1 text-sm text-muted-foreground">
-      {{ $t('dashboard.obs.connectionForm.mask') }}
-      <Input v-model="mask" data-obs-mask type="number" min="0" />
+    <fieldset class="grid gap-2 text-sm text-muted-foreground">
+      <legend>{{ $t('dashboard.obs.connectionForm.mask') }}</legend>
+      <EventKindMask
+        v-model="mask"
+        data-obs-mask
+        :kinds="connection.eventKinds"
+        prefix="dashboard.obs.kinds"
+      />
       <span>{{ $t('dashboard.obs.connectionForm.maskHelp') }}</span>
-    </label>
+    </fieldset>
+    <p v-if="connection.lastError" data-obs-last-error class="text-sm text-destructive">
+      {{ $t('dashboard.obs.connectionForm.lastError', { error: connection.lastError }) }}
+    </p>
+    <p v-if="connection.lastConnectedAt" data-obs-last-connected class="text-sm text-muted-foreground">
+      {{ $t('dashboard.obs.connectionForm.lastConnected') }}
+      <DateTime :value="connection.lastConnectedAt" variant="relative" />
+    </p>
     <div class="flex justify-end">
       <Button data-obs-save type="submit" :disabled="save.isPending.value">
         {{ $t('dashboard.obs.connectionForm.save') }}
