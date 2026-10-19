@@ -94,8 +94,30 @@ public sealed partial class PlaybackDirector
     private bool IsCurrentTrack(TrackEnded ended) =>
         ended.Engine == State.Engine && (State.Item is null || State.Item.Uri == ended.Uri);
 
+    /// <summary>
+    /// Row 28: a Spotify report during our own playing item names another device than the one that confirmed
+    /// our start. The owner moved Spotify; the director blocks and sends no command (no automatic transfer).
+    /// </summary>
+    private bool MovedToAnotherDevice(EngineReport report) =>
+        State is { Kind: PlaybackStateKind.Playing, Item: not null, Engine: EngineKind.Spotify }
+        && report.Engine == EngineKind.Spotify
+        && _confirmedDeviceId is not null
+        && report.DeviceId is not null
+        && report.DeviceId != _confirmedDeviceId;
+
     private async Task OnReportAsync(EngineReport report, CancellationToken ct)
     {
+        if (MovedToAnotherDevice(report))
+        {
+            _confirmedDeviceId = null;
+            await MoveAsync(
+                PlaybackState.Blocked("Spotify moved to another device"),
+                report,
+                "device_changed"
+            );
+            return;
+        }
+
         if (!report.IsPlaying)
         {
             if (State.Kind == PlaybackStateKind.Playing && report.Engine != State.Engine)

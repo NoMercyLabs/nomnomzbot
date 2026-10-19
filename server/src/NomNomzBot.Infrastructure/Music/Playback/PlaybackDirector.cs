@@ -50,6 +50,7 @@ public sealed partial class PlaybackDirector : IDisposable
     private bool _muted;
 
     private EngineReport? _ownerReport;
+    private string? _confirmedDeviceId;
     private OwnerMusicMemory? _memory;
     private EngineKind? _stopWait;
     private DateTimeOffset _stopDeadline;

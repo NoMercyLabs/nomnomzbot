@@ -133,6 +133,7 @@ public sealed partial class PlaybackDirector
         _failedStarts.Remove(row.Id);
         _history.Push(row);
         _ownerReport = null;
+        _confirmedDeviceId = report.DeviceId;
         await MoveAsync(PlaybackState.Playing(report.Engine, row), report, reason);
     }
 }
