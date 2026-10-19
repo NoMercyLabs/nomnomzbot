@@ -22,7 +22,8 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
 import { usePlatformCan } from '@/composables/usePlatformCan';
-import { lookup } from '@/lib/array';
+import { useRefusalLines } from '@/composables/useRefusalLines';
+import { lookup, merge } from '@/lib/array';
 
 import SpamSettingRow from './SpamSettingRow.vue';
 
@@ -41,6 +42,8 @@ const props = defineProps<{
   action: string;
   // Reads the platform admin keys instead of the channel keys.
   platform?: boolean;
+  // The error of the page's last refused save; the lines it names show next to their fields until the next edit.
+  refusal?: Error | null;
 }>();
 
 const emit = defineEmits<{
@@ -65,6 +68,23 @@ const writable = computed<boolean>(() => can(props.action));
 const draft = ref<Draft>({});
 const thresholds = ref<Draft>({});
 const saved = ref('');
+
+const { refuse, clear, linesFor } = useRefusalLines('dashboard.admin.spamDefaults');
+
+watch(
+  () => props.refusal,
+  (error) => {
+    if (error) {
+      refuse(error);
+    } else {
+      clear();
+    }
+  },
+  { immediate: true },
+);
+
+// An edit answers the refusal, so its lines go.
+watch([draft, thresholds], clear, { deep: true });
 
 // The bot names a knob in PascalCase; its JSON and the copy keys are camelCase.
 const camel = (key: string): string => key.charAt(0).toLowerCase() + key.slice(1);
@@ -176,8 +196,11 @@ const exonerationAboveCampaign = computed<boolean>(() => {
 
 // A cap below the value it caps would silently win, so the bot refuses it; the form names it before Save.
 const CAPS = {
-  MaxWindowSeconds: { floor: 'windowSeconds', copyKey: 'maxWindowBelowWindow' },
-  LockdownMaxMinutes: { floor: 'lockdownMinutes', copyKey: 'lockdownMaxBelowLockdown' },
+  MaxWindowSeconds: { floor: 'windowSeconds', copyKey: 'spam.policy.error.maxWindowBelowWindow' },
+  LockdownMaxMinutes: {
+    floor: 'lockdownMinutes',
+    copyKey: 'spam.policy.error.lockdownMaxBelowLockdown',
+  },
 } as const satisfies Record<string, { floor: string; copyKey: string }>;
 
 function capBelowFloor(setting: SpamSetting): boolean {
@@ -215,22 +238,38 @@ const invariants = computed<string[]>(() =>
   ),
 );
 
-function invalidTextOf(setting: SpamSetting): string | undefined {
+function localInvalidTextOf(setting: SpamSetting): string[] {
   if (setting.key === 'DequalifyNoStandingShare' && exonerationAboveCampaign.value)
-    return copy('dequalifyBelowQualify');
+    return [copy('spam.policy.error.dequalifyNotBelowQualify')];
 
   const cap = lookup(CAPS, setting.key);
 
   if (cap && capBelowFloor(setting))
-    return copy(cap.copyKey);
+    return [copy(cap.copyKey)];
 
   if (!outOfRange(setting))
-    return undefined;
+    return [];
 
-  return t('dashboard.admin.spamDefaults.range', {
-    min: number(setting, 'minimum'),
-    max: number(setting, 'maximum'),
-  });
+  return [
+    t('dashboard.admin.spamDefaults.spam.policy.error.outOfRange', {
+      min: number(setting, 'minimum'),
+      max: number(setting, 'maximum'),
+    }),
+  ];
+}
+
+// What the form sees and what the bot refused say the same thing in the same words, so a line shows once.
+function joinedLines(lines: string[]): string | undefined {
+  return lines.length > 0
+    ? Array.from(new Set(lines)).join(' ')
+    : undefined;
+}
+
+function invalidTextOf(setting: SpamSetting): string | undefined {
+  const local = localInvalidTextOf(setting);
+  const refused = linesFor(camel(setting.key));
+
+  return joinedLines(merge(local, refused));
 }
 
 function inactiveReasonOf(setting: SpamSetting): string | undefined {
@@ -315,6 +354,7 @@ watch(
             :label="copy(`trustFields.${field}`)"
             explanation=""
             cost=""
+            :invalid-text="joinedLines(linesFor(field))"
           >
             <Input
               :model-value="shown(thresholds[field])"

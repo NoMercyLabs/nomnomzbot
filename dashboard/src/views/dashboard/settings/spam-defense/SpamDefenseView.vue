@@ -80,6 +80,7 @@ function submit(): void {
       v-if="panelState === 'ready' && policy.data.value"
       :policy="policy.data.value"
       :action="MANAGE"
+      :refusal="save.error.value"
       @change="(state) => (form = state)"
     />
     <PanelCard

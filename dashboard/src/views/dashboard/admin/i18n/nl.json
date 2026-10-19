@@ -285,7 +285,6 @@
         "restricted": "Saas-modus is een beperkte optie: NomNomzBot als gehoste dienst voor derden draaien is voorbehouden aan NoMercy Labs. Zelf hosten van je eigen bot is altijd gratis.",
         "save": "Standaarden opslaan",
         "saving": "Opslaan",
-        "range": "Vul een waarde in van {min} tot {max}.",
         "saved": "Spam-standaarden opgeslagen.",
         "saveError": "De spam-standaarden konden niet worden opgeslagen: {reason}",
         "loadError": "De spam-standaarden konden niet laden.",
@@ -299,9 +298,16 @@
           "establishedDistinctActiveDays": "Aparte actieve dagen voordat een kijker als gevestigd telt",
           "establishedStrikeFreeDays": "Dagen zonder waarschuwing voordat een kijker als gevestigd telt"
         },
-        "dequalifyBelowQualify": "Het vrijpleitaandeel moet onder het campagne-aandeel blijven, zodat een groep op de grens niet heen en weer kan schieten.",
-        "maxWindowBelowWindow": "De langste tijd dat een groep open blijft moet minstens zo lang zijn als hoe lang een groep wordt gevolgd, anders wint altijd de kortere grens.",
-        "lockdownMaxBelowLockdown": "De langste tijd dat de chat beperkt blijft moet minstens zo lang zijn als hoe lang hij beperkt blijft, anders wint altijd de kortere grens.",
+        "spam": {
+          "policy": {
+            "error": {
+              "outOfRange": "Vul een waarde in van {min} tot {max}.",
+              "dequalifyNotBelowQualify": "Het vrijpleitaandeel moet onder het campagne-aandeel blijven, zodat een groep op de grens niet heen en weer kan schieten.",
+              "maxWindowBelowWindow": "De langste tijd dat een groep open blijft moet minstens zo lang zijn als hoe lang een groep wordt gevolgd, anders wint altijd de kortere grens.",
+              "lockdownMaxBelowLockdown": "De langste tijd dat de chat beperkt blijft moet minstens zo lang zijn als hoe lang hij beperkt blijft, anders wint altijd de kortere grens."
+            }
+          }
+        },
         "inactiveBadge": "Nog niet actief",
         "inactiveArrives": "Dit gaat werken met werkitem {slice}. Je waarde is opgeslagen en wordt vanaf dan gebruikt.",
         "explain": "Dit zijn de waarden waarmee elk nieuw kanaal begint. Een kanaal dat nooit een instelling heeft gewijzigd blijft deze volgen, dus hier iets aanpassen verplaatst ze allemaal tegelijk.",

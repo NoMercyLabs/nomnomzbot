@@ -12,6 +12,7 @@
 // (the API module it came from), a message key for the screen, and the details the server sent. The server
 // answers with Microsoft ProblemDetails (RFC 9457) and ValidationProblemDetails; `parseProblem` reads them.
 
+import { merge } from '@/lib/array';
 import type { JsonObject } from '@/lib/json';
 
 // The API module an error comes from. It is the first part of the code.
@@ -545,6 +546,9 @@ export type ApiFieldProblem = {
   subject: string;
   value?: number;
   limit?: number;
+  // The accepted range of an out-of-range value, when the server states one.
+  minimum?: number;
+  maximum?: number;
 };
 
 // The members of a ProblemDetails body, plus the `errors` of a ValidationProblemDetails, the `traceId`
@@ -639,15 +643,44 @@ function fieldProblemOf(entry: unknown): ApiFieldProblem | undefined {
   };
 }
 
+// One entry of a `violations` list: the key is the reason, and the accepted range rides along when stated.
+// eslint-disable-next-line no-restricted-syntax -- one element of a parsed JSON array can be anything
+function violationProblemOf(entry: unknown): ApiFieldProblem | undefined {
+  if (!isRecord(entry))
+    return undefined;
+
+  const reason = textOf(entry, 'key');
+  const field = textOf(entry, 'field');
+
+  if (reason === undefined || field === undefined)
+    return undefined;
+
+  return {
+    reason,
+    field,
+    subject: '',
+    minimum: numberOf(entry, 'minimum'),
+    maximum: numberOf(entry, 'maximum'),
+  };
+}
+
 function problemsOf(body: JsonObject): ApiFieldProblem[] | undefined {
   const data = body.data;
 
-  if (!isRecord(data) || !Array.isArray(data.problems))
+  if (!isRecord(data))
     return undefined;
 
-  const found = data.problems
-    .map(fieldProblemOf)
-    .filter((problem): problem is ApiFieldProblem => problem !== undefined);
+  const listed = Array.isArray(data.problems)
+    ? data.problems.map(fieldProblemOf)
+    : [];
+
+  const violations = Array.isArray(data.violations)
+    ? data.violations.map(violationProblemOf)
+    : [];
+
+  const found = merge(listed, violations).filter(
+    (problem): problem is ApiFieldProblem => problem !== undefined,
+  );
 
   return found.length > 0
     ? found

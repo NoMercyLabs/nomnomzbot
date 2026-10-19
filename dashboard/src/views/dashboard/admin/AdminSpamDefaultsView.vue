@@ -89,6 +89,7 @@ function submit(): void {
       :policy="policy.data.value"
       action="featureflag:write"
       platform
+      :refusal="save.error.value"
       @change="(state) => (form = state)"
     />
     <PanelCard

@@ -285,7 +285,6 @@
         "restricted": "Saas mode is a restricted option: running NomNomzBot as a hosted service for third parties is reserved to NoMercy Labs. Self-hosting your own bot is always free.",
         "save": "Save defaults",
         "saving": "Saving",
-        "range": "Enter a value from {min} to {max}.",
         "saved": "Spam defaults saved.",
         "saveError": "The spam defaults could not be saved: {reason}",
         "loadError": "The spam defaults could not load.",
@@ -299,9 +298,16 @@
           "establishedDistinctActiveDays": "Separate active days before a viewer counts as established",
           "establishedStrikeFreeDays": "Strike-free days before a viewer counts as established"
         },
-        "dequalifyBelowQualify": "The exoneration share must stay below the campaign share, so a group on the borderline cannot flip back and forth.",
-        "maxWindowBelowWindow": "The longest a group can stay open must be at least as long as how long a group is watched, or the shorter limit would always win.",
-        "lockdownMaxBelowLockdown": "The longest the room can stay tightened must be at least as long as how long it stays tightened, or the shorter limit would always win.",
+        "spam": {
+          "policy": {
+            "error": {
+              "outOfRange": "Enter a value from {min} to {max}.",
+              "dequalifyNotBelowQualify": "The exoneration share must stay below the campaign share, so a group on the borderline cannot flip back and forth.",
+              "maxWindowBelowWindow": "The longest a group can stay open must be at least as long as how long a group is watched, or the shorter limit would always win.",
+              "lockdownMaxBelowLockdown": "The longest the room can stay tightened must be at least as long as how long it stays tightened, or the shorter limit would always win."
+            }
+          }
+        },
         "inactiveBadge": "Not yet active",
         "inactiveArrives": "It starts to work with work item {slice}. Your value is saved and used from then on.",
         "explain": "These are the values every new channel starts with. A channel that has never changed a setting keeps following these, so editing one here moves all of them at once.",

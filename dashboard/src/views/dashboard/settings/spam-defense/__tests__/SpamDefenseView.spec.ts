@@ -179,6 +179,40 @@ describe('SpamDefenseView', () => {
     expect(http.PUT).not.toHaveBeenCalled();
   });
 
+  it('shows the translated line with its range next to each field the bot refused', async () => {
+    http.PUT.mockResolvedValue({
+      error: {
+        data: {
+          violations: [
+            {
+              key: 'spam.policy.error.outOfRange',
+              field: 'accountAgeGateDays',
+              minimum: 0,
+              maximum: 365,
+            },
+            { key: 'spam.policy.error.maxWindowBelowWindow', field: 'establishedDays' },
+          ],
+        },
+      },
+      response: { ok: false, status: 400 },
+    });
+
+    await open();
+    await type('accountAgeGateDays', '14');
+    save().click();
+    await flushPromises();
+
+    const range = row('accountAgeGateDays').querySelector('[data-invalid]');
+
+    expect(range?.textContent).toBe('Enter a value from 0 to 365.');
+
+    expect(row('establishedDays').querySelector('[data-invalid]')?.textContent).toContain(
+      'at least as long',
+    );
+
+    expect(row('isEnabled').querySelector('[data-invalid]')).toBeNull();
+  });
+
   it('shows no Save and no switch control to a person without the manage key', async () => {
     access.manage = false;
     await open();

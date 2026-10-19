@@ -71,6 +71,37 @@ describe('refusalProblems', () => {
     }]);
   });
 
+  it('reads a list of violations with their accepted range as problems whose reason is the key', () => {
+    const error = failed('warn', 400, {
+      data: {
+        violations: [
+          {
+            key: 'spam.policy.error.outOfRange',
+            field: 'accountAgeGateDays',
+            minimum: 0,
+            maximum: 365,
+          },
+          { key: 'spam.policy.error.maxWindowBelowWindow', field: 'maxWindowSeconds' },
+        ],
+      },
+    });
+
+    expect(refusalProblems(error)).toEqual([
+      {
+        reason: 'spam.policy.error.outOfRange',
+        field: 'accountAgeGateDays',
+        subject: '',
+        minimum: 0,
+        maximum: 365,
+      },
+      {
+        reason: 'spam.policy.error.maxWindowBelowWindow',
+        field: 'maxWindowSeconds',
+        subject: '',
+      },
+    ]);
+  });
+
   it('is empty for an error that names no field', () => {
     expect(refusalProblems(new Error('boom'))).toEqual([]);
     expect(refusalProblems(failed('warn', 500))).toEqual([]);

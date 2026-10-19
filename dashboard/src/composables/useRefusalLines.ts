@@ -32,7 +32,9 @@ export function useRefusalLines(scope: string) {
   function linesFor(field: string): string[] {
     return problems.value
       .filter((problem) => problem.field === field)
-      .map((problem) => t(`${scope}.${problem.reason}`));
+      .map((problem) =>
+        t(`${scope}.${problem.reason}`, { min: problem.minimum, max: problem.maximum }),
+      );
   }
 
   return {
