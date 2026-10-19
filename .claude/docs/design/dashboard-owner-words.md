@@ -90,6 +90,7 @@ Derived text in other files starts "Arc's reading:" or "Proposal, not settled:".
 2026-10-18: "when mapping i also want you to type the return as const instead of the argument"
 2026-10-18: "callbacks that return a boolean or a single variable should not linewrap, same rule as a direct return (scripts, () => false)"
 2026-10-18: "let's also not set a return type when we can as const here too" (on emojiSections in emotePicker.ts: no return type annotation; the returned value carries `as const satisfies T`)
+2026-10-19: "do NOT count banned people" (stream recap)
 2026-10-18: "the raid command JUST needs to collect everything that happened between the start of the stream and the when i use raid"; then: "and i like to get mine if today, i want to collect them as achievements over time"
 2026-10-18: "we need a separate widget for the music, and one for the tts and other audio comming from the bot. music must be controllable individually and be allowed to run on the users machine with a different volume than chat hears."
 2026-10-18: "i need youtube and spotify to get equal treatment, controls via streamdeck/ui and the now playing widgets should ALL work with both. the queue MUST be able to switch effortlessly and obey the fair queue system."
@@ -99,3 +100,6 @@ Derived text in other files starts "Arc's reading:" or "Proposal, not settled:".
 2026-10-18: "ok, no more of me asking to make something as const satisfies... apply to all of the code with the linter"
 2026-10-18: a viewer with no saved TTS voice keeps a random first voice, saved (owner choice); "english or muli language and prefer a pronoun gender voice"
 2026-10-18: "HOLY MOLY THAT OBS PAGE!!! can you slap more things on in pannels that large?! how is that managible by the streamer while live?"
+2026-10-19: "client edge is supposed to be a 1 to 1 replica of the server edge tts api, not some integrated crappy tts! i told you to completely remove it 1 month ago"
+2026-10-19: on where client edge runs (Edge TTS refuses a plain browser page): "desktop local and server relay on paid tier?"
+2026-10-19 (said in Dutch, faithful English): "I want you to make sure I do not have to repeat myself again with all the nitpicks I have said about all the other pages. I want you to make sure that all settings work, that everything is configurable, that all defaults are set, and that I wake up with everything done, pushed, tested. Can I count on that?"
