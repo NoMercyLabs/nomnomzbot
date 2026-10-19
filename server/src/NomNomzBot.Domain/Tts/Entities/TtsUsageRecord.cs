@@ -29,6 +29,10 @@ public class TtsUsageRecord : BaseEntity, ITenantScoped
     [MaxLength(255)]
     public string VoiceId { get; set; } = null!;
 
+    /// <summary>The text that was spoken (after the lexicon and the censor). Null on rows written before the text was stored.</summary>
+    [MaxLength(2000)]
+    public string? Text { get; set; }
+
     /// <summary>Whether the profanity censor altered the spoken text (tts.md §3.5) — the ledger records what was actually said.</summary>
     public bool WasCensored { get; set; }
 

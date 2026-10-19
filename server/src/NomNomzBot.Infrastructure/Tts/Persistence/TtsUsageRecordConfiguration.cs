@@ -30,6 +30,8 @@ public class TtsUsageRecordConfiguration : IEntityTypeConfiguration<TtsUsageReco
 
         builder.Property(e => e.VoiceId).IsRequired().HasMaxLength(255);
 
+        builder.Property(e => e.Text).HasMaxLength(2000);
+
         builder.HasIndex(e => new { e.BroadcasterId, e.StreamId });
         builder.HasIndex(e => new { e.BroadcasterId, e.OccurredAt });
     }

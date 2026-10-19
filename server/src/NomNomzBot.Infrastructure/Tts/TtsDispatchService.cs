@@ -772,20 +772,20 @@ public sealed class TtsDispatchService : ITtsDispatchService
         // do not re-decide this again without hard evidence either way.
         string dataUri = $"data:audio/mpeg;base64,{Convert.ToBase64String(synth.AudioData)}";
 
-        _db.TtsUsageRecords.Add(
-            new()
-            {
-                BroadcasterId = broadcasterId,
-                UserId = requestedByTwitchUserId,
-                CharacterCount = text.Length,
-                Provider = synth.Provider,
-                VoiceId = synth.VoiceId,
-                WasCensored = wasCensored,
-                WasModApproved = wasModApproved,
-                StreamId = streamId,
-                OccurredAt = _clock.GetUtcNow().UtcDateTime,
-            }
-        );
+        TtsUsageRecord usage = new()
+        {
+            BroadcasterId = broadcasterId,
+            UserId = requestedByTwitchUserId,
+            CharacterCount = text.Length,
+            Provider = synth.Provider,
+            VoiceId = synth.VoiceId,
+            Text = text,
+            WasCensored = wasCensored,
+            WasModApproved = wasModApproved,
+            StreamId = streamId,
+            OccurredAt = _clock.GetUtcNow().UtcDateTime,
+        };
+        _db.TtsUsageRecords.Add(usage);
         await _db.SaveChangesAsync(ct);
 
         await _eventBus.PublishAsync(
@@ -802,6 +802,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 ContentHash = null,
                 AudioUrl = dataUri,
                 ChannelEventId = channelEventId,
+                UsageRecordId = usage.Id,
             },
             ct
         );

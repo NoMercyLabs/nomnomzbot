@@ -58,6 +58,9 @@ public sealed class TtsUtteranceDispatchedEvent : DomainEventBase
     /// free <c>!tts</c> command never logs a ChannelEvent, so there is genuinely nothing to correlate).
     /// </summary>
     public string? ChannelEventId { get; init; }
+
+    /// <summary>The id of the spoken-history row (<c>TtsUsageRecord</c>) written for this utterance; <c>null</c> when none was written.</summary>
+    public int? UsageRecordId { get; init; }
 }
 
 /// <summary>

@@ -373,6 +373,7 @@ public sealed class TtsDispatchServiceTests
         usage.CharacterCount.Should().Be("hello world".Length);
         usage.Provider.Should().Be("edge");
         usage.VoiceId.Should().Be("default-voice");
+        usage.Text.Should().Be("hello world", "the ledger keeps what was actually spoken");
         usage.WasCensored.Should().BeFalse();
         usage.WasModApproved.Should().BeNull("no moderator was involved on the direct path");
         usage.StreamId.Should().Be(liveStream);
@@ -389,6 +390,7 @@ public sealed class TtsDispatchServiceTests
                 Arg.Is<TtsUtteranceDispatchedEvent>(e =>
                     e.VoiceId == "default-voice"
                     && e.CharacterCount == "hello world".Length
+                    && e.UsageRecordId == usage.Id
                     && e.AudioUrl == "data:audio/mpeg;base64,AQIDBA=="
                 ),
                 Arg.Any<CancellationToken>()
