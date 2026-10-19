@@ -79,6 +79,23 @@ public sealed class AudioMixControllerTests
         ChannelAudioMixDto read = Body(await controller.Get(CancellationToken.None));
 
         put.Should().Be(new ChannelAudioMixDto(55, 35));
+        read.MusicDuckPercent.Should().Be(100);
         read.Should().Be(new ChannelAudioMixDto(55, 35));
+    }
+
+    [Fact]
+    public async Task The_music_duck_percent_goes_through_the_put_and_the_next_get_returns_it()
+    {
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        AudioMixController controller = Build(db);
+
+        ChannelAudioMixDto put = Body(
+            await controller.Update(new(55, 35, MusicDuckPercent: 30), CancellationToken.None)
+        );
+        ChannelAudioMixDto read = Body(await controller.Get(CancellationToken.None));
+
+        put.Should().Be(new ChannelAudioMixDto(55, 35, 30));
+        read.Should().Be(new ChannelAudioMixDto(55, 35, 30));
+        read.DefaultMusicDuckPercent.Should().Be(100);
     }
 }

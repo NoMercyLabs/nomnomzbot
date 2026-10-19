@@ -109,6 +109,68 @@ public sealed class ChannelAudioMixServiceTests
     }
 
     [Fact]
+    public async Task A_channel_with_no_row_does_not_duck_the_music()
+    {
+        await using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        ChannelAudioMixService service = new(db);
+
+        ChannelAudioMixDto mix = (await service.GetAsync(ChannelA)).Value;
+
+        mix.MusicDuckPercent.Should().Be(100);
+        mix.DefaultMusicDuckPercent.Should().Be(AudioMixDefaults.MusicDuckPercent);
+        new ChannelAudioMix().MusicDuckPercent.Should().Be(AudioMixDefaults.MusicDuckPercent);
+    }
+
+    [Fact]
+    public async Task The_duck_percent_is_stored_on_the_row_and_read_back()
+    {
+        await using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        ChannelAudioMixService service = new(db);
+
+        Result<ChannelAudioMixDto> updated = await service.UpdateAsync(
+            ChannelA,
+            new(80, 90, MusicDuckPercent: 35)
+        );
+
+        updated.Value.MusicDuckPercent.Should().Be(35);
+        (await db.ChannelAudioMixes.SingleAsync()).MusicDuckPercent.Should().Be(35);
+        (await service.GetAsync(ChannelA)).Value.MusicDuckPercent.Should().Be(35);
+    }
+
+    [Fact]
+    public async Task An_update_that_leaves_the_duck_percent_out_keeps_the_stored_value()
+    {
+        await using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        ChannelAudioMixService service = new(db);
+        await service.UpdateAsync(ChannelA, new(80, 90, MusicDuckPercent: 35));
+
+        await service.UpdateAsync(ChannelA, new(10, 20));
+
+        ChannelAudioMix row = await db.ChannelAudioMixes.SingleAsync();
+        row.MasterVolume.Should().Be(10);
+        row.MusicDuckPercent.Should().Be(35);
+    }
+
+    [Theory]
+    [InlineData(101)]
+    [InlineData(-1)]
+    public async Task An_out_of_range_duck_percent_is_refused_and_nothing_is_stored(int percent)
+    {
+        await using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        ChannelAudioMixService service = new(db);
+
+        Result<ChannelAudioMixDto> updated = await service.UpdateAsync(
+            ChannelA,
+            new(50, 50, MusicDuckPercent: percent)
+        );
+
+        updated.IsSuccess.Should().BeFalse();
+        updated.ErrorMessage.Should().Be("audio_mix_music_duck_percent_out_of_range");
+        updated.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await db.ChannelAudioMixes.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
     public async Task A_second_update_changes_the_same_row()
     {
         await using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
