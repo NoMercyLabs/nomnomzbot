@@ -26,6 +26,7 @@ import Plugged from '~icons/nnz/plugged';
 import SettingsFader from '~icons/nnz/settings-fader';
 import ShieldCheck from '~icons/nnz/shield-check';
 import Sparkles from '~icons/nnz/sparkles';
+import Scale from '~icons/nnz/scale';
 import Speedometer from '~icons/nnz/speedometer';
 import ToggleOn from '~icons/nnz/toggle-on';
 
@@ -73,6 +74,7 @@ export const settingsNav: readonly NavGroup[] = [
     key: 'settings.access',
     entries: [
       navEntry('dashboard-settings-permissions', 'settingsPages.permissions', ShieldCheck),
+      navEntry('dashboard-settings-trust-policy', 'settingsPages.trustPolicy', Scale),
       navEntry('dashboard-settings-event-journal', 'settingsPages.eventJournal', PaperScroll),
     ],
   },

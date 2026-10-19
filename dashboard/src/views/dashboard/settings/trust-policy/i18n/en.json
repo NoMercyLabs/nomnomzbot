@@ -1,4 +1,149 @@
 {
+  "dashboard": {
+    "settings": {
+      "trustPolicy": {
+        "crumb": "Access",
+        "default": "Default {value}",
+        "save": "Save",
+        "saving": "Saving...",
+        "weightSum": "Total {sum} of 1",
+        "loadError": "The trust policy could not be loaded.",
+        "saveError": "The trust policy could not be saved.",
+        "groups": {
+          "weights": {
+            "title": "Score weights",
+            "description": "How much each signal counts toward a viewer's trust score. The four must add up to exactly 1."
+          },
+          "growth": {
+            "title": "Growth speed",
+            "description": "How fast each signal reaches its full value. A higher number grows more slowly."
+          },
+          "boosts": {
+            "title": "Boosts and multipliers",
+            "description": "Extra trust for known good accounts, and a cut for accounts that do not follow."
+          },
+          "penalties": {
+            "title": "Penalties",
+            "description": "How much score a viewer loses for each moderation action."
+          },
+          "tiers": {
+            "title": "Tier ceilings",
+            "description": "The highest score that still belongs to each tier. Each ceiling must be higher than the one before."
+          },
+          "heat": {
+            "title": "Heat",
+            "description": "How fast heat fades and how much each event adds."
+          }
+        },
+        "fields": {
+          "requestCountWeight": {
+            "title": "Request count",
+            "help": "Weight of how many requests the viewer made."
+          },
+          "accountAgeWeight": {
+            "title": "Account age",
+            "help": "Weight of how old the viewer's account is."
+          },
+          "contentAgeWeight": {
+            "title": "Content age",
+            "help": "Weight of how old the requested content is."
+          },
+          "contentPopularityWeight": {
+            "title": "Content popularity",
+            "help": "Weight of how popular the requested content is."
+          },
+          "requestCountDecay": {
+            "title": "Request count growth",
+            "help": "How slowly the request count signal reaches its full value."
+          },
+          "accountAgeDecay": {
+            "title": "Account age growth",
+            "help": "How slowly the account age signal reaches its full value."
+          },
+          "contentAgeDecay": {
+            "title": "Content age growth",
+            "help": "How slowly the content age signal reaches its full value."
+          },
+          "contentPopularityDecay": {
+            "title": "Content popularity growth",
+            "help": "How slowly the content popularity signal reaches its full value."
+          },
+          "reputationBoostEnabled": {
+            "title": "Reputation boost",
+            "help": "Give extra trust to affiliates, partners and verified YouTube channels."
+          },
+          "affiliateBoost": {
+            "title": "Affiliate boost",
+            "help": "Points added for a Twitch affiliate."
+          },
+          "partnerBoost": {
+            "title": "Partner boost",
+            "help": "Points added for a Twitch partner."
+          },
+          "verifiedYouTubeBoost": {
+            "title": "Verified YouTube boost",
+            "help": "Points added for a verified YouTube channel."
+          },
+          "notFollowingFactor": {
+            "title": "Not following multiplier",
+            "help": "The score is multiplied by this when the viewer does not follow the channel."
+          },
+          "youTubeQualityPenaltyFactor": {
+            "title": "YouTube quality multiplier",
+            "help": "The score is multiplied by this for low quality YouTube content."
+          },
+          "skipPenalty": {
+            "title": "Skip penalty",
+            "help": "Points lost when a viewer's request is skipped."
+          },
+          "timeoutPenalty": {
+            "title": "Timeout penalty",
+            "help": "Points lost when a viewer is timed out."
+          },
+          "banPenalty": {
+            "title": "Ban penalty",
+            "help": "Points lost when a viewer is banned."
+          },
+          "untrustedMax": {
+            "title": "Untrusted up to",
+            "help": "Scores up to this value are untrusted."
+          },
+          "lowMax": {
+            "title": "Low trust up to",
+            "help": "Scores up to this value are low trust."
+          },
+          "standardMax": {
+            "title": "Standard up to",
+            "help": "Scores up to this value are standard. Above it is high trust."
+          },
+          "heatHalfLifeHours": {
+            "title": "Heat half-life (hours)",
+            "help": "Hours it takes for heat to fall by half."
+          },
+          "heatDeltaBan": {
+            "title": "Heat for a ban",
+            "help": "Heat added when a viewer is banned."
+          },
+          "heatDeltaTimeout": {
+            "title": "Heat for a timeout",
+            "help": "Heat added when a viewer is timed out."
+          },
+          "heatDeltaReportValidated": {
+            "title": "Heat for a confirmed report",
+            "help": "Heat added when a report about a viewer is confirmed."
+          },
+          "heatDeltaAutoModDenied": {
+            "title": "Heat for a denied AutoMod message",
+            "help": "Heat added when AutoMod holds back a viewer's message."
+          },
+          "heatDeltaFilterHit": {
+            "title": "Heat for a filter hit",
+            "help": "Heat added when a viewer's message trips a chat filter."
+          }
+        }
+      }
+    }
+  },
   "trust": {
     "policy": {
       "error": {

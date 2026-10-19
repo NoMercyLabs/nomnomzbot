@@ -1,4 +1,149 @@
 {
+  "dashboard": {
+    "settings": {
+      "trustPolicy": {
+        "crumb": "Toegang",
+        "default": "Standaard {value}",
+        "save": "Opslaan",
+        "saving": "Opslaan...",
+        "weightSum": "Totaal {sum} van 1",
+        "loadError": "Het vertrouwensbeleid kon niet worden geladen.",
+        "saveError": "Het vertrouwensbeleid kon niet worden opgeslagen.",
+        "groups": {
+          "weights": {
+            "title": "Scoregewichten",
+            "description": "Hoeveel elk signaal meetelt in de vertrouwensscore van een kijker. De vier moeten samen precies 1 zijn."
+          },
+          "growth": {
+            "title": "Groeisnelheid",
+            "description": "Hoe snel elk signaal zijn volle waarde bereikt. Een hoger getal groeit langzamer."
+          },
+          "boosts": {
+            "title": "Boosts en vermenigvuldigers",
+            "description": "Extra vertrouwen voor bekende goede accounts, en een verlaging voor accounts die niet volgen."
+          },
+          "penalties": {
+            "title": "Straffen",
+            "description": "Hoeveel score een kijker verliest bij elke moderatieactie."
+          },
+          "tiers": {
+            "title": "Niveaugrenzen",
+            "description": "De hoogste score die nog bij elk niveau hoort. Elke grens moet hoger zijn dan de vorige."
+          },
+          "heat": {
+            "title": "Hitte",
+            "description": "Hoe snel hitte wegtrekt en hoeveel elke gebeurtenis toevoegt."
+          }
+        },
+        "fields": {
+          "requestCountWeight": {
+            "title": "Aantal verzoeken",
+            "help": "Gewicht van hoeveel verzoeken de kijker deed."
+          },
+          "accountAgeWeight": {
+            "title": "Leeftijd van het account",
+            "help": "Gewicht van hoe oud het account van de kijker is."
+          },
+          "contentAgeWeight": {
+            "title": "Leeftijd van de inhoud",
+            "help": "Gewicht van hoe oud de gevraagde inhoud is."
+          },
+          "contentPopularityWeight": {
+            "title": "Populariteit van de inhoud",
+            "help": "Gewicht van hoe populair de gevraagde inhoud is."
+          },
+          "requestCountDecay": {
+            "title": "Groei van aantal verzoeken",
+            "help": "Hoe langzaam het signaal voor aantal verzoeken zijn volle waarde bereikt."
+          },
+          "accountAgeDecay": {
+            "title": "Groei van accountleeftijd",
+            "help": "Hoe langzaam het signaal voor accountleeftijd zijn volle waarde bereikt."
+          },
+          "contentAgeDecay": {
+            "title": "Groei van inhoudsleeftijd",
+            "help": "Hoe langzaam het signaal voor inhoudsleeftijd zijn volle waarde bereikt."
+          },
+          "contentPopularityDecay": {
+            "title": "Groei van populariteit",
+            "help": "Hoe langzaam het signaal voor populariteit zijn volle waarde bereikt."
+          },
+          "reputationBoostEnabled": {
+            "title": "Reputatieboost",
+            "help": "Geef extra vertrouwen aan affiliates, partners en geverifieerde YouTube-kanalen."
+          },
+          "affiliateBoost": {
+            "title": "Affiliateboost",
+            "help": "Punten erbij voor een Twitch-affiliate."
+          },
+          "partnerBoost": {
+            "title": "Partnerboost",
+            "help": "Punten erbij voor een Twitch-partner."
+          },
+          "verifiedYouTubeBoost": {
+            "title": "Boost voor geverifieerd YouTube",
+            "help": "Punten erbij voor een geverifieerd YouTube-kanaal."
+          },
+          "notFollowingFactor": {
+            "title": "Vermenigvuldiger bij niet volgen",
+            "help": "De score wordt hiermee vermenigvuldigd als de kijker het kanaal niet volgt."
+          },
+          "youTubeQualityPenaltyFactor": {
+            "title": "YouTube-kwaliteitsvermenigvuldiger",
+            "help": "De score wordt hiermee vermenigvuldigd bij YouTube-inhoud van lage kwaliteit."
+          },
+          "skipPenalty": {
+            "title": "Straf voor overslaan",
+            "help": "Punten eraf als het verzoek van een kijker wordt overgeslagen."
+          },
+          "timeoutPenalty": {
+            "title": "Straf voor timeout",
+            "help": "Punten eraf als een kijker een timeout krijgt."
+          },
+          "banPenalty": {
+            "title": "Straf voor ban",
+            "help": "Punten eraf als een kijker wordt verbannen."
+          },
+          "untrustedMax": {
+            "title": "Niet vertrouwd tot",
+            "help": "Scores tot deze waarde zijn niet vertrouwd."
+          },
+          "lowMax": {
+            "title": "Laag vertrouwen tot",
+            "help": "Scores tot deze waarde hebben laag vertrouwen."
+          },
+          "standardMax": {
+            "title": "Standaard tot",
+            "help": "Scores tot deze waarde zijn standaard. Erboven is hoog vertrouwen."
+          },
+          "heatHalfLifeHours": {
+            "title": "Halfwaardetijd van hitte (uren)",
+            "help": "Aantal uren waarin de hitte met de helft afneemt."
+          },
+          "heatDeltaBan": {
+            "title": "Hitte bij een ban",
+            "help": "Hitte die erbij komt als een kijker wordt verbannen."
+          },
+          "heatDeltaTimeout": {
+            "title": "Hitte bij een timeout",
+            "help": "Hitte die erbij komt als een kijker een timeout krijgt."
+          },
+          "heatDeltaReportValidated": {
+            "title": "Hitte bij een bevestigde melding",
+            "help": "Hitte die erbij komt als een melding over een kijker wordt bevestigd."
+          },
+          "heatDeltaAutoModDenied": {
+            "title": "Hitte bij een geweigerd AutoMod-bericht",
+            "help": "Hitte die erbij komt als AutoMod een bericht van een kijker tegenhoudt."
+          },
+          "heatDeltaFilterHit": {
+            "title": "Hitte bij een filtertreffer",
+            "help": "Hitte die erbij komt als een bericht van een kijker een chatfilter raakt."
+          }
+        }
+      }
+    }
+  },
   "trust": {
     "policy": {
       "error": {
