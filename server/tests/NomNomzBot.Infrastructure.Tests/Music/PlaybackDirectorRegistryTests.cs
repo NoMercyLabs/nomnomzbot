@@ -75,7 +75,7 @@ public sealed class PlaybackDirectorRegistryTests
         FakeEngine spotify = _engines.EngineOf(Channel, EngineKind.Spotify);
         int starts = spotify.Calls.Count(call => call.Name == "Start");
 
-        await ((IPlaybackReportSink)_registry).ReportAsync(
+        await _registry.ReportAsync(
             Channel,
             new EngineReport(EngineKind.Spotify, "spotify:track:s1", true, 1_000, 200_000)
         );

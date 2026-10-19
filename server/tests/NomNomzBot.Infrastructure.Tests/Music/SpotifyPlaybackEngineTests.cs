@@ -69,9 +69,9 @@ public sealed class SpotifyPlaybackEngineTests
         await StartTrack
             .Received(1)
             .StartTrackAsync(Channel, item.Uri, Arg.Any<CancellationToken>());
-        await _provider.DidNotReceiveWithAnyArgs().AddToQueueAsync(default, default!, default);
-        await _provider.DidNotReceiveWithAnyArgs().SkipAsync(default, default);
-        await _provider.DidNotReceiveWithAnyArgs().PreviousAsync(default, default);
+        await _provider.DidNotReceiveWithAnyArgs().AddToQueueAsync(default, default!);
+        await _provider.DidNotReceiveWithAnyArgs().SkipAsync(default);
+        await _provider.DidNotReceiveWithAnyArgs().PreviousAsync(default);
     }
 
     [Fact]
@@ -96,7 +96,7 @@ public sealed class SpotifyPlaybackEngineTests
 
         result.Accepted.Should().BeFalse();
         result.Block.Should().Be(EngineBlockReason.NotConnected);
-        await StartTrack.DidNotReceiveWithAnyArgs().StartTrackAsync(default, default!, default);
+        await StartTrack.DidNotReceiveWithAnyArgs().StartTrackAsync(default, default!);
     }
 
     [Theory]
@@ -152,7 +152,7 @@ public sealed class SpotifyPlaybackEngineTests
         await StartTrack
             .Received(1)
             .StartTrackAsync(Channel, item.Uri, Arg.Any<CancellationToken>());
-        await _provider.DidNotReceiveWithAnyArgs().PreviousAsync(default, default);
+        await _provider.DidNotReceiveWithAnyArgs().PreviousAsync(default);
     }
 
     [Fact]
@@ -169,8 +169,8 @@ public sealed class SpotifyPlaybackEngineTests
         await _engine.StopAsync();
 
         await _provider.Received(1).PauseAsync(Channel, Arg.Any<CancellationToken>());
-        await _provider.DidNotReceiveWithAnyArgs().SkipAsync(default, default);
-        await _provider.DidNotReceiveWithAnyArgs().PlayAsync(default, default);
+        await _provider.DidNotReceiveWithAnyArgs().SkipAsync(default);
+        await _provider.DidNotReceiveWithAnyArgs().PlayAsync(default);
     }
 
     [Fact]
@@ -179,7 +179,7 @@ public sealed class SpotifyPlaybackEngineTests
         await _engine.ResumeAsync();
 
         await _provider.Received(1).PlayAsync(Channel, Arg.Any<CancellationToken>());
-        await _provider.DidNotReceiveWithAnyArgs().PauseAsync(default, default);
+        await _provider.DidNotReceiveWithAnyArgs().PauseAsync(default);
     }
 
     [Fact]
@@ -202,7 +202,7 @@ public sealed class SpotifyPlaybackEngineTests
             .Match<PlaybackEngineBlockedException>(e =>
                 e.Reason == EngineBlockReason.NotConnected && e.Engine == EngineKind.Spotify
             );
-        await _provider.DidNotReceiveWithAnyArgs().PauseAsync(default, default);
+        await _provider.DidNotReceiveWithAnyArgs().PauseAsync(default);
     }
 
     [Fact]
@@ -274,7 +274,7 @@ public sealed class SpotifyPlaybackEngineTests
         EngineControlResult result = await _engine.SetShuffleAsync(true);
 
         result.Should().Be(EngineControlResult.BlockedBy(EngineBlockReason.NotConnected));
-        await _provider.DidNotReceiveWithAnyArgs().SetShuffleAsync(default, default, default);
+        await _provider.DidNotReceiveWithAnyArgs().SetShuffleAsync(default, default);
     }
 
     [Fact]

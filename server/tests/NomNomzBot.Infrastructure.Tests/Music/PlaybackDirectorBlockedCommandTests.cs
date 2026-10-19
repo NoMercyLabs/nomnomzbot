@@ -23,7 +23,7 @@ public sealed partial class PlaybackDirectorTests
     private static async Task<Rig> PlayingRequest()
     {
         Rig rig = new();
-        await rig.StartPlaying(EngineKind.Spotify, "a");
+        await rig.StartPlaying(EngineKind.Spotify);
         return rig;
     }
 

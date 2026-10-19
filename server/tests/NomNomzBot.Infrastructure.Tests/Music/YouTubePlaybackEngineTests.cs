@@ -77,10 +77,10 @@ public sealed class YouTubePlaybackEngineTests
 
         result.Should().Be(EngineStartResult.Ok);
         await PlayNow.Received(1).PlayNowAsync(Channel, item.Uri, Arg.Any<CancellationToken>());
-        await _provider.DidNotReceiveWithAnyArgs().AddToQueueAsync(default, default!, default);
-        await _provider.DidNotReceiveWithAnyArgs().SkipAsync(default, default);
-        await _provider.DidNotReceiveWithAnyArgs().PreviousAsync(default, default);
-        await _dispatcher.DidNotReceiveWithAnyArgs().HandOverNextAsync(default, default);
+        await _provider.DidNotReceiveWithAnyArgs().AddToQueueAsync(default, default!);
+        await _provider.DidNotReceiveWithAnyArgs().SkipAsync(default);
+        await _provider.DidNotReceiveWithAnyArgs().PreviousAsync(default);
+        await _dispatcher.DidNotReceiveWithAnyArgs().HandOverNextAsync(default);
     }
 
     [Fact]
@@ -92,7 +92,7 @@ public sealed class YouTubePlaybackEngineTests
 
         result.Accepted.Should().BeFalse();
         result.Block.Should().Be(EngineBlockReason.NoOutput);
-        await PlayNow.DidNotReceiveWithAnyArgs().PlayNowAsync(default, default!, default);
+        await PlayNow.DidNotReceiveWithAnyArgs().PlayNowAsync(default, default!);
     }
 
     [Fact]
@@ -132,7 +132,7 @@ public sealed class YouTubePlaybackEngineTests
 
         await _provider.Received(1).SeekAsync(Channel, 0, Arg.Any<CancellationToken>());
         await PlayNow.Received(1).PlayNowAsync(Channel, item.Uri, Arg.Any<CancellationToken>());
-        await _provider.DidNotReceiveWithAnyArgs().PreviousAsync(default, default);
+        await _provider.DidNotReceiveWithAnyArgs().PreviousAsync(default);
     }
 
     [Fact]
@@ -141,8 +141,8 @@ public sealed class YouTubePlaybackEngineTests
         await _engine.StopAsync();
 
         await _dispatcher.Received(1).StopAsync(Channel, Arg.Any<CancellationToken>());
-        await _provider.DidNotReceiveWithAnyArgs().PauseAsync(default, default);
-        await _provider.DidNotReceiveWithAnyArgs().SkipAsync(default, default);
+        await _provider.DidNotReceiveWithAnyArgs().PauseAsync(default);
+        await _provider.DidNotReceiveWithAnyArgs().SkipAsync(default);
     }
 
     [Fact]
@@ -151,8 +151,8 @@ public sealed class YouTubePlaybackEngineTests
         await _engine.ResumeAsync();
 
         await _provider.Received(1).PlayAsync(Channel, Arg.Any<CancellationToken>());
-        await _provider.DidNotReceiveWithAnyArgs().PauseAsync(default, default);
-        await _dispatcher.DidNotReceiveWithAnyArgs().StopAsync(default, default);
+        await _provider.DidNotReceiveWithAnyArgs().PauseAsync(default);
+        await _dispatcher.DidNotReceiveWithAnyArgs().StopAsync(default);
     }
 
     [Fact]
@@ -167,7 +167,7 @@ public sealed class YouTubePlaybackEngineTests
             .Match<PlaybackEngineBlockedException>(e =>
                 e.Reason == EngineBlockReason.NoOutput && e.Engine == EngineKind.YouTube
             );
-        await _provider.DidNotReceiveWithAnyArgs().PauseAsync(default, default);
+        await _provider.DidNotReceiveWithAnyArgs().PauseAsync(default);
     }
 
     [Fact]
@@ -195,13 +195,13 @@ public sealed class YouTubePlaybackEngineTests
         transfer.Should().Be(EngineControlResult.NotSupported);
         devices.Outcome.Should().Be(EngineControlOutcome.NotSupported);
         token.Outcome.Should().Be(EngineControlOutcome.NotSupported);
-        await _provider.DidNotReceiveWithAnyArgs().SetShuffleAsync(default, default, default);
-        await _provider.DidNotReceiveWithAnyArgs().SetRepeatAsync(default, default, default);
-        await _provider.DidNotReceiveWithAnyArgs().GetDevicesAsync(default, default);
+        await _provider.DidNotReceiveWithAnyArgs().SetShuffleAsync(default, default);
+        await _provider.DidNotReceiveWithAnyArgs().SetRepeatAsync(default, default);
+        await _provider.DidNotReceiveWithAnyArgs().GetDevicesAsync(default);
         await _provider
             .DidNotReceiveWithAnyArgs()
-            .TransferPlaybackAsync(default, default!, default, default);
-        await _provider.DidNotReceiveWithAnyArgs().GetEmbeddedPlaybackTokenAsync(default, default);
+            .TransferPlaybackAsync(default, default!, default);
+        await _provider.DidNotReceiveWithAnyArgs().GetEmbeddedPlaybackTokenAsync(default);
     }
 
     [Fact]

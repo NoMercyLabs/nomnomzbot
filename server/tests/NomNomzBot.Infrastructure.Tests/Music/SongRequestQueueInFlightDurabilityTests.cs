@@ -82,7 +82,7 @@ public sealed class SongRequestQueueInFlightDurabilityTests
         // the wrong entry.
         SongRequestEntry? restoredInFlight = restoredStore.GetInFlight(ChannelA);
         restoredInFlight.Should().NotBeNull();
-        restoredInFlight!.TrackUri.Should().Be("track-1");
+        restoredInFlight.TrackUri.Should().Be("track-1");
 
         // It is also the SAME object reference as the entry that sits at the head of the restored
         // queue — the invariant SongRequestQueueReconciler's cleanup relies on
@@ -166,7 +166,7 @@ public sealed class SongRequestQueueInFlightDurabilityTests
 
         SongRequestEntry? restoredInFlight = restoredStore.GetInFlight(ChannelA);
         restoredInFlight.Should().NotBeNull();
-        restoredInFlight!.TrackUri.Should().Be("track-2");
+        restoredInFlight.TrackUri.Should().Be("track-2");
     }
 
     private static SongRequestEntry Entry(string trackUri, string requestedBy) =>

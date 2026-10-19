@@ -88,7 +88,7 @@ public sealed class InstalledWidgetSourceUpgradeSeederTests
 
         IWidgetService widgets = Substitute.For<IWidgetService>();
         widgets
-            .UpdateFromGalleryAsync(default!, default!, default)
+            .UpdateFromGalleryAsync(default!, default!)
             .ReturnsForAnyArgs(Task.FromResult(Result.Failure<WidgetDetail>("stub", "STUB")));
 
         await using (WidgetTestDbContext db = database.NewContext())

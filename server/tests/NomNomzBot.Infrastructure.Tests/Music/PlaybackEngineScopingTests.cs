@@ -54,7 +54,6 @@ public sealed class PlaybackEngineScopingTests
     }
 
     private readonly Tally _tally = new();
-    private readonly ServiceProvider _root;
     private readonly IReadOnlyList<IPlaybackEngine> _engines;
 
     public PlaybackEngineScopingTests()
@@ -63,15 +62,15 @@ public sealed class PlaybackEngineScopingTests
         services.AddSingleton(_tally);
         services.AddScoped<ScopeProbe>();
         services.AddSingleton(Substitute.For<IYouTubePlayerStateStore>());
-        services.AddScoped<IMusicProvider>(SpotifyProvider);
-        services.AddScoped<IMusicProvider>(YouTubeProvider);
+        services.AddScoped(SpotifyProvider);
+        services.AddScoped(YouTubeProvider);
         services.AddScoped(Dispatcher);
         services.AddSingleton<IPlaybackEngineFactory, PlaybackEngineFactory>();
 
-        _root = services.BuildServiceProvider(
+        ServiceProvider root = services.BuildServiceProvider(
             new ServiceProviderOptions { ValidateOnBuild = true, ValidateScopes = true }
         );
-        _engines = _root.GetRequiredService<IPlaybackEngineFactory>().Create(Channel);
+        _engines = root.GetRequiredService<IPlaybackEngineFactory>().Create(Channel);
     }
 
     private IMusicProvider SpotifyProvider(IServiceProvider scope)
@@ -186,7 +185,7 @@ public sealed class PlaybackEngineScopingTests
             .Which.Reason.Should()
             .Be(EngineBlockReason.NotConnected);
         _tally.ScopesDisposed.Should().Be(_tally.ScopesOpened).And.Be(1);
-        await _tally.Spotify.Single().DidNotReceiveWithAnyArgs().PauseAsync(default, default);
+        await _tally.Spotify.Single().DidNotReceiveWithAnyArgs().PauseAsync(default);
     }
 
     [Fact]
