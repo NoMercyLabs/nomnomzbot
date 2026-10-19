@@ -170,3 +170,20 @@ describe('A person on the People page shows only the actions the viewer may use'
     expect(view.find('[data-profile-ban]').exists()).toBe(false);
   });
 });
+
+// Stage B 2026-10-19: in a short window the header and stats took the whole card and the tab panel was squeezed
+// to 32px under the pinned actions, so the bio ran behind the buttons. On the page the body scrolls as one and the
+// actions stay outside it; the panel never shrinks below its content.
+describe('The profile on the People page in a short window', () => {
+  it('scrolls the body as one and keeps the actions outside it', async () => {
+    const view = await open(['moderation:shoutout', 'moderation:ban']);
+
+    const body = view.get('[data-profile-body]').element;
+    const panel = view.get('[role="tabpanel"]').element.parentElement!;
+
+    expect(body.classList).toContain('md:overflow-y-auto');
+    expect(panel.classList).not.toContain('md:min-h-0');
+    expect(panel.classList).not.toContain('md:overflow-y-auto');
+    expect(body.contains(view.get('[data-profile-ban]').element)).toBe(false);
+  });
+});

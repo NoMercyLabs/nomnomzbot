@@ -84,13 +84,19 @@ const fit = inDialog
 // Below md the dialog scrolls header and tabs as one, under a sticky tab strip, and keeps the actions pinned
 // below: a short window (a phone, the chat popout) otherwise squeezed the tabs or pushed the actions out of reach.
 // The desktop dialog keeps its full size.
+// On the page the body scrolls as one from md up, so a short window never squeezes the panel under the actions.
 const body = inDialog
   ? 'max-md:min-h-0 max-md:overflow-y-auto md:contents'
-  : 'md:min-h-0';
+  : 'md:min-h-0 md:overflow-y-auto';
+const inner = inDialog
+  ? 'min-h-0'
+  : '';
 const strip = inDialog
   ? 'max-md:sticky max-md:top-0 max-md:z-10 max-md:bg-popover'
   : '';
-const scroll = 'md:overflow-y-auto';
+const scroll = inDialog
+  ? 'md:overflow-y-auto'
+  : '';
 
 const { t, n, locale } = useI18n();
 const errors = useSaveErrorsStore();
@@ -281,7 +287,7 @@ async function banNow(): Promise<void> {
         }}</Button>
       </div>
 
-      <Tabs v-else v-model="tab" class="flex min-w-0 flex-1 flex-col gap-0" :class="fit">
+      <Tabs v-else v-model="tab" class="flex min-w-0 flex-1 flex-col gap-0" :class="inner">
         <!-- A phone swipes the tabs sideways like the Twitch app: the cut-off last tab shows there are more. -->
         <div ref="tabStrip" class="flex-none scroll-px-6 overflow-x-auto px-6 scrollbar-none" :class="strip">
           <TabsList>
@@ -291,7 +297,7 @@ async function banNow(): Promise<void> {
           </TabsList>
         </div>
         <!-- minmax(0,1fr): one long chat link in a panel stretched every panel in the shared cell past the edge. -->
-        <div class="grid flex-1 grid-cols-[minmax(0,1fr)] px-6 py-4" :class="[fit, scroll]">
+        <div class="grid flex-1 grid-cols-[minmax(0,1fr)] px-6 py-4" :class="[inner, scroll]">
           <TabsContent value="overview" force-mount :class="PANEL_CLASS">
             <ProfileOverview :profile="viewerProfile" />
           </TabsContent>

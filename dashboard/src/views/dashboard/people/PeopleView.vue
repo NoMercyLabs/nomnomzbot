@@ -379,7 +379,7 @@ function back(): void {
       >
         <template #actions>
           <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
-          <div class="-mr-2 flex items-center gap-2">
+          <div class="-mr-2 flex min-w-0 items-center gap-2">
             <SegmentedControl
               v-if="!searching"
               v-model="sort"
@@ -388,7 +388,7 @@ function back(): void {
             />
             <SearchField
               v-model="search"
-              class="w-52 rounded-[12px]"
+              class="w-52 min-w-0 shrink rounded-[12px]"
               :placeholder="$t('dashboard.people.search')"
               @keydown.enter="openFirstHit"
             />
