@@ -179,20 +179,32 @@ function remove(entry: TtsLexiconEntry): void {
         class="flex flex-wrap items-center gap-2 px-3 py-2"
         data-lexicon-row
       >
-        <!-- Under sm the text takes its own line and the buttons sit below it, so no word is squeezed into a column. -->
-        <span
+        <!-- Under sm the fields take their own line, one under the other, and the buttons sit below them. -->
+        <div
           data-lexicon-text
-          class="min-w-0 basis-full text-sm wrap-break-word sm:flex-1 sm:basis-0"
+          class="grid min-w-0 basis-full gap-2 text-sm sm:flex-1 sm:basis-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,12rem)]"
         >
-          <span class="font-medium">{{ entry.phrase }}</span>
-          <span class="text-muted-foreground">
-            {{ $t("dashboard.tts.lexicon.saysAs") }}
-          </span>
-          <span>{{ entry.replacement }}</span>
-          <span class="block text-xs text-muted-foreground">
-            {{ $t(`dashboard.tts.lexicon.kind.${entry.matchKind}`) }}
-          </span>
-        </span>
+          <div data-lexicon-phrase class="flex min-w-0 flex-col gap-0.5">
+            <span class="text-xs text-muted-foreground">{{
+              $t("dashboard.tts.lexicon.phrase")
+            }}</span>
+            <span data-field-value class="font-medium wrap-break-word">{{ entry.phrase }}</span>
+          </div>
+          <div data-lexicon-replacement class="flex min-w-0 flex-col gap-0.5">
+            <span class="text-xs text-muted-foreground">
+              {{ $t("dashboard.tts.lexicon.replacement") }}
+            </span>
+            <span data-field-value class="wrap-break-word">{{ entry.replacement }}</span>
+          </div>
+          <div data-lexicon-kind class="flex min-w-0 flex-col gap-0.5">
+            <span class="text-xs text-muted-foreground">
+              {{ $t("dashboard.tts.lexicon.matchKind") }}
+            </span>
+            <span data-field-value class="text-muted-foreground">
+              {{ $t(`dashboard.tts.lexicon.kind.${entry.matchKind}`) }}
+            </span>
+          </div>
+        </div>
         <PlaySampleButton v-if="heardVoice" compact :voice-id="heardVoice" :text="entry.phrase" />
         <Button
           v-if="can('tts:config:write')"

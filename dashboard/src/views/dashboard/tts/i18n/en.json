@@ -167,7 +167,6 @@
           "word": "Whole word, any case",
           "exact": "Exact text"
         },
-        "saysAs": "is said as",
         "add": "Add rule",
         "save": "Save rule",
         "cancel": "Cancel",

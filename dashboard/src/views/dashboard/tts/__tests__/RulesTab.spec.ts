@@ -423,6 +423,25 @@ describe('TTS rules panels', () => {
     expect(text.textContent).toContain('gg');
   });
 
+  it('shows a lexicon rule as separate labeled fields so phrase and replacement never run together', async () => {
+    await open();
+
+    const row = document.body.querySelector('[data-lexicon-row]') as HTMLElement;
+    const phrase = row.querySelector('[data-lexicon-phrase]') as HTMLElement;
+    const replacement = row.querySelector('[data-lexicon-replacement]') as HTMLElement;
+    const kind = row.querySelector('[data-lexicon-kind]') as HTMLElement;
+
+    expect(phrase.textContent).toContain('Phrase');
+    expect(phrase.querySelector('[data-field-value]')?.textContent?.trim()).toBe('gg');
+    expect(replacement.textContent).toContain('Say instead');
+    expect(replacement.querySelector('[data-field-value]')?.textContent?.trim()).toBe('good game');
+    expect(kind.textContent).toContain('Match');
+
+    expect(kind.querySelector('[data-field-value]')?.textContent?.trim()).toBe(
+      'Whole word, any case',
+    );
+  });
+
   it('edits and deletes a lexicon rule by its id', async () => {
     await open();
     expect(document.body.querySelectorAll('[data-lexicon-row]')).toHaveLength(1);
