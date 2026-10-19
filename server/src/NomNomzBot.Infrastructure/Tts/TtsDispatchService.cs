@@ -133,6 +133,15 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 ct
             );
 
+        if (await IsOnCooldownAsync(request, config.CooldownSeconds, ct))
+            return await RejectRequestAsync(
+                request,
+                "cooldown",
+                $"Wait {config.CooldownSeconds} seconds between TTS messages.",
+                "RATE_LIMITED",
+                ct
+            );
+
         if (request.Segments is { Count: > 0 })
             return await RequestSegmentsAsync(request, config, ct);
 
@@ -844,6 +853,36 @@ public sealed class TtsDispatchService : ITtsDispatchService
             .Select(v => v.Provider)
             .FirstOrDefaultAsync(ct);
         return provider ?? string.Empty;
+    }
+
+    /// <summary>
+    /// True when a viewer's own TTS request lands inside the channel's cooldown after that viewer's last spoken
+    /// message. The ledger (<see cref="TtsUsageRecord"/>) is the clock, so the window survives a restart and needs
+    /// no extra state. Bot speech, a paid request (<see cref="TtsSpeakRequest.BypassCooldown"/>), an unknown
+    /// requester and a cooldown of 0 are never throttled.
+    /// </summary>
+    private async Task<bool> IsOnCooldownAsync(
+        TtsSpeakRequest request,
+        int cooldownSeconds,
+        CancellationToken ct
+    )
+    {
+        if (
+            request.Speaker != TtsSpeaker.Viewer
+            || request.BypassCooldown
+            || cooldownSeconds <= 0
+            || string.IsNullOrWhiteSpace(request.RequestedByTwitchUserId)
+        )
+            return false;
+
+        DateTime windowStart = _clock.GetUtcNow().UtcDateTime.AddSeconds(-cooldownSeconds);
+        return await _db.TtsUsageRecords.AnyAsync(
+            u =>
+                u.BroadcasterId == request.BroadcasterId
+                && u.UserId == request.RequestedByTwitchUserId
+                && u.OccurredAt > windowStart,
+            ct
+        );
     }
 
     /// <summary>Per-viewer voice → explicit override → channel default → first available.</summary>

@@ -53,6 +53,7 @@ public sealed class TtsDispatchServiceTests
         public required ISoundClipStore Store { get; init; }
         public required IEventBus Bus { get; init; }
         public required ITtsLexiconService Lexicon { get; init; }
+        public required FakeTimeProvider Clock { get; init; }
         public required IChannelNamePronunciationService ChannelNames { get; init; }
     }
 
@@ -67,7 +68,8 @@ public sealed class TtsDispatchServiceTests
         string minPermission = "everyone",
         string defaultProvider = "edge",
         Application.Contracts.Billing.IBillingTierService? tiers = null,
-        Random? random = null
+        Random? random = null,
+        int cooldownSeconds = 0
     )
     {
         TtsTestDbContext db = TtsTestDbContext.New();
@@ -94,7 +96,7 @@ public sealed class TtsDispatchServiceTests
                         false,
                         null,
                         false,
-                        0
+                        cooldownSeconds
                     )
                 )
             );
@@ -159,6 +161,7 @@ public sealed class TtsDispatchServiceTests
             channelNames
         );
 
+        FakeTimeProvider clock = new(new(T0));
         TtsDispatchService service = new(
             tts,
             byokProviders,
@@ -171,7 +174,7 @@ public sealed class TtsDispatchServiceTests
             bus,
             tiers ?? Billing.TestTiers.Unlimited(),
             new TtsChannelSerializer(),
-            new FakeTimeProvider(new(T0)),
+            clock,
             NullLogger<TtsDispatchService>.Instance,
             random
         );
@@ -185,6 +188,7 @@ public sealed class TtsDispatchServiceTests
             Bus = bus,
             Lexicon = lexicon,
             ChannelNames = channelNames,
+            Clock = clock,
         };
     }
 
@@ -339,6 +343,110 @@ public sealed class TtsDispatchServiceTests
         );
         at.IsSuccess.Should().BeTrue();
         at.Value.Disposition.Should().Be(TtsDispatchDisposition.Dispatched);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_Cooldown_RejectsSecondViewerSpeakInsideWindow()
+    {
+        Harness h = Build(cooldownSeconds: 30);
+
+        Result<TtsDispatchOutcome> first = await h.Service.RequestSpeakAsync(SpeakAsViewer("one"));
+        first.IsSuccess.Should().BeTrue();
+
+        h.Clock.Advance(TimeSpan.FromSeconds(10));
+        Result<TtsDispatchOutcome> second = await h.Service.RequestSpeakAsync(SpeakAsViewer("two"));
+
+        second.IsFailure.Should().BeTrue();
+        second.ErrorCode.Should().Be("RATE_LIMITED");
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(1);
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
+        await h
+            .Bus.Received(1)
+            .PublishAsync(
+                Arg.Is<TtsUtteranceRejectedEvent>(e =>
+                    e.Reason == "cooldown" && e.RequestedByTwitchUserId == Viewer
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_Cooldown_AllowsAgainOnceWindowPassed()
+    {
+        Harness h = Build(cooldownSeconds: 30);
+        (await h.Service.RequestSpeakAsync(SpeakAsViewer("one"))).IsSuccess.Should().BeTrue();
+
+        h.Clock.Advance(TimeSpan.FromSeconds(31));
+        Result<TtsDispatchOutcome> again = await h.Service.RequestSpeakAsync(SpeakAsViewer("two"));
+
+        again.IsSuccess.Should().BeTrue();
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_Cooldown_IsPerUser()
+    {
+        Harness h = Build(cooldownSeconds: 30);
+        (await h.Service.RequestSpeakAsync(SpeakAsViewer("one"))).IsSuccess.Should().BeTrue();
+
+        Result<TtsDispatchOutcome> other = await h.Service.RequestSpeakAsync(
+            SpeakAsViewer("two") with
+            {
+                RequestedByTwitchUserId = "someone-else",
+            }
+        );
+
+        other.IsSuccess.Should().BeTrue();
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_Cooldown_BypassCooldownSpeaksInsideWindow()
+    {
+        Harness h = Build(cooldownSeconds: 30);
+        (await h.Service.RequestSpeakAsync(SpeakAsViewer("one"))).IsSuccess.Should().BeTrue();
+
+        Result<TtsDispatchOutcome> paid = await h.Service.RequestSpeakAsync(
+            SpeakAsViewer("two") with
+            {
+                BypassCooldown = true,
+            }
+        );
+
+        paid.IsSuccess.Should().BeTrue();
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_Cooldown_BotSpeakerIsNotThrottled()
+    {
+        Harness h = Build(cooldownSeconds: 30);
+        (await h.Service.RequestSpeakAsync(Speak("one"))).IsSuccess.Should().BeTrue();
+
+        Result<TtsDispatchOutcome> second = await h.Service.RequestSpeakAsync(Speak("two"));
+
+        second.IsSuccess.Should().BeTrue();
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(2);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_CooldownZero_NeverThrottles()
+    {
+        Harness h = Build(cooldownSeconds: 0);
+        (await h.Service.RequestSpeakAsync(SpeakAsViewer("one"))).IsSuccess.Should().BeTrue();
+
+        Result<TtsDispatchOutcome> second = await h.Service.RequestSpeakAsync(SpeakAsViewer("two"));
+
+        second.IsSuccess.Should().BeTrue();
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(2);
     }
 
     [Fact]

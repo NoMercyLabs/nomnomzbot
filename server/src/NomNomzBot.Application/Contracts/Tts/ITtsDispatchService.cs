@@ -140,6 +140,10 @@ public sealed record TtsQueueEntryDto(
 /// Each is cleaned for the voice after the channel's pronunciation override ("xX_D4rk_Xx" is read "Dark"); the
 /// shown chat text is never changed. Every <c>@mention</c> in the text is cleaned too, with no list needed.
 /// </param>
+/// <param name="BypassCooldown">
+/// Skips the channel's per-viewer cooldown (<c>TtsConfig.CooldownSeconds</c>) for a request that was already
+/// paid for or gated elsewhere, such as a channel point redemption. Bot speech is never on the cooldown.
+/// </param>
 public sealed record TtsSpeakRequest(
     Guid BroadcasterId,
     Guid RequestedByUserId,
@@ -157,7 +161,8 @@ public sealed record TtsSpeakRequest(
     bool AssignVoiceIfMissing = true,
     IReadOnlyList<TtsSpeakSegment>? Segments = null,
     TtsSpeaker Speaker = TtsSpeaker.Bot,
-    IReadOnlyList<string>? SpokenNames = null
+    IReadOnlyList<string>? SpokenNames = null,
+    bool BypassCooldown = false
 );
 
 /// <summary>One part of a segmented <see cref="TtsSpeakRequest"/> (see <see cref="TtsSpeakRequest.Segments"/>).</summary>
