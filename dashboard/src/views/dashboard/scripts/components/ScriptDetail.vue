@@ -38,6 +38,7 @@ import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vu
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { errorText } from '@/lib/errors';
+import { humanize } from '@/lib/text';
 import { Button } from '@/components/ui/button';
 import { Switch } from '@/components/ui/switch';
 import type { TestTrigger } from '@/composables/useEditorBridge';
@@ -91,10 +92,22 @@ const runTitle = computed<string>(() => {
 
 const facts = computed<KeyValueItem[]>(() => [
   { label: t('dashboard.scripts.detail.version'), value: script.value?.currentVersion?.version },
-  { label: t('dashboard.scripts.detail.language'), value: script.value?.language },
+  { label: t('dashboard.scripts.detail.language'), value: humanize(script.value?.language ?? '') },
 ]);
-const powers = computed<string[]>(
-  () => script.value?.currentVersion?.declaredCapabilities ?? [],
+// A power key such as "chat.send" reads as words: "Chat send".
+const powers = computed<string[]>(() =>
+  (script.value?.currentVersion?.declaredCapabilities ?? []).map(humanize),
+);
+const source = computed<string>(() => script.value?.currentVersion?.sourceCode ?? '');
+const problems = computed<string[]>(() =>
+  (script.value?.currentVersion?.validationErrors ?? []).map((problem) =>
+    problem.line == null
+      ? problem.message
+      : t('dashboard.scripts.detail.source.errorLine', {
+          line: Number(problem.line),
+          message: problem.message,
+        }),
+  ),
 );
 
 function toggle(isEnabled: boolean): void {
@@ -181,7 +194,7 @@ function confirmDelete(): void {
     pad
     :title="$t('dashboard.scripts.detail.title')"
     :state="state"
-    :empty-text="$t('dashboard.scripts.detail.notFound', { id: scriptId })"
+    :empty-text="$t('dashboard.scripts.detail.notFound')"
     :error-text="detail.error.value ? errorText(detail.error.value, t) : undefined"
     @retry="detail.refetch()"
   />
@@ -273,11 +286,23 @@ function confirmDelete(): void {
           <h3 class="font-semibold">{{ $t('dashboard.scripts.detail.powers.title') }}</h3>
           <p class="text-muted-foreground">{{ $t('dashboard.scripts.detail.powers.note') }}</p>
           <ul v-if="powers.length > 0" class="grid gap-1">
-            <li v-for="power in powers" :key="power" class="font-mono">{{ power }}</li>
+            <li v-for="power in powers" :key="power">{{ power }}</li>
           </ul>
           <p v-else class="text-muted-foreground">
             {{ $t('dashboard.scripts.detail.powers.none') }}
           </p>
+        </section>
+
+        <section v-if="source !== ''" class="grid gap-2" data-slot="script-source">
+          <h3 class="font-semibold">{{ $t('dashboard.scripts.detail.source.title') }}</h3>
+          <p class="text-muted-foreground">{{ $t('dashboard.scripts.detail.source.note') }}</p>
+          <ul v-if="problems.length > 0" class="grid gap-1 text-destructive">
+            <li v-for="problem in problems" :key="problem">{{ problem }}</li>
+          </ul>
+          <pre
+            class="max-h-80 overflow-auto rounded-[8px] bg-muted p-3 font-mono text-xs"
+            tabindex="0"
+          >{{ source }}</pre>
         </section>
 
         <section class="grid gap-1">

@@ -33,7 +33,7 @@
       "detail": {
         "title": "Script",
         "pick": "Pick a script to see it here.",
-        "notFound": "No script has the id \"{id}\".",
+        "notFound": "This script does not exist (any more).",
         "on": "On",
         "off": "Off",
         "switchLabel": "Switch this script on or off",
@@ -46,6 +46,11 @@
           "title": "Powers",
           "note": "The powers this script asks for in its manifest.",
           "none": "This script asks for no powers."
+        },
+        "source": {
+          "title": "Code",
+          "note": "Read only. The full editor changes it.",
+          "errorLine": "Line {line}: {message}"
         },
         "settings": "Settings",
         "noSettings": "No settings available yet.",

@@ -516,11 +516,38 @@ describe('ScriptsView', () => {
 
     const powers = document.body.querySelector('[data-slot="script-powers"]') as HTMLElement;
 
-    expect(powers.textContent).toContain('chat.send');
-    expect(powers.textContent).toContain('variables.write');
+    expect(powers.textContent).toContain('Chat send');
+    expect(powers.textContent).toContain('Variables write');
+    expect(powers.textContent).not.toContain('chat.send');
     expect(powers.querySelectorAll('button, input, [role="switch"]')).toHaveLength(0);
     expect(document.body.textContent).toContain('Version');
-    expect(document.body.textContent).toContain('typescript');
+    expect(document.body.textContent).toContain('Typescript');
+  });
+
+  it('shows the source of the current version as read-only code, with the line of a validation error', async () => {
+    detailExtra = {
+      ...detailExtra,
+      currentVersion: {
+        version: 3,
+        declaredCapabilities: [],
+        sourceCode: 'nnz.chat.send("hi")\nbroken(',
+        validationStatus: 'Invalid',
+        validationErrors: [{
+          code: 'syntax',
+          message: 'Unexpected end',
+          line: 2,
+          column: 8,
+        }],
+      },
+    };
+
+    await open('/app/scripts?script=s1');
+
+    const code = document.body.querySelector('[data-slot="script-source"]') as HTMLElement;
+
+    expect(code.querySelector('pre')?.textContent).toContain('broken(');
+    expect(code.querySelector('textarea, input')).toBeNull();
+    expect(code.textContent).toContain('Line 2: Unexpected end');
   });
 
   it('Run test posts to the test-run path of the script and shows the result with its duration', async () => {

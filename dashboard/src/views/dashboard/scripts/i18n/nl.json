@@ -33,7 +33,7 @@
       "detail": {
         "title": "Script",
         "pick": "Kies een script om het hier te zien.",
-        "notFound": "Geen script heeft de id \"{id}\".",
+        "notFound": "Dit script bestaat niet (meer).",
         "on": "Aan",
         "off": "Uit",
         "switchLabel": "Zet dit script aan of uit",
@@ -46,6 +46,11 @@
           "title": "Rechten",
           "note": "De rechten die dit script vraagt in zijn manifest.",
           "none": "Dit script vraagt geen rechten."
+        },
+        "source": {
+          "title": "Code",
+          "note": "Alleen lezen. Wijzigen kan in de volledige editor.",
+          "errorLine": "Regel {line}: {message}"
         },
         "settings": "Instellingen",
         "noSettings": "Nog geen instellingen beschikbaar.",
