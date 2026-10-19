@@ -12,6 +12,7 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import { loadPage } from '@/i18n';
 
+// The Start a poll and Prediction dialogs are the home page's; their copy lives with the home words.
 export const dashboardPollsRoute = {
   path: 'polls',
   name: 'dashboard-polls',
@@ -20,5 +21,6 @@ export const dashboardPollsRoute = {
     loadPage(
       () => import('./PollsView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
+      (locale) => import(`../home/i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;

@@ -206,7 +206,7 @@ watchEffect(() => {
             {{ t("dashboard.home.quick.pollNeedChoices") }}
           </p>
           <div v-if="choices.length < MAX_CHOICES && can('live-ops:polls:write')">
-            <Button variant="ghost" size="sm" @click="addChoice">
+            <Button variant="ghost" size="sm" class="h-(--btn-h-sm)" @click="addChoice">
               <Plus />
               {{ t("dashboard.home.quick.pollAddChoice") }}
             </Button>
