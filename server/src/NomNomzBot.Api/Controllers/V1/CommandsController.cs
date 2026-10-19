@@ -162,7 +162,7 @@ public class CommandsController : BaseController
 
     /// <summary>Delete a custom command.</summary>
     [NotDestructive(
-        "No entity holds a real FK to Command.Id — chat triggers, timers and event responses bind to a Pipeline, not a Command; nothing breaks structurally when a command is deleted."
+        "The delete is refused with 409 COMMAND_IN_USE and the full list of bound rows while any binding surface still runs the command, so nothing a delete could break is left bound."
     )]
     [RequireAction("commands:write")]
     [HttpDelete("{commandName}")]

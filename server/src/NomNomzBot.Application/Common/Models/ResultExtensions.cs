@@ -72,5 +72,10 @@ public static class ResultExtensions
             ? throw new InvalidOperationException(
                 "Cannot convert a successful void Result to a typed Result without a value."
             )
-            : Result<T>.Failure(result.ErrorMessage!, result.ErrorCode, result.ErrorDetail);
+            : Result<T>.Failure(
+                result.ErrorMessage!,
+                result.ErrorCode,
+                result.ErrorDetail,
+                result.ErrorData
+            );
 }

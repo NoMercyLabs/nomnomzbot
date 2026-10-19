@@ -35,15 +35,18 @@ public class CommandService : ICommandService
     private readonly IEventBus _eventBus;
     private readonly IResourceQuotaService _quota;
     private readonly ITemplateHelperValidator _templateHelperValidator;
+    private readonly ICommandBindingGuard _bindingGuard;
 
     public CommandService(
         IApplicationDbContext db,
         IChannelRegistry registry,
         IEventBus eventBus,
         IResourceQuotaService quota,
-        ITemplateHelperValidator templateHelperValidator
+        ITemplateHelperValidator templateHelperValidator,
+        ICommandBindingGuard bindingGuard
     )
     {
+        _bindingGuard = bindingGuard;
         _db = db;
         _registry = registry;
         _eventBus = eventBus;
@@ -305,7 +308,20 @@ public class CommandService : ICommandService
         if (request.Aliases is not null)
             command.Aliases = request.Aliases;
         if (request.IsEnabled.HasValue)
+        {
+            if (!request.IsEnabled.Value && command.IsEnabled)
+            {
+                Result unbound = await _bindingGuard.EnsureUnboundAsync(
+                    broadcaster,
+                    command.Id.ToString(),
+                    command.Name,
+                    cancellationToken
+                );
+                if (unbound.IsFailure)
+                    return unbound.ToTyped<CommandDto>();
+            }
             command.IsEnabled = request.IsEnabled.Value;
+        }
         if (request.SpeakWithTts.HasValue)
             command.SpeakWithTts = request.SpeakWithTts.Value;
 
@@ -337,6 +353,15 @@ public class CommandService : ICommandService
             return Result.Failure($"Command '{commandName}' was not found.", "NOT_FOUND");
 
         Guid commandId = command.Id;
+
+        Result unbound = await _bindingGuard.EnsureUnboundAsync(
+            broadcaster,
+            commandId.ToString(),
+            command.Name,
+            cancellationToken
+        );
+        if (unbound.IsFailure)
+            return unbound;
 
         // Record the deletion to the channel's audit trail BEFORE the row is removed — a destructive, no-undo
         // action with nothing else naming who did it once the Command row is gone.

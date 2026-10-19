@@ -8,10 +8,12 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -317,6 +319,50 @@ public class BaseControllerTests
             ctrl.TestResultResponse(Result.Failure("nope", code)) as ObjectResult;
 
         result!.StatusCode.Should().Be(409);
+    }
+
+    [Fact]
+    public void ResultResponse_CommandInUse_Returns409WithTheBoundRowsInData()
+    {
+        CommandInUse inUse = new(
+            "hello",
+            [
+                new BindingUsage("reward", "r-1", "Say hi"),
+                new BindingUsage("timer", "t-9", "Greeter"),
+            ]
+        );
+        TestController ctrl = CreateController();
+
+        ObjectResult? result =
+            ctrl.TestResultResponse(Result.Failure("in use", "COMMAND_IN_USE", null, inUse))
+            as ObjectResult;
+
+        result!.StatusCode.Should().Be(409);
+        JsonElement body = JsonSerializer.SerializeToElement(
+            result.Value,
+            new JsonSerializerOptions(JsonSerializerDefaults.Web)
+        );
+        body.GetProperty("code").GetString().Should().Be("COMMAND_IN_USE");
+        JsonElement data = body.GetProperty("data");
+        data.GetProperty("commandName").GetString().Should().Be("hello");
+        JsonElement usages = data.GetProperty("usages");
+        usages.GetArrayLength().Should().Be(2);
+        usages[0].GetProperty("surface").GetString().Should().Be("reward");
+        usages[0].GetProperty("id").GetString().Should().Be("r-1");
+        usages[0].GetProperty("name").GetString().Should().Be("Say hi");
+        usages[1].GetProperty("surface").GetString().Should().Be("timer");
+    }
+
+    [Fact]
+    public void ToTyped_KeepsTheErrorDataSoATypedResultStillCarriesTheBoundRows()
+    {
+        CommandInUse inUse = new("hello", [new BindingUsage("reward", "r-1", "Say hi")]);
+        Result failed = Result.Failure("in use", "COMMAND_IN_USE", null, inUse);
+
+        Result<string> typed = failed.ToTyped<string>();
+
+        typed.ErrorCode.Should().Be("COMMAND_IN_USE");
+        typed.ErrorData.Should().BeSameAs(inUse);
     }
 
     [Theory]

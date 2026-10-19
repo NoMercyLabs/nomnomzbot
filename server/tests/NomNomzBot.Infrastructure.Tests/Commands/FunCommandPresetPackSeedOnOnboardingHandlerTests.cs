@@ -62,7 +62,8 @@ public sealed class FunCommandPresetPackSeedOnOnboardingHandlerTests
             Substitute.For<IChannelRegistry>(),
             new RecordingEventBus(),
             TestQuota.Unlimited(),
-            new TemplateHelperValidator()
+            new TemplateHelperValidator(),
+            new CommandBindingGuard([])
         );
         FunCommandPresetPackSeedOnOnboardingHandler handler = new(
             new CommandPresetService(

@@ -106,7 +106,8 @@ public sealed class BundleServiceTests
             Substitute.For<IChannelRegistry>(),
             bus,
             Billing.TestQuota.Unlimited(),
-            new TemplateHelperValidator()
+            new TemplateHelperValidator(),
+            new CommandBindingGuard([])
         );
         ICommandConfigValidator permissiveValidator = Substitute.For<ICommandConfigValidator>();
         permissiveValidator

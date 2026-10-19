@@ -79,11 +79,16 @@ public abstract class BaseController : ControllerBase
             }
         );
 
-    protected IActionResult ConflictResponse(string? message = null, string? code = null) =>
+    protected IActionResult ConflictResponse(
+        string? message = null,
+        string? code = null,
+        object? data = null
+    ) =>
         Conflict(
             new StatusResponseDto<object>
             {
                 Status = "error",
+                Data = data,
                 Message = message ?? "Conflict",
                 Code = code,
             }
@@ -341,9 +346,12 @@ public abstract class BaseController : ControllerBase
             or "ERASURE_NOT_RETRYABLE"
             or "NETWORK_BLOCK_ACTIVE"
             // A dashboard replay that found its event but re-performed nothing (no response, no capture).
-            or "NOTHING_REPLAYED" => ConflictResponse(
+            or "NOTHING_REPLAYED"
+            // A command that a binding surface still runs: the rows that bind it ride in the data.
+            or "COMMAND_IN_USE" => ConflictResponse(
                 WithDetail(result.ErrorMessage, result.ErrorDetail),
-                result.ErrorCode
+                result.ErrorCode,
+                result.ErrorData as NomNomzBot.Application.Common.Models.IResponseErrorData
             ),
             // Discord upstream results are never our fault (500). An invalid/expired bot token or a missing
             // connection is an actionable "reconnect the Discord bot" state → 409, so the client shows a

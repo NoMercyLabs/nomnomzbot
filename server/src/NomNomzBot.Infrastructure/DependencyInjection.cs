@@ -1153,6 +1153,9 @@ public static class DependencyInjection
         services.AddScoped<IPipelineStepReferenceScanner, PipelineStepReferenceScanner>();
         // The one runner behind every binding surface (commands-pipelines.md section 12). Not an I<X>Service.
         services.AddScoped<ICommandInvoker, CommandInvoker>();
+        // The blast-radius check behind command delete and disable; it gathers every registered
+        // IBindingUsageSource (one per binding surface, registered beside that surface).
+        services.AddScoped<ICommandBindingGuard, CommandBindingGuard>();
 
         // Identity / tenant — HttpContext accessor + UnitOfWork are framework/infra, kept explicit.
         // The I<X>Service impls (ICurrentTenantService, IChannelAccessService, ICurrentUserService,

@@ -58,7 +58,8 @@ public sealed class CommandNamePrefixGuardTests
             Substitute.For<IChannelRegistry>(),
             new RecordingEventBus(),
             Billing.TestQuota.Unlimited(),
-            new TemplateHelperValidator()
+            new TemplateHelperValidator(),
+            new CommandBindingGuard([])
         );
         return (sut, db);
     }

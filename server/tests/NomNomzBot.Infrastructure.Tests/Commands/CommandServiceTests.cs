@@ -55,7 +55,14 @@ public sealed class CommandServiceTests
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         RecordingEventBus bus = new();
         return (
-            new(db, registry, bus, Billing.TestQuota.Unlimited(), new TemplateHelperValidator()),
+            new(
+                db,
+                registry,
+                bus,
+                Billing.TestQuota.Unlimited(),
+                new TemplateHelperValidator(),
+                new CommandBindingGuard([])
+            ),
             bus
         );
     }
@@ -191,7 +198,8 @@ public sealed class CommandServiceTests
             Substitute.For<IChannelRegistry>(),
             new RecordingEventBus(),
             Billing.TestQuota.Unlimited(),
-            new TemplateHelperValidator()
+            new TemplateHelperValidator(),
+            new CommandBindingGuard([])
         );
         CommandDto created = (await sut.CreateAsync(Channel.ToString(), Req())).Value;
         string actorId = Guid.Parse("0192a000-0000-7000-8000-0000000000ea").ToString();
@@ -218,7 +226,8 @@ public sealed class CommandServiceTests
             Substitute.For<IChannelRegistry>(),
             new RecordingEventBus(),
             Billing.TestQuota.Unlimited(),
-            new TemplateHelperValidator()
+            new TemplateHelperValidator(),
+            new CommandBindingGuard([])
         );
         CommandDto created = (await sut.CreateAsync(Channel.ToString(), Req())).Value;
 
@@ -417,7 +426,8 @@ public sealed class CommandServiceTests
             Substitute.For<IChannelRegistry>(),
             bus,
             Billing.TestQuota.Unlimited(),
-            new TemplateHelperValidator()
+            new TemplateHelperValidator(),
+            new CommandBindingGuard([])
         );
         Guid otherChannel = Guid.NewGuid();
         Guid foreignPipelineId = Guid.NewGuid();
@@ -457,7 +467,8 @@ public sealed class CommandServiceTests
             Substitute.For<IChannelRegistry>(),
             bus,
             Billing.TestQuota.Unlimited(),
-            new TemplateHelperValidator()
+            new TemplateHelperValidator(),
+            new CommandBindingGuard([])
         );
         CommandDto created = (await sut.CreateAsync(Channel.ToString(), Req("pipefix"))).Value;
         bus.Published.Clear();

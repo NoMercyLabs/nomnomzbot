@@ -31,14 +31,17 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
     private readonly IChannelRegistry _registry;
+    private readonly ICommandBindingGuard _bindingGuard;
 
     public BuiltinCommandService(
         IBuiltinCommandCatalog catalog,
         IApplicationDbContext db,
         IEventBus eventBus,
-        IChannelRegistry registry
+        IChannelRegistry registry,
+        ICommandBindingGuard bindingGuard
     )
     {
+        _bindingGuard = bindingGuard;
         _catalog = catalog;
         _db = db;
         _eventBus = eventBus;
@@ -101,6 +104,18 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
                 $"'{builtinKey}' is a reserved data-rights command — it is always on and cannot be toggled.",
                 "VALIDATION_FAILED"
             );
+
+        if (!enabled)
+        {
+            Result unbound = await _bindingGuard.EnsureUnboundAsync(
+                broadcaster,
+                builtinKey,
+                builtinKey,
+                ct
+            );
+            if (unbound.IsFailure)
+                return unbound;
+        }
 
         ChannelBuiltinCommand? existing = await _db.ChannelBuiltinCommands.FirstOrDefaultAsync(
             c => c.BroadcasterId == broadcaster && c.BuiltinKey == builtinKey,

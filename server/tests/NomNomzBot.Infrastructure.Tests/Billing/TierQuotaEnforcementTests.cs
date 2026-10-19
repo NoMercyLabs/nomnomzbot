@@ -45,7 +45,8 @@ public sealed class TierQuotaEnforcementTests
             Substitute.For<IChannelRegistry>(),
             new RecordingEventBus(),
             quota,
-            new TemplateHelperValidator()
+            new TemplateHelperValidator(),
+            new CommandBindingGuard([])
         );
 
     [Fact]

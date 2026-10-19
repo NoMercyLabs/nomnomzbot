@@ -68,7 +68,14 @@ internal sealed class RealCommandsDb : IDisposable
         );
         Db.SaveChanges();
 
-        Commands = new(Db, Registry, Bus, TestQuota.Unlimited(), new TemplateHelperValidator());
+        Commands = new(
+            Db,
+            Registry,
+            Bus,
+            TestQuota.Unlimited(),
+            new TemplateHelperValidator(),
+            new CommandBindingGuard([])
+        );
         Presets = new(Commands, Db, Registry, Bus, new TemplateHelperValidator());
     }
 

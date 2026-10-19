@@ -84,7 +84,11 @@ public sealed class BuiltinCommandServiceTests
             .Returns(Task.CompletedTask);
 
         RecordingEventBus bus = new();
-        return (new BuiltinCommandService(catalog, db, bus, registry), db, registry);
+        return (
+            new BuiltinCommandService(catalog, db, bus, registry, new CommandBindingGuard([])),
+            db,
+            registry
+        );
     }
 
     // ─── SetSpeakWithTtsAsync (S-OBS-12) ─────────────────────────────────────────

@@ -46,7 +46,8 @@ public sealed class ProviderImportServiceTests
             Substitute.For<IChannelRegistry>(),
             bus,
             TestQuota.Unlimited(),
-            new TemplateHelperValidator()
+            new TemplateHelperValidator(),
+            new CommandBindingGuard([])
         );
         QuoteService quotes = new(
             db,
