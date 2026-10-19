@@ -193,6 +193,10 @@
         "region": "Azure region",
         "stored": "A key is stored. Type to replace it.",
         "none": "No key stored",
+        "status": {
+          "stored": "Key stored",
+          "missing": "No key"
+        },
         "save": "Save key",
         "remove": "Remove key",
         "saved": "The key is stored.",

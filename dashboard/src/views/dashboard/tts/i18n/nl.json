@@ -193,6 +193,10 @@
         "region": "Azure-regio",
         "stored": "Er is een sleutel opgeslagen. Typ om te vervangen.",
         "none": "Geen sleutel opgeslagen",
+        "status": {
+          "stored": "Sleutel opgeslagen",
+          "missing": "Geen sleutel"
+        },
         "save": "Sleutel opslaan",
         "remove": "Sleutel verwijderen",
         "saved": "De sleutel is opgeslagen.",

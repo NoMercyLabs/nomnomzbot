@@ -21,11 +21,14 @@ import {
   useRemoveByokKey,
   useSetByokKey,
   useSetNamePronunciation,
+  useSetTtsRules,
   type ByokProvider,
 } from '@/api/ttsRules';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 const { t } = useI18n();
@@ -36,6 +39,9 @@ const removeKey = useRemoveByokKey(channelId);
 const pronunciation = useNamePronunciation(channelId);
 const savePronunciation = useSetNamePronunciation(channelId);
 
+const saveRules = useSetTtsRules(channelId);
+const { can } = useCan();
+const writable = computed(() => can('tts:config:write'));
 const keys = reactive<Record<ByokProvider, string>>({ azure: '', elevenlabs: '' });
 const region = ref('');
 const spelling = ref('');
@@ -56,10 +62,21 @@ watch(
   { immediate: true },
 );
 
-const stored = computed(() => ({
-  azure: config.data.value?.hasAzureByokKey ?? false,
-  elevenlabs: config.data.value?.hasElevenLabsByokKey ?? false,
-}) as const satisfies Record<ByokProvider, boolean>);
+const stored = computed(
+  () =>
+    ({
+      azure: config.data.value?.hasAzureByokKey ?? false,
+      elevenlabs: config.data.value?.hasElevenLabsByokKey ?? false,
+    }) as const satisfies Record<ByokProvider, boolean>,
+);
+
+function commitRegion(): void {
+  const next = region.value.trim();
+
+  if (next !== (config.data.value?.azureRegion ?? '')) {
+    saveRules.mutate({ azureRegion: next });
+  }
+}
 
 function submitKey(provider: ByokProvider): void {
   saveKey.mutate(
@@ -108,42 +125,63 @@ function submitSpelling(): void {
         @submit.prevent="submitKey(provider)"
       >
         <label class="flex min-w-40 flex-1 flex-col gap-1 text-sm font-medium">
-          {{ $t(`dashboard.tts.keys.provider.${provider}`) }}
+          <span class="flex flex-wrap items-center justify-between gap-2">
+            {{ $t(`dashboard.tts.keys.provider.${provider}`) }}
+            <StatusBadge
+              :tone="stored[provider] ? 'ok' : 'off'"
+              :label="
+                $t(
+                  stored[provider]
+                    ? 'dashboard.tts.keys.status.stored'
+                    : 'dashboard.tts.keys.status.missing',
+                )
+              "
+            />
+          </span>
           <Input
             v-model="keys[provider]"
             type="password"
             autocomplete="off"
-            :placeholder="$t(stored[provider]
-              ? 'dashboard.tts.keys.stored'
-              : 'dashboard.tts.keys.none')"
+            :placeholder="
+              $t(stored[provider] ? 'dashboard.tts.keys.stored' : 'dashboard.tts.keys.none')
+            "
           />
         </label>
         <label v-if="provider === 'azure'" class="flex w-32 flex-col gap-1 text-sm font-medium">
-          {{ $t('dashboard.tts.keys.region') }}
-          <Input v-model="region" autocomplete="off" />
+          {{ $t("dashboard.tts.keys.region") }}
+          <Input
+            v-model="region"
+            autocomplete="off"
+            :disabled="!writable"
+            :aria-label="$t('dashboard.tts.keys.region')"
+            @blur="commitRegion"
+            @keydown.enter="commitRegion"
+          />
         </label>
-        <Button
-          v-if="stored[provider]"
-          type="button"
-          variant="ghost"
-          @click="dropKey(provider)"
-        >
-          {{ $t('dashboard.tts.keys.remove') }}
+        <Button v-if="stored[provider]" type="button" variant="ghost" @click="dropKey(provider)">
+          {{ $t("dashboard.tts.keys.remove") }}
         </Button>
         <Button type="submit" :disabled="keys[provider].trim() === '' || saveKey.isPending.value">
-          {{ $t('dashboard.tts.keys.save') }}
+          {{ $t("dashboard.tts.keys.save") }}
         </Button>
       </form>
-      <form class="flex flex-wrap items-end gap-2 border-t border-border pt-4" @submit.prevent="submitSpelling">
+      <form
+        class="flex flex-wrap items-end gap-2 border-t border-border pt-4"
+        @submit.prevent="submitSpelling"
+      >
         <label class="flex min-w-40 flex-1 flex-col gap-1 text-sm font-medium">
-          {{ $t('dashboard.tts.keys.spelling') }}
-          <Input v-model="spelling" maxlength="100" :placeholder="pronunciation.data.value?.channelName" />
+          {{ $t("dashboard.tts.keys.spelling") }}
+          <Input
+            v-model="spelling"
+            maxlength="100"
+            :placeholder="pronunciation.data.value?.channelName"
+          />
           <span class="text-sm font-normal text-muted-foreground">
-            {{ $t('dashboard.tts.keys.spellingHelp') }}
+            {{ $t("dashboard.tts.keys.spellingHelp") }}
           </span>
         </label>
         <Button type="submit" :disabled="savePronunciation.isPending.value">
-          {{ $t('dashboard.tts.keys.spellingSave') }}
+          {{ $t("dashboard.tts.keys.spellingSave") }}
         </Button>
       </form>
     </div>

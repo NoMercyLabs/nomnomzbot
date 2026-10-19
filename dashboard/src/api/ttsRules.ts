@@ -42,6 +42,7 @@ export type TtsRulesChange = {
   modApprovalRequired?: boolean;
   viewerVoiceSelfServiceEnabled?: boolean;
   minBitsToTts?: number;
+  azureRegion?: string;
 };
 
 // The providers that take a channel's own key.

@@ -254,8 +254,9 @@ describe('TTS rules panels', () => {
   it('saves the voice source and the lowest standing', async () => {
     await open();
 
-    const segment = [...document.body.querySelectorAll<HTMLButtonElement>('[data-segmented] button')]
-      .find((entry) => entry.textContent?.trim() === 'My own key');
+    const segment = [
+      ...document.body.querySelectorAll<HTMLButtonElement>('[data-segmented] button'),
+    ].find((entry) => entry.textContent?.trim() === 'My own key');
 
     segment?.click();
     await flushPromises();
@@ -275,8 +276,9 @@ describe('TTS rules panels', () => {
 
     await flushPromises();
 
-    const option = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')]
-      .find((node) => node.textContent?.trim() === 'Moderators');
+    const option = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].find(
+      (node) => node.textContent?.trim() === 'Moderators',
+    );
 
     option?.dispatchEvent(
       new PointerEvent('pointerup', {
@@ -372,6 +374,37 @@ describe('TTS rules panels', () => {
     expect(put?.body).toEqual({ apiKey: 'secret-key', region: 'westeurope' });
     expect(box.value).toBe('');
     expect(document.body.textContent).not.toContain('secret-key');
+  });
+
+  it('saves the Azure region on its own, without a key', async () => {
+    await open();
+
+    const box = byLabel('Azure region');
+
+    expect(box.value).toBe('westeurope');
+
+    box.value = 'northeurope';
+    box.dispatchEvent(new Event('input'));
+    await flushPromises();
+    box.dispatchEvent(new Event('blur'));
+    await flushPromises();
+
+    const put = sent.find((call) => call.method === 'PUT' && call.path.endsWith('/tts/config'));
+
+    expect(put?.body).toEqual({ azureRegion: 'northeurope' });
+    expect(sent.some((call) => call.path.includes('/byok/'))).toBe(false);
+  });
+
+  it('says for each provider whether a key is stored', async () => {
+    await open();
+
+    const status = (provider: string): string =>
+      document.body
+        .querySelector(`[data-key-form="${provider}"] [data-slot="status-badge"]`)
+        ?.textContent?.trim() ?? '';
+
+    expect(status('azure')).toBe('Key stored');
+    expect(status('elevenlabs')).toBe('No key');
   });
 
   it('saves the channel name spelling', async () => {
