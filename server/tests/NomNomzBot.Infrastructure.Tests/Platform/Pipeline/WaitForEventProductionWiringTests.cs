@@ -158,6 +158,7 @@ public sealed class WaitForEventProductionWiringTests
         services.AddSingleton(NullLoggerFactory.Instance);
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddSingleton<IPipelineEngine, PipelineEngine>();
+        services.AddSingleton(Substitute.For<ICommandInvoker>());
         services.AddSingleton<IEventResponseExecutor, EventResponseExecutor>();
         services.AddSingleton<EventLogger>();
         services.AddSingleton<IEventBus, EventBus>();

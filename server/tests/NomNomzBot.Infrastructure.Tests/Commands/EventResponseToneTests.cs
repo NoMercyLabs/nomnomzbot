@@ -100,6 +100,7 @@ public sealed class EventResponseToneTests
             chat,
             Substitute.For<IEventResponseOverlayNotifier>(),
             Substitute.For<ITtsDispatchService>(),
+            Substitute.For<ICommandInvoker>(),
             NullLogger<EventResponseExecutor>.Instance
         );
         EventResponseService channels = new(

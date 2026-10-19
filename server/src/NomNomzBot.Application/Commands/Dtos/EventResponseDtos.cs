@@ -10,6 +10,7 @@
 
 using System.ComponentModel.DataAnnotations;
 using NomNomzBot.Application.Abstractions.Localization;
+using NomNomzBot.Domain.Commands.ValueObjects;
 
 namespace NomNomzBot.Application.Commands.Dtos;
 
@@ -32,7 +33,8 @@ public sealed record EventResponseDto(
     DateTime UpdatedAt,
     bool FollowsPlatformDefault,
     bool SpeakWithTts,
-    IReadOnlyList<string> ToneLines
+    IReadOnlyList<string> ToneLines,
+    BindingTarget? Target
 );
 
 /// <summary>
@@ -85,4 +87,11 @@ public sealed record UpdateEventResponseDto
 
     /// <summary>A chat_message response also speaks its resolved text through the channel's TTS. Absent leaves it unchanged.</summary>
     public bool? SpeakWithTts { get; init; }
+
+    /// <summary>
+    /// What the response runs when its type is pipeline: a command (by id), a pipeline or an action. Wins
+    /// over <see cref="PipelineId"/> when both are sent; absent leaves the binding unchanged. The command
+    /// must exist in the channel.
+    /// </summary>
+    public BindingTarget? Target { get; init; }
 }

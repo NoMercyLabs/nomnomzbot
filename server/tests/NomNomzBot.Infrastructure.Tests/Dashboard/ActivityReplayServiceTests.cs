@@ -116,6 +116,7 @@ public sealed class ActivityReplayServiceTests
             chat,
             Substitute.For<IEventResponseOverlayNotifier>(),
             tts,
+            Substitute.For<ICommandInvoker>(),
             NullLogger<EventResponseExecutor>.Instance
         );
 

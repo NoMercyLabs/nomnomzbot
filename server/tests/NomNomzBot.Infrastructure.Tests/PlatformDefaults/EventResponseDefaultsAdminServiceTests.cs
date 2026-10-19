@@ -90,6 +90,7 @@ public sealed class EventResponseDefaultsAdminServiceTests
             chat,
             Substitute.For<IEventResponseOverlayNotifier>(),
             tts,
+            Substitute.For<ICommandInvoker>(),
             NullLogger<EventResponseExecutor>.Instance
         );
         EventResponseDefaultsAdminService sut = new(

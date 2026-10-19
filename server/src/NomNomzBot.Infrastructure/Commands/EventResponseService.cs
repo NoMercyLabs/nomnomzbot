@@ -15,6 +15,8 @@ using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -155,6 +157,15 @@ public class EventResponseService : IEventResponseService
                 return pipelineOk.ToTyped<EventResponseDto>();
         }
 
+        Result targetOk = await BindingTargetBinder.ValidateAsync(
+            _db,
+            broadcaster,
+            request.Target,
+            cancellationToken
+        );
+        if (targetOk.IsFailure)
+            return targetOk.ToTyped<EventResponseDto>();
+
         // Rows are a fixed, seeded catalogue (EventResponseDefaultsSeeder seeds one disabled row per
         // catalog event type for every channel) — never user-created and never soft-deleted, so this is a
         // plain tenant-filtered lookup; there is no restore path and no per-channel enable cap
@@ -178,6 +189,12 @@ public class EventResponseService : IEventResponseService
                 MetadataJson = request.Metadata ?? new Dictionary<string, string>(),
                 SpeakWithTts = request.SpeakWithTts ?? false,
             };
+            if (request.Target is not null)
+            {
+                BindingTargetBinder.ApplyTo(entity, request.Target, null);
+                if (request.ResponseType is null)
+                    entity.ResponseType = "pipeline";
+            }
             _db.EventResponses.Add(entity);
         }
         else
@@ -195,9 +212,20 @@ public class EventResponseService : IEventResponseService
             // Absent leaves the binding unchanged; Guid.Empty clears it; a real id binds that pipeline (the
             // sentinel convention RewardService uses — a null pipelineId is dropped by the client's
             // explicitNulls=false serializer, so "clear" rides the empty sentinel, not a null).
-            if (request.PipelineId.HasValue)
-                entity.PipelineId =
-                    request.PipelineId.Value == Guid.Empty ? null : request.PipelineId.Value;
+            // An explicit target wins over the legacy pipeline field. The legacy field goes through
+            // SetBindingTarget so a row that held a command or action is a pipeline row again.
+            if (request.Target is not null)
+            {
+                BindingTargetBinder.ApplyTo(entity, request.Target, entity.PipelineId);
+                if (request.ResponseType is null)
+                    entity.ResponseType = "pipeline";
+            }
+            else if (request.PipelineId.HasValue)
+                entity.SetBindingTarget(
+                    request.PipelineId.Value == Guid.Empty
+                        ? null
+                        : new(BindingTargetKind.Pipeline, request.PipelineId.Value.ToString())
+                );
             if (request.Metadata is not null)
                 entity.MetadataJson = request.Metadata;
             if (request.SpeakWithTts.HasValue)
@@ -252,7 +280,7 @@ public class EventResponseService : IEventResponseService
         entity.IsEnabled = false;
         entity.ResponseType = "chat_message";
         entity.Message = null;
-        entity.PipelineId = null;
+        entity.SetBindingTarget(null);
         entity.MetadataJson = new Dictionary<string, string>();
         entity.SpeakWithTts = false;
         // Reset hands the event back to the platform default — the same state a fresh channel starts in.
@@ -344,7 +372,8 @@ public class EventResponseService : IEventResponseService
             e.UpdatedAt,
             follows,
             follows ? platform?.SpeakWithTts ?? false : e.SpeakWithTts,
-            toneLines
+            toneLines,
+            follows ? null : e.GetBindingTarget()
         );
     }
 

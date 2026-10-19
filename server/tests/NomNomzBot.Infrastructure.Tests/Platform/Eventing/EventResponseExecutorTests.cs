@@ -68,6 +68,7 @@ public sealed class EventResponseExecutorTests
             chat,
             overlay,
             tts ?? Substitute.For<ITtsDispatchService>(),
+            Substitute.For<ICommandInvoker>(),
             NullLogger<EventResponseExecutor>.Instance
         );
         return (executor, db, chat, engine, overlay);

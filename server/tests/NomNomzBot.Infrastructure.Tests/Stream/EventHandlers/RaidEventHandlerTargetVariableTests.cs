@@ -72,6 +72,7 @@ public sealed class RaidEventHandlerTargetVariableTests
         );
         services.AddSingleton(Substitute.For<ITtsDispatchService>());
         services.AddSingleton<IPipelineEngine>(Substitute.For<IPipelineEngine>());
+        services.AddSingleton(Substitute.For<ICommandInvoker>());
         services.AddSingleton<ILogger<EventResponseExecutor>>(
             NullLogger<EventResponseExecutor>.Instance
         );

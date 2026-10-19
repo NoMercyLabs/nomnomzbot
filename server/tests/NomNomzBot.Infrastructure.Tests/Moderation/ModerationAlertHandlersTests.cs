@@ -308,6 +308,7 @@ public sealed class ModerationAlertHandlersTests
             chat,
             Substitute.For<IEventResponseOverlayNotifier>(),
             Substitute.For<ITtsDispatchService>(),
+            Substitute.For<ICommandInvoker>(),
             NullLogger<EventResponseExecutor>.Instance
         );
         ServiceProvider provider = new ServiceCollection()

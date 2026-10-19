@@ -19,6 +19,8 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Infrastructure.Tts;
 
 namespace NomNomzBot.Infrastructure.Platform.Eventing;
@@ -41,6 +43,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
     private readonly IChatProvider _chatProvider;
     private readonly IEventResponseOverlayNotifier _overlayNotifier;
     private readonly ITtsDispatchService _tts;
+    private readonly ICommandInvoker _invoker;
     private readonly ILogger<EventResponseExecutor> _logger;
 
     public EventResponseExecutor(
@@ -50,9 +53,11 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         IChatProvider chatProvider,
         IEventResponseOverlayNotifier overlayNotifier,
         ITtsDispatchService tts,
+        ICommandInvoker invoker,
         ILogger<EventResponseExecutor> logger
     )
     {
+        _invoker = invoker;
         _db = db;
         _pipeline = pipeline;
         _templateResolver = templateResolver;
@@ -161,7 +166,8 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                 await OwnMessageAsync(row, cancellationToken),
                 row.PipelineId,
                 row.MetadataJson,
-                row.SpeakWithTts
+                row.SpeakWithTts,
+                row.GetBindingTarget()
             ),
         };
         if (config is not { IsEnabled: true })
@@ -186,6 +192,16 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                     variables,
                     cancellationToken
                 ),
+                "pipeline" when config.Target is { Kind: not BindingTargetKind.Pipeline } =>
+                    await RunTargetAsync(
+                        broadcasterId,
+                        eventTypeKey,
+                        config.Target,
+                        userId,
+                        userDisplayName,
+                        variables,
+                        cancellationToken
+                    ),
                 "pipeline" => await RunPipelineAsync(
                     broadcasterId,
                     eventTypeKey,
@@ -270,7 +286,8 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         string? Message,
         Guid? PipelineId,
         Dictionary<string, string> Metadata,
-        bool SpeakWithTts
+        bool SpeakWithTts,
+        BindingTarget? Target = null
     );
 
     private async Task<EventResponseOutcome> SendChatMessageAsync(
@@ -384,6 +401,47 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
             ct
         );
         return EventResponseOutcome.None with { OverlaysShown = 1 };
+    }
+
+    /// <summary>
+    /// Runs a command or action the row binds directly through the one invoker, with no wrapper pipeline.
+    /// A failed run is logged and counts as nothing happening, like a missing pipeline.
+    /// </summary>
+    private async Task<EventResponseOutcome> RunTargetAsync(
+        Guid broadcasterId,
+        string eventTypeKey,
+        BindingTarget target,
+        string? userId,
+        string? userDisplayName,
+        Dictionary<string, string> variables,
+        CancellationToken ct
+    )
+    {
+        Dictionary<string, string> targetVariables = new(variables, StringComparer.OrdinalIgnoreCase)
+        {
+            ["event.name"] = eventTypeKey,
+        };
+        Result<InvocationOutcome> result = await _invoker.InvokeAsync(
+            broadcasterId,
+            target,
+            new(
+                UserId: userId,
+                DisplayName: userDisplayName,
+                Args: string.Empty,
+                TriggerSource: "event",
+                Variables: targetVariables
+            ),
+            ct
+        );
+        if (result.IsFailure)
+            _logger.LogWarning(
+                "Event response {EventType} in {Channel} could not run its bound {Kind}: {Reason}",
+                eventTypeKey,
+                broadcasterId,
+                target.Kind,
+                result.ErrorMessage
+            );
+        return EventResponseOutcome.None;
     }
 
     private async Task<EventResponseOutcome> RunPipelineAsync(

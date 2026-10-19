@@ -64,6 +64,7 @@ public sealed class SupporterTriggerSourceTests
             chat,
             Substitute.For<IEventResponseOverlayNotifier>(),
             Substitute.For<ITtsDispatchService>(),
+            Substitute.For<ICommandInvoker>(),
             NullLogger<EventResponseExecutor>.Instance
         );
         SupporterTriggerSource handler = new(
