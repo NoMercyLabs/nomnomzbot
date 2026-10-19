@@ -39,7 +39,19 @@ type Answer = {
 type Row = Record<string, unknown>;
 
 const calls: Call[] = [];
+// What the server answers for a channel with no saved currency row: the one set of defaults.
+const defaultCurrency = {
+  id: '00000000000000000000000000',
+  currencyName: 'points',
+  currencyNamePlural: 'points',
+  iconUrl: null,
+  isEnabled: false,
+  startingBalance: 0,
+  maxBalance: null,
+  decimalPlaces: 0,
+} as const satisfies Row;
 let config: Row | null = null;
+let refusal: Row | null = null;
 let rules: Row[] = [];
 let jars: Row[] = [];
 let catalog: Row[] = [];
@@ -47,33 +59,35 @@ let boards: Row[] = [];
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
-const rule = (id: string, source: string, overrides: Row = {}) => ({
-  id,
-  source,
-  isEnabled: true,
-  rate: 5,
-  unitWindowSeconds: null,
-  perWindowCap: null,
-  perStreamCap: null,
-  minRoleLevel: null,
-  configSchemaVersion: 1,
-  bonusConfig: null,
-  ...overrides,
-}) as const satisfies Row;
+const rule = (id: string, source: string, overrides: Row = {}) =>
+  ({
+    id,
+    source,
+    isEnabled: true,
+    rate: 5,
+    unitWindowSeconds: null,
+    perWindowCap: null,
+    perStreamCap: null,
+    minRoleLevel: null,
+    configSchemaVersion: 1,
+    bonusConfig: null,
+    ...overrides,
+  }) as const satisfies Row;
 
-const jar = (id: string, name: string, overrides: Row = {}) => ({
-  id,
-  ownerBroadcasterId: 'c1',
-  name,
-  description: null,
-  goalAmount: 1000,
-  balance: 250,
-  iconUrl: null,
-  isOpen: true,
-  maxWithdrawalPerChannel: null,
-  createdAt: '2026-10-01T10:00:00Z',
-  ...overrides,
-}) as const satisfies Row;
+const jar = (id: string, name: string, overrides: Row = {}) =>
+  ({
+    id,
+    ownerBroadcasterId: 'c1',
+    name,
+    description: null,
+    goalAmount: 1000,
+    balance: 250,
+    iconUrl: null,
+    isOpen: true,
+    maxWithdrawalPerChannel: null,
+    createdAt: '2026-10-01T10:00:00Z',
+    ...overrides,
+  }) as const satisfies Row;
 
 function read(path: string): Answer {
   if (path.endsWith('/economy/config'))
@@ -105,6 +119,10 @@ function write(method: string, path: string, options?: Options): Answer {
     body: options?.body,
   });
 
+  if (method === 'PUT' && path.endsWith('/economy/config') && refusal !== null) {
+    return { error: refusal, response: { status: 400, ok: false } };
+  }
+
   if (method === 'PUT' && path.endsWith('/economy/config')) {
     config = { id: 'cfg', ...body };
   }
@@ -125,12 +143,15 @@ function write(method: string, path: string, options?: Options): Answer {
   }
 
   if (method === 'POST' && path.endsWith('/economy/catalog')) {
-    catalog = [...catalog, {
-      id: 'i-new',
-      cost: 0,
-      isEnabled: true,
-      ...body,
-    }];
+    catalog = [
+      ...catalog,
+      {
+        id: 'i-new',
+        cost: 0,
+        isEnabled: true,
+        ...body,
+      },
+    ];
   }
 
   if (method === 'PUT' && path.endsWith('/leaderboards/configs')) {
@@ -208,7 +229,8 @@ beforeEach(() => {
   access.held = allKeys;
   localStorage.clear();
   calls.length = 0;
-  config = null;
+  config = { ...defaultCurrency };
+  refusal = null;
   rules = [rule('r1', 'ChatMessage'), rule('r2', 'Follow', { isEnabled: false, rate: 50 })];
   jars = [jar('j1', 'New camera')];
   catalog = [];
@@ -279,7 +301,9 @@ async function click(el: HTMLElement): Promise<void> {
 }
 
 const tabLabels = (): string[] =>
-  [...document.body.querySelectorAll<HTMLElement>('[role="tab"]')].map((tab) => tab.textContent?.trim() ?? '');
+  [...document.body.querySelectorAll<HTMLElement>('[role="tab"]')].map(
+    (tab) => tab.textContent?.trim() ?? '',
+  );
 const present = (selector: string): boolean => document.body.querySelector(selector) !== null;
 
 describe('Economy page gating', () => {
@@ -308,12 +332,14 @@ describe('Economy page gating', () => {
   it('shows the jar, catalog and currency state as a badge instead of a switch without write', async () => {
     access.held = ['economy:jars:read', 'economy:catalog:read', 'economy:config:read'];
 
-    catalog = [{
-      id: 'i1',
-      name: 'Hat',
-      cost: 5,
-      isEnabled: true,
-    }];
+    catalog = [
+      {
+        id: 'i1',
+        name: 'Hat',
+        cost: 5,
+        isEnabled: true,
+      },
+    ];
 
     await open('jars');
 
@@ -334,12 +360,14 @@ describe('Economy page gating', () => {
   });
 
   it('shows the switches when the write keys are held', async () => {
-    catalog = [{
-      id: 'i1',
-      name: 'Hat',
-      cost: 5,
-      isEnabled: true,
-    }];
+    catalog = [
+      {
+        id: 'i1',
+        name: 'Hat',
+        cost: 5,
+        isEnabled: true,
+      },
+    ];
 
     await open('catalog');
 
@@ -364,12 +392,14 @@ describe('Economy page gating', () => {
   it('hides catalog and leaderboard edit and delete without their keys', async () => {
     access.held = ['economy:catalog:read', 'economy:leaderboards:config:read'];
 
-    catalog = [{
-      id: 'i1',
-      name: 'Hat',
-      cost: 5,
-      isEnabled: true,
-    }];
+    catalog = [
+      {
+        id: 'i1',
+        name: 'Hat',
+        cost: 5,
+        isEnabled: true,
+      },
+    ];
 
     await open('catalog');
 
@@ -413,6 +443,40 @@ describe('Economy page', () => {
     });
 
     expect(config?.currencyName).toBe('Nomz');
+  });
+
+  it('shows the defaults the server sends for a channel with no currency row', async () => {
+    config = {
+      ...defaultCurrency,
+      currencyName: 'server-default',
+      startingBalance: 7,
+    };
+
+    await open('currency');
+
+    expect(field('Currency name').value).toBe('server-default');
+    expect(field('Starting balance').value).toBe('7');
+    expect(field('Highest balance').value).toBe('');
+  });
+
+  it('shows the reason the server gives when it refuses the currency', async () => {
+    refusal = { status: 'error', message: 'Decimal places must be between 0 and 8.' };
+
+    await open('currency');
+    await type(field('Decimal places'), '9');
+    await click(buttonByText('Save currency'));
+
+    expect(writes('PUT')[0]!.body).toMatchObject({ decimalPlaces: 9 });
+
+    const alert = document.body.querySelector('[data-currency-form] [role="alert"]');
+
+    expect(alert?.textContent).toContain('Decimal places must be between 0 and 8.');
+  });
+
+  it('leaves the limits to the server instead of a second copy in the form', async () => {
+    await open('currency');
+
+    expect(field('Decimal places').getAttribute('max')).toBeNull();
   });
 
   it('lists each earning rule by its source', async () => {

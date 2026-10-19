@@ -39,19 +39,22 @@ const decimals = ref(0);
 const iconUrl = ref('');
 const error = ref<string | undefined>(undefined);
 
+// The form shows what the server sent. A channel with no saved row gets the server's defaults, so the
+// view keeps no default of its own.
 function fill(row: CurrencyConfig | null | undefined): void {
-  enabled.value = row?.isEnabled ?? false;
-  name.value = row?.currencyName ?? '';
-  plural.value = row?.currencyNamePlural ?? '';
-  starting.value = Number(row?.startingBalance ?? 0);
+  if (!row) return;
 
-  max.value =
-    row?.maxBalance === null || row?.maxBalance === undefined
-      ? ''
-      : Number(row.maxBalance);
+  enabled.value = row.isEnabled;
+  name.value = row.currencyName;
+  plural.value = row.currencyNamePlural ?? '';
+  starting.value = Number(row.startingBalance);
 
-  decimals.value = Number(row?.decimalPlaces ?? 0);
-  iconUrl.value = row?.iconUrl ?? '';
+  max.value = row.maxBalance === null || row.maxBalance === undefined
+    ? ''
+    : Number(row.maxBalance);
+
+  decimals.value = Number(row.decimalPlaces);
+  iconUrl.value = row.iconUrl ?? '';
 }
 
 watch(() => currency.data.value, fill, { immediate: true });
@@ -115,7 +118,7 @@ async function submit(): Promise<void> {
       />
       <div class="grid gap-4 sm:grid-cols-2">
         <Field>
-          <FieldLabel for="currency-name">{{ $t('dashboard.economy.currency.name') }}</FieldLabel>
+          <FieldLabel for="currency-name">{{ $t("dashboard.economy.currency.name") }}</FieldLabel>
           <Input
             id="currency-name"
             v-model="name"
@@ -125,7 +128,7 @@ async function submit(): Promise<void> {
         </Field>
         <Field>
           <FieldLabel for="currency-plural">{{
-            $t('dashboard.economy.currency.plural')
+            $t("dashboard.economy.currency.plural")
           }}</FieldLabel>
           <Input
             id="currency-plural"
@@ -136,47 +139,43 @@ async function submit(): Promise<void> {
         </Field>
         <Field>
           <FieldLabel for="currency-starting">{{
-            $t('dashboard.economy.currency.starting')
+            $t("dashboard.economy.currency.starting")
           }}</FieldLabel>
           <Input
             id="currency-starting"
             v-model.number="starting"
             type="number"
-            min="0"
             step="1"
             :aria-label="$t('dashboard.economy.currency.starting')"
           />
         </Field>
         <Field>
           <div class="flex items-center gap-1.5">
-            <FieldLabel for="currency-max">{{ $t('dashboard.economy.currency.max') }}</FieldLabel>
-            <FieldInfo>{{ $t('dashboard.economy.currency.maxHelp') }}</FieldInfo>
+            <FieldLabel for="currency-max">{{ $t("dashboard.economy.currency.max") }}</FieldLabel>
+            <FieldInfo>{{ $t("dashboard.economy.currency.maxHelp") }}</FieldInfo>
           </div>
           <Input
             id="currency-max"
             v-model.number="max"
             type="number"
-            min="0"
             step="1"
             :aria-label="$t('dashboard.economy.currency.max')"
           />
         </Field>
         <Field>
           <FieldLabel for="currency-decimals">{{
-            $t('dashboard.economy.currency.decimals')
+            $t("dashboard.economy.currency.decimals")
           }}</FieldLabel>
           <Input
             id="currency-decimals"
             v-model.number="decimals"
             type="number"
-            min="0"
-            max="4"
             step="1"
             :aria-label="$t('dashboard.economy.currency.decimals')"
           />
         </Field>
         <Field>
-          <FieldLabel for="currency-icon">{{ $t('dashboard.economy.currency.icon') }}</FieldLabel>
+          <FieldLabel for="currency-icon">{{ $t("dashboard.economy.currency.icon") }}</FieldLabel>
           <Input
             id="currency-icon"
             v-model="iconUrl"
@@ -194,7 +193,7 @@ async function submit(): Promise<void> {
         class="self-start"
         :disabled="save.isPending.value"
       >
-        {{ $t('dashboard.economy.currency.save') }}
+        {{ $t("dashboard.economy.currency.save") }}
       </Button>
     </form>
   </PanelCard>
