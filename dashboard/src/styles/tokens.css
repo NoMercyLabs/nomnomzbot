@@ -149,7 +149,7 @@
   --hit: 24px;
   --hit-icon: 32px;
   --btn-h: 36px;
-  --btn-h-sm: 32px;
+  --btn-h-sm: 36px;
   --input-h: 36px;
   --sb-item-h: 32px;
   --tab-h: 30px;
@@ -159,6 +159,12 @@
   --td-h: 48px;
   --th-h: 40px;
   --pop-row-h: 40px;
+}
+/* A small control is 36px on a phone and 32px from md up (shadcn sm; the Button size variants carry the same pair). */
+@media (min-width: 768px) {
+  :root {
+    --btn-h-sm: 32px;
+  }
 }
 html[data-density='comfortable'] {
   --sb-item-h: 36px;
