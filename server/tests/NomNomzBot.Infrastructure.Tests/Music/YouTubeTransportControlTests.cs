@@ -498,7 +498,9 @@ public sealed class YouTubeTransportControlTests
         Result skipped = await rig.Music.SkipAsync(Broadcaster.ToString(), "viewer3");
 
         skipped.IsSuccess.Should().BeFalse();
-        skipped.ErrorCode.Should().Be("NO_OVERLAY_PLAYER");
+        skipped.ErrorCode.Should().Be("NO_ACTIVE_DEVICE");
+        skipped.ErrorMessage.Should().NotContainEquivalentOf("queue");
+        skipped.ErrorData.Should().BeEquivalentTo(new NoActivePlayerRefusal("youtube"));
         rig.Registry.StateOf(Broadcaster).Kind.Should().Be(PlaybackStateKind.Blocked);
         rig.Notifier.Sent.Should().BeEmpty();
         QueuedUris(rig).Should().Equal([Watch(Second)], "the playing First left the queue");

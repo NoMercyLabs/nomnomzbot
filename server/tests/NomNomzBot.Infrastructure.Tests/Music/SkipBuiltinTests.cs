@@ -281,6 +281,67 @@ public sealed class SkipBuiltinTests
     }
 
     [Fact]
+    public async Task A_blocked_YouTube_skip_with_the_audio_widget_closed_answers_from_the_no_player_slot()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .SkipAsync(
+                Broadcaster.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure(
+                    "Nothing is playing on any device right now.",
+                    "NO_ACTIVE_DEVICE",
+                    errorData: new NoActivePlayerRefusal("youtube")
+                )
+            );
+        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+
+        Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
+
+        result
+            .Value.Should()
+            .Be(
+                ToneTemplateCatalog.Get(
+                    PersonalityTone.Informative,
+                    BuiltinResponseSlots.Skip.Key,
+                    BuiltinResponseSlots.Skip.NoPlayer
+                )[0]
+            );
+        result.Value.Should().NotContainEquivalentOf("queue");
+    }
+
+    [Theory]
+    [InlineData("MUSIC_AUTH_FAILED", "notconnected")]
+    [InlineData("MUSIC_FORBIDDEN", "forbidden")]
+    public async Task A_skip_blocked_by_the_music_connection_answers_from_its_own_skip_slot(
+        string errorCode,
+        string slot
+    )
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .SkipAsync(
+                Broadcaster.ToString(),
+                "twitch-42",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("internal detail 5521", errorCode));
+        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+
+        Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
+
+        result
+            .Value.Should()
+            .Be(ToneTemplateCatalog.Get(PersonalityTone.Informative, "skip", slot)[0]);
+        result.Value.Should().NotContain("5521").And.NotContainEquivalentOf("queue");
+    }
+
+    [Fact]
     public async Task A_skip_the_provider_refuses_answers_from_its_slot_never_the_services_own_sentence()
     {
         IMusicService music = Substitute.For<IMusicService>();

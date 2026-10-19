@@ -157,4 +157,37 @@ public sealed class MusicServiceSkipThroughDirectorTests
         CalledProviderSkip(handler).Should().BeFalse();
         bus.Published.OfType<SongSkippedEvent>().Should().BeEmpty("a refused skip skipped nothing");
     }
+
+    [Theory]
+    [InlineData(EngineBlockReason.NotConnected, "MUSIC_AUTH_FAILED", "reconnected")]
+    [InlineData(EngineBlockReason.Forbidden, "MUSIC_FORBIDDEN", "permission")]
+    [InlineData(EngineBlockReason.NoOutput, "NO_ACTIVE_DEVICE", "Nothing is playing")]
+    public async Task A_blocked_skip_is_worded_as_a_skip_and_never_as_a_queue_request(
+        EngineBlockReason block,
+        string expectedCode,
+        string expectedPhrase
+    )
+    {
+        (MusicService sut, _, _, _, FakeEngine spotify) = await PlayingAsync("s1", "s2");
+        spotify.BlockCommands = block;
+
+        Result result = await sut.SkipAsync(SpotifyChannel.ToString(), Skipper);
+
+        result.ErrorCode.Should().Be(expectedCode);
+        result.ErrorMessage.Should().NotContainEquivalentOf("queue");
+        result.ErrorMessage.Should().Contain(expectedPhrase);
+    }
+
+    [Fact]
+    public async Task A_blocked_skip_for_any_other_reason_says_the_music_service_had_a_problem_not_queue()
+    {
+        (MusicService sut, _, _, _, FakeEngine spotify) = await PlayingAsync("s1", "s2");
+        spotify.BlockCommands = (EngineBlockReason)99;
+
+        Result result = await sut.SkipAsync(SpotifyChannel.ToString(), Skipper);
+
+        result.ErrorCode.Should().Be("PROVIDER_ERROR");
+        result.ErrorMessage.Should().NotContainEquivalentOf("queue");
+        result.ErrorMessage.Should().Contain("skip");
+    }
 }
