@@ -32698,6 +32698,98 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/engagement/config/defaults": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The config a channel with nothing saved resolves to, so the dashboard shows the real defaults. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfEngagementConfig"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/admin/platform-defaults/event-responses": {
         parameters: {
             query?: never;
@@ -88925,6 +89017,21 @@ export interface components {
             portalUrl: string;
         };
         /**
+         * @description The one thing a binding runs (reward, timer, event response, chat trigger, automation token, ...).
+         *     Id names the command or pipeline; an BindingTargetKind.Action names its
+         *     ActionType and carries its Params instead.
+         */
+        BindingTarget: {
+            kind: components["schemas"]["BindingTargetKind"];
+            id?: null | string;
+            actionType?: null | string;
+            params?: null | {
+                [key: string]: unknown;
+            };
+        };
+        /** @description What a binding runs: a command, a pipeline, or one registered action. */
+        BindingTargetKind: number;
+        /**
          * @description The real, counted set of things that reference a resource right now — surfaced in the delete confirmation
          *     BEFORE the save (S-CONSEQ). int BlastRadiusDto.TotalReferences is zero exactly when nothing references the
          *     resource; the dashboard renders that as an explicit "nothing else references this" statement, never as an
@@ -90546,6 +90653,7 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             pipelineId?: null | string;
+            target?: null | components["schemas"]["BindingTarget"];
         };
         /** @description Create a savings jar (economy.md §4). */
         CreateSavingsJarRequest: {
@@ -91564,6 +91672,16 @@ export interface components {
             hasMore: boolean;
             /** Format: int64 */
             headPosition: number | string;
+        };
+        /**
+         * @description One event kind an event-subscription mask can switch: its name, the single bit it owns in the mask,
+         *     and whether the default mask has it on. The dashboard draws its checkbox list from these.
+         */
+        EventKind: {
+            name: string;
+            /** Format: int32 */
+            bit: number | string;
+            onByDefault: boolean;
         };
         /**
          * @description An event response configuration, as the runtime performs it: while FollowsPlatformDefault
@@ -93565,6 +93683,7 @@ export interface components {
             /** Format: date-time */
             lastConnectedAt?: null | string;
             lastError?: null | string;
+            eventKinds: components["schemas"]["EventKind"][];
         };
         /**
          * @description The connection state a moderator panel needs to know whether OBS is switched on, and nothing of the
@@ -96118,6 +96237,7 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             pipelineId?: null | string;
+            target: null | components["schemas"]["BindingTarget"];
             /** Format: date-time */
             createdAt: string;
             /** Format: date-time */
@@ -103850,6 +103970,7 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             pipelineId?: null | string;
+            target?: null | components["schemas"]["BindingTarget"];
         };
         /** @description Partially update a savings jar (economy.md §4) — every field nullable, null = unchanged. Owner-only. */
         UpdateSavingsJarRequest: {
@@ -104811,6 +104932,7 @@ export interface components {
             status: string;
             /** Format: date-time */
             lastConnectedAt?: null | string;
+            eventKinds: components["schemas"]["EventKind"][];
         };
         /** @description REST body for the raw control route. */
         VtsControlRequest: {

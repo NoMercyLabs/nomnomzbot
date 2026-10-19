@@ -38542,6 +38542,96 @@
         }
       }
     },
+    "/api/v{version}/engagement/config/defaults": {
+      "get": {
+        "tags": [
+          "Engagement"
+        ],
+        "summary": "The config a channel with nothing saved resolves to, so the dashboard shows the real defaults.",
+        "parameters": [
+          {
+            "name": "version",
+            "in": "path",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "400": {
+            "description": "Bad Request",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "401": {
+            "description": "Unauthorized",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "403": {
+            "description": "Forbidden",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "404": {
+            "description": "Not Found",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "429": {
+            "description": "Too Many Requests",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "500": {
+            "description": "Internal Server Error",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfObject"
+                }
+              }
+            }
+          },
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/StatusResponseOfEngagementConfig"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/api/v{version}/admin/platform-defaults/event-responses": {
       "get": {
         "tags": [
@@ -106764,6 +106854,41 @@
         },
         "description": "A Stripe billing-portal redirect."
       },
+      "BindingTarget": {
+        "required": [
+          "kind"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "$ref": "#/components/schemas/BindingTargetKind"
+          },
+          "id": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "actionType": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "params": {
+            "type": [
+              "null",
+              "object"
+            ],
+            "additionalProperties": { }
+          }
+        },
+        "description": "The one thing a binding runs (reward, timer, event response, chat trigger, automation token, ...).\r\nId names the command or pipeline; an BindingTargetKind.Action names its\r\nActionType and carries its Params instead."
+      },
+      "BindingTargetKind": {
+        "type": "integer",
+        "description": "What a binding runs: a command, a pipeline, or one registered action."
+      },
       "BlastRadius": {
         "required": [
           "categories",
@@ -111646,6 +111771,17 @@
             ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "What a redemption runs: a command (by id), a pipeline or an action. Wins over Guid? CreateRewardRequest.PipelineId\r\nwhen both are sent. The command must exist in the channel.",
+                "$ref": "#/components/schemas/BindingTarget"
+              }
+            ]
           }
         }
       },
@@ -114542,6 +114678,31 @@
           }
         },
         "description": "One page of a channel's journal, newest first, with the figures the journal page shows beside the list:\r\nhow many rows match the filters and where the channel's stream currently ends."
+      },
+      "EventKind": {
+        "required": [
+          "name",
+          "bit",
+          "onByDefault"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "bit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "onByDefault": {
+            "type": "boolean"
+          }
+        },
+        "description": "One event kind an event-subscription mask can switch: its name, the single bit it owns in the mask,\r\nand whether the default mask has it on. The dashboard draws its checkbox list from these."
       },
       "EventResponse": {
         "required": [
@@ -119907,7 +120068,8 @@
           "hasPassword",
           "hasBridgeToken",
           "eventSubscriptionsMask",
-          "isEnabled"
+          "isEnabled",
+          "eventKinds"
         ],
         "type": "object",
         "properties": {
@@ -119958,6 +120120,12 @@
               "null",
               "string"
             ]
+          },
+          "eventKinds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventKind"
+            }
           }
         },
         "description": "A channel's OBS connection as the dashboard sees it (obs-control.md §3). The OBS-WS password never\r\nappears — only bool ObsConnectionDto.HasPassword — and the bridge token is surfaced solely through the\r\nbridge-setup URL, never as a bare listing field."
@@ -127886,6 +128054,7 @@
           "isPaused",
           "isOnTwitch",
           "isMigrationPending",
+          "target",
           "createdAt",
           "updatedAt"
         ],
@@ -127990,6 +128159,16 @@
             ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BindingTarget"
+              }
+            ]
           },
           "createdAt": {
             "type": "string",
@@ -150352,6 +150531,17 @@
             ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The new target; absent leaves the binding unchanged. A pipeline target with no id clears the binding.\r\nWins over Guid? UpdateRewardRequest.PipelineId when both are sent. A command target must exist in the channel.",
+                "$ref": "#/components/schemas/BindingTarget"
+              }
+            ]
           }
         }
       },
@@ -153782,7 +153972,8 @@
           "hasBridgeToken",
           "eventSubscriptionsMask",
           "isEnabled",
-          "status"
+          "status",
+          "eventKinds"
         ],
         "type": "object",
         "properties": {
@@ -153818,6 +154009,12 @@
               "string"
             ],
             "format": "date-time"
+          },
+          "eventKinds": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventKind"
+            }
           }
         },
         "description": "A channel's VTS connection as the dashboard sees it (vtube-studio.md §3). The plugin token never\r\nappears — only bool VtsConnectionDto.HasPluginToken."
