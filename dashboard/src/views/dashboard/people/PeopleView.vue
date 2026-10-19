@@ -192,8 +192,25 @@ const sortsHere = computed<boolean>(
   () => sort.value === 'alphabetical' && CLIENT_SORTED.some((tab) => tab === view.value),
 );
 
+// Never-seen people sort after everyone the bot has seen.
+function seenAt(row: CommunityRow): number {
+  return row.lastSeen
+    ? new Date(row.lastSeen).getTime()
+    : Number.NEGATIVE_INFINITY;
+}
+
+const recentHere = computed<boolean>(
+  () => sort.value === 'recent' && CLIENT_SORTED.some((tab) => tab === view.value),
+);
+
 const visible = computed<CommunityRow[] | undefined>(() => {
-  if (!sortsHere.value || !tabRows.value)
+  if (!tabRows.value)
+    return tabRows.value;
+
+  if (recentHere.value)
+    return [...tabRows.value].sort((a, b) => seenAt(b) - seenAt(a));
+
+  if (!sortsHere.value)
     return tabRows.value;
 
   return [...tabRows.value].sort((a, b) =>

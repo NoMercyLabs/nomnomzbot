@@ -52,6 +52,7 @@ const initials = computed<string>(() => props.person.displayName.slice(0, 2).toU
   <div data-person-row :data-gifted="person.gifted" class="px-1 py-0.5">
     <SummaryRow
       pick
+      truncate
       :selected="selected"
       :aria-pressed="selected"
       :title="person.displayName"

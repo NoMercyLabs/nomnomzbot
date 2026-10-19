@@ -36,87 +36,89 @@ let vipWriteFails = false;
 // Fresh per test: a VIP save changes the stored person, as the server's record would.
 let people: Record<string, Record<string, unknown>> = {};
 
-const freshPeople = () => ({
-  u1: {
-    id: 'u1',
-    internalUserId: 'g1',
-    username: 'ada',
-    displayName: 'Ada',
-    profileImageUrl: null,
-    messageCount: 1234,
-    watchHours: 12.5,
-    commandsUsed: 7,
-    trustLevel: 'viewer',
-    isBanned: false,
-    isVip: false,
-    isModerator: false,
-    firstSeen: '2026-01-02T10:00:00Z',
-    lastSeen: '2026-10-01T10:00:00Z',
-    recentActivity: [
-      {
-        type: 'chat',
-        content: 'hello from ada',
-        timestamp: '2026-10-01T10:00:00Z',
-      },
-      {
-        type: 'chat',
-        content: 'second line from ada',
-        timestamp: '2026-10-01T10:01:00Z',
-      },
-    ],
-    banHistory: [],
-  },
-  u2: {
-    id: 'u2',
-    internalUserId: 'g2',
-    username: 'bo',
-    displayName: 'Bo',
-    profileImageUrl: null,
-    messageCount: 5,
-    watchHours: 0.5,
-    commandsUsed: 0,
-    trustLevel: 'moderator',
-    isBanned: true,
-    isVip: null,
-    isModerator: null,
-    firstSeen: '2026-02-02T10:00:00Z',
-    lastSeen: '2026-09-01T10:00:00Z',
-    recentActivity: [],
-    banHistory: [
-      {
-        id: 'b1',
-        bannedBy: 'Stoney_Eagle',
-        reason: 'spam links',
-        bannedAt: '2026-09-01T10:00:00Z',
-        unbannedAt: null,
-      },
-      {
-        id: 'b0',
-        bannedBy: 'Stoney_Eagle',
-        reason: 'first warning ignored',
-        bannedAt: '2026-08-01T10:00:00Z',
-        unbannedAt: '2026-08-03T10:00:00Z',
-      },
-    ],
-  },
-}) as const satisfies Record<string, Record<string, unknown>>;
+const freshPeople = () =>
+  ({
+    u1: {
+      id: 'u1',
+      internalUserId: 'g1',
+      username: 'ada',
+      displayName: 'Ada',
+      profileImageUrl: null,
+      messageCount: 1234,
+      watchHours: 12.5,
+      commandsUsed: 7,
+      trustLevel: 'viewer',
+      isBanned: false,
+      isVip: false,
+      isModerator: false,
+      firstSeen: '2026-01-02T10:00:00Z',
+      lastSeen: '2026-10-01T10:00:00Z',
+      recentActivity: [
+        {
+          type: 'chat',
+          content: 'hello from ada',
+          timestamp: '2026-10-01T10:00:00Z',
+        },
+        {
+          type: 'chat',
+          content: 'second line from ada',
+          timestamp: '2026-10-01T10:01:00Z',
+        },
+      ],
+      banHistory: [],
+    },
+    u2: {
+      id: 'u2',
+      internalUserId: 'g2',
+      username: 'bo',
+      displayName: 'Bo',
+      profileImageUrl: null,
+      messageCount: 5,
+      watchHours: 0.5,
+      commandsUsed: 0,
+      trustLevel: 'moderator',
+      isBanned: true,
+      isVip: null,
+      isModerator: null,
+      firstSeen: '2026-02-02T10:00:00Z',
+      lastSeen: '2026-09-01T10:00:00Z',
+      recentActivity: [],
+      banHistory: [
+        {
+          id: 'b1',
+          bannedBy: 'Stoney_Eagle',
+          reason: 'spam links',
+          bannedAt: '2026-09-01T10:00:00Z',
+          unbannedAt: null,
+        },
+        {
+          id: 'b0',
+          bannedBy: 'Stoney_Eagle',
+          reason: 'first warning ignored',
+          bannedAt: '2026-08-01T10:00:00Z',
+          unbannedAt: '2026-08-03T10:00:00Z',
+        },
+      ],
+    },
+  }) as const satisfies Record<string, Record<string, unknown>>;
 
 // The moderator notes by Twitch id (what GET moderation/users/{userId}/notes answers); fresh per test.
 let notes: Record<string, Record<string, unknown>[]> = {};
 
-const freshNotes = () => ({
-  u1: [
-    {
-      id: 7,
-      subjectUserId: 'u1',
-      content: 'Helps new chatters find the rules.',
-      pinned: true,
-      authorName: 'Stoney_Eagle',
-      createdAt: '2026-09-20T10:00:00Z',
-      updatedAt: '2026-09-20T10:00:00Z',
-    },
-  ],
-}) as const satisfies Record<string, Record<string, unknown>[]>;
+const freshNotes = () =>
+  ({
+    u1: [
+      {
+        id: 7,
+        subjectUserId: 'u1',
+        content: 'Helps new chatters find the rules.',
+        pinned: true,
+        authorName: 'Stoney_Eagle',
+        createdAt: '2026-09-20T10:00:00Z',
+        updatedAt: '2026-09-20T10:00:00Z',
+      },
+    ],
+  }) as const satisfies Record<string, Record<string, unknown>[]>;
 
 // The moderation history pages by internal id (what GET moderation/history/{userId} answers), newest first.
 const history: Record<string, Record<string, unknown>[][]> = {
@@ -244,111 +246,113 @@ const emotes: Record<string, Record<string, unknown>[]> = {
 let profiles: Record<string, Record<string, unknown> | null> = {};
 
 // The sections the live API always sends, here for a person the bot stored nothing extra about.
-const storedNothing = () => ({
-  economy: {
-    wallet: null,
-    giveawayEntryCount: 0,
-    giveawayWinCount: 0,
-    leaderboardOptedOut: false,
-  },
-  permits: {
-    activePermits: [],
-    ageConsentGranted: null,
-    ageConsentConfirmedUtc: null,
-  },
-  overrides: { shoutoutMessageTemplate: null, ttsVoice: null },
-  commandUsage: { totalCommandsUsed: 0, lastUsedUtc: null },
-  raids: { timesRaidedThisChannel: 0, timesThisChannelRaidedThem: 0 },
-  freeFormData: [],
-  recentQuotes: [],
-  totalQuoteCount: 0,
-}) as const satisfies Record<string, unknown>;
+const storedNothing = () =>
+  ({
+    economy: {
+      wallet: null,
+      giveawayEntryCount: 0,
+      giveawayWinCount: 0,
+      leaderboardOptedOut: false,
+    },
+    permits: {
+      activePermits: [],
+      ageConsentGranted: null,
+      ageConsentConfirmedUtc: null,
+    },
+    overrides: { shoutoutMessageTemplate: null, ttsVoice: null },
+    commandUsage: { totalCommandsUsed: 0, lastUsedUtc: null },
+    raids: { timesRaidedThisChannel: 0, timesThisChannelRaidedThem: 0 },
+    freeFormData: [],
+    recentQuotes: [],
+    totalQuoteCount: 0,
+  }) as const satisfies Record<string, unknown>;
 
-const freshProfiles = () => ({
-  g1: {
-    ...storedNothing(),
-    identity: {
-      userId: 'g1',
-      twitchUserId: '90210',
-      username: 'ada',
-      displayName: 'Ada',
-      profileImageUrl: null,
-      pronoun: 'she/her',
-      altPronoun: null,
-      linkedIdentities: [
-        {
-          provider: 'Kick',
-          providerUsername: 'ada_k',
-          providerDisplayName: 'AdaK',
-          providerAvatarUrl: null,
-          isPrimary: false,
-          linkedAtUtc: '2026-05-06T00:00:00Z',
-          lastLoginAtUtc: null,
-        },
-      ],
-      communityStanding: 'Everyone',
-      // The live API sends the Twitch tier code, never a label.
-      subTier: '1000',
-      managementRole: 'Moderator',
-      memberSinceUtc: '2020-03-04T00:00:00Z',
-      firstSeenUtc: '2026-01-02T10:00:00Z',
-      accountCreatedAtUtc: '2015-06-01T00:00:00Z',
-      followedAtUtc: '2024-08-15T00:00:00Z',
-      description: 'Writes compilers for fun.',
-      broadcasterType: 'affiliate',
-      userType: 'staff',
-      chatColor: '#FF7F50',
-      nickname: 'Countess',
-      timezone: 'Europe/London',
-      isLurking: true,
-      pronounIsManualOverride: true,
+const freshProfiles = () =>
+  ({
+    g1: {
+      ...storedNothing(),
+      identity: {
+        userId: 'g1',
+        twitchUserId: '90210',
+        username: 'ada',
+        displayName: 'Ada',
+        profileImageUrl: null,
+        pronoun: 'she/her',
+        altPronoun: null,
+        linkedIdentities: [
+          {
+            provider: 'Kick',
+            providerUsername: 'ada_k',
+            providerDisplayName: 'AdaK',
+            providerAvatarUrl: null,
+            isPrimary: false,
+            linkedAtUtc: '2026-05-06T00:00:00Z',
+            lastLoginAtUtc: null,
+          },
+        ],
+        communityStanding: 'Everyone',
+        // The live API sends the Twitch tier code, never a label.
+        subTier: '1000',
+        managementRole: 'Moderator',
+        memberSinceUtc: '2020-03-04T00:00:00Z',
+        firstSeenUtc: '2026-01-02T10:00:00Z',
+        accountCreatedAtUtc: '2015-06-01T00:00:00Z',
+        followedAtUtc: '2024-08-15T00:00:00Z',
+        description: 'Writes compilers for fun.',
+        broadcasterType: 'affiliate',
+        userType: 'staff',
+        chatColor: '#FF7F50',
+        nickname: 'Countess',
+        timezone: 'Europe/London',
+        isLurking: true,
+        pronounIsManualOverride: true,
+      },
+      activity: {
+        totalMessages: 1234,
+        totalRedemptions: 9,
+        totalSongRequests: 2,
+        isFollower: true,
+        isSubscriber: true,
+        subTier: '1000',
+        totalBitsCheered: 500,
+      },
+      streak: {
+        currentStreak: 4,
+        maxStreak: 6,
+        lastSeenDate: '2026-10-01',
+      },
+      raids: { timesRaidedThisChannel: 3, timesThisChannelRaidedThem: 1 },
     },
-    activity: {
-      totalMessages: 1234,
-      totalRedemptions: 9,
-      totalSongRequests: 2,
-      isFollower: true,
-      isSubscriber: true,
-      subTier: '1000',
-      totalBitsCheered: 500,
+    g2: {
+      ...storedNothing(),
+      identity: {
+        userId: 'g2',
+        twitchUserId: null,
+        username: 'bo',
+        displayName: 'Bo',
+        profileImageUrl: null,
+        pronoun: null,
+        altPronoun: null,
+        linkedIdentities: [],
+        communityStanding: 'Everyone',
+        subTier: null,
+        managementRole: null,
+        memberSinceUtc: null,
+        firstSeenUtc: '2026-02-02T10:00:00Z',
+        accountCreatedAtUtc: null,
+        description: null,
+        broadcasterType: '',
+        userType: '',
+        chatColor: null,
+        nickname: null,
+        timezone: null,
+        isLurking: false,
+        pronounIsManualOverride: false,
+      },
+      activity: null,
+      streak: null,
     },
-    streak: {
-      currentStreak: 4,
-      maxStreak: 6,
-      lastSeenDate: '2026-10-01',
-    },
-    raids: { timesRaidedThisChannel: 3, timesThisChannelRaidedThem: 1 },
-  },
-  g2: {
-    ...storedNothing(),
-    identity: {
-      userId: 'g2',
-      twitchUserId: null,
-      username: 'bo',
-      displayName: 'Bo',
-      profileImageUrl: null,
-      pronoun: null,
-      altPronoun: null,
-      linkedIdentities: [],
-      communityStanding: 'Everyone',
-      subTier: null,
-      managementRole: null,
-      memberSinceUtc: null,
-      firstSeenUtc: '2026-02-02T10:00:00Z',
-      accountCreatedAtUtc: null,
-      description: null,
-      broadcasterType: '',
-      userType: '',
-      chatColor: null,
-      nickname: null,
-      timezone: null,
-      isLurking: false,
-      pronounIsManualOverride: false,
-    },
-    activity: null,
-    streak: null,
-  },
-}) as const satisfies Record<string, Record<string, unknown> | null>;
+  }) as const satisfies Record<string, Record<string, unknown> | null>;
 
 // The action keys a full moderator holds; a test drops one to see its control lock.
 const MODERATOR_KEYS = [
@@ -386,24 +390,26 @@ function noteStanding(userId: string, text: string): void {
 // A person's own TTS voice id by Twitch id; a person without one gets the 404 the bot sends.
 let personVoices: Record<string, string | undefined> = {};
 
-const voiceOf = (id: string, displayName: string) => ({
-  id,
-  name: id,
-  displayName,
-  locale: 'en-US',
-  gender: 'Female',
-  provider: 'Edge',
-  isDefault: false,
-  styles: [],
-  tags: [],
-}) as const satisfies Record<string, unknown>;
+const voiceOf = (id: string, displayName: string) =>
+  ({
+    id,
+    name: id,
+    displayName,
+    locale: 'en-US',
+    gender: 'Female',
+    provider: 'Edge',
+    isDefault: false,
+    styles: [],
+    tags: [],
+  }) as const satisfies Record<string, unknown>;
 
 const catalog = [voiceOf('en-US-AvaNeural', 'Ava'), voiceOf('en-US-EmmaNeural', 'Emma')];
 
 function voicesPage(options: Options | undefined): unknown {
   const q = String((options?.params?.query as Record<string, unknown> | undefined)?.q ?? '');
-  const found = catalog.filter((voice) =>
-    String(voice.id).includes(q) || String(voice.displayName).includes(q));
+  const found = catalog.filter(
+    (voice) => String(voice.id).includes(q) || String(voice.displayName).includes(q),
+  );
 
   return {
     data: { data: onTheWire(found), total: found.length },
@@ -433,11 +439,13 @@ const publicProfiles = {
     profileImageUrl: null,
     color: '#FF7F50',
     pronouns: 'she/her',
-    badges: [{
-      setId: 'subscriber',
-      id: '3',
-      info: '14',
-    }],
+    badges: [
+      {
+        setId: 'subscriber',
+        id: '3',
+        info: '14',
+      },
+    ],
     accountCreatedAt: '2015-06-01T00:00:00Z',
     followedAt: '2024-08-15T00:00:00Z',
     subTier: '1000',
@@ -454,25 +462,29 @@ const publicProfiles = {
         staticUrls: { 1: 'https://cdn/adaHi/1', 3: 'https://cdn/adaHi/3' },
       },
     ],
-    recentMessages: [{
-      id: 'm1',
-      message: 'public hello from ada',
-      sentAt: '2026-10-01T10:00:00Z',
-    }],
+    recentMessages: [
+      {
+        id: 'm1',
+        message: 'public hello from ada',
+        sentAt: '2026-10-01T10:00:00Z',
+      },
+    ],
   },
 } as const satisfies Record<string, Record<string, unknown>>;
 
 let held: string[] = [];
 
 // The emotes usable in the channel, as the chat emote list sends them.
-const channelEmotes = [{
-  id: 'hmmm',
-  code: 'stoney90Hmmm',
-  provider: 'Twitch',
-  animated: false,
-  zeroWidth: false,
-  urls: { 1: 'https://cdn.example/hmmm/1x.png', 2: 'https://cdn.example/hmmm/2x.png' },
-}];
+const channelEmotes = [
+  {
+    id: 'hmmm',
+    code: 'stoney90Hmmm',
+    provider: 'Twitch',
+    animated: false,
+    zeroWidth: false,
+    urls: { 1: 'https://cdn.example/hmmm/1x.png', 2: 'https://cdn.example/hmmm/2x.png' },
+  },
+];
 
 type Options = { params?: Record<string, unknown>; body?: unknown };
 
@@ -638,7 +650,8 @@ vi.mock('@/api/client', () => ({
       notes = mapNotes((note: Record<string, unknown>) =>
         note.id === id
           ? { ...note, ...change }
-          : note);
+          : note,
+      );
 
       return { data: { data: null }, response: { ok: true } };
     }),
@@ -657,8 +670,12 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/notes/{noteId}')) {
         const id = noteIdOf(options);
 
-        notes = Object.fromEntries(Object.entries(notes).map(([user, list]) =>
-          [user, list.filter((note) => note.id !== id)]));
+        notes = Object.fromEntries(
+          Object.entries(notes).map(([user, list]) => [
+            user,
+            list.filter((note) => note.id !== id),
+          ]),
+        );
 
         return { response: { ok: true } };
       }
@@ -846,8 +863,9 @@ async function vipItem(): Promise<HTMLElement> {
 }
 
 async function openTab(label: string): Promise<void> {
-  const tab = Array.from(document.body.querySelectorAll<HTMLElement>('[role="tab"]'))
-    .find((element) => element.textContent?.trim() === label);
+  const tab = Array.from(document.body.querySelectorAll<HTMLElement>('[role="tab"]')).find(
+    (element) => element.textContent?.trim() === label,
+  );
 
   tab!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
   await settle();
@@ -931,9 +949,15 @@ describe('the profile dialog', () => {
     expect(body.contains(dialog.querySelector('[data-profile-ban]'))).toBe(false);
     expect(panels).toHaveLength(7);
 
-    expect(panels.filter((panel) => panel.dataset.state === 'inactive').every((panel) =>
-      panel.classList.contains('max-md:data-[state=inactive]:hidden') &&
-      panel.classList.contains('data-[state=inactive]:invisible'))).toBe(true);
+    expect(
+      panels
+        .filter((panel) => panel.dataset.state === 'inactive')
+        .every(
+          (panel) =>
+            panel.classList.contains('max-md:data-[state=inactive]:hidden') &&
+            panel.classList.contains('data-[state=inactive]:invisible'),
+        ),
+    ).toBe(true);
   });
 
   // The live API leaves a never-asked consent out of the answer; the tab once printed profile.yesNo.undefined.
@@ -941,8 +965,9 @@ describe('the profile dialog', () => {
     await openPage();
     await openUser('u1');
 
-    const data = Array.from(document.body.querySelectorAll<HTMLElement>('[role="tab"]'))
-      .find((tab) => tab.textContent?.trim() === 'Data');
+    const data = Array.from(document.body.querySelectorAll<HTMLElement>('[role="tab"]')).find(
+      (tab) => tab.textContent?.trim() === 'Data',
+    );
 
     data!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     await settle();
@@ -989,8 +1014,9 @@ describe('the profile dialog', () => {
     await openUser('u1');
     await openTab('Data');
 
-    const permits = Array.from(document.body.querySelectorAll('[data-profile-permits] li'))
-      .map((line) => line.textContent?.trim());
+    const permits = Array.from(document.body.querySelectorAll('[data-profile-permits] li')).map(
+      (line) => line.textContent?.trim(),
+    );
 
     expect(permits).toEqual([
       'Lead moderator role, until Oct 20, 2026Raid night',
@@ -1009,8 +1035,9 @@ describe('the profile dialog', () => {
     expect(active?.textContent).toContain('Stoney_Eagle');
 
     // A lifted ban says when it was lifted; the ban still in force says nothing it does not know.
-    const lifted = Array.from(active!.querySelectorAll('[data-profile-ban-lifted]'))
-      .map((line) => line.textContent?.trim());
+    const lifted = Array.from(active!.querySelectorAll('[data-profile-ban-lifted]')).map((line) =>
+      line.textContent?.trim(),
+    );
 
     expect(lifted).toEqual(['Lifted on Aug 3, 2026']);
   });
@@ -1109,9 +1136,7 @@ describe('the profile dialog', () => {
       '/context',
       '/chat/users/{userId}/messages',
     ];
-    const writes = calls.filter((c) =>
-      !reads.some((end) =>
-        c.path.endsWith(end)));
+    const writes = calls.filter((c) => !reads.some((end) => c.path.endsWith(end)));
 
     expect(writes).toEqual([]);
   });
@@ -1148,8 +1173,9 @@ describe('the profile dialog', () => {
 
   describe('who may be timed out or banned', () => {
     const sanctionButtons = (): HTMLElement[] =>
-      ['[data-profile-timeout]', '[data-profile-ban]'].flatMap((selector) =>
-        [...document.body.querySelectorAll<HTMLElement>(selector)]);
+      ['[data-profile-timeout]', '[data-profile-ban]'].flatMap((selector) => [
+        ...document.body.querySelectorAll<HTMLElement>(selector),
+      ]);
 
     it('shows both to a moderator on a viewer', async () => {
       signedInAs = 'helper';
@@ -1198,8 +1224,35 @@ describe('the profile dialog', () => {
 
     expect(document.body.querySelector('[data-profile-more]')).toBeNull();
 
-    expect(['shoutout', 'vip', 'warn'].map((name) =>
-      document.body.querySelector(`[data-profile-${name}]`)?.tagName)).toEqual(['BUTTON', 'BUTTON', 'BUTTON']);
+    expect(
+      ['shoutout', 'vip', 'warn'].map(
+        (name) => document.body.querySelector(`[data-profile-${name}]`)?.tagName,
+      ),
+    ).toEqual(['BUTTON', 'BUTTON', 'BUTTON']);
+  });
+
+  it('draws Shout out and VIP as outline buttons like Warn, not as link-style text', async () => {
+    await openPage();
+    await openUser('u1');
+
+    expect(
+      ['shoutout', 'vip', 'warn'].map((name) =>
+        document.body.querySelector(`[data-profile-${name}]`)?.getAttribute('data-variant'),
+      ),
+    ).toEqual(['outline', 'outline', 'outline']);
+  });
+
+  it('lays the profile header facts out compactly, four moments on one row', async () => {
+    await openPage();
+    await openUser('u1');
+
+    expect(document.body.querySelector('[data-profile-ages]')!.className).toContain(
+      'sm:grid-cols-4',
+    );
+
+    expect(document.body.querySelector('[data-slot="profile-header"]')!.className).toContain(
+      'gap-4',
+    );
   });
 
   it('shouts a person out from its button', async () => {
@@ -1379,8 +1432,7 @@ describe('the profile dialog', () => {
     await openUser('u1');
     await openTab('Moderation');
 
-    const panel = (): Element =>
-      dialogs()[0]!.querySelector('[data-slot="profile-standing"]')!;
+    const panel = (): Element => dialogs()[0]!.querySelector('[data-slot="profile-standing"]')!;
 
     expect(panel().textContent).toContain('The bot treats them like everyone else.');
 
@@ -1389,7 +1441,9 @@ describe('the profile dialog', () => {
     button('[data-profile-standing-choice="shadowbanned"]').click();
     await settle();
 
-    const reason = document.body.querySelector<HTMLTextAreaElement>('[data-profile-standing-reason]')!;
+    const reason = document.body.querySelector<HTMLTextAreaElement>(
+      '[data-profile-standing-reason]',
+    )!;
 
     reason.value = '  Raid bot  ';
     reason.dispatchEvent(new Event('input'));
@@ -1400,11 +1454,14 @@ describe('the profile dialog', () => {
     const writes = calls.filter((c) => c.path.endsWith('/standing'));
 
     expect(writes.map((c) => [userIdOf(c), c.body])).toEqual([
-      ['u1', {
-        provider: 'twitch',
-        standing: 'shadowbanned',
-        reason: 'Raid bot',
-      }],
+      [
+        'u1',
+        {
+          provider: 'twitch',
+          standing: 'shadowbanned',
+          reason: 'Raid bot',
+        },
+      ],
     ]);
 
     expect(document.body.querySelector('[data-profile-standing-dialog]')).toBeNull();
@@ -1429,8 +1486,7 @@ describe('the profile dialog', () => {
     await openUser('u1');
     await openTab('Moderation');
 
-    const panel = (): Element =>
-      dialogs()[0]!.querySelector('[data-slot="profile-standing"]')!;
+    const panel = (): Element => dialogs()[0]!.querySelector('[data-slot="profile-standing"]')!;
 
     expect(panel().textContent).toContain('Muted');
     expect(panel().textContent).toContain('the bot ignores them');
@@ -1438,7 +1494,9 @@ describe('the profile dialog', () => {
     button('[data-profile-standing-change]').click();
     await settle();
 
-    expect(button('[data-profile-standing-choice="muted"]').getAttribute('data-state')).toBe('checked');
+    expect(button('[data-profile-standing-choice="muted"]').getAttribute('data-state')).toBe(
+      'checked',
+    );
 
     button('[data-profile-standing-choice="normal"]').click();
     await settle();
@@ -1448,8 +1506,7 @@ describe('the profile dialog', () => {
     button('[data-form-action]').click();
     await settle();
 
-    const clears = calls.filter((c) =>
-      c.path.endsWith('/standing') && c.body === undefined);
+    const clears = calls.filter((c) => c.path.endsWith('/standing') && c.body === undefined);
 
     expect(clears.map((c) => [userIdOf(c), c.params?.query])).toEqual([
       ['u1', { provider: 'twitch' }],
@@ -1477,7 +1534,9 @@ describe('the profile dialog', () => {
     await openUser('u1');
     await openTab('Moderation');
 
-    const scope = dialogs()[0]!.querySelector<HTMLFieldSetElement>('[data-slot="read-only-scope"]')!;
+    const scope = dialogs()[0]!.querySelector<HTMLFieldSetElement>(
+      '[data-slot="read-only-scope"]',
+    )!;
 
     expect(scope.disabled).toBe(true);
     expect(dialogs()[0]!.textContent).toContain('Helps new chatters find the rules.');
@@ -1489,8 +1548,9 @@ describe('the profile dialog', () => {
     await openTab('Moderation');
 
     const rows = (): string[] =>
-      Array.from(dialogs()[0]!.querySelectorAll('[data-profile-history]')).map((row) =>
-        row.textContent ?? '');
+      Array.from(dialogs()[0]!.querySelectorAll('[data-profile-history]')).map(
+        (row) => row.textContent ?? '',
+      );
 
     expect(rows()).toHaveLength(2);
     expect(rows()[0]).toContain('Timed out for 10 min');
@@ -1596,8 +1656,9 @@ describe('the profile header', () => {
     expect(text).toContain('VIP');
     expect(text).toContain('Subscriber');
 
-    expect(header().querySelector('[data-profile-age="lastSeen"] dd')?.textContent?.trim())
-      .toBe('3 days ago');
+    expect(header().querySelector('[data-profile-age="lastSeen"] dd')?.textContent?.trim()).toBe(
+      '3 days ago',
+    );
   });
 
   // Mockup profile.css .who-badges: a role is a quiet muted badge with its icon, never an accent tint.
@@ -1627,7 +1688,8 @@ describe('the profile header', () => {
     await openUser('u1');
 
     const roles = Array.from(header().querySelectorAll('[data-profile-role]')).map((badge) =>
-      badge.textContent?.trim());
+      badge.textContent?.trim(),
+    );
 
     expect(roles[0]).toBe('Broadcaster');
     expect(document.body.querySelector('[data-profile-ban]')).toBeNull();
@@ -1635,12 +1697,15 @@ describe('the profile header', () => {
   });
 
   it('never calls someone else the broadcaster because of a stored role', async () => {
-    (profiles.g1 as { identity: { managementRole: string } }).identity.managementRole = 'Broadcaster';
+    (profiles.g1 as { identity: { managementRole: string } }).identity.managementRole =
+      'Broadcaster';
+
     await openPage();
     await openUser('u1');
 
     const roles = Array.from(header().querySelectorAll('[data-profile-role]')).map((badge) =>
-      badge.textContent?.trim());
+      badge.textContent?.trim(),
+    );
 
     expect(roles).not.toContain('Broadcaster');
     expect(document.body.querySelector('[data-profile-ban]')).not.toBeNull();
@@ -1696,20 +1761,21 @@ describe('the profile header', () => {
 
     const row = header().querySelector('[data-profile-standing]')!.parentElement!;
     const badge = (name: string): Element =>
-      [...row.querySelectorAll('[data-profile-role]')].find((b) =>
-        b.textContent?.trim() === name)!;
+      [...row.querySelectorAll('[data-profile-role]')].find((b) => b.textContent?.trim() === name)!;
 
     expect(row.firstElementChild?.hasAttribute('data-profile-standing')).toBe(true);
 
     expect(badge('Moderator').classList).toContain('bg-muted');
 
-    expect(badge('Moderator').querySelector('[data-profile-platform]')?.getAttribute('fill'))
-      .toBe('#9146FF');
+    expect(badge('Moderator').querySelector('[data-profile-platform]')?.getAttribute('fill')).toBe(
+      '#9146FF',
+    );
 
     expect(badge('VIP').querySelector('svg')?.classList).toContain('text-role-vip');
 
-    expect(badge('Subscriber').querySelector('[data-profile-platform]')?.getAttribute('fill'))
-      .toBe('#9146FF');
+    expect(badge('Subscriber').querySelector('[data-profile-platform]')?.getAttribute('fill')).toBe(
+      '#9146FF',
+    );
   });
 
   // Mockup profile.js .stats: the number on top and its label under it, so a label that wraps never pushes
@@ -1719,8 +1785,10 @@ describe('the profile header', () => {
     await openPage();
     await openUser('u1');
 
-    const stats = Array.from(header().querySelectorAll('[data-profile-stat]')).map(
-      (tile) => Array.from(tile.children).map((part) => part.textContent).join(' '),
+    const stats = Array.from(header().querySelectorAll('[data-profile-stat]')).map((tile) =>
+      Array.from(tile.children)
+        .map((part) => part.textContent)
+        .join(' '),
     );
 
     expect(stats).toEqual([
@@ -1766,9 +1834,20 @@ describe('the Overview tab', () => {
     await openPage();
     await openUser('u1');
 
-    const labels = Array.from(overview().querySelectorAll('dt')).map((dt: Element) => dt.textContent);
+    const labels = Array.from(overview().querySelectorAll('dt')).map(
+      (dt: Element) => dt.textContent,
+    );
 
-    for (const label of ['Name', 'Pronouns', 'Account created', 'On Twitch', 'Following', 'Roles', 'First seen', 'Last seen']) {
+    for (const label of [
+      'Name',
+      'Pronouns',
+      'Account created',
+      'On Twitch',
+      'Following',
+      'Roles',
+      'First seen',
+      'Last seen',
+    ]) {
       expect(labels).not.toContain(label);
     }
 
@@ -1781,7 +1860,9 @@ describe('the Overview tab', () => {
     await openUser('u1');
 
     const about = overview().querySelector('[data-profile-about]');
-    const labels = Array.from(overview().querySelectorAll('dt')).map((dt: Element) => dt.textContent);
+    const labels = Array.from(overview().querySelectorAll('dt')).map(
+      (dt: Element) => dt.textContent,
+    );
 
     expect(about?.textContent).toBe('Writes compilers for fun.');
     expect(overview().firstElementChild).toBe(about);
@@ -1821,8 +1902,10 @@ describe('the Overview tab', () => {
     await openPage();
     await openUser('u1');
 
-    const ages = [...document.body.querySelectorAll('[data-profile-age]')].map((age) =>
-      [age.querySelector('dt')?.textContent?.trim(), age.querySelector('dd')?.textContent?.trim()]);
+    const ages = [...document.body.querySelectorAll('[data-profile-age]')].map((age) => [
+      age.querySelector('dt')?.textContent?.trim(),
+      age.querySelector('dd')?.textContent?.trim(),
+    ]);
 
     expect(ages).toEqual([
       ['Last seen', '3 days ago'],
@@ -1841,7 +1924,18 @@ describe('the Overview tab', () => {
     );
 
     // Facts the server does not return, an empty Twitch status, no color and not lurking are not worth a row.
-    for (const label of ['Role since', 'Twitch ID', 'Subscription', 'Nickname', 'Time zone', 'Chat color', 'Lurking', 'Bits cheered', 'Raided this channel', 'This channel raided them']) {
+    for (const label of [
+      'Role since',
+      'Twitch ID',
+      'Subscription',
+      'Nickname',
+      'Time zone',
+      'Chat color',
+      'Lurking',
+      'Bits cheered',
+      'Raided this channel',
+      'This channel raided them',
+    ]) {
       expect(labels).not.toContain(label);
     }
 
@@ -1855,7 +1949,10 @@ describe('the Overview tab', () => {
     await openUser('u1');
 
     expect(overview().textContent).not.toContain('line one');
-    expect(document.body.querySelector('[data-profile-chat-lines]')!.textContent).toContain('line one');
+
+    expect(document.body.querySelector('[data-profile-chat-lines]')!.textContent).toContain(
+      'line one',
+    );
   });
 
   it('pages through the whole chat grouped by day, appending older lines until none are left', async () => {
@@ -1874,8 +1971,9 @@ describe('the Overview tab', () => {
     await openUser('u1');
 
     const days = (): string[] =>
-      Array.from(document.body.querySelectorAll('[data-profile-chat-day]')).map((day) =>
-        day.textContent ?? '');
+      Array.from(document.body.querySelectorAll('[data-profile-chat-day]')).map(
+        (day) => day.textContent ?? '',
+      );
 
     expect(days()).toHaveLength(1);
     expect(days()[0]).toContain('newest');
@@ -1898,7 +1996,9 @@ describe('the Overview tab', () => {
   });
 
   it('shows a known emote code in a chat line as the emote, and keeps other words as text', async () => {
-    chatPages.g1 = [[chatLine('c1', 'nice raid stoney90Hmmm stoney90Unknown', '2026-10-01T10:00:00Z')]];
+    chatPages.g1 = [
+      [chatLine('c1', 'nice raid stoney90Hmmm stoney90Unknown', '2026-10-01T10:00:00Z')],
+    ];
 
     await openPage();
     await openUser('u1');
@@ -1978,7 +2078,9 @@ describe('the TTS voice panel', () => {
     button('[data-profile-voice-change]').click();
     await settle();
 
-    expect(button('[data-profile-voice-option="en-US-AvaNeural"]').getAttribute('aria-checked')).toBe('true');
+    expect(
+      button('[data-profile-voice-option="en-US-AvaNeural"]').getAttribute('aria-checked'),
+    ).toBe('true');
 
     button('[data-profile-voice-option="channel"]').click();
     await settle();
@@ -2013,9 +2115,10 @@ describe('the shoutout line', () => {
   const OWN_LINE = '[data-profile-shoutout-text]';
 
   function shoutoutWrites(method: 'PUT' | 'DELETE'): Call[] {
-    return calls.filter((c) =>
-      c.path.includes('/shoutout-overrides') &&
-      (method === 'PUT') === (c.body !== undefined));
+    return calls.filter(
+      (c) =>
+        c.path.includes('/shoutout-overrides') && (method === 'PUT') === (c.body !== undefined),
+    );
   }
 
   function targetOf(call: Call): string {
@@ -2031,7 +2134,9 @@ describe('the shoutout line', () => {
     button('[data-profile-shoutout-edit]').click();
     await settle();
 
-    const field = document.body.querySelector<HTMLTextAreaElement>('[data-profile-shoutout-field] textarea')!;
+    const field = document.body.querySelector<HTMLTextAreaElement>(
+      '[data-profile-shoutout-field] textarea',
+    )!;
 
     field.value = '  Go follow {name}!  ';
     field.dispatchEvent(new Event('input'));
@@ -2069,8 +2174,7 @@ describe('the shoutout line', () => {
     button('[data-confirm-action]').click();
     await settle();
 
-    expect(shoutoutWrites('DELETE').map((c) =>
-      targetOf(c))).toEqual(['u1']);
+    expect(shoutoutWrites('DELETE').map((c) => targetOf(c))).toEqual(['u1']);
 
     expect(dialogs()[0]!.querySelector(OWN_LINE)).toBeNull();
   });
@@ -2086,24 +2190,32 @@ describe('the shoutout line', () => {
 
 describe('the Emotes tab', () => {
   const groups = (): string[] =>
-    Array.from(document.body.querySelectorAll<HTMLElement>('[data-profile-emote-group]'))
-      .map((group) => group.dataset.profileEmoteGroup ?? '');
+    Array.from(document.body.querySelectorAll<HTMLElement>('[data-profile-emote-group]')).map(
+      (group) => group.dataset.profileEmoteGroup ?? '',
+    );
   const emote = (code: string): HTMLElement =>
-    document.body.querySelector(`[data-profile-emote="${code}"] [data-asset-trigger]`) as HTMLElement;
+    document.body.querySelector(
+      `[data-profile-emote="${code}"] [data-asset-trigger]`,
+    ) as HTMLElement;
 
   it('asks for the person\'s own channel emotes and groups them by where they come from', async () => {
     await openPage();
     await openUser('u1');
     await openTab('Emotes');
 
-    expect(calls.some((c) =>
-      c.path.endsWith('/community/{userId}/emotes') && userIdOf({ params: c.params } as Options) === 'g1'))
-      .toBe(true);
+    expect(
+      calls.some(
+        (c) =>
+          c.path.endsWith('/community/{userId}/emotes') &&
+          userIdOf({ params: c.params } as Options) === 'g1',
+      ),
+    ).toBe(true);
 
     expect(groups()).toEqual(['Twitch', 'SevenTv']);
 
-    expect(document.body.querySelector('[data-profile-emote="adaHi"] img')?.getAttribute('src'))
-      .toBe('https://cdn/adaHi/1');
+    expect(
+      document.body.querySelector('[data-profile-emote="adaHi"] img')?.getAttribute('src'),
+    ).toBe('https://cdn/adaHi/1');
   });
 
   it('sorts the Twitch emotes into the tier that unlocks them', async () => {
@@ -2111,7 +2223,9 @@ describe('the Emotes tab', () => {
     await openUser('u1');
     await openTab('Emotes');
 
-    const set = document.body.querySelector('[data-profile-emote="adaHi"]')!.closest<HTMLElement>('[data-profile-emote-set]');
+    const set = document.body
+      .querySelector('[data-profile-emote="adaHi"]')!
+      .closest<HTMLElement>('[data-profile-emote-set]');
 
     expect(set?.dataset.profileEmoteSet).toBe('tier1');
     expect(set?.textContent).toContain('Tier 1');
@@ -2184,11 +2298,9 @@ describe('the public profile for a caller who cannot read the community', () => 
     expect(text).toContain('she/her');
     expect(document.body.querySelector('[data-slot="profile-public"]')).not.toBeNull();
 
-    expect(calls.some((c) =>
-      c.path.endsWith('/chat/viewer/users/{userId}/profile'))).toBe(true);
+    expect(calls.some((c) => c.path.endsWith('/chat/viewer/users/{userId}/profile'))).toBe(true);
 
-    expect(calls.some((c) =>
-      c.path.endsWith('/community/{userId}'))).toBe(false);
+    expect(calls.some((c) => c.path.endsWith('/community/{userId}'))).toBe(false);
 
     expect(document.body.querySelector('[data-profile-full-page]')).toBeNull();
     expect(document.body.querySelector('[data-profile-vip]')).toBeNull();

@@ -55,9 +55,9 @@ const rootClass = computed<string | string[]>(() => {
   if (props.flush)
     return '';
 
-  return ['px-6 pb-6', inDialog
+  return ['px-6 pb-4', inDialog
     ? 'pt-2'
-    : 'pt-6'];
+    : 'pt-4'];
 });
 
 // The person as far as the header knows them: the full record, or the light preview while it loads.
@@ -66,8 +66,9 @@ const title = computed<string>(() => who.value?.displayName ?? t('profile.title'
 // A second set from pronouns.alejo.io shows after the main one; a set a moderator typed says so.
 const pronouns = computed<string | null>(() => {
   const identity = props.profile?.identity;
-  const sets = [identity?.pronoun, identity?.altPronoun]
-    .filter((value): value is string => Boolean(value));
+  const sets = [identity?.pronoun, identity?.altPronoun].filter((value): value is string =>
+    Boolean(value),
+  );
 
   if (sets.length === 0)
     return null;
@@ -78,10 +79,8 @@ const pronouns = computed<string | null>(() => {
     ? t('profile.facts.setByChannel', { value: text })
     : text;
 });
-const standing = computed(() =>
-  twitchStanding(props.profile));
-const regular = computed(() =>
-  isRegular(props.profile));
+const standing = computed(() => twitchStanding(props.profile));
+const regular = computed(() => isRegular(props.profile));
 
 // The bot's behavior standing for this person: the tier it resolved and the trust score it keeps.
 const behavior = computed<Stat[]>(() => {
@@ -120,16 +119,13 @@ const ages = computed<Stat[]>(() => {
   ];
 
   return moments
-    .map(({ key, at }) =>
-      ({
-        key,
-        label: '',
-        value: agoText(at ?? undefined, now, locale.value),
-      }))
-    .filter((age: Stat) =>
-      age.value !== '')
-    .map((age: Stat) =>
-      ({ ...age, label: t(`profile.age.${age.key}`) }));
+    .map(({ key, at }) => ({
+      key,
+      label: '',
+      value: agoText(at ?? undefined, now, locale.value),
+    }))
+    .filter((age: Stat) => age.value !== '')
+    .map((age: Stat) => ({ ...age, label: t(`profile.age.${age.key}`) }));
 });
 
 const stats = computed<Stat[]>(() => {
@@ -179,11 +175,7 @@ const stats = computed<Stat[]>(() => {
 </script>
 
 <template>
-  <div
-    data-slot="profile-header"
-    class="grid flex-none gap-6"
-    :class="rootClass"
-  >
+  <div data-slot="profile-header" class="grid flex-none gap-4" :class="rootClass">
     <div class="flex items-center gap-3">
       <Avatar class="size-12">
         <AvatarImage v-if="who?.profileImageUrl" :src="who.profileImageUrl" :alt="title" />
@@ -196,7 +188,7 @@ const stats = computed<Stat[]>(() => {
           <template v-if="inDialog">
             <DialogTitle class="truncate text-lg font-semibold">{{ title }}</DialogTitle>
             <DialogDescription class="sr-only">{{
-              who ? `@${who.username}` : $t('profile.description')
+              who ? `@${who.username}` : $t("profile.description")
             }}</DialogDescription>
           </template>
           <h2 v-else class="truncate text-lg font-semibold">{{ title }}</h2>
@@ -228,7 +220,7 @@ const stats = computed<Stat[]>(() => {
             variant="secondary"
             class="bg-muted text-muted-foreground"
           >
-            {{ $t('profile.trustTier.Regular') }}
+            {{ $t("profile.trustTier.Regular") }}
           </Badge>
           <Badge
             v-for="role in roles"
@@ -251,33 +243,43 @@ const stats = computed<Stat[]>(() => {
               :class="roleIcons[role].color"
               aria-hidden="true"
             />
-            {{ $t(role === 'subscriber'
-              ? 'profile.roles.subscriberBadge'
-              : `profile.roles.${role}`) }}
+            {{
+              $t(role === "subscriber" ? "profile.roles.subscriberBadge" : `profile.roles.${role}`)
+            }}
           </Badge>
         </div>
       </div>
-      <StatusBadge v-if="person?.isBanned" class="ml-auto" tone="bad" :label="$t('profile.banned')" />
+      <StatusBadge
+        v-if="person?.isBanned"
+        class="ml-auto"
+        tone="bad"
+        :label="$t('profile.banned')"
+      />
     </div>
 
     <!-- A short label over each moment, two per row (owner 2026-10-14: "the 4 rows is not good enough"). -->
     <dl
       v-if="ages.length > 0"
       data-profile-ages
-      class="grid grid-cols-2 gap-x-4 gap-y-5"
+      class="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4"
     >
-      <div v-for="age in ages" :key="age.key" :data-profile-age="age.key" class="grid min-w-0 gap-0.5">
+      <div
+        v-for="age in ages"
+        :key="age.key"
+        :data-profile-age="age.key"
+        class="grid min-w-0 gap-0.5"
+      >
         <dt class="truncate text-xs text-muted-foreground">{{ age.label }}</dt>
         <dd class="truncate text-base font-medium">{{ age.value }}</dd>
       </div>
     </dl>
     <p v-else-if="who" class="text-xs text-muted-foreground">
-      {{ $t('profile.handle', { name: who.username }) }}
+      {{ $t("profile.handle", { name: who.username }) }}
     </p>
 
-    <section v-if="behavior.length > 0" data-profile-behavior class="grid gap-4">
-      <h3 class="text-sm font-medium">{{ $t('profile.behavior.title') }}</h3>
-      <div class="grid grid-cols-2 gap-x-4 gap-y-5">
+    <section v-if="behavior.length > 0" data-profile-behavior class="grid gap-2">
+      <h3 class="text-sm font-medium">{{ $t("profile.behavior.title") }}</h3>
+      <div class="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
         <div
           v-for="stat in behavior"
           :key="stat.key"
@@ -291,16 +293,19 @@ const stats = computed<Stat[]>(() => {
     </section>
 
     <!-- Who they are above, what they did here below (owner 2026-10-14: "visually split the channel activity"). -->
-    <section v-if="stats.length > 0" data-profile-activity class="grid gap-4">
-      <h3 class="text-sm font-medium">{{ $t('profile.activity') }}</h3>
-      <div class="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-x-4 gap-y-5">
+    <section v-if="stats.length > 0" data-profile-activity class="grid gap-2">
+      <h3 class="text-sm font-medium">{{ $t("profile.activity") }}</h3>
+      <div class="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-x-4 gap-y-3">
         <!-- One look for every fact on the card: a short label over its value (owner 2026-10-14: "unify the look"). -->
-        <div v-for="stat in stats" :key="stat.key" data-profile-stat class="grid min-w-0 content-start gap-0.5">
+        <div
+          v-for="stat in stats"
+          :key="stat.key"
+          data-profile-stat
+          class="grid min-w-0 content-start gap-0.5"
+        >
           <span class="truncate text-xs text-muted-foreground">{{ stat.label }}</span>
           <b class="text-xl font-semibold tabular-nums">{{
-            typeof stat.value === 'number'
-              ? n(stat.value)
-              : stat.value
+            typeof stat.value === "number" ? n(stat.value) : stat.value
           }}</b>
         </div>
       </div>

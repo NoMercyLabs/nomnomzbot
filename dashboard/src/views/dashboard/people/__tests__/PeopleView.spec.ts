@@ -825,6 +825,42 @@ describe('PeopleView', () => {
     expect(tab('Twitch subscribers').textContent).toContain('2');
   });
 
+  it('lists Twitch subscribers by last seen, newest first and never-seen last', async () => {
+    listAnswer = (role) =>
+      role === 'subscriber'
+        ? page(
+            [
+              person('old', { lastSeen: '2026-04-01T10:00:00Z' }),
+              person('never', { lastSeen: null }),
+              person('fresh', { lastSeen: '2026-10-12T09:00:00Z' }),
+              person('mid', { lastSeen: '2026-09-01T10:00:00Z' }),
+            ],
+            4,
+          )
+        : page([], 0);
+
+    await open('/app/people?view=subscriber');
+
+    expect(
+      rows().map((row) => row.querySelector('[data-slot="summary-row-title"]')?.textContent),
+    ).toEqual(['FRESH', 'MID', 'OLD', 'NEVER']);
+  });
+
+  it('keeps the detail of a gifted subscriber on one line so every row has the same height', async () => {
+    listAnswer = (role) =>
+      role === 'subscriber'
+        ? page([person('sam', { gifted: true, gifter: 'AVeryLongGifterNameIndeed' })], 1)
+        : page([], 0);
+
+    await open('/app/people?view=subscriber');
+
+    const detail = rows()[0]!.querySelector(
+      '[data-slot="summary-row-text"] > span:nth-child(2) > span:last-child',
+    )!;
+
+    expect(detail.classList.contains('truncate')).toBe(true);
+  });
+
   it('opens the Regulars tab on the regular list of the bot', async () => {
     listAnswer = (role) =>
       role === 'regular'

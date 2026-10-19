@@ -399,8 +399,8 @@ async function banNow(): Promise<void> {
       </Tabs>
     </div>
 
-    <!-- Every action in sight (owner 2026-10-14: "we have space to not collapse things"): the quiet ones are
-           ghost buttons on the left, so Ban stays the one strong button in the row. -->
+    <!-- Every action in sight (owner 2026-10-14: "we have space to not collapse things"): every action is a
+           bordered button (a ghost one read as a link), so Ban stays the one strong button in the row. -->
     <div
       v-if="person && !member.isPending.value && !isOwner && hasActions"
       class="flex flex-none flex-wrap items-center gap-2 border-t border-border px-6 py-4"
@@ -409,7 +409,7 @@ async function banNow(): Promise<void> {
         v-if="canShoutout"
         data-profile-shoutout
         type="button"
-        variant="ghost"
+        variant="outline"
         @click="shoutOut"
       >
         {{ $t("profile.shoutout.button") }}
@@ -418,7 +418,7 @@ async function banNow(): Promise<void> {
         v-if="canVip"
         data-profile-vip
         type="button"
-        variant="ghost"
+        variant="outline"
         :disabled="isVip === null"
         @click="toggleVip"
       >
@@ -428,7 +428,7 @@ async function banNow(): Promise<void> {
 
       <!-- The mod actions stay together, one look each, with Ban the one strong button (owner 2026-10-15:
              "ban timeout and warn are mod actions so why is one of them a link button?"). -->
-      <div class="ml-auto flex items-center gap-2">
+      <div class="flex items-center gap-2 sm:ml-auto">
         <Button
           v-if="sanctionable && !person.isBanned && canWarn"
           data-profile-warn
