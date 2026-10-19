@@ -99,7 +99,7 @@ public sealed class ViewerMusicGroupTests
     {
         (DashboardHub hub, IGroupManager groups) = BuildViewerHub("conn-viewer-gate");
 
-        JoinChannelResponse response = await hub.JoinChannelClasses(Channel.ToString(), ["music"]);
+        JoinChannelResponse response = await hub.Subscribe(Channel.ToString(), ["music"]);
 
         response.GrantedClasses.Should().BeEmpty();
         await groups

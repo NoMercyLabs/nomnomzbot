@@ -26,7 +26,7 @@ Slice IDs are stable; the order is the queue.
 Owner words are in `dashboard-owner-words.md` (2026-10-19 and 2026-10-20 entries). One dashboard page at a time; server slices run beside them.
 
 - **S-SUB-WIDGET** — a widget page sends `Subscribe(widgetId, events)` from its registered handlers (`on`, `onAny` = `*`); the server stores the widget's catalogue default joined with that set, and every routing site uses one `Widget.Wants`. Done when the hub, routing and Jint SDK tests pass and the live Bot Audio rows hold only `tts_speak`.
-- **S-SUB-DASHBOARD-HUB** — `DashboardHub.JoinChannelClasses` is renamed `Subscribe(channelId, classes)` (only the Vue dashboard calls it; KMP uses `JoinChannel`, which stays).
+- **S-SUB-DASHBOARD-HUB** — the Vue hub client (`dashboard/src/realtime/dashboardHub.ts`, the `payloads.ts` comment and `__tests__/dashboardHub.spec.ts`) invokes `Subscribe(channelId, classes)`, the server's name for the class-join hub method; it ships in the same deploy as the server rename (KMP uses `JoinChannel`, which stays).
 - **S-SUB-DASHBOARD** — an open page joins only the event classes something on it shows (`useLiveClasses`, the work-in-progress patch at the scratchpad `dashboard-classes-wip/`). After S-SUB-DASHBOARD-HUB is deployed.
 - **S-PAGE-QUOTES-ROW** — the quote number, text and actions share one row line (visual balance).
 - **S-CHAT-HTML-PLAIN** — the chat Display panel gets "Show HTML as plain text" (per device); the channel switch stays in Settings › Features.

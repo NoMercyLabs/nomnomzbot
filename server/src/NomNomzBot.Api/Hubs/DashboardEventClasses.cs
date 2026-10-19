@@ -13,7 +13,7 @@ namespace NomNomzBot.Api.Hubs;
 /// <summary>
 /// The closed set of dashboard push classes a hub connection subscribes to per channel (BUILD item 5).
 /// A page that only renders chat need not receive live-ops or music pushes: <c>JoinChannel</c> joins
-/// every class (the universal shell wants everything), <c>JoinChannelClasses</c> joins a subset.
+/// every class (the universal shell wants everything), <c>Subscribe</c> joins a subset.
 /// Core pushes — stream status, config/permission/reward invalidations, alerts — ride the BASE channel
 /// group and are always on; they are what keeps any open page coherent regardless of its class set.
 /// </summary>

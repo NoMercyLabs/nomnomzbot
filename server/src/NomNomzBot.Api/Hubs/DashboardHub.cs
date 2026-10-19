@@ -102,10 +102,7 @@ public class DashboardHub : Hub<IDashboardClient>
     /// permission / reward invalidations, alerts) are always on. Re-joining the same channel REPLACES its
     /// class set. Unknown class keys fail honestly rather than silently subscribing to nothing.
     /// </summary>
-    public async Task<JoinChannelResponse> JoinChannelClasses(
-        string broadcasterId,
-        string[] eventClasses
-    )
+    public async Task<JoinChannelResponse> Subscribe(string broadcasterId, string[] eventClasses)
     {
         string[] invalid = [.. eventClasses.Where(c => !DashboardEventClasses.IsValid(c))];
         if (invalid.Length > 0)

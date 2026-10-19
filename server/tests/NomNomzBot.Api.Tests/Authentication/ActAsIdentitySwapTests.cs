@@ -181,19 +181,19 @@ public sealed class ActAsIdentitySwapTests : IAsyncLifetime
         JsonNode? asTarget = await DashboardHubProbe.InvokeAsync(
             _host.Server,
             targetOwn,
-            "JoinChannelClasses",
+            "Subscribe",
             join
         );
         JsonNode? actingAs = await DashboardHubProbe.InvokeAsync(
             _host.Server,
             actAs,
-            "JoinChannelClasses",
+            "Subscribe",
             join
         );
         JsonNode? asAdmin = await DashboardHubProbe.InvokeAsync(
             _host.Server,
             adminOwn,
-            "JoinChannelClasses",
+            "Subscribe",
             join
         );
 
