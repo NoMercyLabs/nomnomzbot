@@ -1,6 +1,7 @@
 {
   "dashboard": {
     "settings": {
+      "crumb": "Instellingen",
       "webhooks": {
         "outbound": {
           "title": "Uitgaande webhooks",
@@ -8,7 +9,7 @@
           "empty": "Nog geen uitgaande webhook. Voeg er een toe om events te versturen.",
           "loadFailed": "De uitgaande webhooks konden niet worden geladen.",
           "new": "Nieuwe webhook",
-          "events": "{count} events",
+          "events": "{count} event | {count} events",
           "lastDelivery": "Laatste levering {when}",
           "neverDelivered": "Nog niets geleverd",
           "switchedOff": "Uitgezet na herhaalde fouten. {reason}",

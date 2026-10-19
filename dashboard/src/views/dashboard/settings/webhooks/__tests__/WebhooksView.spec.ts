@@ -157,6 +157,11 @@ vi.mock('@/api/client', () => {
               label: 'Follow',
               category: 'channel',
             },
+            {
+              eventType: 'chat.message',
+              label: 'Chat message',
+              category: 'chat',
+            },
           ]);
 
         return path.endsWith('/inbound')
@@ -286,6 +291,20 @@ describe('Webhooks page', () => {
     expect(callTo('DELETE', '/outbound/{endpointId}')?.params).toMatchObject({
       path: { channelId: 'c1', endpointId: 'o1' },
     });
+  });
+
+  it('groups the catalog events under their category heading', async () => {
+    await open();
+    await click(q('[data-new-outbound]'));
+
+    const eventsOf = (category: string): string[] =>
+      Array.from(
+        document.querySelectorAll(`[data-event-group="${category}"] [data-event]`),
+        (box) => box.getAttribute('data-event') ?? '',
+      );
+
+    expect(eventsOf('channel')).toEqual(['follow']);
+    expect(eventsOf('chat')).toEqual(['chat.message']);
   });
 
   it('creates an outbound webhook with the ticked catalog events', async () => {

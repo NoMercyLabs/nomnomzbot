@@ -43,6 +43,20 @@ const bodyIsJson = ref(true);
 const headerText = ref('');
 
 const saved = computed(() => props.endpoint !== null);
+
+// The catalog is long, so the events sit under their category heading, in the order the catalog lists them.
+const groups = computed(() => {
+  const byCategory = new Map<string, WebhookEventEntry[]>();
+
+  for (const entry of props.catalog) {
+    const entries = byCategory.get(entry.category) ?? [];
+
+    entries.push(entry);
+    byCategory.set(entry.category, entries);
+  }
+
+  return Array.from(byCategory, ([category, entries]) => ({ category, entries }));
+});
 const parsedHeaders = computed(() => parseHeaderLines(headerText.value));
 const invalidHeaders = computed(() => parsedHeaders.value.invalid.length > 0);
 
@@ -164,18 +178,23 @@ function submit(): void {
       <legend class="text-sm font-medium">
         {{ $t("dashboard.settings.webhooks.outbound.eventsTitle") }}
       </legend>
-      <label
-        v-for="entry in catalog"
-        :key="entry.eventType"
-        class="flex items-center gap-2 text-sm"
-      >
-        <Checkbox
-          :data-event="entry.eventType"
-          :model-value="events.includes(entry.eventType)"
-          @update:model-value="tick(entry.eventType, $event === true)"
-        />
-        {{ entry.label }}
-      </label>
+      <div v-for="group in groups" :key="group.category" :data-event-group="group.category" class="grid gap-2">
+        <span class="text-sm font-medium text-muted-foreground">{{ group.category }}</span>
+        <div class="grid gap-x-4 gap-y-2 sm:grid-cols-2">
+          <label
+            v-for="entry in group.entries"
+            :key="entry.eventType"
+            class="flex items-center gap-2 text-sm"
+          >
+            <Checkbox
+              :data-event="entry.eventType"
+              :model-value="events.includes(entry.eventType)"
+              @update:model-value="tick(entry.eventType, $event === true)"
+            />
+            {{ entry.label }}
+          </label>
+        </div>
+      </div>
     </fieldset>
     <TemplateField
       v-model="bodyTemplate"

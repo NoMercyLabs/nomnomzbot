@@ -199,7 +199,7 @@ function submit(): void {
         {{ $t("dashboard.settings.webhooks.inbound.eventTypeHelp") }}
       </span>
     </label>
-    <template v-if="generic">
+    <div v-if="generic" class="grid gap-4 sm:grid-cols-2">
       <label class="grid gap-1.5 text-sm font-medium">
         {{ $t("dashboard.settings.webhooks.inbound.signatureHeader") }}
         <Input
@@ -218,7 +218,7 @@ function submit(): void {
           placeholder="sha256="
         />
       </label>
-      <label class="grid gap-1.5 text-sm font-medium">
+      <label class="grid gap-1.5 text-sm font-medium sm:col-span-2">
         {{ $t("dashboard.settings.webhooks.inbound.signingString") }}
         <Input v-model="signingString" data-field="signing-string" class="font-mono" />
       </label>
@@ -243,6 +243,6 @@ function submit(): void {
         {{ $t("dashboard.settings.webhooks.inbound.idPath") }}
         <Input v-model="idPath" data-field="event-id-path" class="font-mono" placeholder="$.id" />
       </label>
-    </template>
+    </div>
   </FormDialog>
 </template>

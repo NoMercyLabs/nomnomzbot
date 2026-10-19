@@ -1,6 +1,7 @@
 {
   "dashboard": {
     "settings": {
+      "crumb": "Settings",
       "webhooks": {
         "outbound": {
           "title": "Outbound webhooks",
@@ -8,7 +9,7 @@
           "empty": "No outbound webhook yet. Add one to send events out.",
           "loadFailed": "The outbound webhooks could not be loaded.",
           "new": "New webhook",
-          "events": "{count} events",
+          "events": "{count} event | {count} events",
           "lastDelivery": "Last delivery {when}",
           "neverDelivered": "Nothing delivered yet",
           "switchedOff": "Switched off after repeated failures. {reason}",
