@@ -240,7 +240,7 @@ public sealed partial class PlaybackDirector
         if (
             SentRecently(report.Engine)
             || !_engines.ContainsKey(report.Engine)
-            || report.Uri == _youTubeEndingUri
+            || report.Uri == _youTubeEnding?.Uri
         )
             return;
 

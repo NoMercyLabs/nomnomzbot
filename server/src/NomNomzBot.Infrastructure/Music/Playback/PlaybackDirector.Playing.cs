@@ -91,9 +91,9 @@ public sealed partial class PlaybackDirector
             case TrackEnded ended when IsCurrentTrack(ended):
                 await OnTrackEndedAsync(ended, ct);
                 break;
-            case TrackEnded ended when ended.Uri == _youTubeEndingUri:
-                _youTubeEndingUri = null;
-                await MoveAsync(State, input, "youtube_finished");
+            case TrackEnded ended when _youTubeEnding is { } finished && ended.Uri == finished.Uri:
+                _youTubeEnding = null;
+                await MoveAsync(State, nameof(TrackEnded), "youtube_finished", finished.Id);
                 break;
             case TrackEnding ending
                 when ending.Engine == State.Engine && ending.Uri == State.Item?.Uri:

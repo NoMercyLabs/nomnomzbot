@@ -27,7 +27,7 @@ public sealed partial class PlaybackDirector
     private bool _spotifyHeldForYouTube;
 
     /// <summary>The video whose last seconds still play after Spotify got the music back; never silenced.</summary>
-    private string? _youTubeEndingUri;
+    private PlaybackItem? _youTubeEnding;
 
     /// <summary>
     /// The first Spotify request in fair order goes into Spotify's own queue, one at a time, while Spotify plays
@@ -103,8 +103,9 @@ public sealed partial class PlaybackDirector
             return;
         }
 
+        PlaybackItem? video = State.Item;
         if (await ReturnToSpotifyAsync(nameof(TrackEnding), ct))
-            _youTubeEndingUri = ending.Uri;
+            _youTubeEnding = video;
     }
 
     /// <summary>
@@ -128,7 +129,8 @@ public sealed partial class PlaybackDirector
             return false;
 
         MarkSent(EngineKind.Spotify);
-        _ownerReport = paused is null ? null : paused with { IsPlaying = true };
+        // After a skip Spotify plays a track no report has named yet; the next poll names it.
+        _ownerReport = skip || paused is null ? null : paused with { IsPlaying = true };
         await MoveAsync(
             PlaybackState.Playing(EngineKind.Spotify, null),
             inputName,
