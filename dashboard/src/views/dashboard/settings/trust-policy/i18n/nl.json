@@ -1,0 +1,19 @@
+{
+  "trust": {
+    "policy": {
+      "error": {
+        "weightsMustSumToOne": "De vier scoregewichten moeten samen precies 1 zijn.",
+        "notFinite": "Vul een echt getal in.",
+        "weightOutOfRange": "Een scoregewicht moet tussen 0 en 1 liggen.",
+        "decayOutOfRange": "Een groeisnelheid moet boven 0 liggen en binnen het toegestane maximum.",
+        "factorOutOfRange": "Een vermenigvuldiger moet tussen 0 en 1 liggen.",
+        "boostOutOfRange": "Deze boost valt buiten het toegestane bereik.",
+        "penaltyOutOfRange": "Deze straf valt buiten het toegestane bereik.",
+        "tiersMustAscend": "Elke niveaugrens moet hoger zijn dan de vorige.",
+        "tierOutOfRange": "Een niveaugrens moet tussen 0 en 100 liggen.",
+        "heatHalfLifeOutOfRange": "De halfwaardetijd van de hitte valt buiten het toegestane bereik.",
+        "heatDeltaOutOfRange": "Deze hitte-waarde valt buiten het toegestane bereik."
+      }
+    }
+  }
+}

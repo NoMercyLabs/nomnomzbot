@@ -1,0 +1,19 @@
+{
+  "trust": {
+    "policy": {
+      "error": {
+        "weightsMustSumToOne": "The four score weights must add up to exactly 1.",
+        "notFinite": "Enter a real number.",
+        "weightOutOfRange": "A score weight must be between 0 and 1.",
+        "decayOutOfRange": "A growth speed must be above 0 and within the allowed maximum.",
+        "factorOutOfRange": "A multiplier must be between 0 and 1.",
+        "boostOutOfRange": "This boost is outside the allowed range.",
+        "penaltyOutOfRange": "This penalty is outside the allowed range.",
+        "tiersMustAscend": "Each tier ceiling must be higher than the one before it.",
+        "tierOutOfRange": "A tier ceiling must be between 0 and 100.",
+        "heatHalfLifeOutOfRange": "The heat half-life is outside the allowed range.",
+        "heatDeltaOutOfRange": "This heat amount is outside the allowed range."
+      }
+    }
+  }
+}

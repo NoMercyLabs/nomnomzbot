@@ -52,6 +52,28 @@ describe('parseProblem', () => {
     expect(parseProblem({ message: 'Custom code is switched off.' }).detail).toBe('Custom code is switched off.');
   });
 
+  it('reads the translatable key and the field of a validator refusal in data', () => {
+    const problem = parseProblem({
+      status: 400,
+      message: 'The four weights must add up to 1.',
+      code: 'VALIDATION_FAILED',
+      data: { key: 'trust.policy.error.weightsMustSumToOne', field: 'requestCountWeight' },
+    });
+
+    expect(problem.violation).toEqual({
+      key: 'trust.policy.error.weightsMustSumToOne',
+      field: 'requestCountWeight',
+    });
+
+    expect(problem.detail).toBe('The four weights must add up to 1.');
+  });
+
+  it('ignores a data member that is not a key and a field', () => {
+    expect(parseProblem({ data: { key: 'only.key' } }).violation).toBeUndefined();
+    expect(parseProblem({ data: 'text' }).violation).toBeUndefined();
+    expect(parseProblem({ data: { key: '', field: 'x' } }).violation).toBeUndefined();
+  });
+
   it('gives an empty problem for a body that is not an object', () => {
     expect(parseProblem(undefined)).toEqual({});
     expect(parseProblem('nope')).toEqual({});
@@ -89,6 +111,22 @@ describe('ApiError', () => {
     expect(error.code).toBe('people/warn');
     expect(error.messageKey).toBe('errors.invalid');
     expect(error.errors).toEqual({ Reason: ['Reason is required.'] });
+  });
+
+  it('keeps the validator violation on the error so a screen can mark the field', () => {
+    const body = {
+      status: 400,
+      message: 'Decay is out of range.',
+      data: { key: 'trust.policy.error.decayOutOfRange', field: 'accountAgeDecay' },
+    };
+    const error = problemError('save trust policy', 400, body);
+
+    expect(error.violation).toEqual({
+      key: 'trust.policy.error.decayOutOfRange',
+      field: 'accountAgeDecay',
+    });
+
+    expect(error.messageKey).toBe('errors.invalid');
   });
 
   it('picks the message key from the status class', () => {

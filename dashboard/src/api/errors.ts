@@ -426,6 +426,7 @@ export const apiOperations = {
   'public profile': 'community',
   widgets: 'widgets',
   'required overlays': 'widgets',
+  'audio mix': 'widgets',
   'widget settings': 'widgets',
   'widget test': 'widgets',
   'widget project': 'widgets',
@@ -506,12 +507,23 @@ export const apiOperations = {
   'person grants': 'settings',
   'grant person capability': 'settings',
   'revoke person capability': 'settings',
+  'trust policy': 'settings',
+  'trust policy defaults': 'settings',
+  'save trust policy': 'settings',
 } as const satisfies Record<string, ApiOrigin>;
 
 export type ApiOperation = keyof typeof apiOperations;
 
-// The members of a ProblemDetails body, plus the `errors` of a ValidationProblemDetails and the `traceId`
-// extension ASP.NET adds. Every member is optional: a proxy error page has none of them.
+// Why a save was refused, as data: the i18n key of the message and the request field to mark. The bot's
+// validators send it in the `data` member of the 400 body.
+export type ApiViolation = {
+  key: string;
+  field: string;
+};
+
+// The members of a ProblemDetails body, plus the `errors` of a ValidationProblemDetails, the `traceId`
+// extension ASP.NET adds and the bot's `data` violation. Every member is optional: a proxy error page has
+// none of them.
 export type ApiProblem = {
   type?: string;
   title?: string;
@@ -520,6 +532,7 @@ export type ApiProblem = {
   instance?: string;
   errors?: Record<string, string[]>;
   traceId?: string;
+  violation?: ApiViolation;
 };
 
 function isRecord(value: unknown): value is JsonObject {
@@ -557,6 +570,20 @@ function fieldErrorsOf(body: JsonObject): Record<string, string[]> | undefined {
     : undefined;
 }
 
+function violationOf(body: JsonObject): ApiViolation | undefined {
+  const data = body.data;
+
+  if (!isRecord(data))
+    return undefined;
+
+  const key = textOf(data, 'key');
+  const field = textOf(data, 'field');
+
+  return key !== undefined && field !== undefined
+    ? { key, field }
+    : undefined;
+}
+
 // Reads a response body into a problem. The bot's own refusals carry `message` instead of `detail`.
 // eslint-disable-next-line no-restricted-syntax -- every endpoint's error body has a different generated type, so the input must accept any of them
 export function parseProblem(body: unknown) {
@@ -571,6 +598,7 @@ export function parseProblem(body: unknown) {
     instance: textOf(body, 'instance'),
     errors: fieldErrorsOf(body),
     traceId: textOf(body, 'traceId'),
+    violation: violationOf(body),
   };
 
   return Object.fromEntries(Object.entries(problem).filter(([, value]) => value !== undefined));
@@ -614,6 +642,7 @@ export class ApiError extends Error {
   readonly instance?: string;
   readonly errors?: Record<string, string[]>;
   readonly traceId?: string;
+  readonly violation?: ApiViolation;
 
   constructor(operation: ApiOperation, status?: number, problem: ApiProblem = {}) {
     const origin = apiOperations[operation];
@@ -634,6 +663,7 @@ export class ApiError extends Error {
     this.instance = problem.instance;
     this.errors = problem.errors;
     this.traceId = problem.traceId;
+    this.violation = problem.violation;
   }
 }
 
