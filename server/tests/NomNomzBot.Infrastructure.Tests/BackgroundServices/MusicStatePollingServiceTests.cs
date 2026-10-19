@@ -20,6 +20,7 @@ using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.BackgroundServices;
 using NomNomzBot.Infrastructure.Music;
@@ -55,7 +56,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus bus,
             FakeMusicService music,
             FakeTimeProvider _,
-            RecordingHandover _
+            RecordingInputSink _
         ) = Build([ChannelA, ChannelB]);
         music.SetThrowsTimeout(ChannelA);
         music.SetResponse(ChannelB, NowPlayingState("Song B", isPlaying: true, progressMs: 1_000));
@@ -80,7 +81,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus bus,
             FakeMusicService music,
             FakeTimeProvider _,
-            RecordingHandover _,
+            RecordingInputSink _,
             RegisteredSpotifyStub _
         ) = BuildWithProvider([], vaultOnlyChannels: [ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
@@ -98,7 +99,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus bus,
             FakeMusicService music,
             FakeTimeProvider _,
-            RecordingHandover _
+            RecordingInputSink _
         ) = Build([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
 
@@ -116,7 +117,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus bus,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover _
+            RecordingInputSink _
         ) = Build([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
@@ -141,7 +142,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus bus,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover _
+            RecordingInputSink _
         ) = Build([ChannelA]);
         music.SetResponse(
             ChannelA,
@@ -183,7 +184,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus bus,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover _
+            RecordingInputSink _
         ) = Build([ChannelA]);
         music.SetResponse(
             ChannelA,
@@ -216,7 +217,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus bus,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover _
+            RecordingInputSink _
         ) = Build([ChannelA]);
         music.SetResponse(
             ChannelA,
@@ -280,7 +281,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus bus,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover _
+            RecordingInputSink _
         ) = Build([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
@@ -338,7 +339,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus bus,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover _
+            RecordingInputSink _
         ) = Build([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
@@ -412,7 +413,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus bus,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover _
+            RecordingInputSink _
         ) = Build([ChannelA]);
         music.SetResponse(
             ChannelA,
@@ -446,7 +447,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus bus,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover _
+            RecordingInputSink _
         ) = Build([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
@@ -494,7 +495,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus _,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover _
+            RecordingInputSink _
         ) = Build([ChannelA]);
         music.SetThrows(ChannelA);
 
@@ -527,7 +528,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus bus,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover handover
+            RecordingInputSink handover
         ) = Build([ChannelA, ChannelB]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
         music.SetResponse(ChannelB, NowPlayingState("Song B", isPlaying: true, progressMs: 1_000));
@@ -598,14 +599,14 @@ public sealed class MusicStatePollingServiceTests
             _,
             FakeMusicService blueMusic,
             _,
-            RecordingHandover blueHandover
+            RecordingInputSink blueHandover
         ) = Build([ChannelA], instanceGate: deployment.Blue);
         (
             MusicStatePollingService green,
             _,
             FakeMusicService greenMusic,
             FakeTimeProvider greenClock,
-            RecordingHandover greenHandover
+            RecordingInputSink greenHandover
         ) = Build([ChannelA], instanceGate: deployment.Green);
         blueMusic.SetResponse(
             ChannelA,
@@ -641,7 +642,7 @@ public sealed class MusicStatePollingServiceTests
         RecordingEventBus Bus,
         FakeMusicService MusicService,
         FakeTimeProvider Clock,
-        RecordingHandover Handover
+        RecordingInputSink Handover
     ) Build(
         IReadOnlyList<Guid> connectedChannels,
         IReadOnlyList<Guid>? needsReauth = null,
@@ -654,7 +655,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus bus,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover handover,
+            RecordingInputSink handover,
             RegisteredSpotifyStub _
         ) = BuildWithProvider(connectedChannels, needsReauth, watched, instanceGate);
         return (sut, bus, music, clock, handover);
@@ -667,7 +668,7 @@ public sealed class MusicStatePollingServiceTests
         RecordingEventBus Bus,
         FakeMusicService MusicService,
         FakeTimeProvider Clock,
-        RecordingHandover Handover,
+        RecordingInputSink Handover,
         RegisteredSpotifyStub Provider
     ) BuildWithProvider(
         IReadOnlyList<Guid> connectedChannels,
@@ -802,6 +803,13 @@ public sealed class MusicStatePollingServiceTests
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
         scopes.Handover.Calls.Should().Equal(ChannelA.ToString());
+        scopes
+            .Handover.Sent.Should()
+            .ContainSingle("only the channel with a waiting request is recovered")
+            .Which.Should()
+            .Match<(Guid ChannelId, PlaybackInput Input)>(s =>
+                s.ChannelId == ChannelA && s.Input is RequestAdded
+            );
     }
 
     /// <summary>
@@ -819,7 +827,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus bus,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover handover,
+            RecordingInputSink handover,
             RegisteredSpotifyStub provider
         ) = BuildWithProvider([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
@@ -857,7 +865,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus _,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover handover,
+            RecordingInputSink handover,
             RegisteredSpotifyStub provider
         ) = BuildWithProvider([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
@@ -893,7 +901,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus _,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover _
+            RecordingInputSink _
         ) = Build([ChannelA]);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: false, progressMs: 0));
 
@@ -927,7 +935,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus _,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover _
+            RecordingInputSink _
         ) = Build([ChannelA]);
         // 200 s track, 1 s in: no natural end inside the minute.
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
@@ -958,7 +966,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus _,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover _
+            RecordingInputSink _
         ) = Build([ChannelA]);
         // 200 s track observed at 192 s: predicted end 8 s away, between the 5 s and 10 s safety polls.
         music.SetResponse(
@@ -997,7 +1005,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus _,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover _
+            RecordingInputSink _
         ) = Build([ChannelA], watched: false);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
 
@@ -1026,7 +1034,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus _,
             FakeMusicService music,
             FakeTimeProvider clock,
-            RecordingHandover _
+            RecordingInputSink _
         ) = Build([ChannelA], watched: null);
         music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
 
@@ -1053,7 +1061,7 @@ public sealed class MusicStatePollingServiceTests
             RecordingEventBus bus,
             FakeMusicService music,
             FakeTimeProvider _,
-            RecordingHandover _,
+            RecordingInputSink _,
             RegisteredSpotifyStub _
         ) = BuildWithProvider([ChannelA, ChannelB], engineFeed: feed);
         music.SetResponse(
@@ -1134,18 +1142,18 @@ public sealed class MusicStatePollingServiceTests
 
     /// <summary>A scope factory whose every scope resolves the shared test <see cref="IApplicationDbContext"/>,
     /// <see cref="IMusicService"/>, the registered <see cref="IMusicProvider"/> set, and the
-    /// <see cref="ISongRequestHandover"/> the poller asks on each tick to un-stick a song-request queue whose
-    /// earlier handover could not land (the provider set supplies the integration names whose connections
+    /// <see cref="IPlaybackInputSink"/> the poller sends RequestAdded on each tick to un-stick a song-request queue
+    /// whose earlier start could not land (the provider set supplies the integration names whose connections
     /// count as "music-connected").</summary>
     private sealed class PollerScopeFactory(
         IApplicationDbContext db,
         IMusicService musicService,
         RegisteredSpotifyStub? provider = null,
-        RecordingHandover? handover = null,
+        RecordingInputSink? handover = null,
         IActiveInstanceGate? instanceGate = null
     ) : IServiceScopeFactory
     {
-        public RecordingHandover Handover { get; } = handover ?? new RecordingHandover();
+        public RecordingInputSink Handover { get; } = handover ?? new RecordingInputSink();
 
         /// <summary>The app-wide song-request queues the poller reads to find channels with waiting requests.</summary>
         public SongRequestQueueStore Queues { get; } = new();
@@ -1157,7 +1165,7 @@ public sealed class MusicStatePollingServiceTests
         private sealed class Scope(
             IApplicationDbContext db,
             IMusicService musicService,
-            ISongRequestHandover handover,
+            IPlaybackInputSink handover,
             RegisteredSpotifyStub provider,
             IActiveInstanceGate? instanceGate,
             ISongRequestQueueStore queues
@@ -1175,7 +1183,7 @@ public sealed class MusicStatePollingServiceTests
                     return db;
                 if (serviceType == typeof(IMusicService))
                     return musicService;
-                if (serviceType == typeof(ISongRequestHandover))
+                if (serviceType == typeof(IPlaybackInputSink))
                     return handover;
                 if (serviceType == typeof(IEnumerable<IMusicProvider>))
                     return new List<IMusicProvider> { provider };
@@ -1186,17 +1194,22 @@ public sealed class MusicStatePollingServiceTests
         }
     }
 
-    /// <summary>Records the channels the poller asked to un-stick, instead of touching a provider.</summary>
-    internal sealed class RecordingHandover : ISongRequestHandover
+    /// <summary>Records every input the poller sent to the playback director, instead of driving an engine.</summary>
+    internal sealed class RecordingInputSink : IPlaybackInputSink
     {
-        public List<string> Calls { get; } = [];
+        public List<(Guid ChannelId, PlaybackInput Input)> Sent { get; } = [];
 
-        public Task HandOverNextAsync(
-            string broadcasterId,
-            CancellationToken cancellationToken = default
+        /// <summary>The channels the poller asked to un-stick: one entry per RequestAdded input sent.</summary>
+        public List<string> Calls =>
+            Sent.Where(s => s.Input is RequestAdded).Select(s => s.ChannelId.ToString()).ToList();
+
+        public Task SendAsync(
+            Guid broadcasterId,
+            PlaybackInput input,
+            CancellationToken ct = default
         )
         {
-            Calls.Add(broadcasterId);
+            Sent.Add((broadcasterId, input));
             return Task.CompletedTask;
         }
     }
