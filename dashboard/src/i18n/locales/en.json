@@ -92,6 +92,17 @@
       "open": "Open in the pipeline editor",
       "create": "Create a new pipeline",
       "newName": "New pipeline"
+    },
+    "targetPicker": {
+      "label": "Runs",
+      "placeholder": "Choose a command or pipeline",
+      "commands": "Commands",
+      "pipelines": "Pipelines",
+      "create": "Create a new pipeline",
+      "nothing": "Nothing",
+      "open": "Open in the pipeline editor",
+      "newName": "New pipeline",
+      "missing": "This target is not in this channel."
     }
   },
   "template": {

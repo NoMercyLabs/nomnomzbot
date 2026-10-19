@@ -92,6 +92,17 @@
       "open": "Open in de pipeline-editor",
       "create": "Nieuwe pipeline maken",
       "newName": "Nieuwe pipeline"
+    },
+    "targetPicker": {
+      "label": "Voert uit",
+      "placeholder": "Kies een commando of pipeline",
+      "commands": "Commando's",
+      "pipelines": "Pipelines",
+      "create": "Nieuwe pipeline maken",
+      "nothing": "Niets",
+      "open": "Open in de pipeline-editor",
+      "newName": "Nieuwe pipeline",
+      "missing": "Dit doel staat niet in dit kanaal."
     }
   },
   "template": {
