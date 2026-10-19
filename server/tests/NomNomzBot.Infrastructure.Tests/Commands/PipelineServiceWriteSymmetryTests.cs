@@ -675,4 +675,74 @@ public sealed class PipelineServiceWriteSymmetryTests
             .ToListAsync();
         afterUpdate.Select(s => s.ContinueOnError).Should().Equal(false, true);
     }
+
+    /// <summary>Regression, 2026-10-18: stop_on_match means "stop when the condition matched". With
+    /// no condition there is nothing to match, so a save stores false (create and update alike).</summary>
+    [Fact]
+    public async Task Create_and_Update_store_stop_on_match_only_on_steps_that_have_a_condition()
+    {
+        (PipelineService service, PipelineTestRunDbContext db) = Build();
+
+        Result<PipelineDto> created = await service.CreateAsync(
+            Broadcaster.ToString(),
+            new()
+            {
+                Name = "raid",
+                TriggerKind = "command",
+                IsEnabled = true,
+                GraphJsonCache = JsonSerializer.SerializeToElement(
+                    new
+                    {
+                        steps = new object[]
+                        {
+                            new { action = new { type = "send_message" }, stop_on_match = true },
+                            new
+                            {
+                                condition = new { type = "user_role", min_role = "moderator" },
+                                action = new { type = "shoutout" },
+                                stop_on_match = true,
+                            },
+                        },
+                    }
+                ),
+            }
+        );
+        created.IsSuccess.Should().BeTrue(created.ErrorMessage);
+
+        List<PipelineStep> afterCreate = await db
+            .PipelineSteps.Where(s => s.PipelineId == created.Value.Id)
+            .OrderBy(s => s.Order)
+            .ToListAsync();
+        afterCreate.Select(s => s.StopOnMatch).Should().Equal(false, true);
+
+        Result<PipelineDto> updated = await service.UpdateAsync(
+            Broadcaster.ToString(),
+            created.Value.Id,
+            new()
+            {
+                GraphJsonCache = JsonSerializer.SerializeToElement(
+                    new
+                    {
+                        steps = new object[]
+                        {
+                            new
+                            {
+                                condition = new { type = "user_role", min_role = "moderator" },
+                                action = new { type = "send_message" },
+                                stop_on_match = true,
+                            },
+                            new { action = new { type = "shoutout" }, stop_on_match = true },
+                        },
+                    }
+                ),
+            }
+        );
+        updated.IsSuccess.Should().BeTrue(updated.ErrorMessage);
+
+        List<PipelineStep> afterUpdate = await db
+            .PipelineSteps.Where(s => s.PipelineId == created.Value.Id)
+            .OrderBy(s => s.Order)
+            .ToListAsync();
+        afterUpdate.Select(s => s.StopOnMatch).Should().Equal(true, false);
+    }
 }

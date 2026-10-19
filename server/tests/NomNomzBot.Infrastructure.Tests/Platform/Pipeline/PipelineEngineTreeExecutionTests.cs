@@ -1583,6 +1583,70 @@ public sealed class PipelineEngineTreeExecutionTests
         result.Outcome.Should().Be(PipelineOutcome.Completed);
     }
 
+    /// <summary>Regression, 2026-10-18: a stop_on_match step with no condition matched nothing, so the
+    /// run goes on (the Raid command lost its ending scene and chat lines to this).</summary>
+    [Fact]
+    public async Task FlatDbPipeline_StopOnMatchWithoutConditionRunsEveryStep()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        CountingAction firstCounter = new() { ActionType = "first" };
+        PipelineStep first = NewLeaf(pipelineId, null, null, 0, "first", """{"type":"first"}""");
+        first.StopOnMatch = true;
+        CountingAction secondCounter = new() { ActionType = "second" };
+        PipelineStep second = NewLeaf(pipelineId, null, null, 1, "second", """{"type":"second"}""");
+
+        db.PipelineSteps.AddRange(first, second);
+        await db.SaveChangesAsync();
+
+        PipelineEngine engine = CreateEngine(db, [firstCounter, secondCounter]);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        firstCounter.Count.Should().Be(1);
+        secondCounter.Count.Should().Be(1);
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+    }
+
+    /// <summary>Same, for a leaf nested inside a block (the tree walker).</summary>
+    [Fact]
+    public async Task TreeLeaf_StopOnMatchWithoutConditionRunsEveryStep()
+    {
+        using PipelineTreeExecutionTestDbContext db = PipelineTreeExecutionTestDbContext.New();
+        Guid pipelineId = Guid.NewGuid();
+
+        PipelineStep ifStep = NewStep(pipelineId, null, null, "if", "{}", 0);
+        PipelineStepCondition alwaysTrue = NewLeafCondition(
+            ifStep.Id,
+            null,
+            0,
+            desiredResult: true
+        );
+        CountingAction firstCounter = new() { ActionType = "first" };
+        PipelineStep first = NewLeaf(
+            pipelineId,
+            ifStep.Id,
+            "then",
+            0,
+            "first",
+            """{"type":"first"}"""
+        );
+        first.StopOnMatch = true;
+        CountingAction secondCounter = new() { ActionType = "second" };
+        PipelineStep second = NewLeaf(pipelineId, null, null, 1, "second", """{"type":"second"}""");
+
+        db.PipelineSteps.AddRange(ifStep, first, second);
+        db.PipelineStepConditions.Add(alwaysTrue);
+        await db.SaveChangesAsync();
+
+        PipelineEngine engine = CreateEngine(db, [firstCounter, secondCounter]);
+        PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(pipelineId));
+
+        firstCounter.Count.Should().Be(1);
+        secondCounter.Count.Should().Be(1);
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
+    }
+
     /// <summary>
     /// Regression, 2026-10-16 cheer incident: one 100-bit cheer spoke two bot TTS lines. The channel's
     /// cheer pipeline reads the message (stop_on_match) and only otherwise speaks the "silent cheer"
@@ -1615,6 +1679,7 @@ public sealed class PipelineEngineTreeExecutionTests
         );
 
         db.PipelineSteps.AddRange(matched, fallback);
+        db.PipelineStepConditions.Add(NewLeafCondition(matched.Id, null, 0, desiredResult: true));
         await db.SaveChangesAsync();
 
         PipelineEngine engine = CreateEngine(db, [matchedCounter, fallbackCounter]);
@@ -1664,6 +1729,7 @@ public sealed class PipelineEngineTreeExecutionTests
 
         db.PipelineSteps.AddRange(ifStep, matched, fallback);
         db.PipelineStepConditions.Add(alwaysTrue);
+        db.PipelineStepConditions.Add(NewLeafCondition(matched.Id, null, 0, desiredResult: true));
         await db.SaveChangesAsync();
 
         PipelineEngine engine = CreateEngine(db, [matchedCounter, fallbackCounter]);

@@ -61,7 +61,7 @@ internal static class PipelineDraftRows
                     BlockConfigJson = stepDef.BlockConfig?.GetRawText(),
                     Order = stepDef.Order ?? i,
                     ContinueOnError = stepDef.ContinueOnError,
-                    StopOnMatch = stepDef.StopOnMatch,
+                    StopOnMatch = stepDef.StopOnMatch && stepDef.Condition is not null,
                     ActionType = stepDef.Action.Type,
                     ConfigJson = JsonSerializer.Serialize(
                         stepDef.Action.Parameters ?? new Dictionary<string, JsonElement>()

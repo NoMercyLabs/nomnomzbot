@@ -810,7 +810,11 @@ public sealed class PipelineEngine : IPipelineEngine
             }
 
             // Check stop flag — a deliberate stop, not a failure.
-            if (ctx.ShouldStop || (step.StopOnMatch && actionResult.Succeeded))
+            // stop_on_match stops only when a condition matched; a step with no condition matched nothing.
+            if (
+                ctx.ShouldStop
+                || (step.StopOnMatch && step.Condition is not null && actionResult.Succeeded)
+            )
             {
                 stoppedDeliberately = true;
                 break;
@@ -1659,7 +1663,11 @@ public sealed class PipelineEngine : IPipelineEngine
                 state.ContinueLoop = true;
         }
 
-        if (ctx.ShouldStop || (step.StopOnMatch && actionResult.Succeeded))
+        // stop_on_match stops only when a condition matched; a step with no condition matched nothing.
+        if (
+            ctx.ShouldStop
+            || (step.StopOnMatch && step.Conditions.Count > 0 && actionResult.Succeeded)
+        )
             state.StoppedDeliberately = true;
     }
 

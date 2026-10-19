@@ -676,21 +676,53 @@ public class PipelineEngineTests
     // ─── StopOnMatch ──────────────────────────────────────────────────────────
 
     [Fact]
-    public async Task ExecuteAsync_StopOnMatch_StopsAfterSuccessfulStep()
+    public async Task ExecuteAsync_StopOnMatch_WithMatchedCondition_StopsAfterSuccessfulStep()
+    {
+        PipelineEngine engine = CreateEngine();
+        const string json = """
+            {
+              "steps": [
+                {"condition":{"type":"user_role","min_role":"moderator"},"action":{"type":"set_variable","name":"x","value":"1"},"stop_on_match":true},
+                {"action":{"type":"set_variable","name":"y","value":"2"}}
+              ]
+            }
+            """;
+        PipelineRequest request = new()
+        {
+            BroadcasterId = TestChannel,
+            TriggeredByUserId = "mod1",
+            TriggeredByDisplayName = "Mod1",
+            PipelineJson = json,
+            MessageId = "m1",
+            RawMessage = "",
+            InitialVariables = { { "user.role", "moderator" } },
+        };
+
+        PipelineExecutionResult result = await engine.ExecuteAsync(request);
+
+        result.StepsExecuted.Should().Be(1);
+        result.Outcome.Should().Be(PipelineOutcome.Stopped);
+    }
+
+    /// <summary>Regression, 2026-10-18: the Raid command's step 0 carried stop_on_match with no
+    /// condition, so the ending scene and chat lines never ran. Nothing matched, so nothing stops.</summary>
+    [Fact]
+    public async Task ExecuteAsync_StopOnMatch_WithoutCondition_RunsEveryStep()
     {
         PipelineEngine engine = CreateEngine();
         const string json = """
             {
               "steps": [
                 {"action":{"type":"set_variable","name":"x","value":"1"},"stop_on_match":true},
-                {"action":{"type":"set_variable","name":"y","value":"2"}}
+                {"action":{"type":"set_variable","name":"y","value":"2"}},
+                {"action":{"type":"set_variable","name":"z","value":"3"}}
               ]
             }
             """;
 
         PipelineExecutionResult result = await engine.ExecuteAsync(BuildRequest(json));
 
-        // stop_on_match=true on step 0, so only 1 step executed
-        result.StepsExecuted.Should().Be(1);
+        result.StepsExecuted.Should().Be(3);
+        result.Outcome.Should().Be(PipelineOutcome.Completed);
     }
 }
