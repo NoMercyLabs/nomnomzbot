@@ -14,6 +14,7 @@
 // A refusal from the server and a bound id that is missing from this channel show as one error line.
 import Plus from '~icons/nnz/add';
 import ChevronDown from '~icons/nnz/chevron-down';
+import Cross from '~icons/nnz/cross';
 import Route from '~icons/nnz/route';
 import Terminal from '~icons/nnz/terminal';
 import { computed, inject, ref, type Component } from 'vue';
@@ -305,6 +306,7 @@ async function createPipeline(): Promise<void> {
                   class="min-h-9"
                   @select="selected = NOTHING"
                 >
+                  <Cross class="size-5" aria-hidden="true" />
                   {{ $t('common.targetPicker.nothing') }}
                 </CommandItem>
               </CommandGroup>

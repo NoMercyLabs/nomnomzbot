@@ -154,6 +154,18 @@ describe('the target picker', () => {
     expect(bare).toEqual([]);
   });
 
+  it('gives the Nothing row a 20px icon like the other rows', async () => {
+    const wrapper = mountPicker({ clearable: true, kinds: ['command'] });
+
+    await openList(wrapper);
+
+    const rows = Array.from(document.querySelectorAll<HTMLElement>('[data-slot="command-item"]'));
+    const nothing = rows.find((row) => row.textContent!.includes('Nothing'));
+
+    expect(nothing?.querySelector('svg.size-5')).not.toBeNull();
+    expect(nothing?.className).toContain('min-h-9');
+  });
+
   it('searches the rows and says when nothing matches', async () => {
     const wrapper = mountPicker({ kinds: ['command', 'pipeline'] });
 
