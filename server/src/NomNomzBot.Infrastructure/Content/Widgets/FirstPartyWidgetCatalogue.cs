@@ -218,7 +218,7 @@ public static class FirstPartyWidgetCatalogue
             Name: "Now Playing",
             Description: "A standing display of the current track — pill or card layout, optional album art and an "
                 + "animated progress sweep — that hides itself while nothing plays. Adapts to whichever provider is "
-                + "playing. Spotify and YouTube audio plays from the Audio widget.",
+                + "playing. Spotify and YouTube audio plays from the Music Player widget.",
             DefaultSettings: new()
             {
                 ["layout"] = "pill",
@@ -254,17 +254,29 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: WidgetKeyAliases.Audio,
-            Name: "Audio",
-            Description: "All audio plays here: music, sound clips, redemption sounds and spoken messages come out of this one browser source. Add it once, size it 1x1, and leave it — keep "
+            Name: "Bot Audio",
+            Description: "Sound clips, redemption sounds and spoken messages (TTS) come out of this one browser source. Add it once, size it 1x1, and leave it — keep "
                 + "\"Control audio via OBS\" ON or the stream will not hear it. Renders nothing; the optional "
-                + "indicator is only for confirming the source is alive during setup.",
+                + "indicator is only for confirming the source is alive during setup. Music plays from the Music Player widget.",
+            DefaultSettings: new() { ["showIndicator"] = false, ["accentColor"] = "#9146ff" },
+            DefaultEventSubscriptions: ["tts_speak"]
+        ),
+        new(
+            Key: WidgetKeyAliases.MusicPlayer,
+            Name: "Music Player",
+            Description: "Spotify and YouTube music plays here, at its own level. Add it once, size it 1x1, and leave it — keep "
+                + "\"Control audio via OBS\" ON or the stream will not hear it. Renders nothing; the optional "
+                + "indicator is only for confirming the source is alive during setup. "
+                + "To hear music at a different level, set the Music source to Monitor and Output in OBS.",
             DefaultSettings: new()
             {
+                ["volume"] = 100,
+                ["muted"] = false,
                 ["showIndicator"] = false,
                 ["accentColor"] = "#9146ff",
                 ["enableAudio"] = true,
             },
-            DefaultEventSubscriptions: ["tts_speak", "now_playing"]
+            DefaultEventSubscriptions: ["now_playing"]
         ),
         new(
             Key: "tts_caption",

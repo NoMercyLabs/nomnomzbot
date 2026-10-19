@@ -46,6 +46,7 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
         "sr_queue",
         "media_share",
         "audio",
+        "music_player",
         "tts_caption",
         "poll_prediction",
         "redemption_alert",
@@ -300,7 +301,7 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
         WidgetGalleryItem row = audioRows.Single();
         row.NaturalKey.Should().Be("audio");
         row.Id.Should().Be(legacyId);
-        row.Name.Should().Be("Audio");
+        row.Name.Should().Be("Bot Audio");
         row.InstallCount.Should().Be(4);
         row.DeletedAt.Should().BeNull();
         (await read.Widgets.SingleAsync(w => w.Id == widgetId)).GalleryItemId.Should().Be(legacyId);

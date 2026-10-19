@@ -19,6 +19,9 @@ public static class WidgetKeyAliases
     /// <summary>The canonical key of the Audio widget — the one page every sound and TTS line plays on.</summary>
     public const string Audio = "audio";
 
+    /// <summary>The key of the Music Player widget — the one page that hosts the YouTube and Spotify players.</summary>
+    public const string MusicPlayer = "music_player";
+
     /// <summary>Retired key to canonical key. The Audio widget was first shipped as <c>tts_audio</c>.</summary>
     public static readonly IReadOnlyDictionary<string, string> RetiredToCanonical = new Dictionary<
         string,

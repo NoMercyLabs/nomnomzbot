@@ -5181,7 +5181,11 @@
     <string name="widget_media_share_accentColor_label">Accent color</string>
     <string name="widget_audio_showIndicator_label">Show a speaking dot (setup only)</string>
     <string name="widget_audio_accentColor_label">Accent color</string>
-    <string name="widget_audio_enableAudio_label">Play audio on this page</string>
+    <string name="widget_music_player_volume_label">Volume (0-100)</string>
+    <string name="widget_music_player_muted_label">Mute the music on this page</string>
+    <string name="widget_music_player_showIndicator_label">Show a status dot (setup only)</string>
+    <string name="widget_music_player_enableAudio_label">Play audio on this page</string>
+    <string name="widget_music_player_accentColor_label">Accent color</string>
     <string name="widget_tts_caption_showText_label">Show caption text</string>
     <string name="widget_tts_caption_voiceLabel_label">Show voice label</string>
     <string name="widget_tts_caption_position_label">Position</string>
@@ -6235,8 +6239,10 @@
     <string name="widget_gallery_now_playing_description">A standing display of the current track, in a pill or card layout, with optional album art and an animated progress sweep. It hides itself while nothing plays. Adapts to whichever provider is playing: for Spotify it also becomes a real Spotify Connect device and streams audio through this OBS source (Premium + the streaming scope required, Integrations page); for YouTube it can optionally render the actual video instead of the compact card.</string>
     <string name="widget_gallery_sr_queue_name">SR Queue</string>
     <string name="widget_gallery_sr_queue_description">The upcoming song-request queue as a compact list with position, title, and optional requester and duration. It is fed by sr_queue snapshot events and hidden while the queue is empty.</string>
-    <string name="widget_gallery_audio_name">Audio</string>
-    <string name="widget_gallery_audio_description">Every sound and TTS line plays here: sound clips, redemption sounds and spoken messages all come out of this one browser source. Add it once, size it 1x1, and leave it. Keep “Control audio via OBS” ON or the stream will not hear it. Renders nothing; the optional indicator is only for confirming the source is alive during setup.</string>
+    <string name="widget_gallery_audio_name">Bot Audio</string>
+    <string name="widget_gallery_audio_description">Sound clips, redemption sounds and spoken messages (TTS) come out of this one browser source. Add it once, size it 1x1, and leave it. Keep “Control audio via OBS” ON or the stream will not hear it. Renders nothing; the optional indicator is only for confirming the source is alive during setup. Music plays from the Music Player widget.</string>
+    <string name="widget_gallery_music_player_name">Music Player</string>
+    <string name="widget_gallery_music_player_description">Spotify and YouTube music plays here, at its own level. Add it once, size it 1x1, and leave it. Keep “Control audio via OBS” ON or the stream will not hear it. Renders nothing; the optional indicator is only for confirming the source is alive during setup. To hear music at a different level, set the Music source to Monitor and Output in OBS.</string>
     <string name="widget_gallery_tts_caption_name">TTS Caption</string>
     <string name="widget_gallery_tts_caption_description">A speaking indicator with a live caption for TTS playback, with animated voice bars, the speaker’s name, an optional voice label, and top or bottom placement. Hidden while nothing speaks.</string>
     <string name="widget_gallery_poll_prediction_name">Poll / Prediction</string>

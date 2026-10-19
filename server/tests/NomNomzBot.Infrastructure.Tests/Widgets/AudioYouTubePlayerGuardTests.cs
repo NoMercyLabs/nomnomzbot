@@ -25,15 +25,17 @@ namespace NomNomzBot.Infrastructure.Tests.Widgets;
 /// behaviourally in <c>OverlaySdkYouTubeReportTests</c> and <c>OverlayHubYouTubeReportTests</c>.
 /// </para>
 /// </summary>
-public sealed class AudioYouTubePlayerGuardTests
+public sealed class MusicPlayerYouTubeGuardTests
 {
-    private static string Source()
+    private static string Source() => Asset("music_player");
+
+    private static string Asset(string key)
     {
-        const string resourceName = "NomNomzBot.Infrastructure.Content.Widgets.Assets.audio.vue";
+        string resourceName = $"NomNomzBot.Infrastructure.Content.Widgets.Assets.{key}.vue";
         using System.IO.Stream? stream = typeof(FirstPartyWidgetCatalogue)
             .GetTypeInfo()
             .Assembly.GetManifestResourceStream(resourceName);
-        stream.Should().NotBeNull("the Audio widget must ship as an embedded asset");
+        stream.Should().NotBeNull($"the {key} widget must ship as an embedded asset");
 
         using StreamReader reader = new(stream);
         return reader.ReadToEnd();
@@ -54,6 +56,41 @@ public sealed class AudioYouTubePlayerGuardTests
         display.Should().NotContain("NomNomz.on('youtube.play'");
         display.Should().NotContain("new Spotify.Player(");
         display.Should().Contain("NomNomz.on('now_playing'");
+    }
+
+    [Theory]
+    [InlineData("new YT.Player(")]
+    [InlineData("new Spotify.Player(")]
+    [InlineData("enableAudio")]
+    [InlineData("youtube.play")]
+    [InlineData("now_playing")]
+    public void The_bot_audio_widget_no_longer_hosts_any_music_player(string fragment)
+    {
+        Asset("audio").Should().NotContain(fragment);
+    }
+
+    [Fact]
+    public void The_bot_audio_widget_still_shows_the_tts_indicator()
+    {
+        Asset("audio").Should().Contain("NomNomz.on('tts_speak'");
+    }
+
+    [Fact]
+    public void The_music_player_applies_its_own_level_and_mute_to_both_players()
+    {
+        string source = Source();
+
+        source.Should().Contain("cfg.volume");
+        source.Should().Contain("cfg.muted");
+        source.Should().Contain("ytPlayer?.setVolume(ytLevel())");
+        source.Should().Contain("cfg.volume / 100");
+        source.Should().NotContain("volume: 1.0");
+    }
+
+    [Fact]
+    public void The_music_player_does_not_speak_tts()
+    {
+        Source().Should().NotContain("tts_speak");
     }
 
     [Fact]
@@ -79,7 +116,7 @@ public sealed class AudioYouTubePlayerGuardTests
     [InlineData("youtube.resume", "playVideo()")]
     [InlineData("youtube.stop", "stopVideo()")]
     [InlineData("youtube.seek", "seekTo(")]
-    [InlineData("youtube.volume", "setVolume(ytVolume)")]
+    [InlineData("youtube.volume", "setVolume(ytLevel())")]
     public void The_widget_pauses_and_resumes_the_player_on_the_bots_transport_events(
         string eventType,
         string playerCall

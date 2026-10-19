@@ -368,6 +368,51 @@ public sealed class OverlayAudioRoutingTests
     }
 
     [Fact]
+    public async Task A_music_player_page_never_gets_sound_or_tts_and_the_bot_audio_page_stays_the_audio_target()
+    {
+        // Row 27: the Music Player is its own widget. Only the Bot Audio page is the audio target, so the
+        // sound clips and TTS lines reach it and never the music page.
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid audioWidget = await SeedWidgetAsync(db, "audio");
+        Guid musicWidget = await SeedWidgetAsync(db, "music_player");
+        Joined audioPage = await ConnectedPageAsync(db, "audio-conn");
+        Joined musicPage = await ConnectedPageAsync(db, "music-conn", audioPage.Registry);
+        await audioPage.Hub.JoinWidgetWithSdk(audioWidget.ToString(), "v1");
+        await musicPage.Hub.JoinWidgetWithSdk(musicWidget.ToString(), "v1");
+        IOverlayClient audioClient = Substitute.For<IOverlayClient>();
+        IOverlayClient musicClient = Substitute.For<IOverlayClient>();
+        IHubClients<IOverlayClient> clients = Substitute.For<IHubClients<IOverlayClient>>();
+        clients.Client("audio-conn").Returns(audioClient);
+        clients.Client("music-conn").Returns(musicClient);
+        IHubContext<OverlayHub, IOverlayClient> hub = Substitute.For<
+            IHubContext<OverlayHub, IOverlayClient>
+        >();
+        hub.Clients.Returns(clients);
+        WidgetNotifier notifier = new(hub, audioPage.Registry);
+
+        await notifier.PlaySoundAsync(Broadcaster.ToString(), new("https://x/a.mp3", 100, "h1"));
+        await notifier.TtsSpeakAsync(
+            Broadcaster.ToString(),
+            new(
+                Broadcaster,
+                "hello",
+                "v1",
+                "azure",
+                null,
+                null,
+                null,
+                "data:audio/mpeg;base64,AQID"
+            )
+        );
+
+        audioPage.Registry.GetAudioTarget(Broadcaster).Should().Be("audio-conn");
+        await audioClient.Received(1).PlaySound(Arg.Any<PlaySoundPayload>());
+        await audioClient.Received(1).TtsSpeak(Arg.Any<TtsSpeakPayload>());
+        await musicClient.DidNotReceiveWithAnyArgs().PlaySound(default!);
+        await musicClient.DidNotReceiveWithAnyArgs().TtsSpeak(default!);
+    }
+
+    [Fact]
     public async Task An_audio_page_becoming_ready_tells_the_director_the_output_is_attached()
     {
         using WidgetTestDbContext db = WidgetTestDbContext.New();

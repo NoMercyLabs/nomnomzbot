@@ -188,8 +188,11 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 Accent(d),
             ],
             "media_share" => [Bool(d, "showTitle", Content), Accent(d)],
-            WidgetKeyAliases.Audio =>
+            WidgetKeyAliases.Audio => [Bool(d, "showIndicator", Content), Accent(d)],
+            WidgetKeyAliases.MusicPlayer =>
             [
+                NumberField(d, "volume", Behaviour, min: 0, max: 100, step: 1),
+                Bool(d, "muted", Behaviour),
                 Bool(d, "showIndicator", Content),
                 Bool(d, "enableAudio", Behaviour),
                 Accent(d),

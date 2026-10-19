@@ -150,6 +150,25 @@ public sealed class OverlayHostControllerTests
     }
 
     [Fact]
+    public async Task The_music_player_widget_gets_the_player_csp_even_when_its_settings_are_empty()
+    {
+        // The Music Player is the page that hosts the YouTube and Spotify players now; a row with no saved
+        // enableAudio must still be allowed to load them.
+        OverlayHostController sut = WithManifest(
+            VueEntry(new Dictionary<string, object?>(), "music_player")
+        );
+
+        string html = await BodyOf(
+            await sut.Get(WidgetId.ToString(), Token, CancellationToken.None)
+        );
+
+        html.Should()
+            .MatchRegex("script-src [^;]*https://www\\.youtube\\.com")
+            .And.MatchRegex("script-src [^;]*https://sdk\\.scdn\\.co")
+            .And.MatchRegex("frame-src [^;]*https://www\\.youtube\\.com");
+    }
+
+    [Fact]
     public async Task A_plain_user_widget_with_another_gallery_key_keeps_the_players_out()
     {
         OverlayHostController sut = WithManifest(

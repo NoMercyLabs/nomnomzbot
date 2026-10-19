@@ -5165,7 +5165,11 @@
     <string name="widget_media_share_accentColor_label">Accentkleur</string>
     <string name="widget_audio_showIndicator_label">Spreekindicator tonen (alleen instellen)</string>
     <string name="widget_audio_accentColor_label">Accentkleur</string>
-    <string name="widget_audio_enableAudio_label">Audio op deze pagina afspelen</string>
+    <string name="widget_music_player_volume_label">Volume (0-100)</string>
+    <string name="widget_music_player_muted_label">Muziek op deze pagina dempen</string>
+    <string name="widget_music_player_showIndicator_label">Statusindicator tonen (alleen instellen)</string>
+    <string name="widget_music_player_enableAudio_label">Audio op deze pagina afspelen</string>
+    <string name="widget_music_player_accentColor_label">Accentkleur</string>
     <string name="widget_tts_caption_showText_label">Ondertiteltekst tonen</string>
     <string name="widget_tts_caption_voiceLabel_label">Stemlabel tonen</string>
     <string name="widget_tts_caption_position_label">Positie</string>
@@ -6208,8 +6212,11 @@
     <string name="widget_gallery_now_playing_description">Een vaste weergave van het huidige nummer, in pil- of kaartweergave, met optioneel albumhoes en een geanimeerde voortgangsbalk. Het verbergt zichzelf verbergt als er niets speelt. Past zich aan de actieve aanbieder aan: bij Spotify wordt het ook een echt Spotify Connect-apparaat en speelt het audio af via deze OBS-bron (Premium en de streaming-scope vereist, pagina Integraties); bij YouTube kan het optioneel de echte video tonen in plaats van de compacte kaart.</string>
     <string name="widget_gallery_sr_queue_name">Verzoeknummers-wachtrij</string>
     <string name="widget_gallery_sr_queue_description">De komende wachtrij met verzoeknummers als compacte lijst met positie, titel en optioneel aanvrager en duur. Gevoed door sr_queue-momentopnames en verborgen zolang de wachtrij leeg is.</string>
-    <string name="widget_gallery_audio_name">Audio</string>
-    <string name="widget_gallery_audio_description">Alle geluiden en TTS-regels spelen hier af: geluidsclips, beloningsgeluiden en uitgesproken berichten komen allemaal uit deze ene browserbron. Voeg hem één keer toe, maak hem 1x1 en laat hem staan. Houd “Audio via OBS regelen” AAN, anders hoort de stream niets. Toont zelf niets; de optionele indicator is er alleen om tijdens het instellen te zien dat de bron leeft.</string>
+    <string name="widget_gallery_audio_name">Bot-audio</string>
+    <string name="widget_gallery_audio_description">Geluidsclips, beloningsgeluiden en uitgesproken berichten (TTS) komen uit deze ene browserbron. Voeg hem één keer toe, maak hem 1x1 en laat hem staan. Houd “Audio via OBS regelen” AAN, anders hoort de stream niets. Toont zelf niets; de optionele indicator is er alleen om tijdens het instellen te zien dat de bron leeft. Muziek speelt af in de Muziekspeler-widget.</string>
+    <string name="widget_gallery_music_player_name">Muziekspeler</string>
+    <string name="widget_gallery_music_player_description">Spotify- en YouTube-muziek speelt hier af, met een eigen volume. Voeg hem één keer toe, maak hem 1x1 en laat hem staan. Houd “Audio via OBS regelen” AAN, anders hoort de stream niets. Toont zelf niets; de optionele indicator is er alleen om tijdens het instellen te zien dat de bron leeft. Wil je de muziek op een ander niveau horen, zet de Muziekbron in OBS dan op Monitor en uitvoer.</string>
+
     <string name="widget_gallery_tts_caption_name">TTS-ondertitel</string>
     <string name="widget_gallery_tts_caption_description">Een spreekindicator met live ondertitel bij TTS-weergave, met geanimeerde stembalkjes, de naam van de spreker, optioneel een stemlabel en plaatsing boven of onder. Verborgen zolang er niemand spreekt.</string>
     <string name="widget_gallery_poll_prediction_name">Poll / Voorspelling</string>

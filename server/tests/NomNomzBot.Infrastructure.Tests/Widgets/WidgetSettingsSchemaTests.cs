@@ -57,10 +57,24 @@ public sealed class WidgetSettingsSchemaTests
 
         schema.Should().NotBeNull();
         schema.WidgetKey.Should().Be("audio");
+        schema.Fields.Select(f => f.Key).Should().BeEquivalentTo("showIndicator", "accentColor");
+    }
+
+    [Fact]
+    public void The_music_player_schema_has_a_bounded_volume_and_a_mute_switch()
+    {
+        WidgetSettingsSchema? schema = Provider.GetByKey("music_player");
+
+        schema.Should().NotBeNull();
         schema
             .Fields.Select(f => f.Key)
             .Should()
-            .BeEquivalentTo("showIndicator", "enableAudio", "accentColor");
+            .BeEquivalentTo("volume", "muted", "showIndicator", "enableAudio", "accentColor");
+        WidgetSettingsField volume = schema.Fields.Single(f => f.Key == "volume");
+        volume.Type.Should().Be("number");
+        volume.Min.Should().Be(0);
+        volume.Max.Should().Be(100);
+        schema.Fields.Single(f => f.Key == "muted").Type.Should().Be("bool");
     }
 
     [Fact]
