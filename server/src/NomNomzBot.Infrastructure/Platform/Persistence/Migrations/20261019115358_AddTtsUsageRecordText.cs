@@ -15,15 +15,14 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 table: "TtsUsageRecords",
                 type: "character varying(2000)",
                 maxLength: 2000,
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Text",
-                table: "TtsUsageRecords");
+            migrationBuilder.DropColumn(name: "Text", table: "TtsUsageRecords");
         }
     }
 }

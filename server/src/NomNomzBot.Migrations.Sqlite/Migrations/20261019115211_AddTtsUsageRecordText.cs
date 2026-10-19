@@ -15,15 +15,14 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 table: "TtsUsageRecords",
                 type: "TEXT",
                 maxLength: 2000,
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "Text",
-                table: "TtsUsageRecords");
+            migrationBuilder.DropColumn(name: "Text", table: "TtsUsageRecords");
         }
     }
 }
