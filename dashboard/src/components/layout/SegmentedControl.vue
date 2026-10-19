@@ -9,7 +9,8 @@
 -->
 <script setup lang="ts" generic="T extends string">
 // One choice from 2 to 4 named options. One option is always chosen: pressing the open one again,
-// which would clear it in the library, changes nothing.
+// which would clear it in the library, changes nothing. `none` shows no option chosen, for a list
+// whose options can match nothing (the readability presets once an option was changed after them).
 import type { AcceptableValue } from 'reka-ui';
 
 import { ToggleGroup, ToggleGroupItem } from '@/components/ui/toggle-group';
@@ -18,6 +19,7 @@ defineProps<{
   label: string;
   options: readonly { value: T; label: string }[];
   disabled?: boolean;
+  none?: boolean;
 }>();
 
 const chosen = defineModel<T>({ required: true });
@@ -37,7 +39,7 @@ function choose(next: AcceptableValue | AcceptableValue[]): void {
     :spacing="1"
     data-segmented
     :aria-label="label"
-    :model-value="chosen"
+    :model-value="none ? '' : chosen"
     :disabled="disabled"
     @update:model-value="choose"
   >
