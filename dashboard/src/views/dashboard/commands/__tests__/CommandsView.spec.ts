@@ -488,7 +488,15 @@ describe('CommandsView editor', () => {
     await open();
     expect(editor()).toBeNull();
 
+    const detail = (): string =>
+      document.body.querySelector('[data-slot="list-detail-detail"]')!.className;
+
+    // Nothing open: the hint keeps its own height. A command open: the editor fills the column again.
+    expect(detail()).toContain('md:*:last:flex-none');
+
     await pick('socials');
+
+    expect(detail()).toContain('md:*:last:flex-1');
 
     expect(router.currentRoute.value.query.command).toBe('socials');
     expect(reply().value).toBe('Find me on the web');

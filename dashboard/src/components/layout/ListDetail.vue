@@ -15,10 +15,16 @@
 // Beside each other, the last panel in a column grows to the column's full height, so no column ends half way. A panel one wrapper deep (a search above a list) grows the same way.
 import SidePanel from '@/components/layout/SidePanel.vue';
 
-withDefaults(defineProps<{ showDetail?: boolean; asideLabel?: string }>(), {
-  showDetail: false,
-  asideLabel: '',
-});
+// detailIdle: nothing is open yet, so the detail column holds only a hint. It keeps its own height instead of
+// stretching to the column's full height.
+withDefaults(
+  defineProps<{ showDetail?: boolean; asideLabel?: string; detailIdle?: boolean }>(),
+  {
+    showDetail: false,
+    asideLabel: '',
+    detailIdle: false,
+  },
+);
 
 const asideOpen = defineModel<boolean>('asideOpen', { default: false });
 </script>
@@ -41,8 +47,13 @@ const asideOpen = defineModel<boolean>('asideOpen', { default: false });
     </div>
     <div
       data-slot="list-detail-detail"
-      class="flex min-h-0 min-w-0 flex-col md:*:last:flex-1 md:[&>:last-child>[data-slot=panel-card]:last-child]:flex-1"
-      :class="showDetail ? '' : 'max-md:hidden'"
+      class="flex min-h-0 min-w-0 flex-col"
+      :class="[
+        showDetail ? '' : 'max-md:hidden',
+        detailIdle
+          ? 'md:*:last:flex-none'
+          : 'md:*:last:flex-1 md:[&>:last-child>[data-slot=panel-card]:last-child]:flex-1',
+      ]"
     >
       <slot name="detail" />
     </div>

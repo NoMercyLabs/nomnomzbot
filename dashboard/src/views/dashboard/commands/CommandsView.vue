@@ -165,7 +165,7 @@ const creating = ref(false);
       <PageTabs :tabs="tabs" />
     </template>
   </PageHeader>
-  <ListDetail :show-detail="open">
+  <ListDetail :show-detail="open" :detail-idle="!open">
     <template #list>
       <BuiltinList v-if="!listed" :selected="selectedBuiltin" @pick="selectBuiltin" />
       <CommandList
