@@ -292,6 +292,27 @@ describe('Webhooks page', () => {
     expect(q('[data-copy-link]').classList.contains('border-border')).toBe(true);
   });
 
+  it('keeps the icon buttons and the switch in one group, apart from the turn-back-on button', async () => {
+    await open();
+
+    const group = q('[data-outbound-delete]').closest('[data-outbound-actions]');
+    const reenable = q('[data-outbound-reenable]');
+
+    expect(group).not.toBeNull();
+    expect(group?.contains(reenable)).toBe(false);
+
+    for (const selector of [
+      '[data-outbound-deliveries]',
+      '[data-outbound-test]',
+      '[data-outbound-rotate]',
+      '[data-outbound-edit]',
+      '[data-outbound-delete]',
+      '[role="switch"]',
+    ]) {
+      expect(group?.querySelector(selector)).not.toBeNull();
+    }
+  });
+
   it('names every icon button in a tooltip on keyboard focus', async () => {
     await open();
 

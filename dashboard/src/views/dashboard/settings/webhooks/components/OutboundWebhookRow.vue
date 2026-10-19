@@ -99,64 +99,66 @@ const lastDelivery = computed(() =>
       </span>
     </div>
     <!-- Narrow screens give the actions their own line under the text, so the name never squeezes. -->
-    <div class="flex w-full flex-wrap items-center justify-end gap-1 sm:w-auto">
+    <div class="flex w-full flex-wrap items-center justify-end gap-2 sm:w-auto sm:flex-nowrap">
       <Button
         v-if="switchedOff && can('webhooks:outbound:write')"
         variant="outline"
-        class="border-border"
+        class="border-border max-sm:w-full"
         data-outbound-reenable
         :disabled="busy"
         @click="$emit('reenable')"
       >
         {{ $t("dashboard.settings.webhooks.outbound.reenable") }}
       </Button>
-      <IconAction
-        v-if="can('webhooks:outbound:read')"
-        data-outbound-deliveries
-        :label="$t('dashboard.settings.webhooks.outbound.deliveries', { name: endpoint.name })"
-        @click="$emit('deliveries')"
-      >
-        <History class="size-5" />
-      </IconAction>
-      <div v-if="can('webhooks:outbound:write')" class="flex items-center gap-1">
+      <div data-outbound-actions class="flex items-center gap-1">
         <IconAction
-          data-outbound-test
+          v-if="can('webhooks:outbound:read')"
+          data-outbound-deliveries
+          :label="$t('dashboard.settings.webhooks.outbound.deliveries', { name: endpoint.name })"
+          @click="$emit('deliveries')"
+        >
+          <History class="size-5" />
+        </IconAction>
+        <template v-if="can('webhooks:outbound:write')">
+          <IconAction
+            data-outbound-test
+            :disabled="busy"
+            :label="$t('dashboard.settings.webhooks.outbound.test', { name: endpoint.name })"
+            @click="$emit('test')"
+          >
+            <Send class="size-5" />
+          </IconAction>
+          <IconAction
+            data-outbound-rotate
+            :label="$t('dashboard.settings.webhooks.outbound.rotate', { name: endpoint.name })"
+            @click="$emit('rotate')"
+          >
+            <Key class="size-5" />
+          </IconAction>
+          <IconAction
+            data-outbound-edit
+            :label="$t('dashboard.settings.webhooks.outbound.edit', { name: endpoint.name })"
+            @click="$emit('edit')"
+          >
+            <Edit class="size-5" />
+          </IconAction>
+          <IconAction
+            data-outbound-delete
+            :label="$t('dashboard.settings.webhooks.outbound.delete', { name: endpoint.name })"
+            @click="$emit('remove')"
+          >
+            <Trash class="size-5" />
+          </IconAction>
+        </template>
+        <GatedSwitch
+          class="ml-2"
+          action="webhooks:outbound:write"
+          :model-value="endpoint.isEnabled"
           :disabled="busy"
-          :label="$t('dashboard.settings.webhooks.outbound.test', { name: endpoint.name })"
-          @click="$emit('test')"
-        >
-          <Send class="size-5" />
-        </IconAction>
-        <IconAction
-          data-outbound-rotate
-          :label="$t('dashboard.settings.webhooks.outbound.rotate', { name: endpoint.name })"
-          @click="$emit('rotate')"
-        >
-          <Key class="size-5" />
-        </IconAction>
-        <IconAction
-          data-outbound-edit
-          :label="$t('dashboard.settings.webhooks.outbound.edit', { name: endpoint.name })"
-          @click="$emit('edit')"
-        >
-          <Edit class="size-5" />
-        </IconAction>
-        <IconAction
-          data-outbound-delete
-          :label="$t('dashboard.settings.webhooks.outbound.delete', { name: endpoint.name })"
-          @click="$emit('remove')"
-        >
-          <Trash class="size-5" />
-        </IconAction>
+          :aria-labelledby="`outbound-${endpoint.id}`"
+          @update:model-value="$emit('toggle')"
+        />
       </div>
-      <GatedSwitch
-        class="ml-2"
-        action="webhooks:outbound:write"
-        :model-value="endpoint.isEnabled"
-        :disabled="busy"
-        :aria-labelledby="`outbound-${endpoint.id}`"
-        @update:model-value="$emit('toggle')"
-      />
     </div>
   </div>
 </template>
