@@ -51,6 +51,19 @@
         "buttonChannel": "Kanaal voor de knop",
         "postButton": "Knop plaatsen"
       },
+      "liveRole": {
+        "title": "Liverol",
+        "subtitle": "Geef één lid een Discord-rol zolang je live bent.",
+        "error": "De liverol kon niet laden.",
+        "role": "Rol",
+        "member": "Lid-ID",
+        "memberPlaceholder": "Discord-gebruikers-ID",
+        "enabled": "Geef de rol tijdens de live",
+        "enabledHelp": "Zet uit om de regel te bewaren zonder hem toe te passen.",
+        "applied": "Nu toegepast",
+        "appliedHelp": "De rol staat nu op het lid. Wijzig de rol of het lid na afloop van de stream.",
+        "remove": "Regel verwijderen"
+      },
       "editor": {
         "description": "Kies waar het bericht heen gaat, wie het pingt en wat er staat.",
         "enabled": "Stuur deze melding",

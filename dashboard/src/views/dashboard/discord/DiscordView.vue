@@ -42,6 +42,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { merge } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 
+import LiveRolePanel from './components/LiveRolePanel.vue';
 import NotifyRoleEditor from './components/NotifyRoleEditor.vue';
 import RuleEditor from './components/RuleEditor.vue';
 import { discordTriggers } from './triggers';
@@ -248,6 +249,15 @@ function ruleSummary(rule: DiscordRule | null): string {
             </SummaryRow>
           </li>
         </ul>
+      </PanelCard>
+
+      <PanelCard
+        v-if="connection && connectionId !== null && can('discord:config:read')"
+        :title="t('dashboard.discord.liveRole.title')"
+        :description="t('dashboard.discord.liveRole.subtitle')"
+        pad
+      >
+        <LiveRolePanel :connection-id="connectionId" :guild-roles="rolesQuery.data.value ?? []" />
       </PanelCard>
     </PageBody>
 

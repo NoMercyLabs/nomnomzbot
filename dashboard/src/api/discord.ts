@@ -412,3 +412,107 @@ export function usePostRoleButton(
     },
   });
 }
+
+export type LiveRole = components['schemas']['DiscordLiveRoleConfig'];
+export type LiveRoleChange = components['schemas']['UpdateDiscordLiveRoleConfigRequest'];
+
+// A new rule starts enabled: the server default (DiscordConfigDefaults.LiveRoleEnabled) is the
+// `@default true` of the create request in the contract.
+export const liveRoleDefaultEnabled = true;
+
+export const liveRoleKey = (
+  channelId: string | null,
+  connectionId: string | null,
+): KeyParts => [
+  'channels',
+  channelId,
+  'discord-live-role',
+  connectionId,
+];
+
+const liveRolePath = '/api/v{version}/channels/{channelId}/discord/connections/{connectionId}/live-role';
+
+function liveRoleParams(
+  channelId: MaybeRefOrGetter<string | null>,
+  connectionId: MaybeRefOrGetter<string | null>,
+) {
+  return {
+    path: {
+      version,
+      channelId: toValue(channelId) as string,
+      connectionId: toValue(connectionId) as string,
+    },
+  };
+}
+
+// The server holds at most one live-role rule per connection and answers with a list; the screen reads the first.
+export function useDiscordLiveRole(
+  channelId: MaybeRefOrGetter<string | null>,
+  connectionId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<LiveRole | null, Error> {
+  return useQuery({
+    queryKey: computed(() => liveRoleKey(toValue(channelId), toValue(connectionId))),
+    queryFn: async (): Promise<LiveRole | null> => {
+      const { data, error, response } = await client.GET(liveRolePath, {
+        params: liveRoleParams(channelId, connectionId),
+      });
+
+      if (error !== undefined)
+        throw failed('discord live role', response.status, error);
+
+      return data?.data?.[0] ?? null;
+    },
+    enabled: computed(() => toValue(channelId) !== null && toValue(connectionId) !== null),
+  });
+}
+
+// Creates the rule when none is stored, otherwise updates it.
+export function useSaveDiscordLiveRole(
+  channelId: MaybeRefOrGetter<string | null>,
+  connectionId: MaybeRefOrGetter<string | null>,
+  exists: MaybeRefOrGetter<boolean>,
+): UseMutationReturnType<LiveRole | null, Error, LiveRoleChange, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (body: LiveRoleChange): Promise<LiveRole | null> => {
+      const params = liveRoleParams(channelId, connectionId);
+      const { data, error, response } = toValue(exists)
+        ? await client.PUT(liveRolePath, { params, body })
+        : await client.POST(liveRolePath, { params, body });
+
+      if (error !== undefined)
+        throw failed('save discord live role', response.status, error);
+
+      return data?.data ?? null;
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({
+        queryKey: liveRoleKey(toValue(channelId), toValue(connectionId)),
+      });
+    },
+  });
+}
+
+export function useDeleteDiscordLiveRole(
+  channelId: MaybeRefOrGetter<string | null>,
+  connectionId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, void, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (): Promise<void> => {
+      const { error, response } = await client.DELETE(liveRolePath, {
+        params: liveRoleParams(channelId, connectionId),
+      });
+
+      if (error !== undefined)
+        throw failed('delete discord live role', response.status, error);
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({
+        queryKey: liveRoleKey(toValue(channelId), toValue(connectionId)),
+      });
+    },
+  });
+}

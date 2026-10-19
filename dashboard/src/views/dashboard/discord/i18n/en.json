@@ -51,6 +51,19 @@
         "buttonChannel": "Button channel",
         "postButton": "Post button"
       },
+      "liveRole": {
+        "title": "Live role",
+        "subtitle": "Give one member a Discord role while you are live.",
+        "error": "The live role could not load.",
+        "role": "Role",
+        "member": "Member ID",
+        "memberPlaceholder": "Discord user ID",
+        "enabled": "Give the role while live",
+        "enabledHelp": "Turn it off to keep the rule without applying it.",
+        "applied": "Applied right now",
+        "appliedHelp": "The role is on the member now. Change the role or member after the stream ends.",
+        "remove": "Remove rule"
+      },
       "editor": {
         "description": "Pick where the message goes, who it pings and what it says.",
         "enabled": "Send this notification",
