@@ -11,7 +11,6 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
-using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Import.Dtos;
 using NomNomzBot.Domain.Identity.Enums;
@@ -44,7 +43,6 @@ public sealed class ProviderImportServiceTests
         RecordingEventBus bus = new();
         CommandService commands = new(
             db,
-            Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             bus,
             TestQuota.Unlimited(),

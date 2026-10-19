@@ -58,13 +58,4 @@ public interface ICommandService
         PaginationParams pagination,
         CancellationToken cancellationToken = default
     );
-
-    /// <summary>Execute a command and return its response text.</summary>
-    Task<Result<string>> ExecuteAsync(
-        string broadcasterId,
-        string commandName,
-        string userId,
-        string? input = null,
-        CancellationToken cancellationToken = default
-    );
 }

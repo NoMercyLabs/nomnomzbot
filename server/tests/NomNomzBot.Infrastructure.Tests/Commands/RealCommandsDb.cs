@@ -10,7 +10,6 @@
 
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
-using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Persistence;
@@ -69,14 +68,7 @@ internal sealed class RealCommandsDb : IDisposable
         );
         Db.SaveChanges();
 
-        Commands = new(
-            Db,
-            Substitute.For<IPipelineEngine>(),
-            Registry,
-            Bus,
-            TestQuota.Unlimited(),
-            new TemplateHelperValidator()
-        );
+        Commands = new(Db, Registry, Bus, TestQuota.Unlimited(), new TemplateHelperValidator());
         Presets = new(Commands, Db, Registry, Bus, new TemplateHelperValidator());
     }
 

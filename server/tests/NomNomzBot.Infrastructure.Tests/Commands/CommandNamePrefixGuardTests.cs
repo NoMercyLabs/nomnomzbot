@@ -55,7 +55,6 @@ public sealed class CommandNamePrefixGuardTests
         CommandsTestDbContext db = CommandsTestDbContext.New();
         CommandService sut = new(
             db,
-            Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             new RecordingEventBus(),
             Billing.TestQuota.Unlimited(),

@@ -10,7 +10,6 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Platform.Events;
@@ -53,18 +52,10 @@ public sealed class CommandServiceTests
     private static (CommandService Sut, RecordingEventBus Bus) Build()
     {
         CommandsTestDbContext db = NewDb();
-        IPipelineEngine pipelineEngine = Substitute.For<IPipelineEngine>();
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         RecordingEventBus bus = new();
         return (
-            new(
-                db,
-                pipelineEngine,
-                registry,
-                bus,
-                Billing.TestQuota.Unlimited(),
-                new TemplateHelperValidator()
-            ),
+            new(db, registry, bus, Billing.TestQuota.Unlimited(), new TemplateHelperValidator()),
             bus
         );
     }
@@ -197,7 +188,6 @@ public sealed class CommandServiceTests
         CommandsTestDbContext db = NewDb();
         CommandService sut = new(
             db,
-            Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             new RecordingEventBus(),
             Billing.TestQuota.Unlimited(),
@@ -225,7 +215,6 @@ public sealed class CommandServiceTests
         CommandsTestDbContext db = NewDb();
         CommandService sut = new(
             db,
-            Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             new RecordingEventBus(),
             Billing.TestQuota.Unlimited(),
@@ -425,7 +414,6 @@ public sealed class CommandServiceTests
         RecordingEventBus bus = new();
         CommandService sut = new(
             db,
-            Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             bus,
             Billing.TestQuota.Unlimited(),
@@ -466,7 +454,6 @@ public sealed class CommandServiceTests
         RecordingEventBus bus = new();
         CommandService sut = new(
             db,
-            Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             bus,
             Billing.TestQuota.Unlimited(),

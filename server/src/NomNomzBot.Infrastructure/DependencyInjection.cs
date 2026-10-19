@@ -1151,6 +1151,8 @@ public static class DependencyInjection
         // S-CONSEQ: counts the pipeline steps that name a keyless resource (sound clip, widget) inside
         // PipelineStep.ConfigJson. Not an I<X>Service — registered explicitly.
         services.AddScoped<IPipelineStepReferenceScanner, PipelineStepReferenceScanner>();
+        // The one runner behind every binding surface (commands-pipelines.md section 12). Not an I<X>Service.
+        services.AddScoped<ICommandInvoker, CommandInvoker>();
 
         // Identity / tenant — HttpContext accessor + UnitOfWork are framework/infra, kept explicit.
         // The I<X>Service impls (ICurrentTenantService, IChannelAccessService, ICurrentUserService,

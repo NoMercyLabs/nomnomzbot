@@ -10,7 +10,6 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
@@ -32,7 +31,6 @@ public class CommandService : ICommandService
     private const string AuditRecordType = "command_action";
 
     private readonly IApplicationDbContext _db;
-    private readonly IPipelineEngine _pipelineEngine;
     private readonly IChannelRegistry _registry;
     private readonly IEventBus _eventBus;
     private readonly IResourceQuotaService _quota;
@@ -40,7 +38,6 @@ public class CommandService : ICommandService
 
     public CommandService(
         IApplicationDbContext db,
-        IPipelineEngine pipelineEngine,
         IChannelRegistry registry,
         IEventBus eventBus,
         IResourceQuotaService quota,
@@ -48,7 +45,6 @@ public class CommandService : ICommandService
     )
     {
         _db = db;
-        _pipelineEngine = pipelineEngine;
         _registry = registry;
         _eventBus = eventBus;
         _quota = quota;
@@ -437,70 +433,6 @@ public class CommandService : ICommandService
         return Result.Success(
             new PagedList<CommandListItem>(items, pagination.Page, pagination.PageSize, total)
         );
-    }
-
-    public async Task<Result<string>> ExecuteAsync(
-        string broadcasterId,
-        string commandName,
-        string userId,
-        string? input = null,
-        CancellationToken cancellationToken = default
-    )
-    {
-        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
-            return Result.Failure<string>(
-                $"Invalid channel ID '{broadcasterId}'.",
-                "VALIDATION_FAILED"
-            );
-
-        string nameNormalized = commandName.ToLowerInvariant();
-
-        Command? command = await _db.Commands.FirstOrDefaultAsync(
-            c =>
-                c.BroadcasterId == broadcaster && c.NameNormalized == nameNormalized && c.IsEnabled,
-            cancellationToken
-        );
-
-        if (command is null)
-            return Errors.NotFound<string>("Command", commandName);
-
-        // A "code" command's reaction IS a single-step run_code pipeline (custom-code.md §5 — no HTTP
-        // endpoint runs a script directly), so it dispatches through the same bound-pipeline path as a
-        // "pipeline" command.
-        if (command.Tier is "pipeline" or "code" && command.PipelineId is not null)
-        {
-            // Load the pipeline's graph cache to drive the engine (steps-first engine is Slice 4).
-            Pipeline? pipeline = await _db.Pipelines.FirstOrDefaultAsync(
-                p => p.Id == command.PipelineId.Value,
-                cancellationToken
-            );
-
-            string graphJson = pipeline?.GraphJsonCache ?? "{}";
-
-            PipelineRequest pipelineRequest = new()
-            {
-                BroadcasterId = broadcaster,
-                PipelineId = command.PipelineId,
-                PipelineJson = graphJson,
-                TriggeredByUserId = userId,
-                TriggeredByDisplayName = userId,
-                RawMessage = input ?? string.Empty,
-            };
-
-            PipelineExecutionResult execResult = await _pipelineEngine.ExecuteAsync(
-                pipelineRequest,
-                cancellationToken
-            );
-
-            return Result.Success(execResult.Outcome.ToString());
-        }
-
-        // Template tier: pick a response.
-        string? response =
-            command.TemplateResponse
-            ?? (command.TemplateResponses is { Count: > 0 } ? command.TemplateResponses[0] : null);
-
-        return Result.Success(response ?? string.Empty);
     }
 
     /// <summary>

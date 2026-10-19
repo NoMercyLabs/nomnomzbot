@@ -10,7 +10,6 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
-using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Identity.Events;
@@ -60,7 +59,6 @@ public sealed class FunCommandPresetPackSeedOnOnboardingHandlerTests
         CommandsTestDbContext db = NewDb();
         CommandService commandService = new(
             db,
-            Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             new RecordingEventBus(),
             TestQuota.Unlimited(),

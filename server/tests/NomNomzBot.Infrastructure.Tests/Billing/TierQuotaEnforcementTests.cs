@@ -10,7 +10,6 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
-using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -43,7 +42,6 @@ public sealed class TierQuotaEnforcementTests
     ) =>
         new(
             db,
-            Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             new RecordingEventBus(),
             quota,

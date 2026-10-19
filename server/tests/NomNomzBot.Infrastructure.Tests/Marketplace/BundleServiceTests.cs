@@ -103,7 +103,6 @@ public sealed class BundleServiceTests
 
         CommandService commands = new(
             db,
-            Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             bus,
             Billing.TestQuota.Unlimited(),

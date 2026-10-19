@@ -82,7 +82,6 @@ public sealed class MarketplaceServiceTests
         RecordingEventBus bus = new();
         CommandService commands = new(
             db,
-            Substitute.For<IPipelineEngine>(),
             Substitute.For<IChannelRegistry>(),
             bus,
             Billing.TestQuota.Unlimited(),
