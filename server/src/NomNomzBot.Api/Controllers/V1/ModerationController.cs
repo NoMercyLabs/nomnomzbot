@@ -2084,6 +2084,15 @@ public class ModerationController : BaseController
 
         channel.AcceptsNetworkBlocks = request.Accepts;
         await _db.SaveChangesAsync(ct);
+        await _eventBus.PublishAsync(
+            new ChannelConfigChangedEvent
+            {
+                BroadcasterId = broadcasterId,
+                Domain = "network-blocks",
+                Action = "updated",
+            },
+            ct
+        );
         return NoContent();
     }
 

@@ -14,7 +14,9 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Domain.Discord;
 using NomNomzBot.Domain.Discord.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Discord;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Discord;
 
@@ -37,10 +39,7 @@ public sealed class DiscordConfigDefaultsTests
             await NewConfigService(db).GetConfigsAsync(channel, connectionId)
         ).Value;
         IReadOnlyList<DiscordLiveRoleConfigDto> liveRoles = (
-            await new DiscordLiveRoleConfigService(db, new DiscordTestUnitOfWork(db)).GetAsync(
-                channel,
-                connectionId
-            )
+            await NewLiveRoleService(db).GetAsync(channel, connectionId)
         ).Value;
 
         rules.Should().BeEmpty();
@@ -195,14 +194,20 @@ public sealed class DiscordConfigDefaultsTests
         (await db.DiscordLiveRoleConfigs.SingleAsync()).RoleId.Should().Be("role-1");
     }
 
-    private static DiscordNotificationConfigService NewConfigService(DiscordTestDbContext db) =>
+    internal static DiscordNotificationConfigService NewConfigService(
+        DiscordTestDbContext db,
+        IEventBus? eventBus = null
+    ) =>
         new(
             db,
             new DiscordTestUnitOfWork(db),
             DiscordTemplateTestSupport.CreateResolver(),
-            DiscordTemplateTestSupport.CreateValidator()
+            DiscordTemplateTestSupport.CreateValidator(),
+            eventBus ?? Substitute.For<IEventBus>()
         );
 
-    private static DiscordLiveRoleConfigService NewLiveRoleService(DiscordTestDbContext db) =>
-        new(db, new DiscordTestUnitOfWork(db));
+    internal static DiscordLiveRoleConfigService NewLiveRoleService(
+        DiscordTestDbContext db,
+        IEventBus? eventBus = null
+    ) => new(db, new DiscordTestUnitOfWork(db), eventBus ?? Substitute.For<IEventBus>());
 }

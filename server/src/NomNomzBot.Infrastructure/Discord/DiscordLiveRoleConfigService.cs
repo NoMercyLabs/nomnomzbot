@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Domain.Discord.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Discord;
 
@@ -23,11 +24,17 @@ public sealed class DiscordLiveRoleConfigService : IDiscordLiveRoleConfigService
 
     private readonly IApplicationDbContext _db;
     private readonly IUnitOfWork _unitOfWork;
+    private readonly IEventBus _eventBus;
 
-    public DiscordLiveRoleConfigService(IApplicationDbContext db, IUnitOfWork unitOfWork)
+    public DiscordLiveRoleConfigService(
+        IApplicationDbContext db,
+        IUnitOfWork unitOfWork,
+        IEventBus eventBus
+    )
     {
         _db = db;
         _unitOfWork = unitOfWork;
+        _eventBus = eventBus;
     }
 
     public async Task<Result<IReadOnlyList<DiscordLiveRoleConfigDto>>> GetAsync(
@@ -91,6 +98,13 @@ public sealed class DiscordLiveRoleConfigService : IDiscordLiveRoleConfigService
         };
         _db.DiscordLiveRoleConfigs.Add(row);
         await _unitOfWork.SaveChangesAsync(ct);
+        await DiscordConfigChangePublisher.PublishAsync(
+            _eventBus,
+            broadcasterId,
+            row.Id,
+            "created",
+            ct
+        );
 
         return Result.Success(ToDto(row));
     }
@@ -129,6 +143,13 @@ public sealed class DiscordLiveRoleConfigService : IDiscordLiveRoleConfigService
         row.DiscordMemberId = memberId;
         row.Enabled = request.Enabled;
         await _unitOfWork.SaveChangesAsync(ct);
+        await DiscordConfigChangePublisher.PublishAsync(
+            _eventBus,
+            broadcasterId,
+            row.Id,
+            "updated",
+            ct
+        );
 
         return Result.Success(ToDto(row));
     }
@@ -151,6 +172,13 @@ public sealed class DiscordLiveRoleConfigService : IDiscordLiveRoleConfigService
 
         _db.DiscordLiveRoleConfigs.Remove(row); // soft-delete via interceptor
         await _unitOfWork.SaveChangesAsync(ct);
+        await DiscordConfigChangePublisher.PublishAsync(
+            _eventBus,
+            broadcasterId,
+            row.Id,
+            "deleted",
+            ct
+        );
         return Result.Success();
     }
 

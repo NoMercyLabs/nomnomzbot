@@ -20,6 +20,7 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NSubstitute;
 
@@ -32,7 +33,7 @@ namespace NomNomzBot.Api.Tests.Controllers;
 /// </summary>
 public sealed class ModerationControllerNetworkBlockOptInTests
 {
-    private static ModerationController Build(ApiTestDbContext db) =>
+    private static ModerationController Build(ApiTestDbContext db, IEventBus? eventBus = null) =>
         new(
             Substitute.For<IModerationService>(),
             Substitute.For<IOperatorNetworkBanService>(),
@@ -50,7 +51,7 @@ public sealed class ModerationControllerNetworkBlockOptInTests
             Substitute.For<IMassBanConsentService>(),
             [],
             Substitute.For<IShoutoutSuggestionService>(),
-            Substitute.For<IEventBus>()
+            eventBus ?? Substitute.For<IEventBus>()
         );
 
     private static Guid SeedChannel(ApiTestDbContext db, string name)
@@ -132,6 +133,50 @@ public sealed class ModerationControllerNetworkBlockOptInTests
         db.ChangeTracker.Clear();
         (await ReadAsync(controller, mine)).Should().BeTrue();
         (await ReadAsync(controller, theirs)).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Changing_the_switch_tells_the_channels_open_dashboards_to_refetch_it()
+    {
+        await using ApiTestDbContext db = ApiTestDbContext.New();
+        Guid channelId = SeedChannel(db, "streamer");
+        IEventBus eventBus = Substitute.For<IEventBus>();
+        ModerationController controller = Build(db, eventBus);
+
+        await controller.SetNetworkBlockOptIn(
+            channelId.ToString(),
+            new(true),
+            CancellationToken.None
+        );
+
+        await eventBus
+            .Received(1)
+            .PublishAsync(
+                Arg.Is<ChannelConfigChangedEvent>(e =>
+                    e.BroadcasterId == channelId
+                    && e.Domain == "network-blocks"
+                    && e.Action == "updated"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_refused_write_publishes_nothing()
+    {
+        await using ApiTestDbContext db = ApiTestDbContext.New();
+        IEventBus eventBus = Substitute.For<IEventBus>();
+
+        await Build(db, eventBus)
+            .SetNetworkBlockOptIn(
+                Guid.CreateVersion7().ToString(),
+                new(true),
+                CancellationToken.None
+            );
+
+        await eventBus
+            .DidNotReceive()
+            .PublishAsync(Arg.Any<ChannelConfigChangedEvent>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]

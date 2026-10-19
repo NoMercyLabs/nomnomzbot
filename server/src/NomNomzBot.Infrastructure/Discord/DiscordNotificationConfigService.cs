@@ -15,6 +15,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Domain.Discord;
 using NomNomzBot.Domain.Discord.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Discord;
 
@@ -43,14 +44,17 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
     private readonly IUnitOfWork _unitOfWork;
     private readonly ITemplateResolver _templateResolver;
     private readonly ITemplateHelperValidator _templateHelperValidator;
+    private readonly IEventBus _eventBus;
 
     public DiscordNotificationConfigService(
         IApplicationDbContext db,
         IUnitOfWork unitOfWork,
         ITemplateResolver templateResolver,
-        ITemplateHelperValidator templateHelperValidator
+        ITemplateHelperValidator templateHelperValidator,
+        IEventBus eventBus
     )
     {
+        _eventBus = eventBus;
         _db = db;
         _unitOfWork = unitOfWork;
         _templateResolver = templateResolver;
@@ -137,6 +141,13 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
 
         _db.DiscordNotificationConfigs.Add(config);
         await _unitOfWork.SaveChangesAsync(ct);
+        await DiscordConfigChangePublisher.PublishAsync(
+            _eventBus,
+            broadcasterId,
+            config.Id,
+            "created",
+            ct
+        );
 
         return Result.Success(ToDto(config));
     }
@@ -188,6 +199,13 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
         config.ConfigSchemaVersion = CurrentEmbedConfigVersion;
 
         await _unitOfWork.SaveChangesAsync(ct);
+        await DiscordConfigChangePublisher.PublishAsync(
+            _eventBus,
+            broadcasterId,
+            config.Id,
+            "updated",
+            ct
+        );
         return Result.Success(ToDto(config));
     }
 
@@ -207,6 +225,13 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
 
         _db.DiscordNotificationConfigs.Remove(config); // soft-delete via interceptor
         await _db.SaveChangesAsync(ct);
+        await DiscordConfigChangePublisher.PublishAsync(
+            _eventBus,
+            broadcasterId,
+            config.Id,
+            "deleted",
+            ct
+        );
         return Result.Success();
     }
 

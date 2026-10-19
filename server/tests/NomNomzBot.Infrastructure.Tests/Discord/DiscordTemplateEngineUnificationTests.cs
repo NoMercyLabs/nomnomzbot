@@ -13,9 +13,11 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Discord;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Discord;
 
@@ -102,7 +104,8 @@ public sealed class DiscordTemplateEngineUnificationTests
                 db,
                 new DiscordTestUnitOfWork(db),
                 DiscordTemplateTestSupport.CreateResolver(),
-                DiscordTemplateTestSupport.CreateValidator()
+                DiscordTemplateTestSupport.CreateValidator(),
+                Substitute.For<IEventBus>()
             );
             Result<DiscordNotificationConfigDto> created = await configService.CreateConfigAsync(
                 channel,
@@ -122,7 +125,8 @@ public sealed class DiscordTemplateEngineUnificationTests
                 db,
                 new DiscordTestUnitOfWork(db),
                 DiscordTemplateTestSupport.CreateResolver(),
-                DiscordTemplateTestSupport.CreateValidator()
+                DiscordTemplateTestSupport.CreateValidator(),
+                Substitute.For<IEventBus>()
             );
             Result<DiscordNotificationPreviewDto> preview = await configService.PreviewAsync(
                 channel,

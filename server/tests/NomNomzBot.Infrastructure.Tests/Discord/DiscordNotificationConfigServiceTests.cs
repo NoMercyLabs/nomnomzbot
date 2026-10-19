@@ -13,7 +13,9 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Domain.Discord.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Discord;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Discord;
 
@@ -176,6 +178,7 @@ public sealed class DiscordNotificationConfigServiceTests
             db,
             new DiscordTestUnitOfWork(db),
             DiscordTemplateTestSupport.CreateResolver(),
-            DiscordTemplateTestSupport.CreateValidator()
+            DiscordTemplateTestSupport.CreateValidator(),
+            Substitute.For<IEventBus>()
         );
 }
