@@ -9,7 +9,12 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.AspNetCore.SignalR;
+using NomNomzBot.Api.Hubs;
+using NomNomzBot.Api.Hubs.Clients;
+using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Hubs.Overlay;
+using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
 
@@ -96,7 +101,7 @@ public sealed class OverlayMusicRoutingTests
 
         first.Should().BeNull();
         second.Should().NotBeNull();
-        second!.Value.ConnectionId.Should().Be("c1");
+        second.Value.ConnectionId.Should().Be("c1");
         second.Value.WidgetId.Should().Be(MusicA);
     }
 
@@ -108,5 +113,72 @@ public sealed class OverlayMusicRoutingTests
         registry.MarkMusicSource("c1", MusicA);
 
         registry.MarkMusicSource("c1", MusicA).Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("youtube.play")]
+    [InlineData("youtube.pause")]
+    [InlineData("youtube.resume")]
+    [InlineData("youtube.stop")]
+    [InlineData("youtube.seek")]
+    [InlineData("youtube.volume")]
+    public async Task A_youtube_command_reaches_the_music_player_page_and_never_the_audio_page(
+        string eventType
+    )
+    {
+        // qtkitte live, 2026-10-19: every YouTube command went to the Bot Audio page, so the Music Player
+        // never got youtube.play and no YouTube request ever played.
+        OverlayPresenceRegistry registry = new();
+        registry.RegisterOverlay("audio-conn", Broadcaster);
+        registry.MarkAudioSource("audio-conn", AudioWidget);
+        registry.RegisterOverlay("music-conn", Broadcaster);
+        registry.MarkMusicSource("music-conn", MusicA);
+        IOverlayClient audio = Substitute.For<IOverlayClient>();
+        IOverlayClient music = Substitute.For<IOverlayClient>();
+        IHubClients<IOverlayClient> clients = Substitute.For<IHubClients<IOverlayClient>>();
+        clients.Client("audio-conn").Returns(audio);
+        clients.Client("music-conn").Returns(music);
+        IHubContext<OverlayHub, IOverlayClient> hub = Substitute.For<
+            IHubContext<OverlayHub, IOverlayClient>
+        >();
+        hub.Clients.Returns(clients);
+        WidgetEventNotifierAdapter notifier = new(new WidgetNotifier(hub, registry));
+
+        await notifier.SendWidgetEventAsync(
+            Broadcaster,
+            MusicA,
+            eventType,
+            new { videoId = "M7lc1UVf-VE" }
+        );
+
+        await music
+            .Received(1)
+            .WidgetEvent(
+                Arg.Is<WidgetEventDto>(e =>
+                    e.EventType == eventType && e.WidgetId == MusicA.ToString()
+                )
+            );
+        await audio.DidNotReceiveWithAnyArgs().WidgetEvent(default!);
+    }
+
+    [Fact]
+    public async Task A_youtube_command_with_no_music_player_page_open_reaches_no_page()
+    {
+        OverlayPresenceRegistry registry = new();
+        registry.RegisterOverlay("audio-conn", Broadcaster);
+        registry.MarkAudioSource("audio-conn", AudioWidget);
+        IOverlayClient audio = Substitute.For<IOverlayClient>();
+        IHubClients<IOverlayClient> clients = Substitute.For<IHubClients<IOverlayClient>>();
+        clients.Client("audio-conn").Returns(audio);
+        IHubContext<OverlayHub, IOverlayClient> hub = Substitute.For<
+            IHubContext<OverlayHub, IOverlayClient>
+        >();
+        hub.Clients.Returns(clients);
+        WidgetEventNotifierAdapter notifier = new(new WidgetNotifier(hub, registry));
+
+        await notifier.SendWidgetEventAsync(Broadcaster, MusicA, "youtube.play", null);
+
+        await audio.DidNotReceiveWithAnyArgs().WidgetEvent(default!);
+        clients.DidNotReceiveWithAnyArgs().Group(default!);
     }
 }

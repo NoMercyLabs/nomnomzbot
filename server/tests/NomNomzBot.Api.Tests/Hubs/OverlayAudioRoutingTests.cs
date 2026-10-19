@@ -206,23 +206,6 @@ public sealed class OverlayAudioRoutingTests
     }
 
     [Fact]
-    public async Task A_youtube_play_event_reaches_only_the_selected_audio_connection()
-    {
-        Pages pages = TwoPages();
-        WidgetEventDto play = new(
-            Guid.NewGuid().ToString(),
-            "youtube.play",
-            new { videoId = "dQw4w9WgXcQ" }
-        );
-
-        await pages.Notifier.SendAudioWidgetEventAsync(Broadcaster.ToString(), play);
-
-        await pages.Audio.Received(1).WidgetEvent(play);
-        await pages.Caption.DidNotReceiveWithAnyArgs().WidgetEvent(default!);
-        pages.Clients.DidNotReceiveWithAnyArgs().Group(default!);
-    }
-
-    [Fact]
     public async Task A_tts_line_and_a_stop_reach_only_the_audio_page()
     {
         Pages pages = TwoPages();

@@ -40,7 +40,7 @@ internal sealed class WidgetEventNotifierAdapter : IWidgetEventNotifier
                 or "youtube.stop"
                 or "youtube.seek"
                 or "youtube.volume"
-            ? _notifier.SendAudioWidgetEventAsync(
+            ? _notifier.SendMusicWidgetEventAsync(
                 broadcasterId.ToString(),
                 new(widgetId.ToString(), eventType, data),
                 ct

@@ -24,8 +24,8 @@ public interface IWidgetNotifier
         CancellationToken ct = default
     );
 
-    /// <summary>Sends a music player event to the selected Audio connection only.</summary>
-    Task SendAudioWidgetEventAsync(
+    /// <summary>Sends a YouTube player command to the channel's one Music Player page only.</summary>
+    Task SendMusicWidgetEventAsync(
         string broadcasterId,
         WidgetEventDto dto,
         CancellationToken ct = default
@@ -95,6 +95,15 @@ public class WidgetNotifier : IWidgetNotifier
         _presence = presence;
     }
 
+    // Music plays on exactly one page too: the newest Music Player page, never the Bot Audio page.
+    private IOverlayClient? MusicPage(string broadcasterId)
+    {
+        string? connectionId = Guid.TryParse(broadcasterId, out Guid parsed)
+            ? _presence.GetMusicTarget(parsed)
+            : null;
+        return connectionId is null ? null : _hub.Clients.Client(connectionId);
+    }
+
     // Audio plays on exactly one page: the registry names it, nothing is sent when no page is open.
     private IOverlayClient? AudioPage(string broadcasterId)
     {
@@ -111,11 +120,11 @@ public class WidgetNotifier : IWidgetNotifier
         CancellationToken ct = default
     ) => _hub.Clients.Group($"widget-{broadcasterId}-{widgetId}").WidgetEvent(dto);
 
-    public Task SendAudioWidgetEventAsync(
+    public Task SendMusicWidgetEventAsync(
         string broadcasterId,
         WidgetEventDto dto,
         CancellationToken ct = default
-    ) => AudioPage(broadcasterId)?.WidgetEvent(dto) ?? Task.CompletedTask;
+    ) => MusicPage(broadcasterId)?.WidgetEvent(dto) ?? Task.CompletedTask;
 
     public Task ReloadWidgetAsync(
         string broadcasterId,
