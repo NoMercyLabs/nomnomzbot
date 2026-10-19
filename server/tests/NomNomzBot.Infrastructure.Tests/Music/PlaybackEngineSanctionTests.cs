@@ -49,6 +49,7 @@ public sealed class PlaybackEngineSanctionTests
         }
     }
 
+    private readonly IOutboundSanctionAccessor _accessor;
     private readonly RecordingInner _inner;
     private readonly HttpClient _http;
     private readonly IPlaybackEngine _engine;
@@ -56,6 +57,7 @@ public sealed class PlaybackEngineSanctionTests
     public PlaybackEngineSanctionTests()
     {
         IOutboundSanctionAccessor accessor = new OutboundSanctionAccessor();
+        _accessor = accessor;
         _inner = new() { Accessor = accessor };
         _http = new(
             new OutboundSanctionHandler(accessor, NullLogger<OutboundSanctionHandler>.Instance)
@@ -223,5 +225,17 @@ public sealed class PlaybackEngineSanctionTests
 
         result.Should().Be(EngineControlResult.Done);
         AssertOneSanctionedCall("PUT /v1/me/player");
+    }
+
+    [Fact]
+    public async Task A_user_action_already_in_force_stays_the_recorded_basis_during_an_engine_command()
+    {
+        OutboundSanction userAction = OutboundSanction.UserAction("music.skip", Guid.NewGuid());
+
+        using (_accessor.Begin(userAction))
+            await _engine.PauseAsync();
+
+        _inner.Calls.Should().Equal("PUT /v1/me/player/pause");
+        _inner.Sanctions.Should().Equal(userAction);
     }
 }
