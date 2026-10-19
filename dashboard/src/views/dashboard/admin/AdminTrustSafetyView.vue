@@ -28,6 +28,9 @@ import {
   type PreviewParams,
   type TrustSafetyReviewItem,
 } from '@/api/adminTrustSafety';
+import TrustBlockRow from './components/TrustBlockRow.vue';
+import TrustReviewRow from './components/TrustReviewRow.vue';
+import TrustSignalRow from './components/TrustSignalRow.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -52,10 +55,29 @@ const previewParams = ref<PreviewParams | null>(null);
 const step = ref<Step | null>(null);
 const failed = ref(false);
 
-const queue = useReviewQueue(justification);
-const signals = useCrossTenantSignals(justification);
-const blocks = useNetworkBlocks(justification);
+const canReview = computed(() => can('trust-safety:review'));
+const canManageBlocks = computed(() => can('network:block:manage'));
+
+const queue = useReviewQueue(justification, canReview);
+const signals = useCrossTenantSignals(justification, canReview);
+const blocks = useNetworkBlocks(justification, canManageBlocks);
 const preview = useBlockPreview(previewParams);
+
+// A preview only counts for the exact target and reason it was run with; an edit afterwards drops it.
+const previewCurrent = computed(
+  () =>
+    previewParams.value?.targetTwitchUserId === targetId.value.trim() &&
+    previewParams.value.justification === justification.value,
+);
+const shownPreview = computed(() =>
+  previewCurrent.value
+    ? preview.data.value
+    : null);
+const tenantNames = computed(() => {
+  const tenants = shownPreview.value?.tenants ?? [];
+
+  return tenants.map((tenant) => tenant.channelName).join(', ');
+});
 
 const confirmReview = useReviewDecision('confirm');
 const overturnReview = useReviewDecision('overturn');
@@ -69,7 +91,7 @@ const signalState = usePanelState(signals, (rows) =>
 const blockState = usePanelState(blocks, (rows) =>
   rows.length === 0);
 
-const previewCount = computed(() => Number(preview.data.value?.tenantCount ?? 0));
+const previewCount = computed(() => Number(shownPreview.value?.tenantCount ?? 0));
 const pending = computed(
   () =>
     confirmReview.isPending.value ||
@@ -197,167 +219,118 @@ function run(current: Step): Promise<void> {
       </p>
     </div>
 
-    <PanelCard
-      tier="lead"
-      :title="$t('dashboard.admin.trustSafety.review.title')"
-      :description="$t('dashboard.admin.trustSafety.review.description')"
-      :state="justification.trim() ? queueState : 'empty'"
-      :empty-text="
-        justification.trim()
-          ? $t('dashboard.admin.trustSafety.review.empty')
-          : $t('dashboard.admin.trustSafety.idle')
-      "
-      :error-text="$t('dashboard.admin.trustSafety.error')"
-      @retry="queue.refetch()"
-    >
-      <ul class="divide-y divide-border">
-        <li
-          v-for="item in queue.data.value ?? []"
-          :key="item.detectionId"
-          data-review-row
-          class="flex items-center gap-3 py-2"
-        >
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-medium">
-              {{ item.subjectDisplayName }}<span class="text-muted-foreground"> {{ item.channelName }}</span>
-            </p>
-            <p class="truncate text-xs text-muted-foreground">{{ item.reason }}</p>
-          </div>
-          <Button
-            v-if="can('trust-safety:review')"
-            variant="outline"
-            size="sm"
-            @click="step = { kind: 'confirm', item }"
-          >{{
-            $t("dashboard.admin.trustSafety.review.confirm")
-          }}</Button>
-          <Button
-            v-if="can('trust-safety:review')"
-            variant="outline"
-            size="sm"
-            @click="step = { kind: 'overturn', item }"
-          >{{
-            $t("dashboard.admin.trustSafety.review.overturn")
-          }}</Button>
-        </li>
-      </ul>
-    </PanelCard>
+    <div class="grid min-w-0 items-start gap-3 lg:grid-cols-2">
+      <PanelCard
+        v-if="canReview"
+        tier="lead"
+        :title="$t('dashboard.admin.trustSafety.review.title')"
+        :description="$t('dashboard.admin.trustSafety.review.description')"
+        :state="justification.trim() ? queueState : 'empty'"
+        :empty-text="
+          justification.trim()
+            ? $t('dashboard.admin.trustSafety.review.empty')
+            : $t('dashboard.admin.trustSafety.idle')
+        "
+        :error-text="$t('dashboard.admin.trustSafety.error')"
+        @retry="queue.refetch()"
+      >
+        <ul class="divide-y divide-border">
+          <TrustReviewRow
+            v-for="item in queue.data.value ?? []"
+            :key="item.detectionId"
+            :item="item"
+            :can-review="canReview"
+            @confirm="step = { kind: 'confirm', item }"
+            @overturn="step = { kind: 'overturn', item }"
+          />
+        </ul>
+      </PanelCard>
 
-    <PanelCard
-      :title="$t('dashboard.admin.trustSafety.signals.title')"
-      :description="$t('dashboard.admin.trustSafety.signals.description')"
-      :state="justification.trim() ? signalState : 'empty'"
-      :empty-text="
-        justification.trim()
-          ? $t('dashboard.admin.trustSafety.signals.empty')
-          : $t('dashboard.admin.trustSafety.idle')
-      "
-      :error-text="$t('dashboard.admin.trustSafety.error')"
-      @retry="signals.refetch()"
-    >
-      <ul class="divide-y divide-border">
-        <li
-          v-for="signal in signals.data.value ?? []"
-          :key="signal.provider + signal.subjectPlatformUserId"
-          data-signal-row
-          class="py-2"
+      <div class="flex min-w-0 flex-col gap-3">
+        <PanelCard
+          v-if="canReview"
+          :title="$t('dashboard.admin.trustSafety.signals.title')"
+          :description="$t('dashboard.admin.trustSafety.signals.description')"
+          :state="justification.trim() ? signalState : 'empty'"
+          :empty-text="
+            justification.trim()
+              ? $t('dashboard.admin.trustSafety.signals.empty')
+              : $t('dashboard.admin.trustSafety.idle')
+          "
+          :error-text="$t('dashboard.admin.trustSafety.error')"
+          @retry="signals.refetch()"
         >
-          <p class="text-sm font-medium">{{ signal.subjectDisplayName }}</p>
-          <p class="text-xs text-muted-foreground">
-            {{
-              $t("dashboard.admin.trustSafety.signals.summary", {
-                tenants: Number(signal.tenantCount),
-                detections: Number(signal.detectionCount),
-              })
-            }}
-          </p>
-        </li>
-      </ul>
-    </PanelCard>
+          <ul class="divide-y divide-border">
+            <TrustSignalRow
+              v-for="signal in signals.data.value ?? []"
+              :key="signal.provider + signal.subjectPlatformUserId"
+              :signal="signal"
+            />
+          </ul>
+        </PanelCard>
 
-    <PanelCard
-      :title="$t('dashboard.admin.trustSafety.blocks.title')"
-      :description="$t('dashboard.admin.trustSafety.blocks.description')"
-      :state="justification.trim() ? blockState : 'empty'"
-      :empty-text="
-        justification.trim()
-          ? $t('dashboard.admin.trustSafety.blocks.empty')
-          : $t('dashboard.admin.trustSafety.idle')
-      "
-      :error-text="$t('dashboard.admin.trustSafety.error')"
-      @retry="blocks.refetch()"
-    >
-      <ul class="divide-y divide-border">
-        <li
-          v-for="block in blocks.data.value ?? []"
-          :key="block.id"
-          data-block-row
-          class="flex items-center gap-3 py-2"
+        <PanelCard
+          v-if="canManageBlocks"
+          :title="$t('dashboard.admin.trustSafety.blocks.title')"
+          :description="$t('dashboard.admin.trustSafety.blocks.description')"
+          :state="justification.trim() ? blockState : 'empty'"
+          :empty-text="
+            justification.trim()
+              ? $t('dashboard.admin.trustSafety.blocks.empty')
+              : $t('dashboard.admin.trustSafety.idle')
+          "
+          :error-text="$t('dashboard.admin.trustSafety.error')"
+          @retry="blocks.refetch()"
         >
-          <div class="min-w-0 flex-1">
-            <p class="truncate text-sm font-medium">
-              {{ block.targetDisplayName ?? block.targetTwitchUserId }}
-            </p>
-            <p class="text-xs text-muted-foreground">
-              {{
-                $t("dashboard.admin.trustSafety.blocks.summary", {
-                  status: block.status,
-                  count: Number(block.channelCount),
-                })
-              }}
-            </p>
-          </div>
-          <Button
-            v-if="can('network:block:manage')"
-            variant="outline"
-            size="sm"
-            @click="step = { kind: 'lift', block }"
-          >{{
-            $t("dashboard.admin.trustSafety.blocks.lift")
-          }}</Button>
-        </li>
-      </ul>
-      <template v-if="can('network:block:manage')" #footer>
-        <div class="grid w-full gap-2">
-          <p class="text-sm font-medium">{{ $t("dashboard.admin.trustSafety.apply.title") }}</p>
-          <div class="flex flex-wrap gap-2">
-            <Input
-              v-model="targetId"
-              data-block-target
-              class="w-48"
-              :placeholder="$t('dashboard.admin.trustSafety.apply.target')"
+          <ul class="divide-y divide-border">
+            <TrustBlockRow
+              v-for="block in blocks.data.value ?? []"
+              :key="block.id"
+              :block="block"
+              :can-lift="canManageBlocks"
+              @lift="step = { kind: 'lift', block }"
             />
-            <Input
-              v-model="reason"
-              class="min-w-0 flex-1"
-              :placeholder="$t('dashboard.admin.trustSafety.apply.reason')"
-            />
-            <Button
-              variant="outline"
-              :disabled="!justification.trim() || !targetId.trim()"
-              @click="startPreview"
-            >
-              {{ $t("dashboard.admin.trustSafety.apply.preview") }}
-            </Button>
-            <Button
-              v-if="preview.data.value"
-              variant="destructive"
-              @click="step = { kind: 'apply' }"
-            >
-              {{ $t("dashboard.admin.trustSafety.apply.action") }}
-            </Button>
-          </div>
-          <p v-if="preview.data.value" class="text-xs text-muted-foreground">
-            {{
-              $t("dashboard.admin.trustSafety.apply.previewResult", {
-                name: preview.data.value.targetDisplayName ?? targetId,
-                count: previewCount,
-              })
-            }}
-          </p>
-        </div>
-      </template>
-    </PanelCard>
+          </ul>
+          <template #footer>
+            <div class="grid w-full gap-2">
+              <p class="text-sm font-medium">{{ $t("dashboard.admin.trustSafety.apply.title") }}</p>
+              <div class="flex flex-wrap gap-2">
+                <Input
+                  v-model="targetId"
+                  data-block-target
+                  class="w-48"
+                  :placeholder="$t('dashboard.admin.trustSafety.apply.target')"
+                />
+                <Input
+                  v-model="reason"
+                  class="min-w-0 flex-1"
+                  :placeholder="$t('dashboard.admin.trustSafety.apply.reason')"
+                />
+                <Button
+                  variant="outline"
+                  :disabled="!justification.trim() || !targetId.trim()"
+                  @click="startPreview"
+                >
+                  {{ $t("dashboard.admin.trustSafety.apply.preview") }}
+                </Button>
+                <Button v-if="shownPreview" variant="destructive" @click="step = { kind: 'apply' }">
+                  {{ $t("dashboard.admin.trustSafety.apply.action") }}
+                </Button>
+              </div>
+              <p v-if="shownPreview" class="text-xs text-muted-foreground">
+                {{
+                  $t("dashboard.admin.trustSafety.apply.previewResult", {
+                    name: shownPreview.targetDisplayName ?? targetId,
+                    count: previewCount,
+                  })
+                }}
+                {{ tenantNames }}
+              </p>
+            </div>
+          </template>
+        </PanelCard>
+      </div>
+    </div>
 
     <FormDialog
       :open="step !== null"

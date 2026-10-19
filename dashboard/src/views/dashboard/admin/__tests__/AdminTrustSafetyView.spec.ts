@@ -35,8 +35,13 @@ type Call = {
 const calls: Call[] = [];
 
 // The signed-in admin holds every platform key, so every action button shows.
+const held = vi.hoisted(() => ({ keys: null as string[] | null }));
+
 vi.mock('@/composables/usePlatformCan', () => ({
-  usePlatformCan: () => ({ known: { value: true }, can: () => true }),
+  usePlatformCan: () => ({
+    known: { value: true },
+    can: (key: string) => held.keys === null || held.keys.includes(key),
+  }),
 }));
 
 vi.mock('@/api/client', () => ({
@@ -59,6 +64,11 @@ vi.mock('@/api/client', () => ({
                 channelName: 'Stoney_Eagle',
                 subjectDisplayName: 'SpamLord',
                 reason: 'link flood',
+                subjectPlatformUserId: '555',
+                confidence: 'High',
+                outcome: 'DeleteAndQueue',
+                messageText: 'buy followers now',
+                detectedAt: '2026-10-18T10:00:00Z',
                 reversalPreview: 'Unbans SpamLord in Stoney_Eagle',
               },
             ],
@@ -101,7 +111,8 @@ vi.mock('@/api/client', () => ({
               id: 'blk1',
               targetDisplayName: 'BadActor',
               targetTwitchUserId: '99',
-              status: 'active',
+              status: 'partial',
+              appliedAt: '2026-10-17T09:00:00Z',
               tenantCount: 5,
               channelCount: 5,
             },
@@ -127,6 +138,7 @@ let pinia: Pinia;
 
 beforeEach(() => {
   calls.length = 0;
+  held.keys = null;
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -269,6 +281,87 @@ describe('AdminTrustSafetyView', () => {
       justification: 'cross-tenant abuse',
       confirmedTenantCount: 4,
     });
+  });
+
+  it('hides Apply block once the target is edited after the preview', async () => {
+    await open();
+    await giveReason('cross-tenant abuse');
+
+    const target = document.body.querySelector<HTMLInputElement>('[data-block-target]')!;
+
+    target.value = '1234';
+    target.dispatchEvent(new Event('input'));
+    await settle();
+    byText('button', 'Preview block')!.click();
+    await settle();
+
+    expect(byText('button', 'Apply block')).toBeDefined();
+
+    target.value = '9999';
+    target.dispatchEvent(new Event('input'));
+    await settle();
+
+    expect(byText('button', 'Apply block')).toBeUndefined();
+    expect(text()).not.toContain('4 channels');
+  });
+
+  it('loads only the panels the admin holds a key for', async () => {
+    held.keys = ['trust-safety:review'];
+    await open();
+    await giveReason('weekly review');
+
+    const reviewOnly = calls
+      .filter((call) => call.method === 'GET')
+      .map((call) => call.path.split('/').pop());
+
+    expect(reviewOnly).not.toContain('network-blocks');
+    expect(document.body.querySelectorAll('[data-block-row]')).toHaveLength(0);
+    expect(document.body.querySelector('[data-block-target]')).toBeNull();
+    expect(document.body.querySelectorAll('[data-review-row]')).toHaveLength(1);
+
+    mounted?.unmount();
+    document.body.innerHTML = '';
+    queryClient.clear();
+    calls.length = 0;
+    held.keys = ['network:block:manage'];
+    await open();
+    await giveReason('weekly review');
+
+    const blocksOnly = calls
+      .filter((call) => call.method === 'GET')
+      .map((call) => call.path.split('/').pop());
+
+    expect(blocksOnly).toEqual(['network-blocks']);
+    expect(document.body.querySelectorAll('[data-review-row]')).toHaveLength(0);
+  });
+
+  it('opens the profile from user names and shows detection details translated', async () => {
+    await open();
+    await giveReason('weekly review');
+
+    const row = document.body.querySelector('[data-review-row]')!;
+
+    expect(row.querySelector('[data-user="555"]')).not.toBeNull();
+    expect(row.textContent).toContain('High confidence');
+    expect(row.textContent).toContain('Deleted and queued');
+    expect(row.textContent).toContain('buy followers now');
+    expect(row.textContent).not.toContain('DeleteAndQueue');
+
+    const block = document.body.querySelector('[data-block-row]')!;
+
+    expect(block.querySelector('[data-user="99"]')).not.toBeNull();
+    expect(block.textContent).toContain('Partly applied');
+  });
+
+  it('makes Overturn the destructive action and Confirm the quiet one', async () => {
+    await open();
+    await giveReason('weekly review');
+
+    const overturn = byText('[data-review-row] button', 'Overturn')!;
+    const confirm = byText('[data-review-row] button', 'Confirm')!;
+
+    expect(overturn.getAttribute('data-variant')).toBe('destructive');
+    expect(confirm.getAttribute('data-variant')).toBe('outline');
   });
 
   it('reloads the desk when the hub says another operator changed it', () => {

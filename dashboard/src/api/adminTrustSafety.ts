@@ -56,6 +56,7 @@ export const trustSafetyPrefix: KeyParts = ['admin', 'trust-safety'];
 
 export function useReviewQueue(
   justification: MaybeRefOrGetter<string>,
+  allowed: MaybeRefOrGetter<boolean>,
 ): UseQueryReturnType<TrustSafetyReviewItem[], Error> {
   return useQuery({
     queryKey: computed((): KeyParts => [
@@ -64,7 +65,7 @@ export function useReviewQueue(
       'review-queue',
       toValue(justification),
     ]),
-    enabled: computed(() => toValue(justification).trim() !== ''),
+    enabled: computed(() => toValue(allowed) && toValue(justification).trim() !== ''),
     queryFn: async (): Promise<TrustSafetyReviewItem[]> => {
       const { data, error, response } = await client.GET(
         '/api/v{version}/admin/trust-safety/review-queue',
@@ -86,6 +87,7 @@ export function useReviewQueue(
 
 export function useCrossTenantSignals(
   justification: MaybeRefOrGetter<string>,
+  allowed: MaybeRefOrGetter<boolean>,
 ): UseQueryReturnType<CrossTenantAbuseSignal[], Error> {
   return useQuery({
     queryKey: computed((): KeyParts => [
@@ -94,7 +96,7 @@ export function useCrossTenantSignals(
       'signals',
       toValue(justification),
     ]),
-    enabled: computed(() => toValue(justification).trim() !== ''),
+    enabled: computed(() => toValue(allowed) && toValue(justification).trim() !== ''),
     queryFn: async (): Promise<CrossTenantAbuseSignal[]> => {
       const { data, error, response } = await client.GET(
         '/api/v{version}/admin/trust-safety/cross-tenant-signals',
@@ -111,10 +113,11 @@ export function useCrossTenantSignals(
 
 export function useNetworkBlocks(
   justification: MaybeRefOrGetter<string>,
+  allowed: MaybeRefOrGetter<boolean>,
 ): UseQueryReturnType<NetworkBlock[], Error> {
   return useQuery({
     queryKey: computed((): KeyParts => ['admin', 'trust-safety', 'blocks', toValue(justification)]),
-    enabled: computed(() => toValue(justification).trim() !== ''),
+    enabled: computed(() => toValue(allowed) && toValue(justification).trim() !== ''),
     queryFn: async (): Promise<NetworkBlock[]> => {
       const { data, error, response } = await client.GET(
         '/api/v{version}/admin/trust-safety/network-blocks',
