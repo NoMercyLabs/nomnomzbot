@@ -42,7 +42,7 @@
         "neverSeen": "Not seen yet",
         "notInChannel": "Not in this channel",
         "banned": "Banned",
-        "gifted": "Gifted subscription",
+        "gifted": "Gifted Twitch subscription",
         "giftedBy": "Gifted by {gifter}",
         "roles": {
           "moderator": "Moderator",

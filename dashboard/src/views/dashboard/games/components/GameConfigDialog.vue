@@ -18,6 +18,7 @@ import { useI18n } from 'vue-i18n';
 import { ApiError } from '@/api/errors';
 import { useSaveGameConfig, type GameConfig } from '@/api/games';
 import { gameStandings, type GameStanding } from '@/api/vocabulary';
+import DurationInput from '@/components/layout/DurationInput.vue';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -67,7 +68,7 @@ const values = ref<Record<Field, number | string>>({
   maxPlaysPerStream: '',
 });
 
-const cooldown = ref<number | string>('');
+const cooldown = ref(0);
 const permission = ref<GameStanding>('Everyone');
 
 const floorSeconds = computed(() => Number(props.config?.cooldownFloorSeconds ?? 0));
@@ -119,7 +120,7 @@ watch(
       values.value[field] = text(config[field]);
     }
 
-    cooldown.value = text(config.cooldownSeconds);
+    cooldown.value = toNumber(config.cooldownSeconds) ?? 0;
     permission.value = standingOf(config.permission);
   },
   { immediate: true },
@@ -134,7 +135,10 @@ function submit(): void {
     next[field] = toNumber(values.value[field]);
   }
 
-  next.cooldownSeconds = toNumber(cooldown.value) ?? 0;
+  next.cooldownSeconds = Number.isFinite(cooldown.value)
+    ? cooldown.value
+    : 0;
+
   next.permission = permission.value;
 
   save.mutate(next, {
@@ -178,14 +182,11 @@ function submit(): void {
           <Label for="game-cooldownSeconds">
             {{ t("dashboard.games.configs.fields.cooldownSeconds") }}
           </Label>
-          <Input
+          <DurationInput
             id="game-cooldownSeconds"
             v-model="cooldown"
             data-game-field="cooldownSeconds"
             :disabled="!canWrite"
-            type="number"
-            min="0"
-            step="1"
           />
         </div>
 

@@ -326,10 +326,10 @@ describe('GamesView', () => {
       '[data-game-field="cooldownSeconds"]',
     ) as HTMLInputElement;
 
-    expect(cooldown.value).toBe('600');
+    expect(cooldown.value).toBe('10:00');
     expect(document.querySelector('[data-game-cooldown-floor]')?.textContent).toContain('300');
 
-    cooldown.value = '900';
+    cooldown.value = '15:00';
     cooldown.dispatchEvent(new Event('input'));
     await flushPromises();
 
