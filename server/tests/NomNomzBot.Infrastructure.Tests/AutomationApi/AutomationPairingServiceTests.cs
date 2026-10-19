@@ -12,7 +12,6 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Caching;
-using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
@@ -77,10 +76,7 @@ public sealed class AutomationPairingServiceTests
         public required IRateLimiterPartitionStore Limiter { get; init; }
     }
 
-    private static Harness Build(
-        bool rateLimited = false,
-        IEnumerable<ICommandAction>? actions = null
-    )
+    private static Harness Build(bool rateLimited = false)
     {
         AutomationTestDbContext db = AutomationTestDbContext.New();
         FakeCache cache = new();
@@ -109,7 +105,7 @@ public sealed class AutomationPairingServiceTests
 
         return new()
         {
-            Service = new(cache, tokens, limiter, db, actions ?? [], clock),
+            Service = new(cache, tokens, limiter, db, clock),
             Db = db,
             Cache = cache,
             Limiter = limiter,
@@ -121,17 +117,6 @@ public sealed class AutomationPairingServiceTests
 
     private static DeviceInfo StreamDeckPlugin(string? name = "Office Deck") =>
         new() { Kind = "streamdeck", Name = name };
-
-    private static ICommandAction FakeAction(
-        string type,
-        IReadOnlyList<PipelineActionFieldDescriptor>? fields = null
-    )
-    {
-        ICommandAction action = Substitute.For<ICommandAction>();
-        action.ActionType.Returns(type);
-        action.Fields.Returns(fields ?? []);
-        return action;
-    }
 
     [Fact]
     public async Task A_minted_code_redeems_into_a_real_scoped_token_exactly_once()
@@ -268,163 +253,29 @@ public sealed class AutomationPairingServiceTests
         h.Cache.Ttls.Should().BeEmpty("nothing was cached for rejected mints");
     }
 
-    [Fact]
-    public async Task Pairing_a_stream_deck_auto_provisions_one_pipeline_per_music_action()
-    {
-        Harness h = Build(
-            actions: [FakeAction("music_play"), FakeAction("music_pause"), FakeAction("chat_send")]
-        );
-        Result<PairingCodeDto> minted = await h.Service.MintCodeAsync(
-            Channel,
-            Operator,
-            new() { DeviceLabel = "Studio Deck" }
-        );
-
-        await h.Service.RedeemCodeAsync(
-            minted.Value.Code,
-            StreamDeckPlugin(),
-            "203.0.113.7",
-            Backend
-        );
-
-        List<Domain.Commands.Entities.Pipeline> pipelines = await h
-            .Db.Pipelines.Where(p => p.BroadcasterId == Channel)
-            .ToListAsync();
-        pipelines.Should().HaveCount(2, "only the music_* actions get a pipeline, not chat_send");
-        pipelines.Select(p => p.Name).Should().BeEquivalentTo(["music_play", "music_pause"]);
-        pipelines.Should().OnlyContain(p => p.GraphJsonCache!.Contains("\"type\":\"music_"));
-    }
-
-    /// <summary>S-PL5c: the "NomNomzBot: OBS" Stream Deck actions ride the same auto-provisioning as
-    /// music_*, alongside it (both prefixes at once) — not a separate mechanism, and not exclusive of
-    /// each other on one device. Invokes the SAME obs_switch_scene/obs_input_mute the dashboard pipeline
-    /// builder already has (obs-control.md §5), not bespoke Stream-Deck-only action types.</summary>
-    [Fact]
-    public async Task Pairing_a_stream_deck_auto_provisions_one_pipeline_per_obs_action_too()
-    {
-        Harness h = Build(
-            actions:
-            [
-                FakeAction("music_play"),
-                FakeAction("obs_switch_scene"),
-                FakeAction("obs_input_mute"),
-                FakeAction("chat_send"),
-            ]
-        );
-        Result<PairingCodeDto> minted = await h.Service.MintCodeAsync(
-            Channel,
-            Operator,
-            new() { DeviceLabel = "Studio Deck" }
-        );
-
-        await h.Service.RedeemCodeAsync(
-            minted.Value.Code,
-            StreamDeckPlugin(),
-            "203.0.113.7",
-            Backend
-        );
-
-        List<Domain.Commands.Entities.Pipeline> pipelines = await h
-            .Db.Pipelines.Where(p => p.BroadcasterId == Channel)
-            .ToListAsync();
-        pipelines
-            .Should()
-            .HaveCount(3, "music_* and obs_* actions both get a pipeline, not chat_send");
-        pipelines
-            .Select(p => p.Name)
-            .Should()
-            .BeEquivalentTo(["music_play", "obs_switch_scene", "obs_input_mute"]);
-    }
-
     /// <summary>
-    /// S-PL5c fix: before this, the auto-provisioned step carried NO Parameters at all, so a
-    /// parameterized action (which OBS scene, which input) could never learn the Stream Deck key's own
-    /// setting — <c>ObsActionBase.Param</c>/<c>TryRequire</c> (and the equivalent music_* helpers) only
-    /// resolve a variable when the step's OWN field value is the literal placeholder <c>"{fieldName}"</c>.
-    /// Proves the provisioned step now carries exactly that placeholder for every declared field, so
-    /// <c>AutomationClient.invoke</c>'s <c>variables</c> dict (the key's Settings) actually reaches the action.
+    /// Stoney decision Q3: a Stream Deck key runs its action as a binding target, so pairing leaves
+    /// no wrapper pipeline behind. The keys that ran through a wrapper before still resolve by name.
     /// </summary>
     [Fact]
-    public async Task Auto_provisioned_pipelines_seed_a_variable_placeholder_for_every_declared_field()
+    public async Task Pairing_a_stream_deck_creates_no_pipeline_rows()
     {
-        Harness h = Build(
-            actions:
-            [
-                FakeAction(
-                    "obs_switch_scene",
-                    fields: [new("scene", PipelineActionFieldKind.ResourceId, Required: true)]
-                ),
-            ]
-        );
+        Harness h = Build();
         Result<PairingCodeDto> minted = await h.Service.MintCodeAsync(
             Channel,
             Operator,
             new() { DeviceLabel = "Studio Deck" }
         );
 
-        await h.Service.RedeemCodeAsync(
+        Result<PairingRedemptionDto> redeemed = await h.Service.RedeemCodeAsync(
             minted.Value.Code,
             StreamDeckPlugin(),
             "203.0.113.7",
             Backend
         );
 
-        Domain.Commands.Entities.Pipeline pipeline = await h.Db.Pipelines.SingleAsync(p =>
-            p.BroadcasterId == Channel
-        );
-        pipeline
-            .GraphJsonCache.Should()
-            .Contain(
-                "\"scene\":\"{scene}\"",
-                "the field's value must be the literal placeholder so ObsActionBase.Param resolves it "
-                    + "from the invoke's variables dict at execute time"
-            );
-    }
-
-    [Fact]
-    public async Task Pairing_a_non_stream_deck_device_provisions_nothing()
-    {
-        Harness h = Build(actions: [FakeAction("music_play")]);
-        Result<PairingCodeDto> minted = await h.Service.MintCodeAsync(
-            Channel,
-            Operator,
-            new() { DeviceLabel = "Touch Portal" }
-        );
-
-        await h.Service.RedeemCodeAsync(minted.Value.Code, Deck(), "203.0.113.7", Backend);
-
+        redeemed.IsSuccess.Should().BeTrue(redeemed.ErrorMessage);
         (await h.Db.Pipelines.CountAsync()).Should().Be(0);
-    }
-
-    [Fact]
-    public async Task Re_pairing_a_stream_deck_does_not_duplicate_pipelines()
-    {
-        Harness h = Build(actions: [FakeAction("music_play")]);
-        Result<PairingCodeDto> first = await h.Service.MintCodeAsync(
-            Channel,
-            Operator,
-            new() { DeviceLabel = "Studio Deck" }
-        );
-        await h.Service.RedeemCodeAsync(
-            first.Value.Code,
-            StreamDeckPlugin(),
-            "203.0.113.7",
-            Backend
-        );
-
-        Result<PairingCodeDto> second = await h.Service.MintCodeAsync(
-            Channel,
-            Operator,
-            new() { DeviceLabel = "Second Deck" }
-        );
-        await h.Service.RedeemCodeAsync(
-            second.Value.Code,
-            StreamDeckPlugin("Second Deck"),
-            "203.0.113.8",
-            Backend
-        );
-
-        (await h.Db.Pipelines.CountAsync()).Should().Be(1);
     }
 
     [Fact]
@@ -477,9 +328,9 @@ public sealed class AutomationPairingServiceTests
     }
 
     [Fact]
-    public async Task Approving_a_stream_deck_device_auto_provisions_pipelines_same_as_the_code_flow()
+    public async Task Approving_a_stream_deck_device_creates_no_pipeline_rows_either()
     {
-        Harness h = Build(actions: [FakeAction("music_play")]);
+        Harness h = Build();
         Result<DeviceInitDto> init = await h.Service.InitDeviceAsync(
             StreamDeckPlugin(),
             Backend,
@@ -487,9 +338,10 @@ public sealed class AutomationPairingServiceTests
             CancellationToken.None
         );
         await h.Service.ApproveDeviceAsync(Channel, Operator, init.Value.UserCode);
-        await h.Service.PollDeviceAsync(init.Value.DeviceCode);
+        Result<DevicePollDto> polled = await h.Service.PollDeviceAsync(init.Value.DeviceCode);
 
-        (await h.Db.Pipelines.CountAsync()).Should().Be(1);
+        polled.IsSuccess.Should().BeTrue(polled.ErrorMessage);
+        (await h.Db.Pipelines.CountAsync()).Should().Be(0);
     }
 
     [Fact]

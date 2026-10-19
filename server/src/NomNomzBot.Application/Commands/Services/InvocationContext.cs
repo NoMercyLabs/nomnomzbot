@@ -19,10 +19,13 @@ namespace NomNomzBot.Application.Commands.Services;
 /// <param name="Args">The surface's text (reward input, trigger message, API args); empty when none.</param>
 /// <param name="TriggerSource">Value of the <c>trigger.source</c> variable: reward, timer, event, automation, ...</param>
 /// <param name="EffectiveRole">The human's role token as chat resolves it; null means viewer. Ignored for a system invoker.</param>
+/// <param name="Variables">Extra variables the surface supplies (an automation key's own settings); they are merged
+/// over the built-in ones except the identity and trigger variables, which the invoker always sets itself.</param>
 public sealed record InvocationContext(
     string? UserId,
     string? DisplayName,
     string Args,
     string TriggerSource,
-    string? EffectiveRole = null
+    string? EffectiveRole = null,
+    IReadOnlyDictionary<string, string>? Variables = null
 );

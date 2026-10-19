@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.AutomationApi.Dtos;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -22,6 +23,8 @@ using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Obs.Dtos;
 using NomNomzBot.Application.Obs.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.AutomationApi;
 using NSubstitute;
@@ -54,9 +57,28 @@ public sealed class AutomationCommandServiceTests
         public required IMusicProviderManageApi MusicManageApi { get; init; }
         public required IActionAuthorizationService ActionAuthz { get; init; }
         public required IObsControlService Obs { get; init; }
+        public required ICommandInvoker Invoker { get; init; }
+        public required TaskCompletionSource<(
+            BindingTarget Target,
+            InvocationContext Context
+        )> InvokerCalled { get; init; }
     }
 
-    private static Harness Build(bool rateLimited = false)
+    private static ICommandAction FakeAction(
+        string type,
+        IReadOnlyList<PipelineActionFieldDescriptor>? fields = null
+    )
+    {
+        ICommandAction action = Substitute.For<ICommandAction>();
+        action.ActionType.Returns(type);
+        action.Fields.Returns(fields ?? []);
+        return action;
+    }
+
+    private static Harness Build(
+        bool rateLimited = false,
+        IReadOnlyList<ICommandAction>? actions = null
+    )
     {
         AutomationTestDbContext db = AutomationTestDbContext.New();
 
@@ -78,8 +100,29 @@ public sealed class AutomationCommandServiceTests
                     }
                 );
             });
+        TaskCompletionSource<(BindingTarget Target, InvocationContext Context)> invokerCalled = new(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+        ICommandInvoker invoker = Substitute.For<ICommandInvoker>();
+        invoker
+            .InvokeAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<BindingTarget>(),
+                Arg.Any<InvocationContext>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(ci =>
+            {
+                invokerCalled.TrySetResult(
+                    (ci.ArgAt<BindingTarget>(1), ci.ArgAt<InvocationContext>(2))
+                );
+                return Task.FromResult(Result.Success(new InvocationOutcome(true, null, null)));
+            });
         ServiceCollection services = new();
         services.AddSingleton(engine);
+        services.AddSingleton(invoker);
+        foreach (ICommandAction action in actions ?? [])
+            services.AddSingleton(action);
         IServiceScopeFactory scopeFactory = services
             .BuildServiceProvider()
             .GetRequiredService<IServiceScopeFactory>();
@@ -151,6 +194,8 @@ public sealed class AutomationCommandServiceTests
             MusicManageApi = musicManageApi,
             ActionAuthz = actionAuthz,
             Obs = obs,
+            Invoker = invoker,
+            InvokerCalled = invokerCalled,
         };
     }
 
@@ -456,6 +501,178 @@ public sealed class AutomationCommandServiceTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("FORBIDDEN");
+    }
+
+    // ─── Stream Deck keys name an action target; no wrapper pipeline exists ───
+
+    private static Guid SeedCreatorToken(AutomationTestDbContext db)
+    {
+        Guid tokenId = Guid.NewGuid();
+        db.AutomationApiTokens.Add(
+            new()
+            {
+                Id = tokenId,
+                BroadcasterId = Channel,
+                Name = "deck-token",
+                TokenHash = "hash",
+                TokenPrefix = "nnzb_ak_test",
+                ScopesJson = "[\"invoke\"]",
+                CreatedByUserId = Guid.NewGuid(),
+            }
+        );
+        db.SaveChanges();
+        return tokenId;
+    }
+
+    private static void AssertInvokerNeverCalled(Harness h) =>
+        _ = h
+            .Invoker.DidNotReceive()
+            .InvokeAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<BindingTarget>(),
+                Arg.Any<InvocationContext>(),
+                Arg.Any<CancellationToken>()
+            );
+
+    [Fact]
+    public async Task Invoking_an_action_name_runs_an_action_target_with_the_keys_settings_as_variables()
+    {
+        Harness h = Build(
+            actions:
+            [
+                FakeAction(
+                    "obs_switch_scene",
+                    [new("scene", PipelineActionFieldKind.Text, Required: true)]
+                ),
+            ]
+        );
+        Guid tokenId = SeedCreatorToken(h.Db);
+
+        Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
+            new(Channel, tokenId, "deck-token", ["invoke"], null),
+            new()
+            {
+                PipelineName = "obs_switch_scene",
+                Variables = new Dictionary<string, string> { ["scene"] = "BRB" },
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Accepted.Should().BeTrue();
+        result.Value.PipelineId.Should().Be(Guid.Empty);
+
+        (BindingTarget target, InvocationContext context) = await h.InvokerCalled.Task.WaitAsync(
+            TimeSpan.FromSeconds(5)
+        );
+        target.Kind.Should().Be(BindingTargetKind.Action);
+        target.ActionType.Should().Be("obs_switch_scene");
+        target.Params!["scene"].GetString().Should().Be("{scene}");
+        context.UserId.Should().BeNull();
+        context.TriggerSource.Should().Be("automation");
+        context.Variables!["scene"].Should().Be("BRB");
+        context
+            .Variables["automation.correlation_id"]
+            .Should()
+            .Be(result.Value.ExecutionId.ToString());
+        h.Db.Pipelines.Should().BeEmpty("a key must not create a wrapper pipeline");
+        await h
+            .Engine.DidNotReceive()
+            .ExecuteAsync(Arg.Any<PipelineRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_real_pipeline_named_like_an_action_still_runs_through_the_engine()
+    {
+        Harness h = Build(actions: [FakeAction("music_play")]);
+        h.Db.Pipelines.Add(
+            new()
+            {
+                Id = PipelineId,
+                BroadcasterId = Channel,
+                Name = "music_play",
+                IsEnabled = true,
+            }
+        );
+        h.Db.SaveChanges();
+
+        Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
+            Principal(),
+            new() { PipelineName = "music_play" }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.PipelineId.Should().Be(PipelineId);
+        PipelineRequest run = await h.EngineCalled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        run.PipelineId.Should().Be(PipelineId);
+        AssertInvokerNeverCalled(h);
+    }
+
+    [Fact]
+    public async Task An_action_outside_the_stream_deck_families_is_not_found()
+    {
+        Harness h = Build(actions: [FakeAction("chat_send")]);
+
+        Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
+            Principal(),
+            new() { PipelineName = "chat_send" }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+        AssertInvokerNeverCalled(h);
+    }
+
+    [Fact]
+    public async Task An_allowlisted_token_cannot_run_an_action_target()
+    {
+        Harness h = Build(actions: [FakeAction("obs_streaming")]);
+
+        Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
+            Principal(allowlist: [PipelineId]),
+            new() { PipelineName = "obs_streaming" }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("FORBIDDEN");
+        AssertInvokerNeverCalled(h);
+    }
+
+    [Fact]
+    public async Task A_music_action_needs_the_creator_to_still_hold_music_control()
+    {
+        Harness h = Build(actions: [FakeAction("music_play")]);
+        Guid tokenId = SeedCreatorToken(h.Db);
+        h.ActionAuthz.AuthorizeActionAsync(
+                Arg.Any<Guid>(),
+                Channel,
+                "music:control:write",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(false));
+
+        Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
+            new(Channel, tokenId, "deck-token", ["invoke"], null),
+            new() { PipelineName = "music_play" }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("FORBIDDEN");
+        AssertInvokerNeverCalled(h);
+    }
+
+    [Fact]
+    public async Task A_rate_limited_action_invoke_runs_nothing()
+    {
+        Harness h = Build(rateLimited: true, actions: [FakeAction("obs_streaming")]);
+
+        Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
+            Principal(),
+            new() { PipelineName = "obs_streaming" }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("RATE_LIMITED");
+        AssertInvokerNeverCalled(h);
     }
 
     [Fact]

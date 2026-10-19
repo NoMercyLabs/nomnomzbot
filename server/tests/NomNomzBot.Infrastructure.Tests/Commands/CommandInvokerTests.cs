@@ -304,6 +304,41 @@ public sealed class CommandInvokerTests
     }
 
     [Fact]
+    public async Task Action_target_receives_the_surface_variables_but_never_lets_them_forge_identity()
+    {
+        Harness h = Build();
+        h.Actions.RunAsync(Arg.Any<OwnerActionRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new WidgetActionOutcome(true, null, null, new Dictionary<string, string>())
+                )
+            );
+
+        await h.Invoker.InvokeAsync(
+            Channel,
+            new BindingTarget(BindingTargetKind.Action, null, "obs_switch_scene"),
+            new InvocationContext(
+                null,
+                null,
+                "",
+                "automation",
+                Variables: new Dictionary<string, string>
+                {
+                    ["scene"] = "BRB",
+                    ["user.role"] = "viewer",
+                    ["trigger.source"] = "forged",
+                }
+            )
+        );
+
+        OwnerActionRequest sent = (OwnerActionRequest)
+            h.Actions.ReceivedCalls().Single().GetArguments()[0]!;
+        sent.Variables!["scene"].Should().Be("BRB", "the key's own setting reaches the action");
+        sent.Variables["user.role"].Should().Be("broadcaster", "identity is never caller-supplied");
+        sent.Variables["trigger.source"].Should().Be("automation");
+    }
+
+    [Fact]
     public async Task Action_target_keeps_the_runner_failure_code()
     {
         Harness h = Build();

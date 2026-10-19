@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.AutomationApi.Services;
+using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
@@ -24,6 +25,7 @@ using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Obs.Dtos;
 using NomNomzBot.Application.Obs.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.AutomationApi.Events;
 using MusicPlaylistDto = NomNomzBot.Application.Music.Services.MusicPlaylistDto;
@@ -95,10 +97,7 @@ public class AutomationCommandService : IAutomationCommandService
 
         PipelineEntity? pipeline = await ResolvePipelineAsync(principal, request, ct);
         if (pipeline is null)
-            return Errors.NotFound<AutomationInvokeResult>(
-                "Pipeline",
-                request.PipelineId?.ToString() ?? request.PipelineName ?? "(unspecified)"
-            );
+            return await InvokeActionAsync(principal, request, ct);
         if (
             principal.AllowedPipelineIds is { Count: > 0 } allowlist
             && !allowlist.Contains(pipeline.Id)
@@ -122,11 +121,8 @@ public class AutomationCommandService : IAutomationCommandService
             );
 
         Guid correlationId = Guid.CreateVersion7();
-        Dictionary<string, string> variables = request.Variables is null
-            ? new()
-            : new Dictionary<string, string>(request.Variables);
+        Dictionary<string, string> variables = BuildRunVariables(request, correlationId);
         variables["trigger.source"] = "automation";
-        variables["automation.correlation_id"] = correlationId.ToString();
 
         PipelineRequest run = new()
         {
@@ -168,6 +164,116 @@ public class AutomationCommandService : IAutomationCommandService
         return Result.Success(
             new AutomationInvokeResult(pipeline.Id, correlationId, Accepted: true)
         );
+    }
+
+    /// <summary>
+    /// A key that names no pipeline may name a Stream Deck action (<c>music_*</c>, <c>obs_*</c>). It runs as an
+    /// action target through the command invoker, with the key's settings as variables and no wrapper pipeline.
+    /// A token with a pipeline allowlist cannot run one: the allowlist names pipelines, and an action is not one.
+    /// </summary>
+    private async Task<Result<AutomationInvokeResult>> InvokeActionAsync(
+        AutomationPrincipal principal,
+        AutomationInvokeRequest request,
+        CancellationToken ct
+    )
+    {
+        BindingTarget? target = FindActionTarget(request.PipelineName);
+        if (target is null)
+            return Errors.NotFound<AutomationInvokeResult>(
+                "Pipeline",
+                request.PipelineId?.ToString() ?? request.PipelineName ?? "(unspecified)"
+            );
+        if (principal.AllowedPipelineIds is { Count: > 0 })
+            return Result.Failure<AutomationInvokeResult>(
+                "This token is not allowed to invoke that pipeline.",
+                "FORBIDDEN"
+            );
+        if (
+            target.ActionType!.StartsWith(StreamDeckActions.MusicPrefix, StringComparison.Ordinal)
+            && !await CreatorHoldsMusicControlAsync(principal, ct)
+        )
+            return Result.Failure<AutomationInvokeResult>(
+                "This action controls music and the token's creator no longer holds 'music:control:write'.",
+                "FORBIDDEN"
+            );
+
+        Result limited = await AcquireAsync(principal, "invoke", InvokePerMinute, ct);
+        if (limited.IsFailure)
+            return Result.Failure<AutomationInvokeResult>(
+                limited.ErrorMessage!,
+                limited.ErrorCode!,
+                limited.ErrorDetail
+            );
+
+        Guid correlationId = Guid.CreateVersion7();
+        InvocationContext context = new(
+            UserId: null,
+            DisplayName: principal.TokenName,
+            Args: request.Args is { Count: > 0 } args ? string.Join(' ', args) : "",
+            TriggerSource: "automation",
+            Variables: BuildRunVariables(request, correlationId)
+        );
+
+        // Fire-and-forget on a fresh scope (D5), same as a pipeline run.
+        _ = Task.Run(
+            async () =>
+            {
+                using IServiceScope scope = _scopeFactory.CreateScope();
+                try
+                {
+                    ICommandInvoker invoker =
+                        scope.ServiceProvider.GetRequiredService<ICommandInvoker>();
+                    await invoker.InvokeAsync(
+                        principal.BroadcasterId,
+                        target,
+                        context,
+                        CancellationToken.None
+                    );
+                }
+                catch (Exception ex)
+                {
+                    _logger.LogWarning(
+                        ex,
+                        "Automation-invoked action {Action} failed for {Channel} (correlation {Correlation}).",
+                        target.ActionType,
+                        principal.BroadcasterId,
+                        correlationId
+                    );
+                }
+            },
+            CancellationToken.None
+        );
+
+        return Result.Success(
+            new AutomationInvokeResult(Guid.Empty, correlationId, Accepted: true)
+        );
+    }
+
+    private BindingTarget? FindActionTarget(string? actionName)
+    {
+        if (
+            string.IsNullOrWhiteSpace(actionName)
+            || !StreamDeckActions.IsStreamDeckAction(actionName)
+        )
+            return null;
+
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        ICommandAction? action = scope
+            .ServiceProvider.GetServices<ICommandAction>()
+            .FirstOrDefault(a => string.Equals(a.ActionType, actionName, StringComparison.Ordinal));
+        return action is null ? null : StreamDeckActions.TargetFor(action);
+    }
+
+    private static Dictionary<string, string> BuildRunVariables(
+        AutomationInvokeRequest request,
+        Guid correlationId
+    )
+    {
+        Dictionary<string, string> variables = request.Variables is null
+            ? new()
+            : new Dictionary<string, string>(request.Variables);
+        variables["automation.correlation_id"] = correlationId.ToString();
+        return variables;
     }
 
     public async Task<Result<IReadOnlyList<AutomationPipelineRef>>> ListPipelinesAsync(
@@ -627,9 +733,14 @@ public class AutomationCommandService : IAutomationCommandService
         // Same DB-then-JSON-fallback order PipelineEngine itself uses, so the gate never blind-spots.
         if (!hasMusicStep && pipeline.GraphJsonCache is { Length: > 0 } graphJson)
             hasMusicStep = graphJson.Contains("\"music_", StringComparison.Ordinal);
-        if (!hasMusicStep)
-            return true;
+        return !hasMusicStep || await CreatorHoldsMusicControlAsync(principal, ct);
+    }
 
+    private async Task<bool> CreatorHoldsMusicControlAsync(
+        AutomationPrincipal principal,
+        CancellationToken ct
+    )
+    {
         Guid? createdByUserId = await _db
             .AutomationApiTokens.Where(t =>
                 t.BroadcasterId == principal.BroadcasterId && t.Id == principal.TokenId

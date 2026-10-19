@@ -414,6 +414,10 @@ public sealed class CommandInvoker(
         Dictionary<string, string> variables = ChatMessageHandler.BuildArgumentVariables(
             context.Args
         );
+        if (context.Variables is not null)
+            foreach (KeyValuePair<string, string> supplied in context.Variables)
+                variables[supplied.Key] = supplied.Value;
+
         variables["user"] = invoker.DisplayName;
         variables["user.id"] = invoker.UserId;
         variables["user.name"] = invoker.DisplayName;
