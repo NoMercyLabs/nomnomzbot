@@ -154,15 +154,15 @@
         },
         "contrast": {
           "title": "Hoog contrast",
-          "description": "Rustige tekst wordt vol sterk en randen worden duidelijker.",
+          "description": "Rustige tekst wordt vol sterk en randen worden duidelijker."
+        },
+        "state": {
           "on": "Aan",
           "off": "Uit"
         },
         "motion": {
           "title": "Minder beweging",
-          "description": "Systeem volgen gebruikt de instelling van je computer of telefoon.",
-          "system": "Systeem volgen",
-          "reduce": "Altijd"
+          "description": "Uit volgt de instelling van je computer of telefoon. Aan vermindert beweging overal."
         },
         "density": {
           "title": "Dichtheid",

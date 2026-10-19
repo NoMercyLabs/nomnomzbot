@@ -17,7 +17,6 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
-import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import {
   readabilityDefaults,
@@ -62,12 +61,6 @@ const spacings: ComputedRef<Choice<Readability['spacing']>[]> = computed<
   { value: 'normal', label: t('dashboard.settings.readability.spacing.normal') },
   { value: 'wide', label: t('dashboard.settings.readability.spacing.wide') },
 ]);
-const motions: ComputedRef<Choice<Readability['motion']>[]> = computed<
-  Choice<Readability['motion']>[]
->(() => [
-  { value: 'system', label: t('dashboard.settings.readability.motion.system') },
-  { value: 'reduce', label: t('dashboard.settings.readability.motion.reduce') },
-]);
 const densities: ComputedRef<Choice<Readability['density']>[]> = computed<
   Choice<Readability['density']>[]
 >(() => [
@@ -91,11 +84,27 @@ function withDefault(help: string | undefined, value: string): string {
 
 const base = 'dashboard.settings.readability';
 
+function stateOf(on: boolean): string {
+  return on
+    ? t(`${base}.state.on`)
+    : t(`${base}.state.off`);
+}
+
+// Reduce motion is a switch: off follows the system, on always reduces.
+const reduceMotion = computed<boolean>({
+  get: () => settings.value.motion === 'reduce',
+  set: (on) => {
+    settings.value = {
+      ...settings.value,
+      motion: on
+        ? 'reduce'
+        : 'system',
+    };
+  },
+});
+
 const help = computed(() => {
   const defaults = readabilityDefaults;
-  const contrast = t(`${base}.contrast.${defaults.contrast
-    ? 'on'
-    : 'off'}`);
 
   return {
     font: withDefault(t(`${base}.font.description`), labelOf(fonts.value, defaults.font)),
@@ -108,8 +117,11 @@ const help = computed(() => {
       t(`${base}.spacing.description`),
       labelOf(spacings.value, defaults.spacing),
     ),
-    contrast: withDefault(t(`${base}.contrast.description`), contrast),
-    motion: withDefault(t(`${base}.motion.description`), labelOf(motions.value, defaults.motion)),
+    contrast: withDefault(t(`${base}.contrast.description`), stateOf(defaults.contrast)),
+    motion: withDefault(
+      t(`${base}.motion.description`),
+      stateOf(defaults.motion === 'reduce'),
+    ),
     density: withDefault(
       t(`${base}.density.description`),
       labelOf(densities.value, defaults.density),
@@ -144,22 +156,14 @@ function setSize(next: number[] | undefined): void {
             {{ $t("dashboard.settings.readability.presets.description") }}
           </p>
         </div>
-        <div
-          class="flex flex-wrap gap-2"
-          role="group"
-          :aria-label="$t('dashboard.settings.readability.presets.title')"
-        >
-          <Button
-            v-for="preset in presets"
-            :key="preset.value"
-            variant="outline"
-            size="sm"
-            :aria-pressed="activePreset === preset.value"
-            :class="activePreset === preset.value ? 'bg-muted' : ''"
-            @click="applyPreset(preset.value)"
-          >
-            {{ preset.label }}
-          </Button>
+        <div>
+          <SegmentedControl
+            :model-value="activePreset ?? 'default'"
+            :none="activePreset === null"
+            :label="$t('dashboard.settings.readability.presets.title')"
+            :options="presets"
+            @update:model-value="applyPreset"
+          />
         </div>
       </section>
 
@@ -249,16 +253,11 @@ function setSize(next: number[] | undefined): void {
             :title="$t('dashboard.settings.readability.contrast.title')"
             :description="help.contrast"
           />
-          <ReadabilityRow
+          <SettingRow
+            v-model="reduceMotion"
             :title="$t('dashboard.settings.readability.motion.title')"
             :description="help.motion"
-          >
-            <SegmentedControl
-              v-model="settings.motion"
-              :label="$t('dashboard.settings.readability.motion.title')"
-              :options="motions"
-            />
-          </ReadabilityRow>
+          />
         </RowGroup>
       </section>
 

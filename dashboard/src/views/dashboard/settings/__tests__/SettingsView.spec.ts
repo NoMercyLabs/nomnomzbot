@@ -135,6 +135,74 @@ describe('Readability presets', () => {
   });
 });
 
+const states = (scope: HTMLElement): (string | undefined)[] =>
+  [...scope.querySelectorAll<HTMLElement>('button')].map((item) => item.dataset.state);
+const rowOf = (title: string): HTMLElement =>
+  [...document.body.querySelectorAll<HTMLElement>('[data-view="readability"] .min-h-11')].find(
+    (row) => row.textContent?.includes(title),
+  ) as HTMLElement;
+
+// Owner 2026-10-20: "readability is not using the right selection component for each option".
+describe('Readability controls', () => {
+  it('shows the presets as one segmented control with the matching preset chosen', async () => {
+    await open();
+    const presets = group('Start from a preset');
+
+    expect(presets.hasAttribute('data-segmented')).toBe(true);
+    expect(states(presets)).toEqual(['on', 'off', 'off']);
+
+    await choose('Start from a preset', 'Dyslexia-friendly');
+
+    expect(states(presets)).toEqual(['off', 'on', 'off']);
+    expect(stored()).toEqual(readabilityPresets.dyslexia);
+  });
+
+  it('chooses no preset once the options match none of them', async () => {
+    await open();
+    await choose('Line spacing', 'Wider');
+
+    expect(states(group('Start from a preset'))).toEqual(['off', 'off', 'off']);
+  });
+
+  it('turns reduce motion on and off with a switch, and off follows the system', async () => {
+    await open();
+    const toggle = rowOf('Reduce motion').querySelector<HTMLElement>('[role="switch"]')!;
+
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+
+    toggle.click();
+    await flushPromises();
+
+    expect(toggle.getAttribute('aria-checked')).toBe('true');
+    expect(stored().motion).toBe('reduce');
+    expect(html().dataset.rdMotion).toBe('reduce');
+
+    toggle.click();
+    await flushPromises();
+
+    expect(stored().motion).toBe('system');
+    expect(html().dataset.rdMotion).toBeUndefined();
+  });
+
+  it('gives every option the control its values call for', async () => {
+    await open();
+
+    const kinds = {
+      Font: '[data-segmented]',
+      'Text size': '[role="slider"]',
+      'Line spacing': '[data-segmented]',
+      'Letter and word spacing': '[data-segmented]',
+      'High contrast': '[role="switch"]',
+      'Reduce motion': '[role="switch"]',
+      'Size of controls': '[data-segmented]',
+    } as const satisfies Record<string, string>;
+
+    for (const [title, selector] of Object.entries(kinds)) {
+      expect(rowOf(title).querySelector(selector), title).not.toBeNull();
+    }
+  });
+});
+
 describe('Readability options', () => {
   it('a changed option is stored and applied to the document', async () => {
     await open();
@@ -196,8 +264,9 @@ describe('Readability options', () => {
       expect(heading.parentElement!.classList.contains('px-4')).toBe(false);
     }
 
-    const presets: HTMLElement = document.body.querySelector('[role="group"].flex-wrap')!;
+    const presets = group('Start from a preset');
 
+    expect(presets.parentElement!.classList.contains('px-4')).toBe(false);
     expect(presets.classList.contains('px-4')).toBe(false);
   });
 
@@ -242,12 +311,13 @@ describe('Readability options', () => {
       'Default: Inter.',
       'Default: 14 px.',
       'Default: Normal.',
-      'Default: Off.',
-      'Default: Follow system.',
       'Default: Compact.',
     ]) {
       expect(text).toContain(note);
     }
+
+    // High contrast and Reduce motion are both off by default, so two rows carry the same note.
+    expect(text.match(/Default: Off\./g)).toHaveLength(2);
   });
 
   it('the panel does not scroll inside the page, so a phone has one scroll only', async () => {

@@ -154,15 +154,15 @@
         },
         "contrast": {
           "title": "High contrast",
-          "description": "Quiet text becomes full strength and edges get stronger.",
+          "description": "Quiet text becomes full strength and edges get stronger."
+        },
+        "state": {
           "on": "On",
           "off": "Off"
         },
         "motion": {
           "title": "Reduce motion",
-          "description": "Follow system uses the setting of your computer or phone.",
-          "system": "Follow system",
-          "reduce": "Always"
+          "description": "Off follows the setting of your computer or phone. On reduces motion everywhere."
         },
         "density": {
           "title": "Density",
