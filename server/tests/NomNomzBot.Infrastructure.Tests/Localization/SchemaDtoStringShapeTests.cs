@@ -96,6 +96,9 @@ public sealed class SchemaDtoStringShapeTests
         {
             nameof(RaidScoringRules.OtherCategoryLabel),
         },
+        // The recency note after the last step is text the channel owner types into their own rules (empty in
+        // RaidScoringRules.Neutral), so nothing developer-written is rendered.
+        [typeof(RaidRecencyRules)] = new HashSet<string> { nameof(RaidRecencyRules.OlderNote) },
         // Template helper registry: `Key`/`Prefix` are the placeholder text the resolver matches on, not prose.
         [typeof(TemplateHelperEntry)] = new HashSet<string>
         {
