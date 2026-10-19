@@ -18,7 +18,7 @@ import ShieldToggle from '../ShieldToggle.vue';
 
 vi.mock('@/api/shield', () => ({
   useShieldMode: () => ({ data: ref(false) }),
-  useSetShieldMode: () => ({ mutate: vi.fn(), isPending: ref(false) }),
+  useSetShieldMode: () => ({ mutate: vi.fn<() => void>(), isPending: ref(false) }),
 }));
 
 vi.mock('@/composables/useCurrentChannel', () => ({

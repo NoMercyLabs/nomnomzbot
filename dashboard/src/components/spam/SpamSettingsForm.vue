@@ -259,7 +259,7 @@ function localInvalidTextOf(setting: SpamSetting): string[] {
 }
 
 // What the form sees and what the bot refused say the same thing in the same words, so a line shows once.
-function joinedLines(lines: string[]): string | undefined {
+function joinedLines(lines: readonly string[]): string | undefined {
   return lines.length > 0
     ? Array.from(new Set(lines)).join(' ')
     : undefined;

@@ -218,7 +218,7 @@ describe('ExternalChatView', () => {
       missingScope: 'user:read:chat',
     });
 
-    const assign = vi.fn();
+    const assign = vi.fn<(url: string) => void>();
 
     vi.stubGlobal('location', { ...window.location, assign });
 

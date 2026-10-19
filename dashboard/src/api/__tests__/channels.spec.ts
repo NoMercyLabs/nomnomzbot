@@ -38,13 +38,13 @@ describe('the channel lists a refused request', () => {
   it('fails the own channel list on a 429 instead of answering an empty list', async () => {
     http.GET.mockResolvedValue(tooMany);
 
-    await expect(freshClient().fetchQuery(myChannelsQuery)).rejects.toBeInstanceOf(Error);
+    await expect(freshClient().query(myChannelsQuery)).rejects.toBeInstanceOf(Error);
   });
 
   it('fails the moderated channel list on a 429 instead of answering an empty list', async () => {
     http.GET.mockResolvedValue(tooMany);
 
-    await expect(freshClient().fetchQuery(moderatedChannelsQuery)).rejects.toBeInstanceOf(Error);
+    await expect(freshClient().query(moderatedChannelsQuery)).rejects.toBeInstanceOf(Error);
   });
 
   it('still answers the rows of a good response', async () => {
@@ -53,7 +53,7 @@ describe('the channel lists a refused request', () => {
       response: { ok: true, status: 200 },
     });
 
-    const rows = await freshClient().fetchQuery(myChannelsQuery);
+    const rows = await freshClient().query(myChannelsQuery);
 
     expect(rows).toEqual([{ id: 'own-id', login: 'streamer' }]);
   });

@@ -164,7 +164,7 @@ describe('AdminBillingView', () => {
 
     hook('[data-tier-edit]').click();
     await settle();
-    hook('[data-tier-form] button:last-child').click();
+    hook('[data-tier-form] [data-form-action]').click();
     await settle();
 
     expect(text()).toContain('7 channels are on this tier');

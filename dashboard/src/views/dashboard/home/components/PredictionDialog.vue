@@ -217,7 +217,7 @@ watchEffect(() => {
             {{ t('dashboard.home.quick.predictionNeedOutcomes') }}
           </p>
           <div v-if="outcomes.length < MAX_OUTCOMES && can('live-ops:predictions:write')">
-            <Button variant="ghost" size="sm" class="h-(--btn-h-sm)" @click="addOutcome">
+            <Button variant="ghost" size="sm" class="h-(--btn-h-sm)!" @click="addOutcome">
               <Plus />
               {{ t('dashboard.home.quick.predictionAddOutcome') }}
             </Button>

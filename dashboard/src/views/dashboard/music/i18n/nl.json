@@ -144,7 +144,7 @@
         "whoYouTube": "Wie YouTube-nummers mag aanvragen",
         "sourceRole": {
           "Everyone": "Iedereen",
-          "Subscriber": "Abonnees en hoger",
+          "Subscriber": "Twitch-abonnees en hoger",
           "Vip": "VIP's en hoger",
           "Artist": "Artiesten en hoger",
           "Moderator": "Moderators en hoger",

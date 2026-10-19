@@ -747,12 +747,13 @@ describe('CommandsView editor', () => {
 
     const labels = ['Delete', 'Reset to preset', 'Discard', 'Save changes', 'New command'];
 
-    for (const label of labels) {
-      const classes = buttonByText(label).classList;
+    const missingPhoneHeight = labels.filter((label) =>
+      !buttonByText(label).classList.contains('h-9'));
+    const missingDesktopHeight = labels.filter((label) =>
+      !buttonByText(label).classList.contains('md:h-8'));
 
-      expect(classes.contains('h-9'), label).toBe(true);
-      expect(classes.contains('md:h-8'), label).toBe(true);
-    }
+    expect(missingPhoneHeight).toEqual([]);
+    expect(missingDesktopHeight).toEqual([]);
   });
 
   it('hides the sort and tabs bar on a phone while a command is open, and keeps it on the list', async () => {

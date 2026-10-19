@@ -144,7 +144,7 @@
         "whoYouTube": "Who can request YouTube songs",
         "sourceRole": {
           "Everyone": "Everyone",
-          "Subscriber": "Subscribers and up",
+          "Subscriber": "Twitch subscribers and up",
           "Vip": "VIPs and up",
           "Artist": "Artists and up",
           "Moderator": "Moderators and up",

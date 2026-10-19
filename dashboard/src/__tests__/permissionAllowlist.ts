@@ -75,7 +75,7 @@ export const permissionAllowlist = [
     reason:
       'Own-data action: the page is about the signed-in person (open: true on its route), not a channel, so no channel key applies. The external chat sends as the person on a Twitch channel the bot does not serve.',
     files: {
-      'chat/ExternalChatView.vue': 2,
+      'chat/ExternalChatView.vue': 3,
       'settings/your-data/components/ErasePanel.vue': 2,
       'settings/your-data/components/ExportPanel.vue': 1,
     },

@@ -127,9 +127,18 @@ describe('the bottom bar tabs', () => {
 
     expect(tabs.length).toBeGreaterThan(1);
 
-    for (const tab of tabs) {
-      expect(tab.classes(), tab.text()).toContain('min-w-0');
-      expect(tab.find('span').classes(), tab.text()).toContain('min-w-0');
-    }
+    const tabsThatCannotShrink = tabs
+      .filter((tab) =>
+        !tab.classes().includes('min-w-0'))
+      .map((tab) =>
+        tab.text());
+    const labelsThatCannotShrink = tabs
+      .filter((tab) =>
+        !tab.find('span').classes().includes('min-w-0'))
+      .map((tab) =>
+        tab.text());
+
+    expect(tabsThatCannotShrink).toEqual([]);
+    expect(labelsThatCannotShrink).toEqual([]);
   });
 });
