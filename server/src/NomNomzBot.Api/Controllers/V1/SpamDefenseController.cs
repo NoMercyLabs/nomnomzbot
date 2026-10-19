@@ -19,6 +19,8 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Moderation.SpamDefense;
+using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -37,13 +39,16 @@ public class SpamDefenseController : BaseController
     private readonly ISpamDefenseService _spamDefense;
     private readonly ICurrentUserService _currentUser;
     private readonly ILockdownService _lockdown;
+    private readonly IEventBus _eventBus;
 
     public SpamDefenseController(
         ISpamDefenseService spamDefense,
         ICurrentUserService currentUser,
-        ILockdownService lockdown
+        ILockdownService lockdown,
+        IEventBus eventBus
     )
     {
+        _eventBus = eventBus;
         _spamDefense = spamDefense;
         _currentUser = currentUser;
         _lockdown = lockdown;
@@ -98,6 +103,18 @@ public class SpamDefenseController : BaseController
             settings,
             ct
         );
+        if (result.IsSuccess)
+        {
+            await _eventBus.PublishAsync(
+                new ChannelConfigChangedEvent
+                {
+                    BroadcasterId = tenantId,
+                    Domain = "spam-defense",
+                    Action = "updated",
+                },
+                ct
+            );
+        }
         return ResultResponse(result);
     }
 

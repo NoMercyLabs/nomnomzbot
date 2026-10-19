@@ -110,37 +110,9 @@ public sealed class SpamDefenseService : ISpamDefenseService
         CancellationToken ct = default
     )
     {
-        IReadOnlyList<string> violations = ValidateRanges(settings);
-        if (violations.Count > 0)
-            return Result.Failure<SpamDefenseSettings>(
-                string.Join(' ', violations),
-                // VALIDATION_FAILED is the established code the API layer already maps to 400. Inventing
-                // a new one meant it fell through to 500 — a client error reported as a server fault,
-                // which the dashboard would show as "something went wrong" instead of naming the field.
-                errorCode: "VALIDATION_FAILED"
-            );
-
-        // The hysteresis band is a safety property, not a preference: if de-qualify ever met or
-        // exceeded qualify, a cohort on the line would flap between actioning and reversing people.
-        if (settings.DequalifyNoStandingShare >= settings.QualifyNoStandingShare)
-            return Result.Failure<SpamDefenseSettings>(
-                "spam_setting_dequalify_below_qualify",
-                errorCode: "VALIDATION_FAILED"
-            );
-
-        // A window cannot outlast its own hard cap, and a lockdown cannot outlast its ceiling: the
-        // stored cap would silently win and the operator's number would never take effect.
-        if (settings.MaxWindowSeconds < settings.WindowSeconds)
-            return Result.Failure<SpamDefenseSettings>(
-                "spam_setting_max_window_below_window",
-                errorCode: "VALIDATION_FAILED"
-            );
-
-        if (settings.LockdownMaxMinutes < settings.LockdownMinutes)
-            return Result.Failure<SpamDefenseSettings>(
-                "spam_setting_lockdown_max_below_lockdown",
-                errorCode: "VALIDATION_FAILED"
-            );
+        Result<SpamDefenseSettings>? refused = Refuse(settings);
+        if (refused is not null)
+            return refused;
 
         bool wasEnabled = (await GetSettingsAsync(broadcasterId, ct)).IsEnabled;
         SpamDefensePolicy? policy = await LoadPolicyAsync(broadcasterId, track: true, ct);
@@ -892,9 +864,11 @@ public sealed class SpamDefenseService : ISpamDefenseService
     /// knob added tomorrow is validated by the same bounds the dashboard shows for it — there is no
     /// second list to keep in step.</para>
     /// </summary>
-    private static IReadOnlyList<string> ValidateRanges(SpamDefenseSettings settings)
+    private static IReadOnlyList<(string Message, SpamSettingViolation Violation)> ValidateRanges(
+        SpamDefenseSettings settings
+    )
     {
-        List<string> violations = [];
+        List<(string Message, SpamSettingViolation Violation)> violations = [];
 
         foreach (
             PropertyInfo property in typeof(SpamDefenseSettings).GetProperties(
@@ -914,10 +888,80 @@ public sealed class SpamDefenseService : ISpamDefenseService
                 // The setting is named by its RESOURCE KEY, not by prose: the dashboard resolves it in
                 // the operator's own language. A backend that returned "Fewest accounts must be
                 // between 2 and 100" would show English to a Dutch streamer.
-                violations.Add($"{descriptor.LabelKey}:{descriptor.Minimum}:{descriptor.Maximum}");
+                violations.Add(
+                    (
+                        $"{descriptor.LabelKey}:{descriptor.Minimum}:{descriptor.Maximum}",
+                        new SpamSettingViolation(
+                            SpamSettingViolation.OutOfRange,
+                            char.ToLowerInvariant(property.Name[0]) + property.Name[1..],
+                            descriptor.Minimum,
+                            descriptor.Maximum
+                        )
+                    )
+                );
         }
 
         return violations;
+    }
+
+    /// <summary>
+    /// Every refused field of a save, as one failure: the message keeps the resource keys, the error data
+    /// names each field so the dashboard marks one line per field. Null when the save is acceptable.
+    /// </summary>
+    private static Result<SpamDefenseSettings>? Refuse(SpamDefenseSettings settings)
+    {
+        List<(string Message, SpamSettingViolation Violation)> violations =
+        [
+            .. ValidateRanges(settings),
+        ];
+
+        // The hysteresis band is a safety property, not a preference: if de-qualify ever met or
+        // exceeded qualify, a cohort on the line would flap between actioning and reversing people.
+        if (settings.DequalifyNoStandingShare >= settings.QualifyNoStandingShare)
+            violations.Add(
+                (
+                    "spam_setting_dequalify_below_qualify",
+                    new SpamSettingViolation(
+                        SpamSettingViolation.DequalifyNotBelowQualify,
+                        "dequalifyNoStandingShare"
+                    )
+                )
+            );
+
+        // A window cannot outlast its own hard cap, and a lockdown cannot outlast its ceiling: the
+        // stored cap would silently win and the operator's number would never take effect.
+        if (settings.MaxWindowSeconds < settings.WindowSeconds)
+            violations.Add(
+                (
+                    "spam_setting_max_window_below_window",
+                    new SpamSettingViolation(
+                        SpamSettingViolation.MaxWindowBelowWindow,
+                        "maxWindowSeconds"
+                    )
+                )
+            );
+
+        if (settings.LockdownMaxMinutes < settings.LockdownMinutes)
+            violations.Add(
+                (
+                    "spam_setting_lockdown_max_below_lockdown",
+                    new SpamSettingViolation(
+                        SpamSettingViolation.LockdownMaxBelowLockdown,
+                        "lockdownMaxMinutes"
+                    )
+                )
+            );
+
+        if (violations.Count == 0)
+            return null;
+
+        return Result.Failure<SpamDefenseSettings>(
+            string.Join(' ', violations.Select(v => v.Message)),
+            // VALIDATION_FAILED is the established code the API layer already maps to 400. Inventing
+            // a new one meant it fell through to 500 — a client error reported as a server fault.
+            errorCode: "VALIDATION_FAILED",
+            errorData: new SpamSettingViolations([.. violations.Select(v => v.Violation)])
+        );
     }
 
     private static string Truncate(string value, int max) =>

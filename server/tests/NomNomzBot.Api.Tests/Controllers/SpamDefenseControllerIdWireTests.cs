@@ -80,7 +80,12 @@ public sealed class SpamDefenseControllerIdWireTests : IDisposable
         );
         ICurrentUserService user = Substitute.For<ICurrentUserService>();
         user.UserId.Returns(Operator.ToString());
-        return new(service, user, Substitute.For<ILockdownService>());
+        return new(
+            service,
+            user,
+            Substitute.For<ILockdownService>(),
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IEventBus>()
+        );
     }
 
     private SpamDetection SeedDetection()

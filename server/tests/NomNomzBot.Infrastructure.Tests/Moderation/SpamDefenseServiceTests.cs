@@ -878,6 +878,77 @@ public class SpamDefenseServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task TwoOutOfRangeValues_AreRefused_EachWithItsOwnFieldKeyAndRange()
+    {
+        using AppDbContext db = NewDbContext();
+        Result<SpamDefenseSettings> result = await NewService(db)
+            .UpdateSettingsAsync(
+                Channel,
+                new SpamDefenseSettings { MinimumCohortSize = 1, WindowSeconds = 5 }
+            );
+
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        SpamSettingViolations data = result
+            .ErrorData.Should()
+            .BeOfType<SpamSettingViolations>()
+            .Subject;
+        data.Violations.Should()
+            .BeEquivalentTo([
+                new SpamSettingViolation(
+                    SpamSettingViolation.OutOfRange,
+                    "minimumCohortSize",
+                    2,
+                    100
+                ),
+                new SpamSettingViolation(
+                    SpamSettingViolation.OutOfRange,
+                    "windowSeconds",
+                    30,
+                    3600
+                ),
+            ]);
+    }
+
+    [Fact]
+    public async Task TheCrossFieldRules_NameTheFieldToMark()
+    {
+        using AppDbContext db = NewDbContext();
+        Result<SpamDefenseSettings> result = await NewService(db)
+            .UpdateSettingsAsync(
+                Channel,
+                new SpamDefenseSettings
+                {
+                    QualifyNoStandingShare = 0.7,
+                    DequalifyNoStandingShare = 0.8,
+                    WindowSeconds = 1200,
+                    MaxWindowSeconds = 600,
+                    LockdownMinutes = 120,
+                    LockdownMaxMinutes = 60,
+                }
+            );
+
+        SpamSettingViolations data = result
+            .ErrorData.Should()
+            .BeOfType<SpamSettingViolations>()
+            .Subject;
+        data.Violations.Should()
+            .BeEquivalentTo([
+                new SpamSettingViolation(
+                    SpamSettingViolation.DequalifyNotBelowQualify,
+                    "dequalifyNoStandingShare"
+                ),
+                new SpamSettingViolation(
+                    SpamSettingViolation.MaxWindowBelowWindow,
+                    "maxWindowSeconds"
+                ),
+                new SpamSettingViolation(
+                    SpamSettingViolation.LockdownMaxBelowLockdown,
+                    "lockdownMaxMinutes"
+                ),
+            ]);
+    }
+
+    [Fact]
     public async Task AnExonerationShareAboveTheCampaignShare_IsRejected()
     {
         // The hysteresis band is a safety property, not a preference: inverted, a cohort on the line

@@ -37,7 +37,8 @@ public sealed class SpamDefenseLockdownControllerTests
         new(
             Substitute.For<ISpamDefenseService>(),
             Substitute.For<ICurrentUserService>(),
-            _lockdown
+            _lockdown,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IEventBus>()
         );
 
     private static LockdownWindowStatus Window(string platform, params LockdownControl[] engaged) =>
