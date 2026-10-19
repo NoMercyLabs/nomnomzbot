@@ -316,7 +316,11 @@ async function banNow(): Promise<void> {
         <!-- minmax(0,1fr): one long chat link in a panel stretched every panel in the shared cell past the edge. -->
         <div class="grid flex-1 grid-cols-[minmax(0,1fr)] px-6 py-4" :class="[inner, scroll]">
           <TabsContent value="overview" force-mount :class="PANEL_CLASS">
-            <ProfileOverview :profile="viewerProfile" :pending="viewer.isPending.value" />
+            <ProfileOverview
+              :profile="viewerProfile"
+              :pending="viewer.isPending.value"
+              :owner="isOwner"
+            />
           </TabsContent>
 
           <TabsContent value="chat" force-mount :class="PANEL_CLASS">

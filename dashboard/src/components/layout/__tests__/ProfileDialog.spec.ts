@@ -1752,6 +1752,20 @@ describe('the profile header', () => {
     expect(document.body.querySelector('[data-profile-ban]')).not.toBeNull();
   });
 
+  it('never lists a stored Broadcaster role as what someone manages the channel as', async () => {
+    (profiles.g1 as { identity: { managementRole: string } }).identity.managementRole =
+      'Broadcaster';
+
+    await openPage();
+    await openUser('u1');
+
+    const labels = Array.from(overview().querySelectorAll('dt')).map((dt) => dt.textContent);
+    const values = overview().textContent ?? '';
+
+    expect(labels).not.toContain('Manages the channel as');
+    expect(values).not.toContain('Broadcaster');
+  });
+
   it('shows the Twitch channel standing with the Twitch logo', async () => {
     await openPage();
     await openUser('u1');

@@ -41,6 +41,7 @@ let listAnswer: (role: string | undefined, pageNumber: number) => Answer = () =>
 let searchAnswer: (q: string) => Answer = () => ok([]);
 let lookupAnswer: (login: string) => Answer = () => ok(null);
 let memberGate: Promise<void> = Promise.resolve();
+let listGate: Promise<void> = Promise.resolve();
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 const refused = (): Answer => ({
@@ -175,11 +176,14 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/community/lookup'))
         return lookupAnswer(String(options?.params?.query?.login ?? ''));
 
-      if (path.endsWith('/community'))
+      if (path.endsWith('/community')) {
+        await listGate;
+
         return listAnswer(
           options?.params?.query?.role as string | undefined,
           Number(options?.params?.query?.Page ?? 1),
         );
+      }
 
       if (path.endsWith('/community/{userId}')) {
         await memberGate;
@@ -239,6 +243,7 @@ beforeEach(() => {
   searchAnswer = () => ok([]);
   lookupAnswer = () => ok(null);
   memberGate = Promise.resolve();
+  listGate = Promise.resolve();
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -960,6 +965,25 @@ describe('PeopleView', () => {
     expect(calls.some((call) => call.query.role === 'vip' && call.query.Sort !== undefined)).toBe(
       false,
     );
+  });
+
+  it('shows a loading state, not "not found", until the lists load for the login in ?u=', async () => {
+    let release: () => void = () => undefined;
+
+    listGate = new Promise<void>((done) => {
+      release = done;
+    });
+
+    await open('/app/people?u=alice');
+
+    expect(text()).not.toContain('Nobody in the loaded lists');
+    expect(document.body.querySelector('[data-state="loading"]')).not.toBeNull();
+
+    release();
+    await settle();
+
+    expect(text()).not.toContain('Nobody in the loaded lists');
+    expect(document.body.querySelector('[data-person-close]')).not.toBeNull();
   });
 
   it('says when the login in ?u= is not in the loaded lists', async () => {

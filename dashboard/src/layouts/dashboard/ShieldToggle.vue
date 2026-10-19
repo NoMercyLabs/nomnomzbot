@@ -33,8 +33,8 @@ const setShield = useSetShieldMode(channelId);
     :title="t('frame.shield.for', { channel: current?.displayName ?? '' })"
     @update:model-value="(on: boolean) => setShield.mutate(on)"
   >
-    <ShieldCheck v-if="shield.data.value" aria-hidden="true" />
-    <Shield v-else aria-hidden="true" />
+    <ShieldCheck v-if="shield.data.value" class="size-5" aria-hidden="true" />
+    <Shield v-else class="size-5" aria-hidden="true" />
     <!-- On a phone-wide pane only the icon shows; the words stay as its accessible name. -->
     <span class="@max-md:sr-only">{{
       shield.data.value ? t('frame.shield.on') : t('frame.shield.off')

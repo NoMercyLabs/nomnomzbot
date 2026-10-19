@@ -25,6 +25,8 @@ import { shortDate } from '@/lib/time';
 const props = defineProps<{
   profile: PersonProfile | null;
   pending?: boolean;
+  // owner: this person is the channel's own account.
+  owner?: boolean;
 }>();
 
 const { t, locale } = useI18n();
@@ -53,6 +55,17 @@ function linked(identities: readonly LinkedIdentity[]): string | null {
 }
 
 const about = computed<string | null>(() => props.profile?.identity.description || null);
+
+// The stored role as words. Only the channel's own account is the Broadcaster; a stored Broadcaster row on
+// anyone else is stale data (the same rule roleKeys follows), so it is left out, not shown as a guess.
+const managesAs = computed<string | null>(() => {
+  const stored = props.profile?.identity.managementRole?.toLowerCase();
+
+  if (!stored || (stored === 'broadcaster' && !props.owner))
+    return null;
+
+  return t(`profile.manager.${stored}`);
+});
 
 const relationship = computed<KeyValueItem[]>(() => {
   const known = props.profile?.identity;
@@ -101,9 +114,7 @@ const relationship = computed<KeyValueItem[]>(() => {
     },
     {
       label: t('profile.facts.manages'),
-      value: known?.managementRole
-        ? t(`profile.manager.${known.managementRole.toLowerCase()}`)
-        : null,
+      value: managesAs.value,
     },
     {
       // memberSinceUtc is when this channel gave the person their role (ChannelMembership.GrantedAt).

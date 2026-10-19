@@ -304,6 +304,14 @@ const loadedRow = computed<CommunityRow | null>(() => {
   return loaded.find((row) => row.username.toLowerCase() === login) ?? null;
 });
 
+// A login in ?u= is "not found" only after every list has finished loading; until then the pane is loading.
+const listsPending = computed<boolean>(() =>
+  [everyone, moderators, vips, subscribers, regulars].some((query) => query.isPending.value));
+const detailState = computed<PanelState>(() =>
+  asked.value !== '' && listsPending.value
+    ? 'loading'
+    : 'empty');
+
 // A seeded person that is not in a loaded list: the full record is asked for only now, never while typing.
 const seedInView = computed<Seed | null>(() =>
   loadedRow.value === null && seed.value?.login.toLowerCase() === asked.value.toLowerCase()
@@ -529,7 +537,7 @@ useEventListener(document, 'keydown', closeOnEscape);
         v-else
         class="flex-1"
         :title="$t('dashboard.people.detail.title')"
-        state="empty"
+        :state="detailState"
         :empty-text="
           asked === ''
             ? $t('dashboard.people.detail.pick')

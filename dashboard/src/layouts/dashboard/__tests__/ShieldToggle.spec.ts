@@ -35,4 +35,12 @@ describe('the Shield Mode toggle', () => {
     expect(classes).toContain('h-9');
     expect(classes).not.toContain('h-8');
   });
+
+  it('draws a 20px icon (size-5) inside the 36px control', () => {
+    const icon = mount(ShieldToggle, { global: { plugins: [i18n] } }).get(
+      '[data-slot="shield-toggle"] svg',
+    );
+
+    expect(icon.classes()).toContain('size-5');
+  });
 });
