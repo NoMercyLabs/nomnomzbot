@@ -125,7 +125,7 @@ function submitSpelling(): void {
         @submit.prevent="submitKey(provider)"
       >
         <label class="flex min-w-40 flex-1 flex-col gap-1 text-sm font-medium">
-          <span class="flex flex-wrap items-center justify-between gap-2">
+          <span class="flex flex-wrap items-center gap-x-3 gap-y-1" data-key-label>
             {{ $t(`dashboard.tts.keys.provider.${provider}`) }}
             <StatusBadge
               :tone="stored[provider] ? 'ok' : 'off'"
@@ -159,12 +159,15 @@ function submitSpelling(): void {
             @keydown.enter="commitRegion"
           />
         </label>
-        <Button v-if="stored[provider]" type="button" variant="ghost" @click="dropKey(provider)">
-          {{ $t("dashboard.tts.keys.remove") }}
-        </Button>
-        <Button type="submit" :disabled="keys[provider].trim() === '' || saveKey.isPending.value">
-          {{ $t("dashboard.tts.keys.save") }}
-        </Button>
+        <!-- Both providers put the buttons in one group: on a phone it sits on its own line, from sm it stays inline. -->
+        <div class="flex w-full justify-end gap-2 sm:w-auto" data-key-actions>
+          <Button v-if="stored[provider]" type="button" variant="ghost" @click="dropKey(provider)">
+            {{ $t("dashboard.tts.keys.remove") }}
+          </Button>
+          <Button type="submit" :disabled="keys[provider].trim() === '' || saveKey.isPending.value">
+            {{ $t("dashboard.tts.keys.save") }}
+          </Button>
+        </div>
       </form>
       <form
         class="flex flex-wrap items-end gap-2 border-t border-border pt-4"

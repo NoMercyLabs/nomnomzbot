@@ -381,6 +381,18 @@ describe('TTS rules panels', () => {
     });
   });
 
+  it('gives a lexicon rule text its own line under sm so no word wraps alone', async () => {
+    await open();
+
+    const row = document.body.querySelector('[data-lexicon-row]') as HTMLElement;
+    const text = row.querySelector('[data-lexicon-text]') as HTMLElement;
+
+    expect(row.className).toContain('flex-wrap');
+    expect(text.className).toContain('basis-full');
+    expect(text.className).toContain('sm:flex-1');
+    expect(text.textContent).toContain('gg');
+  });
+
   it('edits and deletes a lexicon rule by its id', async () => {
     await open();
     expect(document.body.querySelectorAll('[data-lexicon-row]')).toHaveLength(1);
@@ -479,6 +491,25 @@ describe('TTS rules panels', () => {
 
     expect(status('azure')).toBe('Key stored');
     expect(status('elevenlabs')).toBe('No key');
+  });
+
+  it('lays every provider out the same: status beside the name, buttons in one group', async () => {
+    await open();
+
+    const forms = [...document.body.querySelectorAll('[data-key-form]')];
+
+    expect(forms).toHaveLength(2);
+
+    for (const form of forms) {
+      const actions = form.querySelector('[data-key-actions]') as HTMLElement;
+      const label = form.querySelector('[data-key-label]') as HTMLElement;
+
+      expect(actions.className).toContain('w-full');
+      expect(actions.className).toContain('sm:w-auto');
+      expect(actions.textContent).toContain('Save key');
+      expect(label.className).not.toContain('justify-between');
+      expect(label.querySelector('[data-slot="status-badge"]')).not.toBeNull();
+    }
   });
 
   it('saves the channel name spelling', async () => {
