@@ -55,8 +55,8 @@ public sealed class SharedBanService(
         );
         return Result.Success(
             new SharedBanSettingsDto(
-                settings?.AcceptSharedChatBans ?? false,
-                settings?.ShareOutgoingBans ?? false,
+                settings?.AcceptSharedChatBans ?? SharedBanDefaults.AcceptSharedChatBans,
+                settings?.ShareOutgoingBans ?? SharedBanDefaults.ShareOutgoingBans,
                 await TrustedListAsync(broadcasterId, ct)
             )
         );
@@ -181,7 +181,7 @@ public sealed class SharedBanService(
             s => s.BroadcasterId == partnerBroadcasterId,
             ct
         );
-        if (settings is not { AcceptSharedChatBans: true })
+        if (!(settings?.AcceptSharedChatBans ?? SharedBanDefaults.AcceptSharedChatBans))
             // The channel's own choice (default-deny): a failure for the caller, never a report to the streamer.
             return Result.Failure<SharedBanApplicationResult>(
                 "This channel does not accept shared-chat bans.",

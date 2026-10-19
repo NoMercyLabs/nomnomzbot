@@ -27,9 +27,9 @@ public class SharedBanSettings : BaseEntity, ITenantScoped
     /// <summary>One settings row per channel (unique).</summary>
     public Guid BroadcasterId { get; set; }
 
-    public bool AcceptSharedChatBans { get; set; }
+    public bool AcceptSharedChatBans { get; set; } = SharedBanDefaults.AcceptSharedChatBans;
 
-    public bool ShareOutgoingBans { get; set; }
+    public bool ShareOutgoingBans { get; set; } = SharedBanDefaults.ShareOutgoingBans;
 
     [ForeignKey(nameof(BroadcasterId))]
     public virtual Channel Channel { get; set; } = null!;
