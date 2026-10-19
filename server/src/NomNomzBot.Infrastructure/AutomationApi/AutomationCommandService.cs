@@ -25,6 +25,7 @@ using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Obs.Dtos;
 using NomNomzBot.Application.Obs.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.AutomationApi.Events;
@@ -95,18 +96,30 @@ public class AutomationCommandService : IAutomationCommandService
         if (!principal.Scopes.Contains("invoke"))
             return Forbidden<AutomationInvokeResult>("invoke");
 
-        PipelineEntity? pipeline = await ResolvePipelineAsync(principal, request, ct);
-        if (pipeline is null)
-            return await InvokeActionAsync(principal, request, ct);
-        if (
-            principal.AllowedPipelineIds is { Count: > 0 } allowlist
-            && !allowlist.Contains(pipeline.Id)
-        )
+        Result<ResolvedTarget> resolved = await ResolveTargetAsync(principal, request, ct);
+        if (resolved.IsFailure)
             return Result.Failure<AutomationInvokeResult>(
-                "This token is not allowed to invoke that pipeline.",
+                resolved.ErrorMessage!,
+                resolved.ErrorCode!,
+                resolved.ErrorDetail
+            );
+
+        BindingTarget target = resolved.Value!.Target;
+        if (!principal.Allows(target))
+            return Result.Failure<AutomationInvokeResult>(
+                "This token is not allowed to invoke that target.",
                 "FORBIDDEN"
             );
-        if (!await ActorHoldsMusicControlAsync(pipeline, principal, ct))
+        if (
+            target.Kind == BindingTargetKind.Action
+                && target.ActionType!.StartsWith(
+                    StreamDeckActions.MusicPrefix,
+                    StringComparison.Ordinal
+                )
+                && !await CreatorHoldsMusicControlAsync(principal, ct)
+            || resolved.Value.Pipeline is { } gated
+                && !await ActorHoldsMusicControlAsync(gated, principal, ct)
+        )
             return Result.Failure<AutomationInvokeResult>(
                 "This pipeline contains music-control steps and the token's creator no longer holds 'music:control:write'.",
                 "FORBIDDEN"
@@ -122,99 +135,22 @@ public class AutomationCommandService : IAutomationCommandService
 
         Guid correlationId = Guid.CreateVersion7();
         Dictionary<string, string> variables = BuildRunVariables(request, correlationId);
-        variables["trigger.source"] = "automation";
 
-        PipelineRequest run = new()
-        {
-            BroadcasterId = principal.BroadcasterId,
-            PipelineId = pipeline.Id,
-            PipelineJson = pipeline.GraphJsonCache ?? "{}",
-            TriggeredByUserId = principal.TokenId.ToString(),
-            TriggeredByDisplayName = principal.TokenName,
-            RawMessage = request.Args is { Count: > 0 } args ? string.Join(' ', args) : "",
-            InitialVariables = variables,
-        };
-
-        // Fire-and-forget on a fresh scope (D5): the API answers "accepted", it never blocks on —
-        // or reports — pipeline completion.
-        _ = Task.Run(
-            async () =>
-            {
-                using IServiceScope scope = _scopeFactory.CreateScope();
-                try
-                {
-                    IPipelineEngine engine =
-                        scope.ServiceProvider.GetRequiredService<IPipelineEngine>();
-                    await engine.ExecuteAsync(run, CancellationToken.None);
-                }
-                catch (Exception ex)
-                {
-                    _logger.LogWarning(
-                        ex,
-                        "Automation-invoked pipeline {Pipeline} failed for {Channel} (correlation {Correlation}).",
-                        run.PipelineId,
-                        run.BroadcasterId,
-                        correlationId
-                    );
-                }
-            },
-            CancellationToken.None
-        );
-
-        return Result.Success(
-            new AutomationInvokeResult(pipeline.Id, correlationId, Accepted: true)
-        );
-    }
-
-    /// <summary>
-    /// A key that names no pipeline may name a Stream Deck action (<c>music_*</c>, <c>obs_*</c>). It runs as an
-    /// action target through the command invoker, with the key's settings as variables and no wrapper pipeline.
-    /// A token with a pipeline allowlist cannot run one: the allowlist names pipelines, and an action is not one.
-    /// </summary>
-    private async Task<Result<AutomationInvokeResult>> InvokeActionAsync(
-        AutomationPrincipal principal,
-        AutomationInvokeRequest request,
-        CancellationToken ct
-    )
-    {
-        BindingTarget? target = FindActionTarget(request.PipelineName);
-        if (target is null)
-            return Errors.NotFound<AutomationInvokeResult>(
-                "Pipeline",
-                request.PipelineId?.ToString() ?? request.PipelineName ?? "(unspecified)"
-            );
-        if (principal.AllowedPipelineIds is { Count: > 0 })
-            return Result.Failure<AutomationInvokeResult>(
-                "This token is not allowed to invoke that pipeline.",
-                "FORBIDDEN"
-            );
-        if (
-            target.ActionType!.StartsWith(StreamDeckActions.MusicPrefix, StringComparison.Ordinal)
-            && !await CreatorHoldsMusicControlAsync(principal, ct)
-        )
-            return Result.Failure<AutomationInvokeResult>(
-                "This action controls music and the token's creator no longer holds 'music:control:write'.",
-                "FORBIDDEN"
-            );
-
-        Result limited = await AcquireAsync(principal, "invoke", InvokePerMinute, ct);
-        if (limited.IsFailure)
-            return Result.Failure<AutomationInvokeResult>(
-                limited.ErrorMessage!,
-                limited.ErrorCode!,
-                limited.ErrorDetail
-            );
-
-        Guid correlationId = Guid.CreateVersion7();
+        // A command or pipeline run is attributed to the token (broadcaster role); a Stream Deck action runs as the
+        // channel's system invoker.
+        bool isAction = target.Kind == BindingTargetKind.Action;
         InvocationContext context = new(
-            UserId: null,
+            UserId: isAction ? null : principal.TokenId.ToString(),
             DisplayName: principal.TokenName,
             Args: request.Args is { Count: > 0 } args ? string.Join(' ', args) : "",
             TriggerSource: "automation",
-            Variables: BuildRunVariables(request, correlationId)
+            EffectiveRole: isAction ? null : "broadcaster",
+            Variables: variables
         );
+        Guid broadcasterId = principal.BroadcasterId;
 
-        // Fire-and-forget on a fresh scope (D5), same as a pipeline run.
+        // Fire-and-forget on a fresh scope (D5): the API answers "accepted", it never blocks on —
+        // or reports — the run's completion.
         _ = Task.Run(
             async () =>
             {
@@ -223,20 +159,30 @@ public class AutomationCommandService : IAutomationCommandService
                 {
                     ICommandInvoker invoker =
                         scope.ServiceProvider.GetRequiredService<ICommandInvoker>();
-                    await invoker.InvokeAsync(
-                        principal.BroadcasterId,
+                    Result<InvocationOutcome> outcome = await invoker.InvokeAsync(
+                        broadcasterId,
                         target,
                         context,
                         CancellationToken.None
                     );
+                    if (outcome.IsFailure)
+                        _logger.LogWarning(
+                            "Automation-invoked {Kind} target {Target} was refused for {Channel} (correlation {Correlation}): {Error}",
+                            target.Kind,
+                            target.Id ?? target.ActionType,
+                            broadcasterId,
+                            correlationId,
+                            outcome.ErrorMessage
+                        );
                 }
                 catch (Exception ex)
                 {
                     _logger.LogWarning(
                         ex,
-                        "Automation-invoked action {Action} failed for {Channel} (correlation {Correlation}).",
-                        target.ActionType,
-                        principal.BroadcasterId,
+                        "Automation-invoked {Kind} target {Target} failed for {Channel} (correlation {Correlation}).",
+                        target.Kind,
+                        target.Id ?? target.ActionType,
+                        broadcasterId,
                         correlationId
                     );
                 }
@@ -245,7 +191,13 @@ public class AutomationCommandService : IAutomationCommandService
         );
 
         return Result.Success(
-            new AutomationInvokeResult(Guid.Empty, correlationId, Accepted: true)
+            new AutomationInvokeResult(
+                target.Kind == BindingTargetKind.Pipeline ? resolved.Value.Pipeline?.Id : null,
+                correlationId,
+                Accepted: true,
+                target.Kind.ToString().ToLowerInvariant(),
+                target.Kind == BindingTargetKind.Action ? target.ActionType : target.Id
+            )
         );
     }
 
@@ -299,8 +251,7 @@ public class AutomationCommandService : IAutomationCommandService
         [
             .. pipelines
                 .Where(p =>
-                    principal.AllowedPipelineIds is not { Count: > 0 } allowlist
-                    || allowlist.Contains(p.Id)
+                    principal.Allows(new BindingTarget(BindingTargetKind.Pipeline, p.Id.ToString()))
                 )
                 .Select(p => new AutomationPipelineRef(p.Id, p.Name)),
         ];
@@ -757,6 +708,90 @@ public class AutomationCommandService : IAutomationCommandService
             ct
         );
         return authorized is { IsSuccess: true, Value: true };
+    }
+
+    /// <summary>A request's target after the existence check; <see cref="Pipeline"/> is the pipeline it will run (for the music gate).</summary>
+    private sealed record ResolvedTarget(BindingTarget Target, PipelineEntity? Pipeline);
+
+    private async Task<Result<ResolvedTarget>> ResolveTargetAsync(
+        AutomationPrincipal principal,
+        AutomationInvokeRequest request,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrWhiteSpace(request.Kind))
+        {
+            PipelineEntity? legacy = await ResolvePipelineAsync(principal, request, ct);
+            if (legacy is null && FindActionTarget(request.PipelineName) is { } named)
+                return Result.Success(new ResolvedTarget(named, null));
+            if (legacy is null)
+                return Errors.NotFound<ResolvedTarget>(
+                    "Pipeline",
+                    request.PipelineId?.ToString() ?? request.PipelineName ?? "(unspecified)"
+                );
+
+            return Result.Success(
+                new ResolvedTarget(
+                    new BindingTarget(BindingTargetKind.Pipeline, legacy.Id.ToString()),
+                    legacy
+                )
+            );
+        }
+
+        Result<BindingTarget> parsed = new AutomationTargetDto(
+            request.Kind,
+            request.Id,
+            request.ActionType,
+            request.Params
+        ).ToTarget();
+        if (parsed.IsFailure)
+            return Result.Failure<ResolvedTarget>(parsed.ErrorMessage!, parsed.ErrorCode!);
+
+        BindingTarget target = parsed.Value!;
+        if (target.Kind == BindingTargetKind.Pipeline)
+        {
+            Guid pipelineId = Guid.Parse(target.Id!);
+            PipelineEntity? pipeline = await _db.Pipelines.FirstOrDefaultAsync(
+                p =>
+                    p.BroadcasterId == principal.BroadcasterId && p.Id == pipelineId && p.IsEnabled,
+                ct
+            );
+
+            return pipeline is null
+                ? Errors.NotFound<ResolvedTarget>("Pipeline", target.Id!)
+                : Result.Success(new ResolvedTarget(target, pipeline));
+        }
+
+        // A command id that is not a guid is a built-in key: it has no row to look up here.
+        if (
+            target.Kind == BindingTargetKind.Command
+            && Guid.TryParse(target.Id, out Guid commandId)
+        )
+        {
+            Guid? boundPipelineId = await _db
+                .Commands.Where(c =>
+                    c.BroadcasterId == principal.BroadcasterId && c.Id == commandId && c.IsEnabled
+                )
+                .Select(c => c.PipelineId)
+                .FirstOrDefaultAsync(ct);
+            bool exists = await _db.Commands.AnyAsync(
+                c => c.BroadcasterId == principal.BroadcasterId && c.Id == commandId && c.IsEnabled,
+                ct
+            );
+            if (!exists)
+                return Errors.NotFound<ResolvedTarget>("Command", target.Id!);
+
+            PipelineEntity? bound = boundPipelineId is null
+                ? null
+                : await _db.Pipelines.FirstOrDefaultAsync(
+                    p => p.BroadcasterId == principal.BroadcasterId && p.Id == boundPipelineId,
+                    ct
+                );
+
+            return Result.Success(new ResolvedTarget(target, bound));
+        }
+
+        return Result.Success(new ResolvedTarget(target, null));
     }
 
     private async Task<PipelineEntity?> ResolvePipelineAsync(

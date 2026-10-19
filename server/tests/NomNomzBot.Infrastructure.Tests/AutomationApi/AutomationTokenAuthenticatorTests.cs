@@ -14,6 +14,8 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Automation.Entities;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Infrastructure.AutomationApi;
 
 namespace NomNomzBot.Infrastructure.Tests.AutomationApi;
@@ -79,8 +81,51 @@ public sealed class AutomationTokenAuthenticatorTests
         result.Value.TokenId.Should().Be(token.Id);
         result.Value.TokenName.Should().Be("deck");
         result.Value.Scopes.Should().BeEquivalentTo(["invoke", "events"]);
-        result.Value.AllowedPipelineIds.Should().BeNull();
+        result.Value.AllowedTargets.Should().BeNull();
         (await db.AutomationApiTokens.SingleAsync()).LastUsedAt.Should().Be(T0);
+    }
+
+    [Fact]
+    public async Task A_token_issued_with_the_old_pipeline_list_resolves_to_pipeline_targets()
+    {
+        (AutomationTokenAuthenticator sut, AutomationTestDbContext db, _) = Build();
+        AutomationApiToken token = Seed(db);
+        Guid pipelineId = Guid.NewGuid();
+        token.AllowedPipelineIdsJson = $"[\"{pipelineId}\"]";
+        db.SaveChanges();
+
+        Result<AutomationPrincipal> result = await sut.AuthenticateAsync(Secret);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result
+            .Value.AllowedTargets.Should()
+            .Equal(new BindingTarget(BindingTargetKind.Pipeline, pipelineId.ToString()));
+        result
+            .Value.Allows(new(BindingTargetKind.Pipeline, pipelineId.ToString()))
+            .Should()
+            .BeTrue();
+        result
+            .Value.Allows(new(BindingTargetKind.Command, pipelineId.ToString()))
+            .Should()
+            .BeFalse();
+    }
+
+    [Fact]
+    public async Task A_token_with_the_new_target_list_resolves_every_kind()
+    {
+        (AutomationTokenAuthenticator sut, AutomationTestDbContext db, _) = Build();
+        AutomationApiToken token = Seed(db);
+        BindingTarget[] pinned =
+        [
+            new(BindingTargetKind.Command, "hug"),
+            new(BindingTargetKind.Action, ActionType: "send_message"),
+        ];
+        token.AllowedTargetsJson = BindingTargetJson.SerializeList(pinned);
+        db.SaveChanges();
+
+        Result<AutomationPrincipal> result = await sut.AuthenticateAsync(Secret);
+
+        result.Value.AllowedTargets.Should().BeEquivalentTo(pinned);
     }
 
     [Fact]

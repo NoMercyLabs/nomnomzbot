@@ -15,6 +15,8 @@ using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Automation.Entities;
 using NomNomzBot.Domain.Automation.Events;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Infrastructure.AutomationApi;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
@@ -59,6 +61,122 @@ public sealed class AutomationApiTokenServiceTests
         string name = "deck",
         IReadOnlyList<string>? scopes = null
     ) => new() { Name = name, Scopes = scopes ?? ["invoke", "read"] };
+
+    [Fact]
+    public async Task Create_pins_the_token_to_its_targets_and_maps_pipeline_ids_to_pipeline_targets()
+    {
+        (AutomationApiTokenService sut, AutomationTestDbContext db, _, _) = Build();
+        Guid pipelineId = Guid.NewGuid();
+        Guid commandId = Guid.NewGuid();
+        db.Commands.Add(
+            new()
+            {
+                Id = commandId,
+                BroadcasterId = Channel,
+                Name = "hug",
+                NameNormalized = "hug",
+                Tier = "template",
+                IsEnabled = true,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<IssuedAutomationTokenDto> result = await sut.CreateAsync(
+            Channel,
+            Creator,
+            new()
+            {
+                Name = "deck",
+                Scopes = ["invoke"],
+                AllowedPipelineIds = [pipelineId],
+                AllowedTargets =
+                [
+                    new("Command", commandId.ToString()),
+                    new("action", ActionType: "send_message"),
+                ],
+            },
+            CancellationToken.None
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        AutomationApiToken row = await db.AutomationApiTokens.SingleAsync();
+        row.AllowedPipelineIdsJson.Should().BeNull("the new list is the only stored form");
+        row.GetAllowedTargets()
+            .Should()
+            .BeEquivalentTo(
+                new BindingTarget[]
+                {
+                    new(BindingTargetKind.Command, commandId.ToString()),
+                    new(BindingTargetKind.Action, ActionType: "send_message"),
+                    new(BindingTargetKind.Pipeline, pipelineId.ToString()),
+                }
+            );
+        result.Value.Token.AllowedPipelineIds.Should().Equal(pipelineId);
+        result
+            .Value.Token.AllowedTargets.Select(t => t.Kind)
+            .Should()
+            .Equal("command", "action", "pipeline");
+    }
+
+    [Fact]
+    public async Task Create_refuses_a_malformed_target_and_stores_nothing()
+    {
+        (AutomationApiTokenService sut, AutomationTestDbContext db, _, _) = Build();
+
+        Result<IssuedAutomationTokenDto> result = await sut.CreateAsync(
+            Channel,
+            Creator,
+            new()
+            {
+                Name = "deck",
+                Scopes = ["invoke"],
+                AllowedTargets = [new("pipeline", "not-a-guid")],
+            },
+            CancellationToken.None
+        );
+
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await db.AutomationApiTokens.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Create_refuses_a_command_target_the_channel_does_not_own_and_stores_nothing()
+    {
+        (AutomationApiTokenService sut, AutomationTestDbContext db, _, _) = Build();
+
+        Result<IssuedAutomationTokenDto> result = await sut.CreateAsync(
+            Channel,
+            Creator,
+            new()
+            {
+                Name = "deck",
+                Scopes = ["invoke"],
+                AllowedTargets = [new("command", Guid.NewGuid().ToString())],
+            },
+            CancellationToken.None
+        );
+
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await db.AutomationApiTokens.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Create_without_targets_leaves_the_token_unrestricted()
+    {
+        (AutomationApiTokenService sut, AutomationTestDbContext db, _, _) = Build();
+
+        Result<IssuedAutomationTokenDto> result = await sut.CreateAsync(
+            Channel,
+            Creator,
+            Request(),
+            CancellationToken.None
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        (await db.AutomationApiTokens.SingleAsync()).GetAllowedTargets().Should().BeNull();
+        result.Value.Token.AllowedTargets.Should().BeEmpty();
+        result.Value.Token.AllowedPipelineIds.Should().BeEmpty();
+    }
 
     [Fact]
     public async Task Create_returns_the_secret_once_and_persists_only_its_hash()

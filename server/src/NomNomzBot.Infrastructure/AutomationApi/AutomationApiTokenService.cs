@@ -18,7 +18,10 @@ using NomNomzBot.Application.AutomationApi.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Automation.Entities;
 using NomNomzBot.Domain.Automation.Events;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Commands;
 
 namespace NomNomzBot.Infrastructure.AutomationApi;
 
@@ -106,6 +109,17 @@ public class AutomationApiTokenService : IAutomationApiTokenService
                 "ALREADY_EXISTS"
             );
 
+        Result<List<BindingTarget>> allowedTargets = await EffectiveAllowedTargetsAsync(
+            broadcasterId,
+            request,
+            ct
+        );
+        if (allowedTargets.IsFailure)
+            return Result.Failure<IssuedAutomationTokenDto>(
+                allowedTargets.ErrorMessage!,
+                allowedTargets.ErrorCode!
+            );
+
         (string secret, string hash, string prefix) = MintSecret();
         AutomationApiToken token = new()
         {
@@ -114,8 +128,8 @@ public class AutomationApiTokenService : IAutomationApiTokenService
             TokenHash = hash,
             TokenPrefix = prefix,
             ScopesJson = JsonSerializer.Serialize(Normalize(request.Scopes)),
-            AllowedPipelineIdsJson = request.AllowedPipelineIds is { Count: > 0 }
-                ? JsonSerializer.Serialize(request.AllowedPipelineIds)
+            AllowedTargetsJson = allowedTargets.Value is { Count: > 0 }
+                ? BindingTargetJson.SerializeList(allowedTargets.Value)
                 : null,
             ExpiresAt = request.ExpiresAt,
             CreatedByUserId = createdByUserId,
@@ -275,6 +289,38 @@ public class AutomationApiTokenService : IAutomationApiTokenService
     public static string HashSecret(string secret) =>
         Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(secret)));
 
+    /// <summary>The pinned set a create request asks for: its targets plus its pipeline ids as pipeline targets.</summary>
+    private async Task<Result<List<BindingTarget>>> EffectiveAllowedTargetsAsync(
+        Guid broadcasterId,
+        CreateAutomationTokenRequest request,
+        CancellationToken ct
+    )
+    {
+        List<BindingTarget> targets = [];
+        foreach (AutomationTargetDto dto in request.AllowedTargets ?? [])
+        {
+            Result<BindingTarget> parsed = dto.ToTarget();
+            if (parsed.IsFailure)
+                return Result.Failure<List<BindingTarget>>(parsed.ErrorMessage!, parsed.ErrorCode!);
+
+            Result owned = await BindingTargetBinder.ValidateAsync(
+                _db,
+                broadcasterId,
+                parsed.Value,
+                ct
+            );
+            if (owned.IsFailure)
+                return Result.Failure<List<BindingTarget>>(owned.ErrorMessage!, owned.ErrorCode!);
+
+            targets.Add(parsed.Value!);
+        }
+
+        foreach (Guid pipelineId in request.AllowedPipelineIds ?? [])
+            targets.Add(new BindingTarget(BindingTargetKind.Pipeline, pipelineId.ToString()));
+
+        return Result.Success(targets);
+    }
+
     private static IReadOnlyList<string> DeserializeScopes(string json) =>
         JsonSerializer.Deserialize<List<string>>(json) ?? [];
 
@@ -284,9 +330,12 @@ public class AutomationApiTokenService : IAutomationApiTokenService
             t.Name,
             t.TokenPrefix,
             DeserializeScopes(t.ScopesJson),
-            t.AllowedPipelineIdsJson is null
-                ? []
-                : JsonSerializer.Deserialize<List<Guid>>(t.AllowedPipelineIdsJson) ?? [],
+            [
+                .. (t.GetAllowedTargets() ?? [])
+                    .Where(a => a.Kind == BindingTargetKind.Pipeline)
+                    .Select(a => Guid.Parse(a.Id!)),
+            ],
+            [.. (t.GetAllowedTargets() ?? []).Select(AutomationTargetDto.From)],
             t.LastUsedAt,
             t.ExpiresAt,
             t.RevokedAt,

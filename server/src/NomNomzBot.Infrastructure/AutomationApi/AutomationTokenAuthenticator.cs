@@ -72,9 +72,7 @@ public class AutomationTokenAuthenticator : IAutomationTokenAuthenticator
                 token.Id,
                 token.Name,
                 JsonSerializer.Deserialize<List<string>>(token.ScopesJson) ?? [],
-                token.AllowedPipelineIdsJson is null
-                    ? null
-                    : JsonSerializer.Deserialize<List<Guid>>(token.AllowedPipelineIdsJson)
+                token.GetAllowedTargets()
             )
         );
     }

@@ -12,13 +12,18 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.AutomationApi.Dtos;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Music;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Obs.Dtos;
 using NomNomzBot.Application.Obs.Services;
@@ -27,6 +32,7 @@ using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.AutomationApi;
+using NomNomzBot.Infrastructure.Commands;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.AutomationApi;
@@ -103,29 +109,6 @@ public sealed class AutomationCommandServiceTests
         TaskCompletionSource<(BindingTarget Target, InvocationContext Context)> invokerCalled = new(
             TaskCreationOptions.RunContinuationsAsynchronously
         );
-        ICommandInvoker invoker = Substitute.For<ICommandInvoker>();
-        invoker
-            .InvokeAsync(
-                Arg.Any<Guid>(),
-                Arg.Any<BindingTarget>(),
-                Arg.Any<InvocationContext>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(ci =>
-            {
-                invokerCalled.TrySetResult(
-                    (ci.ArgAt<BindingTarget>(1), ci.ArgAt<InvocationContext>(2))
-                );
-                return Task.FromResult(Result.Success(new InvocationOutcome(true, null, null)));
-            });
-        ServiceCollection services = new();
-        services.AddSingleton(engine);
-        services.AddSingleton(invoker);
-        foreach (ICommandAction action in actions ?? [])
-            services.AddSingleton(action);
-        IServiceScopeFactory scopeFactory = services
-            .BuildServiceProvider()
-            .GetRequiredService<IServiceScopeFactory>();
 
         IRateLimiterPartitionStore limiter = Substitute.For<IRateLimiterPartitionStore>();
         limiter
@@ -168,6 +151,61 @@ public sealed class AutomationCommandServiceTests
 
         IObsControlService obs = Substitute.For<IObsControlService>();
 
+        // The real invoker runs the target, so what the tests assert is what the channel would see.
+        ITemplateResolver templates = Substitute.For<ITemplateResolver>();
+        templates
+            .ResolveAsync(
+                Arg.Any<string>(),
+                Arg.Any<IDictionary<string, string>>(),
+                Arg.Any<Guid?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call => "resolved:" + call.Arg<string>());
+        IBuiltinCommandCatalog catalog = Substitute.For<IBuiltinCommandCatalog>();
+        catalog.Get(Arg.Any<string>()).Returns((IBuiltinCommand?)null);
+        IChannelTwitchBotResolver bots = Substitute.For<IChannelTwitchBotResolver>();
+        bots.ResolveAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns(new ChannelTwitchBot("bot-9", "NomNomzBotLive"));
+        CommandInvoker realInvoker = new(
+            db,
+            engine,
+            Substitute.For<IOwnerActionService>(),
+            bots,
+            templates,
+            chat,
+            catalog,
+            Substitute.For<IOutboundSanctionAccessor>()
+        );
+        // Records what the service hands the invoker, then lets the real invoker run it.
+        ICommandInvoker invoker = Substitute.For<ICommandInvoker>();
+        invoker
+            .InvokeAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<BindingTarget>(),
+                Arg.Any<InvocationContext>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(ci =>
+            {
+                invokerCalled.TrySetResult(
+                    (ci.ArgAt<BindingTarget>(1), ci.ArgAt<InvocationContext>(2))
+                );
+                return realInvoker.InvokeAsync(
+                    ci.ArgAt<Guid>(0),
+                    ci.ArgAt<BindingTarget>(1),
+                    ci.ArgAt<InvocationContext>(2),
+                    ci.ArgAt<CancellationToken>(3)
+                );
+            });
+        ServiceCollection services = new();
+        services.AddSingleton(engine);
+        services.AddSingleton(invoker);
+        foreach (ICommandAction action in actions ?? [])
+            services.AddSingleton(action);
+        IServiceScopeFactory scopeFactory = services
+            .BuildServiceProvider()
+            .GetRequiredService<IServiceScopeFactory>();
+
         AutomationCommandService service = new(
             db,
             scopeFactory,
@@ -201,9 +239,34 @@ public sealed class AutomationCommandServiceTests
 
     private static AutomationPrincipal Principal(
         IReadOnlyList<string>? scopes = null,
-        IReadOnlyList<Guid>? allowlist = null
+        IReadOnlyList<BindingTarget>? allowlist = null
     ) =>
         new(Channel, Guid.NewGuid(), "deck-token", scopes ?? ["invoke", "read", "chat"], allowlist);
+
+    private static BindingTarget PipelineTarget(Guid id) =>
+        new(BindingTargetKind.Pipeline, id.ToString());
+
+    private static Guid SeedTemplateCommand(AutomationTestDbContext db)
+    {
+        Guid id = Guid.NewGuid();
+        db.Commands.Add(
+            new()
+            {
+                Id = id,
+                BroadcasterId = Channel,
+                Name = "hug",
+                NameNormalized = "hug",
+                Tier = "template",
+                TemplateResponses = ["hug {user}"],
+                IsEnabled = true,
+                CooldownSeconds = 60,
+                UserCooldownSeconds = 60,
+                MinPermissionLevel = 100,
+            }
+        );
+        db.SaveChanges();
+        return id;
+    }
 
     private static void SeedPipeline(AutomationTestDbContext db, bool enabled = true)
     {
@@ -259,7 +322,7 @@ public sealed class AutomationCommandServiceTests
         noScope.ErrorCode.Should().Be("FORBIDDEN");
 
         Result<AutomationInvokeResult> offList = await h.Service.InvokePipelineAsync(
-            Principal(allowlist: [Guid.NewGuid()]),
+            Principal(allowlist: [PipelineTarget(Guid.NewGuid())]),
             new() { PipelineId = PipelineId }
         );
         offList.IsFailure.Should().BeTrue();
@@ -288,6 +351,187 @@ public sealed class AutomationCommandServiceTests
         await h
             .Engine.DidNotReceive()
             .ExecuteAsync(Arg.Any<PipelineRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_command_target_runs_the_command_and_the_chat_gets_its_reply()
+    {
+        Harness h = Build();
+        Guid commandId = SeedTemplateCommand(h.Db);
+
+        Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
+            Principal(),
+            new()
+            {
+                Kind = "Command",
+                Id = commandId.ToString(),
+                Args = ["to", "you"],
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Accepted.Should().BeTrue();
+        result.Value.PipelineId.Should().BeNull("a template command is not a pipeline run");
+        result.Value.Kind.Should().Be("command");
+        result.Value.TargetId.Should().Be(commandId.ToString());
+
+        await WaitForChatAsync(h, "resolved:hug {user}");
+    }
+
+    [Fact]
+    public async Task A_token_pinned_to_one_command_runs_it_and_nothing_else()
+    {
+        Harness h = Build();
+        SeedPipeline(h.Db);
+        Guid pinned = SeedTemplateCommand(h.Db);
+        Guid other = SeedTemplateCommand(h.Db);
+        AutomationPrincipal principal = Principal(
+            allowlist: [new(BindingTargetKind.Command, pinned.ToString())]
+        );
+
+        Result<AutomationInvokeResult> ok = await h.Service.InvokePipelineAsync(
+            principal,
+            new() { Kind = "command", Id = pinned.ToString().ToUpperInvariant() }
+        );
+        ok.IsSuccess.Should().BeTrue(ok.ErrorMessage);
+        await WaitForChatAsync(h, "resolved:hug {user}");
+        h.Chat.ClearReceivedCalls();
+
+        Result<AutomationInvokeResult> otherCommand = await h.Service.InvokePipelineAsync(
+            principal,
+            new() { Kind = "command", Id = other.ToString() }
+        );
+        Result<AutomationInvokeResult> pipeline = await h.Service.InvokePipelineAsync(
+            principal,
+            new() { Kind = "pipeline", Id = PipelineId.ToString() }
+        );
+        Result<AutomationInvokeResult> legacyPipeline = await h.Service.InvokePipelineAsync(
+            principal,
+            new() { PipelineId = PipelineId }
+        );
+
+        foreach (
+            Result<AutomationInvokeResult> denied in new[]
+            {
+                otherCommand,
+                pipeline,
+                legacyPipeline,
+            }
+        )
+        {
+            denied.IsFailure.Should().BeTrue();
+            denied.ErrorCode.Should().Be("FORBIDDEN");
+            denied.ErrorMessage.Should().Be("This token is not allowed to invoke that target.");
+        }
+
+        await Task.Delay(200);
+        await h
+            .Chat.DidNotReceive()
+            .SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>());
+        await h
+            .Engine.DidNotReceive()
+            .ExecuteAsync(Arg.Any<PipelineRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_pipeline_target_by_kind_runs_the_pipeline_and_an_unpinned_token_may_run_any_kind()
+    {
+        Harness h = Build();
+        SeedPipeline(h.Db);
+
+        Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
+            Principal(),
+            new()
+            {
+                Kind = "pipeline",
+                Id = PipelineId.ToString(),
+                Args = ["go"],
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.PipelineId.Should().Be(PipelineId);
+        result.Value.Kind.Should().Be("pipeline");
+        PipelineRequest run = await h.EngineCalled.Task.WaitAsync(TimeSpan.FromSeconds(5));
+        run.PipelineId.Should().Be(PipelineId);
+        run.InitialVariables["automation.correlation_id"]
+            .Should()
+            .Be(result.Value.ExecutionId.ToString());
+    }
+
+    [Fact]
+    public async Task A_malformed_or_missing_target_is_refused_without_side_effect()
+    {
+        Harness h = Build();
+        SeedPipeline(h.Db);
+
+        Result<AutomationInvokeResult> badKind = await h.Service.InvokePipelineAsync(
+            Principal(),
+            new() { Kind = "widget", Id = "x" }
+        );
+        Result<AutomationInvokeResult> badPipelineId = await h.Service.InvokePipelineAsync(
+            Principal(),
+            new() { Kind = "pipeline", Id = "not-a-guid" }
+        );
+        Result<AutomationInvokeResult> missingCommand = await h.Service.InvokePipelineAsync(
+            Principal(),
+            new() { Kind = "command", Id = Guid.NewGuid().ToString() }
+        );
+
+        badKind.ErrorCode.Should().Be("VALIDATION_FAILED");
+        badPipelineId.ErrorCode.Should().Be("VALIDATION_FAILED");
+        missingCommand.ErrorCode.Should().Be("NOT_FOUND");
+        await h
+            .Engine.DidNotReceive()
+            .ExecuteAsync(Arg.Any<PipelineRequest>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public void The_allowlist_matches_by_kind_and_id_ignoring_case_and_actions_by_action_type()
+    {
+        AutomationPrincipal principal = Principal(
+            allowlist:
+            [
+                new(BindingTargetKind.Command, "Hug"),
+                new(BindingTargetKind.Action, ActionType: "send_message"),
+            ]
+        );
+        AutomationPrincipal unpinned = Principal();
+        AutomationPrincipal emptyList = Principal(allowlist: []);
+
+        principal.Allows(new(BindingTargetKind.Command, "hug")).Should().BeTrue();
+        principal
+            .Allows(new(BindingTargetKind.Pipeline, "hug"))
+            .Should()
+            .BeFalse("the kind differs");
+        principal.Allows(new(BindingTargetKind.Command, "wave")).Should().BeFalse();
+        principal
+            .Allows(new(BindingTargetKind.Action, "other-id", "SEND_MESSAGE"))
+            .Should()
+            .BeTrue("an action is matched by its type");
+        principal.Allows(new(BindingTargetKind.Action, ActionType: "timeout")).Should().BeFalse();
+        unpinned.Allows(new(BindingTargetKind.Command, "anything")).Should().BeTrue();
+        emptyList.Allows(new(BindingTargetKind.Pipeline, "anything")).Should().BeTrue();
+    }
+
+    private static async Task WaitForChatAsync(Harness h, string message)
+    {
+        for (int attempt = 0; attempt < 100; attempt++)
+        {
+            if (
+                h
+                    .Chat.ReceivedCalls()
+                    .Any(c =>
+                        c.GetMethodInfo().Name == nameof(IChatProvider.SendMessageAsync)
+                        && Equals(c.GetArguments()[1], message)
+                    )
+            )
+                return;
+
+            await Task.Delay(50);
+        }
+
+        throw new TimeoutException($"Chat never received '{message}'.");
     }
 
     [Fact]
@@ -348,7 +592,7 @@ public sealed class AutomationCommandServiceTests
 
         // The allowlisted token sees only its allowed pipeline; disabled ones never appear.
         Result<IReadOnlyList<AutomationPipelineRef>> pipelines = await h.Service.ListPipelinesAsync(
-            Principal(allowlist: [PipelineId])
+            Principal(allowlist: [PipelineTarget(PipelineId)])
         );
         pipelines.IsSuccess.Should().BeTrue(pipelines.ErrorMessage);
         pipelines.Value.Should().ContainSingle(p => p.Id == PipelineId && p.Name == "confetti");
@@ -559,7 +803,9 @@ public sealed class AutomationCommandServiceTests
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.Accepted.Should().BeTrue();
-        result.Value.PipelineId.Should().Be(Guid.Empty);
+        result.Value.PipelineId.Should().BeNull("an action is not a pipeline");
+        result.Value.Kind.Should().Be("action");
+        result.Value.TargetId.Should().Be("obs_switch_scene");
 
         (BindingTarget target, InvocationContext context) = await h.InvokerCalled.Task.WaitAsync(
             TimeSpan.FromSeconds(5)
@@ -604,7 +850,12 @@ public sealed class AutomationCommandServiceTests
         result.Value.PipelineId.Should().Be(PipelineId);
         PipelineRequest run = await h.EngineCalled.Task.WaitAsync(TimeSpan.FromSeconds(5));
         run.PipelineId.Should().Be(PipelineId);
-        AssertInvokerNeverCalled(h);
+        (BindingTarget target, InvocationContext _) = await h.InvokerCalled.Task.WaitAsync(
+            TimeSpan.FromSeconds(5)
+        );
+        target
+            .Kind.Should()
+            .Be(BindingTargetKind.Pipeline, "the name matched a real pipeline, not the action");
     }
 
     [Fact]
@@ -628,7 +879,7 @@ public sealed class AutomationCommandServiceTests
         Harness h = Build(actions: [FakeAction("obs_streaming")]);
 
         Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
-            Principal(allowlist: [PipelineId]),
+            Principal(allowlist: [PipelineTarget(PipelineId)]),
             new() { PipelineName = "obs_streaming" }
         );
 

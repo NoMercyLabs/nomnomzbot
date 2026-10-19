@@ -9,6 +9,9 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 
 namespace NomNomzBot.Application.AutomationApi.Dtos;
 
@@ -21,12 +24,44 @@ public sealed record AutomationPrincipal(
     Guid TokenId,
     string TokenName,
     IReadOnlyList<string> Scopes,
-    IReadOnlyList<Guid>? AllowedPipelineIds
-);
+    IReadOnlyList<BindingTarget>? AllowedTargets
+)
+{
+    /// <summary>
+    /// Whether this token may invoke <paramref name="target"/>. No pinned list (null or empty) allows every target;
+    /// otherwise the kind must match and so must the id (an action: its action type), ignoring case.
+    /// </summary>
+    public bool Allows(BindingTarget target) =>
+        AllowedTargets is not { Count: > 0 } allowed
+        || allowed.Any(a =>
+            a.Kind == target.Kind
+            && string.Equals(
+                a.Kind == BindingTargetKind.Action ? a.ActionType : a.Id,
+                target.Kind == BindingTargetKind.Action ? target.ActionType : target.Id,
+                StringComparison.OrdinalIgnoreCase
+            )
+        );
+}
 
-/// <summary>Data-plane pipeline invocation; the pipeline may be named by id or by (unique) name.</summary>
+/// <summary>
+/// Data-plane invocation. Name the target with <see cref="Kind"/> + <see cref="Id"/> (+ <see cref="ActionType"/> and
+/// <see cref="Params"/> for an action), or the older way: a pipeline by id or by (unique) name.
+/// </summary>
 public sealed record AutomationInvokeRequest
 {
+    /// <summary><c>command | pipeline | action</c>; when set it wins over <see cref="PipelineId"/>/<see cref="PipelineName"/>.</summary>
+    [MaxLength(20)]
+    public string? Kind { get; init; }
+
+    /// <summary>The command id (or built-in key) or the pipeline id (a guid).</summary>
+    [MaxLength(200)]
+    public string? Id { get; init; }
+
+    [MaxLength(200)]
+    public string? ActionType { get; init; }
+
+    public IReadOnlyDictionary<string, JsonElement>? Params { get; init; }
+
     public Guid? PipelineId { get; init; }
 
     [MaxLength(200)]
@@ -42,7 +77,18 @@ public sealed record AutomationInvokeRequest
 /// means enqueued, and <see cref="ExecutionId"/> is the correlation id minted at enqueue time (also
 /// visible to the pipeline as <c>{{automation.correlation_id}}</c>) — not a promise of completion.
 /// </summary>
-public sealed record AutomationInvokeResult(Guid PipelineId, Guid ExecutionId, bool Accepted);
+/// <param name="PipelineId">The pipeline that was started; null when the target was not a pipeline.</param>
+/// <param name="ExecutionId">The correlation id minted at enqueue time.</param>
+/// <param name="Accepted">True when the run was enqueued.</param>
+/// <param name="Kind">The target kind that was run: <c>command | pipeline | action</c>.</param>
+/// <param name="TargetId">The command or pipeline id, or the action type.</param>
+public sealed record AutomationInvokeResult(
+    Guid? PipelineId,
+    Guid ExecutionId,
+    bool Accepted,
+    string? Kind = null,
+    string? TargetId = null
+);
 
 /// <summary>Chat send: plain message, reply (with <see cref="ReplyToMessageId"/>), or whisper.</summary>
 public sealed record AutomationChatRequest

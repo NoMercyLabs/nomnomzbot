@@ -19,6 +19,7 @@ public sealed record AutomationTokenDto(
     string TokenPrefix,
     IReadOnlyList<string> Scopes,
     IReadOnlyList<Guid> AllowedPipelineIds,
+    IReadOnlyList<AutomationTargetDto> AllowedTargets,
     DateTime? LastUsedAt,
     DateTime? ExpiresAt,
     DateTime? RevokedAt,
@@ -45,6 +46,12 @@ public sealed record CreateAutomationTokenRequest
 
     /// <summary>When set, <c>invoke</c> is pinned to exactly these pipelines; null/empty = any.</summary>
     public IReadOnlyList<Guid>? AllowedPipelineIds { get; init; }
+
+    /// <summary>
+    /// When set, <c>invoke</c> is also pinned to these targets (commands, pipelines, actions); they add to
+    /// <see cref="AllowedPipelineIds"/>. Null/empty on both = any target.
+    /// </summary>
+    public IReadOnlyList<AutomationTargetDto>? AllowedTargets { get; init; }
 
     public DateTime? ExpiresAt { get; init; }
 }
