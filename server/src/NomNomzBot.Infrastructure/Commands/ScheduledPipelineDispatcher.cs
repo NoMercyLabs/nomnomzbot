@@ -11,6 +11,9 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Commands.ValueObjects;
 
 namespace NomNomzBot.Infrastructure.Commands;
 
@@ -89,6 +92,36 @@ public sealed class ScheduledPipelineDispatcher : IScheduledPipelineDispatcher, 
         _slots.Dispose();
     }
 
+    /// <summary>A command or action target runs through the one invoker, with the task's actor and variables.</summary>
+    private async Task RunDirectTargetAsync(
+        IServiceScope scope,
+        ScheduledPipelineRun run,
+        BindingTarget target
+    )
+    {
+        ICommandInvoker invoker = scope.ServiceProvider.GetRequiredService<ICommandInvoker>();
+        Result<InvocationOutcome> outcome = await invoker.InvokeAsync(
+            run.Request.BroadcasterId,
+            target,
+            new(
+                run.Request.TriggeredByUserId,
+                run.Request.TriggeredByDisplayName,
+                string.Empty,
+                "scheduled",
+                Variables: run.Request.InitialVariables
+            ),
+            _abort.Token
+        );
+        if (outcome.IsFailure || !outcome.Value!.Succeeded)
+            _logger.LogWarning(
+                "Deferred {Kind} target (task {TaskId}) for channel {Channel} fired but failed: {Error}",
+                target.Kind,
+                run.TaskId,
+                run.Request.BroadcasterId,
+                outcome.IsFailure ? outcome.ErrorMessage : outcome.Value!.Error
+            );
+    }
+
     private void ForgetTail(Guid channel, Task done)
     {
         lock (_gate)
@@ -141,6 +174,12 @@ public sealed class ScheduledPipelineDispatcher : IScheduledPipelineDispatcher, 
         try
         {
             using IServiceScope scope = _scopeFactory.CreateScope();
+            if (run.DirectTarget is not null)
+            {
+                await RunDirectTargetAsync(scope, run, run.DirectTarget);
+                return;
+            }
+
             IPipelineEngine engine = scope.ServiceProvider.GetRequiredService<IPipelineEngine>();
             PipelineExecutionResult result = await engine.ExecuteAsync(run.Request, _abort.Token);
             if (result.Outcome == PipelineOutcome.Failed)

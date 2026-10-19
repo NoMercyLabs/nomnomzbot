@@ -10,6 +10,7 @@
 
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Commands.ValueObjects;
 
 namespace NomNomzBot.Application.Commands.Services;
 
@@ -48,6 +49,22 @@ public interface IScheduledPipelineService
     Task<Result<ScheduledPipelineTaskDto>> ScheduleByNameAsync(
         Guid broadcasterId,
         string pipelineName,
+        int delaySeconds,
+        IReadOnlyDictionary<string, string> variables,
+        string triggeredByUserId,
+        string triggeredByDisplayName,
+        string? dedupeKey = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// As <see cref="ScheduleAsync"/>, but the deferred run is any binding target: a command or an action runs
+    /// directly through the command invoker (no wrapper pipeline), a pipeline target behaves as
+    /// <see cref="ScheduleAsync"/>. Fails VALIDATION_FAILED when the target is not valid in this channel.
+    /// </summary>
+    Task<Result<ScheduledPipelineTaskDto>> ScheduleTargetAsync(
+        Guid broadcasterId,
+        BindingTarget target,
         int delaySeconds,
         IReadOnlyDictionary<string, string> variables,
         string triggeredByUserId,

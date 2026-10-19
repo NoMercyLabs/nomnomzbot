@@ -17,6 +17,8 @@ using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform;
 using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
@@ -139,16 +141,68 @@ public sealed class ScheduledPipelineService : IScheduledPipelineService
         );
     }
 
+    public async Task<Result<ScheduledPipelineTaskDto>> ScheduleTargetAsync(
+        Guid broadcasterId,
+        BindingTarget target,
+        int delaySeconds,
+        IReadOnlyDictionary<string, string> variables,
+        string triggeredByUserId,
+        string triggeredByDisplayName,
+        string? dedupeKey = null,
+        CancellationToken cancellationToken = default
+    )
+    {
+        Result valid = await BindingTargetBinder.ValidateAsync(
+            _db,
+            broadcasterId,
+            target,
+            cancellationToken
+        );
+        if (valid.IsFailure)
+            return Result.Failure<ScheduledPipelineTaskDto>(valid.ErrorMessage!, valid.ErrorCode!);
+
+        if (target.Kind == BindingTargetKind.Pipeline)
+            return Guid.TryParse(target.Id, out Guid pipelineId)
+                ? await ScheduleAsync(
+                    broadcasterId,
+                    pipelineId,
+                    delaySeconds,
+                    variables,
+                    triggeredByUserId,
+                    triggeredByDisplayName,
+                    dedupeKey,
+                    cancellationToken
+                )
+                : Result.Failure<ScheduledPipelineTaskDto>(
+                    "A pipeline target needs a pipeline id.",
+                    "VALIDATION_FAILED"
+                );
+
+        return await PersistAsync(
+            broadcasterId,
+            Guid.Empty,
+            null,
+            delaySeconds,
+            variables,
+            triggeredByUserId,
+            triggeredByDisplayName,
+            dedupeKey,
+            cancellationToken,
+            target
+        );
+    }
+
     private async Task<Result<ScheduledPipelineTaskDto>> PersistAsync(
         Guid broadcasterId,
         Guid pipelineId,
-        string pipelineName,
+        string? pipelineName,
         int delaySeconds,
         IReadOnlyDictionary<string, string> variables,
         string triggeredByUserId,
         string triggeredByDisplayName,
         string? dedupeKey,
-        CancellationToken cancellationToken
+        CancellationToken cancellationToken,
+        BindingTarget? directTarget = null
     )
     {
         int clamped = Math.Clamp(delaySeconds, MinDelaySeconds, MaxDelaySeconds);
@@ -174,7 +228,6 @@ public sealed class ScheduledPipelineService : IScheduledPipelineService
         ScheduledPipelineTask task;
         if (existing is not null)
         {
-            existing.PipelineId = pipelineId;
             existing.PipelineName = pipelineName;
             existing.DueAt = dueAt;
             existing.VariablesJson = variablesJson;
@@ -188,7 +241,6 @@ public sealed class ScheduledPipelineService : IScheduledPipelineService
             {
                 Id = MonotonicGuid.Create(),
                 BroadcasterId = broadcasterId,
-                PipelineId = pipelineId,
                 PipelineName = pipelineName,
                 DueAt = dueAt,
                 VariablesJson = variablesJson,
@@ -200,6 +252,13 @@ public sealed class ScheduledPipelineService : IScheduledPipelineService
             };
             _db.ScheduledPipelineTasks.Add(task);
         }
+
+        // The binder writes the target columns; a reused (deduped) row sheds its previous target here too.
+        BindingTargetBinder.ApplyTo(
+            task,
+            directTarget ?? new(BindingTargetKind.Pipeline, pipelineId.ToString()),
+            null
+        );
 
         await _db.SaveChangesAsync(cancellationToken);
         return Result.Success(ToDto(task));
@@ -320,7 +379,8 @@ public sealed class ScheduledPipelineService : IScheduledPipelineService
                         TriggeredByUserId = task.TriggeredByUserId,
                         TriggeredByDisplayName = task.TriggeredByDisplayName,
                         InitialVariables = DeserializeVariables(task.VariablesJson),
-                    }
+                    },
+                    DirectTargetOf(task)
                 )
             );
 
@@ -355,6 +415,11 @@ public sealed class ScheduledPipelineService : IScheduledPipelineService
             t.Status,
             t.DedupeKey,
             t.TriggeredByDisplayName,
-            t.CreatedAt
+            t.CreatedAt,
+            t.GetBindingTarget()
         );
+
+    /// <summary>The target the invoker runs directly: set for a command or action, null for a pipeline run.</summary>
+    private static BindingTarget? DirectTargetOf(ScheduledPipelineTask t) =>
+        t.TargetKind == BindingTargetKind.Pipeline ? null : t.GetBindingTarget();
 }

@@ -8,9 +8,14 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Commands.ValueObjects;
+
 namespace NomNomzBot.Application.Commands.Dtos;
 
-/// <summary>One deferred pipeline run — the projection the scheduler service returns and the pending-list surfaces.</summary>
+/// <summary>
+/// One deferred run — the projection the scheduler service returns and the pending-list surfaces.
+/// <paramref name="Target"/> is what runs: a pipeline, or a command or action bound directly.
+/// </summary>
 public sealed record ScheduledPipelineTaskDto(
     Guid Id,
     Guid PipelineId,
@@ -19,5 +24,6 @@ public sealed record ScheduledPipelineTaskDto(
     string Status,
     string? DedupeKey,
     string TriggeredByDisplayName,
-    DateTimeOffset CreatedAt
+    DateTimeOffset CreatedAt,
+    BindingTarget? Target = null
 );
