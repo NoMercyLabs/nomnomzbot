@@ -10,6 +10,7 @@
 
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -24,16 +25,48 @@ public sealed class EventBus : IEventBus
     private readonly IServiceProvider _serviceProvider;
     private readonly ILogger<EventBus> _logger;
     private readonly EventLogger _eventLogger;
+    private readonly IChannelOnboardingGate _onboardingGate;
 
     public EventBus(
         IServiceProvider serviceProvider,
         ILogger<EventBus> logger,
-        EventLogger eventLogger
+        EventLogger eventLogger,
+        IChannelOnboardingGate onboardingGate
     )
     {
         _serviceProvider = serviceProvider;
         _logger = logger;
         _eventLogger = eventLogger;
+        _onboardingGate = onboardingGate;
+    }
+
+    /// <summary>
+    /// The one choke point for "the bot stays silent in a channel that did not onboard": a platform-ingress
+    /// event of such a channel reaches only <see cref="IOnboardingExemptHandler"/> handlers (they record, they
+    /// never act). Every other event, and every onboarded or unknown channel, keeps its full handler set.
+    /// </summary>
+    private async Task<List<IEventHandler<TEvent>>> ResolveHandlersAsync<TEvent>(
+        IServiceProvider services,
+        TEvent @event,
+        CancellationToken cancellationToken
+    )
+        where TEvent : class, IDomainEvent
+    {
+        List<IEventHandler<TEvent>> handlers = [.. services.GetServices<IEventHandler<TEvent>>()];
+        if (
+            handlers.Count == 0
+            || @event is not DomainEventBase { IsChannelIngress: true }
+            || !await _onboardingGate.IsClosedAsync(@event.BroadcasterId, cancellationToken)
+        )
+            return handlers;
+
+        handlers.RemoveAll(h => h is not IOnboardingExemptHandler);
+        _logger.LogDebug(
+            "Channel {BroadcasterId} is not onboarded - {EventType} reaches only its recording handlers",
+            @event.BroadcasterId,
+            typeof(TEvent).Name
+        );
+        return handlers;
     }
 
     public async Task PublishAsync<TEvent>(
@@ -50,10 +83,11 @@ public sealed class EventBus : IEventBus
         // Scope lives for the full duration of handler execution so that scoped
         // services (DbContext, IPipelineEngine, IChatProvider, …) remain valid.
         await using AsyncServiceScope scope = _serviceProvider.CreateAsyncScope();
-        List<IEventHandler<TEvent>> handlers =
-        [
-            .. scope.ServiceProvider.GetServices<IEventHandler<TEvent>>(),
-        ];
+        List<IEventHandler<TEvent>> handlers = await ResolveHandlersAsync(
+            scope.ServiceProvider,
+            @event,
+            cancellationToken
+        );
 
         if (handlers.Count == 0)
         {
@@ -86,10 +120,11 @@ public sealed class EventBus : IEventBus
         _ = Task.Run(async () =>
         {
             await using AsyncServiceScope scope = _serviceProvider.CreateAsyncScope();
-            List<IEventHandler<TEvent>> handlers =
-            [
-                .. scope.ServiceProvider.GetServices<IEventHandler<TEvent>>(),
-            ];
+            List<IEventHandler<TEvent>> handlers = await ResolveHandlersAsync(
+                scope.ServiceProvider,
+                @event,
+                CancellationToken.None
+            );
 
             if (handlers.Count == 0)
                 return;

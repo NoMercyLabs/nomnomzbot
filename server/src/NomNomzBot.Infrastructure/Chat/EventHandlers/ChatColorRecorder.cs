@@ -19,7 +19,9 @@ namespace NomNomzBot.Infrastructure.Chat.EventHandlers;
 /// mention step can later colour an <c>@mention</c> of that user (chat-decoration spec §3.1). A message with no colour
 /// set is a no-op. Auto-discovered as an <see cref="IEventHandler{TEvent}"/>; runs alongside the broadcast/decoration handler.
 /// </summary>
-public sealed class ChatColorRecorder : IEventHandler<ChatMessageReceivedEvent>
+public sealed class ChatColorRecorder
+    : IEventHandler<ChatMessageReceivedEvent>,
+        IOnboardingExemptHandler
 {
     private readonly IChatColorMemory _colors;
 

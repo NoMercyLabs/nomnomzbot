@@ -210,6 +210,25 @@ public sealed class ChatPlatformRouter
         );
     }
 
+    /// <summary>
+    /// Second guard behind the event bus: the bot never speaks in a channel whose broadcaster did not onboard
+    /// (a timer, pipeline or dashboard send included). Every bot message and reply funnels through the two
+    /// <c>Send*ViaAsync</c> methods, so this is the one place that enforces it on the send side.
+    /// </summary>
+    private async Task<bool> IsSilencedAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        bool silenced = await _db.Channels.AnyAsync(
+            c => c.Id == broadcasterId && !c.IsOnboarded,
+            ct
+        );
+        if (silenced)
+            _logger.LogWarning(
+                "Channel {BroadcasterId} is not onboarded - the bot's chat send was refused",
+                broadcasterId
+            );
+        return silenced;
+    }
+
     private async Task<bool> SendMessageViaAsync(
         IChatPlatform platform,
         Guid broadcasterId,
@@ -218,6 +237,9 @@ public sealed class ChatPlatformRouter
         CancellationToken cancellationToken
     )
     {
+        if (await IsSilencedAsync(broadcasterId, cancellationToken))
+            return false;
+
         string provider = platform.Provider;
         string queueKey = $"{broadcasterId:D}:{provider}";
         string coalesceKey = $"{queueKey}|msg|{message}";
@@ -268,6 +290,9 @@ public sealed class ChatPlatformRouter
         CancellationToken cancellationToken
     )
     {
+        if (await IsSilencedAsync(broadcasterId, cancellationToken))
+            return false;
+
         string provider = platform.Provider;
         string queueKey = $"{broadcasterId:D}:{provider}";
         string coalesceKey = $"{queueKey}|reply|{replyToMessageId}|{message}";

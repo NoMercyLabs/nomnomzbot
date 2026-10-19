@@ -25,7 +25,8 @@ namespace NomNomzBot.Infrastructure.Chat.EventHandlers;
 /// other chat handlers; a sender with no row yet is picked up on their next message.
 /// </summary>
 public sealed class UserSeenOnChatRecorder(IApplicationDbContext db)
-    : IEventHandler<ChatMessageReceivedEvent>
+    : IEventHandler<ChatMessageReceivedEvent>,
+        IOnboardingExemptHandler
 {
     private static readonly TimeSpan Throttle = TimeSpan.FromMinutes(1);
 

@@ -28,4 +28,8 @@ public abstract class DomainEventBase : IDomainEvent
     // The tenant (channel) this event relates to. Guid.Empty is the platform-level sentinel
     // (platform-conventions §2.0) — NOT null. Tenant-scoped events set this to the owning channel id.
     public Guid BroadcasterId { get; init; }
+
+    // True for a fact that arrived from a platform (EventSub translators set it). The event bus runs only
+    // IOnboardingExemptHandler handlers for such an event when the channel's broadcaster has not onboarded.
+    public bool IsChannelIngress { get; set; }
 }

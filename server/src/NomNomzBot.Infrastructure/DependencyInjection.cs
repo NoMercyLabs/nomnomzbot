@@ -237,6 +237,10 @@ public static class DependencyInjection
         // IEventBus is the JournalingEventBusDecorator over the concrete EventBus: every publish is captured to
         // the event store journal and post-commit hooks fire before delegation to live handlers (event-store §7).
         services.AddSingleton<EventLogger>();
+        services.AddSingleton<
+            Application.Contracts.Twitch.IChannelOnboardingGate,
+            ChannelOnboardingGate
+        >();
         services.AddSingleton<EventBus>();
         services.AddSingleton<IEventBus>(sp => new EventStore.JournalingEventBusDecorator(
             sp.GetRequiredService<EventBus>(),

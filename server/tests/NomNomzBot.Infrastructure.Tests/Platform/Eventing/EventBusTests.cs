@@ -12,9 +12,11 @@ using System.Diagnostics;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NSubstitute;
 // ReSharper disable InconsistentNaming
 
 using InfraEventBus = NomNomzBot.Infrastructure.Platform.Eventing.EventBus;
@@ -64,6 +66,10 @@ internal sealed class SlowCancellableHandler : IEventHandler<TestEvent>
 
 public class EventBusTests
 {
+    // TestEvent is not channel ingress, so the gate is never consulted; an unconfigured substitute answers "open".
+    private static readonly IChannelOnboardingGate OpenGate =
+        Substitute.For<IChannelOnboardingGate>();
+
     private static (InfraEventBus bus, TrackingHandler tracker) BuildBus(
         bool addFailingHandler = false
     )
@@ -77,7 +83,7 @@ public class EventBusTests
 
         ServiceProvider sp = services.BuildServiceProvider();
         EventLogger eventLogger = new(NullLogger<EventLogger>.Instance);
-        InfraEventBus bus = new(sp, NullLogger<InfraEventBus>.Instance, eventLogger);
+        InfraEventBus bus = new(sp, NullLogger<InfraEventBus>.Instance, eventLogger, OpenGate);
 
         return (bus, tracker);
     }
@@ -98,7 +104,7 @@ public class EventBusTests
         ServiceCollection services = new();
         ServiceProvider sp = services.BuildServiceProvider();
         EventLogger eventLogger = new(NullLogger<EventLogger>.Instance);
-        InfraEventBus bus = new(sp, NullLogger<InfraEventBus>.Instance, eventLogger);
+        InfraEventBus bus = new(sp, NullLogger<InfraEventBus>.Instance, eventLogger, OpenGate);
 
         Func<Task> act = async () =>
             await bus.PublishAsync(new TestEvent { Payload = "nobody home" });
@@ -116,7 +122,7 @@ public class EventBusTests
         services.AddScoped<IEventHandler<TestEvent>>(_ => tracker);
         ServiceProvider sp = services.BuildServiceProvider();
         EventLogger eventLogger = new(NullLogger<EventLogger>.Instance);
-        InfraEventBus bus = new(sp, NullLogger<InfraEventBus>.Instance, eventLogger);
+        InfraEventBus bus = new(sp, NullLogger<InfraEventBus>.Instance, eventLogger, OpenGate);
 
         Func<Task> act = async () =>
             await bus.PublishAsync(new TestEvent { Payload = "resilient" });
@@ -135,7 +141,7 @@ public class EventBusTests
         services.AddScoped<IEventHandler<TestEvent>>(_ => tracker2);
         ServiceProvider sp = services.BuildServiceProvider();
         EventLogger eventLogger = new(NullLogger<EventLogger>.Instance);
-        InfraEventBus bus = new(sp, NullLogger<InfraEventBus>.Instance, eventLogger);
+        InfraEventBus bus = new(sp, NullLogger<InfraEventBus>.Instance, eventLogger, OpenGate);
 
         await bus.PublishAsync(new TestEvent { Payload = "broadcast" });
 
@@ -166,7 +172,7 @@ public class EventBusTests
         services.AddScoped<IEventHandler<TestEvent>>(_ => slowHandler);
         ServiceProvider sp = services.BuildServiceProvider();
         EventLogger eventLogger = new(NullLogger<EventLogger>.Instance);
-        InfraEventBus bus = new(sp, NullLogger<InfraEventBus>.Instance, eventLogger);
+        InfraEventBus bus = new(sp, NullLogger<InfraEventBus>.Instance, eventLogger, OpenGate);
 
         using CancellationTokenSource cts = new();
         cts.Cancel();

@@ -17,6 +17,7 @@ using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Platform.Dtos;
 using NomNomzBot.Domain.Chat.Enums;
@@ -219,7 +220,12 @@ public sealed class ChatDecorationFeatureTogglingTests
             ChatDecorationRulesCacheInvalidator
         >();
         ServiceProvider provider = services.BuildServiceProvider();
-        return new(provider, NullLogger<EventBus>.Instance, new(NullLogger<EventLogger>.Instance));
+        return new(
+            provider,
+            NullLogger<EventBus>.Instance,
+            new(NullLogger<EventLogger>.Instance),
+            Substitute.For<IChannelOnboardingGate>()
+        );
     }
 
     // The real emote-resolving chain (mirrors ChatMessageDecoratorTests.EmoteChain).

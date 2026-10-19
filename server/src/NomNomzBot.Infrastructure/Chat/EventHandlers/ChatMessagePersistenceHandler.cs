@@ -24,7 +24,8 @@ namespace NomNomzBot.Infrastructure.Chat.EventHandlers;
 /// lightweight: one read (duplicate check) + one insert, scoped to the caller's request lifetime.
 /// </summary>
 public sealed class ChatMessagePersistenceHandler(IApplicationDbContext db)
-    : IEventHandler<ChatMessageReceivedEvent>
+    : IEventHandler<ChatMessageReceivedEvent>,
+        IOnboardingExemptHandler
 {
     public async Task HandleAsync(
         ChatMessageReceivedEvent @event,

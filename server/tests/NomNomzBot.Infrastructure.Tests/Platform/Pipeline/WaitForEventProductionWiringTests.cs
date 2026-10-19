@@ -19,6 +19,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Contracts.Tts;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Obs.Events;
@@ -161,6 +162,7 @@ public sealed class WaitForEventProductionWiringTests
         services.AddSingleton(Substitute.For<ICommandInvoker>());
         services.AddSingleton<IEventResponseExecutor, EventResponseExecutor>();
         services.AddSingleton<EventLogger>();
+        services.AddSingleton(Substitute.For<IChannelOnboardingGate>());
         services.AddSingleton<IEventBus, EventBus>();
 
         // THE handler under test — resolved by the scan-discovered convention in production

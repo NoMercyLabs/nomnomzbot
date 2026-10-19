@@ -26,7 +26,9 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 /// message to all dashboard/overlay clients subscribed to that channel group.
 /// Runs the chat-decoration pipeline first so emotes (Twitch + BTTV/FFZ/7TV) carry render-ready urls.
 /// </summary>
-public sealed class ChatMessageBroadcastHandler : IEventHandler<ChatMessageReceivedEvent>
+public sealed class ChatMessageBroadcastHandler
+    : IEventHandler<ChatMessageReceivedEvent>,
+        IOnboardingExemptHandler
 {
     private readonly IDashboardNotifier _notifier;
     private readonly IChatMessageDecorator _decorator;

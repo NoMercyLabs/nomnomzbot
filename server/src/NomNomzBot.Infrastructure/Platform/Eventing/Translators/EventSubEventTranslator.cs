@@ -40,5 +40,10 @@ public abstract class EventSubEventTranslator(IEventBus bus, TimeProvider clock)
     /// <c>BroadcasterId</c> and <c>Timestamp</c> when it builds it).
     /// </summary>
     protected Task PublishAsync<TEvent>(TEvent @event, CancellationToken ct)
-        where TEvent : DomainEventBase => bus.PublishAsync(@event, ct);
+        where TEvent : DomainEventBase
+    {
+        // Every EventSub-derived event is platform ingress: the bus gates it on the channel's onboarding.
+        @event.IsChannelIngress = true;
+        return bus.PublishAsync(@event, ct);
+    }
 }
