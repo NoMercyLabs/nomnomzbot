@@ -1318,6 +1318,7 @@ interface NnzActionParams {
     pipeline?: string;
     command?: string;
     action_type?: string;
+    action_params?: Record<string, string>;
     delay_seconds: number;
     dedupe_key?: string;
   };
