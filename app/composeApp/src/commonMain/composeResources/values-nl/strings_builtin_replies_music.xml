@@ -131,6 +131,10 @@
     <string name="builtin_reply_skip_noprovider_description">Een moderator slaat over maar er is geen muziekdienst verbonden.</string>
     <string name="builtin_reply_skip_premiumrequired_label">Premium nodig</string>
     <string name="builtin_reply_skip_premiumrequired_description">De muziekdienst heeft een Premium-account nodig om over te slaan.</string>
+    <string name="builtin_reply_skip_notconnected_label">Muziekverbinding verbroken</string>
+    <string name="builtin_reply_skip_notconnected_description">De muziekverbinding is verbroken en moet opnieuw verbonden worden voordat overslaan werkt.</string>
+    <string name="builtin_reply_skip_forbidden_label">Geen rechten om over te slaan</string>
+    <string name="builtin_reply_skip_forbidden_description">De muziekverbinding heeft geen toestemming om over te slaan.</string>
     <string name="builtin_reply_skip_usage_label">Zo gebruik je het</string>
     <string name="builtin_reply_skip_usage_description">Het skipcommando kreeg een waarde die geen getal is.</string>
     <string name="builtin_reply_skip_norequest_label">Geen verzoek daar</string>

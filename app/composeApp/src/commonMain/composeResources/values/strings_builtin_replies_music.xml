@@ -131,6 +131,10 @@
     <string name="builtin_reply_skip_noprovider_description">A moderator skips but no music service is connected.</string>
     <string name="builtin_reply_skip_premiumrequired_label">Premium needed</string>
     <string name="builtin_reply_skip_premiumrequired_description">The music service needs a Premium account to skip.</string>
+    <string name="builtin_reply_skip_notconnected_label">Music connection lost</string>
+    <string name="builtin_reply_skip_notconnected_description">The music connection is dead and needs to be reconnected before a skip works.</string>
+    <string name="builtin_reply_skip_forbidden_label">No permission to skip</string>
+    <string name="builtin_reply_skip_forbidden_description">The music connection lacks the permission to skip.</string>
     <string name="builtin_reply_skip_usage_label">How to use</string>
     <string name="builtin_reply_skip_usage_description">The skip command got a value that is not a number.</string>
     <string name="builtin_reply_skip_norequest_label">No request there</string>
