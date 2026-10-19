@@ -85,6 +85,13 @@ const deliveryRow = {
   createdAt: '2026-10-18T09:00:00Z',
 };
 
+const deadRow = {
+  ...deliveryRow,
+  id: 78,
+  attempt: 5,
+  status: 'DeadLetter',
+};
+
 vi.mock('@/api/client', () => {
   const record =
     (method: string) =>
@@ -107,18 +114,24 @@ vi.mock('@/api/client', () => {
 
         if (method === 'POST' && path.endsWith('/test'))
           return {
-            data: { status: 'success', data: {
-              delivered: false,
-              responseCode: 502,
-              durationMs: 340,
-              error: 'Bad gateway',
-            } },
+            data: {
+              status: 'success',
+              data: {
+                delivered: false,
+                responseCode: 502,
+                durationMs: 340,
+                error: 'Bad gateway',
+              },
+            },
             response: { status: 200, ok: true },
           };
 
         if (method === 'POST' && path.endsWith('/rotate-secret'))
           return {
-            data: { status: 'success', data: { endpoint: outboundRow, signingSecret: 'whsec_rotated' } },
+            data: {
+              status: 'success',
+              data: { endpoint: outboundRow, signingSecret: 'whsec_rotated' },
+            },
             response: { status: 200, ok: true },
           };
 
@@ -126,7 +139,7 @@ vi.mock('@/api/client', () => {
           return { response: { status: 200, ok: true } };
 
         if (path.endsWith('/deliveries'))
-          return ok([deliveryRow]);
+          return ok([deliveryRow, deadRow]);
 
         if (path.endsWith('/pipelines'))
           return ok([{ id: 'p1', name: 'Thank donors' }]);
@@ -155,12 +168,12 @@ vi.mock('@/api/client', () => {
             {
               eventType: 'follow',
               label: 'Follow',
-              category: 'channel',
+              category: 'Followers & Subscriptions',
             },
             {
               eventType: 'chat.message',
               label: 'Chat message',
-              category: 'chat',
+              category: 'Chat',
             },
           ]);
 
@@ -303,8 +316,28 @@ describe('Webhooks page', () => {
         (box) => box.getAttribute('data-event') ?? '',
       );
 
-    expect(eventsOf('channel')).toEqual(['follow']);
-    expect(eventsOf('chat')).toEqual(['chat.message']);
+    expect(eventsOf('Followers & Subscriptions')).toEqual(['follow']);
+    expect(eventsOf('Chat')).toEqual(['chat.message']);
+  });
+
+  it('names each event group through a resource key, not the raw backend category', async () => {
+    await open();
+    await click(q('[data-new-outbound]'));
+
+    const heading = (category: string): string =>
+      q(`[data-event-group="${category}"] > span`).textContent?.trim() ?? '';
+
+    expect(heading('Followers & Subscriptions')).toBe('Followers and subscribers');
+    expect(heading('Chat')).toBe('Chat');
+  });
+
+  it('shows the delivery status as a worded label, not the backend string', async () => {
+    await open();
+    await click(q('[data-outbound-deliveries]'));
+
+    expect(q('[data-delivery="77"]').textContent).toContain('Failed');
+    expect(q('[data-delivery="78"]').textContent).toContain('Gave up');
+    expect(q('[data-delivery="78"]').textContent).not.toContain('DeadLetter');
   });
 
   it('creates an outbound webhook with the ticked catalog events', async () => {

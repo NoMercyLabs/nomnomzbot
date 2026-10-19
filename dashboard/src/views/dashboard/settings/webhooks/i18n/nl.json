@@ -2,6 +2,7 @@
   "dashboard": {
     "settings": {
       "webhooks": {
+        "crumb": "Inrichting",
         "outbound": {
           "title": "Uitgaande webhooks",
           "description": "Stuur de events van je kanaal naar een adres dat jij beheert, zoals een eigen server of een automatiseringsdienst.",
@@ -40,6 +41,21 @@
           "headersHelp": "Een header per regel, als Naam: waarde.",
           "headersKept": "Opgeslagen headers blijven verborgen. Laat dit leeg om ze te houden, of typ nieuwe regels om ze te vervangen.",
           "headersInvalid": "Deze regel is geen header: {line}",
+          "categories": {
+            "stream": "Stream",
+            "followers_subscriptions": "Volgers en abonnees",
+            "bits_cheers": "Bits en cheers",
+            "raids_shoutouts": "Raids en shoutouts",
+            "channel_points": "Kanaalpunten",
+            "polls_predictions": "Polls en voorspellingen",
+            "goals": "Doelen",
+            "hype_train": "Hype train",
+            "charity": "Goed doel",
+            "chat": "Chat",
+            "moderation": "Moderatie",
+            "collaboration": "Samenwerking",
+            "supporters_custom": "Supporters en eigen"
+          },
           "secret": {
             "title": "Je ondertekeningsgeheim",
             "description": "Gebruik dit geheim op je server om te controleren dat een levering echt van deze bot komt.",
@@ -90,7 +106,13 @@
           "empty": "Er is nog niets naar dit adres gestuurd.",
           "loadFailed": "De leveringen konden niet worden geladen.",
           "line": "Antwoord {code}, poging {attempt}, {ms} ms, {when}",
-          "retry": "Opnieuw sturen"
+          "retry": "Opnieuw sturen",
+          "status": {
+            "pending": "Wacht",
+            "delivered": "Afgeleverd",
+            "failed": "Mislukt",
+            "deadletter": "Opgegeven"
+          }
         },
         "delete": {
           "title": "{name} verwijderen?",

@@ -11,7 +11,7 @@
 // The delivery log of one outbound webhook, newest first: the event, the attempt, the answer code, how long
 // it took and the error. A person who may write can send a delivery again. It roots in PanelCard, so the
 // side panel that holds it shows the close button.
-import RotateRight from '~icons/nnz/rotate-right';
+import ArrowRefresh from '~icons/nnz/arrow-refresh-horizontal';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -28,6 +28,7 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { useTime } from '@/composables/useTime';
+import { useWordsFor } from '@/composables/useWordsFor';
 import { errorText } from '@/lib/errors';
 
 const props = defineProps<{ endpoint: OutboundWebhook | null }>();
@@ -36,6 +37,7 @@ const { t } = useI18n();
 const { can } = useCan();
 const { channelId } = useCurrentChannel();
 const time = useTime();
+const statusWords = useWordsFor('dashboard.settings.webhooks.deliveries.status');
 const deliveries = useOutboundDeliveries(channelId, () =>
   props.endpoint?.id ?? null);
 const retry = useRetryOutboundDelivery(channelId);
@@ -80,7 +82,7 @@ async function again(deliveryId: number | string): Promise<void> {
         <div class="min-w-0 flex-1">
           <span class="flex flex-wrap items-center gap-2">
             <span class="text-sm font-medium wrap-break-word">{{ delivery.eventType }}</span>
-            <Badge variant="outline">{{ delivery.status }}</Badge>
+            <Badge variant="outline">{{ statusWords(delivery.status) }}</Badge>
           </span>
           <span class="block text-sm text-muted-foreground">
             {{
@@ -105,7 +107,7 @@ async function again(deliveryId: number | string): Promise<void> {
           :aria-label="$t('dashboard.settings.webhooks.deliveries.retry')"
           @click="again(delivery.id)"
         >
-          <RotateRight class="size-5" />
+          <ArrowRefresh class="size-5" />
         </Button>
       </div>
     </RowGroup>

@@ -2,6 +2,7 @@
   "dashboard": {
     "settings": {
       "webhooks": {
+        "crumb": "Setup",
         "outbound": {
           "title": "Outbound webhooks",
           "description": "Post your channel's events to an address you control, such as a home server or an automation service.",
@@ -40,6 +41,21 @@
           "headersHelp": "One header per line, as Name: value.",
           "headersKept": "Saved headers stay hidden. Leave this empty to keep them, or type new lines to replace them.",
           "headersInvalid": "This line is not a header: {line}",
+          "categories": {
+            "stream": "Stream",
+            "followers_subscriptions": "Followers and subscribers",
+            "bits_cheers": "Bits and cheers",
+            "raids_shoutouts": "Raids and shoutouts",
+            "channel_points": "Channel points",
+            "polls_predictions": "Polls and predictions",
+            "goals": "Goals",
+            "hype_train": "Hype train",
+            "charity": "Charity",
+            "chat": "Chat",
+            "moderation": "Moderation",
+            "collaboration": "Collaboration",
+            "supporters_custom": "Supporters and custom"
+          },
           "secret": {
             "title": "Your signing secret",
             "description": "Use this secret on your server to check that a delivery really comes from this bot.",
@@ -90,7 +106,13 @@
           "empty": "Nothing was sent to this address yet.",
           "loadFailed": "The deliveries could not be loaded.",
           "line": "Answer {code}, attempt {attempt}, {ms} ms, {when}",
-          "retry": "Send again"
+          "retry": "Send again",
+          "status": {
+            "pending": "Waiting",
+            "delivered": "Delivered",
+            "failed": "Failed",
+            "deadletter": "Gave up"
+          }
         },
         "delete": {
           "title": "Delete {name}?",

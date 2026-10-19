@@ -294,7 +294,7 @@ async function confirmDelete(): Promise<void> {
 <template>
   <PageHeader
     :title="$t('frame.nav.settingsPages.webhooks')"
-    :crumb="$t('dashboard.settings.crumb')"
+    :crumb="$t('dashboard.settings.webhooks.crumb')"
   />
 
   <PageBody>
