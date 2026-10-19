@@ -538,6 +538,14 @@ describe('AdminAccessView', () => {
     expect(document.body.querySelector('[data-assignment]')!.className).toContain('h-9');
   });
 
+  it('keeps the principal name block a minimum width so wide role chips wrap instead of covering it', async () => {
+    await open();
+
+    const nameBlock = document.body.querySelector('[data-principal-row] > div')!;
+
+    expect(nameBlock.className).toContain('min-w-40');
+  });
+
   it('gives the deactivate confirm the destructive look and the assign confirm the lead look', async () => {
     await open();
     (document.body.querySelector('[data-deactivate]') as HTMLElement).click();

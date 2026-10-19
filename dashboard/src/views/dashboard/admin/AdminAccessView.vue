@@ -269,7 +269,7 @@ async function startImpersonation(): Promise<void> {
           data-principal-row
           class="flex flex-wrap items-center gap-3 py-3"
         >
-          <div class="min-w-0 flex-1 max-md:basis-full">
+          <div class="min-w-40 flex-1 basis-40 max-md:basis-full">
             <UserName
               :user-id="row.userId"
               :name="row.name"
