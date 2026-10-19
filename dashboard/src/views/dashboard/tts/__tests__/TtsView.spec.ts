@@ -178,6 +178,25 @@ describe('TtsView overview', () => {
     expect(text()).toContain('Text to speech is off');
   });
 
+  it('names the channel voice like the Voices tab does, not by its raw id', async () => {
+    answers['/tts/voices'] = () =>
+      ok([
+        {
+          id: 'en-US-AriaNeural',
+          displayName: 'Aria (US)',
+          locale: 'en-US',
+          gender: 'female',
+          provider: 'edge',
+        },
+      ]);
+
+    await open();
+    await flushPromises();
+
+    expect(rowOf('Voice').textContent).toContain('Aria (US)');
+    expect(rowOf('Voice').textContent).not.toContain('en-US-AriaNeural');
+  });
+
   it('builds the settings rows from the config: voice, who may use it, limits, words', async () => {
     await open();
 

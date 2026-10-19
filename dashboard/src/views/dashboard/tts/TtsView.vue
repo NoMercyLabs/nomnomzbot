@@ -12,7 +12,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { useTtsConfig, type TtsConfig } from '@/api/tts';
+import { useTtsConfig, useTtsVoices, type TtsConfig } from '@/api/tts';
 import BoardCell from '@/components/layout/BoardCell.vue';
 import BoardGrid from '@/components/layout/BoardGrid.vue';
 import type { BoardPanel } from '@/components/layout/board';
@@ -42,6 +42,8 @@ const providerName = useProviderName();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const config = useTtsConfig(channelId);
+// The same first page the Voices tab loads, so the voice reads by its name here too.
+const catalog = useTtsVoices(channelId, () => ({ q: '' }));
 
 // Each tab needs the read key of the endpoint it shows.
 const tabKeys = {
@@ -85,8 +87,15 @@ const voiceDetail = computed<string>(() => {
 
   const provider = providerName(current.defaultProvider);
 
-  if (current.defaultVoiceId)
-    return t('dashboard.tts.settings.voice.detail', { voice: current.defaultVoiceId, provider });
+  if (current.defaultVoiceId) {
+    const loaded = (catalog.data.value?.pages ?? []).flatMap((page) => page.voices);
+    const known = loaded.find((voice) => voice.id === current.defaultVoiceId);
+
+    return t('dashboard.tts.settings.voice.detail', {
+      voice: known?.displayName ?? current.defaultVoiceId,
+      provider,
+    });
+  }
 
   return t(
     current.followsPlatformDefaultVoice
