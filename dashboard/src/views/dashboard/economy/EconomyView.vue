@@ -21,6 +21,7 @@ import { useCan } from '@/composables/useCan';
 import { usePageView } from '@/composables/usePageView';
 import { keysOf } from '@/lib/array';
 
+import BalancesPanel from './components/BalancesPanel.vue';
 import CatalogPanel from './components/CatalogPanel.vue';
 import CurrencyPanel from './components/CurrencyPanel.vue';
 import EarningRules from './components/EarningRules.vue';
@@ -34,6 +35,7 @@ const { can } = useCan();
 // Each tab needs the read key of its own endpoint; its New button needs the key that creates.
 const tabKeys = {
   currency: { read: 'economy:config:read', create: null },
+  balances: { read: 'economy:accounts:read', create: null },
   rules: { read: 'economy:earning-rules:read', create: 'economy:earning-rules:write' },
   jars: { read: 'economy:jars:read', create: 'economy:jars:create' },
   catalog: { read: 'economy:catalog:read', create: 'economy:catalog:create' },
@@ -47,6 +49,7 @@ const VIEWS = keysOf(tabKeys);
 type EconomyView = (typeof VIEWS)[number];
 const allTabs = computed<PageTab<EconomyView>[]>(() => [
   { value: 'currency', label: t('dashboard.economy.tabs.currency') },
+  { value: 'balances', label: t('dashboard.economy.tabs.balances') },
   { value: 'rules', label: t('dashboard.economy.tabs.rules') },
   { value: 'jars', label: t('dashboard.economy.tabs.jars') },
   { value: 'catalog', label: t('dashboard.economy.tabs.catalog') },
@@ -123,6 +126,7 @@ const addingBoard = ref(false);
   </PageHeader>
   <div data-page-body class="min-h-0 flex-1 overflow-y-auto px-6 pt-4 pb-6">
     <CurrencyPanel v-if="view === 'currency'" />
+    <BalancesPanel v-else-if="view === 'balances'" />
     <EarningRules v-else-if="view === 'rules'" v-model:adding="addingRule" />
     <SavingsJars v-else-if="view === 'jars'" v-model:adding="addingJar" />
     <CatalogPanel v-else-if="view === 'catalog'" v-model:adding="addingItem" />

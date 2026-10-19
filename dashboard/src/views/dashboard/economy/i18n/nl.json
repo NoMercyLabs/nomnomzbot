@@ -5,6 +5,7 @@
       "crumb": "Community",
       "tabs": {
         "currency": "Valuta",
+        "balances": "Saldo's",
         "rules": "Verdienregels",
         "jars": "Spaarpotten",
         "catalog": "Winkel",
@@ -62,6 +63,25 @@
           "window": "Seconden per uitbetaling",
           "windowHelp": "Voor chat en kijktijd: hoe vaak een kijker kan verdienen. Leeg laten voor elk event.",
           "save": "Regel opslaan"
+        }
+      },
+      "balances": {
+        "title": "Saldo van kijkers",
+        "description": "Wat elke kijker heeft. Een bevroren portemonnee kan niets verdienen of uitgeven.",
+        "search": "Zoek kijkers",
+        "empty": "Nog geen portemonnees. Een kijker krijgt er een bij de eerste verdiensten.",
+        "error": "De portemonnees konden niet laden.",
+        "freeze": "Bevries de portemonnee van {name}",
+        "adjust": "Pas het saldo van {name} aan",
+        "lifetime": "{earned} verdiend, {spent} uitgegeven",
+        "dialog": {
+          "title": "Saldo van {name} aanpassen",
+          "description": "Nu {balance}. Een positief bedrag telt erbij op, een negatief bedrag haalt eraf.",
+          "amount": "Bedrag",
+          "amountHelp": "Een geheel getal. Gebruik een minteken om valuta weg te nemen.",
+          "reason": "Reden",
+          "save": "Saldo aanpassen",
+          "invalid": "Vul een geheel bedrag in dat niet nul is, en een reden."
         }
       },
       "jars": {

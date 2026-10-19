@@ -342,11 +342,16 @@ export function useUpdateCatalogItem(
     ): Promise<void> => {
       const { error, response } = await client.PATCH(
         '/api/v{version}/channels/{channelId}/economy/catalog/{itemId}',
-        { params: { path: {
-          version,
-          channelId: id,
-          itemId,
-        } }, body: change },
+        {
+          params: {
+            path: {
+              version,
+              channelId: id,
+              itemId,
+            },
+          },
+          body: change,
+        },
       );
 
       if (error !== undefined)
@@ -364,11 +369,15 @@ export function useDeleteCatalogItem(
     async (id: string, itemId: string): Promise<void> => {
       const { error, response } = await client.DELETE(
         '/api/v{version}/channels/{channelId}/economy/catalog/{itemId}',
-        { params: { path: {
-          version,
-          channelId: id,
-          itemId,
-        } } },
+        {
+          params: {
+            path: {
+              version,
+              channelId: id,
+              itemId,
+            },
+          },
+        },
       );
 
       if (error !== undefined)
@@ -424,11 +433,15 @@ export function useDeleteLeaderboardConfig(
     async (id: string, configId: string): Promise<void> => {
       const { error, response } = await client.DELETE(
         '/api/v{version}/channels/{channelId}/economy/leaderboards/configs/{configId}',
-        { params: { path: {
-          version,
-          channelId: id,
-          configId,
-        } } },
+        {
+          params: {
+            path: {
+              version,
+              channelId: id,
+              configId,
+            },
+          },
+        },
       );
 
       if (error !== undefined)
@@ -446,15 +459,123 @@ export function useInviteJarChannel(
     async (id: string, { jarId, invite }: { jarId: string; invite: JarInvite }): Promise<void> => {
       const { error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/economy/jars/{jarId}/invite',
-        { params: { path: {
-          version,
-          channelId: id,
-          jarId,
-        } }, body: invite },
+        {
+          params: {
+            path: {
+              version,
+              channelId: id,
+              jarId,
+            },
+          },
+          body: invite,
+        },
       );
 
       if (error !== undefined)
         throw refusal('invite jar channel', error, response.status);
+    },
+  );
+}
+
+export type CurrencyAccount = components['schemas']['CurrencyAccount'];
+
+export type AccountAdjustment = {
+  viewerUserId: string;
+  amount: number;
+  reason: string;
+};
+
+export type AccountFreeze = { viewerUserId: string; frozen: boolean };
+
+// The wallet list is one query per search text; every search shares the prefix the writes invalidate.
+export const accountsKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'economy',
+  'accounts',
+];
+
+const ACCOUNTS_TAKE = 100;
+
+export function useAccounts(
+  channelId: MaybeRefOrGetter<string | null>,
+  search: MaybeRefOrGetter<string>,
+): UseQueryReturnType<readonly CurrencyAccount[], Error> {
+  return useQuery({
+    queryKey: computed<KeyParts>(() => [
+      ...accountsKey(toValue(channelId)),
+      toValue(search).trim(),
+    ]),
+    enabled: computed<boolean>(() => toValue(channelId) !== null),
+    queryFn: async (): Promise<readonly CurrencyAccount[]> => {
+      const text = toValue(search).trim();
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/channels/{channelId}/economy/accounts',
+        {
+          params: {
+            path: { version, channelId: toValue(channelId) as string },
+            query: { Take: ACCOUNTS_TAKE, ...(text === ''
+              ? {}
+              : { Search: text }) },
+          },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('wallets', response.status, error);
+
+      return data?.data ?? [];
+    },
+  });
+}
+
+// The server binds the viewer to the route and the caller as the actor; the body carries the amount and the reason.
+export function useAdjustAccount(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, AccountAdjustment, undefined> {
+  return useEconomyWrite(
+    channelId,
+    accountsKey,
+    async (id: string, { viewerUserId, amount, reason }: AccountAdjustment): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/economy/accounts/{viewerUserId}/adjust',
+        {
+          params: { path: {
+            version,
+            channelId: id,
+            viewerUserId,
+          } },
+          body: { amount, reason } as components['schemas']['AdminAdjustCommand'],
+        },
+      );
+
+      if (error !== undefined)
+        throw refusal('adjust wallet', error, response.status);
+    },
+  );
+}
+
+export function useFreezeAccount(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, AccountFreeze, undefined> {
+  return useEconomyWrite(
+    channelId,
+    accountsKey,
+    async (id: string, { viewerUserId, frozen }: AccountFreeze): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/economy/accounts/{viewerUserId}/freeze',
+        {
+          params: { path: {
+            version,
+            channelId: id,
+            viewerUserId,
+          } },
+          body: { frozen },
+        },
+      );
+
+      if (error !== undefined)
+        throw refusal('freeze wallet', error, response.status);
     },
   );
 }

@@ -5,6 +5,7 @@
       "crumb": "Community",
       "tabs": {
         "currency": "Currency",
+        "balances": "Balances",
         "rules": "Earning rules",
         "jars": "Savings jars",
         "catalog": "Store",
@@ -62,6 +63,25 @@
           "window": "Seconds per payout",
           "windowHelp": "For chat and watch time: how often a viewer can earn. Leave empty for each event.",
           "save": "Save rule"
+        }
+      },
+      "balances": {
+        "title": "Viewer balances",
+        "description": "What each viewer holds. A frozen wallet cannot earn or spend.",
+        "search": "Search viewers",
+        "empty": "No wallets yet. A viewer gets one when they first earn currency.",
+        "error": "The wallets could not load.",
+        "freeze": "Freeze the wallet of {name}",
+        "adjust": "Adjust the balance of {name}",
+        "lifetime": "{earned} earned, {spent} spent",
+        "dialog": {
+          "title": "Adjust balance of {name}",
+          "description": "Now {balance}. A positive amount adds, a negative amount takes away.",
+          "amount": "Amount",
+          "amountHelp": "A whole number. Use a minus sign to take currency away.",
+          "reason": "Reason",
+          "save": "Adjust balance",
+          "invalid": "Enter a whole amount that is not zero, and a reason."
         }
       },
       "jars": {

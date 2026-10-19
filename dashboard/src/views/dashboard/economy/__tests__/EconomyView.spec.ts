@@ -56,6 +56,8 @@ let rules: Row[] = [];
 let jars: Row[] = [];
 let catalog: Row[] = [];
 let boards: Row[] = [];
+let accounts: Row[] = [];
+let searches: (string | undefined)[] = [];
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
@@ -89,7 +91,37 @@ const jar = (id: string, name: string, overrides: Row = {}) =>
     ...overrides,
   }) as const satisfies Row;
 
-function read(path: string): Answer {
+const account = (id: string, name: string, overrides: Row = {}) =>
+  ({
+    id: `a-${id}`,
+    viewerUserId: id,
+    viewerTwitchUserId: `t-${id}`,
+    viewerDisplayName: name,
+    viewerAvatarUrl: null,
+    balance: 120,
+    lifetimeEarned: 300,
+    lifetimeSpent: 180,
+    isFrozen: false,
+    lastActivityAt: '2026-10-01T10:00:00Z',
+    ...overrides,
+  }) as const satisfies Row;
+
+function read(path: string, options?: { params?: { query?: { Search?: string } } }): Answer {
+  if (path.endsWith('/economy/accounts')) {
+    const search = options?.params?.query?.Search;
+
+    searches.push(search);
+
+    return {
+      data: {
+        data: accounts.filter((row) =>
+          search === undefined || String(row.viewerDisplayName).includes(search)),
+        hasMore: false,
+      },
+      response: { status: 200, ok: true },
+    };
+  }
+
   if (path.endsWith('/economy/config'))
     return ok(config);
 
@@ -164,6 +196,20 @@ function write(method: string, path: string, options?: Options): Answer {
     jars = [...jars, created];
   }
 
+  if (method === 'POST' && path.endsWith('/freeze')) {
+    accounts = accounts.map((row) =>
+      row.viewerUserId === params?.viewerUserId
+        ? { ...row, isFrozen: body.frozen }
+        : row);
+  }
+
+  if (method === 'POST' && path.endsWith('/adjust')) {
+    accounts = accounts.map((row) =>
+      row.viewerUserId === params?.viewerUserId
+        ? { ...row, balance: Number(row.balance) + Number(body.amount) }
+        : row);
+  }
+
   if (method === 'PATCH') {
     jars = jars.map((row) =>
       row.id === params?.jarId
@@ -181,7 +227,8 @@ function write(method: string, path: string, options?: Options): Answer {
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async (path: string) => read(path),
+    GET: async (path: string, options?: { params?: { query?: { Search?: string } } }) =>
+      read(path, options),
     POST: async (path: string, options?: Options) => write('POST', path, options),
     PUT: async (path: string, options?: Options) => write('PUT', path, options),
     PATCH: async (path: string, options?: Options) => write('PATCH', path, options),
@@ -211,6 +258,9 @@ const allKeys = [
   'economy:leaderboards:config:read',
   'economy:leaderboards:config:write',
   'economy:leaderboards:config:delete',
+  'economy:accounts:read',
+  'economy:account:adjust',
+  'economy:account:freeze',
 ];
 const access = vi.hoisted(() => ({ held: [] as string[] }));
 
@@ -235,6 +285,8 @@ beforeEach(() => {
   jars = [jar('j1', 'New camera')];
   catalog = [];
   boards = [];
+  accounts = [account('u1', 'Alice'), account('u2', 'Bob', { isFrozen: true })];
+  searches = [];
   pinia = createPinia();
   setActivePinia(pinia);
   queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
@@ -654,5 +706,79 @@ describe('Economy page', () => {
     await click(buttonByText('Delete jar'));
 
     expect(names('jar')).toEqual([]);
+  });
+});
+
+describe('Economy balances tab', () => {
+  it('lists every wallet with its balance', async () => {
+    await open('balances');
+
+    expect(names('account')).toEqual(['Alice', 'Bob']);
+    expect(rowOf('account', 'Alice').textContent).toContain('120');
+
+    expect(
+      rowOf('account', 'Bob').querySelector('button[role="switch"]')?.getAttribute('aria-checked'),
+    ).toBe('true');
+  });
+
+  it('freezes a wallet from its switch', async () => {
+    await open('balances');
+    await click(rowOf('account', 'Alice').querySelector('button[role="switch"]') as HTMLElement);
+
+    expect(writes('POST')[0]!.path).toContain('/economy/accounts/{viewerUserId}/freeze');
+    expect(writes('POST')[0]!.path_?.viewerUserId).toBe('u1');
+    expect(writes('POST')[0]!.body).toEqual({ frozen: true });
+    expect(accounts[0]!.isFrozen).toBe(true);
+  });
+
+  it('adjusts a balance with an amount and a reason', async () => {
+    await open('balances');
+    await click(rowOf('account', 'Alice').querySelector('[data-account-adjust]') as HTMLElement);
+    await type(field(en.dashboard.economy.balances.dialog.amount), '-20');
+    await type(field(en.dashboard.economy.balances.dialog.reason), 'Chat bug refund');
+    await click(buttonByText(en.dashboard.economy.balances.dialog.save));
+
+    expect(writes('POST')[0]!.path).toContain('/economy/accounts/{viewerUserId}/adjust');
+    expect(writes('POST')[0]!.path_?.viewerUserId).toBe('u1');
+    expect(writes('POST')[0]!.body).toMatchObject({ amount: -20, reason: 'Chat bug refund' });
+    expect(accounts[0]!.balance).toBe(100);
+  });
+
+  it('refuses an adjustment with no reason or a zero amount', async () => {
+    await open('balances');
+    await click(rowOf('account', 'Alice').querySelector('[data-account-adjust]') as HTMLElement);
+    await type(field(en.dashboard.economy.balances.dialog.amount), '0');
+    await click(buttonByText(en.dashboard.economy.balances.dialog.save));
+
+    expect(writes('POST')).toHaveLength(0);
+    expect(document.body.textContent).toContain(en.dashboard.economy.balances.dialog.invalid);
+  });
+
+  it('sends the search text to the server', async () => {
+    await open('balances');
+    await type(field(en.dashboard.economy.balances.search), 'Bob');
+    await new Promise((done) => setTimeout(done, 350));
+    await settle();
+
+    expect(searches.at(-1)).toBe('Bob');
+    expect(names('account')).toEqual(['Bob']);
+  });
+
+  it('hides the tab without the accounts read key', async () => {
+    access.held = ['economy:jars:read'];
+
+    await open('jars');
+
+    expect(tabLabels()).toEqual([en.dashboard.economy.tabs.jars]);
+  });
+
+  it('shows no adjust or freeze control for read-only keys', async () => {
+    access.held = ['economy:accounts:read'];
+
+    await open('balances');
+
+    expect(names('account')).toEqual(['Alice', 'Bob']);
+    expect(present('[data-account-adjust]')).toBe(false);
+    expect(present('[data-account-row] [role="switch"]')).toBe(false);
   });
 });
