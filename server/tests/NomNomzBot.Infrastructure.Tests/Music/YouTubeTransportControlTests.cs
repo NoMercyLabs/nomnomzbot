@@ -521,14 +521,16 @@ public sealed class YouTubeTransportControlTests
     public async Task Play_once_on_a_busy_player_plays_now_and_the_ended_once_video_pushes_no_request()
     {
         Rig rig = await PlayingFirstWithSecondQueuedAsync();
-        rig.PlayerStore.PeekNext(Broadcaster)!.VideoId.Should().Be(Second);
+        rig.PlayerStore.PeekNext(Broadcaster)
+            .Should()
+            .BeNull("the waiting request is not pushed to the player ahead of time");
 
         Result once = await rig.Music.PlayTrackOnceAsync(Broadcaster.ToString(), Watch(Third));
 
         once.IsSuccess.Should().BeTrue(once.ErrorMessage);
         rig.Notifier.PlayedVideoIds.Should().Equal(First, Third);
         rig.Notifier.Sent.Last().Widget.Should().Be(OwnerWidget);
-        rig.PlayerStore.PeekNext(Broadcaster)!.VideoId.Should().Be(Second);
+        rig.PlayerStore.PeekNext(Broadcaster).Should().BeNull();
         QueuedUris(rig).Should().Equal([Watch(Second)]);
 
         await ReportAsync(rig, Third, "playing");
@@ -638,7 +640,10 @@ public sealed class YouTubeTransportControlTests
             .Data.Should()
             .Be(new YouTubeSeekWidgetPayload(42_000));
         rig.ResumeTracker.TryPeek(Broadcaster, out _).Should().BeFalse();
-        rig.PlayerStore.PeekNext(Broadcaster)!.VideoId.Should().Be(Second);
+        rig.PlayerStore.PeekNext(Broadcaster)
+            .Should()
+            .BeNull("the waiting request stays in the fair queue until the director starts it");
+        QueuedUris(rig).Should().Equal([Watch(Second)]);
 
         await ReportAsync(rig, First, "playing", 43_000);
         await ReportAsync(rig, First, "ended", 200_000);

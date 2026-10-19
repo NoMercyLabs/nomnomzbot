@@ -68,29 +68,40 @@ public sealed class SongRequestQueueReconcilerTests
     }
 
     [Fact]
-    public async Task The_handed_over_track_starting_frees_the_provider_and_hands_over_the_next()
+    public async Task The_handed_over_track_starting_frees_the_provider_and_the_director_starts_the_next_only_when_it_ends()
     {
         (
             SongRequestQueueReconciler sut,
             FairQueue<SongRequestEntry> queue,
             RecordingEventBus bus,
             SongRequestQueueStore store,
-            RecordingHandover handover
+            PlaybackDirectorTestKit.FakeEngineFactory engines
         ) = Build("a", "b", "c");
         HandOver(store, queue, "a");
 
         await sut.HandleAsync(PlaybackOf("spotify:track:a"));
 
         Titles(queue).Should().Equal("Track b", "Track c");
-        // Exactly one track is ever at the provider: "a" started, so the provider is free and the NEXT
-        // request is handed over — not the whole queue.
-        handover.Calls.Should().ContainSingle().Which.Should().Be(ChannelId.ToString());
-        store.GetInFlight(ChannelId.ToString()).Should().BeNull("the handover records the new one");
+        // "a" started, so the provider is free and "a" is now the playing track. The reconciler hands
+        // nothing over and the director starts nothing: the next request waits for the end of "a".
+        store.GetInFlight(ChannelId.ToString()).Should().BeNull("the provider is free again");
+        StartedNothing(engines);
         bus.Published.OfType<SongRequestQueueChangedEvent>()
             .Single()
             .Items.Select(i => i.Title)
             .Should()
             .Equal("Track b", "Track c");
+
+        await sut.HandleAsync(PlaybackOf("spotify:track:a", trackEnded: true));
+
+        // The end of "a" makes the director start the head, "b", exactly once, through the engine.
+        PlaybackDirectorTestKit.FakeEngine spotify = engines.EngineOf(
+            ChannelId,
+            EngineKind.Spotify
+        );
+        spotify.Calls.Select(c => c.Name).Should().Equal("Start");
+        spotify.Calls.Single().Argument.Should().Be("spotify:track:b|viewer-b");
+        engines.EngineOf(ChannelId, EngineKind.YouTube).Calls.Should().BeEmpty();
     }
 
     [Fact]
@@ -158,7 +169,7 @@ public sealed class SongRequestQueueReconcilerTests
             FairQueue<SongRequestEntry> queue,
             _,
             SongRequestQueueStore store,
-            RecordingHandover handover
+            PlaybackDirectorTestKit.FakeEngineFactory engines
         ) = Build("a", "b");
         HandOver(store, queue, "a");
 
@@ -166,7 +177,7 @@ public sealed class SongRequestQueueReconcilerTests
         // pushing another one now would put two of ours at the provider and freeze their order.
         await sut.HandleAsync(PlaybackOf("spotify:track:streamer-playlist"));
 
-        handover.Calls.Should().BeEmpty();
+        StartedNothing(engines);
         Titles(queue).Should().Equal("Track a", "Track b");
         store.GetInFlight(ChannelId.ToString())!.TrackName.Should().Be("Track a");
     }
@@ -179,7 +190,7 @@ public sealed class SongRequestQueueReconcilerTests
             FairQueue<SongRequestEntry> queue,
             _,
             SongRequestQueueStore store,
-            RecordingHandover handover
+            PlaybackDirectorTestKit.FakeEngineFactory engines
         ) = Build("a", "b", "c");
         HandOver(store, queue, "a");
 
@@ -190,7 +201,7 @@ public sealed class SongRequestQueueReconcilerTests
 
         Titles(queue).Should().Equal("Track a", "Track c");
         store.GetInFlight(ChannelId.ToString())!.TrackName.Should().Be("Track a");
-        handover.Calls.Should().BeEmpty();
+        StartedNothing(engines);
     }
 
     [Fact]
@@ -236,13 +247,13 @@ public sealed class SongRequestQueueReconcilerTests
             queue.Enqueue($"viewer-{id}", Entry($"spotify:track:{id}", $"Track {id}"));
         store.SetInFlight(ChannelId.ToString(), queue.GetSnapshot()[0].Item);
         RecordingEventBus bus = new();
-        RecordingHandover handover = new();
+        PlaybackDirectorTestKit.FakeEngineFactory engines = new();
         RecordingPersistence persistence = new();
         SongRequestQueueReconciler sut = new(
             store,
             persistence,
             bus,
-            PlaybackDirectorTestKit.Registry(store, bus)
+            new PlaybackDirectorRegistry(store, engines, bus, TimeProvider.System)
         );
 
         // The overlay player reports the video as not playing: a report that does not play a row removes
@@ -254,7 +265,7 @@ public sealed class SongRequestQueueReconcilerTests
         Titles(queue)
             .Should()
             .Equal(["Broken video", .. "bcdefghijklmnop".Select(c => $"Track {c}")]);
-        handover.Calls.Should().BeEmpty();
+        StartedNothing(engines);
         persistence.Synced.Should().BeEmpty();
 
         // Spotify then starts the 16th request on its own: only that row leaves.
@@ -292,7 +303,7 @@ public sealed class SongRequestQueueReconcilerTests
             FairQueue<SongRequestEntry> queue,
             _,
             SongRequestQueueStore store,
-            RecordingHandover handover
+            PlaybackDirectorTestKit.FakeEngineFactory engines
         ) = Build("a", "b");
         // A second viewer had already queued track "a" before the duplicate gate existed, so the
         // persisted queue carries two copies of it.
@@ -317,7 +328,15 @@ public sealed class SongRequestQueueReconcilerTests
             .Should()
             .Equal("viewer-b", "viewer-late");
         store.GetInFlight(ChannelId.ToString()).Should().BeNull();
-        handover.Calls.Should().ContainSingle();
+        StartedNothing(engines);
+
+        await sut.HandleAsync(PlaybackOf("spotify:track:a", trackEnded: true));
+
+        // The end of the copy that played makes the director start the head, "b", exactly once.
+        engines
+            .EngineOf(ChannelId, EngineKind.Spotify)
+            .Calls.Should()
+            .ContainSingle(c => c.Name == "Start" && c.Argument == "spotify:track:b|viewer-b");
     }
 
     /// <summary>The Spotify poll hands its observation to the engine itself, so the reconciler must not report the
@@ -385,10 +404,12 @@ public sealed class SongRequestQueueReconcilerTests
         string provider = "spotify",
         bool isPlaying = true,
         bool fedToEngine = false,
-        bool reportWithheld = false
+        bool reportWithheld = false,
+        bool trackEnded = false
     ) =>
         new()
         {
+            TrackEnded = trackEnded,
             FedToEngine = fedToEngine,
             ReportWithheld = reportWithheld,
             BroadcasterId = ChannelId,
@@ -443,20 +464,11 @@ public sealed class SongRequestQueueReconcilerTests
             queue.GetSnapshot().Single(e => e.Item.TrackUri == $"spotify:track:{trackId}").Item
         );
 
-    /// <summary>Records handover requests instead of reaching a provider — the reconciler's decision is
-    /// WHETHER to hand over; MusicService owns the push itself.</summary>
-    private sealed class RecordingHandover : ISongRequestHandover
+    /// <summary>The director started no song on either engine of the channel.</summary>
+    private static void StartedNothing(PlaybackDirectorTestKit.FakeEngineFactory engines)
     {
-        public List<string> Calls { get; } = [];
-
-        public Task HandOverNextAsync(
-            string broadcasterId,
-            CancellationToken cancellationToken = default
-        )
-        {
-            Calls.Add(broadcasterId);
-            return Task.CompletedTask;
-        }
+        engines.EngineOf(ChannelId, EngineKind.Spotify).Calls.Should().BeEmpty();
+        engines.EngineOf(ChannelId, EngineKind.YouTube).Calls.Should().BeEmpty();
     }
 
     private static (
@@ -464,7 +476,7 @@ public sealed class SongRequestQueueReconcilerTests
         FairQueue<SongRequestEntry> Queue,
         RecordingEventBus Bus,
         SongRequestQueueStore Store,
-        RecordingHandover Handover
+        PlaybackDirectorTestKit.FakeEngineFactory Engines
     ) Build(params string[] trackIds)
     {
         SongRequestQueueStore store = new();
@@ -486,18 +498,18 @@ public sealed class SongRequestQueueReconcilerTests
             );
 
         RecordingEventBus bus = new();
-        RecordingHandover handover = new();
+        PlaybackDirectorTestKit.FakeEngineFactory engines = new();
         return (
             new(
                 store,
                 new NoOpSongRequestQueuePersistence(),
                 bus,
-                PlaybackDirectorTestKit.Registry(store, bus)
+                new PlaybackDirectorRegistry(store, engines, bus, TimeProvider.System)
             ),
             queue,
             bus,
             store,
-            handover
+            engines
         );
     }
 }

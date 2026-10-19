@@ -18,9 +18,11 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Music.Playback;
 using NomNomzBot.Infrastructure.Notifications;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -79,27 +81,48 @@ public sealed class MusicServiceQueuePromoteBanTests
 
         (await QueueOrder(sut)).Should().Equal("viewer1", "viewer2");
 
+        PlaybackDirectorTestKit.FakeEngineFactory engines = new();
         SongRequestQueueReconciler reconciler = new(
             store,
             new NoOpSongRequestQueuePersistence(),
             bus,
-            PlaybackDirectorTestKit.Registry(store, bus)
+            new PlaybackDirectorRegistry(store, engines, bus, TimeProvider.System)
         );
-        await reconciler.HandleAsync(
-            new()
-            {
-                BroadcasterId = ChannelId,
-                IsPlaying = true,
-                TrackUri = "spotify:track:q1",
-                TrackName = "Song Q1",
-                Provider = "spotify",
-                ObservedAt = DateTimeOffset.UtcNow,
-            }
-        );
+        SongRequestEntry bumped = queue
+            .GetSnapshot()
+            .Single(e => e.Item.RequestedBy == "viewer2")
+            .Item;
+        await reconciler.HandleAsync(PlaybackReport(isPlaying: true, trackEnded: false));
 
         (await QueueOrder(sut)).Should().Equal("viewer2");
-        store.GetInFlight(channel)!.TrackUri.Should().Be("spotify:track:q2");
+        store.GetInFlight(channel).Should().BeNull("the started song freed the provider");
+        engines
+            .EngineOf(ChannelId, EngineKind.Spotify)
+            .Calls.Should()
+            .BeEmpty("the director starts the bumped song only when the playing one ends");
+
+        await reconciler.HandleAsync(PlaybackReport(isPlaying: true, trackEnded: true));
+
+        (await QueueOrder(sut)).Should().Equal("viewer2");
+        string bumpedId =
+            bumped.Code.Length > 0 ? bumped.Code : $"{bumped.TrackUri}|{bumped.RequestedBy}";
+        engines
+            .EngineOf(ChannelId, EngineKind.Spotify)
+            .Calls.Should()
+            .ContainSingle(c => c.Name == "Start" && c.Argument == bumpedId);
     }
+
+    private static PlaybackStateChangedEvent PlaybackReport(bool isPlaying, bool trackEnded) =>
+        new()
+        {
+            BroadcasterId = ChannelId,
+            IsPlaying = isPlaying,
+            TrackEnded = trackEnded,
+            TrackUri = "spotify:track:q1",
+            TrackName = "Song Q1",
+            Provider = "spotify",
+            ObservedAt = DateTimeOffset.UtcNow,
+        };
 
     [Fact]
     public async Task Move_onto_the_in_flight_song_lands_just_behind_it_and_the_in_flight_song_cannot_move()

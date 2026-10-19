@@ -275,13 +275,15 @@ public sealed class YouTubeEndedAdvancesQueueTests
         current.TrackUri.Should().Be(Watch(First));
         current.IsPlaying.Should().BeTrue();
         QueuedUris(rig).Should().Equal([Watch(Second)], "the playing request left the queue");
-        rig.Queues.GetInFlight(Broadcaster.ToString())!.TrackUri.Should().Be(Watch(Second));
-        rig.Notifier.PlayedVideoIds.Should()
-            .Equal([First], "the player is busy, so the second waits");
-        (await rig.Provider.GetQueueAsync(Broadcaster))!
-            .Select(t => t.TrackUri)
+        rig.Queues.GetInFlight(Broadcaster.ToString())
             .Should()
-            .Equal(Watch(Second));
+            .BeNull("the playing request freed the provider and nothing else is handed over");
+        rig.Notifier.PlayedVideoIds.Should()
+            .Equal([First], "the player is busy, so the second waits in the fair queue");
+        (await rig.Provider.GetQueueAsync(Broadcaster))!
+            .Should()
+            .BeEmpty("the player holds no pushed next video; the director starts it at the end");
+        rig.Engines.YouTube!.StartedVideoIds.Should().Equal([First]);
     }
 
     [Fact]
@@ -302,7 +304,9 @@ public sealed class YouTubeEndedAdvancesQueueTests
         QueuedUris(rig)
             .Should()
             .Equal([Watch(Second)], "the second is handed over, not yet playing");
-        rig.Queues.GetInFlight(Broadcaster.ToString())!.TrackUri.Should().Be(Watch(Second));
+        rig.Queues.GetInFlight(Broadcaster.ToString())
+            .Should()
+            .BeNull("the director started the second; the intake path marks only the first");
 
         await ReportAsync(rig, Second, "playing");
 
@@ -430,9 +434,9 @@ public sealed class YouTubeEndedAdvancesQueueTests
         rig.Notifier.PlayedVideoIds.Should().Equal(First, Second);
         (await rig.Provider.GetCurrentTrackAsync(Broadcaster))!.TrackUri.Should().Be(Watch(Second));
         (await rig.Provider.GetQueueAsync(Broadcaster))!
-            .Select(t => t.TrackUri)
             .Should()
-            .Equal(Watch(Third));
+            .BeEmpty("the third waits in the fair queue, not in the player");
+        QueuedUris(rig).Should().Equal([Watch(Third)]);
     }
 
     [Fact]
