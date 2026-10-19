@@ -14,6 +14,8 @@ using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Music.Playback;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
@@ -98,6 +100,30 @@ public static class PlaybackDirectorTestKit
             return Task.CompletedTask;
         }
     }
+
+    /// <summary>Hands out one pair of <see cref="FakeEngine"/>s per channel and counts the pairs it built.</summary>
+    public sealed class FakeEngineFactory : IPlaybackEngineFactory
+    {
+        private readonly Dictionary<Guid, FakeEngine[]> _pairs = [];
+
+        public int CreateCount { get; private set; }
+
+        public FakeEngine EngineOf(Guid broadcasterId, EngineKind kind) =>
+            _pairs[broadcasterId].Single(engine => engine.Kind == kind);
+
+        public IReadOnlyList<IPlaybackEngine> Create(Guid broadcasterId)
+        {
+            CreateCount++;
+            FakeEngine[] pair = [new(EngineKind.Spotify), new(EngineKind.YouTube)];
+            _pairs[broadcasterId] = pair;
+
+            return pair;
+        }
+    }
+
+    /// <summary>A registry over fake engines, for tests that only feed reports and read the queue.</summary>
+    public static PlaybackDirectorRegistry Registry(ISongRequestQueueStore store, IEventBus bus) =>
+        new(store, new FakeEngineFactory(), bus, TimeProvider.System);
 
     public sealed class RecordingBus : IEventBus
     {

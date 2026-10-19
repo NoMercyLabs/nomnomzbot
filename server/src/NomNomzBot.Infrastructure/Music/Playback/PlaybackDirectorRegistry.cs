@@ -16,36 +16,45 @@ using NomNomzBot.Domain.Platform.Interfaces;
 namespace NomNomzBot.Infrastructure.Music.Playback;
 
 /// <summary>
-/// Gives each channel one <see cref="PlaybackDirector"/> over its live song request queue and passes
-/// engine reports to it. The director is the only thing that removes a row from that queue.
+/// Gives each channel one <see cref="PlaybackDirector"/> over its live song request queue and the real
+/// engines of <see cref="IPlaybackEngineFactory"/>, and passes every input to it. The director is the only
+/// thing that removes a row from that queue or sends an engine command.
 /// </summary>
-public sealed class PlaybackDirectorReportSink(
+public sealed class PlaybackDirectorRegistry(
     ISongRequestQueueStore queueStore,
+    IPlaybackEngineFactory engines,
     IEventBus bus,
     TimeProvider time
-) : IPlaybackReportSink, IDisposable
+) : IPlaybackInputSink, IPlaybackReportSink, IDisposable
 {
-    private readonly ConcurrentDictionary<Guid, PlaybackDirector> _directors = new();
+    private readonly ConcurrentDictionary<Guid, Lazy<PlaybackDirector>> _directors = new();
+
+    public Task SendAsync(
+        Guid broadcasterId,
+        PlaybackInput input,
+        CancellationToken ct = default
+    ) => DirectorOf(broadcasterId).HandleAsync(input, ct);
 
     public Task ReportAsync(
         Guid broadcasterId,
         EngineSignal signal,
         CancellationToken ct = default
-    ) => _directors.GetOrAdd(broadcasterId, CreateDirector).HandleAsync(signal, ct);
+    ) => SendAsync(broadcasterId, signal, ct);
 
     public void Dispose()
     {
-        foreach (PlaybackDirector director in _directors.Values)
-            director.Dispose();
+        foreach (Lazy<PlaybackDirector> director in _directors.Values)
+            if (director.IsValueCreated)
+                director.Value.Dispose();
     }
+
+    private PlaybackDirector DirectorOf(Guid broadcasterId) =>
+        _directors.GetOrAdd(broadcasterId, id => new(() => CreateDirector(id))).Value;
 
     private PlaybackDirector CreateDirector(Guid broadcasterId) =>
         new(
             broadcasterId,
-            [
-                new ReportOnlyPlaybackEngine(EngineKind.Spotify),
-                new ReportOnlyPlaybackEngine(EngineKind.YouTube),
-            ],
+            engines.Create(broadcasterId),
             new SongRequestPlaybackQueue(queueStore.GetOrCreate(broadcasterId.ToString())),
             time,
             bus

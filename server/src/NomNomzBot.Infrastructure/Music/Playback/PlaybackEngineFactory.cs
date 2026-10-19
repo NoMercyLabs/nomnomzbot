@@ -8,44 +8,48 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Domain.Music.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music.Playback;
 
-/// <summary>Builds the Spotify and YouTube engines of a channel over the registered providers.</summary>
+/// <summary>
+/// Builds the Spotify and YouTube engines of a channel. The factory is a singleton; the providers and the
+/// dispatcher are scoped, so each engine command resolves them in a scope of its own (see
+/// <see cref="EngineLease"/>) and the factory holds none of them.
+/// </summary>
 public sealed class PlaybackEngineFactory(
-    IEnumerable<IMusicProvider> providers,
-    IYouTubePlayerDispatcher dispatcher,
+    IServiceScopeFactory scopes,
     IYouTubePlayerStateStore store
 ) : IPlaybackEngineFactory
 {
     private const string SpotifyKey = "spotify";
     private const string YouTubeKey = "youtube";
 
-    public IReadOnlyList<IPlaybackEngine> Create(Guid broadcasterId)
-    {
-        IMusicProvider spotify = Provider(SpotifyKey);
-        IMusicProvider youTube = Provider(YouTubeKey);
-
-        return
+    public IReadOnlyList<IPlaybackEngine> Create(Guid broadcasterId) =>
         [
-            new SpotifyPlaybackEngine(
-                broadcasterId,
-                spotify,
-                (IMusicProviderStartTrack)spotify,
-                (IMusicProviderConnectionGate)spotify
-            ),
-            new YouTubePlaybackEngine(
-                broadcasterId,
-                youTube,
-                (IMusicProviderPlayNow)youTube,
-                (IMusicProviderPlayerGate)youTube,
-                dispatcher,
-                store
-            ),
+            new SpotifyPlaybackEngine(broadcasterId, () => Open(SpotifyKey, false)),
+            new YouTubePlaybackEngine(broadcasterId, () => Open(YouTubeKey, true), store),
         ];
-    }
 
-    private IMusicProvider Provider(string key) =>
-        providers.Single(provider => provider.Provider == key);
+    private EngineLease Open(string providerKey, bool withDispatcher)
+    {
+        AsyncServiceScope scope = scopes.CreateAsyncScope();
+        try
+        {
+            IMusicProvider provider = scope
+                .ServiceProvider.GetServices<IMusicProvider>()
+                .Single(candidate => candidate.Provider == providerKey);
+            IYouTubePlayerDispatcher? dispatcher = withDispatcher
+                ? scope.ServiceProvider.GetRequiredService<IYouTubePlayerDispatcher>()
+                : null;
+
+            return new(provider, dispatcher, scope);
+        }
+        catch
+        {
+            scope.Dispose();
+            throw;
+        }
+    }
 }

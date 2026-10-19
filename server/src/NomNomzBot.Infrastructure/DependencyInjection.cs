@@ -404,7 +404,16 @@ public static class DependencyInjection
         // per HTTP request / chat dispatch would otherwise reset the queue on every call. Singleton, keyed
         // per-tenant internally (Music.ISongRequestQueueStore); every FairQueue<T> mutation is lock-protected.
         services.AddSingleton<ISongRequestQueueStore, SongRequestQueueStore>();
-        services.AddSingleton<IPlaybackReportSink, PlaybackDirectorReportSink>();
+        // The engine factory is a singleton: each engine command opens its own scope for the scoped providers
+        // and the YouTube dispatcher (EngineLease), so no DbContext outlives a command.
+        services.AddSingleton<IPlaybackEngineFactory, PlaybackEngineFactory>();
+        services.AddSingleton<PlaybackDirectorRegistry>();
+        services.AddSingleton<IPlaybackInputSink>(sp =>
+            sp.GetRequiredService<PlaybackDirectorRegistry>()
+        );
+        services.AddSingleton<IPlaybackReportSink>(sp =>
+            sp.GetRequiredService<PlaybackDirectorRegistry>()
+        );
         // Song requests a limit refused, kept 15 minutes so a moderator's !permit can admit them.
         services.AddSingleton<RefusedSongRequestStore>();
 

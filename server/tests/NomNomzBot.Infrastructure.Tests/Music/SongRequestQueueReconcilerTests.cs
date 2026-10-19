@@ -12,7 +12,6 @@ using FluentAssertions;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Infrastructure.Music;
-using NomNomzBot.Infrastructure.Music.Playback;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -56,7 +55,7 @@ public sealed class SongRequestQueueReconcilerTests
             new RecordingHandover(),
             new NoOpSongRequestQueuePersistence(),
             bus,
-            new PlaybackDirectorReportSink(store, bus, TimeProvider.System)
+            PlaybackDirectorTestKit.Registry(store, bus)
         );
 
         await sut.HandleAsync(PlaybackOf("spotify:track:a"));
@@ -210,7 +209,7 @@ public sealed class SongRequestQueueReconcilerTests
             new RecordingHandover(),
             persistence,
             bus,
-            new PlaybackDirectorReportSink(store, bus, TimeProvider.System)
+            PlaybackDirectorTestKit.Registry(store, bus)
         );
 
         // The 16th request starts in Spotify while the first is still the one we sent.
@@ -244,7 +243,7 @@ public sealed class SongRequestQueueReconcilerTests
             handover,
             persistence,
             bus,
-            new PlaybackDirectorReportSink(store, bus, TimeProvider.System)
+            PlaybackDirectorTestKit.Registry(store, bus)
         );
 
         // The overlay player reports the video as not playing: a report that does not play a row removes
@@ -431,7 +430,7 @@ public sealed class SongRequestQueueReconcilerTests
                 handover,
                 new NoOpSongRequestQueuePersistence(),
                 bus,
-                new PlaybackDirectorReportSink(store, bus, TimeProvider.System)
+                PlaybackDirectorTestKit.Registry(store, bus)
             ),
             queue,
             bus,

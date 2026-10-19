@@ -40,12 +40,7 @@ public sealed class SpotifyPlaybackEngineTests
             MusicProviderCapabilities.Shuffle | MusicProviderCapabilities.Repeat
         );
         Connected(true);
-        _engine = new(
-            Channel,
-            _provider,
-            (IMusicProviderStartTrack)_provider,
-            (IMusicProviderConnectionGate)_provider
-        );
+        _engine = new(Channel, () => EngineLease.Of(_provider));
         _engine.Reports += signal =>
         {
             _signals.Add(signal);

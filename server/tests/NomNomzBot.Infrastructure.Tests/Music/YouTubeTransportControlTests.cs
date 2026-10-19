@@ -20,7 +20,6 @@ using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
-using NomNomzBot.Infrastructure.Music.Playback;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -198,7 +197,7 @@ public sealed class YouTubeTransportControlTests
             music,
             new NoOpSongRequestQueuePersistence(),
             bus,
-            new PlaybackDirectorReportSink(queues, bus, TimeProvider.System)
+            PlaybackDirectorTestKit.Registry(queues, bus)
         );
         PlayOnceResumeHandler resumeHandler = new(
             resumeTracker,

@@ -19,41 +19,29 @@ namespace NomNomzBot.Infrastructure.Music.Playback;
 /// Start is <c>StartTrackAsync</c>; Stop is a pause; Previous is not here (the director seeks to 0 and starts the
 /// item again, and the provider's previous-track endpoint is never called); the queue is never used. Spotify has
 /// no push, so <see cref="ObserveAsync"/> turns each poll into a report and derives the track end.
+/// Every command opens an <see cref="EngineLease"/> and disposes it after, so the scoped provider never outlives it.
 /// </summary>
-public sealed class SpotifyPlaybackEngine : IPlaybackEngine, IPlaybackEngineProviderControls
+public sealed class SpotifyPlaybackEngine(Guid broadcasterId, Func<EngineLease> open)
+    : IPlaybackEngine,
+        IPlaybackEngineProviderControls
 {
     /// <summary>A track whose poll showed it within this long of its end counts as ended when it is replaced.</summary>
     private const int EndWindowMs = 10_000;
 
-    private readonly Guid _broadcasterId;
-    private readonly IMusicProvider _provider;
-    private readonly IMusicProviderStartTrack _startTrack;
-    private readonly EngineCommandGuard _guard;
     private readonly EngineSignalRelay _relay = new();
     private TrackInfo? _lastPoll;
 
-    public SpotifyPlaybackEngine(
-        Guid broadcasterId,
-        IMusicProvider provider,
-        IMusicProviderStartTrack startTrack,
-        IMusicProviderConnectionGate connection
-    )
-    {
-        _broadcasterId = broadcasterId;
-        _provider = provider;
-        _startTrack = startTrack;
-        _guard = new(
-            EngineKind.Spotify,
-            async ct =>
-                await connection.IsConnectedAsync(broadcasterId, ct)
-                    ? null
-                    : EngineBlockReason.NotConnected
-        );
-    }
-
     public EngineKind Kind => EngineKind.Spotify;
 
-    public MusicProviderCapabilities Capabilities => _provider.Capabilities;
+    public MusicProviderCapabilities Capabilities
+    {
+        get
+        {
+            using EngineLease lease = open();
+
+            return lease.Provider.Capabilities;
+        }
+    }
 
     public event Func<EngineSignal, Task> Reports
     {
@@ -61,62 +49,98 @@ public sealed class SpotifyPlaybackEngine : IPlaybackEngine, IPlaybackEngineProv
         remove => _relay.Signals -= value;
     }
 
-    public Task<EngineStartResult> StartAsync(PlaybackItem item, CancellationToken ct = default) =>
-        _guard.StartAsync(
-            () => _startTrack.StartTrackAsync(_broadcasterId, item.Uri, ct),
-            "Spotify could not start the track.",
-            ct
-        );
+    public async Task<EngineStartResult> StartAsync(
+        PlaybackItem item,
+        CancellationToken ct = default
+    )
+    {
+        await using EngineLease lease = open();
+
+        return await GuardFor(lease)
+            .StartAsync(
+                () => lease.StartTrack.StartTrackAsync(broadcasterId, item.Uri, ct),
+                "Spotify could not start the track.",
+                ct
+            );
+    }
 
     public Task PauseAsync(CancellationToken ct = default) =>
-        _guard.CommandAsync(() => _provider.PauseAsync(_broadcasterId, ct), ct);
+        CommandAsync(provider => provider.PauseAsync(broadcasterId, ct), ct);
 
     public Task ResumeAsync(CancellationToken ct = default) =>
-        _guard.CommandAsync(() => _provider.PlayAsync(_broadcasterId, ct), ct);
+        CommandAsync(provider => provider.PlayAsync(broadcasterId, ct), ct);
 
     /// <summary>Spotify has no stop: pausing is what forgetting the track means here.</summary>
     public Task StopAsync(CancellationToken ct = default) => PauseAsync(ct);
 
     /// <summary>Spotify takes whole seconds.</summary>
     public Task SeekAsync(int positionMs, CancellationToken ct = default) =>
-        _guard.CommandAsync(() => _provider.SeekAsync(_broadcasterId, positionMs / 1000, ct), ct);
+        CommandAsync(provider => provider.SeekAsync(broadcasterId, positionMs / 1000, ct), ct);
 
     public Task SetVolumeAsync(int level, CancellationToken ct = default) =>
-        _guard.CommandAsync(() => _provider.SetVolumeAsync(_broadcasterId, level, ct), ct);
+        CommandAsync(provider => provider.SetVolumeAsync(broadcasterId, level, ct), ct);
 
-    public Task<EngineControlResult> SetShuffleAsync(
+    public async Task<EngineControlResult> SetShuffleAsync(
         bool enabled,
         CancellationToken ct = default
-    ) => _guard.ControlAsync(() => _provider.SetShuffleAsync(_broadcasterId, enabled, ct), ct);
+    )
+    {
+        await using EngineLease lease = open();
 
-    public Task<EngineControlResult> SetRepeatAsync(
+        return await GuardFor(lease)
+            .ControlAsync(() => lease.Provider.SetShuffleAsync(broadcasterId, enabled, ct), ct);
+    }
+
+    public async Task<EngineControlResult> SetRepeatAsync(
         MusicRepeatMode mode,
         CancellationToken ct = default
-    ) => _guard.ControlAsync(() => _provider.SetRepeatAsync(_broadcasterId, mode, ct), ct);
+    )
+    {
+        await using EngineLease lease = open();
 
-    public Task<EngineControlResult<IReadOnlyList<MusicDeviceInfo>>> GetDevicesAsync(
+        return await GuardFor(lease)
+            .ControlAsync(() => lease.Provider.SetRepeatAsync(broadcasterId, mode, ct), ct);
+    }
+
+    public async Task<EngineControlResult<IReadOnlyList<MusicDeviceInfo>>> GetDevicesAsync(
         CancellationToken ct = default
-    ) => _guard.ControlAsync(() => _provider.GetDevicesAsync(_broadcasterId, ct), ct);
+    )
+    {
+        await using EngineLease lease = open();
 
-    public Task<EngineControlResult> TransferAsync(
+        return await GuardFor(lease)
+            .ControlAsync(() => lease.Provider.GetDevicesAsync(broadcasterId, ct), ct);
+    }
+
+    public async Task<EngineControlResult> TransferAsync(
         string deviceId,
         bool play,
         CancellationToken ct = default
-    ) =>
-        _guard.ControlAsync(
-            () => _provider.TransferPlaybackAsync(_broadcasterId, deviceId, play, ct),
-            ct
-        );
+    )
+    {
+        await using EngineLease lease = open();
 
-    public Task<EngineControlResult<string>> GetEmbeddedTokenAsync(
+        return await GuardFor(lease)
+            .ControlAsync(
+                () => lease.Provider.TransferPlaybackAsync(broadcasterId, deviceId, play, ct),
+                ct
+            );
+    }
+
+    public async Task<EngineControlResult<string>> GetEmbeddedTokenAsync(
         CancellationToken ct = default
-    ) =>
-        _guard.ControlAsync(
-            async () =>
-                await _provider.GetEmbeddedPlaybackTokenAsync(_broadcasterId, ct)
-                ?? throw new MusicAuthenticationFailedException(_provider.Provider),
-            ct
-        );
+    )
+    {
+        await using EngineLease lease = open();
+
+        return await GuardFor(lease)
+            .ControlAsync(
+                async () =>
+                    await lease.Provider.GetEmbeddedPlaybackTokenAsync(broadcasterId, ct)
+                    ?? throw new MusicAuthenticationFailedException(lease.Provider.Provider),
+                ct
+            );
+    }
 
     /// <summary>
     /// Feeds one poll result in. Emits <see cref="TrackEnded"/> first when the previous poll was within
@@ -142,6 +166,22 @@ public sealed class SpotifyPlaybackEngine : IPlaybackEngine, IPlaybackEngineProv
                 )
             );
     }
+
+    private async Task CommandAsync(Func<IMusicProvider, Task> command, CancellationToken ct)
+    {
+        await using EngineLease lease = open();
+
+        await GuardFor(lease).CommandAsync(() => command(lease.Provider), ct);
+    }
+
+    private EngineCommandGuard GuardFor(EngineLease lease) =>
+        new(
+            EngineKind.Spotify,
+            async ct =>
+                await lease.ConnectionGate.IsConnectedAsync(broadcasterId, ct)
+                    ? null
+                    : EngineBlockReason.NotConnected
+        );
 
     private static bool EndedSince(TrackInfo last, TrackInfo? now)
     {

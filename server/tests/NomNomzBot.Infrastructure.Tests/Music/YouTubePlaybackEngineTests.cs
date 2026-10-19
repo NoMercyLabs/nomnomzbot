@@ -46,14 +46,7 @@ public sealed class YouTubePlaybackEngineTests
             MusicProviderCapabilities.PlaybackControl | MusicProviderCapabilities.Seek
         );
         PlayerOpen(true);
-        _engine = new(
-            Channel,
-            _provider,
-            (IMusicProviderPlayNow)_provider,
-            (IMusicProviderPlayerGate)_provider,
-            _dispatcher,
-            _store
-        );
+        _engine = new(Channel, () => EngineLease.Of(_provider, _dispatcher), _store);
         _engine.Reports += signal =>
         {
             _signals.Add(signal);

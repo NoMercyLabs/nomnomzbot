@@ -20,43 +20,26 @@ namespace NomNomzBot.Infrastructure.Music.Playback;
 /// The overlay player pushes its state, so <see cref="ReportAsync"/> relays each report. Shuffle, repeat,
 /// devices, transfer and the embedded token do not exist on this engine and answer NotSupported.
 /// </summary>
-public sealed class YouTubePlaybackEngine : IPlaybackEngine, IPlaybackEngineProviderControls
+public sealed class YouTubePlaybackEngine(
+    Guid broadcasterId,
+    Func<EngineLease> open,
+    IYouTubePlayerStateStore store
+) : IPlaybackEngine, IPlaybackEngineProviderControls
 {
-    private readonly Guid _broadcasterId;
-    private readonly IMusicProvider _provider;
-    private readonly IMusicProviderPlayNow _playNow;
-    private readonly IYouTubePlayerDispatcher _dispatcher;
-    private readonly IYouTubePlayerStateStore _store;
-    private readonly EngineCommandGuard _guard;
     private readonly EngineSignalRelay _relay = new();
     private string? _startedUri;
 
-    public YouTubePlaybackEngine(
-        Guid broadcasterId,
-        IMusicProvider provider,
-        IMusicProviderPlayNow playNow,
-        IMusicProviderPlayerGate playerGate,
-        IYouTubePlayerDispatcher dispatcher,
-        IYouTubePlayerStateStore store
-    )
-    {
-        _broadcasterId = broadcasterId;
-        _provider = provider;
-        _playNow = playNow;
-        _dispatcher = dispatcher;
-        _store = store;
-        _guard = new(
-            EngineKind.YouTube,
-            async ct =>
-                await playerGate.HasPlayerAsync(broadcasterId, ct)
-                    ? null
-                    : EngineBlockReason.NoOutput
-        );
-    }
-
     public EngineKind Kind => EngineKind.YouTube;
 
-    public MusicProviderCapabilities Capabilities => _provider.Capabilities;
+    public MusicProviderCapabilities Capabilities
+    {
+        get
+        {
+            using EngineLease lease = open();
+
+            return lease.Provider.Capabilities;
+        }
+    }
 
     public event Func<EngineSignal, Task> Reports
     {
@@ -69,11 +52,13 @@ public sealed class YouTubePlaybackEngine : IPlaybackEngine, IPlaybackEngineProv
         CancellationToken ct = default
     )
     {
-        EngineStartResult result = await _guard.StartAsync(
-            () => _playNow.PlayNowAsync(_broadcasterId, item.Uri, ct),
-            "YouTube could not play the video.",
-            ct
-        );
+        await using EngineLease lease = open();
+        EngineStartResult result = await GuardFor(lease)
+            .StartAsync(
+                () => lease.PlayNow.PlayNowAsync(broadcasterId, item.Uri, ct),
+                "YouTube could not play the video.",
+                ct
+            );
         if (result.Accepted)
             _startedUri = item.Uri;
 
@@ -81,20 +66,20 @@ public sealed class YouTubePlaybackEngine : IPlaybackEngine, IPlaybackEngineProv
     }
 
     public Task PauseAsync(CancellationToken ct = default) =>
-        _guard.CommandAsync(() => _provider.PauseAsync(_broadcasterId, ct), ct);
+        CommandAsync(lease => lease.Provider.PauseAsync(broadcasterId, ct), ct);
 
     public Task ResumeAsync(CancellationToken ct = default) =>
-        _guard.CommandAsync(() => _provider.PlayAsync(_broadcasterId, ct), ct);
+        CommandAsync(lease => lease.Provider.PlayAsync(broadcasterId, ct), ct);
 
     public Task StopAsync(CancellationToken ct = default) =>
-        _guard.CommandAsync(() => _dispatcher.StopAsync(_broadcasterId, ct), ct);
+        CommandAsync(lease => lease.Dispatcher.StopAsync(broadcasterId, ct), ct);
 
     /// <summary>The overlay player takes whole seconds.</summary>
     public Task SeekAsync(int positionMs, CancellationToken ct = default) =>
-        _guard.CommandAsync(() => _provider.SeekAsync(_broadcasterId, positionMs / 1000, ct), ct);
+        CommandAsync(lease => lease.Provider.SeekAsync(broadcasterId, positionMs / 1000, ct), ct);
 
     public Task SetVolumeAsync(int level, CancellationToken ct = default) =>
-        _guard.CommandAsync(() => _provider.SetVolumeAsync(_broadcasterId, level, ct), ct);
+        CommandAsync(lease => lease.Provider.SetVolumeAsync(broadcasterId, level, ct), ct);
 
     public Task<EngineControlResult> SetShuffleAsync(
         bool enabled,
@@ -127,7 +112,7 @@ public sealed class YouTubePlaybackEngine : IPlaybackEngine, IPlaybackEngineProv
     public async Task ReportAsync(YouTubePlayerReport report)
     {
         string uri = UriFor(report.VideoId);
-        int durationMs = _store.PushedTrack(_broadcasterId, report.VideoId)?.DurationMs ?? 0;
+        int durationMs = store.PushedTrack(broadcasterId, report.VideoId)?.DurationMs ?? 0;
 
         await _relay.RaiseAsync(
             new EngineReport(
@@ -142,6 +127,22 @@ public sealed class YouTubePlaybackEngine : IPlaybackEngine, IPlaybackEngineProv
         if (report.State is YouTubePlayerState.Ended or YouTubePlayerState.Error)
             await _relay.RaiseAsync(new TrackEnded(EngineKind.YouTube, uri));
     }
+
+    private async Task CommandAsync(Func<EngineLease, Task> command, CancellationToken ct)
+    {
+        await using EngineLease lease = open();
+
+        await GuardFor(lease).CommandAsync(() => command(lease), ct);
+    }
+
+    private EngineCommandGuard GuardFor(EngineLease lease) =>
+        new(
+            EngineKind.YouTube,
+            async ct =>
+                await lease.PlayerGate.HasPlayerAsync(broadcasterId, ct)
+                    ? null
+                    : EngineBlockReason.NoOutput
+        );
 
     /// <summary>The uri the item was started with when it is this video, so the director matches the item.</summary>
     private string UriFor(string videoId) =>

@@ -20,7 +20,6 @@ using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
-using NomNomzBot.Infrastructure.Music.Playback;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -188,7 +187,7 @@ public sealed class YouTubeEndedAdvancesQueueTests
             music,
             new NoOpSongRequestQueuePersistence(),
             bus,
-            new PlaybackDirectorReportSink(queues, bus, TimeProvider.System)
+            PlaybackDirectorTestKit.Registry(queues, bus)
         );
         return new(music, provider, reports, reconciler, queues, notifier, bus);
     }

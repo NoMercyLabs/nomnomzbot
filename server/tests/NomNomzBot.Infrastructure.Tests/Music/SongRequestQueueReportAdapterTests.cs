@@ -11,7 +11,6 @@
 using FluentAssertions;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Infrastructure.Music;
-using NomNomzBot.Infrastructure.Music.Playback;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -34,7 +33,7 @@ public sealed class SongRequestQueueReportAdapterTests
                 new NoHandover(),
                 new NoOpSongRequestQueuePersistence(),
                 Bus,
-                new PlaybackDirectorReportSink(Store, Bus, TimeProvider.System)
+                PlaybackDirectorTestKit.Registry(Store, Bus)
             );
         }
 
