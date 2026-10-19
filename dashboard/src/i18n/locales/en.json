@@ -770,6 +770,7 @@
         "permissions": "Permissions",
         "eventJournal": "Event journal",
         "trustPolicy": "Trust policy",
+        "escalation": "Escalation",
         "resourceLimits": "Resource limits",
         "billing": "Billing",
         "yourData": "Your data",

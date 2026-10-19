@@ -1,0 +1,63 @@
+{
+  "dashboard": {
+    "settings": {
+      "escalation": {
+        "crumb": "Moderatie",
+        "default": "Standaard {value}",
+        "defaultState": "Standaard {state}",
+        "save": "Opslaan",
+        "loadError": "Het escalatiebeleid kon niet worden geladen.",
+        "saveError": "Het escalatiebeleid kon niet worden opgeslagen.",
+        "policy": {
+          "title": "Beleid",
+          "description": "Wanneer de ladder werkt en hoe lang een overtreding meetelt."
+        },
+        "fields": {
+          "isEnabled": {
+            "title": "Escalatieladder",
+            "help": "Straf herhaalde overtreders elke keer met een zwaardere actie."
+          },
+          "countAutoModViolations": {
+            "title": "AutoMod-blokkades tellen mee",
+            "help": "Een bericht dat AutoMod tegenhoudt telt als overtreding."
+          },
+          "offenseWindowHours": {
+            "title": "Overtredingsvenster (uren)",
+            "help": "Een overtreding telt zoveel uur mee voor de ladder."
+          },
+          "defaultTimeoutSeconds": {
+            "title": "Standaard timeout",
+            "help": "De duur van een timeoutstap als je er geen instelt. Minuten en seconden."
+          }
+        },
+        "ladder": {
+          "title": "Ladder",
+          "description": "Elke stap begint bij een overtredingsnummer. De nummers moeten per stap oplopen.",
+          "atOffense": "Bij overtreding",
+          "action": "Actie",
+          "timeoutSeconds": "Duur van de timeout",
+          "add": "Stap toevoegen",
+          "remove": "Stap verwijderen"
+        },
+        "actions": {
+          "warn": "Waarschuwen",
+          "timeout": "Timeout",
+          "ban": "Ban"
+        }
+      }
+    }
+  },
+  "moderation": {
+    "escalation": {
+      "error": {
+        "windowOutOfRange": "Het overtredingsvenster ligt buiten het toegestane bereik.",
+        "timeoutOutOfRange": "De standaard timeout ligt buiten het toegestane bereik.",
+        "ladderEmpty": "De ladder heeft minstens een stap nodig.",
+        "ladderTooLong": "De ladder heeft te veel stappen.",
+        "stepsMustAscend": "Elke stap moet bij een hoger overtredingsnummer beginnen dan de stap ervoor.",
+        "unknownAction": "Kies waarschuwen, timeout of ban.",
+        "timeoutStepOutOfRange": "Een timeoutstap heeft een duur binnen het toegestane bereik nodig."
+      }
+    }
+  }
+}

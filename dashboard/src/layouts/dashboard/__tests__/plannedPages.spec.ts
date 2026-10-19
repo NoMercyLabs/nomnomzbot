@@ -36,6 +36,7 @@ const beyondMockup: ReadonlySet<string> = new Set(['connect']);
 const pagesBeyondMockup: ReadonlySet<string> = new Set([
   'dashboard-polls',
   'dashboard-quotes',
+  'dashboard-settings-escalation',
   'dashboard-settings-trust-policy',
   'dashboard-viewer-chat',
   'dashboard-voice-triggers',

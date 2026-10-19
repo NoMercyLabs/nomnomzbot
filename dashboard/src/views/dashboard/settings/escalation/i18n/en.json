@@ -1,0 +1,63 @@
+{
+  "dashboard": {
+    "settings": {
+      "escalation": {
+        "crumb": "Moderation",
+        "default": "Default {value}",
+        "defaultState": "Default {state}",
+        "save": "Save",
+        "loadError": "The escalation policy could not be loaded.",
+        "saveError": "The escalation policy could not be saved.",
+        "policy": {
+          "title": "Policy",
+          "description": "When the ladder runs and how long an offense counts."
+        },
+        "fields": {
+          "isEnabled": {
+            "title": "Escalation ladder",
+            "help": "Punish repeat offenders with a stronger action each time."
+          },
+          "countAutoModViolations": {
+            "title": "Count AutoMod holds",
+            "help": "A message AutoMod holds back counts as an offense."
+          },
+          "offenseWindowHours": {
+            "title": "Offense window (hours)",
+            "help": "An offense counts toward the ladder for this many hours."
+          },
+          "defaultTimeoutSeconds": {
+            "title": "Default timeout",
+            "help": "The length a timeout step takes when you do not set one. Minutes and seconds."
+          }
+        },
+        "ladder": {
+          "title": "Ladder",
+          "description": "Each step starts at an offense number. The numbers must go up from step to step.",
+          "atOffense": "At offense",
+          "action": "Action",
+          "timeoutSeconds": "Timeout length",
+          "add": "Add step",
+          "remove": "Remove step"
+        },
+        "actions": {
+          "warn": "Warn",
+          "timeout": "Timeout",
+          "ban": "Ban"
+        }
+      }
+    }
+  },
+  "moderation": {
+    "escalation": {
+      "error": {
+        "windowOutOfRange": "The offense window is outside the allowed range.",
+        "timeoutOutOfRange": "The default timeout is outside the allowed range.",
+        "ladderEmpty": "The ladder needs at least one step.",
+        "ladderTooLong": "The ladder has too many steps.",
+        "stepsMustAscend": "Each step must start at a higher offense number than the one before it.",
+        "unknownAction": "Choose warn, timeout or ban.",
+        "timeoutStepOutOfRange": "A timeout step needs a length inside the allowed range."
+      }
+    }
+  }
+}

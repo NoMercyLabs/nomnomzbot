@@ -320,6 +320,8 @@ export const apiOperations = {
   commercial: 'liveOps',
   'moderation history': 'moderation',
   'moderation standing': 'moderation',
+  'escalation policy': 'moderation',
+  'save escalation policy': 'moderation',
   'chat settings': 'modTools',
   'raid assessments': 'modTools',
   'mass ban': 'modTools',

@@ -28,6 +28,8 @@ withDefaults(
     defaultValue?: number;
     error?: string;
     step?: number;
+    min?: number;
+    max?: number;
   }>(),
   {
     description: undefined,
@@ -35,6 +37,8 @@ withDefaults(
     defaultValue: undefined,
     error: undefined,
     step: 1,
+    min: undefined,
+    max: undefined,
   },
 );
 
@@ -66,11 +70,15 @@ function change(typed: string | number): void {
         class="w-28 flex-none text-end"
         :model-value="value"
         :step="step"
+        :min="min"
+        :max="max"
         :aria-labelledby="titleId"
         :aria-invalid="error === undefined ? undefined : 'true'"
         @update:model-value="change"
       />
     </div>
-    <p v-if="error" data-row-error role="alert" class="mt-1 text-sm text-destructive">{{ error }}</p>
+    <p v-if="error" data-row-error role="alert" class="mt-1 text-sm text-destructive">
+      {{ error }}
+    </p>
   </div>
 </template>

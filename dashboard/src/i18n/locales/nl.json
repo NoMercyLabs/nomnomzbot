@@ -770,6 +770,7 @@
         "permissions": "Rechten",
         "eventJournal": "Eventjournaal",
         "trustPolicy": "Vertrouwensbeleid",
+        "escalation": "Escalatie",
         "resourceLimits": "Gebruikslimieten",
         "billing": "Facturatie",
         "yourData": "Jouw gegevens",
