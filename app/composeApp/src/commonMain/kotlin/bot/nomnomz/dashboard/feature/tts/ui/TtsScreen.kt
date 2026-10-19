@@ -429,6 +429,7 @@ private fun ReadyContent(
                     TtsSection.Voices -> {
                         VoicesTab(
                             browser = state.voiceBrowser,
+                            channelProvider = form.defaultProvider,
                             currentVoiceId = form.defaultVoiceId,
                             manage = manage,
                             onSearch = onSearchVoices,
@@ -515,6 +516,7 @@ private fun TtsSaveBar(
 @Composable
 internal fun VoicesTab(
     browser: VoiceBrowserState?,
+    channelProvider: String,
     currentVoiceId: String,
     manage: ManageDecision,
     onSearch: (q: String, locale: String, gender: String, provider: String, accent: String, page: Int) -> Unit,
@@ -523,6 +525,7 @@ internal fun VoicesTab(
 ) {
     VoiceBrowser(
         browser = browser,
+        channelProvider = channelProvider,
         currentVoiceId = currentVoiceId,
         manage = manage,
         onSearch = onSearch,
@@ -796,6 +799,7 @@ private val VOICE_GENDERS: List<Pair<String, StringResource>> =
 @Composable
 private fun VoiceBrowser(
     browser: VoiceBrowserState?,
+    channelProvider: String,
     currentVoiceId: String,
     manage: ManageDecision,
     onSearch: (q: String, locale: String, gender: String, provider: String, accent: String, page: Int) -> Unit,
@@ -807,7 +811,7 @@ private fun VoiceBrowser(
     val typography = LocalTypography.current
 
     var query: String by remember { mutableStateOf("") }
-    var provider: String by remember { mutableStateOf("") }
+    var provider: String by remember { mutableStateOf(channelProvider) }
     var gender: String by remember { mutableStateOf("") }
 
     // Debounce query/filter changes and re-run the search from page 1 whenever they settle. The first pass (blank
