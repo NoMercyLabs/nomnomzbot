@@ -7,6 +7,11 @@
       "count": "{count} persoon | {count} mensen",
       "noMatch": "Niemand past bij \"{query}\".",
       "back": "Terug naar de lijst",
+      "sort": {
+        "label": "Mensen sorteren",
+        "recent": "Laatst gezien",
+        "alphabetical": "A tot Z"
+      },
       "tabs": {
         "all": "Iedereen",
         "moderator": "Moderators",

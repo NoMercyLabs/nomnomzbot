@@ -57,21 +57,22 @@ const page = (rows: Record<string, unknown>[], total: number = rows.length): Ans
   response: { status: 200, ok: true },
 });
 
-const person = (login: string, over: Record<string, unknown> = {}) => ({
-  id: `t-${login}`,
-  internalUserId: `u-${login}`,
-  username: login,
-  displayName: login.toUpperCase(),
-  profileImageUrl: null,
-  messageCount: 42,
-  watchHours: 3.5,
-  commandsUsed: 7,
-  trustLevel: 'viewer',
-  isBanned: false,
-  firstSeen: '2026-01-02T10:00:00Z',
-  lastSeen: '2026-10-12T10:00:00Z',
-  ...over,
-}) as const satisfies Record<string, unknown>;
+const person = (login: string, over: Record<string, unknown> = {}) =>
+  ({
+    id: `t-${login}`,
+    internalUserId: `u-${login}`,
+    username: login,
+    displayName: login.toUpperCase(),
+    profileImageUrl: null,
+    messageCount: 42,
+    watchHours: 3.5,
+    commandsUsed: 7,
+    trustLevel: 'viewer',
+    isBanned: false,
+    firstSeen: '2026-01-02T10:00:00Z',
+    lastSeen: '2026-10-12T10:00:00Z',
+    ...over,
+  }) as const satisfies Record<string, unknown>;
 
 const everyone: Record<string, unknown>[] = [
   person('alice'),
@@ -183,18 +184,18 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/community/{userId}')) {
         await memberGate;
 
-        const listed = everyone.find((row) =>
-          row.id === options?.params?.path?.userId);
+        const listed = everyone.find((row) => row.id === options?.params?.path?.userId);
 
         return ok({
           banHistory: [],
           recentActivity: [],
           isVip: false,
-          ...listed ?? person('dave', {
-            id: 't-dave',
-            messageCount: 321,
-            internalUserId: 'u-dave',
-          }),
+          ...(listed ??
+            person('dave', {
+              id: 't-dave',
+              messageCount: 321,
+              internalUserId: 'u-dave',
+            })),
         });
       }
 
@@ -223,6 +224,7 @@ let router: Router;
 
 beforeEach(() => {
   calls.length = 0;
+  localStorage.clear();
 
   listAnswer = (role) => {
     if (role === 'moderator')
@@ -371,13 +373,14 @@ const lookupButton = (): HTMLButtonElement | undefined =>
   [...document.body.querySelectorAll<HTMLButtonElement>('button')].find((b) =>
     b.textContent?.includes('Look up on Twitch'),
   );
-const option = (id: string, label: string, inChannel: boolean) => ({
-  id,
-  label,
-  subLabel: `@${label.toLowerCase()}`,
-  imageUrl: null,
-  inChannel,
-}) as const satisfies Record<string, unknown>;
+const option = (id: string, label: string, inChannel: boolean) =>
+  ({
+    id,
+    label,
+    subLabel: `@${label.toLowerCase()}`,
+    imageUrl: null,
+    inChannel,
+  }) as const satisfies Record<string, unknown>;
 
 describe('PeopleView', () => {
   it('lists the people from the bot with the last seen time and a role icon', async () => {
@@ -401,12 +404,15 @@ describe('PeopleView', () => {
   it('loads the next page when the list reaches its end, with no button to press', async () => {
     listAnswer = (_role, pageNumber) =>
       pageNumber === 1
-        ? { ...page(everyone, 4), data: {
-            data: everyone,
-            hasMore: true,
-            nextPage: 2,
-            total: 4,
-          } }
+        ? {
+            ...page(everyone, 4),
+            data: {
+              data: everyone,
+              hasMore: true,
+              nextPage: 2,
+              total: 4,
+            },
+          }
         : page([person('dana')], 4);
 
     await open();
@@ -417,9 +423,9 @@ describe('PeopleView', () => {
     await settle();
 
     // The everyone list only; the moderator and VIP lists ask for their totals beside it.
-    const pages = calls.filter((call) =>
-      call.path.endsWith('/community') && !call.query.role).map((call) =>
-      call.query.Page);
+    const pages = calls
+      .filter((call) => call.path.endsWith('/community') && !call.query.role)
+      .map((call) => call.query.Page);
 
     expect(pages).toEqual([1, 2]);
     expect(rows().at(-1)!.textContent).toContain('DANA');
@@ -467,7 +473,11 @@ describe('PeopleView', () => {
     expect(detail.querySelector('h2')!.textContent).toBe('ALICE');
     expect(detail.textContent).toContain('she/her');
     expect(detail.querySelector('[data-profile-actions]')!.textContent).toMatch(/Timeouts\s*3/);
-    expect(detail.querySelector('[data-profile-actions]')!.textContent).toMatch(/Messages deleted\s*9/);
+
+    expect(detail.querySelector('[data-profile-actions]')!.textContent).toMatch(
+      /Messages deleted\s*9/,
+    );
+
     expect(detail.textContent).toContain('Watch streak');
     expect(detail.querySelector('[data-profile-shoutout]')).not.toBeNull();
     expect(detail.querySelector('[data-profile-ban]')).not.toBeNull();
@@ -479,12 +489,15 @@ describe('PeopleView', () => {
     await open('/app/people?u=alice&tab=moderation');
 
     const active = (): string | undefined =>
-      document.body.querySelector('[data-person-detail] [role="tab"][data-state="active"]')?.textContent?.trim();
+      document.body
+        .querySelector('[data-person-detail] [role="tab"][data-state="active"]')
+        ?.textContent?.trim();
 
     expect(active()).toBe('Moderation');
 
-    const data = Array.from(document.body.querySelectorAll<HTMLElement>('[data-person-detail] [role="tab"]'))
-      .find((tab) => tab.textContent?.trim() === 'Data');
+    const data = Array.from(
+      document.body.querySelectorAll<HTMLElement>('[data-person-detail] [role="tab"]'),
+    ).find((tab) => tab.textContent?.trim() === 'Data');
 
     data!.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
     await flushPromises();
@@ -510,11 +523,18 @@ describe('PeopleView', () => {
     const points = detail.querySelector('[data-slot="profile-points"]')!.textContent;
     const data = detail.querySelector('[data-slot="profile-data"]')!.textContent;
 
-    expect(detail.querySelector('[data-profile-pronouns]')?.textContent).toBe('she/her · they/them');
+    expect(detail.querySelector('[data-profile-pronouns]')?.textContent).toBe(
+      'she/her · they/them',
+    );
+
     expect(detail.textContent).toMatch(/Other platforms\s*kick: AliceOnKick/);
     expect(detail.textContent).toMatch(/Manages the channel as\s*Lead moderator/);
     expect(detail.textContent).toMatch(/Best watch streak\s*11 streams in a row/);
-    expect(detail.querySelector('[data-profile-actions]')!.textContent).toMatch(/Last warning\s*Sep 4, 2026/);
+
+    expect(detail.querySelector('[data-profile-actions]')!.textContent).toMatch(
+      /Last warning\s*Sep 4, 2026/,
+    );
+
     expect(points).toMatch(/Balance\s*4,321/);
     expect(points).toMatch(/Frozen\s*Yes/);
     expect(points).toMatch(/Giveaways won\s*1/);
@@ -746,6 +766,85 @@ describe('PeopleView', () => {
     await router.push('/app/people?view=regular');
     await settle();
     expect(text()).toContain('cannot tell who is a regular');
+  });
+
+  // Stoney 2026-10-14: "subscribers and regulars are empty while i have a ton". The bot has no such lists, so the
+  // tabs are locked with the reason instead of opening an empty list.
+  it('locks the Subscribers and Regulars tabs with the reason and keeps them from opening', async () => {
+    await open();
+
+    const subscribers = tab('Twitch subscribers');
+    const regulars = tab('Regulars');
+
+    expect(subscribers.hasAttribute('disabled')).toBe(true);
+    expect(regulars.hasAttribute('disabled')).toBe(true);
+    expect(subscribers.querySelector('[data-slot="tab-lock"]')).not.toBeNull();
+
+    expect(subscribers.parentElement!.getAttribute('title')).toContain(
+      'no list of Twitch subscribers',
+    );
+
+    expect(regulars.parentElement!.getAttribute('title')).toContain('cannot tell who is a regular');
+    expect(tab('Moderators').hasAttribute('disabled')).toBe(false);
+
+    subscribers.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    await settle();
+
+    expect(router.currentRoute.value.query.view).toBeUndefined();
+  });
+
+  it('shows the real total in the list header, not the number of rows loaded so far', async () => {
+    listAnswer = (role) =>
+      role === undefined
+        ? page(everyone, 718)
+        : page([], 0);
+
+    await open();
+
+    expect(text()).toContain('718 people');
+    expect(text()).not.toContain('3 people');
+  });
+
+  const sortChoice = (label: string): HTMLElement =>
+    [...document.body.querySelectorAll<HTMLElement>('[data-segment]')].find(
+      (item) => item.textContent?.trim() === label,
+    ) as HTMLElement;
+  const firstWords = (): string[] =>
+    rows().map((row) => (row.textContent ?? '').slice(2).split('Last seen')[0]!);
+
+  it('sorts A to Z across every page of the channel and remembers the choice', async () => {
+    listAnswer = (role, pageNumber) => {
+      if (role)
+        return page([], 0);
+
+      return pageNumber === 1
+        ? {
+            data: {
+              data: [person('zed'), person('mia')],
+              hasMore: true,
+              nextPage: 2,
+              total: 3,
+            },
+            response: { status: 200, ok: true },
+          }
+        : page([person('abe')], 3);
+    };
+
+    await open();
+    expect(firstWords()).toEqual(['ZED', 'MIA', 'ABE']);
+
+    sortChoice('A to Z').click();
+    await settle();
+
+    expect(firstWords()).toEqual(['ABE', 'MIA', 'ZED']);
+    expect(localStorage.getItem('nnz.people.sort')).toBe('alphabetical');
+
+    mounted!.unmount();
+    mounted = null;
+    await open();
+
+    expect(sortChoice('A to Z').getAttribute('data-state')).toBe('on');
+    expect(firstWords()[0]).toBe('ABE');
   });
 
   it('says when the login in ?u= is not in the loaded lists', async () => {

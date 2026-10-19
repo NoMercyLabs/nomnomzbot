@@ -7,6 +7,11 @@
       "count": "{count} person | {count} people",
       "noMatch": "Nobody matches \"{query}\".",
       "back": "Back to the list",
+      "sort": {
+        "label": "Sort people",
+        "recent": "Last seen",
+        "alphabetical": "A to Z"
+      },
       "tabs": {
         "all": "All",
         "moderator": "Moderators",

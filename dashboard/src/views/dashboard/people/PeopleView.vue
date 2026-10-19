@@ -14,8 +14,8 @@
 // Typing asks the bot for every known user in any channel and shows name and avatar only. Enter or a
 // click opens the person in the same profile view the dialog shows.
 // A button looks a name up live on Twitch for someone the bot has never seen.
-import { refDebounced } from '@vueuse/core';
-import { computed, ref } from 'vue';
+import { refDebounced, useLocalStorage } from '@vueuse/core';
+import { computed, ref, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
@@ -36,6 +36,7 @@ import ProfileView from '@/components/layout/profile/ProfileView.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import SearchField from '@/components/layout/SearchField.vue';
+import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -60,6 +61,7 @@ const ROW_HEIGHT = 56;
 const TAB_VALUES = ['all', 'moderator', 'vip', 'subscriber', 'regular', 'new'] as const;
 
 type PeopleTab = (typeof TAB_VALUES)[number];
+type PeopleSort = 'recent' | 'alphabetical';
 const UNLISTED = ['subscriber', 'regular'] as const satisfies readonly PeopleTab[];
 
 const { t } = useI18n();
@@ -106,8 +108,18 @@ const tabs = computed<PageTab<PeopleTab>[]>(() => [
     label: t('dashboard.people.tabs.vip'),
     count: totalOf(vips),
   },
-  { value: 'subscriber', label: t('dashboard.people.tabs.subscriber') },
-  { value: 'regular', label: t('dashboard.people.tabs.regular') },
+  {
+    value: 'subscriber',
+    label: t('dashboard.people.tabs.subscriber'),
+    disabled: true,
+    reason: t('dashboard.people.list.noSubscribers'),
+  },
+  {
+    value: 'regular',
+    label: t('dashboard.people.tabs.regular'),
+    disabled: true,
+    reason: t('dashboard.people.list.noRegulars'),
+  },
   { value: 'new', label: t('dashboard.people.tabs.new') },
 ]);
 
@@ -152,7 +164,30 @@ const tabRows = computed<CommunityRow[] | undefined>(() => {
     : rows;
 });
 
-const visible = computed(() => tabRows.value);
+// The bot hands rows over last seen first; A to Z sorts the loaded rows by name, so it loads every page first.
+const sort = useLocalStorage<PeopleSort>('nnz.people.sort', 'recent');
+const sortOptions = computed(
+  () =>
+    [
+      { value: 'recent', label: t('dashboard.people.sort.recent') },
+      { value: 'alphabetical', label: t('dashboard.people.sort.alphabetical') },
+    ] as const satisfies readonly { value: PeopleSort; label: string }[],
+);
+
+const visible = computed<CommunityRow[] | undefined>(() => {
+  if (sort.value === 'recent' || !tabRows.value)
+    return tabRows.value;
+
+  return [...tabRows.value].sort((a, b) =>
+    a.displayName.localeCompare(b.displayName, undefined, { sensitivity: 'base' }),
+  );
+});
+
+watchEffect(() => {
+  if (sort.value === 'alphabetical') {
+    loadMore();
+  }
+});
 
 // Hits of an older keystroke never show under newer text.
 const hits = computed(() =>
@@ -197,13 +232,21 @@ const emptyText = computed<string>(() => {
 });
 
 const hint = computed<string>(() => t(`dashboard.people.hints.${view.value}`));
+// The bot knows how many people a tab holds before every page is loaded; New is counted from what is loaded.
+const listTotal = computed<number>(() => {
+  const known = activeQuery.value && view.value !== 'new'
+    ? totalOf(activeQuery.value)
+    : undefined;
+
+  return known ?? visible.value?.length ?? 0;
+});
 const count = computed<string | undefined>(() => {
   if (listState.value !== 'ready')
     return undefined;
 
-  const total = (searching.value
-    ? hits.value
-    : visible.value)?.length ?? 0;
+  const total = searching.value
+    ? (hits.value?.length ?? 0)
+    : listTotal.value;
 
   return t('dashboard.people.count', { count: total }, total);
 });
@@ -234,8 +277,9 @@ const seedInView = computed<Seed | null>(() =>
 );
 // The person in view: the profile beside the list is the same ProfileView the dialog shows, and it loads them
 // by id.
-const selectedId = computed<string | null>(() =>
-  loadedRow.value?.id ?? seedInView.value?.id ?? null);
+const selectedId = computed<string | null>(
+  () => loadedRow.value?.id ?? seedInView.value?.id ?? null,
+);
 const preview = computed<ProfilePreview | null>(() => {
   const from = seedInView.value;
 
@@ -251,11 +295,13 @@ const preview = computed<ProfilePreview | null>(() => {
 
 // Another person opens on their Overview: the tab of the last one belongs to them.
 function show(login: string): void {
-  void router.push({ query: {
-    ...route.query,
-    u: login,
-    tab: undefined,
-  } });
+  void router.push({
+    query: {
+      ...route.query,
+      u: login,
+      tab: undefined,
+    },
+  });
 }
 
 function pick(row: CommunityRow): void {
@@ -333,12 +379,20 @@ function back(): void {
       >
         <template #actions>
           <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
-          <SearchField
-            v-model="search"
-            class="-mr-2 w-52 rounded-[12px]"
-            :placeholder="$t('dashboard.people.search')"
-            @keydown.enter="openFirstHit"
-          />
+          <div class="-mr-2 flex items-center gap-2">
+            <SegmentedControl
+              v-if="!searching"
+              v-model="sort"
+              :label="$t('dashboard.people.sort.label')"
+              :options="sortOptions"
+            />
+            <SearchField
+              v-model="search"
+              class="w-52 rounded-[12px]"
+              :placeholder="$t('dashboard.people.search')"
+              @keydown.enter="openFirstHit"
+            />
+          </div>
         </template>
         <div v-if="searching" class="grid gap-0.5">
           <SearchResultRow
@@ -368,13 +422,13 @@ function back(): void {
         </VirtualList>
         <template v-if="searching" #footer>
           <Button variant="outline" size="sm" :disabled="lookup.isPending.value" @click="lookUp">
-            {{ $t('dashboard.people.lookup.button') }}
+            {{ $t("dashboard.people.lookup.button") }}
           </Button>
           <p v-if="lookupMissing !== ''" role="alert" class="text-sm text-muted-foreground">
-            {{ $t('dashboard.people.lookup.notFound', { login: lookupMissing }) }}
+            {{ $t("dashboard.people.lookup.notFound", { login: lookupMissing }) }}
           </p>
           <p v-else-if="lookup.isError.value" role="alert" class="text-sm text-destructive">
-            {{ $t('dashboard.people.lookup.error') }}
+            {{ $t("dashboard.people.lookup.error") }}
           </p>
         </template>
       </PanelCard>

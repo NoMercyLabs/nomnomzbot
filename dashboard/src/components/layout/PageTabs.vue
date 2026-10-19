@@ -11,6 +11,7 @@
 // The one tab row of a page (C2). The open tab is the route query ?view= (usePageView);
 // the page reads the same composable to choose what to show under the header.
 import { computed } from 'vue';
+import Locked from '~icons/nnz/locked';
 
 import type { PageTab } from '@/components/layout/pageTab';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
@@ -26,12 +27,16 @@ const view = usePageView(values);
   <!-- A phone swipes a long tab row sideways; it never widens the page. -->
   <Tabs v-model="view" class="min-w-0 overflow-x-auto scrollbar-none">
     <TabsList>
-      <TabsTrigger v-for="tab in tabs" :key="tab.value" :value="tab.value">
-        {{ tab.label }}
-        <span v-if="tab.count !== undefined" class="text-xs text-muted-foreground tabular-nums">{{
-          tab.count
-        }}</span>
-      </TabsTrigger>
+      <!-- A locked tab ignores the pointer, so its reason is the tooltip of the wrapper around it. -->
+      <span v-for="tab in tabs" :key="tab.value" :title="tab.reason" class="flex flex-1">
+        <TabsTrigger :value="tab.value" :disabled="tab.disabled">
+          <Locked v-if="tab.disabled" data-slot="tab-lock" aria-hidden="true" />
+          {{ tab.label }}
+          <span v-if="tab.count !== undefined" class="text-xs text-muted-foreground tabular-nums">{{
+            tab.count
+          }}</span>
+        </TabsTrigger>
+      </span>
     </TabsList>
   </Tabs>
 </template>

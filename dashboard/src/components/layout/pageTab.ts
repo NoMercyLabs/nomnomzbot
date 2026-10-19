@@ -13,4 +13,7 @@ export interface PageTab<View extends string = string> {
   value: View;
   label: string;
   count?: number;
+  // A locked tab shows a lock and cannot open; the reason is its tooltip.
+  disabled?: boolean;
+  reason?: string;
 }
