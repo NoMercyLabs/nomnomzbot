@@ -52,8 +52,24 @@
           "houseEdgePercent": "House edge (%)",
           "winChancePercent": "Win chance (%)",
           "payoutMultiplier": "Payout multiplier",
-          "maxPlaysPerStream": "Plays per stream"
-        }
+          "maxPlaysPerStream": "Plays per stream",
+          "cooldownSeconds": "Cooldown per viewer (seconds)",
+          "permission": "Who can play"
+        },
+        "standings": {
+          "Everyone": "Everyone",
+          "Subscriber": "Subscribers and up",
+          "Vip": "VIPs and up",
+          "Artist": "Artists and up",
+          "Moderator": "Moderators and up"
+        },
+        "category": {
+          "line": "Category: {category}",
+          "gambling": "Gambling",
+          "minigame": "Mini-game"
+        },
+        "floorStays": "Gambling games keep a cooldown of at least {seconds} seconds, whatever you set.",
+        "saveFailed": "The settings could not be saved."
       },
       "retry": "Try again"
     }

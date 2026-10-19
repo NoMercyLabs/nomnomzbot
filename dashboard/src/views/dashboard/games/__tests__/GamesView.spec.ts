@@ -40,8 +40,9 @@ const config = {
   isEnabled: false,
   requires18Plus: true,
   minBet: 10,
-  cooldownSeconds: 5,
-  permission: 'everyone',
+  cooldownSeconds: 600,
+  cooldownFloorSeconds: 300,
+  permission: 'Everyone',
 };
 
 const state = vi.hoisted(() => ({
@@ -147,8 +148,7 @@ async function open(): Promise<void> {
   await flushPromises();
 }
 
-const button = (selector: string): HTMLElement =>
-  document.querySelector(selector) as HTMLElement;
+const button = (selector: string): HTMLElement => document.querySelector(selector) as HTMLElement;
 
 const runningSession = {
   id: 's1',
@@ -303,7 +303,8 @@ describe('GamesView', () => {
     expect(call?.body).toMatchObject({
       gameType: 'coinflip',
       isEnabled: false,
-      cooldownSeconds: 5,
+      cooldownSeconds: 600,
+      permission: 'Everyone',
       minBet: null,
       maxBet: 500,
       winChancePercent: 45.5,
@@ -315,6 +316,63 @@ describe('GamesView', () => {
     expect(call?.body).not.toHaveProperty('id');
   });
 
+  it('edits the cooldown and the permission, and shows the floor the server enforces', async () => {
+    await open();
+
+    button('[data-edit-game="coinflip"]').click();
+    await flushPromises();
+
+    const cooldown = document.querySelector(
+      '[data-game-field="cooldownSeconds"]',
+    ) as HTMLInputElement;
+
+    expect(cooldown.value).toBe('600');
+    expect(document.querySelector('[data-game-cooldown-floor]')?.textContent).toContain('300');
+
+    cooldown.value = '900';
+    cooldown.dispatchEvent(new Event('input'));
+    await flushPromises();
+
+    // jsdom lacks these three; the select calls them when it opens.
+    Element.prototype.hasPointerCapture = (): boolean => false;
+    Element.prototype.releasePointerCapture = (): void => undefined;
+    Element.prototype.scrollIntoView = (): void => undefined;
+
+    document.querySelector('[data-game-permission]')!.dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        pointerType: 'mouse',
+      }),
+    );
+
+    await flushPromises();
+
+    const option = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].find((el) =>
+      el.textContent?.includes(en.dashboard.games.configs.standings.Vip),
+    )!;
+
+    option.dispatchEvent(
+      new PointerEvent('pointerup', {
+        bubbles: true,
+        button: 0,
+        pointerType: 'mouse',
+      }),
+    );
+
+    await flushPromises();
+
+    button('[data-save-game-config]').click();
+    await flushPromises();
+
+    expect(state.calls[0]?.body).toMatchObject({
+      cooldownSeconds: 900,
+      permission: 'Vip',
+    });
+
+    expect(state.calls[0]?.body).not.toHaveProperty('cooldownFloorSeconds');
+  });
+
   it('marks the game queries stale on a ConfigChanged with an unlisted domain', async () => {
     await open();
 
@@ -322,7 +380,9 @@ describe('GamesView', () => {
     const keys = [activeGameKey('c1'), gameConfigsKey('c1')];
 
     expect(
-      keys.every((key) => channelPrefixes.some((prefix) => prefix('c1').every((part, i) => key[i] === part))),
+      keys.every((key) =>
+        channelPrefixes.some((prefix) => prefix('c1').every((part, i) => key[i] === part)),
+      ),
     ).toBe(true);
   });
 });

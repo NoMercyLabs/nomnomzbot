@@ -65,3 +65,8 @@ export const trustTiers = [
 ] as const;
 
 export type TrustTier = (typeof trustTiers)[number];
+
+// The standings a game can be limited to, in ladder order.
+export const gameStandings = ['Everyone', 'Subscriber', 'Vip', 'Artist', 'Moderator'] as const;
+
+export type GameStanding = (typeof gameStandings)[number];

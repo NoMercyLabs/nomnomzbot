@@ -8,12 +8,16 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// Edits the bet limits, odds, payout and plays per stream of one mini-game. An emptied field means "no
-// limit" and travels as null. Save is the only primary action.
-import { ref, watch } from 'vue';
+// Edits the bet limits, odds, payout, cooldown, who can play and plays per stream of one mini-game. An
+// emptied limit field means "no limit" and travels as null. The category is read-only: a gambling game
+// keeps the server's cooldown floor (shown from the API) whatever the owner types. Save is the only
+// primary action.
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { ApiError } from '@/api/errors';
 import { useSaveGameConfig, type GameConfig } from '@/api/games';
+import { gameStandings, type GameStanding } from '@/api/vocabulary';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -24,6 +28,13 @@ import {
 } from '@/components/ui/dialog';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
@@ -56,6 +67,34 @@ const values = ref<Record<Field, number | string>>({
   maxPlaysPerStream: '',
 });
 
+const cooldown = ref<number | string>('');
+const permission = ref<GameStanding>('Everyone');
+
+const floorSeconds = computed(() => Number(props.config?.cooldownFloorSeconds ?? 0));
+
+const categoryKey = computed(
+  () => `dashboard.games.configs.category.${props.config?.category.toLowerCase()}`,
+);
+
+const canWrite = computed(() => can('economy:games:write'));
+
+const failure = computed(() => {
+  const error = save.error.value;
+
+  if (error === null)
+    return null;
+
+  return error instanceof ApiError
+    ? t(error.messageKey)
+    : t('dashboard.games.configs.saveFailed');
+});
+
+function standingOf(word: string): GameStanding {
+  return (
+    gameStandings.find((standing) => standing.toLowerCase() === word.toLowerCase()) ?? 'Everyone'
+  );
+}
+
 function text(value: number | string | null | undefined): string {
   return value === null || value === undefined
     ? ''
@@ -79,6 +118,9 @@ watch(
     for (const field of fields) {
       values.value[field] = text(config[field]);
     }
+
+    cooldown.value = text(config.cooldownSeconds);
+    permission.value = standingOf(config.permission);
   },
   { immediate: true },
 );
@@ -92,9 +134,14 @@ function submit(): void {
     next[field] = toNumber(values.value[field]);
   }
 
-  save.mutate(next, { onSuccess: () => {
-    open.value = false;
-  } });
+  next.cooldownSeconds = toNumber(cooldown.value) ?? 0;
+  next.permission = permission.value;
+
+  save.mutate(next, {
+    onSuccess: () => {
+      open.value = false;
+    },
+  });
 }
 </script>
 
@@ -106,10 +153,10 @@ function submit(): void {
     >
       <div class="grid flex-none gap-1.5 px-6 pt-6 pb-4">
         <DialogTitle class="text-lg font-semibold">
-          {{ t('dashboard.games.configs.editTitle', { name }) }}
+          {{ t("dashboard.games.configs.editTitle", { name }) }}
         </DialogTitle>
         <DialogDescription class="text-sm text-muted-foreground">
-          {{ t('dashboard.games.configs.editHint') }}
+          {{ t("dashboard.games.configs.editHint") }}
         </DialogDescription>
       </div>
 
@@ -120,22 +167,65 @@ function submit(): void {
             :id="`game-${field}`"
             v-model="values[field]"
             :data-game-field="field"
+            :disabled="!canWrite"
             type="number"
             min="0"
             step="any"
           />
         </div>
+
+        <div class="grid gap-1.5">
+          <Label for="game-cooldownSeconds">
+            {{ t("dashboard.games.configs.fields.cooldownSeconds") }}
+          </Label>
+          <Input
+            id="game-cooldownSeconds"
+            v-model="cooldown"
+            data-game-field="cooldownSeconds"
+            :disabled="!canWrite"
+            type="number"
+            min="0"
+            step="1"
+          />
+        </div>
+
+        <div class="grid gap-1.5">
+          <Label for="game-permission">{{ t("dashboard.games.configs.fields.permission") }}</Label>
+          <Select v-model="permission" :disabled="!canWrite">
+            <SelectTrigger id="game-permission" data-game-permission class="w-full">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              <SelectItem v-for="standing in gameStandings" :key="standing" :value="standing">
+                {{ t(`dashboard.games.configs.standings.${standing}`) }}
+              </SelectItem>
+            </SelectContent>
+          </Select>
+        </div>
+
+        <p class="text-sm text-muted-foreground sm:col-span-2" data-game-category>
+          {{ t("dashboard.games.configs.category.line", { category: t(categoryKey) }) }}
+        </p>
+
+        <p
+          v-if="floorSeconds > 0"
+          class="text-sm text-muted-foreground sm:col-span-2"
+          data-game-cooldown-floor
+        >
+          {{ t("dashboard.games.configs.floorStays", { seconds: floorSeconds }) }}
+        </p>
+
+        <p v-if="failure !== null" class="text-sm text-destructive sm:col-span-2" role="alert">
+          {{ failure }}
+        </p>
       </div>
 
-      <DialogFooter
-        v-if="can('economy:games:write')"
-        class="flex-none border-t border-border px-6 py-4"
-      >
+      <DialogFooter v-if="canWrite" class="flex-none border-t border-border px-6 py-4">
         <Button variant="outline" @click="open = false">
-          {{ t('dashboard.games.configs.cancel') }}
+          {{ t("dashboard.games.configs.cancel") }}
         </Button>
         <Button data-save-game-config :disabled="save.isPending.value" @click="submit">
-          {{ t('dashboard.games.configs.save') }}
+          {{ t("dashboard.games.configs.save") }}
         </Button>
       </DialogFooter>
     </DialogContent>

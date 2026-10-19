@@ -166,11 +166,13 @@ export function useCancelGame(
       const { error, response } = await client.DELETE(
         '/api/v{version}/channels/{channelId}/games/sessions/{sessionId}',
         {
-          params: { path: {
-            version,
-            channelId: toValue(channelId) as string,
-            sessionId,
-          } },
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              sessionId,
+            },
+          },
         },
       );
 
@@ -191,7 +193,7 @@ export function useSaveGameConfig(
 
   return useMutation<void, Error, GameConfig, undefined>({
     mutationFn: async (config): Promise<void> => {
-      const { id: _id, ...rest } = config;
+      const { id: _id, cooldownFloorSeconds: _floor, ...rest } = config;
       const { error, response } = await client.PUT(
         '/api/v{version}/channels/{channelId}/economy/games',
         {
@@ -217,7 +219,7 @@ export function useSetGameEnabled(
 
   return useMutation<void, Error, { config: GameConfig; enabled: boolean }, undefined>({
     mutationFn: async ({ config, enabled }): Promise<void> => {
-      const { id: _id, ...rest } = config;
+      const { id: _id, cooldownFloorSeconds: _floor, ...rest } = config;
       const { error, response } = await client.PUT(
         '/api/v{version}/channels/{channelId}/economy/games',
         {

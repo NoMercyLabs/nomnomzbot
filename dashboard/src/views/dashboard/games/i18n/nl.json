@@ -52,8 +52,24 @@
           "houseEdgePercent": "Huisvoordeel (%)",
           "winChancePercent": "Winkans (%)",
           "payoutMultiplier": "Uitbetalingsfactor",
-          "maxPlaysPerStream": "Spellen per stream"
-        }
+          "maxPlaysPerStream": "Spellen per stream",
+          "cooldownSeconds": "Wachttijd per kijker (seconden)",
+          "permission": "Wie mag meespelen"
+        },
+        "standings": {
+          "Everyone": "Iedereen",
+          "Subscriber": "Abonnees en hoger",
+          "Vip": "VIP's en hoger",
+          "Artist": "Artiesten en hoger",
+          "Moderator": "Moderators en hoger"
+        },
+        "category": {
+          "line": "Categorie: {category}",
+          "gambling": "Gokken",
+          "minigame": "Minispel"
+        },
+        "floorStays": "Gokspellen houden een wachttijd van minstens {seconds} seconden, wat je ook instelt.",
+        "saveFailed": "De instellingen konden niet worden opgeslagen."
       },
       "retry": "Opnieuw proberen"
     }
