@@ -133,11 +133,12 @@ public sealed class ObsFloorAndBotManagerTests
 
         Result<bool> allowed = await sut.AuthorizeActionAsync(Mod, Channel, key);
 
-        allowed.Value.Should().BeFalse($"'{key}' is an OBS write; Moderator is below the floor");
+        allowed.Value.Should().BeFalse($"'{key}' is an OBS write; Moderator is below the default");
     }
 
+    /// <summary>Stoney 2026-10-19: "obs is a new thing, editor with lowering options to mods and individuals".</summary>
     [Fact]
-    public async Task The_seeded_obs_control_row_is_Editor_Critical_and_grantable()
+    public async Task The_seeded_obs_control_row_defaults_to_Editor_can_be_lowered_to_Moderator_and_is_grantable()
     {
         (_, _, AuthDbContext db) = await BuildAsync();
 
@@ -145,10 +146,37 @@ public sealed class ObsFloorAndBotManagerTests
             a.ActionKey == "obs:control"
         );
 
-        control.FloorLevel.Should().Be(ManagementRole.Editor.ToLevel());
         control.DefaultLevel.Should().Be(ManagementRole.Editor.ToLevel());
+        control.FloorLevel.Should().Be(ManagementRole.Moderator.ToLevel());
         control.FloorTier.Should().Be(DangerTier.Critical);
         control.IsGrantableViaPermit.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task A_broadcaster_who_lowers_obs_control_to_Moderator_lets_a_Moderator_control_OBS()
+    {
+        (ActionAuthorizationService sut, _, AuthDbContext db) = await BuildAsync();
+        Guid controlId = await db
+            .ActionDefinitions.Where(a => a.ActionKey == "obs:control")
+            .Select(a => a.Id)
+            .SingleAsync();
+        db.ChannelActionOverrides.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                ActionDefinitionId = controlId,
+                OverrideLevel = ManagementRole.Moderator.ToLevel(),
+            }
+        );
+        await db.SaveChangesAsync();
+
+        (await sut.AuthorizeActionAsync(Mod, Channel, "obs:control")).Value.Should().BeTrue();
+        (await sut.AuthorizeActionAsync(Mod, Channel, "obs:control:broadcast"))
+            .Value.Should()
+            .BeFalse("going live and ending the stream stay with the broadcaster");
+        (await sut.AuthorizeActionAsync(Viewer, Channel, "obs:control"))
+            .Value.Should()
+            .BeFalse("the floor stops at Moderator");
     }
 
     [Fact]

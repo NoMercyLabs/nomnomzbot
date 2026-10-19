@@ -370,9 +370,10 @@ public sealed class ActionDefinitionSeeder : ISeeder
         // broadcast bundle (start/stop stream & recording, raw requests) stays broadcaster-only.
         M("obs:config:read", Broadcaster);
         M("obs:config:write", Broadcaster, DangerTier.Critical, grant: false);
-        // roles-permissions §0.3: any OBS write needs Editor; below that only a named per-user grant.
-        // Listing the live scenes and sources is the separate Moderator-level read key.
-        M("obs:control", Editor, DangerTier.Critical);
+        // roles-permissions §0.3: OBS writes default to Editor; the broadcaster may lower them to
+        // Moderator, or grant one named user. Listing the live scenes and sources is the separate
+        // Moderator-level read key.
+        MFloor("obs:control", Editor, Mod, DangerTier.Critical);
         M("obs:scene:read", Mod);
         M("obs:control:broadcast", Broadcaster, DangerTier.Critical);
 
