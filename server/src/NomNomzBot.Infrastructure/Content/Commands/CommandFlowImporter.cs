@@ -15,6 +15,7 @@ using NomNomzBot.Application.Commands.Import;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.PickLists.Entities;
+using NomNomzBot.Infrastructure.Commands;
 
 namespace NomNomzBot.Infrastructure.Content.Commands;
 
@@ -34,10 +35,12 @@ namespace NomNomzBot.Infrastructure.Content.Commands;
 public sealed class CommandFlowImporter
 {
     private readonly IApplicationDbContext _db;
+    private readonly PipelineGraphCacheHealer _graphHealer;
 
-    public CommandFlowImporter(IApplicationDbContext db)
+    public CommandFlowImporter(IApplicationDbContext db, PipelineGraphCacheHealer graphHealer)
     {
         _db = db;
+        _graphHealer = graphHealer;
     }
 
     /// <summary>
@@ -81,6 +84,7 @@ public sealed class CommandFlowImporter
             .ToDictionaryAsync(l => l.Name, ct);
 
         List<string> filled = [];
+        List<Guid> builtPipelineIds = [];
         List<string> skipped = [];
 
         foreach (CommandFlowSpec spec in specs)
@@ -113,9 +117,11 @@ public sealed class CommandFlowImporter
             AttachCommand(broadcasterId, spec, command, pipeline);
 
             filled.Add(name);
+            builtPipelineIds.Add(pipeline.Id);
         }
 
         await _db.SaveChangesAsync(ct);
+        await _graphHealer.RebuildAsync(builtPipelineIds, ct);
         return Result.Success(new CommandFlowImportReport(filled, skipped));
     }
 

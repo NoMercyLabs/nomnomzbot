@@ -14,6 +14,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.PickLists.Entities;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.Commands;
 using NomNomzBot.Infrastructure.Tests.Content;
 
@@ -42,7 +43,7 @@ public sealed class CommandFlowImporterTests
             }
         );
         db.SaveChanges();
-        return (new CommandFlowImporter(db), db);
+        return (new CommandFlowImporter(db, new PipelineGraphCacheHealer(db)), db);
     }
 
     private static CommandFlowSpec HugSpec() =>
@@ -112,6 +113,19 @@ public sealed class CommandFlowImporterTests
             );
         // It fills the pipeline the command already points at, rather than orphaning it.
         steps.Should().OnlyContain(s => s.PipelineId == stub.Id);
+    }
+
+    [Fact]
+    public async Task The_imported_pipeline_carries_a_compiled_graph_with_every_step()
+    {
+        // A timer or reward bound to the pipeline reads only GraphJsonCache; rows alone ran nothing.
+        (CommandFlowImporter importer, SeedTestDbContext db) = Build();
+
+        await importer.ImportAsync(Tenant, [HugSpec()]);
+
+        Pipeline pipeline = db.Pipelines.Single();
+        pipeline.GraphJsonCache.Should().NotBeNullOrEmpty();
+        pipeline.GraphJsonCache.Should().Contain("pick_from_list").And.Contain("send_message");
     }
 
     [Fact]

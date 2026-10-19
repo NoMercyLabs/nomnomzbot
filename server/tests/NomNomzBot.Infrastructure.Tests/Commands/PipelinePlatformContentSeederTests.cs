@@ -12,6 +12,7 @@ using FluentAssertions;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.PlatformContent.Entities;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.Commands;
 using NomNomzBot.Infrastructure.Content.PlatformContent;
 using NomNomzBot.Infrastructure.Tests.Content;
@@ -107,7 +108,7 @@ public sealed class PipelinePlatformContentSeederTests
     public async Task Backfills_provenance_onto_the_tenants_raid_command_pipeline()
     {
         SeedTestDbContext db = BuildDb();
-        await new RaidFlowSeeder(db).SeedAsync(Tenant);
+        await new RaidFlowSeeder(db, new PipelineGraphCacheHealer(db)).SeedAsync(Tenant);
 
         await new PipelinePlatformContentSeeder(db).SeedAsync();
 
@@ -161,7 +162,7 @@ public sealed class PipelinePlatformContentSeederTests
     public async Task Never_overwrites_a_pipeline_already_stamped_by_a_different_definition()
     {
         SeedTestDbContext db = BuildDb();
-        await new RaidFlowSeeder(db).SeedAsync(Tenant);
+        await new RaidFlowSeeder(db, new PipelineGraphCacheHealer(db)).SeedAsync(Tenant);
 
         Command raidCommand = db.Commands.Single(c => c.NameNormalized == "raid");
         Pipeline pipeline = db.Pipelines.Single(p => p.Id == raidCommand.PipelineId);
@@ -183,7 +184,7 @@ public sealed class PipelinePlatformContentSeederTests
     public async Task Is_idempotent_across_repeated_boots()
     {
         SeedTestDbContext db = BuildDb();
-        await new RaidFlowSeeder(db).SeedAsync(Tenant);
+        await new RaidFlowSeeder(db, new PipelineGraphCacheHealer(db)).SeedAsync(Tenant);
 
         PipelinePlatformContentSeeder seeder = new(db);
         await seeder.SeedAsync();

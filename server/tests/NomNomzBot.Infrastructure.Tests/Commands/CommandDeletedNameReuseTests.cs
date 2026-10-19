@@ -113,7 +113,10 @@ public sealed class CommandDeletedNameReuseTests : IDisposable
     [Fact]
     public async Task The_raid_flow_seeder_never_brings_back_a_raid_command_the_channel_deleted()
     {
-        RaidFlowSeeder seeder = new(_real.Db);
+        RaidFlowSeeder seeder = new(
+            _real.Db,
+            new NomNomzBot.Infrastructure.Commands.PipelineGraphCacheHealer(_real.Db)
+        );
         await seeder.SeedAsync(Channel);
         (await Commands.DeleteAsync(Channel.ToString(), "raid")).IsSuccess.Should().BeTrue();
 

@@ -54,8 +54,13 @@ namespace NomNomzBot.Infrastructure.Content.Commands;
 public sealed class RaidFlowSeeder : ISeeder
 {
     private readonly IApplicationDbContext _db;
+    private readonly PipelineGraphCacheHealer _graphHealer;
 
-    public RaidFlowSeeder(IApplicationDbContext db) => _db = db;
+    public RaidFlowSeeder(IApplicationDbContext db, PipelineGraphCacheHealer graphHealer)
+    {
+        _db = db;
+        _graphHealer = graphHealer;
+    }
 
     public int Order => 82;
 
@@ -123,6 +128,7 @@ public sealed class RaidFlowSeeder : ISeeder
                 .ToListAsync(ct),
         ];
 
+        List<Guid> builtPipelineIds = [];
         foreach (Guid channelId in channelIds)
         {
             if (alreadyBuilt.Contains(channelId))
@@ -158,6 +164,7 @@ public sealed class RaidFlowSeeder : ISeeder
                 _db.Pipelines.Add(pipeline);
             }
 
+            builtPipelineIds.Add(pipeline.Id);
             int order = 0;
             foreach (SeedStep step in BuildSteps())
             {
@@ -205,6 +212,7 @@ public sealed class RaidFlowSeeder : ISeeder
         }
 
         await _db.SaveChangesAsync(ct);
+        await _graphHealer.RebuildAsync(builtPipelineIds, ct);
     }
 
     /// <summary>The wire-shape action graph for THIS flow, exactly as seeded onto a fresh channel — the v1

@@ -12,6 +12,7 @@ using FluentAssertions;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.Commands;
 using NomNomzBot.Infrastructure.Tests.Content;
 
@@ -40,7 +41,7 @@ public sealed class RaidFlowSeedingTests
             }
         );
         db.SaveChanges();
-        return (new RaidFlowSeeder(db), db);
+        return (new RaidFlowSeeder(db, new PipelineGraphCacheHealer(db)), db);
     }
 
     private static List<PipelineStep> StepsOf(SeedTestDbContext db) =>
@@ -78,6 +79,19 @@ public sealed class RaidFlowSeedingTests
         steps.Should().ContainSingle();
         steps[0].ActionType.Should().Be("start_raid");
         steps[0].ConfigJson.Should().Contain("{args.1}");
+    }
+
+    [Fact]
+    public async Task The_seeded_raid_pipeline_carries_its_compiled_graph()
+    {
+        // Timers and rewards read only GraphJsonCache; a flow saved with step rows alone ran nothing there.
+        (RaidFlowSeeder seeder, SeedTestDbContext db) = Build();
+
+        await seeder.SeedAsync(Tenant);
+
+        Pipeline pipeline = db.Pipelines.Single();
+        pipeline.GraphJsonCache.Should().NotBeNullOrEmpty();
+        pipeline.GraphJsonCache.Should().Contain("start_raid");
     }
 
     [Fact]
