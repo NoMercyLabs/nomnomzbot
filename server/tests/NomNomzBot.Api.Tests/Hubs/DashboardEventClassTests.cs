@@ -26,7 +26,7 @@ namespace NomNomzBot.Api.Tests.Hubs;
 
 /// <summary>
 /// Proves the dashboard push classes (BUILD item 5): a plain <c>JoinChannel</c> subscribes every class
-/// (the universal shell), <c>JoinChannelClasses</c> subscribes a subset (a chat-only pane never receives
+/// (the universal shell), <c>Subscribe</c> subscribes a subset (a chat-only pane never receives
 /// live-ops/music traffic) and rejects unknown keys honestly, leaving/rejoining reconciles exactly the
 /// joined groups — and the notifier routes each push to its class group while the core pushes
 /// (stream status / config / permission / reward invalidations / alerts) stay always-on in the base group.
@@ -106,11 +106,11 @@ public sealed class DashboardEventClassTests
     }
 
     [Fact]
-    public async Task JoinChannelClasses_subscribes_only_the_requested_classes_plus_core()
+    public async Task Subscribe_joins_only_the_requested_classes_plus_core()
     {
         (DashboardHub hub, IGroupManager groups) = BuildHub("conn-chat-only");
 
-        JoinChannelResponse response = await hub.JoinChannelClasses(Channel.ToString(), ["chat"]);
+        JoinChannelResponse response = await hub.Subscribe(Channel.ToString(), ["chat"]);
 
         response.Success.Should().BeTrue();
         await groups
@@ -140,11 +140,11 @@ public sealed class DashboardEventClassTests
     }
 
     [Fact]
-    public async Task JoinChannelClasses_rejects_an_unknown_class_without_joining_anything()
+    public async Task Subscribe_rejects_an_unknown_class_without_joining_anything()
     {
         (DashboardHub hub, IGroupManager groups) = BuildHub("conn-bad-class");
 
-        JoinChannelResponse response = await hub.JoinChannelClasses(
+        JoinChannelResponse response = await hub.Subscribe(
             Channel.ToString(),
             ["chat", "nonsense"]
         );
@@ -160,7 +160,7 @@ public sealed class DashboardEventClassTests
     public async Task Leaving_a_class_scoped_channel_removes_exactly_the_joined_groups()
     {
         (DashboardHub hub, IGroupManager groups) = BuildHub("conn-leave-classes");
-        await hub.JoinChannelClasses(Channel.ToString(), ["chat", "moderation"]);
+        await hub.Subscribe(Channel.ToString(), ["chat", "moderation"]);
 
         await hub.LeaveChannel(Channel.ToString());
 
@@ -198,9 +198,9 @@ public sealed class DashboardEventClassTests
     public async Task Rejoining_with_a_different_class_set_drops_the_stale_class_groups()
     {
         (DashboardHub hub, IGroupManager groups) = BuildHub("conn-rejoin");
-        await hub.JoinChannelClasses(Channel.ToString(), ["chat", "music"]);
+        await hub.Subscribe(Channel.ToString(), ["chat", "music"]);
 
-        await hub.JoinChannelClasses(Channel.ToString(), ["chat"]);
+        await hub.Subscribe(Channel.ToString(), ["chat"]);
 
         // music was subscribed before but not after — the re-join reconciles it away.
         await groups
