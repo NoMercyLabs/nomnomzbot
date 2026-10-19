@@ -104,7 +104,7 @@ const reduceMotion = computed<boolean>({
 });
 
 const help = computed(() => {
-  const defaults = readabilityDefaults;
+  const defaults: Readability = readabilityDefaults;
 
   return {
     font: withDefault(t(`${base}.font.description`), labelOf(fonts.value, defaults.font)),
