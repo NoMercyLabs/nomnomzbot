@@ -1,4 +1,9 @@
 {
+  "dashboard": {
+    "settings": {
+      "crumb": "Inrichting"
+    }
+  },
   "pwa": {
     "update": {
       "title": "Er is een nieuwe versie klaar",

@@ -2,7 +2,6 @@
   "dashboard": {
     "settings": {
       "title": "Settings",
-      "crumb": "Setup",
       "personality": {
         "title": "Personality",
         "description": "The voice your built-in commands answer in. Pick the one that fits your channel.",

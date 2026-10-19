@@ -2,7 +2,6 @@
   "dashboard": {
     "settings": {
       "title": "Instellingen",
-      "crumb": "Inrichting",
       "personality": {
         "title": "Persoonlijkheid",
         "description": "De stem waarin je ingebouwde commando's antwoorden. Kies wat bij je kanaal past.",

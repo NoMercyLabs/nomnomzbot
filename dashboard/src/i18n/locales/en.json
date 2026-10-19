@@ -1,4 +1,9 @@
 {
+  "dashboard": {
+    "settings": {
+      "crumb": "Setup"
+    }
+  },
   "pwa": {
     "update": {
       "title": "A new version is ready",
