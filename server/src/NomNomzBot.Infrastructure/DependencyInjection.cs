@@ -1154,6 +1154,7 @@ public static class DependencyInjection
         services.AddScoped<IBindingUsageSource, Rewards.RewardBindingUsageSource>();
         services.AddScoped<IBindingUsageSource, Giveaways.GiveawayBindingUsageSource>();
         services.AddScoped<IBindingUsageSource, Commands.TimerBindingUsageSource>();
+        services.AddScoped<IBindingUsageSource, Commands.ChatTriggerBindingUsageSource>();
 
         // Identity / tenant — HttpContext accessor + UnitOfWork are framework/infra, kept explicit.
         // The I<X>Service impls (ICurrentTenantService, IChannelAccessService, ICurrentUserService,

@@ -33,6 +33,7 @@ using NomNomzBot.Application.MediaShare.Services;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Commands.Events;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
@@ -1512,6 +1513,13 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         Dictionary<string, string> variables = BuildInitialVariables(@event, text);
         variables["user.role"] = effectiveRoleToken;
 
+        // A trigger bound straight to a command or an action runs it through the one invoker, as the sender.
+        if (trigger.Target is { } target)
+        {
+            await RunChatTriggerTargetAsync(trigger, target, @event, text, variables, ct);
+            return;
+        }
+
         if (!string.IsNullOrWhiteSpace(trigger.PipelineGraphJson))
         {
             await _pipeline.ExecuteAsync(
@@ -1545,6 +1553,33 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         );
         if (!string.IsNullOrWhiteSpace(resolved))
             await _chat.SendMessageAsync(@event.BroadcasterId, @event.Provider, resolved, ct);
+    }
+
+    private async Task RunChatTriggerTargetAsync(
+        CachedChatTrigger trigger,
+        BindingTarget target,
+        ChatMessageReceivedEvent @event,
+        string text,
+        Dictionary<string, string> variables,
+        CancellationToken ct
+    )
+    {
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        ICommandInvoker invoker = scope.ServiceProvider.GetRequiredService<ICommandInvoker>();
+        Result<InvocationOutcome> run = await invoker.InvokeAsync(
+            @event.BroadcasterId,
+            target,
+            new(@event.UserId, @event.UserDisplayName, text, "chat-trigger", Variables: variables),
+            ct
+        );
+        if (run.IsFailure || !run.Value!.Succeeded)
+            _logger.LogWarning(
+                "Chat trigger {TriggerId} in {Channel} could not run its {Kind} target: {Error}",
+                trigger.Id,
+                @event.BroadcasterId,
+                target.Kind,
+                run.IsFailure ? run.ErrorMessage : run.Value!.Error
+            );
     }
 
     /// <summary>

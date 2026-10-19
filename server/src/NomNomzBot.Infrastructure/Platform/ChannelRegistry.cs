@@ -16,6 +16,8 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Builtin.Personality;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands.Builtins;
@@ -421,6 +423,11 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 // loop/random_branch/try/detached_step) through its tree walker instead of its flat-only
                 // fallback — mirrors PipelineId below for commands.
                 PipelineId = trigger.PipelineId,
+                // Only a command or action runs through the invoker; a pipeline binding keeps the graph path.
+                Target = trigger.GetBindingTarget()
+                    is { Kind: BindingTargetKind.Command or BindingTargetKind.Action } direct
+                    ? direct
+                    : null,
                 CooldownSeconds = trigger.CooldownSeconds,
                 MinPermissionLevel = trigger.MinPermissionLevel,
                 CompiledRegex = compiled,

@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Application.Commands.Dtos;
@@ -22,6 +23,7 @@ public sealed record ChatTriggerDto(
     bool IsEnabled,
     string? Response,
     Guid? PipelineId,
+    BindingTarget? Target,
     int CooldownSeconds,
     string MinPermissionLevel,
     DateTime CreatedAt,
@@ -48,6 +50,12 @@ public sealed record CreateChatTriggerRequest
 
     /// <summary>Bound pipeline for chained reactions; wins over the template response.</summary>
     public Guid? PipelineId { get; init; }
+
+    /// <summary>
+    /// What the trigger runs: a command of this channel, an action, or a pipeline. Wins over
+    /// <see cref="PipelineId"/> and <see cref="Response"/> when set.
+    /// </summary>
+    public BindingTarget? Target { get; init; }
 
     /// <summary>Channel-wide cooldown between fires (spam guard, default 30s, capped 24h).</summary>
     public int CooldownSeconds { get; init; } = 30;
@@ -76,6 +84,13 @@ public sealed record UpdateChatTriggerRequest
     public string? Response { get; init; }
 
     public Guid? PipelineId { get; init; }
+
+    /// <summary>
+    /// The new binding; absent leaves it unchanged. A pipeline target with no id (or an empty guid) clears it.
+    /// Wins over <see cref="PipelineId"/>.
+    /// </summary>
+    public BindingTarget? Target { get; init; }
+
     public int? CooldownSeconds { get; init; }
 
     /// <summary>The rung name (see <see cref="CreateChatTriggerRequest.MinPermissionLevel"/>); null leaves it.</summary>

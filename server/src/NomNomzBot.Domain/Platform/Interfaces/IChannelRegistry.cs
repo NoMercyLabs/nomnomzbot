@@ -335,6 +335,12 @@ public class CachedChatTrigger
     /// </summary>
     public Guid? PipelineId { get; init; }
 
+    /// <summary>
+    /// A command or action the trigger runs directly through the command invoker; null for a pipeline or
+    /// template trigger (those keep <see cref="PipelineGraphJson"/> / <see cref="Response"/>).
+    /// </summary>
+    public Domain.Commands.ValueObjects.BindingTarget? Target { get; init; }
+
     public required int CooldownSeconds { get; init; }
     public required int MinPermissionLevel { get; init; }
 

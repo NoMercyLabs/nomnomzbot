@@ -14,6 +14,8 @@ using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -63,22 +65,25 @@ public sealed class ChatTriggerService : IChatTriggerService
                 "VALIDATION_FAILED"
             );
 
+        // An explicit target wins over the legacy pipeline field.
+        BindingTarget? target = request.Target ?? PipelineTargetOf(request.PipelineId);
+        Result targetOk = await BindingTargetBinder.ValidateAsync(
+            _db,
+            broadcaster,
+            target,
+            cancellationToken
+        );
+        if (targetOk.IsFailure)
+            return targetOk.ToTyped<ChatTriggerDto>();
+
         Result invalid = Validate(
             request.Pattern,
             request.MatchType,
             request.Response,
-            request.PipelineId
+            Binds(target)
         );
         if (invalid.IsFailure)
             return Result.Failure<ChatTriggerDto>(invalid.ErrorMessage!, invalid.ErrorCode);
-
-        Result pipelineOk = await _db.EnsurePipelineInChannelAsync(
-            broadcaster,
-            request.PipelineId,
-            cancellationToken
-        );
-        if (pipelineOk.IsFailure)
-            return pipelineOk.ToTyped<ChatTriggerDto>();
 
         // Refused, never clamped: Math.Max(0, x) used to accept any integer, so a caller sending a rung
         // that does not exist got the nearest legal-looking value instead of an error.
@@ -97,10 +102,10 @@ public sealed class ChatTriggerService : IChatTriggerService
             CaseSensitive = request.CaseSensitive,
             IsEnabled = request.IsEnabled,
             Response = request.Response,
-            PipelineId = request.PipelineId,
             CooldownSeconds = Math.Clamp(request.CooldownSeconds, 0, MaxCooldownSeconds),
             MinPermissionLevel = minLevel.Value,
         };
+        BindingTargetBinder.ApplyTo(trigger, target, null);
         _db.ChatTriggers.Add(trigger);
         await _db.SaveChangesAsync(cancellationToken);
         await _registry.InvalidateChatTriggersAsync(broadcaster, cancellationToken);
@@ -131,32 +136,29 @@ public sealed class ChatTriggerService : IChatTriggerService
         string pattern = request.Pattern?.Trim() ?? trigger.Pattern;
         string matchType = request.MatchType ?? trigger.MatchType;
         string? response = request.Response ?? trigger.Response;
-        // Absent (null) leaves the binding unchanged; Guid.Empty clears it (switching back to a text response);
-        // a real id binds that pipeline. A null cannot mean "clear" — the client's explicitNulls=false serializer
-        // drops it — so the empty sentinel carries the unbind (matching RewardService's convention).
-        Guid? pipelineId =
-            !request.PipelineId.HasValue ? trigger.PipelineId
-            : request.PipelineId.Value == Guid.Empty ? null
-            : request.PipelineId.Value;
-        Result invalid = Validate(pattern, matchType, response, pipelineId);
+        // Absent (null) leaves the binding unchanged; a pipeline target with no id (Guid.Empty on the legacy
+        // field) clears it (switching back to a text response); anything else binds. A null cannot mean "clear" —
+        // the client's explicitNulls=false serializer drops it — so the empty sentinel carries the unbind
+        // (matching RewardService's convention). An explicit target wins over the legacy pipeline field.
+        BindingTarget? target = request.Target ?? PipelineTargetOf(request.PipelineId);
+        Result targetOk = await BindingTargetBinder.ValidateAsync(
+            _db,
+            broadcaster,
+            target,
+            cancellationToken
+        );
+        if (targetOk.IsFailure)
+            return targetOk.ToTyped<ChatTriggerDto>();
+
+        bool bound = target is null ? trigger.GetBindingTarget() is not null : Binds(target);
+        Result invalid = Validate(pattern, matchType, response, bound);
         if (invalid.IsFailure)
             return Result.Failure<ChatTriggerDto>(invalid.ErrorMessage!, invalid.ErrorCode);
-
-        if (request.PipelineId.HasValue)
-        {
-            Result pipelineOk = await _db.EnsurePipelineInChannelAsync(
-                broadcaster,
-                pipelineId,
-                cancellationToken
-            );
-            if (pipelineOk.IsFailure)
-                return pipelineOk.ToTyped<ChatTriggerDto>();
-        }
 
         trigger.Pattern = pattern;
         trigger.MatchType = matchType;
         trigger.Response = response;
-        trigger.PipelineId = pipelineId;
+        BindingTargetBinder.ApplyTo(trigger, target, trigger.PipelineId);
         if (request.CaseSensitive.HasValue)
             trigger.CaseSensitive = request.CaseSensitive.Value;
         if (request.IsEnabled.HasValue)
@@ -207,21 +209,36 @@ public sealed class ChatTriggerService : IChatTriggerService
     }
 
     /// <summary>
-    /// Write-time honesty checks: a trigger must be able to DO something (template or pipeline), and a
+    /// The legacy pipeline field as a target: null when absent, a pipeline target with no id when it is the
+    /// empty sentinel (which clears the binding).
+    /// </summary>
+    private static BindingTarget? PipelineTargetOf(Guid? pipelineId) =>
+        pipelineId is null
+            ? null
+            : new(
+                BindingTargetKind.Pipeline,
+                pipelineId == Guid.Empty ? null : pipelineId.Value.ToString()
+            );
+
+    /// <summary>True when the target leaves something bound (a pipeline target without an id clears it).</summary>
+    private static bool Binds(BindingTarget? target) =>
+        target is not null
+        && (
+            target.Kind != BindingTargetKind.Pipeline
+            || (Guid.TryParse(target.Id, out Guid pipelineId) && pipelineId != Guid.Empty)
+        );
+
+    /// <summary>
+    /// Write-time honesty checks: a trigger must be able to DO something (template or a bound target), and a
     /// regex pattern must compile — an invalid one would silently never fire.
     /// </summary>
-    private static Result Validate(
-        string pattern,
-        string matchType,
-        string? response,
-        Guid? pipelineId
-    )
+    private static Result Validate(string pattern, string matchType, string? response, bool bound)
     {
         if (string.IsNullOrWhiteSpace(pattern))
             return Result.Failure("The pattern cannot be empty.", "VALIDATION_FAILED");
-        if (string.IsNullOrWhiteSpace(response) && pipelineId is null)
+        if (string.IsNullOrWhiteSpace(response) && !bound)
             return Result.Failure(
-                "A trigger needs a response template or a bound pipeline.",
+                "A trigger needs a response template or a bound pipeline, command or action.",
                 "VALIDATION_FAILED"
             );
         if (matchType == ChatTriggerMatchType.Regex)
@@ -251,6 +268,7 @@ public sealed class ChatTriggerService : IChatTriggerService
             t.IsEnabled,
             t.Response,
             t.PipelineId,
+            t.GetBindingTarget(),
             t.CooldownSeconds,
             PermissionLevelNames.ToName(t.MinPermissionLevel),
             t.CreatedAt,
