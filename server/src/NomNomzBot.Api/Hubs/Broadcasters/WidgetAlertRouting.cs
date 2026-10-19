@@ -21,5 +21,5 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 public static class WidgetAlertRouting
 {
     public static IEnumerable<Widget> Subscribers(IEnumerable<Widget> widgets, string eventType) =>
-        widgets.Where(w => w.IsEnabled && w.EventSubscriptions.Contains(eventType));
+        widgets.Where(w => w.IsEnabled && w.Wants(eventType));
 }

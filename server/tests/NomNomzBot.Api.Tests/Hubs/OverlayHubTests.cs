@@ -11,16 +11,20 @@
 using System.Text.Json;
 using FluentAssertions;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Api.Hubs;
+using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Hubs.Overlay;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -66,7 +70,9 @@ public sealed class OverlayHubTests
         WidgetTestDbContext db,
         IOverlayTicketService tickets,
         string? ticket,
-        string connectionId = "obs-conn"
+        string connectionId = "obs-conn",
+        IChannelRegistry? registry = null,
+        IEventBus? bus = null
     )
     {
         FakeHttpContextAccessor accessor = new();
@@ -77,7 +83,7 @@ public sealed class OverlayHubTests
         IGroupManager groups = Substitute.For<IGroupManager>();
         IWidgetService widgetService = Substitute.For<IWidgetService>();
 
-        IChannelRegistry channelRegistry = Substitute.For<IChannelRegistry>();
+        IChannelRegistry channelRegistry = registry ?? Substitute.For<IChannelRegistry>();
         OverlayHub hub = new(
             db,
             widgetService,
@@ -85,7 +91,7 @@ public sealed class OverlayHubTests
             new(),
             channelRegistry,
             Substitute.For<IActionRequiredChangeNotifier>(),
-            Substitute.For<IEventBus>(),
+            bus ?? Substitute.For<IEventBus>(),
             [],
             NullLogger<OverlayHub>.Instance
         )
@@ -616,5 +622,305 @@ public sealed class OverlayHubTests
         Func<Task> claim = () => f.Hub.ClaimOnce(widgetId.ToString(), "", actions);
 
         await claim.Should().ThrowAsync<HubException>().WithMessage("A claim key is 1 to 200*");
+    }
+
+    // ── Subscribe: the page tells the hub which events its code listens to ──────────────
+
+    private sealed record SubscribeFixture(
+        Fixture Hub,
+        Widget Widget,
+        IChannelRegistry Registry,
+        IEventBus Bus,
+        int[] Saves
+    );
+
+    private static async Task<SubscribeFixture> SubscribeFixtureAsync(
+        WidgetTestDbContext db,
+        List<string> stored,
+        Guid? ticketWidget = null,
+        string? galleryKey = null,
+        string trustTier = "first_party"
+    )
+    {
+        Widget widget = new()
+        {
+            BroadcasterId = Broadcaster,
+            Name = "Bot Audio",
+            EventSubscriptions = stored,
+        };
+        if (galleryKey is not null)
+        {
+            WidgetGalleryItem item = new()
+            {
+                Name = galleryKey,
+                NaturalKey = galleryKey,
+                TrustTier = trustTier,
+            };
+            db.WidgetGalleryItems.Add(item);
+            widget.GalleryItemId = item.Id;
+        }
+        db.Widgets.Add(widget);
+        await db.SaveChangesAsync();
+        int[] saves = [0];
+        db.SavedChanges += (_, _) => saves[0]++;
+
+        OverlayTicketService tickets = new(new FakeTimeProvider());
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        IEventBus bus = Substitute.For<IEventBus>();
+        Fixture f = Build(
+            db,
+            tickets,
+            ticket: tickets.IssueTicket(
+                new OverlayTokenScope(Broadcaster, ticketWidget ?? widget.Id)
+            ),
+            registry: registry,
+            bus: bus
+        );
+        await f.Hub.OnConnectedAsync();
+        return new(f, widget, registry, bus, saves);
+    }
+
+    private static async Task<List<string>> StoredAsync(WidgetTestDbContext db, Guid widgetId)
+    {
+        db.ChangeTracker.Clear();
+        return (
+            await db.Widgets.AsNoTracking().SingleAsync(w => w.Id == widgetId)
+        ).EventSubscriptions;
+    }
+
+    [Fact]
+    public async Task Subscribing_only_tts_speak_replaces_a_custom_widgets_list_and_releases_music_demand()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        SubscribeFixture d = await SubscribeFixtureAsync(
+            db,
+            ["tts_speak", "now_playing", "youtube.play"]
+        );
+
+        bool accepted = await d.Hub.Hub.Subscribe(d.Widget.Id.ToString(), ["tts_speak"]);
+
+        accepted.Should().BeTrue();
+        (await StoredAsync(db, d.Widget.Id)).Should().Equal("tts_speak");
+        d.Registry.Received(1).ReleaseMusicDemand(Broadcaster, "obs-conn");
+        d.Registry.DidNotReceive().TouchMusicDemand(Arg.Any<Guid>(), Arg.Any<string>());
+        await d
+            .Bus.Received(1)
+            .PublishAsync(
+                Arg.Is<ChannelConfigChangedEvent>(e =>
+                    e.BroadcasterId == Broadcaster
+                    && e.Domain == "widgets"
+                    && e.EntityId == d.Widget.Id.ToString()
+                    && e.Action == "updated"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Subscribing_to_now_playing_touches_music_demand()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        SubscribeFixture d = await SubscribeFixtureAsync(db, ["tts_speak"]);
+
+        await d.Hub.Hub.Subscribe(d.Widget.Id.ToString(), ["tts_speak", "now_playing"]);
+
+        (await StoredAsync(db, d.Widget.Id)).Should().Equal("tts_speak", "now_playing");
+        d.Registry.Received(1).TouchMusicDemand(Broadcaster, "obs-conn");
+    }
+
+    [Fact]
+    public async Task A_widget_scoped_connection_subscribing_for_another_widget_changes_nothing()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        SubscribeFixture d = await SubscribeFixtureAsync(
+            db,
+            ["tts_speak", "now_playing"],
+            ticketWidget: Guid.NewGuid()
+        );
+
+        bool accepted = await d.Hub.Hub.Subscribe(d.Widget.Id.ToString(), ["follow"]);
+
+        accepted.Should().BeFalse();
+        (await StoredAsync(db, d.Widget.Id)).Should().Equal("tts_speak", "now_playing");
+        d.Saves[0].Should().Be(0);
+        d.Registry.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("follow", "has space")]
+    [InlineData("follow", "")]
+    [InlineData("follow", "semi;colon")]
+    [InlineData("follow", "star*")]
+    public async Task An_invalid_name_refuses_the_whole_set_and_changes_nothing(
+        string good,
+        string bad
+    )
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        SubscribeFixture d = await SubscribeFixtureAsync(db, ["tts_speak"]);
+
+        bool accepted = await d.Hub.Hub.Subscribe(d.Widget.Id.ToString(), [good, bad]);
+
+        accepted.Should().BeFalse();
+        (await StoredAsync(db, d.Widget.Id)).Should().Equal("tts_speak");
+        d.Saves[0].Should().Be(0);
+    }
+
+    [Fact]
+    public async Task An_oversized_set_is_refused_whole()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        SubscribeFixture d = await SubscribeFixtureAsync(db, ["tts_speak"]);
+        string[] tooMany = Enumerable
+            .Range(0, WidgetEventDeclaration.MaxEvents + 1)
+            .Select(i => $"event_{i}")
+            .ToArray();
+
+        bool accepted = await d.Hub.Hub.Subscribe(d.Widget.Id.ToString(), tooMany);
+
+        accepted.Should().BeFalse();
+        (await StoredAsync(db, d.Widget.Id)).Should().Equal("tts_speak");
+    }
+
+    [Fact]
+    public async Task An_identical_set_is_not_saved_and_the_wildcard_is_stored_as_given()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        SubscribeFixture d = await SubscribeFixtureAsync(db, ["tts_speak", "follow"]);
+
+        bool same = await d.Hub.Hub.Subscribe(
+            d.Widget.Id.ToString(),
+            ["follow", "tts_speak", "follow"]
+        );
+
+        same.Should().BeTrue();
+        d.Saves[0].Should().Be(0);
+        await d
+            .Bus.DidNotReceive()
+            .PublishAsync(Arg.Any<ChannelConfigChangedEvent>(), Arg.Any<CancellationToken>());
+
+        await d.Hub.Hub.Subscribe(d.Widget.Id.ToString(), ["*"]);
+
+        (await StoredAsync(db, d.Widget.Id)).Should().Equal("*");
+        d.Saves[0].Should().Be(1);
+        d.Registry.Received().TouchMusicDemand(Broadcaster, "obs-conn");
+    }
+
+    // The Alerts template binds its events through a variable (NomNomz.on(e, t) in a loop), which the
+    // save-time scan cannot see: its stored list starts empty and the page's declaration fills it in.
+    [Fact]
+    public async Task After_subscribing_to_follow_a_follow_alert_reaches_the_widget_and_a_raid_does_not()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        SubscribeFixture d = await SubscribeFixtureAsync(db, []);
+
+        await d.Hub.Hub.Subscribe(d.Widget.Id.ToString(), ["follow"]);
+
+        List<Widget> widgets = await db.Widgets.AsNoTracking().ToListAsync();
+        WidgetAlertRouting
+            .Subscribers(widgets, "follow")
+            .Select(w => w.Id)
+            .Should()
+            .Equal(d.Widget.Id);
+        WidgetAlertRouting.Subscribers(widgets, "raid").Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_widget_that_subscribed_to_the_wildcard_receives_every_alert()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        SubscribeFixture d = await SubscribeFixtureAsync(db, []);
+
+        await d.Hub.Hub.Subscribe(d.Widget.Id.ToString(), ["*"]);
+
+        List<Widget> widgets = await db.Widgets.AsNoTracking().ToListAsync();
+        WidgetAlertRouting
+            .Subscribers(widgets, "follow")
+            .Select(w => w.Id)
+            .Should()
+            .Equal(d.Widget.Id);
+        WidgetAlertRouting
+            .Subscribers(widgets, "raid")
+            .Select(w => w.Id)
+            .Should()
+            .Equal(d.Widget.Id);
+    }
+
+    // The server acts on a Redemption Alert's reward_redeemed (the redemption sound) whether or not the page
+    // registers it, so the catalogue default stays; what the page adds is joined on; the old list is not kept.
+    [Fact]
+    public async Task A_redemption_alert_subscribing_to_follow_keeps_reward_redeemed_and_gains_follow()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        SubscribeFixture d = await SubscribeFixtureAsync(
+            db,
+            ["reward_redeemed", "stale_event"],
+            galleryKey: "redemption_alert"
+        );
+
+        bool accepted = await d.Hub.Hub.Subscribe(d.Widget.Id.ToString(), ["follow"]);
+
+        accepted.Should().BeTrue();
+        (await StoredAsync(db, d.Widget.Id)).Should().Equal("reward_redeemed", "follow");
+        d.Saves[0].Should().Be(1);
+    }
+
+    // Production audio installs still listed now_playing and youtube.* that their code never uses; the
+    // catalogue default for audio is tts_speak alone, so a page that subscribes to it stores exactly that.
+    [Theory]
+    [InlineData("audio")]
+    [InlineData("tts_audio")]
+    public async Task An_audio_install_subscribing_to_tts_speak_stores_exactly_tts_speak(
+        string galleryKey
+    )
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        SubscribeFixture d = await SubscribeFixtureAsync(
+            db,
+            ["tts_speak", "now_playing", "youtube.play", "youtube.pause"],
+            galleryKey: galleryKey
+        );
+
+        await d.Hub.Hub.Subscribe(d.Widget.Id.ToString(), ["tts_speak"]);
+
+        (await StoredAsync(db, d.Widget.Id)).Should().Equal("tts_speak");
+        d.Registry.Received(1).ReleaseMusicDemand(Broadcaster, "obs-conn");
+    }
+
+    // The server speaks TTS to an audio install whether or not its page registers tts_speak, so the catalogue
+    // default stays when the page subscribes to something else.
+    [Theory]
+    [InlineData("audio")]
+    [InlineData("tts_audio")]
+    public async Task An_audio_install_subscribing_to_follow_keeps_tts_speak_and_gains_follow(
+        string galleryKey
+    )
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        SubscribeFixture d = await SubscribeFixtureAsync(
+            db,
+            ["now_playing"],
+            galleryKey: galleryKey
+        );
+
+        await d.Hub.Hub.Subscribe(d.Widget.Id.ToString(), ["follow"]);
+
+        (await StoredAsync(db, d.Widget.Id)).Should().Equal("tts_speak", "follow");
+    }
+
+    [Fact]
+    public async Task A_gallery_row_that_is_not_first_party_gets_no_catalogue_default()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        SubscribeFixture d = await SubscribeFixtureAsync(
+            db,
+            [],
+            galleryKey: "redemption_alert",
+            trustTier: "unverified"
+        );
+
+        await d.Hub.Hub.Subscribe(d.Widget.Id.ToString(), ["follow"]);
+
+        (await StoredAsync(db, d.Widget.Id)).Should().Equal("follow");
     }
 }

@@ -17,6 +17,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Alerts.Entities;
+using NomNomzBot.Domain.Widgets.Entities;
 
 namespace NomNomzBot.Infrastructure.Alerts.Services;
 
@@ -98,7 +99,7 @@ public sealed class AlertQueueService : IAlertQueueService
         // event, gets nothing. The entry then stays Queued, exactly like "no page attached".
         if (
             surface is { IsSuccess: true, Value.IsEnabled: true }
-            && surface.Value.EventSubscriptions.Contains(kind)
+            && Widget.Wants(surface.Value.EventSubscriptions, kind)
             && _presence.IsWidgetAttached(broadcasterId, surface.Value.Id)
         )
         {

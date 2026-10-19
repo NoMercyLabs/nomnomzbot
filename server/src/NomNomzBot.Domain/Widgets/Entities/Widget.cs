@@ -64,7 +64,12 @@ public class Widget : SoftDeletableEntity, ITenantScoped
     /// <summary>The <see cref="WidgetVersion"/> the overlay currently serves; null until the first successful build.</summary>
     public Guid? ActiveVersionId { get; set; }
 
+    /// <summary>The event types this widget's code listens to. <see cref="WildcardEvent"/> stands for every type.</summary>
     public List<string> EventSubscriptions { get; set; } = [];
+
+    /// <summary>What a widget that calls <c>onAny</c> declares: it wants every event type.</summary>
+    public const string WildcardEvent = "*";
+
     public Dictionary<string, object> Settings { get; set; } = new();
 
     public bool IsEnabled { get; set; } = true;
@@ -121,6 +126,13 @@ public class Widget : SoftDeletableEntity, ITenantScoped
     /// exposes anything about the channel-wide credential.</summary>
     public static string GenerateOverlayToken() =>
         Convert.ToHexString(RandomNumberGenerator.GetBytes(24)).ToLowerInvariant();
+
+    /// <summary>True when this widget's subscriptions name <paramref name="eventType"/> or the wildcard.</summary>
+    public bool Wants(string eventType) => Wants(EventSubscriptions, eventType);
+
+    /// <summary>The same decision over a bare subscription list (a DTO carries the list, not the entity).</summary>
+    public static bool Wants(IReadOnlyCollection<string> subscriptions, string eventType) =>
+        subscriptions.Contains(eventType) || subscriptions.Contains(WildcardEvent);
 
     /// <summary>
     /// True when the channel has saved its own source over the catalogue's: the widget's newest version

@@ -103,9 +103,7 @@ public sealed class GoalWidgetEventHandler
             .Widgets.AsNoTracking()
             .Where(w => w.BroadcasterId == broadcasterId && w.IsEnabled)
             .ToListAsync(cancellationToken);
-        IEnumerable<Widget> subscribers = candidates.Where(w =>
-            w.EventSubscriptions.Contains(EventType)
-        );
+        IEnumerable<Widget> subscribers = candidates.Where(w => w.Wants(EventType));
 
         foreach (Widget widget in subscribers)
         {

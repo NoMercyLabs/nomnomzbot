@@ -508,4 +508,11 @@ public static class FirstPartyWidgetCatalogue
             DefaultEventSubscriptions: []
         ),
     ];
+
+    /// <summary>
+    /// The entry for a gallery natural key; a retired key resolves to its canonical entry, and a key the catalogue
+    /// does not hold (a custom widget, a community submission) gives null.
+    /// </summary>
+    public static FirstPartyWidgetDefinition? Find(string? naturalKey) =>
+        All.FirstOrDefault(w => w.Key == WidgetKeyAliases.Canonical(naturalKey));
 }

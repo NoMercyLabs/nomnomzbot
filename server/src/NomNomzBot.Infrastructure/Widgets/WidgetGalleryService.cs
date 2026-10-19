@@ -450,8 +450,6 @@ public partial class WidgetGalleryService(
     // submission can never claim one, however its natural key is spelled.
     private static FirstPartyWidgetDefinition? CatalogueEntry(WidgetGalleryItem i) =>
         i is { TrustTier: "first_party", NaturalKey: not null }
-            ? FirstPartyWidgetCatalogue.All.FirstOrDefault(w =>
-                w.Key == WidgetKeyAliases.Canonical(i.NaturalKey)
-            )
+            ? FirstPartyWidgetCatalogue.Find(i.NaturalKey)
             : null;
 }
