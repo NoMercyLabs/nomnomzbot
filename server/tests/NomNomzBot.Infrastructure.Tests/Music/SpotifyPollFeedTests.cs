@@ -63,7 +63,12 @@ public sealed class SpotifyPollFeedTests
     private List<string> Queued() =>
         [.. _store.GetOrCreate(Channel.ToString()).GetSnapshot().Select(e => e.Item.TrackUri)];
 
-    private static TrackInfo Polled(string uri, int progressMs, bool playing = true) =>
+    private static TrackInfo Polled(
+        string uri,
+        int progressMs,
+        bool playing = true,
+        string? deviceId = null
+    ) =>
         new()
         {
             TrackName = uri,
@@ -74,6 +79,7 @@ public sealed class SpotifyPollFeedTests
             DurationMs = 200_000,
             ProgressMs = progressMs,
             IsPlaying = playing,
+            DeviceId = deviceId,
         };
 
     private int StartsOf(string uri) =>
@@ -83,6 +89,25 @@ public sealed class SpotifyPollFeedTests
                 call.GetMethodInfo().Name == nameof(IMusicProviderStartTrack.StartTrackAsync)
                 && (string?)call.GetArguments()[1] == uri
             );
+
+    [Fact]
+    public async Task Row28_a_poll_from_another_device_during_our_track_blocks_and_sends_no_command()
+    {
+        Request(First);
+        Request(Second, "bob");
+        await _registry.SendAsync(Channel, new RequestAdded());
+        await _registry.ObservePollAsync(Channel, Polled(First, 5_000, deviceId: "desk-pc"));
+        int startsBefore = StartsOf(First) + StartsOf(Second);
+
+        await _registry.ObservePollAsync(Channel, Polled(First, 8_000, deviceId: "phone"));
+
+        _registry
+            .StateOf(Channel)
+            .Should()
+            .Be(PlaybackState.Blocked("Spotify moved to another device"));
+        (StartsOf(First) + StartsOf(Second)).Should().Be(startsBefore);
+        Queued().Should().Equal(Second);
+    }
 
     [Fact]
     public async Task A_track_that_is_not_the_head_playing_removes_only_that_row()

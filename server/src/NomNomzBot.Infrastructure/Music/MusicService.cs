@@ -1577,7 +1577,9 @@ public sealed class MusicService : IMusicService
             track.CanSkipPrevious,
             track.CanSeek,
             track.CanPause,
-            track.CanResume
+            track.CanResume,
+            track.DeviceId,
+            track.DeviceName
         );
 
     public async Task<string?> GetActiveProviderKeyAsync(

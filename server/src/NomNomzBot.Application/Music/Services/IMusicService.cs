@@ -381,7 +381,9 @@ public sealed record NowPlaying(
     bool CanSkipPrevious = true,
     bool CanSeek = true,
     bool CanPause = true,
-    bool CanResume = true
+    bool CanResume = true,
+    string? DeviceId = null,
+    string? DeviceName = null
 );
 
 /// <summary>The full playback queue including the current track.</summary>

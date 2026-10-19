@@ -463,6 +463,8 @@ public sealed class MusicStatePollingService : BackgroundService
             Provider = nowPlaying.Provider,
             IsPlaying = nowPlaying.IsPlaying,
             ProgressMs = nowPlaying.ProgressMs,
+            DeviceId = nowPlaying.DeviceId,
+            DeviceName = nowPlaying.DeviceName,
         };
 
     private async Task ProcessChannelStateAsync(

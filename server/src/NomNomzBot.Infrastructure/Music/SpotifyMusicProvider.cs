@@ -345,7 +345,9 @@ public sealed class SpotifyMusicProvider
             canSkipPrevious: disallows?.SkippingPrev != true,
             canSeek: disallows?.Seeking != true,
             canPause: disallows?.Pausing != true,
-            canResume: disallows?.Resuming != true
+            canResume: disallows?.Resuming != true,
+            deviceId: json.Device?.Id,
+            deviceName: json.Device?.Name
         );
     }
 
@@ -2310,7 +2312,9 @@ public sealed class SpotifyMusicProvider
         bool canSkipPrevious = true,
         bool canSeek = true,
         bool canPause = true,
-        bool canResume = true
+        bool canResume = true,
+        string? deviceId = null,
+        string? deviceName = null
     ) =>
         new()
         {
@@ -2331,6 +2335,8 @@ public sealed class SpotifyMusicProvider
             ShuffleEnabled = shuffleEnabled,
             RepeatMode = repeatMode,
             VolumePercent = volumePercent,
+            DeviceId = deviceId,
+            DeviceName = deviceName,
             CanSetShuffle = canSetShuffle,
             CanSetRepeat = canSetRepeat,
             CanSkipNext = canSkipNext,
@@ -2413,6 +2419,9 @@ public sealed class SpotifyMusicProvider
     {
         [JsonPropertyName("id")]
         public string? Id { get; set; }
+
+        [JsonPropertyName("name")]
+        public string? Name { get; set; }
 
         [JsonPropertyName("volume_percent")]
         public int? VolumePercent { get; set; }

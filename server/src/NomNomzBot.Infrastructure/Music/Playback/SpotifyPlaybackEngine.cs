@@ -162,7 +162,8 @@ public sealed class SpotifyPlaybackEngine(Guid broadcasterId, Func<EngineLease> 
                     polled.TrackUri,
                     polled.IsPlaying,
                     polled.ProgressMs,
-                    polled.DurationMs
+                    polled.DurationMs,
+                    polled.DeviceId
                 )
             );
     }

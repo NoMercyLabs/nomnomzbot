@@ -368,6 +368,13 @@ public class TrackInfo
     /// caller decides the fallback, never guesses a number here.</summary>
     public int? VolumePercent { get; init; }
 
+    /// <summary>The active playback device's provider id and display name, from the "currently playing" read.
+    /// Null when unknown. The playback director compares the id across reports to notice that the owner moved
+    /// Spotify to another device (music-playback-determinism.md row 28).</summary>
+    public string? DeviceId { get; init; }
+
+    public string? DeviceName { get; init; }
+
     /// <summary>
     /// The player's shuffle state, and its repeat mode — the two remote-control toggles the dashboard renders.
     /// Only meaningful on a <c>GetCurrentTrackAsync</c> result (the provider's live playback state); a search or
