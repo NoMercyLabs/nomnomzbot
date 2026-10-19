@@ -1156,6 +1156,7 @@ public static class DependencyInjection
         // The blast-radius check behind command delete and disable; it gathers every registered
         // IBindingUsageSource (one per binding surface, registered beside that surface).
         services.AddScoped<ICommandBindingGuard, CommandBindingGuard>();
+        services.AddScoped<IBindingUsageSource, Rewards.RewardBindingUsageSource>();
 
         // Identity / tenant — HttpContext accessor + UnitOfWork are framework/infra, kept explicit.
         // The I<X>Service impls (ICurrentTenantService, IChannelAccessService, ICurrentUserService,

@@ -18,6 +18,8 @@ using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Rewards.Events;
@@ -126,6 +128,24 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
                 );
         }
 
+        // A reward bound straight to a command or an action runs it through the one invoker: no wrapper pipeline.
+        // A pipeline target (or none) keeps the path below unchanged.
+        if (
+            reward?.GetBindingTarget() is
+            { Kind: BindingTargetKind.Command or BindingTargetKind.Action } target
+        )
+        {
+            await RunDirectTargetAsync(
+                scope,
+                broadcasterId,
+                target,
+                @event,
+                variables,
+                cancellationToken
+            );
+            return;
+        }
+
         string? pipelineJson = reward?.PipelineJson;
         // Set only when pipelineJson below actually came from this bound pipeline's own graph — never for
         // the inline reward.PipelineJson or the synthetic BuildResponsePipeline fallback, neither of which
@@ -201,6 +221,57 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
             @event.EventId.ToString(),
             variables,
             cancellationToken
+        );
+    }
+
+    private async Task RunDirectTargetAsync(
+        IServiceScope scope,
+        Guid broadcasterId,
+        BindingTarget target,
+        RewardRedeemedEvent @event,
+        Dictionary<string, string> variables,
+        CancellationToken ct
+    )
+    {
+        bool succeeded = false;
+        long startedAt = Stopwatch.GetTimestamp();
+        try
+        {
+            ICommandInvoker invoker = scope.ServiceProvider.GetRequiredService<ICommandInvoker>();
+            Result<InvocationOutcome> run = await invoker.InvokeAsync(
+                broadcasterId,
+                target,
+                new(
+                    @event.UserId,
+                    @event.UserDisplayName,
+                    @event.UserInput ?? string.Empty,
+                    "reward",
+                    Variables: variables
+                ),
+                ct
+            );
+            succeeded = run.IsSuccess && run.Value!.Succeeded;
+            if (!succeeded)
+                _logger.LogWarning(
+                    "Reward {RewardId} in {Channel} could not run its {Kind} target: {Error}",
+                    @event.RewardId,
+                    broadcasterId,
+                    target.Kind,
+                    run.IsFailure ? run.ErrorMessage : run.Value!.Error
+                );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Failed to run reward target in channel {Channel}", broadcasterId);
+        }
+
+        await PublishAfterProcessedAsync(
+            broadcasterId,
+            @event.RewardId,
+            @event.RedemptionId,
+            succeeded,
+            Stopwatch.GetElapsedTime(startedAt),
+            ct
         );
     }
 

@@ -153,6 +153,7 @@ public sealed partial class SdkHostJsonDriftTests
             GlobalCooldownSeconds: null,
             TimerDurationSeconds: null,
             PipelineId: null,
+            Target: null,
             CreatedAt: DateTime.UtcNow,
             UpdatedAt: DateTime.UtcNow
         );

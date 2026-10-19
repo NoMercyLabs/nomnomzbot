@@ -20,6 +20,8 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
+using NomNomzBot.Domain.Commands.Enums;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Infrastructure.Commands;
@@ -87,6 +89,14 @@ public class RewardService : IRewardService
         );
         if (pipelineOk.IsFailure)
             return pipelineOk.ToTyped<RewardDetail>();
+
+        Result targetOk = await EnsureTargetValidAsync(
+            broadcaster,
+            request.Target,
+            cancellationToken
+        );
+        if (targetOk.IsFailure)
+            return targetOk.ToTyped<RewardDetail>();
 
         // Twitch has no server-side uniqueness on reward titles — creating a second "BSOD"-titled reward
         // would just duplicate it (and burn the streamer's channel-point economy). Check the LIVE Twitch
@@ -186,10 +196,66 @@ public class RewardService : IRewardService
             };
         }
 
+        if (request.Target is not null)
+            ApplyTarget(reward, request.Target);
+
         _db.Rewards.Add(reward);
         await _db.SaveChangesAsync(cancellationToken);
 
         return Result.Success(ToDetail(reward));
+    }
+
+    // A pipeline target without an id means "no binding"; any other target is written as sent (validated by
+    // EnsureTargetValidAsync before this runs).
+    private static void ApplyTarget(Reward reward, BindingTarget target)
+    {
+        bool clears =
+            target.Kind == BindingTargetKind.Pipeline
+            && (string.IsNullOrEmpty(target.Id) || Guid.Parse(target.Id) == Guid.Empty);
+        reward.SetBindingTarget(clears ? null : target);
+    }
+
+    /// <summary>
+    /// A command target must name a command of this channel (a built-in cannot be stored on a reward), a
+    /// pipeline target a pipeline of this channel, and an action target needs its action type.
+    /// </summary>
+    private async Task<Result> EnsureTargetValidAsync(
+        Guid broadcaster,
+        BindingTarget? target,
+        CancellationToken ct
+    )
+    {
+        if (target is null)
+            return Result.Success();
+
+        switch (target.Kind)
+        {
+            case BindingTargetKind.Command:
+                if (
+                    !Guid.TryParse(target.Id, out Guid commandId)
+                    || !await _db.Commands.AnyAsync(
+                        c => c.Id == commandId && c.BroadcasterId == broadcaster,
+                        ct
+                    )
+                )
+                    return Result.Failure(
+                        "That command does not exist in this channel.",
+                        "VALIDATION_FAILED"
+                    );
+                return Result.Success();
+            case BindingTargetKind.Action:
+                return string.IsNullOrWhiteSpace(target.ActionType)
+                    ? Result.Failure("An action target needs an action type.", "VALIDATION_FAILED")
+                    : Result.Success();
+            default:
+                return Guid.TryParse(target.Id, out Guid pipelineId)
+                        ? await _db.EnsurePipelineInChannelAsync(broadcaster, pipelineId, ct)
+                    : string.IsNullOrEmpty(target.Id) ? Result.Success()
+                    : Result.Failure(
+                        "That pipeline does not exist in this channel.",
+                        "VALIDATION_FAILED"
+                    );
+        }
     }
 
     public async Task<Result<RewardDetail>> UpdateAsync(
@@ -252,6 +318,14 @@ public class RewardService : IRewardService
                 return pipelineOk.ToTyped<RewardDetail>();
         }
 
+        Result targetOk = await EnsureTargetValidAsync(
+            broadcaster,
+            request.Target,
+            cancellationToken
+        );
+        if (targetOk.IsFailure)
+            return targetOk.ToTyped<RewardDetail>();
+
         // Helix first, then the local copy — so a Twitch refusal never leaves the dashboard showing state
         // that is not live on Twitch. IsPaused syncs locally too, so the paused/resumed transition source
         // (RewardLifecycleHandler) and a dashboard patch can never disagree about the last-known state.
@@ -312,6 +386,9 @@ public class RewardService : IRewardService
         if (request.PipelineId.HasValue)
             reward.PipelineId =
                 request.PipelineId.Value == Guid.Empty ? null : request.PipelineId.Value;
+        // An explicit target wins over the legacy pipeline field.
+        if (request.Target is not null)
+            ApplyTarget(reward, request.Target);
 
         await _db.SaveChangesAsync(cancellationToken);
 
@@ -1384,6 +1461,7 @@ public class RewardService : IRewardService
             r.GlobalCooldownSeconds,
             r.TimerDurationSeconds,
             r.PipelineId,
+            r.GetBindingTarget(),
             r.CreatedAt,
             r.UpdatedAt
         );

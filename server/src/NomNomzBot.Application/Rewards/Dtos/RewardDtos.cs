@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Commands.ValueObjects;
+
 namespace NomNomzBot.Application.Rewards.Dtos;
 
 /// <summary>One live/recent countdown for a time-limited reward redemption. <c>RemainingSeconds</c> is
@@ -73,6 +75,9 @@ public sealed record RewardDetail(
     // Optional saved-pipeline binding: redeeming this reward dispatches that pipeline (e.g. a play_sound
     // step). Null = no bound pipeline.
     Guid? PipelineId,
+    // What a redemption runs, chosen directly: a saved pipeline, a command or an action (no wrapper
+    // pipeline). Null when nothing is bound.
+    BindingTarget? Target,
     DateTime CreatedAt,
     DateTime UpdatedAt
 );
@@ -97,6 +102,12 @@ public sealed record CreateRewardRequest
 
     /// <summary>Optional saved-pipeline binding — redeeming this reward runs that pipeline.</summary>
     public Guid? PipelineId { get; init; }
+
+    /// <summary>
+    /// What a redemption runs: a command (by id), a pipeline or an action. Wins over <see cref="PipelineId"/>
+    /// when both are sent. The command must exist in the channel.
+    /// </summary>
+    public BindingTarget? Target { get; init; }
 }
 
 public sealed record UpdateRewardRequest
@@ -125,4 +136,10 @@ public sealed record UpdateRewardRequest
 
     /// <summary>Saved-pipeline binding; <see cref="Guid.Empty"/> clears it, absent leaves it unchanged.</summary>
     public Guid? PipelineId { get; init; }
+
+    /// <summary>
+    /// The new target; absent leaves the binding unchanged. A pipeline target with no id clears the binding.
+    /// Wins over <see cref="PipelineId"/> when both are sent. A command target must exist in the channel.
+    /// </summary>
+    public BindingTarget? Target { get; init; }
 }
