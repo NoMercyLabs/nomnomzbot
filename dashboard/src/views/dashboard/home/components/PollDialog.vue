@@ -59,6 +59,7 @@ const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const queries = useQueryClient();
+const canWrite = computed(() => can('live-ops:polls:write'));
 const start = useStartPoll(channelId);
 const end = useEndPoll(channelId);
 
@@ -160,32 +161,34 @@ watchEffect(() => {
     >
       <div class="grid flex-none gap-1.5 px-6 pt-6 pb-4">
         <DialogTitle class="text-lg font-semibold">
-          {{ poll === null ? t('dashboard.home.quick.pollStart') : poll.title }}
+          {{ poll === null ? t("dashboard.home.quick.pollStart") : poll.title }}
         </DialogTitle>
         <DialogDescription class="text-sm text-muted-foreground">
-          {{ t('dashboard.home.quick.pollDialogIntro') }}
+          {{ t("dashboard.home.quick.pollDialogIntro") }}
         </DialogDescription>
       </div>
 
       <div v-if="poll === null" class="grid min-h-0 flex-1 gap-4 overflow-y-auto px-6 pb-4">
         <div class="grid gap-1.5">
-          <Label for="poll-title">{{ t('dashboard.home.quick.pollQuestion') }}</Label>
+          <Label for="poll-title">{{ t("dashboard.home.quick.pollQuestion") }}</Label>
           <Input
             id="poll-title"
             v-model="title"
             data-poll-field="title"
             maxlength="60"
+            :disabled="!canWrite"
             :placeholder="t('dashboard.home.quick.pollQuestionHint')"
           />
         </div>
 
         <div class="grid gap-1.5">
-          <Label>{{ t('dashboard.home.quick.pollChoices') }}</Label>
+          <Label>{{ t("dashboard.home.quick.pollChoices") }}</Label>
           <div v-for="(_text, index) in choices" :key="index" class="flex items-center gap-2">
             <Input
               v-model="choices[index]"
               :data-poll-choice="index"
               maxlength="25"
+              :disabled="!canWrite"
               :aria-label="t('dashboard.home.quick.pollChoiceN', { n: index + 1 })"
               :placeholder="t('dashboard.home.quick.pollChoiceN', { n: index + 1 })"
             />
@@ -200,18 +203,18 @@ watchEffect(() => {
             </Button>
           </div>
           <p v-if="!enoughChoices" class="text-sm text-muted-foreground">
-            {{ t('dashboard.home.quick.pollNeedChoices') }}
+            {{ t("dashboard.home.quick.pollNeedChoices") }}
           </p>
           <div v-if="choices.length < MAX_CHOICES && can('live-ops:polls:write')">
             <Button variant="ghost" size="sm" @click="addChoice">
               <Plus />
-              {{ t('dashboard.home.quick.pollAddChoice') }}
+              {{ t("dashboard.home.quick.pollAddChoice") }}
             </Button>
           </div>
         </div>
 
         <div class="grid gap-1.5">
-          <Label for="poll-minutes">{{ t('dashboard.home.quick.pollMinutes') }}</Label>
+          <Label for="poll-minutes">{{ t("dashboard.home.quick.pollMinutes") }}</Label>
           <Input
             id="poll-minutes"
             v-model="minutes"
@@ -219,22 +222,24 @@ watchEffect(() => {
             type="number"
             min="1"
             :max="MAX_MINUTES"
+            :disabled="!canWrite"
             class="w-24"
           />
         </div>
 
         <div v-if="can('live-ops:polls:write')" class="flex items-center justify-between gap-3">
-          <Label for="poll-points">{{ t('dashboard.home.quick.pollPoints') }}</Label>
+          <Label for="poll-points">{{ t("dashboard.home.quick.pollPoints") }}</Label>
           <Switch id="poll-points" v-model="pointsOn" data-poll-field="points" />
         </div>
         <div v-if="pointsOn" class="grid gap-1.5">
-          <Label for="poll-points-price">{{ t('dashboard.home.quick.pollPointsPrice') }}</Label>
+          <Label for="poll-points-price">{{ t("dashboard.home.quick.pollPointsPrice") }}</Label>
           <Input
             id="poll-points-price"
             v-model="pointsPerVote"
             data-poll-field="pointsPerVote"
             type="number"
             min="1"
+            :disabled="!canWrite"
             class="w-32"
           />
         </div>
@@ -242,7 +247,7 @@ watchEffect(() => {
 
       <div v-else class="grid min-h-0 flex-1 gap-4 overflow-y-auto px-6 pb-4">
         <p v-if="ended" data-poll-final class="text-sm font-medium">
-          {{ t('dashboard.home.quick.pollFinal') }}
+          {{ t("dashboard.home.quick.pollFinal") }}
         </p>
         <p v-else class="text-sm font-medium">
           <Countdown
@@ -268,8 +273,8 @@ watchEffect(() => {
         <Button variant="outline" @click="open = false">
           {{
             poll === null
-              ? t('dashboard.home.quick.pollCancel')
-              : t('dashboard.home.quick.pollClose')
+              ? t("dashboard.home.quick.pollCancel")
+              : t("dashboard.home.quick.pollClose")
           }}
         </Button>
         <Button
@@ -277,10 +282,10 @@ watchEffect(() => {
           :disabled="!valid || start.isPending.value"
           @click="submit"
         >
-          {{ t('dashboard.home.quick.pollStartGo') }}
+          {{ t("dashboard.home.quick.pollStartGo") }}
         </Button>
         <Button v-else-if="ended && can('live-ops:polls:write')" @click="emit('newPoll')">
-          {{ t('dashboard.home.quick.pollNew') }}
+          {{ t("dashboard.home.quick.pollNew") }}
         </Button>
         <Button
           v-else-if="poll !== null && can('live-ops:polls:write')"
@@ -288,7 +293,7 @@ watchEffect(() => {
           :disabled="end.isPending.value"
           @click="end.mutate(poll.id)"
         >
-          {{ t('dashboard.home.quick.pollEnd') }}
+          {{ t("dashboard.home.quick.pollEnd") }}
         </Button>
       </DialogFooter>
     </DialogContent>
