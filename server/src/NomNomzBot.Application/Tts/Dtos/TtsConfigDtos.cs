@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
+using NomNomzBot.Domain.Tts.Entities;
 
 namespace NomNomzBot.Application.Tts.Dtos;
 
@@ -39,6 +40,17 @@ public sealed record TtsConfigDto(
 );
 
 /// <summary>
+/// What the TTS settings page may offer: the providers, dispatch modes and standings the update accepts, and
+/// the longest message cap. Served from <see cref="TtsConfigOptions"/>, the same place the update validates against.
+/// </summary>
+public sealed record TtsConfigOptionsDto(
+    IReadOnlyList<string> Providers,
+    IReadOnlyList<string> Modes,
+    IReadOnlyList<string> MinPermissions,
+    int MaxCharactersLimit
+);
+
+/// <summary>
 /// The channel's auto-provisioned TTS overlay (widgets-overlays.md §1.2 system surface): the OBS browser-source
 /// URL to add once, and when it last reported running (audit B5) — so the dashboard can show a real "is this
 /// actually in OBS" signal instead of assuming.
@@ -63,11 +75,11 @@ public sealed record UpdateTtsConfigDto
     public bool? IsEnabled { get; init; }
 
     /// <summary>Dispatch plane: byok | self_host (client_edge is retired and reads as self_host).</summary>
-    [RegularExpression("^(client_edge|byok|self_host)$")]
+    [RegularExpression(TtsConfigOptions.ModePattern)]
     public string? Mode { get; init; }
 
     /// <summary>Preferred synthesis provider: edge | azure | elevenlabs.</summary>
-    [RegularExpression("^(edge|azure|elevenlabs)$")]
+    [RegularExpression(TtsConfigOptions.ProviderPattern)]
     public string? DefaultProvider { get; init; }
 
     [MaxLength(255)]
@@ -76,10 +88,10 @@ public sealed record UpdateTtsConfigDto
     /// <summary>True drops the channel's own voice pick so it follows the platform default voice again.</summary>
     public bool? FollowPlatformDefaultVoice { get; init; }
 
-    [Range(1, 500)]
+    [Range(1, TtsConfigOptions.MaxCharactersLimit)]
     public int? MaxCharacters { get; init; }
 
-    [RegularExpression("^(everyone|subscribers|vip|moderators|broadcaster)$")]
+    [RegularExpression(TtsConfigOptions.MinPermissionPattern)]
     public string? MinPermission { get; init; }
 
     public bool? SkipBotMessages { get; init; }

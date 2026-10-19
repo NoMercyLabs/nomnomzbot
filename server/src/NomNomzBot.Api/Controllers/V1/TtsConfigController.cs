@@ -26,6 +26,7 @@ using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Tts.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -223,6 +224,26 @@ public class TtsConfigController : BaseController
         Result<TtsConfigDto> result = await _ttsConfigService.GetDefaultConfigAsync(ct);
         return ResultResponse(result);
     }
+
+    /// <summary>
+    /// The choices the TTS settings page may offer (providers, modes, standings) and the longest message cap —
+    /// the same lists the config update validates against, so the page never lists a value the API refuses.
+    /// </summary>
+    [HttpGet("config/options")]
+    [RequireAction("tts:config:read")]
+    [ProducesResponseType<StatusResponseDto<TtsConfigOptionsDto>>(StatusCodes.Status200OK)]
+    public IActionResult GetConfigOptions(string channelId) =>
+        Ok(
+            new StatusResponseDto<TtsConfigOptionsDto>
+            {
+                Data = new(
+                    TtsConfigOptions.Providers,
+                    TtsConfigOptions.Modes,
+                    TtsConfigOptions.MinPermissions,
+                    TtsConfigOptions.MaxCharactersLimit
+                ),
+            }
+        );
 
     /// <summary>
     /// Reset the channel's TTS settings to the defaults and return the resulting config. Leaves the BYOK keys,
