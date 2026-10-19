@@ -101,6 +101,7 @@ public sealed partial class PlaybackDirector : IDisposable
         await _gate.WaitAsync(ct);
         try
         {
+            await RaiseDueDeadlinesAsync(ct);
             await ApplyAsync(input, ct);
         }
         finally
@@ -109,31 +110,40 @@ public sealed partial class PlaybackDirector : IDisposable
         }
     }
 
-    /// <summary>Raises the stop-wait and start deadlines that have passed. A timer calls it.</summary>
+    /// <summary>Raises the stop-wait and start deadlines that have passed.</summary>
     public async Task CheckDeadlinesAsync(CancellationToken ct = default)
     {
         using IDisposable? sanction = ClaimQueueSanction();
         await _gate.WaitAsync(ct);
         try
         {
-            if (State.Kind != PlaybackStateKind.Starting)
-                return;
-
-            DateTimeOffset now = _time.GetUtcNow();
-            if (_stopWait is not null && now >= _stopDeadline)
-            {
-                _stopWait = null;
-                await MoveAsync(State, "StopTimeout", "stop_unconfirmed");
-                await SendStartAsync(State.Item!, "StopTimeout", ct);
-            }
-            else if (_startDeadline is { } deadline && now >= deadline)
-            {
-                await ApplyAsync(new StartTimeout(), ct);
-            }
+            await RaiseDueDeadlinesAsync(ct);
         }
         finally
         {
             _gate.Release();
+        }
+    }
+
+    /// <summary>
+    /// No timer drives the director, so every input first raises the deadlines that passed; the engine
+    /// polls every few seconds, which bounds how long a start that never confirms can hold the channel.
+    /// </summary>
+    private async Task RaiseDueDeadlinesAsync(CancellationToken ct)
+    {
+        if (State.Kind != PlaybackStateKind.Starting)
+            return;
+
+        DateTimeOffset now = _time.GetUtcNow();
+        if (_stopWait is not null && now >= _stopDeadline)
+        {
+            _stopWait = null;
+            await MoveAsync(State, "StopTimeout", "stop_unconfirmed");
+            await SendStartAsync(State.Item!, "StopTimeout", ct);
+        }
+        else if (_startDeadline is { } deadline && now >= deadline)
+        {
+            await ApplyAsync(new StartTimeout(), ct);
         }
     }
 
