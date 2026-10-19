@@ -46,6 +46,8 @@ public sealed class MusicServiceOwnerControlsThroughDirectorTests
             SpotifyChannel,
             engine == EngineKind.Spotify ? EngineKind.YouTube : EngineKind.Spotify
         );
+        // The director is created on its first input; it only hears engine reports after that.
+        await rig.Registry.SendAsync(SpotifyChannel, new OutputAttached());
         await playing.EmitAsync(new EngineReport(engine, UriOf(engine), true, 1_000, 200_000));
         rig.Registry.StateOf(SpotifyChannel).Should().Be(PlaybackState.Playing(engine, null));
 
