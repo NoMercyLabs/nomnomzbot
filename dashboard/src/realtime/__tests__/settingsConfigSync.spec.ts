@@ -20,6 +20,7 @@ import {
 } from '@/api/discord';
 import { escalationPolicyKey } from '@/api/escalationPolicy';
 import { networkBlockOptInKey } from '@/api/networkBlockOptIn';
+import { spamDefensePolicyKey } from '@/api/spamDefensePolicy';
 
 import { FakeHubConnection, fakeSignalR } from './fakeSignalR';
 
@@ -76,6 +77,18 @@ describe('settings pages live sync', () => {
     connection.receive('ConfigChanged', change('escalation', 'updated'));
 
     expect(stale(queries, escalationPolicyKey('c1'))).toBe(true);
+    expect(stale(queries, commandsKey('c1'))).toBe(false);
+  });
+
+  it('a spam-defense change marks the spam policy stale and leaves the command list alone', async () => {
+    const [queries, connection] = await started();
+
+    queries.setQueryData(spamDefensePolicyKey('c1'), { settings: {} });
+    queries.setQueryData(commandsKey('c1'), []);
+
+    connection.receive('ConfigChanged', change('spam-defense', 'updated'));
+
+    expect(stale(queries, spamDefensePolicyKey('c1'))).toBe(true);
     expect(stale(queries, commandsKey('c1'))).toBe(false);
   });
 

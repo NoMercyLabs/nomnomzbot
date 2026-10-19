@@ -30,6 +30,7 @@ import { personalityKey } from '@/api/personalitySettings';
 import { pipelinesKey } from '@/api/pipelines';
 import { quotesKey } from '@/api/quotes';
 import { basicsKey } from '@/api/settings';
+import { spamDefensePolicyKey } from '@/api/spamDefensePolicy';
 import { supporterEventsKey } from '@/api/supporters';
 import { ttsConfigKey } from '@/api/tts';
 import { voiceTriggersKey } from '@/api/voiceTriggers';
@@ -80,6 +81,7 @@ export const configDomainKeys: Record<string, readonly QueryKeyBuilder[]> = {
   engagement: [engagementConfigKey],
   'network-blocks': [networkBlockOptInKey],
   escalation: [escalationPolicyKey],
+  'spam-defense': [spamDefensePolicyKey],
   discord: [
     discordConnectionsKey,
     discordRulesPrefix,
