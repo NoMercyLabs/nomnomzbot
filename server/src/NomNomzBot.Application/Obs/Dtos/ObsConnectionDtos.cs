@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
+using System.Text.Json.Serialization;
 using NomNomzBot.Domain.Obs.Entities;
 
 namespace NomNomzBot.Application.Obs.Dtos;
@@ -31,6 +32,7 @@ public sealed record ObsConnectionDto(
 );
 
 /// <summary>Which shape of the OBS connection a read returns (query option <c>view</c>).</summary>
+[JsonConverter(typeof(JsonStringEnumConverter))]
 public enum ObsConnectionView
 {
     /// <summary>The whole configuration (needs <c>obs:config:read</c>).</summary>

@@ -10,6 +10,9 @@
 
 # refresh-openapi.ps1 - regenerate server/openapi/v1.json FROM A RUNNING API.
 #
+# No-API option: scripts/refresh-openapi-build.ps1 writes the same document at build time and
+# never starts the host. Prefer it on a PC where a running bot would join the owner's channel.
+#
 # Why this exists: the snapshot can only come from a served API (Program.cs uses AddOpenApi +
 # MapOpenApi at runtime; there is no build-time generator). Hand-editing it is the failure this
 # guards against - a slice once added DTO schemas by hand and none of the routes, so every client
