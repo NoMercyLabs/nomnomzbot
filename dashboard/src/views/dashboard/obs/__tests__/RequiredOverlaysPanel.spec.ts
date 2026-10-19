@@ -16,13 +16,11 @@ import { i18n } from '@/i18n';
 
 import RequiredOverlaysPanel from '../components/RequiredOverlaysPanel.vue';
 import en from '../i18n/en.json';
+import nl from '../i18n/nl.json';
 
 const SECRET = 'SECRET123';
 
-const surface = (
-  key: string,
-  over: Record<string, unknown> = {},
-): RequiredOverlay =>
+const surface = (key: string, over: Record<string, unknown> = {}): RequiredOverlay =>
   ({
     key,
     widget: {
@@ -86,6 +84,15 @@ describe('RequiredOverlaysPanel', () => {
 
     expect(rows()[1]?.textContent).toContain(en.dashboard.obs.required.surfaces.alerts.name);
     expect(rows()[1]?.textContent).toContain(en.dashboard.obs.required.surfaces.alerts.detail);
+  });
+
+  it('names the audio surface Bot Audio and leaves songs to the music player', () => {
+    open([surface('audio')]);
+
+    expect(rows()[0]?.textContent).toContain('Bot Audio');
+    expect(rows()[0]?.textContent).toContain(en.dashboard.obs.required.surfaces.audio.detail);
+    expect(en.dashboard.obs.required.surfaces.audio.detail).not.toMatch(/song/i);
+    expect(nl.dashboard.obs.required.surfaces.audio.name).toBe('Bot Audio');
   });
 
   it('copies the full address to the clipboard and never prints the token on the page', async () => {

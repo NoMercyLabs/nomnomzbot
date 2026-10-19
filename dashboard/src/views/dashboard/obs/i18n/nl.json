@@ -42,8 +42,8 @@
         "loadError": "De verplichte overlays konden niet laden.",
         "surfaces": {
           "audio": {
-            "name": "Audio",
-            "detail": "Speelt elke geluidsclip, elk nummer en elk uitgesproken bericht af."
+            "name": "Bot Audio",
+            "detail": "Speelt elke geluidsclip en elk uitgesproken bericht van de bot af."
           },
           "alerts": {
             "name": "Meldingen",

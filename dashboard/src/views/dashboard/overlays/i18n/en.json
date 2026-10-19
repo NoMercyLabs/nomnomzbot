@@ -8,8 +8,8 @@
       "noMatch": "No overlay matches \"{query}\".",
       "back": "Back to the list",
       "audioMix": {
-        "title": "Audio mix",
-        "description": "The volume your overlays and the bot voice play at, the same on every streaming PC.",
+        "title": "Music vs Bot audio levels",
+        "description": "How loud the music plays against the bot voice and sounds on your overlays, the same on every streaming PC.",
         "loadError": "The audio mix could not load.",
         "defaultHint": "Default {value}",
         "master": {

@@ -8,8 +8,8 @@
       "noMatch": "Geen overlay past bij \"{query}\".",
       "back": "Terug naar de lijst",
       "audioMix": {
-        "title": "Audiomix",
-        "description": "Het volume waarop je overlays en de botstem spelen, op elke streaming-pc gelijk.",
+        "title": "Muziek- en botaudioniveaus",
+        "description": "Hoe luid de muziek klinkt ten opzichte van de botstem en de geluiden op je overlays, op elke streaming-pc gelijk.",
         "loadError": "De audiomix kon niet laden.",
         "defaultHint": "Standaard {value}",
         "master": {

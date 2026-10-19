@@ -42,8 +42,8 @@
         "loadError": "The required overlays could not load.",
         "surfaces": {
           "audio": {
-            "name": "Audio",
-            "detail": "Plays every sound clip, song and spoken message."
+            "name": "Bot Audio",
+            "detail": "Plays every sound clip and spoken message from the bot."
           },
           "alerts": {
             "name": "Alerts",

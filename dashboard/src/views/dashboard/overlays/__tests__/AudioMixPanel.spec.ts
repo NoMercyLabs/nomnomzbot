@@ -130,12 +130,17 @@ describe('AudioMixPanel', () => {
     ]);
   });
 
+  it('titles the panel as the music against bot audio levels, in both languages', async () => {
+    const wrapper = await open();
+
+    expect(wrapper.find('[data-view="audio-mix"]').text()).toContain('Music vs Bot audio levels');
+    expect(nl.dashboard.overlays.audioMix.title).toBe('Muziek- en botaudioniveaus');
+  });
+
   it('names each slider thumb, not only the slider root', async () => {
     const wrapper = await open();
 
-    const names = wrapper
-      .findAll('[role="slider"]')
-      .map((thumb) => thumb.attributes('aria-label'));
+    const names = wrapper.findAll('[role="slider"]').map((thumb) => thumb.attributes('aria-label'));
 
     expect(names).toEqual(['Master volume', 'Voice volume', 'Music duck percent']);
   });
@@ -146,11 +151,14 @@ describe('AudioMixPanel', () => {
     await type(wrapper, 'masterVolume', '40');
 
     expect(puts).toEqual([
-      { path: '/api/v{version}/audio-mix', body: {
-        masterVolume: 40,
-        ttsVolume: 60,
-        musicDuckPercent: 70,
-      } },
+      {
+        path: '/api/v{version}/audio-mix',
+        body: {
+          masterVolume: 40,
+          ttsVolume: 60,
+          musicDuckPercent: 70,
+        },
+      },
     ]);
   });
 
@@ -225,7 +233,10 @@ describe('AudioMixPanel', () => {
 
     const wrapper = await open();
 
-    expect(wrapper.find('input[data-audio-mix="masterVolume"]').attributes('disabled')).toBeDefined();
+    expect(
+      wrapper.find('input[data-audio-mix="masterVolume"]').attributes('disabled'),
+    ).toBeDefined();
+
     expect(wrapper.find('input[data-audio-mix="ttsVolume"]').attributes('disabled')).toBeDefined();
 
     expect(
