@@ -96,6 +96,40 @@ function freshAnswers() {
           isReserved: false,
           speakWithTts: false,
           replyOverrideCount: 0,
+          defaultCooldownSeconds: 30,
+          defaultUserCooldownSeconds: 60,
+          defaultMinPermissionLevel: 'Everyone',
+          cooldownSecondsOverride: null,
+          userCooldownSecondsOverride: null,
+          minPermissionLevelOverride: null,
+        },
+        {
+          builtinKey: 'shoutout',
+          name: '!shoutout',
+          isEnabled: true,
+          isReserved: false,
+          speakWithTts: false,
+          replyOverrideCount: 0,
+          defaultCooldownSeconds: 10,
+          defaultUserCooldownSeconds: 0,
+          defaultMinPermissionLevel: 'Moderator',
+          cooldownSecondsOverride: 20,
+          userCooldownSecondsOverride: null,
+          minPermissionLevelOverride: 'Broadcaster',
+        },
+        {
+          builtinKey: 'mydata',
+          name: '!mydata',
+          isEnabled: true,
+          isReserved: true,
+          speakWithTts: false,
+          replyOverrideCount: 0,
+          defaultCooldownSeconds: 0,
+          defaultUserCooldownSeconds: 0,
+          defaultMinPermissionLevel: 'Everyone',
+          cooldownSecondsOverride: null,
+          userCooldownSecondsOverride: null,
+          minPermissionLevelOverride: null,
         },
       ]),
   } as const satisfies Record<string, () => Answer>;
@@ -368,6 +402,7 @@ describe('CommandsView list', () => {
 
     expect(sort).not.toBeNull();
     expect(sort.querySelector('button')!.disabled).toBe(true);
+    expect(sort.getAttribute('title')).toBe(en.dashboard.commands.list.sortOff);
   });
 
   it('shows all commands by default: the custom ones and the built-in ones with a single "!"', async () => {
@@ -377,7 +412,7 @@ describe('CommandsView list', () => {
       'All',
     );
 
-    expect(rowNames().sort()).toEqual(['hello', 'pipe', 'socials', 'uptime']);
+    expect(rowNames().sort()).toEqual(['hello', 'mydata', 'pipe', 'shoutout', 'socials', 'uptime']);
     const uptime = rowEls().find((row) => row.dataset.commandName === 'uptime')!;
 
     expect(uptime.hasAttribute('data-command-builtin')).toBe(true);
@@ -1175,6 +1210,47 @@ describe('CommandsView built-in tab', () => {
     expect(writes('PATCH')).toHaveLength(1);
     expect(writes('PATCH')[0]!.name).toBe('uptime');
     expect(writes('PATCH')[0]!.body).toEqual({ enabled: false });
+  });
+});
+
+describe('CommandsView built-in rows', () => {
+  const rowOf = (title: string): HTMLElement =>
+    [...document.body.querySelectorAll<HTMLElement>('[data-slot="setting-row"]')].find(
+      (row) => row.querySelector('[data-row-title]')?.textContent === title,
+    )!;
+
+  it('shows who may use each built-in, its cooldowns and whether it differs from the default', async () => {
+    await open('/app/commands?view=builtin');
+
+    const plain = rowOf('!uptime');
+
+    expect(plain.querySelector('[data-row-description]')?.textContent).toBe(
+      'Everyone · 30s chat · 60s each',
+    );
+
+    expect(plain.querySelector('[data-row-hint]')?.textContent).toBe('Using the default');
+
+    const changed = rowOf('!shoutout');
+
+    expect(changed.querySelector('[data-row-description]')?.textContent).toBe(
+      'Broadcaster · 20s chat · 0s each',
+    );
+
+    expect(changed.querySelector('[data-row-hint]')?.textContent).toBe(
+      'Overrides the default (Moderator · 10s chat · 0s each)',
+    );
+  });
+
+  it('locks a data-rights built-in on and says why', async () => {
+    await open('/app/commands?view=builtin');
+
+    const reserved = rowOf('!mydata');
+
+    expect(reserved.querySelector('button[role="switch"]')?.hasAttribute('disabled')).toBe(true);
+
+    expect(reserved.querySelector('[data-row-description]')?.textContent).toBe(
+      en.dashboard.commands.builtin.reserved,
+    );
   });
 });
 

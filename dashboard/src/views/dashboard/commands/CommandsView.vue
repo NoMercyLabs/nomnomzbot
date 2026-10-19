@@ -60,16 +60,20 @@ const allTabs = computed<PageTab<CommandView>[]>(() => [
   { value: 'builtin', label: t('dashboard.commands.tabs.builtin') },
 ]);
 const tabs = computed(() =>
-  allTabs.value.filter((tab) => canWrite.value || tab.value !== 'builtin'));
+  allTabs.value.filter((tab) => canWrite.value || tab.value !== 'builtin'),
+);
 const view = usePageView(VIEWS, 'view', () =>
   tabs.value.map((tab) => tab.value));
 const listed = computed<boolean>(() => view.value !== 'builtin');
 
 const sort = useLocalStorage<CommandSort>('nnz.commands.sort', 'uses');
-const sortOptions = computed(() => [
-  { value: 'uses', label: t('dashboard.commands.list.sortUses') },
-  { value: 'name', label: t('dashboard.commands.list.sortName') },
-] as const satisfies { value: CommandSort; label: string }[]);
+const sortOptions = computed(
+  () =>
+    [
+      { value: 'uses', label: t('dashboard.commands.list.sortUses') },
+      { value: 'name', label: t('dashboard.commands.list.sortName') },
+    ] as const satisfies { value: CommandSort; label: string }[],
+);
 
 // The open command lives in the address (?command=), so a refresh or a link keeps it.
 const selected = computed<string | null>(() =>
@@ -78,9 +82,7 @@ const selected = computed<string | null>(() =>
     : null,
 );
 const row = computed<CommandListItem | undefined>(() =>
-  (commands.data.value ?? []).find(
-    (item): boolean => item.name === selected.value,
-  ),
+  (commands.data.value ?? []).find((item): boolean => item.name === selected.value),
 );
 
 // A built-in command opens by its name under ?builtin=, beside a custom one under ?command=.
@@ -90,26 +92,28 @@ const selectedBuiltin = computed<string | null>(() =>
     : null,
 );
 const builtin = computed<BuiltinCommand | undefined>(() =>
-  (builtins.data.value ?? []).find(
-    (item): boolean => triggerWord(item) === selectedBuiltin.value,
-  ),
+  (builtins.data.value ?? []).find((item): boolean => triggerWord(item) === selectedBuiltin.value),
 );
 const open = computed<boolean>(() => row.value !== undefined || builtin.value !== undefined);
 
 function select(name: string | undefined): void {
-  void router.push({ query: {
-    ...route.query,
-    command: name,
-    builtin: undefined,
-  } });
+  void router.push({
+    query: {
+      ...route.query,
+      command: name,
+      builtin: undefined,
+    },
+  });
 }
 
 function selectBuiltin(name: string): void {
-  void router.push({ query: {
-    ...route.query,
-    command: undefined,
-    builtin: name,
-  } });
+  void router.push({
+    query: {
+      ...route.query,
+      command: undefined,
+      builtin: name,
+    },
+  });
 }
 
 function removeCommand(name: string): void {
@@ -130,7 +134,7 @@ const creating = ref(false);
               @click="creating = true"
       >
         <Plus aria-hidden="true" />
-        {{ $t('dashboard.commands.new') }}
+        {{ $t("dashboard.commands.new") }}
       </Button>
     </template>
     <template #bar>
@@ -139,6 +143,7 @@ const creating = ref(false);
       <SegmentedControl
         v-model="sort"
         :disabled="!listed"
+        :title="listed ? undefined : $t('dashboard.commands.list.sortOff')"
         :label="$t('dashboard.commands.list.sort')"
         :options="sortOptions"
       />

@@ -8,8 +8,10 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The commands the bot ships with. This slice only switches them on and off.
+// The commands the bot ships with: each row switches one on or off and shows who may use it, its
+// cooldowns and whether the channel changed them from the default.
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { triggerWord, useBuiltins, useToggleBuiltin, type BuiltinCommand } from '@/api/commands';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -18,13 +20,55 @@ import SettingRow from '@/components/layout/SettingRow.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
+const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const builtins = useBuiltins(channelId);
 const toggle = useToggleBuiltin(channelId);
 
-const rows = computed<BuiltinCommand[]>(
-  () => builtins.data.value ?? [],
-);
+const rows = computed<BuiltinCommand[]>(() => builtins.data.value ?? []);
+
+type Settings = {
+  role: string;
+  cooldown: number;
+  userCooldown: number;
+};
+
+const settingsLine = ({ role, cooldown, userCooldown }: Settings): string =>
+  t('dashboard.commands.builtin.summary', {
+    role: t(`dashboard.commands.builtin.roles.${role}`),
+    cooldown,
+    userCooldown,
+  });
+
+const defaultsOf = (row: BuiltinCommand) =>
+  ({
+    role: row.defaultMinPermissionLevel,
+    cooldown: Number(row.defaultCooldownSeconds),
+    userCooldown: Number(row.defaultUserCooldownSeconds),
+  }) as const satisfies Settings;
+
+const effectiveOf = (row: BuiltinCommand) =>
+  ({
+    role: row.minPermissionLevelOverride ?? row.defaultMinPermissionLevel,
+    cooldown: Number(row.cooldownSecondsOverride ?? row.defaultCooldownSeconds),
+    userCooldown: Number(row.userCooldownSecondsOverride ?? row.defaultUserCooldownSeconds),
+  }) as const satisfies Settings;
+
+const isChanged = (row: BuiltinCommand): boolean =>
+  row.minPermissionLevelOverride != null ||
+  row.cooldownSecondsOverride != null ||
+  row.userCooldownSecondsOverride != null;
+
+const descriptionOf = (row: BuiltinCommand): string =>
+  row.isReserved
+    ? t('dashboard.commands.builtin.reserved')
+    : settingsLine(effectiveOf(row));
+
+const hintOf = (row: BuiltinCommand): string =>
+  isChanged(row)
+    ? t('dashboard.commands.builtin.overrides', { value: settingsLine(defaultsOf(row)) })
+    : t('dashboard.commands.builtin.usingDefault');
+
 const state = usePanelState(builtins, (data: BuiltinCommand[]): boolean =>
   data.length === 0);
 </script>
@@ -43,6 +87,9 @@ const state = usePanelState(builtins, (data: BuiltinCommand[]): boolean =>
           v-for="row in rows"
           :key="row.builtinKey"
           :title="`!${triggerWord(row)}`"
+          :description="descriptionOf(row)"
+          :hint="hintOf(row)"
+          :disabled="row.isReserved"
           :model-value="row.isEnabled"
           @update:model-value="toggle.mutate({ builtinKey: row.builtinKey, enabled: $event })"
         />
