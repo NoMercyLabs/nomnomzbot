@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import type { components } from '@/api/schema';
 import type { JsonValue } from '@/lib/json';
 
 // A binding target is what a timer, trigger, reward or giveaway runs: a command, an action or a pipeline.
@@ -16,6 +17,10 @@ export type TargetKind = 'command' | 'pipeline' | 'action';
 
 // An action target carries the settings the action runs with.
 export type ActionParams = Record<string, JsonValue | undefined>;
+
+// The generated schema types the params as an open object, so the wire accepts that shape.
+// The server stores them as JSON, so reading them as ActionParams is one narrowing, done in targetFromWire.
+type WireParams = NonNullable<components['schemas']['AutomationInvokeRequest']['params']>;
 
 export type PickedTarget = {
   kind: TargetKind;
@@ -28,7 +33,7 @@ export type WireTarget = {
   kind: number | string;
   id?: string | null;
   actionType?: string | null;
-  params?: ActionParams | null;
+  params?: WireParams | null;
 };
 
 const KIND_BY_NUMBER = ['command', 'pipeline', 'action'] as const satisfies readonly TargetKind[];
@@ -69,7 +74,7 @@ export function targetFromWire(wire: WireTarget | null | undefined): PickedTarge
       ? { actionType: wire.actionType }
       : {}),
     ...(wire.params
-      ? { params: wire.params }
+      ? { params: wire.params as ActionParams }
       : {}),
   };
 }
