@@ -63,7 +63,7 @@ public class VtsConnectionService : IVtsConnectionService
 
         connection.Mode = request.Mode;
         connection.Endpoint = string.IsNullOrWhiteSpace(request.Endpoint)
-            ? "ws://localhost:8001"
+            ? VtsConnectionDefaults.Endpoint
             : request.Endpoint.Trim();
         connection.IsEnabled = request.IsEnabled;
         if (request.EventSubscriptionsMask is { } mask)

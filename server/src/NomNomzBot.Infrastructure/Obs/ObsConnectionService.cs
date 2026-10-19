@@ -64,9 +64,9 @@ public class ObsConnectionService : IObsConnectionService
 
         connection.Mode = request.Mode;
         connection.Host = string.IsNullOrWhiteSpace(request.Host)
-            ? "127.0.0.1"
+            ? ObsConnectionDefaults.Host
             : request.Host.Trim();
-        connection.Port = request.Port ?? 4455;
+        connection.Port = request.Port ?? ObsConnectionDefaults.Port;
         connection.IsEnabled = request.IsEnabled;
         if (request.EventSubscriptionsMask is { } mask)
             connection.EventSubscriptionsMask = mask;

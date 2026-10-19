@@ -26,9 +26,6 @@ namespace NomNomzBot.Domain.Vts.Entities;
 /// </summary>
 public class VtsConnection : SoftDeletableEntity, ITenantScoped
 {
-    /// <summary>Default event-subscription mask: the low-volume event set (vtube-studio.md §4).</summary>
-    public const int DefaultEventSubscriptionsMask = 0xFF;
-
     public Guid Id { get; set; } = Guid.CreateVersion7();
 
     /// <summary>One VTS connection per channel (unique).</summary>
@@ -36,11 +33,11 @@ public class VtsConnection : SoftDeletableEntity, ITenantScoped
 
     /// <summary>Transport plane: <c>direct</c> | <c>bridge</c>.</summary>
     [MaxLength(20)]
-    public string Mode { get; set; } = "direct";
+    public string Mode { get; set; } = VtsConnectionDefaults.Mode;
 
     /// <summary>The VTube Studio API endpoint for direct mode.</summary>
     [MaxLength(200)]
-    public string Endpoint { get; set; } = "ws://localhost:8001";
+    public string Endpoint { get; set; } = VtsConnectionDefaults.Endpoint;
 
     /// <summary>The VTS plugin auth token as a sealed envelope — never plaintext, never echoed.</summary>
     public string? PluginTokenCipher { get; set; }
@@ -50,13 +47,13 @@ public class VtsConnection : SoftDeletableEntity, ITenantScoped
     public string? BridgeToken { get; set; }
 
     /// <summary>Bitmask of subscribed VTS event groups (vtube-studio.md §4).</summary>
-    public int EventSubscriptionsMask { get; set; } = DefaultEventSubscriptionsMask;
+    public int EventSubscriptionsMask { get; set; } = VtsConnectionDefaults.EventSubscriptionsMask;
 
-    public bool IsEnabled { get; set; }
+    public bool IsEnabled { get; set; } = VtsConnectionDefaults.IsEnabled;
 
     /// <summary>Auth/connection state: <c>unauthorized</c> | <c>authorized</c> | <c>connected</c> | <c>error</c>.</summary>
     [MaxLength(20)]
-    public string Status { get; set; } = "unauthorized";
+    public string Status { get; set; } = VtsConnectionDefaults.Status;
 
     public DateTime? LastConnectedAt { get; set; }
 

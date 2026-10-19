@@ -101,7 +101,7 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
         );
         await Clients.Caller.SetObsCredentials(
             obsPassword,
-            connection.Port ?? 4455,
+            connection.Port ?? ObsConnectionDefaults.Port,
             connection.EventSubscriptionsMask
         );
 

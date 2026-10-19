@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
+using NomNomzBot.Domain.Vts.Entities;
 
 namespace NomNomzBot.Application.Vts.Dtos;
 
@@ -36,8 +37,10 @@ public sealed record UpsertVtsConnectionRequest
     public string Mode { get; init; } = null!;
 
     [MaxLength(200)]
+    [RegularExpression("^wss?://[^\\s]+$")]
     public string? Endpoint { get; init; }
 
+    [Range(0, VtsConnectionDefaults.MaxEventSubscriptionsMask)]
     public int? EventSubscriptionsMask { get; init; }
 
     public bool IsEnabled { get; init; }

@@ -25,9 +25,6 @@ namespace NomNomzBot.Domain.Obs.Entities;
 /// </summary>
 public class ObsConnection : SoftDeletableEntity, ITenantScoped
 {
-    /// <summary>Default event-subscription mask: the low-volume default bits 0–11 (obs-control.md §6).</summary>
-    public const int DefaultEventSubscriptionsMask = 0xFFF;
-
     public Guid Id { get; set; } = Guid.CreateVersion7();
 
     /// <summary>One OBS connection per channel (unique).</summary>
@@ -35,14 +32,14 @@ public class ObsConnection : SoftDeletableEntity, ITenantScoped
 
     /// <summary>Transport plane: <c>direct</c> | <c>bridge</c>.</summary>
     [MaxLength(10)]
-    public string Mode { get; set; } = "direct";
+    public string Mode { get; set; } = ObsConnectionDefaults.Mode;
 
     /// <summary>OBS-WebSocket host for direct mode.</summary>
     [MaxLength(255)]
-    public string? Host { get; set; } = "127.0.0.1";
+    public string? Host { get; set; } = ObsConnectionDefaults.Host;
 
     /// <summary>OBS-WebSocket port for direct mode.</summary>
-    public int? Port { get; set; } = 4455;
+    public int? Port { get; set; } = ObsConnectionDefaults.Port;
 
     /// <summary>The OBS-WS password as a sealed envelope — never plaintext, never echoed.</summary>
     public string? PasswordCipher { get; set; }
@@ -55,9 +52,9 @@ public class ObsConnection : SoftDeletableEntity, ITenantScoped
     public string? BridgeToken { get; set; }
 
     /// <summary>Bitmask of subscribed OBS event groups (obs-control.md §6).</summary>
-    public int EventSubscriptionsMask { get; set; } = DefaultEventSubscriptionsMask;
+    public int EventSubscriptionsMask { get; set; } = ObsConnectionDefaults.EventSubscriptionsMask;
 
-    public bool IsEnabled { get; set; }
+    public bool IsEnabled { get; set; } = ObsConnectionDefaults.IsEnabled;
 
     public DateTime? LastConnectedAt { get; set; }
 

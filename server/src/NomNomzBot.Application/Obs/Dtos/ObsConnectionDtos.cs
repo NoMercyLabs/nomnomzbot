@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
+using NomNomzBot.Domain.Obs.Entities;
 
 namespace NomNomzBot.Application.Obs.Dtos;
 
@@ -63,6 +64,7 @@ public sealed record UpsertObsConnectionRequest
     [MaxLength(255)]
     public string? Password { get; init; }
 
+    [Range(0, ObsConnectionDefaults.MaxEventSubscriptionsMask)]
     public int? EventSubscriptionsMask { get; init; }
 
     public bool IsEnabled { get; init; }

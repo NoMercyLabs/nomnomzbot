@@ -424,7 +424,9 @@ public sealed class DirectObsTransport : IObsTransport, IAsyncDisposable, IDispo
         CancellationToken ct
     )
     {
-        Uri uri = new($"ws://{config.Host ?? "127.0.0.1"}:{config.Port ?? 4455}");
+        Uri uri = new(
+            $"ws://{config.Host ?? ObsConnectionDefaults.Host}:{config.Port ?? ObsConnectionDefaults.Port}"
+        );
         IObsSocket socket = await _socketFactory.ConnectAsync(uri, ct);
 
         string? helloFrame = await socket.ReceiveTextAsync(ct);
