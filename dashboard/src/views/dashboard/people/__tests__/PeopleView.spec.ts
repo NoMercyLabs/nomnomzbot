@@ -807,39 +807,34 @@ describe('PeopleView', () => {
     );
   });
 
-  it('gives the Subscribers and Regulars tabs an honest reason instead of a list', async () => {
-    await open('/app/people?view=subscriber');
-    expect(text()).toContain('The bot has no list of Twitch subscribers yet.');
-    expect(rows()).toHaveLength(0);
+  it('opens the Subscribers tab on the people Twitch lists and names the gifter of a gifted sub', async () => {
+    listAnswer = (role) =>
+      role === 'subscriber'
+        ? page(
+            [person('sam', { gifted: true, gifter: 'Kana' }), person('tess', { gifted: false })],
+            2,
+          )
+        : page([], 0);
 
-    await router.push('/app/people?view=regular');
-    await settle();
-    expect(text()).toContain('cannot tell who is a regular');
+    await open('/app/people?view=subscriber');
+
+    expect(rows().map((row) => row.getAttribute('data-gifted'))).toEqual(['true', 'false']);
+    expect(rows()[0]!.textContent).toContain('Gifted by Kana');
+    expect(rows()[1]!.textContent).not.toContain('Gifted');
+    expect(tab('Twitch subscribers').hasAttribute('disabled')).toBe(false);
+    expect(tab('Twitch subscribers').textContent).toContain('2');
   });
 
-  // Stoney 2026-10-14: "subscribers and regulars are empty while i have a ton". The bot has no such lists, so the
-  // tabs are locked with the reason instead of opening an empty list.
-  it('locks the Subscribers and Regulars tabs with the reason and keeps them from opening', async () => {
-    await open();
+  it('opens the Regulars tab on the regular list of the bot', async () => {
+    listAnswer = (role) =>
+      role === 'regular'
+        ? page([person('rex')], 1)
+        : page([], 0);
 
-    const subscribers = tab('Twitch subscribers');
-    const regulars = tab('Regulars');
+    await open('/app/people?view=regular');
 
-    expect(subscribers.hasAttribute('disabled')).toBe(true);
-    expect(regulars.hasAttribute('disabled')).toBe(true);
-    expect(subscribers.querySelector('[data-slot="tab-lock"]')).not.toBeNull();
-
-    expect(subscribers.parentElement!.getAttribute('title')).toContain(
-      'no list of Twitch subscribers',
-    );
-
-    expect(regulars.parentElement!.getAttribute('title')).toContain('cannot tell who is a regular');
-    expect(tab('Moderators').hasAttribute('disabled')).toBe(false);
-
-    subscribers.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
-    await settle();
-
-    expect(router.currentRoute.value.query.view).toBeUndefined();
+    expect(rows().map((row) => row.textContent)).toEqual([expect.stringContaining('REX')]);
+    expect(calls.some((call) => call.query.role === 'regular')).toBe(true);
   });
 
   it('shows the real total in the list header, not the number of rows loaded so far', async () => {
@@ -861,31 +856,22 @@ describe('PeopleView', () => {
   const firstWords = (): string[] =>
     rows().map((row) => (row.textContent ?? '').slice(2).split('Last seen')[0]!);
 
-  it('sorts A to Z across every page of the channel and remembers the choice', async () => {
-    listAnswer = (role, pageNumber) => {
-      if (role)
-        return page([], 0);
-
-      return pageNumber === 1
-        ? {
-            data: {
-              data: [person('zed'), person('mia')],
-              hasMore: true,
-              nextPage: 2,
-              total: 3,
-            },
-            response: { status: 200, ok: true },
-          }
-        : page([person('abe')], 3);
-    };
+  it('asks the bot for name order on A to Z and remembers the choice', async () => {
+    listAnswer = (role) =>
+      role
+        ? page([], 0)
+        : page([person('zed'), person('mia')], 2);
 
     await open();
-    expect(firstWords()).toEqual(['ZED', 'MIA', 'ABE']);
+    expect(calls.some((call) => call.query.Sort !== undefined)).toBe(false);
 
     sortChoice('A to Z').click();
     await settle();
 
-    expect(firstWords()).toEqual(['ABE', 'MIA', 'ZED']);
+    expect(calls.some((call) => call.query.Sort === 'name' && call.query.role === undefined)).toBe(
+      true,
+    );
+
     expect(localStorage.getItem('nnz.people.sort')).toBe('alphabetical');
 
     mounted!.unmount();
@@ -893,7 +879,35 @@ describe('PeopleView', () => {
     await open();
 
     expect(sortChoice('A to Z').getAttribute('data-state')).toBe('on');
-    expect(firstWords()[0]).toBe('ABE');
+  });
+
+  it('sorts the VIP list by name here, across every page, because the bot cannot', async () => {
+    listAnswer = (role, pageNumber) => {
+      if (role !== 'vip')
+        return page([], 0);
+
+      return pageNumber === 1
+        ? {
+            data: {
+              data: [person('zed', { trustLevel: 'vip' }), person('mia', { trustLevel: 'vip' })],
+              hasMore: true,
+              nextPage: 2,
+              total: 3,
+            },
+            response: { status: 200, ok: true },
+          }
+        : page([person('abe', { trustLevel: 'vip' })], 3);
+    };
+
+    localStorage.setItem('nnz.people.sort', 'alphabetical');
+    await open('/app/people?view=vip');
+    await settle();
+
+    expect(firstWords()).toEqual(['ABE', 'MIA', 'ZED']);
+
+    expect(calls.some((call) => call.query.role === 'vip' && call.query.Sort !== undefined)).toBe(
+      false,
+    );
   });
 
   it('says when the login in ?u= is not in the loaded lists', async () => {

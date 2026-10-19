@@ -11,6 +11,7 @@
 // One person in the People list: avatar, name, last seen, and a role icon for moderators and VIPs.
 // The list DTO carries only a trust level, so no other role badge can be shown yet.
 import Gem from '~icons/nnz/gem';
+import Gift from '~icons/nnz/gift-card';
 import Shield from '~icons/nnz/shield';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -33,19 +34,28 @@ const lastSeen = computed<string>(() =>
     ? t('dashboard.people.list.lastSeen', { ago: ago.value })
     : t('dashboard.people.list.neverSeen'),
 );
-const initials = computed<string>(() =>
-  props.person.displayName.slice(0, 2).toUpperCase(),
+// A gifted subscription names the gifter when Twitch reports one.
+const giftedBy = computed<string>(() =>
+  props.person.gifter
+    ? t('dashboard.people.list.giftedBy', { gifter: props.person.gifter })
+    : t('dashboard.people.list.gifted'),
 );
+const detail = computed<string>(() =>
+  props.person.gifted
+    ? `${giftedBy.value} · ${lastSeen.value}`
+    : lastSeen.value,
+);
+const initials = computed<string>(() => props.person.displayName.slice(0, 2).toUpperCase());
 </script>
 
 <template>
-  <div data-person-row class="px-1 py-0.5">
+  <div data-person-row :data-gifted="person.gifted" class="px-1 py-0.5">
     <SummaryRow
       pick
       :selected="selected"
       :aria-pressed="selected"
       :title="person.displayName"
-      :detail="lastSeen"
+      :detail="detail"
       @click="$emit('pick')"
     >
       <template #leading>
@@ -59,6 +69,12 @@ const initials = computed<string>(() =>
         </Avatar>
       </template>
       <template #end>
+        <Gift
+          v-if="person.gifted"
+          role="img"
+          class="size-4 text-muted-foreground"
+          :aria-label="giftedBy"
+        />
         <StatusBadge
           v-if="person.isBanned"
           tone="bad"

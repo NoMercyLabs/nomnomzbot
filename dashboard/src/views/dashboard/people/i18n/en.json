@@ -42,12 +42,14 @@
         "neverSeen": "Not seen yet",
         "notInChannel": "Not in this channel",
         "banned": "Banned",
+        "gifted": "Gifted subscription",
+        "giftedBy": "Gifted by {gifter}",
         "roles": {
           "moderator": "Moderator",
           "vip": "VIP"
         },
-        "noSubscribers": "The bot has no list of Twitch subscribers yet. Twitch gives it a count, not the people.",
-        "noRegulars": "The bot does not count streams per person yet, so it cannot tell who is a regular."
+        "noSubscribers": "Twitch lists no subscribers for your channel.",
+        "noRegulars": "Nobody counts as a regular yet."
       },
       "detail": {
         "title": "Profile",

@@ -57,20 +57,21 @@ const ok = { ok: true, status: 200 } as const satisfies Answer['response'];
 const channel = 'c1';
 const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0));
 
-const person = (id: string) => ({
-  id,
-  internalUserId: null,
-  username: id,
-  displayName: id,
-  profileImageUrl: null,
-  messageCount: 1,
-  watchHours: 1,
-  commandsUsed: 0,
-  trustLevel: 'viewer',
-  isBanned: false,
-  firstSeen: '2026-01-01T00:00:00Z',
-  lastSeen: '2026-01-02T00:00:00Z',
-}) as const satisfies Record<string, unknown>;
+const person = (id: string) =>
+  ({
+    id,
+    internalUserId: null,
+    username: id,
+    displayName: id,
+    profileImageUrl: null,
+    messageCount: 1,
+    watchHours: 1,
+    commandsUsed: 0,
+    trustLevel: 'viewer',
+    isBanned: false,
+    firstSeen: '2026-01-01T00:00:00Z',
+    lastSeen: '2026-01-02T00:00:00Z',
+  }) as const satisfies Record<string, unknown>;
 
 function mount<T>(use: () => T): {
   queries: QueryClient;
@@ -165,6 +166,62 @@ describe('useCommunityList', () => {
     expect(hook.data.value?.pages.flatMap((p) => p.rows.map((r) => r.id))).toEqual(['a', 'b']);
     expect(hook.data.value?.pages[0]?.total).toBe(2);
     expect(hook.hasNextPage.value).toBe(false);
+  });
+
+  it('asks the bot to sort by name and keeps each sort in its own cache entry', async () => {
+    http.GET.mockResolvedValue({ data: { data: [person('a')], hasMore: false }, response: ok });
+
+    const sort = ref<'last_seen' | 'name'>('last_seen');
+
+    mount(() => useCommunityList(channel, ref('regular'), ref(''), sort));
+    await settle();
+    expect((http.GET.mock.calls[0] as Call)[1].params?.query).not.toHaveProperty('Sort');
+
+    sort.value = 'name';
+    await settle();
+    const last = http.GET.mock.calls[http.GET.mock.calls.length - 1] as Call;
+
+    expect(last[1].params?.query?.Sort).toBe('name');
+
+    expect(communityListKey(channel, 'regular', '', 'name')).not.toEqual(
+      communityListKey(channel, 'regular', ''),
+    );
+  });
+
+  it('pages the Subscribers tab by the cursor Twitch handed back, and keeps the gifter', async () => {
+    http.GET.mockResolvedValueOnce({
+      data: {
+        data: [{
+          ...person('s1'),
+          gifted: true,
+          gifter: 'Kana',
+        }],
+        hasMore: true,
+        nextPage: 2,
+        nextCursor: 'cur-1',
+        total: 2,
+      },
+      response: ok,
+    });
+
+    http.GET.mockResolvedValueOnce({
+      data: {
+        data: [person('s2')],
+        hasMore: false,
+        total: 2,
+      },
+      response: ok,
+    });
+
+    const { hook } = mount(() => useCommunityList(channel, ref('subscriber'), ref('')));
+
+    await settle();
+    expect((http.GET.mock.calls[0] as Call)[1].params?.query).not.toHaveProperty('cursor');
+
+    await hook.fetchNextPage();
+    await settle();
+    expect((http.GET.mock.calls[1] as Call)[1].params?.query?.cursor).toBe('cur-1');
+    expect(hook.data.value?.pages[0]?.rows[0]).toMatchObject({ gifted: true, gifter: 'Kana' });
   });
 
   it('sends the search text and a refusal becomes an error state, not an empty list', async () => {

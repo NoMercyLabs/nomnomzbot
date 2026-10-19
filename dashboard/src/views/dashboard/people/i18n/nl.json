@@ -42,12 +42,14 @@
         "neverSeen": "Nog niet gezien",
         "notInChannel": "Niet in dit kanaal",
         "banned": "Verbannen",
+        "gifted": "Cadeau-abonnement",
+        "giftedBy": "Cadeau van {gifter}",
         "roles": {
           "moderator": "Moderator",
           "vip": "VIP"
         },
-        "noSubscribers": "De bot heeft nog geen lijst met Twitch-abonnees. Twitch geeft een aantal, geen namen.",
-        "noRegulars": "De bot telt nog geen streams per persoon, dus hij weet niet wie een vaste kijker is."
+        "noSubscribers": "Twitch toont geen abonnees voor je kanaal.",
+        "noRegulars": "Niemand telt nog als vaste kijker."
       },
       "detail": {
         "title": "Profiel",

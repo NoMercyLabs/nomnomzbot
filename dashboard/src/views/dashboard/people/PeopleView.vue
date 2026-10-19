@@ -9,7 +9,7 @@
 -->
 <script setup lang="ts">
 // The People page: a list of everyone the bot has seen, tabs by role, and one person beside it.
-// Tabs without a list on the bot (Subscribers, Regulars) say so instead of drawing an empty list.
+// Subscribers come from Twitch (a gifted one names the gifter); Regulars from the bot's own stream counts.
 // The person in view is the login in ?u=, so a link opens them.
 // Typing asks the bot for every known user in any channel and shows name and avatar only. Enter or a
 // click opens the person in the same profile view the dialog shows.
@@ -25,7 +25,12 @@ import {
   useViewerSearch,
   type ViewerOption,
 } from '@/api/community';
-import { useCommunityList, type CommunityPage, type CommunityRow } from '@/api/people';
+import {
+  useCommunityList,
+  type CommunityPage,
+  type CommunityRow,
+  type CommunitySort,
+} from '@/api/people';
 import BackLink from '@/components/layout/BackLink.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -41,7 +46,6 @@ import VirtualList from '@/components/layout/VirtualList.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
-import { oneOf } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 
 import Cross from '~icons/nnz/cross';
@@ -64,16 +68,27 @@ const TAB_VALUES = ['all', 'moderator', 'vip', 'subscriber', 'regular', 'new'] a
 
 type PeopleTab = (typeof TAB_VALUES)[number];
 type PeopleSort = 'recent' | 'alphabetical';
-const UNLISTED = ['subscriber', 'regular'] as const satisfies readonly PeopleTab[];
+// The bot orders all, moderator and regular lists itself; Twitch-paged and VIP lists are ordered here.
+const CLIENT_SORTED = ['vip', 'subscriber'] as const satisfies readonly PeopleTab[];
 
 const { t } = useI18n();
 const route = useRoute();
 const router = useRouter();
 const { channelId } = useCurrentChannel();
 
-const everyone = useCommunityList(channelId, 'all', '');
-const moderators = useCommunityList(channelId, 'moderator', '');
+// The bot hands rows over last seen first; A to Z asks the bot for name order.
+const sort = useLocalStorage<PeopleSort>('nnz.people.sort', 'recent');
+const serverSort = computed<CommunitySort>(() =>
+  sort.value === 'alphabetical'
+    ? 'name'
+    : 'last_seen',
+);
+
+const everyone = useCommunityList(channelId, 'all', '', serverSort);
+const moderators = useCommunityList(channelId, 'moderator', '', serverSort);
 const vips = useCommunityList(channelId, 'vip', '');
+const subscribers = useCommunityList(channelId, 'subscriber', '');
+const regulars = useCommunityList(channelId, 'regular', '', serverSort);
 
 const view = usePageView(TAB_VALUES);
 const search = ref('');
@@ -113,27 +128,28 @@ const tabs = computed<PageTab<PeopleTab>[]>(() => [
   {
     value: 'subscriber',
     label: t('dashboard.people.tabs.subscriber'),
-    disabled: true,
-    reason: t('dashboard.people.list.noSubscribers'),
+    count: totalOf(subscribers),
   },
   {
     value: 'regular',
     label: t('dashboard.people.tabs.regular'),
-    disabled: true,
-    reason: t('dashboard.people.list.noRegulars'),
+    count: totalOf(regulars),
   },
   { value: 'new', label: t('dashboard.people.tabs.new') },
 ]);
 
-const activeQuery = computed<typeof everyone | null>(() => {
-  if (oneOf(UNLISTED, view.value))
-    return null;
-
+const activeQuery = computed<typeof everyone>(() => {
   if (view.value === 'moderator')
     return moderators;
 
   if (view.value === 'vip')
     return vips;
+
+  if (view.value === 'subscriber')
+    return subscribers;
+
+  if (view.value === 'regular')
+    return regulars;
 
   return everyone;
 });
@@ -142,7 +158,7 @@ const activeQuery = computed<typeof everyone | null>(() => {
 function loadMore(): void {
   const query = activeQuery.value;
 
-  if (query?.hasNextPage.value && !query.isFetchingNextPage.value) {
+  if (query.hasNextPage.value && !query.isFetchingNextPage.value) {
     void query.fetchNextPage();
   }
 }
@@ -156,9 +172,6 @@ function isNew(row: CommunityRow): boolean {
 }
 
 const tabRows = computed<CommunityRow[] | undefined>(() => {
-  if (activeQuery.value === null)
-    return [];
-
   const rows = rowsOf(activeQuery.value);
 
   return view.value === 'new'
@@ -166,8 +179,6 @@ const tabRows = computed<CommunityRow[] | undefined>(() => {
     : rows;
 });
 
-// The bot hands rows over last seen first; A to Z sorts the loaded rows by name, so it loads every page first.
-const sort = useLocalStorage<PeopleSort>('nnz.people.sort', 'recent');
 const sortOptions = computed(
   () =>
     [
@@ -176,8 +187,13 @@ const sortOptions = computed(
     ] as const satisfies readonly { value: PeopleSort; label: string }[],
 );
 
+// A to Z on a list the bot cannot order sorts the loaded rows by name, so it loads every page first.
+const sortsHere = computed<boolean>(
+  () => sort.value === 'alphabetical' && CLIENT_SORTED.some((tab) => tab === view.value),
+);
+
 const visible = computed<CommunityRow[] | undefined>(() => {
-  if (sort.value === 'recent' || !tabRows.value)
+  if (!sortsHere.value || !tabRows.value)
     return tabRows.value;
 
   return [...tabRows.value].sort((a, b) =>
@@ -186,7 +202,7 @@ const visible = computed<CommunityRow[] | undefined>(() => {
 });
 
 watchEffect(() => {
-  if (sort.value === 'alphabetical') {
+  if (sortsHere.value) {
     loadMore();
   }
 });
@@ -201,8 +217,8 @@ const hits = computed(() =>
 const tabState = usePanelState(
   {
     data: visible,
-    isPending: computed<boolean>(() => activeQuery.value?.isPending.value ?? false),
-    isError: computed<boolean>(() => activeQuery.value?.isError.value ?? false),
+    isPending: computed<boolean>(() => activeQuery.value.isPending.value),
+    isError: computed<boolean>(() => activeQuery.value.isError.value),
   },
   (rows: CommunityRow[]) => rows.length === 0,
 );
@@ -236,9 +252,9 @@ const emptyText = computed<string>(() => {
 const hint = computed<string>(() => t(`dashboard.people.hints.${view.value}`));
 // The bot knows how many people a tab holds before every page is loaded; New is counted from what is loaded.
 const listTotal = computed<number>(() => {
-  const known = activeQuery.value && view.value !== 'new'
-    ? totalOf(activeQuery.value)
-    : undefined;
+  const known = view.value === 'new'
+    ? undefined
+    : totalOf(activeQuery.value);
 
   return known ?? visible.value?.length ?? 0;
 });
@@ -253,7 +269,7 @@ const count = computed<string | undefined>(() => {
   return t('dashboard.people.count', { count: total }, total);
 });
 
-// The person in ?u= can sit in any loaded list (a moderator is also in All), so look in all three.
+// The person in ?u= can sit in any loaded list (a moderator is also in All), so look in every loaded one.
 const asked = computed<string>(() =>
   typeof route.query.u === 'string'
     ? route.query.u
@@ -264,7 +280,7 @@ const loadedRow = computed<CommunityRow | null>(() => {
   if (login === '')
     return null;
 
-  const loaded: CommunityRow[] = [everyone, moderators, vips].flatMap(
+  const loaded: CommunityRow[] = [everyone, moderators, vips, subscribers, regulars].flatMap(
     (query) => rowsOf(query) ?? [],
   );
 
@@ -397,7 +413,7 @@ useEventListener(document, 'keydown', closeOnEscape);
         :state="listState"
         :empty-text="emptyText"
         :error-text="$t('dashboard.people.list.error')"
-        @retry="searching ? found.refetch() : activeQuery?.refetch()"
+        @retry="searching ? found.refetch() : activeQuery.refetch()"
       >
         <template #actions>
           <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->

@@ -39,12 +39,18 @@ export type CommunityPage = {
   rows: CommunityRow[];
   hasMore: boolean;
   nextPage: number | null;
+  // Subscribers page by a cursor Twitch hands back; every other tab pages by number.
+  nextCursor: string | null;
   total: number | null;
 };
 
+export type CommunitySort = 'last_seen' | 'name';
+
+type PageParam = { page: number; cursor: string | null };
+
 const version = '1';
 const pageSize = 50;
-const firstPage = 1;
+const firstPage = { page: 1, cursor: null } as const satisfies PageParam;
 
 // Prefix keys let one invalidation reach every role and search of a channel (the realtime layer does that).
 export const communityListsKey = (channelId: string | null): KeyParts => [
@@ -57,7 +63,8 @@ export const communityListKey = (
   channelId: string | null,
   role: string,
   search: string,
-): KeyParts => [...communityListsKey(channelId), role, search];
+  sort: CommunitySort = 'last_seen',
+): KeyParts => [...communityListsKey(channelId), role, search, sort];
 
 export const viewerProfilesKey = (channelId: string | null): KeyParts => [
   'community',
@@ -81,7 +88,8 @@ async function readPage(
   channelId: string,
   role: string,
   search: string,
-  page: number,
+  sort: CommunitySort,
+  { page, cursor }: PageParam,
 ): Promise<CommunityPage> {
   const text = search.trim();
   const { data, error, response } = await client.GET(
@@ -98,6 +106,12 @@ async function readPage(
           ...(text === ''
             ? {}
             : { Search: text }),
+          ...(sort === 'name'
+            ? { Sort: sort }
+            : {}),
+          ...(cursor === null
+            ? {}
+            : { cursor }),
         },
       },
     },
@@ -111,38 +125,56 @@ async function readPage(
     rows: data?.data ?? [],
     hasMore: data?.hasMore ?? false,
     nextPage: numberOrNull(data?.nextPage),
+    nextCursor: data?.nextCursor ?? null,
     total: numberOrNull(data?.total),
   };
 }
 
-function nextCommunityPage(last: CommunityPage, all: CommunityPage[]): number | undefined {
+function nextCommunityPage(last: CommunityPage, all: CommunityPage[]): PageParam | undefined {
   return last.hasMore
-    ? (last.nextPage ?? all.length + 1)
+    ? {
+        page: last.nextPage ?? all.length + 1,
+        cursor: last.nextCursor,
+      }
     : undefined;
 }
 
 // The first page of a tab, read the way the list reads it, for the intent prefetch.
-export function communityListOptions(channelId: string, role: string, search: string) {
+export function communityListOptions(
+  channelId: string,
+  role: string,
+  search: string,
+  sort: CommunitySort = 'last_seen',
+) {
   return {
-    queryKey: communityListKey(channelId, role, search),
-    queryFn: ({ pageParam }: { pageParam: number }): Promise<CommunityPage> =>
-      readPage(channelId, role, search, pageParam),
+    queryKey: communityListKey(channelId, role, search, sort),
+    queryFn: ({ pageParam }: { pageParam: PageParam }): Promise<CommunityPage> =>
+      readPage(channelId, role, search, sort, pageParam),
     initialPageParam: firstPage,
     getNextPageParam: nextCommunityPage,
     pages: 1,
   };
 }
 
-// One tab of the People list: role is "all", "moderator" or "vip". Pages are appended while the bot says there are more.
+// One tab of the People list: role is "all", "moderator", "vip", "subscriber" or "regular". Pages are appended while the bot says there are more.
 export function useCommunityList(
   channelId: MaybeRefOrGetter<string | null>,
   role: MaybeRefOrGetter<string>,
   search: MaybeRefOrGetter<string>,
-): UseInfiniteQueryReturnType<InfiniteData<CommunityPage, number>, Error> {
+  sort: MaybeRefOrGetter<CommunitySort> = 'last_seen',
+): UseInfiniteQueryReturnType<InfiniteData<CommunityPage, PageParam>, Error> {
   return useInfiniteQuery({
-    queryKey: computed(() => communityListKey(toValue(channelId), toValue(role), toValue(search))),
-    queryFn: ({ pageParam }: { pageParam: number }): Promise<CommunityPage> =>
-      readPage(toValue(channelId) as string, toValue(role), toValue(search), pageParam),
+    queryKey: computed(() =>
+      communityListKey(toValue(channelId), toValue(role), toValue(search), toValue(sort)),
+    ),
+    queryFn: ({ pageParam }: { pageParam: PageParam }): Promise<CommunityPage> =>
+      readPage(
+        toValue(channelId) as string,
+        toValue(role),
+        toValue(search),
+        toValue(sort),
+        pageParam,
+      ),
     initialPageParam: firstPage,
     getNextPageParam: nextCommunityPage,
     enabled: computed(() => toValue(channelId) !== null),
@@ -174,10 +206,7 @@ async function readProfile(channelId: string, userId: string): Promise<PersonPro
   return summary;
 }
 
-export function viewerProfileOptions(
-  channelId: string,
-  internalUserId: string,
-) {
+export function viewerProfileOptions(channelId: string, internalUserId: string) {
   return {
     queryKey: viewerProfileKey(channelId, internalUserId),
     queryFn: () => readProfile(channelId, internalUserId),
@@ -216,10 +245,7 @@ async function readNotes(channelId: string, userId: string): Promise<UserNote[]>
   return data?.data ?? [];
 }
 
-export function userNotesOptions(
-  channelId: string,
-  userId: string,
-) {
+export function userNotesOptions(channelId: string, userId: string) {
   return {
     queryKey: userNotesKey(channelId, userId),
     queryFn: () => readNotes(channelId, userId),
@@ -305,11 +331,16 @@ export function useEditNote(
       const id = toValue(channelId) as string;
       const { error, response } = await client.PUT(
         '/api/v{version}/channels/{channelId}/moderation/notes/{noteId}',
-        { params: { path: {
-          version,
-          channelId: id,
-          noteId,
-        } }, body: { content, pinned } },
+        {
+          params: {
+            path: {
+              version,
+              channelId: id,
+              noteId,
+            },
+          },
+          body: { content, pinned },
+        },
       );
 
       if (error !== undefined)
@@ -325,7 +356,8 @@ export function useEditNote(
               content,
               pinned,
             }
-          : note),
+          : note,
+      ),
   });
 }
 
@@ -341,11 +373,15 @@ export function useDeleteNote(
       const id = toValue(channelId) as string;
       const { error, response } = await client.DELETE(
         '/api/v{version}/channels/{channelId}/moderation/notes/{noteId}',
-        { params: { path: {
-          version,
-          channelId: id,
-          noteId,
-        } } },
+        {
+          params: {
+            path: {
+              version,
+              channelId: id,
+              noteId,
+            },
+          },
+        },
       );
 
       if (error !== undefined)
@@ -368,9 +404,7 @@ function personChanged(queries: QueryClient, channelId: string, userId: string):
 export type ShoutoutInput = { targetTwitchUserId: string };
 
 // Resolves to the path the bot took ("helix" or a chat line), so the page can say how the shoutout went out.
-export function useShoutout(
-  channelId: MaybeRefOrGetter<string | null>,
-) {
+export function useShoutout(channelId: MaybeRefOrGetter<string | null>) {
   return useMutation({
     mutationFn: async (input: ShoutoutInput): Promise<string> => {
       const { data, error, response } = await client.POST(
@@ -395,9 +429,7 @@ export type TimeoutInput = {
   reason?: string;
 };
 
-export function useTimeout(
-  channelId: MaybeRefOrGetter<string | null>,
-) {
+export function useTimeout(channelId: MaybeRefOrGetter<string | null>) {
   const queries = useQueryClient();
 
   return useMutation({
@@ -432,9 +464,7 @@ export function useTimeout(
 export type WarnInput = { userId: string; reason: string };
 
 // Twitch Warn Chat User, signed by the caller; the person must accept it before they chat again.
-export function useWarn(
-  channelId: MaybeRefOrGetter<string | null>,
-) {
+export function useWarn(channelId: MaybeRefOrGetter<string | null>) {
   const queries = useQueryClient();
 
   return useMutation({
@@ -466,9 +496,7 @@ export function useWarn(
 export type PersonInput = { userId: string };
 
 // Lifts a timeout (or a ban) in this channel.
-export function useUnban(
-  channelId: MaybeRefOrGetter<string | null>,
-) {
+export function useUnban(channelId: MaybeRefOrGetter<string | null>) {
   const queries = useQueryClient();
 
   return useMutation({
@@ -490,9 +518,7 @@ export function useUnban(
 }
 
 // Undo for a ban made through useBanMember: the same member path with DELETE.
-export function useLiftBan(
-  channelId: MaybeRefOrGetter<string | null>,
-) {
+export function useLiftBan(channelId: MaybeRefOrGetter<string | null>) {
   const queries = useQueryClient();
 
   return useMutation({
