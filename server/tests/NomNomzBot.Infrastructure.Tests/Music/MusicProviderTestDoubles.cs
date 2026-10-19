@@ -59,6 +59,8 @@ internal sealed class PermissiveMusicConfigService : IMusicConfigService
         UpdateMusicConfigDto request,
         CancellationToken cancellationToken = default
     ) => throw new NotSupportedException("Not exercised by the MusicService test surface.");
+
+    public MusicConfigDto GetDefaults() => new(true, "auto", 50, 5, true, true, "everyone");
 }
 
 /// <summary>Round-trips plaintext unchanged — provider-seam tests exercise the music plumbing,

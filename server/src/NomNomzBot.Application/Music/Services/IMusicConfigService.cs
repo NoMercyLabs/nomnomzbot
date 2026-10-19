@@ -22,6 +22,10 @@ public interface IMusicConfigService
         string broadcasterId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>What a channel with no saved config resolves to; the dashboard shows these as the defaults.</summary>
+    MusicConfigDto GetDefaults();
+
     Task<Result<MusicConfigDto>> UpdateConfigAsync(
         string broadcasterId,
         UpdateMusicConfigDto request,

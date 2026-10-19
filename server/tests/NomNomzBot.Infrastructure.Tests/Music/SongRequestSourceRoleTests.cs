@@ -59,6 +59,8 @@ public sealed class SongRequestSourceRoleTests
             UpdateMusicConfigDto request,
             CancellationToken cancellationToken = default
         ) => throw new NotSupportedException();
+
+        public MusicConfigDto GetDefaults() => config;
     }
 
     private static IMusicProvider Provider(string key, string ownedUri)
