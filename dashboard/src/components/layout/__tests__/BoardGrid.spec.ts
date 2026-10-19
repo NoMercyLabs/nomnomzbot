@@ -149,4 +149,13 @@ describe('the tab strip of a tabbed board', () => {
     expect(strip.classes()).toContain('px-6');
     expect(body.classes()).toContain('px-6');
   });
+
+  // The trigger underline sits 5 px below the strip; inside a sideways scroller it made the strip scroll 4 px vertically.
+  it('scrolls sideways only, never vertically', async () => {
+    const { wrapper } = await boardAt(phoneWidth);
+    const strip = wrapper.get('[data-slot="board-grid"] > [data-slot="tabs"]');
+
+    expect(strip.classes()).toContain('overflow-x-auto');
+    expect(strip.classes()).toContain('overflow-y-hidden');
+  });
 });

@@ -25,7 +25,7 @@ const view = usePageView(values);
 
 <template>
   <!-- A phone swipes a long tab row sideways; it never widens the page. -->
-  <Tabs v-model="view" class="min-w-0 overflow-x-auto scrollbar-none">
+  <Tabs v-model="view" class="min-w-0 overflow-x-auto overflow-y-hidden scrollbar-none">
     <TabsList>
       <!-- A locked tab ignores the pointer, so its reason is the tooltip of the wrapper around it. -->
       <span v-for="tab in tabs" :key="tab.value" :title="tab.reason" class="flex flex-1">

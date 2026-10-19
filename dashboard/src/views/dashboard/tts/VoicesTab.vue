@@ -60,6 +60,16 @@ const loaded = computed<TtsVoice[]>(() =>
   (catalog.data.value?.pages ?? []).flatMap((page) => page.voices),
 );
 
+// The bot may keep saying hasMore on its last page; once the loaded voices reach the total it returned, none is left.
+const hasMore = computed<boolean>(() => {
+  const total = catalog.data.value?.pages[0]?.total;
+
+  return (
+    catalog.hasNextPage.value &&
+    (total === null || total === undefined || loaded.value.length < total)
+  );
+});
+
 // The language chips filter the loaded pages; the server has no language-family filter.
 const visible = computed<TtsVoice[]>(() =>
   family.value === ALL
@@ -83,7 +93,7 @@ function familyCount(value: string): number {
 
 // While pages are missing, a language with no loaded voice shows no count: "0+" would read as none at all.
 function chipCount(loadedCount: number): string {
-  if (!catalog.hasNextPage.value)
+  if (!hasMore.value)
     return String(loadedCount);
 
   return loadedCount === 0
@@ -104,7 +114,7 @@ const chips = computed<Chip[]>(() =>
 
 // The server pages by provider and locale, so a language can sit on a page that is not loaded yet.
 watch(
-  () => [family.value, catalog.hasNextPage.value, catalog.isFetchingNextPage.value] as const,
+  () => [family.value, hasMore.value, catalog.isFetchingNextPage.value] as const,
   ([chosenFamily, more, fetching]) => {
     if (chosenFamily !== ALL && more && !fetching) {
       catalog.fetchNextPage();
@@ -152,7 +162,7 @@ const subtitle = computed<string | undefined>(() => {
 
 // While the server has more pages, the loaded voices are not the whole catalog, so the count says "the first".
 const count = computed<string>(() =>
-  t(catalog.hasNextPage.value
+  t(hasMore.value
     ? 'dashboard.tts.voices.countFirst'
     : 'dashboard.tts.voices.count', {
     shown: visible.value.length,
@@ -231,7 +241,7 @@ const panels = computed(
           <div
             role="group"
             :aria-label="$t('dashboard.tts.voices.language')"
-            class="flex flex-none flex-wrap gap-1.5"
+            class="flex flex-none gap-1.5 overflow-x-auto scrollbar-none sm:flex-wrap sm:overflow-visible"
           >
             <Button
               v-for="chip in chips"
@@ -272,7 +282,7 @@ const panels = computed(
           </p>
           <VirtualList
             v-else
-            class="min-h-0 flex-1"
+            class="min-h-56 flex-1"
             :items="items"
             :item-key="(item: VoiceListItem) => item.key"
             :estimate-size="ROW_HEIGHT"
@@ -313,7 +323,7 @@ const panels = computed(
         <template #footer>
           <span data-voice-count class="text-sm text-muted-foreground">{{ count }}</span>
           <Button
-            v-if="catalog.hasNextPage.value"
+            v-if="hasMore"
             data-voice-more
             variant="outline"
             size="sm"
@@ -322,7 +332,7 @@ const panels = computed(
           >
             {{ $t("dashboard.tts.voices.more") }}
           </Button>
-          <span class="ml-auto text-xs text-muted-foreground">{{
+          <span class="text-xs text-muted-foreground sm:ml-auto">{{
             $t("dashboard.tts.voices.hint")
           }}</span>
         </template>

@@ -321,6 +321,20 @@ describe('VoicesTab', () => {
     expect(document.body.querySelector('[data-voice-more]')).toBeNull();
   });
 
+  // The bot may keep saying hasMore on the last page; once the loaded voices reach the total, nothing is left to load.
+  it('hides Load more and drops "loaded" when the loaded voices reach the total', async () => {
+    answers['GET /tts/voices'] = () => ok(catalog, {
+      hasMore: true,
+      nextPage: 2,
+      total: catalog.length,
+    });
+
+    await open();
+
+    expect(count()).toBe('4 of 4 voices');
+    expect(document.body.querySelector('[data-voice-more]')).toBeNull();
+  });
+
   it('names the voice provider in words, not the raw server id', async () => {
     i18n.global.mergeLocaleMessage('en', (await import('@/i18n/locales/en.json')).default);
     await open();

@@ -87,4 +87,13 @@ describe('the page tabs', () => {
 
     expect(wrapper.findAll('[role="tab"]')[2]!.text()).toBe('History 12');
   });
+
+  // The trigger underline sits 5 px below the strip; inside a sideways scroller it made the strip scroll 4 px vertically.
+  it('scrolls sideways only, never vertically', async () => {
+    const { wrapper } = await open('/');
+    const strip = wrapper.get('[data-slot="tabs"]');
+
+    expect(strip.classes()).toContain('overflow-x-auto');
+    expect(strip.classes()).toContain('overflow-y-hidden');
+  });
 });

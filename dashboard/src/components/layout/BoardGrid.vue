@@ -56,7 +56,7 @@ provide(boardKey, (panel: string) =>
       data-page-body
       class="flex min-h-0 flex-1 flex-col gap-3 pt-3 pb-4"
     >
-      <Tabs v-model="open" class="min-w-0 flex-none overflow-x-auto px-6 scrollbar-none">
+      <Tabs v-model="open" class="min-w-0 flex-none overflow-x-auto overflow-y-hidden px-6 scrollbar-none">
         <TabsList>
           <TabsTrigger v-for="panel in tabPanels" :key="panel.id" :value="panel.id">
             {{ panel.label }}
