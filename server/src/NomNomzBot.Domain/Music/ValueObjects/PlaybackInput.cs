@@ -49,6 +49,12 @@ public sealed record OwnerVolume(int Level) : PlaybackInput;
 
 public sealed record OwnerMute(bool On) : PlaybackInput;
 
+/// <summary>Bot audio (TTS, sounds) starts: the music level drops to <paramref name="Percent"/> of the owner level.</summary>
+public sealed record DuckStart(int Percent) : PlaybackInput;
+
+/// <summary>Bot audio ended: the music level returns to the owner level.</summary>
+public sealed record DuckEnd : PlaybackInput;
+
 /// <summary>
 /// The music widget came online. <paramref name="PageIsPlaying"/> is true when the page reported its video
 /// playing before it said ready, so the engine must not reload that video.
