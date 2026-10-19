@@ -421,8 +421,8 @@ public sealed class OutboundWebhookEndpointServiceTests
             .Value.Should()
             .OnlyContain(e =>
                 !string.IsNullOrWhiteSpace(e.EventType)
-                && !string.IsNullOrWhiteSpace(e.Label)
-                && !string.IsNullOrWhiteSpace(e.Category)
+                && !string.IsNullOrWhiteSpace(e.LabelKey)
+                && !string.IsNullOrWhiteSpace(e.CategoryKey)
             );
         result.Value.Select(e => e.EventType).Should().Contain("FollowEvent");
         // The §9 deny-list is never offered as a subscribable option.

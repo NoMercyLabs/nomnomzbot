@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.RegularExpressions;
 using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Domain.Webhooks.Events;
 
@@ -49,96 +50,99 @@ public static class OutboundWebhookEventCatalogue
     public static IReadOnlyList<OutboundWebhookEventCatalogueEntry> Entries { get; } =
     [
         // ── Stream ──
-        new("ChannelOnlineEvent", "Stream went live", "Stream"),
-        new("ChannelOfflineEvent", "Stream went offline", "Stream"),
-        new("ChannelUpdatedEvent", "Channel title or category changed", "Stream"),
-        new("AdBreakBeganEvent", "Ad break started", "Stream"),
+        Entry("ChannelOnlineEvent", "stream"),
+        Entry("ChannelOfflineEvent", "stream"),
+        Entry("ChannelUpdatedEvent", "stream"),
+        Entry("AdBreakBeganEvent", "stream"),
         // ── Followers & Subscriptions ──
-        new("FollowEvent", "New follower", "Followers & Subscriptions"),
-        new("NewSubscriptionEvent", "New subscription", "Followers & Subscriptions"),
-        new("ResubscriptionEvent", "Resubscription", "Followers & Subscriptions"),
-        new("GiftSubscriptionEvent", "Gifted subscription", "Followers & Subscriptions"),
-        new("SubscriptionEndedEvent", "Subscription ended", "Followers & Subscriptions"),
+        Entry("FollowEvent", "followers_subscriptions"),
+        Entry("NewSubscriptionEvent", "followers_subscriptions"),
+        Entry("ResubscriptionEvent", "followers_subscriptions"),
+        Entry("GiftSubscriptionEvent", "followers_subscriptions"),
+        Entry("SubscriptionEndedEvent", "followers_subscriptions"),
         // ── Bits & Cheers ──
-        new("CheerEvent", "Cheer", "Bits & Cheers"),
-        new("BitsUsedEvent", "Bits used", "Bits & Cheers"),
+        Entry("CheerEvent", "bits_cheers"),
+        Entry("BitsUsedEvent", "bits_cheers"),
         // ── Raids & Shoutouts ──
-        new("RaidEvent", "Incoming raid", "Raids & Shoutouts"),
-        new("OutgoingRaidEvent", "Outgoing raid", "Raids & Shoutouts"),
-        new("ShoutoutReceivedEvent", "Shoutout received", "Raids & Shoutouts"),
-        new("ShoutoutSentEvent", "Shoutout sent", "Raids & Shoutouts"),
+        Entry("RaidEvent", "raids_shoutouts"),
+        Entry("OutgoingRaidEvent", "raids_shoutouts"),
+        Entry("ShoutoutReceivedEvent", "raids_shoutouts"),
+        Entry("ShoutoutSentEvent", "raids_shoutouts"),
         // ── Channel Points ──
-        new("RewardRedeemedEvent", "Channel-point reward redeemed", "Channel Points"),
-        new(
-            "RewardRedemptionUpdatedEvent",
-            "Reward redemption approved or rejected",
-            "Channel Points"
-        ),
-        new("AutomaticRewardRedeemedEvent", "Automatic reward redeemed", "Channel Points"),
-        new("CustomPowerUpRedeemedEvent", "Power-up redeemed", "Channel Points"),
-        new("RewardCreatedEvent", "Reward created", "Channel Points"),
-        new("RewardUpdatedEvent", "Reward updated", "Channel Points"),
-        new("RewardRemovedEvent", "Reward removed", "Channel Points"),
+        Entry("RewardRedeemedEvent", "channel_points"),
+        Entry("RewardRedemptionUpdatedEvent", "channel_points"),
+        Entry("AutomaticRewardRedeemedEvent", "channel_points"),
+        Entry("CustomPowerUpRedeemedEvent", "channel_points"),
+        Entry("RewardCreatedEvent", "channel_points"),
+        Entry("RewardUpdatedEvent", "channel_points"),
+        Entry("RewardRemovedEvent", "channel_points"),
         // ── Polls & Predictions ──
-        new("PollBeganEvent", "Poll started", "Polls & Predictions"),
-        new("PollProgressEvent", "Poll progress", "Polls & Predictions"),
-        new("PollEndedEvent", "Poll ended", "Polls & Predictions"),
-        new("PredictionBeganEvent", "Prediction started", "Polls & Predictions"),
-        new("PredictionProgressEvent", "Prediction progress", "Polls & Predictions"),
-        new("PredictionLockedEvent", "Prediction locked", "Polls & Predictions"),
-        new("PredictionEndedEvent", "Prediction ended", "Polls & Predictions"),
+        Entry("PollBeganEvent", "polls_predictions"),
+        Entry("PollProgressEvent", "polls_predictions"),
+        Entry("PollEndedEvent", "polls_predictions"),
+        Entry("PredictionBeganEvent", "polls_predictions"),
+        Entry("PredictionProgressEvent", "polls_predictions"),
+        Entry("PredictionLockedEvent", "polls_predictions"),
+        Entry("PredictionEndedEvent", "polls_predictions"),
         // ── Goals ──
-        new("GoalBeganEvent", "Goal started", "Goals"),
-        new("GoalProgressEvent", "Goal progress", "Goals"),
-        new("GoalEndedEvent", "Goal ended", "Goals"),
+        Entry("GoalBeganEvent", "goals"),
+        Entry("GoalProgressEvent", "goals"),
+        Entry("GoalEndedEvent", "goals"),
         // ── Hype Train ──
-        new("HypeTrainBeganEvent", "Hype train started", "Hype Train"),
-        new("HypeTrainProgressEvent", "Hype train progress", "Hype Train"),
-        new("HypeTrainEndedEvent", "Hype train ended", "Hype Train"),
+        Entry("HypeTrainBeganEvent", "hype_train"),
+        Entry("HypeTrainProgressEvent", "hype_train"),
+        Entry("HypeTrainEndedEvent", "hype_train"),
         // ── Charity ──
-        new("CharityCampaignStartedEvent", "Charity campaign started", "Charity"),
-        new("CharityDonationEvent", "Charity donation", "Charity"),
-        new("CharityCampaignProgressEvent", "Charity campaign progress", "Charity"),
-        new("CharityCampaignStoppedEvent", "Charity campaign stopped", "Charity"),
+        Entry("CharityCampaignStartedEvent", "charity"),
+        Entry("CharityDonationEvent", "charity"),
+        Entry("CharityCampaignProgressEvent", "charity"),
+        Entry("CharityCampaignStoppedEvent", "charity"),
         // ── Chat ──
-        new("ChatMessageReceivedEvent", "Chat message", "Chat"),
-        new("WhisperReceivedEvent", "Whisper received", "Chat"),
-        new("ChatNotificationEvent", "Chat notification", "Chat"),
-        new("FirstTimeChatterDetectedEvent", "First-time chatter", "Chat"),
+        Entry("ChatMessageReceivedEvent", "chat"),
+        Entry("WhisperReceivedEvent", "chat"),
+        Entry("ChatNotificationEvent", "chat"),
+        Entry("FirstTimeChatterDetectedEvent", "chat"),
         // ── Moderation ──
-        new("UserBannedEvent", "User banned", "Moderation"),
-        new("UserTimedOutEvent", "User timed out", "Moderation"),
-        new("UserUnbannedEvent", "User unbanned", "Moderation"),
-        new("ModeratorAddedEvent", "Moderator added", "Moderation"),
-        new("ModeratorRemovedEvent", "Moderator removed", "Moderation"),
-        new("VipAddedEvent", "VIP added", "Moderation"),
-        new("VipRemovedEvent", "VIP removed", "Moderation"),
-        new("WarningSentEvent", "Warning sent", "Moderation"),
-        new("WarningAcknowledgedEvent", "Warning acknowledged", "Moderation"),
-        new("ModerationActionTakenEvent", "Moderation action taken", "Moderation"),
-        new("ShieldModeBeganEvent", "Shield mode enabled", "Moderation"),
-        new("ShieldModeEndedEvent", "Shield mode disabled", "Moderation"),
-        new("UnbanRequestCreatedEvent", "Unban request created", "Moderation"),
-        new("UnbanRequestResolvedEvent", "Unban request resolved", "Moderation"),
-        new("ChatClearedEvent", "Chat cleared", "Moderation"),
-        new("ChatMessageDeletedEvent", "Chat message deleted", "Moderation"),
-        new("SuspiciousUserMessageEvent", "Suspicious user message", "Moderation"),
-        new("SuspiciousUserUpdatedEvent", "Suspicious user updated", "Moderation"),
+        Entry("UserBannedEvent", "moderation"),
+        Entry("UserTimedOutEvent", "moderation"),
+        Entry("UserUnbannedEvent", "moderation"),
+        Entry("ModeratorAddedEvent", "moderation"),
+        Entry("ModeratorRemovedEvent", "moderation"),
+        Entry("VipAddedEvent", "moderation"),
+        Entry("VipRemovedEvent", "moderation"),
+        Entry("WarningSentEvent", "moderation"),
+        Entry("WarningAcknowledgedEvent", "moderation"),
+        Entry("ModerationActionTakenEvent", "moderation"),
+        Entry("ShieldModeBeganEvent", "moderation"),
+        Entry("ShieldModeEndedEvent", "moderation"),
+        Entry("UnbanRequestCreatedEvent", "moderation"),
+        Entry("UnbanRequestResolvedEvent", "moderation"),
+        Entry("ChatClearedEvent", "moderation"),
+        Entry("ChatMessageDeletedEvent", "moderation"),
+        Entry("SuspiciousUserMessageEvent", "moderation"),
+        Entry("SuspiciousUserUpdatedEvent", "moderation"),
         // ── Collaboration ──
-        new("GuestStarSessionBeganEvent", "Guest Star session started", "Collaboration"),
-        new("GuestStarSessionEndedEvent", "Guest Star session ended", "Collaboration"),
-        new("GuestStarGuestUpdatedEvent", "Guest Star guest updated", "Collaboration"),
-        new("SharedChatBeganEvent", "Shared chat started", "Collaboration"),
-        new("SharedChatUpdatedEvent", "Shared chat updated", "Collaboration"),
-        new("SharedChatEndedEvent", "Shared chat ended", "Collaboration"),
+        Entry("GuestStarSessionBeganEvent", "collaboration"),
+        Entry("GuestStarSessionEndedEvent", "collaboration"),
+        Entry("GuestStarGuestUpdatedEvent", "collaboration"),
+        Entry("SharedChatBeganEvent", "collaboration"),
+        Entry("SharedChatUpdatedEvent", "collaboration"),
+        Entry("SharedChatEndedEvent", "collaboration"),
         // ── Supporters & Custom ──
-        new(
-            "SupporterEventReceived",
-            "Supporter event (Ko-fi, StreamElements, …)",
-            "Supporters & Custom"
-        ),
-        new("CustomDataReceivedEvent", "Custom inbound event", "Supporters & Custom"),
+        Entry("SupporterEventReceived", "supporters_custom"),
+        Entry("CustomDataReceivedEvent", "supporters_custom"),
     ];
+
+    /// <summary>
+    /// Builds an entry with resource keys only: <c>webhook_event_{snake_type}_label</c> and
+    /// <c>webhook_event_category_{category}</c>.
+    /// </summary>
+    private static OutboundWebhookEventCatalogueEntry Entry(string eventType, string category) =>
+        new(
+            eventType,
+            $"webhook_event_{Regex.Replace(eventType, "(?<!^)([A-Z])", "_$1").ToLowerInvariant()}_label",
+            $"webhook_event_category_{category}"
+        );
 
     private static readonly IReadOnlySet<string> KnownTypes = new HashSet<string>(
         Entries.Select(e => e.EventType),

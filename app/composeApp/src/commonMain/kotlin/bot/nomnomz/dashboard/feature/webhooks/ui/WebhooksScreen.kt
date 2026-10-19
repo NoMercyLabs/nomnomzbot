@@ -1265,8 +1265,8 @@ private fun EventChecklist(
                     modifier = Modifier.fillMaxWidth().heightIn(max = spacing.s24 * 3).verticalScroll(rememberScrollState()),
                     verticalArrangement = Arrangement.spacedBy(spacing.s2),
                 ) {
-                    catalogue.groupBy { it.category }.forEach { (category, entries) ->
-                        Text(text = category, style = typography.xs, color = tokens.mutedForeground)
+                    catalogue.groupBy { it.categoryKey }.forEach { (categoryKey, entries) ->
+                        Text(text = categoryKey.removePrefix("webhook_event_category_").replace('_', ' '), style = typography.xs, color = tokens.mutedForeground)
                         entries.forEach { entry ->
                             Row(
                                 modifier = Modifier.fillMaxWidth(),
@@ -1280,7 +1280,7 @@ private fun EventChecklist(
                                 Text(
                                     text =
                                         resolveRowLabel(
-                                            entry.label,
+                                            null,
                                             secondary = entry.eventType,
                                             typeLabel = "Event",
                                             discriminatorSource = entry.eventType,

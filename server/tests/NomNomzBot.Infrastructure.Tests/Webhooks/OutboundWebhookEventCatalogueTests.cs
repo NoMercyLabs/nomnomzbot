@@ -8,7 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.RegularExpressions;
 using FluentAssertions;
+using NomNomzBot.Application.DTOs.Webhooks;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Infrastructure.Overlays;
 using NomNomzBot.Infrastructure.Webhooks;
@@ -80,6 +82,25 @@ public sealed class OutboundWebhookEventCatalogueTests
             OutboundWebhookEventCatalogue.IsLifecycle(eventType).Should().BeTrue();
             OutboundWebhookEventCatalogue.IsSubscribable(eventType).Should().BeFalse();
         }
+    }
+
+    [Fact]
+    public void Every_entry_carries_a_resource_key_and_the_dto_has_no_english_label()
+    {
+        foreach (OutboundWebhookEventCatalogueEntry entry in OutboundWebhookEventCatalogue.Entries)
+        {
+            string snake = Regex
+                .Replace(entry.EventType, "(?<!^)([A-Z])", "_$1")
+                .ToLowerInvariant();
+            entry.LabelKey.Should().Be($"webhook_event_{snake}_label");
+            entry.CategoryKey.Should().MatchRegex("^webhook_event_category_[a-z]+(_[a-z]+)*$");
+        }
+
+        typeof(OutboundWebhookEventCatalogueEntry)
+            .GetProperties()
+            .Select(p => p.Name)
+            .Should()
+            .BeEquivalentTo("EventType", "LabelKey", "CategoryKey");
     }
 
     [Fact]

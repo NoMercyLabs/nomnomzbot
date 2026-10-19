@@ -121527,22 +121527,22 @@
       "OutboundWebhookEventCatalogueEntry": {
         "required": [
           "eventType",
-          "label",
-          "category"
+          "labelKey",
+          "categoryKey"
         ],
         "type": "object",
         "properties": {
           "eventType": {
             "type": "string"
           },
-          "label": {
+          "labelKey": {
             "type": "string"
           },
-          "category": {
+          "categoryKey": {
             "type": "string"
           }
         },
-        "description": "One subscribable business event in the outbound webhook catalogue (webhooks.md §9). The string OutboundWebhookEventCatalogueEntry.EventType\r\nis the exact journaled event-type discriminator an endpoint puts in its `SubscribedEventTypes` (or `*`\r\nfor all); string OutboundWebhookEventCatalogueEntry.Label is the human name and string OutboundWebhookEventCatalogueEntry.Category groups it for the subscribe checklist.\r\nWebhook-lifecycle events are deliberately absent — they are deny-listed to prevent self-amplification."
+        "description": "One subscribable business event in the outbound webhook catalogue (webhooks.md §9). The string OutboundWebhookEventCatalogueEntry.EventType\r\nis the exact journaled event-type discriminator an endpoint puts in its `SubscribedEventTypes` (or `*`\r\nfor all); string OutboundWebhookEventCatalogueEntry.LabelKey and string OutboundWebhookEventCatalogueEntry.CategoryKey are dashboard string-resource keys (no prose —\r\nthe dashboard owns the translated text). Webhook-lifecycle events are deliberately absent — they are deny-listed to\r\nprevent self-amplification."
       },
       "OverlayManifest": {
         "required": [

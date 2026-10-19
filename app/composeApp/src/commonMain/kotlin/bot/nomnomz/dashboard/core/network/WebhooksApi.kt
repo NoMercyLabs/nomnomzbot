@@ -189,8 +189,8 @@ data class GenericInboundConfig(
 @Serializable
 data class OutboundEventCatalogueEntry(
     val eventType: String = "",
-    val label: String = "",
-    val category: String = "",
+    val labelKey: String = "",
+    val categoryKey: String = "",
 )
 
 /** One row of an outbound endpoint's delivery log (backend `OutboundWebhookDeliveryDto`). */
