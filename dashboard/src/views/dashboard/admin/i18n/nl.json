@@ -216,7 +216,9 @@
         "apply": {
           "title": "Een account blokkeren",
           "target": "Twitch-gebruikers-id",
-          "reason": "Reden in het auditlog",
+          "reasonLabel": "Reden",
+          "reason": "Zichtbaar in het auditlog",
+          "previewFailed": "Het voorbeeld is niet geladen. Controleer het account-id en probeer opnieuw.",
           "preview": "Blokkade voorbeeld",
           "previewResult": "{name} zou in {count} kanalen verbannen worden.",
           "action": "Blokkade toepassen",
@@ -894,8 +896,12 @@
           "inactive": "Inactief",
           "noRoles": "Geen actieve rollen",
           "expires": "Verloopt",
-          "scope": "Kanaal {channel}"
+          "scope": "Kanaal {channel}",
+          "scopeUnknown": "Eén kanaal",
+          "times": "×{count}",
+          "id": "ID {id}"
         },
+        "selfWarning": "Dit is je eigen account. Je verliest deze toegang in je eigen sessie.",
         "actions": {
           "assign": "Rol toewijzen",
           "deactivate": "Deactiveren",
@@ -918,7 +924,7 @@
         "deactivate": {
           "title": "{name} deactiveren",
           "action": "Principal deactiveren",
-          "consequence": "{name} verliest {count} actieve rol en kan niets doen tot heractivering. | {name} verliest {count} actieve rollen en kan niets doen tot heractivering."
+          "consequence": "{name} heeft geen actieve rollen en kan niets doen tot heractivering. | {name} verliest {count} actieve rol en kan niets doen tot heractivering. | {name} verliest {count} actieve rollen en kan niets doen tot heractivering."
         },
         "roles": {
           "title": "Rollen",

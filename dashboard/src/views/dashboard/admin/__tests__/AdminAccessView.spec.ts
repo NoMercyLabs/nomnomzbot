@@ -86,6 +86,8 @@ const keys = vi.hoisted(() => ({
   held: true,
   denied: [] as string[],
   failReactivate: false,
+  me: 'someone-else',
+  extra: [] as unknown[],
 }));
 
 vi.mock('@/composables/usePlatformCan', () => ({
@@ -98,6 +100,7 @@ vi.mock('@/composables/usePlatformCan', () => ({
 vi.mock('@/api/auth', async (original) => ({
   ...(await original<object>()),
   acceptAccessToken: (token: string) => accepted.push(token),
+  useCurrentUser: () => ({ data: { value: { id: keys.me } } }),
 }));
 
 vi.mock('@/api/client', () => ({
@@ -113,8 +116,11 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/iam/roles'))
         return { data: { data: roles }, response: { status: 200, ok: true } };
 
+      if (path.endsWith('/{broadcasterId}'))
+        return { data: { data: { name: 'Kitte Live' } }, response: { status: 200, ok: true } };
+
       return {
-        data: { data: [operator, retired] },
+        data: { data: [operator, retired, ...keys.extra] },
         response: { status: 200, ok: true },
       };
     },
@@ -160,6 +166,8 @@ beforeEach(async () => {
   keys.held = true;
   keys.denied = [];
   keys.failReactivate = false;
+  keys.me = 'someone-else';
+  keys.extra = [];
   calls.length = 0;
   accepted.length = 0;
   localStorage.clear();
@@ -423,7 +431,93 @@ describe('AdminAccessView', () => {
     const heldTime = held.querySelector('[data-assignment-expires] time');
 
     expect(heldTime?.getAttribute('datetime')).toBe('2026-12-24T00:00:00.000Z');
-    expect(held.textContent).toContain('chan-scope-1');
+    expect(held.textContent).not.toContain('chan-scope-1');
+    expect(held.querySelector('[data-assignment-scope]')?.textContent).toContain('Kitte Live');
+  });
+
+  it('tells two principals with the same name apart by the end of their id', async () => {
+    keys.extra = [
+      {
+        ...operator,
+        id: '01KWMJWWS7EGFRBRA4ZW46MGQ8',
+        userId: 'u9',
+      },
+    ];
+
+    await open();
+
+    const tails = [...document.body.querySelectorAll('[data-principal-id]')].map((node) =>
+      node.textContent?.trim(),
+    );
+
+    expect(tails).toEqual(['ID p1', 'ID p2', 'ID 46MGQ8']);
+  });
+
+  it('shows two identical role assignments as one chip with a count', async () => {
+    const twin = { ...operator.activeAssignments[0], id: 'a9' };
+
+    keys.extra = [
+      {
+        ...operator,
+        id: 'p3',
+        userId: 'u3',
+        activeAssignments: [operator.activeAssignments[0], twin],
+      },
+    ];
+
+    await open();
+
+    const rows = document.body.querySelectorAll('[data-principal-row]');
+    const chips = rows[2]!.querySelectorAll('[data-assignment]');
+
+    expect(chips).toHaveLength(1);
+    expect(chips[0]!.querySelector('[data-assignment-count]')?.textContent?.trim()).toBe('×2');
+  });
+
+  it('keeps Deactivate quiet in the row; only the confirm dialog is filled red', async () => {
+    await open();
+
+    const button = document.body.querySelector('[data-deactivate]')!;
+
+    expect(button.className).toContain('text-(--kit-danger)');
+    expect(button.className).not.toContain('bg-(--kit-danger)');
+  });
+
+  it('says a principal with no active roles holds none, with no zero-plus-plural', async () => {
+    keys.extra = [
+      {
+        ...retired,
+        id: 'p4',
+        isActive: true,
+        name: 'Idle Robot',
+      },
+    ];
+
+    await open();
+    (document.body.querySelectorAll('[data-deactivate]')[1] as HTMLElement).click();
+    await settle();
+
+    expect(text()).toContain('Idle Robot holds no active roles');
+    expect(text()).not.toContain('loses 0');
+  });
+
+  it('warns when the operator revokes a role from their own account', async () => {
+    keys.me = 'u1';
+    await open();
+    (document.body.querySelector('[data-revoke]') as HTMLElement).click();
+    await settle();
+
+    expect(document.body.querySelector('[data-self-warning]')?.textContent).toContain(
+      'your own account',
+    );
+  });
+
+  it('does not show the own-account warning for another principal', async () => {
+    await open();
+    (document.body.querySelector('[data-revoke]') as HTMLElement).click();
+    await settle();
+
+    expect(document.body.querySelector('[data-self-warning]')).toBeNull();
   });
 
   it('assigns with the typed expiry', async () => {
@@ -527,14 +621,14 @@ describe('AdminAccessView', () => {
     );
   });
 
-  it('gives Deactivate its own destructive look and the revoke chip the 36px height', async () => {
+  it('gives Deactivate a danger-colored outline and the revoke chip the 36px height', async () => {
     await open();
 
     const deactivate = document.body.querySelector('[data-deactivate]')!;
     const assign = document.body.querySelector('[data-assign]')!;
 
-    expect(deactivate.className).toContain('bg-(--kit-danger)');
-    expect(assign.className).not.toContain('bg-(--kit-danger)');
+    expect(deactivate.className).toContain('text-(--kit-danger)');
+    expect(assign.className).not.toContain('text-(--kit-danger)');
     expect(document.body.querySelector('[data-assignment]')!.className).toContain('h-9');
   });
 

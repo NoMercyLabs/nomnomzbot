@@ -34,7 +34,7 @@ import {
   type IamAssignment,
   type IamPrincipal,
 } from '@/api/adminAccess';
-import { acceptAccessToken } from '@/api/auth';
+import { acceptAccessToken, useCurrentUser } from '@/api/auth';
 import DateTime from '@/components/layout/DateTime.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
@@ -56,12 +56,38 @@ import {
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 
+import AccessScope from './components/AccessScope.vue';
+
 type Step = 'assign' | 'revoke' | 'deactivate';
 
 const { t } = useI18n();
 const { can } = usePlatformCan();
 const router = useRouter();
 const queries = useQueryClient();
+const me = useCurrentUser();
+
+// The same role held twice with the same scope and end date reads as one chip with a count.
+type HeldGroup = { held: IamAssignment; count: number };
+
+function grouped(held: IamAssignment[]): HeldGroup[] {
+  const groups = new Map<string, HeldGroup>();
+
+  for (const item of held) {
+    const key = `${item.roleId}|${item.scopeChannelId ?? ''}|${item.expiresAt ?? ''}`;
+    const seen = groups.get(key);
+
+    if (seen) {
+      seen.count += 1;
+    } else {
+      groups.set(key, { held: item, count: 1 });
+    }
+  }
+
+  return [...groups.values()];
+}
+
+// A short end of the id tells apart principals that share a name.
+const idTail = (id: string): string => id.slice(-6);
 
 const hideInactive = useLocalStorage<boolean>('nnz.adminAccess.hideInactive', false);
 const step = ref<Step | null>(null);
@@ -142,6 +168,13 @@ const consequence = computed<string | undefined>(() => {
 
   return t('dashboard.admin.access.deactivate.consequence', { name: name.value, count }, count);
 });
+
+const ownAccount = computed<boolean>(
+  () =>
+    (step.value === 'revoke' || step.value === 'deactivate') &&
+    !!target.value?.userId &&
+    target.value.userId === me.data.value?.id,
+);
 
 const error = computed<string | undefined>(() => failure.value ?? undefined);
 
@@ -269,7 +302,7 @@ async function startImpersonation(): Promise<void> {
           data-principal-row
           class="flex flex-wrap items-center gap-3 py-3"
         >
-          <div class="min-w-40 flex-1 basis-40 max-md:basis-full">
+          <div class="min-w-40 flex-1 basis-48 max-md:basis-full">
             <UserName
               :user-id="row.userId"
               :name="row.name"
@@ -281,6 +314,9 @@ async function startImpersonation(): Promise<void> {
                   ? $t("dashboard.admin.access.principals.employee")
                   : $t("dashboard.admin.access.principals.serviceAccount")
               }}
+              <span data-principal-id class="font-mono">{{
+                $t("dashboard.admin.access.principals.id", { id: idTail(row.id) })
+              }}</span>
             </span>
             <span
               v-if="row.expiresAt"
@@ -291,7 +327,9 @@ async function startImpersonation(): Promise<void> {
               <DateTime :value="row.expiresAt" />
             </span>
           </div>
-          <div class="flex min-w-0 flex-wrap items-center gap-2">
+          <div
+            class="flex min-w-0 flex-[2] basis-64 flex-wrap items-center gap-2 max-md:basis-full"
+          >
             <Badge v-if="!row.isActive" variant="outline">{{
               $t("dashboard.admin.access.principals.inactive")
             }}</Badge>
@@ -300,16 +338,18 @@ async function startImpersonation(): Promise<void> {
               class="text-xs text-muted-foreground"
             >{{ $t("dashboard.admin.access.principals.noRoles") }}</span>
             <span
-              v-for="held in row.activeAssignments"
+              v-for="{ held, count } in grouped(row.activeAssignments)"
               :key="held.id"
               data-assignment
               class="inline-flex min-h-9 flex-wrap items-center gap-x-1 rounded-md border border-border pr-0.5 pl-2 text-xs"
             >
               <span class="whitespace-nowrap">{{ held.roleName }}</span>
+              <span v-if="count > 1"
+                    data-assignment-count
+                    class="text-muted-foreground"
+              >{{ $t("dashboard.admin.access.principals.times", { count }) }}</span>
               <span v-if="held.scopeChannelId" data-assignment-scope class="text-muted-foreground">
-                {{
-                  $t("dashboard.admin.access.principals.scope", { channel: held.scopeChannelId })
-                }}
+                <AccessScope :channel-id="held.scopeChannelId" />
               </span>
               <span v-if="held.expiresAt" data-assignment-expires class="text-muted-foreground">
                 {{ $t("dashboard.admin.access.principals.expires") }}
@@ -327,14 +367,17 @@ async function startImpersonation(): Promise<void> {
               </Button>
             </span>
           </div>
-          <div v-if="can('iam:manage')" class="flex items-center gap-2">
+          <div v-if="can('iam:manage')" class="flex shrink-0 items-center gap-2 max-md:basis-full">
             <template v-if="row.isActive">
               <Button variant="outline" data-assign @click="open('assign', row)">{{
                 $t("dashboard.admin.access.actions.assign")
               }}</Button>
-              <Button variant="destructive" data-deactivate @click="open('deactivate', row)">{{
-                $t("dashboard.admin.access.actions.deactivate")
-              }}</Button>
+              <Button
+                variant="outline"
+                class="text-(--kit-danger)"
+                data-deactivate
+                @click="open('deactivate', row)"
+              >{{ $t("dashboard.admin.access.actions.deactivate") }}</Button>
             </template>
             <Button
               v-else
@@ -485,6 +528,14 @@ async function startImpersonation(): Promise<void> {
       @submit="submit"
     >
       <div class="grid gap-3">
+        <p
+          v-if="ownAccount"
+          data-self-warning
+          class="text-sm font-medium text-(--kit-danger)"
+          role="alert"
+        >
+          {{ $t("dashboard.admin.access.selfWarning") }}
+        </p>
         <div v-if="step === 'assign'" class="grid gap-1.5">
           <Label for="access-role">{{ $t("dashboard.admin.access.assign.role") }}</Label>
           <Select v-model="roleId">

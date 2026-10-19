@@ -216,7 +216,9 @@
         "apply": {
           "title": "Block an account",
           "target": "Twitch user id",
-          "reason": "Reason shown in the audit log",
+          "reasonLabel": "Reason",
+          "reason": "Shown in the audit log",
+          "previewFailed": "The preview did not load. Check the account id and try again.",
           "preview": "Preview block",
           "previewResult": "{name} would be banned in {count} channels.",
           "action": "Apply block",
@@ -894,8 +896,12 @@
           "inactive": "Inactive",
           "noRoles": "No active roles",
           "expires": "Expires",
-          "scope": "Channel {channel}"
+          "scope": "Channel {channel}",
+          "scopeUnknown": "One channel",
+          "times": "×{count}",
+          "id": "ID {id}"
         },
+        "selfWarning": "This is your own account. You lose this access in your own session.",
         "actions": {
           "assign": "Assign role",
           "deactivate": "Deactivate",
@@ -918,7 +924,7 @@
         "deactivate": {
           "title": "Deactivate {name}",
           "action": "Deactivate principal",
-          "consequence": "{name} loses {count} active role and cannot act until reactivated. | {name} loses {count} active roles and cannot act until reactivated."
+          "consequence": "{name} holds no active roles and cannot act until reactivated. | {name} loses {count} active role and cannot act until reactivated. | {name} loses {count} active roles and cannot act until reactivated."
         },
         "roles": {
           "title": "Roles",
