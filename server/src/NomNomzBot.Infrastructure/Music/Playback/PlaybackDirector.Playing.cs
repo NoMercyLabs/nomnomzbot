@@ -55,15 +55,19 @@ public sealed partial class PlaybackDirector
 
     private async Task OnBlockedAsync(PlaybackInput input, CancellationToken ct)
     {
-        if (input is not OutputAttached)
+        if (input is not (OutputAttached or RequestAdded))
         {
             await IgnoreAsync(input);
             return;
         }
 
-        await MoveAsync(PlaybackState.Idle, input, "output_attached");
+        await MoveAsync(
+            PlaybackState.Idle,
+            input,
+            input is OutputAttached ? "output_attached" : "request_added"
+        );
         if (_queue.Head is { } head)
-            await BeginStartAsync(head, nameof(OutputAttached), "start_head", null, ct);
+            await BeginStartAsync(head, input.GetType().Name, "start_head", null, ct);
     }
 
     private bool IsCurrentTrack(TrackEnded ended) =>

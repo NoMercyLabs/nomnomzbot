@@ -26,7 +26,7 @@ public sealed class PlaybackDirectorRegistry(
     IPlaybackEngineFactory engines,
     IEventBus bus,
     TimeProvider time
-) : IPlaybackInputSink, IPlaybackReportSink, IEngineFeed, IDisposable
+) : IPlaybackInputSink, IPlaybackStateReader, IPlaybackReportSink, IEngineFeed, IDisposable
 {
     private readonly ConcurrentDictionary<Guid, Lazy<ChannelPlayback>> _channels = new();
 
@@ -35,6 +35,11 @@ public sealed class PlaybackDirectorRegistry(
         PlaybackInput input,
         CancellationToken ct = default
     ) => ChannelOf(broadcasterId).Director.HandleAsync(input, ct);
+
+    public PlaybackState StateOf(Guid channelId) =>
+        _channels.TryGetValue(channelId, out Lazy<ChannelPlayback>? channel)
+            ? channel.Value.Director.State
+            : PlaybackState.Idle;
 
     public Task ReportAsync(
         Guid broadcasterId,

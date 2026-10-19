@@ -443,6 +443,31 @@ public sealed partial class PlaybackDirectorTests
     }
 
     [Fact]
+    public async Task Blocked_RequestAdded_GoesIdleAndStartsTheKeptHeadOnce()
+    {
+        Rig rig = new();
+        PlaybackItem a = Item("a");
+        rig.Spotify.StartResult = EngineStartResult.Refused("device gone");
+        await rig.Request(a);
+        rig.Director.State.Should().Be(PlaybackState.Blocked("device gone"));
+        rig.Spotify.StartResult = EngineStartResult.Ok;
+
+        await rig.Director.HandleAsync(new RequestAdded());
+
+        rig.Spotify.Calls.Should()
+            .Equal(new EngineCall("Start", "a"), new EngineCall("Start", "a"));
+        rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.Spotify, a));
+        rig.Journal.Select(e => (e.From, e.To, e.Reason))
+            .Should()
+            .Equal(
+                ("Idle", "Starting", "start_head"),
+                ("Starting", "Blocked", "start_refused"),
+                ("Blocked", "Idle", "request_added"),
+                ("Idle", "Starting", "start_head")
+            );
+    }
+
+    [Fact]
     public async Task Starting_OwnerIntentInputs_AreIgnoredAndJournaled_WithNoEngineCall()
     {
         Rig rig = new();
@@ -482,10 +507,9 @@ public sealed partial class PlaybackDirectorTests
         PlaybackItem b = Item("b", EngineKind.YouTube, owner: "bob");
         rig.Spotify.StartResult = EngineStartResult.Refused("device gone");
         await rig.Request(a);
-        await rig.Request(b);
         rig.Director.State.Should().Be(PlaybackState.Blocked("device gone"));
 
-        await rig.Director.HandleAsync(new OutputAttached());
+        await rig.Request(b);
 
         SongPlaybackFailedEvent notice = rig
             .Bus.Published.OfType<SongPlaybackFailedEvent>()
@@ -505,8 +529,7 @@ public sealed partial class PlaybackDirectorTests
             .Equal(
                 ("Idle", "Starting", "start_head"),
                 ("Starting", "Blocked", "start_refused"),
-                ("Blocked", "Blocked", "ignored"),
-                ("Blocked", "Idle", "output_attached"),
+                ("Blocked", "Idle", "request_added"),
                 ("Idle", "Starting", "start_head"),
                 ("Starting", "Idle", "start_dropped"),
                 ("Idle", "Starting", "next_item")

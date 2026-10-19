@@ -163,6 +163,7 @@ keeps its place in the queue.
 | PausedByOwner(e, *) | OwnerSkip | Starting(next) or Idle | start head |
 | any | EngineReport of an engine that is not the owner engine, playing | same | pause that engine; log `foreign_engine_silenced` |
 | Blocked | OutputAttached / token restored | Idle | re-evaluate |
+| Blocked | RequestAdded | Idle, then Starting(head) | re-evaluate the kept head and start it as Idle + RequestAdded does; journal reason `request_added` |
 
 Engine switch (Spotify to YouTube or back) happens ONLY at the queue head, in the rows above.
 No timer guesses the gap. The next engine starts after the old engine's `TrackEnded` or its confirmed
@@ -171,6 +172,8 @@ and the start goes ahead (the foreign-engine row silences the old engine if it p
 
 The poll tick is NOT an input. A poll only produces `EngineReport`. The recovery tick at
 MusicStatePollingService.cs:277 goes away; `Blocked` plus `OutputAttached` replace it.
+
+Decided (Stoney, 2026-10-19, picked 'Blocked error'): when the bot cannot start a requested song, the requester sees a clear, visible Blocked error that says why, the same as other blocked actions.
 
 ## 3. Rule: two system widgets, two audio levels
 

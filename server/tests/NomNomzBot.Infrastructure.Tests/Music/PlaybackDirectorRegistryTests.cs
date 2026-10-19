@@ -85,6 +85,23 @@ public sealed class PlaybackDirectorRegistryTests
     }
 
     [Fact]
+    public async Task StateOf_reflects_Blocked_after_a_refused_start_and_Idle_for_an_unknown_channel()
+    {
+        IPlaybackStateReader reader = _registry;
+        await _registry.SendAsync(Channel, new OwnerPause());
+        _engines.EngineOf(Channel, EngineKind.Spotify).StartResult = EngineStartResult.Refused(
+            "device gone"
+        );
+        Request(Channel, "spotify:track:s1");
+
+        await _registry.SendAsync(Channel, new RequestAdded());
+
+        reader.StateOf(Channel).Should().Be(PlaybackState.Blocked("device gone"));
+        reader.StateOf(Other).Should().Be(PlaybackState.Idle);
+        _engines.CreateCount.Should().Be(1);
+    }
+
+    [Fact]
     public void The_real_container_resolves_the_sinks_and_the_factory_without_a_scope_error()
     {
         IConfiguration configuration = new ConfigurationBuilder()

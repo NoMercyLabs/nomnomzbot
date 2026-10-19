@@ -411,6 +411,9 @@ public static class DependencyInjection
         services.AddSingleton<IPlaybackInputSink>(sp =>
             sp.GetRequiredService<PlaybackDirectorRegistry>()
         );
+        services.AddSingleton<IPlaybackStateReader>(sp =>
+            sp.GetRequiredService<PlaybackDirectorRegistry>()
+        );
         services.AddSingleton<IPlaybackReportSink>(sp =>
             sp.GetRequiredService<PlaybackDirectorRegistry>()
         );
