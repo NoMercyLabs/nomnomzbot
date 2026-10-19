@@ -774,6 +774,7 @@
         "eventJournal": "Event journal",
         "trustPolicy": "Trust policy",
         "escalation": "Escalation",
+        "spamDefense": "Spam defense",
         "resourceLimits": "Resource limits",
         "billing": "Billing",
         "yourData": "Your data",

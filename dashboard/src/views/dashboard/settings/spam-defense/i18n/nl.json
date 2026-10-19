@@ -1,0 +1,16 @@
+{
+  "dashboard": {
+    "settings": {
+      "spamDefense": {
+        "crumb": "Moderatie",
+        "explain": "Hoe de bot spamgolven en raids in je chat herkent en wat hij ertegen doet. Elke instelling zegt wat ze doet en wat verschuiven kost.",
+        "save": "Opslaan",
+        "saving": "Opslaan",
+        "saved": "Spamverdediging opgeslagen.",
+        "unsaved": "Niet-opgeslagen wijzigingen",
+        "saveError": "De spamverdediging kon niet worden opgeslagen: {reason}",
+        "loadError": "De spamverdediging kon niet worden geladen."
+      }
+    }
+  }
+}

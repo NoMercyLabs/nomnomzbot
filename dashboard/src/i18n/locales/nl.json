@@ -774,6 +774,7 @@
         "eventJournal": "Eventjournaal",
         "trustPolicy": "Vertrouwensbeleid",
         "escalation": "Escalatie",
+        "spamDefense": "Spamverdediging",
         "resourceLimits": "Gebruikslimieten",
         "billing": "Facturatie",
         "yourData": "Jouw gegevens",

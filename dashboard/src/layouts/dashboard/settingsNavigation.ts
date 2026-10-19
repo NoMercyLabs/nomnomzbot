@@ -24,6 +24,7 @@ import MultiPoint from '~icons/nnz/multi-point-connection';
 import PaperScroll from '~icons/nnz/paper-scroll';
 import Plugged from '~icons/nnz/plugged';
 import SettingsFader from '~icons/nnz/settings-fader';
+import ShieldAlert from '~icons/nnz/shield-alert';
 import ShieldCheck from '~icons/nnz/shield-check';
 import Sparkles from '~icons/nnz/sparkles';
 import Scale from '~icons/nnz/scale';
@@ -77,6 +78,7 @@ export const settingsNav: readonly NavGroup[] = [
       navEntry('dashboard-settings-permissions', 'settingsPages.permissions', ShieldCheck),
       navEntry('dashboard-settings-trust-policy', 'settingsPages.trustPolicy', Scale),
       navEntry('dashboard-settings-escalation', 'settingsPages.escalation', StairsUp),
+      navEntry('dashboard-settings-spam-defense', 'settingsPages.spamDefense', ShieldAlert),
       navEntry('dashboard-settings-event-journal', 'settingsPages.eventJournal', PaperScroll),
     ],
   },

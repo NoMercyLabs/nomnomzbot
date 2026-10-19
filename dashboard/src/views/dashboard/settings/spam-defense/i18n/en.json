@@ -1,0 +1,16 @@
+{
+  "dashboard": {
+    "settings": {
+      "spamDefense": {
+        "crumb": "Moderation",
+        "explain": "How the bot spots spam waves and raids in your chat, and what it does about them. Each setting says what it does and what moving it costs.",
+        "save": "Save",
+        "saving": "Saving",
+        "saved": "Spam defense saved.",
+        "unsaved": "Unsaved changes",
+        "saveError": "The spam defense could not be saved: {reason}",
+        "loadError": "The spam defense could not be loaded."
+      }
+    }
+  }
+}

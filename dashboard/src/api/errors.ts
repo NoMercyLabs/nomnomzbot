@@ -327,6 +327,8 @@ export const apiOperations = {
   'moderation standing': 'moderation',
   'escalation policy': 'moderation',
   'save escalation policy': 'moderation',
+  'spam defense policy': 'moderation',
+  'save spam defense policy': 'moderation',
   'chat settings': 'modTools',
   'raid assessments': 'modTools',
   'mass ban': 'modTools',

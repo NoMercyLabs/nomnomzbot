@@ -25,6 +25,7 @@ import { settingsIntegrationsRoute } from './integrations/route';
 import { settingsPermissionsRoute } from './permissions/route';
 import { settingsResourceLimitsRoute } from './resource-limits/route';
 import { settingsEscalationRoute } from './escalation/route';
+import { settingsSpamDefenseRoute } from './spam-defense/route';
 import { settingsTrustPolicyRoute } from './trust-policy/route';
 import { settingsWebhooksRoute } from './webhooks/route';
 import { settingsYourDataRoute } from './your-data/route';
@@ -121,6 +122,7 @@ export const dashboardSettingsRoutes: RouteRecordRaw[] = [
   settingsWebhooksRoute,
   settingsTrustPolicyRoute,
   settingsEscalationRoute,
+  settingsSpamDefenseRoute,
   settingsEventJournalRoute,
   settingsYourDataRoute,
   settingsFederationRoute,

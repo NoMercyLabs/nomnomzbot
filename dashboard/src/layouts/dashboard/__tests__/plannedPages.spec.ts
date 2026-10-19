@@ -37,6 +37,7 @@ const pagesBeyondMockup: ReadonlySet<string> = new Set([
   'dashboard-polls',
   'dashboard-quotes',
   'dashboard-settings-escalation',
+  'dashboard-settings-spam-defense',
   'dashboard-settings-trust-policy',
   'dashboard-viewer-chat',
   'dashboard-voice-triggers',
