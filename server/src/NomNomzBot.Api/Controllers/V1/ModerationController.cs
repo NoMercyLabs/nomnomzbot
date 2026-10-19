@@ -1153,7 +1153,24 @@ public class ModerationController : BaseController
     {
         if (!Guid.TryParse(channelId, out Guid broadcaster))
             return ResultResponse(Result.Failure("Invalid channel id.", "VALIDATION_FAILED"));
-        return ResultResponse(await _escalation.UpsertPolicyAsync(broadcaster, request, ct));
+        Result<ModerationEscalationPolicyDto> saved = await _escalation.UpsertPolicyAsync(
+            broadcaster,
+            request,
+            ct
+        );
+        if (saved.IsSuccess)
+        {
+            await _eventBus.PublishAsync(
+                new ChannelConfigChangedEvent
+                {
+                    BroadcasterId = broadcaster,
+                    Domain = "escalation",
+                    Action = "updated",
+                },
+                ct
+            );
+        }
+        return ResultResponse(saved);
     }
 
     /// <summary>Forgiveness — clears the viewer's ladder tally so their next offense starts at rung one.</summary>
