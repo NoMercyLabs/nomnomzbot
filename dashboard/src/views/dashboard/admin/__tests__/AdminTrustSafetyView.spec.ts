@@ -355,15 +355,50 @@ describe('AdminTrustSafetyView', () => {
     expect(block.textContent).toContain('Partly applied');
   });
 
-  it('makes Overturn the destructive action and Confirm the quiet one', async () => {
+  it('keeps the two review actions as quiet siblings; only the network block is destructive', async () => {
     await open();
     await giveReason('weekly review');
 
     const overturn = byText('[data-review-row] button', 'Overturn')!;
     const confirm = byText('[data-review-row] button', 'Confirm')!;
 
-    expect(overturn.getAttribute('data-variant')).toBe('destructive');
+    expect(overturn.getAttribute('data-variant')).toBe('outline');
     expect(confirm.getAttribute('data-variant')).toBe('outline');
+
+    overturn.click();
+    await settle();
+
+    expect(byText('[role="dialog"] button', 'Overturn')!.getAttribute('data-variant')).toBe(
+      'default',
+    );
+
+    byText('[role="dialog"] button', 'Cancel')!.click();
+    await settle();
+
+    const target = document.body.querySelector<HTMLInputElement>('[data-block-target]')!;
+
+    target.value = '1234';
+    target.dispatchEvent(new Event('input'));
+    await settle();
+    byText('button', 'Preview block')!.click();
+    await settle();
+    byText('button', 'Apply block')!.click();
+    await settle();
+
+    expect(byText('[role="dialog"] button', 'Apply block')!.getAttribute('data-variant')).toBe(
+      'destructive',
+    );
+  });
+
+  it('puts the account and the channel in separate elements so the names never glue', async () => {
+    await open();
+    await giveReason('weekly review');
+
+    const line = document.body.querySelector('[data-review-row] p')!;
+    const channel = line.querySelector('span.text-muted-foreground')!;
+
+    expect(channel.textContent).toBe('Stoney_Eagle');
+    expect(line.className).toContain('gap-1.5');
   });
 
   it('reloads the desk when the hub says another operator changed it', () => {

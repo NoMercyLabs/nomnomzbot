@@ -358,6 +358,7 @@ function run(current: Step): Promise<void> {
       :description="consequence"
       :action="dialogAction"
       :pending="pending"
+      :destructive="step?.kind === 'apply'"
       :error="failed ? $t('dashboard.admin.trustSafety.failed') : undefined"
       @update:open="close"
       @submit="submit"

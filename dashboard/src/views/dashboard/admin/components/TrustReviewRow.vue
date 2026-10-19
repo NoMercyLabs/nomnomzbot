@@ -23,10 +23,10 @@ defineEmits<{ confirm: []; overturn: [] }>();
 
 <template>
   <li data-review-row class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2">
-    <div class="min-w-0 flex-1 basis-64">
-      <p class="truncate text-sm">
+    <div class="min-w-0 flex-1 basis-44">
+      <p class="flex min-w-0 items-baseline gap-1.5 text-sm">
         <UserName :user-id="item.subjectPlatformUserId" :name="item.subjectDisplayName" />
-        <span class="text-muted-foreground"> {{ item.channelName }}</span>
+        <span class="min-w-0 truncate text-muted-foreground">{{ item.channelName }}</span>
       </p>
       <p class="truncate text-xs text-muted-foreground">{{ item.reason }}</p>
       <p v-if="item.messageText" class="truncate text-xs">{{ item.messageText }}</p>
@@ -40,7 +40,7 @@ defineEmits<{ confirm: []; overturn: [] }>();
       <Button variant="outline" size="sm" @click="$emit('confirm')">{{
         $t("dashboard.admin.trustSafety.review.confirm")
       }}</Button>
-      <Button variant="destructive" size="sm" @click="$emit('overturn')">{{
+      <Button variant="outline" size="sm" @click="$emit('overturn')">{{
         $t("dashboard.admin.trustSafety.review.overturn")
       }}</Button>
     </div>
