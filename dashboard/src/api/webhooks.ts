@@ -453,7 +453,9 @@ export function useTestOutboundWebhook(
       if (error !== undefined)
         throw refusal('test outbound webhook', error, response.status);
 
-      const outcome = data?.data as Partial<WebhookTestResult> | null | undefined;
+      // The snapshot lists no success body for this call, so the envelope is read through its known shape.
+      const envelope = data as { data?: Partial<WebhookTestResult> | null } | undefined;
+      const outcome = envelope?.data;
 
       return {
         delivered: outcome?.delivered ?? false,
@@ -465,10 +467,14 @@ export function useTestOutboundWebhook(
   });
 }
 
-export const outboundDeliveriesKey = (
+export function outboundDeliveriesKey(
   channelId: string | null,
   endpointId: string | null,
-): KeyParts => merge(outboundWebhooksKey(channelId), [endpointId, 'deliveries']);
+): KeyParts {
+  const joined = merge(outboundWebhooksKey(channelId), [endpointId, 'deliveries']);
+
+  return Array.from(joined);
+}
 
 // The delivery log of one endpoint, newest first. The key sits under the outbound list key, so a webhooks
 // change from the bot refetches it too.

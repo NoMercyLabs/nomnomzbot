@@ -54,6 +54,7 @@ export default defineConfigWithVueTs(
   globalIgnores([
     '**/dist/**',
     '**/dist-ssr/**',
+    '**/dev-dist/**',
     '**/coverage/**',
     'src/api/nnz-widget.d.ts',
   ]),
@@ -335,7 +336,8 @@ export default defineConfigWithVueTs(
           // Owner 2026-10-18: "STOP DOING THINGS BY HAND". A value that picks from a known set is narrowed
           // once, with oneOf(keysOf(TABLE), value), never cast to the table's keys.
           selector: 'TSAsExpression > TSTypeOperator[operator=\'keyof\']',
-          message: 'Narrow the value with oneOf(keysOf(TABLE), value) from @/lib/array instead of casting to keyof.',
+          message:
+            'Narrow the value with oneOf(keysOf(TABLE), value) from @/lib/array instead of casting to keyof.',
         },
         {
           // Owner 2026-10-15: "i don't want any unknowns if the type can be infered, it is only allowed when the
@@ -364,7 +366,8 @@ export default defineConfigWithVueTs(
         },
         {
           selector: 'TSAsExpression > TSTypeOperator[operator=\'keyof\']',
-          message: 'Narrow the value with oneOf(keysOf(TABLE), value) from @/lib/array instead of casting to keyof.',
+          message:
+            'Narrow the value with oneOf(keysOf(TABLE), value) from @/lib/array instead of casting to keyof.',
         },
       ],
     },

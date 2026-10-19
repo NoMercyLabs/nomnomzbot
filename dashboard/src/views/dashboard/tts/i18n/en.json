@@ -136,7 +136,7 @@
           "label": "Who may be heard",
           "description": "The lowest standing in your channel that is read aloud.",
           "everyone": "Everyone",
-          "subscribers": "Subscribers",
+          "subscribers": "Twitch subscribers",
           "vip": "VIPs",
           "moderators": "Moderators",
           "broadcaster": "Broadcaster"
