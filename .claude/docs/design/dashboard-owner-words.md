@@ -161,3 +161,7 @@ how do i search other channels as a viewer, mod or broadcaster?
 i want to be able to navigate to any channel and the ui reacting to my role and IAM permissions accordingly and actually view as the person visiting another channel, not as a bot tennant but as a normal viewer."
 2026-10-20: "i want you to use 10 agents at the same time so we can get ui changes done fast, but they need to be done correct following all my rules and applied all the nitpicks i had to give before i have to give them again"
 2026-10-20 (popout chat, the "..." menu: "Chat settings" and "Chat identity" wrap to two lines, no item shows that it opens a panel): "dropdowns, need chevron and the menu needs to be wider"
+2026-10-20 01:4x (Fillz gifted usage; Fillz, 2026-10-20 (translated from Dutch): "I reset at 07:00, so you may use it until 6:55"): "we have been gifted by fillz so full stream ahead with as many sessions as the session usage allows", then: "hard stop at 6:55, no excuse for failure to comply"
+2026-10-20: "i want all pages done, defer any c# work that requires a long ci job, you may directly deploy if you need to validate but preferably try to stick to ci"
+2026-10-20: "increase the token limit for each agent for now too, max 300k each"
+2026-10-20: "goal: use up all token budget before 6:55 and get a crap ton of work done without useless work or cycles that serve no benefit other than waste of tokens"
