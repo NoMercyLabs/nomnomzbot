@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Globalization;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -15,6 +16,7 @@ using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform;
+using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Infrastructure.AutomationApi;
 using NomNomzBot.Infrastructure.Content.PlatformContent;
 
@@ -27,13 +29,29 @@ namespace NomNomzBot.Infrastructure.Commands;
 /// </summary>
 public sealed class WrapperPipelineMigrator
 {
+    /// <summary>The global <see cref="Configuration"/> key that records this data set as migrated.</summary>
+    public const string MarkerKey = "system:migration:wrapper-pipelines:v1";
+
     private readonly IApplicationDbContext _db;
 
     public WrapperPipelineMigrator(IApplicationDbContext db) => _db = db;
 
-    /// <summary>Rebinds every safe wrapper binding on the seven surfaces and saves once. Idempotent.</summary>
+    /// <summary>
+    /// Rebinds every safe wrapper binding on the seven surfaces and saves once. Runs once per data set: the
+    /// pass ends by writing the global <see cref="MarkerKey"/> row in the same save, and a later call returns an
+    /// empty report without reading a binding. A user who picks a wrapper pipeline as a target afterwards (or
+    /// switches a retired Stream Deck wrapper back on) keeps that choice at every later boot.
+    /// </summary>
     public async Task<WrapperMigrationReport> RunAsync(CancellationToken ct = default)
     {
+        if (
+            await _db.Configurations.AnyAsync(
+                c => c.BroadcasterId == null && c.Key == MarkerKey,
+                ct
+            )
+        )
+            return new([], [], []);
+
         List<ReboundBinding> rebound = [];
         Dictionary<(Guid PipelineId, Guid ChannelId), WrapperDecision> decisions = [];
 
@@ -64,8 +82,15 @@ public sealed class WrapperPipelineMigrator
             ct
         );
 
-        if (rebound.Count > 0 || retired.Count > 0)
-            await _db.SaveChangesAsync(ct);
+        _db.Configurations.Add(
+            new()
+            {
+                BroadcasterId = null,
+                Key = MarkerKey,
+                Value = DateTime.UtcNow.ToString("O", CultureInfo.InvariantCulture),
+            }
+        );
+        await _db.SaveChangesAsync(ct);
 
         return new(rebound, kept, retired);
     }

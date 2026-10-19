@@ -15,6 +15,7 @@ using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Giveaways.Entities;
+using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.PlatformContent;
@@ -347,6 +348,86 @@ public sealed class WrapperPipelineMigratorTests
         second.Kept.Should().BeEmpty();
         await ReloadAsync(h, reward);
         reward.TargetCommandId.Should().Be(command.Id);
+    }
+
+    [Fact]
+    public async Task A_wrapper_pipeline_the_user_re_picked_after_the_migration_is_not_migrated_again()
+    {
+        using RealCommandsDb h = new();
+        (Pipeline pipeline, Command command) = await AddWrapperAsync(
+            h,
+            RealCommandsDb.Channel,
+            "hydrate"
+        );
+        Reward reward = await AddRewardAsync(h, RealCommandsDb.Channel, pipeline.Id);
+
+        WrapperMigrationReport boot = await Sut(h).RunAsync();
+        await ReloadAsync(h, reward);
+        reward.TargetCommandId.Should().Be(command.Id);
+
+        reward.SetBindingTarget(new(BindingTargetKind.Pipeline, pipeline.Id.ToString()));
+        await h.Db.SaveChangesAsync();
+
+        WrapperMigrationReport nextBoot = await Sut(h).RunAsync();
+
+        await ReloadAsync(h, reward);
+        boot.Rebound.Should().HaveCount(1);
+        nextBoot.Rebound.Should().BeEmpty();
+        nextBoot.Kept.Should().BeEmpty();
+        reward.TargetKind.Should().Be(BindingTargetKind.Pipeline);
+        reward.PipelineId.Should().Be(pipeline.Id);
+        reward.TargetCommandId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task The_first_pass_is_recorded_even_when_it_moved_nothing_so_a_later_pick_stays()
+    {
+        using RealCommandsDb h = new();
+        (Pipeline pipeline, _) = await AddWrapperAsync(h, RealCommandsDb.Channel, "hydrate");
+
+        WrapperMigrationReport boot = await Sut(h).RunAsync();
+        Reward reward = await AddRewardAsync(h, RealCommandsDb.Channel, pipeline.Id);
+        WrapperMigrationReport nextBoot = await Sut(h).RunAsync();
+
+        await ReloadAsync(h, reward);
+        boot.Rebound.Should().BeEmpty();
+        nextBoot.Rebound.Should().BeEmpty();
+        reward.TargetKind.Should().Be(BindingTargetKind.Pipeline);
+        reward.PipelineId.Should().Be(pipeline.Id);
+        List<Configuration> markers = await h
+            .Db.Configurations.AsNoTracking()
+            .Where(c => c.BroadcasterId == null && c.Key == WrapperPipelineMigrator.MarkerKey)
+            .ToListAsync();
+        markers
+            .Should()
+            .ContainSingle("one global row records that this data set was migrated")
+            .Which.Value.Should()
+            .NotBeNullOrWhiteSpace();
+    }
+
+    [Fact]
+    public async Task A_stream_deck_wrapper_the_user_switched_back_on_after_the_migration_stays_enabled()
+    {
+        using RealCommandsDb h = new();
+        Pipeline music = await AddKeyPipelineAsync(
+            h,
+            RealCommandsDb.Channel,
+            "music_play",
+            MusicPlayGraph
+        );
+
+        WrapperMigrationReport boot = await Sut(h).RunAsync();
+        await ReloadAsync(h, music);
+        music.IsEnabled.Should().BeFalse();
+
+        music.IsEnabled = true;
+        await h.Db.SaveChangesAsync();
+        WrapperMigrationReport nextBoot = await Sut(h).RunAsync();
+
+        await ReloadAsync(h, music);
+        boot.StreamDeck.Should().HaveCount(1);
+        nextBoot.StreamDeck.Should().BeEmpty();
+        music.IsEnabled.Should().BeTrue("the user switched the wrapper back on on purpose");
     }
 
     [Fact]

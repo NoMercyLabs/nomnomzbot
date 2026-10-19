@@ -17,7 +17,9 @@ namespace NomNomzBot.Infrastructure.Content.Commands;
 /// <summary>
 /// Startup pass that rebinds surface rows from wrapper pipelines to the command they wrapped (spec
 /// commands-pipelines 12.6). Order 89: after the graph-cache healer (88), so a freshly filled graph is
-/// judged. Idempotent: a rebound row no longer points at a pipeline. Runs under the run-once seed guard.
+/// judged. Once per data set: the migrator records a global marker row, so a wrapper pipeline a user picks as
+/// a binding target after the first pass is never rebound at a later boot. The whole seed pass already runs
+/// under the run-once guard.
 /// </summary>
 public sealed class WrapperPipelineBindingSeeder : ISeeder
 {
