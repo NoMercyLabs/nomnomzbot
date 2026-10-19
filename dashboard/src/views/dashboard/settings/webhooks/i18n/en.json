@@ -12,7 +12,7 @@
           "events": "{count} event | {count} events",
           "lastDelivery": "Last delivery {when}",
           "neverDelivered": "Nothing delivered yet",
-          "switchedOff": "Switched off after repeated failures. {reason}",
+          "switchedOff": "Switched off",
           "reenable": "Turn back on",
           "test": "Send a test to {name}",
           "testDelivered": "Test to {name} delivered. Answer {code} in {ms} ms.",

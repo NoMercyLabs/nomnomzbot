@@ -12,7 +12,7 @@
           "events": "{count} event | {count} events",
           "lastDelivery": "Laatste levering {when}",
           "neverDelivered": "Nog niets geleverd",
-          "switchedOff": "Uitgezet na herhaalde fouten. {reason}",
+          "switchedOff": "Uitgezet",
           "reenable": "Weer aanzetten",
           "test": "Test sturen naar {name}",
           "testDelivered": "Test naar {name} geleverd. Antwoord {code} in {ms} ms.",

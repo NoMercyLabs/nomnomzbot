@@ -202,6 +202,16 @@ let mounted: VueWrapper | null = null;
 beforeEach(() => {
   calls.length = 0;
   held.keys = null;
+
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    },
+  );
+
   i18n.global.mergeLocaleMessage('en', en);
 });
 
@@ -254,6 +264,56 @@ describe('Webhooks page', () => {
     expect(q('[data-outbound="Home server"]').textContent).toContain('hooks.example.com/in');
     expect(q('[data-switched-off]').textContent).toContain('Too many failures');
     expect(q('[data-inbound="Ko-fi"]').textContent).toContain('4');
+  });
+
+  it('says a switched-off webhook is off with a badge, gives the reason once, and skips the never-delivered line', async () => {
+    await open();
+
+    const row = q('[data-outbound="Home server"]');
+
+    expect(q('[data-switched-off-badge]').textContent).toContain('Switched off');
+    expect(q('[data-switched-off]').textContent?.trim()).toBe('Too many failures');
+    expect(row.textContent).not.toContain('repeated failures');
+    expect(row.querySelector('[data-last-delivery]')).toBeNull();
+  });
+
+  it('lines the rows up with the panel header: the panel body pads 16 px', async () => {
+    await open();
+
+    for (const selector of ['[data-outbound="Home server"]', '[data-inbound="Ko-fi"]']) {
+      expect(q(selector).closest('.overflow-y-auto')?.classList.contains('p-4')).toBe(true);
+    }
+  });
+
+  it('draws the turn-back-on and copy-link buttons with a visible border', async () => {
+    await open();
+
+    expect(q('[data-outbound-reenable]').classList.contains('border-border')).toBe(true);
+    expect(q('[data-copy-link]').classList.contains('border-border')).toBe(true);
+  });
+
+  it('names every icon button in a tooltip on keyboard focus', async () => {
+    await open();
+
+    const buttons = {
+      '[data-outbound-delete]': 'Delete Home server',
+      '[data-outbound-deliveries]': 'Deliveries of Home server',
+      '[data-inbound-rotate]': 'Make a new link for Ko-fi',
+    } as const satisfies Record<string, string>;
+
+    for (const [selector, label] of Object.entries(buttons)) {
+      q(selector).dispatchEvent(new FocusEvent('focus'));
+      await settle();
+
+      expect(
+        Array.from(document.body.querySelectorAll('[data-slot="tooltip-content"]')).some((tip) =>
+          tip.textContent?.includes(label),
+        ),
+      ).toBe(true);
+
+      q(selector).dispatchEvent(new FocusEvent('blur'));
+      await settle();
+    }
   });
 
   it('turns a switched-off outbound webhook back on with the re-enable call', async () => {

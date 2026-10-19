@@ -17,8 +17,8 @@ import Trash from '~icons/nnz/trash';
 import type { InboundWebhook } from '@/api/webhooks';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
+import IconAction from '@/components/layout/IconAction.vue';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useFormattedTime } from '@/composables/useTime';
 
@@ -59,40 +59,36 @@ const lastReceived = useFormattedTime(() => props.endpoint.lastReceivedAt, 'date
       </span>
     </div>
     <CopyLinkButton
+      class="border-border"
       :url="endpoint.ingestUrl"
       :label="$t('dashboard.settings.webhooks.inbound.copyLink')"
     />
-    <Button
+    <IconAction
       v-if="can('webhooks:inbound:write')"
-      variant="ghost"
-      size="icon"
       data-inbound-edit
-      :aria-label="$t('dashboard.settings.webhooks.inbound.edit', { name: endpoint.name })"
+      :label="$t('dashboard.settings.webhooks.inbound.edit', { name: endpoint.name })"
       @click="$emit('edit')"
     >
       <Edit class="size-5" />
-    </Button>
-    <Button
+    </IconAction>
+    <IconAction
       v-if="can('webhooks:inbound:write')"
-      variant="ghost"
-      size="icon"
       data-inbound-rotate
-      :aria-label="$t('dashboard.settings.webhooks.inbound.rotate', { name: endpoint.name })"
+      :label="$t('dashboard.settings.webhooks.inbound.rotate', { name: endpoint.name })"
       @click="$emit('rotate')"
     >
       <Rotate class="size-5" />
-    </Button>
-    <Button
+    </IconAction>
+    <IconAction
       v-if="can('webhooks:inbound:write')"
-      variant="ghost"
-      size="icon"
       data-inbound-delete
-      :aria-label="$t('dashboard.settings.webhooks.inbound.delete', { name: endpoint.name })"
+      :label="$t('dashboard.settings.webhooks.inbound.delete', { name: endpoint.name })"
       @click="$emit('remove')"
     >
       <Trash class="size-5" />
-    </Button>
+    </IconAction>
     <GatedSwitch
+      class="ml-2"
       action="webhooks:inbound:write"
       :model-value="endpoint.isEnabled"
       :disabled="busy"

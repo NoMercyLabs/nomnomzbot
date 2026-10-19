@@ -301,6 +301,7 @@ async function confirmDelete(): Promise<void> {
     <PanelCard
       data-view="webhooks-outbound"
       class="shrink-0"
+      pad
       tier="lead"
       :title="$t('dashboard.settings.webhooks.outbound.title')"
       :description="$t('dashboard.settings.webhooks.outbound.description')"
@@ -334,6 +335,7 @@ async function confirmDelete(): Promise<void> {
     <PanelCard
       data-view="webhooks-inbound"
       class="shrink-0"
+      pad
       :title="$t('dashboard.settings.webhooks.inbound.title')"
       :description="$t('dashboard.settings.webhooks.inbound.description')"
       :state="inboundState"

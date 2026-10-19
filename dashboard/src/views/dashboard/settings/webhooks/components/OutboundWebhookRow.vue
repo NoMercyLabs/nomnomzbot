@@ -19,6 +19,7 @@ import { computed } from 'vue';
 
 import type { OutboundWebhook } from '@/api/webhooks';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
+import IconAction from '@/components/layout/IconAction.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
@@ -66,23 +67,35 @@ const lastDelivery = computed(() =>
             })
           }}
         </Badge>
+        <Badge
+          v-if="switchedOff"
+          data-switched-off-badge
+          variant="outline"
+          class="border-destructive/50 text-destructive"
+        >
+          {{ $t("dashboard.settings.webhooks.outbound.switchedOff") }}
+        </Badge>
       </span>
       <span class="block font-mono text-sm text-muted-foreground wrap-break-word">{{
         address
       }}</span>
-      <span data-last-delivery class="block text-sm text-muted-foreground">
+      <span
+        v-if="lastDelivery || !switchedOff"
+        data-last-delivery
+        class="block text-sm text-muted-foreground"
+      >
         {{
           lastDelivery
             ? $t("dashboard.settings.webhooks.outbound.lastDelivery", { when: lastDelivery })
             : $t("dashboard.settings.webhooks.outbound.neverDelivered")
         }}
       </span>
-      <span v-if="switchedOff" data-switched-off class="block text-sm text-destructive">
-        {{
-          $t("dashboard.settings.webhooks.outbound.switchedOff", {
-            reason: endpoint.disabledReason ?? "",
-          })
-        }}
+      <span
+        v-if="switchedOff && endpoint.disabledReason"
+        data-switched-off
+        class="block text-sm text-muted-foreground"
+      >
+        {{ endpoint.disabledReason }}
       </span>
     </div>
     <!-- Narrow screens give the actions their own line under the text, so the name never squeezes. -->
@@ -90,62 +103,54 @@ const lastDelivery = computed(() =>
       <Button
         v-if="switchedOff && can('webhooks:outbound:write')"
         variant="outline"
+        class="border-border"
         data-outbound-reenable
         :disabled="busy"
         @click="$emit('reenable')"
       >
         {{ $t("dashboard.settings.webhooks.outbound.reenable") }}
       </Button>
-      <Button
+      <IconAction
         v-if="can('webhooks:outbound:read')"
-        variant="ghost"
-        size="icon"
         data-outbound-deliveries
-        :aria-label="$t('dashboard.settings.webhooks.outbound.deliveries', { name: endpoint.name })"
+        :label="$t('dashboard.settings.webhooks.outbound.deliveries', { name: endpoint.name })"
         @click="$emit('deliveries')"
       >
         <History class="size-5" />
-      </Button>
+      </IconAction>
       <div v-if="can('webhooks:outbound:write')" class="flex items-center gap-1">
-        <Button
-          variant="ghost"
-          size="icon"
+        <IconAction
           data-outbound-test
           :disabled="busy"
-          :aria-label="$t('dashboard.settings.webhooks.outbound.test', { name: endpoint.name })"
+          :label="$t('dashboard.settings.webhooks.outbound.test', { name: endpoint.name })"
           @click="$emit('test')"
         >
           <Send class="size-5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
+        </IconAction>
+        <IconAction
           data-outbound-rotate
-          :aria-label="$t('dashboard.settings.webhooks.outbound.rotate', { name: endpoint.name })"
+          :label="$t('dashboard.settings.webhooks.outbound.rotate', { name: endpoint.name })"
           @click="$emit('rotate')"
         >
           <Key class="size-5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
+        </IconAction>
+        <IconAction
           data-outbound-edit
-          :aria-label="$t('dashboard.settings.webhooks.outbound.edit', { name: endpoint.name })"
+          :label="$t('dashboard.settings.webhooks.outbound.edit', { name: endpoint.name })"
           @click="$emit('edit')"
         >
           <Edit class="size-5" />
-        </Button>
-        <Button
-          variant="ghost"
-          size="icon"
+        </IconAction>
+        <IconAction
           data-outbound-delete
-          :aria-label="$t('dashboard.settings.webhooks.outbound.delete', { name: endpoint.name })"
+          :label="$t('dashboard.settings.webhooks.outbound.delete', { name: endpoint.name })"
           @click="$emit('remove')"
         >
           <Trash class="size-5" />
-        </Button>
+        </IconAction>
       </div>
       <GatedSwitch
+        class="ml-2"
         action="webhooks:outbound:write"
         :model-value="endpoint.isEnabled"
         :disabled="busy"
