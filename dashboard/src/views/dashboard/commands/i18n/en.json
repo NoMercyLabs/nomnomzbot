@@ -55,8 +55,6 @@
         "codeNote": "This command runs a code script. Linking a script to a command is not possible here yet.",
         "codeError": "The scripts could not load: {message}",
         "role": "Who can use it",
-        "platforms": "Platforms",
-        "platformsOnly": "Twitch only for now",
         "limits": "Trigger and cooldowns",
         "limitsNone": "No cooldown",
         "limitChat": "{count} s chat",
@@ -71,7 +69,23 @@
         "delete": "Delete",
         "confirmTitle": "Delete !{name}?",
         "confirmBody": "The command is removed for good. Chat can no longer use it.",
-        "confirmAction": "Delete command"
+        "confirmAction": "Delete command",
+        "reset": "Reset to preset",
+        "resetTitle": "Reset !{name} to its preset?",
+        "resetBody": "These settings go back to the preset. Your edits to them are lost.",
+        "resetSame": "This command already matches its preset. Resetting changes nothing.",
+        "resetAction": "Reset to preset",
+        "resetFields": {
+          "description": "Description",
+          "templateResponse": "Reply",
+          "templateResponses": "Random replies",
+          "minPermissionLevel": "Who can use it",
+          "cooldownSeconds": "Chat cooldown",
+          "userCooldownSeconds": "Per-person cooldown",
+          "aliases": "Aliases",
+          "prefixMode": "Prefix",
+          "matchMode": "Match mode"
+        }
       },
       "roles": {
         "Everyone": "Everyone",

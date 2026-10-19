@@ -55,8 +55,6 @@
         "codeNote": "Dit commando draait een codescript. Een script aan een commando koppelen kan hier nog niet.",
         "codeError": "De scripts konden niet laden: {message}",
         "role": "Wie mag het gebruiken",
-        "platforms": "Platforms",
-        "platformsOnly": "Voorlopig alleen Twitch",
         "limits": "Activering en wachttijd",
         "limitsNone": "Geen wachttijd",
         "limitChat": "{count} s chat",
@@ -71,7 +69,23 @@
         "delete": "Verwijderen",
         "confirmTitle": "!{name} verwijderen?",
         "confirmBody": "Het commando wordt voorgoed verwijderd. De chat kan het niet meer gebruiken.",
-        "confirmAction": "Commando verwijderen"
+        "confirmAction": "Commando verwijderen",
+        "reset": "Terug naar preset",
+        "resetTitle": "!{name} terugzetten naar de preset?",
+        "resetBody": "Deze instellingen gaan terug naar de preset. Je eigen wijzigingen eraan gaan verloren.",
+        "resetSame": "Dit commando komt al overeen met de preset. Terugzetten verandert niets.",
+        "resetAction": "Terugzetten",
+        "resetFields": {
+          "description": "Beschrijving",
+          "templateResponse": "Antwoord",
+          "templateResponses": "Willekeurige antwoorden",
+          "minPermissionLevel": "Wie het mag gebruiken",
+          "cooldownSeconds": "Chat-cooldown",
+          "userCooldownSeconds": "Cooldown per persoon",
+          "aliases": "Aliassen",
+          "prefixMode": "Voorvoegsel",
+          "matchMode": "Herkenning"
+        }
       },
       "roles": {
         "Everyone": "Iedereen",

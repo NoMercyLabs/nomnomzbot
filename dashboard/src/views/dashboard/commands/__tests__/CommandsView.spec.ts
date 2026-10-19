@@ -48,29 +48,30 @@ const refused = (message: string, status: number = 400): Answer => ({
   response: { status, ok: false },
 });
 
-const command = (name: string, overrides: Row = {}) => ({
-  id: `id-${name}`,
-  name,
-  tier: 'template',
-  minPermissionLevel: 'Everyone',
-  isEnabled: true,
-  prefixMode: 'Default',
-  customPrefix: null,
-  matchMode: 'StartsWith',
-  matchPattern: null,
-  cooldownSeconds: 5,
-  userCooldownSeconds: 10,
-  description: null,
-  aliases: [],
-  useCount: 0,
-  createdAt: '2026-10-01T10:00:00Z',
-  templateResponse: 'Hello there',
-  templateResponses: null,
-  pipelineId: null,
-  presetKey: null,
-  speakWithTts: false,
-  ...overrides,
-}) as const satisfies Row;
+const command = (name: string, overrides: Row = {}) =>
+  ({
+    id: `id-${name}`,
+    name,
+    tier: 'template',
+    minPermissionLevel: 'Everyone',
+    isEnabled: true,
+    prefixMode: 'Default',
+    customPrefix: null,
+    matchMode: 'StartsWith',
+    matchPattern: null,
+    cooldownSeconds: 5,
+    userCooldownSeconds: 10,
+    description: null,
+    aliases: [],
+    useCount: 0,
+    createdAt: '2026-10-01T10:00:00Z',
+    templateResponse: 'Hello there',
+    templateResponses: null,
+    pipelineId: null,
+    presetKey: null,
+    speakWithTts: false,
+    ...overrides,
+  }) as const satisfies Row;
 
 function freshAnswers() {
   return {
@@ -631,7 +632,11 @@ describe('CommandsView editor', () => {
   });
 
   it('keeps every reply when the owner looks at Text and comes back, with nothing unsaved', async () => {
-    rows[2] = command('dice', { templateResponse: null, templateResponses: ['One', 'Two', 'Three'] });
+    rows[2] = command('dice', {
+      templateResponse: null,
+      templateResponses: ['One', 'Two', 'Three'],
+    });
+
     await open('/app/commands?command=dice');
 
     buttonByText('Text').click();
@@ -673,6 +678,67 @@ describe('CommandsView editor', () => {
     expect(rowNames()).not.toContain('hello');
     expect(editor()).toBeNull();
     expect(router.currentRoute.value.query.command).toBeUndefined();
+  });
+
+  it('shows Reset to preset only on a command seeded from a preset', async () => {
+    rows[0] = command('hug', { presetKey: 'hug' });
+    await open('/app/commands?command=hello');
+    expect(buttonByText('Reset to preset')).toBeUndefined();
+
+    await router.push('/app/commands?command=hug');
+    await settle();
+
+    expect(buttonByText('Reset to preset').dataset.variant).toBe('outline');
+  });
+
+  it('resets to the preset only after the confirm, naming what changes, then reads the list again', async () => {
+    rows[0] = command('hug', {
+      presetKey: 'hug',
+      templateResponse: 'custom text',
+      cooldownSeconds: 30,
+    });
+
+    answers['/command-presets'] = () =>
+      ok([
+        {
+          key: 'hug',
+          tier: 'template',
+          description: null,
+          templateResponse: 'hugs',
+          templateResponses: [],
+          minPermissionLevel: 'Everyone',
+          cooldownSeconds: 5,
+          userCooldownSeconds: 10,
+          aliases: [],
+          prefixMode: 'Default',
+          matchMode: 'StartsWith',
+        },
+      ]);
+
+    await open('/app/commands?command=hug');
+
+    buttonByText('Reset to preset').click();
+    await settle();
+    expect(writes('POST')).toHaveLength(0);
+
+    const dialog = document.body
+      .querySelector<HTMLElement>('[data-confirm-action]')!
+      .closest('[role="alertdialog"], [role="dialog"]')!;
+
+    expect(dialog.textContent).toContain('Reply');
+    expect(dialog.textContent).toContain('Chat cooldown');
+    expect(dialog.textContent).not.toContain('Aliases');
+
+    document.body.querySelector<HTMLButtonElement>('[data-confirm-action]')!.click();
+    await settle();
+
+    expect(writes('POST')).toHaveLength(1);
+
+    expect(writes('POST')[0]!.path).toBe(
+      '/api/v{version}/channels/{channelId}/commands/{commandName}/reset-to-preset',
+    );
+
+    expect(writes('POST')[0]!.name).toBe('hug');
   });
 
   it('offers a way back to the list that closes the open command', async () => {
@@ -723,7 +789,9 @@ describe('CommandsView editor', () => {
     await open('/app/commands?command=hello');
 
     const controls = editor()!.querySelectorAll('[data-reply-mode] [data-segmented]');
-    const labels = [...controls[0]!.querySelectorAll('button')].map((button) => button.textContent?.trim());
+    const labels = [...controls[0]!.querySelectorAll('button')].map((button) =>
+      button.textContent?.trim(),
+    );
 
     expect(controls).toHaveLength(1);
     expect(labels).toEqual(['Text', 'Random reply', 'Pipeline']);
@@ -737,13 +805,15 @@ describe('CommandsView editor', () => {
     Element.prototype.releasePointerCapture = (): void => undefined;
     Element.prototype.scrollIntoView = (): void => undefined;
 
-    editor()!.querySelector<HTMLElement>('[data-reply-pipeline] [role="combobox"]')!.dispatchEvent(
-      new PointerEvent('pointerdown', {
-        bubbles: true,
-        button: 0,
-        pointerType: 'mouse',
-      }),
-    );
+    editor()!
+      .querySelector<HTMLElement>('[data-reply-pipeline] [role="combobox"]')!
+      .dispatchEvent(
+        new PointerEvent('pointerdown', {
+          bubbles: true,
+          button: 0,
+          pointerType: 'mouse',
+        }),
+      );
 
     await settle();
 

@@ -11,12 +11,15 @@
 // The editor of one custom command. The Enabled switch saves at once; every other field is a draft
 // that Save sends as the changed fields only. A refused save keeps the draft and shows the bot's reason.
 import ChevronDown from '~icons/nnz/chevron-down';
+import RotateLeft from '~icons/nnz/rotate-left';
 import Trash2 from '~icons/nnz/trash';
-import { computed, ref, watch } from 'vue';
+import { computed, nextTick, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  useCommandPresets,
   useCommands,
+  useResetCommandToPreset,
   useToggleCommand,
   useUpdateCommand,
   type CommandChange,
@@ -53,6 +56,7 @@ import {
 import { rungNames } from '@/api/permissions';
 import RandomReplyDialog from './RandomReplyDialog.vue';
 import type { ReplySet } from './replySet';
+import { presetChanges } from './presetDiff';
 import TriggerFields from './TriggerFields.vue';
 
 const props = defineProps<{ row: CommandListItem }>();
@@ -63,12 +67,15 @@ const { channelId } = useCurrentChannel();
 const update = useUpdateCommand(channelId);
 const toggle = useToggleCommand(channelId);
 const commands = useCommands(channelId);
+const presets = useCommandPresets(channelId);
+const resetToPreset = useResetCommandToPreset(channelId);
 
 const draft = ref<CommandDraft>(draftOf(props.row));
 // What the form was last loaded or saved with. A row that changes under an edited form never overwrites the edits.
 const baseline = ref<CommandDraft>(draftOf(props.row));
 const failure = ref<string | null>(null);
 const confirmOpen = ref(false);
+const resetOpen = ref(false);
 
 watch(
   () => props.row,
@@ -92,7 +99,9 @@ const limitsSummary = computed<string>(() => {
   }
 
   if (draft.value.userCooldownSeconds > 0) {
-    parts.push(t('dashboard.commands.editor.limitPerson', { count: draft.value.userCooldownSeconds }));
+    parts.push(
+      t('dashboard.commands.editor.limitPerson', { count: draft.value.userCooldownSeconds }),
+    );
   }
 
   return parts.length === 0
@@ -140,13 +149,15 @@ const replyType = computed<string>({
 const sets = computed<ReplySet[]>(() =>
   (commands.data.value ?? [])
     .filter(
-      (item): boolean =>
-        item.name !== props.row.name && (item.templateResponses?.length ?? 0) > 0,
+      (item): boolean => item.name !== props.row.name && (item.templateResponses?.length ?? 0) > 0,
     )
-    .map((item) => ({
-      name: item.name,
-      replies: item.templateResponses ?? [],
-    }) as const satisfies ReplySet),
+    .map(
+      (item) =>
+        ({
+          name: item.name,
+          replies: item.templateResponses ?? [],
+        }) as const satisfies ReplySet,
+    ),
 );
 const repliesOpen = ref(false);
 const replyCount = computed<number>(
@@ -176,6 +187,33 @@ function discard(): void {
   baseline.value = draftOf(props.row);
 }
 
+// The preset this command was seeded from; absent for a command the channel wrote itself.
+const preset = computed(() =>
+  props.row.presetKey
+    ? (presets.data.value ?? []).find((item): boolean => item.key === props.row.presetKey)
+    : undefined,
+);
+const resetEffects = computed<string[]>(() =>
+  preset.value
+    ? presetChanges(props.row, preset.value).map((field): string =>
+        t(`dashboard.commands.editor.resetFields.${field}`),
+      )
+    : [],
+);
+
+async function reset(): Promise<void> {
+  resetOpen.value = false;
+  failure.value = null;
+
+  try {
+    await resetToPreset.mutateAsync({ commandName: props.row.name });
+    await nextTick();
+    discard();
+  } catch (error) {
+    failure.value = errorText(error, t);
+  }
+}
+
 function remove(): void {
   confirmOpen.value = false;
   emit('remove', props.row.name);
@@ -194,31 +232,19 @@ function remove(): void {
     </template>
     <div class="grid gap-5">
       <!-- Who may trigger it comes first: it decides whether the reaction below ever runs. -->
-      <div class="grid gap-4 md:grid-cols-2">
-        <Field>
-          <FieldLabel>{{ $t("dashboard.commands.editor.role") }}</FieldLabel>
-          <Select v-model="draft.minPermissionLevel">
-            <SelectTrigger :aria-label="$t('dashboard.commands.editor.role')" class="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem v-for="level in rungNames" :key="level" :value="level">
-                {{ $t(`dashboard.commands.roles.${level}`) }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-        </Field>
-        <Field>
-          <FieldLabel for="command-platforms">{{
-            $t("dashboard.commands.editor.platforms")
-          }}</FieldLabel>
-          <Input
-            id="command-platforms"
-            disabled
-            :model-value="$t('dashboard.commands.editor.platformsOnly')"
-          />
-        </Field>
-      </div>
+      <Field class="md:max-w-sm">
+        <FieldLabel>{{ $t("dashboard.commands.editor.role") }}</FieldLabel>
+        <Select v-model="draft.minPermissionLevel">
+          <SelectTrigger :aria-label="$t('dashboard.commands.editor.role')" class="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem v-for="level in rungNames" :key="level" :value="level">
+              {{ $t(`dashboard.commands.roles.${level}`) }}
+            </SelectItem>
+          </SelectContent>
+        </Select>
+      </Field>
 
       <ReplyModeField
         v-if="row.tier !== 'code'"
@@ -273,7 +299,10 @@ function remove(): void {
             class="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
           />
         </CollapsibleTrigger>
-        <CollapsibleContent force-mount class="grid gap-4 border-t border-border p-3 data-[state=closed]:hidden">
+        <CollapsibleContent
+          force-mount
+          class="grid gap-4 border-t border-border p-3 data-[state=closed]:hidden"
+        >
           <TriggerFields
             v-model:prefix-mode="draft.prefixMode"
             v-model:custom-prefix="draft.customPrefix"
@@ -321,14 +350,20 @@ function remove(): void {
     </div>
     <template #footer>
       <!-- Delete sits apart at the far left, away from Save, quiet; its confirm carries the danger. -->
+      <Button type="button" variant="outline" size="sm" @click="confirmOpen = true">
+        <Trash2 aria-hidden="true" />
+        {{ $t("dashboard.commands.editor.delete") }}
+      </Button>
       <Button
+        v-if="row.presetKey"
         type="button"
         variant="outline"
         size="sm"
-        @click="confirmOpen = true"
+        :disabled="resetToPreset.isPending.value"
+        @click="resetOpen = true"
       >
-        <Trash2 aria-hidden="true" />
-        {{ $t("dashboard.commands.editor.delete") }}
+        <RotateLeft aria-hidden="true" />
+        {{ $t("dashboard.commands.editor.reset") }}
       </Button>
       <span data-unsaved class="mr-auto text-sm text-muted-foreground">{{ unsaved }}</span>
       <Button type="button" variant="outline" size="sm" @click="discard">{{
@@ -349,6 +384,18 @@ function remove(): void {
       :description="$t('dashboard.commands.editor.confirmBody')"
       :action="$t('dashboard.commands.editor.confirmAction')"
       @confirm="remove"
+    />
+    <ConfirmDialog
+      v-model:open="resetOpen"
+      :title="$t('dashboard.commands.editor.resetTitle', { name: row.name })"
+      :description="
+        preset && resetEffects.length === 0
+          ? $t('dashboard.commands.editor.resetSame')
+          : $t('dashboard.commands.editor.resetBody')
+      "
+      :consequences="resetEffects"
+      :action="$t('dashboard.commands.editor.resetAction')"
+      @confirm="reset"
     />
   </PanelCard>
   <RandomReplyDialog v-model:open="repliesOpen" v-model="draft.replies" :sets="sets" />

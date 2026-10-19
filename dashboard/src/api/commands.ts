@@ -27,6 +27,7 @@ export type CommandListItem = components['schemas']['CommandListItem'];
 export type CommandChange = components['schemas']['UpdateCommand'];
 export type NewCommand = components['schemas']['CreateCommand'];
 export type BuiltinCommand = components['schemas']['BuiltinCommand'];
+export type CommandPreset = components['schemas']['CommandPreset'];
 
 // A built-in's name is its chat trigger with the "!" (`!sr`); the dashboard shows the bare word under its own "!".
 export function triggerWord(command: BuiltinCommand): string {
@@ -43,6 +44,12 @@ export const commandsKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
   'commands',
+];
+
+export const presetsKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'command-presets',
 ];
 
 export const builtinsKey = (channelId: string | null): KeyParts => [
@@ -85,6 +92,26 @@ async function readBuiltins(channelId: string): Promise<BuiltinCommand[]> {
     throw failed('built-in commands', response.status, error);
 
   return [...(data?.data ?? [])];
+}
+
+async function readPresets(channelId: string): Promise<CommandPreset[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/command-presets',
+    {
+      params: { path: { version, channelId } },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('command presets', response.status, error);
+
+  return [...(data?.data ?? [])];
+}
+
+export function useCommandPresets(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<CommandPreset[], Error> {
+  return channelQuery(channelId, presetsKey, readPresets);
 }
 
 export function useCommands(
@@ -228,15 +255,12 @@ export function useDeleteCommand(
     apply: (
       current: CommandListItem[] | undefined,
       { commandName }: { commandName: string },
-    ): CommandListItem[] =>
-      (current ?? []).filter((row) => row.name !== commandName),
+    ): CommandListItem[] => (current ?? []).filter((row) => row.name !== commandName),
   });
 }
 
 // A new command is not shown before the bot accepts it: the name can be taken and the quota can be full.
-export function useCreateCommand(
-  channelId: MaybeRefOrGetter<string | null>,
-) {
+export function useCreateCommand(channelId: MaybeRefOrGetter<string | null>) {
   const queries = useQueryClient();
 
   return useMutation<void, Error, NewCommand>({
@@ -267,9 +291,12 @@ export function useToggleBuiltin(
   number
 > {
   return useOptimisticSave<BuiltinCommand[], { builtinKey: string; enabled: boolean }>({
-    describe: ({ builtinKey, enabled }) => ({ key: enabled
-      ? 'turnOnBuiltin'
-      : 'turnOffBuiltin', params: { name: builtinKey } }),
+    describe: ({ builtinKey, enabled }) => ({
+      key: enabled
+        ? 'turnOnBuiltin'
+        : 'turnOffBuiltin',
+      params: { name: builtinKey },
+    }),
     queryKey: () => builtinsKey(toValue(channelId)),
     mutationFn: async ({
       builtinKey,
@@ -358,11 +385,16 @@ export function useUpdateBuiltinSettings(
       const id = toValue(channelId) as string;
       const { error, response } = await client.PUT(
         '/api/v{version}/channels/{channelId}/builtins/{builtinKey}/settings',
-        { params: { path: {
-          version,
-          channelId: id,
-          builtinKey,
-        } }, body },
+        {
+          params: {
+            path: {
+              version,
+              channelId: id,
+              builtinKey,
+            },
+          },
+          body,
+        },
       );
 
       if (error !== undefined)
@@ -418,9 +450,10 @@ export function useSetBuiltinReply(
         slot,
       };
       const url = '/api/v{version}/channels/{channelId}/builtins/{builtinKey}/replies/{slot}';
-      const { error, response } = template === null
-        ? await client.DELETE(url, { params: { path } })
-        : await client.PUT(url, { params: { path }, body: { template } });
+      const { error, response } =
+        template === null
+          ? await client.DELETE(url, { params: { path } })
+          : await client.PUT(url, { params: { path }, body: { template } });
 
       if (error !== undefined)
         throw refusal('built-in command', error, response.status);
@@ -458,11 +491,16 @@ export function useSetBuiltinTts(
       const id = toValue(channelId) as string;
       const { error, response } = await client.PUT(
         '/api/v{version}/channels/{channelId}/builtins/{builtinKey}/tts',
-        { params: { path: {
-          version,
-          channelId: id,
-          builtinKey,
-        } }, body: { enabled } },
+        {
+          params: {
+            path: {
+              version,
+              channelId: id,
+              builtinKey,
+            },
+          },
+          body: { enabled },
+        },
       );
 
       if (error !== undefined)
@@ -476,5 +514,31 @@ export function useSetBuiltinTts(
           ? { ...row, speakWithTts: enabled }
           : row,
       ),
+  });
+}
+
+// A reset writes the preset back over the command, so the list is read again instead of guessed.
+export function useResetCommandToPreset(channelId: MaybeRefOrGetter<string | null>) {
+  const queries = useQueryClient();
+
+  return useMutation<void, Error, { commandName: string }>({
+    mutationFn: async ({ commandName }: { commandName: string }): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/commands/{commandName}/reset-to-preset',
+        {
+          params: { path: {
+            version,
+            channelId: toValue(channelId) as string,
+            commandName,
+          } },
+        },
+      );
+
+      if (error !== undefined)
+        throw refusal('reset command', error, response.status);
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({ queryKey: commandsKey(toValue(channelId)) });
+    },
   });
 }
