@@ -70956,7 +70956,7 @@
         "tags": [
           "Overlay"
         ],
-        "summary": "The current playback state, so a `now_playing` widget can render the real track the instant it mounts\r\ninstead of showing nothing until the next `now_playing` hub event arrives. `Data` is null when\r\nnothing is currently playing.",
+        "summary": "The current playback state, so a now-playing widget can render the real track the instant it mounts\r\ninstead of showing nothing until the next `music.nowPlaying` hub event arrives. `Data` is null\r\nwhen the music service reports nothing.",
         "parameters": [
           {
             "name": "token",
@@ -71040,7 +71040,7 @@
             "content": {
               "application/json": {
                 "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfOverlayNowPlayingSnapshot"
+                  "$ref": "#/components/schemas/StatusResponseOfNowPlayingShape"
                 }
               }
             }
@@ -112239,6 +112239,10 @@
             "description": "Opt-in countdown (seconds, capped at 24h) — makes this a time-limited reward.",
             "format": "int32"
           },
+          "speaksViaTts": {
+            "type": "boolean",
+            "description": "Speak the viewer's redemption text through TTS in their voice."
+          },
           "pipelineId": {
             "type": [
               "null",
@@ -120647,6 +120651,86 @@
         },
         "description": "Current now-playing state. ShuffleState and RepeatState\r\n            (\"off\" | \"track\" | \"context\") are the live player toggles the dashboard renders — false/\"off\" on providers\r\n            that do not report them."
       },
+      "NowPlayingShape": {
+        "required": [
+          "engine",
+          "title",
+          "artists",
+          "durationMs",
+          "progressMs",
+          "isPlaying",
+          "volume",
+          "muted",
+          "state"
+        ],
+        "type": "object",
+        "properties": {
+          "engine": {
+            "type": "string"
+          },
+          "itemId": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "title": {
+            "type": "string"
+          },
+          "artists": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "albumArtUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "durationMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "progressMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "isPlaying": {
+            "type": "boolean"
+          },
+          "requestedBy": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "volume": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "muted": {
+            "type": "boolean"
+          },
+          "state": {
+            "type": "string"
+          }
+        },
+        "description": "The wire form of the one now-playing shape (music-playback-determinism.md section 2.1), pushed as the\r\nhub event `music.nowPlaying`. Engine is \"spotify\" or \"youtube\"; every other field\r\nis filled the same way for both engines. State is the camelCase director state:\r\nidle, starting, playing, pausedByOwner or blocked."
+      },
       "OAuthCallback": {
         "required": [
           "code"
@@ -121850,83 +121934,6 @@
           }
         },
         "description": "The public, token-resolved overlay manifest (widgets-overlays.md §4). The single read an OBS browser source\r\nneeds: the channel's enabled, successfully-built widgets, each with the URL to fetch its compiled bundle, the\r\ncontent hash (cache-bust key), its render-time trust tier, and its live settings + event subscriptions."
-      },
-      "OverlayNowPlayingSnapshot": {
-        "required": [
-          "isPlaying",
-          "durationMs",
-          "progressMs",
-          "observedAt"
-        ],
-        "type": "object",
-        "properties": {
-          "isPlaying": {
-            "type": "boolean"
-          },
-          "track": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "artist": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "artUrl": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "provider": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "trackUri": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "durationMs": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "progressMs": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "observedAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "requestedBy": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "requestedByColor": {
-            "type": [
-              "null",
-              "string"
-            ]
-          }
-        },
-        "description": "The current playback state for an overlay token's channel, field-for-field identical to the\r\n`now_playing` widget event payload (`WidgetNowPlayingHandler`) — a `now_playing` widget fetches\r\nthis once on mount so it can render the real current track immediately instead of waiting for the next\r\nplayback change to arrive over the hub."
       },
       "OverlayWidgetEntry": {
         "required": [
@@ -128848,6 +128855,10 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "speaksViaTts": {
+            "type": "boolean",
+            "default": false
           }
         }
       },
@@ -140880,6 +140891,43 @@
           }
         }
       },
+      "StatusResponseOfNowPlayingShape": {
+        "type": "object",
+        "properties": {
+          "status": {
+            "type": "string"
+          },
+          "data": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/NowPlayingShape"
+              }
+            ]
+          },
+          "message": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "code": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
+          },
+          "args": {
+            "type": [
+              "null",
+              "array"
+            ]
+          }
+        }
+      },
       "StatusResponseOfOAuthStart": {
         "type": "object",
         "properties": {
@@ -141365,43 +141413,6 @@
               },
               {
                 "$ref": "#/components/schemas/OverlayManifest"
-              }
-            ]
-          },
-          "message": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "code": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "description": "The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on\r\nsuccess. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause\r\ninto one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a\r\ngeneric error toast) reads this field."
-          },
-          "args": {
-            "type": [
-              "null",
-              "array"
-            ]
-          }
-        }
-      },
-      "StatusResponseOfOverlayNowPlayingSnapshot": {
-        "type": "object",
-        "properties": {
-          "status": {
-            "type": "string"
-          },
-          "data": {
-            "oneOf": [
-              {
-                "type": "null"
-              },
-              {
-                "$ref": "#/components/schemas/OverlayNowPlayingSnapshot"
               }
             ]
           },
@@ -148733,7 +148744,8 @@
           "viewerVoiceSelfServiceEnabled",
           "hasAzureByokKey",
           "hasElevenLabsByokKey",
-          "followsPlatformDefaultVoice"
+          "followsPlatformDefaultVoice",
+          "cooldownSeconds"
         ],
         "type": "object",
         "properties": {
@@ -148801,6 +148813,14 @@
           },
           "followsPlatformDefaultVoice": {
             "type": "boolean"
+          },
+          "cooldownSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
         "description": "TTS configuration for a channel (tts.md P.1). BYOK keys never leave the server — only their\r\npresence is surfaced, so the dashboard can show configured-state truthfully.\r\nDefaultVoiceId is the EFFECTIVE voice (the channel's own pick, else the platform default\r\nvoice), so the page never shows a voice the runtime does not speak; FollowsPlatformDefaultVoice\r\nsays which of the two it is."
@@ -148810,7 +148830,9 @@
           "providers",
           "modes",
           "minPermissions",
-          "maxCharactersLimit"
+          "maxCharactersLimit",
+          "cooldownSecondsDefault",
+          "cooldownSecondsMax"
         ],
         "type": "object",
         "properties": {
@@ -148833,6 +148855,22 @@
             }
           },
           "maxCharactersLimit": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "cooldownSecondsDefault": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "cooldownSecondsMax": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
               "integer",
@@ -151424,6 +151462,13 @@
             "description": "Countdown seconds for a time-limited reward; 0 clears it, absent leaves it unchanged.",
             "format": "int32"
           },
+          "speaksViaTts": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Speak the viewer's redemption text through TTS; absent leaves it unchanged."
+          },
           "pipelineId": {
             "type": [
               "null",
@@ -152114,6 +152159,18 @@
               "null",
               "string"
             ]
+          },
+          "cooldownSeconds": {
+            "maximum": 3600,
+            "minimum": 0,
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Seconds a viewer waits between spoken messages; 0 turns the cooldown off.",
+            "format": "int32"
           },
           "skipBotMessages": {
             "type": [

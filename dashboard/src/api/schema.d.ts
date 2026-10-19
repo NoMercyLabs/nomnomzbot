@@ -60192,9 +60192,9 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * The current playback state, so a `now_playing` widget can render the real track the instant it mounts
-         *     instead of showing nothing until the next `now_playing` hub event arrives. `Data` is null when
-         *     nothing is currently playing.
+         * The current playback state, so a now-playing widget can render the real track the instant it mounts
+         *     instead of showing nothing until the next `music.nowPlaying` hub event arrives. `Data` is null
+         *     when the music service reports nothing.
          */
         get: {
             parameters: {
@@ -60215,7 +60215,7 @@ export interface paths {
                         [name: string]: unknown;
                     };
                     content: {
-                        "application/json": components["schemas"]["StatusResponseOfOverlayNowPlayingSnapshot"];
+                        "application/json": components["schemas"]["StatusResponseOfNowPlayingShape"];
                     };
                 };
                 /** @description Bad Request */
@@ -90985,6 +90985,8 @@ export interface components {
              * @description Opt-in countdown (seconds, capped at 24h) — makes this a time-limited reward.
              */
             timerDurationSeconds?: null | number | string;
+            /** @description Speak the viewer's redemption text through TTS in their voice. */
+            speaksViaTts?: boolean;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
@@ -94009,6 +94011,29 @@ export interface components {
             muted: boolean;
             state?: null | string;
         };
+        /**
+         * @description The wire form of the one now-playing shape (music-playback-determinism.md section 2.1), pushed as the
+         *     hub event `music.nowPlaying`. Engine is "spotify" or "youtube"; every other field
+         *     is filled the same way for both engines. State is the camelCase director state:
+         *     idle, starting, playing, pausedByOwner or blocked.
+         */
+        NowPlayingShape: {
+            engine: string;
+            itemId?: null | string;
+            title: string;
+            artists: string[];
+            albumArtUrl?: null | string;
+            /** Format: int32 */
+            durationMs: number | string;
+            /** Format: int32 */
+            progressMs: number | string;
+            isPlaying: boolean;
+            requestedBy?: null | string;
+            /** Format: int32 */
+            volume: number | string;
+            muted: boolean;
+            state: string;
+        };
         /** @description OAuth callback data received from the Twitch redirect. */
         OAuthCallback: {
             code: string;
@@ -94453,28 +94478,6 @@ export interface components {
             channelId: string;
             cspNonce: string;
             widgets: components["schemas"]["OverlayWidgetEntry"][];
-        };
-        /**
-         * @description The current playback state for an overlay token's channel, field-for-field identical to the
-         *     `now_playing` widget event payload (`WidgetNowPlayingHandler`) — a `now_playing` widget fetches
-         *     this once on mount so it can render the real current track immediately instead of waiting for the next
-         *     playback change to arrive over the hub.
-         */
-        OverlayNowPlayingSnapshot: {
-            isPlaying: boolean;
-            track?: null | string;
-            artist?: null | string;
-            artUrl?: null | string;
-            provider?: null | string;
-            trackUri?: null | string;
-            /** Format: int32 */
-            durationMs: number | string;
-            /** Format: int32 */
-            progressMs: number | string;
-            /** Format: date-time */
-            observedAt: string;
-            requestedBy?: null | string;
-            requestedByColor?: null | string;
         };
         /**
          * @description One widget in the overlay manifest. string OverlayWidgetEntry.TrustTier (first_party | verified_community | unverified) is
@@ -96619,6 +96622,8 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+            /** @default false */
+            speaksViaTts: boolean;
         };
         RewardsLeaderboardEntry: {
             /** Format: int32 */
@@ -100892,6 +100897,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseOfNowPlayingShape: {
+            status?: string;
+            data?: null | components["schemas"]["NowPlayingShape"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseOfOAuthStart: {
             status?: string;
             data?: null | components["schemas"]["OAuthStart"];
@@ -101064,19 +101082,6 @@ export interface components {
         StatusResponseOfOverlayManifest: {
             status?: string;
             data?: null | components["schemas"]["OverlayManifest"];
-            message?: null | string;
-            /**
-             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
-             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
-             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
-             *     generic error toast) reads this field.
-             */
-            code?: null | string;
-            args?: null | unknown[];
-        };
-        StatusResponseOfOverlayNowPlayingSnapshot: {
-            status?: string;
-            data?: null | components["schemas"]["OverlayNowPlayingSnapshot"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -103661,6 +103666,8 @@ export interface components {
             hasElevenLabsByokKey: boolean;
             azureRegion?: null | string;
             followsPlatformDefaultVoice: boolean;
+            /** Format: int32 */
+            cooldownSeconds: number | string;
         };
         /**
          * @description What the TTS settings page may offer: the providers, dispatch modes and standings the update accepts, and
@@ -103672,6 +103679,10 @@ export interface components {
             minPermissions: string[];
             /** Format: int32 */
             maxCharactersLimit: number | string;
+            /** Format: int32 */
+            cooldownSecondsDefault: number | string;
+            /** Format: int32 */
+            cooldownSecondsMax: number | string;
         };
         TtsDispatchDisposition: number;
         /** @description The result of a dispatch: what happened, plus the play URL when it was dispatched. */
@@ -104412,6 +104423,8 @@ export interface components {
              * @description Countdown seconds for a time-limited reward; 0 clears it, absent leaves it unchanged.
              */
             timerDurationSeconds?: null | number | string;
+            /** @description Speak the viewer's redemption text through TTS; absent leaves it unchanged. */
+            speaksViaTts?: null | boolean;
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
@@ -104587,6 +104600,11 @@ export interface components {
             /** Format: int32 */
             maxCharacters?: null | number | string;
             minPermission?: null | string;
+            /**
+             * Format: int32
+             * @description Seconds a viewer waits between spoken messages; 0 turns the cooldown off.
+             */
+            cooldownSeconds?: null | number | string;
             skipBotMessages?: null | boolean;
             readUsernames?: null | boolean;
             /** @description Opt-out light swear filter — masks mild profanity before the text is spoken. */
