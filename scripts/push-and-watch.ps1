@@ -142,7 +142,8 @@ try {
         # the names. The early-stop step running at all means a step failed.
         [string[]]$errors = @($log | Where-Object {
                 ($_ -match '##\[error\]' -and $_ -notmatch 'Process completed with exit code') -or
-                $_ -match '\[FAIL\]' -or $_ -match 'Failed!  - Failed:' } | Select-Object -First 10)
+                $_ -match '\[FAIL\]' -or $_ -match 'Failed!  - Failed:' -or $_ -match 'Was not formatted' -or
+                $_ -match 'error CS\d' } | Select-Object -First 10)
         [bool]$stoppedEarly = @($log | Where-Object { $_ -match 'Stop the run early' }).Count -gt 0
         if ($errors.Count -gt 0 -or $stoppedEarly) {
             Write-Host "CI RED: run $runId failed and the early stop cancelled it. Nothing deployed from it."

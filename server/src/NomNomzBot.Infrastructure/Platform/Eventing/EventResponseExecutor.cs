@@ -417,7 +417,10 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         CancellationToken ct
     )
     {
-        Dictionary<string, string> targetVariables = new(variables, StringComparer.OrdinalIgnoreCase)
+        Dictionary<string, string> targetVariables = new(
+            variables,
+            StringComparer.OrdinalIgnoreCase
+        )
         {
             ["event.name"] = eventTypeKey,
         };
