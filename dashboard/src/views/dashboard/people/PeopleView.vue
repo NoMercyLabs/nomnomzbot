@@ -14,7 +14,7 @@
 // Typing asks the bot for every known user in any channel and shows name and avatar only. Enter or a
 // click opens the person in the same profile view the dialog shows.
 // A button looks a name up live on Twitch for someone the bot has never seen.
-import { refDebounced, useLocalStorage } from '@vueuse/core';
+import { refDebounced, useEventListener, useLocalStorage } from '@vueuse/core';
 import { computed, ref, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -358,6 +358,26 @@ function back(): void {
   void tab;
   void router.push({ query: rest });
 }
+
+function isTyping(target: EventTarget | null): boolean {
+  return (
+    target instanceof HTMLElement && target.matches('input, textarea, select, [contenteditable]')
+  );
+}
+
+// Escape closes the open profile, as the Back link and browser Back do. A key meant for the search box stays there.
+function closeOnEscape(event: KeyboardEvent): void {
+  if (
+    event.key !== 'Escape' ||
+    event.defaultPrevented ||
+    isTyping(event.target) ||
+    asked.value === ''
+  ) return;
+
+  back();
+}
+
+useEventListener(document, 'keydown', closeOnEscape);
 </script>
 
 <template>

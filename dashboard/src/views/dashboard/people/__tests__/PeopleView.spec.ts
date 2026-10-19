@@ -574,6 +574,38 @@ describe('PeopleView', () => {
     expect(document.body.querySelector('[data-person-detail] h2')?.textContent).toBe('BOB');
   });
 
+  it('closes the open profile on Escape and keeps the rest of the address', async () => {
+    await open('/app/people?u=alice&view=moderator');
+    document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await settle();
+
+    expect(router.currentRoute.value.query.u).toBeUndefined();
+    expect(router.currentRoute.value.query.view).toBe('moderator');
+    expect(document.body.querySelector('[data-person-detail] h2')?.textContent).not.toBe('ALICE');
+  });
+
+  it('leaves the profile open when Escape is pressed while typing in the search', async () => {
+    await open('/app/people?u=alice');
+
+    const input = document.body.querySelector('input[type="search"]') as HTMLInputElement;
+
+    input.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await settle();
+
+    expect(router.currentRoute.value.query.u).toBe('alice');
+  });
+
+  it('closes the profile on browser Back after a person was picked', async () => {
+    await open();
+    rows()[1]!.querySelector<HTMLButtonElement>('button')!.click();
+    await settle();
+    router.back();
+    await settle();
+
+    expect(router.currentRoute.value.query.u).toBeUndefined();
+    expect(document.body.querySelector('[data-person-detail] h2')?.textContent).not.toBe('BOB');
+  });
+
   it('never reads the profile of a person without an internal id, and still shows what the bot has', async () => {
     await open('/app/people?u=cara');
 
