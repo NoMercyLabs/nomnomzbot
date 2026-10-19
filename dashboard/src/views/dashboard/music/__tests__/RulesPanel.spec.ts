@@ -230,6 +230,9 @@ describe('RulesPanel', () => {
 
     expect(radio('moderators').getAttribute('aria-checked')).toBe('true');
     expect(radio('everyone').getAttribute('aria-checked')).toBe('false');
+    expect(radio('spotify').getAttribute('aria-checked')).toBe('true');
+    expect(radio('auto').getAttribute('aria-checked')).toBe('false');
+    expect(radio('youtube').getAttribute('aria-checked')).toBe('false');
     expect(perPerson().value).toBe('1');
     const text = document.body.textContent ?? '';
 
