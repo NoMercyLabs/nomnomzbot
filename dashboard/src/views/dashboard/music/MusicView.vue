@@ -72,7 +72,7 @@ const ban = useBanQueueItem(channelId);
 const setRequests = useSetRequestsOpen(channelId);
 const access = useChannelAccess(channelId);
 const canModerateQueue = computed(() => access.can('music:queue:moderate'));
-const requestsOpen = computed(() => queueQuery.data.value?.requestsOpen ?? true);
+const requestsOpen = computed(() => queueQuery.data.value?.requestsOpen);
 
 const nowPlaying = computed<NonNullable<typeof queueQuery.data.value>['nowPlaying']>(
   () => queueQuery.data.value?.nowPlaying ?? null,
@@ -291,6 +291,7 @@ const span = layout.span;
         <RequesterBulkRemove :rows="rows" />
         <template #actions>
           <StatusBadge
+            v-if="requestsOpen !== undefined"
             :tone="requestsOpen ? 'ok' : 'off'"
             :label="
               $t(requestsOpen ? 'dashboard.music.queue.open' : 'dashboard.music.queue.closed')
@@ -298,7 +299,7 @@ const span = layout.span;
             data-requests-state
           />
           <Button
-            v-if="canModerateQueue"
+            v-if="canModerateQueue && requestsOpen !== undefined"
             variant="outline"
             size="sm"
             :disabled="setRequests.isPending.value"

@@ -54,31 +54,33 @@ const playlists: Record<string, unknown>[] = [
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
-const baseConfig = () => ({
-  isEnabled: true,
-  preferredProvider: 'spotify',
-  maxQueueSize: 20,
-  maxRequestsPerUser: 1,
-  allowYouTube: false,
-  allowSpotify: true,
-  minTrustLevel: 'moderators',
-  bangerAutoCreate: false,
-  bangerPlaylistId: null,
-  bangerPlaylistProvider: null,
-  allowExplicit: true,
-  maxSongSeconds: 360,
-  perStreamLimit: null,
-}) as const satisfies Record<string, unknown>;
+const baseConfig = () =>
+  ({
+    isEnabled: true,
+    preferredProvider: 'spotify',
+    maxQueueSize: 20,
+    maxRequestsPerUser: 1,
+    allowYouTube: false,
+    allowSpotify: true,
+    minTrustLevel: 'moderators',
+    bangerAutoCreate: false,
+    bangerPlaylistId: null,
+    bangerPlaylistProvider: null,
+    allowExplicit: true,
+    maxSongSeconds: 360,
+    perStreamLimit: null,
+  }) as const satisfies Record<string, unknown>;
 
-const blockedRow = (id: string, title: string) => ({
-  id,
-  provider: 'spotify',
-  trackUri: `spotify:track:${id}`,
-  title,
-  reason: null,
-  blockedByUserId: null,
-  createdAt: '2026-10-01T10:00:00Z',
-}) as const satisfies Record<string, unknown>;
+const blockedRow = (id: string, title: string) =>
+  ({
+    id,
+    provider: 'spotify',
+    trackUri: `spotify:track:${id}`,
+    title,
+    reason: null,
+    blockedByUserId: null,
+    createdAt: '2026-10-01T10:00:00Z',
+  }) as const satisfies Record<string, unknown>;
 
 function write(method: string, path: string, options?: Options): Answer {
   calls.push({
@@ -270,6 +272,20 @@ describe('RulesPanel', () => {
 
     expect(puts()).toHaveLength(1);
     expect(puts()[0]!.body).toEqual({ requestsOpen: false });
+  });
+
+  it('saves the music on/off switch as its own field', async () => {
+    await open();
+
+    const toggle = document.body.querySelector<HTMLButtonElement>('[data-setting="music-enabled"]');
+
+    expect(toggle?.getAttribute('aria-checked')).toBe('true');
+    toggle?.click();
+    await settle();
+    buttonIn('Save').click();
+    await settle();
+
+    expect(puts()[0]!.body).toEqual({ isEnabled: false });
   });
 
   it('saves the songs per person the streamer types', async () => {

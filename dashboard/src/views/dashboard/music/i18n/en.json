@@ -107,6 +107,8 @@
         "save": "Save",
         "discard": "Discard",
         "open": "Requests are open",
+        "enabled": "Music is on",
+        "enabledHelp": "Turn this off to stop the bot playing and taking song requests.",
         "limits": "Limits",
         "queueSize": "Songs in the queue, at most",
         "songSeconds": "Longest song (minutes:seconds)",

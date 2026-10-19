@@ -46,44 +46,41 @@ const refused = (): Answer => ({
   response: { status: 403, ok: false },
 });
 
-const track = (
-  position: number,
-  trackName: string,
-  artist: string,
-  requestedBy: string,
-) => ({
-  position,
-  number: position,
-  trackName,
-  artist,
-  imageUrl: null,
-  durationMs: 200000,
-  requestedBy,
-  cost: 0,
-}) as const satisfies Record<string, unknown>;
+const track = (position: number, trackName: string, artist: string, requestedBy: string) =>
+  ({
+    position,
+    number: position,
+    trackName,
+    artist,
+    imageUrl: null,
+    durationMs: 200000,
+    requestedBy,
+    cost: 0,
+  }) as const satisfies Record<string, unknown>;
 
-const playing = (overrides: Record<string, unknown> = {}) => ({
-  trackName: 'Midnight City',
-  artist: 'M83',
-  album: 'Hurry Up',
-  imageUrl: null,
-  durationMs: 240000,
-  progressMs: 60000,
-  isPlaying: true,
-  volume: 40,
-  requestedBy: 'DukaSoft',
-  provider: 'spotify',
-  shuffleState: false,
-  repeatState: 'off',
-  canSetShuffle: true,
-  canSetRepeat: true,
-  canSkipNext: true,
-  canSkipPrevious: true,
-  canSeek: true,
-  canPause: true,
-  canResume: true,
-  ...overrides,
-}) as const satisfies Record<string, unknown>;
+const playing = (overrides: Record<string, unknown> = {}) =>
+  ({
+    trackName: 'Midnight City',
+    artist: 'M83',
+    album: 'Hurry Up',
+    imageUrl: null,
+    durationMs: 240000,
+    progressMs: 60000,
+    isPlaying: true,
+    volume: 40,
+    requestedBy: 'DukaSoft',
+    provider: 'spotify',
+    shuffleState: false,
+    repeatState: 'off',
+    canSetShuffle: true,
+    canSetRepeat: true,
+    canSkipNext: true,
+    canSkipPrevious: true,
+    canSeek: true,
+    canPause: true,
+    canResume: true,
+    ...overrides,
+  }) as const satisfies Record<string, unknown>;
 
 function freshAnswers() {
   return {
@@ -633,6 +630,16 @@ describe('MusicView', () => {
     expect(panel('Now playing').querySelector('[data-slot="panel-empty"]')?.textContent).toContain(
       'Nothing is playing right now.',
     );
+  });
+
+  it('shows no request state the server did not send instead of guessing open', async () => {
+    answers['/music/queue'] = () => ok({ queue: [] });
+    await open();
+
+    const queue = panel('Request queue');
+
+    expect(queue.querySelector('[data-requests-state]')).toBeNull();
+    expect(queue.querySelector('[data-toggle-requests]')).toBeNull();
   });
 
   it('says the queue could not load when the server refuses it', async () => {

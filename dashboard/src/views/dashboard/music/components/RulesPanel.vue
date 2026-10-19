@@ -99,7 +99,7 @@ const change = computed(() => {
 
   return config && edits
     ? changeOf(config, edits)
-    : {} as const satisfies MusicConfigChange;
+    : ({} as const satisfies MusicConfigChange);
 });
 const valid = computed<boolean>(() => draft.value === null || draftValid(draft.value));
 const dirty = computed<boolean>(() => valid.value && Object.keys(change.value).length > 0);
@@ -170,10 +170,13 @@ function undoAllow(): void {
 }
 
 const missing = computed<KeyValueItem[]>(() =>
-  ['cost', 'words'].map((key) => ({
-    label: t(`dashboard.music.rules.missing.${key}`),
-    reason: t('dashboard.music.rules.notYet'),
-  }) as const satisfies KeyValueItem),
+  ['cost', 'words'].map(
+    (key) =>
+      ({
+        label: t(`dashboard.music.rules.missing.${key}`),
+        reason: t('dashboard.music.rules.notYet'),
+      }) as const satisfies KeyValueItem,
+  ),
 );
 </script>
 
@@ -199,6 +202,19 @@ const missing = computed<KeyValueItem[]>(() =>
     </template>
     <div v-if="draft" class="grid gap-5">
       <fieldset class="contents" :disabled="!can('music:config:write')">
+        <label class="flex items-center gap-3 text-sm">
+          <span class="min-w-0 flex-1">
+            <span class="block">{{ $t("dashboard.music.rules.enabled") }}</span>
+            <span class="block text-muted-foreground">{{
+              $t("dashboard.music.rules.enabledHelp")
+            }}</span>
+          </span>
+          <GatedSwitch
+            v-model="draft.isEnabled"
+            action="music:config:write"
+            data-setting="music-enabled"
+          />
+        </label>
         <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.who')">
           <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.who") }}</h3>
           <RadioGroup v-model="draft.minTrustLevel" class="gap-2">
@@ -287,7 +303,11 @@ const missing = computed<KeyValueItem[]>(() =>
           </div>
           <label class="flex items-center gap-3 text-sm">
             <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowExplicit") }}</span>
-            <GatedSwitch v-model="draft.allowExplicit" action="music:config:write" data-setting="allow-explicit" />
+            <GatedSwitch
+              v-model="draft.allowExplicit"
+              action="music:config:write"
+              data-setting="allow-explicit"
+            />
           </label>
           <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.perRoleHelp") }}</p>
           <label v-for="rung in musicRoleRungs" :key="rung" class="flex items-center gap-3 text-sm">
@@ -309,11 +329,19 @@ const missing = computed<KeyValueItem[]>(() =>
           <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.sources") }}</h3>
           <label class="flex items-center gap-3 text-sm">
             <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowSpotify") }}</span>
-            <GatedSwitch v-model="draft.allowSpotify" action="music:config:write" data-setting="allow-spotify" />
+            <GatedSwitch
+              v-model="draft.allowSpotify"
+              action="music:config:write"
+              data-setting="allow-spotify"
+            />
           </label>
           <label class="flex items-center gap-3 text-sm">
             <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowYouTube") }}</span>
-            <GatedSwitch v-model="draft.allowYouTube" action="music:config:write" data-setting="allow-youtube" />
+            <GatedSwitch
+              v-model="draft.allowYouTube"
+              action="music:config:write"
+              data-setting="allow-youtube"
+            />
           </label>
           <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.preferred") }}</p>
           <RadioGroup v-model="draft.preferredProvider" class="gap-2">
@@ -353,7 +381,11 @@ const missing = computed<KeyValueItem[]>(() =>
           </Select>
           <label class="flex items-center gap-3 text-sm">
             <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.bangerAutoCreate") }}</span>
-            <GatedSwitch v-model="draft.bangerAutoCreate" action="music:config:write" data-setting="banger-auto-create" />
+            <GatedSwitch
+              v-model="draft.bangerAutoCreate"
+              action="music:config:write"
+              data-setting="banger-auto-create"
+            />
           </label>
         </section>
       </fieldset>

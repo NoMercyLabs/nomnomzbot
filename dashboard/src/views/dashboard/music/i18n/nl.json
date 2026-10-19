@@ -115,6 +115,8 @@
         "save": "Opslaan",
         "discard": "Weggooien",
         "open": "Aanvragen staan open",
+        "enabled": "Muziek staat aan",
+        "enabledHelp": "Zet dit uit om de bot te laten stoppen met afspelen en nummers aannemen.",
         "limits": "Limieten",
         "queueSize": "Nummers in de wachtrij, maximaal",
         "perRoleHelp": "Nummers per persoon per rol. Laat een vak leeg voor de limiet hierboven.",
