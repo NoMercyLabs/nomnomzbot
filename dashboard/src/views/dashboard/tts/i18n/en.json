@@ -83,6 +83,12 @@
           "platform": "This channel follows the platform voice until you pick one."
         }
       },
+      "rewards": {
+        "title": "Rewards that speak",
+        "description": "Channel point rewards whose viewer text the bot reads aloud.",
+        "empty": "No rewards yet. Create a reward first.",
+        "cost": "{count} points"
+      },
       "rules": {
         "title": "Message rules",
         "description": "Who may be heard, and what the bot reads aloud.",
@@ -144,6 +150,12 @@
           "title": "Maximum characters",
           "description": "Longer messages are cut off. Between 1 and 500.",
           "value": "{count} characters"
+        },
+        "cooldown": {
+          "title": "Cooldown",
+          "description": "Seconds between a viewer's messages. 0 means none.",
+          "value": "{count} seconds",
+          "outOfRange": "The cooldown is between 0 and {limit} seconds."
         },
         "skipBots": {
           "title": "Skip bot messages",

@@ -11,29 +11,24 @@
 // How the channel voice speaks: on or off, where the voice comes from, who may be heard, the length cap
 // (the bot and profanity filters live in the Message rules panel). Each control names its default; the footer button returns the
 // rules to those defaults. Switches and choices save at once; the character cap saves on blur or Enter.
-import { computed, ref, watch } from 'vue';
-import type { AcceptableValue } from 'reka-ui';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import type { ApiFieldProblem } from '@/api/errors';
 import { useTtsConfig } from '@/api/tts';
 import { useSetTtsRules, useTtsDefaults, useTtsOptions, type TtsRulesChange } from '@/api/ttsRules';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
+import { FieldError } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectGroup,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useNumberField } from '@/composables/useNumberField';
 import type { PanelState } from '@/composables/usePanelState';
 import { useProviderName } from '@/composables/useProviderName';
+import { refusalProblems } from '@/lib/errors';
 import ReadabilityRow from '@/views/dashboard/settings/components/ReadabilityRow.vue';
 
 import TtsResetFooter from './TtsResetFooter.vue';
@@ -52,16 +47,7 @@ const save = useSetTtsRules(channelId);
 const stored = computed(() => config.data.value ?? null);
 const standard = computed(() => defaults.data.value ?? null);
 const writable = computed(() => can('tts:config:write'));
-const characters = ref('');
-
-watch(
-  stored,
-  (current) => {
-    characters.value = String(current?.maxCharacters ?? '');
-  },
-  { immediate: true },
-);
-
+const problems = ref<ApiFieldProblem[]>([]);
 const state = computed<PanelState>(() => {
   if (config.isError.value)
     return 'error';
@@ -79,6 +65,18 @@ const mostCharacters = computed(() => {
     ? undefined
     : Number(limit);
 });
+
+const mostCooldown = computed(() => {
+  const limit = offered.value?.cooldownSecondsMax;
+
+  return limit === undefined
+    ? undefined
+    : Number(limit);
+});
+
+const standings = computed(() =>
+  (offered.value?.minPermissions ?? []).map((id) => ({ value: id, label: standingName(id) })),
+);
 
 const modes = computed(() =>
   (offered.value?.modes ?? []).map((id) => ({ value: id, label: modeName(id) })),
@@ -114,6 +112,10 @@ function characterCount(count: number | string): string {
   return t('dashboard.tts.speaking.maxCharacters.value', { count: String(count) });
 }
 
+function secondCount(count: number | string): string {
+  return t('dashboard.tts.speaking.cooldown.value', { count: String(count) });
+}
+
 function switchHint(value: boolean | undefined): string {
   if (value === undefined)
     return '';
@@ -134,24 +136,36 @@ function change(rules: TtsRulesChange): void {
   save.mutate(rules);
 }
 
-function commitCharacters(): void {
-  const parsed = Math.trunc(Number(characters.value));
-  const next = Number.isFinite(parsed)
-    ? Math.min(mostCharacters.value ?? parsed, Math.max(FEWEST_CHARACTERS, parsed))
-    : FEWEST_CHARACTERS;
-
-  characters.value = String(next);
-
-  if (next !== Number(stored.value?.maxCharacters)) {
-    change({ maxCharacters: next });
-  }
+function refuse(error: Error): void {
+  problems.value = refusalProblems(error);
 }
 
-function pickStanding(value: AcceptableValue): void {
-  if (typeof value === 'string') {
-    change({ minPermission: value });
-  }
-}
+const characters = useNumberField({
+  stored: () => Number(stored.value?.maxCharacters),
+  fewest: FEWEST_CHARACTERS,
+  most: () => mostCharacters.value,
+  commit: (next) => change({ maxCharacters: next }),
+});
+
+const cooldown = useNumberField({
+  stored: () => Number(stored.value?.cooldownSeconds),
+  fewest: 0,
+  most: () => mostCooldown.value,
+  commit: (next) => {
+    problems.value = [];
+    save.mutate({ cooldownSeconds: next }, { onError: refuse });
+  },
+});
+
+const cooldownLines = computed(() =>
+  problems.value
+    .filter((problem) => problem.field === 'cooldownSeconds')
+    .map((problem) =>
+      t(`dashboard.tts.speaking.cooldown.${problem.reason}`, {
+        limit: String(problem.limit ?? mostCooldown.value ?? ''),
+      }),
+    ),
+);
 
 const modeHint = computed(() => valueHint(standard.value && modeName(standard.value.mode)));
 const providerHint = computed(() =>
@@ -162,6 +176,9 @@ const standingHint = computed(() =>
 );
 const charactersHint = computed(() =>
   valueHint(standard.value && characterCount(standard.value.maxCharacters)),
+);
+const cooldownHint = computed(() =>
+  valueHint(standard.value && secondCount(standard.value.cooldownSeconds)),
 );
 </script>
 
@@ -215,22 +232,13 @@ const charactersHint = computed(() =>
         :description="$t('dashboard.tts.speaking.standing.description')"
         :hint="standingHint"
       >
-        <Select
+        <SegmentedControl
           :model-value="stored.minPermission"
+          :label="$t('dashboard.tts.speaking.standing.label')"
+          :options="standings"
           :disabled="!writable"
-          @update:model-value="pickStanding"
-        >
-          <SelectTrigger class="w-40" :aria-label="$t('dashboard.tts.speaking.standing.label')">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent position="popper" align="end">
-            <SelectGroup>
-              <SelectItem v-for="id in offered?.minPermissions" :key="id" :value="id">{{
-                standingName(id)
-              }}</SelectItem>
-            </SelectGroup>
-          </SelectContent>
-        </Select>
+          @update:model-value="change({ minPermission: $event })"
+        />
       </ReadabilityRow>
       <ReadabilityRow
         :title="$t('dashboard.tts.speaking.maxCharacters.title')"
@@ -238,16 +246,36 @@ const charactersHint = computed(() =>
         :hint="charactersHint"
       >
         <Input
-          v-model="characters"
+          v-model="characters.text.value"
           type="number"
           :min="FEWEST_CHARACTERS"
           :max="mostCharacters"
           class="w-24"
           :disabled="!writable"
           :aria-label="$t('dashboard.tts.speaking.maxCharacters.title')"
-          @blur="commitCharacters"
-          @keydown.enter="commitCharacters"
+          @blur="characters.save"
+          @keydown.enter="characters.save"
         />
+      </ReadabilityRow>
+      <ReadabilityRow
+        :title="$t('dashboard.tts.speaking.cooldown.title')"
+        :description="$t('dashboard.tts.speaking.cooldown.description')"
+        :hint="cooldownHint"
+      >
+        <Input
+          v-model="cooldown.text.value"
+          type="number"
+          min="0"
+          :max="mostCooldown"
+          class="w-24"
+          :disabled="!writable"
+          :aria-label="$t('dashboard.tts.speaking.cooldown.title')"
+          @blur="cooldown.save"
+          @keydown.enter="cooldown.save"
+        />
+        <FieldError v-for="line in cooldownLines" :key="line" data-problem="cooldownSeconds">
+          {{ line }}
+        </FieldError>
       </ReadabilityRow>
       <SettingRow
         :model-value="stored.skipBotMessages"

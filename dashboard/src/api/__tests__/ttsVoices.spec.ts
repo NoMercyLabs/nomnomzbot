@@ -54,6 +54,7 @@ const config: TtsConfig = {
   profanityCensorEnabled: true,
   modApprovalRequired: false,
   minBitsToTts: null,
+  cooldownSeconds: 0,
   viewerVoiceSelfServiceEnabled: true,
   hasAzureByokKey: false,
   hasElevenLabsByokKey: false,

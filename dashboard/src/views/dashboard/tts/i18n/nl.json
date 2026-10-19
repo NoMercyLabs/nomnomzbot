@@ -83,6 +83,12 @@
           "platform": "Dit kanaal volgt de platformstem tot je er een kiest."
         }
       },
+      "rewards": {
+        "title": "Beloningen die spreken",
+        "description": "Kanaalpunten-beloningen waarvan de tekst van de kijker hardop wordt gelezen.",
+        "empty": "Nog geen beloningen. Maak eerst een beloning.",
+        "cost": "{count} punten"
+      },
       "rules": {
         "title": "Berichtregels",
         "description": "Wie er gehoord wordt en wat de bot voorleest.",
@@ -144,6 +150,12 @@
           "title": "Maximaal aantal tekens",
           "description": "Langere berichten worden afgekapt. Tussen 1 en 500.",
           "value": "{count} tekens"
+        },
+        "cooldown": {
+          "title": "Wachttijd",
+          "description": "Seconden die een kijker wacht tussen uitgesproken berichten. 0 betekent geen.",
+          "value": "{count} seconden",
+          "outOfRange": "De wachttijd ligt tussen 0 en {limit} seconden."
         },
         "skipBots": {
           "title": "Botberichten overslaan",

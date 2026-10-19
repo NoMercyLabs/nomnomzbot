@@ -21,6 +21,7 @@ import KeysPanel from '../KeysPanel.vue';
 import LexiconPanel from '../LexiconPanel.vue';
 import RulesPanel from '../RulesPanel.vue';
 import SpeakingPanel from '../SpeakingPanel.vue';
+import TtsRewardsPanel from '../TtsRewardsPanel.vue';
 
 type Sent = {
   method: string;
@@ -49,6 +50,7 @@ const config = {
   profanityCensorEnabled: true,
   modApprovalRequired: false,
   minBitsToTts: 100,
+  cooldownSeconds: 30,
   viewerVoiceSelfServiceEnabled: true,
   hasAzureByokKey: true,
   hasElevenLabsByokKey: false,
@@ -63,6 +65,7 @@ const defaults = {
   mode: 'self_host',
   readUsernames: true,
   minBitsToTts: null,
+  cooldownSeconds: 0,
 };
 
 const options = {
@@ -70,7 +73,17 @@ const options = {
   modes: ['self_host', 'byok'],
   minPermissions: ['everyone', 'moderators'],
   maxCharactersLimit: 400,
+  cooldownSecondsDefault: 0,
+  cooldownSecondsMax: 3600,
 };
+
+let rewards: {
+  id: string;
+  title: string;
+  cost: number;
+  speaksViaTts: boolean;
+}[] = [];
+let cooldownRefused = false;
 
 const reply = (data: unknown): unknown => ({
   data: { data },
@@ -84,6 +97,14 @@ function write(method: string) {
       path,
       body: init?.body,
     });
+
+    if (cooldownRefused && method === 'PUT' && path.endsWith('/tts/config')) {
+      return {
+        data: undefined,
+        error: { data: { key: 'outOfRange', field: 'cooldownSeconds' } },
+        response: { status: 400, ok: false },
+      };
+    }
 
     return reply(method === 'PUT' && path.endsWith('/tts/config')
       ? config
@@ -119,11 +140,15 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/tts/lexicon'))
         return reply(lexicon);
 
+      if (path.endsWith('/rewards'))
+        return reply(rewards);
+
       return reply({ channelName: 'Stoney_Eagle', pronunciation: 'stoney eagle' });
     },
     PUT: (path: string, init?: { body?: unknown }) => write('PUT')(path, init),
     POST: (path: string, init?: { body?: unknown }) => write('POST')(path, init),
     DELETE: (path: string, init?: { body?: unknown }) => write('DELETE')(path, init),
+    PATCH: (path: string, init?: { body?: unknown }) => write('PATCH')(path, init),
   },
 }));
 
@@ -137,6 +162,17 @@ let pinia: Pinia;
 beforeEach(() => {
   sent.length = 0;
   configRefused = false;
+  cooldownRefused = false;
+
+  rewards = [
+    {
+      id: 'r1',
+      title: 'Say it out loud',
+      cost: 500,
+      speaksViaTts: false,
+    },
+  ];
+
   config.mode = 'all';
   config.defaultProvider = 'edge';
   options.providers = ['edge', 'azure'];
@@ -164,7 +200,13 @@ afterEach(() => {
 
 async function open(): Promise<void> {
   const page = defineComponent({
-    render: () => [h(RulesPanel), h(SpeakingPanel), h(LexiconPanel), h(KeysPanel)],
+    render: () => [
+      h(RulesPanel),
+      h(SpeakingPanel),
+      h(TtsRewardsPanel),
+      h(LexiconPanel),
+      h(KeysPanel),
+    ],
   });
 
   mounted = mount(page, {
@@ -323,38 +365,82 @@ describe('TTS rules panels', () => {
     await flushPromises();
     expect(sent.find((call) => call.method === 'PUT')?.body).toEqual({ mode: 'byok' });
 
-    Element.prototype.hasPointerCapture = (): boolean => false;
-    Element.prototype.releasePointerCapture = (): void => undefined;
-    Element.prototype.scrollIntoView = (): void => undefined;
-
-    byLabel('Who may be heard').dispatchEvent(
-      new PointerEvent('pointerdown', {
-        bubbles: true,
-        button: 0,
-        pointerType: 'mouse',
-      }),
+    const standing = byLabel('Who may be heard');
+    const moderators = [...standing.querySelectorAll<HTMLButtonElement>('button')].find(
+      (entry) => entry.textContent?.trim() === 'Moderators',
     );
 
-    await flushPromises();
-
-    const option = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].find(
-      (node) => node.textContent?.trim() === 'Moderators',
-    );
-
-    option?.dispatchEvent(
-      new PointerEvent('pointerup', {
-        bubbles: true,
-        button: 0,
-        pointerType: 'mouse',
-      }),
-    );
-
-    option?.click();
+    moderators?.click();
     await flushPromises();
 
     expect(sent.filter((call) => call.method === 'PUT')[1]?.body).toEqual({
       minPermission: 'moderators',
     });
+  });
+
+  it('saves the cooldown on blur, keeps it inside the range and names the default', async () => {
+    await open();
+
+    const box = byLabel('Cooldown');
+
+    expect(box.value).toBe('30');
+    expect(box.max).toBe('3600');
+    expect(document.body.textContent).toContain('Default: 0 seconds');
+
+    box.value = '9999';
+    box.dispatchEvent(new Event('input'));
+    await flushPromises();
+    box.dispatchEvent(new Event('blur'));
+    await flushPromises();
+
+    expect(sent.find((call) => call.method === 'PUT')?.body).toEqual({ cooldownSeconds: 3600 });
+  });
+
+  it('shows the line the bot gives for a refused cooldown next to the box', async () => {
+    cooldownRefused = true;
+    await open();
+
+    const box = byLabel('Cooldown');
+
+    box.value = '12';
+    box.dispatchEvent(new Event('input'));
+    await flushPromises();
+    box.dispatchEvent(new Event('blur'));
+    await flushPromises();
+
+    const line = document.body.querySelector('[data-problem="cooldownSeconds"]');
+
+    expect(line?.textContent?.trim()).toBe('The cooldown is between 0 and 3600 seconds.');
+  });
+
+  it('switches a reward to speak its viewer text through TTS and sends only that field', async () => {
+    await open();
+
+    const panel = document.body.querySelector('[data-view="tts-rewards"]') as HTMLElement;
+    const row = panel.querySelector('[data-slot="setting-row"]') as HTMLElement;
+    const toggle = row.querySelector('[role="switch"]') as HTMLElement;
+
+    expect(row.textContent).toContain('Say it out loud');
+    expect(row.textContent).toContain('500 points');
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+
+    toggle.click();
+    await flushPromises();
+
+    const patch = sent.find((call) => call.method === 'PATCH');
+
+    expect(patch?.path).toContain('/rewards/{rewardId}');
+    expect(patch?.body).toEqual({ speaksViaTts: true });
+  });
+
+  it('says so when the channel has no rewards to switch', async () => {
+    rewards = [];
+    await open();
+
+    const panel = document.body.querySelector('[data-view="tts-rewards"]') as HTMLElement;
+
+    expect(panel.querySelector('[role="switch"]')).toBeNull();
+    expect(panel.textContent).toContain('No rewards yet');
   });
 
   it('offers only the providers, standings and cap the bot serves', async () => {

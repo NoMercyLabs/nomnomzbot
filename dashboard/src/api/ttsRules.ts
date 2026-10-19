@@ -43,6 +43,7 @@ export type TtsRulesChange = {
   modApprovalRequired?: boolean;
   viewerVoiceSelfServiceEnabled?: boolean;
   minBitsToTts?: number;
+  cooldownSeconds?: number;
   azureRegion?: string;
 };
 

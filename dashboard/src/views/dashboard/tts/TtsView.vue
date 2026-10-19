@@ -34,6 +34,7 @@ import KeysPanel from './KeysPanel.vue';
 import LexiconPanel from './LexiconPanel.vue';
 import RulesPanel from './RulesPanel.vue';
 import SpeakingPanel from './SpeakingPanel.vue';
+import TtsRewardsPanel from './TtsRewardsPanel.vue';
 import VoicesTab from './VoicesTab.vue';
 
 const { t } = useI18n();
@@ -141,6 +142,7 @@ const rulesPanels = computed(
     [
       { id: 'speaking', label: t('dashboard.tts.speaking.title') },
       { id: 'rules', label: t('dashboard.tts.rules.title') },
+      { id: 'rewards', label: t('dashboard.tts.rewards.title') },
     ] as const satisfies readonly BoardPanel[],
 );
 const keysPanels = computed(
@@ -242,12 +244,15 @@ const pronunciationPanels = computed(
 
   <!-- Two columns at every laptop width: the speaking settings on the left, the rules on the right. The
        pronunciation lexicon and the keys have their own tabs, so no panel scrolls inside the page. -->
-  <BoardGrid v-else-if="view === 'rules' && can('tts:config:read')" :panels="rulesPanels" :rows="1">
+  <BoardGrid v-else-if="view === 'rules' && can('tts:config:read')" :panels="rulesPanels" :rows="2">
     <BoardCell panel="speaking" :span="6">
       <SpeakingPanel />
     </BoardCell>
     <BoardCell panel="rules" :span="6">
       <RulesPanel />
+    </BoardCell>
+    <BoardCell panel="rewards" :span="12">
+      <TtsRewardsPanel />
     </BoardCell>
   </BoardGrid>
 

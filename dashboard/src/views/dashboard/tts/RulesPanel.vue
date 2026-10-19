@@ -10,7 +10,7 @@
 <script setup lang="ts">
 // The rules of the channel voice: the follow-the-platform switch, who may speak, the bot and profanity filters and the bits gate.
 // Each switch saves at once; the bits box saves when it loses focus or Enter is pressed.
-import { computed, ref, watch } from 'vue';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -21,6 +21,7 @@ import SettingRow from '@/components/layout/SettingRow.vue';
 import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useNumberField } from '@/composables/useNumberField';
 import { useTtsConfig } from '@/api/tts';
 import { useSetTtsRules, useTtsDefaults, type TtsRulesChange } from '@/api/ttsRules';
 
@@ -34,15 +35,6 @@ const defaults = useTtsDefaults(channelId);
 const save = useSetTtsRules(channelId);
 
 const stored = computed(() => config.data.value ?? null);
-const bits = ref('');
-
-watch(
-  stored,
-  (current) => {
-    bits.value = String(current?.minBitsToTts ?? 0);
-  },
-  { immediate: true },
-);
 
 const state = computed<PanelState>(() => {
   if (config.isError.value)
@@ -75,18 +67,12 @@ function change(rules: TtsRulesChange): void {
   save.mutate(rules);
 }
 
-function commitBits(): void {
-  const parsed = Math.trunc(Number(bits.value));
-  const next = Number.isFinite(parsed)
-    ? Math.max(0, parsed)
-    : 0;
-
-  bits.value = String(next);
-
-  if (next !== Number(stored.value?.minBitsToTts ?? 0)) {
-    change({ minBitsToTts: next });
-  }
-}
+const bits = useNumberField({
+  stored: () => Number(stored.value?.minBitsToTts ?? 0),
+  fewest: 0,
+  most: () => undefined,
+  commit: (next) => change({ minBitsToTts: next }),
+});
 </script>
 
 <template>
@@ -146,14 +132,14 @@ function commitBits(): void {
         :hint="bitsHint"
       >
         <Input
-          v-model="bits"
+          v-model="bits.text.value"
           type="number"
           min="0"
           class="w-24"
           :disabled="!can('tts:config:write')"
           :aria-label="$t('dashboard.tts.rules.minBits.title')"
-          @blur="commitBits"
-          @keydown.enter="commitBits"
+          @blur="bits.save"
+          @keydown.enter="bits.save"
         />
       </ReadabilityRow>
     </RowGroup>

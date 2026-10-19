@@ -132,6 +132,7 @@ function withChange(rewards: Reward[] | undefined, { rewardId, change }: RewardE
       globalCooldownSeconds: change.globalCooldownSeconds ?? reward.globalCooldownSeconds,
       timerDurationSeconds: change.timerDurationSeconds ?? reward.timerDurationSeconds,
       pipelineId: change.pipelineId ?? reward.pipelineId,
+      speaksViaTts: change.speaksViaTts ?? reward.speaksViaTts,
     } as const satisfies Reward;
   });
 }
