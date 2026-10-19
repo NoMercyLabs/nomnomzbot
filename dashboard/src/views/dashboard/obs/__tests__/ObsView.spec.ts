@@ -33,19 +33,16 @@ let required: Record<string, unknown>[] = [];
 let liveFails: boolean = false;
 let bridgeCount: number = 1;
 
-const widget = (
-  id: string,
-  name: string,
-  over: Record<string, unknown> = {},
-) => ({
-  id,
-  name,
-  isEnabled: true,
-  isAttached: false,
-  lastRuntimeError: null,
-  eventSubscriptions: [],
-  ...over,
-}) as const satisfies Record<string, unknown>;
+const widget = (id: string, name: string, over: Record<string, unknown> = {}) =>
+  ({
+    id,
+    name,
+    isEnabled: true,
+    isAttached: false,
+    lastRuntimeError: null,
+    eventSubscriptions: [],
+    ...over,
+  }) as const satisfies Record<string, unknown>;
 
 vi.mock('@/api/client', () => ({
   client: {
@@ -139,7 +136,7 @@ let mounted: VueWrapper | null = null;
 beforeEach(() => {
   localStorage.setItem('nnz.obs.setup', 'true');
   calls.length = 0;
-  held = ['obs:control', 'obs:config:read', 'widget:read'];
+  held = ['obs:scene:read', 'obs:control', 'obs:config:read', 'widget:read'];
   liveFails = false;
   bridgeCount = 1;
   required = [];
@@ -303,7 +300,7 @@ describe('ObsView', () => {
   });
 
   it('hides the connection panel from a person who may control OBS but not read its configuration', async () => {
-    held = ['obs:control'];
+    held = ['obs:scene:read', 'obs:control'];
     await open();
 
     expect(document.querySelector('[data-obs-connection]')).toBeNull();
@@ -311,7 +308,7 @@ describe('ObsView', () => {
   });
 
   it('runs the moderator panels on the status read, and never asks for the configuration or the bridge', async () => {
-    held = ['obs:control'];
+    held = ['obs:scene:read', 'obs:control'];
     await open();
 
     const paths = calls.filter((path) => path.includes('/obs/'));
@@ -337,7 +334,7 @@ describe('ObsView', () => {
   });
 
   it('hides the Required overlays panel and never reads the list without widget:read', async () => {
-    held = ['obs:control', 'obs:config:read'];
+    held = ['obs:scene:read', 'obs:control', 'obs:config:read'];
     required = [{ key: 'audio', widget: widgets[3] }];
     await open();
 
@@ -346,10 +343,47 @@ describe('ObsView', () => {
   });
 
   it('shows the connection panel to a person who holds the configuration key', async () => {
-    held = ['obs:control', 'obs:config:read'];
+    held = ['obs:scene:read', 'obs:control', 'obs:config:read'];
     await open();
 
     expect(document.querySelector('[data-obs-connection]')).not.toBeNull();
+  });
+
+  it('shows a moderator the board with every write control disabled and the reason on the board', async () => {
+    held = ['obs:scene:read'];
+    await open();
+
+    const scope = document
+      .querySelector('[data-obs-board]')
+      ?.closest('[data-slot="read-only-scope"]');
+
+    expect(scope?.hasAttribute('disabled')).toBe(true);
+    expect(scope?.getAttribute('title')).toBe(en.dashboard.obs.needsControl);
+    expect(document.querySelectorAll('[data-obs-scene]')).toHaveLength(2);
+
+    expect(document.querySelector('[data-obs-readonly-note]')?.textContent).toContain(
+      en.dashboard.obs.needsControl,
+    );
+  });
+
+  it('leaves the board enabled for an editor who holds obs:control', async () => {
+    held = ['obs:scene:read', 'obs:control'];
+    await open();
+
+    const scope = document
+      .querySelector('[data-obs-board]')
+      ?.closest('[data-slot="read-only-scope"]');
+
+    expect(scope?.hasAttribute('disabled')).toBe(false);
+    expect(document.querySelector('[data-obs-readonly-note]')).toBeNull();
+  });
+
+  it('follows obs:scene:read for the board, not obs:control', async () => {
+    held = ['obs:control'];
+    await open();
+
+    expect(document.querySelector('[data-obs-board]')).toBeNull();
+    expect(document.querySelectorAll('[data-obs-scene]')).toHaveLength(0);
   });
 
   it('keeps the setup panels folded until the streamer opens them, and remembers the choice', async () => {

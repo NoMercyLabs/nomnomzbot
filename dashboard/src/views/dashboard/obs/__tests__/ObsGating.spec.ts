@@ -121,18 +121,23 @@ async function openConnection(keys: string[]): Promise<VueWrapper> {
 }
 
 describe('OBS shows only what the person may use', () => {
-  it('shows the stream and record state but no start button without obs:control:broadcast', async () => {
+  it('disables the start buttons with the reason without obs:control:broadcast', async () => {
     const view = await openOutputs(['obs:control']);
+    const start = view.find('[data-output="streaming"] [data-act="start"]');
+    const scope = start.element.closest('[data-slot="read-only-scope"]');
 
     expect(view.find('[data-output="streaming"]').exists()).toBe(true);
-    expect(view.find('[data-output="streaming"] [data-act="start"]').exists()).toBe(false);
-    expect(view.find('[data-output="recording"] [data-act="start"]').exists()).toBe(false);
+    expect(scope?.hasAttribute('disabled')).toBe(true);
+    expect(scope?.getAttribute('title')).toBe(en.dashboard.obs.needsBroadcast);
+    expect(view.find('[data-output="recording"] [data-act="start"]').exists()).toBe(true);
   });
 
-  it('shows the start buttons with obs:control:broadcast', async () => {
+  it('enables the start buttons with obs:control:broadcast', async () => {
     const view = await openOutputs(['obs:control', 'obs:control:broadcast']);
+    const start = view.find('[data-output="streaming"] [data-act="start"]');
+    const scope = start.element.closest('[data-slot="read-only-scope"]');
 
-    expect(view.find('[data-output="streaming"] [data-act="start"]').exists()).toBe(true);
+    expect(scope?.hasAttribute('disabled')).toBe(false);
     expect(view.find('[data-output="recording"] [data-act="start"]').exists()).toBe(true);
   });
 

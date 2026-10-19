@@ -22,6 +22,7 @@ import {
 } from '@/api/obsOutputs';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
@@ -41,6 +42,7 @@ const props = defineProps<{
 defineEmits<{ retry: [] }>();
 
 const { can } = useCan();
+const canBroadcast = computed<boolean>(() => can('obs:control:broadcast'));
 const action = useObsOutputAction(() => props.channelId);
 const saveReplay = useObsSaveReplay(() => props.channelId);
 const confirmStop = ref(false);
@@ -102,7 +104,11 @@ async function stopStream(): Promise<void> {
         :on="streaming"
         :timer="streamTimer"
       >
-        <template v-if="can('obs:control:broadcast')">
+        <ReadOnlyScope
+          class="flex items-center gap-2"
+          :read-only="!canBroadcast"
+          :reason="$t('dashboard.obs.needsBroadcast')"
+        >
           <Button
             v-if="!streaming"
             data-act="start"
@@ -122,7 +128,7 @@ async function stopStream(): Promise<void> {
           >
             {{ $t("dashboard.obs.outputs.stopStream.action") }}
           </Button>
-        </template>
+        </ReadOnlyScope>
       </OutputRow>
 
       <OutputRow
@@ -132,7 +138,11 @@ async function stopStream(): Promise<void> {
         :on="recording"
         :timer="recordTimer"
       >
-        <template v-if="can('obs:control:broadcast')">
+        <ReadOnlyScope
+          class="flex items-center gap-2"
+          :read-only="!canBroadcast"
+          :reason="$t('dashboard.obs.needsBroadcast')"
+        >
           <template v-if="recording">
             <Button
               v-if="!paused"
@@ -173,7 +183,7 @@ async function stopStream(): Promise<void> {
           >
             {{ recording ? $t("dashboard.obs.outputs.stop") : $t("dashboard.obs.outputs.start") }}
           </Button>
-        </template>
+        </ReadOnlyScope>
       </OutputRow>
 
       <OutputRow
@@ -206,7 +216,9 @@ async function stopStream(): Promise<void> {
       <OutputRow
         data-output="virtual-cam"
         :name="$t('dashboard.obs.outputs.virtualCam')"
-        :state="virtualCam ? $t('dashboard.obs.outputs.active') : $t('dashboard.obs.outputs.inactive')"
+        :state="
+          virtualCam ? $t('dashboard.obs.outputs.active') : $t('dashboard.obs.outputs.inactive')
+        "
         :on="virtualCam"
       >
         <Button

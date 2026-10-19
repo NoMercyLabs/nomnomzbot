@@ -140,6 +140,8 @@
         "duration": "Duration (ms)",
         "cut": "Transition"
       },
+      "needsControl": "Controlling OBS needs the Editor role or the OBS control permission.",
+      "needsBroadcast": "Starting and stopping the stream or a recording needs the broadcast control permission.",
       "outputs": {
         "title": "Outputs",
         "offline": "Outputs show once the OBS link is switched on.",

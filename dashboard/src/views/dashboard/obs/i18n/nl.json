@@ -140,6 +140,8 @@
         "duration": "Duur (ms)",
         "cut": "Overgang starten"
       },
+      "needsControl": "OBS bedienen vraagt de rol Editor of de OBS-bedieningsrechten.",
+      "needsBroadcast": "De stream of een opname starten en stoppen vraagt de rechten voor uitzendbediening.",
       "outputs": {
         "title": "Uitvoer",
         "offline": "De uitvoer verschijnt zodra de OBS-koppeling aan staat.",

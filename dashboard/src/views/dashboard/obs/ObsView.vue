@@ -24,6 +24,7 @@ import {
 import { useObsStats, useObsVirtualCam } from '@/api/obsOutputs';
 import { useRequiredOverlays, useWidgets, withoutRequired, type Widget } from '@/api/widgets';
 import PageBody from '@/components/layout/PageBody.vue';
+import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import { boardColumns } from '@/components/layout/board';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import { Button } from '@/components/ui/button';
@@ -51,6 +52,8 @@ import { bridgeHealth, connectionHealth, worstDot } from './obsHealth';
 const { channelId } = useCurrentChannel();
 
 const access = useChannelAccess(channelId);
+const canRead = computed<boolean>(() => access.can('obs:scene:read'));
+const canControl = computed<boolean>(() => access.can('obs:control'));
 const canSeeConnection = computed<boolean>(() => access.can('obs:config:read'));
 
 // The configuration and the bridge need the configuration key; the status needs only the control key.
@@ -142,47 +145,50 @@ function retry(): void {
   <PageBody>
     <div data-page-inset class="grid gap-3 @container">
       <ObsStatusBar
-        v-if="enabled && access.can('obs:control')"
+        v-if="enabled && canRead"
         :stats="stats.data.value"
         :read-at="stats.dataUpdatedAt.value"
         :live="clocks.live.value"
         :stream-timer="clocks.stream.value"
         :record-timer="clocks.record.value"
       />
-      <div
-        ref="live"
-        data-obs-board
-        class="board-lanes items-start gap-3"
-        :style="{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }"
+      <p v-if="canRead && !canControl" data-obs-readonly-note class="text-sm text-muted-foreground">
+        {{ $t("dashboard.obs.needsControl") }}
+      </p>
+      <ReadOnlyScope
+        v-if="canRead"
+        :read-only="!canControl"
+        :reason="$t('dashboard.obs.needsControl')"
       >
-        <OutputsPanel
-          v-if="access.can('obs:control')"
-          :channel-id="channelId"
-          :state="state.data.value"
-          :virtual-cam="virtualCam.data.value === true"
-          :stream-timer="clocks.stream.value"
-          :record-timer="clocks.record.value"
-          :panel-state="outputsPanel"
-          :offline="!enabled"
-          @retry="retry"
-        />
-        <ScenesPanel
-          v-if="access.can('obs:control')"
-          :scenes="scenes.data.value"
-          :panel-state="scenesPanel"
-          :offline="!enabled"
-          @retry="retry"
-        />
-        <AudioPanel v-if="access.can('obs:control')" :offline="!enabled" />
-        <StudioPanel v-if="enabled && access.can('obs:control')" :scenes="scenes.data.value" />
-        <ObsHotkeysPanel v-if="access.can('obs:control')" :offline="!enabled" />
-        <ObsScreenshotPanel v-if="access.can('obs:control')" :offline="!enabled" />
-        <SourcesPanel
-          v-if="access.can('obs:control')"
-          :scene-name="state.data.value?.currentScene ?? null"
-          :offline="!enabled"
-        />
-      </div>
+        <div
+          ref="live"
+          data-obs-board
+          class="board-lanes items-start gap-3"
+          :style="{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }"
+        >
+          <OutputsPanel
+            :channel-id="channelId"
+            :state="state.data.value"
+            :virtual-cam="virtualCam.data.value === true"
+            :stream-timer="clocks.stream.value"
+            :record-timer="clocks.record.value"
+            :panel-state="outputsPanel"
+            :offline="!enabled"
+            @retry="retry"
+          />
+          <ScenesPanel
+            :scenes="scenes.data.value"
+            :panel-state="scenesPanel"
+            :offline="!enabled"
+            @retry="retry"
+          />
+          <AudioPanel :offline="!enabled" />
+          <StudioPanel v-if="enabled" :scenes="scenes.data.value" />
+          <ObsHotkeysPanel :offline="!enabled" />
+          <ObsScreenshotPanel :offline="!enabled" />
+          <SourcesPanel :scene-name="state.data.value?.currentScene ?? null" :offline="!enabled" />
+        </div>
+      </ReadOnlyScope>
       <Collapsible v-if="canSeeSources || canSeeConnection" v-model:open="setupOpen" data-obs-setup>
         <CollapsibleTrigger as-child>
           <Button variant="ghost" size="sm" class="text-muted-foreground">

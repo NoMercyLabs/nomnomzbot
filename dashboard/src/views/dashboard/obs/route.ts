@@ -15,7 +15,7 @@ import { loadPage } from '@/i18n';
 export const dashboardObsRoute = {
   path: 'obs',
   name: 'dashboard-obs',
-  meta: { action: 'obs:control' },
+  meta: { action: 'obs:scene:read' },
   component: () =>
     loadPage(
       () => import('./ObsView.vue'),

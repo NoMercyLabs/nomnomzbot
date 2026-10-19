@@ -116,7 +116,7 @@ export const dashboardNav: readonly NavGroup[] = [
         route: 'dashboard-obs',
         label: 'obs',
         icon: MovieClap,
-        action: 'obs:control',
+        action: 'obs:scene:read',
       },
       {
         route: 'dashboard-vtube-studio',
