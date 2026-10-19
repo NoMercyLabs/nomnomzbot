@@ -241,7 +241,7 @@ a:not([data-slot]):hover {
     height: auto;
   }
   [data-slot='tabs-trigger'],
-  [data-slot='page-bar'] [data-segment] {
+  [data-segment] {
     min-height: 36px;
   }
 }
