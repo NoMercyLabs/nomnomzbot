@@ -72,14 +72,20 @@ public sealed class ExternalChatRelayTests
         return badges;
     }
 
-    private ExternalChatRelay NewRelay()
+    // Unless a test says otherwise the viewer's own connection holds user:read:chat.
+    private ExternalChatRelay NewRelay(bool canReadChat = true)
     {
         ITwitchIdentityResolver identity = Substitute.For<ITwitchIdentityResolver>();
         identity
             .GetTwitchUserIdAsync(_viewer, Arg.Any<CancellationToken>())
             .Returns(ViewerTwitchId);
+        ITwitchTokenResolver tokens = Substitute.For<ITwitchTokenResolver>();
+        tokens
+            .HasUserScopeAsync(_viewer, TwitchScopes.UserReadChat, Arg.Any<CancellationToken>())
+            .Returns(canReadChat);
         IServiceScopeFactory scopes = new ServiceCollection()
             .AddScoped<ITwitchIdentityResolver>(_ => identity)
+            .AddScoped<ITwitchTokenResolver>(_ => tokens)
             .BuildServiceProvider()
             .GetRequiredService<IServiceScopeFactory>();
         return new(_sessions, _push, _badges, scopes, NullLogger<ExternalChatRelay>.Instance);
@@ -120,6 +126,20 @@ public sealed class ExternalChatRelayTests
                     }
                 );
         }
+    }
+
+    [Fact]
+    public async Task Join_fails_missing_scope_and_opens_no_session_when_the_viewer_cannot_read_chat()
+    {
+        ExternalChatRelay relay = NewRelay(canReadChat: false);
+
+        Result joined = await relay.JoinAsync(_viewer, "conn-1", Channel);
+
+        joined.IsFailure.Should().BeTrue();
+        joined.ErrorCode.Should().Be(TwitchErrorCodes.MissingScope);
+        joined.ErrorMessage.Should().Contain(TwitchScopes.UserReadChat);
+        _sessions.Opened.Should().BeEmpty("no EventSub session opens without the scope");
+        _sessions.Subscriptions.Should().BeEmpty();
     }
 
     [Fact]

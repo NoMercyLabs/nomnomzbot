@@ -165,7 +165,7 @@ public sealed class OperatorChatSenderTests
         identity.GetTwitchUserIdAsync(Operator, Arg.Any<CancellationToken>()).Returns("viewer-42");
         ITwitchTokenResolver tokens = Substitute.For<ITwitchTokenResolver>();
         tokens
-            .HasScopeAsync(Operator, TwitchScopes.UserWriteChat, Arg.Any<CancellationToken>())
+            .HasUserScopeAsync(Operator, TwitchScopes.UserWriteChat, Arg.Any<CancellationToken>())
             .Returns(false);
         OperatorChatSender sender = new(
             transport,
@@ -188,7 +188,7 @@ public sealed class OperatorChatSenderTests
     {
         ITwitchTokenResolver tokens = Substitute.For<ITwitchTokenResolver>();
         tokens
-            .HasScopeAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .HasUserScopeAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(true);
         return tokens;
     }

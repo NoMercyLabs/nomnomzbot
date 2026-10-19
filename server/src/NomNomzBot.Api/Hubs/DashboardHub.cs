@@ -289,17 +289,17 @@ public class DashboardHub : Hub<IDashboardClient>
     /// (chat-client.md "Any Twitch channel"). Any signed-in user may: Twitch decides what the token can read.
     /// The lines arrive as <c>ExternalChatEvent</c> on this connection only.
     /// </summary>
-    public async Task<JoinChannelResponse> JoinTwitchChat(string twitchBroadcasterId)
+    public async Task<TwitchChatJoinResponse> JoinTwitchChat(string twitchBroadcasterId)
     {
         string? userId = CallerId;
         if (userId is null || !Guid.TryParse(userId, out Guid callerId))
-            return new(false, "Not authenticated", null);
+            return new(false, "Not authenticated", TwitchErrorCodes.Unauthorized, null);
 
         if (
             string.IsNullOrWhiteSpace(twitchBroadcasterId)
             || !twitchBroadcasterId.All(char.IsAsciiDigit)
         )
-            return new(false, "Unknown channel", null);
+            return new(false, "Unknown channel", TwitchErrorCodes.NotFound, null);
 
         Result joined = await _externalChat.JoinAsync(
             callerId,
@@ -307,9 +307,17 @@ public class DashboardHub : Hub<IDashboardClient>
             twitchBroadcasterId,
             Context.ConnectionAborted
         );
-        return joined.IsSuccess
-            ? new(true, null, null)
-            : new(false, joined.ErrorMessage ?? "Could not open this chat", null);
+        if (joined.IsSuccess)
+            return new(true, null, null, null);
+
+        string? missingScope =
+            joined.ErrorCode == TwitchErrorCodes.MissingScope ? TwitchScopes.UserReadChat : null;
+        return new(
+            false,
+            joined.ErrorMessage ?? "Could not open this chat",
+            joined.ErrorCode,
+            missingScope
+        );
     }
 
     /// <summary>

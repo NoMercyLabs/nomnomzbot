@@ -59,6 +59,14 @@ public sealed class ExternalChatRelay : IExternalChatRelay
         await _gate.WaitAsync(ct);
         try
         {
+            if (!await HasReadScopeAsync(viewerUserId, ct))
+            {
+                return Result.Failure(
+                    $"Missing required scope '{TwitchScopes.UserReadChat}'.",
+                    TwitchErrorCodes.MissingScope
+                );
+            }
+
             Result<ExternalChatReader> reader = await GetOrOpenReaderAsync(viewerUserId, ct);
             if (reader.IsFailure)
                 return reader;
@@ -147,6 +155,14 @@ public sealed class ExternalChatRelay : IExternalChatRelay
         reader.SessionId = opened.Value;
         _readers[viewerUserId] = reader;
         return Result.Success(reader);
+    }
+
+    private async Task<bool> HasReadScopeAsync(Guid viewerUserId, CancellationToken ct)
+    {
+        await using AsyncServiceScope scope = _scopes.CreateAsyncScope();
+        ITwitchTokenResolver tokens =
+            scope.ServiceProvider.GetRequiredService<ITwitchTokenResolver>();
+        return await tokens.HasUserScopeAsync(viewerUserId, TwitchScopes.UserReadChat, ct);
     }
 
     private async Task<string?> ResolveTwitchUserIdAsync(Guid viewerUserId, CancellationToken ct)

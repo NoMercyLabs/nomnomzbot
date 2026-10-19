@@ -90,7 +90,7 @@ public sealed class OperatorChatSender : IOperatorChatSender
             );
         }
 
-        if (!await _tokens.HasScopeAsync(operatorUserId, TwitchScopes.UserWriteChat, ct))
+        if (!await _tokens.HasUserScopeAsync(operatorUserId, TwitchScopes.UserWriteChat, ct))
         {
             return Result.Failure(
                 $"Missing required scope '{TwitchScopes.UserWriteChat}'.",

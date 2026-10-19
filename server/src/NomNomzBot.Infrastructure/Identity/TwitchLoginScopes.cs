@@ -34,6 +34,7 @@ public static class TwitchLoginScopes
     // users, the operator's emotes, the operator's chat send, and the moderated-channels switcher list.
     private static readonly string[] Moderator =
     [
+        TwitchScopes.UserReadChat,
         TwitchScopes.UserReadModeratedChannels,
         TwitchScopes.UserWriteChat,
         TwitchScopes.UserReadEmotes,

@@ -290,6 +290,18 @@ public record TwitchChatSendResponse(
     string? MissingScope
 );
 
+/// <summary>
+/// The answer to opening a Twitch channel's chat. <paramref name="ErrorCode"/> is the machine-readable failure
+/// (<c>missing_scope</c>, ...); <paramref name="MissingScope"/> names the permission when the code is
+/// <c>missing_scope</c>. A client branches on these, never on the English text.
+/// </summary>
+public record TwitchChatJoinResponse(
+    bool Success,
+    string? Error,
+    string? ErrorCode,
+    string? MissingScope
+);
+
 public record ActionResponse(bool Success, string? Error);
 
 /// <summary>

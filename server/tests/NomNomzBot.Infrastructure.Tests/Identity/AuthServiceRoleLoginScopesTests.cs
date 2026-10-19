@@ -26,6 +26,7 @@ public sealed class AuthServiceRoleLoginScopesTests
 {
     private static readonly string[] ModeratorScopes =
     [
+        "user:read:chat",
         "user:read:moderated_channels",
         "user:write:chat",
         "user:read:emotes",

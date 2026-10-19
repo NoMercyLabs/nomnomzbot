@@ -76,6 +76,12 @@ public sealed class FakeTwitchTokenResolver : ITwitchTokenResolver
         CancellationToken ct = default
     ) => Task.FromResult(true);
 
+    public Task<bool> HasUserScopeAsync(
+        Guid userId,
+        string scope,
+        CancellationToken ct = default
+    ) => Task.FromResult(true);
+
     public Task<bool> HasBotScopeAsync(
         Guid channelId,
         string scope,

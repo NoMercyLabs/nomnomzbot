@@ -82,6 +82,14 @@ public interface ITwitchTokenResolver
     Task<bool> HasScopeAsync(Guid broadcasterId, string scope, CancellationToken ct = default);
 
     /// <summary>
+    /// True if the user's OWN Twitch connection (the one whose Twitch account is this user, the same one
+    /// <see cref="GetUserTokenAsync"/> signs with) has been granted <paramref name="scope"/>. Use this for a
+    /// call made as a viewer or moderator; <see cref="HasScopeAsync"/> matches by broadcaster id and finds no
+    /// personal connection. A gap is not reported as a tenant card: the user, not a channel, must re-grant.
+    /// </summary>
+    Task<bool> HasUserScopeAsync(Guid userId, string scope, CancellationToken ct = default);
+
+    /// <summary>
     /// True if the connection backing the bot token (<see cref="GetBotTokenAsync"/>) has been granted
     /// <paramref name="scope"/>. A gap is reported as a missing-scope card on <paramref name="channelId"/>,
     /// the channel the bot call serves.

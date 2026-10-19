@@ -143,10 +143,7 @@ public sealed class TwitchTokenResolver(
         // ProviderAccountId == the user's TwitchUserId, regardless of which tenant it is filed under. This is the
         // send-as-operator identity (chat-client.md §3.1): a moderator sends in a channel they moderate as
         // themselves, on their own user:write:chat grant, never the tenant broadcaster's token.
-        string? twitchUserId = await db
-            .Users.Where(u => u.Id == userId)
-            .Select(u => u.TwitchUserId)
-            .FirstOrDefaultAsync(ct);
+        string? twitchUserId = await TwitchUserIdOfAsync(userId, ct);
 
         if (string.IsNullOrEmpty(twitchUserId))
         {
@@ -156,15 +153,7 @@ public sealed class TwitchTokenResolver(
             );
         }
 
-        IntegrationConnection? connection = await db
-            .IntegrationConnections.IgnoreQueryFilters()
-            .Where(c =>
-                c.Provider == UserProvider
-                && c.ProviderAccountId == twitchUserId
-                && c.DeletedAt == null
-            )
-            .OrderBy(c => c.CreatedAt)
-            .FirstOrDefaultAsync(ct);
+        IntegrationConnection? connection = await OwnConnectionAsync(twitchUserId, ct);
 
         if (connection is null)
         {
@@ -246,6 +235,39 @@ public sealed class TwitchTokenResolver(
 
         return await CheckAndReportAsync(connection, broadcasterId, scope, ct);
     }
+
+    public async Task<bool> HasUserScopeAsync(
+        Guid userId,
+        string scope,
+        CancellationToken ct = default
+    )
+    {
+        string? twitchUserId = await TwitchUserIdOfAsync(userId, ct);
+        if (string.IsNullOrEmpty(twitchUserId))
+            return false;
+
+        IntegrationConnection? connection = await OwnConnectionAsync(twitchUserId, ct);
+
+        return connection is not null
+            && connection.Scopes.Contains(scope, StringComparer.OrdinalIgnoreCase);
+    }
+
+    private Task<string?> TwitchUserIdOfAsync(Guid userId, CancellationToken ct) =>
+        db.Users.Where(u => u.Id == userId).Select(u => u.TwitchUserId).FirstOrDefaultAsync(ct);
+
+    private Task<IntegrationConnection?> OwnConnectionAsync(
+        string twitchUserId,
+        CancellationToken ct
+    ) =>
+        db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .Where(c =>
+                c.Provider == UserProvider
+                && c.ProviderAccountId == twitchUserId
+                && c.DeletedAt == null
+            )
+            .OrderBy(c => c.CreatedAt)
+            .FirstOrDefaultAsync(ct);
 
     public async Task<bool> HasBotScopeAsync(
         Guid channelId,
