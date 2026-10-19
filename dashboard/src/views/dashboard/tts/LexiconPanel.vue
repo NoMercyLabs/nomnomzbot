@@ -43,6 +43,9 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import PlaySampleButton from './PlaySampleButton.vue';
 
 const matchKinds = ['word', 'exact'] as const;
+// The one column grid of the header, the add row and every rule row: phrase, replacement, match, actions.
+// Under md the cells stack and the header hides.
+const columns = 'md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_13rem_11rem]';
 const emptyDraft = {
   phrase: '',
   replacement: '',
@@ -68,6 +71,8 @@ const entries = computed(() => lexicon.data.value ?? []);
 const heardVoice = computed<string | null>(
   () => config.data.value?.defaultVoiceId || defaults.data.value?.defaultVoiceId || null,
 );
+// The header names the columns of the add row and of the rules; with neither on screen it has nothing to name.
+const showHeader = computed(() => entries.value.length > 0 || can('tts:config:write'));
 const canSave = computed(
   () => draft.phrase.trim() !== '' && draft.replacement.trim() !== '' && !saveEntry.isPending.value,
 );
@@ -136,38 +141,53 @@ function remove(entry: TtsLexiconEntry): void {
     :error-text="$t('dashboard.tts.lexicon.loadFailed')"
     @retry="lexicon.refetch()"
   >
+    <div
+      v-if="showHeader"
+      data-lexicon-header
+      :class="columns"
+      class="hidden items-center gap-2 border-b border-border px-2 py-2 text-xs font-medium text-muted-foreground md:grid"
+    >
+      <span>{{ $t("dashboard.tts.lexicon.phrase") }}</span>
+      <span>{{ $t("dashboard.tts.lexicon.replacement") }}</span>
+      <span>{{ $t("dashboard.tts.lexicon.matchKind") }}</span>
+      <span />
+    </div>
     <form
       v-if="can('tts:config:write')"
-      class="flex flex-wrap items-end gap-2 border-b border-border px-2 py-3"
+      :class="columns"
+      class="grid items-center gap-2 border-b border-border px-2 py-3"
       @submit.prevent="submit"
     >
-      <label class="flex min-w-32 flex-1 flex-col gap-1 text-sm font-medium">
-        {{ $t("dashboard.tts.lexicon.phrase") }}
-        <Input v-model="draft.phrase" maxlength="100" />
-      </label>
-      <label class="flex min-w-32 flex-1 flex-col gap-1 text-sm font-medium">
-        {{ $t("dashboard.tts.lexicon.replacement") }}
-        <Input v-model="draft.replacement" maxlength="200" />
-      </label>
-      <div class="flex flex-col gap-1 text-sm font-medium">
-        {{ $t("dashboard.tts.lexicon.matchKind") }}
-        <Select v-model="draft.matchKind">
-          <SelectTrigger class="w-52" :aria-label="$t('dashboard.tts.lexicon.matchKind')">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent position="popper" align="end">
-            <SelectItem v-for="kind in matchKinds" :key="kind" :value="kind">
-              {{ $t(`dashboard.tts.lexicon.kind.${kind}`) }}
-            </SelectItem>
-          </SelectContent>
-        </Select>
+      <Input
+        v-model="draft.phrase"
+        maxlength="100"
+        :placeholder="$t('dashboard.tts.lexicon.phrase')"
+        :aria-label="$t('dashboard.tts.lexicon.phrase')"
+      />
+      <Input
+        v-model="draft.replacement"
+        maxlength="200"
+        :placeholder="$t('dashboard.tts.lexicon.replacement')"
+        :aria-label="$t('dashboard.tts.lexicon.replacement')"
+      />
+      <Select v-model="draft.matchKind">
+        <SelectTrigger class="w-full" :aria-label="$t('dashboard.tts.lexicon.matchKind')">
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent position="popper" align="end">
+          <SelectItem v-for="kind in matchKinds" :key="kind" :value="kind">
+            {{ $t(`dashboard.tts.lexicon.kind.${kind}`) }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
+      <div class="flex justify-end gap-2">
+        <Button v-if="editing" type="button" variant="ghost" @click="reset">
+          {{ $t("dashboard.tts.lexicon.cancel") }}
+        </Button>
+        <Button type="submit" :disabled="!canSave">
+          {{ $t(editing ? "dashboard.tts.lexicon.save" : "dashboard.tts.lexicon.add") }}
+        </Button>
       </div>
-      <Button v-if="editing" type="button" variant="ghost" @click="reset">
-        {{ $t("dashboard.tts.lexicon.cancel") }}
-      </Button>
-      <Button type="submit" :disabled="!canSave">
-        {{ $t(editing ? "dashboard.tts.lexicon.save" : "dashboard.tts.lexicon.add") }}
-      </Button>
     </form>
     <p v-if="entries.length === 0" class="p-3 text-sm text-muted-foreground">
       {{ $t("dashboard.tts.lexicon.empty") }}
@@ -176,54 +196,40 @@ function remove(entry: TtsLexiconEntry): void {
       <li
         v-for="entry in entries"
         :key="entry.id"
-        class="flex flex-wrap items-center gap-2 px-2 py-2"
+        :class="columns"
+        class="grid items-center gap-2 px-2 py-2 text-sm"
         data-lexicon-row
       >
-        <!-- Under sm the fields take their own line, one under the other, and the buttons sit below them. -->
-        <div
-          data-lexicon-text
-          class="grid min-w-0 basis-full gap-2 text-sm sm:flex-1 sm:basis-0 sm:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_minmax(0,12rem)]"
-        >
-          <div data-lexicon-phrase class="flex min-w-0 flex-col gap-0.5">
-            <span class="text-xs text-muted-foreground">{{
-              $t("dashboard.tts.lexicon.phrase")
-            }}</span>
-            <span data-field-value class="font-medium wrap-break-word">{{ entry.phrase }}</span>
-          </div>
-          <div data-lexicon-replacement class="flex min-w-0 flex-col gap-0.5">
-            <span class="text-xs text-muted-foreground">
-              {{ $t("dashboard.tts.lexicon.replacement") }}
-            </span>
-            <span data-field-value class="wrap-break-word">{{ entry.replacement }}</span>
-          </div>
-          <div data-lexicon-kind class="flex min-w-0 flex-col gap-0.5">
-            <span class="text-xs text-muted-foreground">
-              {{ $t("dashboard.tts.lexicon.matchKind") }}
-            </span>
-            <span data-field-value class="text-muted-foreground">
-              {{ $t(`dashboard.tts.lexicon.kind.${entry.matchKind}`) }}
-            </span>
-          </div>
+        <span data-lexicon-phrase class="min-w-0 font-medium wrap-break-word">
+          {{ entry.phrase }}
+        </span>
+        <span data-lexicon-replacement class="min-w-0 wrap-break-word">
+          {{ entry.replacement }}
+        </span>
+        <span data-lexicon-kind class="min-w-0 text-muted-foreground">
+          {{ $t(`dashboard.tts.lexicon.kind.${entry.matchKind}`) }}
+        </span>
+        <div class="flex items-center justify-end gap-2">
+          <PlaySampleButton v-if="heardVoice" compact :voice-id="heardVoice" :text="entry.phrase" />
+          <Button
+            v-if="can('tts:config:write')"
+            variant="ghost"
+            size="icon"
+            :aria-label="$t('dashboard.tts.lexicon.edit', { phrase: entry.phrase })"
+            @click="edit(entry)"
+          >
+            <Edit class="size-5" />
+          </Button>
+          <Button
+            v-if="can('tts:config:write')"
+            variant="ghost"
+            size="icon"
+            :aria-label="$t('dashboard.tts.lexicon.remove', { phrase: entry.phrase })"
+            @click="pendingRemoval = entry"
+          >
+            <Trash class="size-5" />
+          </Button>
         </div>
-        <PlaySampleButton v-if="heardVoice" compact :voice-id="heardVoice" :text="entry.phrase" />
-        <Button
-          v-if="can('tts:config:write')"
-          variant="ghost"
-          size="icon"
-          :aria-label="$t('dashboard.tts.lexicon.edit', { phrase: entry.phrase })"
-          @click="edit(entry)"
-        >
-          <Edit class="size-5" />
-        </Button>
-        <Button
-          v-if="can('tts:config:write')"
-          variant="ghost"
-          size="icon"
-          :aria-label="$t('dashboard.tts.lexicon.remove', { phrase: entry.phrase })"
-          @click="pendingRemoval = entry"
-        >
-          <Trash class="size-5" />
-        </Button>
       </li>
     </ul>
   </PanelCard>

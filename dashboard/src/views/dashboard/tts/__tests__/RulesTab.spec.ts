@@ -556,30 +556,44 @@ describe('TTS rules panels', () => {
     });
   });
 
-  // A-tts defect 6: the add-rule form sat 4 px left of the rule rows under it (px-2 against px-3).
-  it('starts the add-rule form on the same left edge as the rule rows', async () => {
+  // The column labels are drawn once, in one header row; a rule row holds only values.
+  it('names the columns once in a header row and keeps the labels out of the rule rows', async () => {
     await open();
 
+    const headers = document.body.querySelectorAll('[data-view="tts-lexicon"] [data-lexicon-header]');
+    const row = document.body.querySelector('[data-lexicon-row]') as HTMLElement;
+
+    expect(headers).toHaveLength(1);
+    expect(headers[0]!.textContent).toContain('Phrase');
+    expect(headers[0]!.textContent).toContain('Say instead');
+    expect(headers[0]!.textContent).toContain('Match');
+    expect(row.textContent).not.toContain('Phrase');
+    expect(row.textContent).not.toContain('Say instead');
+    expect(row.textContent).not.toContain('Match');
+  });
+
+  // The header, the add row and every rule row are four cells wide on one shared grid, so the columns line up.
+  it('lays the header, the add row and the rule rows out on one four-column grid', async () => {
+    await open();
+
+    const header = document.body.querySelector('[data-lexicon-header]') as HTMLElement;
     const form = document.body.querySelector('[data-view="tts-lexicon"] form') as HTMLElement;
     const row = document.body.querySelector('[data-lexicon-row]') as HTMLElement;
+    const columns = (element: HTMLElement): string | undefined =>
+      element.className.split(/\s+/).find((token) => token.startsWith('md:grid-cols-'));
 
-    expect(row.classList.contains('px-2')).toBe(true);
+    expect(columns(header)).toBeDefined();
+    expect(columns(form)).toBe(columns(header));
+    expect(columns(row)).toBe(columns(header));
+    expect(header.children).toHaveLength(4);
+    expect(form.children).toHaveLength(4);
+    expect(row.children).toHaveLength(4);
     expect(form.classList.contains('px-2')).toBe(true);
+    expect(row.classList.contains('px-2')).toBe(true);
+    expect(header.classList.contains('px-2')).toBe(true);
   });
 
-  it('gives a lexicon rule text its own line under sm so no word wraps alone', async () => {
-    await open();
-
-    const row = document.body.querySelector('[data-lexicon-row]') as HTMLElement;
-    const text = row.querySelector('[data-lexicon-text]') as HTMLElement;
-
-    expect(row.className).toContain('flex-wrap');
-    expect(text.className).toContain('basis-full');
-    expect(text.className).toContain('sm:flex-1');
-    expect(text.textContent).toContain('gg');
-  });
-
-  it('shows a lexicon rule as separate labeled fields so phrase and replacement never run together', async () => {
+  it('shows a lexicon rule as separate values so phrase and replacement never run together', async () => {
     await open();
 
     const row = document.body.querySelector('[data-lexicon-row]') as HTMLElement;
@@ -587,15 +601,9 @@ describe('TTS rules panels', () => {
     const replacement = row.querySelector('[data-lexicon-replacement]') as HTMLElement;
     const kind = row.querySelector('[data-lexicon-kind]') as HTMLElement;
 
-    expect(phrase.textContent).toContain('Phrase');
-    expect(phrase.querySelector('[data-field-value]')?.textContent?.trim()).toBe('gg');
-    expect(replacement.textContent).toContain('Say instead');
-    expect(replacement.querySelector('[data-field-value]')?.textContent?.trim()).toBe('good game');
-    expect(kind.textContent).toContain('Match');
-
-    expect(kind.querySelector('[data-field-value]')?.textContent?.trim()).toBe(
-      'Whole word, any case',
-    );
+    expect(phrase.textContent?.trim()).toBe('gg');
+    expect(replacement.textContent?.trim()).toBe('good game');
+    expect(kind.textContent?.trim()).toBe('Whole word, any case');
   });
 
   it('edits and deletes a lexicon rule by its id', async () => {
