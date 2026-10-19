@@ -31,11 +31,13 @@ import { errorText } from '@/lib/errors';
 
 import ReplyModeField from '@/components/layout/ReplyModeField.vue';
 
-import { changeOf, draftOf, nameOf, sameDraft, type EventDraft } from './eventResponseDraft';
+import { changeOf, draftOf, sameDraft, type EventDraft } from './eventResponseDraft';
+import { useEventName } from './useEventName';
 
 const props = defineProps<{ row: EventResponse }>();
 
 const { t } = useI18n();
+const eventName = useEventName();
 const { channelId } = useCurrentChannel();
 const response = useEventResponse(channelId, () => props.row.eventType);
 const presets = useEventPresets(channelId);
@@ -82,6 +84,7 @@ const unsaved = computed<string>(() =>
     ? ''
     : t('dashboard.eventResponses.editor.unsaved', { count: dirtyCount.value }, dirtyCount.value),
 );
+const toneLines = computed<string[]>(() => response.data.value?.toneLines ?? []);
 const variables = computed<string>(() => {
   const preset = (presets.data.value ?? []).find(
     (item): boolean => item.eventType === props.row.eventType,
@@ -138,7 +141,7 @@ function useDefault(): Promise<void> {
     data-event-editor
     tier="lead"
     pad
-    :title="nameOf(row.eventType)"
+    :title="eventName(row.eventType)"
     :state="panelState"
     :error-text="$t('dashboard.eventResponses.editor.error')"
     @retry="response.refetch()"
@@ -165,12 +168,27 @@ function useDefault(): Promise<void> {
       <p v-if="row.followsPlatformDefault" class="text-sm text-muted-foreground">
         {{ $t('dashboard.eventResponses.editor.following') }}
       </p>
+      <div v-if="toneLines.length > 0" class="grid gap-2">
+        <p class="text-sm text-muted-foreground">
+          {{ $t('dashboard.eventResponses.editor.toneLines') }}
+        </p>
+        <ul class="grid gap-1.5">
+          <li
+            v-for="line in toneLines"
+            :key="line"
+            data-tone-line
+            class="rounded-md bg-muted px-3 py-2 text-sm"
+          >
+            {{ line }}
+          </li>
+        </ul>
+      </div>
 
       <ReplyModeField
         v-model:mode="draft.mode"
         v-model:target="draft.target"
         :kinds="['command', 'pipeline', 'action']"
-        :new-pipeline-name="nameOf(row.eventType)"
+        :new-pipeline-name="eventName(row.eventType)"
       >
         <TemplateField
           v-model="draft.message"

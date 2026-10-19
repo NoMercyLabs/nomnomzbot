@@ -409,4 +409,39 @@ describe('Event responses permission gating', () => {
 
     expect(editor()).not.toBeNull();
   });
+
+  it('names an event in words, not from its key', async () => {
+    const redemption = 'channel.channel_points_custom_reward_redemption.add';
+
+    rows = [response(redemption)];
+    await open();
+
+    expect(rowOf(redemption).textContent).toContain('Reward redeemed');
+    expect(rowOf(redemption).textContent).not.toContain('Channel points custom');
+  });
+
+  it('lists the lines the bot picks from while the event follows the default', async () => {
+    rows = [
+      response('channel.raid', {
+        followsPlatformDefault: true,
+        toneLines: ['Raid from {user}!', 'Here comes {user}!'],
+      }),
+    ];
+
+    await open('/app/event-responses?event=channel.raid');
+
+    const lines = [...editor()!.querySelectorAll<HTMLElement>('[data-tone-line]')].map(
+      (line) => line.textContent?.trim(),
+    );
+
+    expect(lines).toEqual(['Raid from {user}!', 'Here comes {user}!']);
+  });
+
+  it('shows no tone lines for a reply of the channel own', async () => {
+    rows = [response('channel.follow', { toneLines: [] })];
+
+    await open('/app/event-responses?event=channel.follow');
+
+    expect(editor()!.querySelectorAll('[data-tone-line]')).toHaveLength(0);
+  });
 });

@@ -20,12 +20,14 @@ import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
-import { iconOf, nameOf } from './eventResponseDraft';
+import { iconOf } from './eventResponseDraft';
+import { useEventName } from './useEventName';
 
 defineProps<{ selected: string | null }>();
 const emit = defineEmits<{ pick: [eventType: string] }>();
 
 const { t } = useI18n();
+const eventName = useEventName();
 const { channelId } = useCurrentChannel();
 const responses = useEventResponses(channelId);
 
@@ -38,7 +40,7 @@ const rows = computed<EventResponse[]>(() => {
   const needle = search.value.trim().toLowerCase();
 
   return (responses.data.value ?? []).filter((row): boolean =>
-    nameOf(row.eventType).toLowerCase().includes(needle),
+    eventName(row.eventType).toLowerCase().includes(needle),
   );
 });
 
@@ -75,7 +77,7 @@ function detailOf(row: EventResponse): string {
         :key="row.eventType"
         pick
         :selected="row.eventType === selected"
-        :title="nameOf(row.eventType)"
+        :title="eventName(row.eventType)"
         :detail="detailOf(row)"
         data-event-row
         :data-event-type="row.eventType"
