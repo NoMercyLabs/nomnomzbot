@@ -8,7 +8,11 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { useMutation, type UseMutationReturnType, type UseQueryReturnType } from '@tanstack/vue-query';
+import {
+  useMutation,
+  type UseMutationReturnType,
+  type UseQueryReturnType,
+} from '@tanstack/vue-query';
 import { toValue, type MaybeRefOrGetter } from 'vue';
 
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
@@ -190,6 +194,7 @@ const supporterActivityTypes = [
   'channel.subscribe',
   'channel.subscription.message',
   'channel.subscription.gift',
+  'channel.subscription.gift.received',
   'channel.cheer',
 ].join(',');
 
@@ -219,18 +224,20 @@ async function readSupporterActivity(id: string): Promise<ActivityEvent[]> {
 export const supporterActivityOptions = (id: string) =>
   channelOptions(supporterActivityKey, readSupporterActivity, id);
 
-export function useActivityReplay(
-  channelId: MaybeRefOrGetter<string | null>,
-) {
+export function useActivityReplay(channelId: MaybeRefOrGetter<string | null>) {
   return useMutation({
     mutationFn: async (eventId: string): Promise<ReplayActivityResult> => {
       const { data, error, response } = await client.POST(
         '/api/v{version}/dashboard/{channelId}/activity/{eventId}/replay',
-        { params: { path: {
-          version,
-          channelId: toValue(channelId) as string,
-          eventId,
-        } } },
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              eventId,
+            },
+          },
+        },
       );
 
       if (error !== undefined || !data?.data)
@@ -283,7 +290,6 @@ export function useResolveQueueItem(
     apply: (
       current: ReviewQueueItem[] | undefined,
       { queueItemId }: QueueResolution,
-    ): ReviewQueueItem[] =>
-      (current ?? []).filter((item) => item.id !== queueItemId),
+    ): ReviewQueueItem[] => (current ?? []).filter((item) => item.id !== queueItemId),
   });
 }

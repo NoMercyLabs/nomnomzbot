@@ -51,7 +51,8 @@ const activity = useSupporterActivity(channelId);
 const events = useSupporterEvents(channelId);
 
 const subscriptions = computed<SubscriptionRow[]>(() =>
-  subscriptionRows(activity.data.value ?? []));
+  subscriptionRows(activity.data.value ?? []),
+);
 const cheers = computed<CheerRow[]>(() => cheerRows(activity.data.value ?? []));
 const cheerers = computed(() => topCheerers(cheers.value));
 const gifters = computed(() => topGifters(subscriptions.value));
@@ -76,7 +77,11 @@ function subscriptionDetail(row: SubscriptionRow): string {
   const tier = row.tier ?? '1';
 
   if (row.kind === 'gift')
-    return t('dashboard.supporters.subs.gifted', { count: row.giftCount ?? 1, tier }, row.giftCount ?? 1);
+    return t(
+      'dashboard.supporters.subs.gifted',
+      { count: row.giftCount ?? 1, tier },
+      row.giftCount ?? 1,
+    );
 
   return row.months !== null && row.months > 1
     ? t('dashboard.supporters.subs.subscribedMonths', { tier, months: row.months })
@@ -87,12 +92,17 @@ function tipAmount(event: SupporterEvent): string | null {
   if (event.amountMinor === null || event.amountMinor === undefined || !event.currency)
     return null;
 
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency: event.currency })
-    .format(Number(event.amountMinor) / 100);
+  return new Intl.NumberFormat(undefined, { style: 'currency', currency: event.currency }).format(
+    Number(event.amountMinor) / 100,
+  );
 }
 
 function tipDetail(event: SupporterEvent): string {
-  const parts = [t(`dashboard.supporters.tips.kind.${event.kind}`, event.kind), tipAmount(event), event.tier];
+  const parts = [
+    t(`dashboard.supporters.tips.kind.${event.kind}`, event.kind),
+    tipAmount(event),
+    event.tier,
+  ];
 
   return parts.filter((part) => part !== null && part !== undefined && part !== '').join(' · ');
 }
@@ -113,7 +123,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
       />
       <StatTile
         :label="t('dashboard.supporters.stats.gifts')"
-        :value="subscriptions.filter(row => row.kind === 'gift').length"
+        :value="subscriptions.filter((row) => row.kind === 'gift').length"
         :context="t('dashboard.supporters.stats.recent')"
       />
       <StatTile
@@ -155,9 +165,19 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
                 :name="row.person.name"
                 :color="row.person.color"
               />
-              <span v-else>{{ t('dashboard.supporters.anonymous') }}</span>
+              <span v-else>{{ t("dashboard.supporters.anonymous") }}</span>
               <span v-if="row.receivedAsGift" class="text-muted-foreground">
-                {{ t('dashboard.supporters.subs.receivedGiftDetail') }}
+                {{ t("dashboard.supporters.subs.receivedGiftDetail") }}
+              </span>
+              <span v-if="row.gifter !== null" class="text-muted-foreground">
+                {{ t("dashboard.supporters.subs.giftedBy") }}
+                <UserName
+                  v-if="isNamed(row.gifter)"
+                  :user-id="row.gifter.userId"
+                  :name="row.gifter.name"
+                  :color="row.gifter.color"
+                />
+                <template v-else>{{ t("dashboard.supporters.anonymous") }}</template>
               </span>
             </template>
           </SummaryRow>
@@ -186,7 +206,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
                 :name="row.person.name"
                 :color="row.person.color"
               />
-              <span v-else>{{ t('dashboard.supporters.anonymous') }}</span>
+              <span v-else>{{ t("dashboard.supporters.anonymous") }}</span>
             </template>
           </SummaryRow>
         </RowGroup>
@@ -201,7 +221,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
         @retry="activity.refetch()"
       >
         <h3 class="mb-2 text-sm font-medium text-muted-foreground">
-          {{ t('dashboard.supporters.top.cheerers') }}
+          {{ t("dashboard.supporters.top.cheerers") }}
         </h3>
         <RowGroup v-if="cheerers.length > 0">
           <SummaryRow
@@ -221,7 +241,7 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
           </SummaryRow>
         </RowGroup>
         <h3 class="mt-4 mb-2 text-sm font-medium text-muted-foreground">
-          {{ t('dashboard.supporters.top.gifters') }}
+          {{ t("dashboard.supporters.top.gifters") }}
         </h3>
         <RowGroup v-if="gifters.length > 0">
           <SummaryRow

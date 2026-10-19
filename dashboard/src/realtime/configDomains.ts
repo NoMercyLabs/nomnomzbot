@@ -26,6 +26,7 @@ import { personalityKey } from '@/api/personalitySettings';
 import { pipelinesKey } from '@/api/pipelines';
 import { quotesKey } from '@/api/quotes';
 import { basicsKey } from '@/api/settings';
+import { supporterEventsKey } from '@/api/supporters';
 import { ttsConfigKey } from '@/api/tts';
 import { voiceTriggersKey } from '@/api/voiceTriggers';
 import { inboundWebhooksKey, outboundWebhooksKey } from '@/api/webhooks';
@@ -73,6 +74,7 @@ export const configDomainKeys: Record<string, readonly QueryKeyBuilder[]> = {
   'earning-rules': [earningRulesKey],
   'savings-jar': [savingsJarsKey],
   quotes: [quotesKey],
+  supporters: [supporterEventsKey],
   permissions: [membersKey, actionMatrixKey],
   'event-journal': [eventJournalKey],
   channels: [myChannelsKey, deletedChannelsKey, channelInfoKey, botStatusKey],

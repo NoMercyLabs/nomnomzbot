@@ -35,6 +35,8 @@ export type SubscriptionRow = {
   // A gift row carries how many subs went out; a subscribe row marked gifted came from somebody else.
   giftCount: number | null;
   receivedAsGift: boolean;
+  // Who gifted this sub, from the received-gift event of the same recipient. Null when none is journaled.
+  gifter: Person | null;
   timestamp: string;
 };
 
@@ -61,9 +63,7 @@ const topLimit = 5;
 
 function personOf(event: ActivityEvent, data: ActivityData): Person {
   const anonymous = data.isAnonymous === true;
-  const name = pickText(data, 'userDisplayName', 'gifterDisplayName') ??
-    event.username ??
-    null;
+  const name = pickText(data, 'userDisplayName', 'gifterDisplayName') ?? event.username ?? null;
 
   return anonymous
     ? {
@@ -91,19 +91,81 @@ function subscriptionRow(event: ActivityEvent, kind: SubscriptionRow['kind']) {
     months: pickCount(data, 'cumulativeMonths', 'months'),
     giftCount: pickCount(data, 'giftCount', 'count'),
     receivedAsGift: data.isGift === true,
+    gifter: null,
     timestamp: event.timestamp,
   } as const satisfies SubscriptionRow;
 }
 
+const receivedGiftType = 'channel.subscription.gift.received';
+
+function gifterOf(data: ActivityData): Person {
+  const name = pickText(data, 'gifterDisplayName');
+
+  return data.isAnonymous === true || name === null
+    ? {
+        userId: null,
+        name: null,
+        color: null,
+        anonymous: true,
+      }
+    : {
+        userId: pickText(data, 'gifterUserId'),
+        name,
+        color: null,
+        anonymous: false,
+      };
+}
+
+function gapMs(a: string, b: string): number {
+  return Math.abs(Date.parse(a) - Date.parse(b));
+}
+
+// The received-gift event of the same recipient that sits nearest in time to the gifted subscribe row.
+function nearestReceived(
+  row: SubscriptionRow,
+  recipientId: string | null,
+  received: readonly ActivityEvent[],
+): ActivityEvent | null {
+  let best: ActivityEvent | null = null;
+
+  for (const candidate of received) {
+    const data = parseActivityData(candidate.data);
+
+    if (recipientId === null || pickText(data, 'recipientUserId') !== recipientId) continue;
+
+    if (
+      best === null ||
+      gapMs(candidate.timestamp, row.timestamp) < gapMs(best.timestamp, row.timestamp)
+    ) {
+      best = candidate;
+    }
+  }
+
+  return best;
+}
+
 export function subscriptionRows(events: readonly ActivityEvent[]): SubscriptionRow[] {
   const rows: SubscriptionRow[] = [];
+  const received = events.filter((event) => event.type === receivedGiftType);
 
   for (const event of events) {
     const kind = lookup(subscriptionKinds, event.type);
 
-    if (kind !== undefined) {
-      rows.push(subscriptionRow(event, kind));
-    }
+    if (kind === undefined) continue;
+
+    const row = subscriptionRow(event, kind);
+    const match = row.receivedAsGift
+      ? nearestReceived(row, event.twitchUserId ?? null, received)
+      : null;
+
+    rows.push(
+      match === null
+        ? row
+        : {
+            ...row,
+            gifter: gifterOf(parseActivityData(match.data)),
+          },
+    );
   }
 
   return rows;
@@ -152,9 +214,7 @@ function ranked(entries: readonly { person: Person; amount: number }[]): TopEntr
     }
   }
 
-  return [...totals.values()]
-    .sort((a, b) => b.total - a.total)
-    .slice(0, topLimit);
+  return [...totals.values()].sort((a, b) => b.total - a.total).slice(0, topLimit);
 }
 
 export function topCheerers(rows: readonly CheerRow[]): TopEntry[] {

@@ -58,6 +58,60 @@ describe('subscriptionRows', () => {
     });
   });
 
+  it('names the gifter on a gifted sub from the received-gift event of the same recipient', () => {
+    const rows = subscriptionRows([
+      event('1', 'channel.subscribe', 'ann', { tier: '1000', isGift: true }),
+      event('2', 'channel.subscription.gift.received', null, {
+        recipientUserId: 'u-ann',
+        gifterUserId: 'u-bob',
+        gifterDisplayName: 'bob',
+        isAnonymous: false,
+      }),
+    ]);
+
+    expect(rows).toHaveLength(1);
+
+    expect(rows[0]?.gifter).toEqual({
+      userId: 'u-bob',
+      name: 'bob',
+      color: null,
+      anonymous: false,
+    });
+  });
+
+  it('shows an anonymous gifter of a received sub as anonymous without a profile', () => {
+    const rows = subscriptionRows([
+      event('1', 'channel.subscribe', 'ann', { tier: '1000', isGift: true }),
+      event('2', 'channel.subscription.gift.received', null, {
+        recipientUserId: 'u-ann',
+        gifterUserId: '',
+        gifterDisplayName: '',
+        isAnonymous: true,
+      }),
+    ]);
+
+    expect(rows[0]?.gifter).toEqual({
+      userId: null,
+      name: null,
+      color: null,
+      anonymous: true,
+    });
+  });
+
+  it('leaves the gifter empty when no received-gift event matches the recipient', () => {
+    const rows = subscriptionRows([
+      event('1', 'channel.subscribe', 'ann', { tier: '1000', isGift: true }),
+      event('2', 'channel.subscription.gift.received', null, {
+        recipientUserId: 'u-zed',
+        gifterUserId: 'u-bob',
+        gifterDisplayName: 'bob',
+        isAnonymous: false,
+      }),
+    ]);
+
+    expect(rows[0]?.gifter).toBeNull();
+  });
+
   it('shows an anonymous gifter without a name or profile link', () => {
     const rows = subscriptionRows([
       event('3', 'channel.subscription.gift', 'ghost', {

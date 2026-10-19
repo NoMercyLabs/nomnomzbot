@@ -17,6 +17,7 @@
         "giftMark": "Gift",
         "receivedGift": "received as a gift",
         "receivedGiftDetail": "· received as a gift",
+        "giftedBy": "from",
         "subscribed": "Subscribed on Twitch · Tier {tier}",
         "subscribedMonths": "Subscribed on Twitch · Tier {tier} · {months} months",
         "gifted": "Gifted {count} Twitch sub · Tier {tier} | Gifted {count} Twitch subs · Tier {tier}"

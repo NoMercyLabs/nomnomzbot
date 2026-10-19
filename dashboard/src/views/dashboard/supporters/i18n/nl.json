@@ -17,6 +17,7 @@
         "giftMark": "Cadeau",
         "receivedGift": "cadeau gekregen",
         "receivedGiftDetail": "· cadeau gekregen",
+        "giftedBy": "van",
         "subscribed": "Geabonneerd · Tier {tier}",
         "subscribedMonths": "Geabonneerd · Tier {tier} · {months} maanden",
         "gifted": "{count} abonnement geschonken · Tier {tier} | {count} abonnementen geschonken · Tier {tier}"
