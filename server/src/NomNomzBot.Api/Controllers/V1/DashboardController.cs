@@ -383,6 +383,25 @@ public class DashboardController : BaseController
             .Users.Where(u => userIds.Contains(u.Id))
             .ToDictionaryAsync(u => u.Id, ct);
 
+        // A gift or sub recipient is named only in the payload; fetch their user rows (by Twitch id) so the feed
+        // can hand the Supporters page the recipient's own chat color.
+        List<string> recipientIds =
+        [
+            .. events
+                .Select(e => FirstTextField(e.Data, RecipientTwitchIdFields))
+                .OfType<string>()
+                .Distinct(),
+        ];
+
+        Dictionary<string, User> recipientsByTwitchId =
+            recipientIds.Count == 0
+                ? []
+                : await _db
+                    .Users.Where(u =>
+                        u.TwitchUserId != null && recipientIds.Contains(u.TwitchUserId)
+                    )
+                    .ToDictionaryAsync(u => u.TwitchUserId!, ct);
+
         List<ActivityEventDto> result =
         [
             .. events.Select(e =>
@@ -417,7 +436,7 @@ public class DashboardController : BaseController
                     e.Data,
                     e.CreatedAt,
                     actor?.TwitchUserId ?? ResolveActorTwitchIdFromData(e.Data),
-                    actor?.Color
+                    ResolveActivityColor(e.Data, actor, recipientsByTwitchId)
                 );
             }),
         ];
@@ -600,6 +619,28 @@ public class DashboardController : BaseController
     /// </summary>
     internal static string? ResolveActorTwitchIdFromData(string? data) =>
         FirstTextField(data, ActorTwitchIdFields);
+
+    private static readonly string[] RecipientTwitchIdFields = ["recipientUserId"];
+
+    /// <summary>
+    /// The chat color of the person the event is about. A gift or sub recipient is named only in the payload
+    /// (<c>recipientUserId</c>), so the recipient's own user supplies the color; a recipient with no local row has
+    /// no color rather than borrowing the gifter's. Events without a recipient use the actor's color.
+    /// </summary>
+    internal static string? ResolveActivityColor(
+        string? data,
+        User? actor,
+        IReadOnlyDictionary<string, User> usersByTwitchId
+    )
+    {
+        string? recipientId = FirstTextField(data, RecipientTwitchIdFields);
+        if (recipientId is null)
+            return actor?.Color;
+
+        return usersByTwitchId.TryGetValue(recipientId, out User? recipient)
+            ? recipient.Color
+            : null;
+    }
 
     private static string? FirstTextField(string? data, string[] fields)
     {
