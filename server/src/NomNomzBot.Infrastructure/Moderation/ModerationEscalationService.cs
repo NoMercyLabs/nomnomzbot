@@ -26,17 +26,13 @@ namespace NomNomzBot.Infrastructure.Moderation;
 public sealed class ModerationEscalationService(IApplicationDbContext db, TimeProvider clock)
     : IModerationEscalationService
 {
-    /// <summary>Twitch's longest timeout: 14 days.</summary>
-    private const int MaxTimeoutSeconds = 1_209_600;
-
     private static readonly IReadOnlyList<EscalationLadderStep> DefaultLadder =
     [
-        new(1, "warn", null),
-        new(2, "timeout", 60),
-        new(3, "timeout", 600),
-        new(4, "timeout", 3600),
-        new(5, "timeout", 86400),
-        new(6, "ban", null),
+        .. EscalationPolicyDefaults.Ladder.Select(s => new EscalationLadderStep(
+            s.AtOffense,
+            s.Action,
+            s.TimeoutSeconds
+        )),
     ];
 
     public async Task<Result<EscalationDecision>> ResolveAndRecordAsync(
@@ -197,7 +193,15 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
                 ct
             );
         return Result.Success(
-            policy is null ? new(false, DefaultLadder, 168, false, 600) : ToDto(policy)
+            policy is null
+                ? new(
+                    EscalationPolicyDefaults.IsEnabled,
+                    DefaultLadder,
+                    EscalationPolicyDefaults.OffenseWindowHours,
+                    EscalationPolicyDefaults.CountAutoModViolations,
+                    EscalationPolicyDefaults.DefaultTimeoutSeconds
+                )
+                : ToDto(policy)
         );
     }
 
@@ -207,19 +211,24 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
         CancellationToken ct = default
     )
     {
-        if (request.OffenseWindowHours <= 0)
+        if (request.OffenseWindowHours is < 1 or > EscalationPolicyDefaults.MaxOffenseWindowHours)
             return Result.Failure<ModerationEscalationPolicyDto>(
-                "The offense window must be positive.",
+                $"The offense window must be 1 to {EscalationPolicyDefaults.MaxOffenseWindowHours} hours.",
                 "VALIDATION_FAILED"
             );
-        if (request.DefaultTimeoutSeconds is < 1 or > MaxTimeoutSeconds)
+        if (request.DefaultTimeoutSeconds is < 1 or > EscalationPolicyDefaults.MaxTimeoutSeconds)
             return Result.Failure<ModerationEscalationPolicyDto>(
-                $"The default timeout must be 1 to {MaxTimeoutSeconds} seconds.",
+                $"The default timeout must be 1 to {EscalationPolicyDefaults.MaxTimeoutSeconds} seconds.",
                 "VALIDATION_FAILED"
             );
-        if (request.Ladder.Count == 0)
+        if (request.Ladder is null || request.Ladder.Count == 0)
             return Result.Failure<ModerationEscalationPolicyDto>(
                 "The ladder needs at least one step.",
+                "VALIDATION_FAILED"
+            );
+        if (request.Ladder.Count > EscalationPolicyDefaults.MaxLadderSteps)
+            return Result.Failure<ModerationEscalationPolicyDto>(
+                $"The ladder holds at most {EscalationPolicyDefaults.MaxLadderSteps} steps.",
                 "VALIDATION_FAILED"
             );
         int previous = 0;
@@ -235,9 +244,15 @@ public sealed class ModerationEscalationService(IApplicationDbContext db, TimePr
                     $"Unknown ladder action '{step.Action}' — warn, timeout, or ban.",
                     "VALIDATION_FAILED"
                 );
-            if (step is { Action: "timeout", TimeoutSeconds: not > 0 })
+            if (
+                step is
+                {
+                    Action: "timeout",
+                    TimeoutSeconds: not (> 0 and <= EscalationPolicyDefaults.MaxTimeoutSeconds)
+                }
+            )
                 return Result.Failure<ModerationEscalationPolicyDto>(
-                    "A timeout step needs a positive duration.",
+                    $"A timeout step needs a duration of 1 to {EscalationPolicyDefaults.MaxTimeoutSeconds} seconds.",
                     "VALIDATION_FAILED"
                 );
             previous = step.AtOffense;

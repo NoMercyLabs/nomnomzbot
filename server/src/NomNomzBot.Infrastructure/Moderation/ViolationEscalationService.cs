@@ -16,6 +16,7 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Domain.Moderation.Entities;
 
 namespace NomNomzBot.Infrastructure.Moderation;
 
@@ -29,7 +30,7 @@ public sealed class ViolationEscalationService(
 ) : IViolationEscalationService
 {
     /// <summary>Only reached for a timeout step the escalation service left without seconds.</summary>
-    private const int DefaultTimeoutSeconds = 600;
+    private const int DefaultTimeoutSeconds = EscalationPolicyDefaults.DefaultTimeoutSeconds;
 
     public async Task<ViolationEscalationOutcome> TryEscalateAsync(
         Guid broadcasterId,

@@ -24,21 +24,22 @@ public class ModerationEscalationPolicy : SoftDeletableEntity, ITenantScoped
     /// <summary>One policy per channel (unique).</summary>
     public Guid BroadcasterId { get; set; }
 
-    public bool IsEnabled { get; set; }
+    public bool IsEnabled { get; set; } = EscalationPolicyDefaults.IsEnabled;
 
     /// <summary>The ordered ladder steps [VC:JSON <c>List&lt;EscalationLadderStep&gt;</c>].</summary>
     public string LadderJson { get; set; } = "[]";
 
     /// <summary>The decaying offense window — a tally older than this restarts at offense 1.</summary>
-    public int OffenseWindowHours { get; set; } = 168;
+    public int OffenseWindowHours { get; set; } = EscalationPolicyDefaults.OffenseWindowHours;
 
     /// <summary>Whether AutoMod violations count as ladder offenses too.</summary>
-    public bool CountAutoModViolations { get; set; }
+    public bool CountAutoModViolations { get; set; } =
+        EscalationPolicyDefaults.CountAutoModViolations;
 
     /// <summary>
     /// The timeout length, in seconds, a one-click chat Timeout uses (1..1209600 — Twitch's maximum).
     /// </summary>
-    public int DefaultTimeoutSeconds { get; set; } = 600;
+    public int DefaultTimeoutSeconds { get; set; } = EscalationPolicyDefaults.DefaultTimeoutSeconds;
 
     public int ConfigSchemaVersion { get; set; } = 1;
 }

@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Moderation.Entities;
+
 namespace NomNomzBot.Application.Moderation.Dtos;
 
 /// <summary>One rung of the ladder (moderation.md §3.11). <c>Action</c>: warn | timeout | ban.</summary>
@@ -32,5 +34,5 @@ public sealed record UpsertEscalationPolicyRequest(
     IReadOnlyList<EscalationLadderStep> Ladder,
     int OffenseWindowHours,
     bool CountAutoModViolations,
-    int DefaultTimeoutSeconds = 600
+    int DefaultTimeoutSeconds = EscalationPolicyDefaults.DefaultTimeoutSeconds
 );

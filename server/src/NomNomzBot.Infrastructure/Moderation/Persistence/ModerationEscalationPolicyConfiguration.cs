@@ -22,6 +22,8 @@ public class ModerationEscalationPolicyConfiguration
     {
         builder.HasKey(e => e.Id);
         builder.HasIndex(e => e.BroadcasterId).IsUnique();
-        builder.Property(e => e.DefaultTimeoutSeconds).HasDefaultValue(600);
+        builder
+            .Property(e => e.DefaultTimeoutSeconds)
+            .HasDefaultValue(EscalationPolicyDefaults.DefaultTimeoutSeconds);
     }
 }
