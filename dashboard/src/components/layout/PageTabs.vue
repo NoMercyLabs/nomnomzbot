@@ -10,7 +10,7 @@
 <script setup lang="ts" generic="View extends string">
 // The one tab row of a page (C2). The open tab is the route query ?view= (usePageView);
 // the page reads the same composable to choose what to show under the header.
-import { computed, useTemplateRef } from 'vue';
+import { computed, nextTick, useTemplateRef, watch } from 'vue';
 import Locked from '~icons/nnz/locked';
 
 import type { PageTab } from '@/components/layout/pageTab';
@@ -24,6 +24,21 @@ const values = computed(() => props.tabs.map((tab) => tab.value));
 const view = usePageView(values);
 const strip = useTemplateRef('strip');
 const fade = useScrollFade(() => strip.value?.$el);
+
+// A long strip scrolls sideways; the open tab is brought into view, so a link to the last tab never hides it.
+watch(
+  view,
+  async () => {
+    await nextTick();
+    const element = strip.value?.$el as HTMLElement | undefined;
+
+    element?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.scrollIntoView?.({
+      block: 'nearest',
+      inline: 'nearest',
+    });
+  },
+  { immediate: true, flush: 'post' },
+);
 </script>
 
 <template>

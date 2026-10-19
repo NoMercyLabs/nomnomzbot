@@ -111,6 +111,27 @@ describe('the page tabs', () => {
     expect(strip.classes()).not.toContain('mask-r-from-90%');
   });
 
+  // At 390 px the last tab sat past the edge; opening it by link left the active tab out of sight.
+  it('scrolls the active tab into view on open and when the tab changes', async () => {
+    const shown: string[] = [];
+
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value(this: HTMLElement): void {
+        shown.push(this.textContent?.trim() ?? '');
+      },
+    });
+
+    const { router } = await open('/?view=history');
+
+    expect(shown.at(-1)).toBe('History 12');
+
+    await router.push('/?view=run');
+    await flushPromises();
+
+    expect(shown.at(-1)).toBe('Run the stream');
+  });
+
   // The trigger underline sits 5 px below the strip; inside a sideways scroller it made the strip scroll 4 px vertically.
   it('scrolls sideways only, never vertically', async () => {
     const { wrapper } = await open('/');

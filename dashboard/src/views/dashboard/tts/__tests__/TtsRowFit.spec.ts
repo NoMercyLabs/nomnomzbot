@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
 import { describe, expect, it } from 'vitest';
 
 import en from '../i18n/en.json';
@@ -27,6 +29,18 @@ function helpLines(section: Record<string, unknown>): [string, string][] {
       : [] as const satisfies readonly [string, string][];
   });
 }
+
+// The panel header text starts 16 px in (px-4); the body adds 8 px (p-2). The add form must add 8 more, not 12.
+describe('the pronunciation add form', () => {
+  it('lines up with the panel header text', () => {
+    const source = readFileSync(resolve(__dirname, '../LexiconPanel.vue'), 'utf8');
+    const form = /<form[^>]*class="([^"]*)"/.exec(source)?.[1] ?? '';
+    const classes = form.split(/\s+/);
+
+    expect(classes).toContain('px-2');
+    expect(classes).not.toContain('p-3');
+  });
+});
 
 describe('the help lines of the Speaking and Rules rows', () => {
   const sections = {

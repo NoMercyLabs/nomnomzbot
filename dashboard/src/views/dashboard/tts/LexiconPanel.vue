@@ -138,7 +138,7 @@ function remove(entry: TtsLexiconEntry): void {
   >
     <form
       v-if="can('tts:config:write')"
-      class="flex flex-wrap items-end gap-2 border-b border-border p-3"
+      class="flex flex-wrap items-end gap-2 border-b border-border px-2 py-3"
       @submit.prevent="submit"
     >
       <label class="flex min-w-32 flex-1 flex-col gap-1 text-sm font-medium">
