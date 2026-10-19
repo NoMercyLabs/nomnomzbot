@@ -125,7 +125,7 @@ Rules:
 
 ## CI Gate — a push is not done until CI is green
 
-1. **Before EVERY commit: run the tests.** Backend: `scripts/slice-check.ps1` (build + slice tests + csharpier + cleanup + ReSharper inspection); full-tree equivalent is `dotnet test` + `dotnet csharpier check .` from `server/`. Frontend: the Gradle test tasks incl. `jvmTest` (`ApiContractTest`). Never commit on red.
+1. **Before EVERY commit: run the tests.** Backend: `scripts/slice-check.ps1` (build + slice tests + csharpier + cleanup + ReSharper inspection); full-tree equivalent is `dotnet test` + `dotnet csharpier check .` from `server/`. Dashboard (Vue): `npx vitest run`, `npm run type-check`, `npm run lint` in `dashboard/`. The frozen KMP app is checked by CI's contract test only. Never commit on red.
 2. **After EVERY push: watch the run and block on it.**
    ```bash
    gh run list --limit 1                 # grab the run id for the pushed commit
@@ -187,4 +187,4 @@ Moved out of this file so every session starts lean; Grimora indexes them (`doc 
 - `FEATURES.md` and `FEATURES-BY-SIDEBAR.md` are the capability inventory.
 - Playbooks: `.claude/skills/README.md` (build-server, build-app, run-the-stack, commit-a-slice, watch-ci, deploy-and-verify, dispatch-a-builder, devbox, sleak), and the scripts they wrap: `slice-check`, `verify-tree`, `migration-check`, `push-and-watch`, `close-slice`, `land-worktree`, `refresh-openapi`, `mint-jwt.py`, `ship`, `switchover`.
 - Any schema change lands in BOTH migration sets (Postgres: `Infrastructure/Platform/Persistence/Migrations`; SQLite: `NomNomzBot.Migrations.Sqlite`).
-- App changes: run `compileKotlinWasmJs`, not only `jvmTest` (`jvmTest` cannot catch a Wasm-only break).
+- The KMP app (`app/`) is frozen. Stoney, 2026-10-19: "i don't want to put in work for kmp, its development is stopped, it only needs to keep worling until the vue ui can replace it". No KMP work and no routine local Gradle gates; CI's frontend contract test is the keeps-working check. Touch `app/` only to keep it compiling after a server contract change.

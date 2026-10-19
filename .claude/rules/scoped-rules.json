@@ -697,6 +697,24 @@
     "feedback-credential-tooling-is-not-bypass.md",
     "Credential tooling (Stoney, 2026-10-17)"
    ]
+  },
+  {
+   "id": "kmp-frozen",
+   "paths": [
+    "**/app/**"
+   ],
+   "brief": [
+    "\\b[Kk][Mm][Pp]\\b",
+    "jvmTest",
+    "compileKotlinWasmJs",
+    "gradlew"
+   ],
+   "text": "The KMP app (app/) is frozen: no KMP features, fixes, polish or routine local Gradle gates (jvmTest, compileKotlinWasmJs). CI's frontend contract test is the keeps-working check. Touch app/ only to keep it compiling after a server contract change, with the smallest edit.",
+   "source": "Stoney 2026-10-19: \"i don't want to put in work for kmp, its development is stopped, it only needs to keep worling until the vue ui can replace it\"",
+   "covers": [
+    "feedback-kmp-frozen-keep-working-only.md",
+    "The KMP app (`app/`) is frozen"
+   ]
   }
  ],
  "dispatch": [
