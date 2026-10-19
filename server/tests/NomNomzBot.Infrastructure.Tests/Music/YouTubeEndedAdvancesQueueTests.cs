@@ -17,9 +17,11 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Music.Playback;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -63,6 +65,95 @@ public sealed class YouTubeEndedAdvancesQueueTests
             ];
     }
 
+    /// <summary>
+    /// The real YouTube engine, delegating everything and recording each start the director sends it. This
+    /// separates the director's pushes from the legacy hand-over's pushes, which both reach the notifier.
+    /// </summary>
+    private sealed class StartRecordingEngine(YouTubePlaybackEngine inner)
+        : IPlayerReportingEngine,
+            IPlaybackEngineProviderControls
+    {
+        public List<string> StartedVideoIds { get; } = [];
+
+        public EngineKind Kind => inner.Kind;
+
+        public MusicProviderCapabilities Capabilities => inner.Capabilities;
+
+        public event Func<EngineSignal, Task> Reports
+        {
+            add => inner.Reports += value;
+            remove => inner.Reports -= value;
+        }
+
+        public Task<EngineStartResult> StartAsync(PlaybackItem item, CancellationToken ct = default)
+        {
+            StartedVideoIds.Add(YouTubeVideoId.Extract(item.Uri)!);
+
+            return inner.StartAsync(item, ct);
+        }
+
+        public Task ReportAsync(YouTubePlayerReport report) => inner.ReportAsync(report);
+
+        public Task PauseAsync(CancellationToken ct = default) => inner.PauseAsync(ct);
+
+        public Task ResumeAsync(CancellationToken ct = default) => inner.ResumeAsync(ct);
+
+        public Task StopAsync(CancellationToken ct = default) => inner.StopAsync(ct);
+
+        public Task SeekAsync(int positionMs, CancellationToken ct = default) =>
+            inner.SeekAsync(positionMs, ct);
+
+        public Task SetVolumeAsync(int level, CancellationToken ct = default) =>
+            inner.SetVolumeAsync(level, ct);
+
+        public Task<EngineControlResult> SetShuffleAsync(
+            bool enabled,
+            CancellationToken ct = default
+        ) => inner.SetShuffleAsync(enabled, ct);
+
+        public Task<EngineControlResult> SetRepeatAsync(
+            MusicRepeatMode mode,
+            CancellationToken ct = default
+        ) => inner.SetRepeatAsync(mode, ct);
+
+        public Task<EngineControlResult<IReadOnlyList<MusicDeviceInfo>>> GetDevicesAsync(
+            CancellationToken ct = default
+        ) => inner.GetDevicesAsync(ct);
+
+        public Task<EngineControlResult> TransferAsync(
+            string deviceId,
+            bool play,
+            CancellationToken ct = default
+        ) => inner.TransferAsync(deviceId, play, ct);
+
+        public Task<EngineControlResult<string>> GetEmbeddedTokenAsync(
+            CancellationToken ct = default
+        ) => inner.GetEmbeddedTokenAsync(ct);
+    }
+
+    /// <summary>The recording YouTube engine over the real provider and dispatcher, next to a fake Spotify engine.</summary>
+    private sealed class RealYouTubeEngineFactory(
+        YouTubeMusicProvider provider,
+        YouTubePlayerDispatcher players,
+        YouTubePlayerStateStore store
+    ) : IPlaybackEngineFactory
+    {
+        public StartRecordingEngine? YouTube { get; private set; }
+
+        public IReadOnlyList<IPlaybackEngine> Create(Guid broadcasterId)
+        {
+            YouTube = new(
+                new YouTubePlaybackEngine(
+                    broadcasterId,
+                    () => EngineLease.Of(provider, players),
+                    store
+                )
+            );
+
+            return [new PlaybackDirectorTestKit.FakeEngine(EngineKind.Spotify), YouTube];
+        }
+    }
+
     private sealed record Rig(
         MusicService Music,
         YouTubeMusicProvider Provider,
@@ -70,7 +161,9 @@ public sealed class YouTubeEndedAdvancesQueueTests
         SongRequestQueueReconciler Reconciler,
         SongRequestQueueStore Queues,
         RecordingWidgetEventNotifier Notifier,
-        RecordingEventBus Bus
+        RecordingEventBus Bus,
+        RealYouTubeEngineFactory Engines,
+        PlaybackDirectorRegistry Registry
     );
 
     private static string VideoJson(string id, string title) =>
@@ -176,20 +269,24 @@ public sealed class YouTubeEndedAdvancesQueueTests
             Substitute.For<IUserIdentityService>(),
             Substitute.For<IForeignLinkTitleLookup>()
         );
+        RealYouTubeEngineFactory engines = new(provider, players, playerStore);
+        PlaybackDirectorRegistry registry = new(queues, engines, bus, TimeProvider.System);
         YouTubePlayerReportService reports = new(
             playerStore,
             players,
             bus,
-            new PlayOnceResumeTracker()
+            new PlayOnceResumeTracker(),
+            registry,
+            NullLogger<YouTubePlayerReportService>.Instance
         );
         SongRequestQueueReconciler reconciler = new(
             queues,
             music,
             new NoOpSongRequestQueuePersistence(),
             bus,
-            PlaybackDirectorTestKit.Registry(queues, bus)
+            registry
         );
-        return new(music, provider, reports, reconciler, queues, notifier, bus);
+        return new(music, provider, reports, reconciler, queues, notifier, bus, engines, registry);
     }
 
     private static string Watch(string videoId) => $"https://www.youtube.com/watch?v={videoId}";
@@ -271,7 +368,14 @@ public sealed class YouTubeEndedAdvancesQueueTests
 
         await ReportAsync(rig, First, "ended");
 
-        rig.Notifier.PlayedVideoIds.Should().Equal(First, Second);
+        rig.Engines.YouTube!.StartedVideoIds.Should()
+            .Equal(
+                [Second],
+                "the director starts the next request through the engine exactly once"
+            );
+        // S-PD-4c: delete players.HandOverNextAsync. The legacy hand-over still pushes the same video to
+        // the player as well, so the player sees the second request twice until that path is removed.
+        rig.Notifier.PlayedVideoIds.Should().Equal(First, Second, Second);
         QueuedUris(rig)
             .Should()
             .Equal([Watch(Second)], "the second is handed over, not yet playing");
@@ -285,7 +389,7 @@ public sealed class YouTubeEndedAdvancesQueueTests
 
         await ReportAsync(rig, Second, "ended");
 
-        rig.Notifier.PlayedVideoIds.Should().Equal(First, Second);
+        rig.Notifier.PlayedVideoIds.Should().Equal(First, Second, Second);
         QueuedUris(rig).Should().BeEmpty();
     }
 
@@ -330,8 +434,10 @@ public sealed class YouTubeEndedAdvancesQueueTests
 
         late.ErrorCode.Should().Be("STALE_VIDEO");
         rig.Bus.Published.Should().HaveCount(published, "a stale report changes nothing");
-        rig.Notifier.PlayedVideoIds.Should()
-            .Equal([First, Second], "the third request waits until the second ends");
+        rig.Engines.YouTube!.StartedVideoIds.Should()
+            .Equal([Second], "the third request waits until the second ends");
+        // S-PD-4c: delete players.HandOverNextAsync (it still pushes the second video once more).
+        rig.Notifier.PlayedVideoIds.Should().Equal(First, Second, Second);
         (await rig.Provider.GetCurrentTrackAsync(Broadcaster))!.TrackUri.Should().Be(Watch(Second));
         (await rig.Provider.GetQueueAsync(Broadcaster))!
             .Select(t => t.TrackUri)
@@ -360,11 +466,40 @@ public sealed class YouTubeEndedAdvancesQueueTests
                 rig.Bus.Published.FindIndex(e => e is PlaybackStateChangedEvent),
                 "the notice must read the request before the queue drops it"
             );
-        // Queue ownership (S-PD-3): the report adapter only reports. Dropping the broken head and
-        // advancing is the playback director's job once the engine adapters feed it (S-PD-4).
+        // Queue ownership (S-PD-3): the report adapter only reports. One failure blocks the head; the
+        // director keeps it and waits for the output to come back.
         rig.Notifier.PlayedVideoIds.Should()
             .Equal([First], "the adapter hands nothing over by itself");
         QueuedUris(rig).Should().Equal(Watch(First), Watch(Second));
+    }
+
+    [Fact]
+    public async Task A_second_error_on_the_head_removes_it_and_the_director_plays_the_next_with_one_notice()
+    {
+        Rig rig = await TwoQueuedAsync();
+        // A director only exists once the channel's first playback input reaches the registry.
+        await rig.Registry.SendAsync(Broadcaster, new RequestAdded());
+        rig.Engines.YouTube!.StartedVideoIds.Should()
+            .Equal([First], "the director starts the head");
+        await ReportAsync(rig, First, "error");
+        rig.Bus.Published.OfType<SongPlaybackFailedEvent>()
+            .Should()
+            .BeEmpty("one failure only blocks the head and the director took the report");
+        await rig.Registry.SendAsync(Broadcaster, new OutputAttached());
+        rig.Engines.YouTube.StartedVideoIds.Should()
+            .Equal([First, First], "the output coming back retries the head once");
+
+        await ReportAsync(rig, First, "error");
+
+        QueuedUris(rig).Should().Equal([Watch(Second)], "the failed head left the queue");
+        rig.Engines.YouTube.StartedVideoIds.Should()
+            .Contain(Second, "the director started the next request through the engine");
+        rig.Notifier.PlayedVideoIds.Should().Contain(Second);
+        rig.Bus.Published.OfType<SongPlaybackFailedEvent>()
+            .Should()
+            .ContainSingle("one failure episode reaches chat once")
+            .Which.TrackUri.Should()
+            .Be(Watch(First));
     }
 
     [Fact]

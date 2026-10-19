@@ -61,6 +61,31 @@ public sealed class PlaybackDirectorRegistry(
             await engine.ObserveAsync(polled);
     }
 
+    /// <summary>
+    /// Gives the player report to the channel's player-reporting engine. A channel that has no director yet,
+    /// or has no such engine, is left alone: a report alone never creates playback state.
+    /// </summary>
+    public async Task<bool> ReportPlayerAsync(
+        Guid broadcasterId,
+        YouTubePlayerReport report,
+        CancellationToken ct = default
+    )
+    {
+        if (!_channels.TryGetValue(broadcasterId, out Lazy<ChannelPlayback>? channel))
+            return false;
+
+        bool taken = false;
+        foreach (
+            IPlayerReportingEngine engine in channel.Value.Engines.OfType<IPlayerReportingEngine>()
+        )
+        {
+            await engine.ReportAsync(report);
+            taken = true;
+        }
+
+        return taken;
+    }
+
     public void Dispose()
     {
         foreach (Lazy<ChannelPlayback> channel in _channels.Values)

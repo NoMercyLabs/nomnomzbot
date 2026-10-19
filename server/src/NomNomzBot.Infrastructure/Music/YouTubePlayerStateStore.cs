@@ -9,16 +9,9 @@
 // -----------------------------------------------------------------------------
 
 using System.Collections.Concurrent;
+using NomNomzBot.Domain.Music.ValueObjects;
 
 namespace NomNomzBot.Infrastructure.Music;
-
-public enum YouTubePlayerState
-{
-    Playing,
-    Paused,
-    Ended,
-    Error,
-}
 
 /// <summary>
 /// A video handed to the player, with what the provider resolved for it: title and channel (empty when
@@ -30,14 +23,6 @@ public sealed record YouTubeQueuedTrack(
     string Artist,
     int DurationMs = 0,
     string? ThumbnailUrl = null
-);
-
-/// <summary>One state report from the overlay player.</summary>
-public sealed record YouTubePlayerReport(
-    string VideoId,
-    YouTubePlayerState State,
-    long PositionMs,
-    DateTimeOffset ReportedAt
 );
 
 /// <summary>

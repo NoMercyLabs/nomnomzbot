@@ -17,6 +17,8 @@ using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Overlay;
 using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Application.Widgets.Dtos;
+using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Music;
@@ -109,7 +111,9 @@ public sealed class OverlayHubYouTubeReportTests
             store,
             Substitute.For<IYouTubePlayerDispatcher>(),
             Substitute.For<IEventBus>(),
-            new PlayOnceResumeTracker()
+            new PlayOnceResumeTracker(),
+            Substitute.For<IEngineFeed>(),
+            NullLogger<YouTubePlayerReportService>.Instance
         );
 
     [Fact]

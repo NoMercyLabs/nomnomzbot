@@ -9,9 +9,12 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -122,7 +125,9 @@ public sealed class YouTubePlayerOwnerTests
                 store,
                 players,
                 bus,
-                new PlayOnceResumeTracker()
+                new PlayOnceResumeTracker(),
+                Substitute.For<IEngineFeed>(),
+                NullLogger<YouTubePlayerReportService>.Instance
             ),
             Store = store,
             Players = players,

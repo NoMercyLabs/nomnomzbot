@@ -9,9 +9,12 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -46,7 +49,9 @@ public sealed class YouTubePlayerReportStateTests
             store,
             players,
             new RecordingEventBus(),
-            new PlayOnceResumeTracker()
+            new PlayOnceResumeTracker(),
+            Substitute.For<IEngineFeed>(),
+            NullLogger<YouTubePlayerReportService>.Instance
         );
         return (reports, store);
     }

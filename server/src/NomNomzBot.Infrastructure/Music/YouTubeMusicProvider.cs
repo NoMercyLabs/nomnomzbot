@@ -17,6 +17,7 @@ using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Domain.Music.Exceptions;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Music.YouTubeKeyless;
 
 namespace NomNomzBot.Infrastructure.Music;

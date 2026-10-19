@@ -27,6 +27,7 @@ namespace NomNomzBot.Infrastructure.Tests.Music;
 public sealed class YouTubePlaybackEngineTests
 {
     private const string VideoId = "dQw4w9WgXcQ";
+    private const string WatchUrl = $"https://www.youtube.com/watch?v={VideoId}";
     private static readonly Guid Channel = PlaybackDirectorTestKit.Channel;
 
     private readonly IMusicProvider _provider = Substitute.For<
@@ -224,7 +225,7 @@ public sealed class YouTubePlaybackEngineTests
 
         _signals
             .Should()
-            .Equal(new EngineReport(EngineKind.YouTube, VideoId, true, 15_000, 212_000));
+            .Equal(new EngineReport(EngineKind.YouTube, WatchUrl, true, 15_000, 212_000));
     }
 
     [Fact]
@@ -252,7 +253,7 @@ public sealed class YouTubePlaybackEngineTests
 
         _signals.Should().HaveCount(2);
         _signals[0].Should().BeOfType<EngineReport>();
-        _signals[1].Should().Be(new TrackEnded(EngineKind.YouTube, VideoId));
+        _signals[1].Should().Be(new TrackEnded(EngineKind.YouTube, WatchUrl));
     }
 
     [Fact]

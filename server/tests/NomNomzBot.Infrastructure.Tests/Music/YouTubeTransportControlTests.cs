@@ -17,6 +17,8 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
@@ -191,7 +193,14 @@ public sealed class YouTubeTransportControlTests
             Substitute.For<IForeignLinkTitleLookup>()
         );
         PlayOnceResumeTracker resumeTracker = new();
-        YouTubePlayerReportService reports = new(playerStore, players, bus, resumeTracker);
+        YouTubePlayerReportService reports = new(
+            playerStore,
+            players,
+            bus,
+            resumeTracker,
+            Substitute.For<IEngineFeed>(),
+            NullLogger<YouTubePlayerReportService>.Instance
+        );
         SongRequestQueueReconciler reconciler = new(
             queues,
             music,

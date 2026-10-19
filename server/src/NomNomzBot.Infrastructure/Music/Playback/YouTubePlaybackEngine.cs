@@ -24,7 +24,7 @@ public sealed class YouTubePlaybackEngine(
     Guid broadcasterId,
     Func<EngineLease> open,
     IYouTubePlayerStateStore store
-) : IPlaybackEngine, IPlaybackEngineProviderControls
+) : IPlayerReportingEngine, IPlaybackEngineProviderControls
 {
     private readonly EngineSignalRelay _relay = new();
     private string? _startedUri;
@@ -144,9 +144,12 @@ public sealed class YouTubePlaybackEngine(
                     : EngineBlockReason.NoOutput
         );
 
-    /// <summary>The uri the item was started with when it is this video, so the director matches the item.</summary>
+    /// <summary>
+    /// The uri the item was started with when it is this video, so the director matches the item. A video
+    /// this engine did not start (the legacy hand-over pushed it) is named by the watch url a queue row carries.
+    /// </summary>
     private string UriFor(string videoId) =>
         _startedUri is not null && YouTubeVideoId.Extract(_startedUri) == videoId
             ? _startedUri
-            : videoId;
+            : YouTubeMusicProvider.WatchUrl(videoId);
 }

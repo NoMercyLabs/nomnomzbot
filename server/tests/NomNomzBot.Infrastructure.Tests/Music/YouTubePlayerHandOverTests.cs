@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Services;
@@ -104,7 +105,14 @@ public sealed class YouTubePlayerHandOverTests
             playerState: store,
             players: players
         );
-        YouTubePlayerReportService reports = new(store, players, bus, new PlayOnceResumeTracker());
+        YouTubePlayerReportService reports = new(
+            store,
+            players,
+            bus,
+            new PlayOnceResumeTracker(),
+            Substitute.For<IEngineFeed>(),
+            NullLogger<YouTubePlayerReportService>.Instance
+        );
         return new(provider, reports, notifier, bus, clock);
     }
 

@@ -8,10 +8,12 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music;
@@ -20,7 +22,9 @@ public sealed class YouTubePlayerReportService(
     IYouTubePlayerStateStore store,
     IYouTubePlayerDispatcher players,
     IEventBus eventBus,
-    IPlayOnceResumeTracker resumeTracker
+    IPlayOnceResumeTracker resumeTracker,
+    IEngineFeed engineFeed,
+    ILogger<YouTubePlayerReportService> logger
 ) : IYouTubePlayerReportService
 {
     public async Task<Result> ReportAsync(
@@ -79,8 +83,13 @@ public sealed class YouTubePlayerReportService(
         if (ended && !(changed && ResumePending(broadcasterId, videoId)))
             await players.HandOverNextAsync(broadcasterId, cancellationToken);
 
+        // Every accepted report reaches the engine, a heartbeat of the same state included, so its progress
+        // stays current. When an engine takes it the director owns the failure notice and the queue.
+        bool fed = await FeedAsync(broadcasterId, videoId, parsed, positionMs, cancellationToken);
+
         // Announced before the playback change below, whose queue reconciler drops the failed request.
-        if (changed && parsed == YouTubePlayerState.Error)
+        // With no director to take the report, this is the only place the failure is announced.
+        if (changed && parsed == YouTubePlayerState.Error && !fed)
             await eventBus.PublishAsync(
                 new SongPlaybackFailedEvent
                 {
@@ -98,9 +107,39 @@ public sealed class YouTubePlayerReportService(
                 positionMs,
                 known,
                 ended,
+                fed,
                 cancellationToken
             );
         return Result.Success();
+    }
+
+    /// <summary>A feed failure never fails the report: the player's state is already stored.</summary>
+    private async Task<bool> FeedAsync(
+        Guid broadcasterId,
+        string videoId,
+        YouTubePlayerState state,
+        long positionMs,
+        CancellationToken cancellationToken
+    )
+    {
+        try
+        {
+            return await engineFeed.ReportPlayerAsync(
+                broadcasterId,
+                new(videoId, state, positionMs, DateTimeOffset.UtcNow),
+                cancellationToken
+            );
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            logger.LogWarning(
+                ex,
+                "The YouTube player report for channel {BroadcasterId} did not reach the playback engine.",
+                broadcasterId
+            );
+
+            return false;
+        }
     }
 
     // Only the four names: Enum.TryParse alone also takes a number ("7") or a comma list ("Playing, Paused").
@@ -125,6 +164,7 @@ public sealed class YouTubePlayerReportService(
         long positionMs,
         YouTubeQueuedTrack? known,
         bool trackEnded,
+        bool fedToEngine,
         CancellationToken cancellationToken
     ) =>
         eventBus.PublishAsync(
@@ -133,6 +173,7 @@ public sealed class YouTubePlayerReportService(
                 BroadcasterId = broadcasterId,
                 IsPlaying = state == YouTubePlayerState.Playing,
                 TrackEnded = trackEnded,
+                FedToEngine = fedToEngine,
                 TrackName = known?.Title,
                 Artist = known?.Artist,
                 DurationMs = known?.DurationMs ?? 0,

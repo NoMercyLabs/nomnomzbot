@@ -110,6 +110,9 @@ public sealed partial class PlaybackDirector
                 when r.Engine != item.Engine && FindRow(r) is null:
                 await SilenceForeignAsync(r, ct);
                 break;
+            case TrackEnded t when t.Engine == item.Engine && t.Uri == item.Uri:
+                await FailStartAsync(item, name, "player error", "start_failed", ct);
+                break;
             case StartTimeout:
                 await FailStartAsync(item, name, "did not start", "start_timeout", ct);
                 break;
