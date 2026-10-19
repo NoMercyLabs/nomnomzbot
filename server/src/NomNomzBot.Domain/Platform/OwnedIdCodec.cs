@@ -51,4 +51,18 @@ public static class OwnedIdCodec
         id = Guid.Empty;
         return false;
     }
+
+    /// <summary>
+    /// The wire form of an owned id kept in a string (a binding target names its command or pipeline this way):
+    /// a Guid goes out as its ULID; anything else, such as a built-in command key or an empty clear, as it is.
+    /// </summary>
+    public static string? ToWire(string? id) =>
+        Guid.TryParse(id, out Guid guid) ? Encode(guid) : id;
+
+    /// <summary>
+    /// The stored form of such a string id: a ULID or a Guid comes in as the canonical Guid string; anything
+    /// else as it is, so the caller still refuses it by name.
+    /// </summary>
+    public static string? FromWire(string? id) =>
+        TryDecode(id, out Guid guid) ? guid.ToString() : id;
 }
