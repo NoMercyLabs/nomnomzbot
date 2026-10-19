@@ -589,6 +589,41 @@ describe('time formatting', () => {
   });
 });
 
+// Stoney 2026-10-18: "why can't I select a command directly instead of a pipeline that calls a single command?"
+// What a row runs (a command, an action or a pipeline) is chosen in <TargetPicker>. A view never lists the
+// pipelines in a Select of its own. Only the picker reads the pipeline list into select items.
+const ownTargetSelect = /usePipelines\(/;
+const ownTargetSelectAllowlist = [
+  'components/layout/TargetPicker.vue',
+] as const satisfies readonly string[];
+
+function ownsTargetSelect(path: string): boolean {
+  const text: string = readFileSync(join(src, path), 'utf8');
+
+  return ownTargetSelect.test(text) && /<SelectItem\b/.test(text);
+}
+
+describe('target selects', () => {
+  it('spots a Select built from the pipeline list', () => {
+    const textual = 'const flows = usePipelines(id); <SelectItem v-for="flow in flows" />';
+
+    expect(ownTargetSelect.test(textual) && /<SelectItem\b/.test(textual)).toBe(true);
+  });
+
+  it('builds no pipeline or command Select outside TargetPicker', () => {
+    const offenders = viewFiles()
+      .concat(timeSourceFiles().filter((path) => path.startsWith('components/layout/')))
+      .filter((path) => ownsTargetSelect(path))
+      .filter((path) => oneOf(ownTargetSelectAllowlist, path) === undefined);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('keeps TargetPicker as the one place that builds it', () => {
+    expect(ownsTargetSelect('components/layout/TargetPicker.vue')).toBe(true);
+  });
+});
+
 // Stoney 2026-10-18: "extract things like these into reusables". "Is there room?" is asked through
 // composables/useLayout.ts (its width table, useScreenFrom, usePhone, useFits), never with a media query or a
 // size measure written in a view. The two files left are a height measure and the generated shadcn sidebar.

@@ -13,7 +13,8 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useCreateCommand, type NewCommand } from '@/api/commands';
-import { usePipelines } from '@/api/pipelines';
+import TargetPicker from '@/components/layout/TargetPicker.vue';
+import type { PickedTarget } from '@/lib/bindingTarget';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Field, FieldLabel } from '@/components/ui/field';
@@ -40,13 +41,12 @@ const emit = defineEmits<{ created: [name: string] }>();
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const create = useCreateCommand(channelId);
-const pipelines = usePipelines(channelId);
 
 const name = ref('');
 const kind = ref<Kind>('template');
 const reply = ref('');
 const replies = ref<string[]>(['']);
-const pipelineId = ref('');
+const pipelineTarget = ref<PickedTarget | null>(null);
 const prefixMode = ref<PrefixMode>('Default');
 const customPrefix = ref('');
 const matchMode = ref<MatchMode>('StartsWith');
@@ -60,7 +60,7 @@ watch(open, (isOpen: boolean): void => {
   kind.value = 'template';
   reply.value = '';
   replies.value = [''];
-  pipelineId.value = '';
+  pipelineTarget.value = null;
   prefixMode.value = 'Default';
   customPrefix.value = '';
   matchMode.value = 'StartsWith';
@@ -101,7 +101,7 @@ function replyOf(): Partial<NewCommand> {
     return { tier: 'template', templateResponses: replies.value };
 
   if (kind.value === 'pipeline')
-    return { tier: 'pipeline', pipelineId: pipelineId.value };
+    return { tier: 'pipeline', pipelineId: pipelineTarget.value?.id ?? '' };
 
   return { tier: 'template', templateResponse: reply.value };
 }
@@ -193,20 +193,11 @@ async function submit(): Promise<void> {
     <RandomReplyList v-else-if="kind === 'random'" v-model="replies" />
     <Field v-else>
       <FieldLabel>{{ $t('dashboard.commands.editor.pipeline') }}</FieldLabel>
-      <Select v-model="pipelineId">
-        <SelectTrigger :aria-label="$t('dashboard.commands.editor.pipeline')" class="w-full">
-          <SelectValue :placeholder="$t('dashboard.commands.editor.pipelinePlaceholder')" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem
-            v-for="pipeline in pipelines.data.value ?? []"
-            :key="pipeline.id"
-            :value="pipeline.id"
-          >
-            {{ pipeline.name }}
-          </SelectItem>
-        </SelectContent>
-      </Select>
+      <TargetPicker
+        v-model:target="pipelineTarget"
+        :kinds="['pipeline']"
+        :label="$t('dashboard.commands.editor.pipeline')"
+      />
     </Field>
     <TriggerFields
       v-model:prefix-mode="prefixMode"

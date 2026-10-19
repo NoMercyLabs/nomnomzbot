@@ -16,7 +16,7 @@ import TargetPicker from '@/components/layout/TargetPicker.vue';
 import { i18n } from '@/i18n';
 import type { PickedTarget } from '@/lib/bindingTarget';
 
-const created = vi.hoisted(() => vi.fn());
+const created = vi.hoisted(() => vi.fn<(name: string) => Promise<unknown>>());
 
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('chan-1') }),
