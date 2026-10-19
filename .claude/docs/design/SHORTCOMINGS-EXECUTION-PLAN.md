@@ -21,6 +21,118 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-10-19 (night): Spotify keeps its own queue while YouTube takes over at the song boundary; YouTube keeps playing from the streamer's own music
+
+Stoney, verbatim: "so let me be clear one more time about the logic. spotify plays it's own auto queue and does its own magic, the fair queue system will ALWAYS dispatch ONE song into the manual spotify queue if there is one requested, so spotify has its auto queue AND 1 song dispatched automatically. and then handle the youtube transition on top of that by pausing spotify playback right as the next song plays, then make youtube play, when youtube is end - 3s we resume spotify again it is really important to keep spotify doing what it does best while we correctly handle youtube's takeover and its ending of playback"
+
+Stoney, verbatim: "so if the queue says: 1 yt:abcd, 2: sp:abcd then we queue sp:abcd to spotify even if yt:abcd needs to play first, it ensures that spotify plays the right song when we resume it's playback after youtube has finished, the same goes for when there are 3 youtube songs before the next spotify song"
+
+Stoney, verbatim: "I don't know what stream elements does for youtube but I believe they do have something for keeping youtube playing"; after bamo16's answer (recorded verbatim in `dashboard-owner-words.md`): "we probably need something that can provide us tracks to the taste of the streamer but not sure how we can do this with a similar quality as youtube"
+
+Benchmark (rule research-is-a-benchmark): `benchmarks/song-request-playback.md` (StreamElements, Nightbot, Streamlabs, Moobot, bamo16). A YouTube Mix ("RD" radio list) is refused in an embed with error 150, so YouTube's own radio cannot be the fallback. Every partial or missing benchmark row is a slice below.
+
+### S-SR-OWNER-HANDOVER: Spotify one-ahead, YouTube takes over at Spotify's song boundary, Spotify resumes 3 s before YouTube ends
+
+Done when: the spec rows 31-37 in `spec/music-playback-determinism.md` pass as director tests (red on the old code first); the Music Player page reports ENDING 3 s before a video ends; a live YouTube request on a channel with Spotify playing pauses Spotify within about 1 s of its next song starting and resumes it 3 s before the YouTube song ends (journal proof).
+
+### S-SR-FALLBACK-PLAYLIST: with an empty queue and no Spotify, the Music Player plays the streamer's fallback music
+
+Done when: a YouTube-only channel with an empty queue plays a fallback song instead of going Idle (`PlaybackDirector.Owner.cs` EndOfQueueAsync); turning requests off plays only the fallback; the dashboard warns when the fallback is empty (dead air); a director test proves an empty queue with a fallback pool starts a fallback item and never touches Spotify.
+
+### S-SR-FALLBACK-POOL: the fallback pool is the unique video ids across the streamer's chosen YouTube playlists
+
+Done when: the streamer picks one or more own YouTube playlists in the music settings; the pool holds each video id once across them and refreshes on a schedule; a test proves two playlists sharing a video give one pool entry.
+
+### S-SR-FALLBACK-YT-SOURCE: a pasted YouTube playlist link is accepted as a fallback source
+
+Done when: a pasted playlist URL (not only a picked one) becomes a pool source; an invalid or private playlist is refused with a clear reason.
+
+### S-SR-FALLBACK-HISTORY: songs the channel's viewers requested and heard to the end fill the pool when no playlist is set
+
+Done when: with no fallback playlist, the pool is the channel's own played requests that were not skipped; a test proves a skipped request never enters the pool.
+
+### S-SR-FALLBACK-SAVED-LIST: a list kept in the bot, with a "save this song" button on the player
+
+Done when: the now-playing control saves the current song into the channel's fallback list; the list is editable in the music settings.
+
+### S-SR-FALLBACK-RANDOM: the fallback pick is random and never repeats a recent song
+
+Done when: picks come from a shuffled pass over the whole pool (no song again until the pass ends, no song from the last N played); a test proves N picks from a pool of N are all different.
+
+### S-SR-FALLBACK-FILTERS: the pool skips very long songs and songs already in the queue
+
+Done when: songs over the request length cap and songs already queued are never picked; a test proves each exclusion.
+
+### S-SR-FALLBACK-LOOKAHEAD: when a song starts and nothing is next, one fallback song is lined up
+
+Done when: the check runs at each song start (bamo16's timing, the same one-ahead rule as Spotify); exactly one fallback item is ever lined up.
+
+### S-SR-FALLBACK-YIELD: a new request plays right after the current fallback song, and fallback songs look different in the queue
+
+Done when: a request that arrives during a fallback song plays next, after that song ends (no cut); the queue view marks fallback songs in a muted style; a director test proves the order.
+
+### S-SR-FALLBACK-COLLECTIONS: the pool is split into collections (genre, mood) that switch on and off
+
+Done when: each source playlist is a collection with an on/off switch; only switched-on collections feed the pool.
+
+### S-SR-PLAYLIST-ONLY: requests can be limited to songs in the streamer's own lists
+
+Done when: a setting refuses requests that are not in the fallback pool, with a reply that names the rule.
+
+### S-SR-PLAYER-SURFACES: YouTube plays in the OBS Music Player, the dashboard player and a public request page
+
+Done when: each surface is documented with its role, and only one of them is the music output at a time.
+
+### S-SR-PLAYER-PRESENCE-ALERT: the streamer is told when a request waits because no Music Player page is open
+
+Done when: a waiting YouTube request with no player page raises one actionable dashboard notice and one chat-safe hint; the notice clears when the page connects.
+
+### S-SR-ETA-REPLY: the request reply names the queue position and the wait
+
+Done when: an accepted request reply says the position and an estimated wait from the durations ahead of it.
+
+### S-SR-PRIORITY-LANE: an optional priority lane for tippers or subscribers
+
+Done when: a setting moves qualifying requests ahead inside the fair order, and the reply says why.
+
+### S-SR-VOTESKIP: viewers vote to skip with a threshold
+
+Done when: `!voteskip` counts unique viewers, skips at the set threshold, and the threshold is configurable.
+
+### S-SR-WRONGSONG-CHECK: a viewer removes their own last request
+
+Done when: `!wrongsong` removes the viewer's newest unplayed request, also from Spotify's queue when it was lined up there.
+
+### S-SR-SESSION-CAP-WHEN-FILLING: a per-viewer cap per stream, optionally only when the queue fills
+
+Done when: the cap applies per stream, and an option applies it only above a queue length.
+
+### S-SR-POINTS-COST: a request costs loyalty points, with a subscriber discount
+
+Done when: the cost and the discount are settings; a refused request refunds.
+
+### S-SR-APPROVAL-QUEUE: an option makes every request wait for a moderator
+
+Done when: with the option on, requests enter a pending list that moderators approve or refuse from the dashboard and chat.
+
+### S-SR-TITLE-FILTER: a blocklist by title word or tag
+
+Done when: a request whose title or tags match a blocked word is refused with the rule named.
+
+### S-SR-VIEWER-BLOCK: a viewer can be blocked from requesting, from the player
+
+Done when: the player's request row has a block action; a blocked viewer's requests are refused.
+
+### S-SR-RATING-FILTER: a minimum view count or rating for YouTube requests
+
+Done when: a setting refuses videos below the set view count, with the rule named in the reply.
+
+### S-SR-REQUEST-RANGE: a request can name a start and end time inside the video
+
+Done when: `!sr <link> 1:20-3:05` plays only that range; the range is capped by the length rule.
+
+---
+
 ## OWNER REQUEST 2026-10-14: timers wait for an audience; one mod badge per platform; panels open at their final shape
 
 Stoney, verbatim: "you need to wait with the timers a bit longer after the stream started, if there is nobody yet it is a waste of data and cycles. not priority"
