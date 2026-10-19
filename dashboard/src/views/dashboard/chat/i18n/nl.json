@@ -10,6 +10,17 @@
         "live": "Live",
         "offline": "Offline"
       },
+      "external": {
+        "crumb": "Twitch-chat",
+        "note": "Alleen live. Dit kanaal gebruikt NomNomzBot niet, dus er is geen geschiedenis. Je chat als jezelf.",
+        "empty": "Wachten op het volgende bericht.",
+        "failed": "Deze chat kon niet worden geopend.",
+        "needsScope": "Verzenden heeft de Twitch-toestemming {scope} nodig. Geef die opnieuw om door te gaan.",
+        "needsReadScope": "Deze chat lezen heeft de Twitch-toestemming {scope} nodig.",
+        "allowReading": "Chat lezen toestaan",
+        "placeholder": "Bericht aan {name}",
+        "send": "Verstuur"
+      },
       "popout": "Los venster",
       "copyDockLink": "Docklink kopiëren",
       "identity": {

@@ -11,7 +11,7 @@
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import type * as HubModule from '../dashboardHub';
-import { sendTwitchChat } from '../dashboardHub';
+import { joinTwitchChat, sendTwitchChat } from '../dashboardHub';
 import { useExternalChat } from '../useExternalChat';
 
 vi.mock('../dashboardHub', () => ({
@@ -19,6 +19,8 @@ vi.mock('../dashboardHub', () => ({
   joinTwitchChat: vi.fn<typeof HubModule.joinTwitchChat>(async () => ({
     success: true,
     error: null,
+    errorCode: null,
+    missingScope: null,
   })),
   leaveTwitchChat: vi.fn<typeof HubModule.leaveTwitchChat>(async () => undefined),
   sendTwitchChat: vi.fn<typeof HubModule.sendTwitchChat>(),
@@ -83,5 +85,21 @@ describe('useExternalChat send', () => {
 
     expect(sent).toBe(true);
     expect(chat.missingScope.value).toBeNull();
+  });
+
+  it('names the read permission when the join is refused for a missing scope', async () => {
+    vi.mocked(joinTwitchChat).mockResolvedValueOnce({
+      success: false,
+      error: 'Missing required scope.',
+      errorCode: 'missing_scope',
+      missingScope: 'user:read:chat',
+    });
+
+    const chat = useExternalChat('9001');
+
+    await vi.waitFor(() =>
+      expect(chat.failure.value).toBe('Missing required scope.'));
+
+    expect(chat.missingScope.value).toBe('user:read:chat');
   });
 });

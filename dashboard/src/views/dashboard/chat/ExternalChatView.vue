@@ -19,13 +19,13 @@ import { useRoute } from 'vue-router';
 import { useCurrentUser } from '@/api/auth';
 import { chatMessageMaxLength, type ChatLine as ChatLineData } from '@/api/chat';
 import { useStartScopeRegrant } from '@/api/chatIdentity';
-import { deviceApprovalQuery } from '@/api/signIn';
+import { deviceApprovalQuery, signInUrl } from '@/api/signIn';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import VirtualList from '@/components/layout/VirtualList.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { useExternalChat } from '@/realtime/useExternalChat';
+import { readScope, useExternalChat } from '@/realtime/useExternalChat';
 
 import { useChatDisplay } from './chatDisplay';
 import ChatLine from './components/ChatLine.vue';
@@ -57,6 +57,15 @@ async function submit(): Promise<void> {
   if (sent) {
     text.value = '';
   }
+}
+
+// Reading needs user:read:chat, which a sign-in grants: one click re-consents as a moderator and returns here.
+// Nothing is signed out. Sending (user:write:chat) uses the device re-grant below.
+const needsReadScope = computed(() =>
+  chat.missingScope.value === readScope);
+
+function allowReading(): void {
+  window.location.assign(signInUrl('twitch', route.fullPath, 'moderator'));
 }
 
 // The same additive re-consent the chat identity panel uses: nothing is signed out.
@@ -104,17 +113,20 @@ const approved = computed(() => approval.data.value?.status === 'authorized');
       <template #footer>
         <div v-if="chat.missingScope.value" class="flex flex-col gap-2 rounded-md border p-3" data-test="scope">
           <p class="text-sm">
-            {{ $t('dashboard.chat.external.needsScope', { scope: chat.missingScope.value }) }}
+            {{ $t(needsReadScope ? 'dashboard.chat.external.needsReadScope' : 'dashboard.chat.external.needsScope', { scope: chat.missingScope.value }) }}
           </p>
-          <p v-if="regrantCode && !approved" class="text-sm" data-test="regrant-code">
+          <Button v-if="needsReadScope" class="self-start" data-test="allow-read" @click="allowReading">
+            {{ $t('dashboard.chat.external.allowReading') }}
+          </Button>
+          <p v-if="!needsReadScope && regrantCode && !approved" class="text-sm" data-test="regrant-code">
             {{ $t('dashboard.chat.identity.enterCode', { code: regrantCode.userCode }) }}
             <a :href="regrantCode.verificationUri" target="_blank" rel="noopener" class="underline">
               {{ regrantCode.verificationUri }}
             </a>
           </p>
-          <p v-if="approved" class="text-sm">{{ $t('dashboard.chat.identity.approved') }}</p>
+          <p v-if="!needsReadScope && approved" class="text-sm">{{ $t('dashboard.chat.identity.approved') }}</p>
           <Button
-            v-if="!regrantCode"
+            v-if="!needsReadScope && !regrantCode"
             class="self-start"
             :disabled="regrant.isPending.value"
             data-test="regrant"

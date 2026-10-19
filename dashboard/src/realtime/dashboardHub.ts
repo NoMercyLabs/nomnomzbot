@@ -292,15 +292,16 @@ export async function stopDashboardHub(): Promise<void> {
   dashboardHubStatus.value = 'offline';
 }
 
-export type ExternalChatAnswer = { success: boolean; error: string | null };
-
-// The answer to a send: errorCode is the machine-readable failure, missingScope names the absent permission.
-export type ExternalChatSendAnswer = {
+// The answer to a join or a send: errorCode is the machine-readable failure, missingScope names the absent
+// permission.
+export type ExternalChatAnswer = {
   success: boolean;
   error: string | null;
   errorCode: string | null;
   missingScope: string | null;
 };
+
+export type ExternalChatSendAnswer = ExternalChatAnswer;
 
 // Opens a Twitch channel the bot does not serve; the lines arrive as ExternalChatEvent on this connection.
 export async function joinTwitchChat(twitchBroadcasterId: string): Promise<ExternalChatAnswer> {
@@ -308,7 +309,14 @@ export async function joinTwitchChat(twitchBroadcasterId: string): Promise<Exter
 
   const answer = await send<ExternalChatAnswer>('JoinTwitchChat', twitchBroadcasterId);
 
-  return answer ?? { success: false, error: 'The chat link is not up yet.' };
+  return (
+    answer ?? {
+      success: false,
+      error: 'The chat link is not up yet.',
+      errorCode: null,
+      missingScope: null,
+    }
+  );
 }
 
 export async function leaveTwitchChat(twitchBroadcasterId: string): Promise<void> {

@@ -18,6 +18,7 @@ import { onExternalChat, toChatLine, type ExternalChatPayload } from './external
 import { queryClient } from '@/api/queryClient';
 
 export const writeScope = 'user:write:chat';
+export const readScope = 'user:read:chat';
 
 export type ExternalChat = {
   lines: Ref<ChatLine[]>;
@@ -64,6 +65,10 @@ export function useExternalChat(twitchBroadcasterId: string) {
 
     if (!answer.success) {
       failure.value = answer.error;
+
+      missingScope.value = answer.errorCode === 'missing_scope'
+        ? answer.missingScope ?? readScope
+        : null;
     }
   }
 

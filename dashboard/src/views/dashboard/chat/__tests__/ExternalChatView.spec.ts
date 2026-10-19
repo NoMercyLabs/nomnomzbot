@@ -14,6 +14,7 @@ import { createPinia, setActivePinia } from 'pinia';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
+import { signInUrl } from '@/api/signIn';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import type * as HubModule from '@/realtime/dashboardHub';
 import { i18n } from '@/i18n';
@@ -28,6 +29,8 @@ const hub = vi.hoisted(() => ({
   joinTwitchChat: vi.fn<typeof HubModule.joinTwitchChat>(async (_id: string) => ({
     success: true,
     error: null,
+    errorCode: null,
+    missingScope: null,
   })),
   leaveTwitchChat: vi.fn<typeof HubModule.leaveTwitchChat>(async (_id: string) => undefined),
   sendTwitchChat: vi.fn<typeof HubModule.sendTwitchChat>(
@@ -120,7 +123,13 @@ describe('ExternalChatView', () => {
     vi.spyOn(HTMLElement.prototype, 'clientHeight', 'get').mockReturnValue(4000);
     vi.spyOn(HTMLElement.prototype, 'offsetWidth', 'get').mockReturnValue(600);
     HTMLElement.prototype.scrollTo = function (): void {} as typeof HTMLElement.prototype.scrollTo;
-    hub.joinTwitchChat.mockResolvedValue({ success: true, error: null });
+
+    hub.joinTwitchChat.mockResolvedValue({
+      success: true,
+      error: null,
+      errorCode: null,
+      missingScope: null,
+    });
 
     hub.sendTwitchChat.mockResolvedValue({
       success: true,
@@ -199,6 +208,31 @@ describe('ExternalChatView', () => {
     expect(prompt.exists()).toBe(true);
     expect(prompt.text()).toContain('user:write:chat');
     expect(wrapper.find('[data-test="regrant"]').exists()).toBe(true);
+  });
+
+  it('offers one allow-reading button when the join lacks user:read:chat, and it signs in as a moderator', async () => {
+    hub.joinTwitchChat.mockResolvedValue({
+      success: false,
+      error: 'Missing required scope.',
+      errorCode: 'missing_scope',
+      missingScope: 'user:read:chat',
+    });
+
+    const assign = vi.fn();
+
+    vi.stubGlobal('location', { ...window.location, assign });
+
+    const wrapper = await open();
+    const prompt = wrapper.find('[data-test="scope"]');
+
+    expect(prompt.text()).toContain('user:read:chat');
+    expect(wrapper.find('[data-test="regrant"]').exists()).toBe(false);
+
+    await wrapper.find('[data-test="allow-read"]').trigger('click');
+
+    const returnTo = `/me/otherstreamer/twitch?id=${broadcasterId}`;
+
+    expect(assign).toHaveBeenCalledExactlyOnceWith(signInUrl('twitch', returnTo, 'moderator'));
   });
 
   it('shows no moderation controls', async () => {
