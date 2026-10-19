@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import {
+  keepPreviousData,
   useMutation,
   useQuery,
   useQueryClient,
@@ -49,30 +50,40 @@ export type PreviewParams = {
   justification: string;
 };
 
+export type TrustSafetyReviewPage =
+  components['schemas']['PaginatedResponseOfTrustSafetyReviewItem'];
+
 const version = '1';
-const REVIEW_TAKE: number = 50;
+
+export const REVIEW_TAKE: number = 50;
 
 export const trustSafetyPrefix: KeyParts = ['admin', 'trust-safety'];
 
 export function useReviewQueue(
   justification: MaybeRefOrGetter<string>,
   allowed: MaybeRefOrGetter<boolean>,
-): UseQueryReturnType<TrustSafetyReviewItem[], Error> {
+  page: MaybeRefOrGetter<number>,
+): UseQueryReturnType<TrustSafetyReviewPage, Error> {
   return useQuery({
     queryKey: computed((): KeyParts => [
       'admin',
       'trust-safety',
       'review-queue',
       toValue(justification),
+      toValue(page),
     ]),
     enabled: computed(() => toValue(allowed) && toValue(justification).trim() !== ''),
-    queryFn: async (): Promise<TrustSafetyReviewItem[]> => {
+    queryFn: async (): Promise<TrustSafetyReviewPage> => {
       const { data, error, response } = await client.GET(
         '/api/v{version}/admin/trust-safety/review-queue',
         {
           params: {
             path: { version },
-            query: { justification: toValue(justification), Take: REVIEW_TAKE },
+            query: {
+              justification: toValue(justification),
+              Page: toValue(page),
+              Take: REVIEW_TAKE,
+            },
           },
         },
       );
@@ -80,8 +91,9 @@ export function useReviewQueue(
       if (error !== undefined)
         throw problemError('trust safety review queue', response.status, error);
 
-      return data?.data ?? [];
+      return data ?? {};
     },
+    placeholderData: keepPreviousData,
   });
 }
 

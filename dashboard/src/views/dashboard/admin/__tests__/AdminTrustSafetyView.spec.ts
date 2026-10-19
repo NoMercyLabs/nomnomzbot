@@ -35,7 +35,7 @@ type Call = {
 const calls: Call[] = [];
 
 // The signed-in admin holds every platform key, so every action button shows.
-const held = vi.hoisted(() => ({ keys: null as string[] | null }));
+const held = vi.hoisted(() => ({ keys: null as string[] | null, queueTotal: 1 }));
 
 vi.mock('@/composables/usePlatformCan', () => ({
   usePlatformCan: () => ({
@@ -57,6 +57,7 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/review-queue'))
         return {
           data: {
+            total: held.queueTotal,
             data: [
               {
                 detectionId: 'd1',
@@ -139,6 +140,7 @@ let pinia: Pinia;
 beforeEach(() => {
   calls.length = 0;
   held.keys = null;
+  held.queueTotal = 1;
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -378,6 +380,29 @@ describe('AdminTrustSafetyView', () => {
     );
 
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['admin', 'trust-safety'] });
+  });
+
+  it('pages the review queue past the first 50 rows', async () => {
+    held.queueTotal = 120;
+    await open();
+    await giveReason('weekly review');
+
+    expect(text()).toContain('Page 1 of 3');
+
+    byText('button', 'Next')!.click();
+    await settle();
+
+    const queueReads = calls.filter((call) => call.path.endsWith('/review-queue'));
+
+    expect(queueReads.at(-1)?.options?.params?.query?.Page).toBe(2);
+    expect(text()).toContain('Page 2 of 3');
+  });
+
+  it('shows no pager when the queue fits one page', async () => {
+    await open();
+    await giveReason('weekly review');
+
+    expect(text()).not.toContain('Page 1 of');
   });
 
   it('registers an admin-only route', () => {

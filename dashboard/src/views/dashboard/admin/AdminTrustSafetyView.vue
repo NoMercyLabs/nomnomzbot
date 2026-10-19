@@ -13,7 +13,7 @@
 // The platform trust and safety desk: review the automatic account actions, see accounts flagged across
 // channels, and apply or lift a network-wide block. The bot audits every call with the operator's reason,
 // so nothing loads or changes until one is stated. Other operators' changes arrive over the admin hub.
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
@@ -24,10 +24,12 @@ import {
   useNetworkBlocks,
   useReviewDecision,
   useReviewQueue,
+  REVIEW_TAKE,
   type NetworkBlock,
   type PreviewParams,
   type TrustSafetyReviewItem,
 } from '@/api/adminTrustSafety';
+import AdminPager from './components/AdminPager.vue';
 import TrustBlockRow from './components/TrustBlockRow.vue';
 import TrustReviewRow from './components/TrustReviewRow.vue';
 import TrustSignalRow from './components/TrustSignalRow.vue';
@@ -58,7 +60,17 @@ const failed = ref(false);
 const canReview = computed(() => can('trust-safety:review'));
 const canManageBlocks = computed(() => can('network:block:manage'));
 
-const queue = useReviewQueue(justification, canReview);
+const queuePage = ref(1);
+const queue = useReviewQueue(justification, canReview, queuePage);
+const queueRows = computed<TrustSafetyReviewItem[]>(() => queue.data.value?.data ?? []);
+const queueTotal = computed(() => Number(queue.data.value?.total ?? 0));
+const queuePages = computed(() => Math.max(1, Math.ceil(queueTotal.value / REVIEW_TAKE)));
+
+// A new reason is a new read, so the queue starts again at its first page.
+watch(justification, () => {
+  queuePage.value = 1;
+});
+
 const signals = useCrossTenantSignals(justification, canReview);
 const blocks = useNetworkBlocks(justification, canManageBlocks);
 const preview = useBlockPreview(previewParams);
@@ -84,8 +96,8 @@ const overturnReview = useReviewDecision('overturn');
 const lift = useLiftNetworkBlock();
 const apply = useApplyNetworkBlock();
 
-const queueState = usePanelState(queue, (rows) =>
-  rows.length === 0);
+const queueState = usePanelState(queue, (page) =>
+  (page.data?.length ?? 0) === 0);
 const signalState = usePanelState(signals, (rows) =>
   rows.length === 0);
 const blockState = usePanelState(blocks, (rows) =>
@@ -236,7 +248,7 @@ function run(current: Step): Promise<void> {
       >
         <ul class="divide-y divide-border">
           <TrustReviewRow
-            v-for="item in queue.data.value ?? []"
+            v-for="item in queueRows"
             :key="item.detectionId"
             :item="item"
             :can-review="canReview"
@@ -244,6 +256,14 @@ function run(current: Step): Promise<void> {
             @overturn="step = { kind: 'overturn', item }"
           />
         </ul>
+        <template v-if="queuePages > 1" #footer>
+          <AdminPager
+            :page="queuePage"
+            :pages="queuePages"
+            @previous="queuePage -= 1"
+            @next="queuePage += 1"
+          />
+        </template>
       </PanelCard>
 
       <div class="flex min-w-0 flex-col gap-3">
@@ -298,12 +318,12 @@ function run(current: Step): Promise<void> {
                 <Input
                   v-model="targetId"
                   data-block-target
-                  class="w-48"
+                  class="min-w-40 flex-1"
                   :placeholder="$t('dashboard.admin.trustSafety.apply.target')"
                 />
                 <Input
                   v-model="reason"
-                  class="min-w-0 flex-1"
+                  class="min-w-48 flex-[2]"
                   :placeholder="$t('dashboard.admin.trustSafety.apply.reason')"
                 />
                 <Button
