@@ -49,7 +49,12 @@ const { can } = useCan();
 const history = usePollHistory(channelId);
 const pollsQuery = usePolls(channelId);
 const predictionsQuery = usePredictions(channelId);
-const kind = useLocalStorage<HistoryKind>('nnz.polls.kind', 'all');
+const kind = useLocalStorage<HistoryKind>('nnz.polls.kind', 'all', {
+  serializer: {
+    read: (raw: string): HistoryKind => historyKinds.find((value) => value === raw) ?? 'all',
+    write: (value: HistoryKind): string => value,
+  },
+});
 
 const pollOpen = ref(false);
 const predictionOpen = ref(false);
@@ -120,7 +125,11 @@ const state = usePanelState(history, () =>
       </template>
       <div class="flex flex-col gap-3">
         <ul class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">
-          <PollHistoryCard v-for="item in split.voted" :key="`${item.kind}:${item.id}`" :item="item" />
+          <PollHistoryCard
+            v-for="item in split.voted"
+            :key="`${item.kind}:${item.id}`"
+            :item="item"
+          />
         </ul>
         <div v-if="split.empty.length > 0" class="flex flex-col gap-3">
           <Button
@@ -131,7 +140,7 @@ const state = usePanelState(history, () =>
             :aria-expanded="showEmpty"
             @click="showEmpty = !showEmpty"
           >
-            {{ t('dashboard.polls.noVotes', { count: split.empty.length }, split.empty.length) }}
+            {{ t("dashboard.polls.noVotes", { count: split.empty.length }, split.empty.length) }}
             <ChevronDown class="transition-transform" :class="showEmpty ? 'rotate-180' : ''" />
           </Button>
           <ul v-if="showEmpty" class="grid gap-3 sm:grid-cols-2 xl:grid-cols-3">

@@ -332,6 +332,17 @@ describe('PollsView history', () => {
     expect(cardTexts().some((card) => card.includes('Nobody answered'))).toBe(true);
   });
 
+  it('falls back to all kinds when the remembered kind is not one we offer', async () => {
+    localStorage.setItem('nnz.polls.kind', 'bogus');
+    await open();
+
+    expect(cardTexts()).toHaveLength(3);
+
+    expect(document.querySelector('[data-segment][data-state="on"]')?.textContent).toContain(
+      en.dashboard.polls.kinds.all,
+    );
+  });
+
   it('filters by kind and keeps the chosen kind after a remount', async () => {
     await open();
 
