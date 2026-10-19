@@ -26,3 +26,26 @@ Object.defineProperty(SVGElement.prototype, 'getBBox', {
   }),
   configurable: true,
 });
+
+// The real frame (DashboardLayout) mounts the one TooltipProvider, so a row never carries its own. A spec
+// that mounts a single row has no frame; this stands the frame's provider behind every Tooltip so the row
+// still renders. structure.spec guards that only the frames mount a provider in the app.
+vi.mock('@/components/ui/tooltip/Tooltip.vue', async () => {
+  const { defineComponent, h } = await import('vue');
+  const actual = await vi.importActual<typeof import('@/components/ui/tooltip/Tooltip.vue')>(
+    '@/components/ui/tooltip/Tooltip.vue',
+  );
+  const provider = await vi.importActual<typeof import('@/components/ui/tooltip/TooltipProvider.vue')>(
+    '@/components/ui/tooltip/TooltipProvider.vue',
+  );
+
+  return {
+    default: defineComponent({
+      name: 'FramedTooltip',
+      inheritAttrs: false,
+      setup: (_, { attrs, slots }) => () =>
+        h(provider.default, { delayDuration: 150 }, () =>
+          h(actual.default, attrs, slots)),
+    }),
+  };
+});

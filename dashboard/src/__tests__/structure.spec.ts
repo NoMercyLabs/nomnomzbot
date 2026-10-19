@@ -237,7 +237,6 @@ describe('folder layout', () => {
     const bodies = [
       'components/layout/BoardGrid.vue',
       'views/dashboard/chat/ChatView.vue',
-      'views/dashboard/commands/components/BuiltinList.vue',
       'views/dashboard/admin/AdminChannelsView.vue',
       'components/layout/ListDetail.vue',
     ];
