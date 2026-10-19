@@ -446,10 +446,20 @@ public sealed class YouTubeTransportControlTests
 
         skipped.IsSuccess.Should().BeTrue(skipped.ErrorMessage);
         rig.Engines.YouTube!.StartedVideoIds.Should()
+            .Equal(
+                [First],
+                "the director waits for the player's paused report before the next start"
+            );
+
+        await ReportAsync(rig, First, "paused");
+
+        rig.Engines.YouTube!.StartedVideoIds.Should()
             .Equal([First, Second], "the director starts the next request exactly once");
         rig.Notifier.PlayedVideoIds.Should()
             .Equal([First, Second], "the director starts the next request, not the provider");
-        rig.Notifier.Of("youtube.stop").Should().BeEmpty();
+        rig.Notifier.Of("youtube.stop")
+            .Should()
+            .Equal([(OwnerWidget, "youtube.stop")], "the director stops the skipped video once");
     }
 
     [Fact]
@@ -530,9 +540,21 @@ public sealed class YouTubeTransportControlTests
         await ReportAsync(rig, Third, "playing");
         await ReportAsync(rig, Third, "ended");
 
+        // The once video is no request, so its end removes nothing from the queue. With no resume pending the
+        // director has nothing playing and a request waits, so it starts that request, exactly once.
+        rig.Engines.YouTube!.StartedVideoIds.Should()
+            .Equal(
+                [First, Second],
+                "the waiting request starts once, the once video starts nothing"
+            );
         rig.Notifier.PlayedVideoIds.Should()
-            .Equal([First, Third], "the ended once video is no request, so nothing is pushed");
-        QueuedUris(rig).Should().Equal([Watch(Second)]);
+            .Equal(
+                [First, Third, Second],
+                "the once video ending hands the player to the waiting request"
+            );
+        QueuedUris(rig)
+            .Should()
+            .Equal([Watch(Second)], "the started request leaves the queue only when it plays");
     }
 
     [Fact]
@@ -628,7 +650,8 @@ public sealed class YouTubeTransportControlTests
         await ReportAsync(rig, First, "ended", 200_000);
 
         // The resumed video is no request: when it ends the director, not this path, starts the waiting one.
-        rig.Notifier.PlayedVideoIds.Should().Equal([First, Third, First]);
+        rig.Engines.YouTube!.StartedVideoIds.Should().Equal([First, Second]);
+        rig.Notifier.PlayedVideoIds.Should().Equal([First, Third, First, Second]);
         QueuedUris(rig).Should().Equal([Watch(Second)]);
     }
 

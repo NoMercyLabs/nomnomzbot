@@ -267,7 +267,10 @@ public sealed class YouTubeSongRequestRulesTests
         YouTubeStartCount()
             .Should()
             .Be(1, "the director starts the request once, when the song ends");
-        _store.GetInFlight(ChannelId.ToString())!.TrackUri.Should().Be(YouTubeUri);
+        PlaybackState started = DirectorRig.Of(_store).Registry.StateOf(ChannelId);
+        started.Kind.Should().Be(PlaybackStateKind.Starting);
+        started.Engine.Should().Be(EngineKind.YouTube);
+        started.Item!.Uri.Should().Be(YouTubeUri);
     }
 
     [Fact]
