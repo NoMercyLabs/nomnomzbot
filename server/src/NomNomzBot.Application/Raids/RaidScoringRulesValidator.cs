@@ -36,9 +36,10 @@ public static class RaidScoringRulesValidator
 
         foreach (RaidKeywordRule keyword in rules.Keywords)
         {
-            if (keyword.Words.Count == 0)
+            IReadOnlyList<string>? words = keyword.Words;
+            if (words is not { Count: > 0 })
                 problems.Add($"Keyword rule '{keyword.Label}' has no words.");
-            if (keyword.Words.Any(string.IsNullOrWhiteSpace))
+            if (words?.Any(string.IsNullOrWhiteSpace) == true)
                 problems.Add($"Keyword rule '{keyword.Label}' has an empty word.");
             if (keyword is { MatchTags: false, MatchTitle: false })
                 problems.Add($"Keyword rule '{keyword.Label}' matches neither tags nor title.");

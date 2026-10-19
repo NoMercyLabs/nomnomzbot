@@ -12,7 +12,9 @@ namespace NomNomzBot.Application.Raids;
 
 /// <summary>
 /// One channel's raid-target preferences. The scorer owns no rule of its own: every point it hands
-/// out comes from this object. A rule with weight 0 adds nothing and shows no reason.
+/// out comes from this object. A rule with weight 0 adds nothing and shows no reason. A key a stored
+/// blob or request body leaves out takes its value from <see cref="RaidScoringDefaults"/>; pass the
+/// deserialized object through <see cref="RaidScoringDefaults.Resolve"/> before use.
 /// </summary>
 /// <param name="PreferredCategories">Categories this channel likes, matched by name ignoring case, first match wins.</param>
 /// <param name="OtherCategoryWeight">Points for a category that is not in <paramref name="PreferredCategories"/>.</param>
@@ -23,14 +25,14 @@ namespace NomNomzBot.Application.Raids;
 /// <param name="Balance">Who owes whom a raid.</param>
 /// <param name="FollowedWeight">Points when the broadcaster follows the candidate.</param>
 public sealed record RaidScoringRules(
-    IReadOnlyList<RaidCategoryRule> PreferredCategories,
-    int OtherCategoryWeight,
-    string OtherCategoryLabel,
-    IReadOnlyList<RaidKeywordRule> Keywords,
-    IReadOnlyList<RaidViewerBand> ViewerBands,
-    RaidRecencyRules Recency,
-    RaidBalanceWeights Balance,
-    int FollowedWeight
+    IReadOnlyList<RaidCategoryRule> PreferredCategories = null!,
+    int OtherCategoryWeight = RaidScoringDefaults.OtherCategoryWeight,
+    string OtherCategoryLabel = RaidScoringDefaults.OtherCategoryLabel,
+    IReadOnlyList<RaidKeywordRule> Keywords = null!,
+    IReadOnlyList<RaidViewerBand> ViewerBands = null!,
+    RaidRecencyRules Recency = null!,
+    RaidBalanceWeights Balance = null!,
+    int FollowedWeight = RaidScoringDefaults.FollowedWeight
 )
 {
     /// <summary>
@@ -39,14 +41,14 @@ public sealed record RaidScoringRules(
     /// </summary>
     public static RaidScoringRules Neutral { get; } =
         new(
-            PreferredCategories: [],
-            OtherCategoryWeight: 0,
-            OtherCategoryLabel: "",
-            Keywords: [],
-            ViewerBands: [],
-            Recency: new RaidRecencyRules(0, [], 0, ""),
-            Balance: new RaidBalanceWeights(0, 0, 0),
-            FollowedWeight: 0
+            PreferredCategories: RaidScoringDefaults.PreferredCategories,
+            OtherCategoryWeight: RaidScoringDefaults.OtherCategoryWeight,
+            OtherCategoryLabel: RaidScoringDefaults.OtherCategoryLabel,
+            Keywords: RaidScoringDefaults.Keywords,
+            ViewerBands: RaidScoringDefaults.ViewerBands,
+            Recency: RaidScoringDefaults.Recency,
+            Balance: RaidScoringDefaults.Balance,
+            FollowedWeight: RaidScoringDefaults.FollowedWeight
         );
 }
 
@@ -73,10 +75,10 @@ public sealed record RaidRecencyStep(int WithinDays, int Weight, string Note);
 
 /// <summary>Points by time since the last outgoing raid: never, within each step, or older than all steps.</summary>
 public sealed record RaidRecencyRules(
-    int NeverRaidedWeight,
-    IReadOnlyList<RaidRecencyStep> Steps,
-    int OlderWeight,
-    string OlderNote
+    int NeverRaidedWeight = RaidScoringDefaults.NeverRaidedWeight,
+    IReadOnlyList<RaidRecencyStep> Steps = null!,
+    int OlderWeight = RaidScoringDefaults.OlderWeight,
+    string OlderNote = RaidScoringDefaults.OlderNote
 );
 
 /// <summary>
@@ -84,7 +86,7 @@ public sealed record RaidRecencyRules(
 /// each further one, and the points when raids are level.
 /// </summary>
 public sealed record RaidBalanceWeights(
-    int OwedBaseWeight,
-    int OwedExtraWeight,
-    int ReciprocalWeight
+    int OwedBaseWeight = RaidScoringDefaults.OwedBaseWeight,
+    int OwedExtraWeight = RaidScoringDefaults.OwedExtraWeight,
+    int ReciprocalWeight = RaidScoringDefaults.ReciprocalWeight
 );

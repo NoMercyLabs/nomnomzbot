@@ -106,6 +106,25 @@ public sealed class LiveOpsRaidScoringRulesTests : IDisposable
         ((StatusResponseDto<RaidScoringRules>)ok.Value!).Data.Should().Be(RaidScoringRules.Neutral);
     }
 
+    [Fact]
+    public async Task A_put_that_leaves_keys_out_stores_their_defaults_and_does_not_fail()
+    {
+        RaidScoringRules partial = new() { FollowedWeight = 12 };
+
+        IActionResult put = await _controller.UpdateRaidScoringRules(
+            Channel.ToString(),
+            partial,
+            CancellationToken.None
+        );
+
+        OkObjectResult ok = put.Should().BeOfType<OkObjectResult>().Subject;
+        RaidScoringRules saved = ((StatusResponseDto<RaidScoringRules>)ok.Value!).Data!;
+        saved.FollowedWeight.Should().Be(12);
+        saved.PreferredCategories.Should().BeEquivalentTo(RaidScoringDefaults.PreferredCategories);
+        saved.Recency.Should().BeEquivalentTo(RaidScoringDefaults.Recency);
+        saved.Balance.Should().BeEquivalentTo(RaidScoringDefaults.Balance);
+    }
+
     public static TheoryData<string, RaidScoringRules> BadRules() =>
         new()
         {

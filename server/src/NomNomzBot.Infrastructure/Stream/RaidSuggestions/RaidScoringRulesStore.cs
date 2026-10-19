@@ -36,8 +36,16 @@ internal sealed class RaidScoringRulesStore(IApplicationDbContext db) : IRaidSco
         if (row?.Value is null)
             return RaidScoringRules.Neutral;
 
-        return JsonSerializer.Deserialize<RaidScoringRules>(row.Value, Json)
-            ?? RaidScoringRules.Neutral;
+        try
+        {
+            return RaidScoringDefaults.Resolve(
+                JsonSerializer.Deserialize<RaidScoringRules>(row.Value, Json)
+            );
+        }
+        catch (JsonException)
+        {
+            return RaidScoringRules.Neutral;
+        }
     }
 
     public async Task<Result<RaidScoringRules>> SaveAsync(
@@ -46,7 +54,8 @@ internal sealed class RaidScoringRulesStore(IApplicationDbContext db) : IRaidSco
         CancellationToken cancellationToken = default
     )
     {
-        Result validation = RaidScoringRulesValidator.Validate(rules);
+        RaidScoringRules resolved = RaidScoringDefaults.Resolve(rules);
+        Result validation = RaidScoringRulesValidator.Validate(resolved);
         if (validation.IsFailure)
             return Result.Failure<RaidScoringRules>(
                 validation.ErrorMessage,
@@ -54,7 +63,7 @@ internal sealed class RaidScoringRulesStore(IApplicationDbContext db) : IRaidSco
                 validation.ErrorDetail
             );
 
-        string json = JsonSerializer.Serialize(rules, Json);
+        string json = JsonSerializer.Serialize(resolved, Json);
         ChannelConfiguration? row = await FindRowAsync(channelId, cancellationToken);
         if (row is not null)
         {
@@ -73,7 +82,7 @@ internal sealed class RaidScoringRulesStore(IApplicationDbContext db) : IRaidSco
         }
 
         await db.SaveChangesAsync(cancellationToken);
-        return Result.Success(rules);
+        return Result.Success(resolved);
     }
 
     private Task<ChannelConfiguration?> FindRowAsync(
