@@ -140,6 +140,18 @@
         "sources": "Bronnen",
         "allowSpotify": "Spotify-nummers toestaan",
         "allowYouTube": "YouTube-nummers toestaan",
+        "whoSpotify": "Wie Spotify-nummers mag aanvragen",
+        "whoYouTube": "Wie YouTube-nummers mag aanvragen",
+        "sourceRole": {
+          "Everyone": "Iedereen",
+          "Subscriber": "Abonnees en hoger",
+          "Vip": "VIP's en hoger",
+          "Artist": "Artiesten en hoger",
+          "Moderator": "Moderators en hoger",
+          "LeadModerator": "Hoofdmoderators en hoger",
+          "Editor": "Editors en hoger",
+          "Broadcaster": "Alleen ik"
+        },
         "preferred": "Eerst zoeken bij",
         "providers": {
           "auto": "Automatisch",

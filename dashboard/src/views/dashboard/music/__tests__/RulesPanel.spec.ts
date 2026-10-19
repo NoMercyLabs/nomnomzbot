@@ -82,13 +82,31 @@ const blockedRow = (id: string, title: string) =>
     createdAt: '2026-10-01T10:00:00Z',
   }) as const satisfies Record<string, unknown>;
 
+const matrixRow = (actionKey: string, effectiveLevel: number) =>
+  ({
+    actionDefinitionId: actionKey,
+    actionKey,
+    plane: 0,
+    defaultLevel: effectiveLevel,
+    floorLevel: 0,
+    floorTier: 0,
+    isGrantableViaPermit: true,
+    overrideLevel: null,
+    effectiveLevel,
+  }) as const satisfies Record<string, unknown>;
+
+const matrix = [matrixRow('music:request:spotify', 0), matrixRow('music:request:youtube', 40)];
+
 function write(method: string, path: string, options?: Options): Answer {
   calls.push({
     method,
     path,
-    blockedTrackId: options?.params?.path?.blockedTrackId,
+    blockedTrackId: options?.params?.path?.blockedTrackId ?? options?.params?.path?.actionKey,
     body: options?.body,
   });
+
+  if (path.includes('/action-permissions/'))
+    return { response: { status: 200, ok: true } };
 
   if (method === 'PUT') {
     config = { ...config, ...(options?.body as Record<string, unknown>) };
@@ -122,6 +140,9 @@ vi.mock('@/api/client', () => ({
 
       if (path.endsWith('/music/playlists'))
         return ok(playlists);
+
+      if (path.endsWith('/action-permissions'))
+        return ok(matrix);
 
       return ok(blocked.map((row) => ({ ...row })));
     },
@@ -206,13 +227,13 @@ const press = (type: string): PointerEvent =>
   });
 
 // reka-ui opens a select on pointerdown and picks an option on pointerup.
-async function pickPlaylist(name: string): Promise<void> {
+async function pickPlaylist(name: string, setting = 'banger-playlist'): Promise<void> {
   Element.prototype.hasPointerCapture = (): boolean => false;
   Element.prototype.setPointerCapture = (): void => undefined;
   Element.prototype.releasePointerCapture = (): void => undefined;
 
   document.body
-    .querySelector<HTMLElement>('[data-setting="banger-playlist"]')
+    .querySelector<HTMLElement>(`[data-setting="${setting}"]`)
     ?.dispatchEvent(press('pointerdown'));
 
   await settle();
@@ -330,6 +351,33 @@ describe('RulesPanel', () => {
       maxQueueSize: 60,
       maxRequestsPerRole: { vip: 3, moderator: 5 },
     });
+  });
+
+  it('shows who may request YouTube songs and saves a new role as the channel rule for that service', async () => {
+    config = { ...baseConfig(), allowYouTube: true };
+    await open();
+
+    const youtube = document.body.querySelector('[data-setting="who-youtube"]');
+
+    expect(youtube?.textContent).toContain('Only me');
+
+    await pickPlaylist('Moderators and up', 'who-youtube');
+
+    const rule = calls.find((call) => call.path.includes('/action-permissions/'));
+
+    expect(rule).toEqual({
+      method: 'PUT',
+      path: '/api/v{version}/channels/{channelId}/action-permissions/{actionKey}',
+      blockedTrackId: 'music:request:youtube',
+      body: { level: 10 },
+    });
+  });
+
+  it('hides the YouTube role choice while YouTube songs are off', async () => {
+    await open();
+
+    expect(document.body.querySelector('[data-setting="who-youtube"]')).toBeNull();
+    expect(document.body.querySelector('[data-setting="who-spotify"]')?.textContent).toContain('Everyone');
   });
 
   it('saves the sources and the preferred provider', async () => {

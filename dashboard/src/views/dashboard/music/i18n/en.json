@@ -140,6 +140,18 @@
         "sources": "Sources",
         "allowSpotify": "Allow Spotify songs",
         "allowYouTube": "Allow YouTube songs",
+        "whoSpotify": "Who can request Spotify songs",
+        "whoYouTube": "Who can request YouTube songs",
+        "sourceRole": {
+          "Everyone": "Everyone",
+          "Subscriber": "Subscribers and up",
+          "Vip": "VIPs and up",
+          "Artist": "Artists and up",
+          "Moderator": "Moderators and up",
+          "LeadModerator": "Lead moderators and up",
+          "Editor": "Editors and up",
+          "Broadcaster": "Only me"
+        },
         "preferred": "Look here first",
         "providers": {
           "auto": "Automatic",

@@ -42,7 +42,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { rungOf, rungs, useActionMatrix, useSetActionLevel, type RungName } from '@/api/permissions';
 import { musicProviders, musicRoleRungs, musicTrustLevels } from '@/api/vocabulary';
+import OptionSelect, { type Option } from '@/views/dashboard/settings/permissions/components/OptionSelect.vue';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import { useCan } from '@/composables/useCan';
@@ -77,6 +79,32 @@ const playlistsQuery = useMusicPlaylists(channelId);
 const save = useSaveMusicConfig(channelId);
 const unblock = useUnblockTrack(channelId);
 const block = useBlockTrack(channelId);
+const matrix = useActionMatrix(channelId);
+const setLevel = useSetActionLevel(channelId);
+
+// Who may request from each service is the channel's role rule for that service's action key.
+const sourceActions = {
+  spotify: 'music:request:spotify',
+  youtube: 'music:request:youtube',
+} as const satisfies Record<string, string>;
+
+function sourceRung(actionKey: string): RungName | undefined {
+  const row = matrix.data.value?.find((entry) => entry.actionKey === actionKey);
+
+  return row
+    ? rungOf(row.effectiveLevel)
+    : undefined;
+}
+
+const rungOptions = computed<Option[]>(() =>
+  rungs.map((rung) => ({
+    value: rung.name,
+    label: t(`dashboard.music.rules.sourceRole.${rung.name}`),
+  })));
+
+function setSourceRung(actionKey: string, rung: string): void {
+  setLevel.mutate({ actionKey, rung: rung as RungName });
+}
 
 const state = usePanelState(configQuery, (config: MusicConfig | null): boolean =>
   config === null);
@@ -322,6 +350,19 @@ const missing = computed<KeyValueItem[]>(() =>
               data-setting="allow-spotify"
             />
           </label>
+          <div v-if="draft.allowSpotify" class="flex items-center gap-3 text-sm">
+            <span class="min-w-0 flex-1 text-muted-foreground">{{
+              $t("dashboard.music.rules.whoSpotify")
+            }}</span>
+            <OptionSelect
+              :model-value="sourceRung(sourceActions.spotify)"
+              :options="rungOptions"
+              :label="$t('dashboard.music.rules.whoSpotify')"
+              :disabled="!can('roles:manage') || setLevel.isPending.value"
+              data-setting="who-spotify"
+              @update:model-value="setSourceRung(sourceActions.spotify, $event)"
+            />
+          </div>
           <label class="flex items-center gap-3 text-sm">
             <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowYouTube") }}</span>
             <GatedSwitch
@@ -330,6 +371,19 @@ const missing = computed<KeyValueItem[]>(() =>
               data-setting="allow-youtube"
             />
           </label>
+          <div v-if="draft.allowYouTube" class="flex items-center gap-3 text-sm">
+            <span class="min-w-0 flex-1 text-muted-foreground">{{
+              $t("dashboard.music.rules.whoYouTube")
+            }}</span>
+            <OptionSelect
+              :model-value="sourceRung(sourceActions.youtube)"
+              :options="rungOptions"
+              :label="$t('dashboard.music.rules.whoYouTube')"
+              :disabled="!can('roles:manage') || setLevel.isPending.value"
+              data-setting="who-youtube"
+              @update:model-value="setSourceRung(sourceActions.youtube, $event)"
+            />
+          </div>
           <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.preferred") }}</p>
           <RadioGroup v-model="draft.preferredProvider" class="gap-2">
             <label
