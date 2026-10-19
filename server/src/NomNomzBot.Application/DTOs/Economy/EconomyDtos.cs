@@ -209,7 +209,6 @@ public sealed record GameConfigDto(
     decimal? WinChancePercent,
     decimal? PayoutMultiplier,
     int CooldownSeconds,
-    int CooldownFloorSeconds,
     int? MaxPlaysPerStream,
     string Permission,
     IReadOnlyDictionary<string, object?>? Config

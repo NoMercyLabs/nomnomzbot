@@ -301,37 +301,6 @@ public sealed class GameServiceTests
         result.Value.CooldownSeconds.Should().Be(300);
     }
 
-    [Theory]
-    [InlineData("gambling", 300)]
-    [InlineData("minigame", 0)]
-    public async Task Upsert_reports_the_cooldown_floor_of_the_category(string category, int floor)
-    {
-        using SqliteTestDatabase database = SqliteTestDatabase.Open();
-        (GameService sut, _, _) = New(database, roll: 0.1);
-
-        Result<GameConfigDto> result = await sut.UpsertGameAsync(
-            Channel,
-            new(
-                "dice",
-                category,
-                IsEnabled: false,
-                Requires18Plus: false,
-                MinBet: 1,
-                MaxBet: 100,
-                HouseEdgePercent: 5,
-                WinChancePercent: 45,
-                PayoutMultiplier: 2,
-                CooldownSeconds: 0,
-                MaxPlaysPerStream: null,
-                Permission: "Everyone",
-                Config: null
-            )
-        );
-
-        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
-        result.Value.CooldownFloorSeconds.Should().Be(floor);
-    }
-
     // ─── ResetGameAsync — a channel's game back on the platform defaults ─────────────────────────────
 
     private static UpsertGameConfigRequest CustomCoinflip() =>

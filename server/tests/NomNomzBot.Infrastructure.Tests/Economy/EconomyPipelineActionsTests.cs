@@ -220,7 +220,6 @@ public sealed class EconomyPipelineActionsTests
                         50,
                         2,
                         0,
-                        0,
                         null,
                         "Everyone",
                         null

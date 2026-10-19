@@ -737,10 +737,6 @@ public sealed class GameService(
             // Report the ENFORCED cooldown (gambling is floored) so the dashboard never shows a value below
             // what the bot actually applies.
             EffectiveCooldownSeconds(g),
-            // The floor the category enforces; the category never lifts it (economy.md section 9).
-            g.Category == GameCategory.Gambling
-                ? GamblingCooldownFloorSeconds
-                : 0,
             g.MaxPlaysPerStream,
             g.Permission,
             g.ConfigJson is null
