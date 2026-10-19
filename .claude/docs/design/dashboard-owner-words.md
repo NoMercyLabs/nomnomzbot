@@ -159,3 +159,5 @@ it is really important to keep spotify doing what it does best while we correctl
 2026-10-20: "where are my stats, my compettitive views with other users on the channel?
 how do i search other channels as a viewer, mod or broadcaster?
 i want to be able to navigate to any channel and the ui reacting to my role and IAM permissions accordingly and actually view as the person visiting another channel, not as a bot tennant but as a normal viewer."
+2026-10-20: "i want you to use 10 agents at the same time so we can get ui changes done fast, but they need to be done correct following all my rules and applied all the nitpicks i had to give before i have to give them again"
+2026-10-20 (popout chat, the "..." menu: "Chat settings" and "Chat identity" wrap to two lines, no item shows that it opens a panel): "dropdowns, need chevron and the menu needs to be wider"
