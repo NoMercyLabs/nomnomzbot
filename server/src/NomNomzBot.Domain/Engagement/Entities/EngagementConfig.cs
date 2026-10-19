@@ -39,7 +39,7 @@ public class EngagementConfig : SoftDeletableEntity, ITenantScoped
     public string? StreakMilestonesJson { get; set; }
 
     /// <summary>Per-channel burst limiter for greetings (D4). Default 5s.</summary>
-    public int GreetCooldownSeconds { get; set; } = 5;
+    public int GreetCooldownSeconds { get; set; } = EngagementDefaults.GreetCooldownSeconds;
 
     public int ConfigSchemaVersion { get; set; } = 1;
 

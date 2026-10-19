@@ -50,6 +50,13 @@ public class EngagementController : BaseController
         return ResultResponse(await _engagement.GetConfigAsync(broadcasterId, ct));
     }
 
+    /// <summary>The config a channel with nothing saved resolves to, so the dashboard shows the real defaults.</summary>
+    [RequireAction("engagement:read")]
+    [HttpGet("config/defaults")]
+    [ProducesResponseType<StatusResponseDto<EngagementConfigDto>>(StatusCodes.Status200OK)]
+    public IActionResult GetConfigDefaults() =>
+        Ok(new StatusResponseDto<EngagementConfigDto> { Data = _engagement.GetDefaults() });
+
     /// <summary>Enable/disable the trigger moments and tune milestones + greet cooldown.</summary>
     [RequireAction("engagement:write")]
     [HttpPut("config")]

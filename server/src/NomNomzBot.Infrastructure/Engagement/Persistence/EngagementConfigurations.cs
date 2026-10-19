@@ -20,7 +20,9 @@ public class EngagementConfigConfiguration : IEntityTypeConfiguration<Engagement
     {
         builder.HasKey(e => e.Id);
         builder.Property(e => e.BroadcasterId).IsRequired();
-        builder.Property(e => e.GreetCooldownSeconds).HasDefaultValue(5);
+        builder
+            .Property(e => e.GreetCooldownSeconds)
+            .HasDefaultValue(EngagementDefaults.GreetCooldownSeconds);
         builder.Property(e => e.ConfigSchemaVersion).HasDefaultValue(1);
 
         // One config per channel — partial so a soft-deleted row never blocks re-creating it.

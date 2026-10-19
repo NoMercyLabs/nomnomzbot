@@ -581,8 +581,8 @@ public sealed class MediaShareService : IMediaShareService
     }
 
     /// <summary>
-    /// Evaluates the (optional) eligibility gate. The config's REST surface does not set
-    /// <c>EligibilityJson</c>, so this is dormant unless seeded; when set, <c>subOnly</c> is enforced
+    /// Evaluates the (optional) eligibility gate. The config's REST surface sets <c>EligibilityJson</c>
+    /// (the dashboard writes the subscribers-only switch); when set, <c>subOnly</c> is enforced
     /// against the viewer's community standing (the one truthfully-verifiable rule today).
     /// </summary>
     private async Task<Result> CheckEligibilityAsync(

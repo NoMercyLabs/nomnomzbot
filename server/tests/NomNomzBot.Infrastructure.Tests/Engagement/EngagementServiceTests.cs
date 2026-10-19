@@ -379,4 +379,17 @@ public sealed class EngagementServiceTests
         dto.StreakMilestones.Should().BeEmpty();
         dto.GreetCooldownSeconds.Should().Be(5);
     }
+
+    [Fact]
+    public async Task GetDefaults_ReturnsTheValuesAChannelWithNoRowResolvesTo()
+    {
+        Harness h = Build();
+
+        EngagementConfigDto defaults = h.Sut.GetDefaults();
+        EngagementConfigDto neverSet = (await h.Sut.GetConfigAsync(Channel)).Value;
+
+        defaults.Should().BeEquivalentTo(neverSet);
+        defaults.GreetCooldownSeconds.Should().Be(EngagementDefaults.GreetCooldownSeconds);
+        new EngagementConfig().GreetCooldownSeconds.Should().Be(defaults.GreetCooldownSeconds);
+    }
 }

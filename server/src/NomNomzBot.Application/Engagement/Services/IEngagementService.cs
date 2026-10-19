@@ -43,6 +43,9 @@ public interface IEngagementService
         CancellationToken ct = default
     );
 
+    /// <summary>What a channel with no saved config resolves to; the dashboard shows these as the defaults.</summary>
+    EngagementConfigDto GetDefaults();
+
     Task<Result<EngagementConfigDto>> UpdateConfigAsync(
         Guid broadcasterId,
         UpdateEngagementConfigRequest request,

@@ -175,7 +175,7 @@ public sealed class EngagementService : IEngagementService
         EngagementConfig? config = await _db
             .EngagementConfigs.AsNoTracking()
             .FirstOrDefaultAsync(c => c.BroadcasterId == broadcasterId, ct);
-        return Result.Success(config is null ? Defaults() : ToDto(config));
+        return Result.Success(config is null ? GetDefaults() : ToDto(config));
     }
 
     public async Task<Result<EngagementConfigDto>> UpdateConfigAsync(
@@ -317,7 +317,8 @@ public sealed class EngagementService : IEngagementService
             c.GreetCooldownSeconds
         );
 
-    private static EngagementConfigDto Defaults() => new(false, false, false, [], 5);
+    public EngagementConfigDto GetDefaults() =>
+        new(false, false, false, [], EngagementDefaults.GreetCooldownSeconds);
 
     /// <summary>PII-hash of the viewer's platform id — a stable anonymized handle, never the raw id.</summary>
     private static string HashViewer(string externalUserId) =>
