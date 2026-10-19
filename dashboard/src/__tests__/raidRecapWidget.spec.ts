@@ -11,6 +11,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+import streamRecap from './fixtures/streamRecap20261018.json';
 import RaidRecap from '../../../server/src/NomNomzBot.Infrastructure/Content/Widgets/Assets/raid_recap.vue';
 
 // The widget is an overlay SFC served by the bot, not a dashboard component. It talks to the typed global
@@ -83,6 +84,17 @@ function show(data: unknown, settings: Record<string, unknown> = {}): VueWrapper
   return wrapper;
 }
 
+// Each placed block as [columns spanned, rows spanned], read from its inline grid style.
+function spans(wrapper: VueWrapper): number[][] {
+  return wrapper.findAll('.grid [data-block]').map((block) => {
+    const style = block.attributes('style') ?? '';
+    const columns = /grid-column: span (\d+)/.exec(style)?.[1] ?? '0';
+    const rows = /grid-row: span (\d+)/.exec(style)?.[1] ?? '1';
+
+    return [Number(columns), Number(rows)];
+  });
+}
+
 function withOverflow(box: number, list: number): void {
   Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, value: box });
   Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, value: list });
@@ -134,7 +146,7 @@ describe('raid_recap widget', () => {
     show(fixture, { metrics: ['followers', 'raidsIn'] });
 
     await flushPromises();
-    expect(sdk.data.streamStats).toHaveBeenLastCalledWith({ stream: 's1', metrics: ['followers', 'raidsIn'] });
+    expect(sdk.data.streamStats).toHaveBeenLastCalledWith({ stream: 's1', metrics: ['followers', 'raidsIn', 'channel', 'hypeTrain'] });
   });
 
   it('reflows a quiet stream: zero cards are gone and the rest fill the row', async () => {
@@ -163,8 +175,8 @@ describe('raid_recap widget', () => {
     const blocks: string[] = wrapper.findAll('.grid [data-block]').map((b) => b.attributes('data-block') ?? '');
 
     expect(blocks).toEqual(['chatters', 'followers']);
-    expect(wrapper.find('.grid').attributes('style')).toContain('grid-template-columns: repeat(2, 1fr)');
-    expect(wrapper.find('.grid').attributes('style')).toContain('grid-template-rows: repeat(1, 1fr)');
+    expect(spans(wrapper)).toEqual([[6, 1], [6, 1]]);
+    expect(wrapper.find('.grid').attributes('style')).toContain('grid-template-rows: repeat(1, minmax(0, 1fr))');
   });
 
   it('removes a block with no data', async () => {
@@ -256,5 +268,197 @@ describe('raid_recap widget', () => {
     await flushPromises();
     expect(still.find('[data-block="raids"] .scroll').classes()).not.toContain('rolling');
     expect(still.findAll('[data-block="raids"] .list').length).toBe(1);
+  });
+
+  describe('the 2026-10-18 stream, as the API returned it', () => {
+    const labels = {
+      'raids.unit.one': 'raid',
+      'raids.unit.other': 'raids',
+      'viewers.unit.one': 'viewer',
+      'viewers.unit.other': 'viewers',
+      'songs.unit.one': 'request',
+      'songs.unit.other': 'requests',
+      'chatters.unit.one': 'chatter',
+      'chatters.unit.other': 'chatters',
+      'redemptions.unit': 'redeemed',
+      thanks: 'Thank you for {duration} of coding, tunes and vibes.',
+      'hours.unit.one': 'hour',
+      'hours.unit.other': 'hours',
+      hypeTrain: 'Hype train reached level {level}.',
+    };
+
+    it('renders all 5 rows of every ranked list', async () => {
+      const wrapper = show(streamRecap, { labels });
+
+      await flushPromises();
+      const counts: Record<string, number> = {};
+
+      ['songs', 'redemptions', 'topCommands'].forEach((key) => {
+        counts[key] = wrapper.findAll(`[data-block="${key}"] .row`).length;
+      });
+
+      expect(counts).toEqual({
+        songs: 5,
+        redemptions: 5,
+        topCommands: 5,
+      });
+
+      expect(wrapper.find('[data-block="songs"]').text()).toContain('iFiLLz');
+      expect(wrapper.find('[data-block="redemptions"]').text()).toContain('First');
+    });
+
+    it('reads one raid of 11 viewers as "1 raid · 11 viewers"', async () => {
+      const wrapper = show(streamRecap, { labels });
+
+      await flushPromises();
+      expect(wrapper.find('[data-block="raids"] .big').text()).toBe('1raid · 11 viewers');
+    });
+
+    it('uses the plural forms for more than one raid and for one viewer', async () => {
+      const wrapper = show({ ...streamRecap, raidsIn: [{ name: 'a', viewers: 1 }, { name: 'b', viewers: 0 }] }, { labels });
+
+      await flushPromises();
+      expect(wrapper.find('[data-block="raids"] .big').text()).toBe('2raids · 1 viewer');
+    });
+
+    it('singularizes the song and chatter units for a count of one', async () => {
+      const wrapper = show(
+        {
+          ...streamRecap,
+          songRequesters: { total: 1, top: [{ name: 'finwo_', count: 1 }] },
+          chat: { messages: 4, uniqueChatters: 1 },
+          topChatters: [{ name: 'finwo_', count: 4 }],
+        },
+        { labels },
+      );
+
+      await flushPromises();
+      expect(wrapper.find('[data-block="songs"] .big').text()).toBe('1request');
+      expect(wrapper.find('[data-block="chatters"] .big').text()).toBe('1chatter');
+    });
+
+    it('hides top chatters when there is no chat data and keeps every card that has data', async () => {
+      const wrapper = show({
+        ...streamRecap,
+        chat: null,
+        topChatters: [],
+      }, { labels });
+
+      await flushPromises();
+      const blocks: string[] = wrapper.findAll('.grid [data-block]').map((b) => b.attributes('data-block') ?? '');
+
+      expect(blocks).toEqual(['raids', 'songs', 'bits', 'followers', 'redemptions', 'topCommands']);
+    });
+
+    it('lays seven blocks on one 12-column grid: the heaviest block is tall in the first column, the rest are three per row', async () => {
+      const wrapper = show(streamRecap, { labels });
+
+      await flushPromises();
+      const blocks: string[] = wrapper.findAll('.grid [data-block]').map((b) => b.attributes('data-block') ?? '');
+
+      expect(blocks).toEqual(['chatters', 'raids', 'songs', 'bits', 'followers', 'redemptions', 'topCommands']);
+      expect(spans(wrapper)).toEqual([[3, 2], [3, 1], [3, 1], [3, 1], [3, 1], [3, 1], [3, 1]]);
+      expect(wrapper.find('.grid').attributes('style')).toContain('grid-template-rows: repeat(2, minmax(0, 1fr))');
+    });
+
+    it('fills every row to the full width whatever the count: 6 blocks are 3 over 3, 5 are 3 over 2, 4 are 2 over 2', async () => {
+      const six = { ...streamRecap, redemptions: { total: 0, top: [] } };
+      const five = { ...six, followers: 0 };
+      const four = { ...five, bits: { total: 0, top: [] } };
+      const counts: Record<string, number[][]> = {};
+
+      for (const [name, data] of Object.entries({
+        six,
+        five,
+        four,
+      })) {
+        const wrapper = show(data, { labels });
+
+        await flushPromises();
+        counts[name] = spans(wrapper);
+      }
+
+      expect(counts.six).toEqual([[4, 1], [4, 1], [4, 1], [4, 1], [4, 1], [4, 1]]);
+      expect(counts.five).toEqual([[4, 1], [4, 1], [4, 1], [6, 1], [6, 1]]);
+      expect(counts.four).toEqual([[6, 1], [6, 1], [6, 1], [6, 1]]);
+    });
+
+    it('never places more than eight blocks and every row adds up to the full width', async () => {
+      const full = { ...fixture, followers: 3 };
+      const wrapper = show(full, { labels });
+
+      await flushPromises();
+      const placed = spans(wrapper);
+      const widths = placed.map((cell) => cell[0] ?? 0);
+
+      expect(placed.length).toBeLessThanOrEqual(8);
+      expect(widths.slice(0, 4).reduce((sum, n) => sum + n, 0)).toBe(12);
+    });
+
+    it('draws the channel avatar as a watermark on the first block and names the channel in the header', async () => {
+      const channel = { name: 'Stoney_Eagle', avatarUrl: 'https://cdn.example/stoney.png' };
+      const wrapper = show({ ...streamRecap, channel }, { labels });
+
+      await flushPromises();
+      const marks = wrapper.findAll('.watermark');
+
+      expect(marks).toHaveLength(1);
+      expect(marks.at(0)?.attributes('src')).toBe('https://cdn.example/stoney.png');
+      expect(wrapper.find('.grid [data-block="chatters"] .watermark').exists()).toBe(true);
+      expect(wrapper.find('.sub').text()).toContain('Stoney_Eagle');
+      expect(wrapper.find('.sub').text()).not.toContain('NoMercyTV');
+    });
+
+    it('draws no watermark when the channel has no avatar', async () => {
+      const channel = { name: 'Stoney_Eagle', avatarUrl: null };
+      const wrapper = show({ ...streamRecap, channel }, { labels });
+
+      await flushPromises();
+      expect(wrapper.findAll('.watermark')).toHaveLength(0);
+    });
+
+    it('closes the header with a thank-you line that names the stream length in hours', async () => {
+      const wrapper = show(streamRecap, { labels });
+
+      await flushPromises();
+      expect(wrapper.find('header .thanks').text()).toBe('Thank you for 9 hours of coding, tunes and vibes.');
+    });
+
+    it('names one hour in the singular', async () => {
+      const wrapper = show({ ...streamRecap, duration: 3600 }, { labels });
+
+      await flushPromises();
+      expect(wrapper.find('header .thanks').text()).toBe('Thank you for 1 hour of coding, tunes and vibes.');
+    });
+
+    it('shows the hype train level in the subscriptions card and hides the line without a train', async () => {
+      const subs = { ...streamRecap.subs, total: 3 };
+      const withTrain = show({
+        ...streamRecap,
+        subs,
+        hypeTrain: { level: 5, trains: 2 },
+      }, { labels });
+
+      await flushPromises();
+      expect(withTrain.find('[data-block="subs"] .hype').text()).toBe('Hype train reached level 5.');
+
+      const without = show({
+        ...streamRecap,
+        subs,
+        hypeTrain: null,
+      }, { labels });
+
+      await flushPromises();
+      expect(without.find('.hype').exists()).toBe(false);
+      expect(without.text()).not.toContain('Hype train');
+    });
+
+    it('keeps the chatters card when only the unique count is known', async () => {
+      const chat = { messages: 9, uniqueChatters: 3 };
+      const wrapper = show({ ...streamRecap, chat }, { labels });
+
+      await flushPromises();
+      expect(wrapper.find('[data-block="chatters"] .big').text()).toBe('3chatters');
+    });
   });
 });

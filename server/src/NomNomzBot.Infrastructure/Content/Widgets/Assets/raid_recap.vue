@@ -17,6 +17,7 @@ interface RecapDto {
     title?: string | null;
     game?: string | null;
   } | null;
+  channel?: { name?: string | null; avatarUrl?: string | null } | null;
   duration?: number | null;
   peakViewers?: number | null;
   followers?: number | null;
@@ -30,6 +31,7 @@ interface RecapDto {
   chat?: { messages?: number | null; uniqueChatters?: number | null } | null;
   topChatters?: NamedCount[] | null;
   commandsRun?: Ranked | null;
+  hypeTrain?: { level: number; trains: number } | null;
 }
 
 // Every metric the recap can show; the `metrics` setting picks a subset.
@@ -50,7 +52,7 @@ const ALL_METRICS = [
 ] as const satisfies readonly NnzStreamMetricKey[];
 
 interface Row { kind: 'row' | 'heading'; name: string; value: string; rank: number }
-interface Card { key: string; big: string; unit: string; rows: Row[]; tall: boolean }
+interface Card { key: string; big: string; unit: string; rows: Row[]; note?: string }
 
 const DASH = '—';
 const TIME_ZONE = 'Europe/Amsterdam';
@@ -78,6 +80,11 @@ let hideTimer: ReturnType<typeof setTimeout> | undefined;
 
 function label(key: string): string {
   return cfg.labels[key] || '';
+}
+
+// A counted word in its singular or plural form: `<key>.one` for exactly 1, `<key>.other` otherwise.
+function counted(key: string, n: number): string {
+  return label(`${key}.${n === 1 ? 'one' : 'other'}`);
 }
 
 function stat(value: number | null | undefined): string {
@@ -113,19 +120,29 @@ const baseHue = computed<number>(() => {
   return ((day - 1) * 360) / 31;
 });
 
+const avatarUrl = computed<string>(() => recap.value?.channel?.avatarUrl || '');
+
 const subtitle = computed<string>(() => {
   const s = recap.value?.stream;
   const date = s?.startedAt
-    ? new Intl.DateTimeFormat('en-GB', { timeZone: TIME_ZONE, dateStyle: 'medium' }).format(new Date(s.startedAt))
+    ? new Intl.DateTimeFormat('en-US', { timeZone: TIME_ZONE, dateStyle: 'medium' }).format(new Date(s.startedAt))
     : '';
-  return [s?.title, s?.game, date].filter(Boolean).join(' · ');
+  return [recap.value?.channel?.name, s?.game, date].filter(Boolean).join(' · ');
+});
+
+// "Thank you for 14 hours ..." : the label carries the words, the widget fills {duration} with whole hours.
+const thanks = computed<string>(() => {
+  const seconds = recap.value?.duration;
+  if (typeof seconds !== 'number' || !isFinite(seconds)) return '';
+  const hours = Math.max(1, Math.round(seconds / 3600));
+  return label('thanks').replace('{duration}', `${hours} ${counted('hours.unit', hours)}`);
 });
 
 const timeRange = computed<string>(() => {
   const s = recap.value?.stream;
   const from = clock(s?.startedAt, false);
   const to = clock(s?.endedAt, true);
-  return from && to ? `${from} – ${to}` : '';
+  return from && to ? `${from} to ${to}` : '';
 });
 
 const kpis = computed(() => {
@@ -160,73 +177,114 @@ function subsRows(r: RecapDto): Row[] {
   ];
 }
 
+// The hype train line: empty (so hidden) when no train ended during the stream.
+function hypeLine(r: RecapDto): string {
+  return r.hypeTrain ? label('hypeTrain').replace('{level}', String(r.hypeTrain.level)) : '';
+}
+
 function buildCards(r: RecapDto): Card[] {
   const raids = r.raidsIn || [];
   const raiders = raids.reduce((sum, x) => sum + (Number(x.viewers) || 0), 0);
   const all: (Card & { on: boolean; has: boolean })[] = [
-    { key: 'subs', big: stat(r.subs?.total), unit: '', rows: subsRows(r), tall: true, on: cfg.showSubs, has: !!r.subs?.total || !!r.gifters?.length || !!r.selfSubs?.length },
+    {
+      key: 'subs',
+      big: stat(r.subs?.total),
+      unit: '',
+      rows: subsRows(r),
+      note: hypeLine(r),
+      on: cfg.showSubs,
+      has: !!r.subs?.total || !!r.gifters?.length || !!r.selfSubs?.length,
+    },
     {
       key: 'raids',
       big: stat(raids.length),
-      unit: raids.length ? `${label('raids.unit')} · ${raiders}` : '',
+      unit: raids.length ? `${counted('raids.unit', raids.length)} · ${stat(raiders)} ${counted('viewers.unit', raiders)}` : '',
       rows: raids.map((x) => ({ kind: 'row', name: x.name, value: stat(x.viewers), rank: 0 })),
-      tall: false,
       on: cfg.showRaids,
       has: raids.length > 0,
     },
-    { key: 'chatters', big: r.chat ? stat(r.chat.uniqueChatters) : '', unit: r.chat ? label('chatters.unit') : '', rows: rowsOf(r.topChatters, true), tall: false, on: cfg.showChatters, has: !!r.topChatters?.length },
-    { key: 'songs', big: stat(r.songRequesters?.total), unit: label('songs.unit'), rows: rowsOf(r.songRequesters?.top, true), tall: false, on: cfg.showSongs, has: !!r.songRequesters?.total || !!r.songRequesters?.top?.length },
+    { key: 'chatters', big: r.chat ? stat(r.chat.uniqueChatters) : '', unit: r.chat ? counted('chatters.unit', Number(r.chat.uniqueChatters)) : '', rows: rowsOf(r.topChatters, true), on: cfg.showChatters, has: !!r.topChatters?.length || !!r.chat?.uniqueChatters },
+    { key: 'songs', big: stat(r.songRequesters?.total), unit: counted('songs.unit', Number(r.songRequesters?.total)), rows: rowsOf(r.songRequesters?.top, true), on: cfg.showSongs, has: !!r.songRequesters?.total || !!r.songRequesters?.top?.length },
     {
       key: 'bits',
       big: stat(r.bits?.total),
       unit: '',
       rows: rowsOf(r.bits?.top, false),
-      tall: false,
       on: cfg.showBits,
       has: !!r.bits?.total,
     },
-    { key: 'followers', big: stat(r.followers), unit: '', rows: [], tall: false, on: cfg.showFollowers, has: !!r.followers },
+    { key: 'followers', big: stat(r.followers), unit: '', rows: [], on: cfg.showFollowers, has: !!r.followers },
     {
       key: 'redemptions',
       big: stat(r.redemptions?.total),
       unit: label('redemptions.unit'),
       rows: rowsOf(r.redemptions?.top, false),
-      tall: false,
       on: cfg.showRedemptions,
       has: !!r.redemptions?.total,
     },
-    { key: 'topCommands', big: '', unit: '', rows: rowsOf(r.commandsRun?.top, true), tall: false, on: cfg.showTopCommands, has: !!r.commandsRun?.top?.length },
+    { key: 'topCommands', big: '', unit: '', rows: rowsOf(r.commandsRun?.top, true), on: cfg.showTopCommands, has: !!r.commandsRun?.top?.length },
   ];
-  return all.filter((c) => c.on && c.has).map(({ key, big, unit, rows, tall }) => ({ key, big, unit, rows, tall }));
+  return all.filter((c) => c.on && c.has).map(({ key, big, unit, rows, note }) => ({ key, big, unit, rows, note: note || '' }));
 }
 
 const cards = computed<Card[]>(() => (recap.value ? buildCards(recap.value) : []));
 
-// Fluid grid: blocks without data are gone, the rest fill the frame. One row up to four blocks, two rows
-// above that; a tall block takes both rows; the last block grows over any leftover cell.
-const layout = computed(() => {
-  const list = cards.value;
-  const hasTall = list.some((c) => c.tall);
-  const rows = list.length + (hasTall ? 1 : 0) > 4 ? 2 : 1;
-  const cells = list.length + (hasTall && rows === 2 ? 1 : 0);
-  const cols = Math.max(1, Math.ceil(cells / rows));
-  const leftover = cols * rows - cells;
-  return { rows, cols, leftover };
-});
+// One grid for every block: 12 columns, so any row of 1 to 4 blocks adds up to the full width and every card edge
+// lines up with the top row. Blocks without data are gone. Up to 3 blocks share one row, 4 are 2 over 2, 5 are 3 over 2,
+// 6 are 3 over 3, 8 are 4 over 4. With 7 blocks the heaviest one is tall (two rows) in the first column.
+interface Placed { card: Card; span: number; tall: boolean }
 
-function cardStyle(card: Card, index: number): Record<string, string> {
-  const { rows, leftover } = layout.value;
-  const style: Record<string, string> = {};
-  if (card.tall && rows === 2) style.gridRow = 'span 2';
-  const last = index === cards.value.length - 1;
-  if (last && leftover > 0 && !(card.tall && rows === 2)) style.gridColumn = `span ${1 + leftover}`;
-  return style;
+const GRID_COLUMNS = 12;
+const MAX_CARDS = 8;
+const TALL_COUNT = 7;
+const TALL_SPAN = 3;
+
+function weight(card: Card): number {
+  return card.rows.filter((r) => r.kind === 'row').length;
 }
 
-const frameStyle = computed<Record<string, string>>(() => ({
-  gridTemplateColumns: `repeat(${layout.value.cols}, 1fr)`,
-  gridTemplateRows: `repeat(${layout.value.rows}, 1fr)`,
-}));
+function rowSizes(count: number): number[] {
+  if (count <= 3) return count ? [count] : [];
+
+  const top = Math.ceil(count / 2);
+
+  return [top, count - top];
+}
+
+function flow(list: Card[], width: number): Placed[] {
+  const spans = rowSizes(list.length).flatMap((size) => Array.from({ length: size }, () => width / size));
+
+  return list.map((card, i) => ({ card, span: spans[i] ?? width, tall: false }));
+}
+
+function heaviest(list: Card[]): Card {
+  return list.reduce((best, card) => (weight(card) > weight(best) ? card : best));
+}
+
+function place(list: Card[]): Placed[] {
+  const shown = list.slice(0, MAX_CARDS);
+
+  if (shown.length !== TALL_COUNT) return flow(shown, GRID_COLUMNS);
+
+  const tall = heaviest(shown);
+  const rest = flow(shown.filter((card) => card !== tall), GRID_COLUMNS - TALL_SPAN);
+
+  return [{ card: tall, span: TALL_SPAN, tall: true }].concat(rest);
+}
+
+const placed = computed<Placed[]>(() => place(cards.value));
+
+const gridStyle = computed<Record<string, string>>(() => {
+  const rows = placed.value.some((p) => p.tall) ? 2 : rowSizes(placed.value.length).length;
+
+  return { gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` };
+});
+
+function cellStyle(p: Placed): Record<string, string> {
+  const style: Record<string, string> = { gridColumn: `span ${p.span}` };
+  if (p.tall) style.gridRow = 'span 2';
+  return style;
+}
 
 const rootStyle = computed<Record<string, string>>(() => {
   const style: Record<string, string> = { '--base': `${baseHue.value}deg` };
@@ -256,7 +314,7 @@ watch(recap, async () => {
 async function read(shown: RecapDto): Promise<RecapDto> {
   const stream = shown.stream?.id || undefined;
   try {
-    return (await NomNomz.data.streamStats({ stream, metrics: cfg.metrics })) as RecapDto;
+    return (await NomNomz.data.streamStats({ stream, metrics: [...cfg.metrics, 'channel', 'hypeTrain'] })) as RecapDto;
   } catch {
     return shown;
   }
@@ -319,6 +377,7 @@ onUnmounted(() => {
             <div class="sub">{{ subtitle }}</div>
           </div>
         </div>
+        <div v-if="thanks" class="thanks">{{ thanks }}</div>
       </header>
 
       <section class="kpis">
@@ -329,14 +388,15 @@ onUnmounted(() => {
         </div>
       </section>
 
-      <section class="grid" :style="frameStyle">
-        <div v-for="(c, i) in cards" :key="c.key" class="card block" :data-block="c.key" :style="cardStyle(c, i)">
-          <div class="label">{{ label('block.' + c.key) }}</div>
-          <div v-if="c.big" class="big">{{ c.big }}<small v-if="c.unit">{{ c.unit }}</small></div>
-          <div v-if="c.rows.length" class="scroll" :class="{ rolling: rolling[c.key] }" :style="{ '--d': c.rows.length * 3 + 's' }">
+      <section class="grid" :style="gridStyle">
+        <div v-for="(p, pi) in placed" :key="p.card.key" class="card block" :data-block="p.card.key" :style="cellStyle(p)">
+          <img v-if="avatarUrl && pi === 0" class="watermark" :src="avatarUrl" alt="" />
+          <div class="label">{{ label('block.' + p.card.key) }}</div>
+          <div v-if="p.card.big" class="big">{{ p.card.big }}<small v-if="p.card.unit">{{ p.card.unit }}</small></div>
+          <div v-if="p.card.rows.length" class="scroll" :class="{ rolling: rolling[p.card.key], fit: p.card.note }" :style="{ '--d': p.card.rows.length * 3 + 's' }">
             <div class="track">
-              <div v-for="n in (rolling[c.key] ? 2 : 1)" :key="n" class="list" :aria-hidden="n === 2 ? 'true' : undefined">
-                <template v-for="(r, ri) in c.rows" :key="ri">
+              <div v-for="n in (rolling[p.card.key] ? 2 : 1)" :key="n" class="list" :aria-hidden="n === 2 ? 'true' : undefined">
+                <template v-for="(r, ri) in p.card.rows" :key="ri">
                   <div v-if="r.kind === 'heading'" class="sect">{{ r.name }}</div>
                   <div v-else class="row">
                     <span v-if="r.rank" class="r">{{ r.rank }}</span>
@@ -347,6 +407,7 @@ onUnmounted(() => {
               </div>
             </div>
           </div>
+          <div v-if="p.card.note" class="hype">{{ p.card.note }}</div>
         </div>
       </section>
     </div>
@@ -374,14 +435,17 @@ onUnmounted(() => {
   transition: opacity 0.8s ease;
 }
 .recap[data-visible='true'] { opacity: 1; }
-.wrap { position: absolute; inset: 48px 64px; display: grid; grid-template-rows: auto auto 1fr; gap: 24px; }
+.wrap { position: absolute; inset: 48px 64px; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; gap: 24px; }
 header { display: flex; align-items: flex-end; justify-content: space-between; }
 .brand { display: flex; align-items: center; gap: 24px; }
 .logo { width: 110px; height: 110px; flex: none; transform: skewX(-1deg); }
 h1 { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1; color: var(--color-100); margin: 0; }
 .sub { margin-top: 10px; font-size: 22px; color: var(--mute); font-weight: 500; }
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
-.grid { display: grid; gap: 16px; min-height: 0; grid-auto-flow: dense; }
+.grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; min-height: 0; }
+.block { position: relative; }
+.block > :not(.watermark) { position: relative; }
+.watermark { position: absolute; left: -40px; bottom: -40px; width: 340px; height: 340px; border-radius: 50%; object-fit: cover; filter: grayscale(1) contrast(1.1); mix-blend-mode: luminosity; opacity: 0.22; pointer-events: none; -webkit-mask-image: radial-gradient(circle at 40% 60%, #000 35%, transparent 70%); mask-image: radial-gradient(circle at 40% 60%, #000 35%, transparent 70%); }
 .card {
   background: linear-gradient(45deg, hsl(from var(--color-300) h s l / 50%), hsl(from var(--color-600) h s l / 50%) 15%, hsl(from var(--color-900) h s l / 75%));
   backdrop-filter: blur(24px);
@@ -406,8 +470,11 @@ h1 { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1; co
 .row .n { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .row .v { font-weight: 800; font-variant-numeric: tabular-nums; }
 .row .r { width: 18px; color: var(--mute); font-weight: 900; text-align: center; }
-.sect { font-size: 15px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--mute); margin: 8px 0 2px; }
+.sect { font-size: 15px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--mute); margin: 14px 0 8px; }
 .scroll { flex: 1; min-height: 0; overflow: hidden; }
+.scroll.fit { flex: 0 1 auto; }
+.hype { margin-top: 12px; font-size: 19px; font-weight: 500; color: var(--mute); }
+.thanks { max-width: 620px; text-align: right; font-size: 24px; font-weight: 600; color: #fff; }
 .scroll.rolling { -webkit-mask-image: linear-gradient(transparent, #000 10%, #000 90%, transparent); mask-image: linear-gradient(transparent, #000 10%, #000 90%, transparent); }
 .scroll.rolling .track { animation: roll var(--d) linear infinite; }
 @keyframes roll { from { transform: translateY(0); } to { transform: translateY(-50%); } }

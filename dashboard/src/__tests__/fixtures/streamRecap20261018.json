@@ -1,0 +1,144 @@
+{
+  "stream": {
+    "id": "01M57E3QJZS3D1E4AX4KGGK4RR",
+    "startedAt": "2026-10-18T11:59:27+00:00",
+    "endedAt": "2026-10-18T21:10:00.785085+00:00",
+    "title": "[Server/Apps/Bot] What happens if i touch this? •• NoMercyTV •• Coding, Tunes & Vibes •• !project (H:00)",
+    "game": "Software and Game Development"
+  },
+  "duration": 33033,
+  "peakViewers": 33,
+  "followers": 1,
+  "subs": {
+    "new": 0,
+    "resub": 0,
+    "gift": 0,
+    "total": 0
+  },
+  "gifters": [],
+  "selfSubs": [],
+  "bits": {
+    "total": 619,
+    "top": [
+      {
+        "name": "jackedev",
+        "count": 500
+      },
+      {
+        "name": "resident_meeper",
+        "count": 69
+      },
+      {
+        "name": "asthiie",
+        "count": 50
+      }
+    ]
+  },
+  "raidsIn": [
+    {
+      "name": "geennoob",
+      "viewers": 11
+    }
+  ],
+  "redemptions": {
+    "total": 26,
+    "top": [
+      {
+        "name": "Text-to-Speech Message",
+        "count": 12
+      },
+      {
+        "name": "Steal the Lucky Feather",
+        "count": 9
+      },
+      {
+        "name": "Hydrate!",
+        "count": 3
+      },
+      {
+        "name": "Dunglish",
+        "count": 1
+      },
+      {
+        "name": "First",
+        "count": 1
+      }
+    ]
+  },
+  "songRequesters": {
+    "total": 106,
+    "top": [
+      {
+        "name": "finwo_",
+        "count": 42
+      },
+      {
+        "name": "Stoney_Eagle",
+        "count": 15
+      },
+      {
+        "name": "smirking_squiggly",
+        "count": 14
+      },
+      {
+        "name": "QTkittE",
+        "count": 10
+      },
+      {
+        "name": "iFiLLz",
+        "count": 9
+      }
+    ]
+  },
+  "chat": {
+    "messages": 1107,
+    "uniqueChatters": 29
+  },
+  "topChatters": [
+    {
+      "name": "finwo_",
+      "count": 199
+    },
+    {
+      "name": "MoehDev",
+      "count": 153
+    },
+    {
+      "name": "resident_meeper",
+      "count": 119
+    },
+    {
+      "name": "QTkittE",
+      "count": 110
+    },
+    {
+      "name": "geennoob",
+      "count": 95
+    }
+  ],
+  "commandsRun": {
+    "total": 174,
+    "top": [
+      {
+        "name": "sr",
+        "count": 123
+      },
+      {
+        "name": "hug",
+        "count": 8
+      },
+      {
+        "name": "fight",
+        "count": 6
+      },
+      {
+        "name": "wrongsong",
+        "count": 6
+      },
+      {
+        "name": "bonk",
+        "count": 5
+      }
+    ]
+  }
+}

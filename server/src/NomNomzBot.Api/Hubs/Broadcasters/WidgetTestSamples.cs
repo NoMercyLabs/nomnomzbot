@@ -429,8 +429,8 @@ internal static class WidgetTestSamples
                 Id = "test-stream",
                 StartedAt = now.AddHours(-4),
                 EndedAt = now,
-                Title = "Coding and tunes",
-                Game = "Software and Game Development",
+                Title = "Preview stream (test data)",
+                Game = "Preview",
             },
             Duration = 4 * 3600,
             PeakViewers = 36,
@@ -446,7 +446,7 @@ internal static class WidgetTestSamples
             SelfSubs = ["TestSubscriber"],
             Bits = new() { Total = 200, Top = [new() { Name = "TestCheerer", Count = 200 }] },
             RaidsIn = [new() { Name = "TestRaider", Viewers = 42 }],
-            Redemptions = new() { Total = 6, Top = [new() { Name = "Hydrate!", Count = 6 }] },
+            Redemptions = new() { Total = 6, Top = [new() { Name = "Test reward", Count = 6 }] },
             SongRequesters = new()
             {
                 Total = 12,
@@ -454,7 +454,7 @@ internal static class WidgetTestSamples
             },
             Chat = new() { Messages = 480, UniqueChatters = 31 },
             TopChatters = [new() { Name = "TestChatter", Count = 120 }],
-            CommandsRun = new() { Total = 55, Top = [new() { Name = "!hug", Count = 20 }] },
+            CommandsRun = new() { Total = 55, Top = [new() { Name = "!test", Count = 20 }] },
         };
 
     // A decorated chat line: resolved emote images, a native chat GIF (the branch a Tier 2+ viewer's GIF takes,
