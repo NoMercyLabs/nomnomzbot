@@ -14,7 +14,6 @@
       "viewerEntryMode": "Actieve kijkers",
       "redraw": "Nieuwe winnaar trekken",
       "redrawn": "Opnieuw getrokken",
-      "liveNotAvailable": "Live updates zijn nog niet beschikbaar. Deze pagina toont nieuwe deelnames na elke stap die je hier zet.",
       "new": "Nieuwe weggeefactie",
       "edit": "Weggeefactie bewerken",
       "delete": {
@@ -113,7 +112,19 @@
         "empty": "Nog geen codepools.",
         "error": "De codepools konden niet worden geladen.",
         "counts": "{available} van {total} beschikbaar",
-        "createNotAvailable": "Een codepool maken kan hier nog niet."
+        "new": "Nieuwe pool",
+        "dialog": {
+          "title": "Nieuwe codepool",
+          "description": "Een pool bevat de codes die winnaars krijgen. De codes blijven geheim: deze pagina toont alleen aantallen.",
+          "name": "Naam",
+          "note": "Notitie (optioneel)",
+          "codes": "Codes",
+          "codesHelp": "Een code per regel. Lege regels en dubbele codes worden overgeslagen. Je kunt later codes toevoegen.",
+          "create": "Pool maken",
+          "problem": {
+            "nameRequired": "Typ een naam voor de pool."
+          }
+        }
       },
       "status": {
         "draft": "Concept",

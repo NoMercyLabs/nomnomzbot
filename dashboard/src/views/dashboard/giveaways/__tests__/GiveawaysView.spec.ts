@@ -116,6 +116,10 @@ vi.mock('@/api/client', () => ({
         );
       }
 
+      if (path.endsWith('/code-pools')) {
+        return { data: { data: { id: 'p9' } }, response: { status: 200, ok: true } };
+      }
+
       return { data: {}, response: { status: 200, ok: true } };
     },
     PUT: async (path: string, init: { body: Record<string, unknown> }) => {
@@ -301,13 +305,48 @@ describe('GiveawaysView', () => {
     expect(document.querySelector('[data-pool-row]')?.textContent).toContain('7');
   });
 
-  it('says plainly that live updates are not available yet and does not poll', async () => {
+  it('makes a code pool with its codes from the pools panel: the pool first, then the codes into it', async () => {
+    await open();
+
+    document.querySelector<HTMLElement>('[data-pool-new]')?.click();
+    await settle();
+    await fill('[data-pool-name]', 'Steam keys');
+    await fill('[data-pool-description]', 'Giveaway summer');
+    await fill('[data-pool-codes]', 'AAAA-1111\n\n BBBB-2222 \nAAAA-1111');
+    submitDialog();
+    await settle();
+
+    expect(posts).toEqual([
+      '/api/v{version}/giveaways/code-pools',
+      '/api/v{version}/giveaways/code-pools/{poolId}/codes',
+    ]);
+
+    expect(bodies[0]).toEqual({ name: 'Steam keys', description: 'Giveaway summer' });
+    expect(bodies[1]).toEqual({ codes: [{ code: 'AAAA-1111' }, { code: 'BBBB-2222' }] });
+  });
+
+  it('keeps the pool dialog open and names the problem when the pool has no name', async () => {
+    await open();
+
+    document.querySelector<HTMLElement>('[data-pool-new]')?.click();
+    await settle();
+    submitDialog();
+    await settle();
+
+    expect(posts).toEqual([]);
+
+    expect(document.body.textContent).toContain(
+      en.dashboard.giveaways.pools.dialog.problem.nameRequired,
+    );
+  });
+
+  it('does not claim live updates are missing and does not poll: the server pushes GiveawayChanged', async () => {
     giveaways = [giveaway('g1', 'Summer key', 'open', 2)];
     const queryClient = await open();
 
-    expect(document.querySelector('[data-not-available]')?.textContent).toContain(
-      en.dashboard.giveaways.liveNotAvailable,
-    );
+    expect(document.querySelector('[data-not-available]')).toBeNull();
+    expect(document.body.textContent).not.toContain('Live updates are not available');
+    expect(document.body.textContent).not.toContain('not available here yet');
 
     const queries = queryClient
       .getQueryCache()

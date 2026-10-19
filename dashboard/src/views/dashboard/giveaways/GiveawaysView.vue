@@ -10,8 +10,8 @@
 
 <script setup lang="ts">
 // The channel's giveaways with the steps that fit each status (open, close, draw), and the winners of the
-// giveaway in focus with a redraw per winner, its entries, and the code pools. The server sends no giveaway hub
-// event yet, so the lists are read again after every step on this page and the page says live updates are not there.
+// giveaway in focus with a redraw per winner, its entries, and the code pools with a dialog to make one.
+// The server pushes GiveawayChanged; liveSync.ts reads the lists again, so this page never polls.
 import { computed, ref, type Component } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -49,6 +49,7 @@ import Play from '~icons/nnz/play';
 import Trophy from '~icons/nnz/trophy';
 import Rotate from '~icons/nnz/rotate';
 
+import CodePoolDialog from './CodePoolDialog.vue';
 import GiveawayDialog from './GiveawayDialog.vue';
 import { actionsFor, focusGiveaway, statusTone } from './giveawayStatus';
 
@@ -76,6 +77,7 @@ const poolsState = usePanelState(pools, (rows) =>
 const remove = useDeleteGiveaway(channelId);
 
 const dialogOpen = ref(false);
+const poolDialogOpen = ref(false);
 const editing = ref<Giveaway | null>(null);
 
 function openDialog(item: Giveaway | null): void {
@@ -185,12 +187,13 @@ function variantOf(item: Giveaway, action: GiveawayAction): 'default' | 'outline
 <template>
   <PageHeader :title="t('dashboard.giveaways.title')">
     <template #actions>
-      <Button v-if="can('giveaways:write')"
-              type="button"
-              variant="outline"
-              size="sm"
-              data-giveaway-new
-              @click="openDialog(null)"
+      <Button
+        v-if="can('giveaways:write')"
+        type="button"
+        variant="outline"
+        size="sm"
+        data-giveaway-new
+        @click="openDialog(null)"
       >
         <Plus aria-hidden="true" />
         {{ t("dashboard.giveaways.new") }}
@@ -198,9 +201,6 @@ function variantOf(item: Giveaway, action: GiveawayAction): 'default' | 'outline
     </template>
   </PageHeader>
   <PageBody>
-    <p data-not-available class="text-sm text-muted-foreground">
-      {{ t("dashboard.giveaways.liveNotAvailable") }}
-    </p>
     <p v-if="deleteError" role="alert" class="text-sm text-destructive">{{ deleteError }}</p>
     <PanelCard
       v-if="can('giveaways:read')"
@@ -347,12 +347,22 @@ function variantOf(item: Giveaway, action: GiveawayAction): 'default' | 'outline
           }}</span>
         </li>
       </ul>
-      <p class="pt-3 text-sm text-muted-foreground">
-        {{ t("dashboard.giveaways.pools.createNotAvailable") }}
-      </p>
+      <template #actions>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          data-pool-new
+          @click="poolDialogOpen = true"
+        >
+          <Plus aria-hidden="true" />
+          {{ t("dashboard.giveaways.pools.new") }}
+        </Button>
+      </template>
     </PanelCard>
   </PageBody>
   <GiveawayDialog v-model:open="dialogOpen" :giveaway="editing" />
+  <CodePoolDialog v-model:open="poolDialogOpen" />
   <ConfirmDialog
     v-model:open="confirmOpen"
     :title="t('dashboard.giveaways.delete.title', { title: deleting?.title ?? '' })"

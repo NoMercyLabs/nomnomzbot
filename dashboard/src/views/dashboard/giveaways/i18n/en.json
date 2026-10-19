@@ -14,7 +14,6 @@
       "viewerEntryMode": "Active viewers",
       "redraw": "Draw a new winner",
       "redrawn": "Redrawn",
-      "liveNotAvailable": "Live updates are not available yet. This page shows new entries after each step you take here.",
       "new": "New giveaway",
       "edit": "Edit giveaway",
       "delete": {
@@ -113,7 +112,19 @@
         "empty": "No code pools yet.",
         "error": "The code pools could not be loaded.",
         "counts": "{available} of {total} available",
-        "createNotAvailable": "Making a code pool is not available here yet."
+        "new": "New pool",
+        "dialog": {
+          "title": "New code pool",
+          "description": "A pool holds the codes winners receive. The codes stay secret: this page only shows counts.",
+          "name": "Name",
+          "note": "Note (optional)",
+          "codes": "Codes",
+          "codesHelp": "One code per line. Empty lines and repeated codes are skipped. You can add codes later.",
+          "create": "Create pool",
+          "problem": {
+            "nameRequired": "Type a name for the pool."
+          }
+        }
       },
       "status": {
         "draft": "Draft",

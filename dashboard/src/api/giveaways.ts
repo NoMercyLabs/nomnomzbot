@@ -315,6 +315,44 @@ async function writeGiveaway(save: SaveGiveaway): Promise<void> {
     throw failed('save giveaway', result.response.status, result.error);
 }
 
+export type NewCodePool = {
+  name: string;
+  description: string;
+  codes: string[];
+};
+
+// The pool is made first; its codes go in after, so a pool without codes is still a pool.
+async function writeCodePool(pool: NewCodePool): Promise<void> {
+  const created = await client.POST('/api/v{version}/giveaways/code-pools', {
+    params: { path: { version } },
+    body: { name: pool.name, description: pool.description },
+  });
+  const poolId = created.data?.data?.id;
+
+  if (created.error !== undefined || !poolId)
+    throw failed('create code pool', created.response.status, created.error);
+
+  if (pool.codes.length === 0) return;
+
+  const added = await client.POST('/api/v{version}/giveaways/code-pools/{poolId}/codes', {
+    params: { path: { version, poolId } },
+    body: { codes: pool.codes.map((code) => ({ code })) },
+  });
+
+  if (added.error !== undefined)
+    throw failed('add codes to code pool', added.response.status, added.error);
+}
+
+// Makes a code pool with its codes; the pools are read again after, even when only the codes failed.
+export function useCreateCodePool(channelId: MaybeRefOrGetter<string | null>) {
+  const queries = useQueryClient();
+
+  return useMutation<void, Error, NewCodePool>({
+    mutationFn: writeCodePool,
+    onSettled: () => queries.invalidateQueries({ queryKey: giveawaysKey(toValue(channelId)) }),
+  });
+}
+
 // Creates or edits a giveaway; the list is read again after.
 export function useSaveGiveaway(channelId: MaybeRefOrGetter<string | null>) {
   const queries = useQueryClient();
@@ -384,7 +422,7 @@ export function withGiveawayChange(
 ): Giveaway[] {
   return (rows ?? []).map((row) =>
     row.id === id
-      ? { ...row, status: nextStatus[action] } as const satisfies Giveaway
+      ? ({ ...row, status: nextStatus[action] } as const satisfies Giveaway)
       : row,
   );
 }

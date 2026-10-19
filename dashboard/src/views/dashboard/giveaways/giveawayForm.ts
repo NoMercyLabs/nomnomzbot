@@ -144,6 +144,14 @@ const wholeFrom = (value: number, least: number): boolean =>
 const wholeOrBlank = (value: string, least: number): boolean =>
   blank(value) || wholeFrom(Number(value), least);
 
+// One code per line; blank lines and repeats drop out, so a pasted list loads cleanly.
+export function codesFromText(text: string): string[] {
+  const lines = text.split('\n').map((line): string => line.trim());
+  const filled = lines.filter((line): boolean => line !== '');
+
+  return Array.from(new Set(filled));
+}
+
 // The i18n key (under dashboard.giveaways.dialog.problem) of the first thing wrong, or undefined.
 export function formProblem(form: GiveawayForm): string | undefined {
   const draft = draftFromForm(form);
