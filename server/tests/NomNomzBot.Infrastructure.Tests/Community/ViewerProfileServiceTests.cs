@@ -605,6 +605,43 @@ public sealed class ViewerProfileServiceTests
     }
 
     [Fact]
+    public async Task GetProfileAsync_CommandUsage_CountsOnlySucceededRuns_LikeTheProfileCounter()
+    {
+        (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build();
+        await SeedSubjectAsync(db);
+
+        DateTime succeededAt = new(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc);
+        DateTime failedAt = new(2026, 8, 9, 0, 0, 0, DateTimeKind.Utc);
+        (string Name, bool Succeeded, DateTime At)[] runs =
+        [
+            ("hug", true, succeededAt),
+            ("hug", true, succeededAt.AddHours(1)),
+            ("dance", false, failedAt),
+        ];
+        foreach ((string name, bool succeeded, DateTime at) in runs)
+        {
+            db.CommandUsages.Add(
+                new()
+                {
+                    BroadcasterId = Broadcaster,
+                    CommandNameSnapshot = name,
+                    ViewerProfileId = Guid.CreateVersion7(),
+                    ViewerUserId = Subject,
+                    WasSuccessful = succeeded,
+                    CreatedAt = at,
+                }
+            );
+        }
+        await db.SaveChangesAsync();
+
+        Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
+
+        // ViewerProfileProjection bumps TotalCommandsUsed only for a succeeded run, so the list must too.
+        result.Value.CommandUsage.TotalCommandsUsed.Should().Be(2);
+        result.Value.CommandUsage.LastUsedUtc.Should().Be(succeededAt.AddHours(1));
+    }
+
+    [Fact]
     public async Task GetProfileAsync_FoldsFreeFormViewerData_AsKeyValuePairs()
     {
         (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build();

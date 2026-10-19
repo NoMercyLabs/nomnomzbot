@@ -477,8 +477,10 @@ public sealed class ViewerProfileService(
         CancellationToken ct
     )
     {
+        // Only a run that did its work is "used": the same rule ViewerProfileProjection applies to the
+        // TotalCommandsUsed counter in the header, so the header and this list show one number.
         IQueryable<Domain.Commands.Entities.CommandUsage> usage = db.CommandUsages.Where(u =>
-            u.BroadcasterId == broadcasterId && u.ViewerUserId == userId
+            u.BroadcasterId == broadcasterId && u.ViewerUserId == userId && u.WasSuccessful
         );
         int total = await usage.CountAsync(ct);
         DateTime? lastUsed =
