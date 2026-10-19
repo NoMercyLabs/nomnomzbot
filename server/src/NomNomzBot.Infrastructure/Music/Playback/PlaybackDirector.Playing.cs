@@ -43,6 +43,9 @@ public sealed partial class PlaybackDirector
             case OwnerPause or OwnerSkip or OwnerPrevious or OwnerSeek or OwnerVolume or OwnerMute:
                 await OnOwnerIntentAsync(input, ct);
                 break;
+            case OutputAttached attached when State.Engine is { } engine:
+                await ReattachOutputAsync(engine, attached, ct);
+                break;
             case RequestAdded when State.Item is null:
                 if (!await HandOverIfNearEndAsync(nameof(RequestAdded), ct))
                     await MoveAsync(State, input, "waiting_near_end");
@@ -51,6 +54,24 @@ public sealed partial class PlaybackDirector
                 await IgnoreAsync(input);
                 break;
         }
+    }
+
+    /// <summary>
+    /// An output page (re)attached while an engine holds the track: the engine gets the page state so it can
+    /// put the current track back on the new page. The director state does not change.
+    /// </summary>
+    private async Task ReattachOutputAsync(
+        EngineKind engine,
+        OutputAttached attached,
+        CancellationToken ct
+    )
+    {
+        await CommandAsync(
+            engine,
+            nameof(OutputAttached),
+            e => e.ReattachOutputAsync(attached.PageIsPlaying, ct)
+        );
+        await MoveAsync(State, attached, "output_reattached");
     }
 
     private async Task OnBlockedAsync(PlaybackInput input, CancellationToken ct)

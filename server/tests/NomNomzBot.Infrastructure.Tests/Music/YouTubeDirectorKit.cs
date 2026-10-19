@@ -56,6 +56,9 @@ internal static class YouTubeDirectorKit
 
         public Task StopAsync(CancellationToken ct = default) => inner.StopAsync(ct);
 
+        public Task ReattachOutputAsync(bool pageIsPlaying, CancellationToken ct = default) =>
+            inner.ReattachOutputAsync(pageIsPlaying, ct);
+
         public Task SeekAsync(int positionMs, CancellationToken ct = default) =>
             inner.SeekAsync(positionMs, ct);
 

@@ -74,6 +74,13 @@ public sealed class YouTubePlaybackEngine(
     public Task StopAsync(CancellationToken ct = default) =>
         CommandAsync(lease => lease.Dispatcher.StopAsync(broadcasterId, ct), ct);
 
+    /// <summary>A page that reloaded mid-video gets that video back; open players are found by the replay.</summary>
+    public async Task ReattachOutputAsync(bool pageIsPlaying, CancellationToken ct = default)
+    {
+        await using EngineLease lease = open();
+        await lease.Dispatcher.ReplayCurrentAsync(broadcasterId, pageIsPlaying, ct);
+    }
+
     /// <summary>The overlay player takes whole seconds.</summary>
     public Task SeekAsync(int positionMs, CancellationToken ct = default) =>
         CommandAsync(lease => lease.Provider.SeekAsync(broadcasterId, positionMs / 1000, ct), ct);

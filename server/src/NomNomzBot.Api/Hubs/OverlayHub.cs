@@ -29,7 +29,6 @@ using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Domain.Widgets.Events;
-using NomNomzBot.Infrastructure.Music;
 
 namespace NomNomzBot.Api.Hubs;
 
@@ -465,11 +464,7 @@ public class OverlayHub : Hub<IOverlayClient>
             }
         );
 
-    public async Task WidgetReady(
-        string widgetId,
-        [FromServices] IPlaybackInputSink playback,
-        [FromServices] IYouTubePlayerDispatcher players
-    )
+    public async Task WidgetReady(string widgetId, [FromServices] IPlaybackInputSink playback)
     {
         _logger.LogDebug("Widget {W} ready on connection {C}", widgetId, Context.ConnectionId);
         if (
@@ -481,14 +476,15 @@ public class OverlayHub : Hub<IOverlayClient>
         )
             return;
 
-        // A page that reloaded mid-video gets that video back; nothing else is pushed from here. The director
-        // starts the queue head when it is idle or blocked and ignores the input while a track plays.
-        await players.ReplayCurrentAsync(
+        // Nothing is pushed from here. The director starts the queue head when it is idle or blocked, and
+        // tells the engine that holds a track to put it back on this page (a page that reloaded mid-video).
+        bool pageIsPlaying =
+            Context.Items.TryGetValue(YouTubePlayingItem, out object? playing) && playing is true;
+        await playback.SendAsync(
             broadcasterId,
-            Context.Items.TryGetValue(YouTubePlayingItem, out object? playing) && playing is true,
+            new OutputAttached(pageIsPlaying),
             Context.ConnectionAborted
         );
-        await playback.SendAsync(broadcasterId, new OutputAttached(), Context.ConnectionAborted);
     }
 
     /// <summary>

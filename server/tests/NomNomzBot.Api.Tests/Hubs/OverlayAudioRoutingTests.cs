@@ -26,7 +26,6 @@ using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
-using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Sound;
 using NSubstitute;
 
@@ -376,17 +375,16 @@ public sealed class OverlayAudioRoutingTests
         Joined page = await ConnectedPageAsync(db, "audio-conn");
         await page.Hub.JoinWidgetWithSdk(audioWidget.ToString(), "v1");
         IPlaybackInputSink requests = Substitute.For<IPlaybackInputSink>();
-        IYouTubePlayerDispatcher players = Substitute.For<IYouTubePlayerDispatcher>();
 
-        await page.Hub.WidgetReady(audioWidget.ToString(), requests, players);
+        await page.Hub.WidgetReady(audioWidget.ToString(), requests);
 
-        await players.DidNotReceiveWithAnyArgs().HandOverNextAsync(default);
-        await players
-            .Received(1)
-            .ReplayCurrentAsync(Broadcaster, false, Arg.Any<CancellationToken>());
         await requests
             .Received(1)
-            .SendAsync(Broadcaster, Arg.Any<OutputAttached>(), Arg.Any<CancellationToken>());
+            .SendAsync(
+                Broadcaster,
+                Arg.Is<OutputAttached>(o => !o.PageIsPlaying),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -397,12 +395,13 @@ public sealed class OverlayAudioRoutingTests
         Joined page = await ConnectedPageAsync(db, "audio-conn");
         await page.Hub.JoinWidgetWithSdk(audioWidget.ToString(), "v1");
         IPlaybackInputSink requests = Substitute.For<IPlaybackInputSink>();
-        IYouTubePlayerDispatcher players = Substitute.For<IYouTubePlayerDispatcher>();
-        players.ReplayCurrentAsync(Broadcaster, false, Arg.Any<CancellationToken>()).Returns(true);
 
-        await page.Hub.WidgetReady(audioWidget.ToString(), requests, players);
+        await page.Hub.WidgetReady(audioWidget.ToString(), requests);
 
-        await players.DidNotReceiveWithAnyArgs().HandOverNextAsync(default);
+        requests
+            .ReceivedCalls()
+            .Should()
+            .ContainSingle("the hub only reports the attach; the director decides what plays");
         await requests
             .Received(1)
             .SendAsync(Broadcaster, Arg.Any<OutputAttached>(), Arg.Any<CancellationToken>());
@@ -438,11 +437,14 @@ public sealed class OverlayAudioRoutingTests
         stop.Data.Should().BeEquivalentTo(new { handoff = true });
 
         IPlaybackInputSink requests = Substitute.For<IPlaybackInputSink>();
-        IYouTubePlayerDispatcher players = Substitute.For<IYouTubePlayerDispatcher>();
-        await second.Hub.WidgetReady(audioWidget.ToString(), requests, players);
-        await players
+        await second.Hub.WidgetReady(audioWidget.ToString(), requests);
+        await requests
             .Received(1)
-            .ReplayCurrentAsync(Broadcaster, false, Arg.Any<CancellationToken>());
+            .SendAsync(
+                Broadcaster,
+                Arg.Is<OutputAttached>(o => !o.PageIsPlaying),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -470,15 +472,16 @@ public sealed class OverlayAudioRoutingTests
             .Should()
             .BeTrue();
         IPlaybackInputSink requests = Substitute.For<IPlaybackInputSink>();
-        IYouTubePlayerDispatcher players = Substitute.For<IYouTubePlayerDispatcher>();
-        players.ReplayCurrentAsync(Broadcaster, true, Arg.Any<CancellationToken>()).Returns(true);
 
-        await page.Hub.WidgetReady(audioWidget.ToString(), requests, players);
+        await page.Hub.WidgetReady(audioWidget.ToString(), requests);
 
-        await players
+        await requests
             .Received(1)
-            .ReplayCurrentAsync(Broadcaster, true, Arg.Any<CancellationToken>());
-        await players.DidNotReceiveWithAnyArgs().HandOverNextAsync(default);
+            .SendAsync(
+                Broadcaster,
+                Arg.Is<OutputAttached>(o => o.PageIsPlaying),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]

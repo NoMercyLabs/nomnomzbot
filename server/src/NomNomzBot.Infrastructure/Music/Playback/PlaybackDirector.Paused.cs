@@ -33,6 +33,9 @@ public sealed partial class PlaybackDirector
                 // The owner can still set the level or the position while paused; the state stays PausedByOwner.
                 await OnOwnerIntentAsync(input, ct);
                 break;
+            case OutputAttached attached:
+                await ReattachOutputAsync(engine, attached, ct);
+                break;
             case RequestAdded:
                 await MoveAsync(State, input, "held_paused");
                 break;

@@ -22,18 +22,6 @@ namespace NomNomzBot.Infrastructure.Tests.Music;
 /// </summary>
 public sealed class PlaybackEngineCallGuardTests
 {
-    /// <summary>
-    /// Files that name an engine at a control call today. S-PD-5 (control surfaces send director inputs
-    /// only) removes each entry; the stale-entry test below fails once a file no longer offends, so the
-    /// list can only shrink. A NEW file that offends is not on this list and fails the guard.
-    /// </summary>
-    private static readonly string[] KnownOffendersUntilSpPd5 =
-    [
-        // OverlayHub.WidgetReady calls IYouTubePlayerDispatcher.ReplayCurrentAsync. S-PD-5 replaces it
-        // with a director input; remove this entry then.
-        "NomNomzBot.Api/Hubs/OverlayHub.cs",
-    ];
-
     /// <summary>Directories that hold control surfaces, relative to <c>server/src</c>.</summary>
     private static readonly string[] SurfaceRoots =
     [
@@ -66,9 +54,7 @@ public sealed class PlaybackEngineCallGuardTests
     [Fact]
     public void No_control_surface_names_an_engine_at_a_music_control_call()
     {
-        List<string> offenders = FindOffenders()
-            .Where(path => !KnownOffendersUntilSpPd5.Contains(path))
-            .ToList();
+        List<string> offenders = FindOffenders();
 
         offenders
             .Should()
@@ -76,18 +62,6 @@ public sealed class PlaybackEngineCallGuardTests
                 "a control surface sends a director input (IPlaybackInputSink); it never names an engine "
                     + "at play, pause, skip, seek or volume. Route the call through the director"
             );
-    }
-
-    [Fact]
-    public void The_known_offender_list_holds_only_files_that_still_offend()
-    {
-        List<string> found = FindOffenders();
-
-        List<string> stale = KnownOffendersUntilSpPd5.Where(path => !found.Contains(path)).ToList();
-
-        stale
-            .Should()
-            .BeEmpty("S-PD-5 fixed these files; delete them from KnownOffendersUntilSpPd5");
     }
 
     [Fact]
