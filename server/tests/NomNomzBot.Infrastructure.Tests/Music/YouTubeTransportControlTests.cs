@@ -195,7 +195,9 @@ public sealed class YouTubeTransportControlTests
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
             identities,
-            Substitute.For<IForeignLinkTitleLookup>()
+            Substitute.For<IForeignLinkTitleLookup>(),
+            DirectorRig.Of(queues).Registry,
+            DirectorRig.Of(queues).Registry
         );
         PlayOnceResumeTracker resumeTracker = new();
         YouTubePlayerReportService reports = new(

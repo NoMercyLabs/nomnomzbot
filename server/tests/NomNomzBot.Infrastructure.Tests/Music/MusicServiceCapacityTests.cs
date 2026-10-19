@@ -170,12 +170,13 @@ public sealed class MusicServiceCapacityTests
             .GetConfigAsync(ChannelId.ToString(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(config));
 
+        ISongRequestQueueStore directorStore = store ?? new SongRequestQueueStore();
         MusicService sut = new(
             [spotify],
             db,
             new RecordingEventBus(),
             new BlockedTrackService(db),
-            store ?? new SongRequestQueueStore(),
+            directorStore,
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
@@ -184,7 +185,9 @@ public sealed class MusicServiceCapacityTests
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
             Substitute.For<IUserIdentityService>(),
-            Substitute.For<IForeignLinkTitleLookup>()
+            Substitute.For<IForeignLinkTitleLookup>(),
+            DirectorRig.Of(directorStore).Registry,
+            DirectorRig.Of(directorStore).Registry
         );
         return (sut, handler);
     }

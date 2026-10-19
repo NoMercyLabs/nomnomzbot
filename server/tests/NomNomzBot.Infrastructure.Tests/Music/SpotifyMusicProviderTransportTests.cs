@@ -253,7 +253,7 @@ public sealed class SpotifyMusicProviderTransportTests
             db,
             bus,
             new BlockedTrackService(db),
-            new SongRequestQueueStore(),
+            DirectorRig.NewStore(out SongRequestQueueStore directorStore),
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             store,
@@ -262,7 +262,9 @@ public sealed class SpotifyMusicProviderTransportTests
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
             Substitute.For<IUserIdentityService>(),
-            Substitute.For<IForeignLinkTitleLookup>()
+            Substitute.For<IForeignLinkTitleLookup>(),
+            DirectorRig.Of(directorStore).Registry,
+            DirectorRig.Of(directorStore).Registry
         );
         return (sut, bus, handler, store);
     }

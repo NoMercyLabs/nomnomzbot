@@ -136,7 +136,9 @@ public sealed class SongRequestSourceRoleTests
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
             Substitute.For<IUserIdentityService>(),
-            Substitute.For<IForeignLinkTitleLookup>()
+            Substitute.For<IForeignLinkTitleLookup>(),
+            DirectorRig.Of(_store).Registry,
+            DirectorRig.Of(_store).Registry
         );
     }
 

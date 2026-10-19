@@ -284,7 +284,9 @@ public sealed class YouTubeEndedAdvancesQueueTests
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
             Substitute.For<IUserIdentityService>(),
-            Substitute.For<IForeignLinkTitleLookup>()
+            Substitute.For<IForeignLinkTitleLookup>(),
+            DirectorRig.Of(queues).Registry,
+            DirectorRig.Of(queues).Registry
         );
         RealYouTubeEngineFactory engines = new(provider, players, playerStore);
         PlaybackDirectorRegistry registry = new(queues, engines, bus, TimeProvider.System);

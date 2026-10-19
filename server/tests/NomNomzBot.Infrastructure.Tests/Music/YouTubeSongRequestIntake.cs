@@ -75,7 +75,7 @@ internal sealed class YouTubeSongRequestIntake
             db,
             new RecordingEventBus(),
             new BlockedTrackService(db),
-            new SongRequestQueueStore(),
+            DirectorRig.NewStore(out SongRequestQueueStore directorStore),
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
@@ -84,8 +84,11 @@ internal sealed class YouTubeSongRequestIntake
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
             Substitute.For<IUserIdentityService>(),
-            Substitute.For<IForeignLinkTitleLookup>()
+            Substitute.For<IForeignLinkTitleLookup>(),
+            DirectorRig.Of(directorStore).Registry,
+            DirectorRig.Of(directorStore).Registry
         );
+        Rig = DirectorRig.Of(directorStore);
         _builtin = new(Music, RealComposer(), Substitute.For<IEventBus>());
     }
 
@@ -94,6 +97,9 @@ internal sealed class YouTubeSongRequestIntake
     public YouTubeMusicProvider Provider { get; }
 
     public MusicService Music { get; }
+
+    /// <summary>The playback director this channel's requests go to, over fake engines.</summary>
+    public DirectorRig Rig { get; }
 
     /// <summary>Data API calls made so far, by endpoint name ("search", "videos").</summary>
     public List<string> DataApiCalls =>

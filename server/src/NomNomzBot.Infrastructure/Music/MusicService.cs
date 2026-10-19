@@ -62,6 +62,8 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     private readonly IUserIdentityService _identities;
     private readonly IForeignLinkTitleLookup _linkTitles;
     private readonly RefusedSongRequestStore _refused;
+    private readonly IPlaybackInputSink _playbackInput;
+    private readonly IPlaybackStateReader _playbackState;
 
     public MusicService(
         IEnumerable<IMusicProvider> providers,
@@ -78,9 +80,13 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         IOutboundSanctionAccessor sanctions,
         IUserIdentityService identities,
         IForeignLinkTitleLookup linkTitles,
+        IPlaybackInputSink playbackInput,
+        IPlaybackStateReader playbackState,
         RefusedSongRequestStore? refused = null
     )
     {
+        _playbackInput = playbackInput;
+        _playbackState = playbackState;
         _refused = refused ?? new();
         _linkTitles = linkTitles;
         _providers = providers;

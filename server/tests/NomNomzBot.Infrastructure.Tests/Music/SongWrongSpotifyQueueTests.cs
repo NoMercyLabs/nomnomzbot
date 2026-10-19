@@ -83,7 +83,9 @@ public sealed class SongWrongSpotifyQueueTests
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
             Substitute.For<IUserIdentityService>(),
-            Substitute.For<IForeignLinkTitleLookup>()
+            Substitute.For<IForeignLinkTitleLookup>(),
+            DirectorRig.Of(store).Registry,
+            DirectorRig.Of(store).Registry
         );
 
         Harness harness = new()

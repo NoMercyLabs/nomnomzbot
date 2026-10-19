@@ -316,12 +316,13 @@ public sealed class MusicServiceQueuePromoteBanTests
         );
 
         RecordingEventBus bus = new();
+        ISongRequestQueueStore directorStore = store ?? new SongRequestQueueStore();
         MusicService sut = new(
             [spotify],
             db,
             bus,
             new BlockedTrackService(db),
-            store ?? new SongRequestQueueStore(),
+            directorStore,
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
@@ -330,7 +331,9 @@ public sealed class MusicServiceQueuePromoteBanTests
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
             Substitute.For<IUserIdentityService>(),
-            Substitute.For<IForeignLinkTitleLookup>()
+            Substitute.For<IForeignLinkTitleLookup>(),
+            DirectorRig.Of(directorStore).Registry,
+            DirectorRig.Of(directorStore).Registry
         );
         return (sut, bus, db);
     }

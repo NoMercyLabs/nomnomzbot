@@ -193,7 +193,7 @@ public sealed class MusicServiceRequestHistoryTests
             db,
             bus,
             new BlockedTrackService(db),
-            new SongRequestQueueStore(),
+            DirectorRig.NewStore(out SongRequestQueueStore directorStore),
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
@@ -202,7 +202,9 @@ public sealed class MusicServiceRequestHistoryTests
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
             Substitute.For<IUserIdentityService>(),
-            Substitute.For<IForeignLinkTitleLookup>()
+            Substitute.For<IForeignLinkTitleLookup>(),
+            DirectorRig.Of(directorStore).Registry,
+            DirectorRig.Of(directorStore).Registry
         );
         return (sut, db, bus);
     }

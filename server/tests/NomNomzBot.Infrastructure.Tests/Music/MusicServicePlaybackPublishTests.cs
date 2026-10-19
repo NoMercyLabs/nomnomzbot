@@ -494,7 +494,7 @@ public sealed class MusicServicePlaybackPublishTests
             db,
             bus,
             new BlockedTrackService(db),
-            new SongRequestQueueStore(),
+            DirectorRig.NewStore(out SongRequestQueueStore directorStore),
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
@@ -503,7 +503,9 @@ public sealed class MusicServicePlaybackPublishTests
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
             Substitute.For<IUserIdentityService>(),
-            Substitute.For<IForeignLinkTitleLookup>()
+            Substitute.For<IForeignLinkTitleLookup>(),
+            DirectorRig.Of(directorStore).Registry,
+            DirectorRig.Of(directorStore).Registry
         );
 
         Result ok = await sut.PlayAsync(ChannelId.ToString());
@@ -581,7 +583,9 @@ public sealed class MusicServicePlaybackPublishTests
                 TimeProvider.System,
                 bus
             ),
-            Substitute.For<IForeignLinkTitleLookup>()
+            Substitute.For<IForeignLinkTitleLookup>(),
+            DirectorRig.Of(queueStore).Registry,
+            DirectorRig.Of(queueStore).Registry
         );
         return (sut, bus, handler);
     }

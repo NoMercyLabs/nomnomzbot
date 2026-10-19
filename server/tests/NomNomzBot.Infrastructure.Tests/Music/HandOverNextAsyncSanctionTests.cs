@@ -94,7 +94,9 @@ public sealed class HandOverNextAsyncSanctionTests
             new NowPlayingCache(),
             sanctions,
             Substitute.For<IUserIdentityService>(),
-            Substitute.For<IForeignLinkTitleLookup>()
+            Substitute.For<IForeignLinkTitleLookup>(),
+            DirectorRig.Of(queueStore).Registry,
+            DirectorRig.Of(queueStore).Registry
         );
 
         // No sanction in force here, matching exactly how the reconciler and the poller's recovery tick
@@ -156,7 +158,7 @@ public sealed class HandOverNextAsyncSanctionTests
             db,
             new RecordingEventBus(),
             new BlockedTrackService(db),
-            new SongRequestQueueStore(),
+            DirectorRig.NewStore(out SongRequestQueueStore directorStore),
             new NoOpSongRequestQueuePersistence(),
             NullLogger<MusicService>.Instance,
             new InMemoryIntegrationCapabilityStore(),
@@ -165,7 +167,9 @@ public sealed class HandOverNextAsyncSanctionTests
             new NowPlayingCache(),
             sanctions,
             Substitute.For<IUserIdentityService>(),
-            Substitute.For<IForeignLinkTitleLookup>()
+            Substitute.For<IForeignLinkTitleLookup>(),
+            DirectorRig.Of(directorStore).Registry,
+            DirectorRig.Of(directorStore).Registry
         );
 
         sanctions.Current.Should().BeNull();
@@ -214,7 +218,9 @@ public sealed class HandOverNextAsyncSanctionTests
             new NowPlayingCache(),
             new OutboundSanctionAccessor(),
             Substitute.For<IUserIdentityService>(),
-            Substitute.For<IForeignLinkTitleLookup>()
+            Substitute.For<IForeignLinkTitleLookup>(),
+            DirectorRig.Of(queueStore).Registry,
+            DirectorRig.Of(queueStore).Registry
         );
 
         queueStore
