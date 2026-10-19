@@ -169,8 +169,9 @@ const nextRepeat = computed<RepeatMode>(() => {
         <!-- Three weights under the bar: play is the one filled key, skip keys are plain, modes are small. -->
         <div
           data-player-controls
-          class="flex flex-1 justify-end items-center gap-6"
+          class="grid grid-cols-1 items-center gap-4 @2xl:grid-cols-[1fr_auto_1fr]"
         >
+          <span aria-hidden="true" class="hidden @2xl:block" />
           <div class="flex items-center justify-center gap-5">
             <Button
               v-if="can('music:remote:control')"

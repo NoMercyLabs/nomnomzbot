@@ -188,9 +188,10 @@ function confirmRemove(): void {
 const rulesOpen = ref(false);
 
 // Stoney 2026-10-18: "the breakpoints need to be better defined based on the other component's needs". Each panel
-// declares the narrowest column it renders properly in; the rules join the board as a third column only where all
-// panels keep theirs, otherwise they sit in a drawer. The rules switch in the header hides them in both places.
-// One RulesPanel serves both, so no field is written twice.
+// declares the narrowest column it renders properly in, so the board counts its columns from them.
+// Stoney 2026-10-19: "i asked you to make it a togglable menu to prevent this crap!" The rules are never a column:
+// they slide over the page from the right, closed by default, opened by the header button, and closed by its close
+// button, Escape or the browser's Back.
 const board = useTemplateRef<ComponentPublicInstance>('board');
 const canSeeRules = computed(() => access.can('music:config:read'));
 
@@ -220,12 +221,6 @@ const panels = computed<BoardPanel[]>(() => {
         label: t('dashboard.music.thanks.title'),
         minWidth: musicMinimums.thanks,
       },
-      {
-        id: 'rules',
-        label: t('dashboard.music.rules.title'),
-        minWidth: musicMinimums.rules,
-        optional: true,
-      },
     );
   }
 
@@ -234,10 +229,6 @@ const panels = computed<BoardPanel[]>(() => {
 
 const layout = useBoard('music', board, () => panels.value);
 const span = layout.span;
-const rulesInline = computed(() =>
-  layout.isInline('rules'));
-const rulesInDrawer = computed(() =>
-  layout.isShown('rules') && !rulesInline.value);
 </script>
 
 <template>
@@ -246,7 +237,7 @@ const rulesInDrawer = computed(() =>
       <StatusBadge :tone="spotify.tone" :label="$t(`dashboard.music.spotify.${spotify.key}`)" />
     </template>
     <template #actions>
-      <Sheet v-if="canSeeRules && rulesInDrawer" v-model:open="rulesOpen">
+      <Sheet v-if="canSeeRules" v-model:open="rulesOpen">
         <SheetTrigger as-child>
           <Button variant="outline">
             <IconRules aria-hidden="true" />
@@ -417,9 +408,6 @@ const rulesInDrawer = computed(() =>
           </SummaryRow>
         </div>
       </PanelCard>
-    </BoardCell>
-    <BoardCell v-if="rulesInline" panel="rules" :span="span" :rows="2">
-      <RulesPanel />
     </BoardCell>
     <BoardCell v-if="canSeeRules" panel="history" :span="span">
       <HistoryPanel />

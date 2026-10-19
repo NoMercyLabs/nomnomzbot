@@ -15,8 +15,6 @@ export const musicMinimums = {
   now: 360,
   // A queue row keeps the number, the cover and the drag handle (148px) and still shows about 14 title characters.
   queue: 440,
-  // The rules form keeps its seconds input and its toggle rows on one line each.
-  rules: 420,
   // History and thanks are plain lists of one line per entry.
   history: 360,
   thanks: 360,
