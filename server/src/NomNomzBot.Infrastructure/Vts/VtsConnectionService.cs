@@ -15,6 +15,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Vts.Dtos;
 using NomNomzBot.Application.Vts.Services;
 using NomNomzBot.Domain.Vts.Entities;
+using NomNomzBot.Infrastructure.Vts.Transport;
 
 namespace NomNomzBot.Infrastructure.Vts;
 
@@ -143,6 +144,16 @@ public class VtsConnectionService : IVtsConnectionService
             c.EventSubscriptionsMask,
             c.IsEnabled,
             c.Status,
-            c.LastConnectedAt
+            c.LastConnectedAt,
+            [
+                .. DirectVtsTransport.EventBits.Select(
+                    (name, index) =>
+                        new EventKindDto(
+                            name,
+                            1 << index,
+                            (VtsConnectionDefaults.EventSubscriptionsMask & (1 << index)) != 0
+                        )
+                ),
+            ]
         );
 }

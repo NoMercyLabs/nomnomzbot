@@ -43,7 +43,8 @@ public sealed class ObsControllerConnectionViewTests
         EventSubscriptionsMask: 7,
         IsEnabled: true,
         LastConnectedAt: new DateTime(2026, 10, 18, 9, 0, 0, DateTimeKind.Utc),
-        LastError: "connect 192.168.1.50:4455 refused"
+        LastError: "connect 192.168.1.50:4455 refused",
+        EventKinds: []
     );
 
     private static ObsController Build(IObsConnectionService connections)

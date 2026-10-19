@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Vts.Entities;
 
 namespace NomNomzBot.Application.Vts.Dtos;
@@ -25,7 +26,8 @@ public sealed record VtsConnectionDto(
     int EventSubscriptionsMask,
     bool IsEnabled,
     string Status,
-    DateTime? LastConnectedAt
+    DateTime? LastConnectedAt,
+    IReadOnlyList<EventKindDto> EventKinds
 );
 
 /// <summary>Upsert request — the plugin token is never written here; the authorize flow mints it.</summary>

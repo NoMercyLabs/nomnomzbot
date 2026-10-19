@@ -10,6 +10,7 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.Text.Json.Serialization;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Obs.Entities;
 
 namespace NomNomzBot.Application.Obs.Dtos;
@@ -28,7 +29,8 @@ public sealed record ObsConnectionDto(
     int EventSubscriptionsMask,
     bool IsEnabled,
     DateTime? LastConnectedAt,
-    string? LastError
+    string? LastError,
+    IReadOnlyList<EventKindDto> EventKinds
 );
 
 /// <summary>Which shape of the OBS connection a read returns (query option <c>view</c>).</summary>

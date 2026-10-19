@@ -157,6 +157,13 @@ public class ObsConnectionService : IObsConnectionService
             c.EventSubscriptionsMask,
             c.IsEnabled,
             c.LastConnectedAt,
-            c.LastError
+            c.LastError,
+            [
+                .. ObsEventKinds.All.Select(k => new EventKindDto(
+                    k.Name,
+                    k.Bit,
+                    (ObsConnectionDefaults.EventSubscriptionsMask & k.Bit) != 0
+                )),
+            ]
         );
 }
