@@ -34,6 +34,10 @@ public sealed class SpotifyPollFeedTests
         IMusicProviderStartTrack,
         IMusicProviderConnectionGate
     >();
+    private const string Mine = "spotify:track:owner";
+    private const string Video = "dQw4w9WgXcQ";
+    private static readonly string VideoUri = $"https://www.youtube.com/watch?v={Video}";
+
     private readonly PolledEngineFactory _engines;
     private readonly PlaybackDirectorRegistry _registry;
 
@@ -147,9 +151,54 @@ public sealed class SpotifyPollFeedTests
         Queued().Should().Equal(First);
     }
 
+    private int PausesOfSpotify() =>
+        _provider
+            .ReceivedCalls()
+            .Count(call => call.GetMethodInfo().Name == nameof(IMusicProvider.PauseAsync));
+
+    [Fact]
+    public async Task Row7_An_owner_pause_seen_in_the_poll_holds_the_youtube_head_across_ten_polls()
+    {
+        await _registry.SendAsync(Channel, new OutputAttached());
+        await _registry.ObservePollAsync(Channel, Polled(Mine, 100_000));
+        Request(VideoUri);
+        await _registry.SendAsync(Channel, new RequestAdded());
+
+        for (int poll = 0; poll < 11; poll++)
+            await _registry.ObservePollAsync(Channel, Polled(Mine, 100_000, playing: false));
+
+        _registry
+            .StateOf(Channel)
+            .Should()
+            .Be(PlaybackState.PausedByOwner(EngineKind.Spotify, null));
+        _engines.YouTube.Calls.Should().BeEmpty("the owner's pause holds the YouTube head");
+        PausesOfSpotify().Should().Be(0, "the pause is the owner's, the bot sends none");
+        Queued().Should().Equal(VideoUri);
+    }
+
+    [Fact]
+    public async Task Row11_Spotify_starting_on_its_own_while_youtube_plays_is_paused_through_the_provider()
+    {
+        Request(VideoUri);
+        await _registry.SendAsync(Channel, new RequestAdded());
+        await _engines.YouTube.EmitAsync(
+            new EngineReport(EngineKind.YouTube, VideoUri, true, 1_000, 200_000)
+        );
+        _registry.StateOf(Channel).Kind.Should().Be(PlaybackStateKind.Playing);
+
+        await _registry.ObservePollAsync(Channel, Polled(Mine, 1_000));
+
+        PausesOfSpotify().Should().Be(1, "the foreign engine is silenced once");
+        _registry.StateOf(Channel).Engine.Should().Be(EngineKind.YouTube);
+        _registry.StateOf(Channel).Kind.Should().Be(PlaybackStateKind.Playing);
+        _engines.YouTube.Calls.Should().ContainSingle(call => call.Name == "Start");
+    }
+
     /// <summary>Builds a real Spotify engine over the substitute provider and a fake YouTube engine.</summary>
     private sealed class PolledEngineFactory(IMusicProvider provider) : IPlaybackEngineFactory
     {
+        public FakeEngine YouTube { get; } = new(EngineKind.YouTube);
+
         public int CreateCount { get; private set; }
 
         public IReadOnlyList<IPlaybackEngine> Create(Guid broadcasterId)
@@ -159,7 +208,7 @@ public sealed class SpotifyPollFeedTests
             return
             [
                 new SpotifyPlaybackEngine(broadcasterId, () => EngineLease.Of(provider)),
-                new FakeEngine(EngineKind.YouTube),
+                YouTube,
             ];
         }
     }

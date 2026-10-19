@@ -181,7 +181,10 @@ public sealed partial class PlaybackDirector
             return;
 
         string? expectedUri = State.Item?.Uri ?? _ownerReport?.Uri;
-        bool midTrack = report.DurationMs > 0 && report.DurationMs - report.ProgressMs > NearEndMs;
+        // A player that does not know the length (a YouTube report from a pushed track without one) falls back
+        // to the length the queue row carried.
+        int durationMs = report.DurationMs > 0 ? report.DurationMs : State.Item?.DurationMs ?? 0;
+        bool midTrack = durationMs > 0 && durationMs - report.ProgressMs > NearEndMs;
         bool ownerPaused = report.Uri == expectedUri && midTrack && !SentRecently(report.Engine);
         if (State.Item is null)
             _ownerReport = report;

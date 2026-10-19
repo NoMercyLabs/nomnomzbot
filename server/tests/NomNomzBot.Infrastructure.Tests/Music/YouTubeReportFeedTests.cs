@@ -166,6 +166,37 @@ public sealed class YouTubeReportFeedTests
     }
 
     [Fact]
+    public async Task Row10_A_pause_in_the_widget_mid_video_holds_the_state_with_no_spotify_call()
+    {
+        Request(First);
+        await _registry.SendAsync(Channel, new RequestAdded());
+        await ReportAsync(First, "playing");
+
+        Result result = await _reports.ReportAsync(Channel, Widget, First, "paused", 50_000);
+
+        result.IsSuccess.Should().BeTrue();
+        PlaybackState state = _registry.StateOf(Channel);
+        state.Kind.Should().Be(PlaybackStateKind.PausedByOwner);
+        state.Engine.Should().Be(EngineKind.YouTube);
+        _engines.Spotify.Calls.Should().BeEmpty();
+        PlayNowOf(First).Should().Be(1, "a pause is never answered with another start");
+    }
+
+    [Fact]
+    public async Task Row5_A_dashboard_resume_while_youtube_plays_calls_no_spotify_and_keeps_the_state()
+    {
+        Request(First);
+        await _registry.SendAsync(Channel, new RequestAdded());
+        await ReportAsync(First, "playing");
+        PlaybackState before = _registry.StateOf(Channel);
+
+        await _registry.SendAsync(Channel, new OwnerResume());
+
+        _registry.StateOf(Channel).Should().Be(before);
+        _engines.Spotify.Calls.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task A_report_for_a_channel_with_no_director_changes_nothing_and_creates_no_engines()
     {
         Request(First);
@@ -185,6 +216,8 @@ public sealed class YouTubeReportFeedTests
         IYouTubePlayerStateStore store
     ) : IPlaybackEngineFactory
     {
+        public FakeEngine Spotify { get; } = new(EngineKind.Spotify);
+
         public int CreateCount { get; private set; }
 
         public IReadOnlyList<IPlaybackEngine> Create(Guid broadcasterId)
@@ -193,7 +226,7 @@ public sealed class YouTubeReportFeedTests
 
             return
             [
-                new FakeEngine(EngineKind.Spotify),
+                Spotify,
                 new YouTubePlaybackEngine(
                     broadcasterId,
                     () => EngineLease.Of(provider, dispatcher),
