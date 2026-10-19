@@ -95,6 +95,14 @@ describe('RequiredOverlaysPanel', () => {
     expect(nl.dashboard.obs.required.surfaces.audio.name).toBe('Bot Audio');
   });
 
+  it('names the music player surface in both languages, never by its raw key', () => {
+    open([surface('music_player')]);
+
+    expect(rows()[0]?.textContent).toContain('Music Player');
+    expect(rows()[0]?.textContent).not.toContain('dashboard.obs');
+    expect(nl.dashboard.obs.required.surfaces.music_player.name).toBe('Muziekspeler');
+  });
+
   it('copies the full address to the clipboard and never prints the token on the page', async () => {
     open([surface('audio')]);
 

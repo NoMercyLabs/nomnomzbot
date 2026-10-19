@@ -56,6 +56,10 @@
           "raid_recap": {
             "name": "Raid-terugblik",
             "detail": "Toont de terugblik op de stream als slotscène van een raid."
+          },
+          "music_player": {
+            "name": "Muziekspeler",
+            "detail": "Speelt de aangevraagde YouTube-nummers af. Zonder deze bron kunnen YouTube-aanvragen niet spelen."
           }
         }
       },
