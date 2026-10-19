@@ -154,3 +154,5 @@ it is really important to keep spotify doing what it does best while we correctl
 2026-10-20 (Admin › System: health rows named api, postgresql, pending-migrations, eventsub-handover, shutdown with "0 ms" each; Version 0.1.0.0; Memory 3758 MB; Active channels 0 of 29): "uhhhh"
 2026-10-20 (Admin › Providers: every provider shows open Client ID and New client secret boxes under its stored values): "they are stored so collapse them with an edit button", then: "with modal"
 2026-10-20 (Admin › Platform defaults, https://vue.nomnomz.bot/app/admin/platform-defaults): "dear god..."
+2026-10-20 (the same page while "Viewing as a viewer": three sections read "No ... are listed", the voice section "could not load", and the sidebar footer still says Moderator): "guess im not viewing as viewer since im not redirected..."
+2026-10-20 (in "view as viewer" on Settings › Your data, the sidebar shows only Readability and Your data): "how am i getting back to the main pages"
