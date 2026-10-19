@@ -42,6 +42,39 @@ public sealed partial class PlaybackDirectorTests
     }
 
     [Fact]
+    public async Task PlayingRequestNearItsEnd_LinesTheNextRequestUpInTheQueueWithNoSkip()
+    {
+        Rig rig = new();
+        PlaybackItem a = await rig.StartPlaying(EngineKind.Spotify, "a");
+        PlaybackItem b = Item("b", owner: "owner-b");
+        await rig.Request(b);
+
+        await rig.Spotify.EmitAsync(
+            new EngineReport(EngineKind.Spotify, a.Uri, true, a.DurationMs - 12_000, a.DurationMs)
+        );
+        await rig.Ends(rig.Spotify, a);
+        await rig.Plays(rig.Spotify, b);
+
+        rig.Spotify.Calls.Should()
+            .Equal(new EngineCall("Start", "a"), new EngineCall("QueueNext", "b"));
+        rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, b));
+    }
+
+    [Fact]
+    public async Task FailedStart_OfAnItemSpotifyAlreadyHolds_IsNeverQueuedASecondTime()
+    {
+        Rig rig = new();
+        await rig.Request(Item("a"));
+        rig.Clock.Advance(TimeSpan.FromSeconds(11));
+        await rig.Director.CheckDeadlinesAsync();
+        rig.Director.State.Kind.Should().Be(PlaybackStateKind.Blocked);
+
+        await rig.Director.HandleAsync(new RequestAdded());
+
+        rig.Spotify.Calls.Should().Equal([new EngineCall("Start", "a")], "Spotify still holds it");
+    }
+
+    [Fact]
     public async Task HandOver_QueuedAhead_TheStartDeadlineRunsFromTheEndOfTheOwnerTrack()
     {
         Rig rig = new();

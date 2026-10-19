@@ -47,9 +47,14 @@ public sealed partial class PlaybackDirector
         }
     }
 
-    private async Task<EngineStartResult> QueueAheadOnceAsync(
+    /// <summary>
+    /// Starts the item, or lines it up behind the owner's track when <paramref name="queueAheadMs"/> is set. An
+    /// item the engine already holds in its own queue is not sent again: it plays there on its own.
+    /// </summary>
+    private async Task<EngineStartResult> SendToEngineOnceAsync(
         IPlaybackEngine engine,
         PlaybackItem item,
+        int? queueAheadMs,
         CancellationToken ct
     )
     {
@@ -59,10 +64,10 @@ public sealed partial class PlaybackDirector
         EngineStartResult result = await TryStartAsync(
             engine,
             item,
-            e => e.QueueNextAsync(item, ct),
+            e => queueAheadMs is null ? e.StartAsync(item, ct) : e.QueueNextAsync(item, ct),
             ct
         );
-        if (result.Accepted)
+        if (result.Accepted && engine.LinesUpInItsOwnQueue)
             _queuedAhead.Add(item.Id);
 
         return result;

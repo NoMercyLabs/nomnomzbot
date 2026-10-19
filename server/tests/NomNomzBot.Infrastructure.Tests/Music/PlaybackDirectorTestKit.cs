@@ -78,6 +78,9 @@ public static class PlaybackDirectorTestKit
             return DuringStart is null ? Task.FromResult(StartResult) : StartAfterAsync(item);
         }
 
+        /// <summary>The fake Spotify keeps a started item in its own queue, as the real one does.</summary>
+        public bool LinesUpInItsOwnQueue => Kind == EngineKind.Spotify;
+
         public Task<EngineStartResult> QueueNextAsync(
             PlaybackItem item,
             CancellationToken ct = default

@@ -429,8 +429,8 @@ public sealed partial class PlaybackDirectorTests
 
         await rig.Director.HandleAsync(new OutputAttached());
 
-        rig.Spotify.Calls.Should()
-            .Equal(new EngineCall("Start", "a"), new EngineCall("Start", "a"));
+        // Spotify accepted the first start, so it still holds the track in its own queue: no second send.
+        rig.Spotify.Calls.Should().Equal(new EngineCall("Start", "a"));
         rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.Spotify, a));
         rig.Journal.Select(e => (e.From, e.To, e.Reason))
             .Should()

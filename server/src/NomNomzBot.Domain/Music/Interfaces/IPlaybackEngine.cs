@@ -33,6 +33,12 @@ public interface IPlaybackEngine
     Task<EngineStartResult> QueueNextAsync(PlaybackItem item, CancellationToken ct = default) =>
         StartAsync(item, ct);
 
+    /// <summary>
+    /// True when an accepted start or queue call leaves the item in the engine's own queue, where it plays
+    /// on its own later; such an item is never sent to the engine twice.
+    /// </summary>
+    bool LinesUpInItsOwnQueue => false;
+
     Task PauseAsync(CancellationToken ct = default);
 
     Task ResumeAsync(CancellationToken ct = default);

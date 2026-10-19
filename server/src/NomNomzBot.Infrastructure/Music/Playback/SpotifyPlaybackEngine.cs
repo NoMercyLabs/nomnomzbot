@@ -64,6 +64,9 @@ public sealed class SpotifyPlaybackEngine(Guid broadcasterId, Func<EngineLease> 
             );
     }
 
+    /// <summary>A started or queued track sits in Spotify's own queue until it plays.</summary>
+    public bool LinesUpInItsOwnQueue => true;
+
     /// <summary>Spotify's own queue plays the item right after the owner's current track.</summary>
     public async Task<EngineStartResult> QueueNextAsync(
         PlaybackItem item,

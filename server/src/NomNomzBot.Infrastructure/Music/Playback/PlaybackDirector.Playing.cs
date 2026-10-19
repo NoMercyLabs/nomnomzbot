@@ -202,7 +202,10 @@ public sealed partial class PlaybackDirector
         }
 
         if (State.Kind == PlaybackStateKind.Playing && State.Item?.Uri == report.Uri)
+        {
+            await QueueNextBehindItemAsync(report, ct);
             return;
+        }
 
         bool ownerAlready = State is { Kind: PlaybackStateKind.Playing, Item: null };
         _ownerReport = report;
@@ -239,6 +242,22 @@ public sealed partial class PlaybackDirector
 
         await BeginStartAsync(head, inputName, "hand_over", null, ct, remainingMs);
         return true;
+    }
+
+    /// <summary>
+    /// A request plays near its end and the next waits on the same engine: the next is lined up in the
+    /// engine's own queue, so it follows with no skip.
+    /// </summary>
+    private async Task QueueNextBehindItemAsync(EngineReport report, CancellationToken ct)
+    {
+        if (_queue.Head is not { } next || next.Engine != report.Engine || report.DurationMs <= 0)
+            return;
+
+        int remainingMs = Math.Max(0, report.DurationMs - report.ProgressMs);
+        if (remainingMs > QueueAheadMs)
+            return;
+
+        await BeginStartAsync(next, nameof(EngineReport), "queue_next", null, ct, remainingMs);
     }
 
     private async Task OnTrackEndedAsync(TrackEnded ended, CancellationToken ct)

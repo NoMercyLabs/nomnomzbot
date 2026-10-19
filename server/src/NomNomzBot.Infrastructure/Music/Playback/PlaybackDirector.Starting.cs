@@ -67,9 +67,7 @@ public sealed partial class PlaybackDirector
             return;
         }
 
-        EngineStartResult result = queueAheadMs is null
-            ? await TryStartAsync(engine, item, e => e.StartAsync(item, ct), ct)
-            : await QueueAheadOnceAsync(engine, item, ct);
+        EngineStartResult result = await SendToEngineOnceAsync(engine, item, queueAheadMs, ct);
         if (result.Accepted)
             _startDeadline =
                 _time.GetUtcNow() + TimeSpan.FromMilliseconds(queueAheadMs ?? 0) + StartDeadline;
