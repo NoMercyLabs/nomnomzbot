@@ -238,6 +238,17 @@ describe('Triggers and timers page', () => {
     expect(field('Messages').value).toBe('Join us\nLink in bio');
   });
 
+  it('names the default of the interval and of the chat lines in the field hints', async () => {
+    await open();
+    await click(rowOf('Discord invite'));
+
+    const hints = [...document.body.querySelectorAll<HTMLElement>('[data-slot="field-info"] .sr-only')]
+      .map((hint) => hint.textContent ?? '');
+
+    expect(hints.some((hint) => hint.includes('Default 30'))).toBe(true);
+    expect(hints.some((hint) => hint.includes('Default 0'))).toBe(true);
+  });
+
   it('saves only the changed fields, and a messages list one message per line', async () => {
     await open();
     await click(rowOf('Follow reminder'));

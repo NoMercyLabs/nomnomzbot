@@ -23,6 +23,9 @@ export interface TimerDraft {
 // The bot's own limits and the interval a new timer starts at.
 export const defaultMinutes = 30;
 
+// A new timer needs no chat lines: it posts on the interval alone.
+export const defaultChatLines = 0;
+
 export const timerLimits = {
   minMinutes: 1,
   maxMinutes: 1440,

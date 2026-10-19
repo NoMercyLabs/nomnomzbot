@@ -83,7 +83,7 @@
         "intervalProblem": "Use a whole number from {minMinutes} to {maxMinutes} minutes.",
         "activityProblem": "Use a whole number from 0 to {maxActivity} chat lines.",
         "activity": "Chat lines needed",
-        "activityHelp": "The timer waits until chat has this many new lines since its last post.",
+        "activityHelp": "Default {lines}. The timer waits until chat has this many new lines since its last post.",
         "once": "Post once",
         "onceHelp": "The timer posts one time and then turns itself off.",
         "speak": "Read it aloud",

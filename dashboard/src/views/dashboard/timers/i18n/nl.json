@@ -83,7 +83,7 @@
         "intervalProblem": "Gebruik een heel getal van {minMinutes} tot {maxMinutes} minuten.",
         "activityProblem": "Gebruik een heel getal van 0 tot {maxActivity} chatregels.",
         "activity": "Benodigde chatregels",
-        "activityHelp": "De timer wacht tot de chat zoveel nieuwe regels heeft sinds zijn laatste bericht.",
+        "activityHelp": "Standaard {lines}. De timer wacht tot de chat zoveel nieuwe regels heeft sinds zijn laatste bericht.",
         "once": "Eenmalig plaatsen",
         "onceHelp": "De timer plaatst een keer en zet zichzelf dan uit.",
         "speak": "Voorlezen",

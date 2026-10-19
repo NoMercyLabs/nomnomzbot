@@ -29,6 +29,7 @@ import { errorText } from '@/lib/errors';
 
 import {
   changeOf,
+  defaultChatLines,
   defaultMinutes,
   draftOf,
   problemOf,
@@ -209,7 +210,7 @@ function remove(): void {
             <FieldLabel for="timer-activity">{{
               $t("dashboard.timers.editor.activity")
             }}</FieldLabel>
-            <FieldInfo>{{ $t("dashboard.timers.editor.activityHelp") }}</FieldInfo>
+            <FieldInfo>{{ $t("dashboard.timers.editor.activityHelp", { lines: defaultChatLines }) }}</FieldInfo>
           </div>
           <Input
             id="timer-activity"
