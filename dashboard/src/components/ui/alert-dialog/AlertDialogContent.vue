@@ -8,7 +8,7 @@ import {
   AlertDialogPortal,
   useForwardPropsEmits,
 } from 'reka-ui'
-import { returnFocusOnlyForKeyboard } from '@/lib/focusReturn'
+import { focusPanelOnPointerOpen, returnFocusOnlyForKeyboard } from '@/lib/focusReturn'
 import { cn } from '@/lib/utils'
 
 defineOptions({
@@ -41,6 +41,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       data-slot="alert-dialog-content"
       :data-size="size"
       v-bind="{ ...$attrs, ...forwarded }"
+      @open-auto-focus="focusPanelOnPointerOpen"
       @close-auto-focus="returnFocusOnlyForKeyboard"
       :class="
         cn(

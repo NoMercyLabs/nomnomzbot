@@ -7,7 +7,7 @@ import {
   PopoverPortal,
   useForwardPropsEmits,
 } from 'reka-ui'
-import { returnFocusOnlyForKeyboard } from '@/lib/focusReturn'
+import { focusPanelOnPointerOpen, returnFocusOnlyForKeyboard } from '@/lib/focusReturn'
 import { cn } from '@/lib/utils'
 
 defineOptions({
@@ -33,6 +33,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     <PopoverContent
       data-slot="popover-content"
       v-bind="{ ...$attrs, ...forwarded }"
+      @open-auto-focus="focusPanelOnPointerOpen"
       @close-auto-focus="returnFocusOnlyForKeyboard"
       :class="
         cn(

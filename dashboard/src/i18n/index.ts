@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import { useLocalStorage } from '@vueuse/core';
+import type { AcceptableValue } from 'reka-ui';
 import type { Component } from 'vue';
 import { createI18n, type LocaleMessageValue, type VueMessageType } from 'vue-i18n';
 
@@ -73,6 +74,18 @@ export async function setLocale(locale: Locale): Promise<void> {
   i18n.global.locale.value = locale;
   chosenLocale.value = locale;
   document.documentElement.lang = locale;
+}
+
+// Each language is named in its own language, so a reader finds theirs without reading the current one.
+export function ownLanguageName(tag: Locale): string {
+  return new Intl.DisplayNames([tag], { type: 'language' }).of(tag) ?? tag;
+}
+
+// A picker hands over a value it did not check; only a known language switches.
+export function chooseLocale(value: AcceptableValue): void {
+  if (typeof value === 'string' && isLocale(value)) {
+    void setLocale(value);
+  }
 }
 
 // Runs before the first render, so the first page already opens in the chosen language.

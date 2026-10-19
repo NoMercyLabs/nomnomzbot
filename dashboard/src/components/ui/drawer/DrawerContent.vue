@@ -8,7 +8,7 @@ import {
   DrawerPortal,
   useForwardPropsEmits,
 } from 'reka-ui'
-import { returnFocusOnlyForKeyboard } from '@/lib/focusReturn'
+import { focusPanelOnPointerOpen, returnFocusOnlyForKeyboard } from '@/lib/focusReturn'
 import { cn } from '@/lib/utils'
 import DrawerOverlay from './DrawerOverlay.vue'
 
@@ -30,6 +30,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     <DrawerContent
       data-slot="drawer-content"
       v-bind="{ ...$attrs, ...forwarded }"
+      @open-auto-focus="focusPanelOnPointerOpen"
       @close-auto-focus="returnFocusOnlyForKeyboard"
       :class="cn(
         'bg-popover text-popover-foreground flex h-auto flex-col text-sm data-[swipe-direction=down]:inset-x-0 data-[swipe-direction=down]:bottom-0 data-[swipe-direction=down]:mt-24 data-[swipe-direction=down]:max-h-[80vh] data-[swipe-direction=down]:rounded-t-xl data-[swipe-direction=down]:border-t data-[swipe-direction=left]:inset-y-0 data-[swipe-direction=left]:left-0 data-[swipe-direction=left]:w-3/4 data-[swipe-direction=left]:rounded-r-xl data-[swipe-direction=left]:border-r data-[swipe-direction=right]:inset-y-0 data-[swipe-direction=right]:right-0 data-[swipe-direction=right]:w-3/4 data-[swipe-direction=right]:rounded-l-xl data-[swipe-direction=right]:border-l data-[swipe-direction=up]:inset-x-0 data-[swipe-direction=up]:top-0 data-[swipe-direction=up]:mb-24 data-[swipe-direction=up]:max-h-[80vh] data-[swipe-direction=up]:rounded-b-xl data-[swipe-direction=up]:border-b data-[swipe-direction=left]:sm:max-w-sm data-[swipe-direction=right]:sm:max-w-sm group/drawer-content fixed z-50',

@@ -8,36 +8,51 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import { computed, ref } from 'vue';
+import { useFullscreen } from '@vueuse/core';
+import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter, type RouteLocationRaw } from 'vue-router';
 import ChevronDown from '~icons/nnz/chevron-down';
+import ArrowEnterFullscreen from '~icons/nnz/arrow-enter-fullscreen';
+import ArrowExitFullscreen from '~icons/nnz/arrow-exit-fullscreen';
 import BookOpen from '~icons/nnz/book-open';
 import DoorOut from '~icons/nnz/door-out';
 import Eye from '~icons/nnz/eye';
 import Shield from '~icons/nnz/shield';
+import Translate from '~icons/nnz/translate';
 
 import { signOut, useCurrentUser } from '@/api/auth';
 import { useViewAs, type ViewAsRole } from '@/api/viewAs';
-import LanguagePicker from '@/components/layout/LanguagePicker.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
-import { Separator } from '@/components/ui/separator';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuRadioGroup,
+  DropdownMenuRadioItem,
+  DropdownMenuSeparator,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { chooseLocale, locales, ownLanguageName } from '@/i18n';
 import { loginRoute } from '@/views/site/login/route';
-
-import FullscreenToggle from './FullscreenToggle.vue';
 
 // icon: only the picture, for the narrow header.
 defineProps<{ icon?: boolean }>();
 
-const { t } = useI18n();
+const { t, locale } = useI18n();
 const router = useRouter();
 const { data: user } = useCurrentUser();
 const { current } = useCurrentChannel();
-const open = ref(false);
 const preview = useViewAs();
+
+// Fullscreen hides the browser's own bars and gives the page the whole screen. A browser without the Fullscreen API
+// (an iPhone) gets no entry instead of one that does nothing.
+const { isSupported: canFullscreen, isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
 const settingsLink: RouteLocationRaw = { name: 'dashboard-settings', query: { view: 'device' } };
 const adminLink: RouteLocationRaw = { name: 'dashboard-admin-channels' };
@@ -66,21 +81,19 @@ const role = computed<string>(() =>
 // Only the owner of the channel can preview a smaller role; a moderator already sees theirs.
 const isOwner = computed<boolean>(() => !previewing.value && current.value?.kind === 'own');
 
-async function startPreview(role: ViewAsRole): Promise<void> {
-  open.value = false;
-  await preview.start(role);
-}
-
 async function leave(): Promise<void> {
-  open.value = false;
   await signOut();
   await router.push({ name: loginRoute.name });
+}
+
+function startPreview(target: ViewAsRole): Promise<void> {
+  return preview.start(target);
 }
 </script>
 
 <template>
-  <Popover v-model:open="open">
-    <PopoverTrigger as-child>
+  <DropdownMenu>
+    <DropdownMenuTrigger as-child>
       <button
         type="button"
         data-slot="profile-menu"
@@ -103,42 +116,53 @@ async function leave(): Promise<void> {
           />
         </template>
       </button>
-    </PopoverTrigger>
-    <PopoverContent align="end" side="top" class="w-64 p-1">
-      <p class="truncate px-3 py-2 text-sm font-medium">{{ user?.displayName }}</p>
-      <Separator />
-      <div class="flex flex-col gap-1 py-1">
-        <Button v-if="hasReadability" variant="ghost" class="justify-start" as-child>
-          <RouterLink :to="settingsLink" @click="open = false">
-            <BookOpen aria-hidden="true" />
-            {{ t('frame.profile.readability') }}
-          </RouterLink>
-        </Button>
-        <Button v-if="isOwner" variant="ghost" class="justify-start" @click="startPreview('moderator')">
-          <Eye aria-hidden="true" />
-          {{ t('frame.profile.viewAsModerator') }}
-        </Button>
-        <Button v-if="isOwner" variant="ghost" class="justify-start" @click="startPreview('viewer')">
-          <Eye aria-hidden="true" />
-          {{ t('frame.profile.viewAsViewer') }}
-        </Button>
-        <div class="flex items-center justify-between gap-2 px-3 py-1">
-          <span class="text-sm">{{ t('common.language') }}</span>
-          <LanguagePicker />
-        </div>
-        <FullscreenToggle />
-        <Button v-if="hasAdmin" variant="ghost" class="justify-start" as-child>
-          <RouterLink :to="adminLink" @click="open = false">
-            <Shield aria-hidden="true" />
-            {{ t('frame.profile.admin') }}
-          </RouterLink>
-        </Button>
-      </div>
-      <Separator />
-      <Button variant="ghost" class="mt-1 w-full justify-start" @click="leave">
+    </DropdownMenuTrigger>
+    <DropdownMenuContent align="end" side="top" class="w-64">
+      <DropdownMenuLabel class="truncate">{{ user?.displayName }}</DropdownMenuLabel>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem v-if="hasReadability" as-child>
+        <RouterLink :to="settingsLink">
+          <BookOpen aria-hidden="true" />
+          {{ t('frame.profile.readability') }}
+        </RouterLink>
+      </DropdownMenuItem>
+      <DropdownMenuItem v-if="isOwner" @select="startPreview('moderator')">
+        <Eye aria-hidden="true" />
+        {{ t('frame.profile.viewAsModerator') }}
+      </DropdownMenuItem>
+      <DropdownMenuItem v-if="isOwner" @select="startPreview('viewer')">
+        <Eye aria-hidden="true" />
+        {{ t('frame.profile.viewAsViewer') }}
+      </DropdownMenuItem>
+      <DropdownMenuSub>
+        <DropdownMenuSubTrigger>
+          <Translate aria-hidden="true" />
+          {{ t('common.language') }}
+        </DropdownMenuSubTrigger>
+        <DropdownMenuSubContent>
+          <DropdownMenuRadioGroup :model-value="locale" @update:model-value="chooseLocale">
+            <DropdownMenuRadioItem v-for="tag in locales" :key="tag" :value="tag" :lang="tag">
+              {{ ownLanguageName(tag) }}
+            </DropdownMenuRadioItem>
+          </DropdownMenuRadioGroup>
+        </DropdownMenuSubContent>
+      </DropdownMenuSub>
+      <DropdownMenuItem v-if="canFullscreen" data-slot="fullscreen-toggle" @select="toggleFullscreen">
+        <ArrowExitFullscreen v-if="isFullscreen" aria-hidden="true" />
+        <ArrowEnterFullscreen v-else aria-hidden="true" />
+        {{ isFullscreen ? t('frame.profile.exitFullscreen') : t('frame.profile.fullscreen') }}
+      </DropdownMenuItem>
+      <DropdownMenuItem v-if="hasAdmin" as-child>
+        <RouterLink :to="adminLink">
+          <Shield aria-hidden="true" />
+          {{ t('frame.profile.admin') }}
+        </RouterLink>
+      </DropdownMenuItem>
+      <DropdownMenuSeparator />
+      <DropdownMenuItem @select="leave">
         <DoorOut aria-hidden="true" />
         {{ t('common.signOut') }}
-      </Button>
-    </PopoverContent>
-  </Popover>
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  </DropdownMenu>
 </template>

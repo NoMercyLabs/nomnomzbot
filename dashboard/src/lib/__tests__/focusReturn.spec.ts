@@ -19,6 +19,7 @@ import {
   DialogTitle,
   DialogTrigger,
 } from '@/components/ui/dialog';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 
 // Stoney 2026-10-19 sent the "Request rules" button with a focus ring after its panel closed ("double borders"):
 // the closed overlay had handed the focus back to it. After a mouse or touch close the focus stays off the button;
@@ -62,8 +63,12 @@ function press(key: string): void {
   document.activeElement!.dispatchEvent(new KeyboardEvent('keydown', { key, bubbles: true }));
 }
 
-async function openWith(input: 'pointer' | 'keyboard'): Promise<void> {
-  mounted = mount(Harness, { attachTo: document.body });
+async function openWith(
+  input: 'pointer' | 'keyboard',
+  harness = Harness,
+  slot = 'dialog-content',
+): Promise<void> {
+  mounted = mount(harness, { attachTo: document.body });
   await settle();
   opener().focus();
 
@@ -75,8 +80,58 @@ async function openWith(input: 'pointer' | 'keyboard'): Promise<void> {
   }
 
   await settle();
-  expect(document.body.querySelector('[data-slot="dialog-content"]')).not.toBeNull();
+  expect(document.body.querySelector(`[data-slot="${slot}"]`)).not.toBeNull();
 }
+
+// Stoney 2026-10-20: the account menu showed a focus ring on "Readability" right after a mouse click opened it. The
+// overlay had moved the focus to its first button. After a mouse or touch open the focus goes to the panel itself;
+// a text field first in the panel still takes it, so a person can type at once; the keyboard still lands on the
+// first control.
+function popoverHarness(firstTag: 'button' | 'input') {
+  return defineComponent({
+    setup: () => () =>
+      h(Popover, null, {
+        default: () => [
+          h(PopoverTrigger, { 'data-opener': '' }, () => 'Account menu'),
+          h(PopoverContent, null, () => [
+            h(firstTag, { 'data-first': '' }, firstTag === 'button'
+              ? 'Readability'
+              : undefined),
+            h('button', null, 'Sign out'),
+          ]),
+        ],
+      }),
+  });
+}
+
+function panel(): HTMLElement {
+  return document.body.querySelector<HTMLElement>('[data-slot="popover-content"]')!;
+}
+
+function firstControl(): HTMLElement {
+  return document.body.querySelector<HTMLElement>('[data-first]')!;
+}
+
+describe('focus when an overlay opens', () => {
+  it('lands on the panel after a mouse open when a button comes first, so no ring shows on that button', async () => {
+    await openWith('pointer', popoverHarness('button'), 'popover-content');
+
+    expect(document.activeElement).toBe(panel());
+    expect(document.activeElement).not.toBe(firstControl());
+  });
+
+  it('lands on the first button after a keyboard open, so a keyboard user starts at the top', async () => {
+    await openWith('keyboard', popoverHarness('button'), 'popover-content');
+
+    expect(document.activeElement).toBe(firstControl());
+  });
+
+  it('lands on the text field after a mouse open when a text field comes first, so a person can type at once', async () => {
+    await openWith('pointer', popoverHarness('input'), 'popover-content');
+
+    expect(document.activeElement).toBe(firstControl());
+  });
+});
 
 describe('focus after an overlay closes', () => {
   it('stays off the button that opened it after a mouse close, so no focus ring is left there', async () => {

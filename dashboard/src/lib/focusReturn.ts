@@ -30,3 +30,32 @@ export function returnFocusOnlyForKeyboard(event: Event): void {
     event.preventDefault();
   }
 }
+
+// What the browser tabs to first inside a panel, and what counts as a text field among those.
+const tabbableControl =
+  'a[href], button:not(:disabled), input:not(:disabled):not([type="hidden"]), select:not(:disabled), textarea:not(:disabled), [tabindex]:not([tabindex="-1"]), [contenteditable]:not([contenteditable="false"])';
+const textField = 'input, textarea, select, [contenteditable]:not([contenteditable="false"])';
+
+// An opening dialog, sheet, drawer or popover moves the focus to its first control, and the browser can draw a focus
+// ring there right after a mouse click: the ring on "Readability" that Stoney sent on 2026-10-20. After a mouse or
+// touch open the focus goes to the panel itself instead, so no ring shows. A text field first in the panel still
+// takes the focus, so a person can type at once. After a keyboard open the first control keeps it. Every focus-scope
+// wrapper in components/ui binds this to open-auto-focus; menus and selects already focus their own content.
+export function focusPanelOnPointerOpen(event: Event): void {
+  const scope = event.target;
+
+  if (lastInput !== 'pointer' || !(scope instanceof HTMLElement)) return;
+
+  const first = scope.querySelector<HTMLElement>(tabbableControl);
+
+  if (first?.matches(textField)) return;
+
+  event.preventDefault();
+
+  // A popover's focus scope is the positioning wrapper, which has no tabindex; the panel inside it does.
+  const holder = scope.hasAttribute('tabindex')
+    ? scope
+    : scope.querySelector<HTMLElement>('[tabindex="-1"]');
+
+  (holder ?? scope).focus({ preventScroll: true });
+}

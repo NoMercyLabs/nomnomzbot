@@ -8,7 +8,6 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import type { AcceptableValue } from 'reka-ui';
 import { useI18n } from 'vue-i18n';
 import Translate from '~icons/nnz/translate';
 
@@ -20,24 +19,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { locales, setLocale, type Locale } from '@/i18n';
+import { chooseLocale, locales, ownLanguageName } from '@/i18n';
 
 const { locale } = useI18n();
-
-// Each language is named in its own language, so a reader finds theirs without reading the current one.
-function ownName(tag: Locale): string {
-  return new Intl.DisplayNames([tag], { type: 'language' }).of(tag) ?? tag;
-}
-
-function choose(value: AcceptableValue): void {
-  if (typeof value === 'string' && (locales as readonly string[]).includes(value)) {
-    void setLocale(value as Locale);
-  }
-}
 </script>
 
 <template>
-  <Select :model-value="locale" @update:model-value="choose">
+  <Select :model-value="locale" @update:model-value="chooseLocale">
     <SelectTrigger :aria-label="$t('common.language')">
       <Translate aria-hidden="true" />
       <SelectValue />
@@ -47,7 +35,7 @@ function choose(value: AcceptableValue): void {
       <!-- The group carries the list padding in this shadcn style; options straight in the list touch its edge. -->
       <SelectGroup>
         <SelectItem v-for="tag in locales" :key="tag" :value="tag" :lang="tag">{{
-          ownName(tag)
+          ownLanguageName(tag)
         }}</SelectItem>
       </SelectGroup>
     </SelectContent>

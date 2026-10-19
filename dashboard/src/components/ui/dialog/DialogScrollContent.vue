@@ -11,7 +11,7 @@ import {
   DialogPortal,
   useForwardPropsEmits,
 } from 'reka-ui'
-import { returnFocusOnlyForKeyboard } from '@/lib/focusReturn'
+import { focusPanelOnPointerOpen, returnFocusOnlyForKeyboard } from '@/lib/focusReturn'
 import { cn } from '@/lib/utils'
 
 defineOptions({
@@ -39,6 +39,7 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
           )
         "
         v-bind="{ ...$attrs, ...forwarded }"
+        @open-auto-focus="focusPanelOnPointerOpen"
         @close-auto-focus="returnFocusOnlyForKeyboard"
         @pointer-down-outside="(event) => {
           const originalEvent = event.detail.originalEvent;

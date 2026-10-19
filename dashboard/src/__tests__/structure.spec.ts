@@ -935,6 +935,28 @@ describe('focus after an overlay closes', () => {
   });
 });
 
+// Stoney 2026-10-20 ("need i say more about this?"): the account menu opened with a focus ring on its first item. A
+// panel that opens by a mouse or touch puts the focus on itself, not on its first button (lib/focusReturn.ts). Menus
+// and selects already focus their own content, so only the six wrappers of a focus-scope panel bind it.
+const pointerOpenFocus = '@open-auto-focus="focusPanelOnPointerOpen"';
+const focusScopePanels = [
+  'components/ui/alert-dialog/AlertDialogContent.vue',
+  'components/ui/dialog/DialogContent.vue',
+  'components/ui/dialog/DialogScrollContent.vue',
+  'components/ui/drawer/DrawerContent.vue',
+  'components/ui/popover/PopoverContent.vue',
+  'components/ui/sheet/SheetContent.vue',
+] as const;
+
+describe('focus when an overlay opens', () => {
+  it('puts the focus on the panel after a mouse open in all six focus-scope panel wrappers', () => {
+    const unbound = focusScopePanels.filter((path) =>
+      !readFileSync(join(src, path), 'utf8').includes(pointerOpenFocus));
+
+    expect(unbound).toEqual([]);
+  });
+});
+
 // Stoney 2026-10-19: "extra useless dropdowns". A menu that holds one item is a click with nothing to choose: that
 // item belongs on the page as its own button or switch. A menu whose items come from a v-for is a list, never one.
 const menuBlock = /<DropdownMenuContent\b[\s\S]*?<\/DropdownMenuContent>/g;
