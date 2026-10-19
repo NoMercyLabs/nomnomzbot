@@ -33,13 +33,18 @@ public sealed partial class PlaybackDirectorTests
 
         rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
         rig.QueueIds.Should().Equal("a");
-        rig.Spotify.Calls.Should().BeEmpty("the owner's song is not interrupted");
+        rig.Spotify.Calls.Should()
+            .Equal(
+                [new EngineCall("QueueNext", "a")],
+                "lined up, the owner's song is not interrupted"
+            );
         rig.YouTube.Calls.Should().BeEmpty();
-        rig.Journal.Last().Reason.Should().Be("waiting_near_end");
+        rig.Journal.Select(e => e.Reason).Should().Contain("waiting_for_track_end");
+        rig.Journal.Last().Reason.Should().Be("lined_up");
     }
 
     [Fact]
-    public async Task Idle_RequestBeforeAnyReport_WhenTheProbeFindsOwnerMusicNearItsEnd_QueuesTheHeadBehindIt()
+    public async Task Idle_RequestBeforeAnyReport_WhenTheProbeFindsOwnerMusicNearItsEnd_LinesTheHeadUpWithoutAnyCut()
     {
         Rig rig = new();
         rig.Spotify.ProbeReport = OwnerSong(196_000);

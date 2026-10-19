@@ -75,19 +75,19 @@ public sealed partial class PlaybackDirectorTests
     }
 
     [Fact]
-    public async Task HandOver_QueuedAhead_TheStartDeadlineRunsFromTheEndOfTheOwnerTrack()
+    public async Task LinedUpRequest_WhileTheOwnerTrackPlays_RaisesNoStartTimeoutAndStaysInPlaying()
     {
         Rig rig = new();
         await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 190_000);
         await rig.Request(Item("a"));
 
-        rig.Clock.Advance(TimeSpan.FromSeconds(19));
+        rig.Clock.Advance(TimeSpan.FromSeconds(20));
         await rig.Director.CheckDeadlinesAsync();
-        rig.Director.State.Kind.Should().Be(PlaybackStateKind.Starting);
 
-        rig.Clock.Advance(TimeSpan.FromSeconds(1));
-        await rig.Director.CheckDeadlinesAsync();
-        rig.Journal.Should().Contain(e => e.Reason == "start_timeout");
+        rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
+        rig.Spotify.Calls.Should().Equal(new EngineCall("QueueNext", "a"));
+        rig.Journal.Select(e => e.Reason).Should().NotContain("start_timeout");
+        rig.Journal.Last().Reason.Should().Be("lined_up");
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public sealed partial class PlaybackDirectorTests
     }
 
     [Fact]
-    public async Task FailedStart_WhileOwnerMusicPlaysOn_WaitsAgainAtTheOwnerTrackEndWithoutQueuingTwice()
+    public async Task LinedUpRequest_WhileTheOwnersMusicPlaysOn_IsNeverQueuedASecondTime()
     {
         Rig rig = new();
         await rig.OwnerPlays(rig.Spotify, "spotify:track:mine", 196_000);
@@ -124,6 +124,7 @@ public sealed partial class PlaybackDirectorTests
         await rig.OwnerPlays(rig.Spotify, "spotify:track:next-in-playlist", 190_000);
 
         rig.Spotify.Calls.Should().Equal(new EngineCall("QueueNext", "a"));
-        rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.Spotify, rig.Queue.Head!));
+        rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
+        rig.QueueIds.Should().Equal("a");
     }
 }
