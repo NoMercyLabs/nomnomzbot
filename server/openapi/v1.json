@@ -108466,6 +108466,24 @@
             ],
             "format": "int32"
           },
+          "musicDuckPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32",
+            "default": 100
+          },
+          "defaultMusicDuckPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The music duck share a channel with no saved mix gets (100 = no ducking).",
+            "format": "int32"
+          },
           "defaultMasterVolume": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -149925,8 +149943,18 @@
               "string"
             ],
             "format": "int32"
+          },
+          "musicDuckPercent": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
-        }
+        },
+        "description": "MusicDuckPercent left out keeps the stored value, so a client that predates ducking\r\n        never resets it."
       },
       "UpdateChannelSettings": {
         "type": "object",

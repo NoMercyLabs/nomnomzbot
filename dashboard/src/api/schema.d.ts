@@ -89680,6 +89680,16 @@ export interface components {
             ttsVolume: number | string;
             /**
              * Format: int32
+             * @default 100
+             */
+            musicDuckPercent: number | string;
+            /**
+             * Format: int32
+             * @description The music duck share a channel with no saved mix gets (100 = no ducking).
+             */
+            defaultMusicDuckPercent?: number | string;
+            /**
+             * Format: int32
              * @description The master volume a channel with no saved mix gets; the dashboard shows it, never its own copy.
              */
             defaultMasterVolume?: number | string;
@@ -103940,11 +103950,17 @@ export interface components {
             /** Format: int32 */
             sortOrder?: null | number | string;
         };
+        /**
+         * @description MusicDuckPercent left out keeps the stored value, so a client that predates ducking
+         *             never resets it.
+         */
         UpdateChannelAudioMixRequest: {
             /** Format: int32 */
             masterVolume: number | string;
             /** Format: int32 */
             ttsVolume: number | string;
+            /** Format: int32 */
+            musicDuckPercent?: null | number | string;
         };
         /** @description Request to update channel settings. */
         UpdateChannelSettings: {
