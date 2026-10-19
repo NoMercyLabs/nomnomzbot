@@ -41,6 +41,8 @@ public sealed class OverlaySdkController : ControllerBase
            API: on / off / onAny / onSettings / settings / reportError (unchanged from the postMessage era), plus
            actions.invoke(actionType, params?, variables?) -> Promise<{ success, output, error, errorCode, variables }>,
            which runs one pipeline action as the channel owner. It rejects only when the socket is not connected.
+           The SDK also tells the bot which event types the page registered (every on(type), "*" for onAny), so the
+           bot routes exactly those to the widget.
            actions.claim(key) -> Promise<boolean> is true only for the first open copy of the widget to claim key.
            reportYouTubePlayerState(videoId, state, positionMs) -> Promise<boolean> tells the bot what a YouTube player
            page plays (state PLAYING, PAUSED or ENDED); true when the bot accepted the report.
@@ -86,6 +88,7 @@ public sealed class OverlaySdkController : ControllerBase
           // handler gets the kept seed frames it would have seen.
           function on(type, fn) {
             if (typeof fn !== "function") return api;
+            want(type);
             (handlers[type] = handlers[type] || []).push(fn);
             replaySeed(function (f) { if (f.eventType === type) run(fn, f.data, f.eventType, f.meta); });
             return api;
@@ -93,6 +96,7 @@ public sealed class OverlaySdkController : ControllerBase
           function off(type, fn) { var l = handlers[type]; if (l) handlers[type] = l.filter(function (h) { return h !== fn; }); return api; }
           function onAny(fn) {
             if (typeof fn !== "function") return api;
+            want("*");
             anyHandlers.push(fn);
             replaySeed(function (f) { run(fn, f.eventType, f.data, f.meta); });
             return api;
@@ -100,6 +104,26 @@ public sealed class OverlaySdkController : ControllerBase
           function onSettings(fn) {
             if (typeof fn === "function") { settingsHandlers.push(fn); run(fn, currentSettings); }
             return api;
+          }
+          // The event types this page registered, sent to the hub as one Subscribe call so it routes exactly those
+          // ("*" = onAny). The set only grows inside one page session (off() does not remove), so a late handler is
+          // added, never lost. An empty set is never sent: a page that has registered nothing yet must not wipe its
+          // stored list.
+          var subscribed = {};
+          var subscribeReady = false; // true between a successful join and the socket closing
+          var subscribePending = false; // a send is already queued; later additions ride along with it
+          function want(type) {
+            if (typeof type !== "string" || !/^([A-Za-z0-9_.:-]{1,100}|\*)$/.test(type) || subscribed[type]) return;
+            subscribed[type] = true;
+            if (subscribeReady && !subscribePending) {
+              subscribePending = true;
+              setTimeout(function () { subscribePending = false; sendSubscribe(); }, 250);
+            }
+          }
+          function sendSubscribe() {
+            var types = Object.keys(subscribed);
+            if (!types.length || !widgetId || !ws || ws.readyState !== WebSocket.OPEN) return;
+            ws.send(JSON.stringify({ type: 1, target: "Subscribe", arguments: [widgetId, types] }) + RS);
           }
           // The event types that arrived live since the join was sent: a seed frame of such a type is older than
           // what the widget already has, so it is dropped.
@@ -223,11 +247,12 @@ public sealed class OverlaySdkController : ControllerBase
                   if (msg.result.initialState) applySettings(msg.result.initialState);
                   applySeed(msg.result.seed);
                   ws.send(JSON.stringify({ type: 1, target: "WidgetReady", arguments: [widgetId] }) + RS);
+                  if (msg.result.success === true) { subscribeReady = true; sendSubscribe(); }
                 }
               });
             };
 
-            ws.onclose = function () { failPendingActions(); setTimeout(connect, backoffMs); backoffMs = Math.min(backoffMs * 2, 30000); };
+            ws.onclose = function () { subscribeReady = false; failPendingActions(); setTimeout(connect, backoffMs); backoffMs = Math.min(backoffMs * 2, 30000); };
             ws.onerror = function () { try { ws.close(); } catch (_) {} };
           }
 

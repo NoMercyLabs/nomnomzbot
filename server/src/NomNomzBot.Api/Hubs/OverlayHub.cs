@@ -26,9 +26,11 @@ using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
+using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Domain.Widgets.Events;
+using NomNomzBot.Infrastructure.Content.Widgets;
 
 namespace NomNomzBot.Api.Hubs;
 
@@ -250,13 +252,7 @@ public class OverlayHub : Hub<IOverlayClient>
 
         // A now-playing widget just came alive on stream — keep the music poller at its fast cadence for
         // this channel for as long as this connection is here (see IChannelRegistry.TouchMusicDemand).
-        if (
-            widget?.IsEnabled == true
-            && (
-                widget.EventSubscriptions.Contains(NowPlayingEventKey)
-                || widget.EventSubscriptions.Contains(MusicNowPlayingEventKey)
-            )
-        )
+        if (widget is not null && WantsMusic(widget))
             _registry.TouchMusicDemand(broadcasterId, Context.ConnectionId);
 
         return new(
@@ -266,6 +262,75 @@ public class OverlayHub : Hub<IOverlayClient>
             await SeedFramesAsync(widget, naturalKey, broadcasterId)
         );
     }
+
+    /// <summary>
+    /// The SDK reports the event types its page registered (every <c>on(type)</c>, and <c>"*"</c> for
+    /// <c>onAny</c>) after a join and whenever the set grows. The widget's stored routing list becomes its
+    /// catalogue default (a first-party widget's server-side events, such as a redemption sound) joined with the
+    /// subscribed set — never the old stored list — so the widget gets exactly those events and no others.
+    /// Refused (false, nothing stored) for a widget the connection may not act for, an unknown widget, or any
+    /// invalid name.
+    /// </summary>
+    public async Task<bool> Subscribe(string widgetId, string[] events)
+    {
+        if (Context.Items["BroadcasterId"] is not Guid broadcasterId)
+            return false;
+        if (!MayActFor(widgetId) || !Guid.TryParse(widgetId, out Guid parsedWidgetId))
+            return false;
+        if (!WidgetEventDeclaration.TryNormalize(events, out List<string> subscribed))
+            return false;
+
+        Widget? widget = await _db.Widgets.FirstOrDefaultAsync(
+            w => w.Id == parsedWidgetId && w.BroadcasterId == broadcasterId,
+            Context.ConnectionAborted
+        );
+        if (widget is null)
+            return false;
+
+        List<string> defaults = await CatalogueDefaultsAsync(widget);
+        List<string> routed = [.. defaults, .. subscribed.Except(defaults)];
+        if (!routed.ToHashSet().SetEquals(widget.EventSubscriptions))
+        {
+            widget.EventSubscriptions = routed;
+            await _db.SaveChangesAsync(Context.ConnectionAborted);
+            await _eventBus.PublishAsync(
+                new ChannelConfigChangedEvent
+                {
+                    BroadcasterId = broadcasterId,
+                    Domain = "widgets",
+                    EntityId = widget.Id.ToString(),
+                    Action = "updated",
+                },
+                Context.ConnectionAborted
+            );
+        }
+
+        if (WantsMusic(widget))
+            _registry.TouchMusicDemand(broadcasterId, Context.ConnectionId);
+        else
+            _registry.ReleaseMusicDemand(broadcasterId, Context.ConnectionId);
+        return true;
+    }
+
+    // The events a first-party widget gets whatever its page registers (the server acts on them, such as the
+    // redemption sound). A custom widget, or a gallery row that is not first-party, has none: a community
+    // submission can never claim a catalogue entry by its natural key.
+    private async Task<List<string>> CatalogueDefaultsAsync(Widget widget)
+    {
+        if (widget.GalleryItemId is not Guid galleryItemId)
+            return [];
+        string? naturalKey = await _db
+            .WidgetGalleryItems.AsNoTracking()
+            .Where(i => i.Id == galleryItemId && i.TrustTier == "first_party")
+            .Select(i => i.NaturalKey)
+            .FirstOrDefaultAsync(Context.ConnectionAborted);
+        return [.. FirstPartyWidgetCatalogue.Find(naturalKey)?.DefaultEventSubscriptions ?? []];
+    }
+
+    // A widget that renders music state keeps the poller on its fast cadence while its page is open.
+    private static bool WantsMusic(Widget widget) =>
+        widget.IsEnabled
+        && (widget.Wants(NowPlayingEventKey) || widget.Wants(MusicNowPlayingEventKey));
 
     // Runs on every join, so a reconnect heals too. A provider that fails costs the widget its seed, never the join.
     private async Task<IReadOnlyList<WidgetSeedFrame>> SeedFramesAsync(

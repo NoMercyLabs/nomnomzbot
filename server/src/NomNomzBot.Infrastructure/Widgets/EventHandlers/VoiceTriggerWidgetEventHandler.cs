@@ -64,9 +64,7 @@ public sealed class VoiceTriggerWidgetEventHandler : IEventHandler<VoiceTriggerF
             .Widgets.AsNoTracking()
             .Where(w => w.BroadcasterId == @event.BroadcasterId && w.IsEnabled)
             .ToListAsync(cancellationToken);
-        IEnumerable<Widget> subscribers = candidates.Where(w =>
-            w.EventSubscriptions.Contains(EventType)
-        );
+        IEnumerable<Widget> subscribers = candidates.Where(w => w.Wants(EventType));
 
         foreach (Widget widget in subscribers)
         {

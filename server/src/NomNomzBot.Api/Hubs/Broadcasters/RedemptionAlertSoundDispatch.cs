@@ -48,9 +48,7 @@ internal static class RedemptionAlertSoundDispatch
             .Where(w => w.BroadcasterId == broadcasterId && w.IsEnabled)
             .ToListAsync(cancellationToken);
 
-        foreach (
-            Widget widget in candidates.Where(w => w.EventSubscriptions.Contains("reward_redeemed"))
-        )
+        foreach (Widget widget in candidates.Where(w => w.Wants("reward_redeemed")))
         {
             if (
                 !widget.Settings.TryGetValue(SoundSettingKey, out object? rawClipRef)

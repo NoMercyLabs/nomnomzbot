@@ -135,9 +135,7 @@ public sealed class SupporterWidgetEventHandler : IEventHandler<SupporterEventRe
             .Where(w => w.BroadcasterId == @event.BroadcasterId && w.IsEnabled)
             .ToListAsync(cancellationToken);
 
-        List<Widget> subscribers = candidates
-            .Where(w => w.EventSubscriptions.Contains(eventType))
-            .ToList();
+        List<Widget> subscribers = candidates.Where(w => w.Wants(eventType)).ToList();
 
         foreach (Widget widget in subscribers.Where(w => w.Id != alertsSurfaceId))
         {
