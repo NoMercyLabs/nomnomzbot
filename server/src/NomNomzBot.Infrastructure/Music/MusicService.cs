@@ -1219,10 +1219,11 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
     }
 
     /// <summary>
-    /// Pushes a just-admitted request to the provider when nothing of ours is there yet, and records it as
-    /// in-flight. Returns null on success or when something is already in flight (the request then waits its
-    /// turn in the fair queue, where a later re-rank can still move it); returns the typed failure after
-    /// rolling the entry back when the push is refused. The caller holds the channel's hand-over lock.
+    /// Tells the playback director about a just-admitted request when nothing of ours is in flight, and
+    /// records it as in-flight when the director starts it. Returns null on success or when something is
+    /// already in flight (the request then waits its turn in the fair queue, where a later re-rank can
+    /// still move it); returns the typed failure after rolling the entry back when the director is
+    /// Blocked. The caller holds the channel's hand-over lock.
     /// </summary>
     private async Task<Result?> HandOverAdmittedIfIdleAsync(
         Guid tenantId,
@@ -1241,104 +1242,57 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         // the waiting head as played (live 2026-10-18).
         if (!ReferenceEquals(queue.Peek(), entry))
             return null;
-        // No overlay player attached: nothing could play, so the request is refused with a reason and
-        // no other engine is silenced for it.
-        if (!await HasPlayerIfGatedAsync(provider, tenantId, cancellationToken))
+
+        // The director starts the head on its engine, silences the other engine first, and moves to
+        // Blocked when the engine cannot start it. A chat command (`!sr`) has no HTTP request to inherit
+        // a sanction from, so the send carries its own.
+        using (
+            _sanctions.Begin(OutboundSanction.ChannelConfiguration("music:song_request_dispatch"))
+        )
+            await _playbackInput.SendAsync(tenantId, new RequestAdded(), cancellationToken);
+
+        PlaybackState state = _playbackState.StateOf(tenantId);
+        if (state.Kind == PlaybackStateKind.Blocked)
             return await RollBackAsync(
                 broadcasterId,
                 queue,
                 entry,
-                NoOverlayPlayerOnQueue(trackName),
-                cancellationToken
-            );
-        // Another engine still busy: the request waits its turn and the next hand-over starts it.
-        if (!await SilenceOtherEnginesAsync(tenantId, broadcasterId, provider, cancellationToken))
-            return null;
-        bool switchesEngine = IsEngineSwitch(broadcasterId, provider);
-        bool startedDirectly =
-            switchesEngine
-            && await TryStartDirectlyAsync(
-                provider,
-                tenantId,
-                broadcasterId,
-                entry,
+                BlockedOnQueue(provider, state.Reason, trackName),
                 cancellationToken
             );
 
-        // Same basis as HandOverNextAsync's own push, and needed just as unconditionally here: a chat
-        // command (`!sr`, run off an EventSub notification) reaches this exact code with no HTTP request
-        // of its own to inherit a sanction from, same as the dashboard/public song-request page submit
-        // does carry one via OutboundSanctionFilter — this must not depend on which caller reached it.
-        using IDisposable sanction = _sanctions.Begin(
-            OutboundSanction.ChannelConfiguration("music:song_request_dispatch")
-        );
-
-        try
-        {
-            bool pushed =
-                startedDirectly
-                || await provider.AddToQueueAsync(tenantId, entry.TrackUri, cancellationToken);
-            if (!pushed)
-                return await RollBackAsync(
-                    broadcasterId,
-                    queue,
-                    entry,
-                    ProviderErrorOnQueue(trackName),
-                    cancellationToken
-                );
-        }
-        catch (PremiumRequiredException)
-        {
-            return await RollBackAsync(
-                broadcasterId,
-                queue,
-                entry,
-                PremiumRequiredOnQueue(trackName),
-                cancellationToken
-            );
-        }
-        catch (NoActiveDeviceException)
-        {
-            return await RollBackAsync(
-                broadcasterId,
-                queue,
-                entry,
-                NoActiveDeviceOnQueue(trackName),
-                cancellationToken
-            );
-        }
-        catch (MusicAuthenticationFailedException)
-        {
-            return await RollBackAsync(
-                broadcasterId,
-                queue,
-                entry,
-                AuthFailedOnQueue(trackName),
-                cancellationToken
-            );
-        }
-        catch (MusicForbiddenException)
-        {
-            return await RollBackAsync(
-                broadcasterId,
-                queue,
-                entry,
-                ForbiddenOnQueue(trackName),
-                cancellationToken
-            );
-        }
-
-        // This request is the one now waiting at the provider — remember it so the next request queues
+        // The director is Starting or Playing this request: remember it so the next request queues
         // behind it in OUR queue instead of being handed over too.
+        if (!string.Equals(state.Item?.Uri, entry.TrackUri, StringComparison.OrdinalIgnoreCase))
+            return null;
+
         _queueStore.SetLastEngine(broadcasterId, provider.Provider);
-        if (switchesEngine && !startedDirectly)
-            await StartIfIdleAsync(tenantId, broadcasterId, provider, cancellationToken);
         _queueStore.SetInFlight(broadcasterId, entry);
-        // Re-sync so the persisted row set carries the in-flight flag too (S-SR-INFLIGHT-DURABLE) — the
-        // sync above (before this request's hand-off outcome was known) could not have stamped it yet.
+        // Re-sync so the persisted row set carries the in-flight flag too (S-SR-INFLIGHT-DURABLE).
         await SyncPersistedQueueAsync(broadcasterId, queue, cancellationToken);
         return null;
     }
+
+    /// <summary>
+    /// Turns the director's Blocked reason into the typed refusal the requester sees. The reason is the
+    /// engine's <see cref="EngineBlockReason"/> name; any other text is a provider problem.
+    /// </summary>
+    private static Result BlockedOnQueue(
+        IMusicProvider provider,
+        string? reason,
+        string trackName
+    ) =>
+        Enum.TryParse(reason, out EngineBlockReason block)
+            ? block switch
+            {
+                EngineBlockReason.NotConnected => AuthFailedOnQueue(trackName),
+                EngineBlockReason.Forbidden => ForbiddenOnQueue(trackName),
+                EngineBlockReason.NoOutput when provider.Provider == "youtube" =>
+                    NoOverlayPlayerOnQueue(trackName),
+                EngineBlockReason.NoOutput => NoActiveDeviceOnQueue(trackName),
+                _ => ProviderErrorOnQueue(trackName),
+            }
+            : ProviderErrorOnQueue(trackName);
 
     /// <summary>The accepted-request side effects, identical whether the request went straight to the
     /// provider or is waiting its turn: the log line, the analytics fact, and the fresh queue snapshot the
@@ -1870,13 +1824,6 @@ public sealed class MusicService : IMusicService, ISongRequestHandover
         Result.Failure(
             $"Couldn't queue \"{trackName}\" — the music connection doesn't have permission for that.",
             "MUSIC_FORBIDDEN",
-            errorData: new MusicRequestRefusal(trackName)
-        );
-
-    private static Result PremiumRequiredOnQueue(string trackName) =>
-        Result.Failure(
-            $"Couldn't queue \"{trackName}\" — a Premium account is required for that.",
-            "PREMIUM_REQUIRED",
             errorData: new MusicRequestRefusal(trackName)
         );
 
