@@ -233,8 +233,7 @@ public sealed class OverlaySdkController : ControllerBase
 
           // ── Shared audio bus: every widget page gets working sound playback for free, without a
           // single line of widget code. Sound clips and self-host/BYOK TTS both arrive as PlaySound
-          // (a server-rendered audio URL); client_edge TTS arrives as TtsSpeak (browser speechSynthesis,
-          // no audio bytes). Widgets that want to react visually still get the raw events via on(...).
+          // (a server-rendered audio URL). Widgets that want to react visually still get the raw events via on(...).
           var soundHandles = {}; // handle -> HTMLAudioElement, for StopSound(handle) / StopSound(all)
           // One audio lane (UF·T9): TTS lines and clips started with no handle share ttsQueue, in arrival
           // order, and only the head plays — so a line and a clip never overlap. S-OBS-06: the unhandled
@@ -368,51 +367,9 @@ public sealed class OverlaySdkController : ControllerBase
             stopCurrentClip();
           }
 
-          // Cached browser voice list — some browsers populate it async via voiceschanged, so a lookup right
-          // after page load can see an empty array; re-cache whenever the event fires and re-read on every call.
-          var cachedVoices = null;
-          function browserVoices() {
-            var synth = window.speechSynthesis;
-            var list = synth.getVoices();
-            if (list && list.length) cachedVoices = list;
-            return cachedVoices || list || [];
-          }
-          if (window.speechSynthesis) {
-            window.speechSynthesis.onvoiceschanged = function () { browserVoices(); };
-          }
-
-          // tts.md §6.2: on client_edge the SDK MUST resolve utter.voice/utter.lang from the server-resolved
-          // voice — never the browser default. Match the browser's own voice list by id/name first (exact,
-          // case-insensitive), then by locale; when nothing matches, utter.lang still steers the browser's
-          // own default voice for that language instead of whatever it would otherwise have picked.
-          function pickBrowserVoice(voiceId, locale) {
-            var list = browserVoices();
-            if (!list.length) return null;
-            var idLower = (voiceId || "").toLowerCase();
-            var byId = null;
-            for (var i = 0; i < list.length; i++) {
-              var v = list[i];
-              var name = (v.voiceURI || v.name || "").toLowerCase();
-              if (name === idLower) { byId = v; break; }
-            }
-            if (byId) return byId;
-            if (locale) {
-              var localeLower = locale.toLowerCase();
-              for (var j = 0; j < list.length; j++) {
-                if ((list[j].lang || "").toLowerCase() === localeLower) return list[j];
-              }
-              var lang = localeLower.split("-")[0];
-              for (var k = 0; k < list.length; k++) {
-                if ((list[k].lang || "").toLowerCase().indexOf(lang) === 0) return list[k];
-              }
-            }
-            return null;
-          }
-
           function speakTts(payload) {
-            // Server-synthesised audio is the NORMAL path and must win. OBS captures a browser source's
-            // media elements but NOT speechSynthesis, which plays straight out of the system audio device —
-            // so speaking through the browser voice is audible to the streamer and silent on stream.
+            // Server-synthesised audio is the only path: OBS captures a browser source's media elements, so
+            // a line with no audio URL is reported and dropped.
             if (payload.audioUrl) {
               var tts = document.createElement("audio");
               tts.src = payload.audioUrl;
@@ -426,21 +383,7 @@ public sealed class OverlaySdkController : ControllerBase
               if (ttsQueue.length === 1) playNextTts();
               return;
             }
-            var synth = window.speechSynthesis;
-            if (!synth) { report("speechSynthesis unavailable — cannot render client_edge TTS"); return; }
-            var utter = new SpeechSynthesisUtterance(payload.text);
-            var opts = payload.options || {};
-            if (opts.rate != null) utter.rate = opts.rate;
-            if (opts.pitch != null) utter.pitch = opts.pitch;
-            if (opts.volume != null) utter.volume = opts.volume;
-            var matched = pickBrowserVoice(payload.voiceId, payload.locale);
-            if (matched) {
-              utter.voice = matched;
-              utter.lang = matched.lang;
-            } else if (payload.locale) {
-              utter.lang = payload.locale;
-            }
-            synth.speak(utter);
+            report("tts line without audio dropped");
           }
 
           // The generic feed carries each event's data as JSON text (OverlayEventDto.Payload).

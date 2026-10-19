@@ -51,7 +51,6 @@ public sealed class TtsDispatchServiceTests
         public required ITtsService Tts { get; init; }
         public required IByokTtsProviderFactory ByokProviders { get; init; }
         public required ISoundClipStore Store { get; init; }
-        public required ITtsOverlayNotifier TtsOverlay { get; init; }
         public required IEventBus Bus { get; init; }
         public required ITtsLexiconService Lexicon { get; init; }
         public required IChannelNamePronunciationService ChannelNames { get; init; }
@@ -136,7 +135,6 @@ public sealed class TtsDispatchServiceTests
             .GetPlaybackUrlAsync("storage-key", Arg.Any<CancellationToken>())
             .Returns(Result.Success("https://bot.local/sounds/tts.mp3"));
 
-        ITtsOverlayNotifier ttsOverlay = Substitute.For<ITtsOverlayNotifier>();
         IEventBus bus = Substitute.For<IEventBus>();
         IByokTtsProviderFactory byokProviders = Substitute.For<IByokTtsProviderFactory>();
         // The REAL lexicon service over the same context — dispatch tests prove the substitution and its
@@ -163,7 +161,6 @@ public sealed class TtsDispatchServiceTests
             new SpokenNameFormatter(),
             new TtsProfanityCensor(),
             store,
-            ttsOverlay,
             db,
             bus,
             tiers ?? Billing.TestTiers.Unlimited(),
@@ -179,7 +176,6 @@ public sealed class TtsDispatchServiceTests
             Tts = tts,
             ByokProviders = byokProviders,
             Store = store,
-            TtsOverlay = ttsOverlay,
             Bus = bus,
             Lexicon = lexicon,
             ChannelNames = channelNames,
@@ -875,8 +871,10 @@ public sealed class TtsDispatchServiceTests
             );
     }
 
+    // Browser speech is gone: a channel whose stored mode is the retired "client_edge" still gets
+    // server-made audio. The service never pushes a text line for a browser to speak.
     [Fact]
-    public async Task RequestSpeakAsync_ClientEdge_PushesOverlayPayload_WithoutServerSynthesis()
+    public async Task RequestSpeakAsync_StoredClientEdgeMode_DispatchesServerAudio()
     {
         Harness h = Build(mode: "client_edge", defaultProvider: "edge");
         Guid liveStream = Guid.Parse("019f2a00-5555-7000-8000-000000000099");
@@ -889,20 +887,87 @@ public sealed class TtsDispatchServiceTests
         result.Value.Disposition.Should().Be(TtsDispatchDisposition.Dispatched);
         result.Value.VoiceId.Should().Be("default-voice");
         result.Value.CharacterCount.Should().Be("hello world".Length); // trimmed
-        result.Value.PlaybackUrl.Should().BeNull("client-edge ships no server audio URL");
+        result.Value.PlaybackUrl.Should().Be("data:audio/mpeg;base64,AQIDBA==");
 
-        // The resolved voice + censored text is pushed to the overlay for the widget to render edge-side.
         await h
-            .TtsOverlay.Received(1)
-            .SpeakAsync(
-                Tenant,
-                Arg.Is<TtsOverlaySpeakDto>(p =>
-                    p.Text == "hello world" && p.VoiceId == "default-voice" && p.Provider == "edge"
-                ),
+            .Tts.Received(1)
+            .SynthesizeAsync(
+                "hello world",
+                "default-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
                 Arg.Any<CancellationToken>()
             );
 
-        // The server synthesizes / stores / plays NOTHING on the edge plane.
+        TtsUsageRecord usage = await h.Db.TtsUsageRecords.SingleAsync();
+        usage.BroadcasterId.Should().Be(Tenant);
+        usage.UserId.Should().Be(Viewer);
+        usage.CharacterCount.Should().Be("hello world".Length);
+        usage.VoiceId.Should().Be("default-voice");
+        usage.StreamId.Should().Be(liveStream);
+        usage.OccurredAt.Should().Be(T0);
+
+        await h
+            .Bus.Received(1)
+            .PublishAsync(
+                Arg.Is<TtsUtteranceDispatchedEvent>(e =>
+                    e.DispatchMode == "self_host"
+                    && e.AudioUrl == "data:audio/mpeg;base64,AQIDBA=="
+                    && e.VoiceId == "default-voice"
+                    && e.Text == "hello world"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    // A channel with no TTS row reads the binding defaults; those defaults must dispatch server audio.
+    [Fact]
+    public async Task RequestSpeakAsync_ChannelWithNoTtsRow_DispatchesWithAnAudioUrl()
+    {
+        TtsConfig defaults = new();
+        Harness h = Build(mode: defaults.Mode, defaultProvider: defaults.DefaultProvider);
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.PlaybackUrl.Should().StartWith("data:audio/mpeg;base64,");
+        defaults.Mode.Should().Be("self_host");
+        defaults.DefaultProvider.Should().Be("edge");
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_StoredClientEdgeMode_CensorsTextBeforeSynthesis()
+    {
+        Harness h = Build(mode: "client_edge", censorEnabled: true);
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("you piece of shit")
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync(
+                "you piece of s***",
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
+        (await h.Db.TtsUsageRecords.SingleAsync())
+            .WasCensored.Should()
+            .BeTrue("the ledger records that the censor altered the spoken text");
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_StoredClientEdgeMode_DisabledChannel_RejectsBeforeSynthesis()
+    {
+        Harness h = Build(mode: "client_edge", enabled: false);
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("FEATURE_DISABLED");
         await h
             .Tts.DidNotReceive()
             .SynthesizeAsync(
@@ -912,121 +977,11 @@ public sealed class TtsDispatchServiceTests
                 Arg.Any<double?>(),
                 Arg.Any<CancellationToken>()
             );
-        await h
-            .Store.DidNotReceive()
-            .PutAsync(
-                Arg.Any<Guid>(),
-                Arg.Any<string>(),
-                Arg.Any<System.IO.Stream>(),
-                Arg.Any<string>(),
-                Arg.Any<CancellationToken>()
-            );
-
-        // A truthful usage-ledger row still lands, stamped with the edge provider + when/during-what.
-        TtsUsageRecord usage = await h.Db.TtsUsageRecords.SingleAsync();
-        usage.BroadcasterId.Should().Be(Tenant);
-        usage.UserId.Should().Be(Viewer);
-        usage.CharacterCount.Should().Be("hello world".Length);
-        usage.Provider.Should().Be("edge");
-        usage.VoiceId.Should().Be("default-voice");
-        usage.StreamId.Should().Be(liveStream);
-        usage.OccurredAt.Should().Be(T0);
-
-        await h
-            .Bus.Received(1)
-            .PublishAsync(
-                Arg.Is<TtsUtteranceDispatchedEvent>(e =>
-                    e.DispatchMode == "client_edge"
-                    && e.ContentHash == null
-                    && e.VoiceId == "default-voice"
-                    && e.Text == "hello world"
-                ),
-                Arg.Any<CancellationToken>()
-            );
-    }
-
-    // S053 — tts.md §6.2: the SDK sets utter.voice/utter.lang from the resolved voice, falling back to Locale;
-    // the server must therefore push the catalogue Locale for the resolved voice, not leave it null — this is
-    // the value that actually reaches the browser's speechSynthesis call.
-    [Fact]
-    public async Task RequestSpeakAsync_ClientEdge_PushesTheResolvedVoicesLocale()
-    {
-        Harness h = Build(
-            mode: "client_edge",
-            defaultVoice: "en-GB-SoniaNeural",
-            defaultProvider: "edge"
-        );
-        h.Db.TtsVoices.Add(
-            new()
-            {
-                Id = "en-GB-SoniaNeural",
-                Name = "SoniaNeural",
-                DisplayName = "Sonia (GB)",
-                Locale = "en-GB",
-                Gender = "Female",
-                Provider = "edge",
-            }
-        );
-        await h.Db.SaveChangesAsync();
-
-        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
-
-        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
-        await h
-            .TtsOverlay.Received(1)
-            .SpeakAsync(
-                Tenant,
-                Arg.Is<TtsOverlaySpeakDto>(p =>
-                    p.VoiceId == "en-GB-SoniaNeural" && p.Locale == "en-GB"
-                ),
-                Arg.Any<CancellationToken>()
-            );
-    }
-
-    [Fact]
-    public async Task RequestSpeakAsync_ClientEdge_CensorsTextBeforePushingToOverlay()
-    {
-        Harness h = Build(mode: "client_edge", censorEnabled: true);
-
-        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
-            Speak("you piece of shit")
-        );
-
-        result.IsSuccess.Should().BeTrue();
-        // The overlay (and thus the widget) only ever receives the masked text — never the raw word.
-        await h
-            .TtsOverlay.Received(1)
-            .SpeakAsync(
-                Tenant,
-                Arg.Is<TtsOverlaySpeakDto>(p => p.Text == "you piece of s***"),
-                Arg.Any<CancellationToken>()
-            );
-        (await h.Db.TtsUsageRecords.SingleAsync())
-            .WasCensored.Should()
-            .BeTrue("the ledger records that the censor altered the spoken text");
-    }
-
-    [Fact]
-    public async Task RequestSpeakAsync_ClientEdge_DisabledChannel_RejectsBeforeAnyPush()
-    {
-        Harness h = Build(mode: "client_edge", enabled: false);
-
-        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
-
-        result.IsFailure.Should().BeTrue();
-        result.ErrorCode.Should().Be("FEATURE_DISABLED");
-        await h
-            .TtsOverlay.DidNotReceive()
-            .SpeakAsync(
-                Arg.Any<Guid>(),
-                Arg.Any<TtsOverlaySpeakDto>(),
-                Arg.Any<CancellationToken>()
-            );
         (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
     }
 
     [Fact]
-    public async Task RequestSpeakAsync_ClientEdge_OverCap_RejectsBeforeAnyPush()
+    public async Task RequestSpeakAsync_StoredClientEdgeMode_OverCap_RejectsBeforeSynthesis()
     {
         Harness h = Build(mode: "client_edge", maxLength: 10);
 
@@ -1037,10 +992,12 @@ public sealed class TtsDispatchServiceTests
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
         await h
-            .TtsOverlay.DidNotReceive()
-            .SpeakAsync(
-                Arg.Any<Guid>(),
-                Arg.Any<TtsOverlaySpeakDto>(),
+            .Tts.DidNotReceive()
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
                 Arg.Any<CancellationToken>()
             );
         (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
@@ -1295,33 +1252,6 @@ public sealed class TtsDispatchServiceTests
                 "default-voice",
                 Arg.Any<double?>(),
                 Arg.Any<double?>(),
-                Arg.Any<CancellationToken>()
-            );
-    }
-
-    [Fact]
-    public async Task RequestSpeakAsync_ClientEdge_PushesTheLexiconAppliedText()
-    {
-        Harness h = Build(mode: "client_edge");
-        h.Db.TtsLexiconEntries.Add(
-            new()
-            {
-                BroadcasterId = Tenant,
-                Phrase = "brb",
-                Replacement = "be right back",
-                MatchKind = "word",
-            }
-        );
-        await h.Db.SaveChangesAsync();
-
-        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("brb chat"));
-
-        result.IsSuccess.Should().BeTrue();
-        await h
-            .TtsOverlay.Received(1)
-            .SpeakAsync(
-                Tenant,
-                Arg.Is<TtsOverlaySpeakDto>(dto => dto.Text == "be right back chat"),
                 Arg.Any<CancellationToken>()
             );
     }

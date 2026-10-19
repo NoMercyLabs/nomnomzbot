@@ -232,7 +232,6 @@ try
         NomNomzBot.Application.Sound.Services.ISoundClipOverlayNotifier,
         SoundClipOverlayNotifierAdapter
     >();
-    builder.Services.AddScoped<ITtsOverlayNotifier, TtsOverlayNotifierAdapter>();
     builder.Services.AddScoped<
         NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier,
         WidgetEventNotifierAdapter

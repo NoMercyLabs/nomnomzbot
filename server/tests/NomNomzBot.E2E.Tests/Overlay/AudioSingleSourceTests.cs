@@ -21,7 +21,7 @@ namespace NomNomzBot.E2E.Tests.Overlay;
 /// each page counts what it tried to play. The Audio Source must play both, the other page nothing. With
 /// the Audio Source closed, the other page must take over.
 /// <para>
-/// Safe by construction: output is never audible (the hook mutes media and never calls speechSynthesis), the
+/// Safe by construction: output is never audible (the hook mutes every media element it sees), the
 /// triggers are the dashboard's own test buttons (no chat message, no moderation, no saved setting), and the
 /// test refuses to run while the channel is live. xUnit v2 has no runtime skip, so a live channel fails
 /// the test with a message instead of firing anything.
@@ -40,9 +40,6 @@ public sealed class AudioSingleSourceTests : PageTest
                 this.volume = 0;
                 return play.call(this);
             };
-            if (window.speechSynthesis) {
-                window.speechSynthesis.speak = () => { window.__nnzPlays++; };
-            }
         })();
         """;
 

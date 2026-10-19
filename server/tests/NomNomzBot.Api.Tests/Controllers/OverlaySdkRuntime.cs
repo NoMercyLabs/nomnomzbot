@@ -49,7 +49,6 @@ internal sealed class OverlaySdkRuntime
           return Promise.resolve({ status: 200, ok: true, json: function () { return Promise.resolve({ ticket: "ticket-1" }); } });
         };
         var __plays = 0;
-        var __spoken = 0;
         var __elements = [];
         function __element() {
           var el = {
@@ -65,9 +64,6 @@ internal sealed class OverlaySdkRuntime
           __elements.push(el);
           return el;
         }
-        function SpeechSynthesisUtterance(text) { this.text = text; }
-        var speechSynthesis = { getVoices: function () { return []; }, speak: function () { __spoken++; } };
-        window.speechSynthesis = speechSynthesis;
         var document = {
           getElementById: function () { return null; },
           createElement: __element,
@@ -126,9 +122,6 @@ internal sealed class OverlaySdkRuntime
 
     /// <summary>How many audio elements the page has started playing.</summary>
     public int AudioPlays => (int)_engine.Evaluate("__plays").AsNumber();
-
-    /// <summary>How many utterances the page handed to the browser's own speech voice.</summary>
-    public int BrowserSpeeches => (int)_engine.Evaluate("__spoken").AsNumber();
 
     /// <summary>Every frame the page sent over its socket.</summary>
     public string SentFrames => _engine.Evaluate("__sockets[0].sent.join('|')").ToString();

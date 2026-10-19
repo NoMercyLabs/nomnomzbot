@@ -39,27 +39,6 @@ public sealed class TtsVolumeMixTests
     [Theory]
     [InlineData(100, 60, 0.6)]
     [InlineData(50, 60, 0.3)]
-    public async Task The_client_edge_route_carries_the_mixed_volume(
-        int master,
-        int tts,
-        double expected
-    )
-    {
-        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
-        TtsOverlayNotifierAdapter adapter = new(widgets, MixOf(master, tts));
-
-        await adapter.SpeakAsync(Channel, new("hello", "voice-1", "edge", CueId: null));
-
-        TtsSpeakPayload spoken = (TtsSpeakPayload)
-            widgets.ReceivedCalls().Single().GetArguments()[1]!;
-        spoken.Options.Should().NotBeNull();
-        spoken.Options!.Volume.Should().BeApproximately(expected, 1e-9);
-        spoken.Text.Should().Be("hello");
-    }
-
-    [Theory]
-    [InlineData(100, 60, 0.6)]
-    [InlineData(50, 60, 0.3)]
     public async Task The_server_audio_route_carries_the_mixed_volume(
         int master,
         int tts,

@@ -62,7 +62,7 @@ public sealed record UpdateTtsConfigDto
 {
     public bool? IsEnabled { get; init; }
 
-    /// <summary>Dispatch plane: client_edge | byok | self_host.</summary>
+    /// <summary>Dispatch plane: byok | self_host (client_edge is retired and reads as self_host).</summary>
     [RegularExpression("^(client_edge|byok|self_host)$")]
     public string? Mode { get; init; }
 

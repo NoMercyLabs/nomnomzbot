@@ -49,7 +49,7 @@ public sealed class OverlaySdkSoundClipStopTests
         string sdk = Sdk();
         int start = sdk.IndexOf("function stopSound(", StringComparison.Ordinal);
         start.Should().BeGreaterThan(-1, "the SDK must still be able to stop a sound clip");
-        int next = sdk.IndexOf("// Cached browser voice list", start, StringComparison.Ordinal);
+        int next = sdk.IndexOf("function speakTts(", start, StringComparison.Ordinal);
         return sdk[start..(next > start ? next : sdk.Length)];
     }
 

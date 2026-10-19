@@ -26,7 +26,7 @@ namespace NomNomzBot.Infrastructure.Tests.Tts;
 
 /// <summary>
 /// Proves the P.1 config table behavior: a channel with no row reads as the binding new-channel defaults
-/// (censor ON, client_edge/edge, no row created by the read); the first update CREATES the row and persists
+/// (censor ON, self_host/edge, no row created by the read); the first update CREATES the row and persists
 /// exactly the patched fields; a later partial update leaves untouched fields alone; MinBitsToTts=0 clears
 /// the bits gate; and every update publishes the E5 dashboard live-sync event.
 /// </summary>
@@ -96,7 +96,9 @@ public sealed class TtsConfigServiceTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.IsEnabled.Should().BeTrue();
-        result.Value.Mode.Should().Be("client_edge");
+        result
+            .Value.Mode.Should()
+            .Be("self_host", "bot speech is server audio, never browser speech");
         result.Value.DefaultProvider.Should().Be("edge");
         result.Value.ProfanityCensorEnabled.Should().BeTrue("the swear filter is opt-OUT");
         result.Value.ModApprovalRequired.Should().BeFalse();

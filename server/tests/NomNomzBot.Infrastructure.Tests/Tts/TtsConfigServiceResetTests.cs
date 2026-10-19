@@ -90,7 +90,7 @@ public sealed class TtsConfigServiceResetTests
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         TtsConfig row = await db.TtsConfigs.SingleAsync();
         row.IsEnabled.Should().BeTrue();
-        row.Mode.Should().Be("client_edge");
+        row.Mode.Should().Be("self_host");
         row.DefaultProvider.Should().Be("edge");
         row.MaxCharacters.Should().Be(500);
         row.MinPermission.Should().Be("everyone");

@@ -35,7 +35,6 @@ public sealed class OverlaySdkSingleAudioRouteTests
         );
 
         page.AudioPlays.Should().Be(0);
-        page.BrowserSpeeches.Should().Be(0);
     }
 
     [Fact]
@@ -62,7 +61,7 @@ public sealed class OverlaySdkSingleAudioRouteTests
     }
 
     [Fact]
-    public void A_raw_tts_line_without_audio_is_spoken_exactly_once()
+    public void A_raw_tts_line_without_audio_plays_nothing_and_reports_the_drop()
     {
         OverlaySdkRuntime page = OverlaySdkRuntime.Connected();
 
@@ -72,23 +71,23 @@ public sealed class OverlaySdkSingleAudioRouteTests
             {
                 text = "hello",
                 voiceId = "v1",
-                provider = "browser",
+                provider = "edge",
             }
         );
 
-        page.BrowserSpeeches.Should().Be(1);
         page.AudioPlays.Should().Be(0);
+        page.SentFrames.Should().Contain("ReportRuntimeError");
+        page.SentFrames.Should().Contain("tts line without audio dropped");
     }
 
     [Fact]
-    public void A_raw_tts_line_with_audio_plays_one_element_and_does_not_use_the_browser_voice()
+    public void A_raw_tts_line_with_audio_plays_exactly_one_media_element()
     {
         OverlaySdkRuntime page = OverlaySdkRuntime.Connected();
 
         page.Deliver("TtsSpeak", new { text = "hello", audioUrl = "data:audio/mpeg;base64,AQID" });
 
         page.AudioPlays.Should().Be(1);
-        page.BrowserSpeeches.Should().Be(0);
     }
 
     [Fact]

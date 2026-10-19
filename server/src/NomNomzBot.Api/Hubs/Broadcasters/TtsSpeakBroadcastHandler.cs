@@ -21,8 +21,7 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 /// <summary>
 /// Dispatched TTS utterance → the <c>tts_speak</c> overlay widget event (tts.md), carrying
 /// <c>{ text, voice, user, durationMs, audioUrl }</c> after the hub's camelCase serialization —
-/// <c>audioUrl</c> is a <c>data:</c> URI on the <c>self_host</c>/<c>byok</c> planes, <c>null</c> on
-/// <c>client_edge</c> (the browser's own <c>speechSynthesis</c> has no server audio). The dedicated TTS
+/// <c>audioUrl</c> is the server-rendered audio on the <c>self_host</c>/<c>byok</c> planes. The dedicated TTS
 /// overlay widget queues entries by this event and plays them strictly in order — deliberately NOT the
 /// generic (unqueued) overlay sound bus, so two utterances close together never overlap. Routed through
 /// the shared subscription-matched dispatch so any widget declaring <c>tts_speak</c> can also react

@@ -29,7 +29,7 @@ public sealed class TtsVoiceDefaultsAdminService(IApplicationDbContext db, TimeP
     private const string AuditFamily = "tts_voice";
     private const string TargetKey = "default_voice";
 
-    // Every channel starts on the client_edge plane, which needs no provider key; a default from a keyed
+    // Every channel starts on the self_host plane with the Edge provider, which needs no provider key; a default from a keyed
     // provider would leave a following channel unable to speak at all.
     private const string RequiredProvider = "edge";
 

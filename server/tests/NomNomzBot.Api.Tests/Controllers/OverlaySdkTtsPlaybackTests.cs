@@ -15,10 +15,8 @@ using NomNomzBot.Api.Controllers;
 namespace NomNomzBot.Api.Tests.Controllers;
 
 /// <summary>
-/// TTS was audible to the streamer and SILENT on stream. The SDK spoke every utterance through
-/// <c>window.speechSynthesis</c>, and OBS does not capture that from a browser source — the browser's own
-/// voice engine plays straight out of the system audio device, bypassing the scene's audio entirely. The
-/// server had already synthesised real audio and put its URL on the payload; the SDK ignored it.
+/// TTS must be audible on stream. The browser's own voice engine is not captured by OBS, so the SDK plays only
+/// the server-synthesised audio through a media element and never speaks locally.
 /// <para>
 /// The SDK is inline script served as text, so these assert on the served script. That is the only place
 /// the behaviour exists, and a regression here is invisible to every other test in the suite.
@@ -59,18 +57,15 @@ public sealed class OverlaySdkTtsPlaybackTests
     }
 
     [Fact]
-    public void The_browser_voice_is_only_a_fallback_and_never_preempts_served_audio()
+    public void The_overlay_never_uses_the_browser_voice_and_drops_a_line_without_audio()
     {
+        string sdk = Sdk();
         string speak = SpeakTtsBody();
 
-        int audioBranch = speak.IndexOf("payload.audioUrl", StringComparison.Ordinal);
-        // The actual speaking CALL, not the word "speechSynthesis" — which also appears in prose above it.
-        int synthesis = speak.IndexOf("synth.speak(", StringComparison.Ordinal);
-
-        synthesis.Should().BeGreaterThan(-1, "client_edge still needs the browser voice");
-        // Order is the behaviour: the served-audio branch must be taken, and returned from, first.
-        audioBranch.Should().BeLessThan(synthesis);
-        speak[audioBranch..synthesis].Should().Contain("return");
+        sdk.Should().NotContain("speechSynthesis");
+        sdk.Should().NotContain("SpeechSynthesisUtterance");
+        // A line with no audio URL is reported to the bot and dropped, never spoken locally.
+        speak.Should().Contain("report(\"tts line without audio dropped\")");
     }
 
     [Fact]
