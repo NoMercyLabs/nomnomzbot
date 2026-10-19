@@ -784,3 +784,8 @@ Two cross-subsystem alignment decisions, both binding:
    does not apply here; ledger subject PII is protected as `[PII-hash]`/`[PII-scrub]` row data. Subject-level
    erasure of that data is delivered through the shared GDPR subsystem (decisions doc #10), which the economy
    ledger consumes rather than reimplements.
+3. **A game's category never lifts its gambling cooldown floor** (Arc, 2026-10-19, pending Stoney). A gambling
+   game always enforces at least the floor (5 minutes today), and changing the category does not remove it
+   for a game the owner set up as gambling. `GameConfigDto.CooldownFloorSeconds` carries the floor, so the
+   dashboard shows it from the API and never hard-codes it. Server refusal messages are English only; the
+   dashboard shows a translated text keyed by `ErrorCode`.
