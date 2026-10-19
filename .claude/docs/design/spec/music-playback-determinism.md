@@ -153,7 +153,7 @@ keeps its place in the queue.
 | Starting(e, i) | StartTimeout | Blocked("did not start") | keep i at head; show error. When the start paused the owner's music on another engine, that music resumes and the director follows it |
 | Starting(e, i) | OwnerSkip, i lined up in e's queue behind the playing track | Starting(e, i) | e's skip plays i |
 | Playing(e, null) | RequestAdded | Playing(e, null) | none until near end (6 s) of the owner track |
-| Playing(e, null) | near end, head waits | Starting(head.engine, head) | stop e only if head.engine != e AND head.engine can start now (player or connection there); otherwise e plays on and the head counts a failed start |
+| Playing(e, null) | near end, head waits | Starting(head.engine, head) | stop e only if head.engine != e AND head.engine can start now (player or connection there); otherwise e plays on and the head waits for its engine (journal `waiting_for_engine`, no failed start) |
 | Playing(e, i) | TrackEnded(e, i.uri) | Starting(next) or Idle | if next.engine != e: e already ended, start next on its engine |
 | Playing(e, *) | OwnerSkip, e has its own queue (Spotify) | Starting(next) or Playing(e, null) | e is never paused: a head e already holds plays through e's skip; another head on e starts over the current track; no head: e's skip moves on to the owner's next track |
 | Playing(e, *) | OwnerSkip, e has no queue of its own (YouTube) or the head is on another engine | Starting(next) or Idle | stop e; wait for e's paused report (max 2 s); start next |
@@ -170,7 +170,12 @@ keeps its place in the queue.
 | any | EngineReport of an engine that is not the owner engine, playing | same | pause that engine; log `foreign_engine_silenced` |
 | Blocked | EngineReport playing | Idle, then Playing(engine, null) or Playing(engine, row) | follow that music (journal `music_playing`); a waiting head lines up at its end |
 | Blocked | OutputAttached / token restored | Idle | re-evaluate |
-| Blocked | RequestAdded | Idle, then Starting(head) | an engine whose last report plays is followed first, so the head never starts over it; otherwise re-evaluate the kept head and start it as Idle + RequestAdded does; journal reason `request_added` |
+| Blocked | RequestAdded | Idle, then Starting(head) | an engine whose last report plays is followed first, so the head never starts over it; otherwise re-evaluate the kept head and start it as Idle + RequestAdded does; journal reason `request_added`. While the head's engine still cannot start (no Music Player page open), the tick changes nothing |
+
+Changed 2026-10-19 evening (qtkitte live: every YouTube request was refused twice and dropped while her OBS had no
+Music Player page open). An engine that cannot take a start (no player page, Spotify not connected, a typed
+engine block) is not a fault of the item: the item waits at the head and never counts a failed start. Only a
+start the engine accepts the shape of and then refuses or times out counts.
 
 Changed 2026-10-19 (behavior audit). Source: Stoney 2026-10-19, "the music should NEVER EVER be cleared out".
 Arc's reading: a skip, a failed start or a Blocked state never leaves the music paused or stopped. The old
@@ -277,6 +282,7 @@ device")` with a one-click "Move back" (the existing transferDevice action). It 
   reorders. One queue holds both engines' items; engine is a field of the item, not a separate queue.
 - An item leaves the queue only when the director sees it play as the head (`Starting → Playing`),
   or by an explicit remove (owner, mod, requester), or when it fails to start twice (`Blocked`, then dropped with a notice).
+  An engine that cannot take a start at all (no Music Player page open) never counts as a failed start.
 - `FairQueue.RemoveThrough` is deleted. No removal by a match at any depth.
 - A report of a queued track that is not the head (Spotify played it on its own) removes that one row only
   and logs `played_out_of_order`. Rows above it stay.

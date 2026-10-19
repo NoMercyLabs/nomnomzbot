@@ -149,6 +149,17 @@ public sealed partial class PlaybackDirector
             return;
         }
 
+        // The poller's tick changes nothing while the head's engine still cannot start (no player page open).
+        if (
+            input is RequestAdded
+            && _queue.Head is { } waiting
+            && !await CanStartOnAsync(waiting.Engine, ct)
+        )
+        {
+            await IgnoreAsync(input);
+            return;
+        }
+
         await MoveAsync(
             PlaybackState.Idle,
             input,

@@ -36,10 +36,10 @@ public sealed partial class PlaybackDirector
         if (stopEngine is { } old)
         {
             // The owner's music is never paused for an engine that cannot start: it plays on, and the item
-            // counts a failed start.
+            // waits for that engine.
             if (old != item.Engine && !await CanStartOnAsync(item.Engine, ct))
             {
-                await FailStartAsync(item, inputName, "engine not ready", "start_refused", ct);
+                await WaitForEngineAsync(item, inputName, "engine not ready");
                 return;
             }
 

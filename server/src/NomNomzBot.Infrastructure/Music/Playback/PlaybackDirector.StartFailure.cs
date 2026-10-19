@@ -92,7 +92,8 @@ public sealed partial class PlaybackDirector
     /// A failed start while the owner's music plays on follows that music and keeps the item. Otherwise the
     /// first failed start blocks the director and keeps the item. The last allowed failure drops the item
     /// with a notice. Only the director removes the item here. An engine that refuses with a typed block
-    /// always shows that block, after the music a hand-over paused plays on again.
+    /// (no Music Player page open, Spotify not connected) always shows that block, after the music a hand-over
+    /// paused plays on again, and never counts against the item: the item waits for the engine.
     /// </summary>
     private async Task FailStartAsync(
         PlaybackItem item,
@@ -103,9 +104,20 @@ public sealed partial class PlaybackDirector
         bool engineBlocked = false
     )
     {
-        int failures = _failedStarts.GetValueOrDefault(item.Id) + 1;
         EngineReport? handedOver = await OwnerMusicHandedOverAsync(item, inputName, ct);
-        EngineReport? ownerMusic = engineBlocked ? null : OwnerMusicPlayingOver(item) ?? handedOver;
+        if (engineBlocked)
+        {
+            await MoveAsync(
+                PlaybackState.Blocked(blockedReason),
+                inputName,
+                journalReason,
+                item.Id
+            );
+            return;
+        }
+
+        int failures = _failedStarts.GetValueOrDefault(item.Id) + 1;
+        EngineReport? ownerMusic = OwnerMusicPlayingOver(item) ?? handedOver;
         if (ownerMusic is not null && failures < MaxFailedStartsOverOwnerMusic)
         {
             _failedStarts[item.Id] = failures;
@@ -148,6 +160,29 @@ public sealed partial class PlaybackDirector
 
         if (_queue.Head is { } next)
             await BeginStartAsync(next, inputName, "next_item", null, ct);
+    }
+
+    /// <summary>
+    /// The item's engine cannot take a start now. That is no fault of the item, so it counts no failed start
+    /// and stays at the head: music another engine plays goes on, and the start is tried again when the
+    /// engine's output attaches or that track ends.
+    /// </summary>
+    private async Task WaitForEngineAsync(PlaybackItem item, string inputName, string blockedReason)
+    {
+        if (
+            _reports.Values.FirstOrDefault(r => r.IsPlaying && r.Engine != item.Engine) is { } music
+        )
+        {
+            await FollowOwnerMusicAsync(music, inputName, "waiting_for_engine", item.Id);
+            return;
+        }
+
+        await MoveAsync(
+            PlaybackState.Blocked(blockedReason),
+            inputName,
+            "waiting_for_engine",
+            item.Id
+        );
     }
 
     /// <summary>The engine's latest report when it plays the owner's own track, not the item or a queued row.</summary>
