@@ -86,7 +86,7 @@ const modes = computed(() =>
 
 // The free bot voice runs on the keyless provider; my own key runs on the providers that need a key. A provider
 // the other source cannot use is not offered, except the one already stored, so the row never hides what is set.
-const KEYLESS_PROVIDERS: readonly string[] = ['edge'];
+const KEYLESS_PROVIDERS = new Set<string>(['edge']);
 
 const providers = computed(() => {
   const source = stored.value?.mode;
@@ -97,7 +97,7 @@ const providers = computed(() => {
       if (id === current || (source !== 'self_host' && source !== 'byok'))
         return true;
 
-      return KEYLESS_PROVIDERS.includes(id) === (source === 'self_host');
+      return KEYLESS_PROVIDERS.has(id) === (source === 'self_host');
     })
     .map((id) => ({ value: id, label: providerName(id) }));
 });
