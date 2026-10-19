@@ -38,6 +38,9 @@ type Answer = {
 const calls: Call[] = [];
 let optIns: Body[] = [];
 let held: string[] = [];
+let accepts = false;
+
+const networkPath = '/api/v{version}/channels/{channelId}/moderation/network-block-opt-in';
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
@@ -57,6 +60,9 @@ vi.mock('@/api/client', () => ({
     GET: async (path: string): Promise<Answer> => {
       calls.push({ method: 'GET', path });
 
+      if (path === networkPath)
+        return ok({ accepts });
+
       return path === accessPath
         ? ok({ heldActionKeys: held })
         : ok(optIns);
@@ -68,6 +74,12 @@ vi.mock('@/api/client', () => ({
         body: options.body,
         params: options.params,
       });
+
+      if (path === networkPath) {
+        accepts = (options.body as { accepts: boolean }).accepts;
+
+        return { response: { status: 204, ok: true } };
+      }
 
       return ok(optIn('n1', 'shared_chat_bans', options.body));
     },
@@ -91,6 +103,7 @@ let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
   calls.length = 0;
+  accepts = false;
   held = ['federation:optin:read', 'federation:optin:write', 'federation:optin:delete'];
 
   optIns = [
@@ -262,6 +275,45 @@ describe('Federation', () => {
     await click(toggle('shared_chat_bans', 'Share'));
 
     expect(q('[role="alert"]').textContent).toContain('Not allowed.');
+  });
+});
+
+describe('Network block opt-in card', () => {
+  const card = (): HTMLElement => q('[data-view="network-block-opt-in"]');
+  const cardSwitch = (): HTMLButtonElement => card().querySelector('button[role="switch"]') as HTMLButtonElement;
+  const networkPuts = (): Call[] => calls.filter((call) => call.method === 'PUT' && call.path === networkPath);
+
+  it('shows the stored answer, off by default, with no write until the switch moves', async () => {
+    held = [...held, 'moderation:networkblock:optin'];
+    await open();
+
+    expect(cardSwitch().getAttribute('data-state')).toBe('unchecked');
+    expect(networkPuts()).toEqual([]);
+  });
+
+  it('shows an answer that is already on', async () => {
+    accepts = true;
+    held = [...held, 'moderation:networkblock:optin'];
+    await open();
+
+    expect(cardSwitch().getAttribute('data-state')).toBe('checked');
+  });
+
+  it('puts the new answer and shows the value the bot stored after the refetch', async () => {
+    held = [...held, 'moderation:networkblock:optin'];
+    await open();
+    await click(cardSwitch());
+
+    expect(networkPuts().map((call) => call.body)).toEqual([{ accepts: true }]);
+    expect(networkPuts()[0]?.params).toEqual({ path: { version: '1', channelId: 'c1' } });
+    expect(cardSwitch().getAttribute('data-state')).toBe('checked');
+  });
+
+  it('gives a person without the broadcaster key a read-only state and no switch', async () => {
+    await open();
+
+    expect(card().querySelector('button[role="switch"]')).toBeNull();
+    expect(card().querySelector('[data-slot="enabled-state"]')?.getAttribute('data-state')).toBe('off');
   });
 });
 

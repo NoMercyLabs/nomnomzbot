@@ -31,6 +31,14 @@
           "title": "Choices for one bot",
           "description": "These choices name a single bot instance instead of every trusted one.",
           "disable": "Turn this choice off"
+        },
+        "networkBlock": {
+          "title": "Network blocks",
+          "description": "An admin network block can ban a known bad actor on every channel of this network. It is off until you turn it on here.",
+          "loadFailed": "The network block choice could not be loaded.",
+          "label": "Ban blocked actors here",
+          "hint": "When on, an admin network block also bans its blocked actor in this channel. Off by default.",
+          "switch": "Accept"
         }
       }
     }

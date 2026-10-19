@@ -31,6 +31,14 @@
           "title": "Keuzes voor een enkele bot",
           "description": "Deze keuzes noemen één bot-installatie in plaats van alle vertrouwde.",
           "disable": "Zet deze keuze uit"
+        },
+        "networkBlock": {
+          "title": "Netwerkblokkades",
+          "description": "Een netwerkblokkade van een beheerder kan een bekende lastpost op elk kanaal van dit netwerk bannen. Het staat uit tot je het hier aanzet.",
+          "loadFailed": "De keuze voor netwerkblokkades kon niet worden geladen.",
+          "label": "Geblokkeerde personen hier bannen",
+          "hint": "Staat dit aan, dan bant een netwerkblokkade van een beheerder de geblokkeerde persoon ook in dit kanaal. Standaard uit.",
+          "switch": "Accepteren"
         }
       }
     }

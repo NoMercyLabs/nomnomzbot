@@ -34,6 +34,7 @@ import { errorText } from '@/lib/errors';
 
 import FederationChoiceRow, { type FederationChoice } from './components/FederationChoiceRow.vue';
 import FederationPeerRow from './components/FederationPeerRow.vue';
+import NetworkBlockOptInCard from './components/NetworkBlockOptInCard.vue';
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
@@ -154,6 +155,8 @@ async function turnOff(optIn: FederationOptIn): Promise<void> {
         />
       </RowGroup>
     </PanelCard>
+
+    <NetworkBlockOptInCard />
 
     <p v-if="pageError" role="alert" class="pt-3 text-sm text-destructive">{{ pageError }}</p>
   </PageBody>
