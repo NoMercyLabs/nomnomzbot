@@ -74,7 +74,8 @@ const cfg = reactive({
 
 const recap = ref<RecapDto | null>(null);
 const visible = ref(false);
-const rolling = ref<Record<string, boolean>>({});
+// How many rows of each card fit whole; a card not measured yet shows all of its rows.
+const shown = ref<Record<string, number>>({});
 const root = ref<HTMLElement | null>(null);
 let hideTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -292,24 +293,35 @@ const rootStyle = computed<Record<string, string>>(() => {
   return style;
 });
 
-// A list longer than its card rolls like end credits (it is drawn twice and moved up by one copy).
-function measure(): void {
-  if (!root.value) return;
-  const next: Record<string, boolean> = {};
-  root.value.querySelectorAll<HTMLElement>('[data-block] .scroll').forEach((box) => {
-    const key = box.closest('[data-block]')?.getAttribute('data-block') || '';
-    const list = box.querySelector<HTMLElement>('.list');
-    next[key] = !!list && list.offsetHeight > box.clientHeight;
-  });
-  const same = Object.keys(next).length === Object.keys(rolling.value).length
-    && Object.keys(next).every((k) => next[k] === rolling.value[k]);
-  if (!same) rolling.value = next;
+// A list shows only whole rows. Every row is drawn once, the rows whose bottom edge passes the card's edge are cut from
+// the list, and a heading left at the end of a list goes with them.
+function fitRows(box: HTMLElement): number {
+  const edge = box.getBoundingClientRect().bottom;
+  const items = Array.from(box.querySelectorAll<HTMLElement>('.list > *'));
+  let count = items.filter((el) => el.getBoundingClientRect().bottom <= edge + 0.5).length;
+
+  while (count > 0 && items[count - 1]?.classList.contains('sect')) count--;
+
+  return count;
 }
 
-watch(recap, async () => {
+function measure(): void {
+  if (!root.value) return;
+  const next: Record<string, number> = {};
+  root.value.querySelectorAll<HTMLElement>('[data-block] .scroll').forEach((box) => {
+    const key = box.closest('[data-block]')?.getAttribute('data-block') || '';
+    next[key] = fitRows(box);
+  });
+  shown.value = next;
+}
+
+async function refit(): Promise<void> {
+  shown.value = {};
   await nextTick();
   measure();
-});
+}
+
+watch(recap, refit);
 
 async function read(shown: RecapDto): Promise<RecapDto> {
   const stream = shown.stream?.id || undefined;
@@ -352,12 +364,12 @@ onMounted(() => {
   });
   // The recap event is not in the typed event map yet; the payload is the bot's StreamRecapDto.
   NomNomz.on('raid_recap.show' as keyof NnzWidgetEventMap, onShow as never);
-  window.addEventListener('resize', measure);
+  window.addEventListener('resize', refit);
 });
 
 onUnmounted(() => {
   clearTimeout(hideTimer);
-  window.removeEventListener('resize', measure);
+  window.removeEventListener('resize', refit);
   if (typeof NomNomz === 'undefined') return;
   NomNomz.off('raid_recap.show' as keyof NnzWidgetEventMap, onShow as never);
 });
@@ -393,18 +405,16 @@ onUnmounted(() => {
           <img v-if="avatarUrl && pi === 0" class="watermark" :src="avatarUrl" alt="" />
           <div class="label">{{ label('block.' + p.card.key) }}</div>
           <div v-if="p.card.big" class="big">{{ p.card.big }}<small v-if="p.card.unit">{{ p.card.unit }}</small></div>
-          <div v-if="p.card.rows.length" class="scroll" :class="{ rolling: rolling[p.card.key], fit: p.card.note }" :style="{ '--d': p.card.rows.length * 3 + 's' }">
-            <div class="track">
-              <div v-for="n in (rolling[p.card.key] ? 2 : 1)" :key="n" class="list" :aria-hidden="n === 2 ? 'true' : undefined">
-                <template v-for="(r, ri) in p.card.rows" :key="ri">
-                  <div v-if="r.kind === 'heading'" class="sect">{{ r.name }}</div>
-                  <div v-else class="row">
-                    <span v-if="r.rank" class="r">{{ r.rank }}</span>
-                    <span class="n">{{ r.name }}</span>
-                    <span class="v">{{ r.value }}</span>
-                  </div>
-                </template>
-              </div>
+          <div v-if="p.card.rows.length" class="scroll" :class="{ fit: p.card.note }">
+            <div class="list">
+              <template v-for="(r, ri) in p.card.rows.slice(0, shown[p.card.key] ?? p.card.rows.length)" :key="ri">
+                <div v-if="r.kind === 'heading'" class="sect">{{ r.name }}</div>
+                <div v-else class="row">
+                  <span v-if="r.rank" class="r">{{ r.rank }}</span>
+                  <span class="n">{{ r.name }}</span>
+                  <span class="v">{{ r.value }}</span>
+                </div>
+              </template>
             </div>
           </div>
           <div v-if="p.card.note" class="hype">{{ p.card.note }}</div>
@@ -475,8 +485,4 @@ h1 { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1; co
 .scroll.fit { flex: 0 1 auto; }
 .hype { margin-top: 12px; font-size: 19px; font-weight: 500; color: var(--mute); }
 .thanks { max-width: 620px; text-align: right; font-size: 24px; font-weight: 600; color: #fff; }
-.scroll.rolling { -webkit-mask-image: linear-gradient(transparent, #000 10%, #000 90%, transparent); mask-image: linear-gradient(transparent, #000 10%, #000 90%, transparent); }
-.scroll.rolling .track { animation: roll var(--d) linear infinite; }
-@keyframes roll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
-@media (prefers-reduced-motion: reduce) { .scroll.rolling .track { animation: none; } }
 </style>

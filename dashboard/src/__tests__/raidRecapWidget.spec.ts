@@ -95,15 +95,24 @@ function spans(wrapper: VueWrapper): number[][] {
   });
 }
 
-function withOverflow(box: number, list: number): void {
-  Object.defineProperty(HTMLElement.prototype, 'clientHeight', { configurable: true, value: box });
-  Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, value: list });
+// jsdom has no layout: a list box ends at boxBottom, and the nth child of a list ends at (n + 1) * rowHeight.
+function withLayout(boxBottom: number, rowHeight: number): void {
+  vi.spyOn(HTMLElement.prototype, 'getBoundingClientRect').mockImplementation(function (this: HTMLElement) {
+    const parent = this.parentElement;
+    const index = parent
+      ? Array.from(parent.children).indexOf(this)
+      : 0;
+    const bottom = this.classList.contains('scroll')
+      ? boxBottom
+      : (index + 1) * rowHeight;
+
+    return { bottom } as DOMRect;
+  });
 }
 
 beforeEach(() => {
   vi.useFakeTimers();
   vi.stubGlobal('NomNomz', sdk);
-  withOverflow(0, 0);
 });
 
 afterEach(() => {
@@ -254,20 +263,30 @@ describe('raid_recap widget', () => {
     expect(text).not.toContain('Secret Song');
   });
 
-  it('rolls a list only when it is longer than its card', async () => {
-    withOverflow(100, 300);
-    const rolling = show(fixture);
+  it('shows whole rows only: rows past the card edge are cut, never half drawn', async () => {
+    const rowHeight = 30;
+
+    withLayout(100, rowHeight);
+    const wrapper = show(streamRecap);
 
     await flushPromises();
-    expect(rolling.find('[data-block="raids"] .scroll').classes()).toContain('rolling');
-    expect(rolling.findAll('[data-block="raids"] .list').length).toBe(2);
+    const box = wrapper.find('[data-block="songs"] .scroll');
+    const drawn = box.findAll('.list > *').length;
 
-    withOverflow(300, 100);
-    const still = show(fixture);
+    expect(box.classes()).not.toContain('rolling');
+    expect(wrapper.findAll('[data-block="songs"] .list').length).toBe(1);
+    expect(drawn).toBe(3);
+    expect(drawn * rowHeight).toBeLessThanOrEqual(100);
+  });
+
+  it('keeps every row when the list fits the card', async () => {
+    withLayout(10000, 30);
+    const wrapper = show(streamRecap);
 
     await flushPromises();
-    expect(still.find('[data-block="raids"] .scroll').classes()).not.toContain('rolling');
-    expect(still.findAll('[data-block="raids"] .list').length).toBe(1);
+    const rows = wrapper.findAll('[data-block="songs"] .row').length;
+
+    expect(rows).toBe(streamRecap.songRequesters.top.length);
   });
 
   describe('the 2026-10-18 stream, as the API returned it', () => {
