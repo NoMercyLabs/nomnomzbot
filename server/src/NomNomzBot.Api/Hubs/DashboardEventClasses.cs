@@ -55,7 +55,8 @@ public static class DashboardEventClasses
     public static string ViewerMusicGroup(string broadcasterId) => $"viewer-music:{broadcasterId}";
 
     /// <summary>The channel events mirrored into <see cref="ViewerMusicGroup"/>.</summary>
-    public static bool IsViewerMusicEvent(string method) => method is "sr_queue_changed" or "music.nowPlaying";
+    public static bool IsViewerMusicEvent(string method) =>
+        method is "sr_queue_changed" or "music.nowPlaying";
 
     /// <summary>The per-class group a subscribed connection additionally joins.</summary>
     public static string ClassGroup(string broadcasterId, string eventClass) =>

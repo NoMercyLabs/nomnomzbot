@@ -8,8 +8,10 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
@@ -32,6 +34,35 @@ public sealed class NowPlayingBroadcastHandler : IEventHandler<PlaybackStateChan
         _playbackState = playbackState;
     }
 
-    public Task HandleAsync(PlaybackStateChangedEvent @event, CancellationToken ct = default) =>
-        Task.CompletedTask;
+    public Task HandleAsync(PlaybackStateChangedEvent @event, CancellationToken ct = default)
+    {
+        if (@event.BroadcasterId == Guid.Empty)
+            return Task.CompletedTask;
+
+        PlaybackState state = _playbackState.StateOf(@event.BroadcasterId);
+        PlaybackLevel level = _playbackState.LevelOf(@event.BroadcasterId);
+        DirectorNowPlaying? shape = DirectorNowPlaying.Build(
+            state,
+            level,
+            @event.Provider,
+            @event.TrackUri,
+            @event.TrackName,
+            @event.Artist,
+            @event.AlbumArtUrl,
+            @event.DurationMs,
+            @event.ProgressMs,
+            @event.IsPlaying,
+            @event.RequestedBy
+        );
+        NowPlayingShapeDto data = shape is null
+            ? NowPlayingShapeDto.Empty(state.Kind, level)
+            : NowPlayingShapeDto.From(shape);
+
+        return _notifier.NotifyChannelAsync(
+            @event.BroadcasterId.ToString(),
+            NowPlayingShapeDto.EventName,
+            data,
+            ct
+        );
+    }
 }

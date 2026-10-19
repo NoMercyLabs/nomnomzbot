@@ -719,6 +719,25 @@ public class MusicController : BaseController
             track.CanResume
         );
 
+        if (Guid.TryParse(channelId, out Guid broadcasterId))
+        {
+            DirectorNowPlaying? shape = DirectorNowPlaying.Build(
+                _playbackState.StateOf(broadcasterId),
+                _playbackState.LevelOf(broadcasterId),
+                track.Provider,
+                track.TrackUri,
+                track.TrackName,
+                track.Artist,
+                track.ImageUrl,
+                track.DurationMs,
+                track.ProgressMs,
+                track.IsPlaying,
+                track.RequestedBy
+            );
+            if (shape is not null)
+                dto = dto.WithShape(NowPlayingShapeDto.From(shape));
+        }
+
         return Ok(new StatusResponseDto<NowPlayingDto> { Data = dto });
     }
 }

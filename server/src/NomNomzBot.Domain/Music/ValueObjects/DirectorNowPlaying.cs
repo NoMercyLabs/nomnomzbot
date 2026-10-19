@@ -46,5 +46,36 @@ public sealed record DirectorNowPlaying(
         int progressMs,
         bool isPlaying,
         string? requestedBy
-    ) => null;
+    )
+    {
+        EngineKind? engine = state.Engine ?? EngineOf(provider);
+        if (engine is null || string.IsNullOrEmpty(title))
+            return null;
+
+        PlaybackItem? item =
+            state.Item is not null && state.Item.Uri == trackUri ? state.Item : null;
+        IReadOnlyList<string> artists =
+            item?.Artists ?? (string.IsNullOrEmpty(artist) ? [] : [artist]);
+
+        return new(
+            engine.Value,
+            item?.Id,
+            title,
+            artists,
+            albumArtUrl,
+            durationMs,
+            progressMs,
+            isPlaying,
+            item?.RequestedBy ?? requestedBy,
+            level.Volume,
+            level.Muted,
+            state.Kind
+        );
+    }
+
+    private static EngineKind? EngineOf(string? provider) =>
+        string.IsNullOrEmpty(provider) ? null
+        : string.Equals(provider, "youtube", StringComparison.OrdinalIgnoreCase)
+            ? EngineKind.YouTube
+        : EngineKind.Spotify;
 }

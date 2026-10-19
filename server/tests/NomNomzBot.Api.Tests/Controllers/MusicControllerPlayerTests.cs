@@ -13,6 +13,7 @@ using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Music.Interfaces;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -33,7 +34,8 @@ public sealed class MusicControllerPlayerTests
             Substitute.For<ISongRequestPageTokenService>(),
             Substitute.For<IBlockedTrackService>(),
             Substitute.For<IMusicHistoryReader>(),
-            Substitute.For<ISongRequestIntakeService>()
+            Substitute.For<ISongRequestIntakeService>(),
+            Substitute.For<IPlaybackStateReader>()
         )
         {
             ControllerContext = new() { HttpContext = new DefaultHttpContext() },

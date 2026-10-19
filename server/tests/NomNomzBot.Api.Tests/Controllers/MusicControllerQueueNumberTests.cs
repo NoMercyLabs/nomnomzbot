@@ -15,6 +15,7 @@ using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
+using NomNomzBot.Domain.Music.Interfaces;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -61,7 +62,8 @@ public sealed class MusicControllerQueueNumberTests
             Substitute.For<ISongRequestPageTokenService>(),
             Substitute.For<IBlockedTrackService>(),
             history,
-            Substitute.For<ISongRequestIntakeService>()
+            Substitute.For<ISongRequestIntakeService>(),
+            Substitute.For<IPlaybackStateReader>()
         );
 
         IActionResult result = await controller.GetQueue(ChannelId, CancellationToken.None);

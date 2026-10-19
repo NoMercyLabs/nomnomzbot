@@ -24,6 +24,7 @@ using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Persistence;
 using NSubstitute;
 
@@ -280,7 +281,8 @@ public sealed class PlayerActionButtonTests : IAsyncLifetime
             Substitute.For<ISongRequestPageTokenService>(),
             Substitute.For<IBlockedTrackService>(),
             history,
-            Substitute.For<ISongRequestIntakeService>()
+            Substitute.For<ISongRequestIntakeService>(),
+            Substitute.For<IPlaybackStateReader>()
         );
 
         IActionResult result = await controller.GetQueue("c", CancellationToken.None);
