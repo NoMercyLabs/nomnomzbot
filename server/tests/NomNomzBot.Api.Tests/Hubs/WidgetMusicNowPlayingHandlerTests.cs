@@ -10,6 +10,7 @@
 
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
+using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
@@ -78,7 +79,7 @@ public sealed class WidgetMusicNowPlayingHandlerTests
             .ReceivedCalls()
             .Where(c => c.GetMethodInfo().Name == nameof(IWidgetNotifier.SendWidgetEventAsync))
             .Select(c => (WidgetEventDto)c.GetArguments()[2]!)
-            .Select(e => new Pushed(e.WidgetId, e.EventType, e.Data))
+            .Select(e => new Pushed(e.WidgetId, e.EventType, e.Data!))
             .ToList();
     }
 
