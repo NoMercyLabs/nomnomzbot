@@ -1,0 +1,305 @@
+<!--
+  Copyright (c) NoMercy Labs.
+
+  This file is part of NomNomzBot, free software licensed under the GNU Affero
+  General Public License v3.0 or later. You may redistribute and/or modify it
+  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+
+  SPDX-License-Identifier: AGPL-3.0-or-later
+-->
+<script setup lang="ts">
+// How the channel voice speaks: on or off, where the voice comes from, who may be heard, the length cap
+// and the bot and profanity filters. Each control names its default; the footer button returns the
+// rules to those defaults. Switches and choices save at once; the character cap saves on blur or Enter.
+import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
+
+import { useTtsConfig, type TtsConfig } from '@/api/tts';
+import {
+  useResetTtsRules,
+  useSetTtsRules,
+  useTtsDefaults,
+  type TtsRulesChange,
+} from '@/api/ttsRules';
+import { ttsStandings } from '@/api/vocabulary';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import SegmentedControl from '@/components/layout/SegmentedControl.vue';
+import SettingRow from '@/components/layout/SettingRow.vue';
+import { Button } from '@/components/ui/button';
+import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
+import { useCan } from '@/composables/useCan';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import type { PanelState } from '@/composables/usePanelState';
+import { useProviderName } from '@/composables/useProviderName';
+import ReadabilityRow from '@/views/dashboard/settings/components/ReadabilityRow.vue';
+
+const MOST_CHARACTERS = 500;
+const FEWEST_CHARACTERS = 1;
+
+const { t } = useI18n();
+const providerName = useProviderName();
+const { channelId } = useCurrentChannel();
+const { can } = useCan();
+const config = useTtsConfig(channelId);
+const defaults = useTtsDefaults(channelId);
+const save = useSetTtsRules(channelId);
+const reset = useResetTtsRules(channelId);
+
+const stored = computed(() => config.data.value ?? null);
+const standard = computed(() => defaults.data.value ?? null);
+const writable = computed(() => can('tts:config:write'));
+const characters = ref('');
+
+watch(
+  stored,
+  (current) => {
+    characters.value = String(current?.maxCharacters ?? '');
+  },
+  { immediate: true },
+);
+
+const state = computed<PanelState>(() => {
+  if (config.isError.value)
+    return 'error';
+
+  return config.isPending.value
+    ? 'loading'
+    : 'ready';
+});
+
+const modes = computed(() => [
+  { value: 'self_host', label: t('dashboard.tts.speaking.mode.self_host') },
+  { value: 'byok', label: t('dashboard.tts.speaking.mode.byok') },
+]);
+
+const providers = computed(() =>
+  (['edge', 'azure', 'elevenlabs'] as const).map((id) => ({ value: id, label: providerName(id) })),
+);
+
+// The settings a reset touches; the reset button is idle when all of them already match.
+const resetKeys = [
+  'isEnabled',
+  'mode',
+  'defaultProvider',
+  'maxCharacters',
+  'minPermission',
+  'skipBotMessages',
+  'readUsernames',
+  'profanityCensorEnabled',
+  'modApprovalRequired',
+  'viewerVoiceSelfServiceEnabled',
+] as const satisfies readonly (keyof TtsConfig)[];
+
+const atDefaults = computed<boolean>(() => {
+  const current = stored.value;
+  const standardValues = standard.value;
+
+  if (current === null || standardValues === null)
+    return true;
+
+  const sameSettings = resetKeys.every(
+    (key) => String(current[key]) === String(standardValues[key]),
+  );
+  const sameBits = Number(current.minBitsToTts ?? 0) === Number(standardValues.minBitsToTts ?? 0);
+
+  return sameSettings && sameBits;
+});
+
+function standingName(id: string): string {
+  return t(`dashboard.tts.speaking.standing.${id}`);
+}
+
+function modeName(id: string): string {
+  return t(`dashboard.tts.speaking.mode.${id}`);
+}
+
+function characterCount(count: number | string): string {
+  return t('dashboard.tts.speaking.maxCharacters.value', { count: String(count) });
+}
+
+function switchHint(value: boolean | undefined): string {
+  if (value === undefined)
+    return '';
+
+  return t(value
+    ? 'dashboard.tts.defaultHint.on'
+    : 'dashboard.tts.defaultHint.off');
+}
+
+function valueHint(value: string | null): string {
+  if (value === null)
+    return '';
+
+  return t('dashboard.tts.defaultHint.value', { value });
+}
+
+function describe(key: string, hint: string): string {
+  return `${t(key)} ${hint}`.trim();
+}
+
+function change(rules: TtsRulesChange): void {
+  save.mutate(rules);
+}
+
+function commitCharacters(): void {
+  const parsed = Math.trunc(Number(characters.value));
+  const next = Number.isFinite(parsed)
+    ? Math.min(MOST_CHARACTERS, Math.max(FEWEST_CHARACTERS, parsed))
+    : FEWEST_CHARACTERS;
+
+  characters.value = String(next);
+
+  if (next !== Number(stored.value?.maxCharacters)) {
+    change({ maxCharacters: next });
+  }
+}
+
+function pickStanding(value: unknown): void {
+  if (typeof value === 'string') {
+    change({ minPermission: value });
+  }
+}
+
+const modeHint = computed(() => valueHint(standard.value && modeName(standard.value.mode)));
+const providerHint = computed(() =>
+  valueHint(standard.value && providerName(standard.value.defaultProvider)),
+);
+const standingHint = computed(() =>
+  valueHint(standard.value && standingName(standard.value.minPermission)),
+);
+const charactersHint = computed(() =>
+  valueHint(standard.value && characterCount(standard.value.maxCharacters)),
+);
+</script>
+
+<template>
+  <PanelCard
+    data-view="tts-speaking"
+    pad
+    :title="$t('dashboard.tts.speaking.title')"
+    :description="$t('dashboard.tts.speaking.description')"
+    :state="state"
+    :error-text="$t('dashboard.tts.settings.error')"
+    @retry="config.refetch()"
+  >
+    <RowGroup v-if="stored">
+      <SettingRow
+        :model-value="stored.isEnabled"
+        :disabled="!writable"
+        :title="$t('dashboard.tts.speaking.enabled.title')"
+        :description="
+          describe('dashboard.tts.speaking.enabled.description', switchHint(standard?.isEnabled))
+        "
+        @update:model-value="change({ isEnabled: $event })"
+      />
+      <ReadabilityRow
+        :title="$t('dashboard.tts.speaking.mode.title')"
+        :description="describe('dashboard.tts.speaking.mode.description', modeHint)"
+      >
+        <SegmentedControl
+          :model-value="stored.mode"
+          :label="$t('dashboard.tts.speaking.mode.title')"
+          :options="modes"
+          :disabled="!writable"
+          @update:model-value="change({ mode: $event })"
+        />
+      </ReadabilityRow>
+      <ReadabilityRow
+        :title="$t('dashboard.tts.speaking.provider.title')"
+        :description="describe('dashboard.tts.speaking.provider.description', providerHint)"
+      >
+        <SegmentedControl
+          :model-value="stored.defaultProvider"
+          :label="$t('dashboard.tts.speaking.provider.title')"
+          :options="providers"
+          :disabled="!writable"
+          @update:model-value="change({ defaultProvider: $event })"
+        />
+      </ReadabilityRow>
+      <ReadabilityRow
+        :title="$t('dashboard.tts.speaking.standing.title')"
+        :description="describe('dashboard.tts.speaking.standing.description', standingHint)"
+      >
+        <Select
+          :model-value="stored.minPermission"
+          :disabled="!writable"
+          @update:model-value="pickStanding"
+        >
+          <SelectTrigger class="w-40" :aria-label="$t('dashboard.tts.speaking.standing.label')">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper" align="end">
+            <SelectGroup>
+              <SelectItem v-for="id in ttsStandings" :key="id" :value="id">{{
+                standingName(id)
+              }}</SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
+      </ReadabilityRow>
+      <ReadabilityRow
+        :title="$t('dashboard.tts.speaking.maxCharacters.title')"
+        :description="describe('dashboard.tts.speaking.maxCharacters.description', charactersHint)"
+      >
+        <Input
+          v-model="characters"
+          type="number"
+          :min="FEWEST_CHARACTERS"
+          :max="MOST_CHARACTERS"
+          class="w-24"
+          :disabled="!writable"
+          :aria-label="$t('dashboard.tts.speaking.maxCharacters.title')"
+          @blur="commitCharacters"
+          @keydown.enter="commitCharacters"
+        />
+      </ReadabilityRow>
+      <SettingRow
+        :model-value="stored.skipBotMessages"
+        :disabled="!writable"
+        :title="$t('dashboard.tts.speaking.skipBots.title')"
+        :description="
+          describe(
+            'dashboard.tts.speaking.skipBots.description',
+            switchHint(standard?.skipBotMessages),
+          )
+        "
+        @update:model-value="change({ skipBotMessages: $event })"
+      />
+      <SettingRow
+        :model-value="stored.profanityCensorEnabled"
+        :disabled="!writable"
+        :title="$t('dashboard.tts.speaking.censor.title')"
+        :description="
+          describe(
+            'dashboard.tts.speaking.censor.description',
+            switchHint(standard?.profanityCensorEnabled),
+          )
+        "
+        @update:model-value="change({ profanityCensorEnabled: $event })"
+      />
+    </RowGroup>
+
+    <template v-if="writable" #footer>
+      <Button
+        variant="outline"
+        size="sm"
+        :disabled="atDefaults || reset.isPending.value"
+        @click="reset.mutate()"
+      >
+        {{ $t("dashboard.tts.speaking.reset.label") }}
+      </Button>
+      <span class="text-sm text-muted-foreground">{{
+        $t("dashboard.tts.speaking.reset.note")
+      }}</span>
+    </template>
+  </PanelCard>
+</template>

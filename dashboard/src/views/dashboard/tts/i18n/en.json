@@ -107,6 +107,56 @@
           "description": "Bits a message must carry to be read. 0 means no bits needed."
         }
       },
+      "defaultHint": {
+        "on": "Default: on",
+        "off": "Default: off",
+        "value": "Default: {value}"
+      },
+      "speaking": {
+        "title": "Speaking",
+        "description": "When the bot reads aloud, with which voice source, and how much.",
+        "enabled": {
+          "title": "Read messages aloud",
+          "description": "Off: the bot stays silent."
+        },
+        "mode": {
+          "title": "Voice source",
+          "description": "Free bot voice, or your own Azure or ElevenLabs key.",
+          "self_host": "Free bot voice",
+          "byok": "My own key"
+        },
+        "provider": {
+          "title": "Voice provider",
+          "description": "The service that makes the speech."
+        },
+        "standing": {
+          "title": "Who may be heard",
+          "label": "Who may be heard",
+          "description": "The lowest standing in your channel that is read aloud.",
+          "everyone": "Everyone",
+          "subscribers": "Subscribers",
+          "vip": "VIPs",
+          "moderators": "Moderators",
+          "broadcaster": "Broadcaster"
+        },
+        "maxCharacters": {
+          "title": "Maximum characters",
+          "description": "Longer messages are cut off. Between 1 and 500.",
+          "value": "{count} characters"
+        },
+        "skipBots": {
+          "title": "Skip bot messages",
+          "description": "Do not read what bots write."
+        },
+        "censor": {
+          "title": "Censor profanity",
+          "description": "Mask mild swearing before it is spoken."
+        },
+        "reset": {
+          "label": "Reset to defaults",
+          "note": "Keys, voice and pronunciation stay."
+        }
+      },
       "lexicon": {
         "title": "Pronunciation",
         "description": "When a phrase appears in a message, the bot says the replacement.",

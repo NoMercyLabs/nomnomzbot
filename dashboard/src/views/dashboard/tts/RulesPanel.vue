@@ -11,6 +11,7 @@
 // The rules of the channel voice: the follow-the-platform switch, who may speak and the bits gate.
 // Each switch saves at once; the bits box saves when it loses focus or Enter is pressed.
 import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
@@ -21,11 +22,13 @@ import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useTtsConfig } from '@/api/tts';
-import { useSetTtsRules, type TtsRulesChange } from '@/api/ttsRules';
+import { useSetTtsRules, useTtsDefaults, type TtsRulesChange } from '@/api/ttsRules';
 
+const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const config = useTtsConfig(channelId);
+const defaults = useTtsDefaults(channelId);
 const save = useSetTtsRules(channelId);
 
 const stored = computed(() => config.data.value ?? null);
@@ -46,6 +49,27 @@ const state = computed<PanelState>(() => {
   return config.isPending.value
     ? 'loading'
     : 'ready';
+});
+
+// The help line with the bot's own default appended, so a streamer sees what a reset returns to.
+function describe(key: string, standard: boolean | undefined): string {
+  const hint =
+    standard === undefined
+      ? ''
+      : t(standard
+          ? 'dashboard.tts.defaultHint.on'
+          : 'dashboard.tts.defaultHint.off');
+
+  return `${t(key)} ${hint}`.trim();
+}
+
+const bitsDescription = computed<string>(() => {
+  const standard = defaults.data.value;
+  const hint = standard
+    ? t('dashboard.tts.defaultHint.value', { value: String(standard.minBitsToTts ?? 0) })
+    : '';
+
+  return `${t('dashboard.tts.rules.minBits.description')} ${hint}`.trim();
 });
 
 function change(rules: TtsRulesChange): void {
@@ -81,33 +105,53 @@ function commitBits(): void {
         :model-value="stored.followsPlatformDefaultVoice"
         :disabled="!can('tts:config:write')"
         :title="$t('dashboard.tts.rules.follow.title')"
-        :description="$t('dashboard.tts.rules.follow.description')"
+        :description="
+          describe(
+            'dashboard.tts.rules.follow.description',
+            defaults.data.value?.followsPlatformDefaultVoice,
+          )
+        "
         @update:model-value="change({ followPlatformDefaultVoice: $event })"
       />
       <SettingRow
         :model-value="stored.readUsernames"
         :disabled="!can('tts:config:write')"
         :title="$t('dashboard.tts.rules.readUsernames.title')"
-        :description="$t('dashboard.tts.rules.readUsernames.description')"
+        :description="
+          describe(
+            'dashboard.tts.rules.readUsernames.description',
+            defaults.data.value?.readUsernames,
+          )
+        "
         @update:model-value="change({ readUsernames: $event })"
       />
       <SettingRow
         :model-value="stored.modApprovalRequired"
         :disabled="!can('tts:config:write')"
         :title="$t('dashboard.tts.rules.modApproval.title')"
-        :description="$t('dashboard.tts.rules.modApproval.description')"
+        :description="
+          describe(
+            'dashboard.tts.rules.modApproval.description',
+            defaults.data.value?.modApprovalRequired,
+          )
+        "
         @update:model-value="change({ modApprovalRequired: $event })"
       />
       <SettingRow
         :model-value="stored.viewerVoiceSelfServiceEnabled"
         :disabled="!can('tts:config:write')"
         :title="$t('dashboard.tts.rules.selfService.title')"
-        :description="$t('dashboard.tts.rules.selfService.description')"
+        :description="
+          describe(
+            'dashboard.tts.rules.selfService.description',
+            defaults.data.value?.viewerVoiceSelfServiceEnabled,
+          )
+        "
         @update:model-value="change({ viewerVoiceSelfServiceEnabled: $event })"
       />
       <ReadabilityRow
         :title="$t('dashboard.tts.rules.minBits.title')"
-        :description="$t('dashboard.tts.rules.minBits.description')"
+        :description="bitsDescription"
       >
         <Input
           v-model="bits"

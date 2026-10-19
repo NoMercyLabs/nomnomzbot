@@ -37,9 +37,18 @@ export type MusicProvider = (typeof musicProviders)[number];
 
 // The values the bot accepts for a song request's minimum trust level (MusicService.ParseMinTrustLevel);
 // anything else means everyone.
-export const musicTrustLevels = ['everyone', 'subscribers', 'vip', 'moderators', 'broadcaster'] as const;
+export const musicTrustLevels = [
+  'everyone',
+  'subscribers',
+  'vip',
+  'moderators',
+  'broadcaster',
+] as const;
 
 export type MusicTrustLevel = (typeof musicTrustLevels)[number];
+
+// The lowest community standing a channel's text to speech reads aloud (TtsConfig.MinPermission): the same ladder.
+export const ttsStandings = musicTrustLevels;
 
 // The rungs the bot knows for a per-role song cap, in the order they rank (MusicService role map).
 export const musicRoleRungs = ['viewer', 'subscriber', 'vip', 'moderator', 'broadcaster'] as const;

@@ -20,6 +20,7 @@ import en from '../i18n/en.json';
 import KeysPanel from '../KeysPanel.vue';
 import LexiconPanel from '../LexiconPanel.vue';
 import RulesPanel from '../RulesPanel.vue';
+import SpeakingPanel from '../SpeakingPanel.vue';
 
 type Sent = {
   method: string;
@@ -54,6 +55,15 @@ const config = {
   followsPlatformDefaultVoice: true,
 };
 
+const defaults = {
+  ...config,
+  maxCharacters: 500,
+  minPermission: 'everyone',
+  mode: 'self_host',
+  readUsernames: true,
+  minBitsToTts: null,
+};
+
 const reply = (data: unknown): unknown => ({
   data: { data },
   response: { status: 200, ok: true },
@@ -83,6 +93,9 @@ vi.mock('@/api/client', () => ({
     GET: async (path: string): Promise<unknown> => {
       if (path.endsWith('/tts/config'))
         return reply(config);
+
+      if (path.endsWith('/tts/config/defaults'))
+        return reply(defaults);
 
       if (path.endsWith('/tts/lexicon'))
         return reply(lexicon);
@@ -127,7 +140,7 @@ afterEach(() => {
 
 async function open(): Promise<void> {
   const page = defineComponent({
-    render: () => [h(RulesPanel), h(LexiconPanel), h(KeysPanel)],
+    render: () => [h(RulesPanel), h(SpeakingPanel), h(LexiconPanel), h(KeysPanel)],
   });
 
   mounted = mount(page, {
@@ -198,6 +211,97 @@ describe('TTS rules panels', () => {
     await flushPromises();
 
     expect(sent.find((call) => call.method === 'PUT')?.body).toEqual({ minBitsToTts: 0 });
+  });
+
+  it('saves the speaking switches and names each default', async () => {
+    await open();
+    expect(switchOf('Skip bot messages').getAttribute('aria-checked')).toBe('true');
+    expect(document.body.textContent).toContain('Default: on');
+
+    switchOf('Skip bot messages').click();
+    await flushPromises();
+    switchOf('Censor profanity').click();
+    await flushPromises();
+    switchOf('Read messages aloud').click();
+    await flushPromises();
+
+    const bodies = sent.filter((call) => call.method === 'PUT').map((call) => call.body);
+
+    expect(bodies).toEqual([
+      { skipBotMessages: false },
+      { profanityCensorEnabled: false },
+      { isEnabled: false },
+    ]);
+  });
+
+  it('saves the character cap on blur and shows the default from the bot', async () => {
+    await open();
+
+    const box = byLabel('Maximum characters');
+
+    expect(box.value).toBe('300');
+    expect(document.body.textContent).toContain('Default: 500 characters');
+
+    box.value = '250';
+    box.dispatchEvent(new Event('input'));
+    await flushPromises();
+    box.dispatchEvent(new Event('blur'));
+    await flushPromises();
+
+    expect(sent.find((call) => call.method === 'PUT')?.body).toEqual({ maxCharacters: 250 });
+  });
+
+  it('saves the voice source and the lowest standing', async () => {
+    await open();
+
+    const segment = [...document.body.querySelectorAll<HTMLButtonElement>('[data-segmented] button')]
+      .find((entry) => entry.textContent?.trim() === 'My own key');
+
+    segment?.click();
+    await flushPromises();
+    expect(sent.find((call) => call.method === 'PUT')?.body).toEqual({ mode: 'byok' });
+
+    Element.prototype.hasPointerCapture = (): boolean => false;
+    Element.prototype.releasePointerCapture = (): void => undefined;
+    Element.prototype.scrollIntoView = (): void => undefined;
+
+    byLabel('Who may be heard').dispatchEvent(
+      new PointerEvent('pointerdown', {
+        bubbles: true,
+        button: 0,
+        pointerType: 'mouse',
+      }),
+    );
+
+    await flushPromises();
+
+    const option = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')]
+      .find((node) => node.textContent?.trim() === 'Moderators');
+
+    option?.dispatchEvent(
+      new PointerEvent('pointerup', {
+        bubbles: true,
+        button: 0,
+        pointerType: 'mouse',
+      }),
+    );
+
+    option?.click();
+    await flushPromises();
+
+    expect(sent.filter((call) => call.method === 'PUT')[1]?.body).toEqual({
+      minPermission: 'moderators',
+    });
+  });
+
+  it('resets the rules to the bot defaults through the reset call', async () => {
+    await open();
+    button('Reset to defaults').click();
+    await flushPromises();
+
+    const post = sent.find((call) => call.path.endsWith('/tts/config/reset'));
+
+    expect(post?.method).toBe('POST');
   });
 
   it('adds a lexicon rule with its match kind', async () => {

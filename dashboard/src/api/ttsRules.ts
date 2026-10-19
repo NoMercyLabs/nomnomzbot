@@ -30,6 +30,13 @@ export type NamePronunciation = components['schemas']['ChannelNamePronunciation'
 
 // The rule toggles and the bits gate of the Rules tab. minBitsToTts 0 clears the gate.
 export type TtsRulesChange = {
+  isEnabled?: boolean;
+  mode?: string;
+  defaultProvider?: string;
+  maxCharacters?: number;
+  minPermission?: string;
+  skipBotMessages?: boolean;
+  profanityCensorEnabled?: boolean;
   followPlatformDefaultVoice?: boolean;
   readUsernames?: boolean;
   modApprovalRequired?: boolean;
@@ -55,6 +62,12 @@ export const lexiconKey = (channelId: string | null): KeyParts => [
   'tts-lexicon',
 ];
 
+export const ttsDefaultsKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'tts-defaults',
+];
+
 export const namePronunciationKey = (channelId: string | null): KeyParts => [
   'channels',
   channelId,
@@ -71,7 +84,7 @@ function applyRules(current: TtsConfig, change: TtsRulesChange) {
     followsPlatformDefaultVoice: followPlatformDefaultVoice ?? current.followsPlatformDefaultVoice,
     minBitsToTts: minBitsToTts === undefined
       ? current.minBitsToTts
-      : (minBitsToTts || null),
+      : minBitsToTts || null,
   } as const satisfies TtsConfig;
 }
 
@@ -102,6 +115,43 @@ export function useSetTtsRules(
   });
 }
 
+async function readTtsDefaults(channelId: string): Promise<TtsConfig | null> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/tts/config/defaults',
+    { params: { path: { version, channelId } } },
+  );
+
+  if (error !== undefined)
+    throw failed('tts config', response.status, error);
+
+  return data?.data ?? null;
+}
+
+// The values the settings return to on a reset, so each control can name its default.
+export function useTtsDefaults(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<TtsConfig | null, Error> {
+  return channelQuery(channelId, ttsDefaultsKey, readTtsDefaults);
+}
+
+// Keys, the channel voice, the pronunciation rules and viewer voices stay as they are.
+export function useResetTtsRules(channelId: MaybeRefOrGetter<string | null>) {
+  const queries = useQueryClient();
+
+  return useMutation<void, Error, void>({
+    mutationFn: async (): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/tts/config/reset',
+        { params: { path: { version, channelId: toValue(channelId) as string } } },
+      );
+
+      if (error !== undefined)
+        throw refusal('tts config', error, response.status);
+    },
+    onSuccess: () => queries.invalidateQueries({ queryKey: ttsConfigKey(toValue(channelId)) }),
+  });
+}
+
 async function readLexicon(channelId: string): Promise<TtsLexiconEntry[]> {
   const { data, error, response } = await client.GET(
     '/api/v{version}/channels/{channelId}/tts/lexicon',
@@ -125,23 +175,22 @@ export type LexiconSave = { entryId: string | null; draft: TtsLexiconDraft };
 
 async function writeLexicon(channelId: string, { entryId, draft }: LexiconSave): Promise<void> {
   const path = { version, channelId };
-  const { error, response } = entryId === null
-    ? await client.POST('/api/v{version}/channels/{channelId}/tts/lexicon', {
-        params: { path },
-        body: draft,
-      })
-    : await client.PUT('/api/v{version}/channels/{channelId}/tts/lexicon/{entryId}', {
-        params: { path: { ...path, entryId } },
-        body: draft,
-      });
+  const { error, response } =
+    entryId === null
+      ? await client.POST('/api/v{version}/channels/{channelId}/tts/lexicon', {
+          params: { path },
+          body: draft,
+        })
+      : await client.PUT('/api/v{version}/channels/{channelId}/tts/lexicon/{entryId}', {
+          params: { path: { ...path, entryId } },
+          body: draft,
+        });
 
   if (error !== undefined)
     throw refusal('tts lexicon', error, response.status);
 }
 
-export function useSaveLexiconEntry(
-  channelId: MaybeRefOrGetter<string | null>,
-) {
+export function useSaveLexiconEntry(channelId: MaybeRefOrGetter<string | null>) {
   const queries = useQueryClient();
 
   return useMutation<void, Error, LexiconSave>({
@@ -150,20 +199,22 @@ export function useSaveLexiconEntry(
   });
 }
 
-export function useDeleteLexiconEntry(
-  channelId: MaybeRefOrGetter<string | null>,
-) {
+export function useDeleteLexiconEntry(channelId: MaybeRefOrGetter<string | null>) {
   const queries = useQueryClient();
 
   return useMutation<void, Error, string>({
     mutationFn: async (entryId: string): Promise<void> => {
       const { error, response } = await client.DELETE(
         '/api/v{version}/channels/{channelId}/tts/lexicon/{entryId}',
-        { params: { path: {
-          version,
-          channelId: toValue(channelId) as string,
-          entryId,
-        } } },
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              entryId,
+            },
+          },
+        },
       );
 
       if (error !== undefined)
@@ -174,9 +225,7 @@ export function useDeleteLexiconEntry(
 }
 
 // The key goes to the bot and is never read back: the config only says whether one is stored.
-export function useSetByokKey(
-  channelId: MaybeRefOrGetter<string | null>,
-) {
+export function useSetByokKey(channelId: MaybeRefOrGetter<string | null>) {
   const queries = useQueryClient();
 
   return useMutation<void, Error, ByokKey>({
@@ -184,11 +233,13 @@ export function useSetByokKey(
       const { error, response } = await client.PUT(
         '/api/v{version}/channels/{channelId}/tts/config/byok/{provider}',
         {
-          params: { path: {
-            version,
-            channelId: toValue(channelId) as string,
-            provider,
-          } },
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              provider,
+            },
+          },
           body: region
             ? { apiKey, region }
             : { apiKey },
@@ -202,20 +253,22 @@ export function useSetByokKey(
   });
 }
 
-export function useRemoveByokKey(
-  channelId: MaybeRefOrGetter<string | null>,
-) {
+export function useRemoveByokKey(channelId: MaybeRefOrGetter<string | null>) {
   const queries = useQueryClient();
 
   return useMutation<void, Error, ByokProvider>({
     mutationFn: async (provider: ByokProvider): Promise<void> => {
       const { error, response } = await client.DELETE(
         '/api/v{version}/channels/{channelId}/tts/config/byok/{provider}',
-        { params: { path: {
-          version,
-          channelId: toValue(channelId) as string,
-          provider,
-        } } },
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              provider,
+            },
+          },
+        },
       );
 
       if (error !== undefined)
@@ -244,9 +297,7 @@ export function useNamePronunciation(
 }
 
 // An empty text clears the spelling, and the bot then reads the channel name as it is.
-export function useSetNamePronunciation(
-  channelId: MaybeRefOrGetter<string | null>,
-) {
+export function useSetNamePronunciation(channelId: MaybeRefOrGetter<string | null>) {
   const queries = useQueryClient();
 
   return useMutation<NamePronunciation | null, Error, string>({

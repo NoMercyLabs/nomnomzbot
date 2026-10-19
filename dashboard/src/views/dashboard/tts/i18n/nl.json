@@ -107,6 +107,56 @@
           "description": "Bits die een bericht moet bevatten om voorgelezen te worden. 0 betekent geen bits nodig."
         }
       },
+      "defaultHint": {
+        "on": "Standaard: aan",
+        "off": "Standaard: uit",
+        "value": "Standaard: {value}"
+      },
+      "speaking": {
+        "title": "Voorlezen",
+        "description": "Wanneer de bot voorleest, met welke stembron en hoeveel.",
+        "enabled": {
+          "title": "Berichten voorlezen",
+          "description": "Uit: de bot blijft stil."
+        },
+        "mode": {
+          "title": "Stembron",
+          "description": "Gratis botstem, of je eigen Azure- of ElevenLabs-sleutel.",
+          "self_host": "Gratis botstem",
+          "byok": "Mijn eigen sleutel"
+        },
+        "provider": {
+          "title": "Stemleverancier",
+          "description": "De dienst die de spraak maakt."
+        },
+        "standing": {
+          "title": "Wie er gehoord wordt",
+          "label": "Wie er gehoord wordt",
+          "description": "De laagste rang in je kanaal die wordt voorgelezen.",
+          "everyone": "Iedereen",
+          "subscribers": "Abonnees",
+          "vip": "VIP's",
+          "moderators": "Moderators",
+          "broadcaster": "Streamer"
+        },
+        "maxCharacters": {
+          "title": "Maximaal aantal tekens",
+          "description": "Langere berichten worden afgekapt. Tussen 1 en 500.",
+          "value": "{count} tekens"
+        },
+        "skipBots": {
+          "title": "Botberichten overslaan",
+          "description": "Lees niet voor wat bots schrijven."
+        },
+        "censor": {
+          "title": "Grof taalgebruik censureren",
+          "description": "Maskeer milde scheldwoorden voordat ze worden uitgesproken."
+        },
+        "reset": {
+          "label": "Standaardwaarden herstellen",
+          "note": "Sleutels, stem en uitspraak blijven."
+        }
+      },
       "lexicon": {
         "title": "Uitspraak",
         "description": "Als een zin in een bericht staat, zegt de bot de vervanging.",

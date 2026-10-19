@@ -33,6 +33,7 @@ import { useProviderName } from '@/composables/useProviderName';
 import KeysPanel from './KeysPanel.vue';
 import LexiconPanel from './LexiconPanel.vue';
 import RulesPanel from './RulesPanel.vue';
+import SpeakingPanel from './SpeakingPanel.vue';
 import VoicesTab from './VoicesTab.vue';
 
 const { t } = useI18n();
@@ -124,6 +125,7 @@ const overviewPanels = computed(
 );
 const rulesPanels = computed<BoardPanel[]>(() => {
   const shown: BoardPanel[] = [
+    { id: 'speaking', label: t('dashboard.tts.speaking.title') },
     { id: 'rules', label: t('dashboard.tts.rules.title') },
     { id: 'lexicon', label: t('dashboard.tts.lexicon.title') },
   ];
@@ -216,13 +218,16 @@ const rulesPanels = computed<BoardPanel[]>(() => {
   <VoicesTab v-else-if="view === 'voices' && can('tts:voice:read')" />
 
   <BoardGrid v-else-if="view === 'rules' && can('tts:config:read')" :panels="rulesPanels" :rows="2">
-    <BoardCell panel="rules" :span="5">
+    <BoardCell panel="speaking" :span="4" :rows="2">
+      <SpeakingPanel />
+    </BoardCell>
+    <BoardCell panel="rules" :span="4">
       <RulesPanel />
     </BoardCell>
-    <BoardCell panel="lexicon" :span="7" :rows="2">
+    <BoardCell panel="lexicon" :span="4" :rows="2">
       <LexiconPanel />
     </BoardCell>
-    <BoardCell v-if="can('tts:config:write')" panel="keys" :span="5">
+    <BoardCell v-if="can('tts:config:write')" panel="keys" :span="4">
       <KeysPanel />
     </BoardCell>
   </BoardGrid>
