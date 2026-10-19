@@ -237,7 +237,11 @@ public sealed partial class PlaybackDirector
             return;
         }
 
-        if (SentRecently(report.Engine) || !_engines.ContainsKey(report.Engine))
+        if (
+            SentRecently(report.Engine)
+            || !_engines.ContainsKey(report.Engine)
+            || report.Uri == _youTubeEndingUri
+        )
             return;
 
         if (!await CommandAsync(report.Engine, nameof(EngineReport), e => e.PauseAsync(ct)))
