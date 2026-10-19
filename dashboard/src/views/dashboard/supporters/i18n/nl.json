@@ -47,6 +47,7 @@
         "grant": "Gekoppeld account",
         "grantNone": "Geen account gekoppeld",
         "enabled": "Gebeurtenissen ontvangen",
+        "enabledDefault": "Standaard: aan",
         "save": "Koppeling opslaan",
         "saved": "Koppeling opgeslagen.",
         "saveFailed": "De koppeling kon niet worden opgeslagen.",

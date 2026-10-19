@@ -47,6 +47,7 @@
         "grant": "Connected account",
         "grantNone": "No account connected",
         "enabled": "Receive events",
+        "enabledDefault": "Default: on",
         "save": "Save connection",
         "saved": "Connection saved.",
         "saveFailed": "The connection could not be saved.",

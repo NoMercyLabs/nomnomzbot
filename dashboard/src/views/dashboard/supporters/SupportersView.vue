@@ -166,10 +166,10 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
                 :color="row.person.color"
               />
               <span v-else>{{ t("dashboard.supporters.anonymous") }}</span>
-              <span v-if="row.receivedAsGift" class="text-muted-foreground">
+              <span v-if="row.receivedAsGift" class="ms-1 text-muted-foreground">
                 {{ t("dashboard.supporters.subs.receivedGiftDetail") }}
               </span>
-              <span v-if="row.gifter !== null" class="text-muted-foreground">
+              <span v-if="row.gifter !== null" class="ms-1 text-muted-foreground">
                 {{ t("dashboard.supporters.subs.giftedBy") }}
                 <UserName
                   v-if="isNamed(row.gifter)"

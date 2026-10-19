@@ -32,13 +32,15 @@ const reply = (data: unknown): unknown => ({
   response: { status: 200, ok: true },
 });
 
-const stored = [{
-  sourceKey: 'kofi',
-  connectionMode: 'webhook',
-  hasSecret: true,
-  isEnabled: true,
-  status: 'idle',
-}];
+const stored = [
+  {
+    sourceKey: 'kofi',
+    connectionMode: 'webhook',
+    hasSecret: true,
+    isEnabled: true,
+    status: 'idle',
+  },
+];
 
 const integrations = [
   {
@@ -122,12 +124,41 @@ function field<T extends HTMLElement>(name: string): T {
   return document.body.querySelector<T>(`[data-field="${name}"]`) as T;
 }
 
-async function pick(source: string): Promise<void> {
-  const box = field<HTMLSelectElement>('sourceKey');
+async function choose(field: string, label: string): Promise<void> {
+  Element.prototype.hasPointerCapture = (): boolean => false;
+  Element.prototype.releasePointerCapture = (): void => undefined;
 
-  box.value = source;
-  box.dispatchEvent(new Event('change'));
+  const trigger = document.body.querySelector<HTMLElement>(
+    `[data-field="${field}"]`,
+  ) as HTMLElement;
+
+  trigger.dispatchEvent(
+    new PointerEvent('pointerdown', {
+      bubbles: true,
+      button: 0,
+      pointerType: 'mouse',
+    }),
+  );
+
   await flushPromises();
+
+  const option = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].find(
+    (node) => node.textContent?.trim() === label,
+  ) as HTMLElement;
+
+  option.dispatchEvent(
+    new PointerEvent('pointerup', {
+      bubbles: true,
+      button: 0,
+      pointerType: 'mouse',
+    }),
+  );
+
+  await flushPromises();
+}
+
+async function pick(label: string): Promise<void> {
+  await choose('sourceKey', label);
 }
 
 async function save(): Promise<void> {
@@ -136,9 +167,17 @@ async function save(): Promise<void> {
 }
 
 describe('supporter connection form', () => {
+  it('uses the styled select, not a native one, and names the default of the switch', async () => {
+    await open();
+
+    expect(document.body.querySelector('select')).toBeNull();
+    expect(field('sourceKey').getAttribute('role')).toBe('combobox');
+    expect(document.body.textContent).toContain(en.dashboard.supporters.connections.enabledDefault);
+  });
+
   it('sends the provider mode with the secret, then empties the box and never shows the secret', async () => {
     await open();
-    await pick('kofi');
+    await pick('Ko-fi');
 
     const secret = field<HTMLInputElement>('authSecret');
 
@@ -163,18 +202,11 @@ describe('supporter connection form', () => {
 
   it('takes the connected OAuth grant for an OAuth provider and sends no secret', async () => {
     await open();
-    await pick('patreon');
+    await pick('Patreon');
 
     expect(field('authSecret')).toBeNull();
 
-    const grant = field<HTMLSelectElement>('integrationConnectionId');
-
-    expect(grant.textContent).toContain('Streamer');
-    expect(grant.textContent).not.toContain('shopify');
-
-    grant.value = '01JABCDEFGHJKMNPQRSTVWXYZ0';
-    grant.dispatchEvent(new Event('change'));
-    await flushPromises();
+    await choose('integrationConnectionId', 'Streamer');
     await save();
 
     expect(sent[0]?.body).toEqual({
@@ -188,8 +220,10 @@ describe('supporter connection form', () => {
 
   it('says a secret is already stored for a saved connection', async () => {
     await open();
-    await pick('kofi');
+    await pick('Ko-fi');
 
-    expect(field<HTMLInputElement>('authSecret').placeholder).toBe(en.dashboard.supporters.connections.secretStored);
+    expect(field<HTMLInputElement>('authSecret').placeholder).toBe(
+      en.dashboard.supporters.connections.secretStored,
+    );
   });
 });

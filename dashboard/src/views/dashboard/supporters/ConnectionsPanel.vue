@@ -12,7 +12,7 @@
 // so the form shows the mode instead of asking for it. A secret goes to the bot and is never shown again:
 // the box is emptied after a save and only says whether one is stored. OAuth providers take a connected
 // grant instead of a secret.
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 
@@ -26,12 +26,20 @@ import {
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { Switch } from '@/components/ui/switch';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
-const selectClass =
-  'h-9 rounded-md border border-input bg-transparent px-3 text-sm shadow-xs outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50';
+// The select cannot hold an empty value, so "no account" is this key and goes out as no grant.
+const NO_GRANT = '__none';
 
 const { t } = useI18n();
 const { can } = useCan();
@@ -43,20 +51,32 @@ const save = useSaveSupporterConnection(channelId);
 const sourceKeys = Object.keys(supporterSources) as SupporterSourceKey[];
 const sourceKey = ref<SupporterSourceKey>(sourceKeys[0] as SupporterSourceKey);
 const secret = ref('');
-const grantId = ref('');
+const grantId = ref(NO_GRANT);
 const enabled = ref(true);
 
 const source = computed(() => supporterSources[sourceKey.value]);
 const storedConnection = computed(() =>
-  connections.data.value?.find((entry) => entry.sourceKey === sourceKey.value));
+  connections.data.value?.find((entry) => entry.sourceKey === sourceKey.value),
+);
 const grants = computed(() =>
   (integrations.data.value ?? []).filter(
     (entry) => entry.provider === sourceKey.value && entry.connected && entry.connectionId,
-  ));
+  ),
+);
 const secretPlaceholder = computed(() =>
   storedConnection.value?.hasSecret
     ? t('dashboard.supporters.connections.secretStored')
-    : t('dashboard.supporters.connections.secretNone'));
+    : t('dashboard.supporters.connections.secretNone'),
+);
+
+// A saved connection fills the switch with what is stored; a new one starts at the default (on).
+watch(
+  storedConnection,
+  (stored) => {
+    enabled.value = stored?.isEnabled ?? true;
+  },
+  { immediate: true },
+);
 
 function submit(): void {
   const oauth = source.value.oauth;
@@ -69,7 +89,7 @@ function submit(): void {
       authSecret: oauth || typed === ''
         ? null
         : typed,
-      integrationConnectionId: oauth && grantId.value !== ''
+      integrationConnectionId: oauth && grantId.value !== NO_GRANT
         ? grantId.value
         : null,
       isEnabled: enabled.value,
@@ -95,29 +115,47 @@ function submit(): void {
   >
     <form class="flex flex-wrap items-end gap-3" @submit.prevent="submit">
       <label class="flex min-w-40 flex-col gap-1 text-sm font-medium">
-        {{ t('dashboard.supporters.connections.source') }}
-        <select v-model="sourceKey" data-field="sourceKey" :class="selectClass">
-          <option v-for="key in sourceKeys" :key="key" :value="key">
-            {{ t(`dashboard.supporters.connections.sources.${key}`) }}
-          </option>
-        </select>
+        {{ t("dashboard.supporters.connections.source") }}
+        <Select v-model="sourceKey">
+          <SelectTrigger data-field="sourceKey" class="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper">
+            <SelectGroup>
+              <SelectItem v-for="key in sourceKeys" :key="key" :value="key">
+                {{ t(`dashboard.supporters.connections.sources.${key}`) }}
+              </SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
         <span class="text-sm font-normal text-muted-foreground">
           {{ t(`dashboard.supporters.connections.mode.${source.mode}`) }}
         </span>
       </label>
       <label v-if="source.oauth" class="flex min-w-48 flex-1 flex-col gap-1 text-sm font-medium">
-        {{ t('dashboard.supporters.connections.grant') }}
-        <select v-model="grantId" data-field="integrationConnectionId" :class="selectClass">
-          <option value="">
-            {{ t('dashboard.supporters.connections.grantNone') }}
-          </option>
-          <option v-for="grant in grants" :key="grant.connectionId ?? ''" :value="grant.connectionId">
-            {{ grant.accountName ?? grant.provider }}
-          </option>
-        </select>
+        {{ t("dashboard.supporters.connections.grant") }}
+        <Select v-model="grantId">
+          <SelectTrigger data-field="integrationConnectionId" class="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper">
+            <SelectGroup>
+              <SelectItem :value="NO_GRANT">
+                {{ t("dashboard.supporters.connections.grantNone") }}
+              </SelectItem>
+              <SelectItem
+                v-for="grant in grants"
+                :key="grant.connectionId ?? ''"
+                :value="grant.connectionId ?? ''"
+              >
+                {{ grant.accountName ?? grant.provider }}
+              </SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </label>
       <label v-else class="flex min-w-48 flex-1 flex-col gap-1 text-sm font-medium">
-        {{ t('dashboard.supporters.connections.secret') }}
+        {{ t("dashboard.supporters.connections.secret") }}
         <Input
           v-model="secret"
           data-field="authSecret"
@@ -126,15 +164,17 @@ function submit(): void {
           :placeholder="secretPlaceholder"
         />
       </label>
-      <label class="flex items-center gap-2 pb-2 text-sm font-medium">
-        <Switch
-          v-model="enabled"
-          :aria-label="t('dashboard.supporters.connections.enabled')"
-        />
-        {{ t('dashboard.supporters.connections.enabled') }}
+      <label class="flex flex-col gap-1 text-sm font-medium">
+        <span class="flex items-center gap-2">
+          <Switch v-model="enabled" :aria-label="t('dashboard.supporters.connections.enabled')" />
+          {{ t("dashboard.supporters.connections.enabled") }}
+        </span>
+        <span class="text-sm font-normal text-muted-foreground">
+          {{ t("dashboard.supporters.connections.enabledDefault") }}
+        </span>
       </label>
       <Button type="submit" :disabled="save.isPending.value">
-        {{ t('dashboard.supporters.connections.save') }}
+        {{ t("dashboard.supporters.connections.save") }}
       </Button>
     </form>
   </PanelCard>
