@@ -21,7 +21,8 @@ namespace NomNomzBot.Infrastructure.Music.Playback;
 public sealed class EngineLease(
     IMusicProvider provider,
     IYouTubePlayerDispatcher? dispatcher,
-    IServiceScope? scope
+    IServiceScope? scope,
+    IDisposable? sanction = null
 ) : IDisposable, IAsyncDisposable
 {
     public IMusicProvider Provider => provider;
@@ -44,10 +45,16 @@ public sealed class EngineLease(
         IYouTubePlayerDispatcher? dispatcher = null
     ) => new(provider, dispatcher, null);
 
-    public void Dispose() => scope?.Dispose();
+    public void Dispose()
+    {
+        sanction?.Dispose();
+        scope?.Dispose();
+    }
 
     public ValueTask DisposeAsync()
     {
+        sanction?.Dispose();
+
         if (scope is IAsyncDisposable asyncScope)
             return asyncScope.DisposeAsync();
 

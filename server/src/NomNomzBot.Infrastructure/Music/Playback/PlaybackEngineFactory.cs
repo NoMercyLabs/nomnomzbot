@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.DependencyInjection;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Domain.Music.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music.Playback;
@@ -17,12 +18,17 @@ namespace NomNomzBot.Infrastructure.Music.Playback;
 /// Builds the Spotify and YouTube engines of a channel. The factory is a singleton; the providers and the
 /// dispatcher are scoped, so each engine command resolves them in a scope of its own (see
 /// <see cref="EngineLease"/>) and the factory holds none of them.
+/// The director sends engine commands on its own task, with no user action in flight, so the lease also
+/// claims the channel's configured playback basis for as long as the command runs. That is the one place the
+/// engine writes get their sanction.
 /// </summary>
 public sealed class PlaybackEngineFactory(
     IServiceScopeFactory scopes,
-    IYouTubePlayerStateStore store
+    IYouTubePlayerStateStore store,
+    IOutboundSanctionAccessor sanctions
 ) : IPlaybackEngineFactory
 {
+    private const string PlaybackBasis = "music:playback_engine";
     private const string SpotifyKey = "spotify";
     private const string YouTubeKey = "youtube";
 
@@ -44,7 +50,12 @@ public sealed class PlaybackEngineFactory(
                 ? scope.ServiceProvider.GetRequiredService<IYouTubePlayerDispatcher>()
                 : null;
 
-            return new(provider, dispatcher, scope);
+            return new(
+                provider,
+                dispatcher,
+                scope,
+                sanctions.Begin(OutboundSanction.ChannelConfiguration(PlaybackBasis))
+            );
         }
         catch
         {

@@ -10,11 +10,13 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Domain.Music.Exceptions;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Music.Playback;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -62,6 +64,7 @@ public sealed class PlaybackEngineScopingTests
         services.AddSingleton(_tally);
         services.AddScoped<ScopeProbe>();
         services.AddSingleton(Substitute.For<IYouTubePlayerStateStore>());
+        services.AddSingleton<IOutboundSanctionAccessor, OutboundSanctionAccessor>();
         services.AddScoped(SpotifyProvider);
         services.AddScoped(YouTubeProvider);
         services.AddScoped(Dispatcher);
