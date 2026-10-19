@@ -44,4 +44,16 @@ public interface IOverlayPresenceRegistry
 
     /// <summary>True when an Audio source page (gallery key <c>audio</c>, or its old key <c>tts_audio</c>) is open for the channel.</summary>
     bool IsAudioSourceConnected(Guid broadcasterId);
+
+    /// <summary>
+    /// The connection YouTube and Spotify music plays on: the most recently joined Music Player page
+    /// (gallery key <c>music_player</c>). An Audio page never counts. Null when no Music Player page is open.
+    /// </summary>
+    string? GetMusicTarget(Guid broadcasterId) => null;
+
+    /// <summary>The widget hosted by the selected Music Player connection, or null when none is open.</summary>
+    Guid? GetMusicWidgetId(Guid broadcasterId) => null;
+
+    /// <summary>True when a Music Player page is open for the channel.</summary>
+    bool IsMusicSourceConnected(Guid broadcasterId) => false;
 }

@@ -115,6 +115,18 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
             return _overlays.Values.Any(o => o.BroadcasterId == broadcasterId && o.IsAudioSource);
     }
 
+    public string? GetMusicTarget(Guid broadcasterId) => null;
+
+    public Guid? GetMusicWidgetId(Guid broadcasterId) => null;
+
+    public bool IsMusicSourceConnected(Guid broadcasterId) => false;
+
+    /// <summary>Marks a connection as the Music Player page; returns the music connection it displaced, if any.</summary>
+    public (string ConnectionId, Guid? WidgetId)? MarkMusicSource(
+        string connectionId,
+        Guid widgetId
+    ) => null;
+
     /// <summary>Records the group on the connection; true only when it was not already held.</summary>
     public bool Attach(string connectionId, string groupName) =>
         _connectionWidgets
