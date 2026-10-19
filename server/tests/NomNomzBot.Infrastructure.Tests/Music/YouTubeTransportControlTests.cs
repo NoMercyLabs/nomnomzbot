@@ -495,22 +495,17 @@ public sealed class YouTubeTransportControlTests
     [Fact]
     public async Task Skip_with_a_request_waiting_but_no_open_player_fails_as_no_player_and_keeps_the_queue()
     {
-        Rig rig = await BuildAsync();
-        (await rig.Music.AddToQueueAsync(Broadcaster.ToString(), Watch(First), "viewer1"))
-            .IsSuccess.Should()
-            .BeTrue();
-        (await rig.Music.AddToQueueAsync(Broadcaster.ToString(), Watch(Second), "viewer2"))
-            .IsSuccess.Should()
-            .BeTrue();
+        Rig rig = await PlayingFirstWithSecondQueuedAsync();
         rig.Presence.GetAudioWidgetId(Broadcaster).Returns((Guid?)null);
         rig.Notifier.Sent.Clear();
 
         Result skipped = await rig.Music.SkipAsync(Broadcaster.ToString(), "viewer3");
 
         skipped.IsSuccess.Should().BeFalse();
-        skipped.ErrorCode.Should().Be("NO_ACTIVE_DEVICE");
+        skipped.ErrorCode.Should().Be("NO_OVERLAY_PLAYER");
+        rig.Registry.StateOf(Broadcaster).Kind.Should().Be(PlaybackStateKind.Blocked);
         rig.Notifier.Sent.Should().BeEmpty();
-        QueuedUris(rig).Should().Equal(Watch(First), Watch(Second));
+        QueuedUris(rig).Should().Equal([Watch(Second)], "the playing First left the queue");
     }
 
     [Fact]

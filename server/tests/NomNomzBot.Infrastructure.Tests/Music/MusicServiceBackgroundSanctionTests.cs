@@ -15,6 +15,7 @@ using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Platform.Security;
@@ -66,7 +67,7 @@ public sealed class MusicServiceBackgroundSanctionTests
         MusicService Service,
         OutboundSanctionAccessor Sanctions,
         IMusicProvider Provider
-    ) BuildSut()
+    ) BuildSut(IPlaybackInputSink? input = null)
     {
         MusicTestDbContext db = MusicTestDbContext.New();
         SeedConnectedSpotify(db);
@@ -92,7 +93,7 @@ public sealed class MusicServiceBackgroundSanctionTests
             sanctions,
             Substitute.For<IUserIdentityService>(),
             Substitute.For<IForeignLinkTitleLookup>(),
-            DirectorRig.Of(directorStore).Registry,
+            input ?? DirectorRig.Of(directorStore).Registry,
             DirectorRig.Of(directorStore).Registry
         );
 
@@ -152,16 +153,20 @@ public sealed class MusicServiceBackgroundSanctionTests
     }
 
     [Fact]
-    public async Task SkipAsync_establishes_a_channel_configuration_sanction_before_the_provider_call()
+    public async Task SkipAsync_establishes_a_channel_configuration_sanction_before_the_director_call()
     {
-        (MusicService sut, OutboundSanctionAccessor sanctions, IMusicProvider provider) =
-            BuildSut();
+        IPlaybackInputSink director = Substitute.For<IPlaybackInputSink>();
+        (MusicService sut, OutboundSanctionAccessor sanctions, IMusicProvider provider) = BuildSut(
+            director
+        );
         OutboundSanction? observed = null;
-        provider
-            .SkipAsync(ChannelId, Arg.Any<CancellationToken>())
-            .Returns(_ =>
+        PlaybackInput? sent = null;
+        director
+            .SendAsync(ChannelId, Arg.Any<PlaybackInput>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
             {
                 observed = sanctions.Current;
+                sent = call.ArgAt<PlaybackInput>(1);
                 return Task.CompletedTask;
             });
 
@@ -170,10 +175,12 @@ public sealed class MusicServiceBackgroundSanctionTests
         Result result = await sut.SkipAsync(ChannelId.ToString(), "4242");
 
         result.IsSuccess.Should().BeTrue();
-        observed.Should().NotBeNull("the provider write must carry a sanction it can be traced to");
+        sent.Should().BeOfType<OwnerSkip>("the skip reaches the director as the owner's input");
+        observed.Should().NotBeNull("the director call must carry a sanction it can be traced to");
         observed!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
         observed.Detail.Should().Be("music:playback_control");
-        sanctions.Current.Should().BeNull("the sanction must not leak past the write");
+        sanctions.Current.Should().BeNull("the sanction must not leak past the skip");
+        await provider.DidNotReceive().SkipAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>());
     }
 
     [Fact]
