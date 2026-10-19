@@ -106,13 +106,17 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
 
         // This class only reports. The playback director sees what plays and is the only thing that
         // removes a row: the played head, one queued row that played out of order, or nothing.
+        // An engine-fed event (the Spotify poll) was already given to its engine, which reports it to the
+        // director; reporting it here too would feed the director a second track end. The director has
+        // already acted by now, so the rows it removed cannot be counted here: such an event always syncs.
         int before = queue.Count;
-        await _sink.ReportAsync(
-            @event.BroadcasterId,
-            ToSignal(@event, @event.TrackUri),
-            cancellationToken
-        );
-        int dropped = before - queue.Count;
+        if (!@event.FedToEngine)
+            await _sink.ReportAsync(
+                @event.BroadcasterId,
+                ToSignal(@event, @event.TrackUri),
+                cancellationToken
+            );
+        bool queueMayHaveChanged = @event.FedToEngine || before != queue.Count;
 
         SongRequestEntry? inFlight = _queueStore.GetInFlight(broadcasterId);
         bool inFlightIsGone =
@@ -127,7 +131,7 @@ public sealed class SongRequestQueueReconciler : IEventHandler<PlaybackStateChan
         if (_queueStore.GetInFlight(broadcasterId) is null)
             await _handover.HandOverNextAsync(broadcasterId, cancellationToken);
 
-        if (dropped == 0)
+        if (!queueMayHaveChanged)
             return;
 
         await _queuePersistence.SyncAsync(

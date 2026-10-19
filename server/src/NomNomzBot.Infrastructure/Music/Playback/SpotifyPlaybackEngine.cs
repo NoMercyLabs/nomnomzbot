@@ -22,7 +22,7 @@ namespace NomNomzBot.Infrastructure.Music.Playback;
 /// Every command opens an <see cref="EngineLease"/> and disposes it after, so the scoped provider never outlives it.
 /// </summary>
 public sealed class SpotifyPlaybackEngine(Guid broadcasterId, Func<EngineLease> open)
-    : IPlaybackEngine,
+    : IPolledPlaybackEngine,
         IPlaybackEngineProviderControls
 {
     /// <summary>A track whose poll showed it within this long of its end counts as ended when it is replaced.</summary>

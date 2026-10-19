@@ -674,7 +674,8 @@ public sealed class MusicStatePollingServiceTests
         IReadOnlyList<Guid>? needsReauth = null,
         bool? watched = true,
         IActiveInstanceGate? instanceGate = null,
-        IReadOnlyList<Guid>? vaultOnlyChannels = null
+        IReadOnlyList<Guid>? vaultOnlyChannels = null,
+        IEngineFeed? engineFeed = null
     )
     {
         MusicTestDbContext db = MusicTestDbContext.New();
@@ -744,6 +745,7 @@ public sealed class MusicStatePollingServiceTests
             bus,
             clock,
             channelRegistry,
+            engineFeed ?? Substitute.For<IEngineFeed>(),
             NullLogger<MusicStatePollingService>.Instance
         );
 
@@ -793,6 +795,7 @@ public sealed class MusicStatePollingServiceTests
             new RecordingEventBus(),
             new FakeTimeProvider(new(2026, 1, 1, 0, 0, 0, TimeSpan.Zero)),
             channelRegistry,
+            Substitute.For<IEngineFeed>(),
             NullLogger<MusicStatePollingService>.Instance
         );
 
@@ -1037,6 +1040,63 @@ public sealed class MusicStatePollingServiceTests
         await sut.PollAllChannelsOnceAsync(CancellationToken.None);
 
         music.Calls.Should().HaveCount(2, "but it is still observed promptly");
+    }
+
+    /// <summary>The Spotify poll goes to the engine as a track (with its position), and the event it publishes
+    /// says so, so the reconciler does not report it again. A YouTube result is not Spotify's to observe.</summary>
+    [Fact]
+    public async Task A_spotify_poll_is_fed_to_the_engine_and_marked_while_a_youtube_result_is_not()
+    {
+        IEngineFeed feed = Substitute.For<IEngineFeed>();
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus bus,
+            FakeMusicService music,
+            FakeTimeProvider _,
+            RecordingHandover _,
+            RegisteredSpotifyStub _
+        ) = BuildWithProvider([ChannelA, ChannelB], engineFeed: feed);
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState(
+                "Song A",
+                isPlaying: true,
+                progressMs: 7_000,
+                trackUri: "spotify:track:a"
+            )
+        );
+        music.SetResponse(
+            ChannelB,
+            NowPlayingState("Song B", isPlaying: true, progressMs: 1_000, trackUri: "yt:b") with
+            {
+                Provider = "youtube",
+            }
+        );
+
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        TrackInfo fed = feed.ReceivedCalls()
+            .Where(call => call.GetMethodInfo().Name == nameof(IEngineFeed.ObservePollAsync))
+            .Select(call => (call.GetArguments()[0], call.GetArguments()[1]))
+            .Should()
+            .ContainSingle(call => (Guid)call.Item1! == ChannelA)
+            .Subject.Item2.Should()
+            .BeOfType<TrackInfo>()
+            .Subject;
+        fed.TrackUri.Should().Be("spotify:track:a");
+        fed.ProgressMs.Should().Be(7_000);
+        fed.IsPlaying.Should().BeTrue();
+        feed.ReceivedCalls()
+            .Should()
+            .HaveCount(1, "the YouTube channel is not given to the Spotify engine");
+        bus.Published.OfType<PlaybackStateChangedEvent>()
+            .Single(e => e.BroadcasterId == ChannelA)
+            .FedToEngine.Should()
+            .BeTrue();
+        bus.Published.OfType<PlaybackStateChangedEvent>()
+            .Single(e => e.BroadcasterId == ChannelB)
+            .FedToEngine.Should()
+            .BeFalse();
     }
 
     private static ChannelContext Context(Guid channelId, bool isLive) =>

@@ -18,22 +18,23 @@ namespace NomNomzBot.Infrastructure.Music.Playback;
 /// <summary>
 /// Gives each channel one <see cref="PlaybackDirector"/> over its live song request queue and the real
 /// engines of <see cref="IPlaybackEngineFactory"/>, and passes every input to it. The director is the only
-/// thing that removes a row from that queue or sends an engine command.
+/// thing that removes a row from that queue or sends an engine command. The registry keeps the engines it
+/// built, so a poll result can be given to the engine that learns by polling.
 /// </summary>
 public sealed class PlaybackDirectorRegistry(
     ISongRequestQueueStore queueStore,
     IPlaybackEngineFactory engines,
     IEventBus bus,
     TimeProvider time
-) : IPlaybackInputSink, IPlaybackReportSink, IDisposable
+) : IPlaybackInputSink, IPlaybackReportSink, IEngineFeed, IDisposable
 {
-    private readonly ConcurrentDictionary<Guid, Lazy<PlaybackDirector>> _directors = new();
+    private readonly ConcurrentDictionary<Guid, Lazy<ChannelPlayback>> _channels = new();
 
     public Task SendAsync(
         Guid broadcasterId,
         PlaybackInput input,
         CancellationToken ct = default
-    ) => DirectorOf(broadcasterId).HandleAsync(input, ct);
+    ) => ChannelOf(broadcasterId).Director.HandleAsync(input, ct);
 
     public Task ReportAsync(
         Guid broadcasterId,
@@ -41,22 +42,53 @@ public sealed class PlaybackDirectorRegistry(
         CancellationToken ct = default
     ) => SendAsync(broadcasterId, signal, ct);
 
-    public void Dispose()
+    /// <summary>
+    /// Gives the poll to the channel's polled engine. A channel that has no director yet, or has no polled
+    /// engine, is left alone: a poll alone never creates playback state.
+    /// </summary>
+    public async Task ObservePollAsync(
+        Guid broadcasterId,
+        TrackInfo? polled,
+        CancellationToken ct = default
+    )
     {
-        foreach (Lazy<PlaybackDirector> director in _directors.Values)
-            if (director.IsValueCreated)
-                director.Value.Dispose();
+        if (!_channels.TryGetValue(broadcasterId, out Lazy<ChannelPlayback>? channel))
+            return;
+
+        foreach (
+            IPolledPlaybackEngine engine in channel.Value.Engines.OfType<IPolledPlaybackEngine>()
+        )
+            await engine.ObserveAsync(polled);
     }
 
-    private PlaybackDirector DirectorOf(Guid broadcasterId) =>
-        _directors.GetOrAdd(broadcasterId, id => new(() => CreateDirector(id))).Value;
+    public void Dispose()
+    {
+        foreach (Lazy<ChannelPlayback> channel in _channels.Values)
+            if (channel.IsValueCreated)
+                channel.Value.Director.Dispose();
+    }
 
-    private PlaybackDirector CreateDirector(Guid broadcasterId) =>
-        new(
-            broadcasterId,
-            engines.Create(broadcasterId),
-            new SongRequestPlaybackQueue(queueStore.GetOrCreate(broadcasterId.ToString())),
-            time,
-            bus
+    private ChannelPlayback ChannelOf(Guid broadcasterId) =>
+        _channels.GetOrAdd(broadcasterId, id => new(() => Create(id))).Value;
+
+    private ChannelPlayback Create(Guid broadcasterId)
+    {
+        IReadOnlyList<IPlaybackEngine> built = engines.Create(broadcasterId);
+
+        return new(
+            new PlaybackDirector(
+                broadcasterId,
+                built,
+                new SongRequestPlaybackQueue(queueStore.GetOrCreate(broadcasterId.ToString())),
+                time,
+                bus
+            ),
+            built
         );
+    }
+
+    private sealed record ChannelPlayback(
+        PlaybackDirector Director,
+        IReadOnlyList<IPlaybackEngine> Engines
+    );
 }

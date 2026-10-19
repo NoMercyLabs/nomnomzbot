@@ -117,6 +117,7 @@ public sealed class MusicStatePollingService : BackgroundService
     private readonly IEventBus _eventBus;
     private readonly TimeProvider _timeProvider;
     private readonly IChannelRegistry _channelRegistry;
+    private readonly IEngineFeed _engineFeed;
     private readonly ILogger<MusicStatePollingService> _logger;
 
     private readonly ConcurrentDictionary<Guid, ChannelPlaybackSnapshot> _lastState = new();
@@ -129,9 +130,11 @@ public sealed class MusicStatePollingService : BackgroundService
         IEventBus eventBus,
         TimeProvider timeProvider,
         IChannelRegistry channelRegistry,
+        IEngineFeed engineFeed,
         ILogger<MusicStatePollingService> logger
     )
     {
+        _engineFeed = engineFeed;
         _scopeFactory = scopeFactory;
         _eventBus = eventBus;
         _timeProvider = timeProvider;
@@ -407,6 +410,59 @@ public sealed class MusicStatePollingService : BackgroundService
         }
     }
 
+    /// <summary>
+    /// Gives a confirmed poll result to the Spotify engine, which turns it into reports and track ends for the
+    /// playback director. A result from another provider is not Spotify's to observe. Returns whether the
+    /// engine got it. A failure here is logged and never counts as a failed poll.
+    /// </summary>
+    private async Task<bool> FeedSpotifyEngineAsync(
+        Guid channelId,
+        NowPlaying? nowPlaying,
+        CancellationToken cancellationToken
+    )
+    {
+        if (nowPlaying is not null && !IsPolledSpotifyTrack(nowPlaying))
+            return false;
+
+        try
+        {
+            await _engineFeed.ObservePollAsync(
+                channelId,
+                nowPlaying is null ? null : ToTrackInfo(nowPlaying),
+                cancellationToken
+            );
+
+            return true;
+        }
+        catch (Exception ex) when (!cancellationToken.IsCancellationRequested)
+        {
+            _logger.LogWarning(
+                ex,
+                "Feeding the Spotify engine failed for channel {ChannelId}.",
+                channelId
+            );
+
+            return false;
+        }
+    }
+
+    private static bool IsPolledSpotifyTrack(NowPlaying nowPlaying) =>
+        nowPlaying.Provider == "spotify" && !string.IsNullOrEmpty(nowPlaying.TrackUri);
+
+    private static TrackInfo ToTrackInfo(NowPlaying nowPlaying) =>
+        new()
+        {
+            TrackName = nowPlaying.TrackName ?? string.Empty,
+            Artist = nowPlaying.Artist ?? string.Empty,
+            Album = nowPlaying.Album ?? string.Empty,
+            TrackUri = nowPlaying.TrackUri ?? string.Empty,
+            AlbumArtUrl = nowPlaying.ImageUrl,
+            DurationMs = nowPlaying.DurationMs,
+            Provider = nowPlaying.Provider,
+            IsPlaying = nowPlaying.IsPlaying,
+            ProgressMs = nowPlaying.ProgressMs,
+        };
+
     private async Task ProcessChannelStateAsync(
         Guid channelId,
         NowPlaying? nowPlaying,
@@ -433,6 +489,8 @@ public sealed class MusicStatePollingService : BackgroundService
         {
             _consecutiveNullPolls.TryRemove(channelId, out _);
         }
+
+        bool fedToEngine = await FeedSpotifyEngineAsync(channelId, nowPlaying, cancellationToken);
 
         ChannelPlaybackSnapshot next = nowPlaying is null
             ? new(
@@ -504,6 +562,7 @@ public sealed class MusicStatePollingService : BackgroundService
                 CanSeek = next.CanSeek,
                 CanPause = next.CanPause,
                 CanResume = next.CanResume,
+                FedToEngine = fedToEngine && nowPlaying is not null,
             },
             cancellationToken
         );

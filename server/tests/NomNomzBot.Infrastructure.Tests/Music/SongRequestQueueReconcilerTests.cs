@@ -11,7 +11,9 @@
 using FluentAssertions;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Music.Playback;
 using NomNomzBot.Infrastructure.Tests.Identity;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -321,13 +323,46 @@ public sealed class SongRequestQueueReconcilerTests
         handover.Calls.Should().ContainSingle();
     }
 
+    /// <summary>The Spotify poll hands its observation to the engine itself, so the reconciler must not report the
+    /// same observation to the director a second time.</summary>
+    [Theory]
+    [InlineData(true, new[] { "spotify:track:a", "spotify:track:b" })]
+    [InlineData(false, new[] { "spotify:track:b" })]
+    public async Task An_engine_fed_poll_event_is_not_reported_to_the_director_again(
+        bool fedToEngine,
+        string[] expectedQueue
+    )
+    {
+        SongRequestQueueStore store = new();
+        FairQueue<SongRequestEntry> queue = store.GetOrCreate(ChannelId.ToString());
+        queue.Enqueue("viewer-a", Entry("spotify:track:a", "Track a"));
+        queue.Enqueue("viewer-b", Entry("spotify:track:b", "Track b"));
+        RecordingEventBus bus = new();
+        PlaybackDirectorTestKit.FakeEngineFactory engines = new();
+        PlaybackDirectorRegistry registry = new(store, engines, bus, TimeProvider.System);
+        await registry.SendAsync(ChannelId, new RequestAdded());
+        SongRequestQueueReconciler sut = new(
+            store,
+            new RecordingHandover(),
+            new NoOpSongRequestQueuePersistence(),
+            bus,
+            registry
+        );
+
+        await sut.HandleAsync(PlaybackOf("spotify:track:a", fedToEngine: fedToEngine));
+
+        queue.GetSnapshot().Select(e => e.Item.TrackUri).Should().Equal(expectedQueue);
+    }
+
     private static PlaybackStateChangedEvent PlaybackOf(
         string trackUri,
         string provider = "spotify",
-        bool isPlaying = true
+        bool isPlaying = true,
+        bool fedToEngine = false
     ) =>
         new()
         {
+            FedToEngine = fedToEngine,
             BroadcasterId = ChannelId,
             IsPlaying = isPlaying,
             TrackUri = trackUri,

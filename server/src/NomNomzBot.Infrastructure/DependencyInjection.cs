@@ -414,6 +414,7 @@ public static class DependencyInjection
         services.AddSingleton<IPlaybackReportSink>(sp =>
             sp.GetRequiredService<PlaybackDirectorRegistry>()
         );
+        services.AddSingleton<IEngineFeed>(sp => sp.GetRequiredService<PlaybackDirectorRegistry>());
         // Song requests a limit refused, kept 15 minutes so a moderator's !permit can admit them.
         services.AddSingleton<RefusedSongRequestStore>();
 

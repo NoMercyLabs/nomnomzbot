@@ -79,6 +79,10 @@ public sealed class PlaybackStateChangedEvent : DomainEventBase
     /// (YouTube's ENDED or ERROR report), so a consumer that waits for the end of that track can act.</summary>
     public bool TrackEnded { get; init; }
 
+    /// <summary>True when the publisher already gave this observation to the playback engine (the Spotify poll),
+    /// so the engine reports it to the director and a consumer must not report it a second time.</summary>
+    public bool FedToEngine { get; init; }
+
     /// <summary>True when the player lets the bot change the repeat mode.</summary>
     public bool CanSetRepeat { get; init; } = true;
 
