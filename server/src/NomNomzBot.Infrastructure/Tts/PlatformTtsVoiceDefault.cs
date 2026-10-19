@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Tts.Services;
+using NomNomzBot.Domain.Tts.Entities;
 
 namespace NomNomzBot.Infrastructure.Tts;
 
@@ -21,10 +22,11 @@ namespace NomNomzBot.Infrastructure.Tts;
 /// </summary>
 public sealed class PlatformTtsVoiceDefault(IApplicationDbContext db) : IPlatformTtsVoiceDefault
 {
-    public async Task<string?> GetVoiceIdAsync(CancellationToken ct = default) =>
+    public async Task<string> GetVoiceIdAsync(CancellationToken ct = default) =>
         await db
             .TtsVoices.Where(v => v.IsDefault)
             .OrderBy(v => v.Id)
             .Select(v => v.Id)
-            .FirstOrDefaultAsync(ct);
+            .FirstOrDefaultAsync(ct)
+        ?? TtsVoice.FallbackDefaultVoiceId;
 }

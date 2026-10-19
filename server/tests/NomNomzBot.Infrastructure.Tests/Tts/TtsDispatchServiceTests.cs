@@ -88,7 +88,12 @@ public sealed class TtsDispatchServiceTests
                         false,
                         censorEnabled,
                         modApprovalRequired,
-                        minBitsToTts
+                        minBitsToTts,
+                        true,
+                        false,
+                        false,
+                        null,
+                        false
                     )
                 )
             );

@@ -152,7 +152,12 @@ public sealed class TtsSynthesizeActionTests
             ReadUsernames: true,
             ProfanityCensorEnabled: false,
             ModApprovalRequired: false,
-            MinBitsToTts: null
+            MinBitsToTts: null,
+            ViewerVoiceSelfServiceEnabled: true,
+            HasAzureByokKey: false,
+            HasElevenLabsByokKey: false,
+            AzureRegion: null,
+            FollowsPlatformDefaultVoice: false
         );
 
     [Fact]

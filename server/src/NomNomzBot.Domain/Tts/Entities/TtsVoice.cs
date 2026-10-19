@@ -15,6 +15,13 @@ namespace NomNomzBot.Domain.Tts.Entities;
 
 public class TtsVoice : BaseEntity
 {
+    /// <summary>
+    /// The one built-in default voice (Edge Aria): the catalogue seeder flags it <see cref="IsDefault"/>, and the
+    /// platform default resolver falls back to it when no catalogue row carries the flag, so a channel with no
+    /// config row always resolves to a speakable voice.
+    /// </summary>
+    public const string FallbackDefaultVoiceId = "en-US-AriaNeural";
+
     [MaxLength(255)]
     public string Id { get; set; } = null!;
 

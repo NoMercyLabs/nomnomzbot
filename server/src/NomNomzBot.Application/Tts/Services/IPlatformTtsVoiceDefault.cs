@@ -17,6 +17,9 @@ namespace NomNomzBot.Application.Tts.Services;
 /// </summary>
 public interface IPlatformTtsVoiceDefault
 {
-    /// <summary>The catalogue id of the platform default voice; null only when the catalogue marks no voice as default.</summary>
-    Task<string?> GetVoiceIdAsync(CancellationToken ct = default);
+    /// <summary>
+    /// The catalogue id of the platform default voice; the built-in fallback voice when the catalogue marks none,
+    /// so the result is always speakable.
+    /// </summary>
+    Task<string> GetVoiceIdAsync(CancellationToken ct = default);
 }

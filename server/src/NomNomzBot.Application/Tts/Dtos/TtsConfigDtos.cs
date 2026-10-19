@@ -31,11 +31,11 @@ public sealed record TtsConfigDto(
     bool ProfanityCensorEnabled,
     bool ModApprovalRequired,
     int? MinBitsToTts,
-    bool ViewerVoiceSelfServiceEnabled = true,
-    bool HasAzureByokKey = false,
-    bool HasElevenLabsByokKey = false,
-    string? AzureRegion = null,
-    bool FollowsPlatformDefaultVoice = false
+    bool ViewerVoiceSelfServiceEnabled,
+    bool HasAzureByokKey,
+    bool HasElevenLabsByokKey,
+    string? AzureRegion,
+    bool FollowsPlatformDefaultVoice
 );
 
 /// <summary>
@@ -97,6 +97,10 @@ public sealed record UpdateTtsConfigDto
 
     /// <summary>When true, viewers may pick their own voice via <c>!voice</c>; false locks it to mods only.</summary>
     public bool? ViewerVoiceSelfServiceEnabled { get; init; }
+
+    /// <summary>Azure Cognitive Services region for the channel's BYOK key; an empty string clears it.</summary>
+    [MaxLength(50)]
+    public string? AzureRegion { get; init; }
 }
 
 /// <summary>A viewer's assigned TTS voice within a channel (overrides the channel default when they speak).</summary>

@@ -121,6 +121,8 @@ public class TtsConfigService : ITtsConfigService
             config.MinBitsToTts = request.MinBitsToTts.Value == 0 ? null : request.MinBitsToTts;
         if (request.ViewerVoiceSelfServiceEnabled.HasValue)
             config.ViewerVoiceSelfServiceEnabled = request.ViewerVoiceSelfServiceEnabled.Value;
+        if (request.AzureRegion is not null)
+            config.AzureRegion = request.AzureRegion.Length == 0 ? null : request.AzureRegion;
 
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcasterId, cancellationToken);

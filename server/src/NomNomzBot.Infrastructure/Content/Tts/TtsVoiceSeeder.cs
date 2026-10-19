@@ -33,7 +33,7 @@ public sealed class TtsVoiceSeeder : ISeeder
     [
         new()
         {
-            Id = "en-US-AriaNeural",
+            Id = TtsVoice.FallbackDefaultVoiceId,
             Name = "AriaNeural",
             DisplayName = "Aria (US)",
             Locale = "en-US",

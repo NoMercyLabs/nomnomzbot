@@ -28,7 +28,10 @@ public class TtsConfigConfiguration : IEntityTypeConfiguration<TtsConfig>
 
         // Viewer self-service is on by default (spec decision 6) — a DB default of true backfills every
         // pre-existing channel row so the behavior matches a freshly-created config.
-        builder.Property(e => e.ViewerVoiceSelfServiceEnabled).HasDefaultValue(true);
+        // The value is read from the entity's own initializer so the default is declared in one place.
+        builder
+            .Property(e => e.ViewerVoiceSelfServiceEnabled)
+            .HasDefaultValue(new TtsConfig().ViewerVoiceSelfServiceEnabled);
 
         builder
             .HasOne(e => e.SubjectKey)
