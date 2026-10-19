@@ -5,8 +5,8 @@ import { ref, reactive, computed, onMounted, onUnmounted } from 'vue'
 // The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its settings type
 // (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
-// Standing now-playing display driven by the "now_playing" widget event (WidgetNowPlayingHandler:
-// { isPlaying, track, artist, artUrl, provider, trackUri }), adapting per the current track's provider:
+// Standing now-playing display driven by the "music.nowPlaying" widget event (WidgetMusicNowPlayingHandler:
+// { engine, title, artists, albumArtUrl, isPlaying, requestedBy, ... }), adapting per the current track's engine:
 // Spotify and YouTube playback run on the Audio page; this widget reports the current track visually.
 interface NowPlayingConfig {
   layout: string          // 'pill' | 'card'
@@ -119,7 +119,7 @@ function onTrackSavedChanged(d: NnzWidgetEventMap['track_saved_changed'] | null 
 const PREVIEW_MS = 8000
 let previewTimer: number | undefined
 
-function onNowPlayingEvent(d: NnzWidgetEventMap['now_playing'] | null | undefined, _type?: string, meta?: NnzEventMeta): void {
+function onNowPlayingEvent(d: NnzWidgetEventMap['music.nowPlaying'] | null | undefined, _type?: string, meta?: NnzEventMeta): void {
   if (previewTimer) { window.clearTimeout(previewTimer); previewTimer = undefined }
   if (meta && meta.test) previewTimer = window.setTimeout(endPreview, PREVIEW_MS)
   onNowPlaying(d)
@@ -130,15 +130,16 @@ function endPreview(): void {
   fetchCurrentState()
 }
 
-function onNowPlaying(d: NnzWidgetEventMap['now_playing'] | null | undefined): void {
-  const data: Partial<NnzWidgetEventMap['now_playing']> = d || {}
-  if (cfg.provider && data.provider && data.provider !== cfg.provider) return
+function onNowPlaying(d: NnzWidgetEventMap['music.nowPlaying'] | null | undefined): void {
+  const data: Partial<NnzWidgetEventMap['music.nowPlaying']> = d || {}
+  if (cfg.provider && data.engine && data.engine !== cfg.provider) return
   isPlaying.value = !!data.isPlaying
-  track.value = data.track || ''
-  artist.value = data.artist || ''
-  artUrl.value = data.artUrl || ''
+  track.value = data.title || ''
+  artist.value = Array.isArray(data.artists) ? data.artists.join(', ') : ''
+  artUrl.value = data.albumArtUrl || ''
   requestedBy.value = typeof data.requestedBy === 'string' ? data.requestedBy : ''
-  requestedByColor.value = typeof data.requestedByColor === 'string' ? data.requestedByColor : ''
+  // The shape carries no requester color: the muted token color stands in.
+  requestedByColor.value = ''
   durationMs.value = Number.isFinite(Number(data.durationMs)) ? Number(data.durationMs) : 0
   progressMs.value = Number.isFinite(Number(data.progressMs)) ? Number(data.progressMs) : 0
   stopTicking()
@@ -150,7 +151,7 @@ function onNowPlaying(d: NnzWidgetEventMap['now_playing'] | null | undefined): v
 // every overlay reload otherwise sat blank until the streamer's next skip/pause/resume.
 async function fetchCurrentState(): Promise<void> {
   try {
-    const current: NnzWidgetEventMap['now_playing'] | null = await NomNomz.data.nowPlaying()
+    const current: NnzWidgetEventMap['music.nowPlaying'] | null = await NomNomz.data.nowPlaying()
     if (current) onNowPlaying(current)
   } catch {
     // Best-effort seed only — the next now_playing hub event still arrives normally.
@@ -169,7 +170,7 @@ onMounted(() => {
     if (typeof s.accentColor === 'string' && s.accentColor) cfg.accentColor = s.accentColor
 
   })
-  NomNomz.on('now_playing', onNowPlayingEvent)
+  NomNomz.on('music.nowPlaying', onNowPlayingEvent)
   NomNomz.on('track_saved_changed', onTrackSavedChanged)
 })
 
@@ -178,7 +179,7 @@ onUnmounted(() => {
   if (previewTimer) window.clearTimeout(previewTimer)
   if (heartPulseTimeout) window.clearTimeout(heartPulseTimeout)
   if (typeof NomNomz === 'undefined') return
-  NomNomz.off('now_playing', onNowPlayingEvent)
+  NomNomz.off('music.nowPlaying', onNowPlayingEvent)
   NomNomz.off('track_saved_changed', onTrackSavedChanged)
 })
 

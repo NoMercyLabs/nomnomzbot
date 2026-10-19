@@ -19,10 +19,12 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.DevPlatform.Projects;
+using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -49,6 +51,7 @@ public class WidgetService : IWidgetService
     private readonly IScriptStorageService _scriptStorage;
     private readonly IPipelineStepReferenceScanner _stepReferences;
     private readonly IOverlayPresenceRegistry _presence;
+    private readonly IPlaybackStateReader _playbackState;
 
     public WidgetService(
         IApplicationDbContext db,
@@ -60,9 +63,11 @@ public class WidgetService : IWidgetService
         IMusicService musicService,
         IScriptStorageService scriptStorage,
         IPipelineStepReferenceScanner stepReferences,
-        IOverlayPresenceRegistry presence
+        IOverlayPresenceRegistry presence,
+        IPlaybackStateReader playbackState
     )
     {
+        _playbackState = playbackState;
         _db = db;
         // The overlay host page is served by this API (OverlayHostController) — the widget URL points
         // at the bot's own base URL unless an operator explicitly fronts overlays elsewhere.
@@ -1425,7 +1430,7 @@ public class WidgetService : IWidgetService
         );
     }
 
-    public async Task<Result<OverlayNowPlayingSnapshot?>> GetNowPlayingSnapshotAsync(
+    public async Task<Result<NowPlayingShapeDto?>> GetNowPlayingSnapshotAsync(
         string overlayToken,
         CancellationToken cancellationToken = default
     )
@@ -1435,7 +1440,7 @@ public class WidgetService : IWidgetService
             cancellationToken
         );
         if (broadcasterId is null)
-            return Result.Failure<OverlayNowPlayingSnapshot?>(
+            return Result.Failure<NowPlayingShapeDto?>(
                 "No channel found for the provided overlay token.",
                 "NOT_FOUND"
             );
@@ -1445,32 +1450,21 @@ public class WidgetService : IWidgetService
             cancellationToken
         );
         if (nowPlaying is null)
-            return Result.Success<OverlayNowPlayingSnapshot?>(null);
+            return Result.Success<NowPlayingShapeDto?>(null);
 
-        string? requesterColor = null;
-        if (nowPlaying.RequestedBy is not null)
-        {
-            string normalized = nowPlaying.RequestedBy.ToLowerInvariant();
-            requesterColor = await _db
-                .Users.AsNoTracking()
-                .Where(u => u.TwitchUserId != null && u.UsernameNormalized == normalized)
-                .Select(u => u.Color)
-                .FirstOrDefaultAsync(cancellationToken);
-        }
-
-        return Result.Success<OverlayNowPlayingSnapshot?>(
-            new(
-                nowPlaying.IsPlaying,
+        return Result.Success<NowPlayingShapeDto?>(
+            NowPlayingShapeDto.Build(
+                _playbackState.StateOf(broadcasterId.Value),
+                _playbackState.LevelOf(broadcasterId.Value),
+                nowPlaying.Provider,
+                nowPlaying.TrackUri,
                 nowPlaying.TrackName,
                 nowPlaying.Artist,
                 nowPlaying.ImageUrl,
-                nowPlaying.Provider,
-                nowPlaying.TrackUri,
                 nowPlaying.DurationMs,
                 nowPlaying.ProgressMs,
-                _timeProvider.GetUtcNow(),
-                nowPlaying.RequestedBy,
-                requesterColor
+                nowPlaying.IsPlaying,
+                nowPlaying.RequestedBy
             )
         );
     }

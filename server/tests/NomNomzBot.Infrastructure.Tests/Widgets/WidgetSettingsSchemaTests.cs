@@ -310,6 +310,7 @@ public sealed class WidgetSettingsSchemaTests
             Substitute.For<IMusicService>(),
             Substitute.For<IScriptStorageService>(),
             new PipelineStepReferenceScanner(db),
-            Substitute.For<IOverlayPresenceRegistry>()
+            Substitute.For<IOverlayPresenceRegistry>(),
+            Substitute.For<NomNomzBot.Domain.Music.Interfaces.IPlaybackStateReader>()
         );
 }

@@ -14,7 +14,6 @@ using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Dashboard.Services;
 using NomNomzBot.Application.Music.Dtos;
-using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NSubstitute;
 

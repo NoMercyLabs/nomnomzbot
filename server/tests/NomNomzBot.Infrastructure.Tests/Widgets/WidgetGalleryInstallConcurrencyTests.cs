@@ -19,6 +19,7 @@ using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Commands;
@@ -112,7 +113,8 @@ public sealed class WidgetGalleryInstallConcurrencyTests : IDisposable
             musicService,
             scriptStorage,
             new PipelineStepReferenceScanner(db),
-            Substitute.For<IOverlayPresenceRegistry>()
+            Substitute.For<IOverlayPresenceRegistry>(),
+            Substitute.For<IPlaybackStateReader>()
         );
     }
 

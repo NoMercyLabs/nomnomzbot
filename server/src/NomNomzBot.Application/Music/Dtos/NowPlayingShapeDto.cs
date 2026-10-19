@@ -53,6 +53,40 @@ public sealed record NowPlayingShapeDto(
             StateName(shape.State)
         );
 
+    /// <summary>Builds the wire shape from the raw playback fields: the loaded card when a track is known,
+    /// otherwise the empty card with the director state and level. One path for the hub push, the widget
+    /// push and the overlay seed read, so they never drift.</summary>
+    public static NowPlayingShapeDto Build(
+        PlaybackState state,
+        PlaybackLevel level,
+        string? provider,
+        string? trackUri,
+        string? title,
+        string? artist,
+        string? albumArtUrl,
+        int durationMs,
+        int progressMs,
+        bool isPlaying,
+        string? requestedBy
+    )
+    {
+        DirectorNowPlaying? shape = DirectorNowPlaying.Build(
+            state,
+            level,
+            provider,
+            trackUri,
+            title,
+            artist,
+            albumArtUrl,
+            durationMs,
+            progressMs,
+            isPlaying,
+            requestedBy
+        );
+
+        return shape is null ? Empty(state.Kind, level) : From(shape);
+    }
+
     /// <summary>The card pushed when nothing is loaded: no title, no artists, the director state and level.
     /// The engine is "spotify" because the field is required; clients read the state and the empty title.</summary>
     public static NowPlayingShapeDto Empty(PlaybackStateKind state, PlaybackLevel level) =>

@@ -57,7 +57,8 @@ public sealed class WidgetServiceSystemWidgetEditTests
             Substitute.For<IMusicService>(),
             Substitute.For<IScriptStorageService>(),
             new PipelineStepReferenceScanner(db),
-            Substitute.For<IOverlayPresenceRegistry>()
+            Substitute.For<IOverlayPresenceRegistry>(),
+            Substitute.For<NomNomzBot.Domain.Music.Interfaces.IPlaybackStateReader>()
         );
 
     // The bundle is "compiled::" + the entry file's source, so the served bundle names the source that is live.

@@ -19,6 +19,7 @@ using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Alerts.Entities;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Alerts.Services;
@@ -63,7 +64,8 @@ public sealed class AlertQueueServiceTests
             Substitute.For<IMusicService>(),
             Substitute.For<IScriptStorageService>(),
             new PipelineStepReferenceScanner(db),
-            presence
+            presence,
+            Substitute.For<IPlaybackStateReader>()
         );
     }
 

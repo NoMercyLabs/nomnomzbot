@@ -398,8 +398,10 @@ function enableAudio(): void {
   checkAutoplayAllowed().then((allowed) => { if (allowed) spotifyStatus.value = 'active' })
   if (!cfg.muted) ytPlayer?.unMute()
 }
-function onAudioNowPlaying(d: NnzWidgetEventMap['now_playing'] | null | undefined): void {
-  trackProvider.value = d?.provider || ''
+// The event carries `provider`; the seed read (NomNomz.data.nowPlaying) returns the music.nowPlaying shape,
+// which names the same value `engine`.
+function onAudioNowPlaying(d: Partial<NnzWidgetEventMap['now_playing'] & NnzWidgetEventMap['music.nowPlaying']> | null | undefined): void {
+  trackProvider.value = d?.provider || d?.engine || ''
   if (trackProvider.value === 'spotify' && cfg.enableAudio) connectSpotify()
 }
 

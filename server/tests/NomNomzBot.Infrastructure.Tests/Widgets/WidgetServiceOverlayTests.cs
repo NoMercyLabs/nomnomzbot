@@ -643,7 +643,15 @@ public sealed class WidgetServiceOverlayTests
             );
 
         await using WidgetTestDbContext db = database.NewContext();
-        WidgetService service = NewService(db, Substitute.For<IWidgetBuildService>(), music);
+        IPlaybackStateReader state = Substitute.For<IPlaybackStateReader>();
+        state.StateOf(channel).Returns(PlaybackState.Idle);
+        state.LevelOf(channel).Returns(new PlaybackLevel(40, true));
+        WidgetService service = NewService(
+            db,
+            Substitute.For<IWidgetBuildService>(),
+            music,
+            playbackState: state
+        );
 
         Result<NowPlayingShapeDto?> result = await service.GetNowPlayingSnapshotAsync("tok");
 

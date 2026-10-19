@@ -10,6 +10,7 @@
 
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Dashboard.Dtos;
+using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
@@ -279,6 +280,20 @@ internal static class WidgetTestSamples
             now,
             "TestViewer",
             "#FF69B4"
+        ),
+        [NowPlayingShapeDto.EventName] = now => new NowPlayingShapeDto(
+            "spotify",
+            "test-item",
+            "Test Track",
+            ["Test Artist"],
+            "https://i.scdn.co/image/ab67616d0000b2734cd0672c1e1a9b4b8f5e1f32",
+            213000,
+            42000,
+            true,
+            "TestViewer",
+            60,
+            false,
+            "playing"
         ),
         ["ad_schedule"] = now => new AdScheduleWidgetPayload(
             now.AddMinutes(3),

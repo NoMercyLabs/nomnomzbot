@@ -348,9 +348,9 @@ internal static class SdkRuntimeSurface
         );
         sb.AppendLine("interface NnzOverlayData {");
         sb.AppendLine(
-            "  /** The track playing now, or null when nothing plays. Use it on mount, before the next now_playing event. */"
+            "  /** The track playing now, or null when nothing plays. Use it on mount, before the next music.nowPlaying event. */"
         );
-        sb.AppendLine("  nowPlaying(): Promise<NnzWidgetEventMap['now_playing'] | null>;");
+        sb.AppendLine("  nowPlaying(): Promise<NnzWidgetEventMap['music.nowPlaying'] | null>;");
         sb.AppendLine("  /** The playback queue, without the track playing now. */");
         sb.AppendLine("  queue(): Promise<NnzMusicQueueItem[]>;");
         sb.AppendLine(

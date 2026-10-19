@@ -22,6 +22,7 @@ using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Giveaways.Entities;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Sound.Entities;
@@ -125,7 +126,8 @@ public class DeleteBlastRadiusTests
             Substitute.For<IMusicService>(),
             Substitute.For<IScriptStorageService>(),
             new PipelineStepReferenceScanner(db),
-            Substitute.For<IOverlayPresenceRegistry>()
+            Substitute.For<IOverlayPresenceRegistry>(),
+            Substitute.For<IPlaybackStateReader>()
         );
 
     private static RewardService NewRewards(BlastRadiusTestDbContext db) =>

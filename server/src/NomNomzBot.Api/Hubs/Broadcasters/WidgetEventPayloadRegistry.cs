@@ -11,6 +11,7 @@
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Application.DevPlatform.Services;
+using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Infrastructure.Games.Frames;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Widgets;
@@ -80,6 +81,7 @@ internal sealed class WidgetEventPayloadRegistry : IWidgetEventPayloadRegistry
         new("sr_queue", typeof(SrQueueWidgetPayload)),
         new("media_share_command", typeof(MediaShareCommandWidgetPayload)),
         new("now_playing", typeof(NowPlayingWidgetPayload)),
+        new(NowPlayingShapeDto.EventName, typeof(NowPlayingShapeDto)),
         new("ad_schedule", typeof(AdScheduleWidgetPayload)),
         new("ad_upcoming", typeof(AdUpcomingWidgetPayload)),
         new(YouTubePlayerDispatcher.PlayEventType, typeof(YouTubePlayWidgetPayload)),

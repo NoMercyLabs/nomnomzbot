@@ -227,7 +227,7 @@ public static class FirstPartyWidgetCatalogue
                 ["provider"] = "",
                 ["accentColor"] = "#9146ff",
             },
-            DefaultEventSubscriptions: ["now_playing", "track_saved_changed"]
+            DefaultEventSubscriptions: ["music.nowPlaying", "track_saved_changed"]
         ),
         new(
             Key: "sr_queue",

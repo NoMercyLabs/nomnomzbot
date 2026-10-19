@@ -15,6 +15,7 @@ using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Application.Dashboard.Services;
+using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
@@ -92,12 +93,12 @@ public class OverlayController : BaseController
     }
 
     /// <summary>
-    /// The current playback state, so a <c>now_playing</c> widget can render the real track the instant it mounts
-    /// instead of showing nothing until the next <c>now_playing</c> hub event arrives. <c>Data</c> is null when
-    /// nothing is currently playing.
+    /// The current playback state, so a now-playing widget can render the real track the instant it mounts
+    /// instead of showing nothing until the next <c>music.nowPlaying</c> hub event arrives. <c>Data</c> is null
+    /// when the music service reports nothing.
     /// </summary>
     [HttpGet("now-playing")]
-    [ProducesResponseType<StatusResponseDto<OverlayNowPlayingSnapshot>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<NowPlayingShapeDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> GetNowPlayingSnapshot(
         [FromQuery] string? token,
         CancellationToken ct
@@ -107,13 +108,13 @@ public class OverlayController : BaseController
         if (string.IsNullOrWhiteSpace(token))
             return BadRequestResponse("An overlay token is required.");
 
-        Result<OverlayNowPlayingSnapshot?> result = await _widgetService.GetNowPlayingSnapshotAsync(
+        Result<NowPlayingShapeDto?> result = await _widgetService.GetNowPlayingSnapshotAsync(
             token,
             ct
         );
         if (result.IsFailure)
             return ResultResponse(result);
-        return Ok(new StatusResponseDto<OverlayNowPlayingSnapshot?> { Data = result.Value });
+        return Ok(new StatusResponseDto<NowPlayingShapeDto?> { Data = result.Value });
     }
 
     /// <summary>

@@ -51,7 +51,8 @@ public sealed class WidgetServiceUpdateFromGalleryTests
             Substitute.For<IMusicService>(),
             Substitute.For<IScriptStorageService>(),
             new PipelineStepReferenceScanner(db),
-            Substitute.For<IOverlayPresenceRegistry>()
+            Substitute.For<IOverlayPresenceRegistry>(),
+            Substitute.For<NomNomzBot.Domain.Music.Interfaces.IPlaybackStateReader>()
         );
 
     private static IWidgetBuildService NewBuildService()

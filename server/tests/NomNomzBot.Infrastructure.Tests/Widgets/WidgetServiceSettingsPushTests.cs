@@ -16,6 +16,7 @@ using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Events;
 using NomNomzBot.Infrastructure.Commands;
@@ -92,7 +93,8 @@ public sealed class WidgetServiceSettingsPushTests
             Substitute.For<IMusicService>(),
             Substitute.For<IScriptStorageService>(),
             new PipelineStepReferenceScanner(db),
-            Substitute.For<IOverlayPresenceRegistry>()
+            Substitute.For<IOverlayPresenceRegistry>(),
+            Substitute.For<IPlaybackStateReader>()
         );
 
     private static async Task SeedAsync(WidgetSqliteTestDatabase database)

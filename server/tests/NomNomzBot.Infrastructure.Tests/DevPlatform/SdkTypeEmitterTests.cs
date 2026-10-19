@@ -409,7 +409,8 @@ public sealed class SdkTypeEmitterTests
         ts.Should().Contain("  readonly data: NnzOverlayData;");
         ts.Should().Contain("  readonly spotify: NnzOverlaySpotify;");
         ts.Should().Contain("  readonly widget: NnzOverlayWidget;");
-        ts.Should().Contain("  nowPlaying(): Promise<NnzWidgetEventMap['now_playing'] | null>;");
+        ts.Should()
+            .Contain("  nowPlaying(): Promise<NnzWidgetEventMap['music.nowPlaying'] | null>;");
         ts.Should().Contain("  queue(): Promise<NnzMusicQueueItem[]>;");
         ts.Should().Contain("  storage(key: string): Promise<string | null>;");
         ts.Should()

@@ -11,6 +11,7 @@
 using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DevPlatform.Dtos;
+using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 
@@ -213,11 +214,12 @@ public interface IWidgetService
 
     /// <summary>
     /// The current playback state for an overlay token's channel, in the exact shape
-    /// <c>WidgetNowPlayingHandler</c> pushes over the hub — so a <c>now_playing</c> widget can render the real
-    /// current track the instant it mounts instead of showing nothing until the next playback change. Null (not
-    /// a failure) when nothing is currently playing; fails <c>NOT_FOUND</c> for an unknown overlay token.
+    /// <c>WidgetMusicNowPlayingHandler</c> pushes over the hub (the one <c>music.nowPlaying</c> shape) — so a
+    /// now-playing widget can render the real current track the instant it mounts instead of showing nothing
+    /// until the next playback change. Null (not a failure) when the music service reports nothing; fails
+    /// <c>NOT_FOUND</c> for an unknown overlay token.
     /// </summary>
-    Task<Result<OverlayNowPlayingSnapshot?>> GetNowPlayingSnapshotAsync(
+    Task<Result<NowPlayingShapeDto?>> GetNowPlayingSnapshotAsync(
         string overlayToken,
         CancellationToken cancellationToken = default
     );

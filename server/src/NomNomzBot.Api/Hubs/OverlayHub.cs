@@ -38,6 +38,7 @@ public class OverlayHub : Hub<IOverlayClient>
     // that never subscribed to it renders no music state, so its connection has nothing to gain from a fast
     // poll cadence.
     private const string NowPlayingEventKey = "now_playing";
+    private const string MusicNowPlayingEventKey = "music.nowPlaying";
     private const string WrongWidgetError = "This overlay token is scoped to a different widget";
     private const string YouTubePlayingItem = "YouTubePlaying";
 
@@ -249,7 +250,13 @@ public class OverlayHub : Hub<IOverlayClient>
 
         // A now-playing widget just came alive on stream — keep the music poller at its fast cadence for
         // this channel for as long as this connection is here (see IChannelRegistry.TouchMusicDemand).
-        if (widget?.IsEnabled == true && widget.EventSubscriptions.Contains(NowPlayingEventKey))
+        if (
+            widget?.IsEnabled == true
+            && (
+                widget.EventSubscriptions.Contains(NowPlayingEventKey)
+                || widget.EventSubscriptions.Contains(MusicNowPlayingEventKey)
+            )
+        )
             _registry.TouchMusicDemand(broadcasterId, Context.ConnectionId);
 
         return new(

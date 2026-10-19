@@ -36,6 +36,7 @@ public static class RenderedAlertCaptureLog
     public static bool IsStandingState(string eventType) =>
         eventType == "sr_queue"
         || eventType == "now_playing"
+        || eventType == "music.nowPlaying"
         || eventType.StartsWith("custom.", StringComparison.Ordinal);
 
     /// <summary>

@@ -54,7 +54,8 @@ public sealed class WidgetServiceOverlayTokenRotationTests
             Substitute.For<NomNomzBot.Application.Music.Services.IMusicService>(),
             Substitute.For<NomNomzBot.Application.Contracts.CustomCode.IScriptStorageService>(),
             new PipelineStepReferenceScanner(db),
-            Substitute.For<IOverlayPresenceRegistry>()
+            Substitute.For<IOverlayPresenceRegistry>(),
+            Substitute.For<NomNomzBot.Domain.Music.Interfaces.IPlaybackStateReader>()
         );
 
     private static async Task SeedChannelAsync(WidgetSqliteTestDatabase database, Guid channelId)

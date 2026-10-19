@@ -412,6 +412,22 @@ interface NnzNowPlayingWidgetPayload {
   requestedByColor?: string | null;
 }
 
+/** The wire form of the one now-playing shape (music-playback-determinism.md section 2.1), pushed as the hub event music.nowPlaying. Engine is "spotify" or "youtube"; every other field is filled the same way for both engines. State is the camelCase director state: idle, starting, playing, pausedByOwner or blocked. */
+interface NnzNowPlayingShapeDto {
+  engine: string;
+  itemId?: string | null;
+  title: string;
+  artists: string[];
+  albumArtUrl?: string | null;
+  durationMs: number;
+  progressMs: number;
+  isPlaying: boolean;
+  requestedBy?: string | null;
+  volume: number;
+  muted: boolean;
+  state: string;
+}
+
 /** ad_schedule: the channel's ad schedule, sent on every poll while live (times are UTC, null when none). */
 interface NnzAdScheduleWidgetPayload {
   nextAdAt?: string | null;
@@ -1512,6 +1528,7 @@ interface NnzWidgetEventMap {
   'sr_queue': NnzSrQueueWidgetPayload;
   'media_share_command': NnzMediaShareCommandWidgetPayload;
   'now_playing': NnzNowPlayingWidgetPayload;
+  'music.nowPlaying': NnzNowPlayingShapeDto;
   'ad_schedule': NnzAdScheduleWidgetPayload;
   'ad_upcoming': NnzAdUpcomingWidgetPayload;
   'youtube.play': NnzYouTubePlayWidgetPayload;
@@ -1574,6 +1591,7 @@ type NnzWidgetAnyEvent =
   | [eventType: 'sr_queue', data: NnzSrQueueWidgetPayload]
   | [eventType: 'media_share_command', data: NnzMediaShareCommandWidgetPayload]
   | [eventType: 'now_playing', data: NnzNowPlayingWidgetPayload]
+  | [eventType: 'music.nowPlaying', data: NnzNowPlayingShapeDto]
   | [eventType: 'ad_schedule', data: NnzAdScheduleWidgetPayload]
   | [eventType: 'ad_upcoming', data: NnzAdUpcomingWidgetPayload]
   | [eventType: 'youtube.play', data: NnzYouTubePlayWidgetPayload]
@@ -1659,8 +1677,8 @@ interface NnzMusicQueueItem {
 
 /** Reads of the channel's current state. Each rejects when the request fails. */
 interface NnzOverlayData {
-  /** The track playing now, or null when nothing plays. Use it on mount, before the next now_playing event. */
-  nowPlaying(): Promise<NnzWidgetEventMap['now_playing'] | null>;
+  /** The track playing now, or null when nothing plays. Use it on mount, before the next music.nowPlaying event. */
+  nowPlaying(): Promise<NnzWidgetEventMap['music.nowPlaying'] | null>;
   /** The playback queue, without the track playing now. */
   queue(): Promise<NnzMusicQueueItem[]>;
   /** One value from the channel's script storage, or null when the key has no value. */

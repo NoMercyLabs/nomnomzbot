@@ -41,7 +41,7 @@ public sealed class NowPlayingBroadcastHandler : IEventHandler<PlaybackStateChan
 
         PlaybackState state = _playbackState.StateOf(@event.BroadcasterId);
         PlaybackLevel level = _playbackState.LevelOf(@event.BroadcasterId);
-        DirectorNowPlaying? shape = DirectorNowPlaying.Build(
+        NowPlayingShapeDto data = NowPlayingShapeDto.Build(
             state,
             level,
             @event.Provider,
@@ -54,9 +54,6 @@ public sealed class NowPlayingBroadcastHandler : IEventHandler<PlaybackStateChan
             @event.IsPlaying,
             @event.RequestedBy
         );
-        NowPlayingShapeDto data = shape is null
-            ? NowPlayingShapeDto.Empty(state.Kind, level)
-            : NowPlayingShapeDto.From(shape);
 
         return _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),

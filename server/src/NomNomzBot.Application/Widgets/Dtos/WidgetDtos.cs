@@ -147,29 +147,6 @@ public sealed record OverlayBundle(string Content, string Framework, string Cont
 public sealed record OverlayTokenScope(Guid BroadcasterId, Guid? WidgetId, string? Token = null);
 
 /// <summary>
-/// The current playback state for an overlay token's channel, field-for-field identical to the
-/// <c>now_playing</c> widget event payload (<c>WidgetNowPlayingHandler</c>) — a <c>now_playing</c> widget fetches
-/// this once on mount so it can render the real current track immediately instead of waiting for the next
-/// playback change to arrive over the hub.
-/// </summary>
-public sealed record OverlayNowPlayingSnapshot(
-    bool IsPlaying,
-    string? Track,
-    string? Artist,
-    string? ArtUrl,
-    string? Provider,
-    string? TrackUri,
-    int DurationMs,
-    int ProgressMs,
-    DateTimeOffset ObservedAt,
-    // Who asked for this track via !sr, or null when the streamer started it themselves (S-MUSIC-5b) —
-    // field-for-field identical in meaning to the now_playing widget event's own requestedBy.
-    string? RequestedBy = null,
-    // The requester's stored chat color, or null when none is stored or nobody requested the track.
-    string? RequestedByColor = null
-);
-
-/// <summary>
 /// A starter widget template the editor offers when creating a new custom widget — a working, SDK-using starting
 /// point (never a blank editor). <see cref="Source"/> is the authored source to seed into the editor + compile.
 /// </summary>
