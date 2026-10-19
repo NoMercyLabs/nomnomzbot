@@ -38,7 +38,7 @@
           "loadFailed": "De keuze voor netwerkblokkades kon niet worden geladen.",
           "label": "Geblokkeerde personen hier bannen",
           "hint": "Staat dit aan, dan bant een netwerkblokkade van een beheerder de geblokkeerde persoon ook in dit kanaal. Standaard uit.",
-          "switch": "Accepteren"
+          "switch": "Hier bannen"
         }
       }
     }

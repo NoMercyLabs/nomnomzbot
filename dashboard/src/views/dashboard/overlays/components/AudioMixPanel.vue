@@ -149,6 +149,7 @@ const failure = computed(() => {
             :max="highest"
             :step="1"
             :disabled="!writable"
+            :thumb-label="$t(`dashboard.overlays.audioMix.${row.text}.title`)"
             :aria-label="$t(`dashboard.overlays.audioMix.${row.text}.title`)"
             @update:model-value="slide(row.field, $event)"
             @value-commit="commit(row.field)"

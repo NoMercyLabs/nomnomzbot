@@ -38,7 +38,7 @@
           "loadFailed": "The network block choice could not be loaded.",
           "label": "Ban blocked actors here",
           "hint": "When on, an admin network block also bans its blocked actor in this channel. Off by default.",
-          "switch": "Accept"
+          "switch": "Ban here"
         }
       }
     }

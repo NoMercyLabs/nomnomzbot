@@ -309,6 +309,14 @@ describe('Network block opt-in card', () => {
     expect(cardSwitch().getAttribute('data-state')).toBe('checked');
   });
 
+  it('names the switch with a word that fits a ban, never Accept', async () => {
+    held = [...held, 'moderation:networkblock:optin'];
+    await open();
+
+    expect(cardSwitch().getAttribute('aria-label')).toBe('Ban here');
+    expect(card().querySelector('[data-labeled-switch]')?.textContent?.trim()).toBe('Ban here');
+  });
+
   it('gives a person without the broadcaster key a read-only state and no switch', async () => {
     await open();
 

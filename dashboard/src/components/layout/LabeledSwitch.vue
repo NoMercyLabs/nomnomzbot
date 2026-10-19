@@ -17,7 +17,7 @@ import { Switch } from '@/components/ui/switch';
 
 const on = defineModel<boolean>({ required: true });
 
-defineProps<{
+const props = defineProps<{
   label: string;
   help?: string;
   disabled?: boolean;
@@ -29,7 +29,13 @@ defineProps<{
   <label data-labeled-switch class="flex w-fit items-center gap-2 text-sm font-medium">
     {{ label }}
     <FieldInfo v-if="help">{{ help }}</FieldInfo>
-    <GatedSwitch v-if="action" v-model="on" :action="action" :disabled="disabled" />
-    <Switch v-else v-model="on" :disabled="disabled" />
+    <GatedSwitch
+      v-if="action"
+      v-model="on"
+      :action="action"
+      :aria-label="props.label"
+      :disabled="disabled"
+    />
+    <Switch v-else v-model="on" :aria-label="props.label" :disabled="disabled" />
   </label>
 </template>

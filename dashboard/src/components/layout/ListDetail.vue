@@ -34,7 +34,7 @@ const asideOpen = defineModel<boolean>('asideOpen', { default: false });
   >
     <div
       data-slot="list-detail-list"
-      class="flex min-h-0 min-w-0 flex-col md:*:last:flex-1 md:[&>:last-child>[data-slot=panel-card]:last-child]:flex-1"
+      class="flex min-h-0 min-w-0 flex-col max-md:*:shrink-0 md:*:last:flex-1 md:[&>:last-child>[data-slot=panel-card]:last-child]:flex-1"
       :class="showDetail ? 'max-md:hidden' : ''"
     >
       <slot name="list" />

@@ -124,6 +124,16 @@ describe('AudioMixPanel', () => {
     ]);
   });
 
+  it('names each slider thumb, not only the slider root', async () => {
+    const wrapper = await open();
+
+    const names = wrapper
+      .findAll('[role="slider"]')
+      .map((thumb) => thumb.attributes('aria-label'));
+
+    expect(names).toEqual(['Master volume', 'Voice volume']);
+  });
+
   it('sends both volumes in one write when one field changes', async () => {
     const wrapper = await open();
 

@@ -268,11 +268,21 @@ beforeEach(() => {
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
+
+  vi.stubGlobal(
+    'ResizeObserver',
+    class {
+      observe(): void {}
+      unobserve(): void {}
+      disconnect(): void {}
+    },
+  );
 });
 
 afterEach(() => {
   mounted?.unmount();
   mounted = null;
+  vi.unstubAllGlobals();
   document.body.innerHTML = '';
 });
 
