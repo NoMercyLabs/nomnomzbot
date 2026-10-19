@@ -58,6 +58,28 @@ public sealed class MusicConfigRequestRulesTests
     }
 
     [Fact]
+    public async Task The_youtube_music_category_setting_defaults_on_and_round_trips_through_put_and_get()
+    {
+        using MusicConfigDbFixture fixture = new();
+        (await fixture.Service.GetConfigAsync(Broadcaster))
+            .Value.YouTubeMusicCategoryOnly.Should()
+            .BeTrue();
+
+        await fixture.Service.UpdateConfigAsync(
+            Broadcaster,
+            new UpdateMusicConfigDto { YouTubeMusicCategoryOnly = false }
+        );
+        await fixture.Service.UpdateConfigAsync(
+            Broadcaster,
+            new UpdateMusicConfigDto { MaxQueueSize = 9 }
+        );
+
+        MusicConfigDto config = (await fixture.Service.GetConfigAsync(Broadcaster)).Value;
+        config.YouTubeMusicCategoryOnly.Should().BeFalse();
+        config.MaxQueueSize.Should().Be(9);
+    }
+
+    [Fact]
     public async Task A_per_stream_limit_of_zero_turns_the_cap_off()
     {
         using MusicConfigDbFixture fixture = new();

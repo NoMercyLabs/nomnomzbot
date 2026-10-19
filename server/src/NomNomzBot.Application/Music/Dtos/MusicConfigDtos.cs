@@ -28,7 +28,8 @@ public sealed record MusicConfigDto(
     bool RequestsOpen = MusicConfigDefaults.RequestsOpen,
     int MaxSongSeconds = MusicConfigDefaults.MaxSongSeconds,
     bool AllowExplicit = MusicConfigDefaults.AllowExplicit,
-    int? PerStreamLimit = null
+    int? PerStreamLimit = null,
+    bool YouTubeMusicCategoryOnly = MusicConfigDefaults.YouTubeMusicCategoryOnly
 );
 
 /// <summary>Request to update music configuration.</summary>
@@ -61,6 +62,12 @@ public sealed record UpdateMusicConfigDto
     /// </summary>
     [Range(0, 100)]
     public int? PerStreamLimit { get; init; }
+
+    /// <summary>
+    /// When true, a YouTube upload must sit in the Music category or come from a "- Topic" artist channel.
+    /// When false, any on-demand video is admitted (fan uploads). A music.youtube.com link always counts.
+    /// </summary>
+    public bool? YouTubeMusicCategoryOnly { get; init; }
 
     public bool? AllowYouTube { get; init; }
     public bool? AllowSpotify { get; init; }

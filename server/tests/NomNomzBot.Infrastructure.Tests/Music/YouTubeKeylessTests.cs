@@ -75,15 +75,15 @@ public sealed class YouTubeKeylessTests
     }
 
     [Fact]
-    public async Task A_link_to_a_non_music_video_is_refused_as_not_music()
+    public async Task A_link_to_a_non_music_video_resolves_tagged_outside_the_music_category()
     {
         (TrackInfo? track, MusicProviderFailureReason failure) = await ResolveKeylessAsync(
             TutorialId,
             "Education"
         );
 
-        track.Should().BeNull();
-        failure.Should().Be(MusicProviderFailureReason.NotMusic);
+        failure.Should().Be(MusicProviderFailureReason.None);
+        track!.IsMusicCategory.Should().BeFalse();
     }
 
     [Fact]
@@ -112,7 +112,7 @@ public sealed class YouTubeKeylessTests
     }
 
     [Fact]
-    public async Task A_word_search_keeps_only_music_hits()
+    public async Task A_word_search_tags_each_hit_with_its_music_category()
     {
         RecordingHttpHandler handler = new();
         handler.RespondWhen(r => Path(r, "/youtubei/v1/search"), HttpStatusCode.OK, SearchJson());
@@ -134,7 +134,10 @@ public sealed class YouTubeKeylessTests
             10
         );
 
-        hits.Select(h => h.ProviderTrackId).Should().Equal(RickId);
+        // The provider tags; the channel's setting decides in MusicService.
+        hits.Select(h => (h.ProviderTrackId, h.IsMusicCategory))
+            .Should()
+            .Equal((RickId, true), (LoopId, false));
     }
 
     [Fact]
@@ -164,8 +167,8 @@ public sealed class YouTubeKeylessTests
             $"https://youtu.be/{RickId}"
         );
 
-        track.Should().BeNull();
-        failure.Should().Be(MusicProviderFailureReason.NotMusic);
+        failure.Should().Be(MusicProviderFailureReason.None);
+        track!.IsMusicCategory.Should().BeFalse();
     }
 
     private static string Renderer(string id, string title, string? length)

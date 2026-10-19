@@ -25,6 +25,7 @@ public static class MusicConfigDefaults
     public const bool AllowExplicit = true;
     public const bool AllowYouTube = false;
     public const bool AllowSpotify = true;
+    public const bool YouTubeMusicCategoryOnly = true;
     public const string MinTrustLevel = "everyone";
     public const bool BangerAutoCreate = false;
 }

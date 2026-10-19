@@ -40,17 +40,17 @@ public sealed class YouTubeKeylessResolver(
                 return (null, MusicProviderFailureReason.TrackMissing);
         }
 
-        if (
-            !YouTubeMusicCategory.IsMusic(player.Category, player.Author)
-            && !YouTubeMusicCategory.IsMusic(player.Category, embed.Author)
-        )
-            return (null, MusicProviderFailureReason.NotMusic);
+        // A non-music upload still resolves: the channel's YouTubeMusicCategoryOnly setting decides
+        // whether it is refused (MusicService), so the verdict is carried on the track.
+        bool isMusic =
+            YouTubeMusicCategory.IsMusic(player.Category, player.Author)
+            || YouTubeMusicCategory.IsMusic(player.Category, embed.Author);
 
         switch (player.Status)
         {
             case YouTubePlayerDataStatus.AgeRestricted:
                 return (
-                    ToTrack(videoId, embed, player, ageRestricted: true),
+                    ToTrack(videoId, embed, player, ageRestricted: true, isMusic),
                     MusicProviderFailureReason.None
                 );
         }
@@ -63,7 +63,7 @@ public sealed class YouTubeKeylessResolver(
             return (null, MusicProviderFailureReason.UnknownLength);
 
         return (
-            ToTrack(videoId, embed, player, ageRestricted: false),
+            ToTrack(videoId, embed, player, ageRestricted: false, isMusic),
             MusicProviderFailureReason.None
         );
     }
@@ -72,7 +72,8 @@ public sealed class YouTubeKeylessResolver(
         string videoId,
         YouTubeOEmbed embed,
         YouTubePlayerData player,
-        bool ageRestricted
+        bool ageRestricted,
+        bool isMusic
     ) =>
         new()
         {
@@ -86,6 +87,7 @@ public sealed class YouTubeKeylessResolver(
             ProviderTrackId = videoId,
             IsExplicit = false,
             IsAgeRestricted = ageRestricted,
+            IsMusicCategory = isMusic,
             IsEmbeddable = embed.Status != YouTubeOEmbedStatus.NotEmbeddable,
         };
 }

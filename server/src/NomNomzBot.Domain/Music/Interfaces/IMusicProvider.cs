@@ -358,6 +358,11 @@ public class TrackInfo
     /// must never be refused as "not embeddable".</summary>
     public bool IsEmbeddable { get; init; } = true;
 
+    /// <summary>Whether a YouTube upload sits in the Music category or comes from a "- Topic" artist channel.
+    /// True for every other provider and when YouTube names no category. The channel's
+    /// <c>YouTubeMusicCategoryOnly</c> setting decides whether a false value is refused.</summary>
+    public bool IsMusicCategory { get; init; } = true;
+
     // Only meaningful on a GetCurrentTrackAsync result (the provider's "currently playing" read) — a
     // SearchAsync hit is not "playing" anything, so it is left at the default (false / 0) there.
     public bool IsPlaying { get; init; }

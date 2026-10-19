@@ -78,6 +78,8 @@ public class MusicConfigService : IMusicConfigService
         if (request.PerStreamLimit.HasValue)
             current.PerStreamLimit =
                 request.PerStreamLimit.Value == 0 ? null : request.PerStreamLimit;
+        if (request.YouTubeMusicCategoryOnly.HasValue)
+            current.YouTubeMusicCategoryOnly = request.YouTubeMusicCategoryOnly.Value;
         if (request.AllowYouTube.HasValue)
             current.AllowYouTube = request.AllowYouTube.Value;
         if (request.AllowSpotify.HasValue)
@@ -173,7 +175,8 @@ public class MusicConfigService : IMusicConfigService
             d.RequestsOpen,
             d.MaxSongSeconds,
             d.AllowExplicit,
-            d.PerStreamLimit
+            d.PerStreamLimit,
+            d.YouTubeMusicCategoryOnly
         );
 
     private static string? NullIfEmpty(string value) => value.Length == 0 ? null : value;
@@ -188,6 +191,8 @@ public class MusicConfigService : IMusicConfigService
         public int MaxSongSeconds { get; set; } = MusicConfigDefaults.MaxSongSeconds;
         public bool AllowExplicit { get; set; } = MusicConfigDefaults.AllowExplicit;
         public int? PerStreamLimit { get; set; }
+        public bool YouTubeMusicCategoryOnly { get; set; } =
+            MusicConfigDefaults.YouTubeMusicCategoryOnly;
         public bool AllowYouTube { get; set; } = MusicConfigDefaults.AllowYouTube;
         public bool AllowSpotify { get; set; } = MusicConfigDefaults.AllowSpotify;
         public string MinTrustLevel { get; set; } = MusicConfigDefaults.MinTrustLevel;

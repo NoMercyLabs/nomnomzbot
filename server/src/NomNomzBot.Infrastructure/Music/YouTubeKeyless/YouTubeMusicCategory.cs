@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Music.Interfaces;
+
 namespace NomNomzBot.Infrastructure.Music.YouTubeKeyless;
 
 /// <summary>
@@ -21,6 +23,22 @@ public static class YouTubeMusicCategory
     private const string MusicName = "Music";
     private const string MusicId = "10";
     private const string TopicSuffix = "- Topic";
+
+    private const string MusicHost = "music.youtube.com";
+
+    /// <summary>
+    /// The channel's verdict on a resolved track. A track passes when the channel admits any upload, when
+    /// the track is music, or when it was asked for by a music.youtube.com link (YouTube Music only serves
+    /// music, whatever category the upload carries). The verdict lives here, next to the category rule, so
+    /// the providers stay config-free and every request path asks the same question.
+    /// </summary>
+    public static bool Admits(bool categoryOnly, TrackInfo track, string? requestedLink) =>
+        !categoryOnly || track.IsMusicCategory || IsMusicLink(requestedLink);
+
+    public static bool IsMusicLink(string? link) =>
+        link is not null
+        && Uri.TryCreate(link.Trim(), UriKind.Absolute, out Uri? uri)
+        && string.Equals(uri.Host, MusicHost, StringComparison.OrdinalIgnoreCase);
 
     public static bool IsMusic(string? category, string? author) =>
         category is null

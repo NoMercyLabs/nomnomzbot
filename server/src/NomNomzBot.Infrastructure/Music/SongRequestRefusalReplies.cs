@@ -131,7 +131,7 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
             "TRACK_NOT_MUSIC" => ComposeAsync(
                 context,
                 BuiltinResponseSlots.SongRequest.NotMusic,
-                "That video isn't music, so it can't be requested. Send a link to a song.",
+                "That video can't be requested: it isn't in YouTube's Music category and it isn't from an official artist (- Topic) channel. Send a YouTube Music or Spotify link, or a song name.",
                 null,
                 ct
             ),
