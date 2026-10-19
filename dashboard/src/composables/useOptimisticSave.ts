@@ -22,8 +22,8 @@ export interface OptimisticSaveOptions<TData, TVariables> {
   queryKey: QueryKey | ((variables: TVariables) => QueryKey);
   // Sends the change. What it returns is the value the server now holds.
   mutationFn: (variables: TVariables) => Promise<TData>;
-  // The cached value as it looks once the change is accepted.
-  apply: (current: TData | undefined, variables: TVariables) => TData;
+  // The cached value as it looks once the change is accepted. With nothing cached yet, returning undefined leaves the entry empty.
+  apply: (current: TData | undefined, variables: TVariables) => TData | undefined;
   titleKey?: string;
   messageKey?: string;
   // What the change was, in words, for the error inbox when it fails.

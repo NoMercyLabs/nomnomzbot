@@ -22,6 +22,7 @@ import {
   useMusicQueue,
   useRemoveQueueItem,
   useSaveMusicConfig,
+  useSetRequestsOpen,
   type MusicConfig,
   type MusicQueue,
 } from '../music';
@@ -198,6 +199,30 @@ describe('useRemoveQueueItem', () => {
   });
 });
 
+describe('useSetRequestsOpen', () => {
+  it('flips only the cached flag, and invents no queue when nothing is cached', async () => {
+    let release: (value: unknown) => void = () => undefined;
+    const held = new Promise((done) => {
+      release = done;
+    });
+
+    http.PUT.mockReturnValue(held);
+    http.GET.mockResolvedValue({ data: { data: { ...queue, requestsOpen: false } }, response: ok });
+
+    const { queries, hook } = mount(() => useSetRequestsOpen(channel));
+    const sent: Promise<unknown> = hook.mutateAsync({ open: false });
+
+    await settle();
+
+    expect(queries.getQueryData<MusicQueue>(musicQueueKey(channel))).toBeUndefined();
+
+    release({ response: ok });
+    await sent;
+
+    expect(queries.getQueryData<MusicQueue>(musicQueueKey(channel))?.requestsOpen).toBe(false);
+  });
+});
+
 describe('useSaveMusicConfig', () => {
   it('sends only the changed fields in the PUT body and caches the config the bot returns', async () => {
     const saved: MusicConfig = { ...config, maxRequestsPerUser: 1 };
@@ -252,6 +277,16 @@ describe('reads', () => {
 
     expect(hook.data.value).toBeUndefined();
     expect(hook.error.value?.message).toBe('music queue 403');
+  });
+
+  it('a queue answer without data is an error, never an invented open queue', async () => {
+    http.GET.mockResolvedValue({ response: ok });
+
+    const { hook } = mount(() => useMusicQueue(channel));
+
+    await vi.waitFor(() => expect(hook.isError.value).toBe(true));
+
+    expect(hook.data.value).toBeUndefined();
   });
 
   it('keys are per channel so one streamer never reads another cache entry', () => {
