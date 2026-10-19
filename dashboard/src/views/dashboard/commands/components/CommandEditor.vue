@@ -28,6 +28,7 @@ import {
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import DetailClose from './DetailClose.vue';
 import ReplyModeField from '@/components/layout/ReplyModeField.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Button } from '@/components/ui/button';
@@ -60,7 +61,7 @@ import { presetChanges } from './presetDiff';
 import TriggerFields from './TriggerFields.vue';
 
 const props = defineProps<{ row: CommandListItem }>();
-const emit = defineEmits<{ remove: [name: string] }>();
+const emit = defineEmits<{ remove: [name: string]; close: [] }>();
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
@@ -229,6 +230,7 @@ function remove(): void {
         :model-value="row.isEnabled"
         @update:model-value="toggle.mutate({ commandName: row.name, isEnabled: $event })"
       />
+      <DetailClose @click="emit('close')" />
     </template>
     <div class="grid gap-5">
       <!-- Who may trigger it comes first: it decides whether the reaction below ever runs. -->

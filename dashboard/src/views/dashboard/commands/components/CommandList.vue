@@ -16,8 +16,11 @@ import {
   triggerWord,
   useBuiltins,
   useCommands,
+  useToggleBuiltin,
+  useToggleCommand,
   type CommandListItem,
 } from '@/api/commands';
+import { Switch } from '@/components/ui/switch';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import SearchField from '@/components/layout/SearchField.vue';
@@ -53,6 +56,8 @@ const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const commands = useCommands(channelId);
 const builtins = useBuiltins(channelId);
+const toggleCommand = useToggleCommand(channelId);
+const toggleBuiltin = useToggleBuiltin(channelId);
 
 const search = ref('');
 
@@ -66,9 +71,7 @@ const state = computed<PanelState>(() =>
 const none = computed<boolean>(() => panel.value === 'empty');
 
 function matches(row: CommandListItem, needle: string): boolean {
-  return [row.name, ...row.aliases].some((word): boolean =>
-    word.toLowerCase().includes(needle),
-  );
+  return [row.name, ...row.aliases].some((word): boolean => word.toLowerCase().includes(needle));
 }
 
 // One list row: a custom command, or a built-in one when the page shows all. A built-in has no use count.
@@ -79,6 +82,8 @@ type ListRow = {
   isEnabled: boolean;
   uses: number;
   builtin: boolean;
+  builtinKey: string;
+  reserved: boolean;
 };
 
 const needle = computed<string>(() => search.value.trim().replace(/^!+/, '').toLowerCase());
@@ -86,14 +91,20 @@ const needle = computed<string>(() => search.value.trim().replace(/^!+/, '').toL
 const customRows = computed<ListRow[]>(() =>
   (commands.data.value ?? [])
     .filter((row): boolean => matches(row, needle.value))
-    .map((row) => ({
-      key: row.id,
-      name: row.name,
-      detail: detailOf(row),
-      isEnabled: row.isEnabled,
-      uses: Number(row.useCount),
-      builtin: false,
-    }) as const satisfies ListRow));
+    .map(
+      (row) =>
+        ({
+          key: row.id,
+          name: row.name,
+          detail: detailOf(row),
+          isEnabled: row.isEnabled,
+          uses: Number(row.useCount),
+          builtin: false,
+          builtinKey: '',
+          reserved: false,
+        }) as const satisfies ListRow,
+    ),
+);
 
 const builtinRows = computed<ListRow[]>(() => {
   if (!props.withBuiltins)
@@ -101,27 +112,45 @@ const builtinRows = computed<ListRow[]>(() => {
 
   return (builtins.data.value ?? [])
     .filter((row): boolean => triggerWord(row).toLowerCase().includes(needle.value))
-    .map((row) => ({
-      key: `builtin:${row.builtinKey}`,
-      name: triggerWord(row),
-      detail: t('dashboard.commands.list.kindBuiltin'),
-      isEnabled: row.isEnabled,
-      uses: -1,
-      builtin: true,
-    }) as const satisfies ListRow);
+    .map(
+      (row) =>
+        ({
+          key: `builtin:${row.builtinKey}`,
+          name: triggerWord(row),
+          detail: t('dashboard.commands.list.kindBuiltin'),
+          isEnabled: row.isEnabled,
+          uses: -1,
+          builtin: true,
+          builtinKey: row.builtinKey,
+          reserved: row.isReserved,
+        }) as const satisfies ListRow,
+    );
 });
 
 const rows = computed<ListRow[]>(() =>
-  merge(customRows.value, builtinRows.value).slice().sort((left: ListRow, right: ListRow): number =>
-    props.sort === 'name'
-      ? left.name.localeCompare(right.name)
-      : right.uses - left.uses,
-  ));
+  merge(customRows.value, builtinRows.value)
+    .slice()
+    .sort((left: ListRow, right: ListRow): number =>
+      props.sort === 'name'
+        ? left.name.localeCompare(right.name)
+        : right.uses - left.uses,
+    ),
+);
 
 function isSelected(row: ListRow): boolean {
   return row.builtin
     ? row.name === props.selectedBuiltin
     : row.name === props.selected;
+}
+
+function toggle(row: ListRow, enabled: boolean): void {
+  if (row.builtin) {
+    toggleBuiltin.mutate({ builtinKey: row.builtinKey, enabled });
+
+    return;
+  }
+
+  toggleCommand.mutate({ commandName: row.name, isEnabled: enabled });
 }
 
 function pick(row: ListRow): void {
@@ -176,13 +205,13 @@ function detailOf(row: CommandListItem): string {
         data-slot="panel-empty"
         class="flex h-full flex-col items-center justify-center gap-3 p-4 text-center text-sm text-muted-foreground"
       >
-        {{ $t('dashboard.commands.list.empty') }}
+        {{ $t("dashboard.commands.list.empty") }}
         <Button v-if="can('commands:write')" type="button" size="sm" @click="emit('create')">{{
-          $t('dashboard.commands.list.makeFirst')
+          $t("dashboard.commands.list.makeFirst")
         }}</Button>
       </div>
       <p v-else-if="rows.length === 0" class="p-4 text-center text-sm text-muted-foreground">
-        {{ $t('dashboard.commands.list.noMatch') }}
+        {{ $t("dashboard.commands.list.noMatch") }}
       </p>
       <SummaryRow
         v-for="row in rows"
@@ -199,6 +228,14 @@ function detailOf(row: CommandListItem): string {
       >
         <template v-if="!row.isEnabled" #end>
           <StatusBadge tone="off" :label="$t('dashboard.commands.list.off')" />
+        </template>
+        <template v-if="can('commands:write')" #trailing>
+          <Switch
+            :model-value="row.isEnabled"
+            :disabled="row.reserved"
+            :aria-label="`!${row.name}`"
+            @update:model-value="toggle(row, $event)"
+          />
         </template>
       </SummaryRow>
     </PanelCard>

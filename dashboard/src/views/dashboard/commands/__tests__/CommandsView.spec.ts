@@ -1312,3 +1312,106 @@ describe('CommandsView permission gating', () => {
     expect(buttonByText('Make the first command')).toBeUndefined();
   });
 });
+
+const rowSwitch = (name: string): HTMLButtonElement | null =>
+  rowEls()
+    .find((row) => row.dataset.commandName === name)!
+    .parentElement!.querySelector('button[role="switch"]');
+const closeButton = (): HTMLButtonElement | null =>
+  document.body.querySelector<HTMLButtonElement>('[data-detail-close]');
+
+const pressEscape = async (target: EventTarget = document.body): Promise<void> => {
+  target.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+  await settle();
+};
+
+describe('CommandsView closing the open command', () => {
+  it('closes an open custom command from the close button, clearing the address', async () => {
+    await open('/app/commands?command=hello');
+
+    expect(closeButton()).not.toBeNull();
+    closeButton()!.click();
+    await settle();
+
+    expect(router.currentRoute.value.query.command).toBeUndefined();
+    expect(editor()).toBeNull();
+  });
+
+  it('closes an open built-in from the close button, clearing the address', async () => {
+    await open('/app/commands?view=builtin&builtin=uptime');
+
+    expect(document.body.querySelector('[data-builtin-detail]')).not.toBeNull();
+    closeButton()!.click();
+    await settle();
+
+    expect(router.currentRoute.value.query.builtin).toBeUndefined();
+    expect(router.currentRoute.value.query.view).toBe('builtin');
+    expect(document.body.querySelector('[data-builtin-detail]')).toBeNull();
+  });
+
+  it('closes the open command on Escape, but leaves it when Escape was meant for the reply field', async () => {
+    await open('/app/commands?command=hello');
+    await pressEscape(reply());
+
+    expect(router.currentRoute.value.query.command).toBe('hello');
+    await pressEscape();
+
+    expect(router.currentRoute.value.query.command).toBeUndefined();
+    expect(editor()).toBeNull();
+  });
+});
+
+describe('CommandsView built-in search', () => {
+  it('filters the built-in list by name and says so when nothing matches', async () => {
+    await open('/app/commands?view=builtin');
+    const search = document.body.querySelector<HTMLInputElement>(
+      '[data-slot="search-field"] input',
+    )!;
+
+    await type(search, 'shout');
+    const titles = (): string[] =>
+      [...document.body.querySelectorAll('[data-builtin-row]')].map(
+        (row) => row.querySelector('[data-slot="summary-row-title"]')!.textContent!,
+      );
+
+    expect(titles()).toEqual(['!shoutout']);
+    await type(search, '!UPT');
+    expect(titles()).toEqual(['!uptime']);
+    await type(search, 'zzz');
+    expect(titles()).toEqual([]);
+    expect(document.body.textContent).toContain('No command matches');
+  });
+});
+
+describe('CommandsView switches in the All list', () => {
+  it('switches a custom command with a PUT of isEnabled only', async () => {
+    await open();
+
+    expect(rowSwitch('hello')!.getAttribute('aria-checked')).toBe('true');
+    expect(rowSwitch('socials')!.getAttribute('aria-checked')).toBe('false');
+    rowSwitch('hello')!.click();
+    await settle();
+
+    expect(writes('PUT')).toHaveLength(1);
+    expect(writes('PUT')[0]!.name).toBe('hello');
+    expect(writes('PUT')[0]!.body).toEqual({ isEnabled: false });
+  });
+
+  it('switches a built-in command with a PATCH, and locks a reserved one', async () => {
+    await open();
+    rowSwitch('uptime')!.click();
+    await settle();
+
+    expect(writes('PATCH')).toHaveLength(1);
+    expect(writes('PATCH')[0]!.name).toBe('uptime');
+    expect(writes('PATCH')[0]!.body).toEqual({ enabled: false });
+    expect(rowSwitch('mydata')!.disabled).toBe(true);
+  });
+
+  it('shows no switches to a reader', async () => {
+    held = ['commands:read'];
+    await open();
+
+    expect(rowSwitch('hello')).toBeNull();
+  });
+});

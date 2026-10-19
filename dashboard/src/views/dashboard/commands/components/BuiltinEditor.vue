@@ -26,6 +26,7 @@ import {
   type BuiltinReply,
 } from '@/api/commands';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import DetailClose from './DetailClose.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
@@ -47,6 +48,7 @@ import { useLocalizedText } from '@/composables/useLocalizedText';
 import { rungNames } from '@/api/permissions';
 
 const props = defineProps<{ builtin: BuiltinCommand }>();
+const emit = defineEmits<{ close: [] }>();
 
 type Draft = {
   cooldown: number;
@@ -267,6 +269,9 @@ const unsaved = computed<string>(() =>
     :title="`!${triggerWord(builtin)}`"
     :description="$t('dashboard.commands.list.kindBuiltin')"
   >
+    <template #actions>
+      <DetailClose @click="emit('close')" />
+    </template>
     <div class="grid gap-5">
       <RowGroup>
         <SettingRow

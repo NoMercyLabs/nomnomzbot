@@ -9,7 +9,7 @@
 -->
 <script setup lang="ts">
 import Plus from '~icons/nnz/add';
-import { useLocalStorage } from '@vueuse/core';
+import { useEventListener, useLocalStorage } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -33,6 +33,7 @@ import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
+import { isTyping } from '@/composables/useShortcut';
 
 import BuiltinEditor from './components/BuiltinEditor.vue';
 import BuiltinList from './components/BuiltinList.vue';
@@ -121,6 +122,22 @@ function removeCommand(name: string): void {
   remove.mutate({ commandName: name });
 }
 
+// Escape closes the open command, as the close button and browser Back do. A key meant for a field, an
+// open menu or a dialog stays there.
+function closeOnEscape(event: KeyboardEvent): void {
+  if (
+    event.key !== 'Escape' ||
+    event.defaultPrevented ||
+    !open.value ||
+    isTyping(event.target) ||
+    document.querySelector('[data-dismissable-layer]:not([data-state="closed"])') !== null
+  ) return;
+
+  select(undefined);
+}
+
+useEventListener(document, 'keydown', closeOnEscape);
+
 const creating = ref(false);
 </script>
 
@@ -171,7 +188,12 @@ const creating = ref(false);
           :label="$t('dashboard.commands.back')"
           @click="select(undefined)"
         />
-        <CommandEditor :key="row.name" :row="row" @remove="removeCommand" />
+        <CommandEditor
+          :key="row.name"
+          :row="row"
+          @remove="removeCommand"
+          @close="select(undefined)"
+        />
       </div>
       <div v-else-if="builtin && view !== 'custom'" class="flex flex-1 flex-col gap-2 md:min-h-0">
         <BackLink
@@ -181,7 +203,12 @@ const creating = ref(false);
           :label="$t('dashboard.commands.back')"
           @click="select(undefined)"
         />
-        <BuiltinEditor :key="builtin.builtinKey" data-builtin-detail :builtin="builtin" />
+        <BuiltinEditor
+          :key="builtin.builtinKey"
+          data-builtin-detail
+          :builtin="builtin"
+          @close="select(undefined)"
+        />
       </div>
       <PanelCard
         v-else

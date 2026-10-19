@@ -10,13 +10,14 @@
 <script setup lang="ts">
 // The commands the bot ships with. A row opens the command's editor; the switch beside it turns the
 // command on or off. The row shows who may use it, its cooldowns and whether the channel changed them.
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { triggerWord, useBuiltins, useToggleBuiltin, type BuiltinCommand } from '@/api/commands';
+import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import SearchField from '@/components/layout/SearchField.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
-import { Switch } from '@/components/ui/switch';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -28,7 +29,14 @@ const { channelId } = useCurrentChannel();
 const builtins = useBuiltins(channelId);
 const toggle = useToggleBuiltin(channelId);
 
-const rows = computed<BuiltinCommand[]>(() => builtins.data.value ?? []);
+const search = ref('');
+const needle = computed<string>(() => search.value.trim().replace(/^!+/, '').toLowerCase());
+
+const rows = computed<BuiltinCommand[]>(() =>
+  (builtins.data.value ?? []).filter((row): boolean =>
+    triggerWord(row).toLowerCase().includes(needle.value),
+  ),
+);
 
 type Settings = {
   role: string;
@@ -84,8 +92,20 @@ const state = usePanelState(builtins, (data: BuiltinCommand[]): boolean =>
     :error-text="$t('dashboard.commands.builtin.error')"
     @retry="builtins.refetch()"
   >
+    <template #actions>
+      <!-- Concentric with the panel corner, as in the command list: a 12px radius. -->
+      <SearchField
+        v-model="search"
+        class="-mr-2 w-52 rounded-[12px]"
+        :placeholder="$t('dashboard.commands.list.search')"
+      />
+    </template>
+    <p v-if="rows.length === 0" class="p-4 text-center text-sm text-muted-foreground">
+      {{ $t("dashboard.commands.list.noMatch") }}
+    </p>
     <SummaryRow
       v-for="row in rows"
+      v-else
       :key="row.builtinKey"
       pick
       chevron
@@ -97,7 +117,8 @@ const state = usePanelState(builtins, (data: BuiltinCommand[]): boolean =>
       @click="emit('pick', triggerWord(row))"
     >
       <template #trailing>
-        <Switch
+        <GatedSwitch
+          action="commands:write"
           :model-value="row.isEnabled"
           :disabled="row.isReserved"
           :aria-label="`!${triggerWord(row)}`"
