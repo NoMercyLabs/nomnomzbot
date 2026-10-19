@@ -66,7 +66,8 @@ export function targetFromWire(wire: WireTarget | null | undefined): PickedTarge
 
 // A null target is sent as an empty pipeline: that is how the server clears a binding.
 // Leaving the field out would leave the row unchanged.
-export function targetToWire(target: PickedTarget | null): WireTarget {
+// The server reads the kind as an integer only; the name form is accepted on the way in, never sent.
+export function targetToWire(target: PickedTarget | null): WireTarget & { kind: number } {
   if (target === null)
     return { kind: targetKindToWire('pipeline'), id: '' };
 
@@ -94,4 +95,26 @@ export function targetLabel(
     return `!${names.commands.get(target.id) ?? target.id}`;
 
   return names.pipelines.get(target.id) ?? target.id;
+}
+
+// What a row is bound to: its target when the server sent one, else the pipeline id older rows carry.
+export function boundTarget(
+  wire: WireTarget | null | undefined,
+  pipelineId: string | null | undefined,
+): PickedTarget | null {
+  const fromWire = targetFromWire(wire);
+
+  if (fromWire !== null)
+    return fromWire;
+
+  return pipelineId
+    ? { kind: 'pipeline', id: pipelineId }
+    : null;
+}
+
+export function sameTarget(left: PickedTarget | null, right: PickedTarget | null): boolean {
+  if (left === null || right === null)
+    return left === right;
+
+  return left.kind === right.kind && left.id === right.id && left.actionType === right.actionType;
 }

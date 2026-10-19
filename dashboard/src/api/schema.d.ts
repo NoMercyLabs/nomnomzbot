@@ -80236,6 +80236,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/tts/history": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The spoken history, newest first. `limit` (default 50, at most 100) sizes the page; `before` is the
+         *     `nextBefore` of the previous page and returns only older rows.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    limit?: number | string;
+                    before?: number | string;
+                };
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfTtsHistoryPage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/tts/name-pronunciation": {
         parameters: {
             query?: never;
@@ -101976,6 +102075,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseOfTtsHistoryPage: {
+            status?: string;
+            data?: null | components["schemas"]["TtsHistoryPage"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseOfTtsLexiconEntry: {
             status?: string;
             data?: null | components["schemas"]["TtsLexiconEntry"];
@@ -103572,6 +103684,29 @@ export interface components {
             /** Format: int32 */
             durationMs: number | string;
             playbackUrl?: null | string;
+        };
+        /**
+         * @description One spoken utterance in the channel's TTS history. Text is null for rows written before the
+         *     text was stored. Id is the row's cursor value.
+         */
+        TtsHistoryEntry: {
+            /** Format: int32 */
+            id: number | string;
+            text?: null | string;
+            voiceId: string;
+            provider: string;
+            requestedByUserId: string;
+            /** Format: date-time */
+            occurredAt: string;
+        };
+        /**
+         * @description A newest-first page of the TTS history. NextBefore is the `before` value that fetches
+         *     the next older page, or null when this page reaches the oldest row.
+         */
+        TtsHistoryPage: {
+            items: components["schemas"]["TtsHistoryEntry"][];
+            /** Format: int32 */
+            nextBefore?: null | number | string;
         };
         /** @description One pronunciation-lexicon rule: when Phrase appears in an utterance, TTS speaks Replacement. */
         TtsLexiconEntry: {

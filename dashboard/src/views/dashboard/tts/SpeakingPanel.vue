@@ -86,7 +86,7 @@ const modes = computed(() =>
 
 // The free bot voice runs on the keyless provider; my own key runs on the providers that need a key. A provider
 // the other source cannot use is not offered, except the one already stored, so the row never hides what is set.
-const KEYLESS_PROVIDERS = ['edge'] as const satisfies readonly string[];
+const KEYLESS_PROVIDERS: readonly string[] = ['edge'];
 
 const providers = computed(() => {
   const source = stored.value?.mode;
