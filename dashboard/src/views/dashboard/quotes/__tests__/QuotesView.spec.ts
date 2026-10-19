@@ -282,6 +282,64 @@ describe('QuotesView', () => {
     expect(document.querySelector('[data-random-quote]')?.textContent).toContain('Pick me');
   });
 
+  it('leads each row with its number as a muted tabular column beside the text block', async () => {
+    quotes = [quote(2, 'Never again', 'Kitte')];
+    await open();
+
+    const body = document.querySelector('[data-quote-row]');
+    const lead = body?.firstElementChild;
+
+    expect(body?.getAttribute('data-slot')).toBe('summary-row-body');
+    expect(lead?.textContent).toBe('#2');
+    expect(lead?.classList.contains('tabular-nums')).toBe(true);
+    expect(lead?.classList.contains('text-muted-foreground')).toBe(true);
+    expect(lead?.nextElementSibling?.getAttribute('data-slot')).toBe('summary-row-text');
+  });
+
+  it('puts the quote on the title line and the speaker, game and date on the detail line', async () => {
+    quotes = [quote(2, 'Never again', 'Kitte')];
+    await open();
+
+    const body = document.querySelector('[data-quote-row]');
+    const title = body?.querySelector('[data-slot="summary-row-title"]');
+    const detail = title?.nextElementSibling;
+
+    expect(title?.textContent).toBe('Never again');
+    expect(detail?.textContent).toContain('Kitte');
+    expect(detail?.textContent).toContain('Elden Ring');
+  });
+
+  it('keeps edit and delete in the trailing slot as icon buttons with 20px icons', async () => {
+    quotes = [quote(2, 'Never again', 'Kitte')];
+    await open();
+
+    const body = document.querySelector('[data-quote-row]');
+    const trailing = body?.parentElement?.querySelector('[data-slot="summary-row-trailing"]');
+    const buttons = Array.from(trailing?.querySelectorAll('button') ?? []);
+
+    expect(buttons.map((button) => button.getAttribute('data-size'))).toEqual(['icon', 'icon']);
+    expect(buttons.map((button) => button.hasAttribute('data-quote-edit'))).toEqual([true, false]);
+    expect(buttons.map((button) => button.hasAttribute('data-quote-delete'))).toEqual([false, true]);
+
+    const icons = buttons.map((button) => button.querySelector('svg')?.classList.contains('size-5'));
+
+    expect(icons).toEqual([true, true]);
+  });
+
+  it('shows the random quote in the same row layout, without row actions', async () => {
+    quotes = [quote(5, 'Pick me', 'Kitte')];
+    await open();
+
+    document.querySelector<HTMLElement>('[data-quote-random]')?.click();
+    await settle();
+
+    const body = document.querySelector('[data-random-quote]');
+
+    expect(body?.getAttribute('data-slot')).toBe('summary-row-body');
+    expect(body?.firstElementChild?.textContent).toBe('#5');
+    expect(body?.parentElement?.querySelector('[data-slot="summary-row-trailing"]')).toBeNull();
+  });
+
   it('shows a reader the quotes but no add, edit or delete button', async () => {
     held.keys = new Set(['quotes:read']);
     await open();

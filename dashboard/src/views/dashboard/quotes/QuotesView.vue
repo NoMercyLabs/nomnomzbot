@@ -20,24 +20,23 @@ import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { errorText } from '@/lib/errors';
-import { shortDate } from '@/lib/time';
 
 import Plus from '~icons/nnz/add';
 import Dices from '~icons/nnz/dices';
-import Edit from '~icons/nnz/edit';
-import Trash from '~icons/nnz/trash';
 
 import QuoteDialog from './QuoteDialog.vue';
+import QuoteRow from './QuoteRow.vue';
 
 const pageSize = 50;
 
-const { t, n, locale } = useI18n();
+const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 
@@ -101,24 +100,6 @@ async function pickRandom(): Promise<void> {
   }
 }
 
-function attribution(item: Quote): string {
-  const parts: string[] = [];
-
-  if (item.quotedDisplayName) {
-    parts.push(item.quotedDisplayName);
-  }
-
-  if (item.contextGame) {
-    parts.push(item.contextGame);
-  }
-
-  if (item.quotedAt) {
-    parts.push(shortDate(item.quotedAt, locale.value));
-  }
-
-  return parts.join(' · ');
-}
-
 function loadMore(): void {
   limit.value += pageSize;
 }
@@ -151,11 +132,9 @@ function loadMore(): void {
   </PageHeader>
   <PageBody>
     <p v-if="actionError" role="alert" class="text-sm text-destructive">{{ actionError }}</p>
-    <blockquote v-if="random" data-random-quote class="rounded-lg border bg-card p-3 text-sm">
-      <span class="font-medium tabular-nums">{{ t("dashboard.quotes.numberLabel", { number: n(Number(random.number)) }) }}</span>
-      {{ random.text }}
-      <span v-if="attribution(random)" class="block text-muted-foreground">{{ attribution(random) }}</span>
-    </blockquote>
+    <RowGroup v-if="random">
+      <QuoteRow :quote="random" data-random-quote />
+    </RowGroup>
     <Input
       v-model="search"
       type="search"
@@ -171,44 +150,15 @@ function loadMore(): void {
       :error-text="t('dashboard.quotes.error')"
       @retry="quotes.refetch()"
     >
-      <ul class="divide-y">
-        <li
-          v-for="item in rows"
-          :key="item.id"
-          data-quote-row
-          class="flex items-start gap-3 py-3 first:pt-0 last:pb-0"
-        >
-          <span class="w-10 flex-none text-sm text-muted-foreground tabular-nums">{{ t("dashboard.quotes.numberLabel", { number: n(Number(item.number)) }) }}</span>
-          <div class="flex min-w-0 flex-1 flex-col gap-0.5">
-            <span class="wrap-break-word">{{ item.text }}</span>
-            <span v-if="attribution(item)" class="text-sm text-muted-foreground">{{ attribution(item) }}</span>
-          </div>
-          <div class="flex items-center gap-1">
-            <Button
-              v-if="can('quotes:write')"
-              variant="ghost"
-              size="icon"
-              data-quote-edit
-              :aria-label="t('dashboard.quotes.edit', { number: Number(item.number) })"
-              :title="t('dashboard.quotes.edit', { number: Number(item.number) })"
-              @click="openDialog(item)"
-            >
-              <Edit class="size-5" />
-            </Button>
-            <Button
-              v-if="can('quotes:delete')"
-              variant="ghost"
-              size="icon"
-              data-quote-delete
-              :aria-label="t('dashboard.quotes.delete.title', { number: Number(item.number) })"
-              :title="t('dashboard.quotes.delete.title', { number: Number(item.number) })"
-              @click="askDelete(item)"
-            >
-              <Trash class="size-5" />
-            </Button>
-          </div>
-        </li>
-      </ul>
+      <QuoteRow
+        v-for="item in rows"
+        :key="item.id"
+        :quote="item"
+        actions
+        data-quote-row
+        @edit="openDialog(item)"
+        @remove="askDelete(item)"
+      />
       <div v-if="hasMore" class="pt-3">
         <Button type="button"
                 variant="outline"
