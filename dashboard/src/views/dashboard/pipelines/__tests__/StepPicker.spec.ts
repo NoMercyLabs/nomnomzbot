@@ -285,6 +285,7 @@ describe('the step form for script and playlist settings', () => {
         },
         condition: null,
         continue_on_error: false,
+        stop_on_match: false,
       },
       {
         type: 'x',

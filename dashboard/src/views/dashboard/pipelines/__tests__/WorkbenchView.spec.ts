@@ -39,6 +39,7 @@ function step(over: Partial<PipelineStep>): PipelineStep {
     action: { type: 'send_message', message: 'hi' },
     condition: null,
     continue_on_error: false,
+    stop_on_match: false,
     ...over,
   };
 }
@@ -814,6 +815,50 @@ describe('changing the steps', () => {
     expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[1]?.continue_on_error).toBe(true);
   });
 
+  it('locks stop-on-match with a reason until the step has a condition', async () => {
+    await open();
+    await press('[data-step-id="hi"] button');
+
+    const toggle = document.body.querySelector<HTMLButtonElement>(
+      '[data-step-field="stop_on_match"] button[role="switch"]',
+    )!;
+
+    expect(toggle.disabled).toBe(true);
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+
+    expect(document.body.querySelector('[data-step-field="stop_on_match"]')?.textContent).toContain(
+      en.dashboard.pipelines.workbench.inspector.stopOnMatchNeedsCondition,
+    );
+
+    toggle.click();
+    await flushPromises();
+
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+
+    expect(document.body.querySelector('[data-workbench-save]')?.hasAttribute('disabled')).toBe(
+      true,
+    );
+  });
+
+  it('saves stop-on-match on a step that has a condition', async () => {
+    await open();
+    await press('[data-step-id="check"] button');
+
+    const toggle = document.body.querySelector<HTMLButtonElement>(
+      '[data-step-field="stop_on_match"] button[role="switch"]',
+    )!;
+
+    expect(toggle.disabled).toBe(false);
+    expect(toggle.getAttribute('aria-checked')).toBe('false');
+
+    toggle.click();
+    await flushPromises();
+    await press('[data-workbench-save]');
+
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[0]?.stop_on_match).toBe(true);
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[0]?.condition?.operator).toBe('gt');
+  });
+
   it('gives a new repeat its own settings, starting at once', async () => {
     await open();
     await press('[data-workbench-add]');
@@ -829,6 +874,7 @@ describe('changing the steps', () => {
       'max_iterations',
       'max_loop_runtime_seconds',
       'continue_on_error',
+      'stop_on_match',
     ]);
 
     expect(fieldInput('count').value).toBe('1');

@@ -71,6 +71,7 @@ export type PipelineStep = {
   action: PipelineAction;
   condition: PipelineCondition | null;
   continue_on_error: boolean;
+  stop_on_match: boolean;
 };
 
 export type PipelineGraph = { steps: PipelineStep[] };
@@ -141,6 +142,7 @@ function parseStep(step: WireStep) {
     action: step.action ?? { type: '' },
     condition: step.condition ?? null,
     continue_on_error: step.continue_on_error ?? false,
+    stop_on_match: step.stop_on_match ?? false,
   } as const satisfies PipelineStep;
 }
 

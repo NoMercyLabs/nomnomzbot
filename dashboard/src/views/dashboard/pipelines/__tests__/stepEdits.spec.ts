@@ -33,6 +33,7 @@ function step(over: Partial<PipelineStep>): PipelineStep {
     action: { type: 'send_message', message: 'hi' },
     condition: null,
     continue_on_error: false,
+    stop_on_match: false,
     ...over,
   };
 }

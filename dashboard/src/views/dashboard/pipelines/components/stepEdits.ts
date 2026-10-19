@@ -150,6 +150,7 @@ export type StepPatch = {
   action?: JsonObject;
   block_config?: JsonObject;
   continue_on_error?: boolean;
+  stop_on_match?: boolean;
 };
 
 function withSettings<T extends object>(current: T, change: JsonObject): T {
@@ -172,6 +173,7 @@ function patched(step: PipelineStep, patch: StepPatch) {
       ? withSettings(step.block_config ?? {}, patch.block_config)
       : step.block_config,
     continue_on_error: patch.continue_on_error ?? step.continue_on_error,
+    stop_on_match: patch.stop_on_match ?? step.stop_on_match,
   } as const satisfies PipelineStep;
 }
 

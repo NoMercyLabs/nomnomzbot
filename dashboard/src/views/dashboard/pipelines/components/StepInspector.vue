@@ -85,13 +85,37 @@ const keepGoing = computed<FieldRow>(() => ({
   target: 'step',
 }));
 
+// Stopping at a match needs a condition: without one the step always runs and there is nothing to match.
+const stopOnMatch = computed<FieldRow>(() => {
+  const hasCondition = props.step.condition !== null;
+
+  return {
+    name: 'stop_on_match',
+    label: t(`${page}.inspector.stopOnMatch`),
+    kind: 'boolean',
+    control: 'switch',
+    value: props.step.stop_on_match,
+    help: hasCondition
+      ? t(`${page}.inspector.stopOnMatchHelp`)
+      : t(`${page}.inspector.stopOnMatchNeedsCondition`),
+    choices: [],
+    required: false,
+    templated: false,
+    target: 'step',
+    disabled: !hasCondition,
+  };
+});
+
 function change(row: FieldRow, value: JsonValue | undefined): void {
-  emit(
-    'patch',
-    row.target === 'step'
-      ? { continue_on_error: value === true }
-      : { [row.target]: settingsAfter(fields.value, row, value) },
-  );
+  if (row.target !== 'step') {
+    emit('patch', { [row.target]: settingsAfter(fields.value, row, value) });
+
+    return;
+  }
+
+  emit('patch', row.name === 'stop_on_match'
+    ? { stop_on_match: value === true }
+    : { continue_on_error: value === true });
 }
 
 const declares = computed(() =>
@@ -150,6 +174,11 @@ const sentence = computed(() => stepSentence(props.descriptor, text));
               :key="`${step.id}:keep-going`"
               :row="keepGoing"
               @change="change(keepGoing, $event)"
+            />
+            <StepField
+              :key="`${step.id}:stop-on-match`"
+              :row="stopOnMatch"
+              @change="change(stopOnMatch, $event)"
             />
           </FieldGroup>
         </ReadOnlyScope>

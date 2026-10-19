@@ -42,6 +42,7 @@ describe('a new step', () => {
       action: { type: 'send_message' },
       condition: null,
       continue_on_error: false,
+      stop_on_match: false,
     });
   });
 

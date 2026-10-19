@@ -80,10 +80,16 @@ function typed(event: Event): void {
     <FieldContent>
       <div class="flex items-center gap-1.5">
         <FieldLabel :for="id">{{ row.label }}</FieldLabel>
-        <FieldInfo v-if="row.help">{{ row.help }}</FieldInfo>
+        <FieldInfo v-if="row.help && !row.disabled">{{ row.help }}</FieldInfo>
       </div>
+      <p v-if="row.help && row.disabled" class="m-0 text-xs text-muted-foreground">{{ row.help }}</p>
     </FieldContent>
-    <Switch :id="id" :model-value="row.value === true" @update:model-value="emit('change', $event)" />
+    <Switch
+      :id="id"
+      :model-value="row.value === true"
+      :disabled="row.disabled === true"
+      @update:model-value="emit('change', $event)"
+    />
   </Field>
   <div
     v-else-if="row.templated && (row.control === 'line' || row.control === 'lines')"

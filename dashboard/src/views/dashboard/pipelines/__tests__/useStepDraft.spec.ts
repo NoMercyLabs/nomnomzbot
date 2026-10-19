@@ -26,6 +26,7 @@ function step(id: string, order: number): PipelineStep {
     action: { type: 'wait' },
     condition: null,
     continue_on_error: false,
+    stop_on_match: false,
   };
 }
 

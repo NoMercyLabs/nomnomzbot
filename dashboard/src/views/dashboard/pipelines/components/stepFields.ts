@@ -51,6 +51,8 @@ export type FieldRow = {
   templated: boolean;
   // Where the value lives: an action setting, a block setting, or a setting of the step itself.
   target: 'action' | 'block_config' | 'step';
+  // A locked control keeps its value but cannot be changed; the help says why.
+  disabled?: boolean;
 };
 
 const page = 'dashboard.pipelines.workbench';
