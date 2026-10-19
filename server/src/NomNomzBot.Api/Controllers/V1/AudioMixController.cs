@@ -35,7 +35,7 @@ public sealed class AudioMixController : BaseController
         _currentTenant = currentTenant;
     }
 
-    /// <summary>Read the channel's audio mix (100 and 100 until it is changed).</summary>
+    /// <summary>Read the channel's audio mix (the defaults and limits ride along, so the dashboard keeps no copy).</summary>
     [HttpGet]
     [RequireAction("sounds:read")]
     [ProducesResponseType<StatusResponseDto<ChannelAudioMixDto>>(StatusCodes.Status200OK)]

@@ -51,6 +51,25 @@ public sealed class AudioMixControllerTests
     }
 
     [Fact]
+    public async Task An_out_of_range_put_is_a_400_with_the_localized_key_and_stores_nothing()
+    {
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        AudioMixController controller = Build(db);
+
+        IActionResult result = await controller.Update(new(101, 50), CancellationToken.None);
+
+        result
+            .Should()
+            .BeOfType<BadRequestObjectResult>()
+            .Which.Value.Should()
+            .BeOfType<StatusResponseDto<object>>()
+            .Which.Message.Should()
+            .Be("audio_mix_master_volume_out_of_range");
+        ChannelAudioMixDto read = Body(await controller.Get(CancellationToken.None));
+        read.Should().Be(new ChannelAudioMixDto(100, 100));
+    }
+
+    [Fact]
     public async Task A_put_is_stored_and_the_next_get_returns_it()
     {
         await using WidgetTestDbContext db = WidgetTestDbContext.New();

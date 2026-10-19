@@ -18,8 +18,6 @@ namespace NomNomzBot.Infrastructure.Sound;
 
 internal sealed class ChannelAudioMixService(IApplicationDbContext db) : IChannelAudioMixService
 {
-    private const int Max = 100;
-
     public async Task<Result<ChannelAudioMixDto>> GetAsync(
         Guid broadcasterId,
         CancellationToken ct = default
@@ -29,7 +27,11 @@ internal sealed class ChannelAudioMixService(IApplicationDbContext db) : IChanne
             m => m.BroadcasterId == broadcasterId,
             ct
         );
-        return Result.Success(row is null ? new ChannelAudioMixDto(Max, Max) : ToDto(row));
+        return Result.Success(
+            row is null
+                ? new ChannelAudioMixDto(AudioMixDefaults.MasterVolume, AudioMixDefaults.TtsVolume)
+                : ToDto(row)
+        );
     }
 
     public async Task<Result<ChannelAudioMixDto>> UpdateAsync(
@@ -38,6 +40,17 @@ internal sealed class ChannelAudioMixService(IApplicationDbContext db) : IChanne
         CancellationToken ct = default
     )
     {
+        if (!IsInRange(request.MasterVolume))
+            return Result.Failure<ChannelAudioMixDto>(
+                "audio_mix_master_volume_out_of_range",
+                errorCode: "VALIDATION_FAILED"
+            );
+        if (!IsInRange(request.TtsVolume))
+            return Result.Failure<ChannelAudioMixDto>(
+                "audio_mix_tts_volume_out_of_range",
+                errorCode: "VALIDATION_FAILED"
+            );
+
         ChannelAudioMix? row = await db.ChannelAudioMixes.FirstOrDefaultAsync(
             m => m.BroadcasterId == broadcasterId,
             ct
@@ -47,11 +60,14 @@ internal sealed class ChannelAudioMixService(IApplicationDbContext db) : IChanne
             row = new() { BroadcasterId = broadcasterId };
             db.ChannelAudioMixes.Add(row);
         }
-        row.MasterVolume = Math.Clamp(request.MasterVolume, 0, Max);
-        row.TtsVolume = Math.Clamp(request.TtsVolume, 0, Max);
+        row.MasterVolume = request.MasterVolume;
+        row.TtsVolume = request.TtsVolume;
         await db.SaveChangesAsync(ct);
         return Result.Success(ToDto(row));
     }
+
+    private static bool IsInRange(int volume) =>
+        volume is >= AudioMixDefaults.MinVolume and <= AudioMixDefaults.MaxVolume;
 
     private static ChannelAudioMixDto ToDto(ChannelAudioMix row) =>
         new(row.MasterVolume, row.TtsVolume);

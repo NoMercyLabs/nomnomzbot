@@ -9,16 +9,20 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Sound.Entities;
 
 namespace NomNomzBot.Application.Sound.Services;
 
 /// <summary>The channel's overlay audio balance: a master volume and a text-to-speech volume, each 0..100.</summary>
 public interface IChannelAudioMixService
 {
-    /// <summary>The channel's mix; a channel with no stored row gets 100/100 and nothing is written.</summary>
+    /// <summary>The channel's mix; a channel with no stored row gets the defaults and nothing is written.</summary>
     Task<Result<ChannelAudioMixDto>> GetAsync(Guid broadcasterId, CancellationToken ct = default);
 
-    /// <summary>Stores the mix (each volume clamped to 0..100), creating the row on first write.</summary>
+    /// <summary>
+    /// Stores the mix, creating the row on first write. A volume outside the limits is refused with a
+    /// localized key (<c>audio_mix_master_volume_out_of_range</c> / <c>audio_mix_tts_volume_out_of_range</c>).
+    /// </summary>
     Task<Result<ChannelAudioMixDto>> UpdateAsync(
         Guid broadcasterId,
         UpdateChannelAudioMixRequest request,
@@ -30,6 +34,18 @@ public sealed record UpdateChannelAudioMixRequest(int MasterVolume, int TtsVolum
 
 public sealed record ChannelAudioMixDto(int MasterVolume, int TtsVolume)
 {
+    /// <summary>The master volume a channel with no saved mix gets; the dashboard shows it, never its own copy.</summary>
+    public int DefaultMasterVolume => AudioMixDefaults.MasterVolume;
+
+    /// <summary>The TTS volume a channel with no saved mix gets.</summary>
+    public int DefaultTtsVolume => AudioMixDefaults.TtsVolume;
+
+    /// <summary>Lowest accepted volume.</summary>
+    public int MinVolume => AudioMixDefaults.MinVolume;
+
+    /// <summary>Highest accepted volume.</summary>
+    public int MaxVolume => AudioMixDefaults.MaxVolume;
+
     /// <summary>A clip's own 0..100 volume scaled by the master volume.</summary>
     public int ApplyToClipVolume(int clipVolume) =>
         (int)Math.Round(clipVolume * MasterVolume / 100.0, MidpointRounding.AwayFromZero);

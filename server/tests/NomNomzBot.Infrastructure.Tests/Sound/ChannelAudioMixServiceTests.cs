@@ -41,23 +41,71 @@ public sealed class ChannelAudioMixServiceTests
         (await db.ChannelAudioMixes.CountAsync()).Should().Be(0);
     }
 
-    [Fact]
-    public async Task An_update_is_clamped_to_zero_through_one_hundred_and_persisted()
+    [Theory]
+    [InlineData(150, 50, "audio_mix_master_volume_out_of_range")]
+    [InlineData(-1, 50, "audio_mix_master_volume_out_of_range")]
+    [InlineData(50, 101, "audio_mix_tts_volume_out_of_range")]
+    [InlineData(50, -20, "audio_mix_tts_volume_out_of_range")]
+    public async Task An_out_of_range_volume_is_refused_with_a_localized_key_and_nothing_is_stored(
+        int master,
+        int tts,
+        string expectedKey
+    )
     {
         await using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
         ChannelAudioMixService service = new(db);
 
         Result<ChannelAudioMixDto> updated = await service.UpdateAsync(
             ChannelA,
-            new UpdateChannelAudioMixRequest(150, -20)
+            new UpdateChannelAudioMixRequest(master, tts)
+        );
+
+        updated.IsSuccess.Should().BeFalse();
+        updated.ErrorMessage.Should().Be(expectedKey);
+        updated.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await db.ChannelAudioMixes.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task The_limits_themselves_are_accepted_and_persisted()
+    {
+        await using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        ChannelAudioMixService service = new(db);
+
+        Result<ChannelAudioMixDto> updated = await service.UpdateAsync(
+            ChannelA,
+            new UpdateChannelAudioMixRequest(AudioMixDefaults.MaxVolume, AudioMixDefaults.MinVolume)
         );
 
         updated.IsSuccess.Should().BeTrue(updated.ErrorMessage);
-        updated.Value.Should().Be(new ChannelAudioMixDto(100, 0));
         ChannelAudioMix row = await db.ChannelAudioMixes.SingleAsync();
         row.BroadcasterId.Should().Be(ChannelA);
         row.MasterVolume.Should().Be(100);
         row.TtsVolume.Should().Be(0);
+    }
+
+    [Fact]
+    public void A_new_row_starts_at_the_defaults()
+    {
+        ChannelAudioMix row = new();
+
+        row.MasterVolume.Should().Be(AudioMixDefaults.MasterVolume);
+        row.TtsVolume.Should().Be(AudioMixDefaults.TtsVolume);
+    }
+
+    [Fact]
+    public async Task The_read_exposes_the_defaults_and_the_limits_for_the_dashboard()
+    {
+        await using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        ChannelAudioMixService service = new(db);
+        await service.UpdateAsync(ChannelA, new(10, 20));
+
+        ChannelAudioMixDto mix = (await service.GetAsync(ChannelA)).Value;
+
+        mix.DefaultMasterVolume.Should().Be(AudioMixDefaults.MasterVolume);
+        mix.DefaultTtsVolume.Should().Be(AudioMixDefaults.TtsVolume);
+        mix.MinVolume.Should().Be(AudioMixDefaults.MinVolume);
+        mix.MaxVolume.Should().Be(AudioMixDefaults.MaxVolume);
     }
 
     [Fact]

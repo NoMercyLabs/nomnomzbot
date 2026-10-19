@@ -22,8 +22,8 @@ public class ChannelAudioMix : BaseEntity, ITenantScoped
     public Guid BroadcasterId { get; set; }
 
     /// <summary>Master volume, 0..100, applied to every sound clip and to text-to-speech.</summary>
-    public int MasterVolume { get; set; } = 100;
+    public int MasterVolume { get; set; } = AudioMixDefaults.MasterVolume;
 
     /// <summary>Text-to-speech volume, 0..100, applied on top of the master volume.</summary>
-    public int TtsVolume { get; set; } = 100;
+    public int TtsVolume { get; set; } = AudioMixDefaults.TtsVolume;
 }
