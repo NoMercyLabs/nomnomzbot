@@ -91,6 +91,12 @@ const radio = (tone: string): HTMLElement =>
   document.querySelector<HTMLElement>(`[data-tone="${tone}"] [role="radio"]`)!;
 
 describe('PersonalityView', () => {
+  it('never shrinks the panel inside the page body, so the page scrolls once and the panel does not', async () => {
+    await open();
+
+    expect(document.querySelector('[data-view="personality"]')?.classList.contains('shrink-0')).toBe(true);
+  });
+
   it('lists the tones the bot offers with a one-line explanation, the saved one checked', async () => {
     await open();
 

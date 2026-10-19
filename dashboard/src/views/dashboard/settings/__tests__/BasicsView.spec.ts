@@ -99,6 +99,12 @@ afterEach(() => {
 });
 
 describe('Basics settings', () => {
+  it('never shrinks the panel inside the page body, so the page scrolls once and the panel does not', async () => {
+    await open();
+
+    expect(document.body.querySelector('[data-view="basics"]')?.classList.contains('shrink-0')).toBe(true);
+  });
+
   it('fills the fields from the bot and keeps Save off until something changes', async () => {
     await open();
 

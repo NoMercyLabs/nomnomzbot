@@ -160,6 +160,7 @@ function discard(): void {
 <template>
   <PanelCard
     data-view="basics"
+    class="shrink-0"
     pad
     :title="$t('dashboard.settings.basics.title')"
     :description="$t('dashboard.settings.basics.description')"

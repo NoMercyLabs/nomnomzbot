@@ -59,6 +59,7 @@ function pick(value: AcceptableValue): void {
 <template>
   <PanelCard
     data-view="personality"
+    class="shrink-0"
     pad
     :state="state"
     :title="$t('dashboard.settings.personality.title')"
