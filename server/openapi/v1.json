@@ -144093,6 +144093,17 @@
             "description": "The stream these numbers belong to.",
             "$ref": "#/components/schemas/StreamStatsWindow"
           },
+          "channel": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The channel the stream belongs to: its name and profile picture.",
+                "$ref": "#/components/schemas/StreamStatsChannel"
+              }
+            ]
+          },
           "duration": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
             "type": [
@@ -144175,6 +144186,17 @@
             },
             "description": "Raids that arrived during the stream: who raided and with how many viewers."
           },
+          "hypeTrain": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The hype trains that ended during the stream. Absent when there was none.",
+                "$ref": "#/components/schemas/StreamStatsHypeTrain"
+              }
+            ]
+          },
           "redemptions": {
             "oneOf": [
               {
@@ -144232,6 +144254,26 @@
         },
         "description": "The answer to `stream-stats`: the stream window plus one named property per requested metric key. A metric\r\nthat was not requested (or has nothing to show, such as the peak of a stream that never recorded one) is omitted.\r\nA new metric adds a property here and a class implementing `IStreamMetric`; never an endpoint."
       },
+      "StreamStatsChannel": {
+        "required": [
+          "name"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string",
+            "description": "The channel display name."
+          },
+          "avatarUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The channel profile picture URL. Null when the platform gave none."
+          }
+        },
+        "description": "The channel a stream belongs to."
+      },
       "StreamStatsChat": {
         "type": "object",
         "properties": {
@@ -144255,6 +144297,34 @@
           }
         },
         "description": "Chat activity of a stream."
+      },
+      "StreamStatsHypeTrain": {
+        "required": [
+          "level",
+          "trains"
+        ],
+        "type": "object",
+        "properties": {
+          "level": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "The highest level any hype train reached.",
+            "format": "int32"
+          },
+          "trains": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "How many hype trains ended during the stream.",
+            "format": "int32"
+          }
+        },
+        "description": "The hype trains that ended during a stream."
       },
       "StreamStatsNamedCount": {
         "required": [

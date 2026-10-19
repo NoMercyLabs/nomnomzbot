@@ -148,6 +148,8 @@ interface NnzRaidAlertDto {
 interface NnzStreamStatsDto {
   /** The stream these numbers belong to. */
   stream: NnzStreamStatsWindowDto;
+  /** Who streamed: the channel's display name and profile picture, for headers and watermarks. */
+  channel?: NnzStreamStatsChannelDto | null;
   /** Seconds from the start of the stream to its end (or to now while live). */
   duration?: number | null;
   /** The highest viewer count the stream recorded. */
@@ -164,6 +166,8 @@ interface NnzStreamStatsDto {
   bits?: NnzStreamStatsRankedDto | null;
   /** Raids that arrived during the stream: who raided and with how many viewers. */
   raidsIn?: NnzStreamStatsRaidDto[] | null;
+  /** The hype trains that ended during the stream. Absent when there was none. */
+  hypeTrain?: NnzStreamStatsHypeTrainDto | null;
   /** Redemption total and the top reward titles. */
   redemptions?: NnzStreamStatsRankedDto | null;
   /** Song request total and the top requesters; never song titles. */
@@ -658,6 +662,14 @@ interface NnzStreamStatsWindowDto {
   game?: string | null;
 }
 
+/** The channel a stream belongs to. */
+interface NnzStreamStatsChannelDto {
+  /** The channel display name. */
+  name: string;
+  /** The channel profile picture URL. Null when the platform gave none. */
+  avatarUrl?: string | null;
+}
+
 /** Subscription counts of a stream. */
 interface NnzStreamStatsSubsDto {
   /** First-time subscriptions. */
@@ -692,6 +704,14 @@ interface NnzStreamStatsRaidDto {
   name: string;
   /** How many viewers came with the raid. */
   viewers: number;
+}
+
+/** The hype trains that ended during a stream. */
+interface NnzStreamStatsHypeTrainDto {
+  /** The highest level any hype train reached. */
+  level: number;
+  /** How many hype trains ended during the stream. */
+  trains: number;
 }
 
 /** Chat activity of a stream. */
@@ -946,12 +966,28 @@ interface NnzStreamNamedCount {
   count: number;
 }
 
+/** The channel a stream belongs to. */
+interface NnzStreamChannel {
+  /** The channel display name. */
+  name: string;
+  /** The channel profile picture URL. Null when the platform gave none. */
+  avatarUrl: string | null;
+}
+
 /** Chat activity of a stream. */
 interface NnzStreamChat {
   /** The number of chat messages. */
   messages: number;
   /** The number of different chatters. */
   uniqueChatters: number;
+}
+
+/** The hype trains that ended during a stream. */
+interface NnzStreamHypeTrain {
+  /** The highest level any hype train reached. */
+  level: number;
+  /** How many hype trains ended during the stream. */
+  trains: number;
 }
 
 /** One raid that arrived. */
@@ -978,6 +1014,8 @@ interface NnzStreamSubs {
 interface NnzStreamMetricMap {
   /** Total bits and the top cheerers (count = bits). */
   bits: NnzStreamRanked;
+  /** Who streamed: the channel's display name and profile picture, for headers and watermarks. */
+  channel: NnzStreamChannel;
   /** Chat message count and the number of different chatters. */
   chat: NnzStreamChat;
   /** Commands run in the window and the most-used ones. */
@@ -988,6 +1026,8 @@ interface NnzStreamMetricMap {
   followers: number;
   /** Gifters by gift count; anonymous gifts are merged as "Anonymous". */
   gifters: NnzStreamNamedCount[];
+  /** The hype trains that ended during the stream. Absent when there was none. */
+  hypeTrain: NnzStreamHypeTrain;
   /** The highest viewer count the stream recorded. */
   peakViewers?: number;
   /** Raids that arrived during the stream: who raided and with how many viewers. */

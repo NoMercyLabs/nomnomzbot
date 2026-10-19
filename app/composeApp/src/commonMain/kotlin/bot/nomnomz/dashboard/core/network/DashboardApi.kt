@@ -114,6 +114,7 @@ data class DashboardStats(
 @Serializable
 data class StreamStats(
     val stream: StreamStatsWindow,
+    val channel: StreamStatsChannel? = null,
     /** Seconds the stream ran. */
     val duration: Long? = null,
     val peakViewers: Int? = null,
@@ -124,6 +125,7 @@ data class StreamStats(
     val selfSubs: List<String>? = null,
     val bits: StreamStatsRanked? = null,
     val raidsIn: List<StreamStatsRaid>? = null,
+    val hypeTrain: StreamStatsHypeTrain? = null,
     val redemptions: StreamStatsRanked? = null,
     val songRequesters: StreamStatsRanked? = null,
     val chat: StreamStatsChat? = null,
@@ -148,5 +150,9 @@ data class StreamStatsSubs(val new: Int = 0, val resub: Int = 0, val gift: Int =
 @Serializable data class StreamStatsRanked(val total: Int = 0, val top: List<StreamStatsNamedCount> = emptyList())
 
 @Serializable data class StreamStatsRaid(val name: String, val viewers: Int = 0)
+
+@Serializable data class StreamStatsChannel(val name: String, val avatarUrl: String? = null)
+
+@Serializable data class StreamStatsHypeTrain(val level: Int, val trains: Int)
 
 @Serializable data class StreamStatsChat(val messages: Int = 0, val uniqueChatters: Int = 0)

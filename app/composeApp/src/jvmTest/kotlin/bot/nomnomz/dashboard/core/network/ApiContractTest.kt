@@ -49,6 +49,8 @@ class ApiContractTest {
             StreamStatsRanked.serializer() to "StreamStatsRanked",
             StreamStatsRaid.serializer() to "StreamStatsRaid",
             StreamStatsChat.serializer() to "StreamStatsChat",
+            StreamStatsChannel.serializer() to "StreamStatsChannel",
+            StreamStatsHypeTrain.serializer() to "StreamStatsHypeTrain",
             ActionRequiredItem.serializer() to "ActionRequiredItem",
             DeviceCodeStart.serializer() to "DeviceCodeStart",
             RefreshBody.serializer() to "RefreshTokenRequest",

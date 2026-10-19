@@ -101301,6 +101301,7 @@ export interface components {
         StreamStats: {
             /** @description The stream these numbers belong to. */
             stream: components["schemas"]["StreamStatsWindow"];
+            channel?: null | components["schemas"]["StreamStatsChannel"];
             /**
              * Format: int64
              * @description Seconds from the start of the stream to its end (or to now while live).
@@ -101324,6 +101325,7 @@ export interface components {
             bits?: null | components["schemas"]["StreamStatsRanked"];
             /** @description Raids that arrived during the stream: who raided and with how many viewers. */
             raidsIn?: null | components["schemas"]["StreamStatsRaid"][];
+            hypeTrain?: null | components["schemas"]["StreamStatsHypeTrain"];
             redemptions?: null | components["schemas"]["StreamStatsRanked"];
             songRequesters?: null | components["schemas"]["StreamStatsRanked"];
             chat?: null | components["schemas"]["StreamStatsChat"];
@@ -101332,6 +101334,13 @@ export interface components {
             commandsRun?: null | components["schemas"]["StreamStatsRanked"];
         };
         /** @description Chat activity of a stream. */
+        /** @description The channel a stream belongs to. */
+        StreamStatsChannel: {
+            /** @description The channel display name. */
+            name: string;
+            /** @description The channel profile picture URL. Null when the platform gave none. */
+            avatarUrl?: null | string;
+        };
         StreamStatsChat: {
             /**
              * Format: int32
@@ -101343,6 +101352,19 @@ export interface components {
              * @description The number of different chatters.
              */
             uniqueChatters?: number | string;
+        };
+        /** @description The hype trains that ended during a stream. */
+        StreamStatsHypeTrain: {
+            /**
+             * Format: int32
+             * @description The highest level any hype train reached.
+             */
+            level: number | string;
+            /**
+             * Format: int32
+             * @description How many hype trains ended during the stream.
+             */
+            trains: number | string;
         };
         /** @description A name with a count. */
         StreamStatsNamedCount: {
