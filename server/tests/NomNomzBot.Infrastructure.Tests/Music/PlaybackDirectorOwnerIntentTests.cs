@@ -235,8 +235,26 @@ public sealed partial class PlaybackDirectorTests
 
         rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.YouTube, a));
         rig.Spotify.Calls.Count(c => c.Name == "Pause").Should().Be(3);
-        rig.Journal.Skip(before).Should().BeEmpty();
-        rig.Journal.Should().OnlyContain(e => e.From != e.To);
+        rig.Journal.Skip(before)
+            .Select(e => (e.From, e.To, e.Input, e.Reason))
+            .Should()
+            .Equal(("Playing", "Playing", "EngineReport", "foreign_engine_silenced"));
+    }
+
+    [Fact]
+    public async Task ForeignEngineStopsThenPlaysAgain_IsJournaledAgainAsANewEpisode()
+    {
+        Rig rig = new();
+        await rig.StartPlaying(EngineKind.YouTube);
+        int before = rig.Journal.Count;
+
+        await rig.OwnerPlays(rig.Spotify, Mine, 1_000);
+        rig.Clock.Advance(TimeSpan.FromSeconds(6));
+        await rig.Paused(rig.Spotify, Mine, 2_000);
+        rig.Clock.Advance(TimeSpan.FromSeconds(6));
+        await rig.OwnerPlays(rig.Spotify, Mine, 3_000);
+
+        rig.Journal.Skip(before).Count(e => e.Reason == "foreign_engine_silenced").Should().Be(2);
     }
 
     [Fact]

@@ -176,18 +176,24 @@ public sealed partial class PlaybackDirector
     /// <summary>An engine that is not the state's engine plays: pause it and journal it.</summary>
     private async Task SilenceForeignAsync(EngineReport report, CancellationToken ct)
     {
-        if (
-            !report.IsPlaying
-            || SentRecently(report.Engine)
-            || !_engines.ContainsKey(report.Engine)
-        )
+        if (!report.IsPlaying)
+        {
+            _silencedForeign.Remove(report.Engine);
+            return;
+        }
+
+        if (SentRecently(report.Engine) || !_engines.ContainsKey(report.Engine))
             return;
 
         if (!await CommandAsync(report.Engine, nameof(EngineReport), e => e.PauseAsync(ct)))
             return;
 
         MarkSent(report.Engine);
-        await MoveAsync(State, report, "foreign_engine_silenced");
+
+        // The pause is re-sent while the engine keeps reporting playing, but the journal gets
+        // one entry per episode: a repeat is not a transition (it would flood every poll).
+        if (_silencedForeign.Add(report.Engine))
+            await MoveAsync(State, report, "foreign_engine_silenced");
     }
 
     /// <summary>A paused report from the playing engine: the owner paused it unless we did or it is ending.</summary>

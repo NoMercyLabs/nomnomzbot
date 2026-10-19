@@ -49,6 +49,9 @@ public sealed partial class PlaybackDirector : IDisposable
     private readonly Dictionary<EngineKind, EngineReport> _reports = [];
     private readonly Dictionary<EngineKind, DateTimeOffset> _lastSent = [];
 
+    /// <summary>Foreign engines already journaled as silenced; cleared when the engine reports not playing.</summary>
+    private readonly HashSet<EngineKind> _silencedForeign = [];
+
     /// <summary>Engines already read once by <see cref="FindOwnerMusicAsync"/>; each is probed at most once.</summary>
     private readonly HashSet<EngineKind> _probed = [];
     private int _volume = 100;
