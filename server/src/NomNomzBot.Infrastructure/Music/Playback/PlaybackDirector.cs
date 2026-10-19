@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
@@ -43,6 +44,7 @@ public sealed partial class PlaybackDirector : IDisposable
     private readonly PlayedHistory _history = new();
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Func<EngineSignal, Task> _onSignal;
+    private readonly IOutboundSanctionAccessor? _sanctions;
 
     private readonly Dictionary<EngineKind, EngineReport> _reports = [];
     private readonly Dictionary<EngineKind, DateTimeOffset> _lastSent = [];
@@ -67,10 +69,12 @@ public sealed partial class PlaybackDirector : IDisposable
         IEnumerable<IPlaybackEngine> engines,
         IPlaybackQueue queue,
         TimeProvider time,
-        IEventBus bus
+        IEventBus bus,
+        IOutboundSanctionAccessor? sanctions = null
     )
     {
         _broadcasterId = broadcasterId;
+        _sanctions = sanctions;
         _engines = engines.ToDictionary(e => e.Kind);
         _queue = queue;
         _time = time;
@@ -90,6 +94,7 @@ public sealed partial class PlaybackDirector : IDisposable
 
     public async Task HandleAsync(PlaybackInput input, CancellationToken ct = default)
     {
+        using IDisposable? sanction = ClaimQueueSanction();
         await _gate.WaitAsync(ct);
         try
         {
@@ -104,6 +109,7 @@ public sealed partial class PlaybackDirector : IDisposable
     /// <summary>Raises the stop-wait and start deadlines that have passed. A timer calls it.</summary>
     public async Task CheckDeadlinesAsync(CancellationToken ct = default)
     {
+        using IDisposable? sanction = ClaimQueueSanction();
         await _gate.WaitAsync(ct);
         try
         {
@@ -127,6 +133,16 @@ public sealed partial class PlaybackDirector : IDisposable
             _gate.Release();
         }
     }
+
+    /// <summary>
+    /// A poll, a player report or a deadline drives the queue with no user behind it; the channel's own
+    /// song-request configuration is the basis for those engine commands. A user action already in force
+    /// stays the recorded basis.
+    /// </summary>
+    private IDisposable? ClaimQueueSanction() =>
+        _sanctions is null || _sanctions.Current is not null
+            ? null
+            : _sanctions.Begin(OutboundSanction.ChannelConfiguration("music:song_request_queue"));
 
     public void Dispose()
     {

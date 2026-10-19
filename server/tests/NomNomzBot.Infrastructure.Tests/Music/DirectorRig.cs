@@ -30,7 +30,13 @@ internal sealed class DirectorRig
     {
         Engines = new();
         Bus = new();
-        Registry = new(store, Engines, Bus, TimeProvider.System);
+        Registry = new(
+            store,
+            Engines,
+            Bus,
+            TimeProvider.System,
+            new NomNomzBot.Infrastructure.Platform.Security.OutboundSanctionAccessor()
+        );
     }
 
     public ScriptableEngineFactory Engines { get; }

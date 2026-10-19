@@ -86,7 +86,13 @@ public sealed class MusicServiceQueuePromoteBanTests
             store,
             new NoOpSongRequestQueuePersistence(),
             bus,
-            new PlaybackDirectorRegistry(store, engines, bus, TimeProvider.System)
+            new PlaybackDirectorRegistry(
+                store,
+                engines,
+                bus,
+                TimeProvider.System,
+                new OutboundSanctionAccessor()
+            )
         );
         SongRequestEntry bumped = queue
             .GetSnapshot()

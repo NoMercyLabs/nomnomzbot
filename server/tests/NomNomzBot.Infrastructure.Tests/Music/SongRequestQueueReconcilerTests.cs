@@ -253,7 +253,13 @@ public sealed class SongRequestQueueReconcilerTests
             store,
             persistence,
             bus,
-            new PlaybackDirectorRegistry(store, engines, bus, TimeProvider.System)
+            new PlaybackDirectorRegistry(
+                store,
+                engines,
+                bus,
+                TimeProvider.System,
+                new NomNomzBot.Infrastructure.Platform.Security.OutboundSanctionAccessor()
+            )
         );
 
         // The overlay player reports the video as not playing: a report that does not play a row removes
@@ -504,7 +510,13 @@ public sealed class SongRequestQueueReconcilerTests
                 store,
                 new NoOpSongRequestQueuePersistence(),
                 bus,
-                new PlaybackDirectorRegistry(store, engines, bus, TimeProvider.System)
+                new PlaybackDirectorRegistry(
+                    store,
+                    engines,
+                    bus,
+                    TimeProvider.System,
+                    new NomNomzBot.Infrastructure.Platform.Security.OutboundSanctionAccessor()
+                )
             ),
             queue,
             bus,

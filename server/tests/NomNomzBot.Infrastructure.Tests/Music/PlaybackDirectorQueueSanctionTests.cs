@@ -1,0 +1,92 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+using FluentAssertions;
+using NomNomzBot.Application.Contracts.Security;
+using NomNomzBot.Domain.Music.ValueObjects;
+using NomNomzBot.Infrastructure.Music.Playback;
+using NomNomzBot.Infrastructure.Platform.Security;
+using static NomNomzBot.Infrastructure.Tests.Music.PlaybackDirectorTestKit;
+
+namespace NomNomzBot.Infrastructure.Tests.Music;
+
+/// <summary>
+/// Live 2026-10-19: in iFiLLz's channel the next request's start (driven by the engine's track-end report,
+/// no user behind it) was refused by the outbound sanction guard, and the request was dropped.
+/// </summary>
+public sealed class PlaybackDirectorQueueSanctionTests
+{
+    [Fact]
+    public async Task TrackEnd_StartsTheNextRequest_UnderTheChannelSongRequestSanction()
+    {
+        OutboundSanctionAccessor sanctions = new();
+        FakeEngine spotify = new(EngineKind.Spotify);
+        FakeEngine youTube = new(EngineKind.YouTube);
+        FairPlaybackQueue queue = new();
+        using PlaybackDirector director = new(
+            Channel,
+            [spotify, youTube],
+            queue,
+            NewClock(),
+            new RecordingBus(),
+            sanctions
+        );
+        PlaybackItem first = Item("A", EngineKind.Spotify, "user1");
+        PlaybackItem second = Item("B", EngineKind.Spotify, "user2");
+        queue.Enqueue(first);
+        queue.Enqueue(second);
+        await director.HandleAsync(new RequestAdded());
+        await spotify.EmitAsync(
+            new EngineReport(EngineKind.Spotify, first.Uri, true, 1_000, first.DurationMs)
+        );
+        List<OutboundSanction?> seen = [];
+        spotify.DuringStart = _ =>
+        {
+            seen.Add(sanctions.Current);
+            return Task.CompletedTask;
+        };
+
+        await spotify.EmitAsync(new TrackEnded(EngineKind.Spotify, first.Uri));
+
+        seen.Should().ContainSingle();
+        seen[0].Should().NotBeNull("an unsanctioned start is refused by the outbound guard");
+        seen[0]!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
+        seen[0]!.Detail.Should().Be("music:song_request_queue");
+        sanctions.Current.Should().BeNull("the claim ends with the input");
+    }
+
+    [Fact]
+    public async Task AUserActionInForce_StaysTheRecordedBasis()
+    {
+        OutboundSanctionAccessor sanctions = new();
+        FakeEngine spotify = new(EngineKind.Spotify);
+        FairPlaybackQueue queue = new();
+        using PlaybackDirector director = new(
+            Channel,
+            [spotify, new FakeEngine(EngineKind.YouTube)],
+            queue,
+            NewClock(),
+            new RecordingBus(),
+            sanctions
+        );
+        OutboundSanction? seen = null;
+        spotify.DuringStart = _ =>
+        {
+            seen = sanctions.Current;
+            return Task.CompletedTask;
+        };
+        queue.Enqueue(Item("A", EngineKind.Spotify, "user1"));
+
+        using (sanctions.Begin(OutboundSanction.UserAction("music:play", Guid.Empty)))
+            await director.HandleAsync(new RequestAdded());
+
+        seen!.Basis.Should().Be(OutboundSanctionBasis.UserAction);
+    }
+}

@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Collections.Concurrent;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -25,7 +26,8 @@ public sealed class PlaybackDirectorRegistry(
     ISongRequestQueueStore queueStore,
     IPlaybackEngineFactory engines,
     IEventBus bus,
-    TimeProvider time
+    TimeProvider time,
+    IOutboundSanctionAccessor? sanctions = null
 ) : IPlaybackInputSink, IPlaybackStateReader, IPlaybackReportSink, IEngineFeed, IDisposable
 {
     private readonly ConcurrentDictionary<Guid, Lazy<ChannelPlayback>> _channels = new();
@@ -116,7 +118,8 @@ public sealed class PlaybackDirectorRegistry(
                 built,
                 new SongRequestPlaybackQueue(queueStore.GetOrCreate(broadcasterId.ToString())),
                 time,
-                bus
+                bus,
+                sanctions
             ),
             built
         );
