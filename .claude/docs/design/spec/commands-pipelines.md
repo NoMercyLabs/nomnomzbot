@@ -1512,3 +1512,6 @@ One runner (`ICommandInvoker`, replacing the unused `CommandService.ExecuteAsync
 5. A `template` command bound to a reward: send the reply as the bot voice (proposed), or also honor its TTS flag (`SpeakWithTts`)?
 6. Automation tokens: replace `AllowedPipelineIds` with an allowed-targets list (breaking for existing tokens, needs a migration), or add `AllowedCommandIds` beside it?
 7. A bound command is deleted or disabled: block with a blast-radius list (proposed, as pipelines do), or clear the binding?
+
+Decided by Stoney (2026-10-19): Q1 skip cooldown and permission on a direct run; Q3 yes, three target kinds (command, pipeline, action), so single-action wrappers also go; Q5 a reply-text command sends its reply in the bot voice and honors its TTS flag; Q6 one allowed-targets list on automation tokens, existing tokens migrated in place so they keep working.
+Arc's decision, pending Stoney (taken overnight so the build does not stop): Q2 a trigger with no human runs as the channel's bot identity with the broadcaster role; Q4 built-in commands are selectable targets; Q7 deleting or disabling a bound command is blocked with a blast-radius list.
