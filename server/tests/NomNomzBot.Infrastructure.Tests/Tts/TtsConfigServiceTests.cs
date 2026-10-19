@@ -231,4 +231,97 @@ public sealed class TtsConfigServiceTests
         result.Value.MinBitsToTts.Should().BeNull();
         (await db.TtsConfigs.SingleAsync()).MinBitsToTts.Should().BeNull();
     }
+
+    [Fact]
+    public async Task CooldownSeconds_defaults_to_the_binding_default_and_a_read_creates_nothing()
+    {
+        (TtsConfigService sut, TtsTestDbContext db, _) = Build();
+
+        Result<TtsConfigDto> result = await sut.GetConfigAsync(Channel);
+
+        result.Value.CooldownSeconds.Should().Be(TtsConfigOptions.CooldownSecondsDefault);
+        new TtsConfig().CooldownSeconds.Should().Be(TtsConfigOptions.CooldownSecondsDefault);
+        (await db.TtsConfigs.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CooldownSeconds_round_trips_through_the_row_and_survives_a_later_partial_update()
+    {
+        (TtsConfigService sut, TtsTestDbContext db, _) = Build();
+
+        Result<TtsConfigDto> result = await sut.UpdateConfigAsync(
+            Channel,
+            new() { CooldownSeconds = 45 }
+        );
+        await sut.UpdateConfigAsync(Channel, new() { MaxCharacters = 100 });
+
+        result.Value.CooldownSeconds.Should().Be(45);
+        (await db.TtsConfigs.SingleAsync()).CooldownSeconds.Should().Be(45);
+        (await sut.GetConfigAsync(Channel)).Value.CooldownSeconds.Should().Be(45);
+    }
+
+    [Fact]
+    public async Task CooldownSeconds_zero_is_accepted_and_turns_the_cooldown_off()
+    {
+        (TtsConfigService sut, TtsTestDbContext db, _) = Build();
+        await sut.UpdateConfigAsync(Channel, new() { CooldownSeconds = 30 });
+
+        Result<TtsConfigDto> result = await sut.UpdateConfigAsync(
+            Channel,
+            new() { CooldownSeconds = 0 }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        (await db.TtsConfigs.SingleAsync()).CooldownSeconds.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(-1)]
+    [InlineData(TtsConfigOptions.CooldownSecondsMax + 1)]
+    public async Task CooldownSeconds_out_of_range_is_refused_naming_the_field_and_writes_nothing(
+        int seconds
+    )
+    {
+        (TtsConfigService sut, TtsTestDbContext db, RecordingEventBus bus) = Build();
+        await sut.UpdateConfigAsync(Channel, new() { CooldownSeconds = 20 });
+        bus.Published.Clear();
+
+        Result<TtsConfigDto> result = await sut.UpdateConfigAsync(
+            Channel,
+            new() { CooldownSeconds = seconds }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        result.ErrorMessage.Should().Contain(nameof(UpdateTtsConfigDto.CooldownSeconds));
+        result.ErrorMessage.Should().Contain(TtsConfigOptions.CooldownSecondsMax.ToString());
+        (await db.TtsConfigs.SingleAsync())
+            .CooldownSeconds.Should()
+            .Be(20, "a refused write changes nothing");
+        bus.Published.Should().BeEmpty("a refused write tells no dashboard to refetch");
+    }
+
+    [Fact]
+    public void The_options_response_carries_the_cooldown_default_and_limit()
+    {
+        TtsConfigOptionsDto options = TtsConfigOptionsDto.Current();
+
+        options.CooldownSecondsDefault.Should().Be(TtsConfigOptions.CooldownSecondsDefault);
+        options.CooldownSecondsMax.Should().Be(TtsConfigOptions.CooldownSecondsMax);
+        options.CooldownSecondsMax.Should().BeGreaterThan(options.CooldownSecondsDefault);
+    }
+
+    [Fact]
+    public async Task Reset_restores_the_cooldown_default()
+    {
+        (TtsConfigService sut, TtsTestDbContext db, _) = Build();
+        await sut.UpdateConfigAsync(Channel, new() { CooldownSeconds = 90 });
+
+        Result<TtsConfigDto> result = await sut.ResetConfigAsync(Channel);
+
+        result.Value.CooldownSeconds.Should().Be(TtsConfigOptions.CooldownSecondsDefault);
+        (await db.TtsConfigs.SingleAsync())
+            .CooldownSeconds.Should()
+            .Be(TtsConfigOptions.CooldownSecondsDefault);
+    }
 }

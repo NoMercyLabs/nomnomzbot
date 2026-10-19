@@ -69,6 +69,9 @@ public class TtsConfig : SoftDeletableEntity, ITenantScoped
     [MaxLength(20)]
     public string MinPermission { get; set; } = "everyone";
 
+    /// <summary>Seconds a viewer must wait between two spoken messages; 0 = no cooldown. Stored only; not enforced yet.</summary>
+    public int CooldownSeconds { get; set; } = TtsConfigOptions.CooldownSecondsDefault;
+
     public bool SkipBotMessages { get; set; } = true;
 
     public bool ReadUsernames { get; set; } = true;

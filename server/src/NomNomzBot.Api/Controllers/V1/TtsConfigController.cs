@@ -26,7 +26,6 @@ using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
-using NomNomzBot.Domain.Tts.Entities;
 
 namespace NomNomzBot.Api.Controllers.V1;
 
@@ -233,17 +232,7 @@ public class TtsConfigController : BaseController
     [RequireAction("tts:config:read")]
     [ProducesResponseType<StatusResponseDto<TtsConfigOptionsDto>>(StatusCodes.Status200OK)]
     public IActionResult GetConfigOptions(string channelId) =>
-        Ok(
-            new StatusResponseDto<TtsConfigOptionsDto>
-            {
-                Data = new(
-                    TtsConfigOptions.Providers,
-                    TtsConfigOptions.Modes,
-                    TtsConfigOptions.MinPermissions,
-                    TtsConfigOptions.MaxCharactersLimit
-                ),
-            }
-        );
+        Ok(new StatusResponseDto<TtsConfigOptionsDto> { Data = TtsConfigOptionsDto.Current() });
 
     /// <summary>
     /// Reset the channel's TTS settings to the defaults and return the resulting config. Leaves the BYOK keys,

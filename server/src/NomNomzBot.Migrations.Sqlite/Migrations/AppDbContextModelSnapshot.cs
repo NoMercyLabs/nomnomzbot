@@ -11665,6 +11665,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<int>("CooldownSeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("INTEGER")
+                        .HasDefaultValue(0);
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 

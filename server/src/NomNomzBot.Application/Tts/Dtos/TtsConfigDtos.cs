@@ -36,7 +36,8 @@ public sealed record TtsConfigDto(
     bool HasAzureByokKey,
     bool HasElevenLabsByokKey,
     string? AzureRegion,
-    bool FollowsPlatformDefaultVoice
+    bool FollowsPlatformDefaultVoice,
+    int CooldownSeconds
 );
 
 /// <summary>
@@ -47,8 +48,22 @@ public sealed record TtsConfigOptionsDto(
     IReadOnlyList<string> Providers,
     IReadOnlyList<string> Modes,
     IReadOnlyList<string> MinPermissions,
-    int MaxCharactersLimit
-);
+    int MaxCharactersLimit,
+    int CooldownSecondsDefault,
+    int CooldownSecondsMax
+)
+{
+    /// <summary>The one place the options response is built, so the page and the update check share their limits.</summary>
+    public static TtsConfigOptionsDto Current() =>
+        new(
+            TtsConfigOptions.Providers,
+            TtsConfigOptions.Modes,
+            TtsConfigOptions.MinPermissions,
+            TtsConfigOptions.MaxCharactersLimit,
+            TtsConfigOptions.CooldownSecondsDefault,
+            TtsConfigOptions.CooldownSecondsMax
+        );
+}
 
 /// <summary>
 /// The channel's auto-provisioned TTS overlay (widgets-overlays.md §1.2 system surface): the OBS browser-source
@@ -93,6 +108,10 @@ public sealed record UpdateTtsConfigDto
 
     [RegularExpression(TtsConfigOptions.MinPermissionPattern)]
     public string? MinPermission { get; init; }
+
+    /// <summary>Seconds a viewer waits between spoken messages; 0 turns the cooldown off.</summary>
+    [Range(0, TtsConfigOptions.CooldownSecondsMax)]
+    public int? CooldownSeconds { get; init; }
 
     public bool? SkipBotMessages { get; init; }
     public bool? ReadUsernames { get; init; }

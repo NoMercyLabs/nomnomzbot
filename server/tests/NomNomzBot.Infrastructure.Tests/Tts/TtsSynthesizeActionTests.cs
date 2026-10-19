@@ -157,7 +157,8 @@ public sealed class TtsSynthesizeActionTests
             HasAzureByokKey: false,
             HasElevenLabsByokKey: false,
             AzureRegion: null,
-            FollowsPlatformDefaultVoice: false
+            FollowsPlatformDefaultVoice: false,
+            CooldownSeconds: 0
         );
 
     [Fact]

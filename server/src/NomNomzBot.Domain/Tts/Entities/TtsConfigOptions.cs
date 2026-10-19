@@ -18,6 +18,12 @@ public static class TtsConfigOptions
 {
     public const int MaxCharactersLimit = 500;
 
+    /// <summary>Seconds one viewer waits between spoken messages; 0 = no cooldown (default).</summary>
+    public const int CooldownSecondsDefault = 0;
+
+    /// <summary>Longest per-viewer cooldown a channel may set (one hour).</summary>
+    public const int CooldownSecondsMax = 3600;
+
     public const string ProviderPattern = "^(edge|azure|elevenlabs)$";
     public const string ModePattern = "^(client_edge|byok|self_host)$";
     public const string MinPermissionPattern =

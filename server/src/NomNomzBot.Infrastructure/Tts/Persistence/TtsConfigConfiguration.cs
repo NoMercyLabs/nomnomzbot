@@ -33,6 +33,9 @@ public class TtsConfigConfiguration : IEntityTypeConfiguration<TtsConfig>
             .Property(e => e.ViewerVoiceSelfServiceEnabled)
             .HasDefaultValue(new TtsConfig().ViewerVoiceSelfServiceEnabled);
 
+        // A DB default backfills every existing channel row with the no-cooldown behavior.
+        builder.Property(e => e.CooldownSeconds).HasDefaultValue(new TtsConfig().CooldownSeconds);
+
         builder
             .HasOne(e => e.SubjectKey)
             .WithMany()

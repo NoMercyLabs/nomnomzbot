@@ -11150,6 +11150,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<Guid>("BroadcasterId")
                         .HasColumnType("uuid");
 
+                    b.Property<int>("CooldownSeconds")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer")
+                        .HasDefaultValue(0);
+
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 

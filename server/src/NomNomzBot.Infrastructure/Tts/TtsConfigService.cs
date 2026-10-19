@@ -84,6 +84,12 @@ public class TtsConfigService : ITtsConfigService
         CancellationToken cancellationToken = default
     )
     {
+        if (request.CooldownSeconds is < 0 or > TtsConfigOptions.CooldownSecondsMax)
+            return Result.Failure<TtsConfigDto>(
+                $"{nameof(UpdateTtsConfigDto.CooldownSeconds)} must be between 0 and {TtsConfigOptions.CooldownSecondsMax}.",
+                "VALIDATION_FAILED"
+            );
+
         TtsConfig? config = await _db.TtsConfigs.FirstOrDefaultAsync(
             c => c.BroadcasterId == broadcasterId,
             cancellationToken
@@ -109,6 +115,8 @@ public class TtsConfigService : ITtsConfigService
             config.MaxCharacters = request.MaxCharacters.Value;
         if (request.MinPermission is not null)
             config.MinPermission = request.MinPermission;
+        if (request.CooldownSeconds.HasValue)
+            config.CooldownSeconds = request.CooldownSeconds.Value;
         if (request.SkipBotMessages.HasValue)
             config.SkipBotMessages = request.SkipBotMessages.Value;
         if (request.ReadUsernames.HasValue)
@@ -156,6 +164,7 @@ public class TtsConfigService : ITtsConfigService
         config.DefaultProvider = defaults.DefaultProvider;
         config.MaxCharacters = defaults.MaxCharacters;
         config.MinPermission = defaults.MinPermission;
+        config.CooldownSeconds = defaults.CooldownSeconds;
         config.SkipBotMessages = defaults.SkipBotMessages;
         config.ReadUsernames = defaults.ReadUsernames;
         config.ProfanityCensorEnabled = defaults.ProfanityCensorEnabled;
@@ -853,7 +862,8 @@ public class TtsConfigService : ITtsConfigService
             HasAzureByokKey: c.AzureApiKeyCipher is not null,
             HasElevenLabsByokKey: c.ElevenLabsApiKeyCipher is not null,
             AzureRegion: c.AzureRegion,
-            FollowsPlatformDefaultVoice: follows
+            FollowsPlatformDefaultVoice: follows,
+            CooldownSeconds: c.CooldownSeconds
         );
     }
 }

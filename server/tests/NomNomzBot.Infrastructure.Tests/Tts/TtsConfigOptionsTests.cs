@@ -73,6 +73,17 @@ public sealed class TtsConfigOptionsTests
     }
 
     [Fact]
+    public void TheCooldownLimitIsTheRangeTheUpdateDtoEnforces()
+    {
+        RangeAttribute range = Attribute<RangeAttribute>(
+            nameof(UpdateTtsConfigDto.CooldownSeconds)
+        );
+
+        range.Minimum.Should().Be(0);
+        range.Maximum.Should().Be(TtsConfigOptions.CooldownSecondsMax);
+    }
+
+    [Fact]
     public void TheDefaultsAreAmongTheListedChoices()
     {
         TtsConfig defaults = new();
