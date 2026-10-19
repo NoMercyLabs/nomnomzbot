@@ -153,10 +153,11 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
             <template #leading>
               <GiftCard
                 v-if="row.kind === 'gift' || row.receivedAsGift"
-                class="size-5 text-muted-foreground"
+                class="size-5 shrink-0 text-muted-foreground"
                 role="img"
                 :aria-label="t('dashboard.supporters.subs.giftMark')"
               />
+              <span v-else class="size-5 shrink-0" aria-hidden="true" />
             </template>
             <template #title>
               <UserName
