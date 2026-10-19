@@ -447,6 +447,23 @@ describe('VoicesTab', () => {
     expect(chip('all').getAttribute('aria-pressed')).toBe('false');
   });
 
+  // The server pages by provider and locale, so Dutch can sit on page 2: a chip never claims 0 while more pages exist.
+  it('marks a chip count as a floor while pages are missing, and loads them when that language is chosen', async () => {
+    answers['GET /tts/voices'] = () => ok(catalog, { hasMore: true, nextPage: 2 });
+    await open();
+
+    expect(chipText('nl')).toBe('Dutch 2+');
+
+    answers['GET /tts/voices'] = () =>
+      ok([voice('nl-NL-FennaNeural', 'nl-NL')], { hasMore: false, nextPage: null });
+
+    chip('nl').click();
+    await settle();
+
+    expect(ids()).toContain('nl-NL-FennaNeural');
+    expect(chipText('nl')).toBe('Dutch 3');
+  });
+
   it('remembers the chosen language after the page is left and opened again', async () => {
     await open();
     chip('nl').click();

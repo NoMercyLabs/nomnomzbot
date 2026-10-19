@@ -72,18 +72,34 @@ const items = computed<VoiceListItem[]>(() => groupVoices(visible.value, locale.
 type Chip = {
   value: string;
   label: string;
-  count: number;
+  count: string;
 };
+
+function familyCount(value: string): number {
+  return value === ALL
+    ? loaded.value.length
+    : loaded.value.filter((voice) => voiceFamily(voice.locale) === value).length;
+}
 
 const chips = computed<Chip[]>(() =>
   [ALL, ...voiceFamilyOrder].map((value) => ({
     value,
     label: t(`dashboard.tts.voices.family.${value}`),
-    count:
-      value === ALL
-        ? loaded.value.length
-        : loaded.value.filter((voice) => voiceFamily(voice.locale) === value).length,
+    count: `${familyCount(value)}${catalog.hasNextPage.value
+      ? '+'
+      : ''}`,
   }) as const satisfies Chip),
+);
+
+// The server pages by provider and locale, so a language can sit on a page that is not loaded yet.
+watch(
+  () => [family.value, catalog.hasNextPage.value, catalog.isFetchingNextPage.value] as const,
+  ([chosenFamily, more, fetching]) => {
+    if (chosenFamily !== ALL && more && !fetching) {
+      catalog.fetchNextPage();
+    }
+  },
+  { immediate: true },
 );
 
 // The search box and the chips live inside the panel, so a new search must not swap the panel for a skeleton.
