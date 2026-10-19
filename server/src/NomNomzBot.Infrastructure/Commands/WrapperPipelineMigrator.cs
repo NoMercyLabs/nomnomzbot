@@ -15,6 +15,7 @@ using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform;
+using NomNomzBot.Infrastructure.AutomationApi;
 using NomNomzBot.Infrastructure.Content.PlatformContent;
 
 namespace NomNomzBot.Infrastructure.Commands;
@@ -51,17 +52,113 @@ public sealed class WrapperPipelineMigrator
         await RebindAsync(_db.Giveaways, "Giveaways", r => r.Id, rebound, decisions, ct);
         await RebindAsync(_db.CatalogItems, "CatalogItems", r => r.Id, rebound, decisions, ct);
 
-        if (rebound.Count > 0)
-            await _db.SaveChangesAsync(ct);
-
         List<KeptWrapper> kept =
         [
             .. decisions
                 .Where(d => d.Value.CommandId is null)
                 .Select(d => new KeptWrapper(d.Key.PipelineId, d.Value.KeptReason!)),
         ];
-        return new(rebound, kept);
+        List<RetiredStreamDeckWrapper> retired = await RetireStreamDeckWrappersAsync(
+            decisions.Keys.Select(k => k.PipelineId).ToHashSet(),
+            kept,
+            ct
+        );
+
+        if (rebound.Count > 0 || retired.Count > 0)
+            await _db.SaveChangesAsync(ct);
+
+        return new(rebound, kept, retired);
     }
+
+    /// <summary>
+    /// A Stream Deck key names a pipeline (no surface row holds the binding). The old pairing flow made one
+    /// single-action pipeline per action type, named by it. When such a pipeline is untouched (name equals the
+    /// action type, one step of that type, only placeholder parameters, no triggers, not referenced) it is
+    /// switched off: the by-name lookup only sees enabled pipelines, so the key then runs the action target.
+    /// </summary>
+    private async Task<List<RetiredStreamDeckWrapper>> RetireStreamDeckWrappersAsync(
+        HashSet<Guid> surfaceBound,
+        List<KeptWrapper> kept,
+        CancellationToken ct
+    )
+    {
+        List<RetiredStreamDeckWrapper> retired = [];
+        List<Pipeline> candidates = await _db
+            .Pipelines.Where(p =>
+                p.IsEnabled && (p.Name.StartsWith("music_") || p.Name.StartsWith("obs_"))
+            )
+            .ToListAsync(ct);
+
+        foreach (Pipeline pipeline in candidates)
+        {
+            if (surfaceBound.Contains(pipeline.Id))
+                continue;
+            if (!StreamDeckActions.IsStreamDeckAction(pipeline.Name))
+                continue;
+            if (!IsAutoMadeKeyWrapper(pipeline))
+            {
+                kept.Add(
+                    new(pipeline.Id, "the pipeline is not an untouched Stream Deck key wrapper")
+                );
+                continue;
+            }
+
+            string idText = pipeline.Id.ToString();
+            if (await _db.PipelineTriggers.AnyAsync(t => t.PipelineId == pipeline.Id, ct))
+            {
+                kept.Add(new(pipeline.Id, "the pipeline has its own triggers"));
+                continue;
+            }
+            if (
+                await _db.PipelineSteps.AnyAsync(
+                    s => s.PipelineId != pipeline.Id && s.ConfigJson.Contains(idText),
+                    ct
+                )
+            )
+            {
+                kept.Add(new(pipeline.Id, "another pipeline step references it"));
+                continue;
+            }
+
+            pipeline.IsEnabled = false;
+            retired.Add(new(pipeline.Id, pipeline.Name));
+        }
+
+        return retired;
+    }
+
+    private static bool IsAutoMadeKeyWrapper(Pipeline pipeline)
+    {
+        if (string.IsNullOrWhiteSpace(pipeline.GraphJsonCache))
+            return false;
+
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(pipeline.GraphJsonCache);
+            if (
+                !document.RootElement.TryGetProperty("steps", out JsonElement steps)
+                || steps.ValueKind != JsonValueKind.Array
+                || steps.GetArrayLength() != 1
+                || !steps[0].TryGetProperty("action", out JsonElement action)
+                || action.GetProperty("type").GetString() != pipeline.Name
+            )
+                return false;
+
+            return !action.TryGetProperty("parameters", out JsonElement parameters)
+                || parameters.EnumerateObject().All(p => IsPlaceholder(p.Value));
+        }
+        catch (Exception ex)
+            when (ex is JsonException or KeyNotFoundException or InvalidOperationException)
+        {
+            return false;
+        }
+    }
+
+    private static bool IsPlaceholder(JsonElement value) =>
+        value.ValueKind == JsonValueKind.String
+        && value.GetString() is { Length: > 2 } text
+        && text[0] == '{'
+        && text[^1] == '}';
 
     private async Task RebindAsync<T>(
         IQueryable<T> rows,

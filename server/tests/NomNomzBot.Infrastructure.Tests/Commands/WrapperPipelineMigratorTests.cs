@@ -398,4 +398,121 @@ public sealed class WrapperPipelineMigratorTests
         crossed.PipelineId.Should().Be(minePipeline.Id);
         report.Rebound.Should().HaveCount(2);
     }
+
+    private const string MusicPlayGraph = """{"steps":[{"action":{"type":"music_play"}}]}""";
+    private const string ObsSceneGraph =
+        """{"steps":[{"action":{"type":"obs_switch_scene","parameters":{"scene":"{scene}"}}}]}""";
+
+    private static async Task<Pipeline> AddKeyPipelineAsync(
+        RealCommandsDb h,
+        Guid channel,
+        string name,
+        string graph
+    )
+    {
+        Pipeline pipeline = new()
+        {
+            Id = Guid.NewGuid(),
+            BroadcasterId = channel,
+            Name = name,
+            TriggerKind = "manual",
+            GraphJsonCache = graph,
+        };
+        h.Db.Pipelines.Add(pipeline);
+        await h.Db.SaveChangesAsync();
+        return pipeline;
+    }
+
+    [Fact]
+    public async Task An_auto_made_stream_deck_pipeline_is_switched_off_so_the_key_runs_the_action_target()
+    {
+        using RealCommandsDb h = new();
+        Pipeline music = await AddKeyPipelineAsync(
+            h,
+            RealCommandsDb.Channel,
+            "music_play",
+            MusicPlayGraph
+        );
+        Pipeline obs = await AddKeyPipelineAsync(
+            h,
+            RealCommandsDb.Channel,
+            "obs_switch_scene",
+            ObsSceneGraph
+        );
+
+        WrapperMigrationReport report = await Sut(h).RunAsync();
+
+        await ReloadAsync(h, music);
+        await ReloadAsync(h, obs);
+        music.IsEnabled.Should().BeFalse();
+        obs.IsEnabled.Should().BeFalse();
+        report
+            .StreamDeck.Should()
+            .BeEquivalentTo([
+                new RetiredStreamDeckWrapper(music.Id, "music_play"),
+                new RetiredStreamDeckWrapper(obs.Id, "obs_switch_scene"),
+            ]);
+        (await h.Db.Pipelines.CountAsync(p => p.Id == music.Id || p.Id == obs.Id))
+            .Should()
+            .Be(2, "a pipeline row is never deleted");
+
+        WrapperMigrationReport second = await Sut(h).RunAsync();
+        second.StreamDeck.Should().BeEmpty("a second pass changes nothing");
+    }
+
+    [Fact]
+    public async Task A_customized_or_used_stream_deck_pipeline_stays_enabled()
+    {
+        using RealCommandsDb h = new();
+        Guid channel = RealCommandsDb.Channel;
+        Pipeline extraStep = await AddKeyPipelineAsync(
+            h,
+            channel,
+            "music_play",
+            """{"steps":[{"action":{"type":"music_play"}},{"action":{"type":"wait"}}]}"""
+        );
+        Pipeline otherAction = await AddKeyPipelineAsync(h, channel, "music_pause", MusicPlayGraph);
+        Pipeline editedParam = await AddKeyPipelineAsync(
+            h,
+            channel,
+            "obs_switch_scene",
+            """{"steps":[{"action":{"type":"obs_switch_scene","parameters":{"scene":"Intro"}}}]}"""
+        );
+        Pipeline referenced = await AddKeyPipelineAsync(
+            h,
+            channel,
+            "music_skip",
+            """{"steps":[{"action":{"type":"music_skip"}}]}"""
+        );
+        Pipeline notAKey = await AddKeyPipelineAsync(
+            h,
+            channel,
+            "hydrate",
+            """{"steps":[{"action":{"type":"hydrate"}}]}"""
+        );
+        h.Db.PipelineSteps.Add(
+            new()
+            {
+                Id = Guid.NewGuid(),
+                PipelineId = extraStep.Id,
+                BroadcasterId = channel,
+                Order = 0,
+                ActionType = "run_pipeline",
+                ConfigJson = $$"""{"pipeline_id":"{{referenced.Id}}"}""",
+            }
+        );
+        await h.Db.SaveChangesAsync();
+
+        WrapperMigrationReport report = await Sut(h).RunAsync();
+
+        foreach (
+            Pipeline pipeline in new[] { extraStep, otherAction, editedParam, referenced, notAKey }
+        )
+            (await ReloadAsync(h, pipeline)).IsEnabled.Should().BeTrue(pipeline.Name);
+        report.StreamDeck.Should().BeEmpty();
+        report
+            .Kept.Select(k => k.PipelineId)
+            .Should()
+            .BeEquivalentTo([extraStep.Id, otherAction.Id, editedParam.Id, referenced.Id]);
+    }
 }

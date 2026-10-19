@@ -38,12 +38,13 @@ public sealed class WrapperPipelineBindingSeeder : ISeeder
     public async Task SeedAsync(CancellationToken ct = default)
     {
         WrapperMigrationReport report = await _migrator.RunAsync(ct);
-        if (report.Rebound.Count == 0 && report.Kept.Count == 0)
+        if (report.Rebound.Count == 0 && report.Kept.Count == 0 && report.StreamDeck.Count == 0)
             return;
 
         _logger.LogInformation(
-            "Wrapper pipeline migration: {Rebound} rows rebound to their command, {Kept} pipelines kept",
+            "Wrapper pipeline migration: {Rebound} rows rebound to their command, {StreamDeck} Stream Deck key wrappers switched to the action target, {Kept} pipelines kept",
             report.Rebound.Count,
+            report.StreamDeck.Count,
             report.Kept.Count
         );
     }

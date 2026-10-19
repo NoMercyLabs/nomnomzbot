@@ -16,8 +16,12 @@ public sealed record ReboundBinding(string Surface, Guid RowId, Guid OldPipeline
 /// <summary>A bound pipeline that stayed a pipeline binding, with the single reason it is not a safe wrapper.</summary>
 public sealed record KeptWrapper(Guid PipelineId, string Reason);
 
-/// <summary>What one wrapper-migration pass did: every rebound row and every kept pipeline with its reason.</summary>
+/// <summary>A Stream Deck key wrapper (a pipeline named by its one action type) switched off so the key runs the action target directly. The pipeline row stays.</summary>
+public sealed record RetiredStreamDeckWrapper(Guid PipelineId, string ActionType);
+
+/// <summary>What one wrapper-migration pass did: every rebound row, every kept pipeline with its reason, and every Stream Deck key wrapper retired.</summary>
 public sealed record WrapperMigrationReport(
     IReadOnlyList<ReboundBinding> Rebound,
-    IReadOnlyList<KeptWrapper> Kept
+    IReadOnlyList<KeptWrapper> Kept,
+    IReadOnlyList<RetiredStreamDeckWrapper> StreamDeck
 );
