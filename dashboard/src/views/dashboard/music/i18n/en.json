@@ -36,7 +36,13 @@
           }
         },
         "requestedBy": "Requested by {name}",
-        "volume": "Volume",
+        "volume": "Music volume",
+        "mutedBadge": "Music muted",
+        "state": {
+          "pausedByOwner": "Paused by you",
+          "blocked": "Blocked: the player cannot start",
+          "starting": "Starting"
+        },
         "pause": "Pause",
         "play": "Play",
         "skip": "Next song",

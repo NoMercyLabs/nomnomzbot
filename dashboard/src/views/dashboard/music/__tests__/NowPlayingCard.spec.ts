@@ -51,11 +51,11 @@ const track = {
   repeatState: 'off',
 } as unknown as NowPlaying;
 
-function card(): VueWrapper {
+function card(override: Partial<NowPlaying> = {}): VueWrapper {
   i18n.global.mergeLocaleMessage('en', en);
 
   mounted = mount(NowPlayingCard, {
-    props: { track, observedAt: Date.now() },
+    props: { track: { ...track, ...override }, observedAt: Date.now() },
     global: { plugins: [i18n, createPinia()] },
   });
 
@@ -102,5 +102,32 @@ describe('the now playing card in a narrow or wide panel', () => {
 
     expect(row).toContain('grid-cols-1');
     expect(row).toContain('@2xl:grid-cols-[1fr_auto_1fr]');
+  });
+});
+
+// music-playback-determinism.md S-PD-11: the card shows what the director says, the same for both engines.
+describe('the now playing card shows the director state', () => {
+  it('says "Paused by you" when the owner paused, and nothing while the song plays', () => {
+    expect(card({ state: 'pausedByOwner', isPlaying: false }).find('[data-player-state]').text()).toBe('Paused by you');
+    expect(card({ state: 'playing' }).find('[data-player-state]').text()).toBe('');
+  });
+
+  it('says why a start is blocked and marks it as a problem', () => {
+    const badge = card({ state: 'blocked', isPlaying: false }).find('[data-player-state]');
+
+    expect(badge.text()).toBe('Blocked: the player cannot start');
+    expect(badge.html()).toContain('text-destructive');
+  });
+
+  it('says a start is waiting to be seen while the director is starting', () => {
+    expect(card({ state: 'starting', isPlaying: false }).find('[data-player-state]').text()).toBe('Starting');
+  });
+
+  it('names the volume the music level and shows a mute that keeps the song playing', () => {
+    const wrapper = card({ muted: true });
+
+    expect(wrapper.find('[data-player-volume]').attributes('aria-label')).toBe('Music volume');
+    expect(wrapper.find('[data-player-muted]').text()).toBe('Music muted');
+    expect(card({ muted: false }).find('[data-player-muted]').exists()).toBe(false);
   });
 });

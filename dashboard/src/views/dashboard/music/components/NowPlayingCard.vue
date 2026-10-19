@@ -23,9 +23,11 @@ import { computed, ref, watch } from 'vue';
 
 import type { NowPlaying } from '@/api/music';
 import UserName from '@/components/layout/UserName.vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
 import { useCan } from '@/composables/useCan';
+import { lookup } from '@/lib/array';
 
 import { formatClock } from './formatClock';
 
@@ -93,6 +95,15 @@ function commitVolume(value: number[] | undefined): void {
   }
 }
 
+// The director's word for the song, the same for both engines. Playing and idle say nothing.
+const stateKeys = {
+  pausedByOwner: 'dashboard.music.now.state.pausedByOwner',
+  blocked: 'dashboard.music.now.state.blocked',
+  starting: 'dashboard.music.now.state.starting',
+} as const satisfies Record<string, string>;
+
+const stateKey = computed(() => lookup(stateKeys, props.track.state ?? undefined));
+
 const repeatMode = computed(() => props.track.repeatState as RepeatMode);
 const nextRepeat = computed<RepeatMode>(() => {
   const order: RepeatMode[] = ['off', 'context', 'track'];
@@ -143,6 +154,15 @@ const nextRepeat = computed<RepeatMode>(() => {
                 </template>
               </i18n-t>
             </template>
+          </p>
+          <p data-player-state class="flex h-5 items-center gap-2">
+            <Badge v-if="stateKey" :variant="track.state === 'blocked' ? 'destructive' : 'secondary'">
+              {{ $t(stateKey) }}
+            </Badge>
+            <Badge v-if="track.muted" data-player-muted variant="secondary">
+              <VolumeMuted aria-hidden="true" />
+              {{ $t('dashboard.music.now.mutedBadge') }}
+            </Badge>
           </p>
         </div>
       </div>
@@ -250,7 +270,7 @@ const nextRepeat = computed<RepeatMode>(() => {
             class="flex items-center justify-center gap-2 @2xl:justify-end"
           >
             <VolumeMuted
-              v-if="volume[0] === 0"
+              v-if="volume[0] === 0 || track.muted"
               class="size-5 flex-none text-muted-foreground"
               aria-hidden="true"
             />

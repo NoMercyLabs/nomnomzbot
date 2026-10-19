@@ -36,7 +36,13 @@
           }
         },
         "requestedBy": "Aangevraagd door {name}",
-        "volume": "Volume",
+        "volume": "Muziekvolume",
+        "mutedBadge": "Muziek gedempt",
+        "state": {
+          "pausedByOwner": "Door jou gepauzeerd",
+          "blocked": "Geblokkeerd: de speler kan niet starten",
+          "starting": "Starten"
+        },
         "pause": "Pauze",
         "play": "Afspelen",
         "skip": "Volgend nummer",

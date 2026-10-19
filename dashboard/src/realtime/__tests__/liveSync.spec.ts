@@ -114,6 +114,12 @@ const eventKeys: (readonly [string, unknown, readonly Keys[]])[] = [
     broadcasterId: 'x',
     data: { items: [] },
   }, [homeStatsKey, activityKey, musicQueueKey, musicHistoryKey, musicTopRequestersKey]],
+  // S-PD-11: the director state (paused by you, blocked) arrives as the one music.nowPlaying ChannelEvent.
+  ['ChannelEvent', {
+    type: 'music.nowPlaying',
+    broadcasterId: 'x',
+    data: { state: 'pausedByOwner' },
+  }, [homeStatsKey, activityKey, musicQueueKey, musicHistoryKey, musicTopRequestersKey]],
   ['RewardRedeemed', { broadcasterId: 'x' }, [homeStatsKey, activityKey]],
   ['RedemptionStatusChanged', { broadcasterId: 'x' }, [homeStatsKey, activityKey]],
   ['RewardChanged', { broadcasterId: 'x', action: 'updated' }, [rewardsKey]],

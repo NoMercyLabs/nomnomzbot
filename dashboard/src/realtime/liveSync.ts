@@ -112,6 +112,8 @@ const channelEventKeys = [
   { prefix: 'media_share_', keys: [mediaShareQueueKey] },
   // The server sends every queue change as a ChannelEvent of this type, never as a hub method of its own.
   { prefix: 'sr_queue_changed', keys: musicKeys },
+  // The director's one now-playing push: the card reads its state (paused by you, blocked) from the refetch.
+  { prefix: 'music.nowPlaying', keys: musicKeys },
   { prefix: 'CustomDataSourceChanged', keys: [eventFeedsKey] },
   { prefix: 'webhook_', keys: [outboundWebhooksKey] },
   { prefix: 'DataRightsChanged', keys: [dataRequestsKey, consentsKey] },
