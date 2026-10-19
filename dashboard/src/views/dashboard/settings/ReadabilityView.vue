@@ -129,7 +129,7 @@ function setSize(next: number[] | undefined): void {
 <template>
   <PanelCard
     data-view="readability"
-    class="max-w-4xl flex-none"
+    class="flex-none"
     pad
     :title="$t('dashboard.settings.readability.title')"
     :description="$t('dashboard.settings.readability.description')"

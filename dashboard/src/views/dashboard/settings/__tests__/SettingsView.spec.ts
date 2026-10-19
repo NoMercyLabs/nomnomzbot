@@ -173,14 +173,14 @@ describe('Readability options', () => {
   });
 
   // Re-shoot 2026-10-19: the sample was inset from the row groups under it, and at 1674 px each label sat
-  // 1300 px from its control.
-  it('lines the sample up with the row groups and caps the card width', async () => {
+  // 1300 px from its control. Decision 2026-10-19: the card takes the container width like its sibling tabs.
+  it('lines the sample up with the row groups and sets no card width cap', async () => {
     await open();
     const sample: HTMLElement = document.body.querySelector('[data-slot="readability-sample"]')!;
     const card: HTMLElement = document.body.querySelector('[data-view="readability"]')!;
 
     expect(sample.classList.contains('mx-3')).toBe(false);
-    expect(card.classList.contains('max-w-4xl')).toBe(true);
+    expect(card.classList.contains('max-w-4xl')).toBe(false);
   });
 
   // Re-shoot 2026-10-19 at 1280: the section headings sat 16 px inside the option panels under them.

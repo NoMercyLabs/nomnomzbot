@@ -15,9 +15,8 @@ import { describe, expect, it } from 'vitest';
 
 // The sibling settings tabs sit in one page container. Each tab's root panel
 // must take the container width: a per-tab max-w-* makes one tab narrower
-// than the tab beside it. ReadabilityView is left out on purpose: SettingsView.spec
-// pins its max-w-4xl cap (label-to-control distance on wide screens).
-const tabs = ['BasicsView', 'PersonalityView', 'EngagementView'] as const;
+// than the tab beside it.
+const tabs = ['BasicsView', 'PersonalityView', 'EngagementView', 'ReadabilityView'] as const;
 
 function rootPanelClass(name: string): string {
   const source = readFileSync(resolve(__dirname, '..', `${name}.vue`), 'utf8');
