@@ -22,7 +22,7 @@ defineEmits<{ lift: [] }>();
 </script>
 
 <template>
-  <li data-block-row class="flex flex-wrap items-center gap-x-3 gap-y-2 py-2">
+  <li data-block-row class="flex flex-wrap items-center gap-x-3 gap-y-2 px-4 py-2">
     <div class="min-w-0 flex-1 basis-64">
       <p class="truncate text-sm">
         <UserName

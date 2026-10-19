@@ -216,7 +216,7 @@ function run(current: Step): Promise<void> {
     :crumb="$t('dashboard.admin.crumb')"
   />
   <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
-    <div class="grid gap-1.5">
+    <div data-page-inset class="grid gap-1.5">
       <Label for="ts-justification">{{
         $t("dashboard.admin.trustSafety.justification.label")
       }}</Label>

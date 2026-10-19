@@ -27,13 +27,13 @@ const open = ref(false);
 </script>
 
 <template>
-  <li data-signal-row class="py-2">
+  <li data-signal-row class="px-4 py-2">
     <Collapsible v-model:open="open">
       <div class="flex items-center gap-3">
         <div class="min-w-0 flex-1">
-          <p class="truncate text-sm">
+          <p class="flex min-w-0 items-center gap-1.5 text-sm">
             <UserName :user-id="signal.subjectPlatformUserId" :name="signal.subjectDisplayName" />
-            <span class="text-muted-foreground"> {{ signal.provider }}</span>
+            <span class="text-muted-foreground">{{ signal.provider }}</span>
           </p>
           <p class="text-xs text-muted-foreground">
             {{
