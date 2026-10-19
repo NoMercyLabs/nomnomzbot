@@ -32,6 +32,7 @@ type Call = {
 };
 
 const calls: Call[] = [];
+const refusal = { body: null as object | null };
 
 const segment = {
   id: 'seg1',
@@ -69,7 +70,7 @@ const rules = {
 
 const ok = (data: unknown): object => ({ data: { data }, response: { status: 200, ok: true } });
 
-function answer(method: string, path: string, options?: Options): object {
+function answer(method: string, path: string, options?: Options) {
   calls.push({
     method,
     path,
@@ -87,6 +88,9 @@ function answer(method: string, path: string, options?: Options): object {
 
   if (method === 'GET' && path.endsWith('/scoring-rules'))
     return ok(rules);
+
+  if (method === 'PUT' && path.endsWith('/scoring-rules') && refusal.body !== null)
+    return { error: refusal.body, response: { status: 400, ok: false } } as const satisfies object;
 
   if (method === 'PUT' && path.endsWith('/scoring-rules'))
     return ok(options?.body);
@@ -139,6 +143,7 @@ let pinia: Pinia;
 beforeEach(() => {
   access.held = writeKeys;
   calls.length = 0;
+  refusal.body = null;
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -228,6 +233,50 @@ describe('the raid rules panel', () => {
     await press('[data-raid-rules-save]');
 
     expect(sent('PUT')[0]?.body).toEqual({ ...rules, followedWeight: 9 });
+  });
+
+  it('shows one translated line next to each field the server refused, and none beside the others', async () => {
+    refusal.body = {
+      status: 400,
+      message: 'The weight for category must be between -100 and 100.',
+      code: 'VALIDATION_FAILED',
+      data: {
+        problems: [
+          {
+            reason: 'weight-out-of-range',
+            field: 'category',
+            subject: 'Just Chatting',
+            value: 500,
+            limit: 100,
+          },
+          {
+            reason: 'weight-out-of-range',
+            field: 'followed',
+            subject: '',
+            value: 900,
+            limit: 100,
+          },
+        ],
+      },
+    };
+
+    await show(RaidRulesPanel);
+    await typeInto('#followed', '900');
+    await press('[data-raid-rules-save]');
+
+    const lines = [...document.body.querySelectorAll('[data-raid-problem]')].map((line) => ({
+      field: line.getAttribute('data-raid-problem'),
+      text: line.textContent?.trim(),
+    }));
+
+    expect(lines).toEqual([
+      { field: 'category', text: 'Points must stay between -100 and 100. Now: 500.' },
+      { field: 'followed', text: 'Points must stay between -100 and 100. Now: 900.' },
+    ]);
+
+    expect(pick('[data-category-rule]').nextElementSibling?.getAttribute('data-raid-problem')).toBe('category');
+    expect(pick('#followed').parentElement?.querySelector('[data-raid-problem="followed"]')).not.toBeNull();
+    expect(pick('#other-weight').parentElement?.querySelector('[data-raid-problem]')).toBeNull();
   });
 
   // Owner 2026-10-18: "no autocomplete search? we know all the options up front".

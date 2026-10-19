@@ -151,7 +151,17 @@
         "addKeyword": "Add keyword",
         "addBand": "Add band",
         "addStep": "Add step",
-        "save": "Save rules"
+        "save": "Save rules",
+        "problems": {
+          "weight-out-of-range": "Points must stay between -{limit} and {limit}. Now: {value}.",
+          "category-no-name": "Pick a category for this rule.",
+          "keyword-no-words": "Add at least one word to this keyword.",
+          "keyword-empty-word": "One of the words is empty. Remove it.",
+          "keyword-matches-nothing": "Turn on tags or title, or this keyword never matches.",
+          "band-below-zero": "The minimum viewers cannot be below {limit}. Now: {value}.",
+          "band-min-above-max": "The minimum ({value}) is above the maximum ({limit}).",
+          "step-needs-day": "A step needs at least {limit} day. Now: {value}."
+        }
       },
       "ads": {
         "title": "Run an ad",

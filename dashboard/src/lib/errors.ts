@@ -8,7 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { ApiError } from '@/api/errors';
+import { ApiError, type ApiFieldProblem } from '@/api/errors';
 
 type Translate = (key: string) => string;
 
@@ -36,4 +36,24 @@ export function fieldErrorLines(error: unknown): string[] {
     return [];
 
   return Object.values(error.errors).flat();
+}
+
+// Every broken field a refusal names, as one list. A refusal with one violation (its key is the reason) and a
+// refusal with a list of problems read the same way, so a screen translates the reason and shows the line next
+// to the field. Empty when the error names no field.
+// eslint-disable-next-line no-restricted-syntax -- takes whatever a query or a catch clause threw
+export function refusalProblems(error: unknown): ApiFieldProblem[] {
+  if (!(error instanceof ApiError))
+    return [];
+
+  if (error.problems !== undefined)
+    return error.problems;
+
+  return error.violation === undefined
+    ? []
+    : [{
+        reason: error.violation.key,
+        field: error.violation.field,
+        subject: '',
+      }];
 }

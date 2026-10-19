@@ -875,3 +875,31 @@ describe('icon-only buttons', () => {
     expect(stale).toEqual([]);
   });
 });
+
+// Stoney 2026-10-18: "i expect you to make tools like this for repeatables". A refusal names its broken fields
+// through refusalProblems (lib/errors.ts), which reads both a single violation and a list of problems. A view never
+// reads error.violation or error.problems by hand.
+const ownRefusalRead = /\berror\.(violation|problems)\b/;
+const ownRefusalReadAllowlist: readonly string[] = [];
+
+function readsRefusalByHand(path: string): boolean {
+  const text: string = readFileSync(join(src, path), 'utf8');
+
+  return ownRefusalRead.test(text);
+}
+
+describe('refusal fields', () => {
+  it('spots a hand read of the violation or the problems of an error', () => {
+    expect(ownRefusalRead.test('error.violation')).toBe(true);
+    expect(ownRefusalRead.test('error.problems')).toBe(true);
+    expect(ownRefusalRead.test('refusalProblems(error)')).toBe(false);
+  });
+
+  it('reads no refusal field by hand in a view, except the files on the sweep list', () => {
+    const offenders = viewFiles()
+      .filter((path) => readsRefusalByHand(path))
+      .filter((path) => !ownRefusalReadAllowlist.includes(path));
+
+    expect(offenders).toEqual([]);
+  });
+});

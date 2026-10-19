@@ -13,7 +13,7 @@ import { describe, expect, it } from 'vitest';
 import { failed } from '@/api/errors';
 import { lookup } from '@/lib/array';
 
-import { errorText, fieldErrorLines } from '../errors';
+import { errorText, fieldErrorLines, refusalProblems } from '../errors';
 
 const words = { 'errors.forbidden': 'No right.', 'errors.invalid': 'Bad input.' } as const satisfies Record<string, string>;
 const t = (key: string): string => lookup(words, key) ?? key;
@@ -44,5 +44,35 @@ describe('fieldErrorLines', () => {
   it('is empty for an error without field errors', () => {
     expect(fieldErrorLines(new Error('boom'))).toEqual([]);
     expect(fieldErrorLines(failed('warn', 500))).toEqual([]);
+  });
+});
+
+describe('refusalProblems', () => {
+  it('lists the problems of a refusal that names several fields', () => {
+    const problem = {
+      reason: 'weight-out-of-range',
+      field: 'followed',
+      subject: '',
+      value: 900,
+      limit: 100,
+    };
+    const error = failed('raid-rules-save', 400, { data: { problems: [problem] } });
+
+    expect(refusalProblems(error)).toEqual([problem]);
+  });
+
+  it('reads the single violation of a validator refusal as one problem whose reason is its key', () => {
+    const error = failed('warn', 400, { data: { key: 'some.key', field: 'offenseWindowHours' } });
+
+    expect(refusalProblems(error)).toEqual([{
+      reason: 'some.key',
+      field: 'offenseWindowHours',
+      subject: '',
+    }]);
+  });
+
+  it('is empty for an error that names no field', () => {
+    expect(refusalProblems(new Error('boom'))).toEqual([]);
+    expect(refusalProblems(failed('warn', 500))).toEqual([]);
   });
 });

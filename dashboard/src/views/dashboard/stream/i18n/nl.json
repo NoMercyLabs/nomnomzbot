@@ -151,7 +151,17 @@
         "addKeyword": "Trefwoord toevoegen",
         "addBand": "Groep toevoegen",
         "addStep": "Stap toevoegen",
-        "save": "Regels opslaan"
+        "save": "Regels opslaan",
+        "problems": {
+          "weight-out-of-range": "Punten moeten tussen -{limit} en {limit} blijven. Nu: {value}.",
+          "category-no-name": "Kies een categorie voor deze regel.",
+          "keyword-no-words": "Voeg minstens één woord toe aan dit trefwoord.",
+          "keyword-empty-word": "Een van de woorden is leeg. Haal het weg.",
+          "keyword-matches-nothing": "Zet tags of titel aan, anders past dit trefwoord nooit.",
+          "band-below-zero": "Het minimum aantal kijkers kan niet onder {limit} liggen. Nu: {value}.",
+          "band-min-above-max": "Het minimum ({value}) ligt boven het maximum ({limit}).",
+          "step-needs-day": "Een stap heeft minstens {limit} dag nodig. Nu: {value}."
+        }
       },
       "ads": {
         "title": "Advertentie draaien",

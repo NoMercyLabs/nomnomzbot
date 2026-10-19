@@ -13,7 +13,6 @@
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { ApiError } from '@/api/errors';
 import { useEscalationPolicy, useSaveEscalationPolicy } from '@/api/escalationPolicy';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -22,6 +21,7 @@ import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { refusalProblems } from '@/lib/errors';
 
 import LadderPanel from './components/LadderPanel.vue';
 import PolicyPanel from './components/PolicyPanel.vue';
@@ -94,17 +94,17 @@ function resetAll(): void {
 }
 
 function refuse(error: Error): void {
-  const violation = error instanceof ApiError
-    ? error.violation
-    : undefined;
+  const problems = refusalProblems(error);
 
-  if (violation === undefined) {
+  if (problems.length === 0) {
     saveError.value = t('dashboard.settings.escalation.saveError');
 
     return;
   }
 
-  rowErrors.value = { [violation.field]: t(violation.key) };
+  const lines = problems.map((problem) => [problem.field, t(problem.reason)] as const);
+
+  rowErrors.value = Object.fromEntries(lines);
 }
 
 function submit(): void {
