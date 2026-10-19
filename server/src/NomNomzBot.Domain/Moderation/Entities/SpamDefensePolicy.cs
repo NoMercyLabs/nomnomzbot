@@ -32,13 +32,13 @@ public class SpamDefensePolicy : SoftDeletableEntity, ITenantScoped
 
     // ─── Master ───────────────────────────────────────────────────────────────
 
-    public bool IsEnabled { get; set; } = true;
+    public bool IsEnabled { get; set; } = SpamDefenseDefaults.IsEnabled;
 
     /// <summary>
     /// Detect and record, act on nothing. Ships ON — a channel that has never been configured must not
     /// be able to action anybody.
     /// </summary>
-    public bool DryRun { get; set; } = true;
+    public bool DryRun { get; set; } = SpamDefenseDefaults.DryRun;
 
     /// <summary>
     /// When the channel first enabled the stack. The §6.2 seven-day observation period is measured from
@@ -48,47 +48,60 @@ public class SpamDefensePolicy : SoftDeletableEntity, ITenantScoped
 
     // ─── Trust ────────────────────────────────────────────────────────────────
 
-    public double SemiTrustedWatchHoursHere { get; set; } = 10;
-    public double SemiTrustedWatchHoursInstance { get; set; } = 25;
+    public double SemiTrustedWatchHoursHere { get; set; } =
+        SpamDefenseDefaults.SemiTrustedWatchHoursHere;
+    public double SemiTrustedWatchHoursInstance { get; set; } =
+        SpamDefenseDefaults.SemiTrustedWatchHoursInstance;
+
+    /// <summary>Days since first message here that, with the other three, earn Established.</summary>
+    public double EstablishedDays { get; set; } = SpamDefenseDefaults.EstablishedDays;
+    public int EstablishedMessages { get; set; } = SpamDefenseDefaults.EstablishedMessages;
+    public int EstablishedDistinctActiveDays { get; set; } =
+        SpamDefenseDefaults.EstablishedDistinctActiveDays;
+    public double EstablishedStrikeFreeDays { get; set; } =
+        SpamDefenseDefaults.EstablishedStrikeFreeDays;
 
     // ─── Newcomers ────────────────────────────────────────────────────────────
 
-    public int AccountAgeGateDays { get; set; }
-    public int FollowAgeGateDays { get; set; }
-    public bool AccountGateHoldsForReview { get; set; } = true;
+    public int AccountAgeGateDays { get; set; } = SpamDefenseDefaults.AccountAgeGateDays;
+    public int FollowAgeGateDays { get; set; } = SpamDefenseDefaults.FollowAgeGateDays;
+    public bool AccountGateHoldsForReview { get; set; } =
+        SpamDefenseDefaults.AccountGateHoldsForReview;
 
     // ─── Content ──────────────────────────────────────────────────────────────
 
-    public double NearDuplicateSimilarity { get; set; } = 0.6;
-    public int MinimumSkeletonLength { get; set; } = 8;
-    public bool NonLatinScriptGate { get; set; }
+    public double NearDuplicateSimilarity { get; set; } =
+        SpamDefenseDefaults.NearDuplicateSimilarity;
+    public int MinimumSkeletonLength { get; set; } = SpamDefenseDefaults.MinimumSkeletonLength;
+    public bool NonLatinScriptGate { get; set; } = SpamDefenseDefaults.NonLatinScriptGate;
 
     // ─── Campaign ─────────────────────────────────────────────────────────────
 
-    public double QualifyNoStandingShare { get; set; } = 0.80;
-    public double DequalifyNoStandingShare { get; set; } = 0.65;
-    public int MinimumCohortSize { get; set; } = 5;
-    public int WindowSeconds { get; set; } = 600;
-    public int MaxWindowSeconds { get; set; } = 1800;
-    public int ActionDelaySeconds { get; set; } = 8;
-    public bool AutoReverseOnDequalify { get; set; } = true;
+    public double QualifyNoStandingShare { get; set; } = SpamDefenseDefaults.QualifyNoStandingShare;
+    public double DequalifyNoStandingShare { get; set; } =
+        SpamDefenseDefaults.DequalifyNoStandingShare;
+    public int MinimumCohortSize { get; set; } = SpamDefenseDefaults.MinimumCohortSize;
+    public int WindowSeconds { get; set; } = SpamDefenseDefaults.WindowSeconds;
+    public int MaxWindowSeconds { get; set; } = SpamDefenseDefaults.MaxWindowSeconds;
+    public int ActionDelaySeconds { get; set; } = SpamDefenseDefaults.ActionDelaySeconds;
+    public bool AutoReverseOnDequalify { get; set; } = SpamDefenseDefaults.AutoReverseOnDequalify;
 
     // ─── Bursts ───────────────────────────────────────────────────────────────
 
-    public double FollowSpikeFactor { get; set; } = 5;
-    public double JoinBurstFactor { get; set; } = 4;
+    public double FollowSpikeFactor { get; set; } = SpamDefenseDefaults.FollowSpikeFactor;
+    public double JoinBurstFactor { get; set; } = SpamDefenseDefaults.JoinBurstFactor;
 
     // ─── Lockdown ─────────────────────────────────────────────────────────────
 
-    public int LockdownMinutes { get; set; } = 15;
-    public bool LockdownAutoExtend { get; set; } = true;
-    public int LockdownMaxMinutes { get; set; } = 60;
+    public int LockdownMinutes { get; set; } = SpamDefenseDefaults.LockdownMinutes;
+    public bool LockdownAutoExtend { get; set; } = SpamDefenseDefaults.LockdownAutoExtend;
+    public int LockdownMaxMinutes { get; set; } = SpamDefenseDefaults.LockdownMaxMinutes;
 
     // ─── Network ──────────────────────────────────────────────────────────────
 
-    public bool NetworkSubscribe { get; set; } = true;
-    public bool NetworkContribute { get; set; }
-    public int RequiredCorroborations { get; set; } = 3;
+    public bool NetworkSubscribe { get; set; } = SpamDefenseDefaults.NetworkSubscribe;
+    public bool NetworkContribute { get; set; } = SpamDefenseDefaults.NetworkContribute;
+    public int RequiredCorroborations { get; set; } = SpamDefenseDefaults.RequiredCorroborations;
 
     /// <summary>Project the row into the record the engine reads.</summary>
     public SpamDefenseSettings ToSettings() =>
@@ -98,6 +111,13 @@ public class SpamDefensePolicy : SoftDeletableEntity, ITenantScoped
             DryRun = DryRun,
             SemiTrustedWatchHoursHere = SemiTrustedWatchHoursHere,
             SemiTrustedWatchHoursInstance = SemiTrustedWatchHoursInstance,
+            TrustThresholds = new TrustTierThresholds
+            {
+                EstablishedDays = EstablishedDays,
+                EstablishedMessages = EstablishedMessages,
+                EstablishedDistinctActiveDays = EstablishedDistinctActiveDays,
+                EstablishedStrikeFreeDays = EstablishedStrikeFreeDays,
+            },
             AccountAgeGateDays = AccountAgeGateDays,
             FollowAgeGateDays = FollowAgeGateDays,
             AccountGateHoldsForReview = AccountGateHoldsForReview,
@@ -128,6 +148,10 @@ public class SpamDefensePolicy : SoftDeletableEntity, ITenantScoped
         DryRun = settings.DryRun;
         SemiTrustedWatchHoursHere = settings.SemiTrustedWatchHoursHere;
         SemiTrustedWatchHoursInstance = settings.SemiTrustedWatchHoursInstance;
+        EstablishedDays = settings.TrustThresholds.EstablishedDays;
+        EstablishedMessages = settings.TrustThresholds.EstablishedMessages;
+        EstablishedDistinctActiveDays = settings.TrustThresholds.EstablishedDistinctActiveDays;
+        EstablishedStrikeFreeDays = settings.TrustThresholds.EstablishedStrikeFreeDays;
         AccountAgeGateDays = settings.AccountAgeGateDays;
         FollowAgeGateDays = settings.FollowAgeGateDays;
         AccountGateHoldsForReview = settings.AccountGateHoldsForReview;

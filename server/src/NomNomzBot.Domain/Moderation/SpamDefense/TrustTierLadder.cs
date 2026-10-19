@@ -75,10 +75,12 @@ public sealed record ChannelParticipation
 /// </summary>
 public sealed record TrustTierThresholds
 {
-    public double EstablishedDays { get; init; } = 90;
-    public int EstablishedMessages { get; init; } = 300;
-    public int EstablishedDistinctActiveDays { get; init; } = 30;
-    public double EstablishedStrikeFreeDays { get; init; } = 180;
+    public double EstablishedDays { get; init; } = SpamDefenseDefaults.EstablishedDays;
+    public int EstablishedMessages { get; init; } = SpamDefenseDefaults.EstablishedMessages;
+    public int EstablishedDistinctActiveDays { get; init; } =
+        SpamDefenseDefaults.EstablishedDistinctActiveDays;
+    public double EstablishedStrikeFreeDays { get; init; } =
+        SpamDefenseDefaults.EstablishedStrikeFreeDays;
 }
 
 /// <summary>

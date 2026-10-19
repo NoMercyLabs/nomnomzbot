@@ -8712,6 +8712,18 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<DateTime?>("EnforcementEligibleAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<double>("EstablishedDays")
+                        .HasColumnType("REAL");
+
+                    b.Property<int>("EstablishedDistinctActiveDays")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("EstablishedMessages")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<double>("EstablishedStrikeFreeDays")
+                        .HasColumnType("REAL");
+
                     b.Property<int>("FollowAgeGateDays")
                         .HasColumnType("INTEGER");
 

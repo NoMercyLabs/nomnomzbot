@@ -128,6 +128,20 @@ public sealed class SpamDefenseService : ISpamDefenseService
                 errorCode: "VALIDATION_FAILED"
             );
 
+        // A window cannot outlast its own hard cap, and a lockdown cannot outlast its ceiling: the
+        // stored cap would silently win and the operator's number would never take effect.
+        if (settings.MaxWindowSeconds < settings.WindowSeconds)
+            return Result.Failure<SpamDefenseSettings>(
+                "spam_setting_max_window_below_window",
+                errorCode: "VALIDATION_FAILED"
+            );
+
+        if (settings.LockdownMaxMinutes < settings.LockdownMinutes)
+            return Result.Failure<SpamDefenseSettings>(
+                "spam_setting_lockdown_max_below_lockdown",
+                errorCode: "VALIDATION_FAILED"
+            );
+
         bool wasEnabled = (await GetSettingsAsync(broadcasterId, ct)).IsEnabled;
         SpamDefensePolicy? policy = await LoadPolicyAsync(broadcasterId, track: true, ct);
         if (policy is null)
@@ -797,12 +811,7 @@ public sealed class SpamDefenseService : ISpamDefenseService
             settings.SemiTrustedWatchHoursInstance
         );
 
-        TrustTierThresholds thresholds = new()
-        {
-            EstablishedDays = settings.TrustThresholds.EstablishedDays,
-            EstablishedMessages = settings.TrustThresholds.EstablishedMessages,
-            EstablishedDistinctActiveDays = settings.TrustThresholds.EstablishedDistinctActiveDays,
-        };
+        TrustTierThresholds thresholds = settings.TrustThresholds;
 
         // The follow lookup is paid for (a Helix call), so it only runs when it can change the answer:
         // either the tier, or the follow limit of a viewer the newcomer gate would still measure.

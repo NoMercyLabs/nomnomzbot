@@ -26,13 +26,13 @@ public sealed record SpamDefenseSettings
     // ---- Master ---------------------------------------------------------------------------------
 
     /// <summary>Kill switch for the whole stack.</summary>
-    public bool IsEnabled { get; init; } = true;
+    public bool IsEnabled { get; init; } = SpamDefenseDefaults.IsEnabled;
 
     /// <summary>
     /// Detect and log, act on nothing. On for a channel's first 7 days, and a perfectly good permanent
     /// setting for a channel that only wants visibility.
     /// </summary>
-    public bool DryRun { get; init; } = true;
+    public bool DryRun { get; init; } = SpamDefenseDefaults.DryRun;
 
     // ---- Trust ----------------------------------------------------------------------------------
 
@@ -40,85 +40,91 @@ public sealed record SpamDefenseSettings
     public TrustTierThresholds TrustThresholds { get; init; } = new();
 
     /// <summary>Watch hours in this channel that grant Semi-Trusted.</summary>
-    public double SemiTrustedWatchHoursHere { get; init; } = 10;
+    public double SemiTrustedWatchHoursHere { get; init; } =
+        SpamDefenseDefaults.SemiTrustedWatchHoursHere;
 
     /// <summary>Watch hours across this instance's channels that grant Semi-Trusted.</summary>
-    public double SemiTrustedWatchHoursInstance { get; init; } = 25;
+    public double SemiTrustedWatchHoursInstance { get; init; } =
+        SpamDefenseDefaults.SemiTrustedWatchHoursInstance;
 
     // ---- Newcomers ------------------------------------------------------------------------------
 
     /// <summary>Hold chat from accounts younger than this many days. 0 is off.</summary>
-    public int AccountAgeGateDays { get; init; }
+    public int AccountAgeGateDays { get; init; } = SpamDefenseDefaults.AccountAgeGateDays;
 
     /// <summary>Hold chat from followers who followed less than this many days ago. 0 is off.</summary>
-    public int FollowAgeGateDays { get; init; }
+    public int FollowAgeGateDays { get; init; } = SpamDefenseDefaults.FollowAgeGateDays;
 
     /// <summary>A gated message waits for a moderator (true) or is removed outright (false).</summary>
-    public bool AccountGateHoldsForReview { get; init; } = true;
+    public bool AccountGateHoldsForReview { get; init; } =
+        SpamDefenseDefaults.AccountGateHoldsForReview;
 
     // ---- Content --------------------------------------------------------------------------------
 
     /// <summary>Similarity at which a message counts as a mutation of a known campaign.</summary>
-    public double NearDuplicateSimilarity { get; init; } = 0.6;
+    public double NearDuplicateSimilarity { get; init; } =
+        SpamDefenseDefaults.NearDuplicateSimilarity;
 
     /// <summary>Skeletons shorter than this are never corpus-matched.</summary>
-    public int MinimumSkeletonLength { get; init; } = 8;
+    public int MinimumSkeletonLength { get; init; } = SpamDefenseDefaults.MinimumSkeletonLength;
 
     /// <summary>Restrict non-Latin script to viewers who have been around. Off by default (SD2).</summary>
-    public bool NonLatinScriptGate { get; init; }
+    public bool NonLatinScriptGate { get; init; } = SpamDefenseDefaults.NonLatinScriptGate;
 
     // ---- Campaign -------------------------------------------------------------------------------
 
     /// <summary>Share of a cohort with no standing needed to call it a campaign.</summary>
-    public double QualifyNoStandingShare { get; init; } = 0.80;
+    public double QualifyNoStandingShare { get; init; } =
+        SpamDefenseDefaults.QualifyNoStandingShare;
 
     /// <summary>Share below which a qualified cohort is exonerated and reversed.</summary>
-    public double DequalifyNoStandingShare { get; init; } = 0.65;
+    public double DequalifyNoStandingShare { get; init; } =
+        SpamDefenseDefaults.DequalifyNoStandingShare;
 
     /// <summary>Fewest distinct accounts that can constitute a campaign.</summary>
-    public int MinimumCohortSize { get; init; } = 5;
+    public int MinimumCohortSize { get; init; } = SpamDefenseDefaults.MinimumCohortSize;
 
     /// <summary>Correlation window, extended by each new match.</summary>
-    public int WindowSeconds { get; init; } = 600;
+    public int WindowSeconds { get; init; } = SpamDefenseDefaults.WindowSeconds;
 
     /// <summary>Hard cap on the correlation window, from the first match.</summary>
-    public int MaxWindowSeconds { get; init; } = 1800;
+    public int MaxWindowSeconds { get; init; } = SpamDefenseDefaults.MaxWindowSeconds;
 
     /// <summary>The exoneration head start before a qualified campaign may act.</summary>
-    public int ActionDelaySeconds { get; init; } = 8;
+    public int ActionDelaySeconds { get; init; } = SpamDefenseDefaults.ActionDelaySeconds;
 
     /// <summary>Undo a campaign's actions when it de-qualifies. Off is allowed, and warned against.</summary>
-    public bool AutoReverseOnDequalify { get; init; } = true;
+    public bool AutoReverseOnDequalify { get; init; } = SpamDefenseDefaults.AutoReverseOnDequalify;
 
     // ---- Bursts ---------------------------------------------------------------------------------
 
     /// <summary>Follow rate over the channel's own baseline that counts as a spike.</summary>
-    public double FollowSpikeFactor { get; init; } = 5;
+    public double FollowSpikeFactor { get; init; } = SpamDefenseDefaults.FollowSpikeFactor;
 
     /// <summary>Chatter-join rate over the channel's own baseline that counts as a burst.</summary>
-    public double JoinBurstFactor { get; init; } = 4;
+    public double JoinBurstFactor { get; init; } = SpamDefenseDefaults.JoinBurstFactor;
 
     // ---- Lockdown -------------------------------------------------------------------------------
 
     /// <summary>How long a lockdown holds before restoring the room by itself.</summary>
-    public int LockdownMinutes { get; init; } = 15;
+    public int LockdownMinutes { get; init; } = SpamDefenseDefaults.LockdownMinutes;
 
     /// <summary>Extend the window while the attack is still arriving.</summary>
-    public bool LockdownAutoExtend { get; init; } = true;
+    public bool LockdownAutoExtend { get; init; } = SpamDefenseDefaults.LockdownAutoExtend;
 
     /// <summary>Ceiling on a lockdown however long the attack lasts.</summary>
-    public int LockdownMaxMinutes { get; init; } = 60;
+    public int LockdownMaxMinutes { get; init; } = SpamDefenseDefaults.LockdownMaxMinutes;
 
     // ---- Network --------------------------------------------------------------------------------
 
     /// <summary>Pull the shared signature set. Free, read-only, and on by default.</summary>
-    public bool NetworkSubscribe { get; init; } = true;
+    public bool NetworkSubscribe { get; init; } = SpamDefenseDefaults.NetworkSubscribe;
 
     /// <summary>Send this channel's confirmed signatures back. Opt-in (SD3).</summary>
-    public bool NetworkContribute { get; init; }
+    public bool NetworkContribute { get; init; } = SpamDefenseDefaults.NetworkContribute;
 
     /// <summary>Independent reporters needed before a quarantined signature may act.</summary>
-    public int RequiredCorroborations { get; init; } = 3;
+    public int RequiredCorroborations { get; init; } = SpamDefenseDefaults.RequiredCorroborations;
 }
 
 /// <summary>

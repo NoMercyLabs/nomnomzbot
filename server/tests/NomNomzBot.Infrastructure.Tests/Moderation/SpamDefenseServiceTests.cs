@@ -899,6 +899,103 @@ public class SpamDefenseServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task TheTrustThresholds_RoundTrip_PutThenGet()
+    {
+        // Accepted on PUT but never stored was the defect: the operator set a threshold, saw the save
+        // succeed, and the next read showed the shipped value again.
+        SpamDefenseSettings edited = new()
+        {
+            TrustThresholds = new TrustTierThresholds
+            {
+                EstablishedDays = 45,
+                EstablishedMessages = 120,
+                EstablishedDistinctActiveDays = 12,
+                EstablishedStrikeFreeDays = 60,
+            },
+        };
+
+        using (AppDbContext write = NewDbContext())
+            (await NewService(write).UpdateSettingsAsync(Channel, edited))
+                .IsSuccess.Should()
+                .BeTrue();
+
+        using AppDbContext read = NewDbContext();
+        SpamDefenseSettings loaded = await NewService(read).GetSettingsAsync(Channel);
+
+        loaded.TrustThresholds.Should().Be(edited.TrustThresholds);
+    }
+
+    [Fact]
+    public async Task AMissingRow_ResolvesToTheSingleDefaultSource_AndAReadWritesNothing()
+    {
+        using AppDbContext db = NewDbContext();
+
+        SpamDefenseSettings loaded = await NewService(db).GetSettingsAsync(Channel);
+
+        loaded.IsEnabled.Should().Be(SpamDefenseDefaults.IsEnabled);
+        loaded.DryRun.Should().Be(SpamDefenseDefaults.DryRun);
+        loaded.WindowSeconds.Should().Be(SpamDefenseDefaults.WindowSeconds);
+        loaded.MaxWindowSeconds.Should().Be(SpamDefenseDefaults.MaxWindowSeconds);
+        loaded.LockdownMinutes.Should().Be(SpamDefenseDefaults.LockdownMinutes);
+        loaded.LockdownMaxMinutes.Should().Be(SpamDefenseDefaults.LockdownMaxMinutes);
+        loaded.RequiredCorroborations.Should().Be(SpamDefenseDefaults.RequiredCorroborations);
+        loaded.TrustThresholds.EstablishedDays.Should().Be(SpamDefenseDefaults.EstablishedDays);
+        loaded
+            .TrustThresholds.EstablishedMessages.Should()
+            .Be(SpamDefenseDefaults.EstablishedMessages);
+        loaded
+            .TrustThresholds.EstablishedDistinctActiveDays.Should()
+            .Be(SpamDefenseDefaults.EstablishedDistinctActiveDays);
+        loaded
+            .TrustThresholds.EstablishedStrikeFreeDays.Should()
+            .Be(SpamDefenseDefaults.EstablishedStrikeFreeDays);
+        (await db.SpamDefensePolicies.IgnoreQueryFilters().CountAsync())
+            .Should()
+            .Be(0, "a read must not create the row");
+    }
+
+    [Fact]
+    public void ANewEntityRow_AndTheSettingsRecord_AgreeOnEveryDefault()
+    {
+        // One source: a fresh row projected to settings equals a fresh record, field for field,
+        // including the four trust thresholds.
+        new SpamDefensePolicy()
+            .ToSettings()
+            .Should()
+            .BeEquivalentTo(new SpamDefenseSettings());
+    }
+
+    [Fact]
+    public async Task AWindowLongerThanItsHardCap_IsRejected()
+    {
+        using AppDbContext db = NewDbContext();
+        Result<SpamDefenseSettings> result = await NewService(db)
+            .UpdateSettingsAsync(
+                Channel,
+                new SpamDefenseSettings { WindowSeconds = 1200, MaxWindowSeconds = 600 }
+            );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        result.ErrorMessage.Should().Contain("spam_setting_max_window_below_window");
+    }
+
+    [Fact]
+    public async Task ALockdownLongerThanItsCeiling_IsRejected()
+    {
+        using AppDbContext db = NewDbContext();
+        Result<SpamDefenseSettings> result = await NewService(db)
+            .UpdateSettingsAsync(
+                Channel,
+                new SpamDefenseSettings { LockdownMinutes = 120, LockdownMaxMinutes = 60 }
+            );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        result.ErrorMessage.Should().Contain("spam_setting_lockdown_max_below_lockdown");
+    }
+
+    [Fact]
     public async Task AnUnconfiguredChannel_ReadsTheShippedDefaults()
     {
         using AppDbContext db = NewDbContext();

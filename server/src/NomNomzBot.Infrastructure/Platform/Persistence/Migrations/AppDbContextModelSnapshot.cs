@@ -8294,6 +8294,18 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<DateTime?>("EnforcementEligibleAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<double>("EstablishedDays")
+                        .HasColumnType("double precision");
+
+                    b.Property<int>("EstablishedDistinctActiveDays")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("EstablishedMessages")
+                        .HasColumnType("integer");
+
+                    b.Property<double>("EstablishedStrikeFreeDays")
+                        .HasColumnType("double precision");
+
                     b.Property<int>("FollowAgeGateDays")
                         .HasColumnType("integer");
 

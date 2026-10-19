@@ -185,14 +185,7 @@ public sealed class FollowBotSweepService
                 DaysSinceLastUpheldStrike = double.MaxValue,
             },
             new AccountRiskAssessment(1.0, [], IsSemiTrusted: false),
-            new TrustTierThresholds
-            {
-                EstablishedDays = settings.TrustThresholds.EstablishedDays,
-                EstablishedMessages = settings.TrustThresholds.EstablishedMessages,
-                EstablishedDistinctActiveDays = settings
-                    .TrustThresholds
-                    .EstablishedDistinctActiveDays,
-            }
+            settings.TrustThresholds
         );
 
     /// <summary>
