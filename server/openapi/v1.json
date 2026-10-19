@@ -117292,6 +117292,20 @@
               "string"
             ],
             "format": "int32"
+          },
+          "eligibilityJson": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "configSchemaVersion": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
           }
         },
         "description": "The per-channel media-share config (media-share.md §3)."
@@ -148728,9 +148742,15 @@
               "string"
             ],
             "format": "int32"
+          },
+          "eligibilityJson": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
-        "description": "Update body for the media-share config (media-share.md §5)."
+        "description": "Update body for the media-share config (media-share.md §5). A null EligibilityJson keeps the stored rules."
       },
       "UpdateModerationRuleRequest": {
         "type": "object",

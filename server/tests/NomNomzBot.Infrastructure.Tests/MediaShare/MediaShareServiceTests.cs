@@ -563,7 +563,10 @@ public sealed class MediaShareServiceTests
     {
         Harness h = Build();
 
-        await h.Sut.UpdateConfigAsync(Channel, new(true, false, true, false, 90, 250, 10, 30));
+        await h.Sut.UpdateConfigAsync(
+            Channel,
+            new(true, false, true, false, 90, 250, 10, 30, null)
+        );
 
         MediaShareConfigDto dto = (await h.Sut.GetConfigAsync(Channel)).Value;
         dto.IsEnabled.Should().BeTrue();

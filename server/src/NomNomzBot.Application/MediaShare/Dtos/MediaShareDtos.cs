@@ -47,10 +47,14 @@ public sealed record MediaShareConfigDto(
     int MaxDurationSeconds,
     long? EntryCost,
     int MaxQueueLength,
-    int PerUserCooldownSeconds
+    int PerUserCooldownSeconds,
+    string? EligibilityJson,
+    int ConfigSchemaVersion
 );
 
-/// <summary>Update body for the media-share config (media-share.md §5).</summary>
+/// <summary>
+/// Update body for the media-share config (media-share.md §5). A null EligibilityJson keeps the stored rules.
+/// </summary>
 public sealed record UpdateMediaShareConfigRequest(
     bool IsEnabled,
     bool RequireApproval,
@@ -59,5 +63,6 @@ public sealed record UpdateMediaShareConfigRequest(
     int MaxDurationSeconds,
     long? EntryCost,
     int MaxQueueLength,
-    int PerUserCooldownSeconds
+    int PerUserCooldownSeconds,
+    string? EligibilityJson
 );

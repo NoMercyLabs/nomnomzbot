@@ -60,11 +60,12 @@ public sealed class MediaShareService : IMediaShareService
         CancellationToken ct = default
     )
     {
-        MediaShareConfig? config = await _db.MediaShareConfigs.FirstOrDefaultAsync(
-            c => c.BroadcasterId == broadcasterId,
-            ct
-        );
-        if (config is null || !config.IsEnabled)
+        MediaShareConfig config =
+            await _db
+                .MediaShareConfigs.AsNoTracking()
+                .FirstOrDefaultAsync(c => c.BroadcasterId == broadcasterId, ct)
+            ?? new() { BroadcasterId = broadcasterId };
+        if (!config.IsEnabled)
             return Result.Failure<MediaShareRequestDto>(
                 "Media share is not enabled on this channel.",
                 "DISABLED"
@@ -450,7 +451,7 @@ public sealed class MediaShareService : IMediaShareService
         MediaShareConfig? config = await _db
             .MediaShareConfigs.AsNoTracking()
             .FirstOrDefaultAsync(c => c.BroadcasterId == broadcasterId, ct);
-        return Result.Success(config is null ? Defaults() : ToConfigDto(config));
+        return Result.Success(ToConfigDto(config ?? new() { BroadcasterId = broadcasterId }));
     }
 
     public async Task<Result<MediaShareConfigDto>> UpdateConfigAsync(
@@ -480,6 +481,15 @@ public sealed class MediaShareService : IMediaShareService
                 "VALIDATION_FAILED"
             );
 
+        if (
+            !string.IsNullOrWhiteSpace(request.EligibilityJson)
+            && !IsValidJson(request.EligibilityJson)
+        )
+            return Result.Failure<MediaShareConfigDto>(
+                "EligibilityJson must be valid JSON.",
+                "VALIDATION_FAILED"
+            );
+
         MediaShareConfig? config = await _db.MediaShareConfigs.FirstOrDefaultAsync(
             c => c.BroadcasterId == broadcasterId,
             ct
@@ -498,6 +508,10 @@ public sealed class MediaShareService : IMediaShareService
         config.EntryCost = request.EntryCost is > 0 ? request.EntryCost : null;
         config.MaxQueueLength = request.MaxQueueLength;
         config.PerUserCooldownSeconds = request.PerUserCooldownSeconds;
+        if (request.EligibilityJson is not null)
+            config.EligibilityJson = string.IsNullOrWhiteSpace(request.EligibilityJson)
+                ? null
+                : request.EligibilityJson;
         await _db.SaveChangesAsync(ct);
 
         return Result.Success(ToConfigDto(config));
@@ -666,9 +680,21 @@ public sealed class MediaShareService : IMediaShareService
             c.MaxDurationSeconds,
             c.EntryCost,
             c.MaxQueueLength,
-            c.PerUserCooldownSeconds
+            c.PerUserCooldownSeconds,
+            c.EligibilityJson,
+            c.ConfigSchemaVersion
         );
 
-    private static MediaShareConfigDto Defaults() =>
-        new(false, true, true, true, 180, null, 20, 60);
+    private static bool IsValidJson(string json)
+    {
+        try
+        {
+            using JsonDocument _ = JsonDocument.Parse(json);
+            return true;
+        }
+        catch (JsonException)
+        {
+            return false;
+        }
+    }
 }

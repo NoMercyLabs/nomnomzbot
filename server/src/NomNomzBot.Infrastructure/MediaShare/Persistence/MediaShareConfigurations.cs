@@ -20,13 +20,17 @@ public class MediaShareConfigConfiguration : IEntityTypeConfiguration<MediaShare
     {
         builder.HasKey(e => e.Id);
         builder.Property(e => e.BroadcasterId).IsRequired();
-        builder.Property(e => e.RequireApproval).HasDefaultValue(true);
-        builder.Property(e => e.AllowTwitchClips).HasDefaultValue(true);
-        builder.Property(e => e.AllowYouTube).HasDefaultValue(true);
-        builder.Property(e => e.MaxDurationSeconds).HasDefaultValue(180);
-        builder.Property(e => e.MaxQueueLength).HasDefaultValue(20);
-        builder.Property(e => e.PerUserCooldownSeconds).HasDefaultValue(60);
-        builder.Property(e => e.ConfigSchemaVersion).HasDefaultValue(1);
+        // The entity initializers are the one place a default is declared; the column defaults read them.
+        MediaShareConfig defaults = new();
+        builder.Property(e => e.RequireApproval).HasDefaultValue(defaults.RequireApproval);
+        builder.Property(e => e.AllowTwitchClips).HasDefaultValue(defaults.AllowTwitchClips);
+        builder.Property(e => e.AllowYouTube).HasDefaultValue(defaults.AllowYouTube);
+        builder.Property(e => e.MaxDurationSeconds).HasDefaultValue(defaults.MaxDurationSeconds);
+        builder.Property(e => e.MaxQueueLength).HasDefaultValue(defaults.MaxQueueLength);
+        builder
+            .Property(e => e.PerUserCooldownSeconds)
+            .HasDefaultValue(defaults.PerUserCooldownSeconds);
+        builder.Property(e => e.ConfigSchemaVersion).HasDefaultValue(defaults.ConfigSchemaVersion);
 
         builder
             .HasIndex(e => e.BroadcasterId)

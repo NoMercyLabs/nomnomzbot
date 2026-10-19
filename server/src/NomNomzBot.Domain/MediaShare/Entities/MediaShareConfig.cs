@@ -24,7 +24,8 @@ public class MediaShareConfig : SoftDeletableEntity, ITenantScoped
 
     public Guid BroadcasterId { get; set; }
 
-    public bool IsEnabled { get; set; }
+    /// <summary>Off until the streamer turns it on. A channel with no row resolves to this default.</summary>
+    public bool IsEnabled { get; set; } = false;
 
     /// <summary>Submissions enter <c>pending</c> until a mod approves (D1). Default on.</summary>
     public bool RequireApproval { get; set; } = true;
