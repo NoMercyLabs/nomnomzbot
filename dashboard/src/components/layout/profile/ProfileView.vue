@@ -45,6 +45,7 @@ import {
   roleKeys,
   type RoleKey,
   hasNoTwitchEmotes,
+  trustTier,
 } from '@/components/layout/profile/profileRoles';
 import { Button } from '@/components/ui/button';
 import {
@@ -112,6 +113,9 @@ const person = computed<CommunityMember | null>(() => member.data.value ?? null)
 const viewer = useViewerProfile(channelId, () =>
   person.value?.internalUserId ?? null);
 const viewerProfile = computed(() => viewer.data.value ?? null);
+// The tier the bot resolved and the trust score it keeps: part of the bot standing, so they live in Settings.
+const tier = computed(() => trustTier(viewerProfile.value));
+const trustScore = computed(() => viewerProfile.value?.trust?.trustScore);
 const roles = computed<RoleKey[]>(() =>
   person.value
     ? roleKeys(person.value, viewerProfile.value, current.value?.login)
@@ -393,6 +397,18 @@ async function banNow(): Promise<void> {
                 <dd class="m-0 min-w-0">
                   <ProfileStanding :user-id="userId" :name="title" />
                 </dd>
+                <template v-if="tier">
+                  <dt class="text-muted-foreground">{{ $t("profile.behavior.tier") }}</dt>
+                  <dd data-profile-trust="tier" class="m-0 min-w-0 font-medium">
+                    {{ $t(`profile.trustTier.${tier}`) }}
+                  </dd>
+                </template>
+                <template v-if="trustScore !== undefined">
+                  <dt class="text-muted-foreground">{{ $t("profile.behavior.trust") }}</dt>
+                  <dd data-profile-trust="score" class="m-0 min-w-0 font-medium">
+                    {{ n(Number(trustScore), { maximumFractionDigits: 0 }) }}
+                  </dd>
+                </template>
               </template>
               <dt class="text-muted-foreground">{{ $t("profile.voice.title") }}</dt>
               <dd class="m-0 min-w-0">

@@ -309,6 +309,7 @@
     }
   },
   "profile": {
+    "default": "Default: {value}",
     "open": "Open the profile of {name}",
     "title": "Profile",
     "fullPage": "Open full page",

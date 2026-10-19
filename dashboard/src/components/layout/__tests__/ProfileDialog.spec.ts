@@ -1280,13 +1280,16 @@ describe('the profile dialog', () => {
     ).toEqual(['outline', 'outline', 'outline']);
   });
 
-  it('lays the profile header facts out compactly, four moments on one row', async () => {
+  it('lays the profile header facts out compactly: ages as one quiet wrapping line, stats as one scroller', async () => {
     await openPage();
     await openUser('u1');
 
-    expect(document.body.querySelector('[data-profile-ages]')!.className).toContain(
-      'sm:grid-cols-4',
-    );
+    expect(document.body.querySelector('[data-profile-ages]')!.className).toContain('flex-wrap');
+
+    const stats = document.body.querySelector('[data-profile-stat]')!.parentElement!;
+
+    expect(stats.className).toContain('overflow-x-auto');
+    expect(document.body.querySelector('[data-profile-activity] h3')).toBeNull();
 
     expect(document.body.querySelector('[data-slot="profile-header"]')!.className).toContain(
       'gap-4',
@@ -1776,18 +1779,68 @@ describe('the profile header', () => {
     expect(header().querySelector('[data-profile-regular]')?.textContent?.trim()).toBe('Regular');
   });
 
-  it('shows the trust tier and the trust score in the behavior block', async () => {
+  it('keeps the bot standing out of the header and shows tier, score and defaults in Settings', async () => {
+    held = [...merge(held, ['tts:voice:read', 'tts:uservoice:write'])];
     (profiles.g1 as { identity: { trustTier: string } }).identity.trustTier = 'Known';
     (profiles.g1 as { trust: unknown }).trust = { trustScore: 62.4, heatScore: 3 };
     await openPage();
     await openUser('u1');
 
-    const stat = (key: string): string | undefined =>
-      header().querySelector(`[data-profile-behavior-stat="${key}"] b`)?.textContent?.trim();
-
-    expect(stat('tier')).toBe('Known');
-    expect(stat('trust')).toBe('62');
+    expect(header().querySelector('[data-profile-behavior]')).toBeNull();
+    expect(header().textContent).not.toContain('Bot standing');
     expect(header().querySelector('[data-profile-regular]')).toBeNull();
+
+    const row = (key: string): string | undefined =>
+      document.body.querySelector(`[data-profile-trust="${key}"]`)?.textContent?.trim();
+
+    expect(row('tier')).toBe('Known');
+    expect(row('score')).toBe('62');
+
+    const defaults = Array.from(document.body.querySelectorAll('[data-profile-default]')).map(
+      (item) => item.textContent?.trim(),
+    );
+
+    expect(defaults).toEqual(['Default: Normal', 'Default: Channel voice']);
+  });
+
+  it('draws the change buttons at 36px and never lists an empty chat line', async () => {
+    held = [...merge(held, ['tts:voice:read', 'tts:uservoice:write'])];
+
+    chatPages.g1 = [
+      [
+        {
+          id: 'c9',
+          message: '',
+          fragments: [{ text: 'Kappa' }],
+          timestamp: '2026-10-01T10:05:00Z',
+        },
+        {
+          id: 'c8',
+          message: '  ',
+          fragments: [],
+          timestamp: '2026-10-01T10:04:00Z',
+        },
+        chatLine('c7', 'real words', '2026-10-01T10:03:00Z'),
+      ],
+    ];
+
+    await openPage();
+    await openUser('u1');
+
+    for (const selector of ['[data-profile-standing-change]', '[data-profile-voice-change]']) {
+      const classes = document.body.querySelector(selector)!.className;
+
+      expect(classes).toContain('h-9');
+      expect(classes).not.toContain('h-8');
+    }
+
+    const rows = Array.from(
+      document.body.querySelectorAll('[data-profile-chat-lines] li'),
+    ).map((row) => row.textContent);
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]).toContain('Kappa');
+    expect(rows[1]).toContain('real words');
   });
 
   // Owner 2026-10-14: the sword for mods and the diamond for VIPs in Twitch's colors, the subscriber in Twitch

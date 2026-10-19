@@ -80,6 +80,9 @@ const editOpen = ref(false);
       <div class="grid min-w-48 flex-1 text-sm">
         <span data-profile-voice-name class="wrap-anywhere font-medium">{{ title }}</span>
         <span class="wrap-anywhere text-muted-foreground">{{ detail }}</span>
+        <span data-profile-default class="text-xs text-muted-foreground">{{
+          $t("profile.default", { value: $t("profile.voice.channel") })
+        }}</span>
       </div>
       <PlaySampleButton v-if="voice" :voice-id="voice.voiceId" compact />
       <Button
@@ -87,7 +90,6 @@ const editOpen = ref(false);
         data-profile-voice-change
         type="button"
         variant="outline"
-        size="sm"
         @click="editOpen = true"
       >
         {{ $t("profile.voice.change") }}

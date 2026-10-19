@@ -18,6 +18,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+import { lineText } from '@/components/layout/profile/profileChat';
 import { useTime } from '@/composables/useTime';
 
 const props = defineProps<{ internalUserId: string | null }>();
@@ -32,9 +33,13 @@ type DayGroup = {
 };
 
 const chat = useUserChat(channelId, () => props.internalUserId);
+// A line with no words and no pieces would be an empty row, so it is left out.
 const lines = computed(() =>
-  (chat.data.value?.pages ?? []).flatMap((page) =>
-    page.messages));
+  (chat.data.value?.pages ?? [])
+    .flatMap((page) =>
+      page.messages)
+    .filter((line) =>
+      lineText(line) !== ''));
 const state = usePanelState(chat, () =>
   lines.value.length === 0);
 
@@ -85,7 +90,7 @@ const groups = computed(() => {
         <ul class="grid gap-2">
           <li v-for="line in group.lines" :key="line.id" class="flex gap-2 text-sm">
             <span class="shrink-0 text-xs text-muted-foreground">{{ timeOf(line.timestamp) }}</span>
-            <EmoteText class="wrap-anywhere" :text="line.message" />
+            <EmoteText class="wrap-anywhere" :text="lineText(line)" />
           </li>
         </ul>
       </section>

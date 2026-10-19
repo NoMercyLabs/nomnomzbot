@@ -81,6 +81,9 @@ const editOpen = ref(false);
         <span data-profile-standing-effect class="text-muted-foreground">{{
           $t(`profile.botStanding.levels.${levelKey}.effect`)
         }}</span>
+        <span data-profile-default class="text-xs text-muted-foreground">{{
+          $t("profile.default", { value: $t("profile.botStanding.levels.normal.name") })
+        }}</span>
         <span v-if="note" data-profile-standing-note class="text-muted-foreground wrap-anywhere">{{
           note
         }}</span>
@@ -89,7 +92,6 @@ const editOpen = ref(false);
         data-profile-standing-change
         type="button"
         variant="outline"
-        size="sm"
         :disabled="!canWrite"
         :title="canWrite ? undefined : $t('profile.botStanding.noWrite')"
         @click="editOpen = true"

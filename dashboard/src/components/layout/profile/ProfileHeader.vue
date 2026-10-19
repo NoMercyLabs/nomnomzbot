@@ -22,7 +22,6 @@ import {
   isRegular,
   roleIcons,
   type RoleKey,
-  trustTier,
   twitchStanding,
 } from '@/components/layout/profile/profileRoles';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
@@ -81,31 +80,6 @@ const pronouns = computed<string | null>(() => {
 });
 const standing = computed(() => twitchStanding(props.profile));
 const regular = computed(() => isRegular(props.profile));
-
-// The bot's behavior standing for this person: the tier it resolved and the trust score it keeps.
-const behavior = computed<Stat[]>(() => {
-  const tier = trustTier(props.profile);
-  const trust = props.profile?.trust;
-  const list: Stat[] = [];
-
-  if (tier) {
-    list.push({
-      key: 'tier',
-      label: t('profile.behavior.tier'),
-      value: t(`profile.trustTier.${tier}`),
-    });
-  }
-
-  if (trust) {
-    list.push({
-      key: 'trust',
-      label: t('profile.behavior.trust'),
-      value: n(Number(trust.trustScore), { maximumFractionDigits: 0 }),
-    });
-  }
-
-  return list;
-});
 
 // How long this person has been around, at a glance: their Twitch account, their follow, their first sighting here.
 const ages = computed<Stat[]>(() => {
@@ -257,54 +231,37 @@ const stats = computed<Stat[]>(() => {
       />
     </div>
 
-    <!-- A short label over each moment, two per row (owner 2026-10-14: "the 4 rows is not good enough"). -->
+    <!-- The moments are one quiet line, so the header stays short (owner: "too much on the header"). -->
     <dl
       v-if="ages.length > 0"
       data-profile-ages
-      class="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4"
+      class="flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground"
     >
       <div
         v-for="age in ages"
         :key="age.key"
         :data-profile-age="age.key"
-        class="grid min-w-0 gap-0.5"
+        class="flex min-w-0 gap-1"
       >
-        <dt class="truncate text-xs text-muted-foreground">{{ age.label }}</dt>
-        <dd class="truncate text-base font-medium">{{ age.value }}</dd>
+        <dt>{{ age.label }}</dt>
+        <dd class="m-0 font-medium text-foreground">{{ age.value }}</dd>
       </div>
     </dl>
     <p v-else-if="who" class="text-xs text-muted-foreground">
       {{ $t("profile.handle", { name: who.username }) }}
     </p>
 
-    <section v-if="behavior.length > 0" data-profile-behavior class="grid gap-2">
-      <h3 class="text-sm font-medium">{{ $t("profile.behavior.title") }}</h3>
-      <div class="grid grid-cols-2 gap-x-4 gap-y-3 sm:grid-cols-4">
-        <div
-          v-for="stat in behavior"
-          :key="stat.key"
-          :data-profile-behavior-stat="stat.key"
-          class="grid min-w-0 gap-0.5"
-        >
-          <span class="truncate text-xs text-muted-foreground">{{ stat.label }}</span>
-          <b class="text-base font-medium">{{ stat.value }}</b>
-        </div>
-      </div>
-    </section>
-
-    <!-- Who they are above, what they did here below (owner 2026-10-14: "visually split the channel activity"). -->
-    <section v-if="stats.length > 0" data-profile-activity class="grid gap-2">
-      <h3 class="text-sm font-medium">{{ $t("profile.activity") }}</h3>
-      <div class="grid grid-cols-[repeat(auto-fit,minmax(7rem,1fr))] gap-x-4 gap-y-3">
-        <!-- One look for every fact on the card: a short label over its value (owner 2026-10-14: "unify the look"). -->
+    <!-- What they did here: one tight row that scrolls sideways on a phone. -->
+    <section v-if="stats.length > 0" data-profile-activity>
+      <div class="flex gap-4 overflow-x-auto scrollbar-none">
         <div
           v-for="stat in stats"
           :key="stat.key"
           data-profile-stat
-          class="grid min-w-0 content-start gap-0.5"
+          class="grid flex-none content-start gap-0.5"
         >
-          <span class="truncate text-xs text-muted-foreground">{{ stat.label }}</span>
-          <b class="text-xl font-semibold tabular-nums">{{
+          <span class="text-xs text-muted-foreground">{{ stat.label }}</span>
+          <b class="text-base font-semibold tabular-nums">{{
             typeof stat.value === "number" ? n(stat.value) : stat.value
           }}</b>
         </div>

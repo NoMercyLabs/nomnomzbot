@@ -309,6 +309,7 @@
     }
   },
   "profile": {
+    "default": "Standaard: {value}",
     "open": "Open het profiel van {name}",
     "title": "Profiel",
     "fullPage": "Open volledige pagina",

@@ -35,7 +35,6 @@ function go(): void {
   <Button data-slot="back-link"
           type="button"
           variant="ghost"
-          size="sm"
           @click="go"
   >
     <ArrowLeft aria-hidden="true" class="rtl:rotate-180" />
