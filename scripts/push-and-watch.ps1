@@ -137,10 +137,14 @@ try {
         # as cancelled. Tell the two apart by the run's error lines.
         # gh writes "log not found" for cancelled jobs to stderr; under Stop that would throw.
         $ErrorActionPreference = 'Continue'
-        [string[]]$errors = @(gh run view $runId --log 2>&1 | Select-String -Pattern '##\[error\]' |
-            Where-Object { $_ -notmatch 'Process completed with exit code' } | Select-Object -First 10 |
-            ForEach-Object { $_.ToString() })
-        if ($errors.Count -gt 0) {
+        [string[]]$log = @(gh run view $runId --log 2>&1 | ForEach-Object { $_.ToString() })
+        # A test failure only shows "Process completed with exit code 1" as its error; the test lines carry
+        # the names. The early-stop step running at all means a step failed.
+        [string[]]$errors = @($log | Where-Object {
+                ($_ -match '##\[error\]' -and $_ -notmatch 'Process completed with exit code') -or
+                $_ -match '\[FAIL\]' -or $_ -match 'Failed!  - Failed:' } | Select-Object -First 10)
+        [bool]$stoppedEarly = @($log | Where-Object { $_ -match 'Stop the run early' }).Count -gt 0
+        if ($errors.Count -gt 0 -or $stoppedEarly) {
             Write-Host "CI RED: run $runId failed and the early stop cancelled it. Nothing deployed from it."
             $errors | Out-Host
             exit 1
