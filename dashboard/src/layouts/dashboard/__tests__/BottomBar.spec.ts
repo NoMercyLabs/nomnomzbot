@@ -107,3 +107,29 @@ describe('the bottom bar More menu', () => {
     expect(document.activeElement?.closest('a')).toBeNull();
   });
 });
+
+// Stoney 2026-10-19 Webhooks acceptance at 390: labels were cut on both sides ("asics", "Mor").
+// A flex item keeps its text width unless min-w-0 lets it shrink, so the label can only truncate with an ellipsis when its tab and its span may shrink.
+describe('the bottom bar tabs', () => {
+  it('lets every tab and label shrink so a long label ends in an ellipsis instead of spilling', async () => {
+    const router = makeRouter();
+
+    await router.push('/dashboard-analytics');
+
+    mounted = mount(BottomBar, {
+      attachTo: document.body,
+      global: { plugins: [router, i18n] },
+    });
+
+    await flushPromises();
+
+    const tabs = mounted.findAll('nav > a, nav > button');
+
+    expect(tabs.length).toBeGreaterThan(1);
+
+    for (const tab of tabs) {
+      expect(tab.classes(), tab.text()).toContain('min-w-0');
+      expect(tab.find('span').classes(), tab.text()).toContain('min-w-0');
+    }
+  });
+});
