@@ -109960,6 +109960,7 @@
           "matchType",
           "caseSensitive",
           "isEnabled",
+          "target",
           "cooldownSeconds",
           "minPermissionLevel",
           "createdAt",
@@ -109997,6 +109998,16 @@
             ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/BindingTarget"
+              }
+            ]
           },
           "cooldownSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -111260,6 +111271,17 @@
             ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "What the trigger runs: a command of this channel, an action, or a pipeline. Wins over\r\nGuid? CreateChatTriggerRequest.PipelineId and string? CreateChatTriggerRequest.Response when set.",
+                "$ref": "#/components/schemas/BindingTarget"
+              }
+            ]
           },
           "cooldownSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",
@@ -150097,6 +150119,17 @@
             ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
+          },
+          "target": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The new binding; absent leaves it unchanged. A pipeline target with no id (or an empty guid) clears it.\r\nWins over Guid? UpdateChatTriggerRequest.PipelineId.",
+                "$ref": "#/components/schemas/BindingTarget"
+              }
+            ]
           },
           "cooldownSeconds": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",

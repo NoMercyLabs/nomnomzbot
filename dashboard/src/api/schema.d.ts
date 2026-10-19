@@ -90225,6 +90225,7 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             pipelineId?: null | string;
+            target: null | components["schemas"]["BindingTarget"];
             /** Format: int32 */
             cooldownSeconds: number | string;
             minPermissionLevel: string;
@@ -90624,6 +90625,7 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             pipelineId?: null | string;
+            target?: null | components["schemas"]["BindingTarget"];
             /**
              * Format: int32
              * @description Channel-wide cooldown between fires (spam guard, default 30s, capped 24h).
@@ -103992,6 +103994,7 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             pipelineId?: null | string;
+            target?: null | components["schemas"]["BindingTarget"];
             /** Format: int32 */
             cooldownSeconds?: null | number | string;
             /** @description The rung name (see string CreateChatTriggerRequest.MinPermissionLevel); null leaves it. */
