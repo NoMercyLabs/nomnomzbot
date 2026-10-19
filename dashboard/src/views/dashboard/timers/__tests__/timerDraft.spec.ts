@@ -19,6 +19,7 @@ const fine = {
   minChatActivity: 0,
   fireOnce: false,
   speakWithTts: false,
+  target: null,
 };
 
 describe('problemOf', () => {

@@ -88,6 +88,7 @@
         "onceHelp": "De timer plaatst een keer en zet zichzelf dan uit.",
         "speak": "Voorlezen",
         "speakHelp": "Elk bericht wordt ook als spraak op je stream afgespeeld.",
+        "target": "Voer ook uit",
         "unsaved": "{count} niet-opgeslagen wijziging | {count} niet-opgeslagen wijzigingen",
         "save": "Wijzigingen opslaan",
         "discard": "Weggooien",

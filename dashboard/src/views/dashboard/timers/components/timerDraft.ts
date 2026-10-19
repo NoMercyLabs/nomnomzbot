@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 import type { Timer, TimerChange } from '@/api/timers';
+import { boundTarget, sameTarget, targetToWire, type PickedTarget } from '@/lib/bindingTarget';
 
 // What the editor form holds. The messages are one text, one message per line.
 export interface TimerDraft {
@@ -18,6 +19,7 @@ export interface TimerDraft {
   minChatActivity: number;
   fireOnce: boolean;
   speakWithTts: boolean;
+  target: PickedTarget | null;
 }
 
 // The bot's own limits and the interval a new timer starts at.
@@ -68,6 +70,7 @@ export function draftOf(timer: Timer) {
     minChatActivity: Number(timer.minChatActivity),
     fireOnce: timer.fireOnce,
     speakWithTts: timer.speakWithTts ?? false,
+    target: boundTarget(timer.target, timer.pipelineId),
   } as const satisfies TimerDraft;
 }
 
@@ -102,6 +105,11 @@ export function changeOf(draft: TimerDraft, timer: Timer): TimerChange {
 
   if (draft.speakWithTts !== saved.speakWithTts) {
     change.speakWithTts = draft.speakWithTts;
+  }
+
+  // A cleared binding is sent as the empty target; a left-alone one is not sent at all.
+  if (!sameTarget(draft.target, saved.target)) {
+    change.target = targetToWire(draft.target);
   }
 
   return change;

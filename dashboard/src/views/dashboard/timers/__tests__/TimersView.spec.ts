@@ -73,6 +73,9 @@ function read(path: string, options?: Options): Answer {
   if (typeof id === 'string')
     return ok(rows.find((row) => row.id === id));
 
+  if (path.endsWith('/commands'))
+    return ok([{ id: 'c1', name: 'hello' }]);
+
   if (path.endsWith('/timers'))
     return ok(rows.map((row) => ({ ...row, messageCount: (row.messages as string[]).length })));
 
@@ -259,6 +262,43 @@ describe('Triggers and timers page', () => {
     expect(writes('PUT')).toHaveLength(1);
     expect(writes('PUT')[0]!.id).toBe('t1');
     expect(writes('PUT')[0]!.body).toEqual({ intervalMinutes: 30, messages: ['One', 'Two'] });
+  });
+
+  it('shows the command a timer is bound to when it opens in the editor', async () => {
+    rows = [timer('t1', { name: 'Follow reminder', target: { kind: 0, id: 'c1' } })];
+
+    await open();
+    await click(rowOf('Follow reminder'));
+
+    expect(editor()!.querySelector('[data-target-picker]')!.textContent).toContain('!hello');
+  });
+
+  it('sends a command target when a command is chosen for the timer', async () => {
+    Element.prototype.hasPointerCapture = (): boolean => false;
+    Element.prototype.releasePointerCapture = (): void => undefined;
+    Element.prototype.scrollIntoView = (): void => undefined;
+
+    await open();
+    await click(rowOf('Follow reminder'));
+
+    const trigger = editor()!.querySelector('[data-target-picker] [data-slot="select-trigger"]')!;
+
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await settle();
+
+    const item = [...document.body.querySelectorAll<HTMLElement>('[data-slot="select-item"]')]
+      .find((candidate) => candidate.textContent?.includes('!hello'));
+
+    item!.dispatchEvent(new PointerEvent('pointerup', {
+      bubbles: true,
+      button: 0,
+      pointerType: 'mouse',
+    }));
+
+    await settle();
+    await click(buttonByText('Save changes'));
+
+    expect(writes('PUT')[0]!.body).toEqual({ target: { kind: 0, id: 'c1' } });
   });
 
   it('keeps the draft and shows the reason when the bot refuses the save', async () => {

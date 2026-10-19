@@ -21,6 +21,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import { Button } from '@/components/ui/button';
+import TargetPicker from '@/components/layout/TargetPicker.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -180,6 +181,17 @@ function remove(): void {
         :label="$t('dashboard.timers.editor.messages')"
         :help="$t('dashboard.timers.editor.messagesHelp')"
       />
+
+      <!-- What it runs besides the lines above: one command, action or pipeline. -->
+      <Field>
+        <FieldLabel>{{ $t("dashboard.timers.editor.target") }}</FieldLabel>
+        <TargetPicker
+          v-model:target="draft.target"
+          clearable
+          :kinds="['command', 'pipeline']"
+          :label="$t('dashboard.timers.editor.target')"
+        />
+      </Field>
 
       <!-- When it runs: how often, and how busy chat must be. -->
       <div class="grid gap-4 md:grid-cols-2">

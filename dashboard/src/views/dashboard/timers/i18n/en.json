@@ -88,6 +88,7 @@
         "onceHelp": "The timer posts one time and then turns itself off.",
         "speak": "Read it aloud",
         "speakHelp": "Each post also plays as speech on your stream.",
+        "target": "Also run",
         "unsaved": "{count} unsaved change | {count} unsaved changes",
         "save": "Save changes",
         "discard": "Discard",
