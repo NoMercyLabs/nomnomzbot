@@ -121,7 +121,7 @@ function trigger(): HTMLButtonElement | undefined {
 }
 
 function sheet(): HTMLElement | null {
-  return document.body.querySelector<HTMLElement>('[data-slot="sheet-content"]');
+  return document.body.querySelector<HTMLElement>('[data-slot="side-panel"]');
 }
 
 async function settle(): Promise<void> {

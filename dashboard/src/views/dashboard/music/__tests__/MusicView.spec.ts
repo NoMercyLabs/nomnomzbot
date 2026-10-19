@@ -667,10 +667,26 @@ describe('MusicView', () => {
     buttonIn(document.body, 'Request rules').click();
     await flushPromises();
 
-    const sheet = document.body.querySelector<HTMLElement>('[data-slot="sheet-content"]');
+    const sheet = document.body.querySelector<HTMLElement>('[data-slot="side-panel"]');
 
     expect(sheet?.querySelector('[data-slot="panel-empty"]')?.textContent).toContain(
       'Not available yet',
     );
+  });
+
+  // Owner 2026-10-19, "sigh...": the sheet's own X sat on top of the "Requests are open" switch and read as a glyph in its thumb.
+  it('carries the rules close button in the panel header, never over the header switch', async () => {
+    await open();
+
+    buttonIn(document.body, 'Request rules').click();
+    await flushPromises();
+
+    const sheet = document.body.querySelector<HTMLElement>('[data-slot="side-panel"]');
+    const closes = sheet?.querySelectorAll('[data-slot="sheet-close"], [data-drawer-close]');
+    const inHeader = sheet?.querySelectorAll('[data-slot="panel-actions"] [data-drawer-close]');
+
+    expect(closes).toHaveLength(1);
+    expect(inHeader).toHaveLength(1);
+    expect(sheet?.querySelector('[class*="absolute"][data-slot="sheet-close"]')).toBeNull();
   });
 });

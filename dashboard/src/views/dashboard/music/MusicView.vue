@@ -16,7 +16,6 @@ import Grip from '~icons/nnz/hamburger';
 import IconRules from '~icons/nnz/settings-fader';
 import Trash2 from '~icons/nnz/trash';
 import Ban from '~icons/nnz/do-not-enter';
-import Cross from '~icons/nnz/cross';
 import { computed, ref, useTemplateRef, type ComponentPublicInstance } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -45,7 +44,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
-import { Sheet, SheetClose, SheetContent, SheetTitle, SheetTrigger } from '@/components/ui/sheet';
+import SidePanel from '@/components/layout/SidePanel.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useBoard } from '@/composables/useBoard';
 import { usePanelState } from '@/composables/usePanelState';
@@ -237,33 +236,21 @@ const span = layout.span;
       <StatusBadge :tone="spotify.tone" :label="$t(`dashboard.music.spotify.${spotify.key}`)" />
     </template>
     <template #actions>
-      <Sheet v-if="canSeeRules" v-model:open="rulesOpen">
-        <SheetTrigger as-child>
-          <Button variant="outline">
-            <IconRules aria-hidden="true" />
-            {{ $t("dashboard.music.rules.title") }}
-          </Button>
-        </SheetTrigger>
-        <!-- h-dvh: a phone's browser bars change the visible height, so the footer must follow it. -->
-        <SheetContent
-          class="gap-0 p-0 data-[side=right]:h-dvh data-[side=right]:max-h-dvh"
-          :show-close-button="false"
-          :aria-describedby="undefined"
-        >
-          <SheetTitle class="sr-only">{{ $t("dashboard.music.rules.title") }}</SheetTitle>
-          <SheetClose as-child>
-            <Button
-              variant="ghost"
-              size="icon-sm"
-              class="absolute top-3 right-3 z-10"
-              :aria-label="$t('common.close')"
-            >
-              <Cross aria-hidden="true" />
-            </Button>
-          </SheetClose>
-          <RulesPanel flush />
-        </SheetContent>
-      </Sheet>
+      <Button v-if="canSeeRules" variant="outline" @click="rulesOpen = true">
+        <IconRules aria-hidden="true" />
+        {{ $t("dashboard.music.rules.title") }}
+      </Button>
+      <!-- The panel's own header carries the close button after the master switch (SidePanel's drawer close);
+           h-dvh: a phone's browser bars change the visible height, so the footer must follow it. -->
+      <SidePanel
+        v-if="canSeeRules"
+        v-model:open="rulesOpen"
+        drawer-only
+        class="data-[side=right]:h-dvh data-[side=right]:max-h-dvh"
+        :label="$t('dashboard.music.rules.title')"
+      >
+        <RulesPanel flush />
+      </SidePanel>
     </template>
   </PageHeader>
   <BoardGrid ref="board" :panels="panels" :board="layout" :rows="2">

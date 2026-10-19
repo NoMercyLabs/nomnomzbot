@@ -130,7 +130,7 @@ async function openDrawer(): Promise<HTMLElement> {
   await new Promise((done) => setTimeout(done, 0));
   await flushPromises();
 
-  return document.body.querySelector<HTMLElement>('[data-slot="sheet-content"]') as HTMLElement;
+  return document.body.querySelector<HTMLElement>('[data-slot="side-panel"]') as HTMLElement;
 }
 
 describe('music request rules drawer on a phone', () => {

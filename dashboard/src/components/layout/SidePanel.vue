@@ -30,10 +30,12 @@ const props = withDefaults(defineProps<{
   side?: 'left' | 'right';
   pinned?: boolean;
   seeThrough?: boolean;
+  drawerOnly?: boolean;
 }>(), {
   side: 'right',
   pinned: false,
   seeThrough: false,
+  drawerOnly: false,
 });
 
 const open = defineModel<boolean>('open', { required: true });
@@ -41,8 +43,9 @@ const wide = useScreenFrom('wide');
 const fitsBesideRail = useScreenFrom('besideRail');
 const folds = computed(() =>
   props.seeThrough && !wide.value && fitsBesideRail.value);
+// A drawer-only panel (a page's rules, opened from a header button) never sits in the row.
 const roomy = computed(() =>
-  wide.value || folds.value);
+  !props.drawerOnly && (wide.value || folds.value));
 
 useFrameRail(computed(() =>
   folds.value && open.value));
