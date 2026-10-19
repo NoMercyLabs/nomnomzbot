@@ -79,18 +79,14 @@
           "title": "Channel voice",
           "none": "No voice is picked yet.",
           "platform": "This channel follows the platform voice until you pick one."
-        },
-        "detection": {
-          "title": "Language detection",
-          "body": "The bot does not detect the language of a message yet. Every message is read in the channel voice."
         }
       },
       "rules": {
-        "title": "Rules",
+        "title": "Message rules",
         "description": "Who may be heard, and what the bot reads aloud.",
         "follow": {
           "title": "Follow the platform voice",
-          "description": "Use the platform default voice until you pick your own."
+          "description": "Use the platform voice until you pick your own."
         },
         "readUsernames": {
           "title": "Read usernames",
@@ -98,15 +94,15 @@
         },
         "modApproval": {
           "title": "Moderators approve first",
-          "description": "Messages wait in a queue until a moderator allows them."
+          "description": "Messages wait until a moderator allows them."
         },
         "selfService": {
           "title": "Viewers pick their own voice",
-          "description": "Viewers can change their voice with !voice. Off: only moderators can."
+          "description": "Viewers change it with !voice. Off: moderators only."
         },
         "minBits": {
           "title": "Minimum bits",
-          "description": "Bits a message must carry to be read. 0 means no bits needed."
+          "description": "Bits a message needs to be read. 0 means none."
         }
       },
       "defaultHint": {
@@ -123,7 +119,7 @@
         },
         "mode": {
           "title": "Voice source",
-          "description": "Free bot voice, or your own Azure or ElevenLabs key.",
+          "description": "Free voice, or your own key.",
           "self_host": "Free bot voice",
           "byok": "My own key"
         },
@@ -134,7 +130,7 @@
         "standing": {
           "title": "Who may be heard",
           "label": "Who may be heard",
-          "description": "The lowest standing in your channel that is read aloud.",
+          "description": "The lowest standing that is read aloud.",
           "everyone": "Everyone",
           "subscribers": "Twitch subscribers",
           "vip": "VIPs",

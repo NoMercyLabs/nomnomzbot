@@ -56,4 +56,27 @@ describe('a setting row', () => {
 
     expect(wrapper.emitted('update:modelValue')).toBeUndefined();
   });
+
+  it('shows the hint on the title line and keeps it out of the description', () => {
+    const wrapper = mount(SettingRow, {
+      attachTo: document.body,
+      props: {
+        title: 'Speak with TTS',
+        description: 'Read aloud on stream.',
+        hint: 'Default: on',
+        modelValue: true,
+      },
+    });
+
+    expect(wrapper.find('[data-row-hint]').text()).toBe('Default: on');
+
+    expect(
+      wrapper
+        .find('[data-row-title]')
+        .element.parentElement?.contains(wrapper.find('[data-row-hint]').element),
+    ).toBe(true);
+
+    expect(wrapper.find('[data-row-description]').text()).toBe('Read aloud on stream.');
+    wrapper.unmount();
+  });
 });

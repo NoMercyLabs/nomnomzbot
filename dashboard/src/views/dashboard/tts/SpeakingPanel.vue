@@ -151,10 +151,6 @@ function valueHint(value: string | null): string {
   return t('dashboard.tts.defaultHint.value', { value });
 }
 
-function describe(key: string, hint: string): string {
-  return `${t(key)} ${hint}`.trim();
-}
-
 function change(rules: TtsRulesChange): void {
   save.mutate(rules);
 }
@@ -205,14 +201,14 @@ const charactersHint = computed(() =>
         :model-value="stored.isEnabled"
         :disabled="!writable"
         :title="$t('dashboard.tts.speaking.enabled.title')"
-        :description="
-          describe('dashboard.tts.speaking.enabled.description', switchHint(standard?.isEnabled))
-        "
+        :description="$t('dashboard.tts.speaking.enabled.description')"
+        :hint="switchHint(standard?.isEnabled)"
         @update:model-value="change({ isEnabled: $event })"
       />
       <ReadabilityRow
         :title="$t('dashboard.tts.speaking.mode.title')"
-        :description="describe('dashboard.tts.speaking.mode.description', modeHint)"
+        :description="$t('dashboard.tts.speaking.mode.description')"
+        :hint="modeHint"
       >
         <SegmentedControl
           :model-value="stored.mode"
@@ -224,7 +220,8 @@ const charactersHint = computed(() =>
       </ReadabilityRow>
       <ReadabilityRow
         :title="$t('dashboard.tts.speaking.provider.title')"
-        :description="describe('dashboard.tts.speaking.provider.description', providerHint)"
+        :description="$t('dashboard.tts.speaking.provider.description')"
+        :hint="providerHint"
       >
         <SegmentedControl
           :model-value="stored.defaultProvider"
@@ -236,7 +233,8 @@ const charactersHint = computed(() =>
       </ReadabilityRow>
       <ReadabilityRow
         :title="$t('dashboard.tts.speaking.standing.title')"
-        :description="describe('dashboard.tts.speaking.standing.description', standingHint)"
+        :description="$t('dashboard.tts.speaking.standing.description')"
+        :hint="standingHint"
       >
         <Select
           :model-value="stored.minPermission"
@@ -257,7 +255,8 @@ const charactersHint = computed(() =>
       </ReadabilityRow>
       <ReadabilityRow
         :title="$t('dashboard.tts.speaking.maxCharacters.title')"
-        :description="describe('dashboard.tts.speaking.maxCharacters.description', charactersHint)"
+        :description="$t('dashboard.tts.speaking.maxCharacters.description')"
+        :hint="charactersHint"
       >
         <Input
           v-model="characters"
@@ -275,24 +274,16 @@ const charactersHint = computed(() =>
         :model-value="stored.skipBotMessages"
         :disabled="!writable"
         :title="$t('dashboard.tts.speaking.skipBots.title')"
-        :description="
-          describe(
-            'dashboard.tts.speaking.skipBots.description',
-            switchHint(standard?.skipBotMessages),
-          )
-        "
+        :description="$t('dashboard.tts.speaking.skipBots.description')"
+        :hint="switchHint(standard?.skipBotMessages)"
         @update:model-value="change({ skipBotMessages: $event })"
       />
       <SettingRow
         :model-value="stored.profanityCensorEnabled"
         :disabled="!writable"
         :title="$t('dashboard.tts.speaking.censor.title')"
-        :description="
-          describe(
-            'dashboard.tts.speaking.censor.description',
-            switchHint(standard?.profanityCensorEnabled),
-          )
-        "
+        :description="$t('dashboard.tts.speaking.censor.description')"
+        :hint="switchHint(standard?.profanityCensorEnabled)"
         @update:model-value="change({ profanityCensorEnabled: $event })"
       />
     </RowGroup>

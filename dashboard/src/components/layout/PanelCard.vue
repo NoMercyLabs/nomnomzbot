@@ -34,6 +34,8 @@ const props = withDefaults(
     bare?: boolean;
     // No head at all: the panel is only its body (a docked chat that needs every pixel for the feed).
     headless?: boolean;
+    // The body never scrolls: its content (a virtual list) owns the one scroller, so there is no scroll in a scroll.
+    still?: boolean;
     state?: PanelState;
     emptyText?: string;
     errorText?: string;
@@ -45,6 +47,7 @@ const props = withDefaults(
     flush: false,
     bare: false,
     headless: false,
+    still: false,
     state: 'ready',
     emptyText: undefined,
     errorText: undefined,
@@ -77,7 +80,9 @@ const bodyClass = computed<string | string[]>(() => {
   if (props.bare)
     return '';
 
-  return ['overflow-y-auto', bodyPad.value];
+  return [props.still
+    ? 'overflow-hidden'
+    : 'overflow-y-auto', bodyPad.value];
 });
 
 const footerClass = computed<string | string[]>(() => {

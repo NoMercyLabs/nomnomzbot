@@ -51,25 +51,22 @@ const state = computed<PanelState>(() => {
     : 'ready';
 });
 
-// The help line with the bot's own default appended, so a streamer sees what a reset returns to.
-function describe(key: string, standard: boolean | undefined): string {
-  const hint =
-    standard === undefined
-      ? ''
-      : t(standard
-          ? 'dashboard.tts.defaultHint.on'
-          : 'dashboard.tts.defaultHint.off');
+// The bot's own default, shown beside the title, so a streamer sees what a reset returns to.
+function switchHint(standard: boolean | undefined): string {
+  if (standard === undefined)
+    return '';
 
-  return `${t(key)} ${hint}`.trim();
+  return t(standard
+    ? 'dashboard.tts.defaultHint.on'
+    : 'dashboard.tts.defaultHint.off');
 }
 
-const bitsDescription = computed<string>(() => {
+const bitsHint = computed<string>(() => {
   const standard = defaults.data.value;
-  const hint = standard
+
+  return standard
     ? t('dashboard.tts.defaultHint.value', { value: String(standard.minBitsToTts ?? 0) })
     : '';
-
-  return `${t('dashboard.tts.rules.minBits.description')} ${hint}`.trim();
 });
 
 function change(rules: TtsRulesChange): void {
@@ -105,53 +102,38 @@ function commitBits(): void {
         :model-value="stored.followsPlatformDefaultVoice"
         :disabled="!can('tts:config:write')"
         :title="$t('dashboard.tts.rules.follow.title')"
-        :description="
-          describe(
-            'dashboard.tts.rules.follow.description',
-            defaults.data.value?.followsPlatformDefaultVoice,
-          )
-        "
+        :description="$t('dashboard.tts.rules.follow.description')"
+        :hint="switchHint(defaults.data.value?.followsPlatformDefaultVoice)"
         @update:model-value="change({ followPlatformDefaultVoice: $event })"
       />
       <SettingRow
         :model-value="stored.readUsernames"
         :disabled="!can('tts:config:write')"
         :title="$t('dashboard.tts.rules.readUsernames.title')"
-        :description="
-          describe(
-            'dashboard.tts.rules.readUsernames.description',
-            defaults.data.value?.readUsernames,
-          )
-        "
+        :description="$t('dashboard.tts.rules.readUsernames.description')"
+        :hint="switchHint(defaults.data.value?.readUsernames)"
         @update:model-value="change({ readUsernames: $event })"
       />
       <SettingRow
         :model-value="stored.modApprovalRequired"
         :disabled="!can('tts:config:write')"
         :title="$t('dashboard.tts.rules.modApproval.title')"
-        :description="
-          describe(
-            'dashboard.tts.rules.modApproval.description',
-            defaults.data.value?.modApprovalRequired,
-          )
-        "
+        :description="$t('dashboard.tts.rules.modApproval.description')"
+        :hint="switchHint(defaults.data.value?.modApprovalRequired)"
         @update:model-value="change({ modApprovalRequired: $event })"
       />
       <SettingRow
         :model-value="stored.viewerVoiceSelfServiceEnabled"
         :disabled="!can('tts:config:write')"
         :title="$t('dashboard.tts.rules.selfService.title')"
-        :description="
-          describe(
-            'dashboard.tts.rules.selfService.description',
-            defaults.data.value?.viewerVoiceSelfServiceEnabled,
-          )
-        "
+        :description="$t('dashboard.tts.rules.selfService.description')"
+        :hint="switchHint(defaults.data.value?.viewerVoiceSelfServiceEnabled)"
         @update:model-value="change({ viewerVoiceSelfServiceEnabled: $event })"
       />
       <ReadabilityRow
         :title="$t('dashboard.tts.rules.minBits.title')"
-        :description="bitsDescription"
+        :description="$t('dashboard.tts.rules.minBits.description')"
+        :hint="bitsHint"
       >
         <Input
           v-model="bits"

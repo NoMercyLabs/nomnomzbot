@@ -79,18 +79,14 @@
           "title": "Kanaalstem",
           "none": "Er is nog geen stem gekozen.",
           "platform": "Dit kanaal volgt de platformstem tot je er een kiest."
-        },
-        "detection": {
-          "title": "Taalherkenning",
-          "body": "De bot herkent de taal van een bericht nog niet. Elk bericht wordt voorgelezen met de kanaalstem."
         }
       },
       "rules": {
-        "title": "Regels",
+        "title": "Berichtregels",
         "description": "Wie er gehoord wordt en wat de bot voorleest.",
         "follow": {
           "title": "De platformstem volgen",
-          "description": "Gebruik de standaardstem van het platform tot je zelf een stem kiest."
+          "description": "Gebruik de platformstem tot je zelf een stem kiest."
         },
         "readUsernames": {
           "title": "Gebruikersnamen voorlezen",
@@ -98,15 +94,15 @@
         },
         "modApproval": {
           "title": "Moderators keuren eerst goed",
-          "description": "Berichten wachten in een wachtrij tot een moderator ze toestaat."
+          "description": "Berichten wachten tot een moderator ze toestaat."
         },
         "selfService": {
           "title": "Kijkers kiezen hun eigen stem",
-          "description": "Kijkers kunnen hun stem wijzigen met !voice. Uit: alleen moderators kunnen dat."
+          "description": "Kijkers wijzigen het met !voice. Uit: alleen moderators."
         },
         "minBits": {
           "title": "Minimaal aantal bits",
-          "description": "Bits die een bericht moet bevatten om voorgelezen te worden. 0 betekent geen bits nodig."
+          "description": "Bits die een bericht nodig heeft. 0 betekent geen."
         }
       },
       "defaultHint": {
@@ -123,7 +119,7 @@
         },
         "mode": {
           "title": "Stembron",
-          "description": "Gratis botstem, of je eigen Azure- of ElevenLabs-sleutel.",
+          "description": "Gratis stem, of je eigen sleutel.",
           "self_host": "Gratis botstem",
           "byok": "Mijn eigen sleutel"
         },
@@ -134,7 +130,7 @@
         "standing": {
           "title": "Wie er gehoord wordt",
           "label": "Wie er gehoord wordt",
-          "description": "De laagste rang in je kanaal die wordt voorgelezen.",
+          "description": "De laagste rang die wordt voorgelezen.",
           "everyone": "Iedereen",
           "subscribers": "Abonnees",
           "vip": "VIP's",

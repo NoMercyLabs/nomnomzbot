@@ -235,7 +235,7 @@ describe('TtsView overview', () => {
 
   it('opens Rules with the speaking and rules panels and neither lexicon nor keys', async () => {
     await open('?view=rules');
-    expect(panel('Rules').getAttribute('data-state')).toBe('ready');
+    expect(panel('Message rules').getAttribute('data-state')).toBe('ready');
     expect(document.body.querySelector('[data-view="tts-speaking"]')).not.toBeNull();
     expect(document.body.querySelector('[data-view="tts-lexicon"]')).toBeNull();
     expect(document.body.querySelector('[data-view="tts-keys"]')).toBeNull();

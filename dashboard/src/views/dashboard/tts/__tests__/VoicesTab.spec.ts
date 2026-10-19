@@ -39,21 +39,22 @@ const ok = (data: unknown, extra: Record<string, unknown> = {}): Answer => ({
   response: { status: 200, ok: true },
 });
 
-const voice = (id: string, locale: string, gender: string = 'female') => ({
-  id,
-  name: id,
-  displayName: id,
-  locale,
-  gender,
-  provider: 'edge',
-  isDefault: false,
-  accent: null,
-  age: null,
-  styles: [],
-  tags: [],
-  description: null,
-  previewUrl: null,
-}) as const satisfies Record<string, unknown>;
+const voice = (id: string, locale: string, gender: string = 'female') =>
+  ({
+    id,
+    name: id,
+    displayName: id,
+    locale,
+    gender,
+    provider: 'edge',
+    isDefault: false,
+    accent: null,
+    age: null,
+    styles: [],
+    tags: [],
+    description: null,
+    previewUrl: null,
+  }) as const satisfies Record<string, unknown>;
 
 const config = {
   isEnabled: true,
@@ -324,8 +325,7 @@ describe('VoicesTab', () => {
     i18n.global.mergeLocaleMessage('en', (await import('@/i18n/locales/en.json')).default);
     await open();
 
-    const facts: string =
-      document.body.querySelector('[data-slot="panel-card"]')?.textContent ?? '';
+    const facts: string = document.body.querySelector('[data-current-voice]')?.textContent ?? '';
 
     expect(facts).toContain('Microsoft Edge');
     expect(facts).not.toMatch(/\bedge\b/);
@@ -533,5 +533,21 @@ describe('VoicesTab', () => {
 
     expect(card?.getAttribute('data-state')).toBe('error');
     expect(rows()).toHaveLength(0);
+  });
+
+  it('keeps one scroller: the panel body does not scroll around the voice list', async () => {
+    await open();
+
+    const list = document.body.querySelector('[data-voice-row]')?.closest('[data-virtual-scroll]');
+    const body = list?.closest('[data-slot="panel-card"]')?.querySelector(':scope > div');
+
+    expect(list).not.toBeNull();
+    expect(body?.className).not.toContain('overflow-y-auto');
+  });
+
+  it('offers no language detection panel, the bot has none', async () => {
+    await open();
+
+    expect(document.body.textContent).not.toContain('Language detection');
   });
 });

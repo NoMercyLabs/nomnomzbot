@@ -82,13 +82,16 @@ function familyCount(value: string): number {
 }
 
 const chips = computed<Chip[]>(() =>
-  [ALL, ...voiceFamilyOrder].map((value) => ({
-    value,
-    label: t(`dashboard.tts.voices.family.${value}`),
-    count: `${familyCount(value)}${catalog.hasNextPage.value
-      ? '+'
-      : ''}`,
-  }) as const satisfies Chip),
+  [ALL, ...voiceFamilyOrder].map(
+    (value) =>
+      ({
+        value,
+        label: t(`dashboard.tts.voices.family.${value}`),
+        count: `${familyCount(value)}${catalog.hasNextPage.value
+          ? '+'
+          : ''}`,
+      }) as const satisfies Chip,
+  ),
 );
 
 // The server pages by provider and locale, so a language can sit on a page that is not loaded yet.
@@ -192,7 +195,7 @@ const panels = computed(
   () =>
     [
       { id: 'voices', label: t('dashboard.tts.voices.title') },
-      { id: 'detection', label: t('dashboard.tts.voices.detection.title') },
+      { id: 'current', label: t('dashboard.tts.voices.current.title') },
     ] as const satisfies readonly BoardPanel[],
 );
 </script>
@@ -205,37 +208,12 @@ const panels = computed(
         :description="subtitle"
         tier="lead"
         pad
+        still
         :state="panelState"
         :error-text="$t('dashboard.tts.voices.error')"
         @retry="catalog.refetch()"
       >
         <div class="flex h-full min-h-0 flex-col gap-3">
-          <div
-            v-if="chosen !== null"
-            data-current-voice
-            class="flex flex-none items-center gap-3 rounded-[12px] border border-border p-3"
-          >
-            <span
-              class="flex size-10 flex-none items-center justify-center rounded-[8px] bg-muted text-muted-foreground"
-            >
-              <WaveForm class="size-5" aria-hidden="true" />
-            </span>
-            <span class="min-w-0 flex-1">
-              <span class="block text-sm font-medium wrap-break-word">{{ currentName }}</span>
-              <span class="block text-sm text-muted-foreground">{{ currentDetail }}</span>
-              <span
-                v-if="config.data.value?.followsPlatformDefaultVoice"
-                class="block text-sm text-muted-foreground"
-              >
-                {{ $t("dashboard.tts.voices.current.platform") }}
-              </span>
-            </span>
-            <PlaySampleButton :voice-id="chosen" />
-          </div>
-          <p v-else data-current-voice class="flex-none text-sm text-muted-foreground">
-            {{ $t("dashboard.tts.voices.current.none") }}
-          </p>
-
           <SearchField
             v-model="search"
             class="w-full flex-none"
@@ -284,7 +262,7 @@ const panels = computed(
           </p>
           <VirtualList
             v-else
-            class="min-h-72 flex-1"
+            class="min-h-0 flex-1"
             :items="items"
             :item-key="(item: VoiceListItem) => item.key"
             :estimate-size="ROW_HEIGHT"
@@ -340,9 +318,33 @@ const panels = computed(
         </template>
       </PanelCard>
     </BoardCell>
-    <BoardCell panel="detection" :span="5">
-      <PanelCard :title="$t('dashboard.tts.voices.detection.title')" tier="quiet" pad>
-        <p class="text-sm text-muted-foreground">{{ $t("dashboard.tts.voices.detection.body") }}</p>
+    <BoardCell panel="current" :span="5">
+      <PanelCard :title="$t('dashboard.tts.voices.current.title')" tier="quiet" pad>
+        <div
+          v-if="chosen !== null"
+          data-current-voice
+          class="flex items-center gap-3 rounded-[12px] border border-border p-3"
+        >
+          <span
+            class="flex size-10 flex-none items-center justify-center rounded-[8px] bg-muted text-muted-foreground"
+          >
+            <WaveForm class="size-5" aria-hidden="true" />
+          </span>
+          <span class="min-w-0 flex-1">
+            <span class="block text-sm font-medium wrap-break-word">{{ currentName }}</span>
+            <span class="block text-sm text-muted-foreground">{{ currentDetail }}</span>
+            <span
+              v-if="config.data.value?.followsPlatformDefaultVoice"
+              class="block text-sm text-muted-foreground"
+            >
+              {{ $t("dashboard.tts.voices.current.platform") }}
+            </span>
+          </span>
+          <PlaySampleButton :voice-id="chosen" />
+        </div>
+        <p v-else data-current-voice class="text-sm text-muted-foreground">
+          {{ $t("dashboard.tts.voices.current.none") }}
+        </p>
       </PanelCard>
     </BoardCell>
   </BoardGrid>
