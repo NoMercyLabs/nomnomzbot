@@ -16,6 +16,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 import { useSaveErrorsStore } from '@/stores/saveErrors';
 
 import {
+  sharedSurfaces,
   useSaveWidgetSettings,
   useSetWidgetEnabled,
   useTestWidgetEvent,
@@ -23,6 +24,8 @@ import {
   useWidgets,
   widgetSchemaKey,
   widgetsKey,
+  withoutRequired,
+  type RequiredOverlay,
   type Widget,
 } from '../widgets';
 
@@ -351,5 +354,23 @@ describe('useTestWidgetEvent', () => {
     const { hook } = mount(() => useTestWidgetEvent(channel));
 
     await expect(hook.mutateAsync({ widgetId: 'w9', eventType: '' })).rejects.toThrow('eventType is required');
+  });
+});
+
+describe('sharedSurfaces', () => {
+  const surface = (key: string) => ({ key, widget: widget(`w-${key}`) }) as const satisfies RequiredOverlay;
+  const surfaces = [surface('audio'), surface('alerts'), surface('tts_caption'), surface('raid_recap')];
+
+  it('leaves the personal raid recap out of the shared required list', () => {
+    expect(sharedSurfaces(surfaces).map((overlay) => overlay.key)).toEqual(['audio', 'alerts', 'tts_caption']);
+  });
+
+  it('keeps the raid recap in the channel own overlays, with its own address', () => {
+    const own = withoutRequired(
+      surfaces.map((overlay) => overlay.widget),
+      sharedSurfaces(surfaces),
+    );
+
+    expect(own.map((item) => item.id)).toEqual(['w-raid_recap']);
   });
 });

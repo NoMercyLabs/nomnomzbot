@@ -91,7 +91,14 @@ export const requiredOverlaysKey = (channelId: string | null): KeyParts => [
   'required',
 ];
 
-// The system surfaces (alerts, audio, ...) the bot makes for every channel. The OBS page is their one place.
+// The raid recap is a personal overlay: it has its own address on the Overlays page, never in the shared list.
+const PERSONAL_SURFACE_KEYS = new Set<string>(['raid_recap']);
+
+export function sharedSurfaces(overlays: readonly RequiredOverlay[]): RequiredOverlay[] {
+  return overlays.filter((overlay) => !PERSONAL_SURFACE_KEYS.has(overlay.key));
+}
+
+// The shared system surfaces (alerts, audio, ...) the bot makes for every channel. The OBS page is their one place.
 async function readRequiredOverlays(channelId: string): Promise<RequiredOverlay[]> {
   const { data, error, response } = await client.GET(
     '/api/v{version}/channels/{channelId}/overlays/required',
@@ -101,7 +108,7 @@ async function readRequiredOverlays(channelId: string): Promise<RequiredOverlay[
   if (error !== undefined)
     throw failed('required overlays', response.status, error);
 
-  return data?.data ?? [];
+  return sharedSurfaces(data?.data ?? []);
 }
 
 export const requiredOverlaysOptions = (id: string) =>
