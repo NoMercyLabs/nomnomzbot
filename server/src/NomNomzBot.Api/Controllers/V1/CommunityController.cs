@@ -50,6 +50,11 @@ public partial class CommunityController : BaseController
     private readonly ITwitchModeratorsApi _moderators;
     private readonly ITwitchSubscriptionsApi _subscriptions;
     private readonly ITwitchModerationApi _moderation;
+    private const string SortByLastSeen = "last_seen";
+    private const string SortByName = "name";
+    private const int RegularMinMessages = 50;
+    private const int RegularMinDays = 30;
+
     private readonly TimeProvider _timeProvider;
     private readonly ICommunityStandingService _communityStanding;
     private readonly ICurrentUserService _currentUser;
@@ -264,7 +269,10 @@ public partial class CommunityController : BaseController
         DateTime? FirstSeen,
         DateTime? LastSeen,
         // The viewer's Twitch chat color, or null when never seen in chat.
-        string? Color = null
+        string? Color = null,
+        // Subscriber rows only: true when the sub was a gift, with the gifter's display name (Twitch's own answer).
+        bool Gifted = false,
+        string? Gifter = null
     );
 
     public record UserDetailDto(
@@ -290,7 +298,12 @@ public partial class CommunityController : BaseController
         bool? IsModerator,
         // Twitch has no artist list, so this reads the badges on the person's newest chat message here: true or
         // false from that message, null when the person has no message — never a guess.
-        bool? IsArtist
+        bool? IsArtist,
+        // Asked of Twitch for this one user: subscribed or not, whether the sub was gifted and by whom; null when
+        // Twitch could not answer (missing token or scope) — never a guess.
+        bool? IsSubscriber = null,
+        bool? Gifted = null,
+        string? Gifter = null
     );
 
     public record ActivityDto(string Type, string Content, DateTime Timestamp);
@@ -524,6 +537,100 @@ public partial class CommunityController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
+        // sort: last_seen (default, newest first) or name (A to Z). It orders the lists this server holds
+        // (all, moderator, regular); the Twitch-paged roles keep Twitch's own order.
+        bool sortByName = string.Equals(
+            request.Sort,
+            SortByName,
+            StringComparison.OrdinalIgnoreCase
+        );
+        if (
+            !string.IsNullOrWhiteSpace(request.Sort)
+            && !sortByName
+            && !string.Equals(request.Sort, SortByLastSeen, StringComparison.OrdinalIgnoreCase)
+        )
+            return BadRequestResponse(
+                $"Unknown sort '{request.Sort}'. Use {SortByLastSeen} or {SortByName}."
+            );
+
+        // Subscribers tab: cursor-based pagination from Twitch, like the follower tab. A gifted sub carries the
+        // gifter Twitch reports.
+        if (string.Equals(role, "subscriber", StringComparison.OrdinalIgnoreCase))
+        {
+            Result<TwitchPage<TwitchBroadcasterSubscription>> subPage =
+                await _subscriptions.GetBroadcasterSubscriptionsAsync(
+                    broadcasterId,
+                    null,
+                    new(After: cursor, PageSize: request.Take),
+                    ct
+                );
+            IReadOnlyList<TwitchBroadcasterSubscription> subs = subPage.IsSuccess
+                ? subPage.Value.Items
+                : [];
+            string? subNextCursor = subPage.IsSuccess ? subPage.Value.NextCursor : null;
+            List<string> subIds = [.. subs.Select(s => s.UserId)];
+
+            Dictionary<string, User> subUsers = await _db
+                .Users.Where(u => subIds.Contains(u.TwitchUserId!))
+                .ToDictionaryAsync(u => u.TwitchUserId!, ct);
+            Dictionary<string, ViewerProfile> subProfiles = await LoadViewerProfilesAsync(
+                broadcasterId,
+                subIds,
+                ct
+            );
+            var subChatStats = await _db
+                .ChatMessages.Where(m =>
+                    m.BroadcasterId == broadcasterId && subIds.Contains(m.UserId)
+                )
+                .GroupBy(m => m.UserId)
+                .Select(g => new
+                {
+                    UserId = g.Key,
+                    MessageCount = g.Count(),
+                    FirstSeen = g.Min(m => m.CreatedAt),
+                    LastSeen = g.Max(m => m.CreatedAt),
+                })
+                .ToDictionaryAsync(c => c.UserId, ct);
+
+            List<CommunityUserDto> subItems =
+            [
+                .. subs.Select(s =>
+                {
+                    subUsers.TryGetValue(s.UserId, out User? user);
+                    subChatStats.TryGetValue(s.UserId, out var stats);
+                    subProfiles.TryGetValue(s.UserId, out ViewerProfile? profile);
+                    return new CommunityUserDto(
+                        s.UserId,
+                        user?.Id,
+                        user?.Username ?? s.UserLogin,
+                        user?.DisplayName ?? s.UserName,
+                        user?.ProfileImageUrl,
+                        stats?.MessageCount ?? 0,
+                        profile is null ? 0 : profile.TotalWatchSeconds / 3600.0,
+                        profile is null ? 0 : (int)profile.TotalCommandsUsed,
+                        "subscriber",
+                        false,
+                        EarliestSeen(stats?.FirstSeen, profile),
+                        NewestSeen(stats?.LastSeen, profile),
+                        user?.Color,
+                        s.IsGift,
+                        s.IsGift ? s.GifterName : null
+                    );
+                }),
+            ];
+
+            return Ok(
+                new PaginatedResponse<CommunityUserDto>
+                {
+                    Data = subItems,
+                    HasMore = subNextCursor is not null,
+                    NextPage = subNextCursor is not null ? request.Page + 1 : null,
+                    NextCursor = subNextCursor,
+                    Total = subPage.IsSuccess ? subPage.Value.Total : 0,
+                }
+            );
+        }
+
         // Followers tab: cursor-based pagination directly from Twitch (the sub-client resolves the tenant
         // Guid → Twitch id internally; a missing token / scope degrades to an empty page).
         if (string.Equals(role, "follower", StringComparison.OrdinalIgnoreCase))
@@ -703,6 +810,23 @@ public partial class CommunityController : BaseController
                 .Select(cm => cm.User.TwitchUserId!)
                 .ToListAsync(ct);
         }
+        else if (string.Equals(role, "regular", StringComparison.OrdinalIgnoreCase))
+        {
+            // A regular has been around and keeps talking: enough messages, first seen long enough ago (the
+            // same 50 messages / 30 days the Regular trust tier asks for). Real ViewerProfile aggregates only.
+            DateTime firstSeenBefore = _timeProvider
+                .GetUtcNow()
+                .UtcDateTime.AddDays(-RegularMinDays);
+            candidateUserIds = await _db
+                .ViewerProfiles.Where(p =>
+                    p.BroadcasterId == broadcasterId
+                    && p.TotalMessages >= RegularMinMessages
+                    && p.FirstSeenAt != null
+                    && p.FirstSeenAt <= firstSeenBefore
+                )
+                .Select(p => p.ViewerTwitchUserId)
+                .ToListAsync(ct);
+        }
         else
         {
             // No role filter (all users): chatters + mods
@@ -727,6 +851,7 @@ public partial class CommunityController : BaseController
         }
 
         int totalCount = candidateUserIds.Count;
+        bool isRegularList = string.Equals(role, "regular", StringComparison.OrdinalIgnoreCase);
 
         // Chat stats for message counts / first/last seen
         var chatStats2 = await _db
@@ -749,19 +874,30 @@ public partial class CommunityController : BaseController
             ct
         );
 
-        // The most recently seen first; the never seen last, in a stable order.
+        // Default: the most recently seen first, the never seen last. sort=name: A to Z by display name
+        // (the nameless last). Both end in a stable id order.
+        Dictionary<string, string> sortNames = sortByName
+            ? await _db
+                .Users.Where(u => candidateUserIds.Contains(u.TwitchUserId!))
+                .ToDictionaryAsync(
+                    u => u.TwitchUserId!,
+                    u => string.IsNullOrEmpty(u.DisplayName) ? u.Username : u.DisplayName,
+                    ct
+                )
+            : [];
+        IOrderedEnumerable<string> ordered = sortByName
+            ? candidateUserIds
+                .OrderBy(id => !sortNames.ContainsKey(id))
+                .ThenBy(id => sortNames.GetValueOrDefault(id), StringComparer.OrdinalIgnoreCase)
+            : candidateUserIds.OrderByDescending(id =>
+                NewestSeen(
+                    chatStats2.TryGetValue(id, out var stats) ? stats.LastSeen : null,
+                    viewerProfiles.GetValueOrDefault(id)
+                )
+            );
         List<string> pagedIds =
         [
-            .. candidateUserIds
-                .OrderByDescending(id =>
-                    NewestSeen(
-                        chatStats2.TryGetValue(id, out var stats) ? stats.LastSeen : null,
-                        viewerProfiles.GetValueOrDefault(id)
-                    )
-                )
-                .ThenBy(id => id, StringComparer.Ordinal)
-                .Skip(skip)
-                .Take(request.Take + 1),
+            .. ordered.ThenBy(id => id, StringComparer.Ordinal).Skip(skip).Take(request.Take + 1),
         ];
 
         Dictionary<string, User> users2 = await _db
@@ -799,6 +935,7 @@ public partial class CommunityController : BaseController
                     string trustLevel =
                         trustConfigs.TryGetValue($"trust:{userId}", out string? t) ? t
                         : moderatorIds.Contains(userId) ? "moderator"
+                        : isRegularList ? "regular"
                         : "viewer";
 
                     bool isBanned = bannedIds.Contains(userId);
@@ -1109,6 +1246,17 @@ public partial class CommunityController : BaseController
             }
         }
 
+        TwitchBroadcasterSubscription? subscription = null;
+        Result<TwitchPage<TwitchBroadcasterSubscription>> subscriptionPage =
+            await _subscriptions.GetBroadcasterSubscriptionsAsync(
+                broadcasterId,
+                [userId],
+                new(PageSize: 1),
+                ct
+            );
+        if (subscriptionPage.IsSuccess)
+            subscription = subscriptionPage.Value.Items.FirstOrDefault(s => s.UserId == userId);
+
         UserDetailDto detail = new(
             user.TwitchUserId!,
             user.Id,
@@ -1126,7 +1274,10 @@ public partial class CommunityController : BaseController
             banHistory,
             await AskTwitchIsVipAsync(broadcasterId, userId, ct),
             await AskTwitchIsModeratorAsync(broadcasterId, userId, ct),
-            await NewestMessageSaysArtistAsync(broadcasterId, userId, ct)
+            await NewestMessageSaysArtistAsync(broadcasterId, userId, ct),
+            subscriptionPage.IsSuccess ? subscription is not null : null,
+            subscriptionPage.IsSuccess ? subscription?.IsGift ?? false : null,
+            subscription is { IsGift: true } ? subscription.GifterName : null
         );
 
         return Ok(new StatusResponseDto<UserDetailDto> { Data = detail });

@@ -50,11 +50,30 @@ public sealed class CommunityControllerTests
         IChatEmoteCatalogue? emoteCatalogue = null
     )
     {
+        if (subscriptions is null)
+        {
+            // Twitch could not answer (no token / scope): the default for tests that do not care about subs.
+            subscriptions = Substitute.For<ITwitchSubscriptionsApi>();
+            subscriptions
+                .GetBroadcasterSubscriptionsAsync(
+                    Arg.Any<Guid>(),
+                    Arg.Any<IReadOnlyList<string>?>(),
+                    Arg.Any<TwitchPageRequest>(),
+                    Arg.Any<CancellationToken>()
+                )
+                .Returns(
+                    Result.Failure<TwitchPage<TwitchBroadcasterSubscription>>(
+                        "no token",
+                        TwitchErrorCodes.NoToken
+                    )
+                );
+        }
+
         CommunityController controller = new(
             db,
             channels,
             moderators ?? Substitute.For<ITwitchModeratorsApi>(),
-            subscriptions ?? Substitute.For<ITwitchSubscriptionsApi>(),
+            subscriptions,
             moderation ?? Substitute.For<ITwitchModerationApi>(),
             TimeProvider.System,
             Substitute.For<ICommunityStandingService>(),
@@ -597,6 +616,257 @@ public sealed class CommunityControllerTests
         StatusResponseDto<CommunityController.CommunityStatsDto> body =
             (StatusResponseDto<CommunityController.CommunityStatsDto>)ok.Value!;
         body.Data!.Vips.Should().Be(5);
+    }
+
+    private static ITwitchSubscriptionsApi SubscribersApi(
+        params TwitchBroadcasterSubscription[] subscriptions
+    )
+    {
+        ITwitchSubscriptionsApi api = Substitute.For<ITwitchSubscriptionsApi>();
+        api.GetBroadcasterSubscriptionsAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>?>(),
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchBroadcasterSubscription>(
+                        subscriptions,
+                        NextCursor: "sub-cursor-2",
+                        Total: 41
+                    )
+                )
+            );
+        return api;
+    }
+
+    private static TwitchBroadcasterSubscription Sub(
+        string userId,
+        string login,
+        bool isGift,
+        string gifterName = ""
+    ) =>
+        new(
+            "b-1",
+            "broadcaster",
+            "Broadcaster",
+            isGift ? "gifter-id" : "",
+            isGift ? gifterName.ToLowerInvariant() : "",
+            gifterName,
+            isGift,
+            "Tier 1",
+            "1000",
+            userId,
+            login,
+            login
+        );
+
+    [Fact]
+    public async Task ListMembers_subscriber_role_lists_twitch_subscribers_with_gifted_flag_and_gifter()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        db.Users.Add(
+            new()
+            {
+                Id = Guid.CreateVersion7(),
+                TwitchUserId = "sub-1",
+                Username = "paid_sub",
+                UsernameNormalized = "paid_sub",
+                DisplayName = "Paid_Sub",
+            }
+        );
+        await db.SaveChangesAsync();
+
+        CommunityController controller = Build(
+            db,
+            Substitute.For<ITwitchChannelsApi>(),
+            subscriptions: SubscribersApi(
+                Sub("sub-1", "paid_sub", isGift: false),
+                Sub("sub-2", "lucky_one", isGift: true, gifterName: "Generous")
+            )
+        );
+
+        IActionResult result = await controller.ListMembers(
+            Broadcaster.ToString(),
+            new() { Take = 25 },
+            role: "subscriber",
+            cursor: null,
+            CancellationToken.None
+        );
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        PaginatedResponse<CommunityController.CommunityUserDto> body =
+            (PaginatedResponse<CommunityController.CommunityUserDto>)ok.Value!;
+        body.Total.Should().Be(41);
+        body.NextCursor.Should().Be("sub-cursor-2");
+        body.HasMore.Should().BeTrue();
+
+        CommunityController.CommunityUserDto paid = body.Data.Single(m => m.Id == "sub-1");
+        paid.TrustLevel.Should().Be("subscriber");
+        paid.Gifted.Should().BeFalse();
+        paid.Gifter.Should().BeNull();
+        paid.DisplayName.Should().Be("Paid_Sub");
+
+        CommunityController.CommunityUserDto gifted = body.Data.Single(m => m.Id == "sub-2");
+        gifted.Gifted.Should().BeTrue();
+        gifted.Gifter.Should().Be("Generous");
+        gifted.Username.Should().Be("lucky_one");
+    }
+
+    [Fact]
+    public async Task ListMembers_regular_role_lists_only_viewers_with_enough_messages_over_enough_days()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        DateTime now = DateTime.UtcNow;
+        AddProfile(db, "reg-yes", 80, now.AddDays(-90), now.AddDays(-1));
+        AddProfile(db, "reg-new", 80, now.AddDays(-3), now.AddDays(-1));
+        AddProfile(db, "reg-quiet", 4, now.AddDays(-90), now.AddDays(-1));
+        await db.SaveChangesAsync();
+
+        CommunityController controller = Build(db, Substitute.For<ITwitchChannelsApi>());
+
+        IActionResult result = await controller.ListMembers(
+            Broadcaster.ToString(),
+            new() { Take = 25 },
+            role: "regular",
+            cursor: null,
+            CancellationToken.None
+        );
+
+        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
+        PaginatedResponse<CommunityController.CommunityUserDto> body =
+            (PaginatedResponse<CommunityController.CommunityUserDto>)ok.Value!;
+        body.Data.Select(m => m.Id).Should().Equal("reg-yes");
+        body.Total.Should().Be(1);
+        body.Data.Single().TrustLevel.Should().Be("regular");
+    }
+
+    [Fact]
+    public async Task ListMembers_sort_name_orders_alphabetically_and_default_orders_by_last_seen()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        DateTime now = DateTime.UtcNow;
+        AddProfile(db, "u-zed", 1, now.AddDays(-9), now.AddHours(-1), "Zed");
+        AddProfile(db, "u-amy", 1, now.AddDays(-9), now.AddDays(-5), "amy");
+        AddProfile(db, "u-bob", 1, now.AddDays(-9), now.AddDays(-2), "Bob");
+        await db.SaveChangesAsync();
+        CommunityController controller = Build(db, Substitute.For<ITwitchChannelsApi>());
+
+        IActionResult byNameResult = await controller.ListMembers(
+            Broadcaster.ToString(),
+            new() { Take = 25, Sort = "name" },
+            role: null,
+            cursor: null,
+            CancellationToken.None
+        );
+        IActionResult bySeenResult = await controller.ListMembers(
+            Broadcaster.ToString(),
+            new() { Take = 25 },
+            role: null,
+            cursor: null,
+            CancellationToken.None
+        );
+
+        Data(byNameResult).Select(m => m.Id).Should().Equal("u-amy", "u-bob", "u-zed");
+        Data(bySeenResult).Select(m => m.Id).Should().Equal("u-zed", "u-bob", "u-amy");
+    }
+
+    [Fact]
+    public async Task ListMembers_rejects_an_unknown_sort()
+    {
+        CommunityController controller = Build(
+            CommunityControllerTestDbContext.New(),
+            Substitute.For<ITwitchChannelsApi>()
+        );
+
+        IActionResult result = await controller.ListMembers(
+            Broadcaster.ToString(),
+            new() { Take = 25, Sort = "bogus" },
+            role: null,
+            cursor: null,
+            CancellationToken.None
+        );
+
+        result.Should().BeOfType<BadRequestObjectResult>();
+    }
+
+    [Fact]
+    public async Task GetUserDetail_reports_subscription_with_gifter_from_twitch()
+    {
+        ITwitchSubscriptionsApi subscriptions = Substitute.For<ITwitchSubscriptionsApi>();
+        subscriptions
+            .GetBroadcasterSubscriptionsAsync(
+                Broadcaster,
+                Arg.Is<IReadOnlyList<string>?>(l =>
+                    l != null && l.Count == 1 && l[0] == "twitch-555"
+                ),
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchBroadcasterSubscription>(
+                        [Sub("twitch-555", "some_viewer", isGift: true, gifterName: "Generous")],
+                        null,
+                        1
+                    )
+                )
+            );
+
+        ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
+        moderators
+            .GetVipsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchVip>([], null, 0)));
+        moderators
+            .GetModeratorsByUserIdAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<IReadOnlyList<string>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchModerator>([], null, 0)));
+
+        CommunityController.UserDetailDto detail = await DetailAsync(moderators, subscriptions);
+
+        detail.IsSubscriber.Should().BeTrue();
+        detail.Gifted.Should().BeTrue();
+        detail.Gifter.Should().Be("Generous");
+    }
+
+    private static void AddProfile(
+        CommunityControllerTestDbContext db,
+        string twitchId,
+        long messages,
+        DateTime firstSeen,
+        DateTime lastSeen,
+        string? name = null
+    )
+    {
+        db.Users.Add(
+            new()
+            {
+                Id = Guid.CreateVersion7(),
+                TwitchUserId = twitchId,
+                Username = (name ?? twitchId).ToLowerInvariant(),
+                UsernameNormalized = (name ?? twitchId).ToLowerInvariant(),
+                DisplayName = name ?? twitchId,
+            }
+        );
+        db.ViewerProfiles.Add(
+            new()
+            {
+                BroadcasterId = Broadcaster,
+                ViewerUserId = Guid.CreateVersion7(),
+                ViewerTwitchUserId = twitchId,
+                TotalMessages = messages,
+                FirstSeenAt = firstSeen,
+                LastSeenAt = lastSeen,
+            }
+        );
     }
 
     private static List<CommunityController.CommunityUserDto> Data(IActionResult result)
@@ -1340,7 +1610,8 @@ public sealed class CommunityControllerTests
     }
 
     private static async Task<CommunityController.UserDetailDto> DetailAsync(
-        ITwitchModeratorsApi moderators
+        ITwitchModeratorsApi moderators,
+        ITwitchSubscriptionsApi? subscriptions = null
     )
     {
         CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
@@ -1359,7 +1630,8 @@ public sealed class CommunityControllerTests
         CommunityController controller = Build(
             db,
             Substitute.For<ITwitchChannelsApi>(),
-            moderators: moderators
+            moderators: moderators,
+            subscriptions: subscriptions
         );
 
         IActionResult result = await controller.GetUserDetail(

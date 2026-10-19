@@ -109464,6 +109464,15 @@
               "null",
               "string"
             ]
+          },
+          "gifted": {
+            "type": "boolean"
+          },
+          "gifter": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         }
       },
@@ -151001,6 +151010,24 @@
             "type": [
               "null",
               "boolean"
+            ]
+          },
+          "isSubscriber": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "gifted": {
+            "type": [
+              "null",
+              "boolean"
+            ]
+          },
+          "gifter": {
+            "type": [
+              "null",
+              "string"
             ]
           }
         }
