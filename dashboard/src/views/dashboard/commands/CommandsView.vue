@@ -138,21 +138,21 @@ const creating = ref(false);
       </Button>
     </template>
     <template #bar>
-      <!-- The sort sits over the list it orders. It stays in place on the Built-in tab, shut, so switching
-           tabs never moves the tabs. -->
+      <!-- The sort sits over the list it orders. The built-in list keeps the bot's own order: no sort there. -->
       <SegmentedControl
+        v-if="listed"
         v-model="sort"
-        :disabled="!listed"
-        :title="listed ? undefined : $t('dashboard.commands.list.sortOff')"
         :label="$t('dashboard.commands.list.sort')"
         :options="sortOptions"
       />
       <PageTabs :tabs="tabs" />
     </template>
   </PageHeader>
-  <ListDetail v-if="listed" :show-detail="open">
+  <ListDetail :show-detail="open">
     <template #list>
+      <BuiltinList v-if="!listed" :selected="selectedBuiltin" @pick="selectBuiltin" />
       <CommandList
+        v-else
         :selected="selected"
         :selected-builtin="selectedBuiltin"
         :sort="sort"
@@ -173,12 +173,16 @@ const creating = ref(false);
         />
         <CommandEditor :key="row.name" :row="row" @remove="removeCommand" />
       </div>
-      <BuiltinEditor
-        v-else-if="builtin && view === 'all'"
-        :key="builtin.builtinKey"
-        data-builtin-detail
-        :builtin="builtin"
-      />
+      <div v-else-if="builtin && view !== 'custom'" class="flex flex-1 flex-col gap-2 md:min-h-0">
+        <BackLink
+          data-detail-back
+          data-page-inset
+          class="self-start md:hidden"
+          :label="$t('dashboard.commands.back')"
+          @click="select(undefined)"
+        />
+        <BuiltinEditor :key="builtin.builtinKey" data-builtin-detail :builtin="builtin" />
+      </div>
       <PanelCard
         v-else
         state="empty"
@@ -187,6 +191,5 @@ const creating = ref(false);
       />
     </template>
   </ListDetail>
-  <BuiltinList v-else />
   <NewCommandDialog v-model:open="creating" @created="select" />
 </template>

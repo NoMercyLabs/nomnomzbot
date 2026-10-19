@@ -78,13 +78,18 @@ const defaults = computed(() => ({
 }));
 
 // What the channel has saved right now, resolved against the defaults.
-const saved = computed(() => ({
-  cooldown: Number(props.builtin.cooldownSecondsOverride ?? defaults.value.cooldown),
-  userCooldown: Number(props.builtin.userCooldownSecondsOverride ?? defaults.value.userCooldown),
-  level: props.builtin.minPermissionLevelOverride ?? defaults.value.level,
-  tts: props.builtin.speakWithTts,
-  texts: Object.fromEntries(slots.value.map((slot) => [slot.slot, slot.effectiveTemplate])),
-}) as const satisfies Draft);
+const saved = computed(
+  () =>
+    ({
+      cooldown: Number(props.builtin.cooldownSecondsOverride ?? defaults.value.cooldown),
+      userCooldown: Number(
+        props.builtin.userCooldownSecondsOverride ?? defaults.value.userCooldown,
+      ),
+      level: props.builtin.minPermissionLevelOverride ?? defaults.value.level,
+      tts: props.builtin.speakWithTts,
+      texts: Object.fromEntries(slots.value.map((slot) => [slot.slot, slot.effectiveTemplate])),
+    }) as const satisfies Draft,
+);
 
 const hasOverrides = computed<boolean>(
   () =>
@@ -170,13 +175,13 @@ const settingsBody = (change: Partial<Record<'cooldown' | 'userCooldown' | 'leve
   builtinKey: props.builtin.builtinKey,
   cooldownSeconds: change.cooldown
     ? null
-    : (props.builtin.cooldownSecondsOverride as number | null) ?? null,
+    : ((props.builtin.cooldownSecondsOverride as number | null) ?? null),
   userCooldownSeconds: change.userCooldown
     ? null
-    : (props.builtin.userCooldownSecondsOverride as number | null) ?? null,
+    : ((props.builtin.userCooldownSecondsOverride as number | null) ?? null),
   minPermissionLevel: change.level
     ? null
-    : props.builtin.minPermissionLevelOverride ?? null,
+    : (props.builtin.minPermissionLevelOverride ?? null),
 });
 
 function setNumber(key: 'cooldown' | 'userCooldown', value: string | number): void {
@@ -211,12 +216,14 @@ function save(): void {
   if (settingsDirty.value) {
     updateSettings.mutate({
       builtinKey: props.builtin.builtinKey,
-      cooldownSeconds: draft.value.cooldown === defaults.value.cooldown
-        ? null
-        : draft.value.cooldown,
-      userCooldownSeconds: draft.value.userCooldown === defaults.value.userCooldown
-        ? null
-        : draft.value.userCooldown,
+      cooldownSeconds:
+        draft.value.cooldown === defaults.value.cooldown
+          ? null
+          : draft.value.cooldown,
+      userCooldownSeconds:
+        draft.value.userCooldown === defaults.value.userCooldown
+          ? null
+          : draft.value.userCooldown,
       minPermissionLevel: draft.value.level === defaults.value.level
         ? null
         : draft.value.level,
@@ -271,7 +278,11 @@ const unsaved = computed<string>(() =>
       </RowGroup>
 
       <p class="min-h-5 text-sm text-muted-foreground">
-        {{ locked ? $t('dashboard.commands.builtin.reserved') : $t('dashboard.commands.builtin.customizeHelp') }}
+        {{
+          locked
+            ? $t("dashboard.commands.builtin.reserved")
+            : $t("dashboard.commands.builtin.customizeHelp")
+        }}
       </p>
 
       <Field v-for="slot in slots" :key="slot.slot">
@@ -283,8 +294,11 @@ const unsaved = computed<string>(() =>
           :local-names="slot.variables.map((variable) => variable.name)"
           :disabled="!editable || slot.isLocked"
         />
-        <p v-if="slot.variables.length > 0" class="flex flex-wrap gap-x-2 text-xs text-muted-foreground">
-          <span>{{ $t('dashboard.commands.builtin.variables') }}</span>
+        <p
+          v-if="slot.variables.length > 0"
+          class="flex flex-wrap gap-x-2 text-xs text-muted-foreground"
+        >
+          <span>{{ $t("dashboard.commands.builtin.variables") }}</span>
           <span
             v-for="variable in slot.variables"
             :key="variable.name"
@@ -292,11 +306,12 @@ const unsaved = computed<string>(() =>
             :title="variable.description.text ?? ''"
           >{{ braced(variable.name) }}</span>
         </p>
-        <div class="flex min-h-9 items-center justify-between gap-2">
+        <div
+          v-if="slot.isLocked || replyHint(slot) !== '' || (slot.isOverridden && editable)"
+          class="flex min-h-9 items-center justify-between gap-2"
+        >
           <span class="text-sm text-muted-foreground">
-            {{ slot.isLocked
-              ? $t('dashboard.commands.builtin.replyLocked')
-              : replyHint(slot) }}
+            {{ slot.isLocked ? $t("dashboard.commands.builtin.replyLocked") : replyHint(slot) }}
           </span>
           <Button
             type="button"
@@ -306,13 +321,13 @@ const unsaved = computed<string>(() =>
             :aria-label="$t('dashboard.commands.builtin.backTo', { field: slotLabel(slot) })"
             @click="backToDefaultReply(slot)"
           >
-            {{ $t('dashboard.commands.builtin.back') }}
+            {{ $t("dashboard.commands.builtin.back") }}
           </Button>
         </div>
       </Field>
 
       <Field>
-        <FieldLabel>{{ $t('dashboard.commands.builtin.role') }}</FieldLabel>
+        <FieldLabel>{{ $t("dashboard.commands.builtin.role") }}</FieldLabel>
         <Select v-model="draft.level" :disabled="!editable">
           <SelectTrigger :aria-label="$t('dashboard.commands.builtin.role')" class="w-full">
             <SelectValue />
@@ -324,24 +339,26 @@ const unsaved = computed<string>(() =>
           </SelectContent>
         </Select>
         <div class="flex min-h-9 items-center justify-between gap-2">
-          <span class="text-sm text-muted-foreground">{{
-            hint(draft.level, defaults.level)
-          }}</span>
+          <span class="text-sm text-muted-foreground">{{ hint(draft.level, defaults.level) }}</span>
           <Button
             type="button"
             variant="ghost"
             size="sm"
             :class="builtin.minPermissionLevelOverride != null && editable ? '' : 'invisible'"
-            :aria-label="$t('dashboard.commands.builtin.backTo', { field: $t('dashboard.commands.builtin.role') })"
+            :aria-label="
+              $t('dashboard.commands.builtin.backTo', {
+                field: $t('dashboard.commands.builtin.role'),
+              })
+            "
             @click="backToDefault('level')"
           >
-            {{ $t('dashboard.commands.builtin.back') }}
+            {{ $t("dashboard.commands.builtin.back") }}
           </Button>
         </div>
       </Field>
 
       <Field>
-        <FieldLabel>{{ $t('dashboard.commands.builtin.globalCooldown') }}</FieldLabel>
+        <FieldLabel>{{ $t("dashboard.commands.builtin.globalCooldown") }}</FieldLabel>
         <Input
           type="number"
           min="0"
@@ -360,16 +377,20 @@ const unsaved = computed<string>(() =>
             variant="ghost"
             size="sm"
             :class="builtin.cooldownSecondsOverride != null && editable ? '' : 'invisible'"
-            :aria-label="$t('dashboard.commands.builtin.backTo', { field: $t('dashboard.commands.builtin.globalCooldown') })"
+            :aria-label="
+              $t('dashboard.commands.builtin.backTo', {
+                field: $t('dashboard.commands.builtin.globalCooldown'),
+              })
+            "
             @click="backToDefault('cooldown')"
           >
-            {{ $t('dashboard.commands.builtin.back') }}
+            {{ $t("dashboard.commands.builtin.back") }}
           </Button>
         </div>
       </Field>
 
       <Field>
-        <FieldLabel>{{ $t('dashboard.commands.builtin.userCooldown') }}</FieldLabel>
+        <FieldLabel>{{ $t("dashboard.commands.builtin.userCooldown") }}</FieldLabel>
         <Input
           type="number"
           min="0"
@@ -388,17 +409,21 @@ const unsaved = computed<string>(() =>
             variant="ghost"
             size="sm"
             :class="builtin.userCooldownSecondsOverride != null && editable ? '' : 'invisible'"
-            :aria-label="$t('dashboard.commands.builtin.backTo', { field: $t('dashboard.commands.builtin.userCooldown') })"
+            :aria-label="
+              $t('dashboard.commands.builtin.backTo', {
+                field: $t('dashboard.commands.builtin.userCooldown'),
+              })
+            "
             @click="backToDefault('userCooldown')"
           >
-            {{ $t('dashboard.commands.builtin.back') }}
+            {{ $t("dashboard.commands.builtin.back") }}
           </Button>
         </div>
       </Field>
 
       <Field>
         <div class="flex min-h-9 items-center justify-between gap-3">
-          <FieldLabel>{{ $t('dashboard.commands.builtin.speak') }}</FieldLabel>
+          <FieldLabel>{{ $t("dashboard.commands.builtin.speak") }}</FieldLabel>
           <Switch
             v-model="draft.tts"
             :disabled="!editable"
@@ -414,10 +439,14 @@ const unsaved = computed<string>(() =>
             variant="ghost"
             size="sm"
             :class="builtin.speakWithTts && editable ? '' : 'invisible'"
-            :aria-label="$t('dashboard.commands.builtin.backTo', { field: $t('dashboard.commands.builtin.speak') })"
+            :aria-label="
+              $t('dashboard.commands.builtin.backTo', {
+                field: $t('dashboard.commands.builtin.speak'),
+              })
+            "
             @click="backToDefaultTts"
           >
-            {{ $t('dashboard.commands.builtin.back') }}
+            {{ $t("dashboard.commands.builtin.back") }}
           </Button>
         </div>
       </Field>
@@ -432,19 +461,25 @@ const unsaved = computed<string>(() =>
         :disabled="locked"
         @click="customized = true"
       >
-        {{ $t('dashboard.commands.builtin.customize') }}
+        {{ $t("dashboard.commands.builtin.customize") }}
       </Button>
       <template v-else>
-        <Button type="button"
-                variant="outline"
-                size="sm"
-                :disabled="dirtyCount === 0"
-                @click="discard"
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          :disabled="dirtyCount === 0"
+          @click="discard"
         >
-          {{ $t('dashboard.commands.builtin.discard') }}
+          {{ $t("dashboard.commands.builtin.discard") }}
         </Button>
-        <Button type="button" size="sm" :disabled="dirtyCount === 0 || pending || locked" @click="save">
-          {{ $t('dashboard.commands.builtin.save') }}
+        <Button
+          type="button"
+          size="sm"
+          :disabled="dirtyCount === 0 || pending || locked"
+          @click="save"
+        >
+          {{ $t("dashboard.commands.builtin.save") }}
         </Button>
       </template>
     </template>

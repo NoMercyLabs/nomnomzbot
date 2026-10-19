@@ -8,17 +8,20 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The commands the bot ships with: each row switches one on or off and shows who may use it, its
-// cooldowns and whether the channel changed them from the default.
+// The commands the bot ships with. A row opens the command's editor; the switch beside it turns the
+// command on or off. The row shows who may use it, its cooldowns and whether the channel changed them.
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { triggerWord, useBuiltins, useToggleBuiltin, type BuiltinCommand } from '@/api/commands';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import RowGroup from '@/components/layout/RowGroup.vue';
-import SettingRow from '@/components/layout/SettingRow.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { Switch } from '@/components/ui/switch';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+
+defineProps<{ selected: string | null }>();
+const emit = defineEmits<{ pick: [name: string] }>();
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
@@ -74,26 +77,33 @@ const state = usePanelState(builtins, (data: BuiltinCommand[]): boolean =>
 </script>
 
 <template>
-  <div data-page-body class="min-h-0 flex-1 px-6 pt-4 pb-6">
-    <PanelCard
-      :title="$t('dashboard.commands.builtin.title')"
-      :state="state"
-      :empty-text="$t('dashboard.commands.builtin.empty')"
-      :error-text="$t('dashboard.commands.builtin.error')"
-      @retry="builtins.refetch()"
+  <PanelCard
+    :title="$t('dashboard.commands.builtin.title')"
+    :state="state"
+    :empty-text="$t('dashboard.commands.builtin.empty')"
+    :error-text="$t('dashboard.commands.builtin.error')"
+    @retry="builtins.refetch()"
+  >
+    <SummaryRow
+      v-for="row in rows"
+      :key="row.builtinKey"
+      pick
+      chevron
+      :selected="triggerWord(row) === selected"
+      :title="`!${triggerWord(row)}`"
+      :detail="descriptionOf(row)"
+      :meta="hintOf(row)"
+      data-builtin-row
+      @click="emit('pick', triggerWord(row))"
     >
-      <RowGroup>
-        <SettingRow
-          v-for="row in rows"
-          :key="row.builtinKey"
-          :title="`!${triggerWord(row)}`"
-          :description="descriptionOf(row)"
-          :hint="hintOf(row)"
-          :disabled="row.isReserved"
+      <template #trailing>
+        <Switch
           :model-value="row.isEnabled"
+          :disabled="row.isReserved"
+          :aria-label="`!${triggerWord(row)}`"
           @update:model-value="toggle.mutate({ builtinKey: row.builtinKey, enabled: $event })"
         />
-      </RowGroup>
-    </PanelCard>
-  </div>
+      </template>
+    </SummaryRow>
+  </PanelCard>
 </template>

@@ -16,7 +16,6 @@
         "sort": "Sort by",
         "sortUses": "Most used",
         "sortName": "A to Z",
-        "sortOff": "The built-in list keeps the bot's own order.",
         "empty": "No commands yet.",
         "makeFirst": "Make the first command",
         "error": "The commands could not load.",

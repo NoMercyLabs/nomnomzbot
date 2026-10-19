@@ -41,22 +41,23 @@ const ok = (data: unknown): Answer => ({
   response: { status: 200, ok: true },
 });
 
-const builtin = (overrides: Row = {}) => ({
-  builtinKey: 'uptime',
-  name: '!uptime',
-  isEnabled: true,
-  isReserved: false,
-  speakWithTts: false,
-  replyGroup: 'uptime',
-  replyOverrideCount: 0,
-  defaultCooldownSeconds: 5,
-  defaultUserCooldownSeconds: 10,
-  defaultMinPermissionLevel: 'Everyone',
-  cooldownSecondsOverride: null,
-  userCooldownSecondsOverride: null,
-  minPermissionLevelOverride: null,
-  ...overrides,
-}) as const satisfies Row;
+const builtin = (overrides: Row = {}) =>
+  ({
+    builtinKey: 'uptime',
+    name: '!uptime',
+    isEnabled: true,
+    isReserved: false,
+    speakWithTts: false,
+    replyGroup: 'uptime',
+    replyOverrideCount: 0,
+    defaultCooldownSeconds: 5,
+    defaultUserCooldownSeconds: 10,
+    defaultMinPermissionLevel: 'Everyone',
+    cooldownSecondsOverride: null,
+    userCooldownSecondsOverride: null,
+    minPermissionLevelOverride: null,
+    ...overrides,
+  }) as const satisfies Row;
 
 const slot = (overrides: Row = {}): Row => ({
   builtinKey: 'uptime',
@@ -79,11 +80,12 @@ const slot = (overrides: Row = {}): Row => ({
   ...overrides,
 });
 
-const group = (slots: Row[]) => ({
-  builtinKey: 'uptime',
-  commandKeys: ['uptime'],
-  replies: slots,
-}) as const satisfies Row;
+const group = (slots: Row[]) =>
+  ({
+    builtinKey: 'uptime',
+    commandKeys: ['uptime'],
+    replies: slots,
+  }) as const satisfies Row;
 
 vi.mock('@/api/client', () => ({
   client: {
@@ -213,6 +215,17 @@ afterEach(() => {
 });
 
 describe('BuiltinEditor', () => {
+  it('draws no empty hint row under a reply box that has nothing to say', async () => {
+    await open();
+
+    const hintRows = editor()
+      .querySelector('textarea')!
+      .closest('.grid > [data-slot="field"]')!
+      .querySelectorAll('div.min-h-9');
+
+    expect(hintRows).toHaveLength(0);
+  });
+
   it('shows every setting with the catalog defaults, view-only, before Customize', async () => {
     await open();
 
@@ -249,7 +262,11 @@ describe('BuiltinEditor', () => {
     await click(button('Customize'));
     await type(input('Chat cooldown (seconds)'), '30');
     await type(replyBox(), 'Up for {uptime} now');
-    await click(editor().querySelector<HTMLButtonElement>('[role="switch"][aria-label="Read it aloud"]')!);
+
+    await click(
+      editor().querySelector<HTMLButtonElement>('[role="switch"][aria-label="Read it aloud"]')!,
+    );
+
     await click(button('Save changes'));
 
     const settings = writes().find((call) => call.path.endsWith('/settings'))!;
@@ -276,9 +293,7 @@ describe('BuiltinEditor', () => {
   it('sends the server reset shapes: a null field in the settings body, DELETE for a reply', async () => {
     builtins = [builtin({ cooldownSecondsOverride: 30, replyOverrideCount: 1 })];
 
-    replies = [
-      group([slot({ effectiveTemplate: 'Own words', isOverridden: true })]),
-    ];
+    replies = [group([slot({ effectiveTemplate: 'Own words', isOverridden: true })])];
 
     await open();
 
@@ -298,7 +313,9 @@ describe('BuiltinEditor', () => {
     });
 
     await click(button('Back to default: Online reply'));
-    const reset = writes().find((call) => call.path.endsWith('/replies/{slot}') && call.method === 'DELETE')!;
+    const reset = writes().find(
+      (call) => call.path.endsWith('/replies/{slot}') && call.method === 'DELETE',
+    )!;
 
     expect(reset.slot).toBe('online');
     expect(reset.key).toBe('uptime');

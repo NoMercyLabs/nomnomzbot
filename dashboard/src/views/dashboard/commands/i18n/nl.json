@@ -16,7 +16,6 @@
         "sort": "Sorteren op",
         "sortUses": "Meest gebruikt",
         "sortName": "A tot Z",
-        "sortOff": "De lijst met ingebouwde commando's houdt de volgorde van de bot.",
         "empty": "Nog geen commando's.",
         "makeFirst": "Maak het eerste commando",
         "error": "De commando's konden niet laden.",

@@ -396,13 +396,10 @@ describe('CommandsView list', () => {
     mounted = null;
     document.body.innerHTML = '';
 
-    // The Built-in tab keeps the sort in place, shut, so the tabs never move.
+    // The built-in list keeps the bot's own order, so a sort that does nothing there is not shown.
     await open('/app/commands?view=builtin');
-    const sort = document.body.querySelector('[data-slot="page-bar"] [data-segmented]')!;
 
-    expect(sort).not.toBeNull();
-    expect(sort.querySelector('button')!.disabled).toBe(true);
-    expect(sort.getAttribute('title')).toBe(en.dashboard.commands.list.sortOff);
+    expect(document.body.querySelector('[data-slot="page-bar"] [data-segmented]')).toBeNull();
   });
 
   it('shows all commands by default: the custom ones and the built-in ones with a single "!"', async () => {
@@ -1199,44 +1196,68 @@ describe('CommandsView trigger options', () => {
   });
 });
 
+const builtinBody = (title: string): HTMLElement =>
+  [...document.body.querySelectorAll<HTMLElement>('[data-builtin-row]')].find(
+    (row) => row.querySelector('[data-slot="summary-row-title"]')?.textContent === title,
+  )!;
+const builtinSwitch = (title: string): HTMLButtonElement =>
+  builtinBody(title).parentElement!.querySelector('button[role="switch"]') as HTMLButtonElement;
+
 describe('CommandsView built-in tab', () => {
   it('lists the built-in commands and switches one off with a PATCH of enabled', async () => {
     await open('/app/commands?view=builtin');
 
     expect(document.body.textContent).toContain('!uptime');
-    switchOf('!uptime').click();
+    builtinSwitch('!uptime').click();
     await settle();
 
     expect(writes('PATCH')).toHaveLength(1);
     expect(writes('PATCH')[0]!.name).toBe('uptime');
     expect(writes('PATCH')[0]!.body).toEqual({ enabled: false });
   });
+
+  it('opens the editor from a row without switching the command, and keeps it in the address', async () => {
+    await open('/app/commands?view=builtin');
+    builtinBody('!uptime').click();
+    await settle();
+
+    expect(writes('PATCH')).toHaveLength(0);
+    expect(router.currentRoute.value.query.builtin).toBe('uptime');
+    expect(router.currentRoute.value.query.view).toBe('builtin');
+    const detail = document.body.querySelector('[data-builtin-detail]')!;
+
+    expect(detail.textContent).toContain('!uptime');
+    expect(detail.textContent).toContain('Customize');
+
+    expect(
+      builtinBody('!uptime')
+        .parentElement!.querySelector('button[role="switch"]')
+        ?.getAttribute('aria-checked'),
+    ).toBe('true');
+  });
 });
 
 describe('CommandsView built-in rows', () => {
-  const rowOf = (title: string): HTMLElement =>
-    [...document.body.querySelectorAll<HTMLElement>('[data-slot="setting-row"]')].find(
-      (row) => row.querySelector('[data-row-title]')?.textContent === title,
-    )!;
-
   it('shows who may use each built-in, its cooldowns and whether it differs from the default', async () => {
     await open('/app/commands?view=builtin');
 
-    const plain = rowOf('!uptime');
+    const plain = builtinBody('!uptime');
 
-    expect(plain.querySelector('[data-row-description]')?.textContent).toBe(
-      'Everyone · 30s chat · 60s each',
+    expect(
+      plain.querySelector('[data-slot="summary-row-text"] > span:nth-child(2)')?.textContent,
+    ).toBe('Everyone · 30s chat · 60s each');
+
+    expect(plain.querySelector('[data-slot="summary-row-meta"]')?.textContent).toBe(
+      'Using the default',
     );
 
-    expect(plain.querySelector('[data-row-hint]')?.textContent).toBe('Using the default');
+    const changed = builtinBody('!shoutout');
 
-    const changed = rowOf('!shoutout');
+    expect(
+      changed.querySelector('[data-slot="summary-row-text"] > span:nth-child(2)')?.textContent,
+    ).toBe('Broadcaster · 20s chat · 0s each');
 
-    expect(changed.querySelector('[data-row-description]')?.textContent).toBe(
-      'Broadcaster · 20s chat · 0s each',
-    );
-
-    expect(changed.querySelector('[data-row-hint]')?.textContent).toBe(
+    expect(changed.querySelector('[data-slot="summary-row-meta"]')?.textContent).toBe(
       'Overrides the default (Moderator · 10s chat · 0s each)',
     );
   });
@@ -1244,13 +1265,15 @@ describe('CommandsView built-in rows', () => {
   it('locks a data-rights built-in on and says why', async () => {
     await open('/app/commands?view=builtin');
 
-    const reserved = rowOf('!mydata');
+    const reserved = builtinBody('!mydata');
 
-    expect(reserved.querySelector('button[role="switch"]')?.hasAttribute('disabled')).toBe(true);
+    expect(
+      reserved.parentElement!.querySelector('button[role="switch"]')?.hasAttribute('disabled'),
+    ).toBe(true);
 
-    expect(reserved.querySelector('[data-row-description]')?.textContent).toBe(
-      en.dashboard.commands.builtin.reserved,
-    );
+    expect(
+      reserved.querySelector('[data-slot="summary-row-text"] > span:nth-child(2)')?.textContent,
+    ).toBe(en.dashboard.commands.builtin.reserved);
   });
 });
 
@@ -1277,7 +1300,7 @@ describe('CommandsView permission gating', () => {
     held = ['commands:read'];
     await open('/app/commands?view=builtin');
 
-    expect(document.body.querySelector('[data-slot="setting-row"]')).toBeNull();
+    expect(document.body.querySelector('[data-builtin-row]')).toBeNull();
     expect(rowNames()).toContain('hello');
   });
 
