@@ -276,6 +276,8 @@ export const apiOperations = {
   'federation opt-ins': 'settings',
   'save federation opt-in': 'settings',
   'disable federation opt-in': 'settings',
+  'network block opt-in': 'settings',
+  'save network block opt-in': 'settings',
   timers: 'liveOps',
   'event responses': 'liveOps',
   'event response': 'liveOps',
