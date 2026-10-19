@@ -81,15 +81,23 @@ function familyCount(value: string): number {
     : loaded.value.filter((voice) => voiceFamily(voice.locale) === value).length;
 }
 
+// While pages are missing, a language with no loaded voice shows no count: "0+" would read as none at all.
+function chipCount(loadedCount: number): string {
+  if (!catalog.hasNextPage.value)
+    return String(loadedCount);
+
+  return loadedCount === 0
+    ? ''
+    : `${loadedCount}+`;
+}
+
 const chips = computed<Chip[]>(() =>
   [ALL, ...voiceFamilyOrder].map(
     (value) =>
       ({
         value,
         label: t(`dashboard.tts.voices.family.${value}`),
-        count: `${familyCount(value)}${catalog.hasNextPage.value
-          ? '+'
-          : ''}`,
+        count: chipCount(familyCount(value)),
       }) as const satisfies Chip,
   ),
 );
@@ -242,7 +250,9 @@ const panels = computed(
               @click="family = chip.value"
             >
               {{ chip.label }}
-              <span class="text-muted-foreground tabular-nums">{{ chip.count }}</span>
+              <span v-if="chip.count !== ''" class="text-muted-foreground tabular-nums">{{
+                chip.count
+              }}</span>
             </Button>
           </div>
 

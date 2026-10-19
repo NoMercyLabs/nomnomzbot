@@ -56,14 +56,14 @@ provide(boardKey, (panel: string) =>
       data-page-body
       class="flex min-h-0 flex-1 flex-col gap-3 pt-3 pb-4"
     >
-      <Tabs v-model="open" class="min-w-0 flex-none overflow-x-auto px-4 scrollbar-none">
+      <Tabs v-model="open" class="min-w-0 flex-none overflow-x-auto px-6 scrollbar-none">
         <TabsList>
           <TabsTrigger v-for="panel in tabPanels" :key="panel.id" :value="panel.id">
             {{ panel.label }}
           </TabsTrigger>
         </TabsList>
       </Tabs>
-      <div class="flex min-h-0 flex-1 flex-col px-4">
+      <div class="flex min-h-0 flex-1 flex-col px-6">
         <slot />
       </div>
     </section>
@@ -72,9 +72,8 @@ provide(boardKey, (panel: string) =>
       data-slot="board-grid"
       data-page-body
       :data-board-wide="wide || undefined"
-      class="grid min-h-0 flex-1 auto-rows-[minmax(20rem,auto)] grid-cols-1 gap-4 overflow-y-auto px-4 pt-4 pb-6
-      data-board-wide:grid-cols-12 data-board-wide:grid-rows-(--board-rows) data-board-wide:overflow-visible
-      data-board-wide:px-6"
+      class="grid min-h-0 flex-1 auto-rows-[minmax(20rem,auto)] grid-cols-1 gap-4 overflow-y-auto px-6 pt-4 pb-6
+      data-board-wide:grid-cols-12 data-board-wide:grid-rows-(--board-rows) data-board-wide:overflow-visible"
       :style="{ '--board-rows': rowTemplate }"
     >
       <slot />

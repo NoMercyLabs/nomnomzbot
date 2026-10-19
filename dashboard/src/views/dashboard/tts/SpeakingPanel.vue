@@ -15,9 +15,8 @@ import { computed, ref, watch } from 'vue';
 import type { AcceptableValue } from 'reka-ui';
 import { useI18n } from 'vue-i18n';
 
-import { useTtsConfig, type TtsConfig } from '@/api/tts';
+import { useTtsConfig } from '@/api/tts';
 import {
-  useResetTtsRules,
   useSetTtsRules,
   useTtsDefaults,
   useTtsOptions,
@@ -27,7 +26,6 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
-import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -43,6 +41,8 @@ import type { PanelState } from '@/composables/usePanelState';
 import { useProviderName } from '@/composables/useProviderName';
 import ReadabilityRow from '@/views/dashboard/settings/components/ReadabilityRow.vue';
 
+import TtsResetFooter from './TtsResetFooter.vue';
+
 const FEWEST_CHARACTERS = 1;
 
 const { t } = useI18n();
@@ -53,7 +53,6 @@ const config = useTtsConfig(channelId);
 const defaults = useTtsDefaults(channelId);
 const options = useTtsOptions(channelId);
 const save = useSetTtsRules(channelId);
-const reset = useResetTtsRules(channelId);
 
 const stored = computed(() => config.data.value ?? null);
 const standard = computed(() => defaults.data.value ?? null);
@@ -93,35 +92,6 @@ const modes = computed(() =>
 const providers = computed(() =>
   (offered.value?.providers ?? []).map((id) => ({ value: id, label: providerName(id) })),
 );
-
-// The settings a reset touches; the reset button is idle when all of them already match.
-const resetKeys = [
-  'isEnabled',
-  'mode',
-  'defaultProvider',
-  'maxCharacters',
-  'minPermission',
-  'skipBotMessages',
-  'readUsernames',
-  'profanityCensorEnabled',
-  'modApprovalRequired',
-  'viewerVoiceSelfServiceEnabled',
-] as const satisfies readonly (keyof TtsConfig)[];
-
-const atDefaults = computed<boolean>(() => {
-  const current = stored.value;
-  const standardValues = standard.value;
-
-  if (current === null || standardValues === null)
-    return true;
-
-  const sameSettings = resetKeys.every(
-    (key) => String(current[key]) === String(standardValues[key]),
-  );
-  const sameBits = Number(current.minBitsToTts ?? 0) === Number(standardValues.minBitsToTts ?? 0);
-
-  return sameSettings && sameBits;
-});
 
 function standingName(id: string): string {
   return t(`dashboard.tts.speaking.standing.${id}`);
@@ -289,17 +259,7 @@ const charactersHint = computed(() =>
     </RowGroup>
 
     <template v-if="writable" #footer>
-      <Button
-        variant="outline"
-        size="sm"
-        :disabled="atDefaults || reset.isPending.value"
-        @click="reset.mutate()"
-      >
-        {{ $t("dashboard.tts.speaking.reset.label") }}
-      </Button>
-      <span class="text-sm text-muted-foreground">{{
-        $t("dashboard.tts.speaking.reset.note")
-      }}</span>
+      <TtsResetFooter />
     </template>
   </PanelCard>
 </template>

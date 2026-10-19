@@ -24,6 +24,8 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useTtsConfig } from '@/api/tts';
 import { useSetTtsRules, useTtsDefaults, type TtsRulesChange } from '@/api/ttsRules';
 
+import TtsResetFooter from './TtsResetFooter.vue';
+
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
@@ -147,5 +149,9 @@ function commitBits(): void {
         />
       </ReadabilityRow>
     </RowGroup>
+
+    <template v-if="can('tts:config:write')" #footer>
+      <TtsResetFooter />
+    </template>
   </PanelCard>
 </template>

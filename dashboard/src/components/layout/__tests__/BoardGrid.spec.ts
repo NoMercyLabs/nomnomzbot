@@ -137,3 +137,16 @@ describe('the board from laptop width', () => {
     expect(visibleBodies(wrapper)).toEqual(['queue', 'connections', 'happening']);
   });
 });
+
+// A-tts defect 7: the panel tabs of a phone board sat 9 px left of the page tabs above them. The page header bar
+// pads its row by 1.5rem (px-6), so the tab strip and the panel under it use the same inset.
+describe('the tab strip of a tabbed board', () => {
+  it('has the same side inset as the page header bar, for the strip and the panel under it', async () => {
+    const { wrapper } = await boardAt(phoneWidth);
+    const strip = wrapper.get('[data-slot="board-grid"] > [data-slot="tabs"]');
+    const body = wrapper.get('[data-slot="board-grid"] > div');
+
+    expect(strip.classes()).toContain('px-6');
+    expect(body.classes()).toContain('px-6');
+  });
+});

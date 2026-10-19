@@ -253,3 +253,40 @@ describe('TtsView overview', () => {
     expect(document.body.querySelector('[data-view="tts-rules"]')).toBeNull();
   });
 });
+
+// A-tts defects 8, 9 and 10 (2026-10-19).
+describe('TtsView polish', () => {
+  // Spoken history has a description, so its title sits at the top of a taller head; the Settings panel beside it
+  // needs a description too, or its title is centered in a shorter head and sits lower.
+  it('gives both overview panels a description so their titles share a line', async () => {
+    await open();
+
+    expect(panel('Spoken history').querySelector('header p')?.textContent).toBe(
+      en.dashboard.tts.history.description,
+    );
+
+    expect(panel('Settings').querySelector('header p')?.textContent).toBe(
+      en.dashboard.tts.settings.description,
+    );
+  });
+
+  it('shows an example in the empty Azure region box', async () => {
+    await open('?view=keys');
+
+    const region = document.body.querySelector<HTMLInputElement>('input[aria-label="Azure region"]');
+
+    expect(region?.value).toBe('');
+    expect(region?.placeholder).toBe(en.dashboard.tts.keys.regionPlaceholder);
+  });
+
+  it('offers the same reset in the Rules panel as in the Speaking panel', async () => {
+    await open('?view=rules');
+
+    const labels = ['tts-speaking', 'tts-rules'].map((view) =>
+      document.body
+        .querySelector(`[data-view="${view}"] footer [data-tts-reset]`)
+        ?.textContent?.trim());
+
+    expect(labels).toEqual(['Reset to defaults', 'Reset to defaults']);
+  });
+});

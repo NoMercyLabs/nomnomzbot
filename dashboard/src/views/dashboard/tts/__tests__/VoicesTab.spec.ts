@@ -303,7 +303,7 @@ describe('VoicesTab', () => {
     answers['GET /tts/voices'] = () => ok(catalog, { hasMore: true, nextPage: 2 });
     await open();
 
-    expect(count()).toBe('4 of the first 4 voices');
+    expect(count()).toBe('4 of 4 voices loaded');
 
     answers['GET /tts/voices'] = () =>
       ok([voice('de-DE-KatjaNeural', 'de-DE')], { hasMore: false, nextPage: null });
@@ -462,6 +462,17 @@ describe('VoicesTab', () => {
 
     expect(ids()).toContain('nl-NL-FennaNeural');
     expect(chipText('nl')).toBe('Dutch 3');
+  });
+
+  // A-tts defect 4: "Dutch 0+" next to "All 200+" reads as a count of zero. A language with no loaded voice shows no count.
+  it('shows no count on a language chip that has no loaded voice while pages are missing', async () => {
+    answers['GET /tts/voices'] = () =>
+      ok([catalog[0], catalog[3]], { hasMore: true, nextPage: 2 });
+
+    await open();
+
+    expect(chipText('all')).toBe('All 2+');
+    expect(chipText('nl')).toBe('Dutch');
   });
 
   it('remembers the chosen language after the page is left and opened again', async () => {

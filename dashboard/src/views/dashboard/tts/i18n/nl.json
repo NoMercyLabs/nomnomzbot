@@ -18,6 +18,7 @@
       },
       "settings": {
         "title": "Instellingen",
+        "description": "Open een rij om die te wijzigen.",
         "error": "De instellingen voor tekst-naar-spraak konden niet worden geladen.",
         "voice": {
           "title": "Stem",
@@ -52,7 +53,7 @@
         "search": "Zoek stemmen",
         "language": "Taal",
         "count": "{shown} van {loaded} stemmen",
-        "countFirst": "{shown} van de eerste {loaded} stemmen",
+        "countFirst": "{shown} van {loaded} stemmen geladen",
         "more": "Meer stemmen laden",
         "playSample": "Speel een voorbeeld van {voice}",
         "stopSample": "Stop het voorbeeld van {voice}",
@@ -187,6 +188,7 @@
           "elevenlabs": "ElevenLabs-sleutel"
         },
         "region": "Azure-regio",
+        "regionPlaceholder": "westeurope",
         "stored": "Er is een sleutel opgeslagen. Typ om te vervangen.",
         "none": "Geen sleutel opgeslagen",
         "status": {

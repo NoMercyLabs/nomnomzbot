@@ -175,6 +175,7 @@ const pronunciationPanels = computed(
     <BoardCell panel="settings" :span="5">
       <PanelCard
         :title="$t('dashboard.tts.settings.title')"
+        :description="$t('dashboard.tts.settings.description')"
         :state="settingsState"
         :error-text="$t('dashboard.tts.settings.error')"
         @retry="config.refetch()"

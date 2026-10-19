@@ -153,6 +153,7 @@ function submitSpelling(): void {
             v-model="region"
             autocomplete="off"
             :disabled="!writable"
+            :placeholder="$t('dashboard.tts.keys.regionPlaceholder')"
             :aria-label="$t('dashboard.tts.keys.region')"
             @blur="commitRegion"
             @keydown.enter="commitRegion"
