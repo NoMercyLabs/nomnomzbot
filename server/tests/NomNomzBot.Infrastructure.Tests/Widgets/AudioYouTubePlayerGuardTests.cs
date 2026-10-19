@@ -55,7 +55,8 @@ public sealed class MusicPlayerYouTubeGuardTests
         display.Should().NotContain("new YT.Player(");
         display.Should().NotContain("NomNomz.on('youtube.play'");
         display.Should().NotContain("new Spotify.Player(");
-        display.Should().Contain("NomNomz.on('now_playing'");
+        display.Should().Contain("NomNomz.on('music.nowPlaying'");
+        display.Should().NotContain("NomNomz.on('now_playing'");
     }
 
     [Theory]

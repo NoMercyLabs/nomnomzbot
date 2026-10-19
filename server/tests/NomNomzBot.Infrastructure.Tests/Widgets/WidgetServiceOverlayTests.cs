@@ -14,9 +14,12 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Commands;
@@ -41,7 +44,8 @@ public sealed class WidgetServiceOverlayTests
         WidgetTestDbContext db,
         IWidgetBuildService build,
         IMusicService? musicService = null,
-        IScriptStorageService? scriptStorage = null
+        IScriptStorageService? scriptStorage = null,
+        IPlaybackStateReader? playbackState = null
     ) =>
         new(
             db,
@@ -53,7 +57,8 @@ public sealed class WidgetServiceOverlayTests
             musicService ?? Substitute.For<IMusicService>(),
             scriptStorage ?? Substitute.For<IScriptStorageService>(),
             new PipelineStepReferenceScanner(db),
-            Substitute.For<IOverlayPresenceRegistry>()
+            Substitute.For<IOverlayPresenceRegistry>(),
+            playbackState ?? Substitute.For<IPlaybackStateReader>()
         );
 
     private static IWidgetBuildService BuildReturning(string bundle, string hash)
@@ -574,23 +579,39 @@ public sealed class WidgetServiceOverlayTests
             );
 
         await using WidgetTestDbContext db = database.NewContext();
-        WidgetService service = NewService(db, Substitute.For<IWidgetBuildService>(), music);
+        IPlaybackStateReader state = Substitute.For<IPlaybackStateReader>();
+        state.StateOf(channel).Returns(PlaybackState.Idle);
+        state.LevelOf(channel).Returns(new PlaybackLevel(40, true));
+        WidgetService service = NewService(
+            db,
+            Substitute.For<IWidgetBuildService>(),
+            music,
+            playbackState: state
+        );
 
-        Result<OverlayNowPlayingSnapshot?> result = await service.GetNowPlayingSnapshotAsync("tok");
+        Result<NowPlayingShapeDto?> result = await service.GetNowPlayingSnapshotAsync("tok");
 
+        // S-PD-10: the seed read is the one shape (music.nowPlaying), same fields the live event carries;
+        // the requester rides it (S-MUSIC-5b).
         result.IsSuccess.Should().BeTrue();
-        result.Value.Should().NotBeNull();
-        result.Value!.Track.Should().Be("Song A");
-        result.Value.Artist.Should().Be("Artist A");
-        result.Value.ArtUrl.Should().Be("https://example.com/art.png");
-        result.Value.Provider.Should().Be("spotify");
-        result.Value.TrackUri.Should().Be("spotify:track:abc123");
-        result.Value.DurationMs.Should().Be(210_000);
-        result.Value.ProgressMs.Should().Be(45_000);
-        result.Value.IsPlaying.Should().BeTrue();
-        // S-MUSIC-5b: the requester rides the overlay's initial-seed snapshot (now_playing.vue's
-        // fetchCurrentState), the same fact the standing widget event carries on every playback change.
-        result.Value.RequestedBy.Should().Be("viewer1");
+        result
+            .Value.Should()
+            .BeEquivalentTo(
+                new NowPlayingShapeDto(
+                    "spotify",
+                    null,
+                    "Song A",
+                    ["Artist A"],
+                    "https://example.com/art.png",
+                    210_000,
+                    45_000,
+                    true,
+                    "viewer1",
+                    40,
+                    true,
+                    "idle"
+                )
+            );
     }
 
     /// <summary>The negative half of S-MUSIC-5b: a track the streamer started themselves — nothing in the
@@ -624,7 +645,7 @@ public sealed class WidgetServiceOverlayTests
         await using WidgetTestDbContext db = database.NewContext();
         WidgetService service = NewService(db, Substitute.For<IWidgetBuildService>(), music);
 
-        Result<OverlayNowPlayingSnapshot?> result = await service.GetNowPlayingSnapshotAsync("tok");
+        Result<NowPlayingShapeDto?> result = await service.GetNowPlayingSnapshotAsync("tok");
 
         result.IsSuccess.Should().BeTrue();
         result.Value!.RequestedBy.Should().BeNull();
@@ -645,7 +666,7 @@ public sealed class WidgetServiceOverlayTests
         await using WidgetTestDbContext db = database.NewContext();
         WidgetService service = NewService(db, Substitute.For<IWidgetBuildService>(), music);
 
-        Result<OverlayNowPlayingSnapshot?> result = await service.GetNowPlayingSnapshotAsync("tok");
+        Result<NowPlayingShapeDto?> result = await service.GetNowPlayingSnapshotAsync("tok");
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeNull();
@@ -659,9 +680,7 @@ public sealed class WidgetServiceOverlayTests
         await using WidgetTestDbContext db = database.NewContext();
         WidgetService service = NewService(db, Substitute.For<IWidgetBuildService>());
 
-        Result<OverlayNowPlayingSnapshot?> result = await service.GetNowPlayingSnapshotAsync(
-            "nope"
-        );
+        Result<NowPlayingShapeDto?> result = await service.GetNowPlayingSnapshotAsync("nope");
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_FOUND");
