@@ -35,9 +35,7 @@ public sealed partial class PlaybackDirectorTests
         rig.YouTube.Calls.Last().Should().Be(new EngineCall("Reattach", pageIsPlaying.ToString()));
         rig.Spotify.Calls.Should().BeEmpty("only the engine that holds the track is told");
         rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.YouTube, item));
-        PlaybackTransitionedEventLast(rig)
-            .Should()
-            .Be(("Playing", "Playing", "output_reattached"));
+        PlaybackTransitionedEventLast(rig).Should().Be(("Playing", "Playing", "output_reattached"));
     }
 
     [Fact]
