@@ -11,6 +11,7 @@
 import { describe, expect, it } from 'vitest';
 
 import type { PipelineActionDescriptor, PipelineStep } from '@/api/pipelines';
+import { merge } from '@/lib/array';
 
 import { earlierTexts } from '../components/stepChain';
 import { buildStepTree, findStepNode } from '../components/stepTree';
@@ -118,7 +119,7 @@ describe('the text earlier steps hold', () => {
       }),
       step({ id: 'say', order: 2 }),
     ]);
-    const both = new Map([...picks, ...descriptors]);
+    const both = new Map(merge([...picks], [...descriptors]));
 
     expect(earlierTexts(picked, findStepNode(picked, 'say')!.key, both).map((item) =>
       [item.step.id, item.text])).toEqual([['speak', '{line}']]);
