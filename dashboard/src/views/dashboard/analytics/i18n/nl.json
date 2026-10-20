@@ -58,7 +58,27 @@
       "views": {
         "overview": "Overzicht",
         "streams": "Streams",
-        "chat": "Chat"
+        "chat": "Chat",
+        "recaps": "Terugblikken"
+      },
+      "recaps": {
+        "title": "Terugblikken op streams",
+        "count": "Geen terugblik bewaard. | {count} terugblik bewaard, nieuwste eerst. | {count} terugblikken bewaard, nieuwste eerst.",
+        "empty": "Er is nog geen terugblik bewaard. Er wordt er een bewaard zodra een raid start.",
+        "columns": {
+          "started": "Stream",
+          "title": "Titel",
+          "length": "Duur",
+          "size": "Opslagformaat"
+        },
+        "open": "Openen",
+        "previous": "Vorige",
+        "next": "Volgende",
+        "page": "Pagina {current} van {pages}",
+        "save": "Opslaan als PNG",
+        "failed": "De PNG kon niet worden gemaakt. Probeer het opnieuw.",
+        "size": "{width} x {height}",
+        "sizeAssumed": "{width} x {height} (aangenomen, deze terugblik bewaarde geen streamformaat)"
       },
       "streams": {
         "title": "Elke stream",

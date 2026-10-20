@@ -58,7 +58,27 @@
       "views": {
         "overview": "Overview",
         "streams": "Streams",
-        "chat": "Chat"
+        "chat": "Chat",
+        "recaps": "Recaps"
+      },
+      "recaps": {
+        "title": "Stream recaps",
+        "count": "No recaps kept. | {count} recap kept, newest first. | {count} recaps kept, newest first.",
+        "empty": "No recap was kept yet. One is kept each time a raid starts.",
+        "columns": {
+          "started": "Stream",
+          "title": "Title",
+          "length": "Length",
+          "size": "Saved size"
+        },
+        "open": "Open",
+        "previous": "Previous",
+        "next": "Next",
+        "page": "Page {current} of {pages}",
+        "save": "Save as PNG",
+        "failed": "The PNG could not be made. Try again.",
+        "size": "{width} x {height}",
+        "sizeAssumed": "{width} x {height} (assumed, this recap stored no stream size)"
       },
       "streams": {
         "title": "Every stream",
