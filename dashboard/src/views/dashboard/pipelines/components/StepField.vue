@@ -50,9 +50,11 @@ const props = withDefaults(defineProps<{
   row: FieldRow;
   context?: OptionContext;
   earlier?: EarlierOption[];
+  variables?: string[];
 }>(), {
   context: undefined,
   earlier: () => [],
+  variables: () => [],
 });
 
 function useEarlier(option: EarlierOption): void {
@@ -134,6 +136,7 @@ function typed(event: Event): void {
       :rows="row.control === 'lines' ? 3 : 1"
       :label="row.label"
       :help="row.help"
+      :local-names="variables"
     />
     <DropdownMenu v-if="earlier.length > 0">
       <DropdownMenuTrigger as-child>

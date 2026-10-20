@@ -38,6 +38,7 @@ const props = defineProps<{
   descriptor: PipelineActionDescriptor | undefined;
   readOnly: boolean;
   earlier?: EarlierText[];
+  variables?: string[];
 }>();
 
 const emit = defineEmits<{
@@ -179,6 +180,7 @@ const sentence = computed(() => stepSentence(props.descriptor, text));
               :row="row"
               :context="context"
               :earlier="earlierOptions"
+              :variables="variables ?? []"
               @change="change(row, $event)"
             />
             <p v-if="fields.length === 0" class="text-sm text-muted-foreground">

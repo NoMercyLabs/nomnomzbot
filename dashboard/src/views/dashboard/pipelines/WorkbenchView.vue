@@ -51,7 +51,7 @@ import PipelineDeleteButton from './components/PipelineDeleteButton.vue';
 import PipelinePowerSwitch from './components/PipelinePowerSwitch.vue';
 import RunsPanel from './components/RunsPanel.vue';
 import StepCard from './components/StepCard.vue';
-import { earlierTexts } from './components/stepChain';
+import { declaredVariables, earlierTexts } from './components/stepChain';
 import StepInspector from './components/StepInspector.vue';
 import { laneEnd, type MintId, type Spot, type StepPatch } from './components/stepEdits';
 import StepPalette from './components/StepPalette.vue';
@@ -224,6 +224,11 @@ const earlier = computed(() =>
   selectedKey.value === null
     ? []
     : earlierTexts(tree.value, selectedKey.value, descriptors.value));
+// The variables earlier steps write; the open step's template fields accept them as known names.
+const variables = computed(() =>
+  selectedKey.value === null
+    ? []
+    : declaredVariables(tree.value, selectedKey.value, descriptors.value));
 const palette = useTemplateRef<InstanceType<typeof StepPalette>>('palette');
 
 // The lane the person chose to add to, with its words; none adds at the end of the top level.
@@ -622,6 +627,7 @@ const leaveOpen = computed<boolean>({
         :descriptor="descriptors.get(selected.step.action.type)"
         :read-only="!canWrite"
         :earlier="earlier"
+        :variables="variables"
         @duplicate="duplicate"
         @remove="remove"
         @patch="patch"

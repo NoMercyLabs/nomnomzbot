@@ -78,3 +78,26 @@ export function earlierTexts(
     found.findIndex((other) =>
       other.text === item.text) === index);
 }
+
+// The variable names earlier steps write, so a later template field knows {name} is not a typo.
+export function declaredVariables(
+  tree: StepNode[],
+  key: string,
+  descriptors: Map<string, PipelineActionDescriptor>,
+): string[] {
+  const order = walk(tree);
+  const at = order.findIndex((node) =>
+    node.key === key);
+  const names = order.slice(0, Math.max(at, 0)).flatMap((node) =>
+    (descriptors.get(node.step.action.type)?.fields ?? [])
+      .filter((field) =>
+        field.declaresVariable)
+      .map((field) =>
+        node.step.action[field.name])
+      .filter((value) =>
+        typeof value === 'string' && value.trim() !== '')
+      .map((value) =>
+        String(value).trim()));
+
+  return [...new Set(names)];
+}
