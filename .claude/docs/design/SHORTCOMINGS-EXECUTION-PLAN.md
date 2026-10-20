@@ -3684,6 +3684,17 @@ than each consumer needing their own clone-and-customize pass.
   derivative). Shape to settle: ffmpeg extracts the VOD audio, the local model transcribes, the transcript
   is stored per VOD. Open: which model (license, languages beyond English), where it runs (self-host box
   CPU or GPU), and what the streamer sees (searchable transcript, highlights).
+- **S-MUSIC-LOUDNESS-LEVEL (idea, D8: not started; Stoney: "not now, future work")** — YouTube and Spotify
+  requests play at one loudness, so no manual volume nudging in OBS. Stoney, 2026-10-20: "this is an idea i
+  want to apply to keeping youtube and spotify on the same loudness level in obs so manual volume nudging is
+  not needed in obs https://gist.github.com/Bamo16/76c46c2e45b24efdbe50d3a098dc9e9f not sure how and if we can
+  apply it in the bot". Bamo's method: measure integrated loudness (EBU R128) once per track, cache it by
+  track id, apply `gain = target - measured` at playback (target a channel setting, about -14 LUFS), leave
+  unreadable or silent tracks at 0 dB, cap boosts so peaks stay under about -1 dBTP. Shape to check (not
+  verified): YouTube's player data may already carry a per-video loudness value (the keyless resolver reads
+  player data), which would set the YouTube player's volume with no audio download; Spotify audio cannot be
+  measured (DRM), so its side is Spotify's own normalization or a fixed per-source offset. Open: which
+  values the two sources really expose, and whether the gain goes on the player volume or the OBS source.
   Stoney, 2026-10-20 (translated from Dutch): "If there is a local model the user can run in the browser
   via Wasm, that is of course simply a top solution." So check first: a model that runs in the
   streamer's browser (Wasm, WebGPU where present) costs the self-host box nothing; the box path is the
