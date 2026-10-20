@@ -26,6 +26,7 @@ public sealed class FirstPartyWidgetObsSetupTests
     [
         WidgetKeyAliases.Audio,
         WidgetKeyAliases.MusicPlayer,
+        "tts_caption",
     ];
 
     private static readonly string[] MustKeepRunningKeys =
@@ -69,12 +70,12 @@ public sealed class FirstPartyWidgetObsSetupTests
     }
 
     [Fact]
-    public void The_tts_caption_is_a_full_canvas_source_without_obs_audio_control()
+    public void The_tts_caption_is_a_full_canvas_source_that_ticks_obs_audio_control_because_it_plays_the_speech()
     {
         FirstPartyWidgetDefinition caption = FirstPartyWidgetCatalogue.Find("tts_caption")!;
 
-        caption.ObsSetup.Should().Be(new ObsBrowserSource(1920, 1080, false, false));
-        caption.Description.Should().NotContain("Control audio via OBS");
+        caption.ObsSetup.Should().Be(new ObsBrowserSource(1920, 1080, true, false));
+        caption.Description.Should().Contain("keep \"Control audio via OBS\" ON");
     }
 
     [Fact]
