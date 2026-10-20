@@ -322,7 +322,8 @@ describe('VoiceTriggersView header listener', () => {
     const status = document.body.querySelector('[data-voice-listener-header] [data-voice-listener-status]') as HTMLElement;
 
     expect(status.textContent?.trim()).toBe('Last match: just now');
-    expect(status.dataset.tone).toBe('ok');
+    // A past match is history, not proof a listener tab is open now, so the dot stays neutral.
+    expect(status.dataset.tone).toBe('off');
   });
 
   it('says no match yet when no trigger was heard', async () => {

@@ -51,9 +51,10 @@ function popOut(): void {
 
 <template>
   <div data-voice-listener-header class="flex items-center gap-2">
+    <!-- The dot stays neutral: a past match is history, not proof a listener tab is open now. -->
     <StatusBadge
       data-voice-listener-status
-      :tone="latest === undefined ? 'off' : 'ok'"
+      tone="off"
       :label="label"
     />
     <Button
