@@ -41,17 +41,19 @@
         "subs": "{count} Twitch sub | {count} Twitch subs"
       },
       "connections": {
-        "title": "Tip and membership sources",
-        "description": "Connect the services your supporters use. A secret is sent to the bot and never shown again.",
-        "source": "Service",
+        "titleNew": "Set up {name}",
+        "titleStored": "Manage {name}",
+        "endpoint": "Address to give the service",
+        "endpointHelp": "Paste this address into the service's webhook settings so it can send events to the bot.",
+        "secretHelp": "The secret goes to the bot and is never shown again.",
+        "noAccount": "No {name} account is connected yet. Connect it under Integrations first.",
         "secret": "Secret or token",
         "secretStored": "A secret is stored. Type a new one to replace it.",
         "secretNone": "Paste the secret from the service",
         "grant": "Connected account",
         "grantNone": "No account connected",
         "enabled": "Receive events",
-        "enabledDefault": "Default: on",
-        "save": "Save connection",
+        "save": "Save",
         "saved": "Connection saved.",
         "saveFailed": "The connection could not be saved.",
         "mode": {
@@ -72,6 +74,21 @@
           "streamlabs": "Streamlabs",
           "tipeee": "Tipeee",
           "treatstream": "Treatstream"
+        }
+      },
+      "sources": {
+        "title": "Supporter sources",
+        "listTitle": "Services your supporters use",
+        "listNote": "Connect a service to see its tips and memberships on the Supporters page.",
+        "error": "The supporter sources could not be loaded.",
+        "setUp": "Set up",
+        "manage": "Manage",
+        "lastEvent": "Last event {time}",
+        "noEvents": "No events yet",
+        "state": {
+          "connected": "Connected",
+          "paused": "Paused",
+          "none": "Not set up"
         }
       },
       "tips": {

@@ -41,17 +41,19 @@
         "subs": "{count} abonnement | {count} abonnementen"
       },
       "connections": {
-        "title": "Bronnen voor tips en lidmaatschappen",
-        "description": "Koppel de diensten die je supporters gebruiken. Een geheim gaat naar de bot en wordt nooit meer getoond.",
-        "source": "Dienst",
+        "titleNew": "{name} instellen",
+        "titleStored": "{name} beheren",
+        "endpoint": "Adres voor de dienst",
+        "endpointHelp": "Plak dit adres in de webhook-instellingen van de dienst, zodat die gebeurtenissen naar de bot kan sturen.",
+        "secretHelp": "Het geheim gaat naar de bot en wordt nooit meer getoond.",
+        "noAccount": "Er is nog geen {name}-account gekoppeld. Koppel het eerst onder Integraties.",
         "secret": "Geheim of token",
         "secretStored": "Er is een geheim opgeslagen. Typ een nieuw geheim om het te vervangen.",
         "secretNone": "Plak het geheim van de dienst",
         "grant": "Gekoppeld account",
         "grantNone": "Geen account gekoppeld",
         "enabled": "Gebeurtenissen ontvangen",
-        "enabledDefault": "Standaard: aan",
-        "save": "Koppeling opslaan",
+        "save": "Opslaan",
         "saved": "Koppeling opgeslagen.",
         "saveFailed": "De koppeling kon niet worden opgeslagen.",
         "mode": {
@@ -72,6 +74,21 @@
           "streamlabs": "Streamlabs",
           "tipeee": "Tipeee",
           "treatstream": "Treatstream"
+        }
+      },
+      "sources": {
+        "title": "Supporterbronnen",
+        "listTitle": "Diensten die je supporters gebruiken",
+        "listNote": "Koppel een dienst om de tips en lidmaatschappen ervan op de Supporters-pagina te zien.",
+        "error": "De supporterbronnen konden niet worden geladen.",
+        "setUp": "Instellen",
+        "manage": "Beheren",
+        "lastEvent": "Laatste gebeurtenis {time}",
+        "noEvents": "Nog geen gebeurtenissen",
+        "state": {
+          "connected": "Gekoppeld",
+          "paused": "Gepauzeerd",
+          "none": "Niet ingesteld"
         }
       },
       "tips": {

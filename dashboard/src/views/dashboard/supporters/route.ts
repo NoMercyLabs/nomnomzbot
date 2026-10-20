@@ -12,6 +12,13 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import { loadPage } from '@/i18n';
 
+// The sources page lives under Settings (its route is declared there); it shares this page's translations.
+export const supporterSourcesComponent = () =>
+  loadPage(
+    () => import('./SupporterSourcesView.vue'),
+    (locale) => import(`./i18n/${locale}.json`),
+  );
+
 export const dashboardSupportersRoute = {
   path: 'supporters',
   name: 'dashboard-supporters',

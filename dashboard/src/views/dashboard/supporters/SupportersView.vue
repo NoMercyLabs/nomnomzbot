@@ -35,7 +35,6 @@ import GiftCard from '~icons/nnz/gift-card';
 import Repeat from '~icons/nnz/repeat';
 import Star from '~icons/nnz/star';
 
-import ConnectionsPanel from './ConnectionsPanel.vue';
 import {
   cheerRows,
   subscriptionRows,
@@ -319,7 +318,6 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
           <ShowMoreFooter :remaining="shownEvents.remaining.value" @more="shownEvents.more()" />
         </template>
       </PanelCard>
-      <ConnectionsPanel class="lg:col-span-2" />
     </div>
   </PageBody>
 </template>

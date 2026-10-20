@@ -12,7 +12,7 @@ import type { RouteRecordRaw } from 'vue-router';
 
 import { loadPage } from '@/i18n';
 import { dashboardDiscordRoute } from '@/views/dashboard/discord/route';
-import { dashboardSupportersRoute } from '@/views/dashboard/supporters/route';
+import { supporterSourcesComponent } from '@/views/dashboard/supporters/route';
 
 import { settingsApiDevicesRoute } from './api-devices/route';
 import { settingsCustomEventFeedsRoute } from './custom-event-feeds/route';
@@ -102,7 +102,7 @@ const supporterSourcesRoute = {
     navMode: 'settings',
     action: 'supporters:read',
   },
-  component: dashboardSupportersRoute.component,
+  component: supporterSourcesComponent,
 } as const satisfies RouteRecordRaw;
 
 export const dashboardSettingsRoutes: RouteRecordRaw[] = [

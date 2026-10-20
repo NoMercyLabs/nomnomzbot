@@ -98,7 +98,7 @@ describe('SupportersView shows only what the person may use', () => {
     expect(view.find('[data-view="supporter-connections"]').exists()).toBe(false);
   });
 
-  it('shows the tips panel with supporters:read and the connections form only with supporters:config:write', async () => {
+  it('shows the tips panel with supporters:read and never holds the connection form', async () => {
     const reader = await open(['supporters:read']);
 
     expect(titles(reader)).toContain(en.dashboard.supporters.tips.title);
@@ -109,6 +109,7 @@ describe('SupportersView shows only what the person may use', () => {
 
     const writer = await open(['supporters:read', 'supporters:config:write']);
 
-    expect(writer.find('[data-view="supporter-connections"]').exists()).toBe(true);
+    expect(writer.find('[data-view="supporter-connections"]').exists()).toBe(false);
+    expect(writer.find('form').exists()).toBe(false);
   });
 });
