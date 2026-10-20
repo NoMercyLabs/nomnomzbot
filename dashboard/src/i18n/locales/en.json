@@ -149,7 +149,7 @@
       "stream_viewers": "The current viewer count",
       "stream_is_live": "Whether the stream is currently live",
       "stream_started_at": "The timestamp the stream went live",
-      "tts_audioconnected": "Whether an Audio widget page is open for the channel, so TTS can be heard (true or false)",
+      "tts_audioconnected": "Whether a TTS Caption page is open for the channel, so TTS can be heard (true or false)",
       "status": "The stream live status (live or offline)",
       "tense": "The live/offline-aware tense (is/was)",
       "provider": "The platform that delivered the event (e.g. twitch or kick)",

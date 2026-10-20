@@ -149,7 +149,7 @@
       "stream_viewers": "Het huidige aantal kijkers",
       "stream_is_live": "Of de stream momenteel live is",
       "stream_started_at": "Het tijdstip waarop de stream live ging",
-      "tts_audioconnected": "Of er een Audio-widgetpagina open staat voor het kanaal, zodat TTS te horen is (true of false)",
+      "tts_audioconnected": "Of er een TTS-ondertitelpagina open staat voor het kanaal, zodat TTS te horen is (true of false)",
       "status": "De livestatus van de stream (live of offline)",
       "tense": "De op live/offline afgestemde werkwoordstijd (is/was)",
       "provider": "Het platform dat de gebeurtenis heeft afgeleverd (bijv. twitch of kick)",
