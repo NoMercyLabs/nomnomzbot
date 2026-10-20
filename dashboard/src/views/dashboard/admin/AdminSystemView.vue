@@ -43,7 +43,11 @@ const SECONDS_PER_DAY: number = 86_400;
 
 type BadgeVariant = 'outline' | 'secondary' | 'destructive';
 
-const { t } = useI18n();
+// A check slower than this is worth a number; a fast one is just healthy.
+const SLOW_CHECK_MS: number = 500;
+const MS_PER_SECOND: number = 1000;
+
+const { t, te, n } = useI18n();
 const { can } = usePlatformCan();
 
 const status = useAdminSystemStatus();
@@ -65,12 +69,19 @@ const stats = computed(() => status.data.value?.stats ?? null);
 
 const uptime = computed<string>(() => {
   const seconds = Number(stats.value?.botUptimeSeconds ?? 0);
+  const days = Math.floor(seconds / SECONDS_PER_DAY);
+  const hours = Math.floor((seconds % SECONDS_PER_DAY) / SECONDS_PER_HOUR);
+  const minutes = Math.floor((seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE);
 
-  return t('dashboard.admin.system.process.uptimeValue', {
-    days: Math.floor(seconds / SECONDS_PER_DAY),
-    hours: Math.floor((seconds % SECONDS_PER_DAY) / SECONDS_PER_HOUR),
-    minutes: Math.floor((seconds % SECONDS_PER_HOUR) / SECONDS_PER_MINUTE),
-  });
+  if (days > 0)
+    return t('dashboard.admin.system.process.uptimeDays', { days, hours });
+
+  if (hours > 0)
+    return t('dashboard.admin.system.process.uptimeHours', { hours, minutes });
+
+  return minutes > 0
+    ? t('dashboard.admin.system.process.uptimeMinutes', { minutes })
+    : t('dashboard.admin.system.process.uptimeUnderMinute');
 });
 
 const memory = computed<string>(() =>
@@ -116,10 +127,26 @@ function statusVariant(value: string): BadgeVariant {
 }
 
 function latency(service: ServiceHealth): string | null {
-  if (service.latencyMs === null || service.latencyMs === undefined)
+  const ms = Number(service.latencyMs ?? 0);
+
+  if (ms < SLOW_CHECK_MS)
     return null;
 
-  return t('dashboard.admin.system.health.latency', { ms: Number(service.latencyMs) });
+  return t('dashboard.admin.system.health.latency', {
+    seconds: n(ms / MS_PER_SECOND, { maximumFractionDigits: 1 }),
+  });
+}
+
+function checkName(service: ServiceHealth): string {
+  return te(`dashboard.admin.system.checks.${service.name}.name`)
+    ? t(`dashboard.admin.system.checks.${service.name}.name`)
+    : service.name;
+}
+
+function checkMeaning(service: ServiceHealth): string | null {
+  return te(`dashboard.admin.system.checks.${service.name}.meaning`)
+    ? t(`dashboard.admin.system.checks.${service.name}.meaning`)
+    : null;
 }
 
 function clearKeys(): void {
@@ -180,9 +207,18 @@ async function submit(): Promise<void> {
             data-service-row
             class="flex items-center gap-3 py-3"
           >
-            <span data-service-name class="min-w-0 flex-1 text-sm font-medium">{{
-              service.name
-            }}</span>
+            <div class="min-w-0 flex-1">
+              <div data-service-name class="text-sm font-medium">
+                {{ checkName(service) }}
+              </div>
+              <div
+                v-if="checkMeaning(service)"
+                data-service-meaning
+                class="text-sm text-muted-foreground"
+              >
+                {{ checkMeaning(service) }}
+              </div>
+            </div>
             <span v-if="latency(service)" class="text-xs text-muted-foreground tabular-nums">{{
               latency(service)
             }}</span>

@@ -43,14 +43,24 @@ const system = {
       latencyMs: null,
     },
     {
-      name: 'database',
+      name: 'postgresql',
       status: 'healthy',
       latencyMs: 12,
     },
     {
+      name: 'pending-migrations',
+      status: 'healthy',
+      latencyMs: 1800,
+    },
+    {
       name: 'bot',
       status: 'degraded',
-      latencyMs: null,
+      latencyMs: 0,
+    },
+    {
+      name: 'mystery-probe',
+      status: 'healthy',
+      latencyMs: 0,
     },
   ],
   botVersion: '1.4.2.0',
@@ -181,10 +191,33 @@ describe('AdminSystemView', () => {
     const rows = [...document.body.querySelectorAll('[data-service-row]')];
     const names = rows.map((row) => row.querySelector('[data-service-name]')?.textContent?.trim());
 
-    expect(names).toEqual(['api', 'database', 'bot']);
-    expect(rows[1]!.textContent).toContain('12 ms');
-    expect(rows[2]!.textContent).toContain('Degraded');
+    expect(names).toEqual(['Bot API', 'Database', 'Database upgrades', 'Twitch bot account', 'mystery-probe']);
+    expect(rows[3]!.textContent).toContain('Degraded');
     expect(field('[data-overall]').textContent).toContain('Degraded');
+  });
+
+  it('says in one line what each known check means and adds no line for an unknown check', async () => {
+    await open();
+
+    const rows = [...document.body.querySelectorAll('[data-service-row]')];
+    const meanings = rows.map((row) => row.querySelector('[data-service-meaning]')?.textContent?.trim());
+
+    expect(meanings[0]).toBe('The server that answers the dashboard and the bot.');
+    expect(meanings[1]).toBe('The database that stores every channel and setting.');
+    expect(meanings[2]).toBe('Whether the database structure matches this version of the bot.');
+    expect(meanings[4]).toBeUndefined();
+    expect(text()).not.toContain('pending-migrations');
+  });
+
+  it('shows a time only for a slow check', async () => {
+    await open();
+
+    const rows = [...document.body.querySelectorAll('[data-service-row]')];
+
+    expect(rows[1]!.textContent).not.toContain('Took');
+    expect(rows[2]!.textContent).toContain('Took 1.8 s');
+    expect(rows[3]!.textContent).not.toContain('Took');
+    expect(text()).not.toMatch(/\d\s?ms\b/);
   });
 
   it('shows the version, memory, processor load and uptime of the running bot', async () => {
@@ -193,13 +226,33 @@ describe('AdminSystemView', () => {
     expect(text()).toContain('1.4.2.0');
     expect(text()).toContain('512 MB');
     expect(text()).toContain('7.5%');
-    expect(text()).toContain('1d 1h 1m');
+    expect(text()).toContain('1 d 1 h');
+    expect(text()).not.toContain('1d 1h 1m');
+  });
+
+  it.each([
+    [3300, '55 min'],
+    [3660, '1 h 1 min'],
+    [90_061, '1 d 1 h'],
+    [20, 'Under 1 min'],
+  ])('writes an uptime of %i seconds as "%s"', async (seconds, expected) => {
+    stats.botUptimeSeconds = seconds;
+
+    await open();
+
+    const tile = [...document.body.querySelectorAll('[data-totals] *')].find(
+      (node) => node.textContent?.trim() === expected,
+    );
+
+    expect(tile).toBeDefined();
+    stats.botUptimeSeconds = 90_061;
   });
 
   it('shows the channel and user counters the API reported', async () => {
     await open();
 
-    expect(text()).toContain('Active channels');
+    expect(text()).toContain('Live channels');
+    expect(text()).not.toContain('Active channels');
     expect(text()).toContain('of 10 registered');
     expect(text()).toContain('Known users');
     expect(text()).toContain('99');
@@ -210,9 +263,9 @@ describe('AdminSystemView', () => {
 
     await open();
 
-    expect(document.body.querySelectorAll('[data-service-row]')).toHaveLength(3);
+    expect(document.body.querySelectorAll('[data-service-row]')).toHaveLength(5);
     expect(text()).toContain('512 MB');
-    expect(text()).not.toContain('Active channels');
+    expect(text()).not.toContain('Live channels');
     expect(text()).not.toContain('Events today');
     expect(document.body.querySelector('[data-error]')).toBeNull();
   });
@@ -244,7 +297,7 @@ describe('AdminSystemView', () => {
 
     expect(document.body.querySelector('[data-totals]')).toBeNull();
     expect(document.body.querySelector('[data-totals-locked]')).not.toBeNull();
-    expect(document.body.querySelectorAll('[data-service-row]')).toHaveLength(3);
+    expect(document.body.querySelectorAll('[data-service-row]')).toHaveLength(5);
     expect(text()).toContain('512 MB');
   });
 
