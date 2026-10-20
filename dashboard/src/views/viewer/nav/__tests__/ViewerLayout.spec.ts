@@ -36,6 +36,13 @@ describe('ViewerLayout', () => {
     expect(wrapper.find('[data-slot="viewer-nav-row"]').classes()).toContain('px-6');
   });
 
+  it('is wide enough for the seven-link row and hides the brand name on a phone so the finder fits', () => {
+    const wrapper = mountLayout();
+
+    expect(wrapper.find('[data-slot="viewer-nav-row"]').classes()).toContain('max-w-4xl');
+    expect(wrapper.find('header span span').classes()).toContain('max-sm:sr-only');
+  });
+
   it('leaves the page area without a side inset, so a page header sits flush with the brand', () => {
     const wrapper = mountLayout();
     const sideInsets = wrapper
