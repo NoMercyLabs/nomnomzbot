@@ -106913,7 +106913,7 @@
             "additionalProperties": { }
           }
         },
-        "description": "The wire shape of one BindingTarget on the automation API: `kind` is\r\n`command | pipeline | action` (any casing); `id` names the command or pipeline; an action names its\r\n`actionType` and carries its `params` instead."
+        "description": "The wire shape of one BindingTarget on the automation API: `kind` is\r\n`command | pipeline | action` (any casing); `id` names the command or pipeline; an action names its\r\n`actionType` and carries its `params` instead. The id is an owned id in its ULID wire form, the same\r\nform every list sends; a raw Guid is still accepted on the way in."
       },
       "AutomationToken": {
         "required": [
@@ -120820,6 +120820,40 @@
           }
         },
         "description": "One connected bridge's live status for a channel (obs-control.md §3.3)."
+      },
+      "ObsBrowserSource": {
+        "required": [
+          "width",
+          "height",
+          "controlAudioViaObs",
+          "shutdownWhenHidden"
+        ],
+        "type": "object",
+        "properties": {
+          "width": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "height": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "controlAudioViaObs": {
+            "type": "boolean"
+          },
+          "shutdownWhenHidden": {
+            "type": "boolean"
+          }
+        },
+        "description": "How a streamer sets up one overlay as an OBS browser source: the width and height to enter, whether to tick\r\n\"Control audio via OBS\", and whether to tick \"Shutdown source when not visible\" (OBS then unloads the page, so\r\nanything that must keep listening or playing leaves it off). Authored once per catalogue widget; a widget with no\r\ncatalogue entry (custom, community) carries none."
       },
       "ObsConnection": {
         "required": [
@@ -155357,6 +155391,16 @@
           },
           "isCustomized": {
             "type": "boolean"
+          },
+          "obsSetup": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ObsBrowserSource"
+              }
+            ]
           }
         },
         "description": "A widget's full detail. The authored source and compiled bundle are NOT here — they live on append-only\r\n`WidgetVersion` rows; Guid? WidgetDetail.ActiveVersionId names the version the overlay currently serves.\r\n`Framework` is the source language (vue|vanilla; react and svelte are refused); `Source` is the provenance\r\n(first_party|verified_gallery|custom). bool WidgetDetail.GalleryUpdateAvailable is true when\r\nGuid? WidgetDetail.GalleryItemId is set and the gallery item's source has moved on since this widget was installed\r\nor last updated from it — the streamer's clone is running stale code. Always false for a self-authored\r\n`custom` widget (no gallery link to compare against). bool WidgetDetail.IsAttached is true when a live\r\nbrowser source has this widget open right now (`IOverlayPresenceRegistry`) — the \"overlay last-seen\"\r\nsignal, so a streamer can tell an overlay is actually loaded in OBS without firing a test event.\r\nbool WidgetDetail.IsCustomized is true when the channel has saved its own code over a catalogue widget's source\r\n(a first-party system widget or a gallery install) — the dashboard marks it \"Edited\" and offers the reset to\r\nthe catalogue source; a catalogue update never overwrites it on its own. Always false for a `custom`\r\nwidget, which has no catalogue source to differ from."

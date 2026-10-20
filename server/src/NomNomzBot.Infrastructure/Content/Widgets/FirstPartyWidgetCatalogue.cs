@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 
 namespace NomNomzBot.Infrastructure.Content.Widgets;
@@ -24,7 +25,8 @@ public sealed record FirstPartyWidgetDefinition(
     string Name,
     string Description,
     Dictionary<string, object> DefaultSettings,
-    List<string> DefaultEventSubscriptions
+    List<string> DefaultEventSubscriptions,
+    ObsBrowserSource ObsSetup
 )
 {
     /// <summary>
@@ -76,10 +78,27 @@ public static class FirstPartyWidgetCatalogue
         "supporter.charity",
     ];
 
+    /// <summary>
+    /// A visual overlay: every one is placed with <c>position: fixed</c> against the browser-source edges (anchored
+    /// to a corner, an edge or the centre, or <c>inset: 0</c>), so the source must be the whole 1920 x 1080 canvas
+    /// for the anchor to land where the streamer expects. OBS audio control stays off: none plays sound. Shutdown
+    /// stays off: OBS would unload the page while hidden, so it would miss events and lose what it holds (a queue,
+    /// a round, a rolling window, the chat so far).
+    /// </summary>
+    private static readonly ObsBrowserSource FullCanvas = new(1920, 1080, false, false);
+
+    /// <summary>
+    /// A source that only plays sound and draws nothing: 1 x 1 (its root fills the source and the optional
+    /// indicator is 12 px). OBS audio control is ticked so the sound reaches the stream's mixer. Shutdown stays off:
+    /// a shut-down source stops playing and listening.
+    /// </summary>
+    private static readonly ObsBrowserSource SoundOnly = new(1, 1, true, false);
+
     public static readonly IReadOnlyList<FirstPartyWidgetDefinition> All =
     [
         new(
             Key: "alerts",
+            ObsSetup: FullCanvas,
             Name: "Alerts",
             Description: "A one-at-a-time queue of animated alert cards for follows, subs, resubs, gift subs, cheers, "
                 + "raids, and supporter events, with per-type amount thresholds and a custom text template.",
@@ -98,6 +117,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "goal_bar",
+            ObsSetup: FullCanvas,
             Name: "Goal Bar",
             Description: "An animated progress bar toward a follower, sub, or bits goal. Reads the authoritative total from "
                 + "goal events and live-increments on matching follows, subs, gifts, and cheers.",
@@ -115,6 +135,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "labels",
+            ObsSetup: FullCanvas,
             Name: "Labels",
             Description: "A single live stat rendered as styled text — latest follower, latest sub, top cheerer, follower "
                 + "count, or sub count — with an optional format string.",
@@ -137,6 +158,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "drop_game",
+            ObsSetup: FullCanvas,
             Name: "Drop Game",
             Description: "The live drop-game round on a horizontal track: the target zone, every chatter's landing "
                 + "marker as they type !drop, and the payout scoreboard when the round resolves.",
@@ -145,6 +167,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "raffle",
+            ObsSetup: FullCanvas,
             Name: "Raffle",
             Description: "The live raffle round: the entrant roster and climbing pot as chatters type !raffle, and "
                 + "the winner reveal + payout board when one entrant takes the whole pot.",
@@ -153,6 +176,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "heist",
+            ObsSetup: FullCanvas,
             Name: "Heist",
             Description: "The live heist round: the crew roster and rising escape odds as chatters type !heist, and "
                 + "each member's getaway outcome + payout when the job resolves.",
@@ -161,6 +185,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "crash",
+            ObsSetup: FullCanvas,
             Name: "Crash",
             Description: "The live crash round: a big rising multiplier readout, the cash-out ticker as chatters type "
                 + "!crash to lock in their multiplier, and the bust/max reveal + payout board.",
@@ -169,6 +194,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "event_ticker",
+            ObsSetup: FullCanvas,
             Name: "Event Ticker",
             Description: "A horizontal scrolling ticker of recent channel events as compact chips, newest appended and the "
                 + "oldest retired past a retained count, at a configurable speed.",
@@ -183,6 +209,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "chat_box",
+            ObsSetup: FullCanvas,
             Name: "Chat Box",
             Description: "Live chat rendered from the decorated message feed — resolved emotes, badges, name colours, "
                 + "and pronouns — with theming, font/size/background controls, timestamps, command/bot filtering, and optional per-message fade.",
@@ -216,6 +243,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "now_playing",
+            ObsSetup: FullCanvas,
             Name: "Now Playing",
             Description: "A standing display of the current track — pill or card layout, optional album art and an "
                 + "animated progress sweep — that hides itself while nothing plays. Adapts to whichever provider is "
@@ -232,6 +260,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "sr_queue",
+            ObsSetup: FullCanvas,
             Name: "SR Queue",
             Description: "The upcoming song-request queue as a compact list — position, title, and optional requester "
                 + "and duration — fed by sr_queue snapshot events and hidden while the queue is empty.",
@@ -246,6 +275,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "media_share",
+            ObsSetup: FullCanvas,
             Name: "Media Share",
             Description: "Plays the approved viewer-shared Twitch clips and YouTube videos on stream. The server sends "
                 + "load, play, pause, stop, seek and volume commands and this overlay reports its player state back, "
@@ -255,6 +285,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: WidgetKeyAliases.Audio,
+            ObsSetup: SoundOnly,
             Name: "Bot Audio",
             Description: "Sound clips, redemption sounds and spoken messages (TTS) come out of this one browser source. Add it once, size it 1x1, and leave it — keep "
                 + "\"Control audio via OBS\" ON or the stream will not hear it. Renders nothing; the optional "
@@ -264,6 +295,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: WidgetKeyAliases.MusicPlayer,
+            ObsSetup: SoundOnly,
             Name: "Music Player",
             Description: "Spotify and YouTube music plays here, at its own level. Add it once, size it 1x1, and leave it — keep "
                 + "\"Control audio via OBS\" ON or the stream will not hear it. Renders nothing; the optional "
@@ -281,6 +313,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "tts_caption",
+            ObsSetup: FullCanvas,
             Name: "TTS Caption",
             Description: "A speaking indicator with a live caption for TTS playback — animated voice bars, the "
                 + "speaker's name, optional voice label, top or bottom placement — hidden while nothing speaks.",
@@ -295,6 +328,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "poll_prediction",
+            ObsSetup: FullCanvas,
             Name: "Poll / Prediction",
             Description: "Live poll and prediction bars — choices with vote percentages, lock state, and the winning "
                 + "outcome highlighted on resolve — shown only while a round runs.",
@@ -317,6 +351,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "redemption_alert",
+            ObsSetup: FullCanvas,
             Name: "Redemption Alert",
             Description: "A channel-point redemption popup — one card at a time with the redeemer, reward, cost, and "
                 + "their input — filterable per reward and templatable.",
@@ -332,6 +367,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "countdown_timer",
+            ObsSetup: FullCanvas,
             Name: "Countdown / Timer",
             Description: "A countdown to a wall-clock target or for a fixed duration (BRB / starting soon) with a "
                 + "label and completion text — dashboard-controlled live through its widget settings.",
@@ -347,6 +383,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "emote_wall",
+            ObsSetup: FullCanvas,
             Name: "Emote Wall",
             Description: "Emotes from chat float or rain across the screen — harvested from the decorated message "
                 + "feed's emote and cheermote fragments, with density, size, and provider filters.",
@@ -362,6 +399,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "custom_data",
+            ObsSetup: FullCanvas,
             Name: "Custom Data",
             Description: "The live value of a custom data source rendered as a number, gauge, or text — a heart-rate "
                 + "gauge is this widget bound to heartrate.bpm — re-binding live when the source changes.",
@@ -379,6 +417,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "recent_followers",
+            ObsSetup: FullCanvas,
             Name: "Recent Followers",
             Description: "A persistent standings panel of the most recent followers, newest on top — an always-on "
                 + "list rather than a one-at-a-time alert, with a configurable count and title.",
@@ -392,6 +431,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "sub_train",
+            ObsSetup: FullCanvas,
             Name: "Sub Train",
             Description: "A hype counter that spikes on rapid subs and gift subs and cools down on its own — the "
                 + "count of subs still inside a rolling window (a gift of N counts as N), hidden when the train stops.",
@@ -400,6 +440,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "socials",
+            ObsSetup: FullCanvas,
             Name: "Socials",
             Description: "A config-only rotating handles bar — the streamer's social accounts cross-faded through at "
                 + "a configurable interval. No event feed; the handles come from the widget settings.",
@@ -413,6 +454,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "top_cheerers",
+            ObsSetup: FullCanvas,
             Name: "Top Cheerers",
             Description: "A ranked board of the session's biggest cheerers by bits — the full leaderboard the labels "
                 + "widget only hints at with its single top cheerer, with a configurable depth and title.",
@@ -428,6 +470,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "raid_recap",
+            ObsSetup: FullCanvas,
             Name: "Raid Recap",
             Description: "The stream recap shown as the ending scene when the raid pipeline commits. The widget reads "
                 + "the stream's numbers (the metrics setting) when the bot shows it; blocks with no data are left out and the rest grow to fill "
@@ -496,6 +539,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "lucky_feather",
+            ObsSetup: FullCanvas,
             Name: "Lucky Feather",
             Description: "Shows who holds the Lucky Feather and announces every steal.",
             DefaultSettings: new()

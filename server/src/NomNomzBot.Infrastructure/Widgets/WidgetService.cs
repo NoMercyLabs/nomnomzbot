@@ -32,6 +32,7 @@ using NomNomzBot.Domain.PlatformContent.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Domain.Widgets.Events;
 using NomNomzBot.Infrastructure.Content.PlatformContent;
+using NomNomzBot.Infrastructure.Content.Widgets;
 
 namespace NomNomzBot.Infrastructure.Widgets;
 
@@ -645,6 +646,9 @@ public class WidgetService : IWidgetService
         Dictionary<Guid, int> galleryRevisions = await _db
             .WidgetGalleryItems.Where(i => linkedGalleryItemIds.Contains(i.Id))
             .ToDictionaryAsync(i => i.Id, i => i.SourceRevision, cancellationToken);
+        Dictionary<Guid, string?> galleryNaturalKeys = await _db
+            .WidgetGalleryItems.Where(i => linkedGalleryItemIds.Contains(i.Id))
+            .ToDictionaryAsync(i => i.Id, i => i.NaturalKey, cancellationToken);
 
         List<Guid> pageWidgetIds = [.. widgets.Select(w => w.Id)];
         Dictionary<Guid, int> latestVersionNumbers = await _db
@@ -661,7 +665,11 @@ public class WidgetService : IWidgetService
                     w.GalleryItemId is { } gid && galleryRevisions.TryGetValue(gid, out int rev)
                         ? rev
                         : null,
-                    latestVersionNumbers.TryGetValue(w.Id, out int latest) ? latest : null
+                    latestVersionNumbers.TryGetValue(w.Id, out int latest) ? latest : null,
+                    w.GalleryItemId is { } linkedId
+                    && galleryNaturalKeys.TryGetValue(linkedId, out string? naturalKey)
+                        ? naturalKey
+                        : null
                 )
             ),
         ];
@@ -1864,15 +1872,23 @@ public class WidgetService : IWidgetService
     /// <summary>One widget's detail with its gallery revision and newest version number looked up.</summary>
     private async Task<WidgetDetail> ToDetailAsync(Widget widget, CancellationToken ct)
     {
-        int? galleryRevision = await GetGalleryRevisionAsync(widget.GalleryItemId, ct);
+        (int Revision, string? NaturalKey)? gallery = await GetGalleryLinkAsync(
+            widget.GalleryItemId,
+            ct
+        );
         int? latestVersionNumber = await _db
             .WidgetVersions.Where(v => v.WidgetId == widget.Id)
             .Select(v => (int?)v.VersionNumber)
             .MaxAsync(ct);
-        return ToDetail(widget, galleryRevision, latestVersionNumber);
+        return ToDetail(widget, gallery?.Revision, latestVersionNumber, gallery?.NaturalKey);
     }
 
-    private WidgetDetail ToDetail(Widget w, int? currentGalleryRevision, int? latestVersionNumber)
+    private WidgetDetail ToDetail(
+        Widget w,
+        int? currentGalleryRevision,
+        int? latestVersionNumber,
+        string? galleryNaturalKey = null
+    )
     {
         return new(
             w.Id,
@@ -1894,16 +1910,28 @@ public class WidgetService : IWidgetService
                 && currentGalleryRevision is { } rev
                 && rev > (w.InstalledSourceRevision ?? 0),
             _presence.IsWidgetAttached(w.BroadcasterId, w.Id),
-            w.IsSourceCustomized(latestVersionNumber)
+            w.IsSourceCustomized(latestVersionNumber),
+            FirstPartyWidgetCatalogue.Find(galleryNaturalKey)?.ObsSetup
         );
     }
 
-    /// <summary>The linked gallery item's current <see cref="WidgetGalleryItem.SourceRevision"/>, or null if unlinked.</summary>
-    private async Task<int?> GetGalleryRevisionAsync(Guid? galleryItemId, CancellationToken ct) =>
-        galleryItemId is null
-            ? null
-            : await _db
-                .WidgetGalleryItems.Where(i => i.Id == galleryItemId.Value)
-                .Select(i => (int?)i.SourceRevision)
-                .FirstOrDefaultAsync(ct);
+    /// <summary>
+    /// The linked gallery item's current <see cref="WidgetGalleryItem.SourceRevision"/> and natural key, or null if
+    /// unlinked.
+    /// </summary>
+    private async Task<(int Revision, string? NaturalKey)?> GetGalleryLinkAsync(
+        Guid? galleryItemId,
+        CancellationToken ct
+    )
+    {
+        if (galleryItemId is null)
+            return null;
+
+        var link = await _db
+            .WidgetGalleryItems.Where(i => i.Id == galleryItemId.Value)
+            .Select(i => new { i.SourceRevision, i.NaturalKey })
+            .FirstOrDefaultAsync(ct);
+
+        return link is null ? null : (link.SourceRevision, link.NaturalKey);
+    }
 }
