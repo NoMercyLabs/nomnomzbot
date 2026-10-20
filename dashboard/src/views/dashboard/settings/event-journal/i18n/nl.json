@@ -17,8 +17,11 @@
           "allSources": "Overal",
           "from": "Vanaf datum",
           "to": "Tot datum",
-          "whoUnknown": "Niet vastgelegd",
-          "whoFrom": "Niet vastgelegd, van {source}",
+          "whoNone": "Geen persoon opgeslagen",
+          "whoDash": "—",
+          "whoNote": "Wie staat er alleen waar de bot een persoon opsloeg. Bij Twitch-events slaat hij die nog niet op.",
+          "housekeeping": "Toon onderhoud van de bot",
+          "hidden": "{count} onderhoudsevents van de bot verborgen op deze pagina",
           "clear": "Filters wissen",
           "repeat": "{count} keer",
           "page": "Pagina {page} van {pages}",
@@ -37,14 +40,6 @@
           "webhook": "Een webhook",
           "federation": "Een gekoppelde bot",
           "import": "Een import"
-        },
-        "origins": {
-          "eventsub": "Twitch",
-          "irc": "Twitch-chat",
-          "domain": "de bot",
-          "webhook": "een webhook",
-          "federation": "een gekoppelde bot",
-          "import": "een import"
         },
         "events": {
           "FollowEvent": "Nieuwe volger",

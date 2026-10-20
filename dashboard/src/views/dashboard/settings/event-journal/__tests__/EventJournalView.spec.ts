@@ -418,14 +418,14 @@ describe('Event journal list', () => {
     expect(rows[0]!.textContent).not.toContain('42');
     expect(rows[0]!.textContent).not.toContain('FollowEvent');
     expect(rows[1]!.querySelector('[data-what]')!.textContent).toBe('OBS streaming state changed');
-    // The bot journals most events (a follow too) without a person; the row says so and names where it came from.
-    expect(rows[1]!.querySelector('[data-who]')!.textContent!.trim()).toBe('Not recorded, from the bot');
+    // The bot journals most events without a person; that cell stays a quiet dash instead of repeated filler.
+    expect(rows[1]!.querySelector('[data-who]')!.textContent!.trim()).toBe('—');
     expect(document.body.querySelector('thead')!.textContent).not.toContain('Position');
 
     expect(calls.filter((call) => call.path.endsWith('/profile'))).toHaveLength(1);
 
     expect(journalCalls()[0]!.options).toMatchObject({
-      params: { path: { channelId: 'c1' }, query: { Page: 1, Take: 25 } },
+      params: { path: { channelId: 'c1' }, query: { Page: 1, Take: 100 } },
     });
   });
 
@@ -433,6 +433,7 @@ describe('Event journal list', () => {
     window.localStorage.clear();
     window.localStorage.setItem('nnz.event-journal.eventType', 'FollowEvent');
     window.localStorage.setItem('nnz.event-journal.source', 'eventsub');
+    listed.total = 500;
     await open();
 
     expect(journalCalls().at(-1)!.options.params).toMatchObject({
@@ -455,17 +456,62 @@ describe('Event journal list', () => {
 
     const last = journalCalls().at(-1)!.options.params as { query: Record<string, unknown> };
 
-    expect(last.query).toEqual({ Page: 1, Take: 25 });
+    expect(last.query).toEqual({ Page: 1, Take: 100 });
     expect(window.localStorage.getItem('nnz.event-journal.eventType')).toBe('');
   });
 
-  it('keeps the who column and says where the event came from when the bot saved no person', async () => {
+  it('keeps the who column, leaves an unknown person as a dash and says once why', async () => {
     window.localStorage.clear();
-    listed.items = [bot('b1', 'ObsStreamingStateChangedEvent', '2026-10-01T09:00:00Z')];
+
+    listed.items = [
+      bot('b2', 'FollowEvent', '2026-10-01T09:10:00Z'),
+      bot('b1', 'ObsStreamingStateChangedEvent', '2026-10-01T09:00:00Z'),
+    ];
+
     await open();
 
     expect(document.body.querySelector('thead')!.textContent).toContain('Who');
-    expect(q('[data-who]').textContent!.trim()).toBe('Not recorded, from the bot');
+
+    const who = [...document.body.querySelectorAll('[data-who]')].map((cell) => cell.textContent!.trim());
+
+    expect(who).toEqual(['—', '—']);
+    expect(document.body.textContent).not.toContain('Not recorded');
+    expect(document.body.querySelectorAll('[data-who-note]')).toHaveLength(1);
+  });
+
+  it('hides bot housekeeping by default, says how many it hid, and shows it with the switch', async () => {
+    window.localStorage.clear();
+
+    listed.items = [
+      bot('b5', 'channel.chat.message', '2026-10-01T09:50:00Z'),
+      bot('b4', 'ChatMessageReceivedEvent', '2026-10-01T09:40:00Z'),
+      bot('b3', 'LedgerEntryRecordedEvent', '2026-10-01T09:30:00Z'),
+      bot('b2', 'AdScheduleUpdatedEvent', '2026-10-01T09:20:00Z'),
+      bot('b1', 'FollowEvent', '2026-10-01T09:10:00Z'),
+    ];
+
+    await open();
+
+    const shown = (): (string | null)[] =>
+      [...document.body.querySelectorAll('[data-what]')].map((cell) => cell.textContent);
+
+    expect(shown()).toEqual(['Chat message', 'New follower']);
+    expect(q('[data-hidden-count]').textContent).toContain('3');
+
+    await click(q('[data-show-housekeeping]'));
+
+    expect(shown()).toHaveLength(5);
+    expect(journalCalls().at(-1)!.options.params).toMatchObject({ query: { Take: 25 } });
+  });
+
+  it('never says an event happens in the future when the server clock runs ahead', async () => {
+    window.localStorage.clear();
+    const ahead = new Date(Date.now() + 2_000);
+
+    listed.items = [bot('b1', 'FollowEvent', ahead.toISOString())];
+    await open();
+
+    expect(q('[data-journal-row] time').textContent).not.toMatch(/^in /);
   });
 
   it('folds the same event in a row into one line that says how many times it happened', async () => {
@@ -478,6 +524,7 @@ describe('Event journal list', () => {
       bot('b1', 'IntegrationTokenRefreshedEvent', '2026-10-01T09:00:00Z'),
     ];
 
+    window.localStorage.setItem('nnz.event-journal.housekeeping', 'true');
     await open();
 
     const rows = document.body.querySelectorAll('[data-journal-row]');
@@ -501,6 +548,7 @@ describe('Event journal list', () => {
     ];
 
     listed.total = 1_423_155;
+    window.localStorage.setItem('nnz.event-journal.housekeeping', 'true');
     await open();
 
     const what = [...document.body.querySelectorAll('[data-what]')].map((cell) => cell.textContent);

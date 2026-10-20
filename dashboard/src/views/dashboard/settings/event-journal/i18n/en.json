@@ -17,8 +17,11 @@
           "allSources": "Everywhere",
           "from": "From date",
           "to": "To date",
-          "whoUnknown": "Not recorded",
-          "whoFrom": "Not recorded, from {source}",
+          "whoNone": "No person saved",
+          "whoDash": "—",
+          "whoNote": "Who shows only where the bot saved a person. For Twitch events it does not save one yet.",
+          "housekeeping": "Show bot housekeeping",
+          "hidden": "{count} bot housekeeping events hidden on this page",
           "clear": "Clear filters",
           "repeat": "{count} times",
           "page": "Page {page} of {pages}",
@@ -37,14 +40,6 @@
           "webhook": "A webhook",
           "federation": "A linked bot",
           "import": "An import"
-        },
-        "origins": {
-          "eventsub": "Twitch",
-          "irc": "Twitch chat",
-          "domain": "the bot",
-          "webhook": "a webhook",
-          "federation": "a linked bot",
-          "import": "an import"
         },
         "events": {
           "FollowEvent": "New follower",

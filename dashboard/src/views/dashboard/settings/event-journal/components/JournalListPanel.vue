@@ -25,6 +25,7 @@ import UserName from '@/components/layout/UserName.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import {
   Table,
   TableBody,
@@ -42,12 +43,14 @@ import {
   EVENT_SOURCES,
   isEventKind,
   isEventSource,
+  isHousekeeping,
   spokenEventName,
 } from './journalWords';
 import { foldRuns } from './journalRuns';
 import { useJournalActors } from './useJournalActors';
 
 const PAGE_SIZE = 25;
+const HIDING_PAGE_SIZE = 100;
 const ALL = 'all';
 
 const { t, te } = useI18n();
@@ -57,6 +60,7 @@ const eventType = useLocalStorage('nnz.event-journal.eventType', '');
 const source = useLocalStorage('nnz.event-journal.source', '');
 const from = useLocalStorage('nnz.event-journal.from', '');
 const to = useLocalStorage('nnz.event-journal.to', '');
+const showHousekeeping = useLocalStorage('nnz.event-journal.housekeeping', false);
 const page = ref(1);
 
 // A remembered value that is not on the list (an old free-text filter) reads as "all".
@@ -93,7 +97,13 @@ const sourceOptions = computed(() => merge(
   EVENT_SOURCES.map((known) => ({ value: known, label: t(`dashboard.settings.eventJournal.sources.${known}`) })),
 ) satisfies readonly FilterOption[]);
 
-watch([kindChoice, sourceChoice, from, to], () => {
+// Hidden housekeeping thins a page out, so the bot reads a bigger page to keep the list full.
+const take = computed(() =>
+  showHousekeeping.value
+    ? PAGE_SIZE
+    : HIDING_PAGE_SIZE);
+
+watch([kindChoice, sourceChoice, from, to, showHousekeeping], () => {
   page.value = 1;
 });
 
@@ -107,18 +117,24 @@ const filters = computed(() => ({
   from: from.value,
   to: to.value,
   page: page.value,
-  take: PAGE_SIZE,
+  take: take.value,
 }) as const satisfies JournalFilters);
 
 const journal = useJournalPage(channelId, filters);
 const panelState = usePanelState(journal, (data) =>
   data.items.length === 0);
 
-const rows = computed(() => journal.data.value?.items ?? []);
+const fetched = computed(() => journal.data.value?.items ?? []);
+const rows = computed(() =>
+  showHousekeeping.value
+    ? fetched.value
+    : fetched.value.filter((row) => !isHousekeeping(row.eventType)));
+const hiddenCount = computed(() => fetched.value.length - rows.value.length);
 const total = computed(() => Number(journal.data.value?.totalCount ?? 0));
-const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)));
+const pages = computed(() => Math.max(1, Math.ceil(total.value / take.value)));
 const actors = useJournalActors(channelId, rows);
 const runs = computed(() => foldRuns(rows.value));
+const anyActor = computed(() => rows.value.some((row) => actorOf(row) !== undefined));
 const filtered = computed(() =>
   kindChoice.value !== ALL || sourceChoice.value !== ALL || from.value !== '' || to.value !== '');
 
@@ -142,11 +158,14 @@ function what(row: JournalEntry): string {
   return spokenEventName(row.eventType);
 }
 
-// The bot saves most events with no person yet; the line then says where the event came from.
-function noActor(row: JournalEntry): string {
-  return isEventSource(row.source)
-    ? t('dashboard.settings.eventJournal.list.whoFrom', { source: t(`dashboard.settings.eventJournal.origins.${row.source}`) })
-    : t('dashboard.settings.eventJournal.list.whoUnknown');
+// A server clock a little ahead of the browser must not read as "in 2 seconds".
+function shownAt(row: JournalEntry): string {
+  const at = Date.parse(row.occurredAt);
+  const now = Date.now();
+
+  return new Date(at > now
+    ? now
+    : at).toISOString();
 }
 
 function actorOf(row: JournalEntry) {
@@ -200,7 +219,14 @@ function clear(): void {
         <span class="text-muted-foreground">{{ $t('dashboard.settings.eventJournal.list.to') }}</span>
         <Input v-model="to" type="date" data-filter-to class="w-40" />
       </Label>
+      <div class="flex items-center gap-2">
+        <Switch id="journal-housekeeping" v-model="showHousekeeping" data-show-housekeeping />
+        <Label for="journal-housekeeping" class="font-normal">{{ $t('dashboard.settings.eventJournal.list.housekeeping') }}</Label>
+      </div>
     </div>
+    <p v-if="!anyActor" data-who-note class="px-3 pb-3 text-sm text-muted-foreground">
+      {{ $t('dashboard.settings.eventJournal.list.whoNote') }}
+    </p>
     <Table>
       <TableHeader>
         <TableRow class="hover:bg-transparent">
@@ -222,10 +248,16 @@ function clear(): void {
               :name="actorOf(row)?.name ?? ''"
               :color="actorOf(row)?.color"
             />
-            <span v-else class="text-muted-foreground">{{ noActor(row) }}</span>
+            <span v-else
+                  class="text-muted-foreground"
+                  role="img"
+                  :aria-label="$t('dashboard.settings.eventJournal.list.whoNone')"
+                  :title="$t('dashboard.settings.eventJournal.list.whoNone')"
+            >{{ $t('dashboard.settings.eventJournal.list.whoDash') }}</span>
           </TableCell>
           <TableCell class="text-right text-muted-foreground">
-            <DateTime :value="row.occurredAt" variant="relative" />
+            <!-- A reused row keeps its first "now"; a fresh key gives each new moment a fresh clock. -->
+            <DateTime :key="shownAt(row)" :value="shownAt(row)" variant="relative" />
           </TableCell>
         </TableRow>
       </TableBody>
@@ -233,6 +265,9 @@ function clear(): void {
     <template #footer>
       <span class="text-sm text-muted-foreground tabular-nums" role="status">
         {{ $t('dashboard.settings.eventJournal.list.page', { page: $n(page), pages: $n(pages) }) }}
+      </span>
+      <span v-if="hiddenCount > 0" data-hidden-count class="text-sm text-muted-foreground tabular-nums">
+        {{ $t('dashboard.settings.eventJournal.list.hidden', { count: $n(hiddenCount) }) }}
       </span>
       <div class="ml-auto flex items-center gap-2">
         <Button variant="outline"
