@@ -18,12 +18,14 @@ import ChevronDown from '~icons/nnz/chevron-down';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
+import { useMusicDevices } from '@/api/music';
 import type { PipelineActionDescriptor } from '@/api/pipelines';
 import { buttonProblems, MAX_BUTTON_LABEL } from '@/api/playerButtons';
 import { Button } from '@/components/ui/button';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useLocalizedText } from '@/composables/useLocalizedText';
 import type { JsonValue } from '@/lib/json';
 import StepField from '@/views/dashboard/pipelines/components/StepField.vue';
@@ -50,6 +52,7 @@ const emit = defineEmits<{
 }>();
 
 const { t, te } = useI18n();
+const { channelId } = useCurrentChannel();
 const text = useLocalizedText();
 const page = 'dashboard.music.now.buttons.editor';
 
@@ -70,8 +73,30 @@ const rows = computed(() => {
     t,
     te,
     text,
-  });
+  }).map(withDevices);
 });
+
+// The plugin picks the playback device from the music account's own devices; so does the dashboard. With no
+// device known yet the bot's text field stays, so a device id can still be set.
+const devices = useMusicDevices(() =>
+  props.button.actionType === 'music_transfer_device'
+    ? channelId.value
+    : null);
+
+function withDevices(row: FieldRow) {
+  const known = devices.data.value ?? [];
+
+  if (row.name !== 'deviceId' || known.length === 0)
+    return row;
+
+  return {
+    ...row,
+    control: 'choice',
+    choices: known.map((device) =>
+      ({ value: device.id, label: device.name })),
+  } as const satisfies FieldRow;
+}
+
 const context = computed(() =>
   choiceContext(rows.value));
 

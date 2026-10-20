@@ -100,16 +100,58 @@ const catalog = {
       description: { key: 'y' },
       fields: [],
     },
+    {
+      type: 'music_set_volume',
+      category: { key: 'music', text: 'Music' },
+      description: { key: 'z' },
+      fields: [field('volume', 'number')],
+    },
+    {
+      type: 'music_transfer_device',
+      category: { key: 'music', text: 'Music' },
+      description: { key: 'w' },
+      fields: [field('deviceId', 'text')],
+    },
   ],
   conditions: [],
 };
 
+const devices = [
+  {
+    id: 'd1',
+    name: 'Desk PC',
+    type: 'Computer',
+    isActive: true,
+    volumePercent: 40,
+  },
+];
+
+function field(name: string, kind: string) {
+  return {
+    name,
+    kind,
+    required: true,
+    repeatable: false,
+    description: null,
+    templated: false,
+    declaresVariable: false,
+  } as const satisfies object;
+}
+
 let mounted: VueWrapper | null = null;
 
+function answer(path: string): unknown {
+  if (path.endsWith('/pipelines/actions'))
+    return catalog;
+
+  if (path.endsWith('/music/devices'))
+    return devices;
+
+  return saved;
+}
+
 function reply(path: string): unknown {
-  const data = path.endsWith('/pipelines/actions')
-    ? catalog
-    : saved;
+  const data = answer(path);
 
   return {
     data: { data },
@@ -233,6 +275,49 @@ describe('the player button picker', () => {
         parameters: {},
       },
     ]);
+  });
+
+  it('starts a picked plugin button with the plugin default setting', async () => {
+    await openAdd();
+    await press('[data-deck-action="music-set-volume"]');
+
+    const volume = document.querySelector<HTMLInputElement>('[data-step-field="volume"] input');
+
+    expect(volume?.value).toBe('50');
+
+    await submit('Add button');
+
+    expect(sentBody()?.at(-1)).toMatchObject({
+      actionType: 'music_set_volume',
+      parameters: { volume: 50 },
+    });
+  });
+
+  it('picks the playback device from the music account devices, not a typed id', async () => {
+    await openAdd();
+    await press('[data-deck-action="music-transfer-device"]');
+
+    const device = document.querySelector<HTMLElement>('[data-step-field="deviceId"]');
+
+    expect(device?.querySelector('input')).toBeNull();
+    expect(device?.querySelector('[role="combobox"]')).not.toBeNull();
+  });
+
+  it('shows the buttons while nothing is playing', async () => {
+    held.keys = editor;
+
+    mounted = mount(PlayerButtons, {
+      props: { track: null },
+      attachTo: document.body,
+      global: { plugins: plugins() },
+    });
+
+    await flushPromises();
+
+    const labels = [...document.querySelectorAll('[data-player-button]')].map((button) =>
+      button.textContent?.trim());
+
+    expect(labels).toEqual(['Thank them', 'Save song']);
   });
 
   it('edits a button on a right click and saves it in its own place', async () => {

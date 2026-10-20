@@ -313,6 +313,10 @@ const span = layout.span;
               <PlayerButtons :track="nowPlaying" />
             </template>
           </NowPlayingCard>
+          <!-- Nothing playing: the card shows its empty line and the buttons stay, so Play works and they can be arranged. -->
+          <template v-if="!nowPlaying" #footer>
+            <PlayerButtons :track="null" />
+          </template>
         </PanelCard>
         <!-- Outside the card: an empty card renders no body, and the Add button works with nothing playing. -->
         <PlayerButtonPicker

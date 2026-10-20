@@ -34,8 +34,9 @@ import { moveItem } from '@/lib/array';
 import PlayerButtonPicker from './PlayerButtonPicker.vue';
 import { playerIcon } from './playerIcons';
 
+// The track is null while nothing plays: the buttons still show, so Play works and they can be arranged.
 const props = defineProps<{
-  track: NowPlaying;
+  track: NowPlaying | null;
 }>();
 
 const { t } = useI18n();
@@ -78,11 +79,11 @@ type ActionVariables = {
 };
 
 const variables = computed(() => ({
-  'song.name': props.track.trackName ?? '',
-  'song.artist': props.track.artist ?? '',
-  'song.requester': props.track.requestedBy ?? '',
-  'target.id': props.track.requesterId ?? '',
-  'target.displayname': props.track.requestedBy ?? '',
+  'song.name': props.track?.trackName ?? '',
+  'song.artist': props.track?.artist ?? '',
+  'song.requester': props.track?.requestedBy ?? '',
+  'target.id': props.track?.requesterId ?? '',
+  'target.displayname': props.track?.requestedBy ?? '',
 }) as const satisfies ActionVariables);
 
 function press(button: PlayerButton): void {

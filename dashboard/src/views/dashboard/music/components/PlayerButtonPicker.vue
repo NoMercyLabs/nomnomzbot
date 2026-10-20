@@ -85,6 +85,7 @@ function pick(action: StreamDeckAction): void {
     label: t(`${page}.deck.${action.key}.name`),
     icon: action.icon,
     actionType: action.type,
+    parameters: { ...action.defaults },
   };
 }
 
