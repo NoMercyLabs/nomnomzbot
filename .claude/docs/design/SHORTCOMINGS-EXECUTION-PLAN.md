@@ -21,6 +21,36 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-10-20 (afternoon) — the UI validation round, 21 items
+
+Stoney's checklist after validating the night run, verbatim per line (screenshots: OBS Live tab, source
+screenshot picker, a command form row, the voice listener page, Event responses with Pipeline, the pipeline
+editor, Economy balances, the music player buttons, Request rules, TTS Keys).
+
+- **S-CHAT-HTML-GATED** — "i need the change made for the html toggle so its not showing if the feature is off (which it is by default)." Done when: the Display switch renders only while `use_chat_html` is on (ChatDisplayPanel.vue:70 lists it unconditionally today).
+- **S-OBS-BENTO** — "i still need you to properly make this a bento grid so te pannel is placed in view and not at the bottom... use the proper new grid css like i asked for." Done when: the OBS Live tab uses a CSS grid (grid-template-areas / auto-fit) with no panel pushed below the fold at desktop width.
+- **S-OBS-SCREENSHOT-SOURCES** — "the screenshot tool needs some grouping by type. and how the hell am i supposed to take a screenshot from an audio source?" Done when: the picker groups sources by kind and lists only sources that have video.
+- **S-OBS-HOTKEYS** — "the obs hotkeys pannel makes no sense and is unclear what its purpose is." Done when: the panel says what it does and shows plain names (raw OBS names are a known server gap).
+- **S-AUDIO-TTS-ROUTING** — "the audio browser source is doing the tts instead of the tts browser source." Done when: TTS plays only in the TTS browser source.
+- **S-TRIGGERS-TIMELINE-LAYOUT** — "triggers and timeline needs proper layout in its pannel."
+- **S-VOICE-LISTENER** — "the listener is not doing much listening and i need the popout button too so put them in the header of the page side by side." Done when: the listener hears and reports matches, and the page header holds the listener status and a popout button side by side.
+- **S-RESET-DEFAULTS-EVERYWHERE** — "you need to ensure me i can always reset to platform defaults." Done when: every surface that has a platform default offers Reset to default (counted N of M).
+- **S-PIPELINE-NO-SHIFT-AND-CHAIN** — "the pipeline editor needs to not layout shift when toggeling the change pannel, and i need a way to not manually copy the text in the follow up step and tie them together and use the previously made text string." Done when: opening the step panel moves nothing, and a step can use an earlier step's output text.
+- **S-SELECTION-CONSISTENT** — "all but overlays start out with no selection so make this consistent please, it also overflows on the page."
+- **S-SCRIPTS-SDK-TYPED** — "code scripts are still lingered with `const nnz = (window as any).NomNomz` we agreed on full type safety and a full featured SDK."
+- **S-REPLY-TYPES-EVERYWHERE** — "reply types are still inconsistent, we agreed on all types everywhere, so investigate all places that are missing one or more of the options." Done when: every reply surface offers every reply type (counted N of M).
+- **S-PLAYER-BUTTON-ORDER** — "the order of the buttons make no sense, it is unclear why the toggle is before the name and probably should just be at the end."
+- **S-PLAYER-BUTTONS-STREAMDECK** — "the button editor is not at all what i asked for, i just want to be able to pick from any of the streamdeck plugin buttons (as a integrated copy of all buttons) and be allowed to drag all the buttons around, so add a pannel header button with the add button button that opens up a picker with edit options too, same as the streamdeck plugin."
+- **S-PANEL-THIRD-COLUMN** — "the request rules pannel proably fits just fine as a 3rd  column on this breakpont and must be consistent with the other pannel behaviors."
+- **S-YOUTUBE-REDEEM-SAVE** — "the change to who can redeem youtube does not make the save button available and it is unclear if the action is applied or not."
+- **S-TTS-HISTORY-EMPTY** — "the tts history is empty."
+- **S-PROFANITY-OFF-STILL-BLOCKS** — "censor profanity is disabled but JD's !telsell message did not work untill he removed Dick from his message."
+- **S-PRONUNCIATION-PREVIEW** — "my name pronounciation is not lined up, and it needs a preview button so the broadcaster can make it right without using twitch to find out."
+- **S-MEDIA-SHARE-PLAYBACK** — "media share is still not showing any playback opportunities, it is not playing on stream either, i need full control on all fronts on this, settings pannel has the same breakpoint issue as the other one previously mentioned."
+- **S-DISCORD-SETTINGS-PICKERS** — "why is discord in the main pannel and not in settings? i still can not setup any reactions that go to discord, everything is locked and nothing is showing anything i can pick from, the settings pannel same issue. i don't want to fill in any id's, fetch the usernames from discord."
+
+---
+
 ## OWNER REQUEST 2026-10-20 — live event subscriptions, and a page-by-page cleanup tour
 
 Owner words are in `dashboard-owner-words.md` (2026-10-19 and 2026-10-20 entries). One dashboard page at a time; server slices run beside them.
