@@ -147,6 +147,37 @@ describe('a failed save in the inbox', () => {
   });
 });
 
+// Stoney 2026-10-20: when OBS shuts down, one notice says OBS is not connected, with a way to go there.
+describe('the OBS not connected notice', () => {
+  const obsDown = {
+    id: 'owner-action-failed:obs-not-connected',
+    kind: 'obs_not_connected',
+    severity: 'warning',
+    titleKey: 'attention_obs_not_connected_title',
+    messageKey: 'attention_obs_not_connected_message',
+    parameters: { count: '3' },
+    detectedAt: '2026-10-20T10:00:00Z',
+    deepLinkRoute: 'obs',
+    sourceUserId: null,
+    sourceUserName: null,
+    count: 3,
+    queueItemIds: [],
+  } as const satisfies Record<string, unknown>;
+
+  it('is one item that says how many actions could not run and opens the OBS page', async () => {
+    held = [obsDown];
+    await openInbox();
+
+    const row = rows()[0]!;
+
+    expect(rows()).toHaveLength(1);
+    expect(row.textContent).toContain('OBS is not connected');
+    expect(row.textContent).toContain('Actions that could not run because OBS was not connected: 3');
+    expect(row.querySelector('a')?.textContent?.trim()).toBe('Open OBS');
+    expect(row.querySelector('a')?.getAttribute('href')).toBe('/app/obs');
+  });
+});
+
 describe('ErrorInbox button size', () => {
   it('is a 36px button with or without a count', async () => {
     await openInbox();

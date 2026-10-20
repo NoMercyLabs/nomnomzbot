@@ -108,7 +108,7 @@ const attention = computed(() =>
           <div class="mt-1 flex items-center gap-1 self-start">
             <Button v-if="item.route" variant="outline" size="sm" as-child>
               <RouterLink :to="item.route" @click="open = false">{{
-                t('frame.inbox.open')
+                item.open ?? t('frame.inbox.open')
               }}</RouterLink>
             </Button>
             <Button variant="ghost" size="sm" @click="dismissItem(item.id)">

@@ -20,6 +20,7 @@ import type { ActionRequiredItem } from './actionRequired';
 export interface AttentionWords {
   title: string;
   message: string | null;
+  open: string | null;
   route: string | null;
 }
 
@@ -43,6 +44,7 @@ export const attentionPages = [
   'chat',
   'commands',
   'music',
+  'obs',
   'overlays',
   'people',
   'scripts',
@@ -116,6 +118,7 @@ function messageNamed(
 
   return {
     ...item.parameters,
+    count: Number(item.count),
     category: category || i18n.t(`${WORDS}attention_held_category_unknown`),
     error: error ?? '',
   } as const satisfies Record<string, string | number>;
@@ -147,9 +150,15 @@ export function attentionWords(
     ? i18n.t(messagePath, messageNamed(item, i18n))
     : null;
 
+  // A notice can name its own Open button, such as "Open OBS"; the others use the shared word.
+  const openPath = `${WORDS}${item.titleKey.replace(/_title$/, '_open')}`;
+
   return {
     title,
     message,
+    open: i18n.te(openPath)
+      ? i18n.t(openPath)
+      : null,
     route: routeOf(item.deepLinkRoute),
   } as const satisfies AttentionWords;
 }
