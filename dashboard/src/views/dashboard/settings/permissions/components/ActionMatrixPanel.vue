@@ -8,7 +8,7 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// Who may do what: every action of the bot with the lowest role that may do it in this channel.
+// Who may do what in one area: each action of the area with the lowest role that may do it in this channel.
 // A protected action cannot go below its floor; the bot clamps it and the choices below the floor are off.
 import Reset from '~icons/nnz/arrow-counter-clockwise';
 import Locked from '~icons/nnz/locked';
@@ -33,11 +33,18 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { errorText } from '@/lib/errors';
 
+import { areaOf, matchesSearch, useAreaLabel } from '../actionArea';
 import OptionSelect, { type Option } from './OptionSelect.vue';
 
-defineProps<{ canManage: boolean }>();
+// area: the one area this panel shows (the first part of the action key); search narrows it further.
+const props = defineProps<{
+  canManage: boolean;
+  area: string;
+  search: string;
+}>();
 
 const { t } = useI18n();
+const labelOf = useAreaLabel();
 const { channelId } = useCurrentChannel();
 const matrix = useActionMatrix(channelId);
 const setLevel = useSetActionLevel(channelId);
@@ -48,11 +55,15 @@ const error = ref<string | undefined>(undefined);
 
 const planes = ['Community', 'Management'] as const;
 
+const shown = computed(() =>
+  (matrix.data.value ?? []).filter((row) =>
+    areaOf(row.actionKey) === props.area && matchesSearch(row, props.search)));
+
 const byPlane = computed(() =>
   planes
     .map((plane) => ({
       plane,
-      rows: (matrix.data.value ?? []).filter((row) => Number(row.plane) === planes.indexOf(plane)),
+      rows: shown.value.filter((row) => Number(row.plane) === planes.indexOf(plane)),
     }))
     .filter((group) => group.rows.length > 0));
 
@@ -87,13 +98,16 @@ const changeLevel = (actionKey: string, rung: RungName): Promise<void> =>
 <template>
   <PanelCard
     data-panel="action-matrix"
-    :title="$t('dashboard.settings.permissions.matrix.title')"
+    :title="labelOf(area)"
     :description="$t('dashboard.settings.permissions.matrix.description')"
     :state="state"
     :empty-text="$t('dashboard.settings.permissions.matrix.empty')"
     :error-text="$t('dashboard.settings.permissions.matrix.loadFailed')"
     @retry="matrix.refetch()"
   >
+    <p v-if="byPlane.length === 0" class="p-4 text-center text-sm text-muted-foreground">
+      {{ $t('dashboard.settings.permissions.areas.noMatch') }}
+    </p>
     <section v-for="group in byPlane" :key="group.plane" class="pb-3">
       <h3 class="pb-1 text-sm font-medium text-muted-foreground">
         {{ $t(`dashboard.settings.permissions.matrix.plane.${group.plane}`) }}

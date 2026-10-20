@@ -22,7 +22,6 @@ import {
   usePersonGrants,
   namedGrantSlug,
   useRevokeCapability,
-  type PersonGrant,
 } from '@/api/permissions';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -33,6 +32,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { errorText } from '@/lib/errors';
 
+import { isAllowedGrant } from '../personGrant';
 import OptionSelect, { type Option } from './OptionSelect.vue';
 import PersonPicker from './PersonPicker.vue';
 
@@ -50,9 +50,7 @@ const picked = ref<ViewerOption | null>(null);
 const capability = ref<string | undefined>(undefined);
 const error = ref<string | undefined>(undefined);
 
-const isAllowed = (row: PersonGrant): boolean =>
-  row.permissionValue === 'allow' || row.permissionValue === '1';
-const rows = computed(() => (grants.data.value ?? []).filter(isAllowed));
+const rows = computed(() => (grants.data.value ?? []).filter(isAllowedGrant));
 
 const knownText = (key: string, part: string): string =>
   t(`dashboard.settings.permissions.grants.known.${namedGrantSlug(key)}.${part}`);

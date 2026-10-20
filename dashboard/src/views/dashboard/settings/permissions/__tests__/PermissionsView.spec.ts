@@ -12,7 +12,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
-import { createMemoryHistory, createRouter } from 'vue-router';
+import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import { i18n } from '@/i18n';
 import { settingsNav } from '@/layouts/dashboard/settingsNavigation';
@@ -108,17 +108,18 @@ const matrix = [
   },
 ];
 
-const grants: Record<string, unknown>[] = [
-  {
-    id: 1,
-    subjectType: 'user',
-    subjectId: 'u-vip',
-    subjectName: 'vipvic',
-    resourceType: 'action',
-    resourceId: 'chat.permit-link',
-    permissionValue: 'allow',
-  },
-];
+const vipGrant = {
+  id: 1,
+  subjectType: 'user',
+  subjectId: 'u-vip',
+  subjectName: 'vipvic',
+  resourceType: 'action',
+  resourceId: 'chat.permit-link',
+  permissionValue: 'allow',
+};
+
+// Each test starts from the one grant above; a revoke in an earlier test does not carry over.
+const grants: Record<string, unknown>[] = [];
 
 const found = [
   {
@@ -209,7 +210,7 @@ let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
   calls.length = 0;
-  grants.splice(1);
+  grants.splice(0, grants.length, structuredClone(vipGrant));
   i18n.global.mergeLocaleMessage('en', en);
 });
 
@@ -225,18 +226,33 @@ async function settle(): Promise<void> {
   await flushPromises();
 }
 
-async function open(): Promise<VueWrapper> {
+let router: Router;
+
+// The page opens on the tab (and area) in the address, as a link or the Back button would land on it.
+async function open(view?: string, area?: string): Promise<VueWrapper> {
   const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+  router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/app/settings/permissions', component: PermissionsView }],
+  });
+
+  await router.push({ path: '/app/settings/permissions', query: { view, area } });
+  await router.isReady();
 
   mounted = mount(PermissionsView, {
     attachTo: document.body,
-    global: { plugins: [i18n, [VueQueryPlugin, { queryClient: queries }]] },
+    global: { plugins: [i18n, router, [VueQueryPlugin, { queryClient: queries }]] },
   });
 
   await settle();
 
   return mounted;
 }
+
+const texts = (selector: string): string[] =>
+  [...document.body.querySelectorAll(selector)].map((el) =>
+    (el.textContent ?? '').replace(/\s+/g, ' ').trim());
 
 const q = <T extends Element>(selector: string): T => document.body.querySelector<T>(selector) as T;
 
@@ -309,7 +325,7 @@ describe('Permissions', () => {
   });
 
   it('sends the ladder value of the picked role and offers nothing below the floor', async () => {
-    const wrapper = await open();
+    const wrapper = await open('actions', 'chat');
     const options: readonly Option[] = selectLabeled(wrapper, 'Lowest role for chat.timeout').props(
       'options',
     );
@@ -331,7 +347,7 @@ describe('Permissions', () => {
   });
 
   it('resets only an action that has an override, with a DELETE of its key', async () => {
-    await open();
+    await open('actions', 'chat');
 
     expect(
       document.body.querySelector('[data-action="chat.permit-link"] [data-action-reset]'),
@@ -349,7 +365,7 @@ describe('Permissions', () => {
   });
 
   it('gives a capability to the picked person and lists only grantable actions', async () => {
-    const wrapper = await open();
+    const wrapper = await open('capabilities');
     const panel = q('[data-panel="person-grants"]');
     const capability: readonly Option[] = selectLabeled(wrapper, 'Capability').props('options');
 
@@ -379,7 +395,7 @@ describe('Permissions', () => {
   });
 
   it('names the two sensitive grants in plain words in the picker, never the raw key', async () => {
-    const wrapper = await open();
+    const wrapper = await open('capabilities');
     const capability: readonly Option[] = selectLabeled(wrapper, 'Capability').props('options');
     const labels = Object.fromEntries(capability.map((option) => [option.value, option.label]));
 
@@ -396,7 +412,7 @@ describe('Permissions', () => {
   }
 
   it('shows what OBS control lets the person do and sends nothing until confirmed', async () => {
-    const wrapper = await open();
+    const wrapper = await open('capabilities');
 
     await pick(wrapper, 'obs:control');
 
@@ -414,7 +430,7 @@ describe('Permissions', () => {
   });
 
   it('sends nothing when the OBS control confirm is canceled', async () => {
-    const wrapper = await open();
+    const wrapper = await open('capabilities');
 
     await pick(wrapper, 'obs:control');
     await click(q('[role="alertdialog"] button:not([data-confirm-action])'));
@@ -423,7 +439,7 @@ describe('Permissions', () => {
   });
 
   it('makes a person a Bot manager after a confirm that says what the role cannot do', async () => {
-    const wrapper = await open();
+    const wrapper = await open('capabilities');
 
     await pick(wrapper, 'bot:manager:author');
 
@@ -462,7 +478,7 @@ describe('Permissions', () => {
       },
     );
 
-    await open();
+    await open('capabilities');
     await click(q('[data-grant="u-obs:obs:control"] [data-grant-revoke]'));
 
     expect(callTo('DELETE', '/permissions/{userId}')?.params).toMatchObject({
@@ -479,7 +495,7 @@ describe('Permissions', () => {
   });
 
   it('takes a capability away with the permission in the query', async () => {
-    await open();
+    await open('capabilities');
     await click(q('[data-grant="u-vip:chat.permit-link"] [data-grant-revoke]'));
 
     const sent = callTo('DELETE', '/permissions/{userId}');
@@ -488,6 +504,66 @@ describe('Permissions', () => {
       path: { userId: 'u-vip' },
       query: { permission: 'chat.permit-link' },
     });
+  });
+});
+
+describe('Permissions layout', () => {
+  it('shows one tab at a time, the team first, with counts that match the lists', async () => {
+    await open();
+
+    expect(texts('[role="tab"]')).toEqual([
+      'Team 3',
+      'Who may do what 4',
+      'Personal capabilities 1',
+    ]);
+
+    expect(document.body.querySelector('[data-member="modmary"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-panel="action-matrix"]')).toBeNull();
+    expect(document.body.querySelector('[data-panel="person-grants"]')).toBeNull();
+  });
+
+  it('opens a tab with its name in the address, so Back returns to the last one', async () => {
+    await open();
+
+    const tab = [...document.body.querySelectorAll('[role="tab"]')][2];
+
+    tab?.dispatchEvent(new MouseEvent('mousedown', { bubbles: true, button: 0 }));
+    await settle();
+
+    expect(router.currentRoute.value.query).toMatchObject({ view: 'capabilities' });
+
+    expect(document.body.querySelector('[data-panel="person-grants"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-member="modmary"]')).toBeNull();
+  });
+
+  it('lists the actions by area in plain words, with how many each holds and how many changed', async () => {
+    await open('actions');
+
+    expect(texts('[data-area] [data-slot="summary-row-title"]')).toEqual(['Bot manager', 'Chat', 'OBS']);
+    expect(q('[data-area="chat"]').textContent).toContain('2 actions');
+    expect(q('[data-area="chat"]').textContent).toContain('1 changed');
+    expect(q('[data-area="obs"]').textContent).not.toContain('changed');
+  });
+
+  it('shows only the actions of the picked area and keeps the area in the address', async () => {
+    await open('actions');
+
+    expect(document.body.querySelector('[data-action="bot:manager:author"]')).not.toBeNull();
+    expect(document.body.querySelector('[data-action="chat.timeout"]')).toBeNull();
+
+    await click(q('[data-area="obs"]'));
+
+    expect(router.currentRoute.value.query).toMatchObject({ view: 'actions', area: 'obs' });
+    expect(texts('[data-action] [data-slot="summary-row-title"]')).toEqual(['obs:control']);
+  });
+
+  it('finds an action by its key or description across every area', async () => {
+    await open('actions', 'chat');
+    await type(q<HTMLInputElement>('[data-area-search] input'), 'one link');
+
+    expect(texts('[data-area] [data-slot="summary-row-title"]')).toEqual(['Chat']);
+    expect(q('[data-area="chat"]').textContent).toContain('1 action');
+    expect(texts('[data-action] [data-slot="summary-row-title"]')).toEqual(['chat.permit-link']);
   });
 });
 
