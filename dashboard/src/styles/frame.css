@@ -83,9 +83,10 @@
 /* Tabs are the mockup's .tabs/.tab (frame.css:79-81): a muted track with 3px padding, the chosen tab
    lifted on --background. Concentric radius: 16 - 3 = 13. A segmented choice in the page control bar
    wears the same track (owner 2026-10-14: "iNcOnSisTent" — page tabs and a choice beside them looked
-   like two controls). */
+   like two controls), and so does one inside a panel (owner 2026-10-20: the Density control showed no
+   track; he chose the page tab track). The segmented ring below keeps it visible on a muted row. */
 [data-slot='tabs-list'],
-[data-slot='page-bar'] [data-segmented] {
+[data-segmented] {
   padding: 3px;
   gap: 2px;
   background: var(--muted);
@@ -111,8 +112,9 @@
   min-width: max-content;
 }
 [data-slot='tabs-trigger'],
-[data-slot='page-bar'] [data-segment] {
+[data-segment] {
   flex: 1 0 auto;
+  min-width: max-content;
   height: var(--tab-h);
   padding: 0 var(--s3);
   border: 0;
@@ -138,23 +140,11 @@
   box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--foreground) 12%, transparent);
 }
 
-/* A segmented choice inside a panel keeps its compact height; the 1px ring keeps the track visible on a
-   muted group, where a muted track alone vanished (owner 2026-10-14: "no it does not look right"). */
+/* The 1px foreground ring keeps the track visible on a muted group, where a muted track alone vanished
+   (owner 2026-10-14: "no it does not look right"); a foreground mix shows on any surface, light or dark. */
 [data-segmented] {
   display: flex;
-  padding: 2px;
-  gap: 2px;
-  background: var(--muted);
-  box-shadow: inset 0 0 0 1px var(--border);
-}
-/* Options share the row in equal parts; a long label still never shrinks below its own width. */
-[data-segment] {
-  flex: 1 1 0;
-  min-width: max-content;
-  height: var(--seg-h);
-  padding: 0 var(--s1_5);
-  border: 0;
-  border-radius: 9999px;
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--foreground) 14%, transparent);
 }
 
 /* The mockup switch size (frame.css:151-155): 36 x 20 with a 14px thumb 2px from each edge. Its colors are the
