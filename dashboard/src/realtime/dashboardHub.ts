@@ -22,6 +22,7 @@ import { communityHandlers } from './community';
 import { attachHandlers, buildHub, retryDelay } from './hubConnection';
 import { dashboardHubStatus, dashboardJoinErrors } from './hubStatus';
 import { liveHandlers } from './liveSync';
+import { mediaShareHandlers } from './mediaShare';
 import { obsHandlers } from './obs';
 import type { JoinChannelResult } from './payloads';
 import { viewerHandlers } from './viewer';
@@ -153,6 +154,7 @@ export async function startDashboardHub(queries: QueryClient): Promise<void> {
       chatHandlers,
       externalChatHandlers,
       liveHandlers,
+      mediaShareHandlers,
       obsHandlers,
       viewerHandlers,
     ),

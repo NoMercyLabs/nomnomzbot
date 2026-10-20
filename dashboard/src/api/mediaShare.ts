@@ -10,11 +10,12 @@
 
 import {
   useMutation,
+  useQuery,
   useQueryClient,
   type UseMutationReturnType,
   type UseQueryReturnType,
 } from '@tanstack/vue-query';
-import { toValue, type MaybeRefOrGetter } from 'vue';
+import { computed, toValue, type MaybeRefOrGetter } from 'vue';
 
 import type { KeyParts } from '@/lib/array';
 
@@ -116,6 +117,86 @@ export function useReorderMediaShare(
         throw refusal('media share action', error, response.status);
     },
     onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({ queryKey: mediaShareQueueKey(toValue(channelId)) });
+    },
+  });
+}
+
+// What the media share overlay last reported. The bot has no read for it, so the realtime event fills it.
+export type MediaSharePlayerState = {
+  state: 'idle' | 'playing' | 'paused' | 'ended' | 'error';
+  requestId: string | null;
+  title: string | null;
+  sharerName: string | null;
+  thumbnailUrl: string | null;
+  positionSeconds: number;
+  durationSeconds: number;
+  volume: number;
+};
+
+export type MediaPlaybackCommand = 'play' | 'pause' | 'stop' | 'skip' | 'volume';
+
+export type MediaPlaybackRequest = { command: MediaPlaybackCommand; value?: number };
+
+export const mediaSharePlayerKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'media-share-player',
+];
+
+export function useMediaSharePlayer(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<MediaSharePlayerState | null, Error> {
+  const queries = useQueryClient();
+  const key = computed(() => mediaSharePlayerKey(toValue(channelId)));
+
+  return useQuery({
+    queryKey: key,
+    queryFn: () =>
+      queries.getQueryData<MediaSharePlayerState>(key.value) ?? null,
+    staleTime: Infinity,
+  });
+}
+
+// One player command through the bot's media_playback action; the bot then drives the overlay.
+export function useMediaSharePlayback(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, MediaPlaybackRequest, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation<void, Error, MediaPlaybackRequest, undefined>({
+    mutationFn: async ({ command, value }): Promise<void> => {
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/actions/run',
+        {
+          params: { path: { version, channelId: toValue(channelId) as string } },
+          body: {
+            actionType: 'media_playback',
+            parameters: { command, value: value === undefined
+              ? ''
+              : String(value) },
+          },
+        },
+      );
+
+      if (error !== undefined)
+        throw refusal('media share action', error, response.status);
+
+      if (data?.data?.success === false)
+        throw refusal('media share action', { detail: data.data.error }, 422);
+    },
+    onSuccess: async (_data, request): Promise<void> => {
+      const key = mediaSharePlayerKey(toValue(channelId));
+
+      if (request.command === 'volume' && request.value !== undefined) {
+        const volume = request.value;
+
+        queries.setQueryData<MediaSharePlayerState | null>(key, (player) =>
+          player
+            ? { ...player, volume }
+            : player);
+      }
+
       await queries.invalidateQueries({ queryKey: mediaShareQueueKey(toValue(channelId)) });
     },
   });
