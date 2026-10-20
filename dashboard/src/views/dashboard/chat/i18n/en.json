@@ -42,7 +42,8 @@
         "hexNote": "Twitch gives everyone 15 named colors. Any hex color needs Twitch Turbo or Prime.",
         "badges": "Badges",
         "noBadges": "You wear no badges in this channel.",
-        "badgeNote": "Badges come from this channel and from Twitch. Twitch has no way to choose which ones show."
+        "badgeNote": "Badges come from this channel and from Twitch. You choose which ones show on Twitch, in Chat Identity beside the chat box.",
+        "chooseBadges": "Choose on Twitch"
       },
       "display": {
         "toggle": "Display",

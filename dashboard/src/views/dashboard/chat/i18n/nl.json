@@ -42,7 +42,8 @@
         "hexNote": "Twitch geeft iedereen 15 benoemde kleuren. Elke hex-kleur vraagt Twitch Turbo of Prime.",
         "badges": "Badges",
         "noBadges": "Je draagt geen badges in dit kanaal.",
-        "badgeNote": "Badges komen van dit kanaal en van Twitch. Twitch laat je niet kiezen welke zichtbaar zijn."
+        "badgeNote": "Badges komen van dit kanaal en van Twitch. Je kiest op Twitch welke zichtbaar zijn, bij Chat Identity naast het chatvenster.",
+        "chooseBadges": "Kies op Twitch"
       },
       "display": {
         "toggle": "Weergave",

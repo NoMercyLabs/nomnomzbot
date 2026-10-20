@@ -36,7 +36,10 @@ vi.mock('@/api/client', () => ({ client: http }));
 vi.mock('@/api/access', () => ({ useChannelAccess: () => ({ can: () => true }) }));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({ channelId: computed(() => 'c1') }),
+  useCurrentChannel: () => ({
+    channelId: computed(() => 'c1'),
+    current: computed(() => ({ login: 'stoney_eagle' })),
+  }),
 }));
 
 const ok = { ok: true, status: 200 } as const satisfies Answer['response'];
@@ -118,5 +121,18 @@ describe('Chat identity panel', () => {
 
     expect(view.find('[data-test="regrant"]').exists()).toBe(true);
     expect(view.get('[data-test="swatch-blue"]').attributes('disabled')).toBeDefined();
+  });
+
+  it('says badges are chosen on Twitch and links to the channel chat popout', async () => {
+    const view = await open(identity);
+    const note = view.get('[data-test="badge-note"]').text();
+    const link = view.get('[data-test="choose-badges"]');
+
+    expect(note).not.toContain('no way');
+    expect(note).toContain('Chat Identity');
+    expect(link.text()).toBe('Choose on Twitch');
+    expect(link.attributes('href')).toBe('https://www.twitch.tv/popout/stoney_eagle/chat');
+    expect(link.attributes('target')).toBe('_blank');
+    expect(link.attributes('rel')).toContain('noopener');
   });
 });

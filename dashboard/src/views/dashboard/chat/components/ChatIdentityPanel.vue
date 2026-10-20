@@ -9,8 +9,8 @@
 -->
 <script setup lang="ts">
 // Chat identity: how the owner looks in Twitch chat. The name color can be set here; Twitch gives
-// everyone 15 named colors and only Turbo or Prime members any hex. Badges show as worn: Twitch has
-// no API to choose which badge a user displays.
+// everyone 15 named colors and only Turbo or Prime members any hex. Badges show as worn: the Twitch
+// API (checked 2026-10-20) cannot list a user's badges or set the worn one, so the choice links to Twitch chat.
 import { useQuery } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
 
@@ -26,7 +26,7 @@ import { Button } from '@/components/ui/button';
 import { ColorPicker } from '@/components/ui/color-picker';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
-const { channelId } = useCurrentChannel();
+const { channelId, current } = useCurrentChannel();
 // The identity and its color both check chat:read; the scope re-grant checks twitch:diagnostics:read.
 const access = useChannelAccess(channelId);
 const canRead = computed<boolean>(() => access.can('chat:read'));
@@ -38,6 +38,10 @@ const identityQuery = useChatIdentity(() =>
 const setColor = useSetChatColor(channelId);
 const regrant = useStartScopeRegrant();
 
+const badgePickerUrl = computed<string | null>(() =>
+  current.value
+    ? `https://www.twitch.tv/popout/${current.value.login}/chat`
+    : null);
 const identity = computed(() => identityQuery.data.value ?? null);
 const hex = ref('');
 const shownColor = computed(() => identity.value?.color ?? undefined);
@@ -194,6 +198,11 @@ function badgeImage(urls: Record<string, string>): string | undefined {
         <p class="text-xs text-muted-foreground" data-test="badge-note">
           {{ $t('dashboard.chat.identity.badgeNote') }}
         </p>
+        <Button v-if="badgePickerUrl" variant="outline" class="self-start" as-child>
+          <a :href="badgePickerUrl" target="_blank" rel="noopener noreferrer" data-test="choose-badges">
+            {{ $t('dashboard.chat.identity.chooseBadges') }}
+          </a>
+        </Button>
       </section>
     </div>
   </PanelCard>
