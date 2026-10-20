@@ -9,6 +9,7 @@
 -->
 <script setup lang="ts">
 // The person's own pronouns. A pick saves at once; the shown value is what the bot holds after the save.
+import type { AcceptableValue } from 'reka-ui';
 import { computed } from 'vue';
 
 import { useMyPronouns, usePronounCatalog, useSetMyPronouns } from '@/api/viewerAccount';
@@ -33,11 +34,11 @@ const state = usePanelState(catalog);
 const primary = computed<string>(() => String(mine.data.value?.pronounId ?? none));
 const alt = computed<string>(() => String(mine.data.value?.altPronounId ?? none));
 
-function pickPrimary(value: unknown): void {
+function pickPrimary(value: AcceptableValue): void {
   save.mutate({ pronounId: Number(value) });
 }
 
-function pickAlt(value: unknown): void {
+function pickAlt(value: AcceptableValue): void {
   save.mutate({ altPronounId: Number(value) });
 }
 </script>
