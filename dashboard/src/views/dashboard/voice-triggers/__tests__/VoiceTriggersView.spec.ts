@@ -299,3 +299,38 @@ describe('Voice triggers permission gating', () => {
     expect(buttonByText('Make the first voice trigger')).toBeUndefined();
   });
 });
+
+describe('VoiceTriggersView header listener', () => {
+  it('opens the listener link in a popup window from the header Popout button', async () => {
+    const popup = vi.spyOn(window, 'open').mockReturnValue(null);
+
+    await open();
+
+    const header = document.body.querySelector('[data-voice-listener-header]') as HTMLElement;
+    const button = header.querySelector<HTMLButtonElement>('[data-voice-listener-popout]') as HTMLButtonElement;
+
+    button.click();
+
+    expect(popup).toHaveBeenCalledWith('https://example.test/voice', 'nnz-voice-listener', 'popup,width=520,height=560');
+    popup.mockRestore();
+  });
+
+  it('shows the latest heard match beside the Popout button', async () => {
+    rows = [voice('a', { lastFiredAt: '2020-01-01T00:00:00Z' }), voice('b', { lastFiredAt: new Date().toISOString() })];
+    await open();
+
+    const status = document.body.querySelector('[data-voice-listener-header] [data-voice-listener-status]') as HTMLElement;
+
+    expect(status.textContent?.trim()).toBe('Last match: just now');
+    expect(status.dataset.tone).toBe('ok');
+  });
+
+  it('says no match yet when no trigger was heard', async () => {
+    await open();
+
+    const status = document.body.querySelector('[data-voice-listener-status]') as HTMLElement;
+
+    expect(status.textContent?.trim()).toBe('No match heard yet');
+    expect(status.dataset.tone).toBe('off');
+  });
+});

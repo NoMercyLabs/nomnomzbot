@@ -33,6 +33,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
 import NewVoiceTriggerDialog from './components/NewVoiceTriggerDialog.vue';
+import VoiceListenerHeader from './components/VoiceListenerHeader.vue';
 import VoiceTriggerEditor from './components/VoiceTriggerEditor.vue';
 
 const creating = ref(false);
@@ -81,6 +82,7 @@ function removeTrigger(item: VoiceTrigger): void {
     :crumb="$t('dashboard.voiceTriggers.crumb')"
   >
     <template #actions>
+      <VoiceListenerHeader :triggers="triggers.data.value ?? []" :link="listener.data.value" />
       <Button v-if="canWrite"
               type="button"
               variant="outline"

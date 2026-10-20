@@ -38,6 +38,12 @@
         "confirmBody": "Het woord stopt met tellen en de stand van {count} gaat verloren. Het plaatje blijft in je bestanden.",
         "confirmAction": "Spraaktrigger verwijderen"
       },
+      "listener": {
+        "popout": "Luisteraar openen",
+        "none": "Nog geen woord gehoord",
+        "justNow": "Laatst gehoord: zojuist",
+        "last": "Laatst gehoord: {ago}"
+      },
       "dialog": {
         "title": "Nieuwe spraaktrigger",
         "description": "Kies een woord dat meetelt als jij het zegt. Houd de luisterpagina open in Chrome.",

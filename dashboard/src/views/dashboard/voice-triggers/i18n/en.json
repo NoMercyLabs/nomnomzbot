@@ -38,6 +38,12 @@
         "confirmBody": "The word stops counting and its count of {count} is lost. The sticker image stays in your files.",
         "confirmAction": "Delete voice trigger"
       },
+      "listener": {
+        "popout": "Popout listener",
+        "none": "No match heard yet",
+        "justNow": "Last match: just now",
+        "last": "Last match: {ago}"
+      },
       "dialog": {
         "title": "New voice trigger",
         "description": "Pick a word to count when you say it. Keep the voice listener page open in Chrome.",
