@@ -23,7 +23,7 @@ import ViewerChannelFinder from './dashboard/ViewerChannelFinder.vue';
 <template>
   <TooltipProvider :delay-duration="300">
     <div class="min-h-svh bg-background text-foreground">
-      <header class="mx-auto flex w-full max-w-3xl items-center justify-between p-4">
+      <header class="mx-auto flex w-full max-w-3xl items-center justify-between px-6 py-4">
         <span class="flex items-center gap-2 text-base font-semibold">
           <AppMark />
           {{ $t('frame.brand') }}
@@ -33,10 +33,10 @@ import ViewerChannelFinder from './dashboard/ViewerChannelFinder.vue';
           <LanguagePicker />
         </span>
       </header>
-      <div class="mx-auto w-full max-w-3xl px-4">
+      <div data-slot="viewer-nav-row" class="mx-auto w-full max-w-3xl px-6">
         <ViewerNav />
       </div>
-      <main class="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 max-md:pb-24">
+      <main class="mx-auto flex w-full max-w-3xl flex-col gap-6 py-4 max-md:pb-24">
         <RouterView />
       </main>
     </div>

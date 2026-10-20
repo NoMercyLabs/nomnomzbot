@@ -91,93 +91,95 @@ function retry(): void {
 </script>
 
 <template>
-  <div class="flex items-center justify-between gap-3">
-    <h1 class="text-xl font-semibold">{{ $t('viewer.me.title', { channel: shown }) }}</h1>
-    <Button v-if="channel.data.value"
-            variant="outline"
-            size="sm"
-            as-child
-            data-viewer-chat-link
-    >
-      <RouterLink :to="{ name: 'viewer-chat', params: { channel: channelName } }">
-        {{ $t('viewer.me.chat') }}
-      </RouterLink>
-    </Button>
+  <div class="flex flex-col gap-6 px-6">
+    <div class="flex items-center justify-between gap-3">
+      <h1 class="text-xl font-semibold">{{ $t('viewer.me.title', { channel: shown }) }}</h1>
+      <Button v-if="channel.data.value"
+              variant="outline"
+              size="sm"
+              as-child
+              data-viewer-chat-link
+      >
+        <RouterLink :to="{ name: 'viewer-chat', params: { channel: channelName } }">
+          {{ $t('viewer.me.chat') }}
+        </RouterLink>
+      </Button>
+    </div>
+
+    <div v-if="channel.isError.value" class="flex flex-col items-start gap-3" role="alert">
+      <p class="text-sm">{{ $t('viewer.me.notFound') }}</p>
+      <Button variant="outline" size="sm" @click="retry">{{ $t('viewer.me.retry') }}</Button>
+    </div>
+
+    <template v-else>
+      <p v-if="summary.isError.value" class="text-sm text-destructive" role="alert">
+        {{ $t('viewer.me.stats.error') }}
+      </p>
+      <StatStrip v-else-if="summary.data.value" data-viewer-stats>
+        <StatTile
+          :label="$t('viewer.me.stats.messages')"
+          :value="Number(summary.data.value.totalMessages)"
+        />
+        <StatTile
+          :label="$t('viewer.me.stats.commands')"
+          :value="Number(summary.data.value.totalCommandsUsed)"
+        />
+        <StatTile
+          v-if="summary.data.value.songRequestsEnabled"
+          :label="$t('viewer.me.stats.songs')"
+          :value="Number(summary.data.value.totalSongRequests)"
+        />
+        <StatTile
+          v-if="summary.data.value.pointsEnabled"
+          :label="$t('viewer.me.stats.points')"
+          :value="Number(summary.data.value.balance ?? 0)"
+        />
+        <StatTile
+          :label="$t('viewer.me.stats.follow')"
+          :value="followLine(summary.data.value)"
+        />
+        <StatTile :label="$t('viewer.me.stats.sub')" :value="subLine(summary.data.value)" />
+        <StatTile :label="$t('viewer.me.stats.live')" :value="liveLine(summary.data.value)" />
+      </StatStrip>
+
+      <p
+        v-if="requestsClosed"
+        class="rounded-lg border bg-muted p-3 text-sm text-muted-foreground"
+        role="status"
+        data-queue-closed
+      >
+        {{ $t('viewer.me.queue.closed') }}
+      </p>
+
+      <PanelCard
+        v-if="summary.data.value?.songRequestsEnabled !== false"
+        :title="$t('viewer.me.queue.title')"
+        :description="$t('viewer.me.queue.description')"
+        :state="queuePanel"
+        :empty-text="$t('viewer.me.queue.empty')"
+        :error-text="$t('viewer.me.queue.error')"
+        data-viewer-queue
+        @retry="queue.refetch()"
+      >
+        <RowGroup>
+          <SummaryRow
+            v-for="song in songs"
+            :key="song.code ?? song.position"
+            :title="song.trackName"
+            :detail="song.artist"
+            :meta="formatClock(Number(song.durationMs))"
+          >
+            <template #end>
+              <span class="pr-3 text-sm font-medium tabular-nums">{{ place(song) }}</span>
+            </template>
+          </SummaryRow>
+        </RowGroup>
+        <template v-if="queue.data.value" #footer>
+          <p class="text-sm text-muted-foreground">
+            {{ $t('viewer.me.queue.total', { count: queue.data.value.queueLength }) }}
+          </p>
+        </template>
+      </PanelCard>
+    </template>
   </div>
-
-  <div v-if="channel.isError.value" class="flex flex-col items-start gap-3" role="alert">
-    <p class="text-sm">{{ $t('viewer.me.notFound') }}</p>
-    <Button variant="outline" size="sm" @click="retry">{{ $t('viewer.me.retry') }}</Button>
-  </div>
-
-  <template v-else>
-    <p v-if="summary.isError.value" class="text-sm text-destructive" role="alert">
-      {{ $t('viewer.me.stats.error') }}
-    </p>
-    <StatStrip v-else-if="summary.data.value" data-viewer-stats>
-      <StatTile
-        :label="$t('viewer.me.stats.messages')"
-        :value="Number(summary.data.value.totalMessages)"
-      />
-      <StatTile
-        :label="$t('viewer.me.stats.commands')"
-        :value="Number(summary.data.value.totalCommandsUsed)"
-      />
-      <StatTile
-        v-if="summary.data.value.songRequestsEnabled"
-        :label="$t('viewer.me.stats.songs')"
-        :value="Number(summary.data.value.totalSongRequests)"
-      />
-      <StatTile
-        v-if="summary.data.value.pointsEnabled"
-        :label="$t('viewer.me.stats.points')"
-        :value="Number(summary.data.value.balance ?? 0)"
-      />
-      <StatTile
-        :label="$t('viewer.me.stats.follow')"
-        :value="followLine(summary.data.value)"
-      />
-      <StatTile :label="$t('viewer.me.stats.sub')" :value="subLine(summary.data.value)" />
-      <StatTile :label="$t('viewer.me.stats.live')" :value="liveLine(summary.data.value)" />
-    </StatStrip>
-
-    <p
-      v-if="requestsClosed"
-      class="rounded-lg border bg-muted p-3 text-sm text-muted-foreground"
-      role="status"
-      data-queue-closed
-    >
-      {{ $t('viewer.me.queue.closed') }}
-    </p>
-
-    <PanelCard
-      v-if="summary.data.value?.songRequestsEnabled !== false"
-      :title="$t('viewer.me.queue.title')"
-      :description="$t('viewer.me.queue.description')"
-      :state="queuePanel"
-      :empty-text="$t('viewer.me.queue.empty')"
-      :error-text="$t('viewer.me.queue.error')"
-      data-viewer-queue
-      @retry="queue.refetch()"
-    >
-      <RowGroup>
-        <SummaryRow
-          v-for="song in songs"
-          :key="song.code ?? song.position"
-          :title="song.trackName"
-          :detail="song.artist"
-          :meta="formatClock(Number(song.durationMs))"
-        >
-          <template #end>
-            <span class="pr-3 text-sm font-medium tabular-nums">{{ place(song) }}</span>
-          </template>
-        </SummaryRow>
-      </RowGroup>
-      <template v-if="queue.data.value" #footer>
-        <p class="text-sm text-muted-foreground">
-          {{ $t('viewer.me.queue.total', { count: queue.data.value.queueLength }) }}
-        </p>
-      </template>
-    </PanelCard>
-  </template>
 </template>
