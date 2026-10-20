@@ -31,6 +31,7 @@ import { Switch } from '@/components/ui/switch';
 import { Textarea } from '@/components/ui/textarea';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { boundTarget, targetToWire, type PickedTarget } from '@/lib/bindingTarget';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
 type TextKey = 'title' | 'prompt' | 'response' | 'backgroundColor';
@@ -84,7 +85,9 @@ const flags = ref<Record<FlagKey, boolean>>({
   isUserInputRequired: false,
 });
 const mode = ref<ReplyMode>('simple');
-const pipelineId = ref('');
+// What the reward runs now (a pipeline, a command or an action) and what the form picked.
+const bound = ref<PickedTarget | null>(null);
+const target = ref<PickedTarget | null>(null);
 // Twitch's limits: a reward title holds 45 characters, its description 200, a chat message 500.
 const TITLE_MAX = 45;
 const PROMPT_MAX = 200;
@@ -121,9 +124,10 @@ function load(reward: Reward): void {
     isUserInputRequired: reward.isUserInputRequired,
   };
 
-  pipelineId.value = reward.pipelineId ?? '';
+  bound.value = boundTarget(reward.target, reward.pipelineId);
+  target.value = bound.value;
 
-  mode.value = reward.pipelineId
+  mode.value = bound.value !== null
     ? 'full'
     : 'simple';
 
@@ -167,11 +171,25 @@ const limitsSummary = computed(() => {
     : parts.join(' · ');
 });
 
-// Simple mode sends the typed reply and clears the pipeline; pipeline mode sends the pipeline and clears the reply.
-function replyChange(): Pick<RewardChange, 'response' | 'pipelineId'> {
-  return mode.value === 'simple'
-    ? { response: text.value.response, pipelineId: noPipelineId }
-    : { response: '', pipelineId: pipelineId.value || undefined };
+// Simple mode sends the typed reply and clears the binding; pipeline mode sends the target and clears the reply.
+// A pipeline travels as its id, as before; a command or action travels as a target, and a target wins over the id.
+function replyChange(): Pick<RewardChange, 'response' | 'pipelineId' | 'target'> {
+  const leavingOther = bound.value !== null && bound.value.kind !== 'pipeline';
+
+  if (mode.value === 'simple') {
+    return {
+      response: text.value.response,
+      pipelineId: noPipelineId,
+      ...(leavingOther
+        ? { target: targetToWire(null) }
+        : {}),
+    };
+  }
+
+  if (target.value?.kind === 'pipeline' && !leavingOther)
+    return { response: '', pipelineId: target.value.id };
+
+  return { response: '', target: targetToWire(target.value) };
 }
 
 function changeOf() {
@@ -343,7 +361,8 @@ async function submit(): Promise<void> {
       <div class="grid gap-2 md:col-span-3">
         <ReplyModeField
           v-model:mode="mode"
-          v-model:pipeline-id="pipelineId"
+          v-model:target="target"
+          :kinds="['command', 'pipeline', 'action']"
           :new-pipeline-name="reward.title"
           :disabled="!reward.isManageable"
         >

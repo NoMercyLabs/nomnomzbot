@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
+import { chooseTarget, openTargetPicker } from '@/components/layout/__tests__/targetPickerDom';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { i18n } from '@/i18n';
 
@@ -80,6 +81,9 @@ function read(path: string): unknown {
 
   if (path.endsWith('/rewards'))
     return ok([reward]);
+
+  if (path.endsWith('/commands'))
+    return ok([{ id: 'c1', name: 'hello' }]);
 
   if (path.endsWith('/pipelines'))
     return { data: { data: [{ id: 'p1', name: 'Drink water' }], hasMore: false }, response: { status: 200 } };
@@ -345,6 +349,23 @@ describe('ChannelPointsView', () => {
 
       return calls.find((call) => call.method === 'PATCH');
     }
+
+    it('saves a command as the thing a redemption runs, as every other reply surface can', async () => {
+      Element.prototype.hasPointerCapture = (): boolean => false;
+      Element.prototype.releasePointerCapture = (): void => undefined;
+      Element.prototype.scrollIntoView = (): void => undefined;
+
+      await openDialog();
+      await chooseMode('full');
+      await openTargetPicker(pick('[data-reply-pipeline]'));
+      await chooseTarget('!hello');
+      await flushPromises();
+
+      const body = (await save())?.body as Record<string, unknown>;
+
+      expect(body.target).toEqual({ kind: 0, id: 'c1' });
+      expect(body.response).toBe('');
+    });
 
     it('counts each text field against its Twitch limit and stops typing at the limit', async () => {
       await openDialog();
