@@ -38,9 +38,9 @@ const action = (key: string, over: Record<string, unknown> = {}) => ({
   actionKey: key,
   plane: 0,
   description: `${key} description`,
-  shippedDefaultLevel: 4,
+  shippedDefaultLevel: 10,
   platformDefaultLevel: null,
-  effectiveDefaultLevel: 4,
+  effectiveDefaultLevel: 10,
   floorLevel: 0,
   floorTier: 2,
   channelOverrideCount: 3,
@@ -50,10 +50,10 @@ const action = (key: string, over: Record<string, unknown> = {}) => ({
 const actions = [
   action('moderation.ban'),
   action('timers.create', {
-    shippedDefaultLevel: 6,
-    effectiveDefaultLevel: 5,
-    platformDefaultLevel: 5,
-    floorLevel: 3,
+    shippedDefaultLevel: 30,
+    effectiveDefaultLevel: 20,
+    platformDefaultLevel: 20,
+    floorLevel: 6,
   }),
 ];
 
@@ -355,7 +355,7 @@ describe('AdminPlatformDefaultsView', () => {
     expect(applyButton().disabled).toBe(false);
 
     affected = 40;
-    await choose('3');
+    await choose('4');
 
     expect(preview()?.textContent).toContain('40 channels');
     expect(preview()?.textContent).not.toContain('12 channels');
@@ -363,7 +363,7 @@ describe('AdminPlatformDefaultsView', () => {
     applyButton().click();
     await settle();
 
-    expect(puts[0]?.body).toMatchObject({ level: 3, confirmedChannelsAffected: 40 });
+    expect(puts[0]?.body).toMatchObject({ level: 4, confirmedChannelsAffected: 40 });
   });
 
   it('asks for a danger confirmation when the server says so, and sends it', async () => {
@@ -404,8 +404,8 @@ describe('AdminPlatformDefaultsView', () => {
 
     const values = Array.from(levelSelect().options).map((option) => option.value);
 
-    expect(values).toEqual(['shipped', '3', '4', '5', '6', '7']);
-    expect(levelSelect().value).toBe('5');
+    expect(values).toEqual(['shipped', '6', '10', '20', '30', '40']);
+    expect(levelSelect().value).toBe('20');
   });
 
   it('shows the forbidden text when the server refuses the list', async () => {

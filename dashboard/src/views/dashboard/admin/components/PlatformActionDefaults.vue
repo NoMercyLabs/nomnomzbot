@@ -20,6 +20,7 @@ import {
   useSaveActionDefault,
   type ActionDefault,
 } from '@/api/adminPlatformDefaults';
+import { rungNames, rungOf, rungs as ladder } from '@/api/permissions';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
@@ -32,7 +33,6 @@ import { usePlatformDefaultPreview } from '@/composables/usePlatformDefaultPrevi
 import PlatformDefaultPreview from './PlatformDefaultPreview.vue';
 
 const SHIPPED = 'shipped';
-const LEVEL_COUNT = 8;
 
 const { t } = useI18n();
 const { can } = usePlatformCan();
@@ -44,8 +44,11 @@ const editing = ref<ActionDefault | null>(null);
 const choice = ref<string>(SHIPPED);
 const failure = ref<string>();
 
+// The server sends a ladder level (0, 2, 4, 6, 10, 20, 30, 40); the page words are keyed by the rung's place on the ladder.
+const rungPlace = (level: number | string): number => rungNames.indexOf(rungOf(level));
+
 const levelName = (level: number | string): string =>
-  t(`dashboard.admin.platformDefaults.levels.${Number(level)}`);
+  t(`dashboard.admin.platformDefaults.levels.${rungPlace(level)}`);
 
 // A chosen value is a rung number, or the word for "back to the shipped default" (sent as a null level).
 const chosenLevel = (): number | null =>
@@ -60,7 +63,7 @@ const preview = usePlatformDefaultPreview(() =>
 const rungs = computed<number[]>(() => {
   const floor = Number(editing.value?.floorLevel ?? 0);
 
-  return Array.from(Array(LEVEL_COUNT).keys()).filter((rung): boolean => rung >= floor);
+  return ladder.map((rung): number => rung.level).filter((level): boolean => level >= floor);
 });
 
 const shippedOption = computed<string>(() =>
