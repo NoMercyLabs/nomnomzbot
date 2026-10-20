@@ -377,7 +377,9 @@ function applySettings(s: Record<string, unknown>): void {
   if (typeof s.accentColor === 'string') cfg.accentColor = s.accentColor;
   const flags = ['showSubs', 'showRaids', 'showChatters', 'showSongs', 'showBits', 'showFollowers', 'showRedemptions', 'showTopCommands'] as const;
   flags.forEach((flag) => {
-    if (typeof s[flag] === 'boolean') cfg[flag] = s[flag];
+    const value = s[flag];
+
+    if (typeof value === 'boolean') cfg[flag] = value;
   });
   if (Array.isArray(s.metrics)) {
     const known: readonly string[] = ALL_METRICS;
@@ -390,7 +392,7 @@ function applySettings(s: Record<string, unknown>): void {
 onMounted(() => {
   if (typeof NomNomz === 'undefined') return;
   NomNomz.onSettings((s: NnzWidgetSettings) => {
-    if (s && typeof s === 'object') applySettings(s as Record<string, unknown>);
+    if (s && typeof s === 'object') applySettings({ ...s });
   });
   // The recap event is not in the typed event map yet; the payload is the bot's StreamRecapDto.
   NomNomz.on('raid_recap.show' as keyof NnzWidgetEventMap, onShow as never);
