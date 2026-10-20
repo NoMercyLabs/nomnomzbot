@@ -217,6 +217,11 @@ public class OverlayHub : Hub<IOverlayClient>
             }
             _inbox.NotifyChanged(broadcasterId);
         }
+        else if (naturalKey == OverlayPresenceRegistry.TtsSourceNaturalKey)
+        {
+            _presence.MarkTtsSource(Context.ConnectionId);
+            _inbox.NotifyChanged(broadcasterId);
+        }
         else if (WidgetKeyAliases.Canonical(naturalKey) == WidgetKeyAliases.MusicPlayer)
         {
             (string ConnectionId, Guid? WidgetId)? displaced = _presence.MarkMusicSource(

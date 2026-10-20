@@ -6,8 +6,8 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 // (NnzWidgetSettings) and the payload of each event come from this widget's own SDK types.
 
 // Speaking indicator + caption for TTS. Driven by the "tts_speak" widget event —
-// { text, voice, user, durationMs } (pushable today via the widget_event pipeline action; TTS audio
-// itself rides the host page's audio bus via PlaySound, so this widget only renders the caption).
+// { text, voice, user, durationMs }. The TTS audio itself plays on this page: the server sends its raw
+// TtsSpeak here while this page is open, and the SDK plays it; this widget renders the caption.
 // Idle (hidden) until an event arrives; hides again when the utterance's duration elapses.
 const cfg = reactive<NnzWidgetSettings>({
   showText: true,

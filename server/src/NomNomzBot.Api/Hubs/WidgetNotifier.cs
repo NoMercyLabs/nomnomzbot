@@ -104,6 +104,15 @@ public class WidgetNotifier : IWidgetNotifier
         return connectionId is null ? null : _hub.Clients.Client(connectionId);
     }
 
+    // Spoken messages play on the newest TTS page; with none open, on the Bot Audio page.
+    private IOverlayClient? TtsPage(string broadcasterId)
+    {
+        string? connectionId = Guid.TryParse(broadcasterId, out Guid parsed)
+            ? _presence.GetTtsTarget(parsed)
+            : null;
+        return connectionId is null ? null : _hub.Clients.Client(connectionId);
+    }
+
     // Audio plays on exactly one page: the registry names it, nothing is sent when no page is open.
     private IOverlayClient? AudioPage(string broadcasterId)
     {
@@ -162,13 +171,13 @@ public class WidgetNotifier : IWidgetNotifier
         string broadcasterId,
         TtsSpeakPayload payload,
         CancellationToken ct = default
-    ) => AudioPage(broadcasterId)?.TtsSpeak(payload) ?? Task.CompletedTask;
+    ) => TtsPage(broadcasterId)?.TtsSpeak(payload) ?? Task.CompletedTask;
 
     public Task TtsQueueControlAsync(
         string broadcasterId,
         string action,
         CancellationToken ct = default
-    ) => AudioPage(broadcasterId)?.TtsQueueControl(new(action)) ?? Task.CompletedTask;
+    ) => TtsPage(broadcasterId)?.TtsQueueControl(new(action)) ?? Task.CompletedTask;
 
     public Task BroadcastOverlayEventAsync(
         string broadcasterId,
