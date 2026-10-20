@@ -166,6 +166,37 @@ describe('Features page', () => {
     expect(switchOf('ai').disabled).toBe(true);
   });
 
+  it('groups the features by area in a fixed order and puts unknown keys last', async () => {
+    const make = (featureKey: string, label: string): Feature => ({
+      featureKey,
+      label,
+      description: `${label} text.`,
+      isEnabled: false,
+      requiredScopes: [],
+      entitled: true,
+    });
+
+    features = [
+      make('tts', 'Text to speech'),
+      make('custom_code', 'Custom Code'),
+      make('use_7tv', '7TV Emotes'),
+      make('use_chat_html', 'Chat HTML Fragments'),
+    ];
+
+    await open();
+
+    const areas = Array.from(document.body.querySelectorAll<HTMLElement>('[data-area]'));
+    const keysIn = (area: HTMLElement): (string | null)[] =>
+      Array.from(area.querySelectorAll('[data-feature]')).map((item) => item.getAttribute('data-feature'));
+
+    expect(areas.map((area) => area.getAttribute('data-area'))).toEqual(['chat', 'automation', 'other']);
+    expect(keysIn(areas[0] as HTMLElement)).toEqual(['use_7tv', 'use_chat_html']);
+    expect(keysIn(areas[1] as HTMLElement)).toEqual(['custom_code']);
+    expect(keysIn(areas[2] as HTMLElement)).toEqual(['tts']);
+    expect(areas[0]?.querySelector('h3')?.textContent).toBe(en.dashboard.settings.features.areas.chat);
+    expect(areas[1]?.querySelector('h3')?.textContent).toBe(en.dashboard.settings.features.areas.automation);
+  });
+
   it('toggles one feature with a POST for its key and shows the new state', async () => {
     await open();
     await click(switchOf('clips'));

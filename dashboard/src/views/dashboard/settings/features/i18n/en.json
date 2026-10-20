@@ -6,6 +6,11 @@
         "description": "Switch on the parts of NomNomzBot your channel uses. Each switch takes effect right away.",
         "loadFailed": "The features could not be loaded.",
         "empty": "No features are available for this channel.",
+        "areas": {
+          "chat": "Chat",
+          "automation": "Automation",
+          "other": "More features"
+        },
         "upgrade": "Higher plan",
         "scopes": "Needs these Twitch permissions: {scopes}",
         "since": "On since {date}"

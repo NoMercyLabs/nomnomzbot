@@ -26,6 +26,8 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useTime } from '@/composables/useTime';
 import { errorText } from '@/lib/errors';
 
+import { groupByArea } from './featureAreas';
+
 const { t } = useI18n();
 const time = useTime();
 const { channelId } = useCurrentChannel();
@@ -36,6 +38,7 @@ const error = ref<string | undefined>(undefined);
 const busyKey = ref<string | undefined>(undefined);
 
 const rows = computed(() => features.data.value ?? []);
+const areas = computed(() => groupByArea(rows.value));
 
 const state = computed<PanelState>(() => {
   if (features.isError.value)
@@ -90,38 +93,43 @@ async function flip(feature: ChannelFeature): Promise<void> {
       :empty-text="$t('dashboard.settings.features.empty')"
       @retry="features.refetch()"
     >
-      <RowGroup>
-        <div
-          v-for="feature in rows"
-          :key="feature.featureKey"
-          :data-feature="feature.featureKey"
-          class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
-        >
-          <div class="min-w-0 flex-1">
-            <span class="flex flex-wrap items-center gap-2">
-              <span :id="`feature-${feature.featureKey}`" class="text-sm font-medium wrap-break-word">{{ feature.label }}</span>
-              <Badge v-if="!feature.entitled" variant="outline">
-                {{ feature.requiredTier ?? $t('dashboard.settings.features.upgrade') }}
-              </Badge>
-            </span>
-            <span class="block text-sm text-muted-foreground">{{ feature.description }}</span>
-            <span v-if="!feature.entitled && feature.entitlementReason" class="block text-sm text-muted-foreground">
-              {{ feature.entitlementReason }}
-            </span>
-            <span v-if="feature.requiredScopes.length > 0" class="block text-sm text-muted-foreground">
-              {{ scopeLine(feature) }}
-            </span>
-            <span v-if="since(feature)" class="block text-sm text-muted-foreground">{{ since(feature) }}</span>
-          </div>
-          <GatedSwitch
-            action="feature:write"
-            :model-value="feature.isEnabled"
-            :disabled="!feature.entitled || busyKey !== undefined"
-            :aria-labelledby="`feature-${feature.featureKey}`"
-            @update:model-value="flip(feature)"
-          />
-        </div>
-      </RowGroup>
+      <div class="flex flex-col gap-4">
+        <section v-for="area in areas" :key="area.id" :data-area="area.id" class="flex flex-col gap-2">
+          <h3 class="px-1 text-sm font-medium">{{ $t(`dashboard.settings.features.areas.${area.id}`) }}</h3>
+          <RowGroup>
+            <div
+              v-for="feature in area.features"
+              :key="feature.featureKey"
+              :data-feature="feature.featureKey"
+              class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
+            >
+              <div class="min-w-0 flex-1">
+                <span class="flex flex-wrap items-center gap-2">
+                  <span :id="`feature-${feature.featureKey}`" class="text-sm font-medium wrap-break-word">{{ feature.label }}</span>
+                  <Badge v-if="!feature.entitled" variant="outline">
+                    {{ feature.requiredTier ?? $t('dashboard.settings.features.upgrade') }}
+                  </Badge>
+                </span>
+                <span class="block text-sm text-muted-foreground">{{ feature.description }}</span>
+                <span v-if="!feature.entitled && feature.entitlementReason" class="block text-sm text-muted-foreground">
+                  {{ feature.entitlementReason }}
+                </span>
+                <span v-if="feature.requiredScopes.length > 0" class="block text-sm text-muted-foreground">
+                  {{ scopeLine(feature) }}
+                </span>
+                <span v-if="since(feature)" class="block text-sm text-muted-foreground">{{ since(feature) }}</span>
+              </div>
+              <GatedSwitch
+                action="feature:write"
+                :model-value="feature.isEnabled"
+                :disabled="!feature.entitled || busyKey !== undefined"
+                :aria-labelledby="`feature-${feature.featureKey}`"
+                @update:model-value="flip(feature)"
+              />
+            </div>
+          </RowGroup>
+        </section>
+      </div>
       <p v-if="error" role="alert" class="px-3 pt-3 text-sm text-destructive">{{ error }}</p>
     </PanelCard>
   </PageBody>
