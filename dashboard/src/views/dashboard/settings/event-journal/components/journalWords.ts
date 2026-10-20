@@ -78,12 +78,23 @@ export function isEventSource(source: string): source is EventSource {
   return EVENT_SOURCES.some((known) => known === source);
 }
 
-// A kind with no phrase reads as its own name in words: ObsStreamingStateChangedEvent -> "Obs streaming state changed".
+// Short names a person knows by their letters, written as letters wherever they stand in an event name.
+const LETTER_WORDS = ['obs', 'tts', 'vip'] as const;
+
+// A kind with no phrase reads as its own name in words: ObsStreamingStateChangedEvent -> "OBS streaming state changed",
+// channel.chat.message -> "Channel chat message".
 export function spokenEventName(type: string): string {
   const words = type
     .replace(/Event$/, '')
     .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
-    .toLowerCase();
+    .replace(/[._]+/g, ' ')
+    .toLowerCase()
+    .split(' ')
+    .map((word) =>
+      LETTER_WORDS.some((letters) => letters === word)
+        ? word.toUpperCase()
+        : word)
+    .join(' ');
 
   return words.charAt(0).toUpperCase() + words.slice(1);
 }

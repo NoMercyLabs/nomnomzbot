@@ -67,7 +67,7 @@ const journalPage = {
 };
 
 // A test that needs other rows sets them here; null keeps the two rows above.
-const listed = { items: null as JournalEntry[] | null };
+const listed = { items: null as JournalEntry[] | null, total: null as number | null };
 
 const bot = (eventId: string, eventType: string, occurredAt: string): JournalEntry => ({
   eventId,
@@ -139,7 +139,11 @@ vi.mock('@/api/client', () => ({
       }
 
       return {
-        data: { data: { ...journalPage, items: listed.items ?? journalPage.items } },
+        data: { data: {
+          ...journalPage,
+          items: listed.items ?? journalPage.items,
+          totalCount: listed.total ?? journalPage.totalCount,
+        } },
         response: { status: 200, ok: true },
       };
     },
@@ -195,6 +199,7 @@ beforeEach(() => {
   held.keys = null;
   slow.gate = null;
   listed.items = null;
+  listed.total = null;
   i18n.global.mergeLocaleMessage('en', en);
   setActivePinia(createPinia());
 });
@@ -412,7 +417,7 @@ describe('Event journal list', () => {
     expect(rows[0]!.querySelector('time')).not.toBeNull();
     expect(rows[0]!.textContent).not.toContain('42');
     expect(rows[0]!.textContent).not.toContain('FollowEvent');
-    expect(rows[1]!.querySelector('[data-what]')!.textContent).toBe('Obs streaming state changed');
+    expect(rows[1]!.querySelector('[data-what]')!.textContent).toBe('OBS streaming state changed');
     // The bot journals most events (a follow too) without a person; the row says so instead of naming the bot.
     expect(rows[1]!.querySelector('[data-who]')!.textContent!.trim()).toBe('Not recorded');
     expect(document.body.querySelector('thead')!.textContent).not.toContain('Position');
@@ -482,6 +487,23 @@ describe('Event journal list', () => {
     expect(rows[0]!.querySelector('[data-what]')!.textContent).toContain('Community standing changed');
     expect(rows[0]!.querySelector('[data-repeat]')!.textContent).toBe('3 times');
     expect(rows[1]!.querySelector('[data-repeat]')).toBeNull();
+  });
+
+  it('reads a dotted or short-named event as words and writes a big page count with separators', async () => {
+    window.localStorage.clear();
+
+    listed.items = [
+      bot('b2', 'channel.chat.message', '2026-10-01T09:10:00Z'),
+      bot('b1', 'TtsUtteranceDispatchedEvent', '2026-10-01T09:00:00Z'),
+    ];
+
+    listed.total = 1_423_155;
+    await open();
+
+    const what = [...document.body.querySelectorAll('[data-what]')].map((cell) => cell.textContent);
+
+    expect(what).toEqual(['Channel chat message', 'TTS utterance dispatched']);
+    expect(document.body.querySelector('[role="status"]')!.textContent).toContain('56,927');
   });
 
   it('names each date field and the source filter so neither reads as the other', async () => {

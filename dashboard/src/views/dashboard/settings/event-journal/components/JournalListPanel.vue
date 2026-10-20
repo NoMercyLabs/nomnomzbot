@@ -213,7 +213,7 @@ function clear(): void {
     </Table>
     <template #footer>
       <span class="text-sm text-muted-foreground tabular-nums" role="status">
-        {{ $t('dashboard.settings.eventJournal.list.page', { page, pages }) }}
+        {{ $t('dashboard.settings.eventJournal.list.page', { page: $n(page), pages: $n(pages) }) }}
       </span>
       <div class="ml-auto flex items-center gap-2">
         <Button variant="outline"
