@@ -24,8 +24,8 @@ import {
   useSaveSpotifyCredentials,
   useSpotifyCredentials,
 } from '@/api/integrations';
-import PanelCard from '@/components/layout/PanelCard.vue';
 import StoredCredentialRow, { type CredentialField } from '@/components/layout/StoredCredentialRow.vue';
+import { Button } from '@/components/ui/button';
 import type { PanelState } from '@/composables/usePanelState';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
@@ -150,36 +150,35 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <PanelCard
-    data-view="spotify-credentials"
-    pad
-    :title="$t('dashboard.settings.integrations.spotify.title')"
-    :description="$t('dashboard.settings.integrations.spotify.description')"
-    :state="state"
-    :error-text="$t('dashboard.settings.integrations.spotify.loadFailed')"
-    @retry="credentials.refetch()"
-  >
-    <StoredCredentialRow
-      v-model:open="open"
-      :title="title"
-      :detail="detail"
-      :edit-label="editLabel"
-      :dialog-title="$t('dashboard.settings.integrations.spotify.dialogTitle')"
-      :dialog-description="hasSharedApp
-        ? $t('dashboard.settings.integrations.spotify.descriptionShared')
-        : $t('dashboard.settings.integrations.spotify.dialogDescription')"
-      :save-label="$t('dashboard.settings.integrations.spotify.save')"
-      :remove-label="hasSharedApp
-        ? $t('dashboard.settings.integrations.spotify.clearShared')
-        : $t('dashboard.settings.integrations.spotify.clear')"
-      :fields="fields"
-      :removable="hasOwnApp"
-      :pending="save.isPending.value"
-      :removing="clear.isPending.value"
-      :error="error"
-      remove-action="clear-spotify"
-      @submit="submit"
-      @remove="remove"
-    />
-  </PanelCard>
+  <p v-if="state === 'error'" role="alert" data-view="spotify-credentials" class="mt-1 text-sm text-destructive">
+    {{ $t('dashboard.settings.integrations.spotify.loadFailed') }}
+    <Button variant="outline" size="sm" type="button" @click="credentials.refetch()">
+      {{ $t('dashboard.settings.integrations.spotify.retry') }}
+    </Button>
+  </p>
+
+  <StoredCredentialRow
+    v-else-if="state === 'ready'"
+    v-model:open="open"
+    inline
+    :title="title"
+    :detail="detail"
+    :edit-label="editLabel"
+    :dialog-title="$t('dashboard.settings.integrations.spotify.dialogTitle')"
+    :dialog-description="hasSharedApp
+      ? $t('dashboard.settings.integrations.spotify.descriptionShared')
+      : $t('dashboard.settings.integrations.spotify.dialogDescription')"
+    :save-label="$t('dashboard.settings.integrations.spotify.save')"
+    :remove-label="hasSharedApp
+      ? $t('dashboard.settings.integrations.spotify.clearShared')
+      : $t('dashboard.settings.integrations.spotify.clear')"
+    :fields="fields"
+    :removable="hasOwnApp"
+    :pending="save.isPending.value"
+    :removing="clear.isPending.value"
+    :error="error"
+    remove-action="clear-spotify"
+    @submit="submit"
+    @remove="remove"
+  />
 </template>

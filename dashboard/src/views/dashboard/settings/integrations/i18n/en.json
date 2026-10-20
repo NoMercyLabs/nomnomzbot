@@ -44,8 +44,7 @@
           "description": "These parts of your channel stop working until you connect it again."
         },
         "spotify": {
-          "title": "Spotify app",
-          "description": "The Spotify app your channel connects through.",
+          "retry": "Try again",
           "dialogTitle": "Your own Spotify app",
           "dialogDescription": "Add your own Spotify app to connect Spotify. The secret is stored sealed and never shown again.",
           "descriptionShared": "Use your own Spotify app instead of the shared one. The secret is stored sealed and never shown again.",

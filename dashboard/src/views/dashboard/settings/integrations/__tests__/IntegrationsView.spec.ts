@@ -361,8 +361,8 @@ describe('Integrations page without the write key', () => {
 });
 
 describe('Spotify own app', () => {
-  const panel = (): HTMLElement =>
-    document.body.querySelector<HTMLElement>('[data-view="spotify-credentials"]') as HTMLElement;
+  // The app in use lives on the Spotify row itself, not in a card of its own.
+  const panel = (): HTMLElement => row('spotify');
   const field = (name: string): HTMLInputElement | null =>
     document.body.querySelector<HTMLInputElement>(`input[name="${name}"]`);
   const dialog = (): HTMLElement | null =>
@@ -384,6 +384,15 @@ describe('Spotify own app', () => {
     expect(field('clientId')).toBeNull();
     expect(field('clientSecret')).toBeNull();
     expect(dialog()).toBeNull();
+  });
+
+  it('puts the app line and the Edit button inside the Spotify row, and no other row carries them', async () => {
+    await open();
+
+    expect(panel().querySelector('[data-slot="stored-credential"]')?.textContent).toContain(words.ownApp);
+    expect(panel().querySelector('[data-action="edit-credentials"]')).not.toBeNull();
+    expect(document.body.querySelectorAll('[data-action="edit-credentials"]')).toHaveLength(1);
+    expect(document.body.querySelector('[data-view="spotify-credentials"]')).toBeNull();
   });
 
   it('opens the form in a dialog from Edit, with the stored client id and never the secret', async () => {

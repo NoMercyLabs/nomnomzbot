@@ -48,8 +48,12 @@ const props = withDefaults(
     error?: string;
     // The data-action of the remove button, so a page keeps its own hooks.
     removeAction?: string;
+    // Inside another row (the service row of a connected service): the app in use as two muted lines and a
+    // small Edit button, with no row group of its own.
+    inline?: boolean;
   }>(),
   {
+    inline: false,
     detail: undefined,
     dialogDescription: undefined,
     removable: false,
@@ -89,7 +93,20 @@ function submit(): void {
 </script>
 
 <template>
-  <RowGroup>
+  <div v-if="inline" data-slot="stored-credential" class="mt-1 grid justify-items-start gap-1">
+    <span class="block text-sm text-muted-foreground">{{ title }}</span>
+    <span v-if="detail" class="block text-sm text-muted-foreground">{{ detail }}</span>
+    <Button variant="outline"
+            size="sm"
+            data-action="edit-credentials"
+            type="button"
+            @click="open = true"
+    >
+      {{ editLabel }}
+    </Button>
+  </div>
+
+  <RowGroup v-else>
     <SummaryRow :title="title" :detail="detail" data-slot="stored-credential">
       <template #trailing>
         <Button variant="outline"

@@ -44,8 +44,7 @@
           "description": "Deze onderdelen van je kanaal werken niet meer tot je opnieuw koppelt."
         },
         "spotify": {
-          "title": "Spotify-app",
-          "description": "De Spotify-app waarmee je kanaal verbindt.",
+          "retry": "Opnieuw proberen",
           "dialogTitle": "Je eigen Spotify-app",
           "dialogDescription": "Voeg je eigen Spotify-app toe om Spotify te koppelen. Het geheim wordt versleuteld opgeslagen en nooit meer getoond.",
           "descriptionShared": "Gebruik je eigen Spotify-app in plaats van de gedeelde. Het geheim wordt versleuteld opgeslagen en nooit meer getoond.",

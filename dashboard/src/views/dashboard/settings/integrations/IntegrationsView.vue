@@ -262,6 +262,7 @@ function setLeavingOpen(open: boolean): void {
             <span v-if="capabilitiesOf(row).length > 0" data-slot="capabilities" class="block text-sm text-muted-foreground">
               {{ $t('dashboard.settings.integrations.capabilities', { list: capabilitiesOf(row).join(', ') }) }}
             </span>
+            <SpotifyCredentialsPanel v-if="row.id === 'spotify' && can('integration:write')" />
           </div>
           <div v-if="can('integration:write')" class="flex flex-wrap items-center justify-end gap-2">
             <Input
@@ -297,8 +298,6 @@ function setLeavingOpen(open: boolean): void {
       </RowGroup>
       <p v-if="error" role="alert" class="px-3 pt-3 text-sm text-destructive">{{ error }}</p>
     </PanelCard>
-
-    <SpotifyCredentialsPanel v-if="can('integration:write')" />
 
     <ConfirmDialog
       :open="leaving !== null"
