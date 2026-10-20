@@ -24,6 +24,7 @@ import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import PanelBeside from '@/components/layout/PanelBeside.vue';
 import SidePanel from '@/components/layout/SidePanel.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
@@ -99,54 +100,57 @@ function confirmRemove(): void {
         <SettingsFader aria-hidden="true" />
         {{ $t("dashboard.mediaShare.config.title") }}
       </Button>
+    </template>
+  </PageHeader>
+  <PanelBeside>
+    <PageBody>
+      <PanelCard
+        v-if="can('media:read')"
+        tier="lead"
+        :title="$t('dashboard.mediaShare.queue.title')"
+        :description="
+          waiting > 0
+            ? $t('dashboard.mediaShare.queue.waiting', { count: waiting })
+            : undefined
+        "
+        :state="queueState"
+        :empty-text="$t('dashboard.mediaShare.queue.empty')"
+        :error-text="$t('dashboard.mediaShare.queue.error')"
+        @retry="queueQuery.refetch()"
+      >
+        <MediaShareQueueSection
+          v-for="section in sections"
+          :key="section.key"
+          :kind="section.key"
+          :title="$t(`dashboard.mediaShare.queue.section.${section.key}`)"
+          :count="section.rows.length"
+        >
+          <MediaShareQueueRow
+            v-for="row in section.rows"
+            :key="row.id"
+            :row="row"
+            :position="playPosition(row)"
+            :can-move-up="row.status === 'approved' && position(row) > 1"
+            :can-move-down="row.status === 'approved' && position(row) < approved.length"
+            @decide="(action) => decide.mutate({ id: row.id, action })"
+            @move="(step) => move(row, step)"
+            @play-now="reorder.mutate({ id: row.id, position: 1 })"
+            @remove="askRemove(row)"
+          />
+        </MediaShareQueueSection>
+      </PanelCard>
+    </PageBody>
+    <template #panel>
       <SidePanel
         v-if="can('media:read')"
         v-model:open="settingsOpen"
-        drawer-only
         class="data-[side=right]:h-dvh data-[side=right]:max-h-dvh"
         :label="$t('dashboard.mediaShare.config.title')"
       >
         <MediaShareSettings flush :query="configQuery" :channel-id="channelId" />
       </SidePanel>
     </template>
-  </PageHeader>
-  <PageBody>
-    <PanelCard
-      v-if="can('media:read')"
-      tier="lead"
-      :title="$t('dashboard.mediaShare.queue.title')"
-      :description="
-        waiting > 0
-          ? $t('dashboard.mediaShare.queue.waiting', { count: waiting })
-          : undefined
-      "
-      :state="queueState"
-      :empty-text="$t('dashboard.mediaShare.queue.empty')"
-      :error-text="$t('dashboard.mediaShare.queue.error')"
-      @retry="queueQuery.refetch()"
-    >
-      <MediaShareQueueSection
-        v-for="section in sections"
-        :key="section.key"
-        :kind="section.key"
-        :title="$t(`dashboard.mediaShare.queue.section.${section.key}`)"
-        :count="section.rows.length"
-      >
-        <MediaShareQueueRow
-          v-for="row in section.rows"
-          :key="row.id"
-          :row="row"
-          :position="playPosition(row)"
-          :can-move-up="row.status === 'approved' && position(row) > 1"
-          :can-move-down="row.status === 'approved' && position(row) < approved.length"
-          @decide="(action) => decide.mutate({ id: row.id, action })"
-          @move="(step) => move(row, step)"
-          @play-now="reorder.mutate({ id: row.id, position: 1 })"
-          @remove="askRemove(row)"
-        />
-      </MediaShareQueueSection>
-    </PanelCard>
-  </PageBody>
+  </PanelBeside>
   <ConfirmDialog
     v-model:open="confirmOpen"
     :title="$t('dashboard.mediaShare.remove.title')"

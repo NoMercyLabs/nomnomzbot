@@ -15,13 +15,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
+import { setWidth } from '@/__tests__/viewport';
 import { i18n } from '@/i18n';
 
 import MusicView from '../MusicView.vue';
 import en from '../i18n/en.json';
 
 // Stoney 2026-10-19: "i asked you to make it a togglable menu to prevent this crap!" The request rules are an
-// overlay side panel, closed by default, at every width; they are never a column squeezing the other panels.
+// side panel, closed by default; it never squeezes the board's own panels. Stoney 2026-10-20 then asked for it as
+// a third column where it fits (see the placement tests below).
 const config = {
   isEnabled: true,
   preferredProvider: 'spotify',
@@ -82,7 +84,7 @@ afterEach(() => {
 });
 
 async function mountAt(width: number): Promise<void> {
-  vi.stubGlobal('innerWidth', width);
+  setWidth(width);
 
   const blank = { template: '<div />' };
   const router = createRouter({
@@ -180,5 +182,30 @@ describe.each([1280, 1920])('music request rules side panel at %i px', (width) =
     const switches = [...document.body.querySelectorAll('[role="switch"]')];
 
     expect(switches.filter((toggle) => !toggle.closest('[data-music-playback]'))).toEqual([]);
+  });
+});
+
+// Stoney 2026-10-20: "the request rules pannel proably fits just fine as a 3rd column on this breakpont and must
+// be consistent with the other pannel behaviors." Wide, it is a column beside the board; narrow, a sheet.
+describe('music request rules side panel placement', () => {
+  it('opens as a third column beside the board where the window is wide', async () => {
+    await mountAt(1440);
+    trigger()?.click();
+    await settle();
+
+    const column = document.body.querySelector<HTMLElement>('aside[data-slot="side-panel"]');
+
+    expect(column).not.toBeNull();
+    expect(document.body.querySelector('[role="dialog"][data-slot="side-panel"]')).toBeNull();
+    expect(column?.previousElementSibling?.querySelector('[data-panel="now"]')).not.toBeNull();
+  });
+
+  it('opens as a sheet over the page where the window is narrow', async () => {
+    await mountAt(900);
+    trigger()?.click();
+    await settle();
+
+    expect(document.body.querySelector('aside[data-slot="side-panel"]')).toBeNull();
+    expect(document.body.querySelector('[role="dialog"][data-slot="side-panel"]')).not.toBeNull();
   });
 });

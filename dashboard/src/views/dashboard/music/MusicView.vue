@@ -47,6 +47,7 @@ import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vu
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import { Button } from '@/components/ui/button';
+import PanelBeside from '@/components/layout/PanelBeside.vue';
 import SidePanel from '@/components/layout/SidePanel.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useBoard } from '@/composables/useBoard';
@@ -251,182 +252,185 @@ const span = layout.span;
         <IconRules aria-hidden="true" />
         {{ $t("dashboard.music.rules.title") }}
       </Button>
-      <!-- The panel's own header carries the close button after the master switch (SidePanel's drawer close);
-           h-dvh: a phone's browser bars change the visible height, so the footer must follow it. -->
+    </template>
+  </PageHeader>
+  <PanelBeside>
+    <BoardGrid ref="board" :panels="panels" :board="layout" :rows="2">
+      <BoardCell panel="now" :span="span">
+        <PanelCard
+          tier="lead"
+          :title="$t('dashboard.music.now.title')"
+          :state="nowState"
+          :empty-text="$t('dashboard.music.now.nothing')"
+          :error-text="$t('dashboard.music.now.error')"
+          @retry="queueQuery.refetch()"
+        >
+          <!-- Music on/off is not a request rule: it stops all playback, so it sits with the player it switches.
+             Stoney 2026-10-19: a page menu holding only this one item was an "extra useless dropdown". -->
+          <template v-if="canWriteConfig && playbackOn !== undefined" #actions>
+            <LabeledSwitch
+              data-music-playback
+              :model-value="playbackOn"
+              :label="$t('dashboard.music.playback.label')"
+              :help="$t('dashboard.music.playback.help')"
+              :disabled="saveConfig.isPending.value"
+              @update:model-value="setPlayback"
+            />
+          </template>
+          <NowPlayingCard
+            v-if="nowPlaying"
+            :track="nowPlaying"
+            :observed-at="queueQuery.dataUpdatedAt.value"
+            @pause="pause.mutate()"
+            @resume="resume.mutate()"
+            @skip="skip.mutate()"
+          >
+            <template #buttons>
+              <PlayerButtons :track="nowPlaying" />
+            </template>
+          </NowPlayingCard>
+        </PanelCard>
+      </BoardCell>
+      <BoardCell panel="queue" :span="span">
+        <PanelCard
+          :title="$t('dashboard.music.queue.title')"
+          :description="
+            rows.length > 0 ? $t('dashboard.music.queue.waiting', { count: rows.length }) : undefined
+          "
+          :state="queueState"
+          :empty-text="$t('dashboard.music.queue.empty')"
+          :error-text="$t('dashboard.music.queue.error')"
+          @retry="queueQuery.refetch()"
+        >
+          <RequesterBulkRemove :rows="rows" />
+          <template #actions>
+            <StatusBadge
+              v-if="requestsOpen !== undefined"
+              :tone="requestsOpen ? 'ok' : 'off'"
+              :label="
+                $t(requestsOpen ? 'dashboard.music.queue.open' : 'dashboard.music.queue.closed')
+              "
+              data-requests-state
+            />
+            <Button
+              v-if="canModerateQueue && requestsOpen !== undefined"
+              variant="outline"
+              size="sm"
+              :disabled="setRequests.isPending.value"
+              data-toggle-requests
+              @click="setRequests.mutate({ open: !requestsOpen })"
+            >
+              {{
+                $t(
+                  requestsOpen
+                    ? "dashboard.music.queue.closeAction"
+                    : "dashboard.music.queue.openAction",
+                )
+              }}
+            </Button>
+          </template>
+          <div ref="queueList" data-queue-list>
+            <SummaryRow
+              v-for="item in rows"
+              :key="item.position"
+              :title="item.trackName"
+              :detail="item.artist"
+              truncate
+              wrap
+              data-queue-item
+            >
+              <template v-if="item.requestedBy" #meta>
+                <i18n-t keypath="dashboard.music.queue.by" scope="global">
+                  <template #name>
+                    <UserName
+                      :user-id="item.requesterId"
+                      :name="item.requestedBy"
+                      :color="item.requesterColor"
+                    />
+                  </template>
+                </i18n-t>
+              </template>
+              <template #leading>
+                <span
+                  v-if="canModerateQueue"
+                  data-drag-handle
+                  :title="$t('dashboard.music.queue.drag')"
+                  class="-ml-1 flex size-6 flex-none cursor-grab items-center justify-center text-muted-foreground active:cursor-grabbing"
+                >
+                  <Grip class="size-4" aria-hidden="true" />
+                </span>
+                <span
+                  data-queue-number
+                  class="w-8 flex-none text-sm tabular-nums text-muted-foreground"
+                >
+                  {{ `#${item.number}` }}
+                </span>
+                <img
+                  v-if="item.imageUrl"
+                  :src="item.imageUrl"
+                  alt=""
+                  class="size-14 flex-none rounded-md object-cover"
+                />
+                <span
+                  v-else
+                  class="flex size-14 flex-none items-center justify-center rounded-md bg-muted text-muted-foreground"
+                >
+                  <Music class="size-4" aria-hidden="true" />
+                </span>
+              </template>
+              <template v-if="canModerateQueue" #trailing>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  :aria-label="$t('dashboard.music.queue.nextRow', { title: item.trackName })"
+                  @click="promote.mutate({ position: Number(item.position) })"
+                >
+                  <ListEnd aria-hidden="true" />
+                  {{ $t("dashboard.music.queue.next") }}
+                </Button>
+                <Button
+                  variant="ghost"
+                  size="icon-sm"
+                  :aria-label="$t('dashboard.music.queue.remove', { title: item.trackName })"
+                  @click="askRemove(item)"
+                >
+                  <Trash2 aria-hidden="true" />
+                </Button>
+                <Button
+                  v-if="canModerateQueue"
+                  variant="ghost"
+                  size="icon"
+                  :aria-label="$t('dashboard.music.queue.banRow', { title: item.trackName })"
+                  data-ban-song
+                  @click="askBan(item)"
+                >
+                  <Ban class="size-5" aria-hidden="true" />
+                </Button>
+              </template>
+            </SummaryRow>
+          </div>
+        </PanelCard>
+      </BoardCell>
+      <BoardCell v-if="canSeeRules" panel="history" :span="span">
+        <HistoryPanel />
+      </BoardCell>
+      <BoardCell v-if="canSeeRules" panel="thanks" :span="span">
+        <ThanksPanel />
+      </BoardCell>
+    </BoardGrid>
+    <!-- The panel's own header carries the close button after the master switch (SidePanel's drawer close);
+         h-dvh: a phone's browser bars change the visible height, so the footer must follow it. -->
+    <template #panel>
       <SidePanel
         v-if="canSeeRules"
         v-model:open="rulesOpen"
-        drawer-only
         class="data-[side=right]:h-dvh data-[side=right]:max-h-dvh"
         :label="$t('dashboard.music.rules.title')"
       >
         <RulesPanel flush />
       </SidePanel>
     </template>
-  </PageHeader>
-  <BoardGrid ref="board" :panels="panels" :board="layout" :rows="2">
-    <BoardCell panel="now" :span="span">
-      <PanelCard
-        tier="lead"
-        :title="$t('dashboard.music.now.title')"
-        :state="nowState"
-        :empty-text="$t('dashboard.music.now.nothing')"
-        :error-text="$t('dashboard.music.now.error')"
-        @retry="queueQuery.refetch()"
-      >
-        <!-- Music on/off is not a request rule: it stops all playback, so it sits with the player it switches.
-             Stoney 2026-10-19: a page menu holding only this one item was an "extra useless dropdown". -->
-        <template v-if="canWriteConfig && playbackOn !== undefined" #actions>
-          <LabeledSwitch
-            data-music-playback
-            :model-value="playbackOn"
-            :label="$t('dashboard.music.playback.label')"
-            :help="$t('dashboard.music.playback.help')"
-            :disabled="saveConfig.isPending.value"
-            @update:model-value="setPlayback"
-          />
-        </template>
-        <NowPlayingCard
-          v-if="nowPlaying"
-          :track="nowPlaying"
-          :observed-at="queueQuery.dataUpdatedAt.value"
-          @pause="pause.mutate()"
-          @resume="resume.mutate()"
-          @skip="skip.mutate()"
-        >
-          <template #buttons>
-            <PlayerButtons :track="nowPlaying" />
-          </template>
-        </NowPlayingCard>
-      </PanelCard>
-    </BoardCell>
-    <BoardCell panel="queue" :span="span">
-      <PanelCard
-        :title="$t('dashboard.music.queue.title')"
-        :description="
-          rows.length > 0 ? $t('dashboard.music.queue.waiting', { count: rows.length }) : undefined
-        "
-        :state="queueState"
-        :empty-text="$t('dashboard.music.queue.empty')"
-        :error-text="$t('dashboard.music.queue.error')"
-        @retry="queueQuery.refetch()"
-      >
-        <RequesterBulkRemove :rows="rows" />
-        <template #actions>
-          <StatusBadge
-            v-if="requestsOpen !== undefined"
-            :tone="requestsOpen ? 'ok' : 'off'"
-            :label="
-              $t(requestsOpen ? 'dashboard.music.queue.open' : 'dashboard.music.queue.closed')
-            "
-            data-requests-state
-          />
-          <Button
-            v-if="canModerateQueue && requestsOpen !== undefined"
-            variant="outline"
-            size="sm"
-            :disabled="setRequests.isPending.value"
-            data-toggle-requests
-            @click="setRequests.mutate({ open: !requestsOpen })"
-          >
-            {{
-              $t(
-                requestsOpen
-                  ? "dashboard.music.queue.closeAction"
-                  : "dashboard.music.queue.openAction",
-              )
-            }}
-          </Button>
-        </template>
-        <div ref="queueList" data-queue-list>
-          <SummaryRow
-            v-for="item in rows"
-            :key="item.position"
-            :title="item.trackName"
-            :detail="item.artist"
-            truncate
-            wrap
-            data-queue-item
-          >
-            <template v-if="item.requestedBy" #meta>
-              <i18n-t keypath="dashboard.music.queue.by" scope="global">
-                <template #name>
-                  <UserName
-                    :user-id="item.requesterId"
-                    :name="item.requestedBy"
-                    :color="item.requesterColor"
-                  />
-                </template>
-              </i18n-t>
-            </template>
-            <template #leading>
-              <span
-                v-if="canModerateQueue"
-                data-drag-handle
-                :title="$t('dashboard.music.queue.drag')"
-                class="-ml-1 flex size-6 flex-none cursor-grab items-center justify-center text-muted-foreground active:cursor-grabbing"
-              >
-                <Grip class="size-4" aria-hidden="true" />
-              </span>
-              <span
-                data-queue-number
-                class="w-8 flex-none text-sm tabular-nums text-muted-foreground"
-              >
-                {{ `#${item.number}` }}
-              </span>
-              <img
-                v-if="item.imageUrl"
-                :src="item.imageUrl"
-                alt=""
-                class="size-14 flex-none rounded-md object-cover"
-              />
-              <span
-                v-else
-                class="flex size-14 flex-none items-center justify-center rounded-md bg-muted text-muted-foreground"
-              >
-                <Music class="size-4" aria-hidden="true" />
-              </span>
-            </template>
-            <template v-if="canModerateQueue" #trailing>
-              <Button
-                variant="outline"
-                size="sm"
-                :aria-label="$t('dashboard.music.queue.nextRow', { title: item.trackName })"
-                @click="promote.mutate({ position: Number(item.position) })"
-              >
-                <ListEnd aria-hidden="true" />
-                {{ $t("dashboard.music.queue.next") }}
-              </Button>
-              <Button
-                variant="ghost"
-                size="icon-sm"
-                :aria-label="$t('dashboard.music.queue.remove', { title: item.trackName })"
-                @click="askRemove(item)"
-              >
-                <Trash2 aria-hidden="true" />
-              </Button>
-              <Button
-                v-if="canModerateQueue"
-                variant="ghost"
-                size="icon"
-                :aria-label="$t('dashboard.music.queue.banRow', { title: item.trackName })"
-                data-ban-song
-                @click="askBan(item)"
-              >
-                <Ban class="size-5" aria-hidden="true" />
-              </Button>
-            </template>
-          </SummaryRow>
-        </div>
-      </PanelCard>
-    </BoardCell>
-    <BoardCell v-if="canSeeRules" panel="history" :span="span">
-      <HistoryPanel />
-    </BoardCell>
-    <BoardCell v-if="canSeeRules" panel="thanks" :span="span">
-      <ThanksPanel />
-    </BoardCell>
-  </BoardGrid>
+  </PanelBeside>
   <ConfirmDialog
     v-model:open="confirmOpen"
     :title="$t(`dashboard.music.queue.${confirmKeys.title}`)"
