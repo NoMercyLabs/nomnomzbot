@@ -9,9 +9,28 @@
           "empty": "Dit kanaal heeft geen beperkte bronnen.",
           "error": "De limieten konden niet worden geladen.",
           "baseline": "Veiligheidslimiet voor elk kanaal: {value}",
-          "costDriving": {
-            "title": "Gekoppeld aan echte kosten",
-            "description": "Deze kosten echt geld om te leveren, dus ze groeien mee met je abonnement."
+          "noCap": "Geen maximum",
+          "charactersPerMessage": "{n} teken per bericht | {n} tekens per bericht",
+          "names": {
+            "sound_clip_storage_bytes": "Opslag voor geluidsclips",
+            "channel_asset_storage_bytes": "Opslag voor kanaalbestanden",
+            "sandbox_exec_ms": "Scriptduur per maand",
+            "tts_max_characters": "Lengte van tekst-naar-spraakbericht",
+            "custom_commands": "Eigen commando's",
+            "timers": "Timers",
+            "response_variations_per_trigger": "Antwoordvarianten per trigger"
+          },
+          "storage": {
+            "title": "Opslag",
+            "description": "Schijfruimte voor je uploads. Een bestand verwijderen maakt de ruimte direct vrij."
+          },
+          "allowance": {
+            "title": "Maandelijkse ruimte",
+            "description": "Tijd die je elke maand kunt gebruiken. Hij begint elke periode opnieuw."
+          },
+          "perMessage": {
+            "title": "Per bericht",
+            "description": "De maximale lengte van één bericht. Het is een maximum, geen totaal."
           },
           "nearFree": {
             "title": "Misbruikbescherming",

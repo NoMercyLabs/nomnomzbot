@@ -14,9 +14,11 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { LimitLevel } from '../limitRows';
+import { formatAmount, type LimitUnit } from '../limitUnits';
 
 const props = defineProps<{
   label: string;
+  unit: LimitUnit;
   used: number;
   limit: number;
   percent: number;
@@ -24,12 +26,15 @@ const props = defineProps<{
   detail?: string;
 }>();
 
-const { n, t } = useI18n();
+const { locale, t } = useI18n();
 
-const figures = computed(() =>
-  props.level === 'unlimited'
-    ? t('dashboard.settings.resourceLimits.meter.unlimited', { used: n(props.used) })
-    : t('dashboard.settings.resourceLimits.meter.of', { used: n(props.used), limit: n(props.limit) }));
+const figures = computed(() => {
+  const used = formatAmount(props.used, props.unit, locale.value);
+
+  return props.level === 'unlimited'
+    ? t('dashboard.settings.resourceLimits.meter.unlimited', { used })
+    : t('dashboard.settings.resourceLimits.meter.of', { used, limit: formatAmount(props.limit, props.unit, locale.value) });
+});
 
 const barClass = computed(() => {
   if (props.level === 'full')

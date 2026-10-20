@@ -25,6 +25,7 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import LimitMeter from './components/LimitMeter.vue';
+import LimitSection from './components/LimitSection.vue';
 import { groupLimits, metricRowOf, type MetricRow } from './limitRows';
 
 const { t, te, d } = useI18n();
@@ -87,10 +88,6 @@ function yesNo(value: boolean | undefined): string {
     ? t('dashboard.settings.resourceLimits.plan.yes')
     : t('dashboard.settings.resourceLimits.plan.no');
 }
-
-function baselineDetail(baseline: number): string {
-  return t('dashboard.settings.resourceLimits.limits.baseline', { value: baseline });
-}
 </script>
 
 <template>
@@ -101,55 +98,6 @@ function baselineDetail(baseline: number): string {
 
   <PageBody>
     <div data-view="resource-limits" class="grid gap-4">
-      <PanelCard
-        tier="lead"
-        pad
-        :title="$t('dashboard.settings.resourceLimits.limits.title')"
-        :description="$t('dashboard.settings.resourceLimits.limits.description')"
-        :state="limitsState"
-        :empty-text="$t('dashboard.settings.resourceLimits.limits.empty')"
-        :error-text="$t('dashboard.settings.resourceLimits.limits.error')"
-        @retry="limits.refetch()"
-      >
-        <div class="grid gap-4">
-          <section v-if="groups.costDriving.length > 0" data-group="cost-driving" class="grid gap-2">
-            <h3 class="text-sm font-medium">{{ $t('dashboard.settings.resourceLimits.limits.costDriving.title') }}</h3>
-            <p class="text-sm text-muted-foreground">
-              {{ $t('dashboard.settings.resourceLimits.limits.costDriving.description') }}
-            </p>
-            <RowGroup>
-              <LimitMeter
-                v-for="row in groups.costDriving"
-                :key="row.key"
-                :label="row.label"
-                :used="row.used"
-                :limit="row.limit"
-                :percent="row.percent"
-                :level="row.level"
-              />
-            </RowGroup>
-          </section>
-          <section v-if="groups.nearFree.length > 0" data-group="near-free" class="grid gap-2">
-            <h3 class="text-sm font-medium">{{ $t('dashboard.settings.resourceLimits.limits.nearFree.title') }}</h3>
-            <p class="text-sm text-muted-foreground">
-              {{ $t('dashboard.settings.resourceLimits.limits.nearFree.description') }}
-            </p>
-            <RowGroup>
-              <LimitMeter
-                v-for="row in groups.nearFree"
-                :key="row.key"
-                :label="row.label"
-                :used="row.used"
-                :limit="row.limit"
-                :percent="row.percent"
-                :level="row.level"
-                :detail="baselineDetail(row.baseline)"
-              />
-            </RowGroup>
-          </section>
-        </div>
-      </PanelCard>
-
       <PanelCard
         tier="quiet"
         pad
@@ -188,6 +136,50 @@ function baselineDetail(baseline: number): string {
       </PanelCard>
 
       <PanelCard
+        tier="lead"
+        pad
+        :title="$t('dashboard.settings.resourceLimits.limits.title')"
+        :description="$t('dashboard.settings.resourceLimits.limits.description')"
+        :state="limitsState"
+        :empty-text="$t('dashboard.settings.resourceLimits.limits.empty')"
+        :error-text="$t('dashboard.settings.resourceLimits.limits.error')"
+        @retry="limits.refetch()"
+      >
+        <div class="grid gap-4">
+          <LimitSection
+            v-if="groups.storage.length > 0"
+            group="storage"
+            :title="$t('dashboard.settings.resourceLimits.limits.storage.title')"
+            :description="$t('dashboard.settings.resourceLimits.limits.storage.description')"
+            :rows="groups.storage"
+          />
+          <LimitSection
+            v-if="groups.allowance.length > 0"
+            group="allowance"
+            :title="$t('dashboard.settings.resourceLimits.limits.allowance.title')"
+            :description="$t('dashboard.settings.resourceLimits.limits.allowance.description')"
+            :rows="groups.allowance"
+          />
+          <LimitSection
+            v-if="groups.perMessage.length > 0"
+            group="per-message"
+            per-message
+            :title="$t('dashboard.settings.resourceLimits.limits.perMessage.title')"
+            :description="$t('dashboard.settings.resourceLimits.limits.perMessage.description')"
+            :rows="groups.perMessage"
+          />
+          <LimitSection
+            v-if="groups.nearFree.length > 0"
+            group="near-free"
+            show-baseline
+            :title="$t('dashboard.settings.resourceLimits.limits.nearFree.title')"
+            :description="$t('dashboard.settings.resourceLimits.limits.nearFree.description')"
+            :rows="groups.nearFree"
+          />
+        </div>
+      </PanelCard>
+
+      <PanelCard
         tier="quiet"
         pad
         :title="$t('dashboard.settings.resourceLimits.usage.title')"
@@ -202,6 +194,7 @@ function baselineDetail(baseline: number): string {
             v-for="row in metrics"
             :key="row.key"
             :label="metricLabel(row)"
+            :unit="row.unit"
             :used="row.used"
             :limit="row.limit"
             :percent="row.percent"

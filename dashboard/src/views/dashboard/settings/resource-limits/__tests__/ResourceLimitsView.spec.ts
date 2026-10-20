@@ -39,30 +39,48 @@ vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: computed(() => 'c1') }),
 }));
 
+const gigabytes2 = 2_147_483_648;
+
 const limits = [
   {
-    limitKey: 'tts.chars',
+    limitKey: 'sound_clip_storage_bytes',
     class: 0,
-    displayName: 'Stored clips',
-    currentCount: 90,
-    limit: 100,
+    displayName: 'Sound clip storage',
+    currentCount: 3_394_022,
+    limit: gigabytes2,
     safetyBaseline: 0,
   },
   {
-    limitKey: 'cmd.count',
-    class: 1,
-    displayName: 'Commands',
-    currentCount: 12,
+    limitKey: 'channel_asset_storage_bytes',
+    class: 0,
+    displayName: 'Channel asset storage',
+    currentCount: '2000000000',
+    limit: gigabytes2,
+    safetyBaseline: 0,
+  },
+  {
+    limitKey: 'sandbox_exec_ms',
+    class: 0,
+    displayName: 'Script CPU time per month',
+    currentCount: 90_000,
+    limit: 1_800_000,
+    safetyBaseline: 0,
+  },
+  {
+    limitKey: 'tts_max_characters',
+    class: 0,
+    displayName: 'TTS characters per month',
+    currentCount: 0,
     limit: 500,
-    safetyBaseline: 500,
+    safetyBaseline: 0,
   },
   {
-    limitKey: 'asset.bytes',
-    class: 0,
-    displayName: 'Stored files',
-    currentCount: '4000',
-    limit: -1,
-    safetyBaseline: 0,
+    limitKey: 'custom_commands',
+    class: 1,
+    displayName: 'Custom commands',
+    currentCount: 12,
+    limit: 1500,
+    safetyBaseline: 1500,
   },
 ];
 
@@ -110,6 +128,12 @@ async function open(): Promise<void> {
 
 const text = (): string => document.body.textContent ?? '';
 
+function rowOf(label: string): HTMLElement {
+  return [...document.body.querySelectorAll<HTMLElement>('[data-limit-row]')].find((row) =>
+    row.textContent?.includes(label),
+  )!;
+}
+
 beforeEach(() => {
   i18n.global.mergeLocaleMessage('en', en);
   http.GET.mockReset();
@@ -134,32 +158,68 @@ describe('Resource limits page', () => {
     expect(http.GET.mock.calls[0]![1]).toMatchObject({ params: { path: { channelId: 'c1' } } });
   });
 
-  it('splits cost-driving resources from abuse floors and shows used of limit', async () => {
+  it('shows storage in megabytes and gigabytes, never as raw bytes', async () => {
     await open();
 
-    const cost = document.body.querySelector('[data-group="cost-driving"]')!;
-    const floor = document.body.querySelector('[data-group="near-free"]')!;
+    const storage = document.body.querySelector('[data-group="storage"]')!;
 
-    expect(cost.textContent).toContain('Stored clips');
-    expect(cost.textContent).toContain('90 of 100');
-    expect(cost.textContent).not.toContain('Commands');
-    expect(floor.textContent).toContain('Commands');
-    expect(floor.textContent).toContain('12 of 500');
-    expect(floor.textContent).toContain('Safety limit for every channel: 500');
+    expect(storage.textContent).toContain('Sound clip storage');
+    expect(storage.textContent).toContain('3.2 MB of 2 GB');
+    expect(storage.textContent).toContain('1.9 GB of 2 GB');
+    expect(text()).not.toContain('2,147,483,648');
+    expect(text()).not.toContain('3,394,022');
   });
 
-  it('marks a near and an unlimited resource by level and draws a bar only for a limit', async () => {
+  it('shows script time in minutes, never as milliseconds', async () => {
     await open();
 
-    const rows = [...document.body.querySelectorAll<HTMLElement>('[data-limit-row]')];
-    const near = rows.find((row) => row.textContent?.includes('Stored clips'))!;
-    const open_ = rows.find((row) => row.textContent?.includes('Stored files'))!;
+    const allowance = document.body.querySelector('[data-group="allowance"]')!;
+
+    expect(allowance.textContent).toContain('Script run time per month');
+    expect(allowance.textContent).toContain('1.5 min of 30 min');
+    expect(text()).not.toContain('1,800,000');
+  });
+
+  it('shows the text-to-speech cap as a per-message value with no usage bar', async () => {
+    await open();
+
+    const group = document.body.querySelector('[data-group="per-message"]')!;
+
+    expect(group.textContent).toContain('500 characters per message');
+    expect(group.querySelector('[role="progressbar"]')).toBeNull();
+  });
+
+  it('keeps abuse floors apart with their safety limit', async () => {
+    await open();
+
+    const floor = document.body.querySelector('[data-group="near-free"]')!;
+
+    expect(floor.textContent).toContain('Custom commands');
+    expect(floor.textContent).toContain('12 of 1,500');
+    expect(floor.textContent).toContain('Safety limit for every channel: 1,500');
+    expect(floor.textContent).not.toContain('Sound clip storage');
+  });
+
+  it('marks a near resource by level and draws a bar only for a limit', async () => {
+    await open();
+
+    const near = rowOf('Channel asset storage');
 
     expect(near.dataset.level).toBe('near');
-    expect(near.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('90');
-    expect(open_.dataset.level).toBe('unlimited');
-    expect(open_.querySelector('[role="progressbar"]')).toBeNull();
-    expect(open_.textContent).toContain('no limit');
+    expect(near.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('93');
+    expect(rowOf('Sound clip storage').dataset.level).toBe('ok');
+  });
+
+  it('draws no bar for an unlimited resource', async () => {
+    limits[0]!.limit = -1;
+    await open();
+
+    const row = rowOf('Sound clip storage');
+
+    expect(row.dataset.level).toBe('unlimited');
+    expect(row.querySelector('[role="progressbar"]')).toBeNull();
+    expect(row.textContent).toContain('3.2 MB, no limit');
+    limits[0]!.limit = gigabytes2;
   });
 
   it('shows the plan and the restriction marker for hosted operation', async () => {
@@ -177,6 +237,15 @@ describe('Resource limits page', () => {
     expect(text()).toContain('Text-to-speech characters');
     expect(text()).toContain('250 of 1,000');
     expect(text()).toContain('Oct 1, 2026 to Nov 1, 2026');
+  });
+
+  it('puts the plan before the limits', async () => {
+    await open();
+
+    const plan = document.body.querySelector('[data-plan="tier"]')!;
+    const storage = document.body.querySelector('[data-group="storage"]')!;
+
+    expect(plan.compareDocumentPosition(storage) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 });
 

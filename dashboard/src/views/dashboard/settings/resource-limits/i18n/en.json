@@ -9,9 +9,28 @@
           "empty": "This channel has no limited resources.",
           "error": "The limits could not be loaded.",
           "baseline": "Safety limit for every channel: {value}",
-          "costDriving": {
-            "title": "Tied to real cost",
-            "description": "These cost real money to serve, so they grow with your plan."
+          "noCap": "No cap",
+          "charactersPerMessage": "{n} character per message | {n} characters per message",
+          "names": {
+            "sound_clip_storage_bytes": "Sound clip storage",
+            "channel_asset_storage_bytes": "Channel asset storage",
+            "sandbox_exec_ms": "Script run time per month",
+            "tts_max_characters": "Text-to-speech message length",
+            "custom_commands": "Custom commands",
+            "timers": "Timers",
+            "response_variations_per_trigger": "Response variations per trigger"
+          },
+          "storage": {
+            "title": "Storage",
+            "description": "Disk space for your uploads. Deleting a file frees its space at once."
+          },
+          "allowance": {
+            "title": "Monthly allowance",
+            "description": "Time you can use each month. It starts again every period."
+          },
+          "perMessage": {
+            "title": "Per message",
+            "description": "The longest a single message can be. It is a cap, not a total."
           },
           "nearFree": {
             "title": "Abuse protection",

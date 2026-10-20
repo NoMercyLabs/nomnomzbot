@@ -10,12 +10,15 @@
 
 import { costDrivingClass, type ResourceUsage, type UsageMetric } from '@/api/resourceLimits';
 
+import { unitOf, type LimitUnit } from './limitUnits';
+
 // How full a limited resource is. `unlimited` is a limit of -1: nothing stops the channel.
 export type LimitLevel = 'ok' | 'near' | 'full' | 'unlimited';
 
 export type LimitRow = {
   key: string;
   label: string;
+  unit: LimitUnit;
   used: number;
   limit: number;
   percent: number;
@@ -26,6 +29,7 @@ export type LimitRow = {
 
 export type MetricRow = {
   key: string;
+  unit: LimitUnit;
   used: number;
   limit: number;
   remaining: number;
@@ -34,9 +38,14 @@ export type MetricRow = {
 };
 
 export type LimitGroups = {
-  costDriving: LimitRow[];
+  storage: LimitRow[];
+  allowance: LimitRow[];
+  perMessage: LimitRow[];
   nearFree: LimitRow[];
 };
+
+// A cap on one message, not a total used up over time: it has no usage to count, so it gets no bar.
+const perMessageKeys = new Set<string>(['tts_max_characters']);
 
 const nearAt = 80;
 
@@ -71,6 +80,7 @@ function limitRowOf(item: ResourceUsage) {
   return {
     key: item.limitKey,
     label: item.displayName,
+    unit: unitOf(item.limitKey),
     used,
     limit,
     percent: percentOf(used, limit),
@@ -87,7 +97,12 @@ export function groupLimits(items: readonly ResourceUsage[]) {
     .filter((item) => item.class !== costDrivingClass)
     .map(limitRowOf);
 
-  return { costDriving, nearFree } as const satisfies LimitGroups;
+  return {
+    storage: costDriving.filter((row) => row.unit === 'bytes'),
+    allowance: costDriving.filter((row) => row.unit !== 'bytes' && !perMessageKeys.has(row.key)),
+    perMessage: costDriving.filter((row) => perMessageKeys.has(row.key)),
+    nearFree,
+  } as const satisfies LimitGroups;
 }
 
 export function metricRowOf(item: UsageMetric) {
@@ -96,6 +111,7 @@ export function metricRowOf(item: UsageMetric) {
 
   return {
     key: item.metricKey,
+    unit: unitOf(item.metricKey),
     used,
     limit,
     remaining: toNumber(item.remaining),
