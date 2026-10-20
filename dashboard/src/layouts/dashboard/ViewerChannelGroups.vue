@@ -23,6 +23,8 @@ import { initials } from '@/lib/text';
 
 const SEARCH_DELAY_MS = 250;
 
+const { target = 'chat' } = defineProps<{ target?: 'chat' | 'home' }>();
+
 const emit = defineEmits<{ picked: [] }>();
 
 const { t } = useI18n();
@@ -67,8 +69,11 @@ async function open(row: RecentChannel): Promise<void> {
     return;
   }
 
+  // The home target opens the channel as its visitor; the route guard forwards a managed channel to its operator shell.
   await router.push({
-    name: 'viewer-chat',
+    name: target === 'home'
+      ? 'viewer-me'
+      : 'viewer-chat',
     params: { channel: row.login },
   });
 }
