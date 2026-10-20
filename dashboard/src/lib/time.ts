@@ -324,3 +324,24 @@ export function formatTime(
 
   return dateFormat(locale, variant).format(moment);
 }
+
+const SPAN_STEPS = [
+  ['hour', 3_600_000],
+  ['minute', 60_000],
+  ['second', 1000],
+  ['millisecond', 1],
+] as const satisfies readonly (readonly [Intl.NumberFormatOptions['unit'], number])[];
+
+// "30 min", "1.5 min": the biggest unit in which the span is at least one. Nothing reads "0 min", not "0 ms".
+export function formatSpan(milliseconds: number, locale: string): string {
+  const [unit, size] = milliseconds === 0
+    ? SPAN_STEPS[1]
+    : SPAN_STEPS.find(([, stepSize]) => milliseconds >= stepSize) ?? SPAN_STEPS[3];
+
+  return new Intl.NumberFormat(locale, {
+    style: 'unit',
+    unit,
+    unitDisplay: 'short',
+    maximumFractionDigits: 1,
+  }).format(milliseconds / size);
+}

@@ -28,3 +28,26 @@ export function centsAsMoney(cents: number | string, currency: string, locale: s
 
   return new Intl.NumberFormat(locale, style).format(amount / 100);
 }
+
+const BYTES_PER_STEP = 1024;
+
+const BYTE_STEPS = [
+  ['gigabyte', BYTES_PER_STEP ** 3],
+  ['megabyte', BYTES_PER_STEP ** 2],
+  ['kilobyte', BYTES_PER_STEP],
+  ['byte', 1],
+] as const satisfies readonly (readonly [Intl.NumberFormatOptions['unit'], number])[];
+
+// "3.2 MB", "2 GB": the biggest unit in which the size is at least one. Nothing reads "0 MB", not "0 byte".
+export function formatBytes(bytes: number, locale: string): string {
+  const [unit, size] = bytes === 0
+    ? BYTE_STEPS[1]
+    : BYTE_STEPS.find(([, stepSize]) => bytes >= stepSize) ?? BYTE_STEPS[3];
+
+  return new Intl.NumberFormat(locale, {
+    style: 'unit',
+    unit,
+    unitDisplay: 'short',
+    maximumFractionDigits: 1,
+  }).format(bytes / size);
+}
