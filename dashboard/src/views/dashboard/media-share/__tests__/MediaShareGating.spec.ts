@@ -96,6 +96,13 @@ async function open(keys: string[]): Promise<VueWrapper> {
   return mounted;
 }
 
+async function openSettings(): Promise<void> {
+  document.body.querySelector<HTMLButtonElement>('[data-action="open-settings"]')?.click();
+  await flushPromises();
+  await new Promise((done) => setTimeout(done, 0));
+  await flushPromises();
+}
+
 describe('MediaShareView shows only what the person may use', () => {
   it('shows no queue and no settings without media:read', async () => {
     const view = await open([]);
@@ -112,21 +119,25 @@ describe('MediaShareView shows only what the person may use', () => {
     expect(view.find('[data-media-share-row]').exists()).toBe(true);
     expect(view.find('[data-action="approve"]').exists()).toBe(false);
 
-    const fields = view.findAll('input[data-field]');
+    await openSettings();
+
+    const fields = [...document.body.querySelectorAll<HTMLInputElement>('input[data-field]')];
 
     expect(fields.length).toBeGreaterThan(0);
-    expect(fields.every((field) => field.attributes('disabled') !== undefined)).toBe(true);
-    expect(view.find('[data-action="discard"]').exists()).toBe(false);
+    expect(fields.every((field) => field.disabled)).toBe(true);
+    expect(document.body.querySelector('[data-action="discard"]')).toBeNull();
   });
 
   it('shows the queue actions with media:moderate and the save row with media:write', async () => {
     const view = await open(['media:read', 'media:moderate', 'media:write']);
 
     expect(view.find('[data-action="approve"]').exists()).toBe(true);
-    expect(view.find('[data-action="discard"]').exists()).toBe(true);
 
-    const fields = view.findAll('input[data-field]');
+    await openSettings();
 
-    expect(fields.every((field) => field.attributes('disabled') === undefined)).toBe(true);
+    const fields = [...document.body.querySelectorAll<HTMLInputElement>('input[data-field]')];
+
+    expect(document.body.querySelector('[data-action="discard"]')).not.toBeNull();
+    expect(fields.every((field) => !field.disabled)).toBe(true);
   });
 });

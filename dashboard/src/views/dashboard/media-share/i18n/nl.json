@@ -12,16 +12,26 @@
         "approve": "Goedkeuren",
         "reject": "Afwijzen",
         "skip": "Overslaan",
+        "playNow": "Nu afspelen",
+        "remove": "Verwijderen",
+        "more": "Meer acties",
         "moveUp": "Omhoog",
         "moveDown": "Omlaag",
-        "status": {
-          "pending": "Wacht op goedkeuring",
-          "approved": "Goedgekeurd",
+        "position": "Plek {position}",
+        "section": {
           "playing": "Speelt nu",
-          "played": "Afgespeeld",
-          "rejected": "Afgewezen",
-          "skipped": "Overgeslagen"
+          "pending": "Wacht op goedkeuring",
+          "approved": "Hierna",
+          "history": "Geschiedenis"
+        },
+        "source": {
+          "twitch_clip": "Twitch-clip",
+          "youtube": "YouTube-video"
         }
+      },
+      "remove": {
+        "title": "Dit item verwijderen?",
+        "description": "Het verdwijnt uit de wachtrij en wordt niet afgespeeld. Betaalde punten van de kijker worden terugbetaald."
       },
       "config": {
         "title": "Instellingen",

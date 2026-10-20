@@ -12,16 +12,26 @@
         "approve": "Approve",
         "reject": "Reject",
         "skip": "Skip",
+        "playNow": "Play now",
+        "remove": "Remove",
+        "more": "More actions",
         "moveUp": "Move up",
         "moveDown": "Move down",
-        "status": {
+        "position": "Position {position}",
+        "section": {
+          "playing": "Playing now",
           "pending": "Waiting for approval",
-          "approved": "Approved",
-          "playing": "Playing",
-          "played": "Played",
-          "rejected": "Rejected",
-          "skipped": "Skipped"
+          "approved": "Up next",
+          "history": "History"
+        },
+        "source": {
+          "twitch_clip": "Twitch clip",
+          "youtube": "YouTube video"
         }
+      },
+      "remove": {
+        "title": "Remove this item?",
+        "description": "It leaves the queue and will not play. Any points the viewer paid are refunded."
       },
       "config": {
         "title": "Settings",

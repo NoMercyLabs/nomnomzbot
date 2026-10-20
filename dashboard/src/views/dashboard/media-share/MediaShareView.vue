@@ -8,8 +8,10 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The Media share page: the queue viewers fill with clips and videos, and the rules for what the bot accepts.
-import { computed } from 'vue';
+// The Media share page, built around the queue viewers fill with clips and videos. The rules for what the bot
+// accepts sit in a drawer behind the Settings button, so the queue is the whole page.
+import SettingsFader from '~icons/nnz/settings-fader';
+import { computed, ref } from 'vue';
 
 import {
   useDecideMediaShare,
@@ -18,15 +20,20 @@ import {
   useReorderMediaShare,
   type MediaShareRequest,
 } from '@/api/mediaShare';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import SidePanel from '@/components/layout/SidePanel.vue';
+import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
 import MediaShareQueueRow from './components/MediaShareQueueRow.vue';
+import MediaShareQueueSection from './components/MediaShareQueueSection.vue';
 import MediaShareSettings from './components/MediaShareSettings.vue';
+import { groupQueue } from './queueSections';
 
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
@@ -35,9 +42,17 @@ const configQuery = useMediaShareConfig(channelId);
 const decide = useDecideMediaShare(channelId);
 const reorder = useReorderMediaShare(channelId);
 
+const settingsOpen = ref<boolean>(false);
+const removing = ref<MediaShareRequest | null>(null);
+const confirmOpen = ref<boolean>(false);
+
 const rows = computed<MediaShareRequest[]>(() => queueQuery.data.value ?? []);
+const sections = computed(() => groupQueue(rows.value));
 const approved = computed<MediaShareRequest[]>(() =>
   rows.value.filter((row): boolean => row.status === 'approved'),
+);
+const waiting = computed<number>(
+  () => rows.value.filter((row): boolean => row.status !== 'played' && row.status !== 'rejected' && row.status !== 'skipped').length,
 );
 
 const queueState = usePanelState(
@@ -49,21 +64,60 @@ function position(row: MediaShareRequest): number {
   return approved.value.findIndex((item): boolean => item.id === row.id) + 1;
 }
 
+function playPosition(row: MediaShareRequest): number | null {
+  return row.status === 'approved'
+    ? position(row)
+    : null;
+}
+
 function move(row: MediaShareRequest, step: number): void {
   reorder.mutate({ id: row.id, position: position(row) + step });
+}
+
+function askRemove(row: MediaShareRequest): void {
+  removing.value = row;
+  confirmOpen.value = true;
+}
+
+function confirmRemove(): void {
+  if (removing.value === null) return;
+
+  decide.mutate({ id: removing.value.id, action: 'reject' });
+  confirmOpen.value = false;
 }
 </script>
 
 <template>
-  <PageHeader :title="$t('dashboard.mediaShare.title')" :crumb="$t('dashboard.mediaShare.crumb')" />
+  <PageHeader :title="$t('dashboard.mediaShare.title')" :crumb="$t('dashboard.mediaShare.crumb')">
+    <template #actions>
+      <Button
+        v-if="can('media:read')"
+        variant="outline"
+        data-action="open-settings"
+        @click="settingsOpen = true"
+      >
+        <SettingsFader aria-hidden="true" />
+        {{ $t("dashboard.mediaShare.config.title") }}
+      </Button>
+      <SidePanel
+        v-if="can('media:read')"
+        v-model:open="settingsOpen"
+        drawer-only
+        class="data-[side=right]:h-dvh data-[side=right]:max-h-dvh"
+        :label="$t('dashboard.mediaShare.config.title')"
+      >
+        <MediaShareSettings flush :query="configQuery" :channel-id="channelId" />
+      </SidePanel>
+    </template>
+  </PageHeader>
   <PageBody>
     <PanelCard
       v-if="can('media:read')"
       tier="lead"
       :title="$t('dashboard.mediaShare.queue.title')"
       :description="
-        rows.length > 0
-          ? $t('dashboard.mediaShare.queue.waiting', { count: rows.length })
+        waiting > 0
+          ? $t('dashboard.mediaShare.queue.waiting', { count: waiting })
           : undefined
       "
       :state="queueState"
@@ -71,16 +125,37 @@ function move(row: MediaShareRequest, step: number): void {
       :error-text="$t('dashboard.mediaShare.queue.error')"
       @retry="queueQuery.refetch()"
     >
-      <MediaShareQueueRow
-        v-for="row in rows"
-        :key="row.id"
-        :row="row"
-        :can-move-up="row.status === 'approved' && position(row) > 1"
-        :can-move-down="row.status === 'approved' && position(row) < approved.length"
-        @decide="(action) => decide.mutate({ id: row.id, action })"
-        @move="(step) => move(row, step)"
-      />
+      <MediaShareQueueSection
+        v-for="section in sections"
+        :key="section.key"
+        :kind="section.key"
+        :title="$t(`dashboard.mediaShare.queue.section.${section.key}`)"
+        :count="section.rows.length"
+      >
+        <MediaShareQueueRow
+          v-for="row in section.rows"
+          :key="row.id"
+          :row="row"
+          :position="playPosition(row)"
+          :can-move-up="row.status === 'approved' && position(row) > 1"
+          :can-move-down="row.status === 'approved' && position(row) < approved.length"
+          @decide="(action) => decide.mutate({ id: row.id, action })"
+          @move="(step) => move(row, step)"
+          @play-now="reorder.mutate({ id: row.id, position: 1 })"
+          @remove="askRemove(row)"
+        />
+      </MediaShareQueueSection>
     </PanelCard>
-    <MediaShareSettings v-if="can('media:read')" :query="configQuery" :channel-id="channelId" />
   </PageBody>
+  <ConfirmDialog
+    v-model:open="confirmOpen"
+    :title="$t('dashboard.mediaShare.remove.title')"
+    :description="$t('dashboard.mediaShare.remove.description')"
+    :action="$t('dashboard.mediaShare.queue.remove')"
+    @confirm="confirmRemove"
+  >
+    <p v-if="removing" class="text-sm font-medium">
+      {{ removing.title ?? removing.sourceUrl }}
+    </p>
+  </ConfirmDialog>
 </template>

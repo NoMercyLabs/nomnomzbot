@@ -12,8 +12,9 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { ref } from 'vue';
+import { defineComponent, h, ref } from 'vue';
 
+import { TooltipProvider } from '@/components/ui/tooltip';
 import { i18n } from '@/i18n';
 
 import en from '../i18n/en.json';
@@ -52,6 +53,7 @@ const item = (id: string, status: string) =>
     sourceUrl: `https://clips.example/${id}`,
     title: `Clip ${id}`,
     status,
+    durationSeconds: 42,
     requestedAt: '2026-10-01T10:00:00Z',
   }) as const satisfies Row;
 
@@ -101,7 +103,15 @@ let pinia: Pinia;
 
 beforeEach(() => {
   calls.length = 0;
-  queue = [item('a', 'pending'), item('b', 'approved'), item('c', 'approved')];
+
+  queue = [
+    item('p', 'playing'),
+    item('a', 'pending'),
+    item('b', 'approved'),
+    item('c', 'approved'),
+    item('h', 'played'),
+  ];
+
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -113,17 +123,25 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
+const settle = async (): Promise<void> => {
+  await flushPromises();
+  await new Promise((done) => setTimeout(done, 0));
+  await flushPromises();
+};
+
 async function open(): Promise<void> {
   const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
-  mounted = mount(MediaShareView, {
+  // The frame mounts the one TooltipProvider; the page under test needs one above it.
+  const framed = defineComponent(() => () => h(TooltipProvider, () =>
+    h(MediaShareView)));
+
+  mounted = mount(framed, {
     attachTo: document.body,
     global: { plugins: [i18n, pinia, [VueQueryPlugin, { queryClient: queries }]] },
   });
 
-  await flushPromises();
-  await new Promise((done) => setTimeout(done, 0));
-  await flushPromises();
+  await settle();
 }
 
 // The row attributes sit on the body of the SummaryRow; the action buttons are beside it, so the row is its parent.
@@ -137,6 +155,26 @@ const rowOf = (id: string): HTMLElement => {
 const press = async (root: HTMLElement | Document, selector: string): Promise<void> => {
   root.querySelector<HTMLButtonElement>(selector)?.click();
   await flushPromises();
+};
+
+const openMenu = async (row: HTMLElement): Promise<void> => {
+  Element.prototype.hasPointerCapture = (): boolean => false;
+  Element.prototype.releasePointerCapture = (): void => undefined;
+  Element.prototype.scrollIntoView = (): void => undefined;
+
+  row.querySelector<HTMLElement>('[data-action="more"]')!.dispatchEvent(
+    new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }),
+  );
+
+  await settle();
+};
+
+const menuItem = (action: string): HTMLElement | null =>
+  document.body.querySelector<HTMLElement>(`[role="menuitem"][data-action="${action}"]`);
+
+const openSettings = async (): Promise<void> => {
+  await press(document, '[data-action="open-settings"]');
+  await settle();
 };
 
 describe('Media share page', () => {
@@ -164,9 +202,9 @@ describe('Media share page', () => {
     ]);
   });
 
-  it('moves the second approved item up to play position 1', async () => {
+  it('plays the second approved item now by moving it to play position 1', async () => {
     await open();
-    await press(rowOf('c'), '[data-action="up"]');
+    await press(rowOf('c'), '[data-action="play-now"]');
 
     expect(calls).toEqual([
       {
@@ -177,15 +215,78 @@ describe('Media share page', () => {
     ]);
   });
 
-  it('offers no move up on the first approved item and no approve on an approved one', async () => {
+  it('offers no play now on the first approved item and no approve on an approved one', async () => {
     await open();
 
-    expect(rowOf('b').querySelector('[data-action="up"]')).toBeNull();
+    expect(rowOf('b').querySelector('[data-action="play-now"]')).toBeNull();
     expect(rowOf('b').querySelector('[data-action="approve"]')).toBeNull();
+  });
+
+  it('skips the playing item', async () => {
+    await open();
+    await press(rowOf('p'), '[data-action="skip"]');
+
+    expect(calls.map((call) => call.path)).toEqual(['/api/v{version}/media-share/{id}/skip']);
+  });
+
+  it('removes an approved item only after the confirm, with the reject endpoint', async () => {
+    await open();
+    await press(rowOf('c'), '[data-action="remove"]');
+
+    expect(calls).toEqual([]);
+
+    await press(document, '[data-confirm-action]');
+
+    expect(calls.map((call) => call.path)).toEqual(['/api/v{version}/media-share/{id}/reject']);
+  });
+
+  it('moves an approved item down from the more menu', async () => {
+    await open();
+    await openMenu(rowOf('b'));
+
+    expect(menuItem('up')).not.toBeNull();
+    expect(menuItem('up')!.hasAttribute('data-disabled')).toBe(true);
+
+    menuItem('down')!.click();
+    await settle();
+
+    expect(calls).toEqual([
+      {
+        method: 'POST',
+        path: '/api/v{version}/media-share/{id}/reorder',
+        body: { position: 2 },
+      },
+    ]);
+  });
+
+  it('groups the queue into playing, waiting, up next and history, and history has no controls', async () => {
+    await open();
+
+    const sections = [...document.body.querySelectorAll<HTMLElement>('[data-queue-section]')];
+
+    expect(sections.map((section) => section.dataset.queueSection)).toEqual([
+      'playing',
+      'pending',
+      'approved',
+      'history',
+    ]);
+
+    expect(rowOf('h').querySelectorAll('button')).toHaveLength(0);
+  });
+
+  it('keeps the settings out of the page until the Settings button opens them', async () => {
+    await open();
+
+    expect(document.body.querySelector('[data-media-share-settings]')).toBeNull();
+
+    await openSettings();
+
+    expect(document.body.querySelector('[data-media-share-settings]')).not.toBeNull();
   });
 
   it('saves the whole config with the changed value', async () => {
     await open();
+    await openSettings();
 
     const field = document.body.querySelector<HTMLInputElement>('[data-field="maxQueueLength"]');
 
@@ -205,6 +306,7 @@ describe('Media share page', () => {
 
   it('saves subscribers only as the one eligibility rule the bot enforces', async () => {
     await open();
+    await openSettings();
 
     const rule = document.body.querySelector<HTMLElement>('[data-field="subOnly"] button');
 
