@@ -649,6 +649,33 @@ export function useMusicPlaylists(
   return channelQuery(channelId, musicPlaylistsKey, readPlaylists);
 }
 
+export type MusicDevice = components['schemas']['MusicDevice'];
+
+export const musicDevicesKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'music-devices',
+];
+
+async function readDevices(channelId: string): Promise<MusicDevice[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/music/devices',
+    { params: { path: { version, channelId } } },
+  );
+
+  if (error !== undefined)
+    throw failed('music devices', response.status, error);
+
+  return data?.data ?? [];
+}
+
+// The playback devices of the connected music account; the Switch Playback Device button picks from them.
+export function useMusicDevices(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<MusicDevice[], Error> {
+  return channelQuery(channelId, musicDevicesKey, readDevices);
+}
+
 export type SongHistoryItem = components['schemas']['SongHistoryItem'];
 export type TopRequester = components['schemas']['TopRequester'];
 

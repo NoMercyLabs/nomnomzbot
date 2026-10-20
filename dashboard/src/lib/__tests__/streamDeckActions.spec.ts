@@ -45,10 +45,40 @@ function pluginTypes(): Record<string, string> {
   return types;
 }
 
+// The setting each plugin key starts with: `{ volume: settings.volume ?? 50 }`. An empty text is no default.
+function pluginDefaults(): Record<string, Record<string, unknown>> {
+  const folder = join(plugin, 'src/actions');
+  const defaults: Record<string, Record<string, unknown>> = {};
+
+  for (const name of readdirSync(folder)) {
+    const text = readFileSync(join(folder, name), 'utf8');
+    const uuid = /UUID: "bot\.nomnomzbot\.streamdeck\.music\.([a-z-]+)"/.exec(text)?.[1];
+    const found = /return \{ (\w+): settings\.\w+ \?\? ([^}]+?) \}/.exec(text);
+
+    if (uuid !== undefined && found?.[1] !== undefined && found[2] !== undefined && found[2] !== '""') {
+      defaults[uuid] = { [found[1]]: JSON.parse(found[2]) };
+    }
+  }
+
+  return defaults;
+}
+
 describe('the Stream Deck music action catalog', () => {
   it('lists every plugin key, in the plugin order', () => {
     expect(STREAM_DECK_MUSIC_ACTIONS.map((action) =>
       action.key)).toEqual(manifestOrder());
+  });
+
+  it('starts each key with the plugin default setting', () => {
+    const defaults = pluginDefaults();
+
+    for (const action of STREAM_DECK_MUSIC_ACTIONS) {
+      const own = 'defaults' in action
+        ? action.defaults
+        : {};
+
+      expect([action.key, own]).toEqual([action.key, defaults[action.key] ?? {}]);
+    }
   });
 
   it('runs the same bot action as the plugin key it copies', () => {

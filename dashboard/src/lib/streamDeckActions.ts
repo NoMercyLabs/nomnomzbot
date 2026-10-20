@@ -10,11 +10,15 @@
 
 // The keys of the Stream Deck music plugin (tools/streamdeck/music), copied in its tray order, so the
 // dashboard offers the same buttons. key is the plugin's own action name, type the bot action it runs,
-// icon the designer icon that stands for it. A test checks this list against the plugin manifest.
+// icon the designer icon that stands for it, defaults the settings the plugin key starts with. A test checks
+// this list against the plugin manifest and source.
+import type { JsonObject } from '@/lib/json';
+
 export type StreamDeckAction = {
   key: string;
   type: string;
   icon: string;
+  defaults?: JsonObject;
 };
 
 export const STREAM_DECK_MUSIC_ACTIONS = [
@@ -52,31 +56,37 @@ export const STREAM_DECK_MUSIC_ACTIONS = [
     key: 'music-set-volume',
     type: 'music_set_volume',
     icon: 'volume-two',
+    defaults: { volume: 50 },
   },
   {
     key: 'music-volume-up',
     type: 'music_volume_up',
     icon: 'volume-three',
+    defaults: { step: 10 },
   },
   {
     key: 'music-volume-down',
     type: 'music_volume_down',
     icon: 'volume-one',
+    defaults: { step: 10 },
   },
   {
     key: 'music-volume-mute',
     type: 'music_volume_mute',
     icon: 'volume-muted',
+    defaults: { unmuteVolume: 50 },
   },
   {
     key: 'music-seek',
     type: 'music_seek',
     icon: 'forward',
+    defaults: { positionSeconds: 0 },
   },
   {
     key: 'music-set-shuffle',
     type: 'music_set_shuffle',
     icon: 'shuffle',
+    defaults: { enabled: true },
   },
   {
     key: 'music-toggle-shuffle',
@@ -87,6 +97,7 @@ export const STREAM_DECK_MUSIC_ACTIONS = [
     key: 'music-set-repeat',
     type: 'music_set_repeat',
     icon: 'repeat',
+    defaults: { mode: 'off' },
   },
   {
     key: 'music-cycle-repeat',

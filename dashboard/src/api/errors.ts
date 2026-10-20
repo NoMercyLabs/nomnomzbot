@@ -357,6 +357,7 @@ export const apiOperations = {
   'run action': 'music',
   'music history': 'music',
   'music playlists': 'music',
+  'music devices': 'music',
   'top requesters': 'music',
   'community list': 'people',
   'viewer profile': 'people',
