@@ -44,6 +44,20 @@
         "error": "De kanaallijst kon niet laden.",
         "forbidden": "Je mag de kanaallijst niet zien."
       },
+      "detail": {
+        "title": "Kanaal",
+        "description": "Wat de bot over dit kanaal bijhoudt.",
+        "owner": "Eigenaar",
+        "status": "Status",
+        "live": "Stream",
+        "tier": "Abonnement",
+        "mode": "Implementatiemodus",
+        "members": "Leden",
+        "twitchId": "Twitch-kanaal-ID",
+        "created": "Aangemaakt",
+        "suspendedReason": "Geschorst omdat",
+        "manage": "Beheer dit kanaal"
+      },
       "tenants": {
         "title": "Tenants",
         "pick": "Kies een tenant om te beheren.",
@@ -132,6 +146,16 @@
         "search": "Zoek gebruikers",
         "count": "{count} gebruikers",
         "never": "Nooit",
+        "detail": {
+          "title": "Gebruiker",
+          "description": "Wat de bot over deze persoon bijhoudt.",
+          "login": "Login",
+          "email": "E-mail",
+          "role": "Rol",
+          "channels": "Kanalen",
+          "lastActive": "Laatst actief",
+          "created": "Aangemaakt"
+        },
         "columns": {
           "user": "Gebruiker",
           "role": "Rol",
@@ -551,7 +575,8 @@
           "noTier": "Geen niveau",
           "founder": "Founders-badge",
           "revoke": "Intrekken",
-          "revokeTitle": "{code} intrekken?"
+          "revokeTitle": "{code} intrekken?",
+          "ended": "Ingetrokken of verlopen"
         },
         "channel": {
           "title": "Kanaalfacturatie",
@@ -761,6 +786,7 @@
         "failed": "Opnieuw proberen is mislukt. Er is niets gewist.",
         "filters": {
           "status": "Status",
+          "statusOption": "{label} ({count})",
           "type": "Soort"
         },
         "status": {
@@ -777,10 +803,9 @@
           "export": "Export",
           "opt_out": "Afmelding"
         },
-        "summary": {
-          "title": "Register",
-          "description": "Elk verzoek geteld per status, uit het echte register.",
-          "total": "Totaal"
+        "requestedBy": {
+          "self_service": "de persoon zelf",
+          "platform_iam": "een platformbeheerder"
         },
         "list": {
           "title": "Verzoeken",
@@ -789,7 +814,11 @@
           "error": "De gegevensverzoeken konden niet laden.",
           "subject": "Persoon {hash}",
           "by": "Aangevraagd door {by}",
-          "rows": "{count} rijen gewijzigd",
+          "rows": {
+            "export": "{count} rijen geexporteerd",
+            "erasure": "{count} rijen gewist",
+            "opt_out": "{count} rijen gewijzigd"
+          },
           "requested": "Aangevraagd {when}",
           "completed": "Voltooid {when}"
         },

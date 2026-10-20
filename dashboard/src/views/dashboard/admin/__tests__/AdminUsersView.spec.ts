@@ -12,6 +12,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import { queryClient } from '@/api/queryClient';
 import { i18n } from '@/i18n';
@@ -69,6 +70,7 @@ vi.mock('@/api/client', () => ({
 
 let mounted: VueWrapper | null = null;
 let pinia: Pinia;
+let router: Router;
 
 beforeEach(() => {
   localStorage.clear();
@@ -77,7 +79,11 @@ beforeEach(() => {
   total = 2;
 
   rowsOnPage = [
-    person('u1', 'Stoney_Eagle', { role: 'admin', channelCount: 3 }),
+    person('u1', 'Stoney_Eagle', {
+      role: 'admin',
+      channelCount: 3,
+      email: 'stoney@example.com',
+    }),
     person('u2', 'Quiet_One', { lastActive: null, createdAt: '2026-05-01T10:00:00Z' }),
   ];
 
@@ -100,13 +106,27 @@ const settle = async (): Promise<void> => {
   await flushPromises();
 };
 
-async function open(): Promise<void> {
+async function open(start: string = '/app/admin/users'): Promise<void> {
+  router = createRouter({
+    history: createMemoryHistory(),
+    routes: [
+      {
+        path: '/app/admin/users',
+        name: 'dashboard-admin-users',
+        component: { template: '<div />' },
+      },
+    ],
+  });
+
+  await router.push(start);
+
   mounted = mount(AdminUsersView, {
     attachTo: document.body,
     global: {
       plugins: [
         i18n,
         pinia,
+        router,
         [
           VueQueryPlugin,
           { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
@@ -129,6 +149,26 @@ const byText = (selector: string, label: string): HTMLElement | undefined =>
   );
 
 describe('AdminUsersView', () => {
+  it('opens the user detail with the login, email, role and channel count when a row is clicked', async () => {
+    await open();
+    rows()[0]!.click();
+    await settle();
+
+    const detail = document.body.querySelector('[data-user-detail]') as HTMLElement;
+
+    expect(router.currentRoute.value.query.user).toBe('u1');
+    expect(detail.textContent).toContain('Stoney_Eagle');
+    expect(detail.textContent).toContain('stoney@example.com');
+    expect(detail.textContent).toContain('Admin');
+    expect(detail.textContent).toContain('3');
+  });
+
+  it('opens the detail of the user named in the address', async () => {
+    await open('/app/admin/users?user=u2');
+
+    expect(document.body.querySelector('[data-user-detail]')!.textContent).toContain('Quiet_One');
+  });
+
   it('renders one row per user with name, login, role, channel count and dates', async () => {
     await open();
 

@@ -9,6 +9,7 @@
 -->
 <script setup lang="ts">
 // The people who use the bot, one row each. The bot sorts the list (newest first), so the heads do not sort.
+// The name is the one button of a row: it picks the user, for the keyboard and the pointer alike.
 import { useI18n } from 'vue-i18n';
 
 import type { AdminUser } from '@/api/adminUsers';
@@ -24,7 +25,8 @@ import {
 } from '@/components/ui/table';
 import { useTime } from '@/composables/useTime';
 
-defineProps<{ rows: readonly AdminUser[] }>();
+defineProps<{ rows: readonly AdminUser[]; selectedId: string }>();
+defineEmits<{ pick: [row: AdminUser] }>();
 
 const { t } = useI18n();
 const time = useTime();
@@ -67,17 +69,29 @@ function day(value: string | null | undefined): string {
       </TableRow>
     </TableHeader>
     <TableBody>
-      <TableRow v-for="row in rows" :key="row.id" data-user-row>
+      <TableRow
+        v-for="row in rows"
+        :key="row.id"
+        data-user-row
+        :data-state="row.id === selectedId ? 'selected' : undefined"
+        class="cursor-pointer"
+        @click="$emit('pick', row)"
+      >
         <TableCell>
-          <div class="flex min-h-11 items-center gap-3">
+          <button
+            type="button"
+            :aria-pressed="row.id === selectedId"
+            class="flex min-h-11 items-center gap-3 rounded-md text-left outline-none focus-visible:ring-2 focus-visible:ring-ring"
+            @click.stop="$emit('pick', row)"
+          >
             <Avatar class="size-8 rounded-lg">
               <AvatarFallback class="rounded-lg">{{ initials(row.displayName) }}</AvatarFallback>
             </Avatar>
-            <div class="flex min-w-0 flex-col">
+            <span class="flex min-w-0 flex-col">
               <span class="truncate font-medium">{{ row.displayName }}</span>
               <span class="truncate text-sm text-muted-foreground">{{ row.login }}</span>
-            </div>
-          </div>
+            </span>
+          </button>
         </TableCell>
         <TableCell>
           <StatusBadge :tone="tone(row.role)" :label="roleLabel(row.role)" />

@@ -24,9 +24,11 @@ import type { FilterOption } from '@/components/layout/filterOption';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
+import SidePanel from '@/components/layout/SidePanel.vue';
 import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
 
+import ChannelDetailPanel from './components/ChannelDetailPanel.vue';
 import ChannelsTable from './components/ChannelsTable.vue';
 
 const PAGE_SIZE: number = 25;
@@ -90,6 +92,19 @@ const selectedId = computed<string>(() =>
     ? route.query.channel
     : '',
 );
+
+const selected = computed<AdminTenant | null>(() =>
+  rows.value.find((row) => row.id === selectedId.value) ?? null);
+
+// The drawer is open while a channel of this page is in the address; closing it drops the channel from there.
+const detailOpen = computed<boolean>({
+  get: () => selected.value !== null,
+  set: (open) => {
+    if (!open) {
+      void router.push({ query: { ...route.query, channel: undefined } });
+    }
+  },
+});
 
 function pick(row: AdminTenant): void {
   void router.push({ query: { ...route.query, channel: row.id } });
@@ -164,5 +179,8 @@ function pick(row: AdminTenant): void {
         </div>
       </template>
     </PanelCard>
+    <SidePanel v-model:open="detailOpen" drawer-only :label="$t('dashboard.admin.detail.title')">
+      <ChannelDetailPanel v-if="selected" :channel="selected" />
+    </SidePanel>
   </div>
 </template>

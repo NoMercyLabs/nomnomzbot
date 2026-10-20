@@ -60,6 +60,26 @@ vi.mock('@/api/client', () => ({
       if (refused)
         return { error: { message: 'no' }, response: { status: 403, ok: false } };
 
+      if (path.endsWith('/admin/tenants/{broadcasterId}')) {
+        return {
+          data: {
+            data: {
+              id: 't1',
+              name: 'stoney_eagle',
+              twitchChannelId: 'tw-t1',
+              status: 'active',
+              billingTierKey: 'pro',
+              deploymentMode: 'selfhost',
+              ownerUserId: 'u1',
+              ownerDisplayName: 'Stoney Owner',
+              membershipCount: 4,
+              createdAt: '2026-06-29T10:00:00Z',
+            },
+          },
+          response: { status: 200, ok: true },
+        };
+      }
+
       return {
         data: {
           data: rowsOnPage,
@@ -107,7 +127,7 @@ const settle = async (): Promise<void> => {
   await flushPromises();
 };
 
-async function open(): Promise<void> {
+async function open(start: string = '/app/admin/channels'): Promise<void> {
   const blank = { template: '<div />' };
 
   router = createRouter({
@@ -118,10 +138,15 @@ async function open(): Promise<void> {
         name: 'dashboard-admin-channels',
         component: blank,
       },
+      {
+        path: '/app/admin/tenants',
+        name: 'dashboard-admin-tenants',
+        component: blank,
+      },
     ],
   });
 
-  await router.push('/app/admin/channels');
+  await router.push(start);
 
   mounted = mount(AdminChannelsView, {
     attachTo: document.body,
@@ -211,6 +236,27 @@ describe('AdminChannelsView', () => {
     expect(calls.length).toBeGreaterThan(before);
     expect(lastQuery().search).toBe('stoney');
     expect(lastQuery().Page).toBe(1);
+  });
+
+  it('opens the channel detail with the tier, owner and members when a row is clicked', async () => {
+    await open();
+    rows()[0]!.click();
+    await settle();
+
+    const detail = document.body.querySelector('[data-channel-detail]') as HTMLElement;
+
+    expect(router.currentRoute.value.query.channel).toBe('t1');
+    expect(detail.textContent).toContain('stoney_eagle');
+    expect(detail.textContent).toContain('Stoney Owner');
+    expect(detail.textContent).toContain('pro');
+    expect(detail.textContent).toContain('4');
+    expect(detail.querySelector('a[href*="tenant=t1"]')).not.toBeNull();
+  });
+
+  it('opens the detail of the channel named in the address', async () => {
+    await open('/app/admin/channels?channel=t1');
+
+    expect(document.body.querySelector('[data-channel-detail]')).not.toBeNull();
   });
 
   it('sends the chosen status as the status filter', async () => {

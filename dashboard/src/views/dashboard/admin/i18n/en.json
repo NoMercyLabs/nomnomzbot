@@ -44,6 +44,20 @@
         "error": "The channel list could not load.",
         "forbidden": "You may not see the channel list."
       },
+      "detail": {
+        "title": "Channel",
+        "description": "What the bot holds about this channel.",
+        "owner": "Owner",
+        "status": "Status",
+        "live": "Stream",
+        "tier": "Billing tier",
+        "mode": "Deployment mode",
+        "members": "Members",
+        "twitchId": "Twitch channel ID",
+        "created": "Created",
+        "suspendedReason": "Suspended because",
+        "manage": "Manage this channel"
+      },
       "tenants": {
         "title": "Tenants",
         "pick": "Pick a tenant to manage it.",
@@ -132,6 +146,16 @@
         "search": "Search users",
         "count": "{count} users",
         "never": "Never",
+        "detail": {
+          "title": "User",
+          "description": "What the bot holds about this person.",
+          "login": "Login",
+          "email": "Email",
+          "role": "Role",
+          "channels": "Channels",
+          "lastActive": "Last active",
+          "created": "Created"
+        },
         "columns": {
           "user": "User",
           "role": "Role",
@@ -551,7 +575,8 @@
           "noTier": "No tier",
           "founder": "Founders badge",
           "revoke": "Revoke",
-          "revokeTitle": "Revoke {code}?"
+          "revokeTitle": "Revoke {code}?",
+          "ended": "Revoked or expired"
         },
         "channel": {
           "title": "Channel billing",
@@ -761,6 +786,7 @@
         "failed": "The retry failed. Nothing was erased.",
         "filters": {
           "status": "Status",
+          "statusOption": "{label} ({count})",
           "type": "Type"
         },
         "status": {
@@ -777,10 +803,9 @@
           "export": "Export",
           "opt_out": "Opt-out"
         },
-        "summary": {
-          "title": "Ledger",
-          "description": "Every request counted by status, from the real ledger.",
-          "total": "Total"
+        "requestedBy": {
+          "self_service": "the person themselves",
+          "platform_iam": "a platform admin"
         },
         "list": {
           "title": "Requests",
@@ -789,7 +814,11 @@
           "error": "The data requests could not load.",
           "subject": "Subject {hash}",
           "by": "Requested by {by}",
-          "rows": "{count} rows changed",
+          "rows": {
+            "export": "{count} rows exported",
+            "erasure": "{count} rows erased",
+            "opt_out": "{count} rows changed"
+          },
           "requested": "Requested {when}",
           "completed": "Completed {when}"
         },

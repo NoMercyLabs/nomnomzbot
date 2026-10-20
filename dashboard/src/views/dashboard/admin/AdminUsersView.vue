@@ -13,6 +13,7 @@
 import { refDebounced, useLocalStorage } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute, useRouter } from 'vue-router';
 import ChevronLeft from '~icons/nnz/chevron-left';
 import ChevronRight from '~icons/nnz/chevron-right';
 
@@ -23,15 +24,19 @@ import type { FilterOption } from '@/components/layout/filterOption';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
+import SidePanel from '@/components/layout/SidePanel.vue';
 import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
 
+import UserDetailPanel from './components/UserDetailPanel.vue';
 import UsersTable from './components/UsersTable.vue';
 
 const PAGE_SIZE: number = 25;
 const SEARCH_PAUSE_MS: number = 300;
 
 const { t } = useI18n();
+const route = useRoute();
+const router = useRouter();
 
 const search = ref('');
 const typed = refDebounced(search, SEARCH_PAUSE_MS);
@@ -71,6 +76,28 @@ const listError = computed<string>(() =>
     ? t('dashboard.admin.users.list.forbidden')
     : t('dashboard.admin.users.list.error'),
 );
+
+const selectedId = computed<string>(() =>
+  typeof route.query.user === 'string'
+    ? route.query.user
+    : '',
+);
+const selected = computed<AdminUser | null>(() =>
+  rows.value.find((row) => row.id === selectedId.value) ?? null);
+
+// The drawer is open while a user of this page is in the address; closing it drops the user from there.
+const detailOpen = computed<boolean>({
+  get: () => selected.value !== null,
+  set: (open) => {
+    if (!open) {
+      void router.push({ query: { ...route.query, user: undefined } });
+    }
+  },
+});
+
+function pick(row: AdminUser): void {
+  void router.push({ query: { ...route.query, user: row.id } });
+}
 </script>
 
 <template>
@@ -114,7 +141,7 @@ const listError = computed<string>(() =>
           :placeholder="$t('dashboard.admin.users.search')"
         />
       </template>
-      <UsersTable :rows="rows" />
+      <UsersTable :rows="rows" :selected-id="selectedId" @pick="pick" />
       <template #footer>
         <span class="text-sm text-muted-foreground tabular-nums" role="status">
           {{ $t('dashboard.admin.pager.page', { page, pages }) }}
@@ -131,5 +158,8 @@ const listError = computed<string>(() =>
         </div>
       </template>
     </PanelCard>
+    <SidePanel v-model:open="detailOpen" drawer-only :label="$t('dashboard.admin.users.detail.title')">
+      <UserDetailPanel v-if="selected" :user="selected" />
+    </SidePanel>
   </div>
 </template>
