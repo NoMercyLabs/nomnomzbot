@@ -120,6 +120,25 @@
         "bangerPlaylist": "Afspeellijst",
         "save": "Opslaan",
         "discard": "Weggooien",
+        "reset": {
+          "button": "Terug naar standaard",
+          "title": "De aanvraagregels terugzetten naar de standaard?",
+          "body": "Deze regels gaan terug naar de platformstandaard. Je eigen wijzigingen gaan verloren. De aanvragenschakelaar en de bangerlijst blijven zoals ze zijn.",
+          "action": "Terug naar standaard",
+          "fields": {
+            "preferredProvider": "Voorkeursdienst",
+            "maxQueueSize": "Nummers in de wachtrij",
+            "maxRequestsPerUser": "Nummers per persoon",
+            "maxSongSeconds": "Langste nummer",
+            "allowExplicit": "Expliciete nummers",
+            "perStreamLimit": "Nummers per persoon per stream",
+            "youTubeMusicCategoryOnly": "Alleen YouTube Music-categorie",
+            "allowYouTube": "YouTube-aanvragen",
+            "allowSpotify": "Spotify-aanvragen",
+            "minTrustLevel": "Wie mag aanvragen",
+            "maxRequestsPerRole": "Nummers per rol"
+          }
+        },
         "open": "Aanvragen staan open",
         "queueSize": "Nummers in de wachtrij, maximaal",
         "perRoleHelp": "Nummers per persoon per rol. Laat een vak leeg voor de limiet hierboven.",

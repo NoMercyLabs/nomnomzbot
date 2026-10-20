@@ -135,6 +135,18 @@
         "error": "De ingebouwde commando's konden niet laden.",
         "enabled": "Antwoordt in de chat",
         "customize": "Aanpassen",
+        "reset": "Terug naar standaard",
+        "resetTitle": "!{name} terugzetten naar de standaard?",
+        "resetBody": "Deze instellingen gaan terug naar de platformstandaard. Je eigen wijzigingen gaan verloren.",
+        "resetAction": "Terug naar standaard",
+        "resetLost": {
+          "cooldown": "Chat-cooldown",
+          "userCooldown": "Cooldown per persoon",
+          "level": "Wie het mag gebruiken",
+          "replies": "Tekst van de antwoorden",
+          "tts": "Voorlezen",
+          "enabled": "Weer aangezet"
+        },
         "customizeHelp": "Dit zijn de standaardwaarden. Pas aan om ze van jou te maken; elke wijziging overschrijft de standaard.",
         "reserved": "Dit is een datarechten-commando. Het antwoordt altijd en de instellingen liggen vast.",
         "replyLocked": "Dit antwoord ligt vast en kan niet worden gewijzigd.",

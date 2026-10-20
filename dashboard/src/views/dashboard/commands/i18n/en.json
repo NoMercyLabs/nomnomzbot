@@ -135,6 +135,18 @@
         "error": "The built-in commands could not load.",
         "enabled": "Answers in chat",
         "customize": "Customize",
+        "reset": "Reset to default",
+        "resetTitle": "Reset !{name} to its default?",
+        "resetBody": "These settings go back to the platform default. Your edits to them are lost.",
+        "resetAction": "Reset to default",
+        "resetLost": {
+          "cooldown": "Chat cooldown",
+          "userCooldown": "Per-person cooldown",
+          "level": "Who can use it",
+          "replies": "Reply wording",
+          "tts": "Read aloud",
+          "enabled": "Turned back on"
+        },
         "customizeHelp": "These are the defaults. Customize to make them your own; each change overrides the default.",
         "reserved": "This is a data-rights command. It always answers and its settings are fixed.",
         "replyLocked": "This reply is fixed and cannot be changed.",

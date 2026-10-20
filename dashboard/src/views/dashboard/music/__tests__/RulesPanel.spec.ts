@@ -139,6 +139,9 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/music/config'))
         return ok(config);
 
+      if (path.endsWith('/music/config/defaults'))
+        return ok(baseConfig());
+
       if (path.endsWith('/music/playlists'))
         return ok(playlists);
 
@@ -244,6 +247,11 @@ async function pickPlaylist(name: string, setting = 'banger-playlist'): Promise<
   await settle();
 }
 
+async function click(el: HTMLElement): Promise<void> {
+  el.click();
+  await settle();
+}
+
 const puts = (): Call[] => calls.filter((call) => call.method === 'PUT');
 
 describe('RulesPanel', () => {
@@ -329,6 +337,38 @@ describe('RulesPanel', () => {
     expect(puts()).toHaveLength(1);
     expect(puts()[0]!.body).toEqual({ maxRequestsPerUser: 3 });
     expect(buttonIn('Save').disabled).toBe(true);
+  });
+
+  it('resets the request rules to the platform defaults after a confirm that names what changes', async () => {
+    config = {
+      ...baseConfig(),
+      maxRequestsPerUser: 5,
+      allowExplicit: false,
+    };
+
+    await open();
+
+    await click(buttonIn('Reset to default'));
+    expect(puts()).toHaveLength(0);
+
+    const dialog = document.body
+      .querySelector<HTMLElement>('[data-confirm-action]')!
+      .closest('[role="alertdialog"], [role="dialog"]')!;
+
+    expect(dialog.textContent).toContain('Songs per person');
+    expect(dialog.textContent).toContain('Explicit songs');
+    expect(dialog.textContent).not.toContain('Longest song');
+
+    await click(document.body.querySelector<HTMLButtonElement>('[data-confirm-action]')!);
+
+    expect(puts()).toHaveLength(1);
+    expect(puts()[0]!.body).toEqual({ maxRequestsPerUser: 1, allowExplicit: true });
+  });
+
+  it('offers no reset while every rule already matches the platform defaults', async () => {
+    await open();
+
+    expect(buttonIn('Reset to default')).toBeUndefined();
   });
 
   // Stoney 2026-10-18: "you got to apply the same rules as all other pannels with a toggle in the header bar".

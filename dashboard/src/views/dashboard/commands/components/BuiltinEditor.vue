@@ -17,6 +17,7 @@ import { useI18n } from 'vue-i18n';
 
 import {
   useBuiltinReplies,
+  useResetBuiltin,
   useSetBuiltinReply,
   useSetBuiltinTts,
   useToggleBuiltin,
@@ -44,6 +45,9 @@ import {
 import { Switch } from '@/components/ui/switch';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useLocalizedText } from '@/composables/useLocalizedText';
+import { errorText } from '@/lib/errors';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import RotateLeft from '~icons/nnz/rotate-left';
 
 import { rungNames } from '@/api/permissions';
 
@@ -66,6 +70,9 @@ const updateSettings = useUpdateBuiltinSettings(channelId);
 const setReply = useSetBuiltinReply(channelId);
 const setTts = useSetBuiltinTts(channelId);
 const replyGroups = useBuiltinReplies(channelId);
+const resetBuiltin = useResetBuiltin(channelId);
+const resetOpen = ref(false);
+const failure = ref<string | null>(null);
 
 const slots = computed<BuiltinReply[]>(
   () =>
@@ -207,6 +214,34 @@ function backToDefaultReply(slot: BuiltinReply): void {
     slot: slot.slot,
     template: null,
   });
+}
+
+// What a reset puts back, listed in the confirm; empty when the built-in already runs on its defaults.
+const resetEffects = computed<string[]>(() => {
+  const lost = [
+    ['cooldown', props.builtin.cooldownSecondsOverride != null],
+    ['userCooldown', props.builtin.userCooldownSecondsOverride != null],
+    ['level', props.builtin.minPermissionLevelOverride != null],
+    ['replies', Number(props.builtin.replyOverrideCount) > 0],
+    ['tts', props.builtin.speakWithTts],
+    ['enabled', !props.builtin.isEnabled],
+  ] as const satisfies readonly (readonly [string, boolean])[];
+
+  return lost
+    .filter(([, isLost]): boolean => isLost)
+    .map(([field]): string => t(`dashboard.commands.builtin.resetLost.${field}`));
+});
+
+async function reset(): Promise<void> {
+  resetOpen.value = false;
+  failure.value = null;
+
+  try {
+    await resetBuiltin.mutateAsync({ builtinKey: props.builtin.builtinKey });
+    draft.value = structuredClone(saved.value);
+  } catch (error) {
+    failure.value = errorText(error, t);
+  }
 }
 
 function backToDefaultTts(): void {
@@ -451,7 +486,28 @@ const unsaved = computed<string>(() =>
         </div>
       </Field>
     </div>
+    <p v-if="failure" role="alert" class="px-6 pb-2 text-sm text-destructive">{{ failure }}</p>
+    <ConfirmDialog
+      v-model:open="resetOpen"
+      :title="$t('dashboard.commands.builtin.resetTitle', { name: triggerWord(builtin) })"
+      :description="$t('dashboard.commands.builtin.resetBody')"
+      :consequences="resetEffects"
+      :action="$t('dashboard.commands.builtin.resetAction')"
+      :pending="resetBuiltin.isPending.value"
+      @confirm="reset"
+    />
     <template #footer>
+      <Button
+        v-if="!locked && resetEffects.length > 0"
+        type="button"
+        variant="outline"
+        size="sm"
+        :disabled="resetBuiltin.isPending.value"
+        @click="resetOpen = true"
+      >
+        <RotateLeft aria-hidden="true" />
+        {{ $t("dashboard.commands.builtin.reset") }}
+      </Button>
       <span class="mr-auto text-sm text-muted-foreground">{{ unsaved }}</span>
       <Button
         v-if="!customized"

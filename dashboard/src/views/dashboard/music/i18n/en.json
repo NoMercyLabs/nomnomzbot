@@ -112,6 +112,25 @@
         "bangerPlaylist": "Playlist",
         "save": "Save",
         "discard": "Discard",
+        "reset": {
+          "button": "Reset to default",
+          "title": "Reset the request rules to their defaults?",
+          "body": "These rules go back to the platform default. Your edits to them are lost. The requests switch and the banger playlist stay as they are.",
+          "action": "Reset to default",
+          "fields": {
+            "preferredProvider": "Preferred service",
+            "maxQueueSize": "Songs in the queue",
+            "maxRequestsPerUser": "Songs per person",
+            "maxSongSeconds": "Longest song",
+            "allowExplicit": "Explicit songs",
+            "perStreamLimit": "Songs per person per stream",
+            "youTubeMusicCategoryOnly": "YouTube Music category only",
+            "allowYouTube": "YouTube requests",
+            "allowSpotify": "Spotify requests",
+            "minTrustLevel": "Who may request",
+            "maxRequestsPerRole": "Songs per role"
+          }
+        },
         "open": "Requests are open",
         "queueSize": "Songs in the queue, at most",
         "songSeconds": "Longest song (minutes:seconds)",

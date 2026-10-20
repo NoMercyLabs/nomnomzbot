@@ -328,6 +328,44 @@ describe('BuiltinEditor', () => {
     expect(reset.key).toBe('uptime');
   });
 
+  it('resets a customized built-in to its defaults after a confirm that names what is lost', async () => {
+    builtins = [builtin({
+      cooldownSecondsOverride: 30,
+      replyOverrideCount: 2,
+      isEnabled: false,
+    })];
+
+    replies = [group([slot({ effectiveTemplate: 'Own words', isOverridden: true })])];
+
+    await open();
+
+    expect(button('Reset to default')!.dataset.variant).toBe('outline');
+    await click(button('Reset to default'));
+    expect(writes()).toHaveLength(0);
+
+    const dialog = document.body
+      .querySelector<HTMLElement>('[data-confirm-action]')!
+      .closest('[role="alertdialog"], [role="dialog"]')!;
+
+    expect(dialog.textContent).toContain('Chat cooldown');
+    expect(dialog.textContent).toContain('Reply wording');
+    expect(dialog.textContent).toContain('Turned back on');
+    expect(dialog.textContent).not.toContain('Per-person cooldown');
+
+    await click(document.body.querySelector<HTMLButtonElement>('[data-confirm-action]')!);
+    const reset = writes()[0]!;
+
+    expect(reset.method).toBe('DELETE');
+    expect(reset.path.endsWith('/builtins/{builtinKey}/settings')).toBe(true);
+    expect(reset.key).toBe('uptime');
+  });
+
+  it('offers no reset for a built-in that already runs on its defaults', async () => {
+    await open();
+
+    expect(button('Reset to default')).toBeUndefined();
+  });
+
   it('keeps a reserved built-in locked with its reason, and a locked reply view-only', async () => {
     builtins = [builtin({ isReserved: true })];
     await open();
