@@ -1151,8 +1151,25 @@ public sealed class AuthService : IAuthService
         if (access.IsFailure)
             return Result.Success(new BotStatusDto(false, null, null, null));
 
-        return Result.Success(new BotStatusDto(true, bot.BotUsername, bot.BotUsername, null));
+        return Result.Success(
+            new BotStatusDto(
+                true,
+                bot.BotUsername,
+                bot.BotUsername,
+                await FindBotPictureAsync(bot.BotUserId, cancellationToken)
+            )
+        );
     }
+
+    /// <summary>The bot's own Twitch picture, read from its user row; null while that row has none.</summary>
+    private async Task<string?> FindBotPictureAsync(
+        string botUserId,
+        CancellationToken cancellationToken
+    ) =>
+        await _db
+            .Users.Where(u => u.TwitchUserId == botUserId)
+            .Select(u => u.ProfileImageUrl)
+            .FirstOrDefaultAsync(cancellationToken);
 
     public async Task<Result> DisconnectBotAsync(CancellationToken cancellationToken = default)
     {
@@ -1432,7 +1449,7 @@ public sealed class AuthService : IAuthService
                 true,
                 bot.BotUsername,
                 bot.BotUsername,
-                null,
+                await FindBotPictureAsync(bot.BotUserId, cancellationToken),
                 UsesSharedBot: usesSharedBot
             )
         );
