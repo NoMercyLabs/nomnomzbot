@@ -30,10 +30,25 @@ vi.mock('@/api/access', () => ({
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async () => ({
-      data: { data: [...mockNames] },
-      response: { status: 200, ok: true },
-    }),
+    GET: async (path: string) => {
+      const rowsByPath: Record<string, unknown[]> = {
+        '/obs/scenes': [{ name: 'Main', isCurrent: true }],
+        '/obs/scene-items': [{
+          sceneItemId: 5,
+          sourceName: 'Webcam',
+          enabled: true,
+          locked: false,
+        }],
+      };
+      const suffix = Object.keys(rowsByPath).find((key) => path.endsWith(key));
+
+      return {
+        data: { data: suffix
+          ? rowsByPath[suffix]
+          : [...mockNames] },
+        response: { status: 200, ok: true },
+      };
+    },
     POST: async (path: string, init: { body?: unknown }) => {
       posts.push({ path, body: init.body });
 
@@ -120,18 +135,27 @@ describe('ObsHotkeysPanel', () => {
       'Start streaming',
       'Start recording',
       'My plugin do the thing',
+      'Show Webcam',
     ]);
 
     const other = mounted.find('[data-obs-hotkey-other]');
 
-    expect(other.text()).toContain('Other (2)');
+    expect(other.text()).toContain('Other (1)');
 
     await other.trigger('click');
     await flushPromises();
 
-    expect(
-      [...document.querySelectorAll('[data-obs-hotkey-unresolved]')].map((button) => button.getAttribute('data-obs-hotkey-unresolved')),
-    ).toEqual(['libobs.mute', 'libobs.show_scene_item.5']);
+    const unresolved = [...document.querySelectorAll('[data-obs-hotkey-unresolved]')];
+
+    expect(unresolved.map((button) => button.getAttribute('data-obs-hotkey-unresolved'))).toEqual(['libobs.mute']);
+    expect(unresolved.map((button) => button.textContent?.trim())).toEqual(['Mute a source']);
+
+    const scene = mounted.find('[data-obs-hotkey-scene="Main"]');
+
+    expect(scene.text()).toContain('Scene: Main');
+    expect(scene.findAll('button').map((button) => button.text())).toEqual(['Show Webcam']);
+    expect(mounted.text()).not.toContain('libobs.');
+    expect(document.body.textContent).not.toMatch(/scene item \d/i);
 
     await mounted.find('input[type="search"]').setValue('record');
 

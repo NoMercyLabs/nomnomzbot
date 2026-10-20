@@ -138,7 +138,12 @@
         "search": "Zoek in de sneltoetsen",
         "noMatch": "Geen sneltoets past bij je zoekopdracht.",
         "other": "Overig ({count})",
-        "otherNote": "OBS noemt bij deze niet de bron of scene waar ze op werken, dus ze staan onder de naam die OBS ze gaf.",
+        "otherNote": "OBS zegt niet op welke bron deze werken, dus ze zijn hier niet uit elkaar te houden. Sceneonderdelen die OBS niet plaatst worden geteld maar niet getoond.",
+        "inScene": "Scene: {scene}",
+        "sceneItem": {
+          "showSceneItem": "{source} tonen",
+          "hideSceneItem": "{source} verbergen"
+        },
         "groups": {
           "stream": "Streamen",
           "recording": "Opnemen",

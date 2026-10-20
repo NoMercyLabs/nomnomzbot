@@ -138,7 +138,12 @@
         "search": "Search the hotkeys",
         "noMatch": "No hotkey matches your search.",
         "other": "Other ({count})",
-        "otherNote": "OBS lists these without naming the source or scene they act on, so they show under the name OBS gave them.",
+        "otherNote": "OBS does not say which source these act on, so they cannot be told apart here. Scene items OBS does not place are counted but not listed.",
+        "inScene": "Scene: {scene}",
+        "sceneItem": {
+          "showSceneItem": "Show {source}",
+          "hideSceneItem": "Hide {source}"
+        },
         "groups": {
           "stream": "Streaming",
           "recording": "Recording",

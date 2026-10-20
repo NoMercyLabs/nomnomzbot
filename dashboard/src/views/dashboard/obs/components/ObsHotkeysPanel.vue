@@ -14,6 +14,7 @@ import { useI18n } from 'vue-i18n';
 import ChevronDown from '~icons/nnz/chevron-down';
 
 import { useObsHotkeys, useObsTriggerHotkey } from '@/api/obsControl';
+import { useObsSceneItemPlaces } from '@/api/obsSources';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -63,6 +64,54 @@ const matching = computed<string[]>(() => {
 const groups = computed(() => groupObsHotkeys(matching.value));
 const shown = computed(() => groups.value.filter((entry) => entry.group !== 'unresolved'));
 const unresolved = computed(() => groups.value.find((entry) => entry.group === 'unresolved')?.names ?? []);
+const sceneItems = useObsSceneItemPlaces(channelId, connected);
+
+type SceneHotkey = { name: string; text: string };
+
+function isSceneItem(name: string): boolean {
+  const described = describeObsHotkey(name);
+
+  return described.kind === 'known' && (described.key === 'showSceneItem' || described.key === 'hideSceneItem');
+}
+
+// A scene-item hotkey names the item by number; it is told as its source only when exactly one scene item has that number.
+function sceneItemOf(name: string): (SceneHotkey & { sceneName: string }) | null {
+  const described = describeObsHotkey(name);
+
+  if (described.kind !== 'known' || !isSceneItem(name))
+    return null;
+
+  const found = sceneItems.value.get(described.target ?? '');
+  const [only] = found ?? [];
+
+  return found?.length === 1 && only
+    ? {
+        name,
+        sceneName: only.sceneName,
+        text: t(`dashboard.obs.hotkeys.sceneItem.${described.key}`, { source: only.sourceName }),
+      }
+    : null;
+}
+
+const byScene = computed(() => {
+  const scenes = new Map<string, SceneHotkey[]>();
+
+  unresolved.value.forEach((name) => {
+    const item = sceneItemOf(name);
+
+    if (item) {
+      const inScene = scenes.get(item.sceneName) ?? [];
+
+      scenes.set(item.sceneName, [...inScene, { name, text: item.text }]);
+    }
+  });
+
+  return [...scenes].map(([sceneName, hotkeys]) => ({ sceneName, hotkeys }));
+});
+
+// Hotkeys OBS ties to no source: ones with plain words stay as buttons; scene items it cannot place are only counted.
+const other = computed(() => unresolved.value.filter((name) => sceneItemOf(name) === null));
+const otherButtons = computed(() => other.value.filter((name) => !isSceneItem(name)));
 
 function fire(hotkeyName: string): void {
   trigger.mutate(hotkeyName, { onError: toastObsError });
@@ -109,7 +158,28 @@ function fire(hotkeyName: string): void {
           </Button>
         </div>
       </section>
-      <Collapsible v-if="unresolved.length > 0" class="flex flex-col gap-2">
+      <section
+        v-for="scene in byScene"
+        :key="scene.sceneName"
+        :data-obs-hotkey-scene="scene.sceneName"
+        class="flex flex-col gap-2"
+      >
+        <h3 class="text-sm font-medium">
+          {{ $t("dashboard.obs.hotkeys.inScene", { scene: scene.sceneName }) }}
+        </h3>
+        <div class="flex flex-wrap gap-2">
+          <Button
+            v-for="hotkey in scene.hotkeys"
+            :key="hotkey.name"
+            variant="outline"
+            :data-obs-hotkey="hotkey.name"
+            @click="fire(hotkey.name)"
+          >
+            {{ hotkey.text }}
+          </Button>
+        </div>
+      </section>
+      <Collapsible v-if="other.length > 0" class="flex flex-col gap-2">
         <CollapsibleTrigger
           data-obs-hotkey-other
           class="group flex items-center gap-2 rounded-md text-left text-sm font-medium outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
@@ -118,7 +188,7 @@ function fire(hotkeyName: string): void {
             class="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
             aria-hidden="true"
           />
-          {{ $t("dashboard.obs.hotkeys.other", { count: unresolved.length }) }}
+          {{ $t("dashboard.obs.hotkeys.other", { count: other.length }) }}
         </CollapsibleTrigger>
         <CollapsibleContent class="flex flex-col gap-2">
           <p class="text-sm text-muted-foreground">
@@ -126,14 +196,13 @@ function fire(hotkeyName: string): void {
           </p>
           <div class="flex flex-wrap gap-2">
             <Button
-              v-for="name in unresolved"
+              v-for="name in otherButtons"
               :key="name"
               variant="outline"
-              class="font-mono"
               :data-obs-hotkey-unresolved="name"
               @click="fire(name)"
             >
-              {{ name }}
+              {{ label(name) }}
             </Button>
           </div>
         </CollapsibleContent>
