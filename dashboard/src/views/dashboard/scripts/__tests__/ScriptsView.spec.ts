@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
-import { Select } from '@/components/ui/select';
+import { Select, SelectItem } from '@/components/ui/select';
 import { i18n } from '@/i18n';
 
 import ScriptRunsPanel from '../components/ScriptRunsPanel.vue';
@@ -155,6 +155,12 @@ vi.mock('@/api/client', () => ({
                 responseKey: 'channel.follow',
                 userDisplayName: 'sample_viewer',
                 variables: { user: 'sample_viewer' },
+              },
+              {
+                id: 'tr2',
+                responseKey: 'timer.fired',
+                userDisplayName: null,
+                variables: { 'timer.name': 'Hydrate' },
               },
             ],
           },
@@ -696,7 +702,74 @@ describe('ScriptsView', () => {
     expect(byText('button', 'Runs')).not.toBeUndefined();
   });
 
+  it('says what the script reads from what starts it, taken from its code', async () => {
+    detailExtra = {
+      ...detailExtra,
+      currentVersion: {
+        version: 1,
+        declaredCapabilities: [],
+        sourceCode: 'const who = bot.getVar(\'user\'); const w = bot.args[0];',
+        validationStatus: 'Valid',
+        validationErrors: [],
+      },
+    };
+
+    await open('/app/scripts?script=s1');
+
+    const reads = document.body.querySelector('[data-slot="script-reads"]');
+
+    expect(reads?.textContent).toContain('The words typed after the command');
+    expect(reads?.textContent).toContain('The viewer who started it');
+  });
+
+  it('shows no reads section for a script that asks its trigger for nothing', async () => {
+    detailExtra = {
+      ...detailExtra,
+      currentVersion: {
+        version: 1,
+        declaredCapabilities: [],
+        sourceCode: 'nnz.random.int(1, 6);',
+        validationStatus: 'Valid',
+        validationErrors: [],
+      },
+    };
+
+    await open('/app/scripts?script=s1');
+
+    expect(document.body.querySelector('[data-slot="script-reads"]')).toBeNull();
+  });
+
+  it('offers only the events the script can read from, and none when it reads nothing', async () => {
+    detailExtra = {
+      ...detailExtra,
+      currentVersion: {
+        version: 1,
+        declaredCapabilities: [],
+        sourceCode: 'bot.getVar(\'user\')',
+        validationStatus: 'Valid',
+        validationErrors: [],
+      },
+    };
+
+    await open('/app/scripts?script=s1');
+
+    const options = mounted!.findAllComponents(SelectItem).map((item) => item.text());
+
+    expect(options).toEqual(['No event', 'channel.follow (sample_viewer)']);
+  });
+
   it('offers the sample events in one choice, not as a row each, and tests with the one picked', async () => {
+    detailExtra = {
+      ...detailExtra,
+      currentVersion: {
+        version: 1,
+        declaredCapabilities: [],
+        sourceCode: 'bot.getVar(\'user\')',
+        validationStatus: 'Valid',
+        validationErrors: [],
+      },
+    };
+
     await open('/app/scripts?script=s1');
 
     expect(document.body.querySelector('[data-slot="script-samples"]')).toBeNull();

@@ -46,6 +46,20 @@
           "title": "Runs from",
           "none": "Nothing runs this script yet. Add it to a pipeline step."
         },
+        "reads": {
+          "title": "What it reads when it starts",
+          "args": "The words typed after the command",
+          "names": {
+            "user": "The viewer who started it",
+            "user_name": "The viewer's login name",
+            "user_id": "The viewer's platform id",
+            "user_role": "The viewer's role",
+            "target": "The first word typed, as a name",
+            "args_count": "How many words were typed",
+            "timer_name": "The timer's name",
+            "timer_message": "The timer's message"
+          }
+        },
         "powers": {
           "title": "What it can do",
           "none": "This script asks for nothing beyond its own code.",
@@ -114,7 +128,7 @@
         "failed": "Failed, {ms} ms",
         "title": "Test",
         "note": "A test run is a dry run. Nothing it does reaches chat.",
-        "event": "Event to test with",
+        "event": "Event to test with (only events this script reads from)",
         "noEvent": "No event"
       },
       "runs": {

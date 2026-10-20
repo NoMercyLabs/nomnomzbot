@@ -45,6 +45,7 @@ import { useFormattedTime } from '@/composables/useTime';
 
 import { blastLines } from './blastLines';
 import { powerLabel } from './powerLabel';
+import { inputLines, readInputs } from './scriptInputs';
 import ScriptTestCard from './ScriptTestCard.vue';
 import type { SessionRun } from './sessionRun';
 import { useScriptEditor } from './useScriptEditor';
@@ -94,6 +95,8 @@ const facts = computed<KeyValueItem[]>(() => [
   { label: t('dashboard.scripts.detail.version'), value: script.value?.currentVersion?.version },
   { label: t('dashboard.scripts.detail.language'), value: humanize(script.value?.language ?? '') },
 ]);
+const source = computed<string>(() => script.value?.currentVersion?.sourceCode ?? '');
+const reads = computed<string[]>(() => inputLines(readInputs(source.value), t, te));
 const powers = computed<string[]>(() =>
   (script.value?.currentVersion?.declaredCapabilities ?? []).map((key) => powerLabel(key, t, te)),
 );
@@ -238,6 +241,13 @@ function confirmDelete(): void {
           </p>
         </section>
 
+        <section v-if="reads.length > 0" class="grid gap-2" data-slot="script-reads">
+          <h3 class="font-semibold">{{ $t('dashboard.scripts.detail.reads.title') }}</h3>
+          <ul class="grid gap-1">
+            <li v-for="line in reads" :key="line">{{ line }}</li>
+          </ul>
+        </section>
+
         <section class="grid gap-2" data-slot="script-powers">
           <h3 class="font-semibold">{{ $t('dashboard.scripts.detail.powers.title') }}</h3>
           <ul v-if="powers.length > 0" class="grid gap-1">
@@ -257,6 +267,7 @@ function confirmDelete(): void {
     <ScriptTestCard
       :script-id="scriptId"
       :script-name="script.name"
+      :source="source"
       @ran="emit('ran', $event)"
     />
 

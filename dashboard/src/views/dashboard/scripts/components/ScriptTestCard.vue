@@ -9,8 +9,9 @@
 -->
 <script setup lang="ts">
 // Test one script: pick the event to test with (or none) and run it. A test run is a dry run:
-// nothing it does reaches chat. The sample events are the bot's one shared list; the bot does not yet
-// say which events a script handles, so the list is one choice here, not a row each.
+// nothing it does reaches chat. The sample events are the bot's one shared list. The bot does not yet say
+// which events a script handles, so the choice keeps the events that hand over a value the script's own
+// code reads; a script that reads nothing from its trigger is tested with no event.
 import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
 import Play from '~icons/nnz/play';
@@ -24,12 +25,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import type { TestTrigger } from '@/composables/useEditorBridge';
 import { useCan } from '@/composables/useCan';
 
+import { eventsFor, readInputs } from './scriptInputs';
 import type { SessionRun } from './sessionRun';
 import { useScriptTester } from './useScriptTester';
 
 const NO_EVENT = 'none';
 
-const props = defineProps<{ scriptId: string; scriptName: string }>();
+const props = defineProps<{
+  scriptId: string;
+  scriptName: string;
+  source: string;
+}>();
 const emit = defineEmits<{ ran: [run: Omit<SessionRun, 'id'>] }>();
 
 const { can } = useCan();
@@ -39,9 +45,12 @@ const triggers: UseQueryReturnType<TestTrigger[], Error> = useQuery({
   queryFn: fetchTestTriggers,
 });
 
+const ownEvents = computed<TestTrigger[]>(() =>
+  eventsFor(triggers.data.value ?? [], readInputs(props.source).variables),
+);
 const picked = ref<string>(NO_EVENT);
 const chosen = computed<TestTrigger | null>(
-  () => triggers.data.value?.find((sample) => sample.id === picked.value) ?? null,
+  () => ownEvents.value.find((sample) => sample.id === picked.value) ?? null,
 );
 
 async function run(): Promise<void> {
@@ -69,7 +78,7 @@ async function run(): Promise<void> {
   >
     <div class="grid gap-4 text-sm">
       <div v-if="can('code:script:author')" class="flex flex-wrap items-end gap-3">
-        <div v-if="(triggers.data.value ?? []).length > 0" class="grid min-w-0 flex-1 gap-2">
+        <div v-if="ownEvents.length > 0" class="grid min-w-0 flex-1 gap-2">
           <Label for="script-test-event">{{ $t('dashboard.scripts.test.event') }}</Label>
           <Select v-model="picked">
             <SelectTrigger id="script-test-event" class="w-full">
@@ -77,7 +86,7 @@ async function run(): Promise<void> {
             </SelectTrigger>
             <SelectContent>
               <SelectItem :value="NO_EVENT">{{ $t('dashboard.scripts.test.noEvent') }}</SelectItem>
-              <SelectItem v-for="sample in triggers.data.value" :key="sample.id" :value="sample.id">
+              <SelectItem v-for="sample in ownEvents" :key="sample.id" :value="sample.id">
                 {{ sample.label }}
               </SelectItem>
             </SelectContent>
