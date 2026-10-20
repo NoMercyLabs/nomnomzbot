@@ -275,8 +275,9 @@ function setLeavingOpen(open: boolean): void {
             />
             <Button
               v-if="canDisconnect(row)"
-              variant="outline"
+              variant="ghost"
               size="sm"
+              class="text-destructive hover:text-destructive"
               data-action="disconnect"
               :disabled="impact.isPending.value"
               @click="askToLeave(row)"
@@ -285,7 +286,7 @@ function setLeavingOpen(open: boolean): void {
             </Button>
             <Button
               v-if="canConnect(row)"
-              :variant="row.connected && !statusOf(row)?.needsReauth ? 'outline' : 'default'"
+              :variant="row.connected && !statusOf(row)?.needsReauth ? 'secondary' : 'default'"
               size="sm"
               data-action="connect"
               :disabled="connect.isPending.value || (needsShop(row) && shopDomain.trim() === '' && !row.connected)"

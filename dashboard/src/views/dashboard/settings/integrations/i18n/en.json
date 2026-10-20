@@ -31,7 +31,8 @@
         },
         "capabilityNames": {
           "playback": "control playback",
-          "library": "read your library"
+          "library": "read your library",
+          "premium": "use Spotify Premium features"
         },
         "connect": "Connect",
         "reconnect": "Reconnect",

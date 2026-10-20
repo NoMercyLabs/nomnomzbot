@@ -31,7 +31,8 @@
         },
         "capabilityNames": {
           "playback": "weergave bedienen",
-          "library": "je bibliotheek lezen"
+          "library": "je bibliotheek lezen",
+          "premium": "Spotify Premium-functies gebruiken"
         },
         "connect": "Koppelen",
         "reconnect": "Opnieuw koppelen",

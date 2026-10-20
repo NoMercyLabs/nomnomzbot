@@ -79,7 +79,11 @@ beforeEach(() => {
           connected: true,
           accountName: 'stoney',
           grantedScopeSets: ['spotify.playback'],
-          capabilities: { playback: true, library: false },
+          capabilities: {
+            playback: true,
+            library: false,
+            premium: true,
+          },
           needsReauth: true,
           loginOnly: false,
           decryptFailed: false,
@@ -227,6 +231,17 @@ describe('Integrations page', () => {
     );
 
     expect(row('patreon').textContent).toContain(en.dashboard.settings.integrations.notConnected);
+  });
+
+  it('names the premium ability in words and ranks the row buttons: Disconnect is quiet, Edit is visible', async () => {
+    await open();
+
+    const text = row('spotify').querySelector('[data-slot="capabilities"]')?.textContent ?? '';
+
+    expect(text).toContain(en.dashboard.settings.integrations.capabilityNames.premium);
+    expect(text).not.toContain('premium');
+    expect(action('spotify', 'disconnect')?.getAttribute('data-variant')).toBe('ghost');
+    expect(action('spotify', 'edit-credentials')?.getAttribute('data-variant')).toBe('secondary');
   });
 
   it('connects a service with its scope set and the page to come back to', async () => {
