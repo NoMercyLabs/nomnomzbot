@@ -24,6 +24,7 @@ import PageTabs from '@/components/layout/PageTabs.vue';
 import type { PageTab } from '@/components/layout/pageTab';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
+import PanelBeside from '@/components/layout/PanelBeside.vue';
 import SidePanel from '@/components/layout/SidePanel.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
@@ -146,60 +147,60 @@ function back(): void {
         <VolumeTwo aria-hidden="true" />
         {{ $t("dashboard.overlays.audioMix.open") }}
       </Button>
-      <SidePanel
-        v-model:open="audioOpen"
-        drawer-only
-        :label="$t('dashboard.overlays.audioMix.title')"
-      >
-        <AudioMixPanel flush />
-      </SidePanel>
     </template>
     <template #bar>
       <PageTabs v-if="can('widget:read')" :tabs="tabs" />
     </template>
   </PageHeader>
-  <ListDetail :show-detail="asked !== ''">
-    <template #list>
-      <PanelCard
-        v-if="can('widget:read')"
-        class="min-h-80 flex-1"
-        :title="$t('dashboard.overlays.list.title')"
-        :description="count === undefined ? hint : `${count} · ${hint}`"
-        :state="panelState"
-        :empty-text="emptyText"
-        :error-text="$t('dashboard.overlays.list.error')"
-        @retry="widgets.refetch()"
-      >
-        <template #actions>
-          <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
-          <SearchField
-            v-model="search"
-            class="-mr-2 w-52 rounded-[12px]"
-            :placeholder="$t('dashboard.overlays.search')"
+  <PanelBeside>
+    <ListDetail :show-detail="asked !== ''">
+      <template #list>
+        <PanelCard
+          v-if="can('widget:read')"
+          class="min-h-80 flex-1"
+          :title="$t('dashboard.overlays.list.title')"
+          :description="count === undefined ? hint : `${count} · ${hint}`"
+          :state="panelState"
+          :empty-text="emptyText"
+          :error-text="$t('dashboard.overlays.list.error')"
+          @retry="widgets.refetch()"
+        >
+          <template #actions>
+            <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
+            <SearchField
+              v-model="search"
+              class="-mr-2 w-52 rounded-[12px]"
+              :placeholder="$t('dashboard.overlays.search')"
+            />
+          </template>
+          <OverlayRow
+            v-for="widget in visible"
+            :key="widget.id"
+            :widget="widget"
+            :selected="widget.id === selectedId"
+            @pick="pick(widget)"
           />
-        </template>
-        <OverlayRow
-          v-for="widget in visible"
-          :key="widget.id"
-          :widget="widget"
-          :selected="widget.id === selectedId"
-          @pick="pick(widget)"
+        </PanelCard>
+      </template>
+      <template #detail>
+        <OverlayDetail v-if="selected && can('widget:read')" :widget="selected" @back="back" />
+        <PanelCard
+          v-else
+          class="flex-1"
+          :title="$t('dashboard.overlays.detail.title')"
+          state="empty"
+          :empty-text="
+            asked === ''
+              ? $t('dashboard.overlays.detail.pick')
+              : $t('dashboard.overlays.detail.notFound', { id: asked })
+          "
         />
-      </PanelCard>
+      </template>
+    </ListDetail>
+    <template v-if="can('sounds:read')" #panel>
+      <SidePanel v-model:open="audioOpen" :label="$t('dashboard.overlays.audioMix.title')">
+        <AudioMixPanel flush />
+      </SidePanel>
     </template>
-    <template #detail>
-      <OverlayDetail v-if="selected && can('widget:read')" :widget="selected" @back="back" />
-      <PanelCard
-        v-else
-        class="flex-1"
-        :title="$t('dashboard.overlays.detail.title')"
-        state="empty"
-        :empty-text="
-          asked === ''
-            ? $t('dashboard.overlays.detail.pick')
-            : $t('dashboard.overlays.detail.notFound', { id: asked })
-        "
-      />
-    </template>
-  </ListDetail>
+  </PanelBeside>
 </template>

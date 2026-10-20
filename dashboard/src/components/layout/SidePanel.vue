@@ -11,6 +11,7 @@
 // A panel beside the page content. Where the content keeps its room (laptop width and up) it sits in the row;
 // narrower, it slides over the page as a drawer from its side, so the content never gets squeezed.
 // Stoney 2026-10-14: "Make sure you overlay what no longer fits with a drawer from left or right".
+import { onKeyStroke } from '@vueuse/core';
 import { computed } from 'vue';
 
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
@@ -30,12 +31,10 @@ const props = withDefaults(defineProps<{
   side?: 'left' | 'right';
   pinned?: boolean;
   seeThrough?: boolean;
-  drawerOnly?: boolean;
 }>(), {
   side: 'right',
   pinned: false,
   seeThrough: false,
-  drawerOnly: false,
 });
 
 const open = defineModel<boolean>('open', { required: true });
@@ -43,9 +42,8 @@ const wide = useScreenFrom('wide');
 const fitsBesideRail = useScreenFrom('besideRail');
 const folds = computed(() =>
   props.seeThrough && !wide.value && fitsBesideRail.value);
-// A drawer-only panel (a page's rules, opened from a header button) never sits in the row.
 const roomy = computed(() =>
-  !props.drawerOnly && (wide.value || folds.value));
+  wide.value || folds.value);
 
 useFrameRail(computed(() =>
   folds.value && open.value));
@@ -56,6 +54,13 @@ provideDrawerClose(() => {
   open.value = false;
 }, computed(() =>
   !roomy.value || !props.pinned));
+
+// Beside the content the panel has no dialog, so Escape closes it here; the drawer closes itself.
+onKeyStroke('Escape', (event: KeyboardEvent) => {
+  if (roomy.value && open.value && !props.pinned && !event.defaultPrevented) {
+    open.value = false;
+  }
+});
 
 // The drawer opens without picking a control: focus on its first button (often Reset) would arm Enter.
 function keepFocusOff(event: Event): void {

@@ -24,6 +24,7 @@ import type { FilterOption } from '@/components/layout/filterOption';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
+import PanelBeside from '@/components/layout/PanelBeside.vue';
 import SidePanel from '@/components/layout/SidePanel.vue';
 import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
@@ -143,44 +144,48 @@ function pick(row: AdminTenant): void {
       </div>
     </template>
   </PageHeader>
-  <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
-    <PanelCard
-      tier="lead"
-      class="min-h-80 min-w-0 flex-1"
-      :title="$t('dashboard.admin.list.title')"
-      :description="$t('dashboard.admin.list.newestFirst')"
-      :state="panelState"
-      :empty-text="$t('dashboard.admin.list.empty')"
-      :error-text="listError"
-      @retry="tenants.refetch()"
-    >
-      <template #actions>
-        <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
-        <SearchField
-          v-model="search"
-          class="-mr-2 w-52 rounded-[12px]"
-          :placeholder="$t('dashboard.admin.search')"
-        />
-      </template>
-      <ChannelsTable :rows="rows" :selected-id="selectedId" @pick="pick" />
-      <template #footer>
-        <span class="text-sm text-muted-foreground tabular-nums" role="status">
-          {{ $t('dashboard.admin.pager.page', { page, pages }) }}
-        </span>
-        <div class="ml-auto flex items-center gap-2">
-          <Button variant="outline" size="sm" :disabled="page <= 1" @click="page -= 1">
-            <ChevronLeft aria-hidden="true" />
-            {{ $t('dashboard.admin.pager.previous') }}
-          </Button>
-          <Button variant="outline" size="sm" :disabled="page >= pages" @click="page += 1">
-            {{ $t('dashboard.admin.pager.next') }}
-            <ChevronRight aria-hidden="true" />
-          </Button>
-        </div>
-      </template>
-    </PanelCard>
-    <SidePanel v-model:open="detailOpen" drawer-only :label="$t('dashboard.admin.detail.title')">
-      <ChannelDetailPanel v-if="selected" :channel="selected" />
-    </SidePanel>
-  </div>
+  <PanelBeside>
+    <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
+      <PanelCard
+        tier="lead"
+        class="min-h-80 min-w-0 flex-1"
+        :title="$t('dashboard.admin.list.title')"
+        :description="$t('dashboard.admin.list.newestFirst')"
+        :state="panelState"
+        :empty-text="$t('dashboard.admin.list.empty')"
+        :error-text="listError"
+        @retry="tenants.refetch()"
+      >
+        <template #actions>
+          <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
+          <SearchField
+            v-model="search"
+            class="-mr-2 w-52 rounded-[12px]"
+            :placeholder="$t('dashboard.admin.search')"
+          />
+        </template>
+        <ChannelsTable :rows="rows" :selected-id="selectedId" @pick="pick" />
+        <template #footer>
+          <span class="text-sm text-muted-foreground tabular-nums" role="status">
+            {{ $t('dashboard.admin.pager.page', { page, pages }) }}
+          </span>
+          <div class="ml-auto flex items-center gap-2">
+            <Button variant="outline" size="sm" :disabled="page <= 1" @click="page -= 1">
+              <ChevronLeft aria-hidden="true" />
+              {{ $t('dashboard.admin.pager.previous') }}
+            </Button>
+            <Button variant="outline" size="sm" :disabled="page >= pages" @click="page += 1">
+              {{ $t('dashboard.admin.pager.next') }}
+              <ChevronRight aria-hidden="true" />
+            </Button>
+          </div>
+        </template>
+      </PanelCard>
+    </div>
+    <template #panel>
+      <SidePanel v-model:open="detailOpen" :label="$t('dashboard.admin.detail.title')">
+        <ChannelDetailPanel v-if="selected" :channel="selected" />
+      </SidePanel>
+    </template>
+  </PanelBeside>
 </template>

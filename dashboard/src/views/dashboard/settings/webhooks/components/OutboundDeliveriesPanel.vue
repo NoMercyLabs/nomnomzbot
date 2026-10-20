@@ -20,11 +20,7 @@ const open = defineModel<boolean>('open', { required: true });
 </script>
 
 <template>
-  <SidePanel
-    v-model:open="open"
-    drawer-only
-    :label="$t('dashboard.settings.webhooks.deliveries.title')"
-  >
+  <SidePanel v-model:open="open" :label="$t('dashboard.settings.webhooks.deliveries.title')">
     <OutboundDeliveriesCard :endpoint="endpoint" />
   </SidePanel>
 </template>
