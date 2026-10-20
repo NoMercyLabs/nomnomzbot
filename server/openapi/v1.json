@@ -146225,6 +146225,26 @@
             "description": "When the recap was last built.",
             "format": "date-time"
           },
+          "outputWidth": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Width in pixels of the stream output the recap was made at; null when none was stored (the dashboard labels its fallback).",
+            "format": "int32"
+          },
+          "outputHeight": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "Height in pixels of the stream output the recap was made at; null when none was stored.",
+            "format": "int32"
+          },
           "stats": {
             "description": "The recap data, exactly as the widget got it.",
             "$ref": "#/components/schemas/StreamStats"
@@ -149002,9 +149022,21 @@
           "occurredAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "requestedByName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "requestedByColor": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
-        "description": "One spoken utterance in the channel's TTS history. Text is null for rows written before the\r\ntext was stored. Id is the row's cursor value."
+        "description": "One spoken utterance in the channel's TTS history. Text is null for rows written before the\r\ntext was stored. Id is the row's cursor value. RequestedByName and\r\nRequestedByColor come from the requester's user row, and are null when the bot has none."
       },
       "TtsHistoryPage": {
         "required": [
@@ -151242,7 +151274,8 @@
             "type": [
               "null",
               "string"
-            ]
+            ],
+            "description": "Ignored. Who may request is set per source (`music:request:*`); kept so old clients still compile."
           },
           "bangerPlaylistId": {
             "maxLength": 200,

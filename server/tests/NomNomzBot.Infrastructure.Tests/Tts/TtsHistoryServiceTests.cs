@@ -11,6 +11,7 @@
 using FluentAssertions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Tts.Dtos;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Infrastructure.Tts;
 
@@ -105,5 +106,37 @@ public sealed class TtsHistoryServiceTests
         Result<TtsHistoryPageDto> result = await service.ListAsync(Tenant, 100000, null);
 
         result.Value.Items.Should().ContainSingle().Which.Text.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ListAsync_NamesTheRequesterFromTheUsersTable_AndLeavesAnUnknownRequesterUnnamed()
+    {
+        TtsTestDbContext db = TtsTestDbContext.New();
+        db.Users.Add(
+            new User
+            {
+                TwitchUserId = "viewer-1",
+                Username = "viewerone",
+                UsernameNormalized = "viewerone",
+                DisplayName = "Viewer One",
+                Color = "#ff00ff",
+            }
+        );
+        db.TtsUsageRecords.Add(Row(Tenant, "known", 0));
+        TtsUsageRecord stranger = Row(Tenant, "unknown", 1);
+        stranger.UserId = "viewer-2";
+        db.TtsUsageRecords.Add(stranger);
+        await db.SaveChangesAsync();
+        await using TtsTestDbContext _ = db;
+        TtsHistoryService service = new(db);
+
+        Result<TtsHistoryPageDto> result = await service.ListAsync(Tenant, 10, null);
+
+        TtsHistoryEntryDto unknown = result.Value.Items[0];
+        unknown.RequestedByName.Should().BeNull();
+        unknown.RequestedByColor.Should().BeNull();
+        TtsHistoryEntryDto known = result.Value.Items[1];
+        known.RequestedByName.Should().Be("Viewer One");
+        known.RequestedByColor.Should().Be("#ff00ff");
     }
 }

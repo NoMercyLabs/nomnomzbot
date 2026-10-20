@@ -12,7 +12,8 @@ namespace NomNomzBot.Application.Tts.Dtos;
 
 /// <summary>
 /// One spoken utterance in the channel's TTS history. <paramref name="Text"/> is null for rows written before the
-/// text was stored. <paramref name="Id"/> is the row's cursor value.
+/// text was stored. <paramref name="Id"/> is the row's cursor value. <paramref name="RequestedByName"/> and
+/// <paramref name="RequestedByColor"/> come from the requester's user row, and are null when the bot has none.
 /// </summary>
 public sealed record TtsHistoryEntryDto(
     int Id,
@@ -20,7 +21,9 @@ public sealed record TtsHistoryEntryDto(
     string VoiceId,
     string Provider,
     string RequestedByUserId,
-    DateTime OccurredAt
+    DateTime OccurredAt,
+    string? RequestedByName,
+    string? RequestedByColor
 );
 
 /// <summary>
