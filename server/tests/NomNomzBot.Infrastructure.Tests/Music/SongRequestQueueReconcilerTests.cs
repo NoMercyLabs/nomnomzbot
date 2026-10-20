@@ -140,19 +140,19 @@ public sealed class SongRequestQueueReconcilerTests
 
         await sut.HandleAsync(PlaybackOf("spotify:track:a"));
 
-        MusicService
-            .RequesterOfPlayingTrack(store, ChannelId.ToString(), "spotify:track:a")
+        PlayingRequester
+            .Of(store, PlaybackState.Idle, ChannelId.ToString(), "spotify:track:a")
             .Should()
             .NotBeNullOrEmpty("the handed-over request is now playing and keeps its requester");
 
         await sut.HandleAsync(PlaybackOf("spotify:track:streamer-playlist"));
 
-        MusicService
-            .RequesterOfPlayingTrack(store, ChannelId.ToString(), "spotify:track:streamer-playlist")
+        PlayingRequester
+            .Of(store, PlaybackState.Idle, ChannelId.ToString(), "spotify:track:streamer-playlist")
             .Should()
             .BeNull("a track nobody requested carries no requester");
-        MusicService
-            .RequesterOfPlayingTrack(store, ChannelId.ToString(), "spotify:track:a")
+        PlayingRequester
+            .Of(store, PlaybackState.Idle, ChannelId.ToString(), "spotify:track:a")
             .Should()
             .BeNull("the memory ends once another track plays");
     }

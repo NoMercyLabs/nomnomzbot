@@ -11,6 +11,8 @@
 using FluentAssertions;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Music;
 using NSubstitute;
 
@@ -29,14 +31,17 @@ public sealed class SongPlaybackFailedChatNoticeTests
         new(Uri, "Never Gonna", "Rick", null, 213_000, requestedBy, 0, null, "K7QM");
 
     private static (SongPlaybackFailedChatNotice Notice, List<string> Sent) Build(
-        SongRequestQueueStore store
+        SongRequestQueueStore store,
+        PlaybackState? state = null
     )
     {
         IChatProvider chat = Substitute.For<IChatProvider>();
         List<string> sent = [];
         chat.SendMessageAsync(Channel, Arg.Do<string>(sent.Add), Arg.Any<CancellationToken>())
             .Returns(true);
-        return (new(chat, store), sent);
+        IPlaybackStateReader playbackState = Substitute.For<IPlaybackStateReader>();
+        playbackState.StateOf(Channel).Returns(state ?? PlaybackState.Idle);
+        return (new(chat, store, playbackState), sent);
     }
 
     private static SongPlaybackFailedEvent Failed() =>
@@ -71,6 +76,30 @@ public sealed class SongPlaybackFailedChatNoticeTests
         await notice.HandleAsync(Failed());
 
         sent.Should().ContainSingle().Which.Should().StartWith("@fillz_viewer ");
+    }
+
+    [Fact]
+    public async Task A_lined_up_request_the_director_started_names_its_requester()
+    {
+        PlaybackItem item = new(
+            "K7QM",
+            "anda_six",
+            EngineKind.YouTube,
+            Uri,
+            "Never Gonna",
+            ["Rick"],
+            null,
+            213_000,
+            "anda_six"
+        );
+        (SongPlaybackFailedChatNotice notice, List<string> sent) = Build(
+            new(),
+            PlaybackState.Starting(EngineKind.YouTube, item)
+        );
+
+        await notice.HandleAsync(Failed());
+
+        sent.Should().ContainSingle().Which.Should().StartWith("@anda_six ");
     }
 
     [Fact]

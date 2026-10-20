@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Music;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -44,8 +45,8 @@ public sealed class NowPlayingRequesterTests
     {
         ISongRequestQueueStore store = StoreWithInFlight(Entry("spotify:track:abc", "Bamo"));
 
-        MusicService
-            .RequesterOfPlayingTrack(store, Channel, "spotify:track:abc")
+        PlayingRequester
+            .Of(store, PlaybackState.Idle, Channel, "spotify:track:abc")
             .Should()
             .Be("Bamo");
     }
@@ -57,8 +58,8 @@ public sealed class NowPlayingRequesterTests
         // trusting it blindly would put Bamo's name on the streamer's next three songs.
         ISongRequestQueueStore store = StoreWithInFlight(Entry("spotify:track:abc", "Bamo"));
 
-        MusicService
-            .RequesterOfPlayingTrack(store, Channel, "spotify:track:something-else")
+        PlayingRequester
+            .Of(store, PlaybackState.Idle, Channel, "spotify:track:something-else")
             .Should()
             .BeNull();
     }
@@ -68,7 +69,10 @@ public sealed class NowPlayingRequesterTests
     {
         ISongRequestQueueStore store = StoreWithInFlight(null);
 
-        MusicService.RequesterOfPlayingTrack(store, Channel, "spotify:track:abc").Should().BeNull();
+        PlayingRequester
+            .Of(store, PlaybackState.Idle, Channel, "spotify:track:abc")
+            .Should()
+            .BeNull();
     }
 
     [Fact]
@@ -78,8 +82,8 @@ public sealed class NowPlayingRequesterTests
         // yes would attribute by nothing more than timing.
         ISongRequestQueueStore store = StoreWithInFlight(Entry("spotify:track:abc", "Bamo"));
 
-        MusicService.RequesterOfPlayingTrack(store, Channel, null).Should().BeNull();
-        MusicService.RequesterOfPlayingTrack(store, Channel, "").Should().BeNull();
+        PlayingRequester.Of(store, PlaybackState.Idle, Channel, null).Should().BeNull();
+        PlayingRequester.Of(store, PlaybackState.Idle, Channel, "").Should().BeNull();
     }
 
     [Fact]
@@ -89,9 +93,10 @@ public sealed class NowPlayingRequesterTests
         // different channel's requester.
         ISongRequestQueueStore store = StoreWithInFlight(Entry("spotify:track:abc", "Bamo"));
 
-        MusicService
-            .RequesterOfPlayingTrack(
+        PlayingRequester
+            .Of(
                 store,
+                PlaybackState.Idle,
                 "0192a000-0000-7000-8000-0000000ac902",
                 "spotify:track:abc"
             )

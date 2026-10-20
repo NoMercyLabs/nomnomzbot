@@ -10,6 +10,7 @@
 
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Music;
@@ -23,11 +24,17 @@ public sealed class SongPlaybackFailedChatNotice : IEventHandler<SongPlaybackFai
 {
     private readonly IChatProvider _chat;
     private readonly ISongRequestQueueStore _queueStore;
+    private readonly IPlaybackStateReader _playbackState;
 
-    public SongPlaybackFailedChatNotice(IChatProvider chat, ISongRequestQueueStore queueStore)
+    public SongPlaybackFailedChatNotice(
+        IChatProvider chat,
+        ISongRequestQueueStore queueStore,
+        IPlaybackStateReader playbackState
+    )
     {
         _chat = chat;
         _queueStore = queueStore;
+        _playbackState = playbackState;
     }
 
     public async Task HandleAsync(
@@ -41,8 +48,14 @@ public sealed class SongPlaybackFailedChatNotice : IEventHandler<SongPlaybackFai
             : @event.TrackName;
         string message =
             $"\"{title}\" could not be played (the video can't play in the overlay player), so song requests moved on to the next one.";
-        if (request is not null)
-            message = $"@{request.RequestedBy} {message}";
+        string? requester = PlayingRequester.Of(
+            _queueStore,
+            _playbackState.StateOf(@event.BroadcasterId),
+            @event.BroadcasterId.ToString(),
+            @event.TrackUri
+        );
+        if (requester is not null)
+            message = $"@{requester} {message}";
 
         await _chat.SendMessageAsync(@event.BroadcasterId, message, cancellationToken);
     }
