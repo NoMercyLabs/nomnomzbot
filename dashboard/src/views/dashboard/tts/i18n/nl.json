@@ -14,7 +14,11 @@
       "history": {
         "title": "Uitgesproken berichten",
         "description": "De berichten die de bot hardop heeft voorgelezen.",
-        "empty": "De bot bewaart nog geen leesbaar overzicht van uitgesproken berichten."
+        "empty": "Er is nog niets hardop voorgelezen. Berichten verschijnen hier zodra de bot ze uitspreekt.",
+        "error": "Het overzicht van uitgesproken berichten kon niet worden geladen.",
+        "noText": "Uitgesproken voordat de bot de tekst bewaarde.",
+        "unknownViewer": "Onbekende kijker",
+        "older": "Toon oudere berichten"
       },
       "settings": {
         "title": "Instellingen",

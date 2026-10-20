@@ -14,7 +14,11 @@
       "history": {
         "title": "Spoken history",
         "description": "The messages the bot read aloud.",
-        "empty": "The bot does not keep a readable record of spoken messages yet."
+        "empty": "Nothing has been read aloud yet. Messages show here as the bot speaks them.",
+        "error": "The spoken history could not be loaded.",
+        "noText": "Spoken before the bot kept the text.",
+        "unknownViewer": "Unknown viewer",
+        "older": "Show older messages"
       },
       "settings": {
         "title": "Settings",

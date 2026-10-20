@@ -432,6 +432,7 @@ export const apiOperations = {
   'vts control': 'vts',
   'tts config': 'tts',
   'tts voices': 'tts',
+  'tts history': 'tts',
   'person voice': 'tts',
   'tts sample': 'tts',
   'tts lexicon': 'tts',

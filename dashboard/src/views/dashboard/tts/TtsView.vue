@@ -30,6 +30,7 @@ import { keysOf } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 import { useProviderName } from '@/composables/useProviderName';
 
+import HistoryPanel from './HistoryPanel.vue';
 import KeysPanel from './KeysPanel.vue';
 import LexiconPanel from './LexiconPanel.vue';
 import RulesPanel from './RulesPanel.vue';
@@ -175,13 +176,7 @@ const pronunciationPanels = computed(
     :rows="1"
   >
     <BoardCell panel="history" :span="7">
-      <PanelCard
-        :title="$t('dashboard.tts.history.title')"
-        :description="$t('dashboard.tts.history.description')"
-        tier="lead"
-        state="empty"
-        :empty-text="$t('dashboard.tts.history.empty')"
-      />
+      <HistoryPanel />
     </BoardCell>
     <BoardCell panel="settings" :span="5">
       <PanelCard

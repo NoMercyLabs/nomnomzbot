@@ -31,6 +31,9 @@ export type TtsVoice = components['schemas']['TtsVoice'];
 export type TtsSampleResult = components['schemas']['TtsTestResult'];
 export type TtsVoiceFilters = { q: string };
 
+export type TtsHistoryEntry = components['schemas']['TtsHistoryEntry'];
+export type TtsHistoryPage = components['schemas']['TtsHistoryPage'];
+
 export type TtsVoicePage = {
   voices: TtsVoice[];
   hasMore: boolean;
@@ -45,6 +48,7 @@ export type TtsSampleRequest = { voiceId: string; text?: string };
 const version = '1';
 // The server clamps a voices page to 200 rows.
 const voicePageSize = 200;
+const historyPageSize = 50;
 const firstVoicePage = 1;
 const languageFamilies = ['en', 'nl', 'de', 'fr', 'es'] as const satisfies readonly string[];
 
@@ -145,6 +149,51 @@ export function useTtsVoices(
       last.hasMore
         ? (last.nextPage ?? all.length + 1)
         : undefined,
+    enabled: computed(() => toValue(channelId) !== null),
+  });
+}
+
+export const ttsHistoryKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'tts-history',
+];
+
+async function readHistoryPage(
+  channelId: string,
+  before: number | null,
+): Promise<TtsHistoryPage> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/tts/history',
+    {
+      params: {
+        path: { version, channelId },
+        query: before === null
+          ? { limit: historyPageSize }
+          : { limit: historyPageSize, before },
+      },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('tts history', response.status, error);
+
+  return data?.data ?? { items: [] };
+}
+
+// What the bot read aloud, newest first; the cursor of each page fetches the rows older than it.
+export function useTtsHistory(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseInfiniteQueryReturnType<InfiniteData<TtsHistoryPage, number | null>, Error> {
+  return useInfiniteQuery({
+    queryKey: computed(() => ttsHistoryKey(toValue(channelId))),
+    queryFn: ({ pageParam }: { pageParam: number | null }): Promise<TtsHistoryPage> =>
+      readHistoryPage(toValue(channelId) as string, pageParam),
+    initialPageParam: null as number | null,
+    getNextPageParam: (last: TtsHistoryPage): number | undefined =>
+      last.nextBefore === null || last.nextBefore === undefined
+        ? undefined
+        : Number(last.nextBefore),
     enabled: computed(() => toValue(channelId) !== null),
   });
 }

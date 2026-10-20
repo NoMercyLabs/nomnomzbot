@@ -28,6 +28,7 @@ type Answer = {
 };
 
 const calls: string[] = [];
+const queries: unknown[] = [];
 let answers: Record<string, () => Answer> = {};
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
@@ -62,8 +63,9 @@ vi.mock('@/api/access', () => ({
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async (path: string) => {
+    GET: async (path: string, options?: { params?: { query?: unknown } }) => {
       calls.push(path);
+      queries.push(options?.params?.query);
       const match = Object.keys(answers).find((suffix) => path.endsWith(suffix));
 
       return match
@@ -83,6 +85,7 @@ let pinia: Pinia;
 beforeEach(() => {
   setWidth(laptopWidth);
   calls.length = 0;
+  queries.length = 0;
 
   answers = {
     '/tts/config': () => ok(config),
@@ -248,14 +251,121 @@ describe('TtsView overview', () => {
     expect(router.currentRoute.value.hash).toBe('#required-overlays');
   });
 
-  it('gives the empty spoken history its reason instead of a made-up list', async () => {
+  it('reads the spoken history from the server and says so when it is empty', async () => {
+    answers['/tts/history'] = () => ok({ items: [], nextBefore: null });
+
     await open();
 
+    expect(calls.some((path) => path.endsWith('/tts/history'))).toBe(true);
     expect(panel('Spoken history').getAttribute('data-state')).toBe('empty');
 
-    expect(panel('Spoken history').textContent).toContain(
-      'The bot does not keep a readable record of spoken messages yet.',
-    );
+    expect(panel('Spoken history').textContent).toContain('Nothing has been read aloud yet.');
+  });
+
+  it('lists what was spoken with the text, the viewer, the voice name and the time', async () => {
+    answers['/tts/voices'] = () =>
+      ok([
+        {
+          id: 'en-US-AriaNeural',
+          displayName: 'Aria (US)',
+          locale: 'en-US',
+          gender: 'female',
+          provider: 'edge',
+        },
+      ]);
+
+    answers['/tts/history'] = () =>
+      ok({
+        items: [
+          {
+            id: 7,
+            text: 'hello chat',
+            voiceId: 'en-US-AriaNeural',
+            provider: 'edge',
+            requestedByUserId: '42',
+            requestedByName: 'Viewer One',
+            requestedByColor: '#ff00ff',
+            occurredAt: '2026-10-20T10:00:00Z',
+          },
+          {
+            id: 6,
+            text: null,
+            voiceId: 'en-US-AriaNeural',
+            provider: 'edge',
+            requestedByUserId: '43',
+            requestedByName: null,
+            requestedByColor: null,
+            occurredAt: '2026-10-19T10:00:00Z',
+          },
+        ],
+        nextBefore: null,
+      });
+
+    await open();
+
+    const rows = [...panel('Spoken history').querySelectorAll<HTMLElement>('[data-history-row]')];
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.textContent).toContain('hello chat');
+    expect(rows[0]!.textContent).toContain('Viewer One');
+    expect(rows[0]!.textContent).toContain('Aria (US)');
+    expect(rows[0]!.querySelector('time')).not.toBeNull();
+    expect(rows[1]!.textContent).toContain('Spoken before the bot kept the text.');
+    expect(rows[1]!.textContent).toContain('Unknown viewer');
+    expect(panel('Spoken history').querySelector('[data-slot="history-older"]')).toBeNull();
+  });
+
+  it('asks for the next older page with the cursor when Show older messages is pressed', async () => {
+    const entry = (id: number): Record<string, unknown> => ({
+      id,
+      text: `line ${id}`,
+      voiceId: 'v',
+      provider: 'edge',
+      requestedByUserId: '42',
+      requestedByName: 'Viewer One',
+      requestedByColor: null,
+      occurredAt: '2026-10-20T10:00:00Z',
+    });
+
+    let reads = 0;
+
+    answers['/tts/history'] = () => {
+      reads += 1;
+
+      return reads === 1
+        ? ok({ items: [entry(2)], nextBefore: 2 })
+        : ok({ items: [entry(1)], nextBefore: null });
+    };
+
+    await open();
+
+    const older = panel('Spoken history').querySelector<HTMLElement>('[data-slot="history-older"]');
+
+    expect(older).not.toBeNull();
+
+    older!.click();
+    await flushPromises();
+
+    const historyQueries = calls
+      .map((path, index) =>
+        path.endsWith('/tts/history')
+          ? queries[index]
+          : undefined)
+      .filter((query) => query !== undefined);
+
+    expect(historyQueries).toEqual([{ limit: 50 }, { limit: 50, before: 2 }]);
+    expect(panel('Spoken history').textContent).toContain('line 2');
+    expect(panel('Spoken history').textContent).toContain('line 1');
+    expect(panel('Spoken history').querySelector('[data-slot="history-older"]')).toBeNull();
+  });
+
+  it('shows the error state, not an empty list, when the spoken history read is refused', async () => {
+    answers['/tts/history'] = () => refused();
+
+    await open();
+
+    expect(panel('Spoken history').getAttribute('data-state')).toBe('error');
+    expect(panel('Spoken history').textContent).toContain('could not be loaded');
   });
 
   it('shows the error state when the config read is refused, and no badge', async () => {

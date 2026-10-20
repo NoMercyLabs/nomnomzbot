@@ -102758,6 +102758,16 @@ export interface components {
              * @description When the recap was last built.
              */
             updatedAt?: string;
+            /**
+             * Format: int32
+             * @description Width in pixels of the stream output the recap was made at; null when none was stored (the dashboard labels its fallback).
+             */
+            outputWidth?: null | number | string;
+            /**
+             * Format: int32
+             * @description Height in pixels of the stream output the recap was made at; null when none was stored.
+             */
+            outputHeight?: null | number | string;
             /** @description The recap data, exactly as the widget got it. */
             stats: components["schemas"]["StreamStats"];
         };
@@ -103715,7 +103725,8 @@ export interface components {
         };
         /**
          * @description One spoken utterance in the channel's TTS history. Text is null for rows written before the
-         *     text was stored. Id is the row's cursor value.
+         *     text was stored. Id is the row's cursor value. RequestedByName and
+         *     RequestedByColor come from the requester's user row, and are null when the bot has none.
          */
         TtsHistoryEntry: {
             /** Format: int32 */
@@ -103726,6 +103737,8 @@ export interface components {
             requestedByUserId: string;
             /** Format: date-time */
             occurredAt: string;
+            requestedByName?: null | string;
+            requestedByColor?: null | string;
         };
         /**
          * @description A newest-first page of the TTS history. NextBefore is the `before` value that fetches
@@ -104374,6 +104387,7 @@ export interface components {
             youTubeMusicCategoryOnly?: null | boolean;
             allowYouTube?: null | boolean;
             allowSpotify?: null | boolean;
+            /** @description Ignored. Who may request is set per source (`music:request:*`); kept so old clients still compile. */
             minTrustLevel?: null | string;
             /** @description The playlist `!banger` adds to. Empty string clears the choice. */
             bangerPlaylistId?: null | string;
