@@ -3649,6 +3649,10 @@ than each consumer needing their own clone-and-customize pass.
   derivative). Shape to settle: ffmpeg extracts the VOD audio, the local model transcribes, the transcript
   is stored per VOD. Open: which model (license, languages beyond English), where it runs (self-host box
   CPU or GPU), and what the streamer sees (searchable transcript, highlights).
+  Stoney, 2026-10-20 (translated from Dutch): "If there is a local model the user can run in the browser
+  via Wasm, that is of course simply a top solution." So check first: a model that runs in the
+  streamer's browser (Wasm, WebGPU where present) costs the self-host box nothing; the box path is the
+  fallback.
 
 - **S044** Helper expansion + presets — math/string/date namespaces, general `{{ns.key:arg}}` grammar,
   any-step output, `{{stream.viewers}}`; raid preset (shoutout → raid → countdown → optional OBS/
