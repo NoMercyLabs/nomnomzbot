@@ -12,7 +12,6 @@ import type { Component } from 'vue';
 import ArrowLeft from '~icons/nnz/arrow-left';
 import BarChart from '~icons/nnz/bar-chart';
 import ChartLine from '~icons/nnz/chart-positive';
-import ChatBubble from '~icons/nnz/chat-bubble';
 import ChatMessages from '~icons/nnz/chat-messages';
 import Code from '~icons/nnz/code';
 import Coins from '~icons/nnz/coins';
@@ -263,17 +262,6 @@ export const dashboardNav: readonly NavGroup[] = [
         label: 'mediaShare',
         icon: Tv,
         action: 'media:read',
-      },
-    ],
-  },
-  {
-    key: 'connect',
-    entries: [
-      {
-        route: 'dashboard-discord',
-        label: 'discord',
-        icon: ChatBubble,
-        action: 'discord:connection:read',
       },
     ],
   },

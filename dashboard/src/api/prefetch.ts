@@ -143,7 +143,7 @@ const routeWarmers = {
     read(supporterActivityOptions),
     read(homeStatsOptions),
   ),
-  'dashboard-discord': reads(read(discordConnectionsOptions)),
+  'dashboard-settings-discord': reads(read(discordConnectionsOptions)),
   'dashboard-tts': reads(read(ttsConfigOptions)),
   'dashboard-overlays': reads(read(widgetsOptions), read(requiredOverlaysOptions)),
   'dashboard-obs': reads(read(obsConnectionOptions), read(obsBridgeOptions), read(widgetsOptions), read(requiredOverlaysOptions)),

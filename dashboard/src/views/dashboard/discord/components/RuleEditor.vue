@@ -41,6 +41,8 @@ import {
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
+import PickerError from './PickerError.vue';
+
 type Draft = {
   enabled: boolean;
   targetChannelId: string;
@@ -61,6 +63,7 @@ const props = defineProps<{
   connectionId: string;
   channels: DiscordChannel[];
   roles: DiscordRole[];
+  pickerError: Error | null;
 }>();
 
 const emit = defineEmits<{ saved: [] }>();
@@ -200,6 +203,7 @@ function removeField(index: number): void {
           </SelectItem>
         </SelectContent>
       </Select>
+      <PickerError :error="pickerError" />
     </Field>
 
     <Field>

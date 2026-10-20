@@ -767,6 +767,7 @@
         "whiteLabelBot": "White-label bot",
         "features": "Features",
         "integrations": "Integrations",
+        "discord": "Discord",
         "supporterSources": "Supporter sources",
         "federation": "Federation",
         "apiDevices": "API and devices",

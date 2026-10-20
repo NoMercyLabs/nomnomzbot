@@ -18,13 +18,13 @@ import {
   useDeleteDiscordLiveRole,
   useDiscordLiveRole,
   useSaveDiscordLiveRole,
+  type DiscordConnection,
   type DiscordRole,
 } from '@/api/discord';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { Field, FieldLabel } from '@/components/ui/field';
-import { Input } from '@/components/ui/input';
 import {
   Select,
   SelectContent,
@@ -36,23 +36,42 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
+import PickerError from './PickerError.vue';
+
 const props = defineProps<{
-  connectionId: string;
+  connection: DiscordConnection;
   guildRoles: DiscordRole[];
+  pickerError: Error | null;
 }>();
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 
-const liveQuery = useDiscordLiveRole(channelId, () => props.connectionId);
+const connectionId = (): string => props.connection.id;
+const liveQuery = useDiscordLiveRole(channelId, connectionId);
 const stored = computed(() => liveQuery.data.value ?? null);
-const save = useSaveDiscordLiveRole(channelId, () => props.connectionId, () =>
+const save = useSaveDiscordLiveRole(channelId, connectionId, () =>
   stored.value !== null);
-const remove = useDeleteDiscordLiveRole(channelId, () => props.connectionId);
+const remove = useDeleteDiscordLiveRole(channelId, connectionId);
 
 const roleId = ref<string>('');
 const memberId = ref<string>('');
+
+// The bot cannot list the server's members yet, so the choice is the person who added the bot,
+// plus the member a stored rule already names. Nobody types a Discord id.
+type MemberChoice = { id: string | null; label: string };
+
+const members = computed(() => {
+  const installer = props.connection.approvedByDiscordUserId ?? null;
+  const choices: MemberChoice[] = [
+    { id: installer, label: t('dashboard.discord.liveRole.memberInstaller') },
+    { id: stored.value?.discordMemberId ?? null, label: t('dashboard.discord.liveRole.memberSaved') },
+  ];
+
+  return choices.filter((choice, index): choice is { id: string; label: string } =>
+    choice.id !== null && choices.findIndex((other) => other.id === choice.id) === index);
+});
 const enabled = ref<boolean>(liveRoleDefaultEnabled);
 
 // The form follows the stored rule whenever it loads or changes.
@@ -104,17 +123,21 @@ function removeRule(): void {
           </SelectItem>
         </SelectContent>
       </Select>
+      <PickerError :error="pickerError" />
     </Field>
 
     <Field>
       <FieldLabel>{{ t('dashboard.discord.liveRole.member') }}</FieldLabel>
-      <Input
-        v-model="memberId"
-        data-field="live-member"
-        inputmode="numeric"
-        :placeholder="t('dashboard.discord.liveRole.memberPlaceholder')"
-        :disabled="!writable || applied"
-      />
+      <Select v-model="memberId" :disabled="!writable || applied">
+        <SelectTrigger data-field="live-member" class="w-full">
+          <SelectValue :placeholder="t('dashboard.discord.liveRole.memberPlaceholder')" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem v-for="member in members" :key="member.id" :value="member.id">
+            {{ member.label }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
     </Field>
 
     <div class="rounded-[8px] border border-border p-1">

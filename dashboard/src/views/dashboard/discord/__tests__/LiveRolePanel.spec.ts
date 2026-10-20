@@ -114,7 +114,19 @@ async function panel(): Promise<void> {
   mounted = mount(LiveRolePanel, {
     attachTo: document.body,
     props: {
-      connectionId: 'conn1',
+      connection: {
+        id: 'conn1',
+        broadcasterId: 'c1',
+        guildId: 'g1',
+        botInstalled: true,
+        serverConsentStatus: 'approved',
+        approvedByDiscordUserId: '5678',
+        streamerEnabled: true,
+        isLinkActive: true,
+        createdAt: '2026-10-01T00:00:00Z',
+        updatedAt: '2026-10-01T00:00:00Z',
+      },
+      pickerError: null,
       guildRoles: [
         {
           id: 'dr9',
@@ -131,15 +143,6 @@ async function panel(): Promise<void> {
   });
 
   await settle();
-}
-
-function type(selector: string, value: string): Promise<void> {
-  const input = document.body.querySelector<HTMLInputElement>(selector)!;
-
-  input.value = value;
-  input.dispatchEvent(new Event('input', { bubbles: true }));
-
-  return settle();
 }
 
 const press = (kind: string): PointerEvent =>
@@ -169,11 +172,13 @@ const click = async (selector: string): Promise<void> => {
 };
 
 describe('the live role panel', () => {
-  it('creates the rule with the default of enabled when none is stored', async () => {
+  it('creates the rule for the picked member with the default of enabled when none is stored', async () => {
     await panel();
 
+    expect(document.body.querySelector('[data-live-role-panel] input')).toBeNull();
+
     await pickFirst('live-role');
-    await type('[data-field="live-member"]', ' 5678 ');
+    await pickFirst('live-member');
     await click('[data-save-live-role]');
 
     expect(calls).toHaveLength(1);
@@ -208,7 +213,7 @@ describe('the live role panel', () => {
     rows = [{ ...stored, isCurrentlyApplied: true }];
     await panel();
 
-    const member = document.body.querySelector<HTMLInputElement>('[data-field="live-member"]');
+    const member = document.body.querySelector<HTMLButtonElement>('[data-field="live-member"]');
 
     expect(member?.disabled).toBe(true);
     expect(document.body.querySelector('[data-live-applied]')).not.toBeNull();
@@ -220,7 +225,6 @@ describe('the live role panel', () => {
     refusePut = true;
     await panel();
 
-    await type('[data-field="live-member"]', '9999');
     await click('[data-save-live-role]');
 
     expect(document.body.querySelector('[data-live-error]')?.textContent).toContain(

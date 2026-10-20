@@ -133,6 +133,7 @@ async function editor(role: typeof storedRole | null): Promise<void> {
     props: {
       role: role as never,
       connectionId: 'conn1',
+      pickerError: null,
       guildRoles: [
         {
           id: 'dr9',

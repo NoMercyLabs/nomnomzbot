@@ -36,11 +36,14 @@ import {
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
+import PickerError from './PickerError.vue';
+
 const props = defineProps<{
   role: NotifyRole | null;
   connectionId: string;
   guildRoles: DiscordRole[];
   channels: DiscordChannel[];
+  pickerError: Error | null;
 }>();
 
 const emit = defineEmits<{ saved: [] }>();
@@ -122,6 +125,7 @@ async function postRoleButton(): Promise<void> {
           </SelectItem>
         </SelectContent>
       </Select>
+      <PickerError :error="pickerError" />
     </Field>
 
     <Field>

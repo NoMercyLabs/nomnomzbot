@@ -12,6 +12,7 @@ import AlertTriangle from '~icons/nnz/alert-triangle';
 import BookOpen from '~icons/nnz/book-open';
 import CellTower from '~icons/nnz/cell-tower';
 import ChatBot from '~icons/nnz/chat-bot';
+import ChatBubble from '~icons/nnz/chat-bubble';
 import ChatLove from '~icons/nnz/chat-love';
 import CreditCard from '~icons/nnz/credit-card-front';
 import Handshake from '~icons/nnz/handshake';
@@ -57,6 +58,7 @@ export const settingsNav: readonly NavGroup[] = [
     key: 'settings.connections',
     entries: [
       navEntry('dashboard-settings-integrations', 'settingsPages.integrations', Plugged),
+      navEntry('dashboard-settings-discord', 'settingsPages.discord', ChatBubble),
       navEntry('dashboard-settings-supporter-sources', 'settingsPages.supporterSources', Handshake),
       navEntry('dashboard-settings-federation', 'settingsPages.federation', MultiPoint),
     ],

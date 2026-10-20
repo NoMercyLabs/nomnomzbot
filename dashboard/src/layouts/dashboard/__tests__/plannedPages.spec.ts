@@ -29,14 +29,16 @@ const planned = ledger as Ledger;
 // The viewer pages sit under /me/:channel with their own navigation (views/viewer/nav), not in a sidebar here.
 const MODES = ['dashboard', 'admin', 'settings'] as const satisfies readonly NavMode[];
 
-// Dashboard groups the owner asked for that the mockup ledger does not list (Discord, 2026-10-15).
-const beyondMockup: ReadonlySet<string> = new Set(['connect']);
+// Dashboard groups the owner asked for that the mockup ledger does not list.
+const beyondMockup: ReadonlySet<string> = new Set([]);
 
 // Single pages the owner asked for that the mockup ledger does not list (all polls and predictions, 2026-10-15;
 // the viewer chat, 2026-10-16; the quotes, 2026-10-18).
 const pagesBeyondMockup: ReadonlySet<string> = new Set([
   'dashboard-polls',
   'dashboard-quotes',
+  // Discord, 2026-10-15; moved into the settings 2026-10-20.
+  'dashboard-settings-discord',
   'dashboard-settings-escalation',
   'dashboard-settings-spam-defense',
   'dashboard-settings-trust-policy',

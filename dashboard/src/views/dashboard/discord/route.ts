@@ -13,9 +13,12 @@ import type { RouteRecordRaw } from 'vue-router';
 import { loadPage } from '@/i18n';
 
 export const dashboardDiscordRoute = {
-  path: 'discord',
-  name: 'dashboard-discord',
-  meta: { action: 'discord:connection:read' },
+  path: 'settings/discord',
+  name: 'dashboard-settings-discord',
+  meta: {
+    navMode: 'settings',
+    action: 'discord:connection:read',
+  },
   component: () =>
     loadPage(
       () => import('./DiscordView.vue'),

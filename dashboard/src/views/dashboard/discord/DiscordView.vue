@@ -63,6 +63,10 @@ const rulesQuery = useDiscordRules(channelId, connectionId);
 const channelsQuery = useDiscordChannels(channelId, connectionId);
 const rolesQuery = useDiscordRoles(channelId, connectionId);
 const notifyRolesQuery = useNotifyRoles(channelId, connectionId);
+// A failed channel or role read leaves a picker empty; the editors show the bot's reason beside it.
+const pickerError = computed<Error | null>(
+  () => channelsQuery.error.value ?? rolesQuery.error.value,
+);
 
 const connectionState = usePanelState(connectionsQuery);
 const rulesState = usePanelState(rulesQuery);
@@ -217,12 +221,16 @@ function ruleSummary(rule: DiscordRule | null): string {
       </PanelCard>
 
       <PanelCard
-        v-if="connection && connectionId !== null && can('discord:config:read')"
+        v-if="connection && can('discord:config:read')"
         :title="t('dashboard.discord.liveRole.title')"
         :description="t('dashboard.discord.liveRole.subtitle')"
         pad
       >
-        <LiveRolePanel :connection-id="connectionId" :guild-roles="rolesQuery.data.value ?? []" />
+        <LiveRolePanel
+          :connection="connection"
+          :guild-roles="rolesQuery.data.value ?? []"
+          :picker-error="rolesQuery.error.value"
+        />
       </PanelCard>
 
       <PostLogPanel
@@ -260,6 +268,7 @@ function ruleSummary(rule: DiscordRule | null): string {
             :connection-id="connectionId"
             :guild-roles="rolesQuery.data.value ?? []"
             :channels="channelsQuery.data.value ?? []"
+            :picker-error="pickerError"
             @saved="editingRole = null"
           />
         </div>
@@ -294,6 +303,7 @@ function ruleSummary(rule: DiscordRule | null): string {
             :connection-id="connectionId"
             :channels="channelsQuery.data.value ?? []"
             :roles="rolesQuery.data.value ?? []"
+            :picker-error="pickerError"
             @saved="editing = null"
           />
         </div>

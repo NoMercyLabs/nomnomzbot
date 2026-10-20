@@ -84,7 +84,7 @@ const pages = [
   ],
   ['dashboard-channel-points', [rewardsKey('c1'), redemptionsKey('c1'), pipelinesKey('c1')]],
   ['dashboard-supporters', [supporterEventsKey('c1'), supporterActivityKey('c1'), homeStatsKey('c1')]],
-  ['dashboard-discord', [discordConnectionsKey('c1')]],
+  ['dashboard-settings-discord', [discordConnectionsKey('c1')]],
   ['dashboard-tts', [ttsConfigKey('c1')]],
   ['dashboard-overlays', [widgetsKey('c1'), requiredOverlaysKey('c1')]],
   ['dashboard-obs', [obsConnectionKey('c1'), obsBridgeKey('c1'), widgetsKey('c1'), requiredOverlaysKey('c1')]],

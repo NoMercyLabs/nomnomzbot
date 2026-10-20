@@ -183,6 +183,7 @@ describe('the rule editor', () => {
         trigger: 'stream.online',
         rule: goLive as never,
         connectionId: 'conn1',
+        pickerError: null,
         channels: [
           {
             id: 'ch1',
