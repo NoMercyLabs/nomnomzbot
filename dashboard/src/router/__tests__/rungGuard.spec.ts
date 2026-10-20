@@ -162,6 +162,21 @@ describe('the shell follows the keys held in the named channel', () => {
     expect(router.currentRoute.value.name).toBe('viewer-me');
   });
 
+  it('counts the store catalog read every viewer holds as a viewer page', async () => {
+    directoryHas([listed('c2', 'x', true)]);
+
+    queryClient.setQueryData(
+      channelAccessKey('c2'),
+      holding(['chat:viewer:read', 'economy:catalog:read']),
+    );
+
+    const router = makeRouter();
+
+    await router.push('/app/u/x/commands');
+
+    expect(router.currentRoute.value.name).toBe('viewer-me');
+  });
+
   it('sends a channel the bot does not serve to its chat, found by Twitch id', async () => {
     directoryHas([listed('777', 'x', false)]);
     const router = makeRouter();
@@ -179,6 +194,25 @@ describe('the shell follows the keys held in the named channel', () => {
     await router.push('/app/u/me/commands');
 
     expect(http.GET).not.toHaveBeenCalled();
+    expect(router.currentRoute.value.name).toBe('u:dashboard-commands');
+  });
+
+  it('picks the exact login out of the substring matches the directory returns', async () => {
+    directoryHas([listed('c9', 'xavier', true), listed('c2', 'x', true)]);
+    queryClient.setQueryData(channelAccessKey('c2'), holding([]));
+    const router = makeRouter();
+
+    await router.push('/app/u/x/commands');
+
+    expect(router.currentRoute.value.name).toBe('viewer-me');
+  });
+
+  it('keeps the page when the exact login is not among the rows the directory returns', async () => {
+    directoryHas([listed('c9', 'xavier', true), listed('c8', 'maxx', true)]);
+    const router = makeRouter();
+
+    await router.push('/app/u/x/commands');
+
     expect(router.currentRoute.value.name).toBe('u:dashboard-commands');
   });
 

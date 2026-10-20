@@ -10,14 +10,15 @@
 
 import { dashboardNav } from './navigation';
 
-// The viewer chat is a page every viewer has, so it never makes someone an operator.
-const viewerPage = 'dashboard-viewer-chat';
+// The viewer chat and the store catalog (every viewer reads it to spend points) are pages every viewer
+// has, so they never make someone an operator.
+const viewerPages = new Set<string>(['dashboard-viewer-chat', 'dashboard-economy']);
 
 // True when the held action keys open at least one management page: the rule that picks the operator
 // shell (/app/u/x) over the viewer shell (/me/x) in a channel. The shell follows the keys, never a role name.
 export function heldManagementPage(held: ReadonlySet<string>): boolean {
   return dashboardNav
     .flatMap((group) => group.entries)
-    .filter((entry) => entry.route !== viewerPage)
+    .filter((entry) => !viewerPages.has(entry.route))
     .some((entry) => entry.action !== undefined && held.has(entry.action));
 }
