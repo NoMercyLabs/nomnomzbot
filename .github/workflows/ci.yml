@@ -231,6 +231,111 @@ jobs:
             ${{ github.event_name == 'push' && format('type=registry,ref=ghcr.io/{0}:buildcache,mode=max', env.IMAGE_NAME) || '' }}
             type=gha,mode=max
 
+  # Proves the SQLite-only Docker install (docker-compose.lite.yml): boots on the image the build job just
+  # pushed, writes a row through the API, restarts the container, and checks the row survived on the volume.
+  lite:
+    name: Docker lite (SQLite) restart check
+    needs: build
+    if: >
+      !cancelled() &&
+      needs.build.result == 'success' &&
+      github.event_name == 'push'
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      packages: read
+    env:
+      API_HTTP_PORT: '5080'
+      COMPOSE_PROJECT_NAME: nnzlite
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Start the lite stack
+        run: |
+          set -eu
+          short=$(echo "${{ github.sha }}" | cut -c1-7)
+          export API_IMAGE="ghcr.io/${{ env.IMAGE_NAME }}:sha-${short}"
+          echo "API_IMAGE=${API_IMAGE}" >> "$GITHUB_ENV"
+          docker compose -f docker-compose.lite.yml up -d --no-build --pull always
+          docker compose -f docker-compose.lite.yml ps
+          docker compose -f docker-compose.lite.yml config --services | grep -qx api
+          if docker compose -f docker-compose.lite.yml config --services | grep -Eq 'postgres|redis'; then
+            echo "lite stack must not define postgres or redis"; exit 1
+          fi
+
+      - name: Wait for ready and onboarding is not done
+        run: |
+          set -eu
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5080/health/ready || true)
+            [ "$code" = "200" ] && break
+            sleep 3
+          done
+          [ "$code" = "200" ] || { docker compose -f docker-compose.lite.yml logs --tail=100; exit 1; }
+          body=$(curl -sf http://localhost:5080/api/v1/system/status)
+          echo "$body"
+          echo "$body" | grep -Eqi '"onboardingComplete": ?false'
+
+      - name: Write rows through the API
+        run: |
+          set -eu
+          curl -sf -X PUT http://localhost:5080/api/v1/system/setup/credentials/twitch \
+            -H 'Content-Type: application/json' \
+            -d '{"clientId":"ci-lite-marker-client","clientSecret":"","botUsername":"ci_lite_bot"}'
+          curl -sf -X POST http://localhost:5080/api/v1/system/setup/credentials/twitch/use-shared
+          body=$(curl -sf http://localhost:5080/api/v1/system/status)
+          echo "$body"
+          echo "$body" | grep -Eqi '"onboardingComplete": ?true'
+
+      - name: Restart the container
+        run: |
+          set -eu
+          docker compose -f docker-compose.lite.yml restart api
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5080/health/ready || true)
+            [ "$code" = "200" ] && break
+            sleep 3
+          done
+          [ "$code" = "200" ] || { docker compose -f docker-compose.lite.yml logs --tail=100; exit 1; }
+
+      - name: Prove the data survived the restart
+        run: |
+          set -eu
+          body=$(curl -sf http://localhost:5080/api/v1/system/status)
+          echo "$body"
+          echo "$body" | grep -Eqi '"onboardingComplete": ?true'
+          docker compose -f docker-compose.lite.yml exec -T api ls -la /app/data
+
+      - name: Prove the data survives removing the container
+        run: |
+          set -eu
+          docker compose -f docker-compose.lite.yml down
+          docker compose -f docker-compose.lite.yml up -d --no-build
+          for i in $(seq 1 40); do
+            code=$(curl -s -o /dev/null -w '%{http_code}' http://localhost:5080/health/ready || true)
+            [ "$code" = "200" ] && break
+            sleep 3
+          done
+          [ "$code" = "200" ]
+          curl -sf http://localhost:5080/api/v1/system/status | grep -Eqi '"onboardingComplete": ?true'
+
+      - name: Show logs on failure
+        if: failure()
+        run: docker compose -f docker-compose.lite.yml logs --tail=200
+
+      - name: Clean up
+        if: always()
+        run: docker compose -f docker-compose.lite.yml down -v
+
   deploy:
     name: Deploy to server
     needs: build
