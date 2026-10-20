@@ -5421,7 +5421,7 @@
     <string name="template_helper_raw_message">Het ruwe chatbericht dat de trigger veroorzaakte (Discord pipeline seed-alias)</string>
     <string name="template_helper_time">De huidige lokale tijd</string>
     <string name="template_helper_time_utc">De huidige UTC-tijd</string>
-    <string name="template_helper_tts_audioconnected">Of er een Audio-widgetpagina open staat voor het kanaal, zodat TTS te horen is (true of false)</string>
+    <string name="template_helper_tts_audioconnected">Of er een TTS-ondertitelpagina open staat voor het kanaal, zodat TTS te horen is (true of false)</string>
     <string name="template_helper_transform">Past een tekstbewerking toe (hoofdletters/kleine letters/titel/omgekeerd/etc.) op de omsloten tekst</string>
     <string name="template_helper_user">De inlognaam van de gebruiker die dit activeerde</string>
     <string name="template_helper_user_account_age">Hoe lang geleden het account van de gebruiker is aangemaakt</string>
@@ -6213,12 +6213,12 @@
     <string name="widget_gallery_sr_queue_name">Verzoeknummers-wachtrij</string>
     <string name="widget_gallery_sr_queue_description">De komende wachtrij met verzoeknummers als compacte lijst met positie, titel en optioneel aanvrager en duur. Gevoed door sr_queue-momentopnames en verborgen zolang de wachtrij leeg is.</string>
     <string name="widget_gallery_audio_name">Bot-audio</string>
-    <string name="widget_gallery_audio_description">Geluidsclips, beloningsgeluiden en uitgesproken berichten (TTS) komen uit deze ene browserbron. Voeg hem één keer toe, maak hem 1x1 en laat hem staan. Houd “Audio via OBS regelen” AAN, anders hoort de stream niets. Toont zelf niets; de optionele indicator is er alleen om tijdens het instellen te zien dat de bron leeft. Muziek speelt af in de Muziekspeler-widget.</string>
+    <string name="widget_gallery_audio_description">Geluidsclips en beloningsgeluiden komen uit deze ene browserbron; uitgesproken berichten (TTS) spelen alleen af in de TTS-ondertitelbron. Voeg hem één keer toe, maak hem 1x1 en laat hem staan. Houd “Audio via OBS regelen” AAN, anders hoort de stream niets. Toont zelf niets; de optionele indicator is er alleen om tijdens het instellen te zien dat de bron leeft. Muziek speelt af in de Muziekspeler-widget.</string>
     <string name="widget_gallery_music_player_name">Muziekspeler</string>
     <string name="widget_gallery_music_player_description">Spotify- en YouTube-muziek speelt hier af, met een eigen volume. Voeg hem één keer toe, maak hem 1x1 en laat hem staan. Houd “Audio via OBS regelen” AAN, anders hoort de stream niets. Toont zelf niets; de optionele indicator is er alleen om tijdens het instellen te zien dat de bron leeft. Wil je de muziek op een ander niveau horen, zet de Muziekbron in OBS dan op Monitor en uitvoer.</string>
 
     <string name="widget_gallery_tts_caption_name">TTS-ondertitel</string>
-    <string name="widget_gallery_tts_caption_description">Een spreekindicator met live ondertitel bij TTS-weergave, met geanimeerde stembalkjes, de naam van de spreker, optioneel een stemlabel en plaatsing boven of onder. Verborgen zolang er niemand spreekt.</string>
+    <string name="widget_gallery_tts_caption_description">Uitgesproken berichten (TTS) spelen af in deze browserbron; houd “Audio via OBS regelen” AAN. Toont een spreekindicator met live ondertitel, met geanimeerde stembalkjes, de naam van de spreker, optioneel een stemlabel en plaatsing boven of onder. Verborgen zolang er niemand spreekt.</string>
     <string name="widget_gallery_poll_prediction_name">Poll / Voorspelling</string>
     <string name="widget_gallery_poll_prediction_description">Live poll- en voorspellingsbalken met keuzes, stempercentages, vergrendelstatus en de winnende uitkomst gemarkeerd bij afronding. Alleen zichtbaar zolang een ronde loopt.</string>
     <string name="widget_gallery_redemption_alert_name">Beloningsmelding</string>

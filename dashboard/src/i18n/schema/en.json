@@ -2628,7 +2628,7 @@
       "title": "The stream title (stream.online and the Discord seed alias)",
       "track_name": "The name of the track that was added",
       "transform": "Applies a text transform (upper/lower/title/reverse/etc.) to the wrapped text",
-      "tts_audioconnected": "Whether an Audio widget page is open for the channel, so TTS can be heard (true or false)",
+      "tts_audioconnected": "Whether a TTS Caption page is open for the channel, so TTS can be heard (true or false)",
       "user": "The triggering user login name",
       "user_account_age": "How long ago the triggering user account was created",
       "user_follow_age": "How long the triggering user has followed the channel",

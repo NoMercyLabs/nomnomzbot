@@ -2628,7 +2628,7 @@
       "title": "De titel van de stream (stream.online en de Discord seed-alias)",
       "track_name": "De naam van het toegevoegde nummer",
       "transform": "Past een tekstbewerking toe (hoofdletters/kleine letters/titel/omgekeerd/etc.) op de omsloten tekst",
-      "tts_audioconnected": "Of er een Audio-widgetpagina open staat voor het kanaal, zodat TTS te horen is (true of false)",
+      "tts_audioconnected": "Of er een TTS-ondertitelpagina open staat voor het kanaal, zodat TTS te horen is (true of false)",
       "user": "De inlognaam van de gebruiker die dit activeerde",
       "user_account_age": "Hoe lang geleden het account van de gebruiker is aangemaakt",
       "user_follow_age": "Hoe lang de gebruiker het kanaal al volgt",
