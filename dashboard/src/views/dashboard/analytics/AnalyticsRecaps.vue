@@ -13,7 +13,7 @@
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { RECAP_PAGE_SIZE, useStreamRecaps, type StreamRecap, type StreamRecapPage } from '@/api/streamRecaps';
+import { RECAP_PAGE_SIZE, useStreamRecaps, withChannel, type StreamRecap, type StreamRecapPage } from '@/api/streamRecaps';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
@@ -28,12 +28,13 @@ import { exportRecapPng, recapResolution } from './recapExport';
 
 const { t } = useI18n();
 const time = useTime();
-const { channelId } = useCurrentChannel();
+const { channelId, current: channel } = useCurrentChannel();
 const page = 'dashboard.analytics.recaps';
 
 const current = ref(1);
 const recaps = useStreamRecaps(channelId, current);
-const rows = computed<StreamRecap[]>(() => recaps.data.value?.recaps ?? []);
+const rows = computed<StreamRecap[]>(() =>
+  (recaps.data.value?.recaps ?? []).map((kept) => withChannel(kept, channel.value)));
 const state = usePanelState(recaps, (data: StreamRecapPage) =>
   data.recaps.length === 0);
 const total = computed(() => recaps.data.value?.total ?? 0);

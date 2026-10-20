@@ -28,6 +28,20 @@ export type StreamRecapPage = {
 
 export const RECAP_PAGE_SIZE = 12;
 
+// A recap kept before the channel metric existed stores no channel; it belongs to the managed channel, so the
+// streamer card and the thumbnail take that channel's name and picture.
+export function withChannel(
+  recap: StreamRecap,
+  channel: { displayName: string; profileImageUrl: string | null } | null,
+) {
+  if (recap.stats.channel || !channel)
+    return recap;
+
+  const filled = { name: channel.displayName, avatarUrl: channel.profileImageUrl };
+
+  return { ...recap, stats: { ...recap.stats, channel: filled } } as const satisfies StreamRecap;
+}
+
 const version = '1';
 
 async function readPage(channelId: string, page: number): Promise<StreamRecapPage> {

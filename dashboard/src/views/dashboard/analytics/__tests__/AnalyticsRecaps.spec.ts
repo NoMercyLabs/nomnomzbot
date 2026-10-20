@@ -53,10 +53,17 @@ const recap = (id: string, day: string, title: string, size?: { w: number; h: nu
   },
 }) as const satisfies Record<string, unknown>;
 
+function withoutChannel(kept: ReturnType<typeof recap>) {
+  const { channel: _channel, ...stats } = kept.stats;
+
+  return { ...kept, stats };
+}
+
 // Newest first, as the server sends them.
 const recaps = [
   recap('s2', '2026-10-18', 'Celeste night', { w: 2560, h: 1440 }),
-  recap('s1', '2026-10-10', 'Older stream'),
+  // A recap kept before the channel metric existed stores no channel.
+  withoutChannel(recap('s1', '2026-10-10', 'Older stream')),
 ];
 
 vi.mock('@/api/client', () => ({
@@ -78,7 +85,14 @@ vi.mock('@/api/client', () => ({
 }));
 
 vi.mock('@/composables/useCurrentChannel', () => ({
-  useCurrentChannel: () => ({ channelId: ref('c1'), current: ref({ login: 'stoney_eagle' }) }),
+  useCurrentChannel: () => ({
+    channelId: ref('c1'),
+    current: ref({
+      login: 'stoney_eagle',
+      displayName: 'Stoney_Eagle',
+      profileImageUrl: 'https://cdn.example/current.png',
+    }),
+  }),
 }));
 
 // A PNG whose header states the size the capture was asked for.
@@ -176,6 +190,22 @@ describe('the Recaps tab', () => {
     expect(frame.textContent).toContain('Peak viewers');
     expect(frame.textContent).toContain('87');
     expect(frame.querySelector('img.avatar')?.getAttribute('src')).toBe('https://cdn.example/stoney.png');
+  });
+
+  it('fills the streamer card of a recap that stored no channel from the managed channel', async () => {
+    await open();
+    const thumbnails = [...document.body.querySelectorAll('[data-recap-row]')].map((row) => row.textContent);
+
+    expect(thumbnails[1]).toContain('S');
+    document.body.querySelectorAll<HTMLButtonElement>('[data-recap-open]')[1]!.click();
+    await flushPromises();
+    await new Promise((done) => setTimeout(done, 0));
+    await flushPromises();
+
+    const card = document.body.querySelector('[data-recap-frame] [data-block="streamer"]')!;
+
+    expect(card.querySelector('img.avatar')?.getAttribute('src')).toBe('https://cdn.example/current.png');
+    expect(card.textContent).toContain('Stoney_Eagle');
   });
 
   it('saves the PNG at the stored resolution, and 1920 x 1080 for an old recap', async () => {
