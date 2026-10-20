@@ -32,6 +32,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { errorText } from '@/lib/errors';
 
+import { useActionName } from '../actionArea';
 import { isAllowedGrant } from '../personGrant';
 import OptionSelect, { type Option } from './OptionSelect.vue';
 import PersonPicker from './PersonPicker.vue';
@@ -55,10 +56,14 @@ const rows = computed(() => (grants.data.value ?? []).filter(isAllowedGrant));
 const knownText = (key: string, part: string): string =>
   t(`dashboard.settings.permissions.grants.known.${namedGrantSlug(key)}.${part}`);
 
-// A known grant shows its plain name; any other keeps the key the bot lists.
+const actionName = useActionName();
+const descriptionOf = (key: string): string | null | undefined =>
+  matrix.data.value?.find((row) => row.actionKey === key)?.description;
+
+// A sensitive grant shows its own name; any other the plain name of its action, never the key.
 const nameOf = (key: string): string =>
   namedGrantSlug(key) === undefined
-    ? key
+    ? actionName({ actionKey: key, description: descriptionOf(key) })
     : knownText(key, 'name');
 
 const options = computed<Option[]>(() =>

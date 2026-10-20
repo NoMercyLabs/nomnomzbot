@@ -27,7 +27,7 @@ import type { PageTab } from '@/components/layout/pageTab';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
 
-import { groupByArea, matchesSearch, useAreaLabel } from './actionArea';
+import { groupByArea, matchesSearch, useActionName, useAreaLabel } from './actionArea';
 import ActionAreaList from './components/ActionAreaList.vue';
 import ActionMatrixPanel from './components/ActionMatrixPanel.vue';
 import PersonGrantsPanel from './components/PersonGrantsPanel.vue';
@@ -43,6 +43,7 @@ const members = useMembers(channelId);
 const matrix = useActionMatrix(channelId);
 const grants = usePersonGrants(channelId);
 const labelOf = useAreaLabel();
+const nameOf = useActionName();
 
 const VIEWS = ['team', 'actions', 'capabilities'] as const satisfies readonly string[];
 const view = usePageView(VIEWS);
@@ -65,7 +66,7 @@ const search = ref('');
 const areas = computed(() =>
   groupByArea(
     (matrix.data.value ?? []).filter((row) =>
-      matchesSearch(row, search.value)),
+      matchesSearch(row, search.value, nameOf)),
     labelOf,
   ));
 const area = usePageView(

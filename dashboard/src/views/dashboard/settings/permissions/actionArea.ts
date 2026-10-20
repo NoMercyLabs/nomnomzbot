@@ -15,14 +15,22 @@ import type { ActionPermission } from '@/api/permissions';
 // The area of an action is the first part of its key: moderation:queue:read is in moderation.
 export const areaOf = (actionKey: string): string => actionKey.split(/[:.]/)[0] ?? actionKey;
 
-// A search finds an action by its key or by the bot's description of it, in any case.
-export function matchesSearch(row: ActionPermission, search: string): boolean {
+// The message name of an action's plain-words name: every run of signs becomes one underscore,
+// so moderation:delete_message reads moderation_delete_message.
+export const actionNameSlug = (actionKey: string): string => actionKey.replace(/[^a-z0-9]+/gi, '_');
+
+// A search finds an action by its plain name, its key or the bot's description of it, in any case.
+export function matchesSearch(
+  row: ActionPermission,
+  search: string,
+  nameOf: (row: ActionPermission) => string,
+): boolean {
   const needle = search.trim().toLowerCase();
 
   if (needle === '')
     return true;
 
-  return `${row.actionKey} ${row.description ?? ''}`.toLowerCase().includes(needle);
+  return `${nameOf(row)} ${row.actionKey} ${row.description ?? ''}`.toLowerCase().includes(needle);
 }
 
 const isChanged = (row: ActionPermission): boolean => row.overrideLevel != null;
@@ -45,6 +53,30 @@ export function useAreaLabel(): (area: string) => string {
     return te(key)
       ? t(key)
       : area;
+  };
+}
+
+export interface NamedAction {
+  actionKey: string;
+  description?: string | null;
+}
+
+// A person reads an action by its plain name. An action the bot adds later, with no name here yet,
+// shows the bot's description, else the area it sits in: never its key.
+export function useActionName(): (action: NamedAction) => string {
+  const { t, te } = useI18n();
+  const labelOf = useAreaLabel();
+
+  return ({ actionKey, description }) => {
+    const key = `dashboard.settings.permissions.action.${actionNameSlug(actionKey)}`;
+
+    if (te(key))
+      return t(key);
+
+    if (description != null && description.trim() !== '')
+      return description;
+
+    return t('dashboard.settings.permissions.matrix.unnamed', { area: labelOf(areaOf(actionKey)) });
   };
 }
 

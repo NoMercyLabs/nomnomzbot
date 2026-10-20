@@ -8,6 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import { readFileSync } from 'node:fs';
+import { resolve } from 'node:path';
+
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
@@ -19,7 +22,9 @@ import { settingsNav } from '@/layouts/dashboard/settingsNavigation';
 
 import { dashboardSettingsRoutes } from '../../route';
 import OptionSelect, { type Option } from '../components/OptionSelect.vue';
+import { actionNameSlug } from '../actionArea';
 import en from '../i18n/en.json';
+import nl from '../i18n/nl.json';
 import PermissionsView from '../PermissionsView.vue';
 
 type Body = Record<string, unknown>;
@@ -105,6 +110,16 @@ const matrix = [
     isGrantableViaPermit: true,
     overrideLevel: null,
     effectiveLevel: 40,
+  },
+  {
+    actionKey: 'chat:unknown',
+    plane: 0,
+    description: null,
+    floorLevel: 0,
+    floorTier: 2,
+    isGrantableViaPermit: false,
+    overrideLevel: null,
+    effectiveLevel: 0,
   },
 ];
 
@@ -326,14 +341,14 @@ describe('Permissions', () => {
 
   it('sends the ladder value of the picked role and offers nothing below the floor', async () => {
     const wrapper = await open('actions', 'chat');
-    const options: readonly Option[] = selectLabeled(wrapper, 'Lowest role for chat.timeout').props(
+    const options: readonly Option[] = selectLabeled(wrapper, 'Lowest role for Time a viewer out').props(
       'options',
     );
 
     expect(options.find((option) => option.value === 'Everyone')?.disabled).toBe(true);
     expect(options.find((option) => option.value === 'Moderator')?.disabled).toBe(false);
 
-    selectLabeled(wrapper, 'Lowest role for chat.permit-link').vm.$emit(
+    selectLabeled(wrapper, 'Lowest role for Allow one link').vm.$emit(
       'update:modelValue',
       'LeadModerator',
     );
@@ -401,6 +416,15 @@ describe('Permissions', () => {
 
     expect(labels['obs:control']).toBe('OBS control');
     expect(labels['bot:manager:author']).toBe('Bot manager');
+  });
+
+  it('names every other capability in plain words too, in the picker and on the row', async () => {
+    const wrapper = await open('capabilities');
+    const capability: readonly Option[] = selectLabeled(wrapper, 'Capability').props('options');
+
+    expect(capability.find((option) => option.value === 'chat.permit-link')?.label).toBe('Allow one link');
+    expect(q('[data-grant="u-vip:chat.permit-link"]').textContent).toContain('Allow one link');
+    expect(q('[data-grant="u-vip:chat.permit-link"]').textContent).not.toContain('chat.permit-link');
   });
 
   async function pick(wrapper: VueWrapper, permission: string): Promise<void> {
@@ -513,7 +537,7 @@ describe('Permissions layout', () => {
 
     expect(texts('[role="tab"]')).toEqual([
       'Team 3',
-      'Who may do what 4',
+      'Who may do what 5',
       'Personal capabilities 1',
     ]);
 
@@ -540,7 +564,7 @@ describe('Permissions layout', () => {
     await open('actions');
 
     expect(texts('[data-area] [data-slot="summary-row-title"]')).toEqual(['Bot manager', 'Chat', 'OBS']);
-    expect(q('[data-area="chat"]').textContent).toContain('2 actions');
+    expect(q('[data-area="chat"]').textContent).toContain('3 actions');
     expect(q('[data-area="chat"]').textContent).toContain('1 changed');
     expect(q('[data-area="obs"]').textContent).not.toContain('changed');
   });
@@ -554,7 +578,46 @@ describe('Permissions layout', () => {
     await click(q('[data-area="obs"]'));
 
     expect(router.currentRoute.value.query).toMatchObject({ view: 'actions', area: 'obs' });
-    expect(texts('[data-action] [data-slot="summary-row-title"]')).toEqual(['obs:control']);
+    expect(texts('[data-action] [data-slot="summary-row-title"]')).toEqual(['Switch scenes and sources in OBS']);
+  });
+
+  it('names each action in plain words with the bot description below, never the key or the floor again', async () => {
+    await open('actions', 'obs');
+
+    const row = q('[data-action="obs:control"]');
+
+    expect(row.querySelector('[data-slot="summary-row-title"]')?.textContent?.trim()).toBe(
+      'Switch scenes and sources in OBS',
+    );
+
+    expect(row.textContent).toContain('Control OBS');
+    expect(row.textContent).not.toContain('obs:control');
+    expect(row.textContent).not.toContain('Lowest allowed');
+  });
+
+  it('names an action the dashboard does not know by the bot description, else by its area', async () => {
+    await open('actions', 'chat');
+
+    expect(texts('[data-action] [data-slot="summary-row-title"]')).toEqual([
+      'Allow one link',
+      'An action in Chat',
+      'Time a viewer out',
+    ]);
+  });
+
+  it('gives every action the server seeds an English and a Dutch name', () => {
+    const root = process.cwd();
+    const seeder = readFileSync(
+      resolve(root, '../server/src/NomNomzBot.Infrastructure/Content/Identity/ActionDefinitionSeeder.cs'),
+      'utf8',
+    );
+    const keys = [...seeder.matchAll(/^\s+[A-Za-z]+\("([a-z][a-z0-9_:.-]*)"/gm)].map((match) => match[1] ?? '');
+    const named = (names: Record<string, string>): string[] =>
+      keys.filter((key) => names[actionNameSlug(key)] === undefined);
+
+    expect(keys.length).toBeGreaterThan(200);
+    expect(named(en.dashboard.settings.permissions.action)).toEqual([]);
+    expect(named(nl.dashboard.settings.permissions.action)).toEqual([]);
   });
 
   it('finds an action by its key or description across every area', async () => {
@@ -563,7 +626,14 @@ describe('Permissions layout', () => {
 
     expect(texts('[data-area] [data-slot="summary-row-title"]')).toEqual(['Chat']);
     expect(q('[data-area="chat"]').textContent).toContain('1 action');
-    expect(texts('[data-action] [data-slot="summary-row-title"]')).toEqual(['chat.permit-link']);
+    expect(texts('[data-action] [data-slot="summary-row-title"]')).toEqual(['Allow one link']);
+  });
+
+  it('finds an action by its plain name', async () => {
+    await open('actions');
+    await type(q<HTMLInputElement>('[data-area-search] input'), 'scenes');
+
+    expect(texts('[data-area] [data-slot="summary-row-title"]')).toEqual(['OBS']);
   });
 });
 

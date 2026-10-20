@@ -33,7 +33,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { errorText } from '@/lib/errors';
 
-import { areaOf, matchesSearch, useAreaLabel } from '../actionArea';
+import { areaOf, matchesSearch, useActionName, useAreaLabel } from '../actionArea';
 import OptionSelect, { type Option } from './OptionSelect.vue';
 
 // area: the one area this panel shows (the first part of the action key); search narrows it further.
@@ -45,6 +45,7 @@ const props = defineProps<{
 
 const { t } = useI18n();
 const labelOf = useAreaLabel();
+const nameOf = useActionName();
 const { channelId } = useCurrentChannel();
 const matrix = useActionMatrix(channelId);
 const setLevel = useSetActionLevel(channelId);
@@ -57,13 +58,26 @@ const planes = ['Community', 'Management'] as const;
 
 const shown = computed(() =>
   (matrix.data.value ?? []).filter((row) =>
-    areaOf(row.actionKey) === props.area && matchesSearch(row, props.search)));
+    areaOf(row.actionKey) === props.area && matchesSearch(row, props.search, nameOf)));
+
+// The bot's description sits under the name, unless the name already is that description.
+const named = (row: ActionPermission) => {
+  const name = nameOf(row);
+
+  return {
+    row,
+    name,
+    detail: row.description === name
+      ? undefined
+      : (row.description ?? undefined),
+  };
+};
 
 const byPlane = computed(() =>
   planes
     .map((plane) => ({
       plane,
-      rows: shown.value.filter((row) => Number(row.plane) === planes.indexOf(plane)),
+      rows: shown.value.filter((row) => Number(row.plane) === planes.indexOf(plane)).map(named),
     }))
     .filter((group) => group.rows.length > 0));
 
@@ -114,12 +128,11 @@ const changeLevel = (actionKey: string, rung: RungName): Promise<void> =>
       </h3>
       <RowGroup>
         <SummaryRow
-          v-for="row in group.rows"
+          v-for="{ row, name, detail } in group.rows"
           :key="row.actionKey"
           :data-action="row.actionKey"
-          :title="row.actionKey"
-          :detail="row.description ?? undefined"
-          :meta="$t('dashboard.settings.permissions.matrix.floor', { role: rungLabel(rungOf(row.floorLevel)) })"
+          :title="name"
+          :detail="detail"
         >
           <template #end>
             <Badge v-if="isProtected(row)" variant="outline" data-protected>
@@ -128,7 +141,7 @@ const changeLevel = (actionKey: string, rung: RungName): Promise<void> =>
             </Badge>
             <OptionSelect
               data-action-level
-              :label="$t('dashboard.settings.permissions.matrix.levelOf', { action: row.actionKey })"
+              :label="$t('dashboard.settings.permissions.matrix.levelOf', { action: name })"
               :model-value="rungOf(row.effectiveLevel)"
               :options="optionsFor(row)"
               :disabled="!canManage"
@@ -139,7 +152,7 @@ const changeLevel = (actionKey: string, rung: RungName): Promise<void> =>
               variant="ghost"
               size="icon"
               data-action-reset
-              :aria-label="$t('dashboard.settings.permissions.matrix.reset', { action: row.actionKey })"
+              :aria-label="$t('dashboard.settings.permissions.matrix.reset', { action: name })"
               @click="run(reset.mutateAsync(row.actionKey))"
             >
               <Reset class="size-5" />
