@@ -24,6 +24,7 @@ using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Infrastructure.Commands;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.AutomationApi;
 using NSubstitute;
 using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
@@ -145,7 +146,7 @@ public sealed class CommandInvokerTests
                 templates,
                 chat,
                 catalog,
-                Substitute.For<IOutboundSanctionAccessor>()
+                new OutboundSanctionAccessor()
             ),
             Catalog = catalog,
             Db = db,
@@ -175,7 +176,7 @@ public sealed class CommandInvokerTests
         );
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.Succeeded.Should().BeTrue();
+        result.Value.Succeeded.Should().BeTrue();
         result.Value.Output.Should().Be("Completed");
         PipelineRequest sent = SentToEngine(h);
         sent.BroadcasterId.Should().Be(Channel);
@@ -191,7 +192,7 @@ public sealed class CommandInvokerTests
         sent.InitialVariables["args.count"].Should().Be("2");
         sent.InitialVariables["args.1"].Should().Be("@kitte");
         sent.InitialVariables["target"].Should().Be("kitte");
-        await h.Bots.DidNotReceiveWithAnyArgs().ResolveAsync(default, default);
+        await h.Bots.DidNotReceiveWithAnyArgs().ResolveAsync(default);
     }
 
     [Fact]
@@ -242,7 +243,7 @@ public sealed class CommandInvokerTests
         );
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.Succeeded.Should().BeFalse();
+        result.Value.Succeeded.Should().BeFalse();
         result.Value.Error.Should().Be("step broke");
     }
 
@@ -264,7 +265,7 @@ public sealed class CommandInvokerTests
 
         otherChannel.ErrorCode.Should().Be("NOT_FOUND");
         malformed.ErrorCode.Should().Be("VALIDATION_FAILED");
-        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
     }
 
     [Fact]
@@ -300,7 +301,56 @@ public sealed class CommandInvokerTests
         sent.Variables["args"].Should().Be("loud");
         sent.Caller.Should().Be("timer");
         sent.RateLimitPartition.Should().Be($"binding-action:{Channel}");
-        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
+    }
+
+    [Fact]
+    public async Task Action_target_without_an_outer_sanction_runs_under_the_channels_action_basis()
+    {
+        Harness h = Build();
+        OutboundSanction? seen = null;
+        h.Actions.RunAsync(Arg.Any<OwnerActionRequest>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                seen = new OutboundSanctionAccessor().Current;
+                return Result.Success(
+                    new WidgetActionOutcome(true, null, null, new Dictionary<string, string>())
+                );
+            });
+
+        await h.Invoker.InvokeAsync(
+            Channel,
+            new BindingTarget(BindingTargetKind.Action, null, "music_play"),
+            new InvocationContext(null, null, "", "timer")
+        );
+
+        seen.Should().Be(OutboundSanction.ChannelConfiguration("action:music_play"));
+        new OutboundSanctionAccessor().Current.Should().BeNull("the claim ends with the run");
+    }
+
+    [Fact]
+    public async Task Action_target_keeps_the_outer_sanction_when_one_is_already_in_force()
+    {
+        Harness h = Build();
+        OutboundSanction? seen = null;
+        h.Actions.RunAsync(Arg.Any<OwnerActionRequest>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                seen = new OutboundSanctionAccessor().Current;
+                return Result.Success(
+                    new WidgetActionOutcome(true, null, null, new Dictionary<string, string>())
+                );
+            });
+        OutboundSanction outer = OutboundSanction.UserAction("music:control:write", Guid.NewGuid());
+
+        using (new OutboundSanctionAccessor().Begin(outer))
+            await h.Invoker.InvokeAsync(
+                Channel,
+                new BindingTarget(BindingTargetKind.Action, null, "music_play"),
+                new InvocationContext(null, null, "", "automation")
+            );
+
+        seen.Should().Be(outer);
     }
 
     [Fact]
@@ -367,7 +417,7 @@ public sealed class CommandInvokerTests
         );
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
-        await h.Actions.DidNotReceiveWithAnyArgs().RunAsync(default!, default);
+        await h.Actions.DidNotReceiveWithAnyArgs().RunAsync(default!);
     }
 
     private static IBuiltinCommand AddBuiltin(Harness h, string key, Result<string> reply)
@@ -403,7 +453,7 @@ public sealed class CommandInvokerTests
         );
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.Succeeded.Should().BeTrue();
+        result.Value.Succeeded.Should().BeTrue();
         result.Value.Output.Should().Be("kitte follows 3y");
         BuiltinCommandContext ran = RanWith(builtin);
         ran.BroadcasterId.Should().Be(Channel);
@@ -435,7 +485,7 @@ public sealed class CommandInvokerTests
         BuiltinCommandContext ran = RanWith(builtin);
         ran.TriggeringUserId.Should().Be("u-1");
         ran.RoleLevel.Should().BeLessThan(40);
-        await h.Bots.DidNotReceiveWithAnyArgs().ResolveAsync(default, default);
+        await h.Bots.DidNotReceiveWithAnyArgs().ResolveAsync(default);
     }
 
     [Fact]
@@ -451,7 +501,7 @@ public sealed class CommandInvokerTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_FOUND");
-        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
     }
 
     [Fact]
@@ -468,7 +518,7 @@ public sealed class CommandInvokerTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorMessage.Should().Be("no such streamer");
-        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
     }
 
     [Fact]
@@ -485,8 +535,8 @@ public sealed class CommandInvokerTests
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("NOT_SUPPORTED");
-        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
-        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
     }
 
     [Fact]
@@ -502,7 +552,7 @@ public sealed class CommandInvokerTests
         );
 
         result.IsSuccess.Should().BeTrue();
-        result.Value!.Succeeded.Should().BeTrue();
+        result.Value.Succeeded.Should().BeTrue();
         result.Value.Output.Should().Be("resolved:hug {user}");
         await h
             .Chat.Received(1)
@@ -513,7 +563,7 @@ public sealed class CommandInvokerTests
         seed["user.role"].Should().Be("broadcaster");
         seed["target"].Should().Be("kitte");
         seed["trigger.source"].Should().Be("reward");
-        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
     }
 
     [Fact]
@@ -528,7 +578,7 @@ public sealed class CommandInvokerTests
             new InvocationContext("u-1", "Viewer One", "", "reward", "viewer")
         );
 
-        result.Value!.Succeeded.Should().BeTrue();
+        result.Value.Succeeded.Should().BeTrue();
         PipelineRequest tts = SentToEngine(h);
         tts.InitialVariables["tts.reply"].Should().Be("resolved:hello");
         tts.TriggeredByUserId.Should().Be("bot-9");
@@ -549,9 +599,9 @@ public sealed class CommandInvokerTests
             new InvocationContext(null, null, "", "reward")
         );
 
-        result.Value!.Succeeded.Should().BeFalse();
+        result.Value.Succeeded.Should().BeFalse();
         result.Value.Error.Should().NotBeNullOrEmpty();
-        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
     }
 
     [Theory]
@@ -570,7 +620,7 @@ public sealed class CommandInvokerTests
             new InvocationContext(null, null, "a b", "timer")
         );
 
-        result.Value!.Succeeded.Should().BeTrue();
+        result.Value.Succeeded.Should().BeTrue();
         PipelineRequest sent = SentToEngine(h);
         sent.PipelineId.Should().Be(PipelineId);
         sent.PipelineJson.Should().Be(Graph);
@@ -579,7 +629,7 @@ public sealed class CommandInvokerTests
         sent.InitialVariables["args.2"].Should().Be("b");
         sent.InitialVariables["user.role"].Should().Be("broadcaster");
         sent.InitialVariables["trigger.source"].Should().Be("timer");
-        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
     }
 
     [Fact]
@@ -600,7 +650,7 @@ public sealed class CommandInvokerTests
             result.ErrorCode.Should().Be("NOT_FOUND");
         }
 
-        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default);
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
     }
 
     [Fact]
@@ -616,7 +666,7 @@ public sealed class CommandInvokerTests
                 new BindingTarget(BindingTargetKind.Command, id.ToString()),
                 new InvocationContext("u-1", "Viewer", "", "reward", "viewer")
             );
-            result.Value!.Succeeded.Should().BeTrue();
+            result.Value.Succeeded.Should().BeTrue();
         }
 
         await h

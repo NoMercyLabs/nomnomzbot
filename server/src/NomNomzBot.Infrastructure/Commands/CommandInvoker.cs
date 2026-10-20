@@ -199,7 +199,7 @@ public sealed class CommandInvoker(
                 run.ErrorDetail
             );
 
-        string reply = run.Value ?? string.Empty;
+        string reply = run.Value;
         if (reply.Length == 0)
             return Result.Success(new InvocationOutcome(true, null, null));
 
@@ -353,6 +353,12 @@ public sealed class CommandInvoker(
             );
 
         Invoker invoker = await ResolveInvokerAsync(broadcasterId, context, cancellationToken);
+
+        // A timer, schedule, reward or event binding reaches here with no endpoint to have opened a sanction.
+        // Running the action is what the broadcaster configured, so it names that; an outer sanction wins.
+        using IDisposable? claimed = sanctions.Current is null
+            ? sanctions.Begin(OutboundSanction.ChannelConfiguration($"action:{target.ActionType}"))
+            : null;
         Result<WidgetActionOutcome> run = await ownerActions.RunAsync(
             new OwnerActionRequest(
                 broadcasterId,
@@ -371,7 +377,7 @@ public sealed class CommandInvoker(
                 run.ErrorDetail
             );
 
-        WidgetActionOutcome outcome = run.Value!;
+        WidgetActionOutcome outcome = run.Value;
         return Result.Success(
             new InvocationOutcome(outcome.Succeeded, outcome.Output, outcome.Error)
         );
