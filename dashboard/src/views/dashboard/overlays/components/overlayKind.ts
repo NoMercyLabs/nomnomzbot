@@ -13,11 +13,19 @@ import BellRing from '~icons/nnz/bell-ring';
 import ChatMessages from '~icons/nnz/chat-messages';
 import NoteEighthPair from '~icons/nnz/note-eighth-pair';
 import WaveForm from '~icons/nnz/wave-form';
+import BarChart from '~icons/nnz/bar-chart';
+import Coin from '~icons/nnz/coin';
+import Controller from '~icons/nnz/controller';
+import Feather from '~icons/nnz/feather';
+import Playlist from '~icons/nnz/playlist';
+import Rocket from '~icons/nnz/rocket';
+import Train from '~icons/nnz/train';
+import Trophy from '~icons/nnz/trophy';
 
 export interface OverlayKind {
   /** Key under dashboard.overlays.kinds. */
   key: string;
-  /** Null when the kind has no clear picture: the tile stays, empty, so rows line up. */
+  /** Null when the kind has no clear picture: the row then shows no tile. */
   icon: Component | null;
 }
 
@@ -47,6 +55,46 @@ const RULES = [
     key: 'alerts',
     icon: BellRing,
     events: ['follow', 'subscription', 'resub', 'gift', 'cheer'],
+  },
+  {
+    key: 'reward',
+    icon: Coin,
+    events: ['reward_redeemed'],
+  },
+  {
+    key: 'game',
+    icon: Controller,
+    events: ['game.lobby', 'game.running', 'game.resolved'],
+  },
+  {
+    key: 'feather',
+    icon: Feather,
+    events: ['feather.steal', 'feather.show', 'feather.event'],
+  },
+  {
+    key: 'hypeTrain',
+    icon: Train,
+    events: ['hype_train_begin', 'hype_train_progress', 'hype_train_end'],
+  },
+  {
+    key: 'leaderboard',
+    icon: Trophy,
+    events: ['leaderboard.show'],
+  },
+  {
+    key: 'poll',
+    icon: BarChart,
+    events: ['poll_begin', 'poll_progress', 'poll_end', 'prediction_begin', 'prediction_progress', 'prediction_lock', 'prediction_end'],
+  },
+  {
+    key: 'raid',
+    icon: Rocket,
+    events: ['raid_recap.show'],
+  },
+  {
+    key: 'songQueue',
+    icon: Playlist,
+    events: ['sr_queue'],
   },
 ] as const satisfies readonly KindRule[];
 

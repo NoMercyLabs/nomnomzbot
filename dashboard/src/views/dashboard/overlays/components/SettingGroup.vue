@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
+import { Switch } from '@/components/ui/switch';
 import type { JsonObject, JsonValue } from '@/lib/json';
 import { numberOrNull } from '@/lib/number';
 
@@ -33,8 +34,13 @@ const props = withDefaults(
     value: JsonObject;
     depth?: number;
     milliseconds?: boolean;
+    skip?: string | null;
   }>(),
-  { depth: 0, milliseconds: false },
+  {
+    depth: 0,
+    milliseconds: false,
+    skip: null,
+  },
 );
 const emit = defineEmits<{ update: [value: JsonObject] }>();
 
@@ -79,8 +85,19 @@ function word(key: string): string {
   return plainKey(key, wordFor);
 }
 
+// A nested part's own on switch sits on its closed row, so a part can be switched without opening it.
+const SWITCH_KEY = 'enabled';
+
+function hasSwitch(value: JsonValue | undefined): boolean {
+  return kindOf(value) === 'group' && typeof (value as JsonObject)[SWITCH_KEY] === 'boolean';
+}
+
+function setPart(key: string, part: string, value: JsonValue): void {
+  set(key, { ...(props.value[key] as JsonObject), [part]: value });
+}
+
 const entries = computed(() =>
-  Object.entries(props.value).map(([key, value]) => ({
+  Object.entries(props.value).filter(([key]) => key !== props.skip).map(([key, value]) => ({
     key,
     label: word(key),
     value,
@@ -114,7 +131,11 @@ function shownNumber(value: JsonValue | undefined, seconds: boolean): string {
 
 <template>
   <!-- Plain values sit three to a line; a list or a nested group takes the whole line. -->
-  <div class="grid w-full grid-cols-2 gap-3 sm:grid-cols-3">
+  <!-- The closed rows of the first level sit close together, as one list. -->
+  <div
+    class="grid w-full grid-cols-2 gap-x-3 sm:grid-cols-3"
+    :class="depth === 0 ? 'gap-y-1' : 'gap-y-3'"
+  >
     <div
       v-for="entry in entries"
       :key="entry.key"
@@ -132,12 +153,12 @@ function shownNumber(value: JsonValue | undefined, seconds: boolean): string {
         v-else-if="entry.kind === 'group' && depth === 0"
         v-model:open="opened[entry.key]"
       >
-        <div class="flex items-center gap-1">
+        <div data-group-head class="flex items-center gap-1">
           <CollapsibleTrigger as-child>
             <Button
               data-group-toggle
               variant="ghost"
-              size="icon"
+              size="icon-sm"
               :aria-label="$t('dashboard.overlays.detail.settings.open', { name: entry.label })"
               :aria-expanded="opened[entry.key] === true"
             >
@@ -145,13 +166,20 @@ function shownNumber(value: JsonValue | undefined, seconds: boolean): string {
               <ChevronRight v-else aria-hidden="true" />
             </Button>
           </CollapsibleTrigger>
-          <span class="text-sm font-medium">{{ entry.label }}</span>
+          <span class="flex-1 text-sm font-medium">{{ entry.label }}</span>
+          <Switch
+            v-if="hasSwitch(entry.value)"
+            :model-value="(entry.value as JsonObject)[SWITCH_KEY] === true"
+            :aria-label="entry.label"
+            @update:model-value="setPart(entry.key, SWITCH_KEY, $event)"
+          />
         </div>
         <CollapsibleContent class="pb-2 pl-10">
           <SettingGroup
             :value="(entry.value as JsonObject)"
             :depth="depth + 1"
             :milliseconds="DURATION_GROUP.test(entry.key)"
+            :skip="hasSwitch(entry.value) ? SWITCH_KEY : null"
             @update="set(entry.key, $event)"
           />
         </CollapsibleContent>

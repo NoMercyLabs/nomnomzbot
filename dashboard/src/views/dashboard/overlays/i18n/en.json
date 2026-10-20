@@ -63,6 +63,14 @@
         "nowPlaying": "Now playing",
         "tts": "TTS speaker",
         "alerts": "Alerts",
+        "reward": "Reward",
+        "game": "Game",
+        "feather": "Feather",
+        "hypeTrain": "Hype train",
+        "leaderboard": "Leaderboard",
+        "poll": "Poll",
+        "raid": "Raid",
+        "songQueue": "Song queue",
         "overlay": "Overlay"
       },
       "detail": {

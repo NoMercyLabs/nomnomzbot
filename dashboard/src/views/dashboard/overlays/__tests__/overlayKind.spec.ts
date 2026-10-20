@@ -8,13 +8,19 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import { mount } from '@vue/test-utils';
 import { describe, expect, it } from 'vitest';
 import BellRing from '~icons/nnz/bell-ring';
 import ChatMessages from '~icons/nnz/chat-messages';
 import NoteEighthPair from '~icons/nnz/note-eighth-pair';
 import WaveForm from '~icons/nnz/wave-form';
 
+import type { Widget } from '@/api/widgets';
+import { i18n } from '@/i18n';
+
+import OverlayRow from '../components/OverlayRow.vue';
 import { overlayKind } from '../components/overlayKind';
+import en from '../i18n/en.json';
 
 describe('overlay icon', () => {
   it('comes from the events the overlay listens to', () => {
@@ -35,7 +41,48 @@ describe('overlay icon', () => {
 
   it('is empty when no event gives the overlay a clear kind', () => {
     expect(overlayKind([])).toEqual({ key: 'overlay', icon: null });
-    expect(overlayKind(['game.lobby']).icon).toBeNull();
+    expect(overlayKind(['unknown.event']).icon).toBeNull();
+  });
+
+  it('gives every overlay of the live channel a picture from its events', () => {
+    const live: Record<string, string[]> = {
+      reward: ['reward_redeemed'],
+      game: ['game.lobby', 'game.running', 'game.resolved'],
+      feather: ['feather.steal', 'feather.show', 'feather.event'],
+      hypeTrain: ['hype_train_begin', 'hype_train_progress', 'hype_train_end'],
+      leaderboard: ['leaderboard.show'],
+      poll: ['poll_begin', 'prediction_begin'],
+      raid: ['raid_recap.show'],
+      songQueue: ['sr_queue'],
+    };
+
+    for (const [key, events] of Object.entries(live)) {
+      const kind = overlayKind(events);
+
+      expect(kind.key).toBe(key);
+      expect(kind.icon).not.toBeNull();
+      expect(en.dashboard.overlays.kinds).toHaveProperty(key);
+    }
+  });
+
+  it('leaves no empty tile on a list row without a picture', () => {
+    i18n.global.mergeLocaleMessage('en', en);
+
+    const row = mount(OverlayRow, {
+      props: {
+        selected: false,
+        widget: {
+          name: 'Plain',
+          isEnabled: true,
+          isAttached: true,
+          eventSubscriptions: ['unknown.event'],
+        } as unknown as Widget,
+      },
+      global: { plugins: [i18n] },
+    });
+
+    expect(row.find('[data-overlay-icon]').exists()).toBe(false);
+    row.unmount();
   });
 
   it('never reads a name or title', async () => {

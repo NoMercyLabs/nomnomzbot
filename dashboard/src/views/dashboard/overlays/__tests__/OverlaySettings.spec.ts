@@ -437,7 +437,7 @@ describe('the overlay settings form', () => {
     await settle();
 
     expect(
-      row('colors').querySelector('[data-group-key="win31"] [data-group-key="enabled"] [role="switch"]'),
+      row('colors').querySelector('[data-group-key="win31"] [data-group-head] [role="switch"]'),
     ).not.toBeNull();
 
     expect(row('steps').textContent).toContain(en.dashboard.overlays.detail.settings.inCode);

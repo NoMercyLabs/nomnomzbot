@@ -201,6 +201,24 @@ describe('the words beside a setting', () => {
     expect(field.text()).not.toContain('code editor');
   });
 
+  it('keeps a flat group of values closed until it is opened, so the settings fit one screen', async () => {
+    const field = mountField(
+      {
+        key: 'assets',
+        label: text('Sounds and images'),
+        type: 'json',
+      },
+      '{"win31StartupSoundUrl":"a","win95StartupSoundUrl":"b"}',
+    );
+
+    expect(field.find('[data-group-key="win31StartupSoundUrl"]').exists()).toBe(false);
+
+    await field.get('[data-field-toggle]').trigger('click');
+    await flushPromises();
+
+    expect(field.find('[data-group-key="win31StartupSoundUrl"]').exists()).toBe(true);
+  });
+
   it('marks a changed setting by its Reset button alone, with no unexplained dot', () => {
     mounted = mount(OverlaySettingField, {
       attachTo: document.body,
@@ -220,5 +238,26 @@ describe('the words beside a setting', () => {
 
     expect(mounted.find('[data-reset]').exists()).toBe(true);
     expect(mounted.find('.rounded-full').exists()).toBe(false);
+  });
+
+  it('puts the Reset of a group beside its name, never alone under the group', () => {
+    mounted = mount(OverlaySettingField, {
+      attachTo: document.body,
+      props: {
+        field: {
+          key: 'osConfig',
+          label: text('Windows versions and timings'),
+          type: 'json',
+          group: text('Windows versions'),
+          default: '{}',
+        },
+        value: '{"win31":{"enabled":true}}',
+        changed: true,
+      },
+      global: { plugins: [i18n, createRouter({ history: createMemoryHistory(), routes: [] })] },
+    });
+
+    expect(mounted.find('[data-setting-head] [data-reset]').exists()).toBe(true);
+    expect(mounted.findAll('[data-reset]')).toHaveLength(1);
   });
 });

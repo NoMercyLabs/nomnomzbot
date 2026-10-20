@@ -183,7 +183,7 @@ async function sendTest(eventType: string): Promise<void> {
           :label="$t('dashboard.overlays.back')"
           @click="$emit('back')"
         />
-        <!-- An icon slot shows only with a real icon; the list keeps its empty tiles so its rows line up. -->
+        <!-- An icon tile shows only with a real icon, here and in the list. -->
         <span
           v-if="kind.icon"
           class="flex size-12 flex-none items-center justify-center rounded-lg bg-muted text-muted-foreground"

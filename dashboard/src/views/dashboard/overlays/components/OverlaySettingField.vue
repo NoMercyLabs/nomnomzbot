@@ -13,7 +13,9 @@ import type { JsonObject, JsonValue } from '@/lib/json';
 // and Reset when the value differs from the default (12-overlays.html:304-313).
 // A JSON setting gets a control per key; a value no control can hold says it is set in the code.
 import RotateCcw from '~icons/nnz/arrow-counter-clockwise';
-import { computed, useId } from 'vue';
+import ChevronDown from '~icons/nnz/chevron-down';
+import ChevronRight from '~icons/nnz/chevron-right';
+import { computed, ref, useId } from 'vue';
 
 import type { PickerKind } from '@/api/pipelines';
 import type { WidgetSettingsField } from '@/api/widgets';
@@ -109,6 +111,11 @@ const group = computed<JsonObject | null>(() => {
     ? objectOf(structured.value)
     : null;
 });
+// A group of plain values (no nested parts) stays closed until opened, so a long one never fills the screen.
+const flat = computed<boolean>(() =>
+  group.value !== null &&
+  Object.values(group.value).every((part) => part === null || typeof part !== 'object' || Array.isArray(part)));
+const opened = ref<boolean>(false);
 const textList = computed<string[] | null>(() => {
   if (props.field.type === 'list')
     return picked.value;
@@ -159,11 +166,39 @@ function onNumber(event: Event): void {
       @update:model-value="emit('update', $event)"
     />
     <template v-else>
-      <span class="min-w-40 flex-1">
-        <span :id="titleId" class="block text-sm font-medium wrap-break-word">{{ label }}</span>
-        <span v-if="help" class="block text-sm text-muted-foreground wrap-break-word">{{
-          help
-        }}</span>
+      <!-- A wide control (a group or a list) keeps its Reset beside its name, not under the block. -->
+      <span data-setting-head class="flex min-w-40 flex-1 items-start gap-1">
+        <span class="min-w-0 flex-1">
+          <span :id="titleId" class="block text-sm font-medium wrap-break-word">{{ label }}</span>
+          <span v-if="help" class="block text-sm text-muted-foreground wrap-break-word">{{
+            help
+          }}</span>
+        </span>
+        <Button
+          v-if="flat"
+          data-field-toggle
+          class="flex-none"
+          variant="ghost"
+          size="icon"
+          :aria-label="$t('dashboard.overlays.detail.settings.open', { name: label })"
+          :aria-expanded="opened"
+          @click="opened = !opened"
+        >
+          <ChevronDown v-if="opened" aria-hidden="true" />
+          <ChevronRight v-else aria-hidden="true" />
+        </Button>
+        <Button
+          v-if="wide && changed && known"
+          data-reset
+          class="flex-none"
+          variant="ghost"
+          size="icon"
+          :aria-label="$t('dashboard.overlays.detail.settings.reset', { name: label })"
+          :title="$t('dashboard.overlays.detail.settings.reset', { name: label })"
+          @click="emit('reset')"
+        >
+          <RotateCcw aria-hidden="true" />
+        </Button>
       </span>
     </template>
 
@@ -242,32 +277,34 @@ function onNumber(event: Event): void {
         @update="emit('update', $event)"
       />
       <SettingGroup
-        v-else-if="group"
+        v-else-if="group && (!flat || opened)"
         class="min-w-0 flex-1"
         :value="group"
         @update="emit('update', $event)"
       />
       <p
-        v-else-if="field.type !== 'bool'"
+        v-else-if="field.type !== 'bool' && !group"
         data-in-code
         class="min-w-0 flex-1 text-sm text-muted-foreground"
       >
         {{ $t('dashboard.overlays.detail.settings.inCode') }}
       </p>
 
-      <Button
-        v-if="changed && known"
-        data-reset
-        class="flex-none"
-        variant="ghost"
-        size="icon"
-        :aria-label="$t('dashboard.overlays.detail.settings.reset', { name: label })"
-        :title="$t('dashboard.overlays.detail.settings.reset', { name: label })"
-        @click="emit('reset')"
-      >
-        <RotateCcw aria-hidden="true" />
-      </Button>
-      <span v-else class="size-9 flex-none" aria-hidden="true" />
+      <template v-if="!wide">
+        <Button
+          v-if="changed && known"
+          data-reset
+          class="flex-none"
+          variant="ghost"
+          size="icon"
+          :aria-label="$t('dashboard.overlays.detail.settings.reset', { name: label })"
+          :title="$t('dashboard.overlays.detail.settings.reset', { name: label })"
+          @click="emit('reset')"
+        >
+          <RotateCcw aria-hidden="true" />
+        </Button>
+        <span v-else class="size-9 flex-none" aria-hidden="true" />
+      </template>
     </span>
   </div>
 </template>

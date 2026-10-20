@@ -51,11 +51,12 @@ const dotState = computed<HealthDot>(() => overlayHealth(props.widget));
       :detail="detail"
       @click="$emit('pick')"
     >
-      <template #leading>
+      <template v-if="kind.icon" #leading>
         <span
+          data-overlay-icon
           class="flex size-9 flex-none items-center justify-center rounded-md bg-muted text-muted-foreground"
         >
-          <component :is="kind.icon" v-if="kind.icon" class="size-4" aria-hidden="true" />
+          <component :is="kind.icon" class="size-4" aria-hidden="true" />
         </span>
       </template>
       <template #detail-lead>

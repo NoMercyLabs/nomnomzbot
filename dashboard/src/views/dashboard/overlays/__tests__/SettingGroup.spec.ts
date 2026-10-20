@@ -77,6 +77,18 @@ describe('a nested settings group', () => {
     expect(group.find('[data-group-key="win95"] [data-group-key="glitch"]').exists()).toBe(false);
   });
 
+  it('keeps the on switch of a nested part on its closed row, so the list stays short', async () => {
+    const group = mountGroup(eras());
+    const head = group.get('[data-group-key="win31"] [data-group-head]');
+
+    expect(head.find('[role="switch"]').exists()).toBe(true);
+    expect(head.text()).toContain('Windows 3.1');
+
+    await openEra(group, 'win31');
+
+    expect(group.findAll('[data-group-key="win31"] [role="switch"]')).toHaveLength(1);
+  });
+
   it('shows timings in seconds with their unit and saves them back as milliseconds', async () => {
     const group = mountGroup(eras());
 

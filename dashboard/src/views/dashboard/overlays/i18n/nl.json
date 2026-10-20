@@ -63,6 +63,14 @@
         "nowPlaying": "Speelt nu",
         "tts": "TTS-speaker",
         "alerts": "Meldingen",
+        "reward": "Beloning",
+        "game": "Spel",
+        "feather": "Veer",
+        "hypeTrain": "Hype train",
+        "leaderboard": "Ranglijst",
+        "poll": "Peiling",
+        "raid": "Raid",
+        "songQueue": "Verzoeklijst",
         "overlay": "Overlay"
       },
       "detail": {
