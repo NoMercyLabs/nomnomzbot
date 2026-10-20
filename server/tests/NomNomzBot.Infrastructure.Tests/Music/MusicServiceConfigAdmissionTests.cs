@@ -16,7 +16,6 @@ using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
-using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
@@ -30,10 +29,8 @@ namespace NomNomzBot.Infrastructure.Tests.Music;
 /// <summary>
 /// Proves the <c>MusicConfig</c> admission gate inside <see cref="MusicService.RequestTrackAsync"/> (S067):
 /// a channel with <c>IsEnabled=false</c> refuses every request with <c>SR_DISABLED</c> before it ever
-/// resolves a provider; a requester below the configured <c>MinTrustLevel</c> floor is refused with
-/// <c>MIN_TRUST_LEVEL</c>; a requester at or above the floor is admitted; and a caller that passes no role
-/// level at all (dashboard/public-page/script — surfaces with their own authorization boundary) skips the
-/// trust-level check but is still stopped by <c>IsEnabled</c>. Neither gate ever reaches the provider or the
+/// resolves a provider, and a closed queue refuses with <c>SR_CLOSED</c>. Who may request is the per-source
+/// rule (see <c>SongRequestSourceRoleTests</c>), not this config. Neither gate ever reaches the provider or the
 /// fair queue when it refuses — proven the same way <see cref="MusicServiceBlockedAdmissionTests"/> proves
 /// the blocklist gate: no queue-changed event, an empty queue.
 /// </summary>
@@ -88,48 +85,10 @@ public sealed class MusicServiceConfigAdmissionTests
     }
 
     [Fact]
-    public async Task A_requester_below_the_min_trust_level_floor_is_refused()
-    {
-        (MusicService sut, _) = Build(
-            new MusicConfigDto(true, "auto", 50, 5, true, true, "moderators")
-        );
-
-        Result<MusicTrack> result = await sut.RequestTrackAsync(
-            ChannelId.ToString(),
-            "never gonna give you up",
-            requestedBy: "viewer1",
-            requesterRoleLevel: PermissionLevel.Subscriber.ToLevelValue()
-        );
-
-        result.IsFailure.Should().BeTrue();
-        result.ErrorCode.Should().Be("MIN_TRUST_LEVEL");
-        (await sut.GetQueueAsync(ChannelId.ToString())).Queue.Should().BeEmpty();
-    }
-
-    [Fact]
-    public async Task A_requester_at_the_min_trust_level_floor_is_admitted()
-    {
-        (MusicService sut, RecordingHttpHandler handler) = Build(
-            new MusicConfigDto(true, "auto", 50, 5, true, true, "moderators")
-        );
-        RouteTrackResolve(handler);
-
-        Result<MusicTrack> result = await sut.RequestTrackAsync(
-            ChannelId.ToString(),
-            "spotify:track:q1",
-            requestedBy: "mod1",
-            requesterRoleLevel: PermissionLevel.Moderator.ToLevelValue()
-        );
-
-        result.IsSuccess.Should().BeTrue();
-        (await sut.GetQueueAsync(ChannelId.ToString())).Queue.Should().ContainSingle();
-    }
-
-    [Fact]
-    public async Task ANullRoleLevel_skips_the_trust_floor_but_isEnabled_still_applies()
+    public async Task ANullRoleLevel_is_still_stopped_by_isEnabled()
     {
         // Dashboard / public-page / script callers pass no role level (their own authorization already
-        // ran) — a strict floor must not block them, but the channel being off must still refuse them.
+        // ran), but the channel being off must still refuse them.
         (MusicService sutOff, _) = Build(
             new MusicConfigDto(false, "auto", 50, 5, true, true, "broadcaster")
         );

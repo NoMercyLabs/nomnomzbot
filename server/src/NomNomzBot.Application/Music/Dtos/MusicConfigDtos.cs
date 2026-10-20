@@ -72,6 +72,7 @@ public sealed record UpdateMusicConfigDto
     public bool? AllowYouTube { get; init; }
     public bool? AllowSpotify { get; init; }
 
+    /// <summary>Ignored. Who may request is set per source (<c>music:request:*</c>); kept so old clients still compile.</summary>
     [RegularExpression("^(everyone|subscribers|vip|moderators|broadcaster)$")]
     public string? MinTrustLevel { get; init; }
 

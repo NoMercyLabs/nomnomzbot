@@ -161,6 +161,7 @@ public sealed partial class PlaybackDirector
             input is RequestAdded
             && _queue.Head is { } waiting
             && !await CanStartOnAsync(waiting.Engine, ct)
+            && await StartableBehindAsync(waiting, ct) is null
         )
         {
             await IgnoreAsync(input);
@@ -227,10 +228,17 @@ public sealed partial class PlaybackDirector
             return;
         }
 
+        // With no Music Player page open the video cannot take over, so the Spotify song plays on and its row
+        // leaves the queue below.
         if (SpotifyMovedOnUnderYouTubeHead(report))
         {
-            await TakeOverFromSpotifyAsync(nameof(EngineReport), ct);
-            return;
+            if (await CanStartOnAsync(EngineKind.YouTube, ct))
+            {
+                await TakeOverFromSpotifyAsync(nameof(EngineReport), ct);
+                return;
+            }
+
+            await AnnouncePassedOverAsync(_queue.Head!, ct);
         }
 
         // A queued row that plays on its own leaves the queue first, even when another engine holds

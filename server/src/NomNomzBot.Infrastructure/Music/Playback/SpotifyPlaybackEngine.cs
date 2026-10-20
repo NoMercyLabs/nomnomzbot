@@ -58,10 +58,35 @@ public sealed class SpotifyPlaybackEngine(Guid broadcasterId, Func<EngineLease> 
 
         return await GuardFor(lease)
             .StartAsync(
-                () => lease.StartTrack.StartTrackAsync(broadcasterId, item.Uri, ct),
+                async () =>
+                    await HoldsAsync(lease, item, ct)
+                        ? await SkipHeldAsync(lease, ct)
+                        : await lease.StartTrack.StartTrackAsync(broadcasterId, item.Uri, ct),
                 "Spotify could not start the track.",
                 ct
             );
+    }
+
+    /// <summary>
+    /// Whether Spotify's own queue already holds the item. The director's memory of what it sent dies with the
+    /// process, so after a restart or a blue/green overlap the player is the only witness. An unanswerable read
+    /// counts as "not held": a viewer's request is never dropped on a failed read.
+    /// </summary>
+    private async Task<bool> HoldsAsync(EngineLease lease, PlaybackItem item, CancellationToken ct)
+    {
+        IReadOnlyList<TrackInfo>? held = await lease.Provider.GetQueueAsync(broadcasterId, ct);
+
+        return held?.Any(t =>
+                string.Equals(t.TrackUri, item.Uri, StringComparison.OrdinalIgnoreCase)
+            ) == true;
+    }
+
+    /// <summary>The item is already in Spotify's queue: moving on plays it, and no second copy is added.</summary>
+    private async Task<bool> SkipHeldAsync(EngineLease lease, CancellationToken ct)
+    {
+        await lease.Provider.SkipAsync(broadcasterId, ct);
+
+        return true;
     }
 
     /// <summary>A started or queued track sits in Spotify's own queue until it plays.</summary>
@@ -77,7 +102,9 @@ public sealed class SpotifyPlaybackEngine(Guid broadcasterId, Func<EngineLease> 
 
         return await GuardFor(lease)
             .StartAsync(
-                () => lease.Provider.AddToQueueAsync(broadcasterId, item.Uri, ct),
+                async () =>
+                    await HoldsAsync(lease, item, ct)
+                    || await lease.Provider.AddToQueueAsync(broadcasterId, item.Uri, ct),
                 "Spotify could not queue the track.",
                 ct
             );

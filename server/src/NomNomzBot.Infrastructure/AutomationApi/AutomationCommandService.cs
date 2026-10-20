@@ -20,6 +20,7 @@ using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Music;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Application.Obs.Dtos;
@@ -43,6 +44,7 @@ namespace NomNomzBot.Infrastructure.AutomationApi;
 /// </summary>
 public class AutomationCommandService : IAutomationCommandService
 {
+    private const string MusicControlActionKey = "music:control:write";
     private const int InvokePerMinute = 60;
     private const int ChatPerMinute = 20;
     private const int ReadsPerMinute = 120;
@@ -57,6 +59,7 @@ public class AutomationCommandService : IAutomationCommandService
     private readonly IMusicProviderManageApi _musicManageApi;
     private readonly IActionAuthorizationService _actionAuthz;
     private readonly IObsControlService _obs;
+    private readonly IOutboundSanctionAccessor _sanctions;
     private readonly TimeProvider _timeProvider;
     private readonly ILogger<AutomationCommandService> _logger;
 
@@ -70,6 +73,7 @@ public class AutomationCommandService : IAutomationCommandService
         IMusicProviderManageApi musicManageApi,
         IActionAuthorizationService actionAuthz,
         IObsControlService obs,
+        IOutboundSanctionAccessor sanctions,
         TimeProvider timeProvider,
         ILogger<AutomationCommandService> logger
     )
@@ -83,6 +87,7 @@ public class AutomationCommandService : IAutomationCommandService
         _musicManageApi = musicManageApi;
         _actionAuthz = actionAuthz;
         _obs = obs;
+        _sanctions = sanctions;
         _timeProvider = timeProvider;
         _logger = logger;
     }
@@ -104,26 +109,20 @@ public class AutomationCommandService : IAutomationCommandService
                 resolved.ErrorDetail
             );
 
-        BindingTarget target = resolved.Value!.Target;
+        BindingTarget target = resolved.Value.Target;
         if (!principal.Allows(target))
             return Result.Failure<AutomationInvokeResult>(
                 "This token is not allowed to invoke that target.",
                 "FORBIDDEN"
             );
-        if (
-            target.Kind == BindingTargetKind.Action
-                && target.ActionType!.StartsWith(
-                    StreamDeckActions.MusicPrefix,
-                    StringComparison.Ordinal
-                )
-                && !await CreatorHoldsMusicControlAsync(principal, ct)
-            || resolved.Value.Pipeline is { } gated
-                && !await ActorHoldsMusicControlAsync(gated, principal, ct)
-        )
+        Guid? creatorUserId = await FindTokenCreatorAsync(principal, ct);
+        bool needsMusicControl = await NeedsMusicControlAsync(resolved.Value, ct);
+        if (needsMusicControl && !await HoldsMusicControlAsync(creatorUserId, principal, ct))
             return Result.Failure<AutomationInvokeResult>(
                 "This pipeline contains music-control steps and the token's creator no longer holds 'music:control:write'.",
                 "FORBIDDEN"
             );
+        OutboundSanction sanction = SanctionFor(target, needsMusicControl, creatorUserId);
 
         Result limited = await AcquireAsync(principal, "invoke", InvokePerMinute, ct);
         if (limited.IsFailure)
@@ -155,6 +154,10 @@ public class AutomationCommandService : IAutomationCommandService
             async () =>
             {
                 using IServiceScope scope = _scopeFactory.CreateScope();
+
+                // The run starts on a fresh task, outside the request, so the ambient sanction does not
+                // reach it: claim the one this invoke already earned (the gate above) before any write.
+                using IDisposable claimed = _sanctions.Begin(sanction);
                 try
                 {
                     ICommandInvoker invoker =
@@ -666,12 +669,42 @@ public class AutomationCommandService : IAutomationCommandService
         );
     }
 
+    /// <summary>
+    /// The basis the background run writes under. A music invoke is the token creator's own
+    /// <c>music:control:write</c> action, which the gate just checked. Anything else is the channel's
+    /// configuration: a pipeline or built-in command names its own basis when it runs, and an action
+    /// runs because the broadcaster minted this token for it.
+    /// </summary>
+    private static OutboundSanction SanctionFor(
+        BindingTarget target,
+        bool needsMusicControl,
+        Guid? creatorUserId
+    ) =>
+        needsMusicControl
+            ? OutboundSanction.UserAction(MusicControlActionKey, creatorUserId)
+            : OutboundSanction.ChannelConfiguration(
+                $"automation:{target.Kind.ToString().ToLowerInvariant()}:{target.ActionType ?? target.Id}"
+            );
+
+    private async Task<bool> NeedsMusicControlAsync(ResolvedTarget resolved, CancellationToken ct)
+    {
+        if (
+            resolved.Target.Kind == BindingTargetKind.Action
+            && resolved.Target.ActionType!.StartsWith(
+                StreamDeckActions.MusicPrefix,
+                StringComparison.Ordinal
+            )
+        )
+            return true;
+
+        return resolved.Pipeline is { } pipeline && await PipelineHasMusicStepAsync(pipeline, ct);
+    }
+
     /// <summary>music-automation-controls.md D5 — a pipeline with any <c>music_*</c> step needs the
     /// token's CREATOR to still hold <c>music:control:write</c>, checked at invoke time (not mint time)
     /// so a later demotion takes effect without having to revoke the token.</summary>
-    private async Task<bool> ActorHoldsMusicControlAsync(
+    private async Task<bool> PipelineHasMusicStepAsync(
         PipelineEntity pipeline,
-        AutomationPrincipal principal,
         CancellationToken ct
     )
     {
@@ -684,27 +717,33 @@ public class AutomationCommandService : IAutomationCommandService
         // Same DB-then-JSON-fallback order PipelineEngine itself uses, so the gate never blind-spots.
         if (!hasMusicStep && pipeline.GraphJsonCache is { Length: > 0 } graphJson)
             hasMusicStep = graphJson.Contains("\"music_", StringComparison.Ordinal);
-        return !hasMusicStep || await CreatorHoldsMusicControlAsync(principal, ct);
+        return hasMusicStep;
     }
 
-    private async Task<bool> CreatorHoldsMusicControlAsync(
+    private Task<Guid?> FindTokenCreatorAsync(
         AutomationPrincipal principal,
         CancellationToken ct
-    )
-    {
-        Guid? createdByUserId = await _db
+    ) =>
+        _db
             .AutomationApiTokens.Where(t =>
                 t.BroadcasterId == principal.BroadcasterId && t.Id == principal.TokenId
             )
             .Select(t => (Guid?)t.CreatedByUserId)
             .FirstOrDefaultAsync(ct);
-        if (createdByUserId is null)
+
+    private async Task<bool> HoldsMusicControlAsync(
+        Guid? creatorUserId,
+        AutomationPrincipal principal,
+        CancellationToken ct
+    )
+    {
+        if (creatorUserId is null)
             return false;
 
         Result<bool> authorized = await _actionAuthz.AuthorizeActionAsync(
-            createdByUserId.Value,
+            creatorUserId.Value,
             principal.BroadcasterId,
-            "music:control:write",
+            MusicControlActionKey,
             ct
         );
         return authorized is { IsSuccess: true, Value: true };
@@ -747,7 +786,7 @@ public class AutomationCommandService : IAutomationCommandService
         if (parsed.IsFailure)
             return Result.Failure<ResolvedTarget>(parsed.ErrorMessage!, parsed.ErrorCode!);
 
-        BindingTarget target = parsed.Value!;
+        BindingTarget target = parsed.Value;
         if (target.Kind == BindingTargetKind.Pipeline)
         {
             Guid pipelineId = Guid.Parse(target.Id!);

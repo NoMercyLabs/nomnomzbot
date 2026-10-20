@@ -87,8 +87,6 @@
     <string name="builtin_reply_sr_usage_description">Een kijker typt het songcommando zonder nummer.</string>
     <string name="builtin_reply_sr_requestsoff_label">Verzoeken staan uit</string>
     <string name="builtin_reply_sr_requestsoff_description">Een kijker vraagt een nummer terwijl verzoeken uit staan.</string>
-    <string name="builtin_reply_sr_mintrust_label">Rol te laag</string>
-    <string name="builtin_reply_sr_mintrust_description">De kijker heeft een lagere rol dan verzoeknummers nodig hebben.</string>
     <string name="builtin_reply_sr_trackblocked_label">Nummer geblokkeerd</string>
     <string name="builtin_reply_sr_trackblocked_description">Het gevraagde nummer staat op de blokkeerlijst.</string>
     <string name="builtin_reply_sr_noactivedevice_label">Er speelt niets</string>
@@ -193,7 +191,6 @@
     <string name="builtin_reply_var_retry_minutes">Minuten tot de muziekdienst weer aanvragen aanneemt</string>
     <string name="builtin_reply_var_retry_time">Wanneer de muziekdienst weer aanvragen aanneemt (UTC-tijd)</string>
     <string name="builtin_reply_var_request_code">De code van het verzoek die !wrongsong gebruikt</string>
-    <string name="builtin_reply_var_trust_level">De laagste rol die mag aanvragen</string>
     <string name="builtin_reply_var_volume_level">Het volume, van 0 tot 100</string>
     <string name="builtin_reply_var_playlist_url">Een link naar de bangers-afspeellijst</string>
     <string name="builtin_reply_var_playlist_name">De naam van de bangers-afspeellijst</string>

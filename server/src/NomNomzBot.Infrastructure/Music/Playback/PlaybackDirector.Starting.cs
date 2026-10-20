@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
 
@@ -20,13 +21,14 @@ public sealed partial class PlaybackDirector
     /// first and the start waits for its paused report, its track end, or 2 seconds.
     /// </summary>
     private async Task BeginStartAsync(
-        PlaybackItem item,
+        PlaybackItem head,
         string inputName,
         string reason,
         EngineKind? stopEngine,
         CancellationToken ct
     )
     {
+        PlaybackItem item = await StartableOrHeadAsync(head, ct);
         _stopWait = null;
         _startDeadline = null;
         _pausedForHandOver = null;
@@ -58,6 +60,54 @@ public sealed partial class PlaybackDirector
 
         await MoveAsync(starting, inputName, reason);
         await SendStartAsync(item, inputName, ct);
+    }
+
+    /// <summary>
+    /// The one stall guard. A head whose engine has nothing to play on (a YouTube request with no Music Player
+    /// page open) never holds the requests behind it: the first request behind it that can start is started
+    /// instead, and the head stays queued for the page. Once per head, <see cref="SongRequestPassedOverEvent"/>
+    /// says so. When nothing behind can start either, the head is returned and waits as before.
+    /// </summary>
+    private async Task<PlaybackItem> StartableOrHeadAsync(PlaybackItem head, CancellationToken ct)
+    {
+        if (await CanStartOnAsync(head.Engine, ct))
+            return head;
+
+        PlaybackItem? behind = await StartableBehindAsync(head, ct);
+        if (behind is null)
+            return head;
+
+        await AnnouncePassedOverAsync(head, ct);
+
+        return behind;
+    }
+
+    /// <summary>The first request behind a head that cannot start whose engine can; null when none can.</summary>
+    private async Task<PlaybackItem?> StartableBehindAsync(PlaybackItem head, CancellationToken ct)
+    {
+        foreach (PlaybackItem candidate in _queue.Snapshot)
+            if (candidate.Engine != head.Engine && await CanStartOnAsync(candidate.Engine, ct))
+                return candidate;
+
+        return null;
+    }
+
+    /// <summary>Publishes <see cref="SongRequestPassedOverEvent"/> once per waiting head.</summary>
+    private async Task AnnouncePassedOverAsync(PlaybackItem head, CancellationToken ct)
+    {
+        if (!_passedOver.Add(head.Id))
+            return;
+
+        await _bus.PublishAsync(
+            new SongRequestPassedOverEvent
+            {
+                BroadcasterId = _broadcasterId,
+                OccurredAt = _time.GetUtcNow(),
+                TrackUri = head.Uri,
+                TrackName = head.Title,
+            },
+            ct
+        );
     }
 
     /// <summary>Sends the start; the engine then has <see cref="StartDeadline"/> to report the item playing.</summary>
@@ -162,6 +212,7 @@ public sealed partial class PlaybackDirector
         _queue.Remove(row.Id);
         _failedStarts.Remove(row.Id);
         _queuedAhead.Remove(row.Id);
+        _passedOver.Remove(row.Id);
         _history.Push(row);
         _ownerReport = null;
         _confirmedDeviceId = report.DeviceId;

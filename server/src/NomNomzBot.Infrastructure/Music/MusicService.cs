@@ -630,17 +630,6 @@ public sealed class MusicService : IMusicService
 
             if (!config.RequestsOpen)
                 return Result.Failure<MusicTrack>(RequestsClosedMessage, RequestsClosedCode);
-
-            if (requesterRoleLevel is { } roleLevel)
-            {
-                PermissionLevel floor = ParseMinTrustLevel(config.MinTrustLevel);
-                if (roleLevel < floor.ToLevelValue())
-                    return Result.Failure<MusicTrack>(
-                        $"Song requests need at least {config.MinTrustLevel} right now.",
-                        "MIN_TRUST_LEVEL",
-                        errorData: new MusicRequestRefusal(TrustLevel: config.MinTrustLevel)
-                    );
-            }
         }
 
         // The old bot's strike rule: ten banned tracks and the person's own requests are refused.
@@ -1632,30 +1621,6 @@ public sealed class MusicService : IMusicService
 
         return null;
     }
-
-    // ─── Trust-level enforcement ──────────────────────────────────────────────
-
-    /// <summary>
-    /// Validates that a user's trust tier permits queuing music.
-    /// Returns null if allowed, or an error message if blocked.
-    /// </summary>
-    /// <summary>
-    /// Maps a <c>MusicConfigDto.MinTrustLevel</c> token (<c>everyone|subscribers|vip|moderators|broadcaster</c>,
-    /// validated by <c>UpdateMusicConfigDto</c>'s regex) onto the canonical <see cref="PermissionLevel"/> ladder.
-    /// Deliberately NOT <c>ChatRole.Parse</c>: that parser's plural-free vocabulary (<c>subscriber</c>,
-    /// <c>moderator</c>) would silently default this config's plural tokens (<c>subscribers</c>,
-    /// <c>moderators</c>) to <see cref="PermissionLevel.Everyone"/> — a floor that reads as configured but
-    /// gates nothing.
-    /// </summary>
-    private static PermissionLevel ParseMinTrustLevel(string minTrustLevel) =>
-        minTrustLevel.Trim().ToLowerInvariant() switch
-        {
-            "subscribers" => PermissionLevel.Subscriber,
-            "vip" => PermissionLevel.Vip,
-            "moderators" => PermissionLevel.Moderator,
-            "broadcaster" => PermissionLevel.Broadcaster,
-            _ => PermissionLevel.Everyone,
-        };
 
     private static readonly IReadOnlyDictionary<string, PermissionLevel> RoleCapRungs =
         new Dictionary<string, PermissionLevel>

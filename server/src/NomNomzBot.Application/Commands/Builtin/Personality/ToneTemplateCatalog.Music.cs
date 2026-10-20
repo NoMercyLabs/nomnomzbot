@@ -174,21 +174,6 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             BuiltinResponseSlots.SongRequest.Key,
-            BuiltinResponseSlots.SongRequest.MinTrust,
-            variables: ["trust.level"],
-            informative: ["Song requests need at least {trust.level} right now."],
-            friendly: ["Song requests are open to {trust.level} and up right now — hang in there!"],
-            sassy:
-            [
-                "Song requests need at least {trust.level}. Come back when you have earned it.",
-            ],
-            hype: ["YOU NEED {trust.level} OR HIGHER TO REQUEST SONGS. LEVEL UP."],
-            chill: ["requests need {trust.level} or higher right now."]
-        );
-
-        Add(
-            catalog,
-            BuiltinResponseSlots.SongRequest.Key,
             BuiltinResponseSlots.SongRequest.Revoked,
             variables: [],
             informative: ["Stop requesting songs, your permission has been revoked"],
@@ -1405,7 +1390,6 @@ public static partial class ToneTemplateCatalog
         samples["request.position"] = "2";
         samples["retry.minutes"] = "2";
         samples["retry.time"] = "07:00 UTC";
-        samples["trust.level"] = "Follower";
         samples["volume.level"] = "60";
         samples["playlist.url"] = "https://open.spotify.com/playlist/37i9dQZF1DXcBWIGoYBM5M";
         samples["song.requester"] = "StreamFan42";

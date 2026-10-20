@@ -97,7 +97,11 @@ public sealed class SongRequestSourceRoleTests
         return provider;
     }
 
-    private MusicService NewService(int? youTubeOverride = null, bool allowYouTube = true)
+    private MusicService NewService(
+        int? youTubeOverride = null,
+        bool allowYouTube = true,
+        string oldFloor = "everyone"
+    )
     {
         _db = MusicTestDbContext.New();
         _db.Services.Add(
@@ -123,7 +127,7 @@ public sealed class SongRequestSourceRoleTests
             );
         _db.SaveChanges();
 
-        MusicConfigDto config = new(true, "auto", 50, 5, allowYouTube, true, "everyone");
+        MusicConfigDto config = new(true, "auto", 50, 5, allowYouTube, true, oldFloor);
         return new(
             [Provider("spotify", SpotifyUri), Provider("youtube", YouTubeUri)],
             _db,
@@ -155,6 +159,22 @@ public sealed class SongRequestSourceRoleTests
     public async Task A_viewer_can_request_a_spotify_link_by_default()
     {
         MusicService sut = NewService();
+
+        Result<MusicTrack> result = await sut.RequestTrackAsync(
+            ChannelId.ToString(),
+            SpotifyUri,
+            "viewer",
+            Viewer
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        Queued().Should().Equal(SpotifyUri);
+    }
+
+    [Fact]
+    public async Task The_old_global_floor_no_longer_gates_a_request_the_source_rule_allows()
+    {
+        MusicService sut = NewService(oldFloor: "moderators");
 
         Result<MusicTrack> result = await sut.RequestTrackAsync(
             ChannelId.ToString(),

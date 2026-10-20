@@ -25,6 +25,9 @@ public sealed partial class PlaybackDirector
     /// <summary>Items already lined up in the engine's own queue; a retry never lines one up twice.</summary>
     private readonly HashSet<string> _queuedAhead = [];
 
+    /// <summary>Heads already announced as passed over for a missing player; an entry ends when the item plays or is dropped.</summary>
+    private readonly HashSet<string> _passedOver = [];
+
     /// <summary>The owner's engine the current start paused for a hand-over to another engine; null when none.</summary>
     private EngineKind? _pausedForHandOver;
 
@@ -132,6 +135,7 @@ public sealed partial class PlaybackDirector
 
         _failedStarts.Remove(item.Id);
         _queuedAhead.Remove(item.Id);
+        _passedOver.Remove(item.Id);
         await _bus.PublishAsync(
             new SongPlaybackFailedEvent
             {

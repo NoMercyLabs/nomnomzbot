@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Collections.Concurrent;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
@@ -27,16 +28,26 @@ public sealed class PlaybackDirectorRegistry(
     IPlaybackEngineFactory engines,
     IEventBus bus,
     TimeProvider time,
-    IOutboundSanctionAccessor? sanctions = null
+    IOutboundSanctionAccessor? sanctions = null,
+    IActiveInstanceGate? instanceGate = null
 ) : IPlaybackInputSink, IPlaybackStateReader, IPlaybackReportSink, IEngineFeed, IDisposable
 {
     private readonly ConcurrentDictionary<Guid, Lazy<ChannelPlayback>> _channels = new();
 
+    /// <summary>
+    /// Blue/green overlap: a standby instance never starts music on its own. A waiting request
+    /// (<see cref="RequestAdded"/>) and a player page attaching (<see cref="OutputAttached"/>) are the two inputs
+    /// that make an idle director start the head, so only the active instance acts on them; every other input
+    /// (owner controls, reports) still reaches the director on any instance.
+    /// </summary>
     public Task SendAsync(
         Guid broadcasterId,
         PlaybackInput input,
         CancellationToken ct = default
-    ) => ChannelOf(broadcasterId).Director.HandleAsync(input, ct);
+    ) =>
+        input is RequestAdded or OutputAttached && instanceGate is { IsActiveInstance: false }
+            ? Task.CompletedTask
+            : ChannelOf(broadcasterId).Director.HandleAsync(input, ct);
 
     public PlaybackState StateOf(Guid channelId) =>
         _channels.TryGetValue(channelId, out Lazy<ChannelPlayback>? channel)

@@ -33,6 +33,7 @@ using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.AutomationApi;
 using NomNomzBot.Infrastructure.Commands;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.AutomationApi;
@@ -68,6 +69,9 @@ public sealed class AutomationCommandServiceTests
             BindingTarget Target,
             InvocationContext Context
         )> InvokerCalled { get; init; }
+
+        /// <summary>The sanction in scope at the moment the background run reaches the invoker.</summary>
+        public required TaskCompletionSource<OutboundSanction?> SanctionAtInvoke { get; init; }
     }
 
     private static ICommandAction FakeAction(
@@ -107,6 +111,10 @@ public sealed class AutomationCommandServiceTests
                 );
             });
         TaskCompletionSource<(BindingTarget Target, InvocationContext Context)> invokerCalled = new(
+            TaskCreationOptions.RunContinuationsAsynchronously
+        );
+
+        TaskCompletionSource<OutboundSanction?> sanctionAtInvoke = new(
             TaskCreationOptions.RunContinuationsAsynchronously
         );
 
@@ -187,6 +195,7 @@ public sealed class AutomationCommandServiceTests
             )
             .Returns(ci =>
             {
+                sanctionAtInvoke.TrySetResult(new OutboundSanctionAccessor().Current);
                 invokerCalled.TrySetResult(
                     (ci.ArgAt<BindingTarget>(1), ci.ArgAt<InvocationContext>(2))
                 );
@@ -216,6 +225,7 @@ public sealed class AutomationCommandServiceTests
             musicManageApi,
             actionAuthz,
             obs,
+            new OutboundSanctionAccessor(),
             TimeProvider.System,
             NullLogger<AutomationCommandService>.Instance
         );
@@ -234,6 +244,7 @@ public sealed class AutomationCommandServiceTests
             Obs = obs,
             Invoker = invoker,
             InvokerCalled = invokerCalled,
+            SanctionAtInvoke = sanctionAtInvoke,
         };
     }
 
@@ -909,6 +920,90 @@ public sealed class AutomationCommandServiceTests
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("FORBIDDEN");
         AssertInvokerNeverCalled(h);
+    }
+
+    private static Guid SeedTokenCreatedBy(AutomationTestDbContext db, Guid creatorId)
+    {
+        Guid tokenId = Guid.NewGuid();
+        db.AutomationApiTokens.Add(
+            new()
+            {
+                Id = tokenId,
+                BroadcasterId = Channel,
+                Name = "deck-token",
+                TokenHash = "hash",
+                TokenPrefix = "nnzb_ak_test",
+                ScopesJson = "[\"invoke\"]",
+                CreatedByUserId = creatorId,
+            }
+        );
+        db.SaveChanges();
+        return tokenId;
+    }
+
+    [Fact]
+    public async Task A_music_action_invoke_runs_with_the_creators_music_control_sanction_in_scope()
+    {
+        Harness h = Build(actions: [FakeAction("music_toggle_saved")]);
+        Guid creator = Guid.NewGuid();
+        Guid tokenId = SeedTokenCreatedBy(h.Db, creator);
+
+        Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
+            new(Channel, tokenId, "deck-token", ["invoke"], null),
+            new() { PipelineName = "music_toggle_saved" }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        OutboundSanction? sanction = await h.SanctionAtInvoke.Task.WaitAsync(
+            TimeSpan.FromSeconds(5)
+        );
+        sanction.Should().NotBeNull();
+        sanction.Basis.Should().Be(OutboundSanctionBasis.UserAction);
+        sanction.Detail.Should().Be("music:control:write");
+        sanction.ActorUserId.Should().Be(creator);
+    }
+
+    [Fact]
+    public async Task A_music_action_invoke_without_the_creators_music_control_is_forbidden_and_runs_nothing()
+    {
+        Harness h = Build(actions: [FakeAction("music_toggle_saved")]);
+        Guid tokenId = SeedTokenCreatedBy(h.Db, Guid.NewGuid());
+        h.ActionAuthz.AuthorizeActionAsync(
+                Arg.Any<Guid>(),
+                Channel,
+                "music:control:write",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(false));
+
+        Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
+            new(Channel, tokenId, "deck-token", ["invoke"], null),
+            new() { PipelineName = "music_toggle_saved" }
+        );
+
+        result.ErrorCode.Should().Be("FORBIDDEN");
+        h.SanctionAtInvoke.Task.IsCompleted.Should().BeFalse();
+        AssertInvokerNeverCalled(h);
+    }
+
+    [Fact]
+    public async Task A_non_music_action_invoke_runs_under_the_token_channel_configuration_sanction()
+    {
+        Harness h = Build(actions: [FakeAction("obs_streaming")]);
+        Guid tokenId = SeedTokenCreatedBy(h.Db, Guid.NewGuid());
+
+        Result<AutomationInvokeResult> result = await h.Service.InvokePipelineAsync(
+            new(Channel, tokenId, "deck-token", ["invoke"], null),
+            new() { PipelineName = "obs_streaming" }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        OutboundSanction? sanction = await h.SanctionAtInvoke.Task.WaitAsync(
+            TimeSpan.FromSeconds(5)
+        );
+        sanction.Should().NotBeNull();
+        sanction.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
+        sanction.Detail.Should().Be("automation:action:obs_streaming");
     }
 
     [Fact]
