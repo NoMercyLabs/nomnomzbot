@@ -59,6 +59,42 @@ public sealed class FirstPartyWidgetTypedScriptTests
     }
 
     [Fact]
+    public void A_first_party_bundle_has_no_any_in_any_script()
+    {
+        Dictionary<string, string> files = FirstPartyWidgetBundles.Read("chat_overlay");
+        List<string> offenders = [];
+        foreach (KeyValuePair<string, string> file in files.Where(f => f.Key.EndsWith(".vue")))
+        {
+            IReadOnlyList<int> lines = ScriptAnyLines(file.Value);
+            if (lines.Count > 0)
+                offenders.Add($"{file.Key}: line(s) {string.Join(", ", lines)}");
+        }
+
+        foreach (KeyValuePair<string, string> file in files.Where(f => f.Key.EndsWith(".ts")))
+        {
+            IReadOnlyList<int> lines = ScriptAnyLines($"<script>{file.Value}</script>");
+            if (lines.Count > 0)
+                offenders.Add($"{file.Key}: line(s) {string.Join(", ", lines)}");
+        }
+
+        offenders
+            .Should()
+            .BeEmpty("a first-party bundle must show the typed way to write a widget");
+    }
+
+    [Fact]
+    public void A_first_party_bundle_reads_the_typed_NomNomz_global_not_window()
+    {
+        Dictionary<string, string> files = FirstPartyWidgetBundles.Read("chat_overlay");
+
+        files
+            .Where(f => f.Value.Contains("window.NomNomz") || f.Value.Contains(").NomNomz"))
+            .Select(f => f.Key)
+            .Should()
+            .BeEmpty("the SDK is the typed global `NomNomz` the widget nnz.d.ts declares");
+    }
+
+    [Fact]
     public void Every_catalogue_widget_has_a_source_in_the_scan()
     {
         FirstPartyWidgetCatalogue

@@ -4,7 +4,9 @@
 // overlay's SpotifyCard (widget 01K0QVBQYEGAQKAX1CYTK1S61M), which the owner keeps as the reference: the card
 // is washed in the SOURCE's brand colour and wears its real logo, rather than sitting flat with a colour chip.
 // YouTube gets the same treatment in its own brand, so the two read as one family instead of two designs.
-const props = defineProps<{ card: any }>()
+import type { SongCardData } from '../types'
+
+const props = defineProps<{ card: SongCardData }>()
 
 interface Source {
   name: string
@@ -28,7 +30,7 @@ const YOUTUBE: Source = {
 const NEUTRAL: Source = { name: 'Song Request', color: '255, 255, 255', path: '' }
 
 function source(): Source {
-  const p: string = String((props.card && props.card.provider) || '').toLowerCase()
+  const p: string = String(props.card.provider || '').toLowerCase()
   return p === 'spotify' ? SPOTIFY : p === 'youtube' ? YOUTUBE : NEUTRAL
 }
 

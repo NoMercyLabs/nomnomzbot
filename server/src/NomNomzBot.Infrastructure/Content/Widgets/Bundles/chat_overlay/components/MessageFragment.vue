@@ -1,33 +1,33 @@
 <!-- SPDX-License-Identifier: AGPL-3.0-or-later  (c) NoMercy Labs -->
 <script setup lang="ts">
-const props = defineProps<{ fragment: any; emoteOnly: boolean; emoteSupport: boolean }>()
+defineProps<{ fragment: NnzChatFragmentDto; emoteOnly: boolean; emoteSupport: boolean }>()
 
-function firstUrl(urls: any, keys: string[]): string {
+function firstUrl(urls: Record<string, string> | null | undefined, keys: string[]): string {
   if (!urls) return ''
   for (let i = 0; i < keys.length; i++) if (urls[keys[i]]) return urls[keys[i]]
   return ''
 }
 
-function emoteUrl(fr: any, emoteOnly: boolean): string {
+function emoteUrl(fr: NnzChatFragmentDto, emoteOnly: boolean): string {
   const keys: string[] = emoteOnly ? ['3', '2', '1'] : ['2', '1', '3']
-  return firstUrl(fr && fr.emote && fr.emote.urls, keys)
+  return firstUrl(fr.emote?.urls, keys)
 }
 
-function cheermoteUrl(fr: any): string {
-  return firstUrl(fr && fr.cheermote && fr.cheermote.urls, ['2', '1', '3'])
+function cheermoteUrl(fr: NnzChatFragmentDto): string {
+  return firstUrl(fr.cheermote?.urls, ['2', '1', '3'])
 }
 
 // Twitch's native chat GIF (GIPHY-backed, Tier 2+ subscriber feature): the fragment already carries a
 // real, directly-fetchable url — no lookup needed, just render it.
-function gifUrl(fr: any): string {
-  return (fr && fr.gif && typeof fr.gif.url === 'string') ? fr.gif.url : ''
+function gifUrl(fr: NnzChatFragmentDto): string {
+  return typeof fr.gif?.url === 'string' ? fr.gif.url : ''
 }
 
-function hexColor(c: any): string {
+function hexColor(c: unknown): string {
   return (typeof c === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(c.trim())) ? c.trim() : ''
 }
 
-function fragColor(c: any): Record<string, string> {
+function fragColor(c: unknown): Record<string, string> {
   const hex: string = hexColor(c)
   return hex ? { color: hex } : {}
 }

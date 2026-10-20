@@ -89,7 +89,7 @@ public sealed class ChatOverlayBannerPaintTests : IClassFixture<VueSfcCompilerFi
         );
         return Regex.Replace(
             noReturn,
-            @"(?<=[\w\)])\s*:\s*(?:string\[\]|Record<string, string>|string|number|boolean|any)(?=[,\)=\s])",
+            @"(?<=[\w\)])\s*:\s*(?:NnzChatPaintDto(?:\s*\|\s*null)?|string\[\]|Record<string, string>|string|number|boolean)(?=[,\)=\s])",
             ""
         );
     }

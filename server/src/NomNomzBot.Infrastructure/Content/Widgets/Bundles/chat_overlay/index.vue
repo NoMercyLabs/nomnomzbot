@@ -2,9 +2,10 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted, onUnmounted } from 'vue'
 import ChatMessage from './components/ChatMessage.vue'
+import type { ChatLine, Features } from './types'
 
-// The overlay SDK global (window.NomNomz), injected before this bundle runs. Loose type by design.
-const nnz = (window as any).NomNomz
+// The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its event payloads
+// (NnzDashboardChatMessageDto, NnzMessageDeletedDto, ...) come from the widget nnz.d.ts the editor loads.
 
 // Port of the legacy "Twitch Chat Overlay" (01K0QVBQYEGAQKAX1CYTK1S61M): animated chat with a
 // per-user colour banner, avatar bubble, staged enter sequence (banner → avatar → bubble → content),
@@ -22,15 +23,7 @@ interface ChatOverlayConfig {
     durations: { banner: string; avatar: string; bubble: string; content: string; shine: string }
     easings: { default: string; entrance: string; exit: string }
   }
-  features: {
-    userBadges: boolean
-    userPronouns: boolean
-    userColors: boolean
-    lightColorDetection: boolean
-    shineEffect: boolean
-    ogPreviews: boolean
-    emoteSupport: boolean
-  }
+  features: Features
 }
 
 const cfg = reactive<ChatOverlayConfig>({
@@ -60,26 +53,6 @@ const cfg = reactive<ChatOverlayConfig>({
   },
 })
 
-interface ChatLine {
-  id: string
-  sourceId: string
-  userId: string
-  name: string
-  color: string
-  pronouns: string
-  avatarUrl: string
-  badgeUrls: string[]
-  fragments: any[]
-  message: string
-  emoteOnly: boolean
-  state: string
-  // Set only on a song-request line: the resolved track the bot queued, drawn instead of a text body.
-  card: any | null
-  // The chatter's 7TV name-theme paint, already flattened to CSS by the server (ChatPaintDto) - null
-  // when they wear none. Same shape and null-tolerant read as the built-in Chat Box widget.
-  paint: any | null
-}
-
 const lines = ref<ChatLine[]>([])
 let seq = 0
 const timers: number[] = []
@@ -88,25 +61,38 @@ function later(fn: () => void, ms: number): void {
   timers.push(window.setTimeout(fn, ms))
 }
 
-function hexColor(c: any): string {
+function hexColor(c: unknown): string {
   return (typeof c === 'string' && /^#([0-9a-fA-F]{3}|[0-9a-fA-F]{6})$/.test(c.trim())) ? c.trim() : ''
 }
 
-function firstUrl(urls: any, keys: string[]): string {
+function firstUrl(urls: Record<string, string> | null | undefined, keys: string[]): string {
   if (!urls) return ''
   for (let i = 0; i < keys.length; i++) if (urls[keys[i]]) return urls[keys[i]]
   return ''
 }
 
-function isEmoteOnly(fragments: any[]): boolean {
+function badgeUrls(badges: NnzChatBadgeDto[] | null | undefined): string[] {
+  return (badges || []).map((b: NnzChatBadgeDto) => firstUrl(b && b.urls, ['2', '1', '4'])).filter((u: string) => !!u)
+}
+
+function isEmoteOnly(fragments: NnzChatFragmentDto[]): boolean {
   if (!fragments.length) return false
-  return fragments.every((f: any) => f.type === 'emote' || (f.type === 'text' && String(f.text || '').trim() === ''))
+  return fragments.every((f: NnzChatFragmentDto) => f.type === 'emote' || (f.type === 'text' && String(f.text || '').trim() === ''))
+}
+
+function isRecord(v: unknown): v is Record<string, unknown> {
+  return !!v && typeof v === 'object' && !Array.isArray(v)
+}
+
+function positive(v: unknown): number | null {
+  const n: number = Number(v)
+  return isFinite(n) && n > 0 ? n : null
 }
 
 // Same convention as the built-in Chat Box widget: the server-decorated payload carries `isCommand`
 // when it knows for certain, but the raw '!' prefix is the reliable fallback for any command the
 // server didn't tag (a viewer's own unrecognized "!whatever" still reads as a command visually).
-function isCommandMessage(m: any): boolean {
+function isCommandMessage(m: NnzDashboardChatMessageDto): boolean {
   if (m.isCommand === true) return true
   const text: string = String(m.message || '').trim()
   return text.charAt(0) === '!'
@@ -121,13 +107,17 @@ interface Identity {
   pronouns: string
   avatarUrl: string
   badgeUrls: string[]
-  paint: any | null
+  paint: NnzChatPaintDto | null
   userId: string
 }
 
 const identities = new Map<string, Identity>()
 
-function rememberIdentity(m: any): void {
+function paintOf(m: NnzDashboardChatMessageDto): NnzChatPaintDto | null {
+  return m.paint && typeof m.paint === 'object' ? m.paint : null
+}
+
+function rememberIdentity(m: NnzDashboardChatMessageDto): void {
   const login: string = String(m.username || m.displayName || '').toLowerCase()
   if (!login) return
 
@@ -140,19 +130,19 @@ function rememberIdentity(m: any): void {
   identities.set(login, {
     color: hexColor(m.color),
     pronouns: m.pronouns || '',
-    avatarUrl: m.avatarUrl || m.profileImageUrl || '',
-    badgeUrls: (m.badges || []).map((b: any) => firstUrl(b && b.urls, ['2', '1', '4'])).filter((u: string) => !!u),
-    paint: m.paint && typeof m.paint === 'object' ? m.paint : null,
+    avatarUrl: m.avatarUrl || '',
+    badgeUrls: badgeUrls(m.badges),
+    paint: paintOf(m),
     userId: typeof m.userId === 'string' ? m.userId : '',
   })
 }
 
-function onChat(m: any): void {
+function onChat(m: NnzDashboardChatMessageDto): void {
   if (!m || typeof m !== 'object') return
   rememberIdentity(m)
   if (cfg.hideCommands && isCommandMessage(m)) return
 
-  const fragments: any[] = Array.isArray(m.fragments) ? m.fragments : []
+  const fragments: NnzChatFragmentDto[] = Array.isArray(m.fragments) ? m.fragments : []
   const line: ChatLine = {
     id: (m.id || '') + '-' + (++seq),
     sourceId: String(m.id || ''),
@@ -160,16 +150,14 @@ function onChat(m: any): void {
     name: m.displayName || m.username || 'Someone',
     color: hexColor(m.color),
     pronouns: m.pronouns || '',
-    avatarUrl: m.avatarUrl || m.profileImageUrl || '',
-    badgeUrls: cfg.features.userBadges
-      ? (m.badges || []).map((b: any) => firstUrl(b && b.urls, ['2', '1', '4'])).filter((u: string) => !!u)
-      : [],
+    avatarUrl: m.avatarUrl || '',
+    badgeUrls: cfg.features.userBadges ? badgeUrls(m.badges) : [],
     fragments,
     message: m.message || '',
     emoteOnly: isEmoteOnly(fragments),
     state: 'entering',
     card: null,
-    paint: m.paint && typeof m.paint === 'object' ? m.paint : null,
+    paint: paintOf(m),
   }
 
   pushLine(line)
@@ -204,7 +192,7 @@ function pushLine(line: ChatLine): void {
 // and names the viewer who asked, because this overlay hides command lines: the "!sr ..." line was never
 // rendered, so there is no earlier bubble to read a name off or to swap a body into. Draw the requester's
 // own bubble with the track card as its content instead.
-function onEnriched(e: any): void {
+function onEnriched(e: NnzChatMessageEnrichedWidgetPayload): void {
   if (!e || typeof e !== 'object') return
   if (!e.title) return
 
@@ -235,37 +223,42 @@ function onEnriched(e: any): void {
   })
 }
 
-function mergeSettings(s: any): void {
-  if (!s || typeof s !== 'object') return
-  if (isFinite(Number(s.maxMessages)) && Number(s.maxMessages) > 0) cfg.maxMessages = Number(s.maxMessages)
-  if (isFinite(Number(s.chatAnimationDuration)) && Number(s.chatAnimationDuration) > 0) cfg.chatAnimationDuration = Number(s.chatAnimationDuration)
-  if (isFinite(Number(s.chatShowDuration)) && Number(s.chatShowDuration) > 0) cfg.chatShowDuration = Number(s.chatShowDuration)
+const FEATURE_KEYS: (keyof Features)[] = [
+  'userBadges',
+  'userPronouns',
+  'userColors',
+  'lightColorDetection',
+  'shineEffect',
+  'ogPreviews',
+  'emoteSupport',
+]
+
+function mergeSettings(s: NnzWidgetSettings): void {
+  if (!isRecord(s)) return
+  cfg.maxMessages = positive(s.maxMessages) ?? cfg.maxMessages
+  cfg.chatAnimationDuration = positive(s.chatAnimationDuration) ?? cfg.chatAnimationDuration
+  cfg.chatShowDuration = positive(s.chatShowDuration) ?? cfg.chatShowDuration
   if (typeof s.defaultColor === 'string' && hexColor(s.defaultColor)) cfg.defaultColor = s.defaultColor
-  if (isFinite(Number(s.width)) && Number(s.width) > 0) cfg.width = Number(s.width)
-  if (isFinite(Number(s.height)) && Number(s.height) > 0) cfg.height = Number(s.height)
+  cfg.width = positive(s.width) ?? cfg.width
+  cfg.height = positive(s.height) ?? cfg.height
   if (typeof s.hideCommands === 'boolean') cfg.hideCommands = s.hideCommands
-  if (s.animations && typeof s.animations === 'object') {
-    if (s.animations.sequenceTiming && typeof s.animations.sequenceTiming === 'object')
-      Object.assign(cfg.animations.sequenceTiming, s.animations.sequenceTiming)
-    if (s.animations.durations && typeof s.animations.durations === 'object')
-      Object.assign(cfg.animations.durations, s.animations.durations)
-    if (s.animations.easings && typeof s.animations.easings === 'object')
-      Object.assign(cfg.animations.easings, s.animations.easings)
+  const animations: unknown = s.animations
+  if (isRecord(animations)) {
+    if (isRecord(animations.sequenceTiming)) Object.assign(cfg.animations.sequenceTiming, animations.sequenceTiming)
+    if (isRecord(animations.durations)) Object.assign(cfg.animations.durations, animations.durations)
+    if (isRecord(animations.easings)) Object.assign(cfg.animations.easings, animations.easings)
   }
-  if (s.features && typeof s.features === 'object') {
-    const f: any = s.features
-    if (typeof f.userBadges === 'boolean') cfg.features.userBadges = f.userBadges
-    if (typeof f.userPronouns === 'boolean') cfg.features.userPronouns = f.userPronouns
-    if (typeof f.userColors === 'boolean') cfg.features.userColors = f.userColors
-    if (typeof f.lightColorDetection === 'boolean') cfg.features.lightColorDetection = f.lightColorDetection
-    if (typeof f.shineEffect === 'boolean') cfg.features.shineEffect = f.shineEffect
-    if (typeof f.ogPreviews === 'boolean') cfg.features.ogPreviews = f.ogPreviews
-    if (typeof f.emoteSupport === 'boolean') cfg.features.emoteSupport = f.emoteSupport
+  const features: unknown = s.features
+  if (isRecord(features)) {
+    FEATURE_KEYS.forEach((key: keyof Features) => {
+      const value: unknown = features[key]
+      if (typeof value === 'boolean') cfg.features[key] = value
+    })
   }
 }
 
 // A moderator or AutoMod deleted ONE message: drop the line(s) drawn from that raw message id.
-function onMessageDeleted(d: any): void {
+function onMessageDeleted(d: NnzMessageDeletedDto): void {
   const id: string = d && d.messageId ? String(d.messageId) : ''
   if (!id) return
   lines.value = lines.value.filter((l: ChatLine) => l.sourceId !== id)
@@ -277,30 +270,30 @@ function onChatCleared(): void {
 }
 
 // A per-chatter purge: every line from that one person goes.
-function onUserMessagesCleared(d: any): void {
+function onUserMessagesCleared(d: NnzUserMessagesClearedDto): void {
   const uid: string = d && d.targetUserId ? String(d.targetUserId) : ''
   if (!uid) return
   lines.value = lines.value.filter((l: ChatLine) => l.userId !== uid)
 }
 
 onMounted(() => {
-  if (!nnz) return
-  nnz.onSettings(mergeSettings)
-  nnz.on('ChatMessage', onChat)
-  nnz.on('ChatMessageEnriched', onEnriched)
-  nnz.on('MessageDeleted', onMessageDeleted)
-  nnz.on('ChatCleared', onChatCleared)
-  nnz.on('UserMessagesCleared', onUserMessagesCleared)
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.onSettings(mergeSettings)
+    .on('ChatMessage', onChat)
+    .on('ChatMessageEnriched', onEnriched)
+    .on('MessageDeleted', onMessageDeleted)
+    .on('ChatCleared', onChatCleared)
+    .on('UserMessagesCleared', onUserMessagesCleared)
 })
 
 onUnmounted(() => {
   timers.forEach((t: number) => window.clearTimeout(t))
-  if (!nnz) return
-  nnz.off('ChatMessage', onChat)
-  nnz.off('ChatMessageEnriched', onEnriched)
-  nnz.off('MessageDeleted', onMessageDeleted)
-  nnz.off('ChatCleared', onChatCleared)
-  nnz.off('UserMessagesCleared', onUserMessagesCleared)
+  if (typeof NomNomz === 'undefined') return
+  NomNomz.off('ChatMessage', onChat)
+    .off('ChatMessageEnriched', onEnriched)
+    .off('MessageDeleted', onMessageDeleted)
+    .off('ChatCleared', onChatCleared)
+    .off('UserMessagesCleared', onUserMessagesCleared)
 })
 </script>
 
