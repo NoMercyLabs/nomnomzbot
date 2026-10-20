@@ -354,6 +354,76 @@ public sealed class SpotifyPlaybackEngineTests
         _signals.OfType<EngineReport>().Single().IsPlaying.Should().BeFalse();
     }
 
+    /// <summary>
+    /// Spotify's own queue as a list: add appends, and the read returns what is in it. A restart builds a new
+    /// engine over the same provider, so the new engine starts with no memory of what the old one sent.
+    /// </summary>
+    private List<string> SpotifyQueue()
+    {
+        List<string> held = [];
+        _provider
+            .AddToQueueAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                held.Add(call.ArgAt<string>(1));
+                return true;
+            });
+        StartTrack
+            .StartTrackAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                held.Add(call.ArgAt<string>(1));
+                return true;
+            });
+        _provider
+            .GetQueueAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns(_ =>
+                (IReadOnlyList<TrackInfo>?)
+                    held.Select(uri => Track(uri, progressMs: 0, playing: false)).ToList()
+            );
+
+        return held;
+    }
+
+    private SpotifyPlaybackEngine RestartedEngine() =>
+        new(Channel, () => EngineLease.Of(_provider));
+
+    [Fact]
+    public async Task A_restarted_engine_does_not_line_up_a_request_Spotify_already_holds()
+    {
+        List<string> spotifyQueue = SpotifyQueue();
+        PlaybackItem item = Item();
+        (await _engine.QueueNextAsync(item)).Accepted.Should().BeTrue();
+
+        (await RestartedEngine().QueueNextAsync(item)).Accepted.Should().BeTrue();
+
+        spotifyQueue.Should().Equal(item.Uri);
+    }
+
+    [Fact]
+    public async Task A_restarted_engine_starts_a_request_Spotify_already_holds_without_adding_a_copy()
+    {
+        List<string> spotifyQueue = SpotifyQueue();
+        PlaybackItem item = Item();
+        (await _engine.QueueNextAsync(item)).Accepted.Should().BeTrue();
+
+        (await RestartedEngine().StartAsync(item)).Accepted.Should().BeTrue();
+
+        spotifyQueue.Should().Equal(item.Uri);
+        await _provider.Received(1).SkipAsync(Channel, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_request_Spotify_does_not_hold_is_still_added()
+    {
+        List<string> spotifyQueue = SpotifyQueue();
+        PlaybackItem item = Item();
+
+        (await _engine.QueueNextAsync(item)).Accepted.Should().BeTrue();
+
+        spotifyQueue.Should().Equal(item.Uri);
+    }
+
     private static TrackInfo Track(string uri, int progressMs, bool playing) =>
         new()
         {
