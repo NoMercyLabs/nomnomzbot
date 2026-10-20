@@ -34,6 +34,7 @@ import {
   type IamAssignment,
   type IamPrincipal,
 } from '@/api/adminAccess';
+import type { SupportPerson } from '@/api/adminSupport';
 import { acceptAccessToken, useCurrentUser } from '@/api/auth';
 import DateTime from '@/components/layout/DateTime.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
@@ -58,6 +59,7 @@ import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 
 import AccessScope from './components/AccessScope.vue';
+import SupportPersonPicker from './components/SupportPersonPicker.vue';
 
 type Step = 'assign' | 'revoke' | 'deactivate';
 
@@ -99,7 +101,7 @@ const expires = ref('');
 const reason = ref('');
 const failure = ref<string | null>(null);
 const grantId = ref('');
-const userId = ref('');
+const person = ref<SupportPerson | null>(null);
 const justification = ref('');
 const sessionFailure = ref<string | null>(null);
 
@@ -255,13 +257,13 @@ async function finishEnd(): Promise<void> {
 }
 
 async function startImpersonation(): Promise<void> {
-  if (justification.value.trim() === '') return;
+  if (justification.value.trim() === '' || person.value === null) return;
 
   sessionFailure.value = null;
 
   try {
     const minted = await impersonate.mutateAsync({
-      userId: userId.value.trim(),
+      userId: person.value.userId,
       accessGrantId: grantId.value.trim(),
       justification: justification.value.trim(),
     });
@@ -478,10 +480,6 @@ async function startImpersonation(): Promise<void> {
         </div>
         <template v-if="canImpersonate">
           <div class="grid gap-1.5">
-            <Label for="access-user">{{ $t("dashboard.admin.access.session.user") }}</Label>
-            <Input id="access-user" v-model="userId" data-field-user />
-          </div>
-          <div class="grid gap-1.5">
             <Label for="access-justification">{{
               $t("dashboard.admin.access.session.justification")
             }}</Label>
@@ -490,6 +488,17 @@ async function startImpersonation(): Promise<void> {
               v-model="justification"
               data-field-justification
               required
+            />
+          </div>
+          <div class="grid gap-1.5">
+            <Label for="access-user">{{ $t("dashboard.admin.access.session.user") }}</Label>
+            <SupportPersonPicker
+              data-field-user
+              input-id="access-user"
+              :person="person"
+              :reason="justification"
+              :wait-hint="$t('dashboard.admin.access.session.userWait')"
+              @pick="person = $event"
             />
           </div>
         </template>
@@ -511,7 +520,7 @@ async function startImpersonation(): Promise<void> {
             :disabled="
               sessionPending ||
                 grantId.trim() === '' ||
-                userId.trim() === '' ||
+                person === null ||
                 justification.trim() === ''
             "
             @click="startImpersonation"

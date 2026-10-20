@@ -30,6 +30,7 @@ import {
   type TrustSafetyReviewItem,
 } from '@/api/adminTrustSafety';
 import AdminPager from './components/AdminPager.vue';
+import SupportPersonPicker from './components/SupportPersonPicker.vue';
 import TrustBlockRow from './components/TrustBlockRow.vue';
 import TrustReviewRow from './components/TrustReviewRow.vue';
 import TrustSignalRow from './components/TrustSignalRow.vue';
@@ -39,6 +40,7 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
+import type { SupportPerson } from '@/api/adminSupport';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -52,7 +54,8 @@ const { t } = useI18n();
 const { can } = usePlatformCan();
 
 const justification = ref('');
-const targetId = ref('');
+const targetPerson = ref<SupportPerson | null>(null);
+const targetId = computed(() => targetPerson.value?.twitchUserId ?? '');
 const reason = ref('');
 const previewParams = ref<PreviewParams | null>(null);
 const step = ref<Step | null>(null);
@@ -337,7 +340,17 @@ function run(current: Step): Promise<void> {
                   <Label for="ts-block-target">{{
                     $t("dashboard.admin.trustSafety.apply.target")
                   }}</Label>
-                  <Input id="ts-block-target" v-model="targetId" data-block-target />
+                  <SupportPersonPicker
+                    data-block-target
+                    input-id="ts-block-target"
+                    :person="targetPerson"
+                    :reason="justification"
+                    :wait-hint="$t('dashboard.admin.trustSafety.apply.targetWait')"
+                    @pick="targetPerson = $event"
+                  />
+                  <p v-if="targetPerson && !targetId" class="text-sm text-muted-foreground">
+                    {{ $t("dashboard.admin.trustSafety.apply.noTwitchId") }}
+                  </p>
                 </div>
                 <div class="grid gap-1.5">
                   <Label for="ts-block-reason">{{

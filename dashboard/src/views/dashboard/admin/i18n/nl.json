@@ -3,6 +3,12 @@
     "admin": {
       "title": "Kanalen",
       "crumb": "Beheer",
+      "person": {
+        "placeholder": "Zoek op login of weergavenaam",
+        "clear": "Kies iemand anders",
+        "none": "Niemand heet zo.",
+        "failed": "Het zoeken is niet geladen. Probeer opnieuw."
+      },
       "search": "Zoek kanalen",
       "count": "{count} kanalen",
       "columns": {
@@ -244,10 +250,12 @@
         },
         "apply": {
           "title": "Een account blokkeren",
-          "target": "Twitch-gebruikers-id",
+          "target": "Account om te blokkeren",
+          "targetWait": "Schrijf eerst de reden hierboven, zoek dan op naam.",
+          "noTwitchId": "Dit account heeft geen Twitch-koppeling, dus een netwerkblokkade kan het niet raken.",
           "reasonLabel": "Reden",
           "reason": "Zichtbaar in het auditlog",
-          "previewFailed": "Het voorbeeld is niet geladen. Controleer het account-id en probeer opnieuw.",
+          "previewFailed": "Het voorbeeld is niet geladen. Controleer het account en probeer opnieuw.",
           "preview": "Blokkade voorbeeld",
           "previewResult": "{name} zou in {count} kanalen verbannen worden.",
           "action": "Blokkade toepassen",
@@ -1026,7 +1034,8 @@
           "title": "Supportsessie",
           "description": "Beëindig een toegangsrecht tot een kanaal, of handel als een gebruiker via een open toegangsrecht. Start het toegangsrecht op de pagina Kanalen.",
           "grant": "Toegangsrecht-ID",
-          "user": "Gebruikers-ID",
+          "user": "Persoon om over te nemen",
+          "userWait": "Schrijf eerst de reden, zoek dan op naam.",
           "justification": "Reden",
           "end": "Toegang beëindigen",
           "impersonate": "Overnemen",

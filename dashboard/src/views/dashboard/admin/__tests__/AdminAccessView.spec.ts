@@ -113,6 +113,24 @@ vi.mock('@/api/client', () => ({
         options,
       });
 
+      if (path.endsWith('/support/people'))
+        return {
+          data: {
+            data: [
+              {
+                userId: '01HZ0000000000000000000009',
+                username: 'viewer9',
+                displayName: 'Viewer Nine',
+                platform: 'twitch',
+                twitchUserId: '909',
+                isPlatformPrincipal: false,
+                isAnonymized: false,
+              },
+            ],
+          },
+          response: { status: 200, ok: true },
+        };
+
       if (path.endsWith('/iam/roles'))
         return { data: { data: roles }, response: { status: 200, ok: true } };
 
@@ -237,6 +255,13 @@ async function type(selector: string, value: string): Promise<void> {
 
   field.value = value;
   field.dispatchEvent(new Event('input'));
+  await settle();
+}
+
+// The operator finds the person by name; the page fills the id itself.
+async function choosePerson(search: string): Promise<void> {
+  await type('[data-field-user] [data-person-search]', search);
+  document.body.querySelector<HTMLElement>('[data-person-option]')!.click();
   await settle();
 }
 
@@ -390,14 +415,14 @@ describe('AdminAccessView', () => {
   it('impersonates through the open grant, signs in as the minted token and goes home', async () => {
     await open();
     await type('[data-field-grant]', 'g1');
-    await type('[data-field-user]', 'u9');
     await type('[data-field-justification]', 'ticket 42');
+    await choosePerson('viewer');
     byText('button', 'Impersonate')!.click();
     await settle();
 
     const post = calls.find((call) => call.path.endsWith('/impersonate'))!;
 
-    expect(post.options?.params?.path?.userId).toBe('u9');
+    expect(post.options?.params?.path?.userId).toBe('01HZ0000000000000000000009');
     expect(post.options?.body).toMatchObject({ accessGrantId: 'g1', justification: 'ticket 42' });
     expect(accepted).toEqual(['minted-token']);
     expect(router.currentRoute.value.name).toBe('dashboard-home');
@@ -601,12 +626,18 @@ describe('AdminAccessView', () => {
   it('keeps Impersonate disabled until a justification is typed', async () => {
     await open();
     await type('[data-field-grant]', 'g1');
-    await type('[data-field-user]', 'u9');
 
-    expect((byText('button', 'Impersonate') as HTMLButtonElement).disabled).toBe(true);
+    expect(
+      document.body.querySelector<HTMLInputElement>('[data-field-user] [data-person-search]')!
+        .disabled,
+    ).toBe(true);
 
+    expect(text()).toContain('Write the reason first');
     await type('[data-field-justification]', 'ticket 42');
+    await choosePerson('viewer');
 
+    expect(text()).toContain('Viewer Nine');
+    expect(text()).not.toContain('User id');
     expect((byText('button', 'Impersonate') as HTMLButtonElement).disabled).toBe(false);
   });
 

@@ -34,6 +34,27 @@ type Call = {
 
 const calls: Call[] = [];
 
+const people = [
+  {
+    userId: '01HZ0000000000000000000001',
+    username: 'spamlord',
+    displayName: 'SpamLord',
+    platform: 'twitch',
+    twitchUserId: '1234',
+    isPlatformPrincipal: false,
+    isAnonymized: false,
+  },
+  {
+    userId: '01HZ0000000000000000000002',
+    username: 'otherone',
+    displayName: 'OtherOne',
+    platform: 'twitch',
+    twitchUserId: '9999',
+    isPlatformPrincipal: false,
+    isAnonymized: false,
+  },
+];
+
 // The signed-in admin holds every platform key, so every action button shows.
 const held = vi.hoisted(() => ({
   keys: null as string[] | null,
@@ -57,6 +78,16 @@ vi.mock('@/api/client', () => ({
         path,
         options,
       });
+
+      if (path.endsWith('/support/people'))
+        return {
+          data: {
+            data: people.filter((person) =>
+              person.username.includes(String(options?.params?.query?.search)),
+            ),
+          },
+          response: { status: 200, ok: true },
+        };
 
       if (path.endsWith('/review-queue'))
         return {
@@ -196,6 +227,29 @@ async function giveReason(reason: string): Promise<void> {
   await settle();
 }
 
+// The operator finds the account by name; no step asks for an id.
+async function chooseTarget(search: string, label: string): Promise<void> {
+  const input = document.body.querySelector<HTMLInputElement>(
+    '[data-block-target] [data-person-search]',
+  )!;
+
+  input.value = search;
+  input.dispatchEvent(new Event('input'));
+  await settle();
+
+  const option = [...document.body.querySelectorAll<HTMLElement>('[data-person-option]')].find(
+    (node) => node.textContent?.includes(label),
+  )!;
+
+  option.click();
+  await settle();
+}
+
+async function clearTarget(): Promise<void> {
+  document.body.querySelector<HTMLElement>('[data-block-target] [data-person-clear]')!.click();
+  await settle();
+}
+
 const text = (): string => document.body.textContent ?? '';
 const byText = (selector: string, label: string): HTMLElement | undefined =>
   [...document.body.querySelectorAll<HTMLElement>(selector)].find(
@@ -288,11 +342,7 @@ describe('AdminTrustSafetyView', () => {
     byText('[role="dialog"] button', 'Cancel')!.click();
     await settle();
 
-    const target = document.body.querySelector<HTMLInputElement>('[data-block-target]')!;
-
-    target.value = '1234';
-    target.dispatchEvent(new Event('input'));
-    await settle();
+    await chooseTarget('spam', 'SpamLord');
     byText('button', 'Preview block')!.click();
     await settle();
     byText('button', 'Apply block')!.click();
@@ -306,11 +356,7 @@ describe('AdminTrustSafetyView', () => {
     await open();
     await giveReason('cross-tenant abuse');
 
-    const target = document.body.querySelector<HTMLInputElement>('[data-block-target]')!;
-
-    target.value = '1234';
-    target.dispatchEvent(new Event('input'));
-    await settle();
+    await chooseTarget('spam', 'SpamLord');
     byText('button', 'Preview block')!.click();
     await settle();
 
@@ -332,23 +378,34 @@ describe('AdminTrustSafetyView', () => {
     });
   });
 
+  it('asks for the reason before it searches, and never shows an id field', async () => {
+    await open();
+
+    const search = document.body.querySelector<HTMLInputElement>(
+      '[data-block-target] [data-person-search]',
+    )!;
+
+    expect(search.disabled).toBe(true);
+    expect(text()).toContain('Write the reason above first');
+    expect(text()).not.toContain('Twitch user id');
+
+    await giveReason('cross-tenant abuse');
+
+    expect(search.disabled).toBe(false);
+  });
+
   it('hides Apply block once the target is edited after the preview', async () => {
     await open();
     await giveReason('cross-tenant abuse');
 
-    const target = document.body.querySelector<HTMLInputElement>('[data-block-target]')!;
-
-    target.value = '1234';
-    target.dispatchEvent(new Event('input'));
-    await settle();
+    await chooseTarget('spam', 'SpamLord');
     byText('button', 'Preview block')!.click();
     await settle();
 
     expect(byText('button', 'Apply block')).toBeDefined();
 
-    target.value = '9999';
-    target.dispatchEvent(new Event('input'));
-    await settle();
+    await clearTarget();
+    await chooseTarget('other', 'OtherOne');
 
     expect(byText('button', 'Apply block')).toBeUndefined();
     expect(text()).not.toContain('4 channels');
@@ -422,11 +479,7 @@ describe('AdminTrustSafetyView', () => {
     byText('[role="dialog"] button', 'Cancel')!.click();
     await settle();
 
-    const target = document.body.querySelector<HTMLInputElement>('[data-block-target]')!;
-
-    target.value = '1234';
-    target.dispatchEvent(new Event('input'));
-    await settle();
+    await chooseTarget('spam', 'SpamLord');
     byText('button', 'Preview block')!.click();
     await settle();
     byText('button', 'Apply block')!.click();
@@ -469,11 +522,7 @@ describe('AdminTrustSafetyView', () => {
     await open();
     await giveReason('cross-tenant abuse');
 
-    const target = document.body.querySelector<HTMLInputElement>('[data-block-target]')!;
-
-    target.value = '1';
-    target.dispatchEvent(new Event('input'));
-    await settle();
+    await chooseTarget('spam', 'SpamLord');
     byText('button', 'Preview block')!.click();
     await settle();
 
@@ -483,9 +532,8 @@ describe('AdminTrustSafetyView', () => {
     expect(alert?.textContent).toContain('The preview did not load');
     expect(byText('button', 'Apply block')).toBeUndefined();
 
-    target.value = '2';
-    target.dispatchEvent(new Event('input'));
-    await settle();
+    await clearTarget();
+    await chooseTarget('other', 'OtherOne');
 
     expect(document.body.querySelector('[data-preview-error]')).toBeNull();
   });
@@ -494,12 +542,12 @@ describe('AdminTrustSafetyView', () => {
     await open();
 
     const fields = [
-      document.body.querySelector<HTMLInputElement>('[data-block-target]')!,
+      document.body.querySelector<HTMLInputElement>('[data-block-target] [data-person-search]')!,
       document.body.querySelector<HTMLInputElement>('[data-block-reason]')!,
     ];
 
     expect(fields.map((field) => field.labels?.[0]?.textContent?.trim())).toEqual([
-      'Twitch user id',
+      'Account to block',
       'Reason',
     ]);
   });

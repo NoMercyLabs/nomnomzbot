@@ -3,6 +3,12 @@
     "admin": {
       "title": "Channels",
       "crumb": "Admin",
+      "person": {
+        "placeholder": "Search by login or display name",
+        "clear": "Choose someone else",
+        "none": "Nobody matches that name.",
+        "failed": "The search did not load. Try again."
+      },
       "search": "Search channels",
       "count": "{count} channels",
       "columns": {
@@ -244,10 +250,12 @@
         },
         "apply": {
           "title": "Block an account",
-          "target": "Twitch user id",
+          "target": "Account to block",
+          "targetWait": "Write the reason above first, then search by name.",
+          "noTwitchId": "This account has no Twitch link, so a network block cannot target it.",
           "reasonLabel": "Reason",
           "reason": "Shown in the audit log",
-          "previewFailed": "The preview did not load. Check the account id and try again.",
+          "previewFailed": "The preview did not load. Check the account and try again.",
           "preview": "Preview block",
           "previewResult": "{name} would be banned in {count} channels.",
           "action": "Apply block",
@@ -1026,7 +1034,8 @@
           "title": "Support session",
           "description": "End a tenant access grant, or act as a user through an open grant. Begin the grant on the Tenants page.",
           "grant": "Access grant ID",
-          "user": "User ID",
+          "user": "Person to act as",
+          "userWait": "Write the reason first, then search by name.",
           "justification": "Reason",
           "end": "End access",
           "impersonate": "Impersonate",
