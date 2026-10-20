@@ -91,31 +91,33 @@ async function run(): Promise<void> {
       <section
         v-if="can('code:script:author')"
         data-slot="script-test-trigger"
-        class="flex flex-wrap items-end gap-x-3 gap-y-2"
+        class="grid gap-3 border-b pb-4 sm:grid-cols-[6rem_minmax(0,1fr)]"
       >
-        <h3 class="w-full font-medium">{{ $t('dashboard.scripts.test.trigger') }}</h3>
-        <div v-if="ownEvents.length > 0" class="grid min-w-0 flex-1 gap-2">
-          <Label for="script-test-event">{{ $t('dashboard.scripts.test.event') }}</Label>
-          <Select v-model="picked">
-            <SelectTrigger id="script-test-event" class="w-full">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem :value="NO_EVENT">{{ $t('dashboard.scripts.test.noEvent') }}</SelectItem>
-              <SelectItem v-for="sample in ownEvents" :key="sample.id" :value="sample.id">
-                {{ sample.label }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
+        <h3 class="font-medium">{{ $t('dashboard.scripts.test.trigger') }}</h3>
+        <div class="flex flex-wrap items-end gap-x-3 gap-y-2">
+          <div v-if="ownEvents.length > 0" class="grid min-w-0 flex-1 gap-2">
+            <Label for="script-test-event">{{ $t('dashboard.scripts.test.event') }}</Label>
+            <Select v-model="picked">
+              <SelectTrigger id="script-test-event" class="w-full">
+                <SelectValue />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem :value="NO_EVENT">{{ $t('dashboard.scripts.test.noEvent') }}</SelectItem>
+                <SelectItem v-for="sample in ownEvents" :key="sample.id" :value="sample.id">
+                  {{ sample.label }}
+                </SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <Button
+            variant="outline"
+            :disabled="tester.running.value || tester.limited.value"
+            @click="run"
+          >
+            <Play aria-hidden="true" />
+            {{ $t('dashboard.scripts.test.run') }}
+          </Button>
         </div>
-        <Button
-          variant="outline"
-          :disabled="tester.running.value || tester.limited.value"
-          @click="run"
-        >
-          <Play aria-hidden="true" />
-          {{ $t('dashboard.scripts.test.run') }}
-        </Button>
       </section>
       <span v-if="tester.limited.value" role="status" class="text-muted-foreground">
         {{ $t('dashboard.scripts.test.limited') }}
@@ -124,7 +126,7 @@ async function run(): Promise<void> {
       <div
         v-if="tester.last.value"
         data-slot="script-test-result"
-        class="grid gap-3 border-t pt-4"
+        class="grid gap-3"
       >
         <StatusBadge
           :tone="tester.last.value.success ? 'ok' : 'bad'"
@@ -141,7 +143,11 @@ async function run(): Promise<void> {
         <p v-if="tester.last.value.error" class="text-muted-foreground wrap-break-word">
           {{ tester.last.value.error }}
         </p>
-        <section v-if="tester.last.value.timeline.length > 0" class="grid gap-2">
+        <section
+          v-if="tester.last.value.timeline.length > 0"
+          data-slot="script-test-timeline-section"
+          class="grid gap-3 border-t pt-4 sm:grid-cols-[6rem_minmax(0,1fr)]"
+        >
           <h3 class="font-medium">{{ $t('dashboard.scripts.test.timeline') }}</h3>
           <ScriptTestTimeline :steps="tester.last.value.timeline" />
         </section>

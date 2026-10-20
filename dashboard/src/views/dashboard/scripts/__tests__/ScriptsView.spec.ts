@@ -691,6 +691,21 @@ describe('ScriptsView', () => {
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   });
 
+  it('puts the trigger and the timeline on one two-column grid, heading beside content, with a divider between them', async () => {
+    await open('/app/scripts?script=s1');
+    byText('button', 'Run test')!.click();
+    await settle();
+
+    const trigger = document.body.querySelector('[data-slot="script-test-trigger"]');
+    const timeline = document.body.querySelector('[data-slot="script-test-timeline-section"]');
+
+    expect(trigger?.className).toContain('sm:grid-cols-[6rem_minmax(0,1fr)]');
+    expect(timeline?.className).toContain('sm:grid-cols-[6rem_minmax(0,1fr)]');
+    expect(trigger?.firstElementChild?.tagName).toBe('H3');
+    expect(timeline?.firstElementChild?.tagName).toBe('H3');
+    expect(trigger?.className).toContain('border-b');
+  });
+
   it('lays the test panel out as a trigger section and a result section with the run timeline as numbered rows', async () => {
     await open('/app/scripts?script=s1');
 
