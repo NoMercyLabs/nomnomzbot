@@ -24,7 +24,7 @@ import { Button } from '@/components/ui/button';
 import { chatDisplayDefaults, type ChatDisplay } from '../chatDisplay';
 
 type SwitchName =
-  'badges' | 'avatars' | 'platform' | 'commands' | 'alternating' | 'narrow' | 'mentions';
+  'badges' | 'avatars' | 'platform' | 'commands' | 'alternating' | 'narrow' | 'mentions' | 'htmlAsText';
 type SegmentName = 'timestamps' | 'nameColors' | 'spacing' | 'rows' | 'emoteSize' | 'deleted';
 
 const display = defineModel<ChatDisplay>({ required: true });
@@ -67,7 +67,7 @@ const segmentKeys = {
 const sections = [
   {
     key: 'show',
-    switches: ['badges', 'avatars', 'platform', 'commands'],
+    switches: ['badges', 'avatars', 'platform', 'commands', 'htmlAsText'],
     segments: ['timestamps', 'nameColors'],
   },
   {
@@ -163,6 +163,9 @@ function reset(): void {
             :key="name"
             :data-option="name"
             :title="$t(`dashboard.chat.display.option.${name}`)"
+            :description="name === 'htmlAsText'
+              ? $t('dashboard.chat.display.help.htmlAsText')
+              : undefined"
             :model-value="display[name]"
             @update:model-value="set(name, $event)"
           />

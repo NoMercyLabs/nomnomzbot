@@ -37,6 +37,7 @@ export type ChatDisplay = {
   emoteSize: EmoteSize;
   mentions: boolean;
   deleted: DeletedLook;
+  htmlAsText: boolean;
 };
 
 export const chatDisplayDefaults = {
@@ -53,6 +54,7 @@ export const chatDisplayDefaults = {
   emoteSize: 'm',
   mentions: true,
   deleted: 'strike',
+  htmlAsText: false,
 } as const satisfies ChatDisplay;
 
 export const emoteHeights = {

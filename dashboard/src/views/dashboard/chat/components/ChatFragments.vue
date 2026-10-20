@@ -77,6 +77,10 @@ function emoteUrl(emote: EmoteImages): string | undefined {
       />
     </AssetCardPopover>
     <span
+      v-else-if="fragment.type === 'html' && display.htmlAsText"
+      data-html
+    >{{ fragment.text }}</span>
+    <span
       v-else-if="fragment.type === 'html'"
       data-html
       class="[&_.emote]:mx-0.5 [&_.emote]:my-[calc((var(--line-h)-var(--emote-h))/2)] [&_.emote]:inline-block [&_.emote]:h-(--emote-h) [&_.emote]:align-top [&_img]:max-h-32 [&_img:not(.emote)]:cursor-zoom-in"

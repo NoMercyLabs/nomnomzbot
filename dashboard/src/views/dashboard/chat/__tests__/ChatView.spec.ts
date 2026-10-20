@@ -1229,6 +1229,33 @@ describe('ChatView display drawer', () => {
     expect(rowIds()).toEqual(['m1', 'm3']);
   });
 
+  // Stoney: "where is the toggle for changing html rendering to plain text?"
+  it('html as text: the option shows the markup as plain words, is kept on this device, and says where the channel switch is', async () => {
+    history = [
+      line('m1', 'u1', 'Alice', 'raw', {
+        fragments: [{ type: 'html', text: '<b>loud</b> words' }],
+      }),
+    ];
+
+    await open();
+    expect(rowOf('m1').querySelector('[data-html] b')?.textContent).toBe('loud');
+
+    await showPanel();
+    expect(option('htmlAsText').textContent).toContain(display.option.htmlAsText);
+    expect(option('htmlAsText').textContent).toContain(display.help.htmlAsText);
+    expect(display.help.htmlAsText).toContain('Settings');
+    expect(display.help.htmlAsText).toContain('Features');
+
+    await flip('htmlAsText');
+    expect(stored().htmlAsText).toBe(true);
+    expect(rowOf('m1').querySelector('[data-html] b')).toBeNull();
+    expect(rowOf('m1').querySelector('[data-html]')?.textContent).toBe('<b>loud</b> words');
+
+    await flip('htmlAsText');
+    expect(stored().htmlAsText).toBe(false);
+    expect(rowOf('m1').querySelector('[data-html] b')?.textContent).toBe('loud');
+  });
+
   it('Reset puts every option back to its default', async () => {
     await open();
     await showPanel();
