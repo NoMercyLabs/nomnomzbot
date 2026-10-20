@@ -26,6 +26,7 @@ import type { TestTrigger } from '@/composables/useEditorBridge';
 import { useCan } from '@/composables/useCan';
 
 import { eventsFor, readInputs } from './scriptInputs';
+import ScriptTestTimeline from './ScriptTestTimeline.vue';
 import type { SessionRun } from './sessionRun';
 import { useScriptTester } from './useScriptTester';
 
@@ -53,6 +54,16 @@ const chosen = computed<TestTrigger | null>(
   () => ownEvents.value.find((sample) => sample.id === picked.value) ?? null,
 );
 
+// The timeline already lists every chat message; the plain chat lines show only when it does not.
+const unlistedChat = computed<string[]>(() => {
+  const last = tester.last.value;
+
+  if (last === null || last.timeline.some((step) => step.kind === 'chat'))
+    return [];
+
+  return last.chatOutput;
+});
+
 async function run(): Promise<void> {
   const done = await tester.run(chosen.value);
 
@@ -77,7 +88,11 @@ async function run(): Promise<void> {
     :description="$t('dashboard.scripts.test.note')"
   >
     <div class="grid gap-4 text-sm">
-      <div v-if="can('code:script:author')" class="flex flex-wrap items-end gap-3">
+      <div
+        v-if="can('code:script:author')"
+        data-slot="script-test-trigger"
+        class="flex flex-wrap items-end gap-3"
+      >
         <div v-if="ownEvents.length > 0" class="grid min-w-0 flex-1 gap-2">
           <Label for="script-test-event">{{ $t('dashboard.scripts.test.event') }}</Label>
           <Select v-model="picked">
@@ -105,7 +120,11 @@ async function run(): Promise<void> {
         {{ $t('dashboard.scripts.test.limited') }}
       </span>
 
-      <div v-if="tester.last.value" data-slot="script-test-result" class="grid gap-1">
+      <div
+        v-if="tester.last.value"
+        data-slot="script-test-result"
+        class="grid gap-3 border-t pt-4"
+      >
         <StatusBadge
           :tone="tester.last.value.success ? 'ok' : 'bad'"
           :label="
@@ -116,13 +135,17 @@ async function run(): Promise<void> {
               { ms: tester.last.value.durationMs },
             )
           "
-          class="font-medium"
+          class="w-fit font-medium"
         />
         <p v-if="tester.last.value.error" class="text-muted-foreground wrap-break-word">
           {{ tester.last.value.error }}
         </p>
+        <section v-if="tester.last.value.timeline.length > 0" class="grid gap-2">
+          <h3 class="font-medium">{{ $t('dashboard.scripts.test.timeline') }}</h3>
+          <ScriptTestTimeline :steps="tester.last.value.timeline" />
+        </section>
         <p
-          v-for="(line, index) in tester.last.value.chatOutput"
+          v-for="(line, index) in unlistedChat"
           :key="index"
           class="text-muted-foreground"
         >

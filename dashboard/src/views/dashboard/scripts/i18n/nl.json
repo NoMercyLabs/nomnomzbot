@@ -129,7 +129,15 @@
         "title": "Test",
         "note": "Een testrun is een proefrun. Niets ervan komt in de chat.",
         "event": "Gebeurtenis om mee te testen (alleen gebeurtenissen waar dit script uit leest)",
-        "noEvent": "Geen gebeurtenis"
+        "noEvent": "Geen gebeurtenis",
+        "timeline": "Verloop",
+        "kinds": {
+          "start": "Gestart",
+          "chat": "Chat",
+          "effect": "Effect",
+          "console": "Console",
+          "error": "Fout"
+        }
       },
       "runs": {
         "title": "Deze sessie",

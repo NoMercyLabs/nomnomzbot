@@ -129,7 +129,15 @@
         "title": "Test",
         "note": "A test run is a dry run. Nothing it does reaches chat.",
         "event": "Event to test with (only events this script reads from)",
-        "noEvent": "No event"
+        "noEvent": "No event",
+        "timeline": "Timeline",
+        "kinds": {
+          "start": "Started",
+          "chat": "Chat",
+          "effect": "Effect",
+          "console": "Console",
+          "error": "Error"
+        }
       },
       "runs": {
         "title": "This session",

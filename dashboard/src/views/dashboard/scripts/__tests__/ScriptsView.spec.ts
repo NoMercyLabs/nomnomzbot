@@ -691,6 +691,28 @@ describe('ScriptsView', () => {
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   });
 
+  it('lays the test panel out as a trigger section and a result section with the run timeline as numbered rows', async () => {
+    await open('/app/scripts?script=s1');
+
+    const trigger = document.body.querySelector('[data-slot="script-test-trigger"]');
+
+    expect(trigger?.querySelector('button')?.textContent).toContain('Run test');
+
+    byText('button', 'Run test')!.click();
+    await settle();
+
+    const result = document.body.querySelector('[data-slot="script-test-result"]');
+    const rows = [...(result?.querySelectorAll('[data-slot="script-test-timeline"] > li') ?? [])];
+
+    expect(result?.querySelector('h3')?.textContent).toBe('Timeline');
+    expect(rows).toHaveLength(1);
+    expect(rows[0]?.querySelectorAll('span').length).toBe(3);
+    expect(rows[0]?.textContent).toContain('1');
+    expect(rows[0]?.textContent).toContain('Started: chat message');
+    expect(result?.textContent).toContain('hello');
+    expect(trigger?.contains(result ?? null)).toBe(false);
+  });
+
   it('keeps the session runs out of sight until a test has run', async () => {
     await open('/app/scripts?script=s1');
 
