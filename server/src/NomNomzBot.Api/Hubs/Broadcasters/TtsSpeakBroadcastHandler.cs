@@ -102,8 +102,8 @@ public sealed class TtsSpeakBroadcastHandler(
     }
 
     /// <summary>
-    /// TTS reported success while no Audio Source page was open and the stream heard nothing. The inbox item
-    /// <c>audio-source-missing</c> tells the streamer; the log line is for the operator.
+    /// TTS reported success while no TTS Caption page was open and the stream heard nothing. The inbox item
+    /// <c>tts-source-missing</c> tells the streamer; the log line is for the operator.
     /// </summary>
     private void WarnIfNoAudioPage(Guid broadcasterId)
     {

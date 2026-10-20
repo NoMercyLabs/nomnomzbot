@@ -19,8 +19,8 @@ namespace NomNomzBot.Infrastructure.Notifications.Sources;
 
 /// <summary>
 /// No Audio Source page is open. While the channel is live this is critical, with or without other overlay
-/// pages: music, TTS and sound have nowhere to play. While offline it is a warning, and only when other overlay pages
-/// are open, because then sound and TTS play from whichever page opened last. The item clears the moment an
+/// pages: sounds have nowhere to play. While offline it is a warning, and only when other overlay pages are open,
+/// because sounds then stay silent. TTS has its own item (<see cref="TtsSourceMissingSource"/>). The item clears the moment an
 /// Audio Source page connects; the overlay hub signals the inbox on every page join and leave, and the stream
 /// online and offline handlers signal it once the live state is saved. The live item is keyed to the open
 /// stream, so dismissing it hides only that stream's item and never the offline warning.
