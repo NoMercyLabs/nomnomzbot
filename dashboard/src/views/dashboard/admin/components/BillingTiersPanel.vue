@@ -161,7 +161,6 @@ const consequences = computed<string[]>(() => {
       <li v-for="tier in rows" :key="tier.id" data-tier-row class="flex items-center gap-3 px-2 py-2">
         <div class="min-w-0 flex-1">
           <span class="font-medium">{{ tier.displayName }}</span>
-          <span class="text-muted-foreground"> {{ tier.key }}</span>
           <Badge v-if="!tier.isPublic" variant="secondary" class="ml-2">
             {{ t("dashboard.admin.billing.tiers.private") }}
           </Badge>
