@@ -67,7 +67,14 @@ public interface IWidgetNotifier
         CancellationToken ct = default
     );
 
-    /// <summary>Pushes a TTS queue command to the channel's one audio page.</summary>
+    /// <summary>Pushes a server-synthesized TTS clip to the channel's newest TTS page; nothing when none is open.</summary>
+    Task PlayTtsClipAsync(
+        string broadcasterId,
+        PlaySoundPayload payload,
+        CancellationToken ct = default
+    ) => Task.CompletedTask;
+
+    /// <summary>Pushes a TTS queue command to the channel's newest TTS page.</summary>
     Task TtsQueueControlAsync(string broadcasterId, string action, CancellationToken ct = default);
 
     /// <summary>Broadcasts one generic overlay-feed event to every overlay client that hosts no widget.</summary>
@@ -104,7 +111,7 @@ public class WidgetNotifier : IWidgetNotifier
         return connectionId is null ? null : _hub.Clients.Client(connectionId);
     }
 
-    // Spoken messages play on the newest TTS page; with none open, on the Bot Audio page.
+    // Spoken messages play on the newest TTS page only; the Bot Audio page never speaks.
     private IOverlayClient? TtsPage(string broadcasterId)
     {
         string? connectionId = Guid.TryParse(broadcasterId, out Guid parsed)
@@ -160,6 +167,12 @@ public class WidgetNotifier : IWidgetNotifier
         PlaySoundPayload payload,
         CancellationToken ct = default
     ) => AudioPage(broadcasterId)?.PlaySound(payload) ?? Task.CompletedTask;
+
+    public Task PlayTtsClipAsync(
+        string broadcasterId,
+        PlaySoundPayload payload,
+        CancellationToken ct = default
+    ) => TtsPage(broadcasterId)?.PlaySound(payload) ?? Task.CompletedTask;
 
     public Task StopSoundAsync(
         string broadcasterId,

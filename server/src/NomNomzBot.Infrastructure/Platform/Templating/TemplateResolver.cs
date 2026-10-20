@@ -588,7 +588,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
         if (needed.Contains("target.known"))
             vars.TryAdd("target.known", "false");
 
-        // {tts.audioconnected}: whether an Audio Source page is open for this channel right now.
+        // {tts.audioconnected}: whether a TTS Caption page is open for this channel right now.
         if (needed.Contains("tts.audioconnected") && broadcasterId is not null)
             vars.TryAdd(
                 "tts.audioconnected",
@@ -879,7 +879,7 @@ public sealed partial class TemplateResolver : ITemplateResolver
             using IServiceScope scope = _scopeFactory.CreateScope();
             return scope
                 .ServiceProvider.GetRequiredService<IOverlayPresenceRegistry>()
-                .IsAudioSourceConnected(broadcasterId);
+                .IsTtsSourceConnected(broadcasterId);
         }
         catch (Exception ex)
         {

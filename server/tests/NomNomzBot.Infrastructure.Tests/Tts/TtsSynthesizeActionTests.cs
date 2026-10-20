@@ -221,10 +221,10 @@ public sealed class TtsSynthesizeActionTests
     }
 
     [Fact]
-    public async Task ExecuteAsync_PlayOnAudio_AudioSourceConnected_SendsClipToTheAudioBus()
+    public async Task ExecuteAsync_PlayOnAudio_TtsSourceConnected_SendsClipToTheTtsPageOnly()
     {
         IOverlayPresenceRegistry presence = Substitute.For<IOverlayPresenceRegistry>();
-        presence.IsAudioSourceConnected(Channel).Returns(true);
+        presence.IsTtsSourceConnected(Channel).Returns(true);
         ISoundClipOverlayNotifier overlay = Substitute.For<ISoundClipOverlayNotifier>();
         IChannelAudioMixService mix = Substitute.For<IChannelAudioMixService>();
         mix.GetAsync(Channel, Arg.Any<CancellationToken>())
@@ -252,7 +252,7 @@ public sealed class TtsSynthesizeActionTests
         ctx.Variables["tts.durationMs"].Should().Be("4200");
         await overlay
             .Received(1)
-            .PlaySoundAsync(
+            .PlayTtsAsync(
                 Channel,
                 Arg.Is<SoundPlaybackDto>(p =>
                     p.PlaybackUrl == "https://bot.local/sounds/tts-bsod.mp3"
@@ -261,13 +261,15 @@ public sealed class TtsSynthesizeActionTests
                 ),
                 Arg.Any<CancellationToken>()
             );
+        await overlay.DidNotReceiveWithAnyArgs().PlaySoundAsync(default, default!, default);
     }
 
     [Fact]
-    public async Task ExecuteAsync_PlayOnAudio_NoAudioSource_FailsAndPlaysNothing()
+    public async Task ExecuteAsync_PlayOnAudio_OnlyAnAudioSource_FailsAndPlaysNothing()
     {
         IOverlayPresenceRegistry presence = Substitute.For<IOverlayPresenceRegistry>();
-        presence.IsAudioSourceConnected(Channel).Returns(false);
+        presence.IsAudioSourceConnected(Channel).Returns(true);
+        presence.IsTtsSourceConnected(Channel).Returns(false);
         ISoundClipOverlayNotifier overlay = Substitute.For<ISoundClipOverlayNotifier>();
         (
             TtsSynthesizeAction action,
@@ -289,9 +291,10 @@ public sealed class TtsSynthesizeActionTests
         );
 
         result.Succeeded.Should().BeFalse();
-        result.ErrorMessage.Should().Contain("Audio");
+        result.ErrorMessage.Should().Contain("TTS Caption");
         ctx.Variables.ContainsKey("tts.audioUrl").Should().BeFalse();
         await overlay.DidNotReceiveWithAnyArgs().PlaySoundAsync(default, default!, default);
+        await overlay.DidNotReceiveWithAnyArgs().PlayTtsAsync(default, default!, default);
     }
 
     [Fact]

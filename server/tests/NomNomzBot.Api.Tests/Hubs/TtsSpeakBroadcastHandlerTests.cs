@@ -196,7 +196,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
             )
             .Select(c => c.GetArguments()[2]!.ToString()!)
             .ToList();
-        warnings.Should().ContainSingle().Which.Should().Contain("no Audio Source page is open");
+        warnings.Should().ContainSingle().Which.Should().Contain("no TTS Caption page is open");
     }
 
     /// <summary>No warning when an Audio Source page IS connected, so the log does not cry wolf every utterance.</summary>

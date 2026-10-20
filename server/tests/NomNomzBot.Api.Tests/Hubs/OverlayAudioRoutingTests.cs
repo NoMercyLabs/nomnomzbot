@@ -206,7 +206,7 @@ public sealed class OverlayAudioRoutingTests
     }
 
     [Fact]
-    public async Task A_tts_line_and_a_stop_reach_only_the_audio_page()
+    public async Task A_stop_reaches_only_the_audio_page_and_the_audio_page_never_speaks_tts()
     {
         Pages pages = TwoPages();
 
@@ -226,17 +226,9 @@ public sealed class OverlayAudioRoutingTests
         await pages.Notifier.StopSoundAsync(Broadcaster.ToString(), new(null, true));
         await pages.Notifier.TtsQueueControlAsync(Broadcaster.ToString(), "skip");
 
-        await pages
-            .Audio.Received(1)
-            .TtsSpeak(
-                Arg.Is<TtsSpeakPayload>(p =>
-                    p.Text == "hello" && p.AudioUrl == "data:audio/mpeg;base64,AQID"
-                )
-            );
+        await pages.Audio.DidNotReceiveWithAnyArgs().TtsSpeak(default!);
         await pages.Audio.Received(1).StopSound(Arg.Is<StopSoundPayload>(p => p.All));
-        await pages
-            .Audio.Received(1)
-            .TtsQueueControl(Arg.Is<TtsQueueControlPayload>(p => p.Action == "skip"));
+        await pages.Audio.DidNotReceiveWithAnyArgs().TtsQueueControl(default!);
         await pages.Caption.DidNotReceiveWithAnyArgs().TtsSpeak(default!);
         await pages.Caption.DidNotReceiveWithAnyArgs().StopSound(default!);
         await pages.Caption.DidNotReceiveWithAnyArgs().TtsQueueControl(default!);
@@ -390,7 +382,7 @@ public sealed class OverlayAudioRoutingTests
 
         audioPage.Registry.GetAudioTarget(Broadcaster).Should().Be("audio-conn");
         await audioClient.Received(1).PlaySound(Arg.Any<PlaySoundPayload>());
-        await audioClient.Received(1).TtsSpeak(Arg.Any<TtsSpeakPayload>());
+        await audioClient.DidNotReceiveWithAnyArgs().TtsSpeak(default!);
         await musicClient.DidNotReceiveWithAnyArgs().PlaySound(default!);
         await musicClient.DidNotReceiveWithAnyArgs().TtsSpeak(default!);
     }
