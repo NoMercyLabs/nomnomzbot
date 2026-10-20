@@ -301,6 +301,7 @@ describe('the player button picker', () => {
 
     expect(device?.querySelector('input')).toBeNull();
     expect(device?.querySelector('[role="combobox"]')).not.toBeNull();
+    expect(device?.textContent).toContain('Pick a device');
   });
 
   it('shows the buttons while nothing is playing', async () => {

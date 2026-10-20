@@ -25,6 +25,13 @@ import { Button } from '@/components/ui/button';
 import { Field, FieldError, FieldGroup, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useLocalizedText } from '@/composables/useLocalizedText';
 import type { JsonValue } from '@/lib/json';
@@ -73,7 +80,7 @@ const rows = computed(() => {
     t,
     te,
     text,
-  }).map(withDevices);
+  });
 });
 
 // The plugin picks the playback device from the music account's own devices; so does the dashboard. With no
@@ -82,20 +89,21 @@ const devices = useMusicDevices(() =>
   props.button.actionType === 'music_transfer_device'
     ? channelId.value
     : null);
+const deviceRow = computed(() =>
+  (devices.data.value?.length ?? 0) > 0
+    ? rows.value.find((row) =>
+        row.name === 'deviceId')
+    : undefined);
+const plainRows = computed(() =>
+  rows.value.filter((row) =>
+    row !== deviceRow.value));
+const deviceId = computed(() => {
+  const value = props.button.parameters.deviceId;
 
-function withDevices(row: FieldRow) {
-  const known = devices.data.value ?? [];
-
-  if (row.name !== 'deviceId' || known.length === 0)
-    return row;
-
-  return {
-    ...row,
-    control: 'choice',
-    choices: known.map((device) =>
-      ({ value: device.id, label: device.name })),
-  } as const satisfies FieldRow;
-}
+  return typeof value === 'string'
+    ? value
+    : '';
+});
 
 const context = computed(() =>
   choiceContext(rows.value));
@@ -169,8 +177,21 @@ function setting(row: FieldRow, value: JsonValue | undefined): void {
         {{ $t(problems.label, { max: MAX_BUTTON_LABEL }) }}
       </FieldError>
     </Field>
+    <Field v-if="deviceRow" data-step-field="deviceId">
+      <FieldLabel for="player-button-device">{{ $t(`${page}.device`) }}</FieldLabel>
+      <Select :model-value="deviceId" @update:model-value="setting(deviceRow, String($event))">
+        <SelectTrigger id="player-button-device" class="w-full">
+          <SelectValue :placeholder="$t(`${page}.devicePlaceholder`)" />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem v-for="device in devices.data.value" :key="device.id" :value="device.id">
+            {{ device.name }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
+    </Field>
     <StepField
-      v-for="row in rows"
+      v-for="row in plainRows"
       :key="`${button.key}:${button.actionType}:${row.name}`"
       :row="row"
       :context="context"

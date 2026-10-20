@@ -172,7 +172,8 @@ async function remove(): Promise<void> {
     <div v-if="!adding" class="flex">
       <Button
         type="button"
-        variant="destructive"
+        variant="outline"
+        class="text-destructive"
         data-button-remove
         :disabled="save.isPending.value"
         @click="remove"

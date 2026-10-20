@@ -55,6 +55,8 @@
             "icon": "Icon",
             "label": "Label",
             "labelPlaceholder": "Label",
+            "device": "Device",
+            "devicePlaceholder": "Pick a device",
             "problem": {
               "label": "Use 1 to {max} characters.",
               "icon": "Choose an icon.",
