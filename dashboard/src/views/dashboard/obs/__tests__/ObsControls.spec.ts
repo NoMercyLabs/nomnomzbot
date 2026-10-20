@@ -89,6 +89,10 @@ vi.mock('@/api/client', () => ({
               { name: 'Fade', isCurrent: transition === 'Fade' },
             ]);
 
+      // The hotkeys panel on the tools tab reads plain hotkey names, never scene rows.
+      if (path.endsWith('/obs/hotkeys'))
+        return ok(['OBSBasic.StartStreaming']);
+
       return ok([
         { name: 'Main', isCurrent: program === 'Main' },
         { name: 'BRB', isCurrent: program === 'BRB' },

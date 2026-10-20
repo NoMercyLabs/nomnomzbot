@@ -194,13 +194,13 @@ function retry(): void {
           :read-only="!canControl"
           :reason="$t('dashboard.obs.needsControl')"
         >
-          <!-- The Live bento spans the page: outputs over scenes, with the sources and the tall audio mixer
-               beside them. The mixer and the sources fill their cells and scroll only when the window is short. -->
+          <!-- The Live bento spans the page: outputs and scenes on top, the sources under them, the tall audio
+               mixer beside them. The outputs set the top row; the other panels scroll inside their cells. -->
           <div
             v-if="view === 'live'"
             data-obs-live
             data-obs-board
-            class="grid flex-1 gap-3 [grid-template-areas:'outputs'_'scenes'_'audio'_'sources'] @min-[48rem]:grid-cols-2 @min-[48rem]:grid-rows-[auto_1fr_auto] @min-[48rem]:[grid-template-areas:'outputs_audio'_'scenes_audio'_'sources_sources'] @min-[74rem]:grid-cols-3 @min-[74rem]:grid-rows-[auto_1fr] @min-[74rem]:[grid-template-areas:'outputs_sources_audio'_'scenes_sources_audio']"
+            class="grid flex-1 gap-3 [grid-template-areas:'outputs'_'scenes'_'audio'_'sources'] @min-[48rem]:grid-cols-2 @min-[48rem]:grid-rows-[auto_1fr] @min-[48rem]:[grid-template-areas:'outputs_scenes'_'audio_sources'] @min-[74rem]:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)] @min-[74rem]:grid-rows-[auto_1fr] @min-[74rem]:[grid-template-areas:'outputs_scenes_audio'_'sources_sources_audio']"
           >
             <OutputsPanel
               class="[grid-area:outputs]"
@@ -214,7 +214,7 @@ function retry(): void {
               @retry="retry"
             />
             <ScenesPanel
-              class="[grid-area:scenes]"
+              class="[grid-area:scenes] @min-[48rem]:[contain:size]"
               :scenes="scenes.data.value"
               :panel-state="scenesPanel"
               :offline="!enabled"
@@ -222,7 +222,7 @@ function retry(): void {
             />
             <AudioPanel class="[grid-area:audio] @min-[48rem]:[contain:size]" :offline="!enabled" />
             <SourcesPanel
-              class="[grid-area:sources] @min-[74rem]:[contain:size]"
+              class="[grid-area:sources] @min-[48rem]:[contain:size]"
               :scene-name="state.data.value?.currentScene ?? null"
               :offline="!enabled"
             />

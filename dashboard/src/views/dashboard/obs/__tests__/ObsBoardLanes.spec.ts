@@ -45,7 +45,16 @@ describe('the OBS Live tab is a bento grid with named areas', () => {
 
   it('lays the live board out with grid-template-areas, three columns on a wide page', () => {
     expect(live).toContain('grid-template-areas');
-    expect(live).toContain(`'outputs_sources_audio'_'scenes_sources_audio'`);
+    expect(live).toContain(`'outputs_scenes_audio'_'sources_sources_audio'`);
+  });
+
+  // Review of lane-C2-after.png: the stretched Scenes panel left a hole, and Recording read 'Recor...'.
+  it('sizes the top row by the outputs so the scenes never stretch into a hole', () => {
+    expect(view).toMatch(/\[grid-area:scenes\][^"]*\[contain:size\]/);
+  });
+
+  it('gives the outputs column the extra width its Recording row needs', () => {
+    expect(live).toContain('@min-[74rem]:grid-cols-[minmax(0,1.3fr)_minmax(0,1fr)_minmax(0,1fr)]');
   });
 
   it('puts every live panel in its own named area', () => {
