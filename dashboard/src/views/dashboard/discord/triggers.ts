@@ -20,3 +20,11 @@ export const discordTriggers = [
   'channel.poll.begin',
   'channel.prediction.begin',
 ] as const;
+
+// vue-i18n reads a dot as a path step, so the key spells the trigger with underscores.
+// A trigger the page does not know shows as the bot spells it.
+export function triggerLabel(t: (key: string) => string, trigger: string): string {
+  return (discordTriggers as readonly string[]).includes(trigger)
+    ? t(`dashboard.discord.triggers.${trigger.replaceAll('.', '_')}`)
+    : trigger;
+}

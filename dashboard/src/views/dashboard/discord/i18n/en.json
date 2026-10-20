@@ -4,12 +4,40 @@
       "title": "Discord",
       "connection": {
         "title": "Discord server",
-        "empty": "No Discord server is linked to this channel yet.",
         "error": "The Discord server could not load.",
-        "none": "Not linked",
         "botMissing": "The bot is not in the server",
         "consentPending": "Waiting for the server admin to approve",
-        "ready": "Linked and ready"
+        "ready": "Linked and ready",
+        "enabled": "Post to this server",
+        "enabledHelp": "Turn it off to pause every Discord message from this channel."
+      },
+      "setup": {
+        "posts": {
+          "title": "Posts a message in a Discord channel",
+          "detail": "when you go live, get a follower, a raid, a sub and more."
+        },
+        "roles": {
+          "title": "Lets viewers pick a role",
+          "detail": "with a button, so they get pinged only for what they want."
+        },
+        "live": {
+          "title": "Gives you a role while you are live",
+          "detail": "so your members see at a glance that you are on air."
+        },
+        "steps": "Add the bot to your server. A server admin then approves it, and you choose where each message goes.",
+        "add": "Add the bot to your server"
+      },
+      "posts": {
+        "title": "Recent posts",
+        "subtitle": "What the bot sent to Discord lately.",
+        "empty": "The bot has not posted to Discord yet.",
+        "error": "The recent posts could not load.",
+        "status": {
+          "sent": "Posted",
+          "failed": "Failed",
+          "skipped": "Skipped",
+          "skipped_dupe": "Skipped, already posted"
+        }
       },
       "rules": {
         "title": "Notifications",

@@ -25,7 +25,6 @@ import {
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import Cross from '~icons/nnz/cross';
 import { Button } from '@/components/ui/button';
@@ -42,10 +41,13 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { merge } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 
+import ConnectionPanel from './components/ConnectionPanel.vue';
 import LiveRolePanel from './components/LiveRolePanel.vue';
 import NotifyRoleEditor from './components/NotifyRoleEditor.vue';
+import PostLogPanel from './components/PostLogPanel.vue';
 import RuleEditor from './components/RuleEditor.vue';
-import { discordTriggers } from './triggers';
+import SetupGuide from './components/SetupGuide.vue';
+import { discordTriggers, triggerLabel as labelOf } from './triggers';
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
@@ -62,10 +64,7 @@ const channelsQuery = useDiscordChannels(channelId, connectionId);
 const rolesQuery = useDiscordRoles(channelId, connectionId);
 const notifyRolesQuery = useNotifyRoles(channelId, connectionId);
 
-const connectionState = usePanelState(
-  connectionsQuery,
-  (rows: DiscordConnection[]): boolean => rows.length === 0,
-);
+const connectionState = usePanelState(connectionsQuery);
 const rulesState = usePanelState(rulesQuery);
 const notifyRolesState = usePanelState(
   notifyRolesQuery,
@@ -112,38 +111,8 @@ function ruleOf(trigger: string): DiscordRule | null {
 }
 
 function triggerLabel(trigger: string): string {
-  // vue-i18n reads a dot as a path step, so the key spells the trigger with underscores.
-  const key = `dashboard.discord.triggers.${trigger.replaceAll('.', '_')}`;
-
-  return (discordTriggers as readonly string[]).includes(trigger)
-    ? t(key)
-    : trigger;
+  return labelOf(t, trigger);
 }
-
-const connectionTone = computed<StatusTone>(() => {
-  const link = connection.value;
-
-  if (link === null || !link.isLinkActive)
-    return 'off';
-
-  return link.botInstalled && link.serverConsentStatus === 'approved'
-    ? 'ok'
-    : 'bad';
-});
-
-const connectionLabel = computed<string>(() => {
-  const link = connection.value;
-
-  if (link === null)
-    return t('dashboard.discord.connection.none');
-
-  if (!link.botInstalled)
-    return t('dashboard.discord.connection.botMissing');
-
-  return link.serverConsentStatus === 'approved'
-    ? t('dashboard.discord.connection.ready')
-    : t('dashboard.discord.connection.consentPending');
-});
 
 function ruleSummary(rule: DiscordRule | null): string {
   if (rule === null)
@@ -164,17 +133,13 @@ function ruleSummary(rule: DiscordRule | null): string {
         v-if="can('discord:connection:read')"
         :title="t('dashboard.discord.connection.title')"
         :state="connectionState"
+        :tier="connection ? 'quiet' : 'lead'"
         pad
-        :empty-text="t('dashboard.discord.connection.empty')"
         :error-text="t('dashboard.discord.connection.error')"
         @retry="connectionsQuery.refetch()"
       >
-        <div data-connection class="flex flex-col gap-1">
-          <p class="text-sm font-medium">
-            {{ connection?.guildName ?? connection?.guildId }}
-          </p>
-          <StatusBadge :tone="connectionTone" :label="connectionLabel" />
-        </div>
+        <ConnectionPanel v-if="connection" :connection="connection" />
+        <SetupGuide v-else-if="connectionsQuery.isSuccess.value" :channel-id="channelId ?? ''" />
       </PanelCard>
 
       <PanelCard
@@ -259,6 +224,11 @@ function ruleSummary(rule: DiscordRule | null): string {
       >
         <LiveRolePanel :connection-id="connectionId" :guild-roles="rolesQuery.data.value ?? []" />
       </PanelCard>
+
+      <PostLogPanel
+        v-if="connectionId !== null && can('discord:dispatch:read')"
+        :connection-id="connectionId"
+      />
     </PageBody>
 
     <Sheet v-model:open="roleOpen">

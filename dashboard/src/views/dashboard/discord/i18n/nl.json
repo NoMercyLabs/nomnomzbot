@@ -4,12 +4,40 @@
       "title": "Discord",
       "connection": {
         "title": "Discord-server",
-        "empty": "Er is nog geen Discord-server aan dit kanaal gekoppeld.",
         "error": "De Discord-server kon niet laden.",
-        "none": "Niet gekoppeld",
         "botMissing": "De bot zit niet in de server",
         "consentPending": "Wacht op goedkeuring van de serverbeheerder",
-        "ready": "Gekoppeld en klaar"
+        "ready": "Gekoppeld en klaar",
+        "enabled": "Op deze server posten",
+        "enabledHelp": "Zet uit om alle Discord-berichten van dit kanaal te pauzeren."
+      },
+      "setup": {
+        "posts": {
+          "title": "Plaatst een bericht in een Discord-kanaal",
+          "detail": "als je live gaat, een volger, raid of sub krijgt en meer."
+        },
+        "roles": {
+          "title": "Laat kijkers een rol kiezen",
+          "detail": "met een knop, zodat ze alleen pings krijgen voor wat ze willen."
+        },
+        "live": {
+          "title": "Geeft jou een rol terwijl je live bent",
+          "detail": "zodat je leden in één blik zien dat je uitzendt."
+        },
+        "steps": "Voeg de bot toe aan je server. Een serverbeheerder keurt hem goed en jij kiest waar elk bericht heen gaat.",
+        "add": "Voeg de bot toe aan je server"
+      },
+      "posts": {
+        "title": "Recente berichten",
+        "subtitle": "Wat de bot onlangs naar Discord stuurde.",
+        "empty": "De bot heeft nog niets op Discord geplaatst.",
+        "error": "De recente berichten konden niet laden.",
+        "status": {
+          "sent": "Geplaatst",
+          "failed": "Mislukt",
+          "skipped": "Overgeslagen",
+          "skipped_dupe": "Overgeslagen, al geplaatst"
+        }
       },
       "rules": {
         "title": "Meldingen",
