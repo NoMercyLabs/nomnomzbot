@@ -197,6 +197,8 @@ export const apiOperations = {
   'save discord rule': 'discord',
   'create discord rule': 'discord',
   'discord preview': 'discord',
+  'discord dispatch log': 'discord',
+  'set discord streamer enabled': 'discord',
   'discord notify roles': 'discord',
   'create discord notify role': 'discord',
   'save discord notify role': 'discord',

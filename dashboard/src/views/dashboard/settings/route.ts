@@ -11,7 +11,6 @@
 import type { RouteRecordRaw } from 'vue-router';
 
 import { loadPage } from '@/i18n';
-import { dashboardDiscordRoute } from '@/views/dashboard/discord/route';
 import { supporterSourcesComponent } from '@/views/dashboard/supporters/route';
 
 import { settingsApiDevicesRoute } from './api-devices/route';
@@ -84,17 +83,7 @@ const engagementTriggersRoute = {
   component: settingsPage,
 } as const satisfies RouteRecordRaw;
 
-// Discord and Supporter sources already have their real page; the settings entry opens that same page.
-const discordRoute = {
-  path: 'settings/discord',
-  name: 'dashboard-settings-discord',
-  meta: {
-    navMode: 'settings',
-    action: 'discord:connection:read',
-  },
-  component: dashboardDiscordRoute.component,
-} as const satisfies RouteRecordRaw;
-
+// Supporter sources already have their real page; the settings entry opens that same page.
 const supporterSourcesRoute = {
   path: 'settings/supporter-sources',
   name: 'dashboard-settings-supporter-sources',
@@ -110,7 +99,6 @@ export const dashboardSettingsRoutes: RouteRecordRaw[] = [
   botBasicsRoute,
   botPersonalityRoute,
   engagementTriggersRoute,
-  discordRoute,
   supporterSourcesRoute,
   settingsWhiteLabelBotRoute,
   settingsFeaturesRoute,

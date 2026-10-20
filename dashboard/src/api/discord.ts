@@ -207,6 +207,70 @@ export function useSaveDiscordRule(
   });
 }
 
+export type DiscordPost = components['schemas']['DiscordDispatchLog'];
+
+const recentPosts = 10;
+
+export function useDiscordDispatchLog(
+  channelId: MaybeRefOrGetter<string | null>,
+  connectionId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<DiscordPost[], Error> {
+  return useQuery({
+    queryKey: computed(() => discordPickersKey(toValue(channelId), toValue(connectionId), 'posts')),
+    queryFn: async (): Promise<DiscordPost[]> => {
+      const { data, error, response } = await client.GET(
+        '/api/v{version}/channels/{channelId}/discord/connections/{connectionId}/dispatch-log',
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              connectionId: toValue(connectionId) as string,
+            },
+            query: { Take: recentPosts },
+          },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('discord dispatch log', response.status, error);
+
+      return data?.data ?? [];
+    },
+    enabled: computed(() => toValue(channelId) !== null && toValue(connectionId) !== null),
+  });
+}
+
+// The streamer's own half of the both-opt-in handshake: off pauses every Discord message from the channel.
+export function useSetStreamerEnabled(
+  channelId: MaybeRefOrGetter<string | null>,
+  connectionId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, boolean, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (enabled: boolean): Promise<void> => {
+      const { error, response } = await client.PUT(
+        '/api/v{version}/channels/{channelId}/discord/connections/{connectionId}/streamer-enabled',
+        {
+          params: { path: {
+            version,
+            channelId: toValue(channelId) as string,
+            connectionId: toValue(connectionId) as string,
+          } },
+          body: { enabled },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('set discord streamer enabled', response.status, error);
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({ queryKey: discordConnectionsKey(toValue(channelId)) });
+    },
+  });
+}
+
 export function useCreateDiscordRule(
   channelId: MaybeRefOrGetter<string | null>,
   connectionId: MaybeRefOrGetter<string | null>,

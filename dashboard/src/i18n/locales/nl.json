@@ -687,6 +687,7 @@
     }
   },
   "frame": {
+    "brand": "NomNomzBot",
     "nav": {
       "label": "Hoofdnavigatie",
       "more": "Meer",
@@ -766,7 +767,6 @@
         "whiteLabelBot": "Eigen bot (white-label)",
         "features": "Functies",
         "integrations": "Integraties",
-        "discord": "Discord",
         "supporterSources": "Supporterbronnen",
         "federation": "Federatie",
         "apiDevices": "API en apparaten",
