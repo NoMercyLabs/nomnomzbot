@@ -216,6 +216,10 @@ const switchOf = (title: string): HTMLButtonElement =>
     ?.querySelector('button[role="switch"]') as HTMLButtonElement;
 const messageBox = (): HTMLTextAreaElement =>
   editor()!.querySelector('textarea') as HTMLTextAreaElement;
+const replyLines = (): (string | undefined)[] =>
+  [...editor()!.querySelectorAll<HTMLElement>('[data-reply-line] [data-reply-text]')].map(
+    (line) => line.textContent?.trim(),
+  );
 const writes = (method: string): Call[] => calls.filter((call) => call.method === method);
 
 async function type(el: HTMLTextAreaElement, value: string): Promise<void> {
@@ -366,7 +370,12 @@ describe('Event responses page', () => {
   it('restores the platform default through the reset call', async () => {
     await open();
     await click(rowOf('channel.follow'));
-    await click(buttonByText('Use the platform default'));
+    await click(buttonByText('Reset to default'));
+
+    expect(writes('POST')).toHaveLength(0);
+    expect(document.body.textContent).toContain('Welcome {user}!');
+
+    await click(document.body.querySelector<HTMLButtonElement>('[data-confirm-action]')!);
 
     expect(writes('POST').map((call) => [call.eventType, call.path.endsWith('/reset')])).toEqual([
       ['channel.follow', true],
@@ -375,13 +384,13 @@ describe('Event responses page', () => {
     expect(messageBox().value).toBe('Default hello');
   });
 
-  it('shows the test send as not available yet and never calls the bot', async () => {
+  it('shows no control that cannot work', async () => {
     await open();
     await click(rowOf('channel.follow'));
 
-    expect(buttonByText('Send a test').disabled).toBe(true);
-    expect(editor()!.textContent).toContain('Not available yet');
-    expect(calls).toHaveLength(0);
+    expect(buttonByText('Send a test')).toBeUndefined();
+    expect(editor()!.textContent).not.toContain('Not available yet');
+    expect(editor()!.querySelector('[data-helper-toggle]')).toBeNull();
   });
 
   it('shows an event another dashboard added once the live signal marks the list stale', async () => {
@@ -430,18 +439,58 @@ describe('Event responses permission gating', () => {
 
     await open('/app/event-responses?event=channel.raid');
 
-    const lines = [...editor()!.querySelectorAll<HTMLElement>('[data-tone-line]')].map(
-      (line) => line.textContent?.trim(),
-    );
-
-    expect(lines).toEqual(['Raid from {user}!', 'Here comes {user}!']);
+    expect(replyLines()).toEqual(['Raid from {user}!', 'Here comes {user}!']);
+    expect(editor()!.querySelector('[data-reply-source]')?.textContent).toContain('Platform default');
+    expect(editor()!.querySelector('textarea')).toBeNull();
   });
 
-  it('shows no tone lines for a reply of the channel own', async () => {
+  it('starts a line of the channel own from the default line that was picked, and saves it', async () => {
+    rows = [
+      response('channel.raid', {
+        followsPlatformDefault: true,
+        message: null,
+        toneLines: ['Raid from {user}!', 'Here comes {user}!'],
+      }),
+    ];
+
+    await open('/app/event-responses?event=channel.raid');
+    await click(editor()!.querySelectorAll<HTMLButtonElement>('[data-reply-line] button')[1]!);
+
+    expect(messageBox().value).toBe('Here comes {user}!');
+    expect(editor()!.textContent).toContain('replaces the 2 default lines');
+
+    await type(messageBox(), 'Here comes {user} and friends!');
+    await click(buttonByText('Save changes'));
+
+    expect(writes('PUT').map((call) => call.body)).toEqual([
+      { message: 'Here comes {user} and friends!' },
+    ]);
+  });
+
+  it('puts the default lines back when the picked line is discarded', async () => {
+    rows = [
+      response('channel.raid', {
+        followsPlatformDefault: true,
+        message: null,
+        toneLines: ['Raid from {user}!', 'Here comes {user}!'],
+      }),
+    ];
+
+    await open('/app/event-responses?event=channel.raid');
+    await click(editor()!.querySelector<HTMLButtonElement>('[data-reply-line] button')!);
+    await click(buttonByText('Discard'));
+
+    expect(replyLines()).toEqual(['Raid from {user}!', 'Here comes {user}!']);
+    expect(writes('PUT')).toHaveLength(0);
+  });
+
+  it('shows the line of the channel own as the one editable line, not as a default', async () => {
     rows = [response('channel.follow', { toneLines: [] })];
 
     await open('/app/event-responses?event=channel.follow');
 
-    expect(editor()!.querySelectorAll('[data-tone-line]')).toHaveLength(0);
+    expect(replyLines()).toEqual([]);
+    expect(messageBox().value).toBe('Welcome {user}!');
+    expect(editor()!.querySelector('[data-reply-source]')?.textContent).toContain('Your own text');
   });
 });

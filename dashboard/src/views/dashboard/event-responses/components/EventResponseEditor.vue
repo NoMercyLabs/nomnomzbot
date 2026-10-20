@@ -21,16 +21,19 @@ import {
   type EventResponse,
   type EventResponseDetail,
 } from '@/api/eventResponses';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
 import ReplyModeField from '@/components/layout/ReplyModeField.vue';
 
+import DefaultLineList from './DefaultLineList.vue';
 import { changeOf, draftOf, sameDraft, type EventDraft } from './eventResponseDraft';
 import { useEventName } from './useEventName';
 
@@ -68,6 +71,7 @@ watch(
 
     if (edited.value) return;
 
+    picked.value = false;
     draft.value = draftOf(saved);
     baseline.value = draftOf(saved);
   },
@@ -85,12 +89,37 @@ const unsaved = computed<string>(() =>
     : t('dashboard.eventResponses.editor.unsaved', { count: dirtyCount.value }, dirtyCount.value),
 );
 const toneLines = computed<string[]>(() => response.data.value?.toneLines ?? []);
+// The bot posts one of the default lines until the channel has its own text; a picked line becomes that text.
+const picked = ref(false);
+const showDefaults = computed<boolean>(() => toneLines.value.length > 0 && !picked.value);
+const fromDefault = computed<boolean>(() =>
+  showDefaults.value || (props.row.followsPlatformDefault && !picked.value),
+);
+const linesHelp = computed<string>(() => {
+  if (showDefaults.value)
+    return t('dashboard.eventResponses.editor.pickHelp');
+
+  return picked.value
+    ? t('dashboard.eventResponses.editor.replaces', { count: toneLines.value.length }, toneLines.value.length)
+    : t('dashboard.eventResponses.editor.ownHelp');
+});
 const variables = computed<string>(() => {
   const preset = (presets.data.value ?? []).find(
     (item): boolean => item.eventType === props.row.eventType,
   );
+  const names = (preset?.variables ?? []).map((name): string => `{${name}}`).join(' ');
 
-  return (preset?.variables ?? []).map((name): string => `{${name}}`).join(' ');
+  return names === ''
+    ? ''
+    : t('dashboard.eventResponses.editor.variables', { names });
+});
+const resetOpen = ref(false);
+const resetLoses = computed<string[]>(() => {
+  const own = response.data.value?.message ?? '';
+
+  return own === ''
+    ? []
+    : [t('dashboard.eventResponses.editor.resetLoses', { line: own })];
 });
 
 async function run(work: () => Promise<void>): Promise<void> {
@@ -122,6 +151,7 @@ function save(): Promise<void> {
 
 function discard(): void {
   failure.value = null;
+  picked.value = false;
 
   if (response.data.value === undefined) return;
 
@@ -129,10 +159,18 @@ function discard(): void {
   baseline.value = draftOf(response.data.value);
 }
 
-function useDefault(): Promise<void> {
-  baseline.value = null;
+function pick(line: string): void {
+  if (draft.value === null) return;
 
-  return run(() => reset.mutateAsync(props.row.eventType));
+  draft.value.message = line;
+  picked.value = true;
+}
+
+async function useDefault(): Promise<void> {
+  baseline.value = null;
+  picked.value = false;
+  await run(() => reset.mutateAsync(props.row.eventType));
+  resetOpen.value = false;
 }
 </script>
 
@@ -159,48 +197,38 @@ function useDefault(): Promise<void> {
         variant="outline"
         size="sm"
         :disabled="reset.isPending.value"
-        @click="useDefault"
+        @click="resetOpen = true"
       >
         {{ $t('dashboard.eventResponses.editor.reset') }}
       </Button>
     </template>
     <div v-if="draft" class="grid gap-5">
-      <p v-if="row.followsPlatformDefault" class="text-sm text-muted-foreground">
-        {{ $t('dashboard.eventResponses.editor.following') }}
-      </p>
-      <div v-if="toneLines.length > 0" class="grid gap-2">
-        <p class="text-sm text-muted-foreground">
-          {{ $t('dashboard.eventResponses.editor.toneLines') }}
-        </p>
-        <ul class="grid gap-1.5">
-          <li
-            v-for="line in toneLines"
-            :key="line"
-            data-tone-line
-            class="rounded-md bg-muted px-3 py-2 text-sm"
-          >
-            {{ line }}
-          </li>
-        </ul>
-      </div>
-
       <ReplyModeField
         v-model:mode="draft.mode"
         v-model:target="draft.target"
         :kinds="['command', 'pipeline', 'action']"
         :new-pipeline-name="eventName(row.eventType)"
       >
-        <TemplateField
-          v-model="draft.message"
-          :label="$t('dashboard.eventResponses.editor.message')"
-          context="eventResponse"
-          :maxlength="500"
-          :event-type="row.eventType"
-        />
-        <p class="text-sm text-muted-foreground">
-          {{ $t('dashboard.eventResponses.editor.messageHelp') }}
-          <span v-if="variables">{{ $t('dashboard.eventResponses.editor.variables', { names: variables }) }}</span>
-        </p>
+        <section class="grid gap-2" data-reply-lines>
+          <div class="flex items-center gap-2">
+            <h3 class="text-sm font-medium">{{ $t('dashboard.eventResponses.editor.lines') }}</h3>
+            <Badge data-reply-source variant="secondary">{{
+              $t(fromDefault ? 'dashboard.eventResponses.editor.defaultBadge' : 'dashboard.eventResponses.editor.ownBadge')
+            }}</Badge>
+          </div>
+          <p class="text-sm text-muted-foreground">{{ linesHelp }}</p>
+          <DefaultLineList v-if="showDefaults" :lines="toneLines" @pick="pick" />
+          <TemplateField
+            v-else
+            v-model="draft.message"
+            :label="$t('dashboard.eventResponses.editor.message')"
+            :help="variables || undefined"
+            :panel="false"
+            context="eventResponse"
+            :maxlength="500"
+            :event-type="row.eventType"
+          />
+        </section>
         <!-- Speech belongs to a text reply; a pipeline speaks through its own step. -->
         <LabeledSwitch
           v-model="draft.speakWithTts"
@@ -209,20 +237,17 @@ function useDefault(): Promise<void> {
         />
       </ReplyModeField>
 
-      <div class="flex items-center gap-3">
-        <Button type="button" variant="outline" size="sm" disabled>
-          {{ $t('dashboard.eventResponses.editor.test') }}
-        </Button>
-        <span class="text-sm text-muted-foreground">{{
-          $t('dashboard.eventResponses.editor.testUnavailable')
-        }}</span>
-      </div>
-
       <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
     </div>
     <template #footer>
       <span data-unsaved class="mr-auto text-sm text-muted-foreground">{{ unsaved }}</span>
-      <Button type="button" variant="outline" size="sm" @click="discard">{{
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        :disabled="dirtyCount === 0 && !picked"
+        @click="discard"
+      >{{
         $t('dashboard.eventResponses.editor.discard')
       }}</Button>
       <Button
@@ -235,4 +260,13 @@ function useDefault(): Promise<void> {
       </Button>
     </template>
   </PanelCard>
+  <ConfirmDialog
+    v-model:open="resetOpen"
+    :title="$t('dashboard.eventResponses.editor.resetTitle')"
+    :description="$t('dashboard.eventResponses.editor.resetDescription')"
+    :consequences="resetLoses"
+    :action="$t('dashboard.eventResponses.editor.reset')"
+    :pending="reset.isPending.value"
+    @confirm="useDefault"
+  />
 </template>
