@@ -15,7 +15,6 @@ import {
   emoteProviders,
   musicProviders,
   musicRoleRungs,
-  musicTrustLevels,
   platformScopeSets,
   streamPlatforms,
   trustTiers,
@@ -66,12 +65,6 @@ describe('the emote and music words', () => {
   it('lets the bot pick a music provider unless one is named', () => {
     expect(musicProviders[0]).toBe('auto');
     expect(musicProviders).toEqual(['auto', 'spotify', 'youtube']);
-  });
-
-  it('ranks the song-request trust levels from everyone up to the broadcaster', () => {
-    expect(musicTrustLevels[0]).toBe('everyone');
-    expect(musicTrustLevels.at(-1)).toBe('broadcaster');
-    expect(musicTrustLevels).toEqual(['everyone', 'subscribers', 'vip', 'moderators', 'broadcaster']);
   });
 
   it('ranks the per-role song caps from viewer up to the broadcaster', () => {

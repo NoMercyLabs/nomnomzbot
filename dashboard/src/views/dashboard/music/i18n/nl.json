@@ -93,14 +93,6 @@
         "title": "Aanvraagregels",
         "empty": "Nog niet beschikbaar. De regels verschijnen hier zodra ze te bewerken zijn.",
         "error": "De regels konden niet laden.",
-        "who": "Wie mag aanvragen",
-        "levels": {
-          "everyone": "Iedereen",
-          "subscribers": "Twitch-abonnees",
-          "vip": "VIP's",
-          "moderators": "Moderators",
-          "broadcaster": "Alleen ik"
-        },
         "perPerson": "Nummers per persoon",
         "songSeconds": "Langste nummer (minuten:seconden)",
         "perStream": "Nummers per persoon per stream",

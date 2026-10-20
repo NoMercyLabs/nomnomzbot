@@ -93,14 +93,6 @@
         "title": "Request rules",
         "empty": "Not available yet. Rules show here once they can be edited.",
         "error": "The rules could not load.",
-        "who": "Who may request",
-        "levels": {
-          "everyone": "Everyone",
-          "subscribers": "Twitch subscribers",
-          "vip": "VIPs",
-          "moderators": "Moderators",
-          "broadcaster": "Only me"
-        },
         "perPerson": "Songs per person",
         "perPersonHelp": "How many songs one viewer can have in the queue at a time.",
         "blocked": "Blocked songs",

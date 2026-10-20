@@ -17,7 +17,6 @@ import {
   emoteProviders,
   musicProviders,
   musicRoleRungs,
-  musicTrustLevels,
   streamPlatforms,
   trustTiers,
 } from '../api/vocabulary';
@@ -671,7 +670,6 @@ const vocabularyLists: Record<string, readonly string[]> = {
   streamPlatforms,
   emoteProviders,
   musicProviders,
-  musicTrustLevels,
   musicRoleRungs,
   trustTiers,
 };
@@ -715,7 +713,7 @@ function vocabularySourceFiles(): string[] {
 describe('domain vocabulary', () => {
   it('spots a role ladder, a platform list and a provider list written by hand', () => {
     expect(copiedVocabulary('const levels = [\'everyone\', \'vip\', \'moderators\', \'broadcaster\'];'))
-      .toEqual(['roleLadder', 'musicTrustLevels']);
+      .toEqual(['roleLadder']);
 
     expect(copiedVocabulary('const p = [\'twitch\',\n  \'kick\',\n  \'youtube\'];')).toEqual(['streamPlatforms']);
     expect(copiedVocabulary('const p = [\'Twitch\', \'SevenTv\', \'Bttv\'];')).toEqual(['emoteProviders']);

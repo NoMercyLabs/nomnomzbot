@@ -40,7 +40,6 @@ type RoleCap = string | number;
 
 // A blank role box means "use the per-person cap", so the role boxes hold text.
 export type RuleDraft = {
-  minTrustLevel: string;
   perPerson: number;
   maxQueueSize: number;
   requestsOpen: boolean;
@@ -60,7 +59,6 @@ export function draftOf(config: MusicConfig) {
   const stored = config.maxRequestsPerRole ?? {};
 
   return {
-    minTrustLevel: config.minTrustLevel,
     perPerson: Number(config.maxRequestsPerUser),
     maxQueueSize: Number(config.maxQueueSize),
     requestsOpen: config.requestsOpen,
@@ -146,10 +144,6 @@ function playlistChange(value: string): MusicConfigChange {
 export function changeOf(config: MusicConfig, draft: RuleDraft): MusicConfigChange {
   const saved = draftOf(config);
   const result: MusicConfigChange = {};
-
-  if (draft.minTrustLevel !== saved.minTrustLevel) {
-    result.minTrustLevel = draft.minTrustLevel;
-  }
 
   if (draft.perPerson !== saved.perPerson) {
     result.maxRequestsPerUser = draft.perPerson;

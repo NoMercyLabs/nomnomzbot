@@ -8,14 +8,13 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The Requests tab of the request rules: who may ask, the queue limits, the limits per person.
+// The Requests tab of the request rules: the queue limits, the limits per person.
 // The edits live in the parent's draft; this tab only shows and changes it.
 import DurationInput from '@/components/layout/DurationInput.vue';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { Input } from '@/components/ui/input';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import { musicRoleRungs, musicTrustLevels } from '@/api/vocabulary';
+import { musicRoleRungs } from '@/api/vocabulary';
 import { useCan } from '@/composables/useCan';
 
 import RuleRow from './RuleRow.vue';
@@ -37,20 +36,6 @@ const { can } = useCan();
 <template>
   <fieldset class="contents" :disabled="!can('music:config:write')">
     <div class="grid gap-5">
-      <RuleSection :title="$t('dashboard.music.rules.who')">
-        <RadioGroup v-model="draft.minTrustLevel" as-child class="gap-0">
-          <RowGroup>
-            <label
-              v-for="level in musicTrustLevels"
-              :key="level"
-              class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2 text-sm font-medium hover:bg-foreground/5"
-            >
-              <RadioGroupItem :value="level" />
-              {{ $t(`dashboard.music.rules.levels.${level}`) }}
-            </label>
-          </RowGroup>
-        </RadioGroup>
-      </RuleSection>
       <RuleSection :title="$t('dashboard.music.rules.queue')">
         <RowGroup>
           <RuleRow :title="$t('dashboard.music.rules.queueSize')">

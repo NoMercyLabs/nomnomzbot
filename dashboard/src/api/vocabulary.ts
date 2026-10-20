@@ -35,18 +35,6 @@ export const musicProviders = ['auto', 'spotify', 'youtube'] as const;
 
 export type MusicProvider = (typeof musicProviders)[number];
 
-// The values the bot accepts for a song request's minimum trust level (MusicService.ParseMinTrustLevel);
-// anything else means everyone.
-export const musicTrustLevels = [
-  'everyone',
-  'subscribers',
-  'vip',
-  'moderators',
-  'broadcaster',
-] as const;
-
-export type MusicTrustLevel = (typeof musicTrustLevels)[number];
-
 // The rungs the bot knows for a per-role song cap, in the order they rank (MusicService role map).
 export const musicRoleRungs = ['viewer', 'subscriber', 'vip', 'moderator', 'broadcaster'] as const;
 

@@ -259,7 +259,6 @@ describe('RulesPanel', () => {
       h.textContent?.trim());
 
     expect(sections).toEqual([
-      'Who may request',
       'Queue',
       'Per person',
       'By role',
@@ -291,8 +290,6 @@ describe('RulesPanel', () => {
   it('shows the saved rules and the blocked songs, and no list of settings that cannot work yet', async () => {
     await open();
 
-    expect(radio('moderators').getAttribute('aria-checked')).toBe('true');
-    expect(radio('everyone').getAttribute('aria-checked')).toBe('false');
     expect(radio('spotify').getAttribute('aria-checked')).toBe('true');
     expect(radio('auto').getAttribute('aria-checked')).toBe('false');
     expect(radio('youtube').getAttribute('aria-checked')).toBe('false');
@@ -307,17 +304,30 @@ describe('RulesPanel', () => {
     expect(buttonIn('Save').disabled).toBe(true);
   });
 
-  it('saves only the fields that changed', async () => {
+  // Stoney 2026-10-20: "the who is already covered in the sources pannel split by origin, so this one is useless".
+  it('shows no who-may-request section on the Requests tab, even when the saved rule carries an old floor', async () => {
     await open();
 
-    radio('subscribers').click();
+    const text = document.body.textContent ?? '';
+
+    expect(text).not.toContain('Who may request');
+    expect(radio('moderators')).toBeNull();
+    expect(radio('subscribers')).toBeNull();
+    expect(radio('everyone')).toBeNull();
+  });
+
+  it('saves only the fields that changed and never sends the old floor', async () => {
+    await open();
+
+    perPerson().value = '3';
+    perPerson().dispatchEvent(new Event('input'));
     await settle();
     expect(buttonIn('Save').disabled).toBe(false);
     buttonIn('Save').click();
     await settle();
 
     expect(puts()).toHaveLength(1);
-    expect(puts()[0]!.body).toEqual({ minTrustLevel: 'subscribers' });
+    expect(puts()[0]!.body).toEqual({ maxRequestsPerUser: 3 });
     expect(buttonIn('Save').disabled).toBe(true);
   });
 
@@ -551,14 +561,15 @@ describe('RulesPanel', () => {
   it('discards the edits without a request and shows the saved rule again', async () => {
     await open();
 
-    radio('everyone').click();
+    perPerson().value = '4';
+    perPerson().dispatchEvent(new Event('input'));
     await settle();
-    expect(radio('everyone').getAttribute('aria-checked')).toBe('true');
+    expect(perPerson().value).toBe('4');
     buttonIn('Discard').click();
     await settle();
 
     expect(calls).toHaveLength(0);
-    expect(radio('moderators').getAttribute('aria-checked')).toBe('true');
+    expect(perPerson().value).toBe('1');
     expect(buttonIn('Save').disabled).toBe(true);
   });
 
