@@ -17,6 +17,7 @@ import { queryClient } from '@/api/queryClient';
 import { i18n } from '@/i18n';
 
 import AdminPlatformDefaultsView from '../AdminPlatformDefaultsView.vue';
+import permissions from '../../settings/permissions/i18n/en.json';
 import en from '../i18n/en.json';
 import { dashboardAdminPlatformDefaultsRoute } from '../route';
 
@@ -219,6 +220,7 @@ beforeEach(() => {
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
+  i18n.global.mergeLocaleMessage('en', permissions);
 });
 
 afterEach(() => {
@@ -406,6 +408,37 @@ describe('AdminPlatformDefaultsView', () => {
 
     expect(values).toEqual(['shipped', '6', '10', '20', '30', '40']);
     expect(levelSelect().value).toBe('20');
+  });
+
+  it('names an action in plain words and never prints its internal key', async () => {
+    await open();
+
+    expect(row('moderation.ban').textContent).toContain('Ban a viewer');
+    expect(row('moderation.ban').querySelector('p')?.textContent).not.toContain('moderation.ban');
+    expect(row('moderation.ban').querySelector('code')).toBeNull();
+  });
+
+  it('keeps the detail line of every action row in one fixed stack', async () => {
+    await open();
+
+    const details = document.body.querySelectorAll('[data-action] [data-detail]');
+
+    expect(details).toHaveLength(2);
+    details.forEach((detail) => expect(detail.className).toContain('flex-col'));
+  });
+
+  it('shows an error, never the empty text, in every section when the server refuses the lists', async () => {
+    refused = true;
+    await open();
+
+    const sections = ['actions', 'builtin-replies', 'event-responses', 'tts-voice'];
+
+    sections.forEach((name) => {
+      const text = document.body.querySelector(`[data-section="${name}"]`)?.textContent ?? '';
+
+      expect(text, name).toContain('You may not see the platform defaults.');
+      expect(text, name).not.toMatch(/No .* (are|is) listed/);
+    });
   });
 
   it('shows the forbidden text when the server refuses the list', async () => {

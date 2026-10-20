@@ -30,12 +30,15 @@ import { usePlatformCan } from '@/composables/usePlatformCan';
 import { usePlatformDefaultListError } from '@/composables/usePlatformDefaultListError';
 import { usePlatformDefaultPreview } from '@/composables/usePlatformDefaultPreview';
 
+import { useActionName } from '@/views/dashboard/settings/permissions/actionArea';
+
 import PlatformDefaultPreview from './PlatformDefaultPreview.vue';
 
 const SHIPPED = 'shipped';
 
 const { t } = useI18n();
 const { can } = usePlatformCan();
+const nameOf = useActionName();
 
 const actions = useAdminActionDefaults();
 const save = useSaveActionDefault();
@@ -158,7 +161,7 @@ function apply(): void {
       >
         <div class="min-w-0 flex-1">
           <p class="flex flex-wrap items-center gap-2 text-sm font-medium">
-            <code class="text-xs">{{ row.actionKey }}</code>
+            {{ nameOf(row) }}
             <StatusBadge
               v-if="row.platformDefaultLevel !== null && row.platformDefaultLevel !== undefined"
               data-changed
@@ -166,8 +169,8 @@ function apply(): void {
               :label="$t('dashboard.admin.platformDefaults.actions.changed')"
             />
           </p>
-          <p v-if="row.description" class="text-sm text-muted-foreground">{{ row.description }}</p>
-          <p class="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
+          <p v-if="row.description && row.description !== nameOf(row)" class="text-sm text-muted-foreground">{{ row.description }}</p>
+          <p data-detail class="flex flex-col text-xs text-muted-foreground">
             <span>{{
               $t("dashboard.admin.platformDefaults.actions.shipped", {
                 role: levelName(row.shippedDefaultLevel),
@@ -198,7 +201,7 @@ function apply(): void {
     :open="editing !== null"
     :title="
       $t('dashboard.admin.platformDefaults.actions.dialog.title', {
-        action: editing?.actionKey ?? '',
+        action: editing ? nameOf(editing) : '',
       })
     "
     :description="$t('dashboard.admin.platformDefaults.actions.dialog.description')"
