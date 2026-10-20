@@ -18,6 +18,7 @@
             "tts_max_characters": "Lengte van tekst-naar-spraakbericht",
             "custom_commands": "Eigen commando's",
             "timers": "Timers",
+            "event_responses": "Gebeurtenisreacties",
             "response_variations_per_trigger": "Antwoordvarianten per trigger"
           },
           "storage": {
@@ -46,6 +47,7 @@
           "description": "Het abonnement dat je limieten bepaalt.",
           "error": "Het abonnement kon niet worden geladen.",
           "tier": "Abonnement",
+          "unnamed": "Jouw abonnement",
           "customBotName": "Eigen botnaam",
           "prioritySupport": "Voorrangssupport",
           "yes": "Inbegrepen",

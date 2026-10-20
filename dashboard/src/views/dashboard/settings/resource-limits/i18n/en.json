@@ -18,6 +18,7 @@
             "tts_max_characters": "Text-to-speech message length",
             "custom_commands": "Custom commands",
             "timers": "Timers",
+            "event_responses": "Event responses",
             "response_variations_per_trigger": "Response variations per trigger"
           },
           "storage": {
@@ -46,6 +47,7 @@
           "description": "The plan that sets your limits.",
           "error": "The plan could not be loaded.",
           "tier": "Plan",
+          "unnamed": "Your plan",
           "customBotName": "Custom bot name",
           "prioritySupport": "Priority support",
           "yes": "Included",

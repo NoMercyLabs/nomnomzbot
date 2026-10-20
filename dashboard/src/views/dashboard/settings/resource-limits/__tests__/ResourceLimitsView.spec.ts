@@ -109,6 +109,13 @@ function answer(path: string): Answer {
   if (path.endsWith('/billing/usage'))
     return { data: { data: usage }, response: { ok: true, status: 200 } };
 
+  if (path.endsWith('/billing/tiers'))
+    return { data: { data: [{
+      key: 'plus',
+      displayName: 'Plus',
+      sortOrder: 1,
+    }] }, response: { ok: true, status: 200 } };
+
   return { data: { data: entitlement }, response: { ok: true, status: 200 } };
 }
 
@@ -225,7 +232,7 @@ describe('Resource limits page', () => {
   it('shows the plan and the restriction marker for hosted operation', async () => {
     await open();
 
-    expect(document.body.querySelector('[data-plan="tier"]')?.textContent).toBe('plus');
+    expect(document.body.querySelector('[data-plan="tier"]')?.textContent).toBe('Plus');
     expect(document.body.querySelector('[data-plan="custom-bot-name"]')?.textContent).toBe('Included');
     expect(document.body.querySelector('[data-plan="priority-support"]')?.textContent).toBe('Not included');
     expect(document.body.querySelector('[data-restricted]')?.textContent).toContain('restricted option');
@@ -237,6 +244,52 @@ describe('Resource limits page', () => {
     expect(text()).toContain('Text-to-speech characters');
     expect(text()).toContain('250 of 1,000');
     expect(text()).toContain('Oct 1, 2026 to Nov 1, 2026');
+  });
+
+  it('names every metered resource in words, shows zero in a readable unit and leaves out the per-message cap', async () => {
+    const extra = [
+      {
+        metricKey: 'event_responses',
+        used: 0,
+        limit: 400,
+        remaining: 400,
+        periodStart: '2026-10-01T00:00:00Z',
+        periodEnd: '2026-11-01T00:00:00Z',
+      },
+      {
+        metricKey: 'tts_max_characters',
+        used: 0,
+        limit: 8000,
+        remaining: 8000,
+        periodStart: '2026-10-01T00:00:00Z',
+        periodEnd: '2026-11-01T00:00:00Z',
+      },
+      {
+        metricKey: 'sound_clip_storage_bytes',
+        used: 0,
+        limit: gigabytes2,
+        remaining: gigabytes2,
+        periodStart: '2026-10-01T00:00:00Z',
+        periodEnd: '2026-11-01T00:00:00Z',
+      },
+    ];
+
+    usage.push(...extra);
+
+    try {
+      await open();
+
+      const body = text();
+
+      expect(body).toContain('Event responses');
+      expect(body).not.toContain('event_responses');
+      expect(body).not.toContain('sound_clip_storage_bytes');
+      expect(body).not.toContain('tts_max_characters');
+      expect(body).toContain('0 MB of 2 GB');
+      expect(body).not.toContain('0 byte');
+    } finally {
+      usage.splice(usage.length - extra.length, extra.length);
+    }
   });
 
   it('puts the plan before the limits', async () => {

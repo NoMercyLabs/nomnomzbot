@@ -14,6 +14,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
+import { useBillingTiers } from '@/api/billing';
 import { useEntitlement, useResourceLimits, useUsageMetrics, type UsageMetric } from '@/api/resourceLimits';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -26,7 +27,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import LimitMeter from './components/LimitMeter.vue';
 import LimitSection from './components/LimitSection.vue';
-import { groupLimits, metricRowOf, type MetricRow } from './limitRows';
+import { groupLimits, isMetered, metricRowOf, type MetricRow } from './limitRows';
 
 const { t, te, d } = useI18n();
 const router = useRouter();
@@ -36,9 +37,16 @@ const { can } = useCan();
 const limits = useResourceLimits(channelId);
 const usage = useUsageMetrics(channelId);
 const plan = useEntitlement(channelId);
+const tiers = useBillingTiers(channelId);
+
+const planName = computed(() =>
+  (tiers.data.value ?? []).find((tier) => tier.key === plan.data.value?.tierKey)?.displayName ??
+  t('dashboard.settings.resourceLimits.plan.unnamed'));
 
 const groups = computed(() => groupLimits(limits.data.value ?? []));
-const metrics = computed(() => (usage.data.value ?? []).map(metricRowOf));
+const metrics = computed(() => (usage.data.value ?? [])
+  .filter((item) => isMetered(item.metricKey))
+  .map(metricRowOf));
 const period = computed(() => periodOf(usage.data.value ?? []));
 const billingLinked = computed(() => router.hasRoute('dashboard-settings-billing'));
 
@@ -77,9 +85,13 @@ function periodOf(items: readonly UsageMetric[]): string {
 // A metric the page has a word for shows that word; a new one shows its key until a word is added.
 function metricLabel(row: MetricRow): string {
   const path = `dashboard.settings.resourceLimits.metrics.${row.key}`;
+  const limitPath = `dashboard.settings.resourceLimits.limits.names.${row.key}`;
 
-  return te(path)
-    ? t(path)
+  if (te(path))
+    return t(path);
+
+  return te(limitPath)
+    ? t(limitPath)
     : row.key;
 }
 
@@ -110,7 +122,7 @@ function yesNo(value: boolean | undefined): string {
         <dl v-if="plan.data.value" class="grid gap-2 text-sm">
           <div class="flex items-baseline justify-between gap-4">
             <dt class="text-muted-foreground">{{ $t('dashboard.settings.resourceLimits.plan.tier') }}</dt>
-            <dd data-plan="tier" class="font-medium">{{ plan.data.value.tierKey }}</dd>
+            <dd data-plan="tier" class="font-medium">{{ planName }}</dd>
           </div>
           <div class="flex items-baseline justify-between gap-4">
             <dt class="text-muted-foreground">{{ $t('dashboard.settings.resourceLimits.plan.customBotName') }}</dt>

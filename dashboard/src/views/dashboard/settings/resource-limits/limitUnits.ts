@@ -63,9 +63,14 @@ export function formatAmount(value: number, unit: LimitUnit, locale: string): st
   if (unit === 'count')
     return new Intl.NumberFormat(locale).format(value);
 
-  const step = stepFor(value, unit === 'bytes'
+  const steps = unit === 'bytes'
     ? byteSteps
-    : timeSteps);
+    : timeSteps;
+
+  // Nothing used reads "0 MB" or "0 min", not "0 byte".
+  const step = value === 0
+    ? steps[1]!
+    : stepFor(value, steps);
 
   return formatIn(value, step, locale);
 }

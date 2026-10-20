@@ -47,6 +47,11 @@ export type LimitGroups = {
 // A cap on one message, not a total used up over time: it has no usage to count, so it gets no bar.
 const perMessageKeys = new Set<string>(['tts_max_characters']);
 
+// A per-message cap is a limit and not a metered total, so the usage list leaves it out.
+export function isMetered(key: string): boolean {
+  return !perMessageKeys.has(key);
+}
+
 const nearAt = 80;
 
 // The bot sends 64-bit numbers as a number or, when it is large, as a string.
