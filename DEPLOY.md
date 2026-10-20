@@ -32,6 +32,10 @@ app flag (single dash on Windows — that's PowerShell's native flag style):
 - **Linux / macOS:** `./deploy.sh desktop --app`
 - **Windows (PowerShell):** `.\deploy.ps1 desktop -App`
 
+Prefer Docker but want no Postgres or Redis? Use the one-container SQLite stack:
+`docker compose -f docker-compose.lite.yml up -d --build`. See
+[docs/install-docker-lite.md](docs/install-docker-lite.md).
+
 Rule of thumb: start with **desktop**. Move to **docker** when you want Postgres-grade durability
 or the bot lives on a server. **saas** is a **restricted option** — see its section below.
 

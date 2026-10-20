@@ -196,6 +196,9 @@ single-file path and SaaS mode are covered in **[DEPLOY.md](DEPLOY.md)**. On fir
 reference data (TTS voices, permission presets), and connects the Twitch EventSub WebSocket. Point your
 dashboard at `http://localhost:5080` (or your exposed URL) and run the setup above.
 
+No Postgres or Redis wanted? Run the one-container SQLite stack instead: see
+[Install with Docker, without Postgres or Redis](docs/install-docker-lite.md).
+
 For local backend development without Docker (`dotnet run`), see [Development](#development).
 
 #### Key URLs

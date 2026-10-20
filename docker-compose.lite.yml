@@ -1,0 +1,75 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+
+# NomNomzBot - self_host_lite in Docker: one container, SQLite, no Postgres, no Redis.
+#
+#   docker compose -f docker-compose.lite.yml up -d
+#
+# Same image as docker-compose.yml. Everything the bot keeps (the SQLite database with its
+# -wal and -shm files, the generated secrets, uploads, logs) lives under /app/data, so ONE
+# mount holds all state. Never split the database from its -wal/-shm files.
+#
+# ONE container only. SQLite allows a single writer, so there is no blue/green here. To
+# update: pull the new image and run `docker compose -f docker-compose.lite.yml up -d`.
+#
+# Secrets are optional: when JWT_SECRET / ENCRYPTION_KEY are empty the bot generates its own
+# and stores them in the data folder. Twitch credentials can be set in the dashboard wizard.
+# saas is RESTRICTED: operating NomNomzBot as a hosted service for others is reserved to NoMercy Labs (see DEPLOY.md). Self-hosting your own bot is always free.
+
+services:
+  api:
+    # Build from the repo, or pull a published image with API_IMAGE=ghcr.io/nomercylabs/nomnomzbot:latest in .env.
+    image: ${API_IMAGE:-nomnomzbot-api:local}
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: nomnomzbot-lite
+    ports:
+      - "${API_HTTP_PORT:-5080}:5000"
+    environment:
+      - ASPNETCORE_ENVIRONMENT=Production
+      - ASPNETCORE_URLS=http://+:5000
+      - NOMNOMZ_DATA_DIR=/app/data
+      - Deployment__Mode=self_host_lite
+      - Jwt__Secret=${JWT_SECRET:-}
+      - Jwt__Issuer=${JWT_ISSUER:-nomnomzbot}
+      - Jwt__Audience=${JWT_AUDIENCE:-nomnomzbot}
+      - Encryption__Key=${ENCRYPTION_KEY:-}
+      - App__BaseUrl=${API_BASE_URL:-http://localhost:5080}
+      - App__InitialAdminTwitchId=${INITIAL_ADMIN_TWITCH_ID:-}
+      - Twitch__ClientId=${TWITCH_CLIENT_ID:-}
+      - Twitch__ClientSecret=${TWITCH_CLIENT_SECRET:-}
+      - Twitch__BotUsername=${TWITCH_BOT_USERNAME:-}
+      - Twitch__BotUserId=${TWITCH_BOT_USER_ID:-}
+      - Spotify__ClientId=${SPOTIFY_CLIENT_ID:-}
+      - Spotify__ClientSecret=${SPOTIFY_CLIENT_SECRET:-}
+      - Discord__ClientId=${DISCORD_CLIENT_ID:-}
+      - Discord__ClientSecret=${DISCORD_CLIENT_SECRET:-}
+      - YouTube__ClientId=${YOUTUBE_CLIENT_ID:-}
+      - YouTube__ClientSecret=${YOUTUBE_CLIENT_SECRET:-}
+      - YouTube__ApiKey=${YOUTUBE_API_KEY:-}
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:5000/health/live || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    # Stop gracefully so SQLite can checkpoint its -wal file.
+    stop_grace_period: 40s
+    volumes:
+      # Default: a named volume. To keep the data in a plain folder you can copy, swap to the bind mount.
+      - lite_data:/app/data
+      # - ./data:/app/data
+
+volumes:
+  lite_data:
+    # A fixed name, so the backup command in docs/install-docker-lite.md works from any folder.
+    name: nomnomzbot_lite_data
