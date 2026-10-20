@@ -107,7 +107,7 @@ public sealed class TtsSpeakBroadcastHandler(
     /// </summary>
     private void WarnIfNoAudioPage(Guid broadcasterId)
     {
-        if (presence.IsAudioSourceConnected(broadcasterId))
+        if (presence.GetTtsTarget(broadcasterId) is not null)
             return;
 
         logger.LogWarning(

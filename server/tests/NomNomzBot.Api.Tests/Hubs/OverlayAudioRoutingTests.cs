@@ -553,6 +553,7 @@ public sealed class OverlayAudioRoutingTests
         await page.Hub.JoinWidgetWithSdk(captionWidget.ToString(), "v1");
 
         page.Registry.IsAudioSourceConnected(Broadcaster).Should().BeFalse();
+        page.Registry.GetTtsTarget(Broadcaster).Should().Be("caption-conn");
     }
 
     [Fact]

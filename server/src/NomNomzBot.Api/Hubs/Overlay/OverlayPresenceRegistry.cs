@@ -33,11 +33,15 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
     /// <summary>The canonical gallery key of the Audio page — the one widget every sound and TTS line plays on.</summary>
     public const string AudioSourceNaturalKey = WidgetKeyAliases.Audio;
 
+    /// <summary>The gallery key of the TTS page — spoken messages play there when it is open.</summary>
+    public const string TtsSourceNaturalKey = "tts_caption";
+
     private sealed record OverlayConnection(
         Guid BroadcasterId,
         long Order,
         bool IsAudioSource,
-        Guid? AudioWidgetId
+        Guid? AudioWidgetId,
+        bool IsTtsSource = false
     );
 
     /// <summary>A widget-scoped connection and the exact token it connected with, kept so a rotation can close it.</summary>
@@ -89,6 +93,27 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
                     IsAudioSource = true,
                     AudioWidgetId = widgetId,
                 };
+    }
+
+    /// <summary>Marks a connection as a TTS page; it becomes the newest one.</summary>
+    public void MarkTtsSource(string connectionId)
+    {
+        lock (_audioLock)
+            if (_overlays.TryGetValue(connectionId, out OverlayConnection? current))
+                _overlays[connectionId] = current with { Order = ++_order, IsTtsSource = true };
+    }
+
+    public string? GetTtsTarget(Guid broadcasterId)
+    {
+        lock (_audioLock)
+        {
+            KeyValuePair<string, OverlayConnection>[] sources = _overlays
+                .Where(o => o.Value.BroadcasterId == broadcasterId && o.Value.IsTtsSource)
+                .ToArray();
+            if (sources.Length > 0)
+                return sources.MaxBy(o => o.Value.Order).Key;
+        }
+        return GetAudioTarget(broadcasterId);
     }
 
     public string? GetAudioTarget(Guid broadcasterId)

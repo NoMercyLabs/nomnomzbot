@@ -148,6 +148,7 @@ public sealed class TtsSpeakBroadcastHandlerTests
         Guid channel = Guid.CreateVersion7();
         IOverlayPresenceRegistry presence = Substitute.For<IOverlayPresenceRegistry>();
         presence.IsAudioSourceConnected(channel).Returns(audioPageConnected);
+        presence.GetTtsTarget(channel).Returns(audioPageConnected ? "audio-conn" : null);
         ILogger<TtsSpeakBroadcastHandler> logger = Substitute.For<
             ILogger<TtsSpeakBroadcastHandler>
         >();

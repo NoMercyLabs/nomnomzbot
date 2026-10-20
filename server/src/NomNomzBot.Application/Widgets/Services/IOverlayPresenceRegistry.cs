@@ -39,6 +39,12 @@ public interface IOverlayPresenceRegistry
     /// </summary>
     string? GetAudioTarget(Guid broadcasterId);
 
+    /// <summary>
+    /// The connection spoken messages (TTS) play on: the most recently joined TTS page (gallery key
+    /// <c>tts_caption</c>). With no TTS page open, the Audio source page, so the stream still hears it.
+    /// </summary>
+    string? GetTtsTarget(Guid broadcasterId) => GetAudioTarget(broadcasterId);
+
     /// <summary>The widget hosted by the selected Audio source connection, or null when none is open.</summary>
     Guid? GetAudioWidgetId(Guid broadcasterId) => null;
 

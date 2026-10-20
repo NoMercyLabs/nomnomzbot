@@ -256,7 +256,8 @@ public static class FirstPartyWidgetCatalogue
         new(
             Key: WidgetKeyAliases.Audio,
             Name: "Bot Audio",
-            Description: "Sound clips, redemption sounds and spoken messages (TTS) come out of this one browser source. Add it once, size it 1x1, and leave it — keep "
+            Description: "Sound clips and redemption sounds come out of this one browser source; spoken messages (TTS) too, "
+                + "until a TTS Caption source is open. Add it once, size it 1x1, and leave it — keep "
                 + "\"Control audio via OBS\" ON or the stream will not hear it. Renders nothing; the optional "
                 + "indicator is only for confirming the source is alive during setup. Music plays from the Music Player widget.",
             DefaultSettings: new() { ["showIndicator"] = false, ["accentColor"] = "#9146ff" },
@@ -282,7 +283,8 @@ public static class FirstPartyWidgetCatalogue
         new(
             Key: "tts_caption",
             Name: "TTS Caption",
-            Description: "A speaking indicator with a live caption for TTS playback — animated voice bars, the "
+            Description: "Spoken messages (TTS) play from this browser source — keep \"Control audio via OBS\" ON. "
+                + "Shows a speaking indicator with a live caption — animated voice bars, the "
                 + "speaker's name, optional voice label, top or bottom placement — hidden while nothing speaks.",
             DefaultSettings: new()
             {
