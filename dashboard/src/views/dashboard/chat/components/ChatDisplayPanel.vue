@@ -15,11 +15,13 @@ import ArrowCounterClockwise from '~icons/nnz/arrow-counter-clockwise';
 import ArrowRight from '~icons/nnz/arrow-right';
 import Check from '~icons/nnz/check';
 
+import { useChannelFeatures } from '@/api/features';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import { chatDisplayDefaults, type ChatDisplay } from '../chatDisplay';
 
@@ -30,6 +32,8 @@ type SegmentName = 'timestamps' | 'nameColors' | 'spacing' | 'rows' | 'emoteSize
 const display = defineModel<ChatDisplay>({ required: true });
 
 const { t } = useI18n();
+const { channelId } = useCurrentChannel();
+const features = useChannelFeatures(channelId);
 
 // The label key of each value, under dashboard.chat.display.
 const segmentKeys = {
@@ -121,6 +125,15 @@ function segmentRowClass(name: SegmentName): string {
     : 'items-center';
 }
 
+// The HTML switch only means something while the channel draws HTML in chat (off by default).
+const htmlOn = computed(() =>
+  features.data.value?.some((feature) =>
+    feature.featureKey === 'use_chat_html' && feature.isEnabled) ?? false);
+
+function offered(names: readonly SwitchName[]): SwitchName[] {
+  return names.filter((name) => name !== 'htmlAsText' || htmlOn.value);
+}
+
 function set(name: SwitchName | SegmentName, value: boolean | string): void {
   display.value = { ...display.value, [name]: value };
 }
@@ -159,7 +172,7 @@ function reset(): void {
         </h3>
         <RowGroup>
           <SettingRow
-            v-for="name in section.switches"
+            v-for="name in offered(section.switches)"
             :key="name"
             :data-option="name"
             :title="$t(`dashboard.chat.display.option.${name}`)"

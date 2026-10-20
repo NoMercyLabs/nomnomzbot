@@ -76,7 +76,7 @@
           "htmlAsText": "HTML als gewone tekst tonen"
         },
         "help": {
-          "htmlAsText": "Toont de code van een HTML-bericht in plaats van het te tekenen. De kanaalschakelaar voor HTML in de chat staat bij Instellingen › Functies."
+          "htmlAsText": "Toont de code van een HTML-bericht in plaats van het te tekenen."
         },
         "off": "Uit",
         "hour24": "24-uurs",

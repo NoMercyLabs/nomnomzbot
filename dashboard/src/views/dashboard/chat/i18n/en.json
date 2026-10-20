@@ -76,7 +76,7 @@
           "htmlAsText": "Show HTML as plain text"
         },
         "help": {
-          "htmlAsText": "Shows the code of an HTML message instead of drawing it. The channel switch for HTML in chat is in Settings › Features."
+          "htmlAsText": "Shows the code of an HTML message instead of drawing it."
         },
         "off": "Off",
         "hour24": "24-hour",

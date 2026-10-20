@@ -70,6 +70,7 @@ let heldKeys: string[] = moderatorKeys;
 let searchPages: Record<string, SearchPage> = {};
 
 let favoriteList: Record<string, unknown>[] = [];
+let htmlFeatureOn: boolean = false;
 
 const emoteList: ChatEmoteEntry[] = ['bigCat', 'catKISS', 'catJAM', 'Kappa'].map((code) => ({
   id: `id-${code}`,
@@ -171,6 +172,13 @@ vi.mock('@/api/client', () => ({
               badges: [],
             },
           },
+          response: { status: 200, ok: true },
+        };
+      }
+
+      if (path.endsWith('/features')) {
+        return {
+          data: { data: [{ featureKey: 'use_chat_html', isEnabled: htmlFeatureOn }] },
           response: { status: 200, ok: true },
         };
       }
@@ -326,6 +334,7 @@ beforeEach(() => {
   localStorage.clear();
   sendOk = true;
   signedInAs = 'stoney_eagle';
+  htmlFeatureOn = false;
   heldKeys = moderatorKeys;
   searchPages = {};
 
@@ -1230,12 +1239,14 @@ describe('ChatView display drawer', () => {
   });
 
   // Stoney: "where is the toggle for changing html rendering to plain text?"
-  it('html as text: the option shows the markup as plain words, is kept on this device, and says where the channel switch is', async () => {
+  it('html as text: with the channel feature on, the option shows the markup as plain words and is kept on this device', async () => {
     history = [
       line('m1', 'u1', 'Alice', 'raw', {
         fragments: [{ type: 'html', text: '<b>loud</b> words' }],
       }),
     ];
+
+    htmlFeatureOn = true;
 
     await open();
     expect(rowOf('m1').querySelector('[data-html] b')?.textContent).toBe('loud');
@@ -1243,8 +1254,7 @@ describe('ChatView display drawer', () => {
     await showPanel();
     expect(option('htmlAsText').textContent).toContain(display.option.htmlAsText);
     expect(option('htmlAsText').textContent).toContain(display.help.htmlAsText);
-    expect(display.help.htmlAsText).toContain('Settings');
-    expect(display.help.htmlAsText).toContain('Features');
+    expect(display.help.htmlAsText).not.toContain('Features');
 
     await flip('htmlAsText');
     expect(stored().htmlAsText).toBe(true);
@@ -1254,6 +1264,15 @@ describe('ChatView display drawer', () => {
     await flip('htmlAsText');
     expect(stored().htmlAsText).toBe(false);
     expect(rowOf('m1').querySelector('[data-html] b')?.textContent).toBe('loud');
+  });
+
+  // Stoney: "i need the change made for the html toggle so its not showing if the feature is off (which it is by default)."
+  it('html as text: with the channel feature off, the option is not offered', async () => {
+    await open();
+    await showPanel();
+
+    expect(document.body.querySelector('[data-option="htmlAsText"]')).toBeNull();
+    expect(document.body.querySelector('[data-option="mentions"]')).not.toBeNull();
   });
 
   it('Reset puts every option back to its default', async () => {
