@@ -61,6 +61,13 @@ const reads = {
     maxRedemptions: 5,
     redemptionCount: 2,
     grantsFoundersBadge: false,
+  }, {
+    id: 'v2',
+    code: 'OLDCODE',
+    maxRedemptions: 3,
+    redemptionCount: 1,
+    grantsFoundersBadge: false,
+    expiresAt: '2020-01-01T00:00:00Z',
   }],
   '/priced-units': [{
     id: 'u1',
@@ -157,6 +164,34 @@ describe('AdminBillingView', () => {
     expect(text()).toContain('2 of 5 used');
     expect(text()).toContain('tts');
     expect(text()).toContain('restricted option');
+  });
+
+  it('revokes one invite code by its id, and only after the confirm', async () => {
+    await open();
+
+    hook('[data-invite-row="v1"] [data-invite-revoke]').click();
+    await settle();
+
+    expect(text()).toContain('Revoke WELCOME?');
+    expect(calls.filter((call) => call.path.includes('/revoke'))).toHaveLength(0);
+
+    hook('[data-confirm-action]').click();
+    await settle();
+
+    const posts = calls.filter((call) => call.path.includes('/revoke'));
+
+    expect(posts).toHaveLength(1);
+    expect(posts.map((post) => post.method)).toStrictEqual(['POST']);
+  });
+
+  it('marks a revoked or expired code and offers no second revoke on it', async () => {
+    await open();
+
+    const row = hook('[data-invite-row="v2"]');
+
+    expect(row.textContent).toContain('Revoked or expired');
+    expect(row.querySelector('[data-invite-revoke]')).toBeNull();
+    expect(hook('[data-invite-row="v1"]').textContent).not.toContain('Revoked or expired');
   });
 
   it('counts the affected channels before it saves a tier, and sends that count back', async () => {

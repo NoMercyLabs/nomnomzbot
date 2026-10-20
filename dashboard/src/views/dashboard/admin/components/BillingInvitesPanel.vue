@@ -55,6 +55,11 @@ const maxRedemptions = ref('1');
 const tierId = ref('');
 const foundersBadge = ref(false);
 
+// Revoking sets the expiry to now, so a code with a past expiry has ended and cannot be revoked again.
+function isEnded(invite: InviteCode): boolean {
+  return invite.expiresAt != null && new Date(invite.expiresAt).getTime() <= Date.now();
+}
+
 async function submit(): Promise<void> {
   await create.mutateAsync({
     maxRedemptions: Number(maxRedemptions.value),
@@ -94,16 +99,19 @@ async function confirmRevoke(): Promise<void> {
       </Button>
     </template>
     <ul class="grid divide-y divide-border text-sm">
-      <li v-for="invite in rows" :key="invite.id" data-invite-row class="flex items-center gap-3 px-2 py-2">
-        <code class="font-mono">{{ invite.code }}</code>
+      <li v-for="invite in rows" :key="invite.id" :data-invite-row="invite.id" class="flex items-center gap-3 px-2 py-2">
+        <code class="font-mono" :class="{ 'text-muted-foreground line-through': isEnded(invite) }">{{ invite.code }}</code>
         <span class="min-w-0 flex-1 text-muted-foreground tabular-nums">
           {{ t('dashboard.admin.billing.invites.redemptions', { used: invite.redemptionCount, max: invite.maxRedemptions }) }}
+          <Badge v-if="isEnded(invite)" variant="outline" data-invite-ended>
+            {{ t("dashboard.admin.billing.invites.ended") }}
+          </Badge>
           <Badge v-if="invite.grantsTierKey" variant="secondary">{{ invite.grantsTierKey }}</Badge>
           <Badge v-if="invite.grantsFoundersBadge" variant="secondary">
             {{ t("dashboard.admin.billing.invites.founder") }}
           </Badge>
         </span>
-        <Button v-if="can('billing:write')"
+        <Button v-if="can('billing:write') && !isEnded(invite)"
                 variant="outline"
                 size="sm"
                 data-invite-revoke
