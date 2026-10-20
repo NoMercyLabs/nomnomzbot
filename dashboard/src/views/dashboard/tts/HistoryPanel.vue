@@ -12,7 +12,7 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { useTtsHistory, useTtsVoices, type TtsHistoryEntry } from '@/api/tts';
+import { useTtsHistory, type TtsHistoryEntry } from '@/api/tts';
 import DateTime from '@/components/layout/DateTime.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -21,13 +21,13 @@ import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import type { PanelState } from '@/composables/usePanelState';
 
+import VoiceLabel from './VoiceLabel.vue';
+
 import ChevronDown from '~icons/nnz/chevron-down';
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const history = useTtsHistory(channelId);
-// The same first page the Voices tab loads, so a voice reads by its name here too.
-const catalog = useTtsVoices(channelId, () => ({ q: '' }));
 
 const entries = computed<TtsHistoryEntry[]>(() =>
   (history.data.value?.pages ?? []).flatMap((page) => page.items));
@@ -44,11 +44,6 @@ const state = computed<PanelState>(() => {
     : 'ready';
 });
 
-function voiceName(voiceId: string): string {
-  const loaded = (catalog.data.value?.pages ?? []).flatMap((page) => page.voices);
-
-  return loaded.find((voice) => voice.id === voiceId)?.displayName ?? voiceId;
-}
 </script>
 
 <template>
@@ -78,11 +73,12 @@ function voiceName(voiceId: string): string {
         </p>
         <p class="flex flex-wrap items-center gap-x-3 text-sm text-muted-foreground">
           <UserName
+            v-if="entry.requestedByName"
             :user-id="entry.requestedByUserId"
-            :name="entry.requestedByName || t('dashboard.tts.history.unknownViewer')"
+            :name="entry.requestedByName"
             :color="entry.requestedByColor"
           />
-          <span>{{ voiceName(entry.voiceId) }}</span>
+          <VoiceLabel :voice-id="entry.voiceId" />
           <DateTime :value="entry.occurredAt" variant="relative" />
         </p>
       </div>

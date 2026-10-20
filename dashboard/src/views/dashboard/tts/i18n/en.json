@@ -17,7 +17,6 @@
         "empty": "Nothing has been read aloud yet. Messages show here as the bot speaks them.",
         "error": "The spoken history could not be loaded.",
         "noText": "Spoken before the bot kept the text.",
-        "unknownViewer": "Unknown viewer",
         "older": "Show older messages"
       },
       "settings": {
@@ -152,7 +151,7 @@
         },
         "maxCharacters": {
           "title": "Maximum characters",
-          "description": "A longer bot reply is cut at a word. A longer viewer message is not read out. Between 1 and 500.",
+          "description": "Bot replies are cut at a word. Viewers' are refused.",
           "value": "{count} characters"
         },
         "cooldown": {

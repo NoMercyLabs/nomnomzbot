@@ -311,8 +311,54 @@ describe('TtsView overview', () => {
     expect(rows[0]!.textContent).toContain('Aria (US)');
     expect(rows[0]!.querySelector('time')).not.toBeNull();
     expect(rows[1]!.textContent).toContain('Spoken before the bot kept the text.');
-    expect(rows[1]!.textContent).toContain('Unknown viewer');
+    expect(rows[1]!.textContent).not.toContain('Unknown viewer');
+    expect(rows[1]!.querySelector('[data-slot="user-name"], button, a')).toBeNull();
     expect(panel('Spoken history').querySelector('[data-slot="history-older"]')).toBeNull();
+  });
+
+  it('looks a spoken voice up by its id when it is not in the first catalog page', async () => {
+    answers['/tts/voices'] = () => {
+      const asked = (queries[queries.length - 1] as { q?: string } | undefined)?.q;
+
+      return ok(
+        asked === 'ru-RU-SvetlanaNeural'
+          ? [
+              {
+                id: 'ru-RU-SvetlanaNeural',
+                displayName: 'Svetlana (Russia)',
+                locale: 'ru-RU',
+                gender: 'female',
+                provider: 'edge',
+              },
+            ]
+          : [],
+      );
+    };
+
+    answers['/tts/history'] = () =>
+      ok({
+        items: [
+          {
+            id: 5,
+            text: 'privet',
+            voiceId: 'ru-RU-SvetlanaNeural',
+            provider: 'edge',
+            requestedByUserId: '42',
+            requestedByName: 'Viewer One',
+            requestedByColor: null,
+            occurredAt: '2026-10-20T10:00:00Z',
+          },
+        ],
+        nextBefore: null,
+      });
+
+    await open();
+    await flushPromises();
+
+    const row = panel('Spoken history').querySelector<HTMLElement>('[data-history-row]')!;
+
+    expect(row.textContent).toContain('Svetlana (Russia)');
+    expect(row.textContent).not.toContain('ru-RU-SvetlanaNeural');
   });
 
   it('asks for the next older page with the cursor when Show older messages is pressed', async () => {

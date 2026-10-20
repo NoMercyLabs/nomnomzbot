@@ -17,7 +17,6 @@
         "empty": "Er is nog niets hardop voorgelezen. Berichten verschijnen hier zodra de bot ze uitspreekt.",
         "error": "Het overzicht van uitgesproken berichten kon niet worden geladen.",
         "noText": "Uitgesproken voordat de bot de tekst bewaarde.",
-        "unknownViewer": "Onbekende kijker",
         "older": "Toon oudere berichten"
       },
       "settings": {
@@ -152,7 +151,7 @@
         },
         "maxCharacters": {
           "title": "Maximaal aantal tekens",
-          "description": "Een langer antwoord van de bot wordt bij een woord afgekapt. Een langer bericht van een kijker wordt niet voorgelezen. Tussen 1 en 500.",
+          "description": "Bot-antwoorden worden bij een woord afgekapt. Kijkers: geweigerd.",
           "value": "{count} tekens"
         },
         "cooldown": {
