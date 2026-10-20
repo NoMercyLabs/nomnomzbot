@@ -167,8 +167,8 @@ describe('raid_recap widget', () => {
       ]),
     );
 
-    // Eight data blocks have data, the grid has eight cells and the streamer card takes one: the last block is cut.
-    expect(blocks).not.toContain('topCommands');
+    // Eight data blocks have data and the streamer card is the ninth cell: no metric is dropped while a cell is free.
+    expect(blocks).toContain('topCommands');
 
     expect(wrapper.find('[data-block="peak"]').text()).toContain('36');
     expect(wrapper.find('[data-block="subs"]').text()).toContain('iFiLLz');
@@ -501,16 +501,23 @@ describe('raid_recap widget', () => {
       ]);
     });
 
-    it('never places more than eight blocks and every row adds up to the full width', async () => {
+    it('lays all eight data blocks and the streamer card as 3 rows of 3, the streamer card first in the bottom row', async () => {
       const full = { ...fixture, followers: 3 };
       const wrapper = show(full, { labels });
 
       await flushPromises();
-      const placed = spans(wrapper);
-      const widths = placed.map((cell) => cell[0] ?? 0);
+      const blocks: string[] = wrapper
+        .findAll('.grid [data-block]')
+        .map((b) => b.attributes('data-block') ?? '');
 
-      expect(placed.length).toBeLessThanOrEqual(8);
-      expect(widths.slice(0, 4).reduce((sum, n) => sum + n, 0)).toBe(12);
+      expect(blocks).toHaveLength(9);
+      expect(blocks.indexOf('streamer')).toBe(6);
+      expect(blocks).toContain('topCommands');
+      expect(spans(wrapper)).toEqual(Array.from({ length: 9 }, () => [4, 1]));
+
+      expect(wrapper.find('.grid').attributes('style')).toContain(
+        'grid-template-rows: repeat(3, minmax(0, 1fr))',
+      );
     });
 
     it('draws the channel avatar in the streamer card and names the channel in the header', async () => {
@@ -651,6 +658,7 @@ describe('raid_recap widget', () => {
       'showBits',
       'showFollowers',
       'showRedemptions',
+      'showTopCommands',
     ] as const;
     const withChannel = {
       ...fixture,
@@ -677,13 +685,13 @@ describe('raid_recap widget', () => {
       return rows;
     }
 
-    it.each([0, 1, 2, 3, 4, 5, 6, 7])(
+    it.each([0, 1, 2, 3, 4, 5, 6, 7, 8])(
       'is the first cell of the last row when %i metric blocks are shown',
       async (metricBlocks) => {
         const settings = Object.fromEntries(
           SHOWN.map((flag, i) => [flag, i < metricBlocks]),
         );
-        const wrapper = show(withChannel, { ...settings, showTopCommands: false });
+        const wrapper = show(withChannel, settings);
 
         await flushPromises();
         const rows = rowsOf(wrapper);
