@@ -234,12 +234,10 @@
           "channel": "Channel",
           "topic": "Topic",
           "state": "State",
-          "version": "Version",
           "confirmed": "Last confirmed",
           "error": "Last error"
         },
         "noSubscriptions": "No Twitch subscriptions",
-        "noError": "None",
         "working": "Working",
         "needAttention": "{broken} of {total} need attention",
         "subscriptions": "{count} subscription | {count} subscriptions",

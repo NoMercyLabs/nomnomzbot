@@ -234,12 +234,10 @@
           "channel": "Kanaal",
           "topic": "Onderwerp",
           "state": "Status",
-          "version": "Versie",
           "confirmed": "Laatst bevestigd",
           "error": "Laatste fout"
         },
         "noSubscriptions": "Geen abonnementen",
-        "noError": "Geen",
         "working": "Werkt",
         "needAttention": "{broken} van {total} hebben aandacht nodig",
         "subscriptions": "{count} abonnement | {count} abonnementen",

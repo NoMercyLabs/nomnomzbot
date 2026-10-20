@@ -190,12 +190,23 @@ describe('AdminEventSubHealthView', () => {
     await settle();
 
     expect(topicRows()).toHaveLength(2);
-    expect(topicRows()[0]!.textContent).toContain('channel.raid');
-    expect(topicRows()[0]!.textContent).toContain('authorization_revoked');
+    expect(topicRows()[0]!.textContent).toContain('Channel raid');
+    expect(topicRows()[0]!.textContent).toContain('Authorization revoked');
     expect(topicRows()[0]!.textContent).toContain('token gone');
-    expect(topicRows()[1]!.textContent).toContain('channel.follow');
+    expect(topicRows()[1]!.textContent).toContain('Channel follow');
     expect(topicRows()[1]!.textContent).toContain('Oct 1, 2026');
-    expect(topicRows()[1]!.textContent).toContain('2');
+  });
+
+  it('shows no raw topic key, version, mono text or empty-error word in the details', async () => {
+    await open();
+    byToggle(0)!.click();
+    await settle();
+
+    expect(text()).not.toContain('channel.follow');
+    expect(text()).not.toContain('authorization_revoked');
+    expect(text()).not.toContain('Version');
+    expect(text()).not.toContain('None');
+    expect(document.body.querySelector('[data-topic-row] .font-mono')).toBeNull();
   });
 
   it('pages the registry', async () => {
