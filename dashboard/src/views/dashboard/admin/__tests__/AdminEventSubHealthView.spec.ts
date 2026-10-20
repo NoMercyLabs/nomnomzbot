@@ -150,7 +150,8 @@ describe('AdminEventSubHealthView', () => {
     expect(channelRows()).toHaveLength(2);
     expect(channelRows()[0]!.textContent).toContain('Stoney_Eagle');
     expect(channelRows()[0]!.textContent).toContain('1 of 2 need attention');
-    expect(channelRows()[0]!.textContent).toContain('token gone');
+    expect(channelRows()[0]!.textContent).toContain('Re-authorize the channel');
+    expect(channelRows()[0]!.textContent).not.toContain('token gone');
     expect(channelRows()[0]!.querySelector('[data-tone="bad"]')).not.toBeNull();
     expect(channelRows()[1]!.textContent).toContain('Quiet_One');
     expect(channelRows()[1]!.textContent).toContain('No Twitch subscriptions');

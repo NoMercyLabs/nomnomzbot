@@ -265,7 +265,7 @@
         "working": "Werkt",
         "needAttention": "{broken} van {total} hebben aandacht nodig",
         "subscriptions": "{count} abonnement | {count} abonnementen",
-        "signInAgain": "De kanaaleigenaar moet opnieuw inloggen.",
+        "signInAgain": "Autoriseer het kanaal opnieuw.",
         "details": "Details",
         "list": {
           "title": "Bereikt Twitch elk kanaal?",
