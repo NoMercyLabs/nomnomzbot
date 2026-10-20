@@ -142,9 +142,10 @@
         "sources": "Bronnen",
         "allowSpotify": "Spotify-nummers toestaan",
         "allowYouTube": "YouTube-nummers toestaan",
-        "whoSpotify": "Wie Spotify-nummers mag aanvragen",
-        "whoYouTube": "Wie YouTube-nummers mag aanvragen",
-        "youTubeMusicOnly": "Alleen video's uit de YouTube-categorie Muziek of van artiestkanalen (- Topic)",
+        "whoSpotify": "Spotify-aanvragen",
+        "whoYouTube": "YouTube-aanvragen",
+        "youTubeMusicOnly": "Alleen muziekvideo's",
+        "youTubeMusicOnlyHelp": "Alleen video's uit de categorie Muziek of van artiestkanalen (- Topic).",
         "sourceRole": {
           "Everyone": "Iedereen",
           "Subscriber": "Twitch-abonnees en hoger",

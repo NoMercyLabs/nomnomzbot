@@ -107,7 +107,11 @@ function setSourceRung(actionKey: string, rung: string): void {
               @update:model-value="setSourceRung(sourceActions.youtube, $event)"
             />
           </RuleRow>
-          <RuleRow v-if="draft.allowYouTube" :title="$t('dashboard.music.rules.youTubeMusicOnly')">
+          <RuleRow
+            v-if="draft.allowYouTube"
+            :title="$t('dashboard.music.rules.youTubeMusicOnly')"
+            :description="$t('dashboard.music.rules.youTubeMusicOnlyHelp')"
+          >
             <GatedSwitch
               v-model="draft.youTubeMusicCategoryOnly"
               action="music:config:write"

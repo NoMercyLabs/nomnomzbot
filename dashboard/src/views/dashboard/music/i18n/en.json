@@ -142,9 +142,10 @@
         "sources": "Sources",
         "allowSpotify": "Allow Spotify songs",
         "allowYouTube": "Allow YouTube songs",
-        "whoSpotify": "Who can request Spotify songs",
-        "whoYouTube": "Who can request YouTube songs",
-        "youTubeMusicOnly": "Only videos in YouTube's Music category or from artist (- Topic) channels",
+        "whoSpotify": "Spotify requests",
+        "whoYouTube": "YouTube requests",
+        "youTubeMusicOnly": "Music videos only",
+        "youTubeMusicOnlyHelp": "Only videos in the Music category or from artist (- Topic) channels.",
         "sourceRole": {
           "Everyone": "Everyone",
           "Subscriber": "Twitch subscribers and up",
