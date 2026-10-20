@@ -47,6 +47,7 @@ editor, Economy balances, the music player buttons, Request rules, TTS Keys).
 - **S-PROFANITY-OFF-STILL-BLOCKS** — "censor profanity is disabled but JD's !telsell message did not work untill he removed Dick from his message."
 - **S-PRONUNCIATION-PREVIEW** — "my name pronounciation is not lined up, and it needs a preview button so the broadcaster can make it right without using twitch to find out."
 - **S-MEDIA-SHARE-PLAYBACK** — "media share is still not showing any playback opportunities, it is not playing on stream either, i need full control on all fronts on this, settings pannel has the same breakpoint issue as the other one previously mentioned."
+- **S-SYSTEM-COMMANDS-APART** — "!permit and the inverse should be a system command that is always on, we need to better handle system stuff and not have user stuff mixed in, so please check what is a manual duplicate of system stuff and move it out to system please." Done when: !permit and its inverse are always-on system commands with no off switch; the Commands list shows only the channel's own commands, system commands sit in their own section; every channel command that duplicates a system one is counted (N of M) and moved to system.
 - **S-DISCORD-SETTINGS-PICKERS** — "why is discord in the main pannel and not in settings? i still can not setup any reactions that go to discord, everything is locked and nothing is showing anything i can pick from, the settings pannel same issue. i don't want to fill in any id's, fetch the usernames from discord."
 
 ---
