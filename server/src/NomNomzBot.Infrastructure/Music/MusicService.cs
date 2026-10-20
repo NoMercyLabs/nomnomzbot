@@ -1478,7 +1478,7 @@ public sealed class MusicService : IMusicService
         )
             return ToNowPlaying(
                 TrackAsOfNow(fresh, fresh.Track.IsPlaying),
-                RequesterOfPlayingTrack(_queueStore, broadcasterId, fresh.Track.TrackUri)
+                RequesterOfPlayingTrack(tenantId, fresh.Track.TrackUri)
             );
 
         // A reader that arrives right after "nothing playing" gets the same answer: without this every
@@ -1502,10 +1502,7 @@ public sealed class MusicService : IMusicService
 
         _nowPlayingCache.Set(tenantId, track, DateTimeOffset.UtcNow);
 
-        return ToNowPlaying(
-            track,
-            RequesterOfPlayingTrack(_queueStore, broadcasterId, track.TrackUri)
-        );
+        return ToNowPlaying(track, RequesterOfPlayingTrack(tenantId, track.TrackUri));
     }
 
     /// <summary>
@@ -1549,25 +1546,13 @@ public sealed class MusicService : IMusicService
         return SongCode.NextAvailable(taken) ?? string.Empty;
     }
 
-    internal static string? RequesterOfPlayingTrack(
-        ISongRequestQueueStore queueStore,
-        string broadcasterId,
-        string? playingTrackUri
-    )
-    {
-        if (string.IsNullOrEmpty(playingTrackUri))
-            return null;
-
-        SongRequestEntry? inFlight = queueStore.GetInFlight(broadcasterId);
-        if (string.Equals(inFlight?.TrackUri, playingTrackUri, StringComparison.Ordinal))
-            return inFlight?.RequestedBy;
-
-        SongRequestEntry? playing = queueStore.GetPlayingRequest(broadcasterId);
-
-        return string.Equals(playing?.TrackUri, playingTrackUri, StringComparison.Ordinal)
-            ? playing?.RequestedBy
-            : null;
-    }
+    private string? RequesterOfPlayingTrack(Guid tenantId, string? playingTrackUri) =>
+        PlayingRequester.Of(
+            _queueStore,
+            _playbackState.StateOf(tenantId),
+            tenantId.ToString(),
+            playingTrackUri
+        );
 
     public async Task<bool?> TryGetCachedIsPlayingAsync(
         string broadcasterId,
@@ -2534,11 +2519,7 @@ public sealed class MusicService : IMusicService
                 Provider = track?.Provider,
                 TrackUri = track?.TrackUri,
                 ArtistId = track?.ArtistId,
-                RequestedBy = RequesterOfPlayingTrack(
-                    _queueStore,
-                    tenantId.ToString(),
-                    track?.TrackUri
-                ),
+                RequestedBy = RequesterOfPlayingTrack(tenantId, track?.TrackUri),
                 ShuffleEnabled = track?.ShuffleEnabled ?? false,
                 RepeatMode = track?.RepeatMode ?? MusicRepeatMode.Off,
                 VolumePercent = track?.VolumePercent ?? 100,
