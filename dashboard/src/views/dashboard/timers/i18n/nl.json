@@ -105,6 +105,7 @@
         "namePlaceholder": "Volg-herinnering",
         "nameRequired": "Geef de timer een naam.",
         "messageRequired": "Schrijf minstens een bericht.",
+        "targetRequired": "Kies het commando, de actie of de pipeline die de timer uitvoert.",
         "create": "Timer maken"
       }
     }

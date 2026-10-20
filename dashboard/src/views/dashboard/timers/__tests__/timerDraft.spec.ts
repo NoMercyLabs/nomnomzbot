@@ -10,9 +10,13 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { defaultMinutes, problemOf, timerLimits } from '../components/timerDraft';
+import type { Timer } from '@/api/timers';
+import { targetToWire } from '@/lib/bindingTarget';
+
+import { changeOf, defaultMinutes, draftOf, problemOf, timerLimits } from '../components/timerDraft';
 
 const fine = {
+  mode: 'simple' as const,
   name: 'Follow',
   messages: 'Hello',
   intervalMinutes: 30,
@@ -41,5 +45,52 @@ describe('problemOf', () => {
 
   it('starts a new timer at the bot default of 30 minutes', () => {
     expect(defaultMinutes).toBe(30);
+  });
+});
+
+const timerRow = (extra: Record<string, unknown>): Timer =>
+  ({
+    id: 't1',
+    name: 'Follow',
+    messages: ['Hello'],
+    intervalMinutes: 30,
+    minChatActivity: 0,
+    fireOnce: false,
+    isEnabled: true,
+    speakWithTts: false,
+    target: null,
+    ...extra,
+  }) as Timer;
+
+describe('reply mode of a timer', () => {
+  it('opens a timer without a target as a simple reply and one with a target as a pipeline', () => {
+    expect(draftOf(timerRow({})).mode).toBe('simple');
+    expect(draftOf(timerRow({ target: targetToWire({ kind: 'pipeline', id: 'p1' }) })).mode).toBe('full');
+  });
+
+  it('clears the target and keeps the lines when the timer goes back to a simple reply', () => {
+    const row = timerRow({ messages: [], target: targetToWire({ kind: 'pipeline', id: 'p1' }) });
+
+    expect(changeOf({ ...draftOf(row), mode: 'simple' }, row)).toEqual({ target: targetToWire(null) });
+  });
+
+  it('empties the lines and sends the target when a simple timer becomes a pipeline', () => {
+    const row = timerRow({});
+    const draft = {
+      ...draftOf(row),
+      mode: 'full' as const,
+      target: { kind: 'pipeline' as const, id: 'p1' },
+    };
+
+    expect(changeOf(draft, row)).toEqual({
+      messages: [],
+      target: targetToWire({ kind: 'pipeline', id: 'p1' }),
+    });
+  });
+
+  it('is not changed by opening a timer that has both lines and a target', () => {
+    const row = timerRow({ target: targetToWire({ kind: 'pipeline', id: 'p1' }) });
+
+    expect(changeOf(draftOf(row), row)).toEqual({});
   });
 });

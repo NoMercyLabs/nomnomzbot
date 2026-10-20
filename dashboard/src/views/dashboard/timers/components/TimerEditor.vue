@@ -21,7 +21,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import { Button } from '@/components/ui/button';
-import TargetPicker from '@/components/layout/TargetPicker.vue';
+import ReplyModeField from '@/components/layout/ReplyModeField.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -173,26 +173,23 @@ function remove(): void {
         />
       </Field>
 
-      <TemplateField
-        id="timer-messages"
-        v-model="draft.messages"
-        context="timer"
-        :rows="4"
-        :label="$t('dashboard.timers.editor.messages')"
-        :help="$t('dashboard.timers.editor.messagesHelp')"
-        :placeholder="$t('dashboard.timers.editor.messagesPlaceholder')"
-      />
-
-      <!-- What it runs besides the lines above: one command, action or pipeline. -->
-      <Field>
-        <FieldLabel>{{ $t("dashboard.timers.editor.target") }}</FieldLabel>
-        <TargetPicker
-          v-model:target="draft.target"
-          clearable
-          :kinds="['command', 'pipeline', 'action']"
-          :label="$t('dashboard.timers.editor.target')"
+      <!-- What it posts: its lines, or what it runs (one command, action or pipeline). -->
+      <ReplyModeField
+        v-model:mode="draft.mode"
+        v-model:target="draft.target"
+        :kinds="['command', 'pipeline', 'action']"
+        :new-pipeline-name="draft.name"
+      >
+        <TemplateField
+          id="timer-messages"
+          v-model="draft.messages"
+          context="timer"
+          :rows="4"
+          :label="$t('dashboard.timers.editor.messages')"
+          :help="$t('dashboard.timers.editor.messagesHelp')"
+          :placeholder="$t('dashboard.timers.editor.messagesPlaceholder')"
         />
-      </Field>
+      </ReplyModeField>
 
       <!-- When it runs: how often, and how busy chat must be. -->
       <div class="grid gap-4 md:grid-cols-2">

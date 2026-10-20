@@ -293,12 +293,13 @@ describe('Triggers and timers page', () => {
     await open();
     await click(rowOf('Follow reminder'));
 
+    await click(buttonByText('Pipeline'));
     await openTargetPicker(editor()!);
     await chooseTarget('!hello');
     await settle();
     await click(buttonByText('Save changes'));
 
-    expect(writes('PUT')[0]!.body).toEqual({ target: { kind: 0, id: 'c1' } });
+    expect(writes('PUT')[0]!.body).toEqual({ messages: [], target: { kind: 0, id: 'c1' } });
   });
 
   it('keeps the draft and shows the reason when the bot refuses the save', async () => {
@@ -350,7 +351,7 @@ describe('Triggers and timers page', () => {
     await open();
     await click(buttonByText('New timer'));
     await type(field('Name'), 'Hydrate');
-    await type(field('Messages'), 'Drink water');
+    await click(buttonByText('Pipeline'));
 
     await openTargetPicker();
     await chooseTarget('!hello');
@@ -359,6 +360,7 @@ describe('Triggers and timers page', () => {
 
     expect(writes('POST')[0]!.body).toMatchObject({
       name: 'Hydrate',
+      messages: [],
       target: { kind: 0, id: 'c1' },
     });
   });

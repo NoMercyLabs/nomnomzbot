@@ -9,10 +9,13 @@
 // -----------------------------------------------------------------------------
 
 import type { Timer, TimerChange } from '@/api/timers';
+import type { ReplyMode } from '@/components/layout/replyMode';
 import { boundTarget, sameTarget, targetToWire, type PickedTarget } from '@/lib/bindingTarget';
 
-// What the editor form holds. The messages are one text, one message per line.
+// What the editor form holds. The messages are one text, one message per line. The mode says which
+// of the lines and the target answers: a timer answers with its lines or with what it runs, never both.
 export interface TimerDraft {
+  mode: ReplyMode;
   name: string;
   messages: string;
   intervalMinutes: number;
@@ -63,14 +66,19 @@ export function messagesOf(lines: string): string[] {
 }
 
 export function draftOf(timer: Timer) {
+  const target = boundTarget(timer.target, timer.pipelineId);
+
   return {
+    mode: target === null
+      ? 'simple'
+      : 'full',
     name: timer.name,
     messages: timer.messages.join('\n'),
     intervalMinutes: Number(timer.intervalMinutes),
     minChatActivity: Number(timer.minChatActivity),
     fireOnce: timer.fireOnce,
     speakWithTts: timer.speakWithTts ?? false,
-    target: boundTarget(timer.target, timer.pipelineId),
+    target,
   } as const satisfies TimerDraft;
 }
 
@@ -87,8 +95,13 @@ export function changeOf(draft: TimerDraft, timer: Timer): TimerChange {
     change.name = draft.name;
   }
 
-  if (messagesOf(draft.messages).join('\n') !== messagesOf(saved.messages).join('\n')) {
-    change.messages = messagesOf(draft.messages);
+  const lines = messagesOf(draft.messages);
+
+  // A timer that turns into a pipeline stops posting its lines; one that opens with both keeps them.
+  if (draft.mode === 'full' && saved.mode === 'simple') {
+    change.messages = [];
+  } else if (draft.mode === 'simple' && lines.join('\n') !== messagesOf(saved.messages).join('\n')) {
+    change.messages = lines;
   }
 
   if (draft.intervalMinutes !== saved.intervalMinutes) {
@@ -108,8 +121,12 @@ export function changeOf(draft: TimerDraft, timer: Timer): TimerChange {
   }
 
   // A cleared binding is sent as the empty target; a left-alone one is not sent at all.
-  if (!sameTarget(draft.target, saved.target)) {
-    change.target = targetToWire(draft.target);
+  const target = draft.mode === 'full'
+    ? draft.target
+    : null;
+
+  if (!sameTarget(target, saved.target)) {
+    change.target = targetToWire(target);
   }
 
   return change;

@@ -105,6 +105,7 @@
         "namePlaceholder": "Follow reminder",
         "nameRequired": "Give the timer a name.",
         "messageRequired": "Write at least one message.",
+        "targetRequired": "Pick the command, action or pipeline the timer runs.",
         "create": "Create timer"
       }
     }

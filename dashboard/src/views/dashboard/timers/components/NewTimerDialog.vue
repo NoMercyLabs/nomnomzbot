@@ -15,7 +15,8 @@ import { useI18n } from 'vue-i18n';
 
 import { useCreateTimer } from '@/api/timers';
 import FormDialog from '@/components/layout/FormDialog.vue';
-import TargetPicker from '@/components/layout/TargetPicker.vue';
+import ReplyModeField from '@/components/layout/ReplyModeField.vue';
+import type { ReplyMode } from '@/components/layout/replyMode';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -35,6 +36,7 @@ const name = ref('');
 const messages = ref('');
 const minutes = ref(defaultMinutes);
 const target = ref<PickedTarget | null>(null);
+const mode = ref<ReplyMode>('simple');
 const error = ref<string | undefined>(undefined);
 
 watch(open, (isOpen: boolean): void => {
@@ -44,11 +46,15 @@ watch(open, (isOpen: boolean): void => {
   messages.value = '';
   minutes.value = defaultMinutes;
   target.value = null;
+  mode.value = 'simple';
   error.value = undefined;
 });
 
 async function submit(): Promise<void> {
-  const lines = messagesOf(messages.value);
+  const simple = mode.value === 'simple';
+  const lines = simple
+    ? messagesOf(messages.value)
+    : [];
 
   if (name.value.trim() === '') {
     error.value = t('dashboard.timers.dialog.nameRequired');
@@ -56,8 +62,14 @@ async function submit(): Promise<void> {
     return;
   }
 
-  if (lines.length === 0) {
+  if (simple && lines.length === 0) {
     error.value = t('dashboard.timers.dialog.messageRequired');
+
+    return;
+  }
+
+  if (!simple && target.value === null) {
+    error.value = t('dashboard.timers.dialog.targetRequired');
 
     return;
   }
@@ -79,7 +91,7 @@ async function submit(): Promise<void> {
       name: name.value.trim(),
       messages: lines,
       intervalMinutes: minutes.value,
-      ...(target.value
+      ...(!simple && target.value
         ? { target: targetToWire(target.value) }
         : {}),
     });
@@ -113,23 +125,21 @@ async function submit(): Promise<void> {
         :placeholder="$t('dashboard.timers.dialog.namePlaceholder')"
       />
     </Field>
-    <TemplateField
-      id="new-timer-messages"
-      v-model="messages"
-      context="timer"
-      :rows="3"
-      :label="$t('dashboard.timers.editor.messages')"
-      :placeholder="$t('dashboard.timers.editor.messagesPlaceholder')"
-    />
-    <Field>
-      <FieldLabel>{{ $t("dashboard.timers.editor.target") }}</FieldLabel>
-      <TargetPicker
-        v-model:target="target"
-        clearable
-        :kinds="['command', 'pipeline', 'action']"
-        :label="$t('dashboard.timers.editor.target')"
+    <ReplyModeField
+      v-model:mode="mode"
+      v-model:target="target"
+      :kinds="['command', 'pipeline', 'action']"
+      :new-pipeline-name="name"
+    >
+      <TemplateField
+        id="new-timer-messages"
+        v-model="messages"
+        context="timer"
+        :rows="3"
+        :label="$t('dashboard.timers.editor.messages')"
+        :placeholder="$t('dashboard.timers.editor.messagesPlaceholder')"
       />
-    </Field>
+    </ReplyModeField>
     <Field>
       <FieldLabel for="new-timer-interval">{{ $t("dashboard.timers.editor.interval") }}</FieldLabel>
       <Input
