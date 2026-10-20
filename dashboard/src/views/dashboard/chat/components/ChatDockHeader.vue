@@ -128,15 +128,25 @@ const frameActions: Component | null = inject(frameActionsKey, null);
           </Button>
         </DropdownMenuTrigger>
         <DropdownMenuContent align="end">
-          <DropdownMenuCheckboxItem v-if="!viewer" v-model="modToolsOpen" data-more-mod-tools>
+          <DropdownMenuCheckboxItem
+            v-if="!viewer"
+            v-model="modToolsOpen"
+            data-more-mod-tools
+            opens-panel
+          >
             <Settings aria-hidden="true" />
             {{ $t('dashboard.chat.modTools.title') }}
           </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem v-if="!viewer" v-model="identityOpen" data-more-identity>
+          <DropdownMenuCheckboxItem
+            v-if="!viewer"
+            v-model="identityOpen"
+            data-more-identity
+            opens-panel
+          >
             <UserCircle aria-hidden="true" />
             {{ $t('dashboard.chat.identity.title') }}
           </DropdownMenuCheckboxItem>
-          <DropdownMenuCheckboxItem v-model="displayOpen" data-more-display>
+          <DropdownMenuCheckboxItem v-model="displayOpen" data-more-display opens-panel>
             <SettingsFader aria-hidden="true" />
             {{ $t('dashboard.chat.display.toggle') }}
           </DropdownMenuCheckboxItem>

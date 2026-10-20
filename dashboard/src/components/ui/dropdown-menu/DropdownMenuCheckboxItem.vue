@@ -9,12 +9,17 @@ import {
   DropdownMenuItemIndicator,
   useForwardPropsEmits,
 } from 'reka-ui'
+import ChevronRight from '~icons/nnz/chevron-right'
 import { cn } from '@/lib/utils'
 
-const props = defineProps<DropdownMenuCheckboxItemProps & { class?: HTMLAttributes['class'] }>()
+const props = defineProps<DropdownMenuCheckboxItemProps & {
+  class?: HTMLAttributes['class']
+  // The item opens a panel: a trailing chevron stands in for the check, and turns down while the panel is open.
+  opensPanel?: boolean
+}>()
 const emits = defineEmits<DropdownMenuCheckboxItemEmits>()
 
-const delegatedProps = reactiveOmit(props, 'class')
+const delegatedProps = reactiveOmit(props, 'class', 'opensPanel')
 
 const forwarded = useForwardPropsEmits(delegatedProps, emits)
 </script>
@@ -24,11 +29,12 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
     data-slot="dropdown-menu-checkbox-item"
     v-bind="forwarded"
     :class="cn(
-      'focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm data-inset:pl-8 [&_svg:not([class*=size-])]:size-4 relative flex cursor-default items-center outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0',
+      'group focus:bg-accent focus:text-accent-foreground focus:**:text-accent-foreground gap-2 rounded-sm py-1.5 pr-8 pl-2 text-sm data-inset:pl-8 [&_svg:not([class*=size-])]:size-4 relative flex whitespace-nowrap cursor-default items-center outline-hidden select-none data-disabled:pointer-events-none data-disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0',
       props.class,
     )"
   >
     <span
+      v-if="!opensPanel"
       class="absolute right-2 flex items-center justify-center pointer-events-none"
       data-slot="dropdown-menu-checkbox-item-indicator"
     >
@@ -39,5 +45,11 @@ const forwarded = useForwardPropsEmits(delegatedProps, emits)
       </DropdownMenuItemIndicator>
     </span>
     <slot />
+    <ChevronRight
+      v-if="opensPanel"
+      data-menu-chevron
+      class="cn-rtl-flip ml-auto transition-transform group-data-[state=checked]:rotate-90 motion-reduce:transition-none"
+      aria-hidden="true"
+    />
   </DropdownMenuCheckboxItem>
 </template>
