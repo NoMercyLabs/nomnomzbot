@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
-import { eventJournalKey } from '@/api/eventJournal';
+import { eventJournalKey, type JournalEntry } from '@/api/eventJournal';
 import { i18n } from '@/i18n';
 import { keysOf } from '@/lib/array';
 import { dashboardSettingsRoutes } from '../../route';
@@ -65,6 +65,18 @@ const journalPage = {
   hasMore: true,
   headPosition: 42,
 };
+
+// A test that needs other rows sets them here; null keeps the two rows above.
+const listed = { items: null as JournalEntry[] | null };
+
+const bot = (eventId: string, eventType: string, occurredAt: string): JournalEntry => ({
+  eventId,
+  streamPosition: 1,
+  eventType,
+  source: 'domain',
+  occurredAt,
+  recordedAt: occurredAt,
+});
 
 const held = vi.hoisted(() => ({ keys: null as Set<string> | null }));
 
@@ -127,7 +139,7 @@ vi.mock('@/api/client', () => ({
       }
 
       return {
-        data: { data: journalPage },
+        data: { data: { ...journalPage, items: listed.items ?? journalPage.items } },
         response: { status: 200, ok: true },
       };
     },
@@ -182,6 +194,7 @@ beforeEach(() => {
   refused.path = '';
   held.keys = null;
   slow.gate = null;
+  listed.items = null;
   i18n.global.mergeLocaleMessage('en', en);
   setActivePinia(createPinia());
 });
@@ -439,6 +452,59 @@ describe('Event journal list', () => {
 
     expect(last.query).toEqual({ Page: 1, Take: 25 });
     expect(window.localStorage.getItem('nnz.event-journal.eventType')).toBe('');
+  });
+
+  it('drops the who column when no event on the page names a person', async () => {
+    window.localStorage.clear();
+    listed.items = [bot('b1', 'ObsStreamingStateChangedEvent', '2026-10-01T09:00:00Z')];
+    await open();
+
+    expect(document.body.querySelector('thead')!.textContent).not.toContain('Who');
+    expect(document.body.querySelector('[data-who]')).toBeNull();
+    expect(document.body.textContent).not.toContain('Not recorded');
+  });
+
+  it('folds the same event in a row into one line that says how many times it happened', async () => {
+    window.localStorage.clear();
+
+    listed.items = [
+      bot('b4', 'CommunityStandingChangedEvent', '2026-10-01T09:30:00Z'),
+      bot('b3', 'CommunityStandingChangedEvent', '2026-10-01T09:20:00Z'),
+      bot('b2', 'CommunityStandingChangedEvent', '2026-10-01T09:10:00Z'),
+      bot('b1', 'IntegrationTokenRefreshedEvent', '2026-10-01T09:00:00Z'),
+    ];
+
+    await open();
+
+    const rows = document.body.querySelectorAll('[data-journal-row]');
+
+    expect(rows).toHaveLength(2);
+    expect(rows[0]!.querySelector('[data-what]')!.textContent).toContain('Community standing changed');
+    expect(rows[0]!.querySelector('[data-repeat]')!.textContent).toBe('3 times');
+    expect(rows[1]!.querySelector('[data-repeat]')).toBeNull();
+  });
+
+  it('names each date field and the source filter so neither reads as the other', async () => {
+    window.localStorage.clear();
+    await open();
+
+    expect(q('[data-filter-from]').closest('label')!.textContent).toContain('From');
+    expect(q('[data-filter-to]').closest('label')!.textContent).toContain('To');
+    expect(q('[data-filter-source]').textContent).toContain('Source');
+    expect(q('[data-filter-source]').textContent).not.toContain('From');
+  });
+
+  it('offers clear filters only while a filter is set, as an outline button', async () => {
+    window.localStorage.clear();
+    await open();
+
+    expect(document.body.querySelector('[data-clear-filters]')).toBeNull();
+
+    mounted?.unmount();
+    window.localStorage.setItem('nnz.event-journal.source', 'eventsub');
+    await open();
+
+    expect(q('[data-clear-filters]').dataset.variant).toBe('outline');
   });
 
   it('ignores a remembered free-text type that is not a kind on the list', async () => {

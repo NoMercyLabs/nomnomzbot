@@ -24,6 +24,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import UserName from '@/components/layout/UserName.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
 import {
   Table,
   TableBody,
@@ -43,6 +44,7 @@ import {
   isEventSource,
   spokenEventName,
 } from './journalWords';
+import { foldRuns } from './journalRuns';
 import { useJournalActors } from './useJournalActors';
 
 const PAGE_SIZE = 25;
@@ -116,6 +118,11 @@ const rows = computed(() => journal.data.value?.items ?? []);
 const total = computed(() => Number(journal.data.value?.totalCount ?? 0));
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)));
 const actors = useJournalActors(channelId, rows);
+const runs = computed(() => foldRuns(rows.value));
+// The bot journals most events with no person yet; a column that would say "not recorded" on every line goes.
+const anyActor = computed(() => rows.value.some((row) => Boolean(row.actorUserId)));
+const filtered = computed(() =>
+  kindChoice.value !== ALL || sourceChoice.value !== ALL || from.value !== '' || to.value !== '');
 
 function what(row: JournalEntry): string {
   return isEventKind(row.eventType)
@@ -148,8 +155,8 @@ function clear(): void {
     :error-text="$t('dashboard.settings.eventJournal.list.error')"
     @retry="journal.refetch()"
   >
-    <template #actions>
-      <Button variant="ghost" size="sm" data-clear-filters @click="clear">
+    <template v-if="filtered" #actions>
+      <Button variant="outline" size="sm" data-clear-filters @click="clear">
         {{ $t('dashboard.settings.eventJournal.list.clear') }}
       </Button>
     </template>
@@ -166,33 +173,30 @@ function clear(): void {
         :label="$t('dashboard.settings.eventJournal.list.source')"
         :options="sourceOptions"
       />
-      <Input
-        v-model="from"
-        type="date"
-        data-filter-from
-        class="w-40"
-        :aria-label="$t('dashboard.settings.eventJournal.list.from')"
-      />
-      <Input
-        v-model="to"
-        type="date"
-        data-filter-to
-        class="w-40"
-        :aria-label="$t('dashboard.settings.eventJournal.list.to')"
-      />
+      <Label class="font-normal">
+        <span class="text-muted-foreground">{{ $t('dashboard.settings.eventJournal.list.from') }}</span>
+        <Input v-model="from" type="date" data-filter-from class="w-40" />
+      </Label>
+      <Label class="font-normal">
+        <span class="text-muted-foreground">{{ $t('dashboard.settings.eventJournal.list.to') }}</span>
+        <Input v-model="to" type="date" data-filter-to class="w-40" />
+      </Label>
     </div>
     <Table>
       <TableHeader>
         <TableRow class="hover:bg-transparent">
           <TableHead>{{ $t('dashboard.settings.eventJournal.list.columns.what') }}</TableHead>
-          <TableHead>{{ $t('dashboard.settings.eventJournal.list.columns.who') }}</TableHead>
+          <TableHead v-if="anyActor">{{ $t('dashboard.settings.eventJournal.list.columns.who') }}</TableHead>
           <TableHead class="text-right">{{ $t('dashboard.settings.eventJournal.list.columns.when') }}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
-        <TableRow v-for="row in rows" :key="row.eventId" data-journal-row>
-          <TableCell data-what class="font-medium">{{ what(row) }}</TableCell>
-          <TableCell data-who>
+        <TableRow v-for="{ entry: row, count } in runs" :key="row.eventId" data-journal-row>
+          <TableCell class="font-medium">
+            <span data-what>{{ what(row) }}</span>
+            <span v-if="count > 1" data-repeat class="ml-2 font-normal text-muted-foreground tabular-nums">{{ $t('dashboard.settings.eventJournal.list.repeat', { count: $n(count) }) }}</span>
+          </TableCell>
+          <TableCell v-if="anyActor" data-who>
             <UserName
               v-if="actorOf(row)"
               :user-id="actorOf(row)?.twitchUserId"
