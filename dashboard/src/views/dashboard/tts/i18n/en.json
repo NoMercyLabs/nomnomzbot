@@ -152,7 +152,7 @@
         },
         "maxCharacters": {
           "title": "Maximum characters",
-          "description": "Longer messages are cut off. Between 1 and 500.",
+          "description": "A longer bot reply is cut at a word. A longer viewer message is not read out. Between 1 and 500.",
           "value": "{count} characters"
         },
         "cooldown": {
@@ -219,6 +219,7 @@
         "removeFailed": "The key could not be removed.",
         "spelling": "How to say the channel name",
         "spellingHelp": "Leave empty to read the name as it is written.",
+        "spellingPreview": "Preview",
         "spellingSave": "Save spelling",
         "spellingSaved": "The spelling is saved.",
         "spellingFailed": "The spelling could not be saved."

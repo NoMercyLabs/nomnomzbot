@@ -29,6 +29,7 @@ const props = withDefaults(
     voiceId: string;
     compact?: boolean;
     text?: string;
+    label?: string;
   }>(),
   { compact: false },
 );
@@ -54,9 +55,19 @@ const name = computed<string>(() => {
   if (state.value === 'playing')
     return t('dashboard.tts.voices.stopSample', { voice: props.voiceId });
 
+  if (props.label !== undefined)
+    return props.label;
+
   return props.text === undefined
     ? t('dashboard.tts.voices.playSample', { voice: props.voiceId })
     : t('dashboard.tts.lexicon.hear', { phrase: props.text });
+});
+
+const visibleLabel = computed<string>(() => {
+  if (state.value === 'playing')
+    return t('dashboard.tts.voices.stopLabel');
+
+  return props.label ?? t('dashboard.tts.voices.playLabel');
 });
 
 function stop(): void {
@@ -109,11 +120,7 @@ onBeforeUnmount(stop);
     <Square v-else-if="state === 'playing'" :class="{ 'size-5': compact }" />
     <Play v-else :class="{ 'size-5': compact }" />
     <template v-if="!compact">
-      {{
-        $t(
-          state === "playing" ? "dashboard.tts.voices.stopLabel" : "dashboard.tts.voices.playLabel",
-        )
-      }}
+      {{ visibleLabel }}
     </template>
   </Button>
 </template>

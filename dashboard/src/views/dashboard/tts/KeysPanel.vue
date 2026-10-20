@@ -32,6 +32,8 @@ import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
+import PlaySampleButton from './PlaySampleButton.vue';
+
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const config = useTtsConfig(channelId);
@@ -47,6 +49,10 @@ const writable = computed(() => can('tts:config:write'));
 const keys = reactive<Record<ByokProvider, string>>({ azure: '', elevenlabs: '' });
 const region = ref('');
 const spelling = ref('');
+const voiceId = computed(() => config.data.value?.defaultVoiceId ?? null);
+const spokenName = computed(
+  () => spelling.value.trim() || (pronunciation.data.value?.channelName ?? ''),
+);
 
 watch(
   () => pronunciation.data.value,
@@ -203,23 +209,33 @@ function submitSpelling(): void {
         </label>
       </form>
       <form
-        class="flex flex-wrap items-end gap-2 border-t border-border pt-4"
+        class="flex flex-col gap-2 border-t border-border pt-4"
         @submit.prevent="submitSpelling"
       >
-        <label class="flex min-w-40 flex-1 flex-col gap-1 text-sm font-medium">
+        <label for="tts-name-spelling" class="text-sm font-medium">
           {{ $t("dashboard.tts.keys.spelling") }}
+        </label>
+        <div class="flex items-center gap-2" data-spelling-row>
           <Input
+            id="tts-name-spelling"
             v-model="spelling"
+            class="flex-1"
             maxlength="100"
             :placeholder="pronunciation.data.value?.channelName"
           />
-          <span class="text-sm font-normal text-muted-foreground">
-            {{ $t("dashboard.tts.keys.spellingHelp") }}
-          </span>
-        </label>
-        <Button type="submit" :disabled="savePronunciation.isPending.value">
-          {{ $t("dashboard.tts.keys.spellingSave") }}
-        </Button>
+          <PlaySampleButton
+            v-if="voiceId"
+            :voice-id="voiceId"
+            :text="spokenName"
+            :label="$t('dashboard.tts.keys.spellingPreview')"
+          />
+          <Button type="submit" :disabled="savePronunciation.isPending.value">
+            {{ $t("dashboard.tts.keys.spellingSave") }}
+          </Button>
+        </div>
+        <p class="text-sm text-muted-foreground" data-spelling-help>
+          {{ $t("dashboard.tts.keys.spellingHelp") }}
+        </p>
       </form>
     </div>
   </PanelCard>

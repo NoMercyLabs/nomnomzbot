@@ -766,4 +766,65 @@ describe('TTS rules panels', () => {
 
     expect(put?.body).toEqual({ pronunciation: 'stoney the eagle' });
   });
+
+  it('puts the spelling box, Preview and Save on one row with the help line below', async () => {
+    config.defaultVoiceId = 'en-US-AriaNeural';
+    await open();
+
+    const row = document.body.querySelector('[data-spelling-row]') as HTMLElement;
+
+    expect(row.querySelector('input')).not.toBeNull();
+    expect(row.contains(button('Preview'))).toBe(true);
+    expect(row.contains(button('Save spelling'))).toBe(true);
+    expect(row.className).toContain('items-center');
+    expect(row.contains(document.body.querySelector('[data-spelling-help]'))).toBe(false);
+    config.defaultVoiceId = null;
+  });
+
+  it('plays the typed spelling through the channel voice without saving it', async () => {
+    config.defaultVoiceId = 'en-US-AriaNeural';
+    await open();
+
+    const spelling = document.body.querySelector<HTMLInputElement>(
+      '[data-spelling-row] input',
+    ) as HTMLInputElement;
+
+    spelling.value = 'stoney the eagle';
+    spelling.dispatchEvent(new Event('input'));
+    await flushPromises();
+    button('Preview').click();
+    await flushPromises();
+
+    const post = sent.find((call) => call.path.endsWith('/tts/test'));
+
+    expect(post?.body).toEqual({
+      text: 'stoney the eagle',
+      voiceId: 'en-US-AriaNeural',
+    });
+
+    expect(sent.some((call) => call.path.includes('name-pronunciation'))).toBe(false);
+    config.defaultVoiceId = null;
+  });
+
+  it('previews the plain channel name while the spelling box is empty', async () => {
+    config.defaultVoiceId = 'en-US-AriaNeural';
+    await open();
+
+    const spelling = document.body.querySelector<HTMLInputElement>(
+      '[data-spelling-row] input',
+    ) as HTMLInputElement;
+
+    spelling.value = '';
+    spelling.dispatchEvent(new Event('input'));
+    await flushPromises();
+    button('Preview').click();
+    await flushPromises();
+
+    expect(sent.find((call) => call.path.endsWith('/tts/test'))?.body).toEqual({
+      text: 'Stoney_Eagle',
+      voiceId: 'en-US-AriaNeural',
+    });
+
+    config.defaultVoiceId = null;
+  });
 });

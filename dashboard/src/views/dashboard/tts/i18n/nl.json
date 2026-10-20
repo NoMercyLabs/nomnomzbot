@@ -152,7 +152,7 @@
         },
         "maxCharacters": {
           "title": "Maximaal aantal tekens",
-          "description": "Langere berichten worden afgekapt. Tussen 1 en 500.",
+          "description": "Een langer antwoord van de bot wordt bij een woord afgekapt. Een langer bericht van een kijker wordt niet voorgelezen. Tussen 1 en 500.",
           "value": "{count} tekens"
         },
         "cooldown": {
@@ -219,6 +219,7 @@
         "removeFailed": "De sleutel kon niet worden verwijderd.",
         "spelling": "Hoe de kanaalnaam wordt gezegd",
         "spellingHelp": "Laat leeg om de naam te lezen zoals hij geschreven is.",
+        "spellingPreview": "Beluisteren",
         "spellingSave": "Uitspraak opslaan",
         "spellingSaved": "De uitspraak is opgeslagen.",
         "spellingFailed": "De uitspraak kon niet worden opgeslagen."
