@@ -13,6 +13,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 import { createMemoryHistory, createRouter, RouterView, type Router } from 'vue-router';
 
+import { queryClient } from '@/api/queryClient';
 import { viewAs } from '@/api/viewAs';
 import { i18n } from '@/i18n';
 
@@ -125,9 +126,13 @@ describe('View as viewer opens the real viewer shell', () => {
   it('returns to the page the owner left when Exit is pressed', async () => {
     await openPreviewFromCommands();
 
+    // The viewer-capped access answer a guard cached while previewing: it must not decide the way back.
+    queryClient.setQueryData(['access-while-previewing'], ['chat:viewer:read']);
+
     document.body.querySelector<HTMLElement>('[data-slot="view-as-exit"]')!.click();
     await flushPromises();
 
+    expect(queryClient.getQueryData(['access-while-previewing'])).toBeUndefined();
     expect(router.currentRoute.value.fullPath).toBe('/app/u/stoney_eagle/commands');
     expect(viewAs.value).toBe('');
     expect(document.body.querySelector('[data-slot="view-as-banner"]')).toBeNull();

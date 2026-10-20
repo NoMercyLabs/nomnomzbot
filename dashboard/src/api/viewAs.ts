@@ -61,7 +61,7 @@ export function useViewAs() {
 
     viewAsReturn.value = router.currentRoute.value.fullPath;
     viewAs.value = role;
-    await queryClient.invalidateQueries();
+    await queryClient.resetQueries();
     await router.push({ name: 'viewer-me', params: { channel: shell.login } });
   }
 
@@ -76,7 +76,8 @@ export function useViewAs() {
 
     viewAsReturn.value = '';
     viewAs.value = '';
-    await queryClient.invalidateQueries();
+    // Reset, not invalidate: a router guard reads cached data as it is, and the cache holds the viewer's answers.
+    await queryClient.resetQueries();
     await router.push(back);
   }
 
