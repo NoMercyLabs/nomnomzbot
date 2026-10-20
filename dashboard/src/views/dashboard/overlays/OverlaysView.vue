@@ -9,7 +9,7 @@
 -->
 <script setup lang="ts">
 // The Overlays page: every overlay of the channel as a list, tabs that filter it, and one overlay beside it.
-// The overlay in view is the id in ?id=, so a link opens it; with no id the first row of the list shows.
+// The overlay in view is the id in ?id=, so a link opens it; with no id nothing is open, like every other list page.
 // Tab counts come from the loaded list: the bot has no count endpoint.
 // The audio levels are channel-wide, not one overlay's, so they open from the header in their own drawer.
 import VolumeTwo from '~icons/nnz/volume-two';
@@ -28,7 +28,6 @@ import SidePanel from '@/components/layout/SidePanel.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
-import { useNarrowScreen } from '@/composables/useLayout';
 import { usePageView } from '@/composables/usePageView';
 import { keysOf } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
@@ -121,18 +120,12 @@ const asked = computed<string>(() =>
     : '');
 // An id in the address looks in every overlay, so a switched-off one stays open on the On tab.
 const selected = computed<Widget | null>(() => {
-  if (asked.value !== '')
-    return loaded.value?.find((widget: Widget) => widget.id === asked.value) ?? null;
+  if (asked.value === '')
+    return null;
 
-  return visible.value?.[0] ?? null;
+  return loaded.value?.find((widget: Widget) => widget.id === asked.value) ?? null;
 });
-const phone = useNarrowScreen();
-// On a phone the list shows one screen or the other, so no row stays highlighted while no detail is open.
-const selectedId = computed<string>(() =>
-  phone.value && asked.value === ''
-    ? ''
-    : (selected.value?.id ?? ''),
-);
+const selectedId = computed<string>(() => selected.value?.id ?? '');
 
 function pick(widget: Widget): void {
   void router.push({ query: { ...route.query, id: widget.id } });

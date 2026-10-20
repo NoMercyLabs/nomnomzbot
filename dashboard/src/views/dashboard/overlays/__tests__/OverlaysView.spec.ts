@@ -276,11 +276,12 @@ describe('OverlaysView', () => {
     expect(pressedRows()).toBe(1);
   });
 
-  it('keeps the first row highlighted beside the detail on a wide screen', async () => {
+  it('starts with no overlay selected on a wide screen, like the other list pages', async () => {
     stubPhone(false);
     await open();
 
-    expect(pressedRows()).toBe(1);
+    expect(pressedRows()).toBe(0);
+    expect(document.body.textContent).toContain('Pick an overlay');
   });
 
   it('counts each tab from the list and filters the list by it', async () => {
@@ -419,7 +420,9 @@ describe('OverlaysView', () => {
     await open();
 
     (
-      document.body.querySelectorAll<HTMLElement>('[data-overlay-row] button')[2] as HTMLElement
+      document.body.querySelectorAll<HTMLElement>(
+        '[data-overlay-row] [data-slot="summary-row-body"]',
+      )[2] as HTMLElement
     ).click();
 
     await settle();
