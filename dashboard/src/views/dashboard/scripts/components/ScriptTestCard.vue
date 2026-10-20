@@ -88,11 +88,12 @@ async function run(): Promise<void> {
     :description="$t('dashboard.scripts.test.note')"
   >
     <div class="grid gap-4 text-sm">
-      <div
+      <section
         v-if="can('code:script:author')"
         data-slot="script-test-trigger"
-        class="flex flex-wrap items-end gap-3"
+        class="flex flex-wrap items-end gap-x-3 gap-y-2"
       >
+        <h3 class="w-full font-medium">{{ $t('dashboard.scripts.test.trigger') }}</h3>
         <div v-if="ownEvents.length > 0" class="grid min-w-0 flex-1 gap-2">
           <Label for="script-test-event">{{ $t('dashboard.scripts.test.event') }}</Label>
           <Select v-model="picked">
@@ -115,7 +116,7 @@ async function run(): Promise<void> {
           <Play aria-hidden="true" />
           {{ $t('dashboard.scripts.test.run') }}
         </Button>
-      </div>
+      </section>
       <span v-if="tester.limited.value" role="status" class="text-muted-foreground">
         {{ $t('dashboard.scripts.test.limited') }}
       </span>

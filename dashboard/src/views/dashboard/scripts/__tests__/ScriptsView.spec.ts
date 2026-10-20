@@ -713,6 +713,48 @@ describe('ScriptsView', () => {
     expect(trigger?.contains(result ?? null)).toBe(false);
   });
 
+  it('names the trigger section, and shows an effect step in plain words instead of its internal key', async () => {
+    testResult = {
+      ...WORKED,
+      timeline: [
+        {
+          seq: 1,
+          kind: 'start',
+          text: 'Started: chat message',
+        },
+        {
+          seq: 2,
+          kind: 'effect',
+          text: 'tts.speak: someone just air-hugged',
+        },
+        {
+          seq: 3,
+          kind: 'effect',
+          text: 'mystery.thing: x',
+        },
+      ],
+    };
+
+    await open('/app/scripts?script=s1');
+
+    const trigger = document.body.querySelector('[data-slot="script-test-trigger"]');
+
+    expect(trigger?.querySelector('h3')?.textContent).toBe('Trigger');
+
+    byText('button', 'Run test')!.click();
+    await settle();
+
+    const rows = [
+      ...document.body.querySelectorAll('[data-slot="script-test-timeline"] > li'),
+    ].map((row) => row.textContent);
+
+    expect(rows[1]).toContain('Speak with text to speech');
+    expect(rows[1]).toContain('someone just air-hugged');
+    expect(rows[1]).not.toContain('tts.speak');
+    expect(rows[2]).toContain('Mystery thing');
+    expect(rows[2]).not.toContain('mystery.thing');
+  });
+
   it('keeps the session runs out of sight until a test has run', async () => {
     await open('/app/scripts?script=s1');
 

@@ -130,6 +130,7 @@
         "note": "A test run is a dry run. Nothing it does reaches chat.",
         "event": "Event to test with (only events this script reads from)",
         "noEvent": "No event",
+        "trigger": "Trigger",
         "timeline": "Timeline",
         "kinds": {
           "start": "Started",

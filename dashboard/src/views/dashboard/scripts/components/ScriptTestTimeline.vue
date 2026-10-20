@@ -13,6 +13,8 @@ import { useI18n } from 'vue-i18n';
 
 import type { TestRunResult } from '@/composables/useEditorBridge';
 
+import { powerLabel } from './powerLabel';
+
 defineProps<{ steps: TestRunResult['timeline'] }>();
 
 const { t, te } = useI18n();
@@ -25,18 +27,28 @@ function kindLabel(kind: string): string {
     ? t(key)
     : kind;
 }
+
+// The bot writes an effect step as "effect.key: preview". The key reads as words; the preview stays as sent.
+function stepText(kind: string, text: string): string {
+  const split = text.indexOf(': ');
+
+  if (kind !== 'effect' || split < 1)
+    return text;
+
+  return `${powerLabel(text.slice(0, split), t, te)}${text.slice(split)}`;
+}
 </script>
 
 <template>
-  <ol data-slot="script-test-timeline" class="grid gap-1">
+  <ol data-slot="script-test-timeline" class="grid gap-2">
     <li
       v-for="step in steps"
       :key="step.seq"
-      class="grid grid-cols-[1.5rem_5rem_minmax(0,1fr)] items-baseline gap-x-2 max-sm:grid-cols-[1.5rem_minmax(0,1fr)]"
+      class="grid grid-cols-[1.5rem_5.5rem_minmax(0,1fr)] items-baseline gap-x-3 max-sm:grid-cols-[1.5rem_minmax(0,1fr)]"
     >
       <span class="text-muted-foreground tabular-nums">{{ step.seq }}</span>
-      <span class="text-xs text-muted-foreground">{{ kindLabel(step.kind) }}</span>
-      <span class="wrap-break-word max-sm:col-start-2">{{ step.text }}</span>
+      <span class="font-medium text-muted-foreground">{{ kindLabel(step.kind) }}</span>
+      <span class="wrap-break-word max-sm:col-start-2">{{ stepText(step.kind, step.text) }}</span>
     </li>
   </ol>
 </template>
