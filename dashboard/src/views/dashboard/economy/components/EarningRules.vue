@@ -127,12 +127,6 @@ async function confirmDelete(): Promise<void> {
         :data-rule-name="row.source"
         class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
       >
-        <GatedSwitch
-          action="economy:earning-rules:write"
-          :model-value="row.isEnabled"
-          :aria-label="$t('dashboard.economy.rules.toggle', { source: sourceName(row.source) })"
-          @update:model-value="toggle(row)"
-        />
         <span class="min-w-0 flex-1">
           <span class="block text-sm font-medium">{{ sourceName(row.source) }}</span>
           <span class="block text-xs text-muted-foreground">{{ detailOf(row) }}</span>
@@ -160,6 +154,12 @@ async function confirmDelete(): Promise<void> {
         >
           <Trash aria-hidden="true" class="size-5" />
         </Button>
+        <GatedSwitch
+          action="economy:earning-rules:write"
+          :model-value="row.isEnabled"
+          :aria-label="$t('dashboard.economy.rules.toggle', { source: sourceName(row.source) })"
+          @update:model-value="toggle(row)"
+        />
       </li>
     </ul>
     <RuleDialog v-model:open="dialogOpen" :rule="editing" :used-sources="usedSources" />

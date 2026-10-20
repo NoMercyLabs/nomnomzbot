@@ -95,12 +95,6 @@ async function confirmDelete(): Promise<void> {
           :data-catalog-name="row.name"
           class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
         >
-          <GatedSwitch
-            action="economy:catalog:update"
-            :model-value="row.isEnabled"
-            :aria-label="$t('dashboard.economy.catalog.toggle', { name: row.name })"
-            @update:model-value="toggle(row)"
-          />
           <span class="min-w-0 flex-1">
             <span class="block text-sm font-medium wrap-break-word">{{ row.name }}</span>
             <span class="block text-xs text-muted-foreground">{{
@@ -129,6 +123,12 @@ async function confirmDelete(): Promise<void> {
           >
             <Trash aria-hidden="true" class="size-5" />
           </Button>
+          <GatedSwitch
+            action="economy:catalog:update"
+            :model-value="row.isEnabled"
+            :aria-label="$t('dashboard.economy.catalog.toggle', { name: row.name })"
+            @update:model-value="toggle(row)"
+          />
         </li>
       </ul>
     </PanelCard>

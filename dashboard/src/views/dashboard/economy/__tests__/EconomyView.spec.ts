@@ -823,3 +823,29 @@ describe('Economy balances tab', () => {
     expect(present('[data-account-row] [role="switch"]')).toBe(false);
   });
 });
+
+describe('Economy rows with a switch', () => {
+  it.each([
+    ['balances', 'account', 'Alice'],
+    ['catalog', 'catalog', 'Hat'],
+    ['rules', 'rule', 'Chat'],
+    ['jars', 'jar', 'New camera'],
+  ])('puts the %s switch after the name and every other control', async (tab, kind, name) => {
+    catalog = [{
+      id: 'i1',
+      name: 'Hat',
+      cost: 5,
+      isEnabled: true,
+    }];
+
+    await open(tab);
+
+    const row = document.body.querySelector<HTMLElement>(`[data-${kind}-row]`) as HTMLElement;
+    const controls = [...row.querySelectorAll<HTMLElement>('button')];
+    const toggle = row.querySelector<HTMLElement>('button[role="switch"]') as HTMLElement;
+
+    expect(row.textContent).toContain(name);
+    expect(controls.at(-1)).toBe(toggle);
+    expect(row.firstElementChild).not.toBe(toggle);
+  });
+});

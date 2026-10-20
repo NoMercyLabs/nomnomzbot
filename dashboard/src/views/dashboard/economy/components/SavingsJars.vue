@@ -109,12 +109,6 @@ async function confirmDelete(): Promise<void> {
           :data-jar-name="row.name"
           class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
         >
-          <GatedSwitch
-            action="economy:jars:update"
-            :model-value="row.isOpen"
-            :aria-label="$t('dashboard.economy.jars.toggle', { name: row.name })"
-            @update:model-value="toggle(row)"
-          />
           <span class="min-w-0 flex-1">
             <span class="block text-sm font-medium wrap-break-word">{{ row.name }}</span>
             <span class="block text-xs text-muted-foreground">{{ detailOf(row) }}</span>
@@ -142,6 +136,12 @@ async function confirmDelete(): Promise<void> {
           >
             <Trash aria-hidden="true" class="size-5" />
           </Button>
+          <GatedSwitch
+            action="economy:jars:update"
+            :model-value="row.isOpen"
+            :aria-label="$t('dashboard.economy.jars.toggle', { name: row.name })"
+            @update:model-value="toggle(row)"
+          />
         </li>
       </ul>
     </PanelCard>

@@ -78,12 +78,6 @@ function toggle(row: CurrencyAccount): void {
           :data-account-name="row.viewerDisplayName"
           class="flex min-h-11 items-center gap-3 rounded-[8px] px-3 py-2"
         >
-          <GatedSwitch
-            action="economy:account:freeze"
-            :model-value="row.isFrozen"
-            :aria-label="$t('dashboard.economy.balances.freeze', { name: row.viewerDisplayName })"
-            @update:model-value="toggle(row)"
-          />
           <span class="min-w-0 flex-1">
             <UserName
               :user-id="row.viewerTwitchUserId"
@@ -111,6 +105,12 @@ function toggle(row: CurrencyAccount): void {
           >
             <Coins aria-hidden="true" class="size-5" />
           </Button>
+          <GatedSwitch
+            action="economy:account:freeze"
+            :model-value="row.isFrozen"
+            :aria-label="$t('dashboard.economy.balances.freeze', { name: row.viewerDisplayName })"
+            @update:model-value="toggle(row)"
+          />
         </li>
       </ul>
       <template v-if="shown.hasMore.value" #footer>
