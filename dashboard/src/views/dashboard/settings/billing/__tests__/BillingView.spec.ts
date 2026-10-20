@@ -59,7 +59,12 @@ const plus = {
   allowsCustomBotName: true,
   prioritySupport: false,
   sortOrder: 2,
-  limits: [{ limitKey: 'cmd.count', limitValue: 500 }],
+  limits: [
+    { limitKey: 'sound_clip_storage_bytes', limitValue: 104_857_600 },
+    { limitKey: 'channel_asset_storage_bytes', limitValue: -1 },
+    { limitKey: 'tts_max_characters', limitValue: 500 },
+    { limitKey: 'custom_commands', limitValue: 500 },
+  ],
   isPublic: true,
 };
 
@@ -67,6 +72,7 @@ const pro = {
   ...plus,
   id: 't3',
   key: 'pro',
+  limits: [{ limitKey: 'sound_clip_storage_bytes', limitValue: 1_073_741_824 }],
   displayName: 'Pro',
   priceCents: 2500,
   sortOrder: 3,
@@ -340,6 +346,29 @@ describe('Billing page: plans on offer', () => {
     expect(find('[data-tier="free"] [data-tier-price]').textContent).toBe('Free');
     expect(find('[data-tier="plus"] [data-current-marker]').textContent).toContain('Current plan');
     expect(document.body.querySelector('[data-tier="plus"] [data-action="choose"]')).toBeNull();
+  });
+
+  it('compares the plans side by side with plain limit names and units, never a raw key', async () => {
+    subscription = subscriptionOf('plus', 'Plus');
+    await open();
+
+    const rows = [...document.body.querySelectorAll<HTMLElement>('[data-limit-key]')];
+    const text = (key: string, tier: string) =>
+      find(`[data-limit-key="${key}"] [data-limit-tier="${tier}"]`).textContent?.trim();
+
+    expect(rows.map((row) => row.dataset.limitKey)).toEqual([
+      'sound_clip_storage_bytes',
+      'channel_asset_storage_bytes',
+      'tts_max_characters',
+    ]);
+
+    expect(find('[data-limit-key="sound_clip_storage_bytes"]').textContent).toContain('Sound clip storage');
+    expect(text('sound_clip_storage_bytes', 'plus')).toBe('100 MB');
+    expect(text('sound_clip_storage_bytes', 'pro')).toBe('1 GB');
+    expect(text('sound_clip_storage_bytes', 'free')).toBe('Not included');
+    expect(text('channel_asset_storage_bytes', 'plus')).toBe('No limit');
+    expect(text('tts_max_characters', 'plus')).toBe('500 characters');
+    expect(find('[data-panel="tiers"]').textContent).not.toMatch(/_bytes|custom_commands|[0-9]{8}/);
   });
 
   it('without a paid plan, choosing a plan starts checkout with that tier key and goes to the payment page', async () => {

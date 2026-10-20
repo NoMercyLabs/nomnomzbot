@@ -54,6 +54,16 @@
           "atPeriodEndHelp": "Uit: het nieuwe abonnement start nu.",
           "customBotName": "Eigen botnaam",
           "prioritySupport": "Voorrangsondersteuning",
+          "included": "Inbegrepen",
+          "notIncluded": "Niet inbegrepen",
+          "noLimit": "Geen limiet",
+          "characters": "{n} teken | {n} tekens",
+          "limits": {
+            "sound_clip_storage_bytes": "Opslag voor geluidsclips",
+            "channel_asset_storage_bytes": "Opslag voor kanaalbestanden",
+            "sandbox_exec_ms": "Scriptduur per maand",
+            "tts_max_characters": "Lengte van tekst-naar-spraakbericht"
+          },
           "checkoutFailed": "De betaalpagina kon niet worden geopend.",
           "changeFailed": "Het abonnement kon niet worden gewijzigd."
         },

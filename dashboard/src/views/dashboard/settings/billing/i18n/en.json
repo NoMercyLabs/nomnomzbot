@@ -54,6 +54,16 @@
           "atPeriodEndHelp": "Off: the new plan starts now.",
           "customBotName": "Custom bot name",
           "prioritySupport": "Priority support",
+          "included": "Included",
+          "notIncluded": "Not included",
+          "noLimit": "No limit",
+          "characters": "{n} character | {n} characters",
+          "limits": {
+            "sound_clip_storage_bytes": "Sound clip storage",
+            "channel_asset_storage_bytes": "Channel asset storage",
+            "sandbox_exec_ms": "Script run time per month",
+            "tts_max_characters": "Text-to-speech message length"
+          },
           "checkoutFailed": "The payment page could not be opened.",
           "changeFailed": "The plan could not be changed."
         },

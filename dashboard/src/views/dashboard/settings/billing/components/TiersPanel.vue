@@ -13,8 +13,6 @@
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import Crown from '~icons/nnz/crown';
-
 import {
   useBillingTiers,
   useChangePlan,
@@ -25,12 +23,21 @@ import {
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
-import RowGroup from '@/components/layout/RowGroup.vue';
 import { Button } from '@/components/ui/button';
+import {
+  Table,
+  TableBody,
+  TableCell,
+  TableHead,
+  TableHeader,
+  TableRow,
+} from '@/components/ui/table';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 import { centsAsMoney } from '@/lib/number';
+
+import { planLimitCell, shownLimitKeys, type PlanLimitKey } from '../planLimits';
 
 const { t, locale } = useI18n();
 const { channelId } = useCurrentChannel();
@@ -74,26 +81,32 @@ function priceOf(tier: BillingTier): string {
   });
 }
 
-function limitsOf(tier: BillingTier): string {
-  return tier.limits
-    .map((limit) => `${limit.limitKey} ${Number(limit.limitValue) < 0
-      ? '∞'
-      : limit.limitValue}`)
-    .join(' · ');
+const limitKeys = computed(() => shownLimitKeys(rows.value));
+
+const features = [
+  { key: 'customBotName', has: (tier: BillingTier) => tier.allowsCustomBotName },
+  { key: 'prioritySupport', has: (tier: BillingTier) => tier.prioritySupport },
+] as const satisfies readonly { key: string; has: (tier: BillingTier) => boolean }[];
+
+function limitText(tier: BillingTier, key: PlanLimitKey): string {
+  const cell = planLimitCell(tier, key, locale.value);
+
+  if (cell.kind === 'missing')
+    return t('dashboard.settings.billing.tiers.notIncluded');
+
+  if (cell.kind === 'unlimited')
+    return t('dashboard.settings.billing.tiers.noLimit');
+
+  if (cell.kind === 'characters')
+    return t('dashboard.settings.billing.tiers.characters', { n: cell.count }, cell.count);
+
+  return cell.text;
 }
 
-function includesOf(tier: BillingTier): string {
-  const names: string[] = [];
-
-  if (tier.allowsCustomBotName) {
-    names.push(t('dashboard.settings.billing.tiers.customBotName'));
-  }
-
-  if (tier.prioritySupport) {
-    names.push(t('dashboard.settings.billing.tiers.prioritySupport'));
-  }
-
-  return names.join(' · ');
+function featureText(has: boolean): string {
+  return has
+    ? t('dashboard.settings.billing.tiers.included')
+    : t('dashboard.settings.billing.tiers.notIncluded');
 }
 
 function offered(tier: BillingTier): boolean {
@@ -143,42 +156,67 @@ async function choose(tier: BillingTier): Promise<void> {
       />
     </template>
     <div class="grid gap-3">
-      <RowGroup>
-        <div
-          v-for="tier in rows"
-          :key="tier.key"
-          :data-tier="tier.key"
-          :data-current="tier.key === currentKey"
-          class="flex flex-wrap items-center gap-3 rounded-[8px] px-3 py-2"
-        >
-          <Crown class="size-5 flex-none text-muted-foreground" />
-          <div class="min-w-0 flex-1 basis-56">
-            <div class="flex flex-wrap items-baseline gap-x-3">
-              <span class="text-sm font-medium">{{ tier.displayName }}</span>
-              <span data-tier-price class="text-sm text-muted-foreground">{{ priceOf(tier) }}</span>
-            </div>
-            <p v-if="tier.limits.length > 0" class="text-sm text-muted-foreground">{{ limitsOf(tier) }}</p>
-            <p v-if="includesOf(tier)" class="text-sm text-muted-foreground">{{ includesOf(tier) }}</p>
-          </div>
-          <span
-            v-if="tier.key === currentKey"
-            data-current-marker
-            class="text-sm font-medium"
-          >
-            {{ $t('dashboard.settings.billing.tiers.current') }}
-          </span>
-          <Button
-            v-else-if="offered(tier) && can('billing:manage')"
-            data-action="choose"
-            size="sm"
-            variant="outline"
-            :disabled="checkout.isPending.value || change.isPending.value"
-            @click="choose(tier)"
-          >
-            {{ hasPaidPlan ? $t('dashboard.settings.billing.tiers.switch') : $t('dashboard.settings.billing.tiers.choose') }}
-          </Button>
-        </div>
-      </RowGroup>
+      <Table>
+        <TableHeader>
+          <TableRow>
+            <TableHead class="w-1/4" />
+            <TableHead
+              v-for="tier in rows"
+              :key="tier.key"
+              :data-tier="tier.key"
+              :data-current="tier.key === currentKey"
+              class="h-auto py-3 align-top"
+            >
+              <div class="grid gap-1">
+                <span class="text-sm font-semibold">{{ tier.displayName }}</span>
+                <span data-tier-price class="text-sm font-normal text-muted-foreground">{{ priceOf(tier) }}</span>
+                <span
+                  v-if="tier.key === currentKey"
+                  data-current-marker
+                  class="text-sm font-medium"
+                >
+                  {{ $t('dashboard.settings.billing.tiers.current') }}
+                </span>
+                <Button
+                  v-else-if="offered(tier) && can('billing:manage')"
+                  data-action="choose"
+                  size="sm"
+                  variant="outline"
+                  class="mt-1 w-fit"
+                  :disabled="checkout.isPending.value || change.isPending.value"
+                  @click="choose(tier)"
+                >
+                  {{ hasPaidPlan ? $t('dashboard.settings.billing.tiers.switch') : $t('dashboard.settings.billing.tiers.choose') }}
+                </Button>
+              </div>
+            </TableHead>
+          </TableRow>
+        </TableHeader>
+        <TableBody>
+          <TableRow v-for="key in limitKeys" :key="key" :data-limit-key="key">
+            <TableCell class="font-medium">{{ $t(`dashboard.settings.billing.tiers.limits.${key}`) }}</TableCell>
+            <TableCell
+              v-for="tier in rows"
+              :key="tier.key"
+              :data-limit-tier="tier.key"
+              class="tabular-nums text-muted-foreground"
+            >
+              {{ limitText(tier, key) }}
+            </TableCell>
+          </TableRow>
+          <TableRow v-for="feature in features" :key="feature.key" :data-feature="feature.key">
+            <TableCell class="font-medium">{{ $t(`dashboard.settings.billing.tiers.${feature.key}`) }}</TableCell>
+            <TableCell
+              v-for="tier in rows"
+              :key="tier.key"
+              :data-feature-tier="tier.key"
+              class="text-muted-foreground"
+            >
+              {{ featureText(feature.has(tier)) }}
+            </TableCell>
+          </TableRow>
+        </TableBody>
+      </Table>
       <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
     </div>
   </PanelCard>
