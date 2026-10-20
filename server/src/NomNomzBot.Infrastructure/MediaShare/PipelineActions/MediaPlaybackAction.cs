@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.MediaShare.Dtos;
 using NomNomzBot.Application.MediaShare.Services;
+using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Infrastructure.MediaShare.PipelineActions;
 
@@ -82,7 +83,7 @@ public sealed class MediaPlaybackAction(
     private static Result<MediaPlaybackCommandRequest> BuildRequest(string command, string value)
     {
         bool isNumber = int.TryParse(value, out int number);
-        bool isId = Guid.TryParse(value, out Guid id);
+        bool isId = OwnedIdCodec.TryDecode(value, out Guid id);
 
         return command switch
         {

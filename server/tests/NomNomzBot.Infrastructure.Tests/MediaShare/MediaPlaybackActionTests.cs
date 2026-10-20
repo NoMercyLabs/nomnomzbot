@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.MediaShare.Dtos;
 using NomNomzBot.Application.MediaShare.Services;
+using NomNomzBot.Domain.Platform;
 using NomNomzBot.Infrastructure.MediaShare.PipelineActions;
 using NSubstitute;
 
@@ -97,6 +98,26 @@ public sealed class MediaPlaybackActionTests
         Guid id = Guid.NewGuid();
 
         ActionResult result = await Run(action, "play_now", id.ToString());
+
+        result.Succeeded.Should().BeTrue();
+        await playback
+            .Received(1)
+            .SendCommandAsync(
+                Channel,
+                Arg.Is<MediaPlaybackCommandRequest>(r =>
+                    r.Command == "play_now" && r.RequestId == id
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task PlayNow_TakesTheUlidTheDashboardSends()
+    {
+        (MediaPlaybackAction action, IMediaSharePlaybackService playback) = Build();
+        Guid id = Guid.NewGuid();
+
+        ActionResult result = await Run(action, "play_now", OwnedIdCodec.Encode(id));
 
         result.Succeeded.Should().BeTrue();
         await playback
