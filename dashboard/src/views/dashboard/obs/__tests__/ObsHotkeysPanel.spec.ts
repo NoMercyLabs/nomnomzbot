@@ -21,6 +21,7 @@ import en from '../i18n/en.json';
 type Post = { path: string; body: unknown };
 
 const posts: Post[] = [];
+const mockNames: string[] = ['OBSBasic.StartStreaming', 'OBSBasic.StartRecording'];
 
 vi.mock('@/api/access', () => ({
   useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
@@ -30,7 +31,7 @@ vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
     GET: async () => ({
-      data: { data: ['OBSBasic.StartStreaming', 'OBSBasic.StartRecording'] },
+      data: { data: [...mockNames] },
       response: { status: 200, ok: true },
     }),
     POST: async (path: string, init: { body?: unknown }) => {
@@ -49,6 +50,7 @@ let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
   posts.length = 0;
+  mockNames.splice(0, mockNames.length, 'OBSBasic.StartStreaming', 'OBSBasic.StartRecording');
   i18n.global.mergeLocaleMessage('en', en);
 });
 
@@ -84,5 +86,55 @@ describe('ObsHotkeysPanel', () => {
         body: { hotkeyName: 'OBSBasic.StartRecording' },
       },
     ]);
+  });
+
+  it('groups hotkeys by purpose, hides ones that name no source behind Other, and searches', async () => {
+    mockNames.splice(
+      0,
+      mockNames.length,
+      'OBSBasic.StartStreaming',
+      'OBSBasic.StartRecording',
+      'libobs.mute',
+      'libobs.mute',
+      'libobs.show_scene_item.5',
+      'MyPlugin.do_the_thing',
+    );
+
+    mounted = mount(ObsHotkeysPanel, {
+      attachTo: document.body,
+      global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }], i18n] },
+      props: { offline: false },
+    });
+
+    await flushPromises();
+
+    expect(mounted.text()).toContain('Press an OBS hotkey from here');
+
+    expect(mounted.findAll('[data-obs-hotkey-group]').map((group) => group.attributes('data-obs-hotkey-group'))).toEqual([
+      'stream',
+      'recording',
+      'more',
+    ]);
+
+    expect(mounted.findAll('[data-obs-hotkey]').map((button) => button.text())).toEqual([
+      'Start streaming',
+      'Start recording',
+      'My plugin do the thing',
+    ]);
+
+    const other = mounted.find('[data-obs-hotkey-other]');
+
+    expect(other.text()).toContain('Other (2)');
+
+    await other.trigger('click');
+    await flushPromises();
+
+    expect(
+      [...document.querySelectorAll('[data-obs-hotkey-unresolved]')].map((button) => button.getAttribute('data-obs-hotkey-unresolved')),
+    ).toEqual(['libobs.mute', 'libobs.show_scene_item.5']);
+
+    await mounted.find('input[type="search"]').setValue('record');
+
+    expect(mounted.findAll('[data-obs-hotkey]').map((button) => button.text())).toEqual(['Start recording']);
   });
 });
