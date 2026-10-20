@@ -3,18 +3,9 @@
 import MessageFragment from './MessageFragment.vue'
 import OgPreview from './OgPreview.vue'
 import SongCard from './SongCard.vue'
+import type { ChatLine, Features } from '../types'
 
-interface Features {
-  userBadges: boolean
-  userPronouns: boolean
-  userColors: boolean
-  lightColorDetection: boolean
-  shineEffect: boolean
-  ogPreviews: boolean
-  emoteSupport: boolean
-}
-
-const props = defineProps<{ line: any; defaultColor: string; features: Features }>()
+const props = defineProps<{ line: ChatLine; defaultColor: string; features: Features }>()
 
 function lineVars(): Record<string, string> {
   const base: string = (props.features.userColors && props.line.color) ? props.line.color : props.defaultColor
@@ -45,18 +36,18 @@ function bannerTextClass(): string {
 // as a glow). The name text on it is plain black or white by contrast. Without a paint the bar keeps the
 // chat-colour gradient from the stylesheet.
 function hasPaint(): boolean {
-  const p: any = props.line.paint
+  const p: NnzChatPaintDto | null = props.line.paint
   return !!p && !!(p.backgroundImage || p.color)
 }
 
-function paintColors(p: any): string[] {
+function paintColors(p: NnzChatPaintDto): string[] {
   const stops: string[] = (p.backgroundImage || '').match(/#[0-9a-fA-F]{6,8}\b/g) || []
   return stops.length ? stops : p.color ? [p.color] : []
 }
 
 function bannerPaintStyle(): Record<string, string> {
-  if (!hasPaint()) return {}
-  const p: any = props.line.paint
+  const p: NnzChatPaintDto | null = props.line.paint
+  if (!p || !hasPaint()) return {}
   const style: Record<string, string> = {}
   if (p.backgroundImage) {
     style['background-image'] = p.backgroundImage
@@ -77,9 +68,10 @@ function bannerPaintStyle(): Record<string, string> {
   return style
 }
 
-const ogFragments = props.line.fragments.filter(
-  (fr: any) => fr.type === 'link' && fr.preview && (fr.preview.title || fr.preview.imageUrl)
-)
+// A link fragment's resolved OpenGraph preview (the wire field is `linkPreview`).
+const ogPreviews: NnzChatLinkPreviewDto[] = props.line.fragments
+  .map((fr: NnzChatFragmentDto) => (fr.type === 'link' ? fr.linkPreview : null))
+  .filter((p): p is NnzChatLinkPreviewDto => !!p && !!(p.title || p.imageUrl))
 </script>
 
 <template>
@@ -114,12 +106,12 @@ const ogFragments = props.line.fragments.filter(
           <!-- OG link preview cards, appended after the body (legacy behavior). -->
           <template v-if="features.ogPreviews">
             <OgPreview
-              v-for="(fr, i) in ogFragments"
+              v-for="(preview, i) in ogPreviews"
               :key="'og-' + i"
-              :title="fr.preview.title"
-              :description="fr.preview.description"
-              :host="fr.preview.host"
-              :image-url="fr.preview.imageUrl"
+              :title="preview.title ?? ''"
+              :description="preview.description ?? undefined"
+              :host="preview.host"
+              :image-url="preview.imageUrl ?? undefined"
             />
           </template>
         </template>
