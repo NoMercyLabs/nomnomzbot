@@ -132,26 +132,71 @@ const text = (): string => document.body.textContent ?? '';
 const topicRows = (): HTMLElement[] => [
   ...document.body.querySelectorAll<HTMLElement>('[data-topic-row]'),
 ];
+const channelRows = (): HTMLElement[] => [
+  ...document.body.querySelectorAll<HTMLElement>('[data-channel-row]'),
+];
+const byToggle = (index: number): HTMLElement | undefined =>
+  document.body.querySelectorAll<HTMLElement>('[data-details-toggle]')[index];
 const byText = (selector: string, label: string): HTMLElement | undefined =>
   [...document.body.querySelectorAll<HTMLElement>(selector)].find(
     (node) => node.textContent?.trim() === label,
   );
 
 describe('AdminEventSubHealthView', () => {
-  it('renders one row per topic with channel, state, version, error and confirmation date', async () => {
+  it('shows one row per channel with a plain verdict and no topic detail', async () => {
     await open();
 
     expect(calls[0]!.path).toBe('/api/v{version}/admin/eventsub/health');
-    expect(topicRows()).toHaveLength(3);
-    expect(topicRows()[0]!.textContent).toContain('Stoney_Eagle');
-    expect(topicRows()[0]!.textContent).toContain('channel.follow');
-    expect(topicRows()[0]!.textContent).toContain('enabled');
-    expect(topicRows()[0]!.textContent).toContain('Oct 1, 2026');
-    expect(topicRows()[1]!.textContent).toContain('authorization_revoked');
-    expect(topicRows()[1]!.textContent).toContain('token gone');
-    expect(topicRows()[1]!.querySelector('[data-tone="bad"]')).not.toBeNull();
-    expect(text()).toContain('Quiet_One');
-    expect(text()).toContain('No Twitch subscriptions');
+    expect(channelRows()).toHaveLength(2);
+    expect(channelRows()[0]!.textContent).toContain('Stoney_Eagle');
+    expect(channelRows()[0]!.textContent).toContain('1 of 2 need attention');
+    expect(channelRows()[0]!.textContent).toContain('token gone');
+    expect(channelRows()[0]!.querySelector('[data-tone="bad"]')).not.toBeNull();
+    expect(channelRows()[1]!.textContent).toContain('Quiet_One');
+    expect(channelRows()[1]!.textContent).toContain('No Twitch subscriptions');
+    expect(topicRows()).toHaveLength(0);
+    expect(text()).not.toContain('channel.follow');
+    expect(text()).not.toContain('Version');
+  });
+
+  it('says a channel with only working subscriptions is working', async () => {
+    tenants = [
+      {
+        broadcasterId: 'b3',
+        channelDisplayName: 'Fine_One',
+        topics: [
+          {
+            subscriptionId: 's9',
+            eventType: 'channel.follow',
+            version: '2',
+            status: 'enabled',
+            enabled: true,
+            lastError: null,
+            lastConfirmedAt: '2026-10-01T10:00:00Z',
+          },
+        ],
+      },
+    ];
+
+    await open();
+
+    expect(channelRows()[0]!.textContent).toContain('Working');
+    expect(channelRows()[0]!.textContent).toContain('1 subscription');
+    expect(channelRows()[0]!.querySelector('[data-tone="ok"]')).not.toBeNull();
+  });
+
+  it('shows every topic with state, version, error and date behind the details toggle', async () => {
+    await open();
+    byToggle(0)!.click();
+    await settle();
+
+    expect(topicRows()).toHaveLength(2);
+    expect(topicRows()[0]!.textContent).toContain('channel.raid');
+    expect(topicRows()[0]!.textContent).toContain('authorization_revoked');
+    expect(topicRows()[0]!.textContent).toContain('token gone');
+    expect(topicRows()[1]!.textContent).toContain('channel.follow');
+    expect(topicRows()[1]!.textContent).toContain('Oct 1, 2026');
+    expect(topicRows()[1]!.textContent).toContain('2');
   });
 
   it('pages the registry', async () => {

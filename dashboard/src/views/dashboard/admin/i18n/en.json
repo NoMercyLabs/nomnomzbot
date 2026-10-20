@@ -240,9 +240,14 @@
         },
         "noSubscriptions": "No Twitch subscriptions",
         "noError": "None",
+        "working": "Working",
+        "needAttention": "{broken} of {total} need attention",
+        "subscriptions": "{count} subscription | {count} subscriptions",
+        "signInAgain": "The channel owner must sign in again.",
+        "details": "Details",
         "list": {
-          "title": "Twitch subscriptions per channel",
-          "description": "The real registry the bot re-registers on every reconnect",
+          "title": "Is Twitch reaching each channel?",
+          "description": "Each channel shows whether it works and what is broken",
           "empty": "No channel has a Twitch EventSub subscription.",
           "error": "The EventSub health could not load.",
           "forbidden": "You may not see the EventSub health."

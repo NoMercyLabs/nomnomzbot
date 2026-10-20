@@ -240,9 +240,14 @@
         },
         "noSubscriptions": "Geen abonnementen",
         "noError": "Geen",
+        "working": "Werkt",
+        "needAttention": "{broken} van {total} hebben aandacht nodig",
+        "subscriptions": "{count} abonnement | {count} abonnementen",
+        "signInAgain": "De kanaaleigenaar moet opnieuw inloggen.",
+        "details": "Details",
         "list": {
-          "title": "Abonnementen per kanaal",
-          "description": "Het echte register dat de bot bij elke herverbinding opnieuw aanmeldt",
+          "title": "Bereikt Twitch elk kanaal?",
+          "description": "Elk kanaal laat zien of het werkt en wat er kapot is",
           "empty": "Geen enkel kanaal heeft een EventSub-abonnement.",
           "error": "De EventSub-gezondheid kon niet laden.",
           "forbidden": "Je mag de EventSub-gezondheid niet zien."

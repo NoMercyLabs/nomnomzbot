@@ -8,88 +8,16 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// One row per EventSub topic, grouped under its channel. A channel with no topic still shows one row,
-// so a missing registry is visible and never padded with a guessed "healthy" entry.
-import { computed } from 'vue';
+// The channels of the EventSub registry, one row each. The topic detail lives behind each row's toggle.
+import type { AdminEventSubTenantHealth } from '@/api/adminActivity';
 
-import type {
-  AdminEventSubTenantHealth,
-  AdminEventSubTopicHealth,
-} from '@/api/adminActivity';
-import DateTime from '@/components/layout/DateTime.vue';
-import StatusBadge from '@/components/layout/StatusBadge.vue';
-import {
-  Table,
-  TableBody,
-  TableCell,
-  TableHead,
-  TableHeader,
-  TableRow,
-} from '@/components/ui/table';
+import EventSubChannelRow from './EventSubChannelRow.vue';
 
-type Line = {
-  key: string;
-  channel: string | null;
-  topic: AdminEventSubTopicHealth | null;
-};
-
-const props = defineProps<{ rows: readonly AdminEventSubTenantHealth[] }>();
-
-function linesOf(tenant: AdminEventSubTenantHealth): Line[] {
-  if (tenant.topics.length === 0)
-    return [{
-      key: tenant.broadcasterId,
-      channel: tenant.channelDisplayName,
-      topic: null,
-    }];
-
-  return tenant.topics.map((topic, index) => ({
-    key: topic.subscriptionId,
-    channel: index === 0
-      ? tenant.channelDisplayName
-      : null,
-    topic,
-  }) as const satisfies Line);
-}
-
-const lines = computed<Line[]>(() => props.rows.flatMap(linesOf));
+defineProps<{ rows: readonly AdminEventSubTenantHealth[] }>();
 </script>
 
 <template>
-  <Table>
-    <TableHeader>
-      <TableRow class="hover:bg-transparent">
-        <TableHead>{{ $t('dashboard.admin.eventsubHealth.columns.channel') }}</TableHead>
-        <TableHead>{{ $t('dashboard.admin.eventsubHealth.columns.topic') }}</TableHead>
-        <TableHead>{{ $t('dashboard.admin.eventsubHealth.columns.state') }}</TableHead>
-        <TableHead>{{ $t('dashboard.admin.eventsubHealth.columns.version') }}</TableHead>
-        <TableHead>{{ $t('dashboard.admin.eventsubHealth.columns.confirmed') }}</TableHead>
-        <TableHead>{{ $t('dashboard.admin.eventsubHealth.columns.error') }}</TableHead>
-      </TableRow>
-    </TableHeader>
-    <TableBody>
-      <TableRow v-for="line in lines" :key="line.key" data-topic-row>
-        <TableCell class="font-medium">{{ line.channel }}</TableCell>
-        <template v-if="line.topic">
-          <TableCell class="font-mono text-sm">{{ line.topic.eventType }}</TableCell>
-          <TableCell>
-            <StatusBadge
-              :tone="line.topic.enabled && !line.topic.lastError
-                ? 'ok'
-                : 'bad'"
-              :label="line.topic.status"
-            />
-          </TableCell>
-          <TableCell class="tabular-nums text-muted-foreground">{{ line.topic.version }}</TableCell>
-          <TableCell class="text-muted-foreground"><DateTime :value="line.topic.lastConfirmedAt" variant="date" /></TableCell>
-          <TableCell class="text-muted-foreground">
-            {{ line.topic.lastError ?? $t('dashboard.admin.eventsubHealth.noError') }}
-          </TableCell>
-        </template>
-        <TableCell v-else colspan="5" class="text-muted-foreground">
-          {{ $t('dashboard.admin.eventsubHealth.noSubscriptions') }}
-        </TableCell>
-      </TableRow>
-    </TableBody>
-  </Table>
+  <div>
+    <EventSubChannelRow v-for="tenant in rows" :key="tenant.broadcasterId" :tenant="tenant" />
+  </div>
 </template>
