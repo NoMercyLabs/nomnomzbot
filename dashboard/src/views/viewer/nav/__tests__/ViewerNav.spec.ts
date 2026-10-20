@@ -57,6 +57,12 @@ describe('ViewerNav', () => {
     ]);
   });
 
+  it('shows no page links on /me, where no channel is open yet, instead of failing the whole frame', async () => {
+    const wrapper = await mountAt('/me');
+
+    expect(wrapper.findAll('a')).toEqual([]);
+  });
+
   it('marks only the open page as current', async () => {
     const wrapper = await mountAt('/me/stoney_eagle/leaderboards');
     const current = wrapper.findAll('a[aria-current="page"]');

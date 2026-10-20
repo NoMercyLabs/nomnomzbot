@@ -280,6 +280,7 @@ describe('the viewer account page', () => {
     expect(put?.body).toEqual({ voiceId: 'v-2' });
     expect(put?.params.channelId).toBe('chan-1');
     expect(sent.some((call) => call.path.endsWith('/tts/config'))).toBe(false);
+    expect(sent.filter((call) => call.method !== 'GET').map((call) => call.path)).toEqual([put?.path]);
     expect(wrapper.findAll('[data-voice-row]')[1]!.text()).toContain('Your voice');
   });
 

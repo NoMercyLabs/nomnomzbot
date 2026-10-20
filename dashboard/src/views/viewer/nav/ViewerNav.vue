@@ -26,6 +26,7 @@ const channel = computed(() => String(route.params.channel ?? ''));
 
 <template>
   <nav
+    v-if="channel !== ''"
     data-slot="viewer-nav"
     :aria-label="t('frame.nav.label')"
     class="fixed inset-x-0 bottom-0 z-10 flex items-stretch justify-around gap-1 border-t border-border bg-background p-1 md:static md:justify-start md:border-0 md:bg-transparent md:p-0"
