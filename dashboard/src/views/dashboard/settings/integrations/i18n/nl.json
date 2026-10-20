@@ -15,6 +15,24 @@
         "lastSync": "Laatst gesynchroniseerd {date}",
         "scopeSets": "Rechtensets: {sets}",
         "capabilities": "Kan: {list}",
+        "scopeSetNames": {
+          "spotify_playback": "Weergave bedienen",
+          "spotify_library": "Je bibliotheek lezen",
+          "spotify_streaming": "In de browser afspelen",
+          "kick_chat": "Chat",
+          "patreon_supporters": "Supporters zien",
+          "patreon_members_pii": "Contactgegevens van supporters zien",
+          "patreon_posts": "Berichten",
+          "patreon_lives": "Lives",
+          "shopify_orders": "Bestellingen lezen",
+          "treatstream_treats": "Traktaties",
+          "youtube_manage": "Je kanaal beheren",
+          "youtube_readonly": "Je kanaal lezen"
+        },
+        "capabilityNames": {
+          "playback": "weergave bedienen",
+          "library": "je bibliotheek lezen"
+        },
         "connect": "Koppelen",
         "reconnect": "Opnieuw koppelen",
         "disconnect": "Ontkoppelen",

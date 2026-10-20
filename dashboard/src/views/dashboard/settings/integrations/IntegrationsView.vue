@@ -107,12 +107,21 @@ function accountOf(row: ChannelIntegration): string | undefined {
   return row.connectedAs ?? statusOf(row)?.accountName ?? undefined;
 }
 
+// A key the server sends shows by its translated name; an unknown key falls back to plain words, never the raw key.
+function plainName(group: 'scopeSetNames' | 'capabilityNames', key: string): string {
+  const path = `dashboard.settings.integrations.${group}.${key.replaceAll('.', '_')}`;
+
+  return te(path)
+    ? t(path)
+    : (key.split('.').at(-1) ?? key).replaceAll('_', ' ');
+}
+
 function scopesOf(row: ChannelIntegration): string {
   const sets = statusOf(row)?.grantedScopeSets ?? [];
 
   return sets.length === 0
     ? ''
-    : t('dashboard.settings.integrations.scopeSets', { sets: sets.join(', ') });
+    : t('dashboard.settings.integrations.scopeSets', { sets: sets.map((set) => plainName('scopeSetNames', set)).join(', ') });
 }
 
 function capabilitiesOf(row: ChannelIntegration): string[] {
@@ -120,7 +129,7 @@ function capabilitiesOf(row: ChannelIntegration): string[] {
 
   return Object.entries(map)
     .filter(([, granted]) => granted)
-    .map(([name]) => name);
+    .map(([name]) => plainName('capabilityNames', name));
 }
 
 function canConnect(row: ChannelIntegration): boolean {

@@ -213,16 +213,17 @@ describe('Integrations page', () => {
     expect(row('spotify').textContent).toContain('Connected as stoney');
     expect(row('spotify').textContent).toContain(en.dashboard.settings.integrations.needsReauth);
 
-    expect(row('spotify').querySelector('[data-slot="scope-sets"]')?.textContent).toContain(
-      'spotify.playback',
-    );
+    const scopeText = row('spotify').querySelector('[data-slot="scope-sets"]')?.textContent;
+
+    expect(scopeText).toContain(en.dashboard.settings.integrations.scopeSetNames.spotify_playback);
+    expect(scopeText).not.toContain('spotify.playback');
 
     expect(row('spotify').querySelector('[data-slot="capabilities"]')?.textContent).toContain(
-      'playback',
+      en.dashboard.settings.integrations.capabilityNames.playback,
     );
 
     expect(row('spotify').querySelector('[data-slot="capabilities"]')?.textContent).not.toContain(
-      'library',
+      en.dashboard.settings.integrations.capabilityNames.library,
     );
 
     expect(row('patreon').textContent).toContain(en.dashboard.settings.integrations.notConnected);

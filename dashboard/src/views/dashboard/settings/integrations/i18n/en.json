@@ -15,6 +15,24 @@
         "lastSync": "Last sync {date}",
         "scopeSets": "Permission sets: {sets}",
         "capabilities": "Can do: {list}",
+        "scopeSetNames": {
+          "spotify_playback": "Control playback",
+          "spotify_library": "Read your library",
+          "spotify_streaming": "Play in the browser",
+          "kick_chat": "Chat",
+          "patreon_supporters": "See supporters",
+          "patreon_members_pii": "See supporter contact details",
+          "patreon_posts": "Posts",
+          "patreon_lives": "Lives",
+          "shopify_orders": "Read orders",
+          "treatstream_treats": "Treats",
+          "youtube_manage": "Manage your channel",
+          "youtube_readonly": "Read your channel"
+        },
+        "capabilityNames": {
+          "playback": "control playback",
+          "library": "read your library"
+        },
         "connect": "Connect",
         "reconnect": "Reconnect",
         "disconnect": "Disconnect",
