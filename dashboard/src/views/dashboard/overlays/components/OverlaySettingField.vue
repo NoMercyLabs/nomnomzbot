@@ -33,7 +33,15 @@ import { humanize } from '@/lib/text';
 import StepPicker from '@/views/dashboard/pipelines/components/StepPicker.vue';
 
 import SettingGroup from './SettingGroup.vue';
-import { clampNumber, objectOf, parsedJson, pickerOf, textListOf } from './settingField';
+import {
+  clampNumber,
+  objectOf,
+  parsedJson,
+  pickedWords,
+  pickerOf,
+  textListOf,
+  withoutCodeEditorNote,
+} from './settingField';
 import StringListEditor from './StringListEditor.vue';
 
 const props = defineProps<{
@@ -46,10 +54,22 @@ const emit = defineEmits<{ update: [value: JsonValue | undefined]; reset: [] }>(
 const text = useLocalizedText();
 const titleId = useId();
 
-const label = computed<string>(() => text(props.field.label, humanize(props.field.key)));
+// A picked field drops the "ID" from its words; a JSON field edited here drops the "edited in the code editor" note.
+function plain(words: string): string {
+  const picked = pickerKind.value
+    ? pickedWords(words)
+    : words;
+
+  return group.value || textList.value
+    ? withoutCodeEditorNote(picked)
+    : picked;
+}
+
+const declaredLabel = computed<string>(() => text(props.field.label, humanize(props.field.key)));
+const label = computed<string>(() => plain(declaredLabel.value));
 const help = computed<string>(() =>
   props.field.help
-    ? text(props.field.help, '')
+    ? plain(text(props.field.help, ''))
     : '');
 
 interface Choice {
@@ -105,7 +125,7 @@ const controlWidth = computed<string>(() => {
 
   return wide.value
     ? 'w-full'
-    : 'max-sm:w-full';
+    : 'w-full sm:w-80';
 });
 const known = computed<boolean>(() =>
   ['bool', 'number', 'text', 'color', 'select', 'multiselect', 'list', 'group', 'json'].includes(
@@ -140,17 +160,7 @@ function onNumber(event: Event): void {
     />
     <template v-else>
       <span class="min-w-40 flex-1">
-        <span :id="titleId" class="flex items-center gap-2 text-sm font-medium wrap-break-word">
-          {{ label }}
-          <span
-            v-if="changed"
-            class="size-1.5 flex-none rounded-full bg-muted-foreground"
-            :title="$t('dashboard.overlays.detail.settings.changed')"
-          />
-          <span v-if="changed" class="sr-only">{{
-            $t('dashboard.overlays.detail.settings.changed')
-          }}</span>
-        </span>
+        <span :id="titleId" class="block text-sm font-medium wrap-break-word">{{ label }}</span>
         <span v-if="help" class="block text-sm text-muted-foreground wrap-break-word">{{
           help
         }}</span>
@@ -165,7 +175,7 @@ function onNumber(event: Event): void {
       <Input
         v-if="field.type === 'number'"
         type="number"
-        class="w-full sm:w-48"
+        class="min-w-0 flex-1"
         :min="field.min ?? undefined"
         :max="field.max ?? undefined"
         :step="field.step ?? undefined"
@@ -173,7 +183,7 @@ function onNumber(event: Event): void {
         :aria-labelledby="titleId"
         @change="onNumber"
       />
-      <span v-else-if="field.type === 'color'" class="relative w-full sm:w-48">
+      <span v-else-if="field.type === 'color'" class="relative min-w-0 flex-1">
         <span
           data-swatch
           class="absolute top-1/2 left-2 size-5 -translate-y-1/2 rounded-xs border border-border"
@@ -190,7 +200,7 @@ function onNumber(event: Event): void {
       <StepPicker
         v-else-if="field.type === 'text' && pickerKind"
         :id="titleId + '-picker'"
-        class="w-full sm:w-64"
+        class="min-w-0 flex-1"
         :kind="pickerKind"
         :value="shown"
         :required="false"
@@ -198,7 +208,7 @@ function onNumber(event: Event): void {
       />
       <Input
         v-else-if="field.type === 'text'"
-        class="w-full sm:w-48"
+        class="min-w-0 flex-1"
         :model-value="shown"
         :aria-labelledby="titleId"
         @update:model-value="emit('update', String($event))"
@@ -208,7 +218,7 @@ function onNumber(event: Event): void {
         :model-value="shown"
         @update:model-value="emit('update', String($event))"
       >
-        <SelectTrigger class="w-full sm:w-48" :aria-labelledby="titleId">
+        <SelectTrigger class="min-w-0 flex-1" :aria-labelledby="titleId">
           <SelectValue>{{ chosenLabel }}</SelectValue>
         </SelectTrigger>
         <SelectContent>

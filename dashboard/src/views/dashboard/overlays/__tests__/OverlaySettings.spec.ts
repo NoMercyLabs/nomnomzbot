@@ -433,6 +433,9 @@ describe('the overlay settings form', () => {
       (row('colors').querySelector('[data-group-key="primary"] input') as HTMLInputElement).value,
     ).toBe('#112233');
 
+    (row('colors').querySelector('[data-group-key="win31"] [data-group-toggle]') as HTMLElement).click();
+    await settle();
+
     expect(
       row('colors').querySelector('[data-group-key="win31"] [data-group-key="enabled"] [role="switch"]'),
     ).not.toBeNull();
@@ -625,6 +628,9 @@ describe('the detail body', () => {
 
   it('edits a group field in place and saves the whole nested object', async () => {
     await open();
+
+    (row('timing').querySelector('[data-group-key="inner"] [data-group-toggle]') as HTMLElement).click();
+    await settle();
 
     const open10 = row('timing').querySelector('[data-group-key="open"] input') as HTMLInputElement;
     const loop = row('timing').querySelector(

@@ -165,4 +165,60 @@ describe('the words beside a setting', () => {
     expect(field.text()).not.toContain('rewardId');
     expect(field.text()).not.toContain('text ·');
   });
+
+  // The field is picked from a list of rewards, so "ID" names nothing a person sees.
+  it('names a picked reward as a reward, never as its ID', () => {
+    const field = mountField({
+      label: text('Channel point reward ID'),
+      help: text('The ID of the channel point reward that starts the crash. Empty means nothing starts it.'),
+    });
+
+    expect(field.text()).toContain('Channel point reward');
+    expect(field.text()).toContain('The channel point reward that starts the crash. Empty means nothing starts it.');
+    expect(field.text()).not.toMatch(/\bID\b/);
+  });
+
+  it('keeps the ID in the words of a typed text field', () => {
+    const field = mountField({ key: 'title', label: text('Stream ID') });
+
+    expect(field.text()).toContain('Stream ID');
+  });
+
+  it('drops a help sentence that sends the person to the code editor when the page edits the value', () => {
+    const field = mountField(
+      {
+        key: 'osConfig',
+        label: text('Windows versions and timings'),
+        type: 'json',
+        help: text(
+          'Which Windows versions can appear. This is a group of values; it is shown here but is edited in the code editor.',
+        ),
+      },
+      '{"win31":{"enabled":true}}',
+    );
+
+    expect(field.text()).toContain('Which Windows versions can appear.');
+    expect(field.text()).not.toContain('code editor');
+  });
+
+  it('marks a changed setting by its Reset button alone, with no unexplained dot', () => {
+    mounted = mount(OverlaySettingField, {
+      attachTo: document.body,
+      props: {
+        field: {
+          key: 'title',
+          label: text('Title'),
+          type: 'text',
+          group: text('Trigger'),
+          default: '',
+        },
+        value: 'x',
+        changed: true,
+      },
+      global: { plugins: [i18n, createRouter({ history: createMemoryHistory(), routes: [] })] },
+    });
+
+    expect(mounted.find('[data-reset]').exists()).toBe(true);
+    expect(mounted.find('.rounded-full').exists()).toBe(false);
+  });
 });

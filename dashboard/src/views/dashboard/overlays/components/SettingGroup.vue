@@ -10,21 +10,41 @@
 <script setup lang="ts">
 // A nested settings object edited in place: one labeled control per key, chosen by the kind of value it holds
 // (switch, number, text, list of texts, or a nested group). A value of another kind says it is set in the code.
-import { computed } from 'vue';
+// The first level of nested groups opens one at a time, so a long group still fits one screen.
+import ChevronDown from '~icons/nnz/chevron-down';
+import ChevronRight from '~icons/nnz/chevron-right';
+import { computed, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
+import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
+import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import type { JsonObject, JsonValue } from '@/lib/json';
 import { numberOrNull } from '@/lib/number';
-import { humanize } from '@/lib/text';
 
 import SettingGroup from './SettingGroup.vue';
+import { plainKey } from './settingField';
 import StringListEditor from './StringListEditor.vue';
 
-const props = defineProps<{ value: JsonObject }>();
+const props = withDefaults(
+  defineProps<{
+    value: JsonObject;
+    depth?: number;
+    milliseconds?: boolean;
+  }>(),
+  { depth: 0, milliseconds: false },
+);
 const emit = defineEmits<{ update: [value: JsonObject] }>();
 
+const { t, te } = useI18n();
+
 type Kind = 'bool' | 'number' | 'text' | 'list' | 'group' | 'other';
+
+// A group named for durations holds milliseconds, as does a number whose key ends in Ms; both show as seconds.
+const DURATION_GROUP = /^(timings|durations|delays)$/i;
+const MILLISECONDS_KEY = /[a-z]Ms$/;
 
 function kindOf(value: JsonValue | undefined): Kind {
   if (typeof value === 'boolean')
@@ -46,25 +66,49 @@ function kindOf(value: JsonValue | undefined): Kind {
     : 'other';
 }
 
+// The page's plain word for a key part, or null when it has none.
+function wordFor(part: string): string | null {
+  const path = `dashboard.overlays.detail.settings.words.${part}`;
+
+  return te(path)
+    ? t(path)
+    : null;
+}
+
+function word(key: string): string {
+  return plainKey(key, wordFor);
+}
+
 const entries = computed(() =>
   Object.entries(props.value).map(([key, value]) => ({
     key,
-    label: humanize(key),
+    label: word(key),
     value,
     kind: kindOf(value),
+    seconds: props.milliseconds || MILLISECONDS_KEY.test(key),
   })),
 );
+
+const opened = ref<Record<string, boolean>>({});
 
 function set(key: string, value: JsonValue | undefined): void {
   emit('update', { ...props.value, [key]: value });
 }
 
-function setNumber(key: string, typed: string | number): void {
+function setNumber(key: string, typed: string | number, seconds: boolean): void {
   const parsed = numberOrNull(String(typed));
 
-  if (parsed !== null) {
-    set(key, parsed);
-  }
+  if (parsed === null) return;
+
+  set(key, seconds
+    ? Math.round(parsed * 1000)
+    : parsed);
+}
+
+function shownNumber(value: JsonValue | undefined, seconds: boolean): string {
+  return seconds
+    ? String(Number(value) / 1000)
+    : String(value);
 }
 </script>
 
@@ -84,15 +128,56 @@ function setNumber(key: string, typed: string | number): void {
         :label="entry.label"
         @update:model-value="set(entry.key, $event)"
       />
+      <Collapsible
+        v-else-if="entry.kind === 'group' && depth === 0"
+        v-model:open="opened[entry.key]"
+      >
+        <div class="flex items-center gap-1">
+          <CollapsibleTrigger as-child>
+            <Button
+              data-group-toggle
+              variant="ghost"
+              size="icon"
+              :aria-label="$t('dashboard.overlays.detail.settings.open', { name: entry.label })"
+              :aria-expanded="opened[entry.key] === true"
+            >
+              <ChevronDown v-if="opened[entry.key]" aria-hidden="true" />
+              <ChevronRight v-else aria-hidden="true" />
+            </Button>
+          </CollapsibleTrigger>
+          <span class="text-sm font-medium">{{ entry.label }}</span>
+        </div>
+        <CollapsibleContent class="pb-2 pl-10">
+          <SettingGroup
+            :value="(entry.value as JsonObject)"
+            :depth="depth + 1"
+            :milliseconds="DURATION_GROUP.test(entry.key)"
+            @update="set(entry.key, $event)"
+          />
+        </CollapsibleContent>
+      </Collapsible>
       <span v-else class="text-sm font-medium">{{ entry.label }}</span>
 
+      <InputGroup v-if="entry.kind === 'number' && entry.seconds">
+        <InputGroupInput
+          type="number"
+          step="0.1"
+          min="0"
+          :model-value="shownNumber(entry.value, true)"
+          :aria-label="entry.label"
+          @update:model-value="setNumber(entry.key, $event, true)"
+        />
+        <InputGroupAddon align="inline-end">
+          {{ $t('dashboard.overlays.detail.settings.seconds') }}
+        </InputGroupAddon>
+      </InputGroup>
       <Input
-        v-if="entry.kind === 'number'"
+        v-else-if="entry.kind === 'number'"
         type="number"
         class="w-full"
-        :model-value="String(entry.value)"
+        :model-value="shownNumber(entry.value, false)"
         :aria-label="entry.label"
-        @update:model-value="setNumber(entry.key, $event)"
+        @update:model-value="setNumber(entry.key, $event, false)"
       />
       <Input
         v-else-if="entry.kind === 'text'"
@@ -105,8 +190,13 @@ function setNumber(key: string, typed: string | number): void {
         :items="(entry.value as string[])"
         @update="set(entry.key, $event)"
       />
-      <div v-else-if="entry.kind === 'group'" class="border-l pl-3">
-        <SettingGroup :value="(entry.value as JsonObject)" @update="set(entry.key, $event)" />
+      <div v-else-if="entry.kind === 'group' && depth > 0" class="border-l pl-3">
+        <SettingGroup
+          :value="(entry.value as JsonObject)"
+          :depth="depth + 1"
+          :milliseconds="DURATION_GROUP.test(entry.key)"
+          @update="set(entry.key, $event)"
+        />
       </div>
       <p v-else-if="entry.kind === 'other'" data-in-code class="text-sm text-muted-foreground">
         {{ $t('dashboard.overlays.detail.settings.inCode') }}

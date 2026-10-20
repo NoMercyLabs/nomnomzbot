@@ -33,6 +33,57 @@ export function pickerOf(field: WidgetSettingsField): PickerKind | null {
   return NAMED_PICKERS.find((rule) => rule.pattern.test(field.key))?.kind ?? null;
 }
 
+// A picked field shows the thing itself (the reward, the input), so the "ID" a declaration names is no word
+// a person needs: "Channel point reward ID" reads "Channel point reward", "The ID of the reward" reads "The reward".
+export function pickedWords(words: string): string {
+  return words
+    .replace(/\b(the) ID of (?:the|a|an)\b/gi, '$1')
+    .replace(/\s+ID\b/g, '');
+}
+
+// A declaration may say its value is edited in the code editor; where the page edits it, that sentence is untrue.
+export function withoutCodeEditorNote(words: string): string {
+  return words
+    .split(/(?<=[.!?])\s+/)
+    .filter((sentence) => !/code editor/i.test(sentence))
+    .join(' ');
+}
+
+// A nested key in plain words: the longest run of its camel-case parts the page has a word for reads in that word
+// ("winXpStartupSoundUrl" -> "Windows XP startup sound link"); any other part reads lowercase.
+export function plainKey(key: string, wordFor: (part: string) => string | null): string {
+  const parts = key
+    .replace(/([a-z0-9])([A-Z])/g, '$1 $2')
+    .split(/[\s_.-]+/)
+    .filter(Boolean);
+  const words: string[] = [];
+
+  for (let start = 0; start < parts.length;) {
+    const end = longestKnownRun(parts, start, wordFor);
+    const run = parts.slice(start, end).join('').toLowerCase();
+
+    words.push(wordFor(run) ?? run);
+    start = end;
+  }
+
+  const sentence = words.join(' ');
+
+  return sentence.charAt(0).toUpperCase() + sentence.slice(1);
+}
+
+function longestKnownRun(
+  parts: string[],
+  start: number,
+  wordFor: (part: string) => string | null,
+): number {
+  for (let end = parts.length; end > start + 1; end--) {
+    if (wordFor(parts.slice(start, end).join('').toLowerCase()) !== null)
+      return end;
+  }
+
+  return start + 1;
+}
+
 // A JSON setting may arrive as its JSON text (a declared default); read it as the value it spells.
 export function parsedJson(value: JsonValue | undefined): JsonValue | undefined {
   if (typeof value !== 'string')
