@@ -209,6 +209,12 @@ function makeGuardedRouter(): Router {
     routes: [
       loginRoute,
       {
+        path: '/me',
+        name: 'viewer-me',
+        component: page,
+        meta: { requiresAuth: true },
+      },
+      {
         path: '/app',
         component: page,
         meta: { requiresAuth: true },
@@ -277,6 +283,25 @@ describe('opening the dashboard without a channel prefix', () => {
     await router.push('/app/stream');
 
     expect(router.currentRoute.value.fullPath).toBe('/app/stream');
+  });
+
+  it('lands a person with no own and no moderated channel on My channels', async () => {
+    held.login = null;
+    const router = makeGuardedRouter();
+
+    await router.push('/app');
+
+    expect(router.currentRoute.value.fullPath).toBe('/me');
+    expect(router.currentRoute.value.name).toBe('viewer-me');
+  });
+
+  it('lands a person with an own channel on that channel', async () => {
+    held.login = 'mychannel';
+    const router = makeGuardedRouter();
+
+    await router.push('/app');
+
+    expect(router.currentRoute.value.fullPath).toBe('/app/u/mychannel');
   });
 
   it('keeps the login flow for a signed-out visitor, with no loop', async () => {

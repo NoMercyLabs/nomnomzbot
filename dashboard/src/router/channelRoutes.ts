@@ -25,6 +25,11 @@ export const channelParam = 'channelName';
 export const channelPrefix = '/app/u/';
 const variantMark = 'u:';
 
+const viewerHome = {
+  path: '/me',
+  replace: true,
+} as const satisfies RouteLocationRaw;
+
 export type ChannelParams = { channelName: string };
 
 // The channel-prefixed twin of each page: same page, name marked, path unchanged below the prefix.
@@ -153,7 +158,7 @@ export function platformPathGuard(to: RouteLocationNormalized) {
 
 // Opening /app/<page> from outside a channel route lands on /app/u/<current channel>/<page>.
 // It runs after the sign-in guard, so a signed-out visitor never gets here and the login flow stays as it is.
-// A person with no channel (a viewer) keeps the short address.
+// A person with no channel (a viewer) keeps the short address of a page, and lands on My channels from the bare /app.
 export async function ownChannelGuard(
   to: RouteLocationNormalized,
 ): Promise<true | RouteLocationRaw> {
@@ -163,7 +168,9 @@ export async function ownChannelGuard(
   const login = await currentChannelLogin().catch(() => null);
 
   if (login === null)
-    return true;
+    return to.path === '/app'
+      ? viewerHome
+      : true;
 
   return prefixed(to, login);
 }
