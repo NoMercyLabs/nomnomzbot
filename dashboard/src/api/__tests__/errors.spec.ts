@@ -52,6 +52,17 @@ describe('parseProblem', () => {
     expect(parseProblem({ message: 'Custom code is switched off.' }).detail).toBe('Custom code is switched off.');
   });
 
+  it('keeps the bot error code so a screen can name a setup reason in plain words', () => {
+    const error = failed('discord roles', 500, {
+      status: 'error',
+      message: 'raw',
+      code: 'DISCORD_BOT_TOKEN_NOT_CONFIGURED',
+    });
+
+    expect(error.serverCode).toBe('DISCORD_BOT_TOKEN_NOT_CONFIGURED');
+    expect(error.code).toBe('discord/discord-roles');
+  });
+
   it('reads the translatable key and the field of a validator refusal in data', () => {
     const problem = parseProblem({
       status: 400,

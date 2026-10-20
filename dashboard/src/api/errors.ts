@@ -577,6 +577,8 @@ export type ApiProblem = {
   traceId?: string;
   violation?: ApiViolation;
   problems?: ApiFieldProblem[];
+  // The bot's own error code (for example DISCORD_BOT_TOKEN_NOT_CONFIGURED), when it sent one.
+  serverCode?: string;
 };
 
 function isRecord(value: unknown): value is JsonObject {
@@ -716,6 +718,7 @@ export function parseProblem(body: unknown) {
     traceId: textOf(body, 'traceId'),
     violation: violationOf(body),
     problems: problemsOf(body),
+    serverCode: textOf(body, 'code'),
   };
 
   return Object.fromEntries(Object.entries(problem).filter(([, value]) => value !== undefined));
@@ -761,6 +764,7 @@ export class ApiError extends Error {
   readonly traceId?: string;
   readonly violation?: ApiViolation;
   readonly problems?: ApiFieldProblem[];
+  readonly serverCode?: string;
 
   constructor(operation: ApiOperation, status?: number, problem: ApiProblem = {}) {
     const origin = apiOperations[operation];
@@ -783,6 +787,7 @@ export class ApiError extends Error {
     this.traceId = problem.traceId;
     this.violation = problem.violation;
     this.problems = problem.problems;
+    this.serverCode = problem.serverCode;
   }
 }
 
