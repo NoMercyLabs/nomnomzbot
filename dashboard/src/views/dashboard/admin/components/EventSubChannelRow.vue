@@ -24,7 +24,7 @@ import ChevronDown from '~icons/nnz/chevron-down';
 const props = defineProps<{ tenant: AdminEventSubTenantHealth }>();
 
 const isBroken = (topic: AdminEventSubTopicHealth): boolean =>
-  !topic.enabled || topic.lastError !== null;
+  !topic.enabled || Boolean(topic.lastError);
 
 const topics = computed<AdminEventSubTopicHealth[]>(() =>
   [...props.tenant.topics].sort((a, b) =>

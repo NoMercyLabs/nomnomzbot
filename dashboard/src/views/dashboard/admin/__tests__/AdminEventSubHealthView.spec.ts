@@ -171,7 +171,6 @@ describe('AdminEventSubHealthView', () => {
             version: '2',
             status: 'enabled',
             enabled: true,
-            lastError: null,
             lastConfirmedAt: '2026-10-01T10:00:00Z',
           },
         ],
