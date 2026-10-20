@@ -42,18 +42,67 @@
         "noDescription": "Dit script heeft geen beschrijving.",
         "version": "Versie",
         "language": "Taal",
-        "powers": {
-          "title": "Rechten",
-          "note": "De rechten die dit script vraagt in zijn manifest.",
-          "none": "Dit script vraagt geen rechten."
+        "usedBy": {
+          "title": "Draait vanuit",
+          "none": "Niets draait dit script nog. Voeg het toe aan een pipeline-stap."
         },
-        "source": {
-          "title": "Code",
-          "note": "Alleen lezen. Wijzigen kan in de volledige editor.",
+        "powers": {
+          "title": "Wat het kan",
+          "none": "Dit script vraagt niets buiten zijn eigen code.",
+          "names": {
+            "chat": {
+              "send": "Chatberichten sturen",
+              "reply": "Antwoorden in de chat"
+            },
+            "economy": {
+              "balance": "Het saldo van een kijker bekijken",
+              "read": "De economie van het kanaal lezen"
+            },
+            "http": {
+              "fetch": "Een webadres aanroepen"
+            },
+            "music": {
+              "queue": "Muziek in de wachtrij zetten"
+            },
+            "reward": {
+              "get": "Kanaalpuntenbeloningen lezen",
+              "update": "Kanaalpuntenbeloningen wijzigen"
+            },
+            "schedule": {
+              "pipeline": "Een pipeline inplannen"
+            },
+            "stats": {
+              "stream": "Streamstatistieken lezen",
+              "viewer": "Kijkerstatistieken lezen"
+            },
+            "storage": {
+              "delete": "Opgeslagen waarden verwijderen",
+              "get": "Opgeslagen waarden lezen",
+              "list": "Opgeslagen waarden tonen",
+              "set": "Waarden opslaan"
+            },
+            "tts": {
+              "speak": "Spreken met tekst-naar-spraak",
+              "voice": {
+                "get": "De stem van een kijker lezen",
+                "list": "Stemmen tonen",
+                "set": "De stem van een kijker instellen"
+              }
+            },
+            "user": {
+              "get": "Een gebruikersprofiel lezen",
+              "lookup": "Een gebruiker opzoeken"
+            },
+            "widget": {
+              "emit": "Een update naar een widget sturen"
+            }
+          },
+          "action": "De actie {name} uitvoeren"
+        },
+        "problems": {
           "errorLine": "Regel {line}: {message}"
         },
-        "settings": "Instellingen",
-        "noSettings": "Nog geen instellingen beschikbaar.",
+        "edit": "Code bewerken",
         "limits": "Elke run stopt na 8 s, 64 aanroepen of 64 MB.",
         "delete": "Verwijderen",
         "back": "Terug naar de lijst"
@@ -63,9 +112,10 @@
         "limited": "Te veel tests, wacht even",
         "worked": "Gelukt, {ms} ms",
         "failed": "Mislukt, {ms} ms",
-        "samples": "Probeer met een voorbeeld",
-        "samplesNote": "Een testrun is een proefrun. Niets ervan komt in de chat.",
-        "sample": "Test"
+        "title": "Test",
+        "note": "Een testrun is een proefrun. Niets ervan komt in de chat.",
+        "event": "Gebeurtenis om mee te testen",
+        "noEvent": "Geen gebeurtenis"
       },
       "runs": {
         "title": "Deze sessie",

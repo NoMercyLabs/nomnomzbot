@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
+import { Select } from '@/components/ui/select';
 import { i18n } from '@/i18n';
 
 import ScriptRunsPanel from '../components/ScriptRunsPanel.vue';
@@ -156,6 +157,21 @@ vi.mock('@/api/client', () => ({
                 variables: { user: 'sample_viewer' },
               },
             ],
+          },
+          response: { status: 200, ok: true },
+        };
+
+      if (path.endsWith('/project'))
+        return {
+          data: {
+            data: {
+              files: { 'index.ts': 'nnz.chat.send("hi")' },
+              manifest: {
+                entry: 'index.ts',
+                kind: 'script',
+                framework: 'none',
+              },
+            },
           },
           response: { status: 200, ok: true },
         };
@@ -511,20 +527,85 @@ describe('ScriptsView', () => {
     expect(router.currentRoute.value.query.script).toBe('new1');
   });
 
-  it('lists the declared powers as plain text with no control', async () => {
+  it('names each power in plain words and keeps a power it has no words for readable', async () => {
+    detailExtra = {
+      ...detailExtra,
+      currentVersion: {
+        version: 3,
+        declaredCapabilities: ['chat.send', 'user.get', 'variables.write'],
+      },
+    };
+
     await open('/app/scripts?script=s1');
 
     const powers = document.body.querySelector('[data-slot="script-powers"]') as HTMLElement;
+    const items = [...powers.querySelectorAll('li')].map((li) => li.textContent?.trim());
 
-    expect(powers.textContent).toContain('Chat send');
-    expect(powers.textContent).toContain('Variables write');
+    expect(items).toEqual(['Send chat messages', 'Read a user profile', 'Variables write']);
     expect(powers.textContent).not.toContain('chat.send');
     expect(powers.querySelectorAll('button, input, [role="switch"]')).toHaveLength(0);
-    expect(document.body.textContent).toContain('Version');
     expect(document.body.textContent).toContain('Typescript');
   });
 
-  it('shows the source of the current version as read-only code, with the line of a validation error', async () => {
+  it('says what uses the script from its blast read, and what to do when nothing does', async () => {
+    await open('/app/scripts?script=s1');
+
+    const usedBy = document.body.querySelector('[data-slot="script-used-by"]') as HTMLElement;
+
+    expect(usedBy.textContent).toContain('2 pipelines: Raid flow, Hype');
+    expect(usedBy.textContent).toContain('1 timers: Hourly');
+
+    blast = {
+      categories: [],
+      isMinimum: false,
+      totalReferences: 0,
+    };
+
+    await router.push('/app/scripts?script=s2');
+    await settle();
+
+    expect(document.body.querySelector('[data-slot="script-used-by"]')?.textContent).toContain(
+      'Nothing runs this script yet.',
+    );
+  });
+
+  it('shows no settings section while the script declares no settings', async () => {
+    await open('/app/scripts?script=s1');
+
+    expect(text()).not.toContain('No settings available yet.');
+    expect(text()).not.toContain('Settings');
+  });
+
+  it('opens the code in the editor, not in a locked block', async () => {
+    detailExtra = {
+      ...detailExtra,
+      currentVersion: {
+        version: 3,
+        declaredCapabilities: [],
+        sourceCode: 'nnz.chat.send("hi")',
+        validationStatus: 'Valid',
+        validationErrors: [],
+      },
+    };
+
+    await open('/app/scripts?script=s1');
+
+    expect(document.body.querySelector('pre')).toBeNull();
+    expect(document.body.querySelector('[role="dialog"][aria-modal="true"] iframe')).toBeNull();
+
+    byText('button', 'Edit code')!.click();
+    await settle();
+
+    expect(
+      calls.some(
+        (call) => call.path === '/api/v{version}/code-scripts/{id}/project' && call.id === 's1',
+      ),
+    ).toBe(true);
+
+    expect(document.body.querySelector('[role="dialog"][aria-modal="true"] iframe')).not.toBeNull();
+  });
+
+  it('shows the line of a validation error in the detail, without a code block', async () => {
     detailExtra = {
       ...detailExtra,
       currentVersion: {
@@ -543,11 +624,10 @@ describe('ScriptsView', () => {
 
     await open('/app/scripts?script=s1');
 
-    const code = document.body.querySelector('[data-slot="script-source"]') as HTMLElement;
+    const problems = document.body.querySelector('[data-slot="script-problems"]') as HTMLElement;
 
-    expect(code.querySelector('pre')?.textContent).toContain('broken(');
-    expect(code.querySelector('textarea, input')).toBeNull();
-    expect(code.textContent).toContain('Line 2: Unexpected end');
+    expect(problems.textContent).toContain('Line 2: Unexpected end');
+    expect(document.body.querySelector('textarea, pre')).toBeNull();
   });
 
   it('Run test posts to the test-run path of the script and shows the result with its duration', async () => {
@@ -576,10 +656,27 @@ describe('ScriptsView', () => {
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   });
 
-  it('a per-trigger test sends that trigger and its sample variables', async () => {
+  it('keeps the session runs out of sight until a test has run', async () => {
     await open('/app/scripts?script=s1');
 
-    byText('button', 'Test')!.click();
+    expect(byText('button', 'Runs')).toBeUndefined();
+
+    byText('button', 'Run test')!.click();
+    await settle();
+
+    expect(byText('button', 'Runs')).not.toBeUndefined();
+  });
+
+  it('offers the sample events in one choice, not as a row each, and tests with the one picked', async () => {
+    await open('/app/scripts?script=s1');
+
+    expect(document.body.querySelector('[data-slot="script-samples"]')).toBeNull();
+    expect(byText('button', 'Test')).toBeUndefined();
+
+    mounted!.findComponent(Select).vm.$emit('update:modelValue', 'tr1');
+    await settle();
+
+    byText('button', 'Run test')!.click();
     await settle();
 
     const posts = calls.filter((call) => call.method === 'POST');
@@ -734,20 +831,30 @@ describe('ScriptsView', () => {
     const header = document.body.querySelector<HTMLElement>('[data-slot="detail-pane-header"]')!;
     const footer = document.body.querySelector<HTMLElement>('[data-slot="script-footer"]')!;
 
-    expect(header.textContent).toContain('Run test');
+    expect(header.textContent).toContain('Edit code');
     expect(header.textContent).not.toContain('Delete');
     expect(footer.querySelector('[data-slot="script-delete"]')?.getAttribute('data-variant')).toBe('outline');
     expect(footer.className).toContain('border-t');
   });
 
+  it('gives the page one primary action, Edit code, and keeps Run test quiet', async () => {
+    await open('/app/scripts?script=s1');
+
+    expect(byText('button', 'Edit code')!.getAttribute('data-variant') ?? 'default').toBe('default');
+    expect(byText('button', 'Run test')!.getAttribute('data-variant')).toBe('outline');
+  });
+
   it('never lets the detail cards shrink into each other', async () => {
     await open('/app/scripts?script=s1');
 
-    const script = document.body.querySelector<HTMLElement>('[data-slot="script-detail"] [data-slot="panel-card"]')!;
-    const samples = document.body.querySelector<HTMLElement>('[data-slot="script-samples"]')!;
+    const cards = [
+      ...document.body.querySelectorAll<HTMLElement>(
+        '[data-slot="script-detail"] :is([data-slot="panel-card"], [data-slot="script-test"])',
+      ),
+    ];
 
-    expect(script.className).toContain('shrink-0');
-    expect(samples.className).toContain('shrink-0');
+    expect(cards.length).toBeGreaterThanOrEqual(2);
+    expect(cards.every((card) => card.className.includes('shrink-0'))).toBe(true);
   });
 
   it('says so when the channel has no scripts', async () => {

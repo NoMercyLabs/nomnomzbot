@@ -174,7 +174,7 @@ function opened(id: string | null): void {
     :back-label="$t('dashboard.scripts.backToPipeline')"
   >
     <template #actions>
-      <Button variant="outline" class="xl:hidden" @click="runsOpen = true">
+      <Button v-if="runs.length > 0" variant="outline" class="xl:hidden" @click="runsOpen = true">
         {{ $t('dashboard.scripts.runs.button') }}
       </Button>
       <Button v-if="can('code:script:author')" variant="outline" @click="newOpen = true">
@@ -237,7 +237,7 @@ function opened(id: string | null): void {
         :empty-text="$t('dashboard.scripts.detail.pick')"
       />
     </template>
-    <template #aside>
+    <template v-if="runs.length > 0" #aside>
       <ScriptRunsPanel :runs="runs" @open="failedRun = $event" />
     </template>
   </ListDetail>

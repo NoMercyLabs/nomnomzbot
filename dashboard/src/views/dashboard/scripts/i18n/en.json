@@ -42,18 +42,67 @@
         "noDescription": "This script has no description.",
         "version": "Version",
         "language": "Language",
-        "powers": {
-          "title": "Powers",
-          "note": "The powers this script asks for in its manifest.",
-          "none": "This script asks for no powers."
+        "usedBy": {
+          "title": "Runs from",
+          "none": "Nothing runs this script yet. Add it to a pipeline step."
         },
-        "source": {
-          "title": "Code",
-          "note": "Read only. The full editor changes it.",
+        "powers": {
+          "title": "What it can do",
+          "none": "This script asks for nothing beyond its own code.",
+          "names": {
+            "chat": {
+              "send": "Send chat messages",
+              "reply": "Reply in chat"
+            },
+            "economy": {
+              "balance": "Check a viewer balance",
+              "read": "Read the channel economy"
+            },
+            "http": {
+              "fetch": "Call a web address"
+            },
+            "music": {
+              "queue": "Queue music"
+            },
+            "reward": {
+              "get": "Read channel point rewards",
+              "update": "Change channel point rewards"
+            },
+            "schedule": {
+              "pipeline": "Schedule a pipeline"
+            },
+            "stats": {
+              "stream": "Read stream stats",
+              "viewer": "Read viewer stats"
+            },
+            "storage": {
+              "delete": "Remove saved values",
+              "get": "Read saved values",
+              "list": "List saved values",
+              "set": "Save values"
+            },
+            "tts": {
+              "speak": "Speak with text to speech",
+              "voice": {
+                "get": "Read a viewer voice",
+                "list": "List voices",
+                "set": "Set a viewer voice"
+              }
+            },
+            "user": {
+              "get": "Read a user profile",
+              "lookup": "Look up a user"
+            },
+            "widget": {
+              "emit": "Send an update to a widget"
+            }
+          },
+          "action": "Run the {name} action"
+        },
+        "problems": {
           "errorLine": "Line {line}: {message}"
         },
-        "settings": "Settings",
-        "noSettings": "No settings available yet.",
+        "edit": "Edit code",
         "limits": "Each run stops after 8 s, 64 calls or 64 MB.",
         "delete": "Delete",
         "back": "Back to the list"
@@ -63,9 +112,10 @@
         "limited": "Too many tests, wait a moment",
         "worked": "Worked, {ms} ms",
         "failed": "Failed, {ms} ms",
-        "samples": "Try it with a sample",
-        "samplesNote": "A test run is a dry run. Nothing it does reaches chat.",
-        "sample": "Test"
+        "title": "Test",
+        "note": "A test run is a dry run. Nothing it does reaches chat.",
+        "event": "Event to test with",
+        "noEvent": "No event"
       },
       "runs": {
         "title": "This session",
