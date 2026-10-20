@@ -195,7 +195,14 @@
         "pickFirst": "Kies eerst een bron.",
         "offline": "OBS is niet gekoppeld.",
         "capture": "Vastleggen",
-        "alt": "Screenshot van {name}"
+        "alt": "Screenshot van {name}",
+        "groups": {
+          "scenes": "Scenes",
+          "browser": "Browserbronnen",
+          "captures": "Opnames",
+          "media": "Media",
+          "images": "Afbeeldingen"
+        }
       },
       "studio": {
         "title": "Studiomodus",

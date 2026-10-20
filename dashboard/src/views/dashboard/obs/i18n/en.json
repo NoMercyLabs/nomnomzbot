@@ -195,7 +195,14 @@
         "pickFirst": "Pick a source first.",
         "offline": "OBS is not linked.",
         "capture": "Capture",
-        "alt": "Screenshot of {name}"
+        "alt": "Screenshot of {name}",
+        "groups": {
+          "scenes": "Scenes",
+          "browser": "Browser sources",
+          "captures": "Captures",
+          "media": "Media",
+          "images": "Images"
+        }
       },
       "studio": {
         "title": "Studio mode",

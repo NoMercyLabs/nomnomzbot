@@ -23,6 +23,19 @@ type Post = { path: string; body: unknown };
 
 const posts: Post[] = [];
 
+function listFor(path: string): object[] {
+  if (path.endsWith('/obs/inputs')) {
+    return [
+      { name: 'Camera', kind: 'dshow_input' },
+      { name: 'Desktop Audio', kind: 'wasapi_output_capture' },
+    ];
+  }
+
+  return path.endsWith('/obs/scenes')
+    ? [{ name: 'Main', isCurrent: true }]
+    : [];
+}
+
 vi.mock('@/api/access', () => ({
   useChannelAccess: () => ({ known: ref(true), can: (): boolean => true }),
 }));
@@ -32,13 +45,7 @@ vi.mock('@/api/client', () => ({
     use: () => undefined,
     GET: async (path: string) => ({
       data: {
-        data: path.endsWith('/obs/inputs')
-          ? [{
-              name: 'Camera',
-              muted: null,
-              volumeDb: null,
-            }]
-          : [],
+        data: listFor(path),
       },
       response: { status: 200, ok: true },
     }),
@@ -100,6 +107,26 @@ describe('ObsScreenshotPanel', () => {
     ]);
 
     expect(view.get('[data-obs-shot-image]').attributes('src')).toBe('data:image/jpeg;base64,AAAA');
+  });
+
+  // Stoney: "how the hell am i supposed to take a screenshot from an audio source?"
+  it('lists scenes and video sources under group labels and offers no audio input', async () => {
+    const view = show();
+
+    await flushPromises();
+    Element.prototype.hasPointerCapture = (): boolean => false;
+    view.get('[data-obs-shot-source]').element.dispatchEvent(new MouseEvent('pointerdown', { bubbles: true, button: 0 }));
+    await flushPromises();
+
+    const labels = [...document.body.querySelectorAll('[role="group"] > [role="presentation"], [role="group"] > div:first-child')];
+    const text = document.body.textContent ?? '';
+
+    expect(text).toContain(en.dashboard.obs.screenshot.groups.scenes);
+    expect(text).toContain(en.dashboard.obs.screenshot.groups.captures);
+    expect(text).toContain('Main');
+    expect(text).toContain('Camera');
+    expect(text).not.toContain('Desktop Audio');
+    expect(labels.length).toBeGreaterThan(0);
   });
 
   it('holds Capture off, with the reason, until a source is picked', async () => {

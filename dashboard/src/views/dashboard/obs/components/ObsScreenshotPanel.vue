@@ -12,7 +12,7 @@
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { useObsInputs } from '@/api/obs';
+import { useObsInputs, useObsScenes } from '@/api/obs';
 import { useObsScreenshot, type ObsScreenshotFormat } from '@/api/obsControl';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
@@ -22,11 +22,13 @@ import {
   SelectContent,
   SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
+import { groupScreenshotSources } from '../obsSourceKinds';
 import { toastObsError } from '../obsToast';
 
 const props = defineProps<{ offline: boolean }>();
@@ -41,13 +43,16 @@ const formats = [{ value: 'png', label: 'png' }, { value: 'jpg', label: 'jpg' }]
 const { channelId } = useCurrentChannel();
 const inputs = useObsInputs(channelId, () =>
   !props.offline);
+const scenes = useObsScenes(channelId, () =>
+  !props.offline);
 const capture = useObsScreenshot(channelId);
 
 const sourceName = ref<string>('');
 const imageFormat = ref<ObsScreenshotFormat>('png');
 const image = ref<string>('');
 
-const sources = computed<string[]>(() => (inputs.data.value ?? []).map((input) => input.name));
+const groups = computed(() =>
+  groupScreenshotSources(inputs.data.value ?? [], scenes.data.value ?? []));
 
 // Capture waits for OBS and a picked source, and says which one it waits for.
 const holdReason = computed<string | undefined>(() => {
@@ -83,8 +88,9 @@ function take(): void {
             <SelectValue :placeholder="$t('dashboard.obs.screenshot.source')" />
           </SelectTrigger>
           <SelectContent position="popper">
-            <SelectGroup>
-              <SelectItem v-for="name in sources" :key="name" :value="name">
+            <SelectGroup v-for="entry in groups" :key="entry.group">
+              <SelectLabel>{{ $t(`dashboard.obs.screenshot.groups.${entry.group}`) }}</SelectLabel>
+              <SelectItem v-for="name in entry.names" :key="name" :value="name">
                 {{ name }}
               </SelectItem>
             </SelectGroup>
