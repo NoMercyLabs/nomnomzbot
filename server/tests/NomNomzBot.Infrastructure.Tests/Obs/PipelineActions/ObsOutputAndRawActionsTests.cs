@@ -121,6 +121,42 @@ public sealed class ObsOutputAndRawActionsTests
     }
 
     [Fact]
+    public async Task ObsRequest_WhenObsIsNotConnected_FailsWithTheTransportCodeAndKeepsTheMessageInLastError()
+    {
+        IObsControlService obs = Substitute.For<IObsControlService>();
+        obs.RequestAsync(Arg.Any<Guid>(), Arg.Any<ObsRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<ObsResponse>(
+                    "No OBS bridge is connected for this channel.",
+                    "OBS_BRIDGE_OFFLINE"
+                )
+            );
+        PipelineExecutionContext ctx = new()
+        {
+            BroadcasterId = Channel,
+            TriggeredByUserId = "u1",
+            TriggeredByDisplayName = "TestUser",
+            MessageId = "m1",
+            RawMessage = "",
+        };
+        ActionDefinition definition = new()
+        {
+            Type = "obs_request",
+            Parameters = new()
+            {
+                ["request_type"] = System.Text.Json.JsonSerializer.SerializeToElement("GetVersion"),
+            },
+        };
+
+        ActionResult result = await new ObsRequestAction(obs).ExecuteAsync(ctx, definition);
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorCode.Should().Be("OBS_BRIDGE_OFFLINE");
+        result.ErrorMessage.Should().Be("No OBS bridge is connected for this channel.");
+        ctx.Variables["obs.last_error"].Should().Be("No OBS bridge is connected for this channel.");
+    }
+
+    [Fact]
     public async Task ObsCallVendor_RequestDataConfiguredAsJsonObjectText_ReachesObsControlServiceAsARealObject()
     {
         IObsControlService obs = Substitute.For<IObsControlService>();

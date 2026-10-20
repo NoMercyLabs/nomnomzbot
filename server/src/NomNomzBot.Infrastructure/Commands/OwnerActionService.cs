@@ -95,23 +95,26 @@ public sealed class OwnerActionService(
                 "RATE_LIMITED"
             );
 
-        WidgetActionOutcome outcome = await ExecuteAsync(
+        ExecutedAction executed = await ExecuteAsync(
             action,
             request,
             ownerUserId.Value,
             cancellationToken
         );
-        if (!outcome.Succeeded)
-            await PublishFailureAsync(action, request, outcome, cancellationToken);
+        if (!executed.Outcome.Succeeded)
+            await PublishFailureAsync(action, request, executed, cancellationToken);
 
-        return Result.Success(outcome);
+        return Result.Success(executed.Outcome);
     }
+
+    // The outcome the caller sees, plus the machine code of the failure that the outcome contract does not carry.
+    private sealed record ExecutedAction(WidgetActionOutcome Outcome, string? ErrorCode);
 
     // A run that started and failed is the streamer's own overlay or script not doing its job, so it reaches the inbox.
     private Task PublishFailureAsync(
         ICommandAction action,
         OwnerActionRequest request,
-        WidgetActionOutcome outcome,
+        ExecutedAction executed,
         CancellationToken cancellationToken
     ) =>
         eventBus.PublishAsync(
@@ -126,12 +129,13 @@ public sealed class OwnerActionService(
                 )
                     ? "script"
                     : "widget",
-                Error = outcome.Error ?? "The action failed.",
+                Error = executed.Outcome.Error ?? "The action failed.",
+                ErrorCode = executed.ErrorCode,
             },
             cancellationToken
         );
 
-    private async Task<WidgetActionOutcome> ExecuteAsync(
+    private async Task<ExecutedAction> ExecuteAsync(
         ICommandAction action,
         OwnerActionRequest request,
         Guid ownerUserId,
@@ -173,7 +177,13 @@ public sealed class OwnerActionService(
                     $"'{action.ActionType}' can only run inside a pipeline.",
                     context
                 );
-            return Outcome(result.Succeeded, result.Output, result.ErrorMessage, context);
+            return Outcome(
+                result.Succeeded,
+                result.Output,
+                result.ErrorMessage,
+                context,
+                result.ErrorCode
+            );
         }
         catch (OperationCanceledException) when (!cancellationToken.IsCancellationRequested)
         {
@@ -192,10 +202,20 @@ public sealed class OwnerActionService(
         }
     }
 
-    private static WidgetActionOutcome Outcome(
+    private static ExecutedAction Outcome(
         bool succeeded,
         string? output,
         string? error,
-        PipelineExecutionContext context
-    ) => new(succeeded, output, error, new Dictionary<string, string>(context.Variables));
+        PipelineExecutionContext context,
+        string? errorCode = null
+    ) =>
+        new(
+            new WidgetActionOutcome(
+                succeeded,
+                output,
+                error,
+                new Dictionary<string, string>(context.Variables)
+            ),
+            errorCode
+        );
 }

@@ -41,8 +41,17 @@ public sealed class ActionResult
     public static ActionResult Success(string? output = null) =>
         new() { Succeeded = true, Output = output };
 
-    public static ActionResult Failure(string error) =>
-        new() { Succeeded = false, ErrorMessage = error };
+    /// <summary>The machine code of the failure when the cause has one (for example <c>OBS_NOT_CONNECTED</c>), so a
+    /// caller can group failures by cause instead of reading the message.</summary>
+    public string? ErrorCode { get; init; }
+
+    public static ActionResult Failure(string error, string? errorCode = null) =>
+        new()
+        {
+            Succeeded = false,
+            ErrorMessage = error,
+            ErrorCode = errorCode,
+        };
 
     public static ActionResult RetryableFailure(string error) =>
         new()
