@@ -80,18 +80,15 @@ export function channelDirectoryKey(search: string) {
   return ['channels', 'directory', search] as const;
 }
 
-// Every channel this bot serves whose name holds the search, live first.
-export function useChannelDirectory(
-  search: MaybeRefOrGetter<string>,
-): UseQueryReturnType<PublicChannel[], Error> {
-  return useQuery({
-    queryKey: computed(() => channelDirectoryKey(toValue(search))),
+export function channelDirectoryOptions(search: string) {
+  return queryOptions({
+    queryKey: channelDirectoryKey(search),
     queryFn: async (): Promise<PublicChannel[]> => {
       const { data } = await client.GET('/api/v{version}/channels/directory', {
         params: {
           path: { version: '1' },
           query: {
-            Search: toValue(search),
+            Search: search,
             PageSize: DIRECTORY_PAGE_SIZE,
           },
         },
@@ -101,6 +98,13 @@ export function useChannelDirectory(
     },
     staleTime: 30_000,
   });
+}
+
+// Every channel this bot serves whose name holds the search, live first.
+export function useChannelDirectory(
+  search: MaybeRefOrGetter<string>,
+): UseQueryReturnType<PublicChannel[], Error> {
+  return useQuery(computed(() => channelDirectoryOptions(toValue(search))));
 }
 
 // A channel the person moderates on Twitch, where the bot is not installed yet, opens in moderator mode.

@@ -15,6 +15,7 @@ import { channelPrefixGuard, ownChannelGuard, platformPathGuard } from './channe
 import { dashboardChannelRoutes, dashboardRoutes } from './dashboard';
 import { signInGuard } from './guard';
 import { popoutRoutes } from './popout';
+import { rungGuard } from './rungGuard';
 import { siteRoutes } from './site';
 import { viewerRoutes } from './viewer';
 
@@ -27,6 +28,7 @@ router.beforeEach(platformPathGuard);
 router.beforeEach(channelPrefixGuard);
 router.beforeEach(signInGuard);
 router.beforeEach(ownChannelGuard);
+router.beforeEach(rungGuard());
 router.beforeEach(accessGuard(router));
 
 export default router;
