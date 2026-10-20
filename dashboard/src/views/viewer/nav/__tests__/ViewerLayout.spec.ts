@@ -19,6 +19,7 @@ function mountLayout() {
       stubs: {
         AppMark: true,
         LanguagePicker: true,
+        ViewAsBanner: true,
         ViewerChannelFinder: true,
         ViewerNav: true,
         Toaster: true,
