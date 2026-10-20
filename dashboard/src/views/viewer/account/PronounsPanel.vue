@@ -33,11 +33,11 @@ const state = usePanelState(catalog);
 const primary = computed<string>(() => String(mine.data.value?.pronounId ?? none));
 const alt = computed<string>(() => String(mine.data.value?.altPronounId ?? none));
 
-function pickPrimary(value: string): void {
+function pickPrimary(value: unknown): void {
   save.mutate({ pronounId: Number(value) });
 }
 
-function pickAlt(value: string): void {
+function pickAlt(value: unknown): void {
   save.mutate({ altPronounId: Number(value) });
 }
 </script>
