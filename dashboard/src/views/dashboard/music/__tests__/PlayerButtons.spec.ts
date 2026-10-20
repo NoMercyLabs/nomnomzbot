@@ -10,6 +10,7 @@
 
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { createPinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 
@@ -107,7 +108,7 @@ async function open(keys: string[]): Promise<VueWrapper> {
 
   mounted = mount(PlayerButtons, {
     props: { track },
-    global: { plugins: [i18n, [VueQueryPlugin, { queryClient }]] },
+    global: { plugins: [i18n, createPinia(), [VueQueryPlugin, { queryClient }]] },
   });
 
   await flushPromises();

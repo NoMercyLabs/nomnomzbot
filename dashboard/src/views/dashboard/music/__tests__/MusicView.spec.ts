@@ -161,11 +161,17 @@ function moved(rows: Record<string, unknown>[], options?: Options): Record<strin
 }
 
 // The page hands its drop handler to Sortable; the test drops a row by calling it.
-let sortable: { onUpdate?: (event: { oldIndex?: number; newIndex?: number }) => void } = {};
+// The player buttons hand Sortable a handler too; only the queue's, which drags by its handle, is kept.
+let sortable: {
+  handle?: string;
+  onUpdate?: (event: { oldIndex?: number; newIndex?: number }) => void;
+} = {};
 
 vi.mock('@vueuse/integrations/useSortable', () => ({
   useSortable: (_target: unknown, _list: unknown, options: typeof sortable) => {
-    sortable = options;
+    if (options.handle !== undefined) {
+      sortable = options;
+    }
   },
 }));
 

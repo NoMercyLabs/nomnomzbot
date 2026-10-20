@@ -46,20 +46,6 @@ export function toSaved(drafts: DraftButton[]): PlayerButton[] {
     }));
 }
 
-// The list with the button at index moved one place; at an end it stays.
-export function moved(drafts: DraftButton[], index: number, step: -1 | 1): DraftButton[] {
-  const target = index + step;
-  const next = [...drafts];
-  const [button] = next.splice(index, 1);
-
-  if (button === undefined || target < 0 || target >= drafts.length)
-    return drafts;
-
-  next.splice(target, 0, button);
-
-  return next;
-}
-
 export function hasProblems(drafts: DraftButton[]): boolean {
   return drafts.some((button) =>
     Object.keys(buttonProblems(button)).length > 0);

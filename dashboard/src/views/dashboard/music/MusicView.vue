@@ -10,6 +10,7 @@
 <script setup lang="ts">
 import ListEnd from '~icons/nnz/playlist-add';
 import Music from '~icons/nnz/note-eighth-pair';
+import Plus from '~icons/nnz/add';
 import { useSortable } from '@vueuse/integrations/useSortable';
 import type { SortableEvent } from 'sortablejs';
 import Grip from '~icons/nnz/hamburger';
@@ -36,6 +37,7 @@ import {
   type MusicQueue,
   type QueueItem,
 } from '@/api/music';
+import { MAX_PLAYER_BUTTONS, usePlayerButtons } from '@/api/playerButtons';
 import BoardCell from '@/components/layout/BoardCell.vue';
 import UserName from '@/components/layout/UserName.vue';
 import BoardGrid from '@/components/layout/BoardGrid.vue';
@@ -56,6 +58,7 @@ import { usePanelState } from '@/composables/usePanelState';
 import { musicMinimums } from './components/boardPanels';
 import HistoryPanel from './components/HistoryPanel.vue';
 import NowPlayingCard from './components/NowPlayingCard.vue';
+import PlayerButtonPicker from './components/PlayerButtonPicker.vue';
 import PlayerButtons from './components/PlayerButtons.vue';
 import ThanksPanel from './components/ThanksPanel.vue';
 import RequesterBulkRemove from './components/RequesterBulkRemove.vue';
@@ -78,6 +81,15 @@ const access = useChannelAccess(channelId);
 const canModerateQueue = computed(() => access.can('music:queue:moderate'));
 const requestsOpen = computed(() => queueQuery.data.value?.requestsOpen);
 const canWriteConfig = computed(() => access.can('music:config:write'));
+
+// The panel header's Add button opens the player button picker (Stoney: "add a pannel header button").
+const addingButton = ref(false);
+const playerButtons = usePlayerButtons(() =>
+  canWriteConfig.value
+    ? channelId.value
+    : null);
+const buttonsFull = computed(() =>
+  (playerButtons.data.value?.length ?? 0) >= MAX_PLAYER_BUTTONS);
 const configQuery = useMusicConfig(channelId);
 const saveConfig = useSaveMusicConfig(channelId);
 const playbackOn = computed(() => configQuery.data.value?.isEnabled);
@@ -267,8 +279,20 @@ const span = layout.span;
         >
           <!-- Music on/off is not a request rule: it stops all playback, so it sits with the player it switches.
              Stoney 2026-10-19: a page menu holding only this one item was an "extra useless dropdown". -->
-          <template v-if="canWriteConfig && playbackOn !== undefined" #actions>
+          <template v-if="canWriteConfig" #actions>
+            <Button
+              data-player-button-add
+              variant="outline"
+              size="sm"
+              :disabled="buttonsFull"
+              :title="buttonsFull ? $t('dashboard.music.now.buttons.full', { max: MAX_PLAYER_BUTTONS }) : undefined"
+              @click="addingButton = true"
+            >
+              <Plus class="size-5" aria-hidden="true" />
+              {{ $t('dashboard.music.now.buttons.add') }}
+            </Button>
             <LabeledSwitch
+              v-if="playbackOn !== undefined"
               data-music-playback
               :model-value="playbackOn"
               :label="$t('dashboard.music.playback.label')"
@@ -290,6 +314,13 @@ const span = layout.span;
             </template>
           </NowPlayingCard>
         </PanelCard>
+        <!-- Outside the card: an empty card renders no body, and the Add button works with nothing playing. -->
+        <PlayerButtonPicker
+          v-if="canWriteConfig"
+          v-model:open="addingButton"
+          :buttons="playerButtons.data.value ?? []"
+          :index="null"
+        />
       </BoardCell>
       <BoardCell panel="queue" :span="span">
         <PanelCard
