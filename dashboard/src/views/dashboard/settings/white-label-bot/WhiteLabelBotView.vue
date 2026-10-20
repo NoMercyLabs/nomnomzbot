@@ -10,14 +10,16 @@
 <script setup lang="ts">
 // The channel's own bot account. Connected, the channel speaks through that account; not connected, it speaks
 // through the shared bot. The status is live (the bot refreshes it when the channel settings change); the page
-// connects with a device code or a browser sign-in, and disconnects after a confirm.
+// connects with a device code (the browser sign-in is the fallback inside that flow), and disconnects after a confirm.
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 
+import ChatBot from '~icons/nnz/chat-bot';
+
 import { ApiError } from '@/api/errors';
 import { useBotStatus } from '@/api/home';
-import { useDisconnectBot, useStartBotBrowserLogin } from '@/api/whiteLabelBot';
+import { useDisconnectBot } from '@/api/whiteLabelBot';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -38,7 +40,6 @@ const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const status = useBotStatus(channelId);
 const disconnect = useDisconnectBot(channelId);
-const browserLogin = useStartBotBrowserLogin(channelId);
 
 const loggingIn = ref(false);
 const confirming = ref(false);
@@ -85,16 +86,6 @@ function confirmDisconnect(): void {
       toast.error(failureText(error, 'dashboard.settings.whiteLabelBot.disconnectFailed')),
   });
 }
-
-function openBrowserLogin(): void {
-  browserLogin.mutate(undefined, {
-    onSuccess: (start) => {
-      window.open(start.authorizeUrl, '_blank', 'noopener');
-    },
-    onError: (error: Error) =>
-      toast.error(failureText(error, 'dashboard.settings.whiteLabelBot.browserFailed')),
-  });
-}
 </script>
 
 <template>
@@ -114,7 +105,9 @@ function openBrowserLogin(): void {
         <div class="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2 px-3 py-2" data-slot="bot-identity">
           <Avatar class="size-10">
             <AvatarImage v-if="bot?.profileImageUrl" :src="bot.profileImageUrl" :alt="name" />
-            <AvatarFallback>{{ name.slice(0, 2).toUpperCase() }}</AvatarFallback>
+            <AvatarFallback>
+              <ChatBot class="size-5 text-muted-foreground" data-slot="bot-fallback-icon" aria-hidden="true" />
+            </AvatarFallback>
           </Avatar>
           <div class="min-w-0 flex-1 basis-56">
             <template v-if="connected">
@@ -151,20 +144,6 @@ function openBrowserLogin(): void {
         >
           <Button size="sm" @click="loggingIn = true">
             {{ $t('dashboard.settings.whiteLabelBot.connect.action') }}
-          </Button>
-        </ReadabilityRow>
-        <ReadabilityRow
-          v-if="!loggingIn && can('channelbot:connect')"
-          :title="$t('dashboard.settings.whiteLabelBot.browser.title')"
-          :description="$t('dashboard.settings.whiteLabelBot.browser.description')"
-        >
-          <Button
-            variant="outline"
-            size="sm"
-            :disabled="browserLogin.isPending.value"
-            @click="openBrowserLogin"
-          >
-            {{ $t('dashboard.settings.whiteLabelBot.browser.action') }}
           </Button>
         </ReadabilityRow>
         <ReadabilityRow

@@ -28,9 +28,8 @@
           "action": "Account wijzigen"
         },
         "browser": {
-          "title": "Aanmelden met de browser",
-          "description": "Open hier de Twitch-aanmeldpagina, als je geen code kunt gebruiken.",
-          "action": "Twitch openen"
+          "description": "Kun je de code niet gebruiken? Meld je dan aan op de Twitch-pagina in deze browser.",
+          "action": "Aanmelden met de browser"
         },
         "disconnect": {
           "title": "Terug naar de gedeelde bot",

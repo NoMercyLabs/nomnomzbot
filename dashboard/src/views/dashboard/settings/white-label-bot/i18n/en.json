@@ -28,9 +28,8 @@
           "action": "Change account"
         },
         "browser": {
-          "title": "Sign in with the browser",
-          "description": "Open the Twitch sign-in page here, if you can not use a code.",
-          "action": "Open Twitch"
+          "description": "Can't use the code? Sign in on the Twitch page in this browser instead.",
+          "action": "Sign in with the browser"
         },
         "disconnect": {
           "title": "Go back to the shared bot",

@@ -12,8 +12,16 @@
 // bot account, and poll until Twitch answers. The poll steps back when Twitch asks for it (slow_down).
 import { useIntervalFn } from '@vueuse/core';
 import { computed, onMounted, ref } from 'vue';
+import { useI18n } from 'vue-i18n';
+import { toast } from 'vue-sonner';
 
-import { isBotLoginWaiting, usePollBotLogin, useStartBotLogin } from '@/api/whiteLabelBot';
+import { ApiError } from '@/api/errors';
+import {
+  isBotLoginWaiting,
+  usePollBotLogin,
+  useStartBotBrowserLogin,
+  useStartBotLogin,
+} from '@/api/whiteLabelBot';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
@@ -22,9 +30,11 @@ const outcomes = ['expired', 'denied', 'error'] as const;
 
 const emit = defineEmits<{ cancel: []; connected: [] }>();
 
+const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const start = useStartBotLogin(channelId);
 const poll = usePollBotLogin(channelId);
+const browserLogin = useStartBotBrowserLogin(channelId);
 
 const intervalMs = ref(5000);
 const outcome = ref<string | null>(null);
@@ -79,6 +89,20 @@ async function begin(): Promise<void> {
   timer.resume();
 }
 
+function openBrowserLogin(): void {
+  browserLogin.mutate(undefined, {
+    onSuccess: (started) => {
+      window.open(started.authorizeUrl, '_blank', 'noopener');
+    },
+    onError: (error: Error) =>
+      toast.error(
+        error instanceof ApiError
+          ? t(error.messageKey)
+          : t('dashboard.settings.whiteLabelBot.browserFailed'),
+      ),
+  });
+}
+
 onMounted(begin);
 </script>
 
@@ -115,6 +139,19 @@ onMounted(begin);
         <p class="text-sm text-muted-foreground" role="status">
           {{ $t('dashboard.settings.whiteLabelBot.login.waiting') }}
         </p>
+        <div class="flex flex-wrap items-center gap-x-3 gap-y-2 border-t border-border pt-3">
+          <p class="min-w-0 flex-1 basis-56 text-sm text-muted-foreground">
+            {{ $t('dashboard.settings.whiteLabelBot.browser.description') }}
+          </p>
+          <Button
+            variant="outline"
+            size="sm"
+            :disabled="browserLogin.isPending.value"
+            @click="openBrowserLogin"
+          >
+            {{ $t('dashboard.settings.whiteLabelBot.browser.action') }}
+          </Button>
+        </div>
       </template>
     </template>
     <template v-else>

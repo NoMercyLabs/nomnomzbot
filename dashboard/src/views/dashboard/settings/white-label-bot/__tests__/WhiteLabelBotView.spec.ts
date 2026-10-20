@@ -177,17 +177,53 @@ describe('White-label bot page', () => {
     expect(document.body.textContent).toContain('Your channel uses the shared NomNomzBot account.');
   });
 
-  it('browser sign-in asks the bot for the authorize URL and opens it', async () => {
+  it('offers one action while idle: no browser sign-in row next to Connect your own bot', async () => {
+    await open({ connected: false });
+
+    expect(button('Connect your own bot')).toBeDefined();
+    expect(button('Open Twitch')).toBeUndefined();
+    expect(button('Sign in with the browser')).toBeUndefined();
+    expect(document.body.textContent).not.toContain('if you can not use a code');
+  });
+
+  it('browser sign-in is the fallback inside the connect flow: asks the bot for the authorize URL and opens it', async () => {
     const opener = vi.fn<(url: string, target: string, features: string) => void>();
 
     vi.stubGlobal('open', opener);
+
+    http.POST.mockResolvedValue(
+      ok({
+        deviceCode: 'dev-1',
+        userCode: 'ABCD-EFGH',
+        verificationUri: 'https://www.twitch.tv/activate',
+        interval: 60,
+        expiresIn: 600,
+      }),
+    );
+
     await open({ connected: false });
 
-    button('Open Twitch')!.click();
+    button('Connect your own bot')!.click();
+    await flushPromises();
+    button('Sign in with the browser')!.click();
     await flushPromises();
 
     expect(http.GET.mock.calls.some((call) => call[0] === connectPath)).toBe(true);
     expect(opener).toHaveBeenCalledWith('https://id.twitch.tv/authorize?x=1', '_blank', 'noopener');
+  });
+
+  it('shows the bot picture when the server sends one, and a bot icon instead of initials when it sends none', async () => {
+    await open({
+      connected: true,
+      login: 'nomz_bot',
+      displayName: 'nomz_bot',
+      usesSharedBot: true,
+    });
+
+    const identity = document.body.querySelector('[data-slot="bot-identity"]')!;
+
+    expect(identity.querySelector('[data-slot="bot-fallback-icon"]')).not.toBeNull();
+    expect(identity.textContent).not.toContain('NO');
   });
 
   it('device login shows the code, polls with the device code and shows the bot once authorized', async () => {
