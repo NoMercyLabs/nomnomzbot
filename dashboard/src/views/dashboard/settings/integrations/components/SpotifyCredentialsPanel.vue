@@ -8,56 +8,125 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The channel's own Spotify app (client id and secret). The bot never sends the secret back: the page only
-// learns that one is stored. Saving replaces both values; clearing falls back to the shared Spotify app only
-// when the server reports one (hasSharedApp), and otherwise just removes the channel's own app.
+// The Spotify app the channel connects through. The row names the app in use: the channel's own app (the last 4
+// characters of its client id) or the shared app. The client id and secret are edited in a dialog, never in the
+// page. The bot never sends the secret back: the page only learns that one is stored. Saving replaces both
+// values; clearing falls back to the shared Spotify app only when the server reports one (hasSharedApp), and
+// otherwise just removes the channel's own app. The dialog opens by itself only when Spotify is not connected,
+// no shared app exists and no own app is stored: then nothing else can make Spotify work.
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 
-import { useClearSpotifyCredentials, useSaveSpotifyCredentials, useSpotifyCredentials } from '@/api/integrations';
+import {
+  useClearSpotifyCredentials,
+  useIntegrations,
+  useSaveSpotifyCredentials,
+  useSpotifyCredentials,
+} from '@/api/integrations';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import StoredCredentialRow, { type CredentialField } from '@/components/layout/StoredCredentialRow.vue';
 import type { PanelState } from '@/composables/usePanelState';
-import RowGroup from '@/components/layout/RowGroup.vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
+
+const lastCharacters = 4;
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const credentials = useSpotifyCredentials(channelId);
+const integrations = useIntegrations(channelId);
 const save = useSaveSpotifyCredentials(channelId);
 const clear = useClearSpotifyCredentials(channelId);
 
-const clientId = ref('');
-const clientSecret = ref('');
+const open = ref(false);
 const error = ref<string | undefined>(undefined);
 
 const stored = computed(() => credentials.data.value ?? null);
+const ownClientId = computed(() => stored.value?.clientId ?? '');
+const hasOwnApp = computed(() => ownClientId.value !== '' || stored.value?.hasClientSecret === true);
 // The server says whether a shared app exists to fall back on. Without one, nothing offers it.
 const hasSharedApp = computed(() => stored.value?.hasSharedApp === true);
-const canSave = computed(() => clientId.value.trim() !== '' && clientSecret.value !== '' && !save.isPending.value);
+
+const connected = computed(
+  () => integrations.data.value?.find((row) => row.id === 'spotify')?.connected === true,
+);
 
 const state = computed<PanelState>(() => {
   if (credentials.isError.value)
     return 'error';
 
-  return credentials.isPending.value
+  return credentials.isPending.value || integrations.isPending.value
     ? 'loading'
     : 'ready';
 });
 
-watch(stored, (row) => {
-  clientId.value = row?.clientId ?? '';
-}, { immediate: true });
+const title = computed(() => {
+  if (hasOwnApp.value)
+    return t('dashboard.settings.integrations.spotify.ownApp');
 
-async function submit(): Promise<void> {
+  return hasSharedApp.value
+    ? t('dashboard.settings.integrations.spotify.usingShared')
+    : t('dashboard.settings.integrations.spotify.noApp');
+});
+
+const detail = computed(() => {
+  if (hasOwnApp.value) {
+    return t('dashboard.settings.integrations.spotify.ownDetail', {
+      last4: ownClientId.value.slice(-lastCharacters),
+    });
+  }
+
+  return hasSharedApp.value
+    ? t('dashboard.settings.integrations.spotify.sharedDetail')
+    : t('dashboard.settings.integrations.spotify.noAppDetail');
+});
+
+const editLabel = computed(() => {
+  if (hasOwnApp.value)
+    return t('dashboard.settings.integrations.spotify.edit');
+
+  return hasSharedApp.value
+    ? t('dashboard.settings.integrations.spotify.useOwn')
+    : t('dashboard.settings.integrations.spotify.setUp');
+});
+
+const fields = computed<CredentialField[]>(() => [
+  {
+    name: 'clientId',
+    label: t('dashboard.settings.integrations.spotify.clientId'),
+    value: ownClientId.value,
+  },
+  {
+    name: 'clientSecret',
+    label: t('dashboard.settings.integrations.spotify.clientSecret'),
+    secret: true,
+    placeholder: stored.value?.hasClientSecret === true
+      ? t('dashboard.settings.integrations.spotify.secretKept')
+      : undefined,
+  },
+]);
+
+watch(
+  [state, connected, hasSharedApp, hasOwnApp],
+  ([panel, isConnected, shared, own]) => {
+    if (panel === 'ready' && !isConnected && !shared && !own) {
+      open.value = true;
+    }
+  },
+  { immediate: true },
+);
+
+async function submit(values: Record<string, string>): Promise<void> {
   error.value = undefined;
 
   try {
-    await save.mutateAsync({ clientId: clientId.value.trim(), clientSecret: clientSecret.value });
-    clientSecret.value = '';
+    await save.mutateAsync({
+      clientId: (values.clientId ?? '').trim(),
+      clientSecret: values.clientSecret ?? '',
+    });
+
+    open.value = false;
     toast.success(t('dashboard.settings.integrations.spotify.saved'));
   } catch (failure) {
     error.value = errorText(failure, t);
@@ -69,7 +138,7 @@ async function remove(): Promise<void> {
 
   try {
     await clear.mutateAsync();
-    clientSecret.value = '';
+    open.value = false;
 
     toast.success(t(hasSharedApp.value
       ? 'dashboard.settings.integrations.spotify.clearedShared'
@@ -85,49 +154,32 @@ async function remove(): Promise<void> {
     data-view="spotify-credentials"
     pad
     :title="$t('dashboard.settings.integrations.spotify.title')"
-    :description="hasSharedApp
-      ? $t('dashboard.settings.integrations.spotify.descriptionShared')
-      : $t('dashboard.settings.integrations.spotify.description')"
+    :description="$t('dashboard.settings.integrations.spotify.description')"
     :state="state"
     :error-text="$t('dashboard.settings.integrations.spotify.loadFailed')"
     @retry="credentials.refetch()"
   >
-    <RowGroup>
-      <form class="grid gap-3 px-3 py-2" @submit.prevent="submit">
-        <label class="grid gap-1.5 text-sm font-medium">
-          {{ $t('dashboard.settings.integrations.spotify.clientId') }}
-          <Input v-model="clientId" name="clientId" autocomplete="off" />
-        </label>
-        <label class="grid gap-1.5 text-sm font-medium">
-          {{ $t('dashboard.settings.integrations.spotify.clientSecret') }}
-          <Input
-            v-model="clientSecret"
-            name="clientSecret"
-            type="password"
-            autocomplete="new-password"
-            :placeholder="stored?.hasClientSecret ? $t('dashboard.settings.integrations.spotify.secretKept') : ''"
-          />
-        </label>
-        <p v-if="error" role="alert" class="text-sm text-destructive">{{ error }}</p>
-        <div class="flex flex-wrap justify-end gap-2">
-          <Button
-            v-if="stored?.hasClientSecret || stored?.clientId"
-            type="button"
-            variant="outline"
-            size="sm"
-            data-action="clear-spotify"
-            :disabled="clear.isPending.value"
-            @click="remove"
-          >
-            {{ hasSharedApp
-              ? $t('dashboard.settings.integrations.spotify.clearShared')
-              : $t('dashboard.settings.integrations.spotify.clear') }}
-          </Button>
-          <Button type="submit" size="sm" data-action="save-spotify" :disabled="!canSave">
-            {{ $t('dashboard.settings.integrations.spotify.save') }}
-          </Button>
-        </div>
-      </form>
-    </RowGroup>
+    <StoredCredentialRow
+      v-model:open="open"
+      :title="title"
+      :detail="detail"
+      :edit-label="editLabel"
+      :dialog-title="$t('dashboard.settings.integrations.spotify.dialogTitle')"
+      :dialog-description="hasSharedApp
+        ? $t('dashboard.settings.integrations.spotify.descriptionShared')
+        : $t('dashboard.settings.integrations.spotify.dialogDescription')"
+      :save-label="$t('dashboard.settings.integrations.spotify.save')"
+      :remove-label="hasSharedApp
+        ? $t('dashboard.settings.integrations.spotify.clearShared')
+        : $t('dashboard.settings.integrations.spotify.clear')"
+      :fields="fields"
+      :removable="hasOwnApp"
+      :pending="save.isPending.value"
+      :removing="clear.isPending.value"
+      :error="error"
+      remove-action="clear-spotify"
+      @submit="submit"
+      @remove="remove"
+    />
   </PanelCard>
 </template>

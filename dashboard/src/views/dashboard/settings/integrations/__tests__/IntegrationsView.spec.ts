@@ -50,19 +50,23 @@ const ok = (data: unknown): Answer => ({ data: { data }, response: { ok: true, s
 
 let mounted: VueWrapper | null = null;
 let held: string[] = [];
+const ownClientId = 'spotify-client-9f2a';
+let spotifyConnected = true;
 let spotifyStored = {
-  clientId: 'abc',
+  clientId: ownClientId as string | null,
   hasClientSecret: true,
   hasSharedApp: false,
 };
 
 beforeEach(() => {
+  spotifyConnected = true;
+
   for (const verb of [http.GET, http.POST, http.PUT, http.DELETE]) {
     verb.mockReset();
   }
 
   spotifyStored = {
-    clientId: 'abc',
+    clientId: ownClientId,
     hasClientSecret: true,
     hasSharedApp: false,
   };
@@ -121,7 +125,7 @@ beforeEach(() => {
           name: 'Spotify',
           category: 'music',
           description: 'Plays music.',
-          connected: true,
+          connected: spotifyConnected,
           connectedAs: 'stoney',
           lastSync: '2026-10-01T10:00:00Z',
         },
@@ -356,80 +360,124 @@ describe('Integrations page without the write key', () => {
 });
 
 describe('Spotify own app', () => {
-  it('shows the stored client id and never the secret, and keeps Save off until both are typed', async () => {
+  const panel = (): HTMLElement =>
+    document.body.querySelector<HTMLElement>('[data-view="spotify-credentials"]') as HTMLElement;
+  const field = (name: string): HTMLInputElement | null =>
+    document.body.querySelector<HTMLInputElement>(`input[name="${name}"]`);
+  const dialog = (): HTMLElement | null =>
+    document.body.querySelector<HTMLElement>('[role="dialog"]');
+  const words = en.dashboard.settings.integrations.spotify;
+
+  async function type(input: HTMLInputElement, value: string): Promise<void> {
+    input.value = value;
+    input.dispatchEvent(new Event('input'));
+    await settle();
+  }
+
+  it('names the own app by the last 4 characters of its client id and shows no input while connected', async () => {
     await open();
 
-    const id = document.body.querySelector('input[name="clientId"]') as HTMLInputElement;
-    const secret = document.body.querySelector('input[name="clientSecret"]') as HTMLInputElement;
-    const save = document.body.querySelector('[data-action="save-spotify"]') as HTMLButtonElement;
-
-    expect(id.value).toBe('abc');
-    expect(secret.value).toBe('');
-    expect(secret.placeholder).toBe(en.dashboard.settings.integrations.spotify.secretKept);
-    expect(save.disabled).toBe(true);
+    expect(panel().textContent).toContain('9f2a');
+    expect(panel().textContent).not.toContain(ownClientId);
+    expect(panel().textContent).not.toContain('s3cret');
+    expect(field('clientId')).toBeNull();
+    expect(field('clientSecret')).toBeNull();
+    expect(dialog()).toBeNull();
   });
 
-  it('saves both values with a PUT and empties the secret field', async () => {
+  it('opens the form in a dialog from Edit, with the stored client id and never the secret', async () => {
     await open();
+    await click(panel().querySelector('[data-action="edit-credentials"]'));
 
-    const id = document.body.querySelector('input[name="clientId"]') as HTMLInputElement;
-    const secret = document.body.querySelector('input[name="clientSecret"]') as HTMLInputElement;
+    expect(dialog()).not.toBeNull();
+    expect(field('clientId')?.value).toBe(ownClientId);
+    expect(field('clientSecret')?.value).toBe('');
+    expect(field('clientSecret')?.placeholder).toBe(words.secretKept);
+    expect((document.body.querySelector('[data-form-action]') as HTMLButtonElement).disabled).toBe(true);
+  });
 
-    id.value = 'new-id';
-    id.dispatchEvent(new Event('input'));
-    secret.value = 's3cret';
-    secret.dispatchEvent(new Event('input'));
-    await settle();
-    await click(document.body.querySelector('[data-action="save-spotify"]'));
+  it('saves both values with a PUT, closes the dialog and empties the secret', async () => {
+    await open();
+    await click(panel().querySelector('[data-action="edit-credentials"]'));
+    await type(field('clientId') as HTMLInputElement, 'new-client-0001');
+    await type(field('clientSecret') as HTMLInputElement, 's3cret');
+    await click(document.body.querySelector('[data-form-action]'));
 
     expect(http.PUT).toHaveBeenCalledWith(`${base}/spotify/credentials`, {
       params: { path: { channelId: 'c1', version: '1' } },
-      body: { clientId: 'new-id', clientSecret: 's3cret' },
+      body: { clientId: 'new-client-0001', clientSecret: 's3cret' },
     });
 
-    expect(
-      (document.body.querySelector('input[name="clientSecret"]') as HTMLInputElement).value,
-    ).toBe('');
+    expect(dialog()).toBeNull();
+    expect(document.body.textContent).not.toContain('s3cret');
+    expect(panel().textContent).toContain('0001');
   });
 
-  it('offers no shared app when the server reports none', async () => {
+  it('opens the form by itself only when Spotify is not connected, no shared app exists and nothing is stored', async () => {
+    spotifyConnected = false;
+
+    spotifyStored = {
+      clientId: null,
+      hasClientSecret: false,
+      hasSharedApp: false,
+    };
+
     await open();
 
-    const clear = document.body.querySelector('[data-action="clear-spotify"]');
-    const panel = document.body.querySelector('[data-view="spotify-credentials"]');
-
-    const words = en.dashboard.settings.integrations.spotify;
-
-    expect(panel?.textContent).not.toContain(words.clearShared);
-    expect(panel?.textContent).not.toContain(words.descriptionShared);
-    expect(clear?.textContent).toContain(words.clear);
+    expect(dialog()).not.toBeNull();
+    expect(field('clientId')?.value).toBe('');
   });
 
-  it('offers the shared app when the server reports one', async () => {
+  it('keeps the form closed when Spotify is not connected but the shared app exists', async () => {
+    spotifyConnected = false;
+
     spotifyStored = {
-      clientId: 'abc',
-      hasClientSecret: true,
+      clientId: null,
+      hasClientSecret: false,
       hasSharedApp: true,
     };
 
     await open();
 
-    const clear = document.body.querySelector('[data-action="clear-spotify"]');
-    const panel = document.body.querySelector('[data-view="spotify-credentials"]');
+    expect(dialog()).toBeNull();
+    expect(panel().textContent).toContain(words.usingShared);
 
-    const words = en.dashboard.settings.integrations.spotify;
+    await click(panel().querySelector('[data-action="edit-credentials"]'));
 
-    expect(clear?.textContent).toContain(words.clearShared);
-    expect(panel?.textContent).toContain(words.descriptionShared);
+    expect(dialog()).not.toBeNull();
+
+    expect(
+      document.body.querySelector('[data-action="clear-spotify"]'),
+    ).toBeNull();
   });
 
-  it('clears the stored app with a DELETE', async () => {
+  it('removes the own app from inside the dialog with a DELETE and offers the shared app by name', async () => {
+    spotifyStored = {
+      clientId: ownClientId,
+      hasClientSecret: true,
+      hasSharedApp: true,
+    };
+
     await open();
-    await click(document.body.querySelector('[data-action="clear-spotify"]'));
+    await click(panel().querySelector('[data-action="edit-credentials"]'));
+
+    const clear = document.body.querySelector('[data-action="clear-spotify"]');
+
+    expect(clear?.textContent).toContain(words.clearShared);
+    await click(clear);
 
     expect(http.DELETE).toHaveBeenCalledWith(`${base}/spotify/credentials`, {
       params: { path: { channelId: 'c1', version: '1' } },
     });
+  });
+
+  it('calls the remove button "Remove my app" when no shared app exists', async () => {
+    await open();
+    await click(panel().querySelector('[data-action="edit-credentials"]'));
+
+    expect(
+      document.body.querySelector('[data-action="clear-spotify"]')?.textContent,
+    ).toContain(words.clear);
   });
 });
 
