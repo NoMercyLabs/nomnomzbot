@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 
 namespace NomNomzBot.Infrastructure.Tts;
@@ -47,17 +48,30 @@ public class TtsHistoryService(IApplicationDbContext db) : ITtsHistoryService
             .ToListAsync(cancellationToken);
 
         bool hasMore = rows.Count > take;
+        List<string> requesterIds = rows.Take(take).Select(r => r.UserId).Distinct().ToList();
+        Dictionary<string, User> requesters = (
+            await db
+                .Users.Where(u => u.TwitchUserId != null && requesterIds.Contains(u.TwitchUserId))
+                .ToListAsync(cancellationToken)
+        ).ToDictionary(u => u.TwitchUserId!);
+
         List<TtsHistoryEntryDto> items =
         [
             .. rows.Take(take)
-                .Select(r => new TtsHistoryEntryDto(
-                    r.Id,
-                    r.Text,
-                    r.VoiceId,
-                    r.Provider,
-                    r.UserId,
-                    r.OccurredAt
-                )),
+                .Select(r =>
+                {
+                    requesters.TryGetValue(r.UserId, out User? requester);
+                    return new TtsHistoryEntryDto(
+                        r.Id,
+                        r.Text,
+                        r.VoiceId,
+                        r.Provider,
+                        r.UserId,
+                        r.OccurredAt,
+                        requester?.DisplayName,
+                        requester?.Color
+                    );
+                }),
         ];
 
         return Result.Success(new TtsHistoryPageDto(items, hasMore ? items[^1].Id : null));
