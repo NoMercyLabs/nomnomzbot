@@ -56,6 +56,11 @@
         "twitchId": "Twitch-kanaal-ID",
         "created": "Aangemaakt",
         "suspendedReason": "Geschorst omdat",
+        "modes": {
+          "selfhost": "Zelf gehost",
+          "saas": "Gehoste dienst (beperkt)"
+        },
+        "restricted": "Kanalen voor derden hosten is een beperkte optie: NomNomzBot als gehoste dienst draaien is voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis.",
         "manage": "Beheer dit kanaal"
       },
       "tenants": {

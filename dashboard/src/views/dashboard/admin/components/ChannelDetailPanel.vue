@@ -15,6 +15,7 @@ import { useI18n } from 'vue-i18n';
 import { RouterLink } from 'vue-router';
 
 import { useAdminTenant, type AdminTenant } from '@/api/admin';
+import { useBillingTiers } from '@/api/adminBilling';
 import KeyValueList from '@/components/layout/KeyValueList.vue';
 import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -24,13 +25,27 @@ import { useTime } from '@/composables/useTime';
 
 const props = defineProps<{ channel: AdminTenant }>();
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 const time = useTime();
 
 const detail = useAdminTenant(() => props.channel.id);
 const tenant = computed(() => detail.data.value ?? null);
 const state = usePanelState(detail, (data) =>
   data === null);
+
+const tiers = useBillingTiers();
+
+const tierName = computed(
+  () => tiers.data.value?.find((tier) => tier.key === tenant.value?.billingTierKey)?.displayName,
+);
+
+const modeName = computed(() => {
+  const mode = tenant.value?.deploymentMode;
+
+  return mode !== undefined && te(`dashboard.admin.detail.modes.${mode}`)
+    ? t(`dashboard.admin.detail.modes.${mode}`)
+    : undefined;
+});
 
 const facts = computed<KeyValueItem[]>(() => [
   { label: t('dashboard.admin.detail.owner'), value: tenant.value?.ownerDisplayName },
@@ -41,10 +56,9 @@ const facts = computed<KeyValueItem[]>(() => [
       ? t('dashboard.admin.live.live')
       : t('dashboard.admin.live.offline'),
   },
-  { label: t('dashboard.admin.detail.tier'), value: tenant.value?.billingTierKey },
-  { label: t('dashboard.admin.detail.mode'), value: tenant.value?.deploymentMode },
+  { label: t('dashboard.admin.detail.tier'), value: tierName.value },
+  { label: t('dashboard.admin.detail.mode'), value: modeName.value },
   { label: t('dashboard.admin.detail.members'), value: Number(tenant.value?.membershipCount ?? 0) },
-  { label: t('dashboard.admin.detail.twitchId'), value: props.channel.twitchChannelId },
   { label: t('dashboard.admin.detail.created'), value: time.date(props.channel.createdAt) },
   { label: t('dashboard.admin.detail.suspendedReason'), value: tenant.value?.suspendedReason },
 ]);
@@ -62,6 +76,9 @@ const facts = computed<KeyValueItem[]>(() => [
   >
     <div class="grid gap-4">
       <KeyValueList :items="facts" />
+      <p v-if="tenant?.deploymentMode === 'saas'" data-saas-restricted class="text-sm text-muted-foreground">
+        {{ t('dashboard.admin.detail.restricted') }}
+      </p>
       <Button as-child class="justify-self-start">
         <RouterLink :to="{ name: 'dashboard-admin-tenants', query: { tenant: channel.id } }">
           {{ t('dashboard.admin.detail.manage') }}

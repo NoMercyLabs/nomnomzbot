@@ -60,6 +60,17 @@ vi.mock('@/api/client', () => ({
       if (refused)
         return { error: { message: 'no' }, response: { status: 403, ok: false } };
 
+      if (path.endsWith('/admin/billing/tiers')) {
+        return {
+          data: { data: [{
+            id: 'k1',
+            key: 'pro',
+            displayName: 'Pro plan',
+          }] },
+          response: { status: 200, ok: true },
+        };
+      }
+
       if (path.endsWith('/admin/tenants/{broadcasterId}')) {
         return {
           data: {
@@ -248,7 +259,10 @@ describe('AdminChannelsView', () => {
     expect(router.currentRoute.value.query.channel).toBe('t1');
     expect(detail.textContent).toContain('stoney_eagle');
     expect(detail.textContent).toContain('Stoney Owner');
-    expect(detail.textContent).toContain('pro');
+    expect(detail.textContent).toContain('Pro plan');
+    expect(detail.textContent).toContain('Self-hosted');
+    expect(detail.textContent).not.toContain('selfhost');
+    expect(detail.textContent).not.toContain('tw-t1');
     expect(detail.textContent).toContain('4');
     expect(detail.querySelector('a[href*="tenant=t1"]')).not.toBeNull();
   });
