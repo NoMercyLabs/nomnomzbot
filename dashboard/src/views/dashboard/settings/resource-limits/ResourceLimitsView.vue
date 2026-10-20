@@ -44,8 +44,10 @@ const planName = computed(() =>
   t('dashboard.settings.resourceLimits.plan.unnamed'));
 
 const groups = computed(() => groupLimits(limits.data.value ?? []));
+// A metric that repeats a limit is left out: the limit above already shows that resource, once, with its count.
+const limitKeys = computed(() => new Set((limits.data.value ?? []).map((item) => item.limitKey)));
 const metrics = computed(() => (usage.data.value ?? [])
-  .filter((item) => isMetered(item.metricKey))
+  .filter((item) => isMetered(item.metricKey) && !limitKeys.value.has(item.metricKey))
   .map(metricRowOf));
 const period = computed(() => periodOf(usage.data.value ?? []));
 const billingLinked = computed(() => router.hasRoute('dashboard-settings-billing'));

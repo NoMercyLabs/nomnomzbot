@@ -246,7 +246,7 @@ describe('Resource limits page', () => {
     expect(text()).toContain('Oct 1, 2026 to Nov 1, 2026');
   });
 
-  it('names every metered resource in words, shows zero in a readable unit and leaves out the per-message cap', async () => {
+  it('shows a limit once: the usage list leaves out metrics that repeat a limit, and the per-message cap', async () => {
     const extra = [
       {
         metricKey: 'event_responses',
@@ -283,10 +283,10 @@ describe('Resource limits page', () => {
 
       expect(body).toContain('Event responses');
       expect(body).not.toContain('event_responses');
-      expect(body).not.toContain('sound_clip_storage_bytes');
       expect(body).not.toContain('tts_max_characters');
-      expect(body).toContain('0 MB of 2 GB');
-      expect(body).not.toContain('0 byte');
+      expect(body).not.toContain('0 MB of 2 GB');
+      expect(body.split('Sound clip storage').length - 1).toBe(1);
+      expect(body).toContain('3.2 MB of 2 GB');
     } finally {
       usage.splice(usage.length - extra.length, extra.length);
     }
