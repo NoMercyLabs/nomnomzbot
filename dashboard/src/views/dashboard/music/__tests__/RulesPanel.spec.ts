@@ -13,6 +13,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
+import { toast } from 'vue-sonner';
 
 import { i18n } from '@/i18n';
 
@@ -31,6 +32,8 @@ type Answer = {
   error?: unknown;
   response: { status: number; ok: boolean };
 };
+
+vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
 
 const calls: Call[] = [];
 let config: Record<string, unknown> | null = null;
@@ -463,6 +466,20 @@ describe('RulesPanel', () => {
       blockedTrackId: 'music:request:youtube',
       body: { level: 10 },
     });
+  });
+
+  it('says the YouTube role applies at once: a hint on the row and a confirmation once it is saved', async () => {
+    config = { ...baseConfig(), allowYouTube: true };
+    await open();
+
+    expect(document.body.textContent).toContain(en.dashboard.music.rules.sourceRoleHint);
+
+    await pickPlaylist('Moderators and up', 'who-youtube');
+    await flushPromises();
+
+    expect(toast.success).toHaveBeenCalledWith(
+      en.dashboard.music.rules.sourceRoleSaved.replace('{source}', 'YouTube requests'),
+    );
   });
 
   it('lets the channel admit YouTube uploads outside the Music category', async () => {

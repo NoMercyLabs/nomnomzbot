@@ -13,6 +13,7 @@
 // The edits live in the parent's draft; the role choice saves at once, as the permissions page does.
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { toast } from 'vue-sonner';
 
 import { useMusicPlaylists } from '@/api/music';
 import { rungOf, rungs, useActionMatrix, useSetActionLevel, type RungName } from '@/api/permissions';
@@ -63,8 +64,14 @@ const rungOptions = computed<Option[]>(() =>
     label: t(`dashboard.music.rules.sourceRole.${rung.name}`),
   })));
 
-function setSourceRung(actionKey: string, rung: string): void {
-  setLevel.mutate({ actionKey, rung: rung as RungName });
+function setSourceRung(actionKey: string, rung: string, source: string): void {
+  setLevel.mutate(
+    { actionKey, rung: rung as RungName },
+    {
+      onSuccess: () => toast.success(t('dashboard.music.rules.sourceRoleSaved', { source })),
+      onError: () => toast.error(t('dashboard.music.rules.sourceRoleFailed', { source })),
+    },
+  );
 }
 </script>
 
@@ -80,14 +87,18 @@ function setSourceRung(actionKey: string, rung: string): void {
               data-setting="allow-spotify"
             />
           </RuleRow>
-          <RuleRow v-if="draft.allowSpotify" :title="$t('dashboard.music.rules.whoSpotify')">
+          <RuleRow
+            v-if="draft.allowSpotify"
+            :title="$t('dashboard.music.rules.whoSpotify')"
+            :description="$t('dashboard.music.rules.sourceRoleHint')"
+          >
             <OptionSelect
               :model-value="sourceRung(sourceActions.spotify)"
               :options="rungOptions"
               :label="$t('dashboard.music.rules.whoSpotify')"
               :disabled="!can('roles:manage') || setLevel.isPending.value"
               data-setting="who-spotify"
-              @update:model-value="setSourceRung(sourceActions.spotify, $event)"
+              @update:model-value="setSourceRung(sourceActions.spotify, $event, $t('dashboard.music.rules.whoSpotify'))"
             />
           </RuleRow>
           <RuleRow :title="$t('dashboard.music.rules.allowYouTube')">
@@ -97,14 +108,18 @@ function setSourceRung(actionKey: string, rung: string): void {
               data-setting="allow-youtube"
             />
           </RuleRow>
-          <RuleRow v-if="draft.allowYouTube" :title="$t('dashboard.music.rules.whoYouTube')">
+          <RuleRow
+            v-if="draft.allowYouTube"
+            :title="$t('dashboard.music.rules.whoYouTube')"
+            :description="$t('dashboard.music.rules.sourceRoleHint')"
+          >
             <OptionSelect
               :model-value="sourceRung(sourceActions.youtube)"
               :options="rungOptions"
               :label="$t('dashboard.music.rules.whoYouTube')"
               :disabled="!can('roles:manage') || setLevel.isPending.value"
               data-setting="who-youtube"
-              @update:model-value="setSourceRung(sourceActions.youtube, $event)"
+              @update:model-value="setSourceRung(sourceActions.youtube, $event, $t('dashboard.music.rules.whoYouTube'))"
             />
           </RuleRow>
           <RuleRow
