@@ -58,6 +58,12 @@ public interface IPlaybackEngine
     /// </summary>
     Task<bool> CanStartAsync(CancellationToken ct = default) => Task.FromResult(true);
 
+    /// <summary>
+    /// Lifts any pause the engine put on itself after it answered "no output" (no device, no player), so the
+    /// next start reaches the provider. The director calls it when the output changed or the streamer asked.
+    /// </summary>
+    void ForgetOutputBlock() { }
+
     Task SeekAsync(int positionMs, CancellationToken ct = default);
 
     /// <summary>Engine volume, 0 to 100 (the music level).</summary>

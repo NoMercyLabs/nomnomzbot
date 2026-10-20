@@ -60,6 +60,8 @@ public sealed class SpotifyPlaybackEngine(
         return result;
     }
 
+    public void ForgetOutputBlock() => _noDeviceUntil = default;
+
     public EngineKind Kind => EngineKind.Spotify;
 
     public MusicProviderCapabilities Capabilities
@@ -206,11 +208,15 @@ public sealed class SpotifyPlaybackEngine(
     {
         await using EngineLease lease = open();
 
-        return await GuardFor(lease)
+        EngineControlResult result = await GuardFor(lease)
             .ControlAsync(
                 () => lease.Provider.TransferPlaybackAsync(broadcasterId, deviceId, play, ct),
                 ct
             );
+        if (result.Outcome == EngineControlOutcome.Done)
+            ForgetOutputBlock();
+
+        return result;
     }
 
     public async Task<EngineControlResult<string>> GetEmbeddedTokenAsync(

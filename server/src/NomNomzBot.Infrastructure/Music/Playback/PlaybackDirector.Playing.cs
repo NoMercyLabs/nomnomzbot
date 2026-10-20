@@ -150,7 +150,22 @@ public sealed partial class PlaybackDirector
             return;
         }
 
-        if (input is not (OutputAttached or RequestAdded))
+        string? signal = null;
+        if (_outputWait is { } wait)
+        {
+            signal = OutputWaitSignal(input, wait);
+            if (signal is null)
+            {
+                // A poll tick on a waiting head is silent: no start, no journal entry.
+                if (input is not (RequestAdded or EngineReport))
+                    await IgnoreAsync(input);
+
+                return;
+            }
+
+            EndOutputWait(wait, signal);
+        }
+        else if (input is not (OutputAttached or RequestAdded))
         {
             await IgnoreAsync(input);
             return;
@@ -171,7 +186,7 @@ public sealed partial class PlaybackDirector
         await MoveAsync(
             PlaybackState.Idle,
             input,
-            input is OutputAttached ? "output_attached" : "request_added"
+            signal ?? (input is OutputAttached ? "output_attached" : "request_added")
         );
         if (await FollowPlayingMusicAsync(ct))
             return;

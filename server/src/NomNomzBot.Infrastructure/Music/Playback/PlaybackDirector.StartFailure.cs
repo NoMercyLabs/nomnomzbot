@@ -109,6 +109,9 @@ public sealed partial class PlaybackDirector
                 journalReason,
                 item.Id
             );
+            if (blockedReason == nameof(EngineBlockReason.NoOutput))
+                BeginOutputWait(item);
+
             return;
         }
 

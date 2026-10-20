@@ -237,6 +237,25 @@ public sealed class SpotifyPlaybackEngineTests
     }
 
     [Fact]
+    public async Task ForgetOutputBlock_lets_the_next_start_reach_Spotify_inside_the_half_minute()
+    {
+        Microsoft.Extensions.Time.Testing.FakeTimeProvider clock = new();
+        SpotifyPlaybackEngine engine = new(Channel, () => EngineLease.Of(_provider), clock);
+        _provider
+            .AddToQueueAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new NoActiveDeviceException("spotify"));
+        PlaybackItem item = Item();
+        await engine.QueueNextAsync(item);
+
+        engine.ForgetOutputBlock();
+        await engine.QueueNextAsync(item);
+
+        await _provider
+            .Received(2)
+            .AddToQueueAsync(Channel, item.Uri, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Pause_with_no_device_throws_Blocked_NoOutput()
     {
         _provider
