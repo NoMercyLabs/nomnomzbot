@@ -117,7 +117,7 @@ function setSourceRung(actionKey: string, rung: string): void {
         </RowGroup>
       </RuleSection>
       <RuleSection :title="$t('dashboard.music.rules.preferred')">
-        <RadioGroup v-model="draft.preferredProvider" as-child>
+        <RadioGroup v-model="draft.preferredProvider" as-child class="gap-0">
           <RowGroup>
             <label
               v-for="provider in musicProviders"

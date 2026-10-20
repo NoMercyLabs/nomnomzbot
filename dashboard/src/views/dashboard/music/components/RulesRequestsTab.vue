@@ -38,7 +38,7 @@ const { can } = useCan();
   <fieldset class="contents" :disabled="!can('music:config:write')">
     <div class="grid gap-5">
       <RuleSection :title="$t('dashboard.music.rules.who')">
-        <RadioGroup v-model="draft.minTrustLevel" as-child>
+        <RadioGroup v-model="draft.minTrustLevel" as-child class="gap-0">
           <RowGroup>
             <label
               v-for="level in musicTrustLevels"
