@@ -1,0 +1,63 @@
+{
+  "viewer": {
+    "account": {
+      "title": "Jij in {channel}",
+      "notFound": "Dit kanaal is hier niet ingesteld.",
+      "retry": "Opnieuw proberen",
+      "standing": {
+        "label": "Jouw status hier: {standing}",
+        "Everyone": "Kijker",
+        "Subscriber": "Abonnee",
+        "Vip": "VIP",
+        "Artist": "Artiest",
+        "Moderator": "Moderator",
+        "error": "Je status is niet geladen."
+      },
+      "pronouns": {
+        "title": "Voornaamwoorden",
+        "description": "Naast je naam te zien waar je chat. Alleen jij past ze aan.",
+        "primary": "Jouw voornaamwoorden",
+        "alt": "Gebruikt ook",
+        "none": "Niet ingesteld",
+        "pick": "Kies voornaamwoorden",
+        "error": "Je voornaamwoorden zijn niet geladen."
+      },
+      "accounts": {
+        "title": "Gekoppelde accounts",
+        "description": "De aanmeldingen die naar dit ene account leiden.",
+        "empty": "Er is geen ander account gekoppeld.",
+        "error": "Je gekoppelde accounts zijn niet geladen.",
+        "primary": "Hoofdaanmelding",
+        "linked": "Gekoppeld op {date}",
+        "unlink": "Ontkoppelen",
+        "unlinkTitle": "{name} ontkoppelen?",
+        "unlinkDescription": "Je kunt het later opnieuw koppelen.",
+        "unlinkConsequence": "Je kunt niet meer aanmelden met dit account.",
+        "provider": {
+          "twitch": "Twitch",
+          "kick": "Kick",
+          "youtube": "YouTube",
+          "twitter": "X"
+        }
+      },
+      "voice": {
+        "title": "Jouw stem",
+        "description": "Alleen gebruikt als de bot je eigen berichten in dit kanaal voorleest.",
+        "current": "Jouw stem",
+        "channelVoice": "De kanaalstem wordt voor jou gebruikt.",
+        "reset": "Kanaalstem gebruiken",
+        "search": "Stemmen zoeken",
+        "use": "Deze stem gebruiken",
+        "inUse": "Jouw stem",
+        "empty": "Geen stem gevonden.",
+        "error": "De stemmen zijn niet geladen.",
+        "closed": "De streamer heeft stemkeuze voor kijkers niet aangezet, of je kunt hier geen stemmen bekijken."
+      },
+      "data": {
+        "title": "Mijn gegevens",
+        "description": "Exporteer wat de bot over je bewaart, of vraag om het te wissen.",
+        "open": "Mijn gegevens openen"
+      }
+    }
+  }
+}

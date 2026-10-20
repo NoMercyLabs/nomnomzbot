@@ -25,5 +25,4 @@ export const viewerComingSoonRoutes: readonly RouteRecordRaw[] = [
   comingSoon(':channel/leaderboards', 'viewer-leaderboards', 'viewer.leaderboards'),
   comingSoon(':channel/points-store', 'viewer-points-store', 'viewer.pointsStore'),
   comingSoon(':channel/games', 'viewer-games', 'viewer.games'),
-  comingSoon(':channel/me', 'viewer-account', 'viewer.me'),
 ];

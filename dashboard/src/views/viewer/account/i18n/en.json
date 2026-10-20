@@ -1,0 +1,63 @@
+{
+  "viewer": {
+    "account": {
+      "title": "You in {channel}",
+      "notFound": "This channel is not set up here.",
+      "retry": "Try again",
+      "standing": {
+        "label": "Your standing here: {standing}",
+        "Everyone": "Viewer",
+        "Subscriber": "Subscriber",
+        "Vip": "VIP",
+        "Artist": "Artist",
+        "Moderator": "Moderator",
+        "error": "Your standing did not load."
+      },
+      "pronouns": {
+        "title": "Pronouns",
+        "description": "Shown beside your name wherever you chat. Only you change them.",
+        "primary": "Your pronouns",
+        "alt": "Also uses",
+        "none": "Not set",
+        "pick": "Pick pronouns",
+        "error": "Your pronouns did not load."
+      },
+      "accounts": {
+        "title": "Linked accounts",
+        "description": "The sign-ins that lead to this one account.",
+        "empty": "No other account is linked.",
+        "error": "Your linked accounts did not load.",
+        "primary": "Main sign-in",
+        "linked": "Linked {date}",
+        "unlink": "Unlink",
+        "unlinkTitle": "Unlink {name}?",
+        "unlinkDescription": "You can link it again later.",
+        "unlinkConsequence": "You can no longer sign in with this account.",
+        "provider": {
+          "twitch": "Twitch",
+          "kick": "Kick",
+          "youtube": "YouTube",
+          "twitter": "X"
+        }
+      },
+      "voice": {
+        "title": "Your voice",
+        "description": "Used only when the bot reads your own messages aloud in this channel.",
+        "current": "Your voice",
+        "channelVoice": "The channel voice is used for you.",
+        "reset": "Use the channel voice",
+        "search": "Search voices",
+        "use": "Use this voice",
+        "inUse": "Your voice",
+        "empty": "No voice matches.",
+        "error": "The voices did not load.",
+        "closed": "The streamer has not turned on voice choice for viewers, or you cannot browse voices here."
+      },
+      "data": {
+        "title": "My data",
+        "description": "Export what the bot holds about you, or ask it to erase it.",
+        "open": "Open my data"
+      }
+    }
+  }
+}
