@@ -15,6 +15,8 @@ import LanguagePicker from '@/components/layout/LanguagePicker.vue';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 
+import ViewerNav from '@/views/viewer/nav/ViewerNav.vue';
+
 import ViewerChannelFinder from './dashboard/ViewerChannelFinder.vue';
 </script>
 
@@ -24,14 +26,17 @@ import ViewerChannelFinder from './dashboard/ViewerChannelFinder.vue';
       <header class="mx-auto flex w-full max-w-3xl items-center justify-between p-4">
         <span class="flex items-center gap-2 text-base font-semibold">
           <AppMark />
-          {{ $t('site.login.brand') }}
+          {{ $t('frame.brand') }}
         </span>
         <span class="flex items-center gap-2">
           <ViewerChannelFinder />
           <LanguagePicker />
         </span>
       </header>
-      <main class="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4">
+      <div class="mx-auto w-full max-w-3xl px-4">
+        <ViewerNav />
+      </div>
+      <main class="mx-auto flex w-full max-w-3xl flex-col gap-6 p-4 max-md:pb-24">
         <RouterView />
       </main>
     </div>

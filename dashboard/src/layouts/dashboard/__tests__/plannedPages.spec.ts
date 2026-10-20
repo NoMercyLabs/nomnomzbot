@@ -26,7 +26,8 @@ import { useNavigation, type Navigation } from '../useNavigation';
 type Ledger = Record<NavMode, { group: string; entries: { label: string; icon: string }[] }[]>;
 
 const planned = ledger as Ledger;
-const MODES = ['dashboard', 'admin', 'viewer', 'settings'] as const satisfies readonly NavMode[];
+// The viewer pages sit under /me/:channel with their own navigation (views/viewer/nav), not in a sidebar here.
+const MODES = ['dashboard', 'admin', 'settings'] as const satisfies readonly NavMode[];
 
 // Dashboard groups the owner asked for that the mockup ledger does not list (Discord, 2026-10-15).
 const beyondMockup: ReadonlySet<string> = new Set(['connect']);
@@ -115,13 +116,13 @@ beforeEach(() => {
 afterEach(() => localStorage.clear());
 
 describe('every planned page is reachable from its sidebar', () => {
-  it('plans 72 pages in the ledger', () => {
+  it('plans 65 sidebar pages in the ledger', () => {
     const total = MODES.reduce(
       (sum, mode) => sum + planned[mode].reduce((n, group) => n + group.entries.length, 0),
       0,
     );
 
-    expect(total).toBe(72);
+    expect(total).toBe(65);
   });
 
   for (const mode of MODES) {

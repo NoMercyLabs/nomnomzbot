@@ -42,7 +42,7 @@ import Lightning from '~icons/nnz/lightning';
 import { merge } from '@/lib/array';
 
 // Which sidebar a page belongs to. A route says it in meta.navMode; a route without it sits in the dashboard.
-export type NavMode = 'dashboard' | 'admin' | 'viewer' | 'settings';
+export type NavMode = 'dashboard' | 'admin' | 'settings';
 
 export type NavEntry = {
   // The route name of the page. An entry shows only when this route exists.

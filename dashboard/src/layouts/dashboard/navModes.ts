@@ -11,12 +11,10 @@
 import { adminNav } from './adminNavigation';
 import { dashboardNav, type NavGroup, type NavMode } from './navigation';
 import { settingsNav } from './settingsNavigation';
-import { viewerNav } from './viewerNavigation';
 
 // The groups each sidebar shows; the open page picks the mode (route meta navMode).
 export const navByMode = {
   dashboard: dashboardNav,
   admin: adminNav,
-  viewer: viewerNav,
   settings: settingsNav,
 } as const satisfies Record<NavMode, readonly NavGroup[]>;

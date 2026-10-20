@@ -997,3 +997,19 @@ describe('menus', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+describe('viewer pages', () => {
+  // The operator's own viewer chat (/app/viewer-chat) is the one route with the old prefix; every other viewer page is a
+  // viewer-* route under /me/:channel with its navigation in views/viewer/nav.
+  const operatorViewerChat = 'dashboard-viewer-chat';
+
+  it('names no viewer route dashboard-viewer-*', () => {
+    const offenders = allPaths(src)
+      .filter((path) => /\.(ts|vue)$/.test(path) && !path.includes('__tests__'))
+      .filter((path) => (readFileSync(path, 'utf8').match(/dashboard-viewer-[a-z-]+/g) ?? [])
+        .some((name) => name !== operatorViewerChat))
+      .map((path) => relative(src, path).replace(/\\/g, '/'));
+
+    expect(offenders).toEqual([]);
+  });
+});

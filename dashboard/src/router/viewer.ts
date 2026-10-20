@@ -10,13 +10,17 @@
 
 import type { RouteRecordRaw } from 'vue-router';
 
+import { merge } from '@/lib/array';
 import { viewerChatRoute, viewerExternalChatRoute } from '@/views/dashboard/chat/route';
 import { viewerMeRoute } from '@/views/viewer/me/route';
+import { viewerComingSoonRoutes } from '@/views/viewer/nav/route';
 
 // The pages a signed-in viewer sees, outside the management shell.
 export const viewerRoutes: RouteRecordRaw = {
   path: '/me',
   component: () => import('@/layouts/ViewerLayout.vue'),
   meta: { requiresAuth: true },
-  children: [viewerMeRoute, viewerChatRoute, viewerExternalChatRoute],
+  children: Array.from(
+    merge([viewerMeRoute, viewerChatRoute, viewerExternalChatRoute], viewerComingSoonRoutes),
+  ),
 };

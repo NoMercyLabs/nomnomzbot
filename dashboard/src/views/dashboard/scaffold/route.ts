@@ -15,12 +15,9 @@ import { navByMode } from '@/layouts/dashboard/navModes';
 import type { NavEntry, NavMode } from '@/layouts/dashboard/navigation';
 
 // A page reads its address from its name: dashboard-admin-audit-log is /app/admin/audit-log,
-// dashboard-viewer-games is /app/me/games, and dashboard-obs is /app/obs.
+// and dashboard-obs is /app/obs. The viewer pages are not here: they live under /me/:channel (views/viewer/nav/route.ts).
 function pathOf(name: string): string {
   const slug = name.replace('dashboard-', '');
-
-  if (slug.startsWith('viewer-'))
-    return slug.replace('viewer-', 'me/');
 
   return slug.replace(/^(admin|settings)-/, '$1/');
 }
