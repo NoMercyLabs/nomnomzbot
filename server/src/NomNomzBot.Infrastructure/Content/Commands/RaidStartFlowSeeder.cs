@@ -44,6 +44,19 @@ public sealed class RaidStartFlowSeeder : ISeeder
 
     private const string EventType = "channel.raid.start";
 
+    /// <summary>The shortest countdown Twitch gives a started raid before it commits on its own clock.</summary>
+    internal const int MinRaidCountdownSeconds = 90;
+
+    /// <summary>
+    /// The time the streamer's own ending scene keeps the screen once the recap has faded. The flow runs the
+    /// recap and the scene switch together at the countdown start and has no step that switches away or waits,
+    /// so the timeline is: recap shown (0 s), recap hold (the <c>raid_recap</c> <c>holdSeconds</c> setting, 60 s
+    /// by default), recap fades, ending scene alone for this long, Twitch commits the raid
+    /// (<see cref="MinRaidCountdownSeconds"/> at the earliest) and <see cref="RaidCommitFlowSeeder"/> stops the
+    /// stream. The recap hold plus this time must fit inside the countdown.
+    /// </summary>
+    internal const int EndingSceneSeconds = 30;
+
     /// <summary>The startup <see cref="ISeeder"/> pass: seeds every channel.</summary>
     public Task SeedAsync(CancellationToken ct = default) => SeedAsync(broadcasterId: null, ct);
 

@@ -35,4 +35,10 @@ public class StreamRecap : BaseEntity
 
     /// <summary>The recap data, the same JSON the raid recap widget receives (a <c>StreamStatsDto</c>).</summary>
     public string DataJson { get; set; } = null!;
+
+    /// <summary>Width in pixels of the stream output (OBS output resolution) when the recap was made live; null for a recap made without it.</summary>
+    public int? OutputWidth { get; set; }
+
+    /// <summary>Height in pixels of the stream output when the recap was made live; null for a recap made without it.</summary>
+    public int? OutputHeight { get; set; }
 }

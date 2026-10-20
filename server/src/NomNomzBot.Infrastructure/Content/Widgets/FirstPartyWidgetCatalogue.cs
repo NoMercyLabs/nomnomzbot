@@ -477,7 +477,7 @@ public static class FirstPartyWidgetCatalogue
                 + "the screen. Holds for a configurable time, then fades.",
             DefaultSettings: new()
             {
-                ["holdSeconds"] = 20,
+                ["holdSeconds"] = 60,
                 ["accentColor"] = "",
                 ["showSubs"] = true,
                 ["showRaids"] = true,

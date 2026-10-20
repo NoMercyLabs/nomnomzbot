@@ -11,6 +11,7 @@
 using FluentAssertions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Dashboard.Dtos;
+using NomNomzBot.Application.Dashboard.Services;
 using NomNomzBot.Application.Dashboard.Stats;
 using NomNomzBot.Domain.Stream.Entities;
 using NomNomzBot.Infrastructure.Dashboard.Stats;
@@ -71,6 +72,83 @@ public sealed class StreamRecapServiceTests
             .Be(Now.UtcDateTime, "a live stream is counted up to the moment of the build");
         built.Value.Stats.PeakViewers.Should().Be(87);
         row.DataJson.Should().Contain("\"peakViewers\":87");
+    }
+
+    private static StreamRecapService NewServiceWithOutput(
+        AuthDbContext db,
+        IStreamOutputResolutionService reader
+    )
+    {
+        TimeProvider clock = Substitute.For<TimeProvider>();
+        clock.GetUtcNow().Returns(Now);
+        IStreamMetric[] metrics = [new DurationMetric(), new PeakViewersMetric()];
+        return new StreamRecapService(
+            db,
+            new StreamStatsService(db, clock, metrics),
+            clock,
+            reader
+        );
+    }
+
+    [Fact]
+    public async Task A_live_recap_stores_the_obs_output_resolution_and_hands_it_out()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Streams.Add(NewStream("s-1", Started, null));
+        await db.SaveChangesAsync();
+        IStreamOutputResolutionService reader = Substitute.For<IStreamOutputResolutionService>();
+        reader
+            .ReadAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(new StreamOutputResolution(2560, 1440));
+
+        Result<StreamRecapDto> built = await NewServiceWithOutput(db, reader)
+            .BuildAsync(Broadcaster, null, null);
+
+        StreamRecap row = db.StreamRecaps.Single();
+        row.OutputWidth.Should().Be(2560);
+        row.OutputHeight.Should().Be(1440);
+        built.Value.OutputWidth.Should().Be(2560);
+        built.Value.OutputHeight.Should().Be(1440);
+    }
+
+    [Fact]
+    public async Task A_rebuild_when_obs_is_unreachable_keeps_the_stored_resolution()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Streams.Add(NewStream("s-1", Started, null));
+        await db.SaveChangesAsync();
+        IStreamOutputResolutionService reader = Substitute.For<IStreamOutputResolutionService>();
+        reader
+            .ReadAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(new StreamOutputResolution(1280, 720));
+        StreamRecapService service = NewServiceWithOutput(db, reader);
+        await service.BuildAsync(Broadcaster, null, null);
+
+        reader
+            .ReadAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns((StreamOutputResolution?)null);
+        Result<StreamRecapDto> again = await service.BuildAsync(Broadcaster, null, null);
+
+        again.Value.OutputWidth.Should().Be(1280);
+        again.Value.OutputHeight.Should().Be(720);
+    }
+
+    [Fact]
+    public async Task A_recap_of_an_ended_stream_never_reads_the_current_obs_resolution()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Streams.Add(NewStream("s-1", Started, Ended));
+        await db.SaveChangesAsync();
+        IStreamOutputResolutionService reader = Substitute.For<IStreamOutputResolutionService>();
+
+        Result<StreamRecapDto> built = await NewServiceWithOutput(db, reader)
+            .BuildAsync(Broadcaster, "s-1", null);
+
+        await reader.DidNotReceiveWithAnyArgs().ReadAsync(default, default);
+        built
+            .Value.OutputWidth.Should()
+            .BeNull("an old recap has no stored resolution; the dashboard labels the fallback");
+        built.Value.OutputHeight.Should().BeNull();
     }
 
     [Fact]

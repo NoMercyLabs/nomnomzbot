@@ -90,7 +90,7 @@ const DEFAULT_LABELS: Record<string, string> = {
 };
 
 const cfg = reactive({
-  holdSeconds: 20,
+  holdSeconds: 60,
   accentColor: '',
   showSubs: true,
   showRaids: true,
@@ -264,17 +264,13 @@ const cards = computed<Card[]>(() => (recap.value ? buildCards(recap.value) : []
 
 // One grid for every block: 12 columns, so any row of 1 to 4 blocks adds up to the full width and every card edge
 // lines up with the top row. Blocks without data are gone. Up to 3 blocks share one row, 4 are 2 over 2, 5 are 3 over 2,
-// 6 are 3 over 3, 8 are 4 over 4. With 7 blocks the heaviest one is tall (two rows) in the first column.
+// 6 are 3 over 3, 7 are 4 over 3, 8 are 4 over 4. The streamer card (the channel avatar) is one of those cells and is always
+// the first cell of the last row, bottom left (Stoney, 2026-10-20), so at most 7 data blocks are shown next to it.
 interface Placed { card: Card; span: number; tall: boolean }
 
 const GRID_COLUMNS = 12;
 const MAX_CARDS = 8;
-const TALL_COUNT = 7;
-const TALL_SPAN = 3;
-
-function weight(card: Card): number {
-  return card.rows.filter((r) => r.kind === 'row').length;
-}
+const STREAMER_KEY = 'streamer';
 
 function rowSizes(count: number): number[] {
   if (count <= 3) return count ? [count] : [];
@@ -290,25 +286,24 @@ function flow(list: Card[], width: number): Placed[] {
   return list.map((card, i) => ({ card, span: spans[i] ?? width, tall: false }));
 }
 
-function heaviest(list: Card[]): Card {
-  return list.reduce((best, card) => (weight(card) > weight(best) ? card : best));
+// The streamer card goes in front of the last row's cells; with a single row that is the first cell.
+function withStreamer(list: Card[]): Card[] {
+  const shown = list.slice(0, MAX_CARDS - 1);
+  const sizes = rowSizes(shown.length + 1);
+  const lastRowStart = sizes.length > 1 ? sizes[0]! : 0;
+  const streamer: Card = { key: STREAMER_KEY, big: '', unit: '', rows: [] };
+
+  return shown.slice(0, lastRowStart).concat(streamer, shown.slice(lastRowStart));
 }
 
 function place(list: Card[]): Placed[] {
-  const shown = list.slice(0, MAX_CARDS);
-
-  if (shown.length !== TALL_COUNT) return flow(shown, GRID_COLUMNS);
-
-  const tall = heaviest(shown);
-  const rest = flow(shown.filter((card) => card !== tall), GRID_COLUMNS - TALL_SPAN);
-
-  return [{ card: tall, span: TALL_SPAN, tall: true }].concat(rest);
+  return flow(withStreamer(list), GRID_COLUMNS);
 }
 
 const placed = computed<Placed[]>(() => place(cards.value));
 
 const gridStyle = computed<Record<string, string>>(() => {
-  const rows = placed.value.some((p) => p.tall) ? 2 : rowSizes(placed.value.length).length;
+  const rows = rowSizes(placed.value.length).length;
 
   return { gridTemplateRows: `repeat(${rows}, minmax(0, 1fr))` };
 });
@@ -433,9 +428,12 @@ onUnmounted(() => {
       </section>
 
       <section class="grid" :style="gridStyle">
-        <div v-for="(p, pi) in placed" :key="p.card.key" class="card block" :data-block="p.card.key" :style="cellStyle(p)">
-          <img v-if="avatarUrl && pi === 0" class="watermark" :src="avatarUrl" alt="" />
-          <div class="label">{{ label('block.' + p.card.key) }}</div>
+        <div v-for="p in placed" :key="p.card.key" class="card block" :class="{ streamer: p.card.key === STREAMER_KEY }" :data-block="p.card.key" :style="cellStyle(p)">
+          <template v-if="p.card.key === STREAMER_KEY">
+            <img v-if="avatarUrl" class="avatar" :src="avatarUrl" crossorigin="anonymous" alt="" />
+            <div class="who">{{ recap?.channel?.name }}</div>
+          </template>
+          <div v-if="p.card.key !== STREAMER_KEY" class="label">{{ label('block.' + p.card.key) }}</div>
           <div v-if="p.card.big" class="big">{{ p.card.big }}<small v-if="p.card.unit">{{ p.card.unit }}</small></div>
           <div v-if="p.card.rows.length" class="scroll" :class="{ fit: p.card.note }">
             <div class="list">
@@ -486,8 +484,9 @@ h1 { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1; co
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; min-height: 0; }
 .block { position: relative; }
-.block > :not(.watermark) { position: relative; }
-.watermark { position: absolute; left: -40px; bottom: -40px; width: 340px; height: 340px; border-radius: 50%; object-fit: cover; filter: grayscale(1) contrast(1.1); mix-blend-mode: luminosity; opacity: 0.22; pointer-events: none; -webkit-mask-image: radial-gradient(circle at 40% 60%, #000 35%, transparent 70%); mask-image: radial-gradient(circle at 40% 60%, #000 35%, transparent 70%); }
+.streamer { align-items: center; justify-content: center; gap: 14px; }
+.avatar { flex: 0 1 auto; min-height: 0; max-width: 100%; aspect-ratio: 1; height: 100%; max-height: 260px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); }
+.who { font-size: 28px; font-weight: 800; color: var(--color-100); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .card {
   background: linear-gradient(45deg, hsl(from var(--color-300) h s l / 50%), hsl(from var(--color-600) h s l / 50%) 15%, hsl(from var(--color-900) h s l / 75%));
   backdrop-filter: blur(24px);

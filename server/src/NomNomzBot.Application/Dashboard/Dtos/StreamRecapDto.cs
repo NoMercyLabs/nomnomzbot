@@ -31,6 +31,14 @@ public sealed record StreamRecapDto
     [JsonPropertyName("updatedAt")]
     public DateTimeOffset UpdatedAt { get; init; }
 
+    /// <summary>Width in pixels of the stream output the recap was made at; null when none was stored (the dashboard labels its fallback).</summary>
+    [JsonPropertyName("outputWidth")]
+    public int? OutputWidth { get; init; }
+
+    /// <summary>Height in pixels of the stream output the recap was made at; null when none was stored.</summary>
+    [JsonPropertyName("outputHeight")]
+    public int? OutputHeight { get; init; }
+
     /// <summary>The recap data, exactly as the widget got it.</summary>
     [JsonPropertyName("stats")]
     public required StreamStatsDto Stats { get; init; }
