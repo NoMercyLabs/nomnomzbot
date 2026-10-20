@@ -20,5 +20,7 @@ export const dashboardObsRoute = {
     loadPage(
       () => import('./ObsView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
+      // The overlay setup dialog on this page speaks with the Overlays page's words.
+      (locale) => import(`../overlays/i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;
