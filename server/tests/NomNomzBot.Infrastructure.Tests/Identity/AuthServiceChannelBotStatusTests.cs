@@ -53,6 +53,30 @@ public sealed class AuthServiceChannelBotStatusTests
     }
 
     [Fact]
+    public async Task TheStatusCarriesTheBotsOwnPictureFromItsUserRow()
+    {
+        (AuthService service, AuthDbContext db, IIntegrationTokenVault vault) = Build();
+        Guid connectionId = SeedSharedBot(db);
+        VaultHasToken(vault, connectionId);
+        db.Users.Add(
+            new User
+            {
+                TwitchUserId = SharedBotUserId,
+                Username = "nomz_bot",
+                UsernameNormalized = "nomz_bot",
+                DisplayName = "nomz_bot",
+                ProfileImageUrl = "https://static-cdn.example/nomz_bot.png",
+            }
+        );
+        db.SaveChanges();
+        Channel channel = SeedChannel(db);
+
+        Result<BotStatusDto> result = await service.GetChannelBotStatusAsync(channel.Id);
+
+        result.Value.ProfileImageUrl.Should().Be("https://static-cdn.example/nomz_bot.png");
+    }
+
+    [Fact]
     public async Task WithNoSharedBotRegistered_TheBotIsNotInChat()
     {
         (AuthService service, AuthDbContext db, IIntegrationTokenVault _) = Build();
