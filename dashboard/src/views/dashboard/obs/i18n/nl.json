@@ -49,7 +49,7 @@
         "surfaces": {
           "audio": {
             "name": "Bot Audio",
-            "detail": "Speelt elke geluidsclip en elk uitgesproken bericht van de bot af."
+            "detail": "Speelt de geluidsclips en beloningsgeluiden van de bot af. Uitgesproken berichten spelen op de TTS-ondertitelbron, niet hier."
           },
           "alerts": {
             "name": "Meldingen",
@@ -57,7 +57,7 @@
           },
           "tts_caption": {
             "name": "TTS-ondertitel",
-            "detail": "Toont wie er spreekt en de woorden, terwijl de bot een bericht voorleest."
+            "detail": "Toont wie er spreekt en de woorden, en speelt het uitgesproken bericht af. Houd Audio via OBS regelen aan."
           },
           "raid_recap": {
             "name": "Raid-terugblik",

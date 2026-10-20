@@ -49,7 +49,7 @@
         "surfaces": {
           "audio": {
             "name": "Bot Audio",
-            "detail": "Plays every sound clip and spoken message from the bot."
+            "detail": "Plays the bot's sound clips and redemption sounds. Spoken messages play on the TTS caption source, not here."
           },
           "alerts": {
             "name": "Alerts",
@@ -57,7 +57,7 @@
           },
           "tts_caption": {
             "name": "TTS caption",
-            "detail": "Shows who is speaking and the words, while the bot reads a message aloud."
+            "detail": "Shows who is speaking and the words, and plays the spoken message. Keep Control audio via OBS on."
           },
           "raid_recap": {
             "name": "Raid recap",

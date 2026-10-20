@@ -2854,7 +2854,7 @@
         "name": "Meldingen"
       },
       "audio": {
-        "description": "Geluidsclips, beloningsgeluiden en uitgesproken berichten (TTS) komen uit deze ene browserbron. Voeg hem één keer toe, maak hem 1x1 en laat hem staan. Houd “Audio via OBS regelen” AAN, anders hoort de stream niets. Toont zelf niets; de optionele indicator is er alleen om tijdens het instellen te zien dat de bron leeft. Muziek speelt af in de Muziekspeler-widget.",
+        "description": "Geluidsclips en beloningsgeluiden komen uit deze ene browserbron; uitgesproken berichten (TTS) spelen alleen af in de TTS-ondertitelbron. Voeg hem één keer toe, maak hem 1x1 en laat hem staan. Houd “Audio via OBS regelen” AAN, anders hoort de stream niets. Toont zelf niets; de optionele indicator is er alleen om tijdens het instellen te zien dat de bron leeft. Muziek speelt af in de Muziekspeler-widget.",
         "name": "Bot-audio"
       },
       "chat_box": {
@@ -2950,7 +2950,7 @@
         "name": "Topcheerers"
       },
       "tts_caption": {
-        "description": "Een spreekindicator met live ondertitel bij TTS-weergave, met geanimeerde stembalkjes, de naam van de spreker, optioneel een stemlabel en plaatsing boven of onder. Verborgen zolang er niemand spreekt.",
+        "description": "Uitgesproken berichten (TTS) spelen af in deze browserbron; houd “Audio via OBS regelen” AAN. Toont een spreekindicator met live ondertitel, met geanimeerde stembalkjes, de naam van de spreker, optioneel een stemlabel en plaatsing boven of onder. Verborgen zolang er niemand spreekt.",
         "name": "TTS-ondertitel"
       }
     },
