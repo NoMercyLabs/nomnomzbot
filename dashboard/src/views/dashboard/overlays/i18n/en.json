@@ -8,6 +8,7 @@
       "noMatch": "No overlay matches \"{query}\".",
       "back": "Back to the list",
       "audioMix": {
+        "open": "Audio levels",
         "title": "Music vs Bot audio levels",
         "description": "How loud the music plays against the bot voice and sounds on your overlays, the same on every streaming PC.",
         "loadError": "The audio mix could not load.",
@@ -101,10 +102,6 @@
           "testSentDetached": "Sent, but no browser source has it open",
           "testNotListening": "This overlay does not react to this event"
         },
-        "preview": {
-          "title": "Preview",
-          "unavailable": "The dashboard cannot draw this overlay yet. Open its address in OBS to see it."
-        },
         "settings": {
           "title": "Settings",
           "unsaved": "Unsaved changes. Open sources reload on save.",
@@ -117,6 +114,7 @@
           "reset": "Reset {name} to default",
           "save": "Save settings",
           "changed": "Changed from the default",
+          "inCode": "Set in the overlay's code.",
           "list": {
             "empty": "No items yet.",
             "item": "Item {number}",
@@ -125,16 +123,6 @@
             "remove": "Remove item {number}",
             "add": "Add item"
           }
-        },
-        "module": {
-          "title": "Module",
-          "what": "What it is",
-          "noDescription": "No description.",
-          "framework": "Framework",
-          "triggers": "Triggers",
-          "address": "Address",
-          "addressNote": "{path} (the token is hidden; Copy gives you the full address)",
-          "noAddress": "None yet"
         }
       }
     }

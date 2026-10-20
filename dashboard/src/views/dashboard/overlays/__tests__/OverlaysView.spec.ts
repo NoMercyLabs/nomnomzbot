@@ -364,12 +364,40 @@ describe('OverlaysView', () => {
 
     expect(detail().querySelector('h2')?.textContent).toBe('Spotify NowPlaying');
     expect(head).toContain('Built in');
-    expect(head).toContain('vue');
+    expect(head).toContain('Now playing');
     expect(head).toContain('Spotify NowPlaying description');
     expect(head).toContain('track changed');
-    expect(head).toContain('spotify.track_changed');
     expect(head).toContain('subscription gift');
     expect(head).toContain('Reacts to 3 events');
+  });
+
+  // Stoney 2026-10-20 "also super messy": no framework, no internal event key, no catch-all kind badge.
+  it('shows no technical noise in the detail', async () => {
+    await open('/app/overlays?id=w2');
+
+    const head = detail().textContent ?? '';
+
+    expect(head).not.toContain('vue');
+    expect(head).not.toContain(en.dashboard.overlays.kinds.overlay);
+    expect(head).not.toContain('Framework');
+
+    mounted?.unmount();
+    await open('/app/overlays?id=w1');
+    expect(detail().textContent).not.toContain('spotify.track_changed');
+  });
+
+  it('keeps the audio levels out of the list and opens them from the header', async () => {
+    await open('/app/overlays');
+
+    expect(document.body.querySelector('[data-view="audio-mix"]')).toBeNull();
+
+    button(en.dashboard.overlays.audioMix.open).click();
+    await settle();
+
+    const panel = document.body.querySelector('[data-view="audio-mix"]') as HTMLElement;
+
+    expect(panel).not.toBeNull();
+    expect(panel.closest('[data-slot="side-panel"]')).not.toBeNull();
   });
 
   // A key that is already plain ("follow") shows once, not as a name with the same word under it.
@@ -384,7 +412,7 @@ describe('OverlaysView', () => {
     );
 
     expect(rows).toContain('follow');
-    expect(rows).toContain('track changedspotify.track_changed');
+    expect(rows).toContain('track changed');
   });
 
   it('opens the overlay of a row when it is picked', async () => {

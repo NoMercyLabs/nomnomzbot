@@ -8,9 +8,9 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The head of one overlay: name and badges, the On/Off switch, the one primary action (copy the
-// browser source address), Health, what it reacts to, and the module facts.
-// The address holds a secret token. Copy sends the full address to the clipboard; the page only ever shows it cut.
+// One overlay: name, badges and what it is, the On/Off switch, the one primary action (copy the
+// browser source address), then its settings beside its health and the events it reacts to.
+// The address holds a secret token. Copy sends the full address to the clipboard; the page never shows it.
 import Check from '~icons/nnz/check';
 import Code from '~icons/nnz/code';
 import Copy from '~icons/nnz/file-copy';
@@ -31,8 +31,6 @@ import BackLink from '@/components/layout/BackLink.vue';
 import CodeEditor from '@/components/layout/CodeEditor.vue';
 import DetailPane from '@/components/layout/DetailPane.vue';
 import InlineFlow from '@/components/layout/InlineFlow.vue';
-import KeyValueList from '@/components/layout/KeyValueList.vue';
-import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
@@ -44,10 +42,9 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useFormattedTime } from '@/composables/useTime';
 import { errorText } from '@/lib/errors';
-import { numberOrNull } from '@/lib/number';
 
 import OverlaySettings from './OverlaySettings.vue';
-import { maskedAddress, overlayKind, plainEvent, type OverlayKind } from './overlayKind';
+import { overlayKind, plainEvent, type OverlayKind } from './overlayKind';
 import { useOverlayEditor } from './useOverlayEditor';
 
 const COPIED_MS = 2000;
@@ -175,36 +172,6 @@ async function sendTest(eventType: string): Promise<void> {
     throw error;
   }
 }
-
-// The preview cannot render the overlay yet; it names the size the overlay is set to when it has one.
-const size = computed<string | null>(() => {
-  const width = numberOrNull(props.widget.settings?.width as number | string | undefined);
-  const height = numberOrNull(props.widget.settings?.height as number | string | undefined);
-
-  return width === null || height === null
-    ? null
-    : `${width} × ${height}`;
-});
-
-const module = computed<KeyValueItem[]>(() => {
-  const base: string = 'dashboard.overlays.detail.module';
-  const address: string | null = props.widget.overlayUrl
-    ? maskedAddress(props.widget.overlayUrl)
-    : null;
-
-  return [
-    { label: t(`${base}.what`), value: props.widget.description || t(`${base}.noDescription`) },
-    { label: t(`${base}.framework`), value: props.widget.framework },
-    { label: t(`${base}.triggers`), value: events.value.length },
-    {
-      label: t(`${base}.address`),
-      value:
-        address === null
-          ? t(`${base}.noAddress`)
-          : t(`${base}.addressNote`, { path: address }),
-    },
-  ];
-});
 </script>
 
 <template>
@@ -216,23 +183,31 @@ const module = computed<KeyValueItem[]>(() => {
           :label="$t('dashboard.overlays.back')"
           @click="$emit('back')"
         />
+        <!-- An icon slot shows only with a real icon; the list keeps its empty tiles so its rows line up. -->
         <span
+          v-if="kind.icon"
           class="flex size-12 flex-none items-center justify-center rounded-lg bg-muted text-muted-foreground"
         >
-          <component :is="kind.icon" v-if="kind.icon" class="size-5" aria-hidden="true" />
+          <component :is="kind.icon" class="size-5" aria-hidden="true" />
         </span>
-        <div class="grid min-w-0 gap-1">
+        <!-- flex-1 with a basis: a long description wraps inside the block instead of pushing it onto its own line. -->
+        <div class="grid min-w-0 flex-1 basis-64 gap-1">
           <h2 class="truncate text-lg font-semibold">{{ widget.name }}</h2>
-          <div class="flex flex-wrap items-center gap-2">
-            <Badge variant="outline">{{ $t(`dashboard.overlays.kinds.${kind.key}`) }}</Badge>
+          <div v-if="kind.icon || builtIn || widget.isCustomized" class="flex flex-wrap items-center gap-2">
+            <!-- The catch-all kind ("Overlay") says nothing on the Overlays page, so only a known kind shows. -->
+            <Badge v-if="kind.icon" variant="outline">{{
+              $t(`dashboard.overlays.kinds.${kind.key}`)
+            }}</Badge>
             <Badge v-if="builtIn" variant="outline">{{
               $t("dashboard.overlays.detail.builtIn")
             }}</Badge>
             <Badge v-if="widget.isCustomized" variant="outline">{{
               $t("dashboard.overlays.detail.edited")
             }}</Badge>
-            <span class="text-sm text-muted-foreground">{{ widget.framework }}</span>
           </div>
+          <p v-if="widget.description" class="text-sm text-muted-foreground">
+            {{ widget.description }}
+          </p>
         </div>
         <div class="ml-auto flex flex-wrap items-center gap-3">
           <label
@@ -282,11 +257,13 @@ const module = computed<KeyValueItem[]>(() => {
       </div>
     </template>
 
-    <!-- The mockup's two columns (12-overlays.html:355-367): a grid child does not shrink, so no panel
-         scrolls inside itself. -->
-    <div class="grid flex-none items-start gap-4 xl:grid-cols-2">
-      <div class="grid gap-4">
-        <PanelCard tier="lead" pad :title="$t('dashboard.overlays.detail.health.title')">
+    <!-- Settings lead, first in reading order; health and events sit beside them. A grid child does not
+         shrink, so no panel scrolls inside itself. -->
+    <div class="grid flex-none items-start gap-4 xl:grid-cols-5">
+      <OverlaySettings class="xl:col-span-3" :widget="widget" />
+
+      <div class="grid gap-4 xl:col-span-2">
+        <PanelCard tier="quiet" pad :title="$t('dashboard.overlays.detail.health.title')">
           <div data-slot="overlay-health" class="grid gap-3 text-sm">
             <div class="grid gap-1">
               <StatusBadge :tone="runTone" :label="runTitle" class="font-medium" />
@@ -296,15 +273,6 @@ const module = computed<KeyValueItem[]>(() => {
               <StatusBadge :tone="attachLine.tone" :label="attachLine.title" class="font-medium" />
               <p class="text-muted-foreground">{{ attachLine.note }}</p>
             </div>
-          </div>
-        </PanelCard>
-
-        <PanelCard tier="quiet" pad :title="$t('dashboard.overlays.detail.preview.title')">
-          <div data-slot="overlay-preview" class="flex flex-wrap items-center gap-2 text-sm">
-            <p class="min-w-0 flex-1 text-muted-foreground">
-              {{ $t("dashboard.overlays.detail.preview.unavailable") }}
-            </p>
-            <Badge v-if="size !== null" variant="outline" class="tabular-nums">{{ size }}</Badge>
           </div>
         </PanelCard>
 
@@ -323,7 +291,6 @@ const module = computed<KeyValueItem[]>(() => {
               :key="key"
               :data-event="key"
               :title="plainEvent(key)"
-              :detail="plainEvent(key) === key ? undefined : key"
             >
               <template #end>
                 <InlineFlow
@@ -345,13 +312,6 @@ const module = computed<KeyValueItem[]>(() => {
               </template>
             </SummaryRow>
           </RowGroup>
-        </PanelCard>
-      </div>
-
-      <div class="grid gap-4">
-        <OverlaySettings :widget="widget" />
-        <PanelCard tier="quiet" pad :title="$t('dashboard.overlays.detail.module.title')">
-          <KeyValueList :items="module" />
         </PanelCard>
       </div>
     </div>

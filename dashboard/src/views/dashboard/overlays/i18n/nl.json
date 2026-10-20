@@ -8,6 +8,7 @@
       "noMatch": "Geen overlay past bij \"{query}\".",
       "back": "Terug naar de lijst",
       "audioMix": {
+        "open": "Audioniveaus",
         "title": "Muziek- en botaudioniveaus",
         "description": "Hoe luid de muziek klinkt ten opzichte van de botstem en de geluiden op je overlays, op elke streaming-pc gelijk.",
         "loadError": "De audiomix kon niet laden.",
@@ -101,10 +102,6 @@
           "testSentDetached": "Gestuurd, maar geen browserbron heeft hem open",
           "testNotListening": "Deze overlay reageert niet op dit evenement"
         },
-        "preview": {
-          "title": "Voorbeeld",
-          "unavailable": "Het dashboard kan deze overlay nog niet tekenen. Open het adres in OBS om hem te zien."
-        },
         "settings": {
           "title": "Instellingen",
           "unsaved": "Niet opgeslagen wijzigingen. Open bronnen laden opnieuw bij opslaan.",
@@ -117,6 +114,7 @@
           "reset": "Zet {name} terug naar de standaard",
           "save": "Instellingen opslaan",
           "changed": "Anders dan de standaard",
+          "inCode": "Dit stel je in de code van de overlay in.",
           "list": {
             "empty": "Nog geen items.",
             "item": "Item {number}",
@@ -125,16 +123,6 @@
             "remove": "Verwijder item {number}",
             "add": "Item toevoegen"
           }
-        },
-        "module": {
-          "title": "Module",
-          "what": "Wat het is",
-          "noDescription": "Geen beschrijving.",
-          "framework": "Framework",
-          "triggers": "Triggers",
-          "address": "Adres",
-          "addressNote": "{path} (het token is verborgen; Kopieer geeft je het volledige adres)",
-          "noAddress": "Nog geen"
         }
       }
     }

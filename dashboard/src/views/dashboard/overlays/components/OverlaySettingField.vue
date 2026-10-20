@@ -9,9 +9,9 @@
 -->
 <script setup lang="ts">
 import type { JsonObject, JsonValue } from '@/lib/json';
-// One settings field: label and "key . type . help" on the left, the control its type asks for,
+// One settings field: its label and help on the left, the control its type asks for,
 // and Reset when the value differs from the default (12-overlays.html:304-313).
-// A type the dashboard does not know shows its value read-only.
+// A JSON setting gets a control per key; a value no control can hold says it is set in the code.
 import RotateCcw from '~icons/nnz/arrow-counter-clockwise';
 import { computed, useId } from 'vue';
 
@@ -28,14 +28,12 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { Textarea } from '@/components/ui/textarea';
 import { useLocalizedText } from '@/composables/useLocalizedText';
 import { humanize } from '@/lib/text';
 import StepPicker from '@/views/dashboard/pipelines/components/StepPicker.vue';
-import { isPickerKind } from '@/views/dashboard/pipelines/components/stepFields';
 
 import SettingGroup from './SettingGroup.vue';
-import { clampNumber } from './settingField';
+import { clampNumber, objectOf, parsedJson, pickerOf, textListOf } from './settingField';
 import StringListEditor from './StringListEditor.vue';
 
 const props = defineProps<{
@@ -49,13 +47,10 @@ const text = useLocalizedText();
 const titleId = useId();
 
 const label = computed<string>(() => text(props.field.label, humanize(props.field.key)));
-const meta = computed<string>(() => {
-  const help: string | null = props.field.help
+const help = computed<string>(() =>
+  props.field.help
     ? text(props.field.help, '')
-    : null;
-
-  return [props.field.key, props.field.type, help].filter(Boolean).join(' · ');
-});
+    : '');
 
 interface Choice {
   value: string;
@@ -83,17 +78,37 @@ const shown = computed<string>(() =>
     : String(props.value),
 );
 // A text field that names a kind of thing the bot can list (a reward, an OBS input) is picked from that list.
-const pickerKind = computed<PickerKind | null>(() =>
-  props.field.picker && isPickerKind(props.field.picker)
-    ? props.field.picker
-    : null);
-const group = computed(() =>
-  props.value !== null && typeof props.value === 'object' && !Array.isArray(props.value)
-    ? props.value
-    : {} as const satisfies JsonObject,
-);
+const pickerKind = computed<PickerKind | null>(() => pickerOf(props.field));
+// A group, or a JSON setting that holds an object, is edited key by key; a JSON list of texts row by row.
+const structured = computed(() => parsedJson(props.value));
+const group = computed<JsonObject | null>(() => {
+  if (props.field.type === 'group')
+    return objectOf(props.value) ?? {};
+
+  return props.field.type === 'json'
+    ? objectOf(structured.value)
+    : null;
+});
+const textList = computed<string[] | null>(() => {
+  if (props.field.type === 'list')
+    return picked.value;
+
+  return props.field.type === 'json'
+    ? textListOf(structured.value)
+    : null;
+});
+const wide = computed<boolean>(() =>
+  ['multiselect', 'list', 'group', 'json'].includes(props.field.type));
+const controlWidth = computed<string>(() => {
+  if (props.field.type === 'bool')
+    return '';
+
+  return wide.value
+    ? 'w-full'
+    : 'max-sm:w-full';
+});
 const known = computed<boolean>(() =>
-  ['bool', 'number', 'text', 'color', 'select', 'multiselect', 'list', 'group'].includes(
+  ['bool', 'number', 'text', 'color', 'select', 'multiselect', 'list', 'group', 'json'].includes(
     props.field.type,
   ),
 );
@@ -120,7 +135,7 @@ function onNumber(event: Event): void {
       class="min-w-0 flex-1"
       :model-value="value === true"
       :title="label"
-      :description="meta"
+      :description="help || undefined"
       @update:model-value="emit('update', $event)"
     />
     <template v-else>
@@ -136,9 +151,17 @@ function onNumber(event: Event): void {
             $t('dashboard.overlays.detail.settings.changed')
           }}</span>
         </span>
-        <span class="block text-sm text-muted-foreground wrap-break-word">{{ meta }}</span>
+        <span v-if="help" class="block text-sm text-muted-foreground wrap-break-word">{{
+          help
+        }}</span>
       </span>
+    </template>
 
+    <!-- The control and its Reset wrap as one, so Reset never lands alone on a line. -->
+    <span
+      class="flex min-w-0 items-center gap-1"
+      :class="controlWidth"
+    >
       <Input
         v-if="field.type === 'number'"
         type="number"
@@ -196,44 +219,45 @@ function onNumber(event: Event): void {
       </Select>
       <MultiChoice
         v-else-if="field.type === 'multiselect'"
+        class="min-w-0 flex-1"
         :options="choices"
         :model-value="picked"
         :aria-labelledby="titleId"
         @update:model-value="emit('update', $event)"
       />
       <StringListEditor
-        v-else-if="field.type === 'list'"
-        :items="picked"
+        v-else-if="textList"
+        class="min-w-0 flex-1"
+        :items="textList"
         @update="emit('update', $event)"
       />
       <SettingGroup
-        v-else-if="field.type === 'group'"
+        v-else-if="group"
+        class="min-w-0 flex-1"
         :value="group"
         @update="emit('update', $event)"
       />
-      <Textarea
-        v-else
-        readonly
-        class="w-full font-mono"
-        :model-value="
-          field.type === 'json' || !known ? JSON.stringify(value ?? null, null, 2) : shown
-        "
-        :aria-labelledby="titleId"
-      />
-    </template>
+      <p
+        v-else-if="field.type !== 'bool'"
+        data-in-code
+        class="min-w-0 flex-1 text-sm text-muted-foreground"
+      >
+        {{ $t('dashboard.overlays.detail.settings.inCode') }}
+      </p>
 
-    <span class="flex size-8 flex-none items-center justify-center">
       <Button
         v-if="changed && known"
         data-reset
+        class="flex-none"
         variant="ghost"
-        size="icon-sm"
+        size="icon"
         :aria-label="$t('dashboard.overlays.detail.settings.reset', { name: label })"
         :title="$t('dashboard.overlays.detail.settings.reset', { name: label })"
         @click="emit('reset')"
       >
         <RotateCcw aria-hidden="true" />
       </Button>
+      <span v-else class="size-9 flex-none" aria-hidden="true" />
     </span>
   </div>
 </template>

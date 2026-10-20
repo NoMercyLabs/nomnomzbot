@@ -28,6 +28,9 @@ import ReadabilityRow from '@/views/dashboard/settings/components/ReadabilityRow
 
 type Field = keyof AudioMixChange;
 
+// In the drawer the sheet frames the panel, so it drops its own border.
+defineProps<{ flush?: boolean }>();
+
 const fields = [
   { field: 'masterVolume', text: 'master' },
   { field: 'ttsVolume', text: 'tts' },
@@ -161,6 +164,7 @@ const failure = computed(() => {
   <PanelCard
     data-view="audio-mix"
     pad
+    :flush="flush"
     :title="$t('dashboard.overlays.audioMix.title')"
     :description="$t('dashboard.overlays.audioMix.description')"
     :state="state"

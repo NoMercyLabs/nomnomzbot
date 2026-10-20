@@ -11,6 +11,8 @@
 // The Overlays page: every overlay of the channel as a list, tabs that filter it, and one overlay beside it.
 // The overlay in view is the id in ?id=, so a link opens it; with no id the first row of the list shows.
 // Tab counts come from the loaded list: the bot has no count endpoint.
+// The audio levels are channel-wide, not one overlay's, so they open from the header in their own drawer.
+import VolumeTwo from '~icons/nnz/volume-two';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -22,6 +24,8 @@ import PageTabs from '@/components/layout/PageTabs.vue';
 import type { PageTab } from '@/components/layout/pageTab';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
+import SidePanel from '@/components/layout/SidePanel.vue';
+import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useNarrowScreen } from '@/composables/useLayout';
@@ -52,6 +56,7 @@ const { can } = useCan();
 const widgets = useWidgets(channelId);
 const view = usePageView(TAB_VALUES);
 const search = ref('');
+const audioOpen = ref(false);
 
 const required = useRequiredOverlays(channelId);
 
@@ -143,13 +148,25 @@ function back(): void {
 
 <template>
   <PageHeader :title="$t('dashboard.overlays.title')" :crumb="$t('dashboard.overlays.crumb')">
+    <template v-if="can('sounds:read')" #actions>
+      <Button variant="outline" @click="audioOpen = true">
+        <VolumeTwo aria-hidden="true" />
+        {{ $t("dashboard.overlays.audioMix.open") }}
+      </Button>
+      <SidePanel
+        v-model:open="audioOpen"
+        drawer-only
+        :label="$t('dashboard.overlays.audioMix.title')"
+      >
+        <AudioMixPanel flush />
+      </SidePanel>
+    </template>
     <template #bar>
       <PageTabs v-if="can('widget:read')" :tabs="tabs" />
     </template>
   </PageHeader>
   <ListDetail :show-detail="asked !== ''">
     <template #list>
-      <AudioMixPanel v-if="can('sounds:read')" />
       <PanelCard
         v-if="can('widget:read')"
         class="min-h-80 flex-1"

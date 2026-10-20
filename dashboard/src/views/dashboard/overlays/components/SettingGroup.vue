@@ -9,12 +9,11 @@
 -->
 <script setup lang="ts">
 // A nested settings object edited in place: one labeled control per key, chosen by the kind of value it holds
-// (switch, number, text, list of texts, or a nested group). A value of another kind shows read-only.
+// (switch, number, text, list of texts, or a nested group). A value of another kind says it is set in the code.
 import { computed } from 'vue';
 
+import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
-import { Textarea } from '@/components/ui/textarea';
 import type { JsonObject, JsonValue } from '@/lib/json';
 import { numberOrNull } from '@/lib/number';
 import { humanize } from '@/lib/text';
@@ -70,25 +69,27 @@ function setNumber(key: string, typed: string | number): void {
 </script>
 
 <template>
-  <div class="flex w-full flex-col gap-3">
+  <!-- Plain values sit three to a line; a list or a nested group takes the whole line. -->
+  <div class="grid w-full grid-cols-2 gap-3 sm:grid-cols-3">
     <div
       v-for="entry in entries"
       :key="entry.key"
       :data-group-key="entry.key"
-      class="flex flex-col gap-1.5"
+      class="flex min-w-0 flex-col gap-1.5"
+      :class="{ 'col-span-full': entry.kind === 'group' || entry.kind === 'list' }"
     >
-      <span class="text-sm font-medium">{{ entry.label }}</span>
-
-      <Switch
+      <LabeledSwitch
         v-if="entry.kind === 'bool'"
         :model-value="entry.value === true"
-        :aria-label="entry.label"
+        :label="entry.label"
         @update:model-value="set(entry.key, $event)"
       />
+      <span v-else class="text-sm font-medium">{{ entry.label }}</span>
+
       <Input
-        v-else-if="entry.kind === 'number'"
+        v-if="entry.kind === 'number'"
         type="number"
-        class="w-full sm:w-48"
+        class="w-full"
         :model-value="String(entry.value)"
         :aria-label="entry.label"
         @update:model-value="setNumber(entry.key, $event)"
@@ -107,13 +108,9 @@ function setNumber(key: string, typed: string | number): void {
       <div v-else-if="entry.kind === 'group'" class="border-l pl-3">
         <SettingGroup :value="(entry.value as JsonObject)" @update="set(entry.key, $event)" />
       </div>
-      <Textarea
-        v-else
-        readonly
-        class="font-mono"
-        :aria-label="entry.label"
-        :model-value="JSON.stringify(entry.value ?? null, null, 2)"
-      />
+      <p v-else-if="entry.kind === 'other'" data-in-code class="text-sm text-muted-foreground">
+        {{ $t('dashboard.overlays.detail.settings.inCode') }}
+      </p>
     </div>
   </div>
 </template>

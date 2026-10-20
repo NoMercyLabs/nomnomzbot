@@ -8,9 +8,54 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { JsonValue } from '@/lib/json';
+import type { JsonObject, JsonValue } from '@/lib/json';
+import type { PickerKind } from '@/api/pipelines';
 import type { WidgetSettingsField } from '@/api/widgets';
 import { numberOrNull } from '@/lib/number';
+import { isPickerKind } from '@/views/dashboard/pipelines/components/stepFields';
+
+// A custom overlay may declare a reward or an OBS input as plain text; its key still says what it holds.
+const NAMED_PICKERS = [
+  { pattern: /rewardid$/i, kind: 'twitch_reward' },
+  { pattern: /inputname$/i, kind: 'obs_audio_input' },
+] as const satisfies readonly { pattern: RegExp; kind: PickerKind }[];
+
+// The list a text field is picked from: the one the schema names, else the one its key names, else none.
+export function pickerOf(field: WidgetSettingsField): PickerKind | null {
+  if (field.type !== 'text')
+    return null;
+
+  if (field.picker)
+    return isPickerKind(field.picker)
+      ? field.picker
+      : null;
+
+  return NAMED_PICKERS.find((rule) => rule.pattern.test(field.key))?.kind ?? null;
+}
+
+// A JSON setting may arrive as its JSON text (a declared default); read it as the value it spells.
+export function parsedJson(value: JsonValue | undefined): JsonValue | undefined {
+  if (typeof value !== 'string')
+    return value;
+
+  try {
+    return JSON.parse(value) as JsonValue;
+  } catch {
+    return value;
+  }
+}
+
+export function objectOf(value: JsonValue | undefined): JsonObject | null {
+  return value !== null && typeof value === 'object' && !Array.isArray(value)
+    ? value
+    : null;
+}
+
+export function textListOf(value: JsonValue | undefined): string[] | null {
+  return Array.isArray(value) && value.every((item): item is string => typeof item === 'string')
+    ? value
+    : null;
+}
 
 // Settings values are plain JSON, so two values are the same when they serialize the same.
 export function sameValue(a: JsonValue | undefined, b: JsonValue | undefined): boolean {

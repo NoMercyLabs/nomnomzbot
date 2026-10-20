@@ -107,10 +107,17 @@ const groups = computed<Group[]>(() => {
   return [...byName].map(([name, list]) => ({ name, fields: list }) as const satisfies Group);
 });
 
+// Without a form the saved values show read-only in words: a nested value is not printed as JSON.
+function plainValue(value: JsonValue | undefined): string {
+  return value !== null && typeof value === 'object'
+    ? t('dashboard.overlays.detail.settings.inCode')
+    : String(value);
+}
+
 const rawKeys = computed<KeyValueItem[]>(() =>
   Object.entries(saved.value).map(([key, value]) => ({
-    label: key,
-    value: JSON.stringify(value),
+    label: humanize(key),
+    value: plainValue(value),
   }) as const satisfies KeyValueItem),
 );
 
@@ -172,6 +179,7 @@ function submit(): void {
 <template>
   <PanelCard
     data-slot="overlay-settings"
+    tier="lead"
     :title="$t('dashboard.overlays.detail.settings.title')"
     :state="state"
     :empty-text="$t('dashboard.overlays.detail.settings.none')"

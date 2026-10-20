@@ -64,14 +64,3 @@ export function overlayKind(eventSubscriptions: readonly string[]): OverlayKind 
 export function plainEvent(key: string): string {
   return key.replace(/^(twitch|channel|overlay|spotify)\./, '').replace(/[._]/g, ' ');
 }
-
-// The address with its query cut off: the token travels in the query and must never be shown.
-export function maskedAddress(url: string): string {
-  try {
-    const parsed = new URL(url);
-
-    return `${parsed.origin}${parsed.pathname}`;
-  } catch {
-    return url.split('?')[0] ?? '';
-  }
-}

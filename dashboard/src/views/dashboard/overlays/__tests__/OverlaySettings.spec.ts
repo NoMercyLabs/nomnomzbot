@@ -106,7 +106,14 @@ const fields = (): Field[] => [
     label: text('Colors'),
     type: 'json',
     group: text('Data'),
-    default: {},
+    default: '{"primary":"#112233","win31":{"enabled":false}}',
+  },
+  {
+    key: 'steps',
+    label: text('Steps'),
+    type: 'json',
+    group: text('Data'),
+    default: [{ at: 1 }],
   },
   {
     key: 'badgeTexts',
@@ -383,7 +390,7 @@ describe('the overlay settings form', () => {
     expect(settings().dataset.state).toBe('ready');
     expect(settings().querySelector('[data-slot="panel-loading"]')).toBeNull();
     expect(settings().querySelector('[data-slot="panel-error"]')).toBeNull();
-    expect(settings().textContent).toContain('speed');
+    expect(settings().textContent).toContain('Speed');
     expect(settings().textContent).toContain('5');
   });
 
@@ -418,10 +425,20 @@ describe('the overlay settings form', () => {
       ['Artist', 'off'],
     ]);
 
-    const json = row('colors').querySelector('textarea') as HTMLTextAreaElement;
+    // A JSON setting is never shown as raw JSON: an object gets a control per key, anything else says
+    // where it is set.
+    expect(settings().querySelector('textarea')).toBeNull();
 
-    expect(json.readOnly).toBe(true);
-    expect(JSON.parse(json.value)).toEqual({});
+    expect(
+      (row('colors').querySelector('[data-group-key="primary"] input') as HTMLInputElement).value,
+    ).toBe('#112233');
+
+    expect(
+      row('colors').querySelector('[data-group-key="win31"] [data-group-key="enabled"] [role="switch"]'),
+    ).not.toBeNull();
+
+    expect(row('steps').textContent).toContain(en.dashboard.overlays.detail.settings.inCode);
+    expect(settings().textContent).not.toContain('"at"');
     expect(settings().textContent).toContain('Appearance');
     expect(settings().textContent).toContain('Content');
   });
@@ -493,7 +510,7 @@ describe('the overlay settings form', () => {
   it('without a schema shows the saved keys read-only, or says there are none', async () => {
     await open('/app/overlays?id=w2');
 
-    expect(settings().textContent).toContain('speed');
+    expect(settings().textContent).toContain('Speed');
     expect(settings().textContent).toContain('5');
     expect(settings().querySelector('input')).toBeNull();
     expect(saveButton()).toBeNull();
@@ -562,14 +579,16 @@ describe('the Test button on a trigger row', () => {
   });
 });
 
-describe('the preview', () => {
-  it('says why there is no preview and shows the size the overlay is set to', async () => {
+describe('the detail body', () => {
+  it('shows no empty preview and no module facts', async () => {
     await open('/app/overlays?id=w4');
 
-    const preview = document.body.querySelector('[data-slot="overlay-preview"]') as HTMLElement;
+    const detail = document.body.querySelector('[data-overlay-detail]') as HTMLElement;
 
-    expect(preview.textContent).toContain(en.dashboard.overlays.detail.preview.unavailable);
-    expect(preview.textContent).toContain('1920 × 1080');
+    expect(detail.querySelector('[data-slot="overlay-preview"]')).toBeNull();
+    expect(detail.textContent).not.toContain('The dashboard cannot draw this overlay yet');
+    expect(detail.textContent).not.toContain('Module');
+    expect(detail.textContent).not.toContain('https://');
   });
 
   it('edits a list field row by row and saves the list as an array of strings', async () => {

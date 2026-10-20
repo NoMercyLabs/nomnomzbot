@@ -126,8 +126,43 @@ describe('a text setting that names a picker', () => {
   });
 
   it('keeps the typed box for a text setting with no picker, or an unknown one', () => {
-    expect(mountField({}).find('input').exists()).toBe(true);
+    expect(mountField({ key: 'title' }).find('input').exists()).toBe(true);
     mounted?.unmount();
-    expect(mountField({ picker: 'not_a_kind' }).find('input').exists()).toBe(true);
+    expect(mountField({ key: 'title', picker: 'not_a_kind' }).find('input').exists()).toBe(true);
+  });
+
+  // A custom overlay may declare its reward field as plain text; the reward still comes from the channel's list.
+  it('picks a reward from the channel rewards for a rewardId field that names no picker', async () => {
+    lists.byKind.twitch_reward = rewards;
+    const field = mountField({});
+
+    expect(field.find('input').exists()).toBe(false);
+
+    document.body.querySelector<HTMLButtonElement>('[role="combobox"]')!.click();
+    await flushPromises();
+
+    document.body
+      .querySelector<HTMLElement>('[data-picker-option="9f1c2b6e-0000-4aaa-bbbb-123456789abc"]')!
+      .click();
+
+    await flushPromises();
+
+    expect(field.emitted('update')).toEqual([['9f1c2b6e-0000-4aaa-bbbb-123456789abc']]);
+  });
+
+  it('picks an OBS audio input for an input name field that names no picker', () => {
+    expect(mountField({ key: 'muteInputName' }).find('input').exists()).toBe(false);
+    expect(document.body.querySelector('[role="combobox"]')).not.toBeNull();
+  });
+});
+
+describe('the words beside a setting', () => {
+  it('shows the label and the help, never the key or the type', () => {
+    const field = mountField({ help: text('The reward that starts the crash.') });
+
+    expect(field.text()).toContain('Channel point reward');
+    expect(field.text()).toContain('The reward that starts the crash.');
+    expect(field.text()).not.toContain('rewardId');
+    expect(field.text()).not.toContain('text ·');
   });
 });
