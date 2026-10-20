@@ -124,6 +124,11 @@ public static class PlaybackDirectorTestKit
         public Task<bool> CanStartAsync(CancellationToken ct = default) =>
             Task.FromResult(CanStart);
 
+        /// <summary>How often the director lifted this engine's own output pause.</summary>
+        public int OutputBlockForgotten { get; private set; }
+
+        public void ForgetOutputBlock() => OutputBlockForgotten++;
+
         public Task SeekAsync(int positionMs, CancellationToken ct = default) =>
             Record("Seek", positionMs.ToString());
 

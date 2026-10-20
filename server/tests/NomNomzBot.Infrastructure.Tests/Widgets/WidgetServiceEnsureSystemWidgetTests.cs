@@ -160,7 +160,7 @@ public sealed class WidgetServiceEnsureSystemWidgetTests
             read = result.Value;
         }
 
-        ObsBrowserSource expected = new(1920, 1080, false, false);
+        ObsBrowserSource expected = new(1920, 1080, true, false);
         created.ObsSetup.Should().Be(expected);
         read.ObsSetup.Should().Be(expected);
     }

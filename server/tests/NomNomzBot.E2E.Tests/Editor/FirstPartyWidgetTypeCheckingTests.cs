@@ -44,6 +44,7 @@ public sealed class FirstPartyWidgetTypeCheckingTests : EditorPageTest
         ["custom_data"] = "Custom Data",
         ["emote_wall"] = "Emote Wall",
         ["raffle"] = "Raffle",
+        ["raid_recap"] = "Raid Recap",
         ["recent_followers"] = "Recent Followers",
         ["redemption_alert"] = "Redemption Alert",
         ["socials"] = "Socials",

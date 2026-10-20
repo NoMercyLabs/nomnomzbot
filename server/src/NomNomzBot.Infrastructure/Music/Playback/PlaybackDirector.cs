@@ -195,6 +195,8 @@ public sealed partial class PlaybackDirector : IDisposable
     {
         PlaybackState from = State;
         State = to;
+        if (to.Kind != PlaybackStateKind.Blocked)
+            _outputWait = null;
         if (to.Kind != PlaybackStateKind.Starting)
         {
             _stopWait = null;

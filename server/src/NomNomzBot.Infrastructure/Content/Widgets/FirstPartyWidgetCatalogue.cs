@@ -96,6 +96,12 @@ public static class FirstPartyWidgetCatalogue
     /// </summary>
     private static readonly ObsBrowserSource SoundOnly = new(1, 1, true, false);
 
+    /// <summary>
+    /// The one overlay that draws and plays sound: the TTS Caption shows the words on the full canvas and plays the
+    /// spoken message itself, so OBS audio control is ticked. Shutdown stays off for the same reason as the rest.
+    /// </summary>
+    private static readonly ObsBrowserSource FullCanvasWithSound = new(1920, 1080, true, false);
+
     public static readonly IReadOnlyList<FirstPartyWidgetDefinition> All =
     [
         new(
@@ -316,7 +322,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "tts_caption",
-            ObsSetup: FullCanvas,
+            ObsSetup: FullCanvasWithSound,
             Name: "TTS Caption",
             Description: "Spoken messages (TTS) play from this browser source — keep \"Control audio via OBS\" ON. "
                 + "Shows a speaking indicator with a live caption — animated voice bars, the "
