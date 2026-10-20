@@ -8,16 +8,20 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The journal itself: what happened in the channel, newest first. The bot pages the list; a filter always goes
+// What happened in the channel, newest first: what, who and when. The bot pages the list; a filter always goes
 // back to page 1. The filters are view preferences, so they are remembered on this device.
-import { refDebounced, useLocalStorage } from '@vueuse/core';
+import { useLocalStorage } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
+import { useI18n } from 'vue-i18n';
 import ChevronLeft from '~icons/nnz/chevron-left';
 import ChevronRight from '~icons/nnz/chevron-right';
 
-import { useJournalPage, type JournalFilters } from '@/api/eventJournal';
+import { useJournalPage, type JournalEntry, type JournalFilters } from '@/api/eventJournal';
 import DateTime from '@/components/layout/DateTime.vue';
+import FilterBar from '@/components/layout/FilterBar.vue';
+import type { FilterOption } from '@/components/layout/filterOption';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import UserName from '@/components/layout/UserName.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import {
@@ -30,10 +34,21 @@ import {
 } from '@/components/ui/table';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+import { merge } from '@/lib/array';
+
+import {
+  EVENT_KINDS,
+  EVENT_SOURCES,
+  isEventKind,
+  isEventSource,
+  spokenEventName,
+} from './journalWords';
+import { useJournalActors } from './useJournalActors';
 
 const PAGE_SIZE = 25;
-const TYPE_PAUSE_MS = 300;
+const ALL = 'all';
 
+const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 
 const eventType = useLocalStorage('nnz.event-journal.eventType', '');
@@ -42,22 +57,51 @@ const from = useLocalStorage('nnz.event-journal.from', '');
 const to = useLocalStorage('nnz.event-journal.to', '');
 const page = ref(1);
 
-const typedType = refDebounced(
-  computed(() => eventType.value),
-  TYPE_PAUSE_MS,
-);
-const typedSource = refDebounced(
-  computed(() => source.value),
-  TYPE_PAUSE_MS,
-);
+// A remembered value that is not on the list (an old free-text filter) reads as "all".
+const kindChoice = computed({
+  get: () =>
+    isEventKind(eventType.value)
+      ? eventType.value
+      : ALL,
+  set: (value: string) => {
+    eventType.value = value === ALL
+      ? ''
+      : value;
+  },
+});
+const sourceChoice = computed({
+  get: () =>
+    isEventSource(source.value)
+      ? source.value
+      : ALL,
+  set: (value: string) => {
+    source.value = value === ALL
+      ? ''
+      : value;
+  },
+});
 
-watch([typedType, typedSource, from, to], () => {
+const kindOptions = computed(() => merge(
+  [{ value: ALL, label: t('dashboard.settings.eventJournal.list.allKinds') }],
+  EVENT_KINDS.map((kind) => ({ value: kind, label: t(`dashboard.settings.eventJournal.events.${kind}`) }))
+    .sort((a, b) => a.label.localeCompare(b.label)),
+) satisfies readonly FilterOption[]);
+const sourceOptions = computed(() => merge(
+  [{ value: ALL, label: t('dashboard.settings.eventJournal.list.allSources') }],
+  EVENT_SOURCES.map((known) => ({ value: known, label: t(`dashboard.settings.eventJournal.sources.${known}`) })),
+) satisfies readonly FilterOption[]);
+
+watch([kindChoice, sourceChoice, from, to], () => {
   page.value = 1;
 });
 
 const filters = computed(() => ({
-  eventType: typedType.value.trim(),
-  source: typedSource.value.trim(),
+  eventType: kindChoice.value === ALL
+    ? ''
+    : kindChoice.value,
+  source: sourceChoice.value === ALL
+    ? ''
+    : sourceChoice.value,
   from: from.value,
   to: to.value,
   page: page.value,
@@ -70,8 +114,20 @@ const panelState = usePanelState(journal, (data) =>
 
 const rows = computed(() => journal.data.value?.items ?? []);
 const total = computed(() => Number(journal.data.value?.totalCount ?? 0));
-const head = computed(() => journal.data.value?.headPosition ?? 0);
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)));
+const actors = useJournalActors(channelId, rows);
+
+function what(row: JournalEntry): string {
+  return isEventKind(row.eventType)
+    ? t(`dashboard.settings.eventJournal.events.${row.eventType}`)
+    : spokenEventName(row.eventType);
+}
+
+function actorOf(row: JournalEntry) {
+  return row.actorUserId
+    ? actors.value.get(row.actorUserId)
+    : undefined;
+}
 
 function clear(): void {
   eventType.value = '';
@@ -86,7 +142,7 @@ function clear(): void {
     data-panel="journal-list"
     tier="lead"
     :title="$t('dashboard.settings.eventJournal.list.title')"
-    :description="$t('dashboard.settings.eventJournal.list.description', { count: total, head })"
+    :description="$t('dashboard.settings.eventJournal.list.description', { count: $n(total) })"
     :state="panelState"
     :empty-text="$t('dashboard.settings.eventJournal.list.empty')"
     :error-text="$t('dashboard.settings.eventJournal.list.error')"
@@ -98,19 +154,17 @@ function clear(): void {
       </Button>
     </template>
     <div class="flex flex-wrap items-center gap-2 px-3 py-3">
-      <Input
-        v-model="eventType"
+      <FilterBar
+        v-model="kindChoice"
         data-filter-type
-        class="w-48"
-        :aria-label="$t('dashboard.settings.eventJournal.list.eventType')"
-        :placeholder="$t('dashboard.settings.eventJournal.list.eventType')"
+        :label="$t('dashboard.settings.eventJournal.list.kind')"
+        :options="kindOptions"
       />
-      <Input
-        v-model="source"
+      <FilterBar
+        v-model="sourceChoice"
         data-filter-source
-        class="w-40"
-        :aria-label="$t('dashboard.settings.eventJournal.list.source')"
-        :placeholder="$t('dashboard.settings.eventJournal.list.source')"
+        :label="$t('dashboard.settings.eventJournal.list.source')"
+        :options="sourceOptions"
       />
       <Input
         v-model="from"
@@ -130,18 +184,26 @@ function clear(): void {
     <Table>
       <TableHeader>
         <TableRow class="hover:bg-transparent">
-          <TableHead>{{ $t('dashboard.settings.eventJournal.list.columns.position') }}</TableHead>
-          <TableHead>{{ $t('dashboard.settings.eventJournal.list.columns.eventType') }}</TableHead>
-          <TableHead>{{ $t('dashboard.settings.eventJournal.list.columns.source') }}</TableHead>
-          <TableHead>{{ $t('dashboard.settings.eventJournal.list.columns.occurredAt') }}</TableHead>
+          <TableHead>{{ $t('dashboard.settings.eventJournal.list.columns.what') }}</TableHead>
+          <TableHead>{{ $t('dashboard.settings.eventJournal.list.columns.who') }}</TableHead>
+          <TableHead class="text-right">{{ $t('dashboard.settings.eventJournal.list.columns.when') }}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         <TableRow v-for="row in rows" :key="row.eventId" data-journal-row>
-          <TableCell class="tabular-nums text-muted-foreground">{{ row.streamPosition }}</TableCell>
-          <TableCell class="font-medium">{{ row.eventType }}</TableCell>
-          <TableCell>{{ row.source }}</TableCell>
-          <TableCell class="text-muted-foreground"><DateTime :value="row.occurredAt" variant="dateTimeFull" /></TableCell>
+          <TableCell data-what class="font-medium">{{ what(row) }}</TableCell>
+          <TableCell data-who>
+            <UserName
+              v-if="actorOf(row)"
+              :user-id="actorOf(row)?.twitchUserId"
+              :name="actorOf(row)?.name ?? ''"
+              :color="actorOf(row)?.color"
+            />
+            <span v-else class="text-muted-foreground">{{ $t('dashboard.settings.eventJournal.list.whoUnknown') }}</span>
+          </TableCell>
+          <TableCell class="text-right text-muted-foreground">
+            <DateTime :value="row.occurredAt" variant="relative" />
+          </TableCell>
         </TableRow>
       </TableBody>
     </Table>

@@ -10,8 +10,10 @@
 
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
+import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import { eventJournalKey } from '@/api/eventJournal';
 import { i18n } from '@/i18n';
@@ -40,16 +42,19 @@ const journalPage = {
     {
       eventId: 'e2',
       streamPosition: 42,
-      eventType: 'chat.message',
-      source: 'twitch',
+      eventType: 'FollowEvent',
+      source: 'eventsub',
       occurredAt: '2026-10-01T10:00:00Z',
       recordedAt: '2026-10-01T10:00:01Z',
+      actorUserId: 'u-ada',
+      actorExternalUserId: '9001',
+      actorProvider: 'twitch',
     },
     {
       eventId: 'e1',
       streamPosition: 41,
-      eventType: 'channel.follow',
-      source: 'kick',
+      eventType: 'ObsStreamingStateChangedEvent',
+      source: 'domain',
       occurredAt: '2026-10-01T09:00:00Z',
       recordedAt: '2026-10-01T09:00:01Z',
     },
@@ -110,6 +115,17 @@ vi.mock('@/api/client', () => ({
         options,
       });
 
+      if (path.endsWith('/profile')) {
+        return {
+          data: { data: { identity: {
+            displayName: 'Ada',
+            twitchUserId: '9001',
+            chatColor: null,
+          } } },
+          response: { status: 200, ok: true },
+        };
+      }
+
       return {
         data: { data: journalPage },
         response: { status: 200, ok: true },
@@ -129,6 +145,10 @@ vi.mock('@/api/client', () => ({
         };
       }
 
+      if (path.endsWith('/export') && slow.gate !== null) {
+        await slow.gate;
+      }
+
       const key = keysOf(answers).find((suffix) => path.endsWith(suffix))!;
 
       return {
@@ -145,19 +165,25 @@ vi.mock('@/lib/download', () => ({
   },
 }));
 
+// A slow export (the server took 102.7 s for 1.4 million events) is held open until the test lets it go.
+const slow = { gate: null as Promise<void> | null };
+
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
 }));
 
 let mounted: VueWrapper | null = null;
 let queries: QueryClient;
+let router: Router;
 
 beforeEach(() => {
   calls.length = 0;
   saved.length = 0;
   refused.path = '';
   held.keys = null;
+  slow.gate = null;
   i18n.global.mergeLocaleMessage('en', en);
+  setActivePinia(createPinia());
 });
 
 afterEach(() => {
@@ -172,16 +198,34 @@ async function settle(): Promise<void> {
   await flushPromises();
 }
 
-async function open(): Promise<void> {
+const pagePath = '/app/settings/event-journal';
+
+async function open(url: string = pagePath): Promise<void> {
   queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+  router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: pagePath, component: { template: '<div />' } }],
+  });
+
+  await router.push(url);
 
   mounted = mount(EventJournalView, {
     attachTo: document.body,
-    global: { plugins: [i18n, [VueQueryPlugin, { queryClient: queries }]] },
+    global: {
+      plugins: [
+        i18n,
+        router,
+        [VueQueryPlugin, { queryClient: queries }],
+      ],
+    },
   });
 
   await settle();
 }
+
+// Export, import, replay and rebuild live on the second tab of the page.
+const openTools = (): Promise<void> => open(`${pagePath}?view=tools`);
 
 const q = (selector: string): HTMLElement =>
   document.body.querySelector<HTMLElement>(selector) as HTMLElement;
@@ -194,9 +238,59 @@ async function click(el: HTMLElement): Promise<void> {
 const callTo = (suffix: string): Call | undefined =>
   calls.find((call) => call.path.endsWith(suffix));
 
-describe('Event journal page', () => {
-  it('saves the journal as a .jsonl file named for the channel and shows how big it was', async () => {
+describe('Event journal backup and rebuild tab', () => {
+  it('keeps export, import, replay and rebuild off the events tab and shows them on the tools tab', async () => {
+    window.localStorage.clear();
     await open();
+
+    const tools = ['[data-export]', '[data-import]', '[data-replay]', '[data-rebuild]', '[data-import-legacy]'];
+
+    expect(tools.filter((selector) => document.body.querySelector(selector) !== null)).toEqual([]);
+    expect(document.body.querySelector('[data-panel="journal-list"]')).not.toBeNull();
+
+    mounted?.unmount();
+    await openTools();
+
+    expect(tools.filter((selector) => document.body.querySelector(selector) === null)).toEqual([]);
+    expect(document.body.querySelector('[data-panel="journal-list"]')).toBeNull();
+    expect(router.currentRoute.value.query.view).toBe('tools');
+  });
+
+  it('says the export is working while the server prepares the file, and saves it when it arrives', async () => {
+    vi.useFakeTimers({ toFake: ['setInterval', 'clearInterval', 'Date'] });
+
+    let release = (): void => undefined;
+
+    slow.gate = new Promise<void>((done) => {
+      release = done;
+    });
+
+    try {
+      await openTools();
+      await click(q('[data-export]'));
+
+      expect((q('[data-export]') as HTMLButtonElement).disabled).toBe(true);
+      expect(q('[data-export-progress]').textContent).toContain('Preparing the file');
+
+      vi.advanceTimersByTime(65_000);
+      await flushPromises();
+
+      expect(q('[data-export-progress]').textContent).toContain('1:05');
+      expect(saved).toHaveLength(0);
+
+      release();
+      await settle();
+
+      expect(document.body.querySelector('[data-export-progress]')).toBeNull();
+      expect(saved).toHaveLength(1);
+      expect(q('[data-export-result]').textContent).toContain('2');
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it('saves the journal as a .jsonl file named for the channel and shows how big it was', async () => {
+    await openTools();
     await click(q('[data-export]'));
 
     expect(callTo('/export')?.options.params).toMatchObject({ path: { channelId: 'c1' } });
@@ -208,7 +302,7 @@ describe('Event journal page', () => {
   });
 
   it('uploads a chosen file as multipart form data and reports the counts', async () => {
-    await open();
+    await openTools();
 
     const input = q('[data-import-file]') as HTMLInputElement;
     const file = new File(['{"id":1}\n'], 'journal.jsonl', { type: 'application/x-ndjson' });
@@ -230,7 +324,7 @@ describe('Event journal page', () => {
   });
 
   it('replays imported events and says how many it applied', async () => {
-    await open();
+    await openTools();
     await click(q('[data-replay]'));
 
     expect(callTo('/replay')?.options.params).toMatchObject({ path: { channelId: 'c1' } });
@@ -238,7 +332,7 @@ describe('Event journal page', () => {
   });
 
   it('asks before it rebuilds the read models, and rebuilds only after the confirm', async () => {
-    await open();
+    await openTools();
     await click(q('[data-rebuild]'));
 
     expect(callTo('/rebuild-projections')).toBeUndefined();
@@ -257,7 +351,7 @@ describe('Event journal page', () => {
   });
 
   it('imports the old bot history and itemizes what it skipped', async () => {
-    await open();
+    await openTools();
     await click(q('[data-import-legacy]'));
 
     expect(callTo('/import-legacy')?.options.params).toMatchObject({ path: { channelId: 'c1' } });
@@ -269,7 +363,7 @@ describe('Event journal page', () => {
   });
 
   it('refreshes the channel read models after a replay, so other pages show the new facts', async () => {
-    await open();
+    await openTools();
     queries.setQueryData(['channels', 'c1', 'commands'], []);
     queries.setQueryData(['channels', 'c2', 'commands'], []);
 
@@ -281,7 +375,7 @@ describe('Event journal page', () => {
 
   it('shows the reason the bot gave when it refuses, and no result', async () => {
     refused.path = '/replay';
-    await open();
+    await openTools();
     await click(q('[data-replay]'));
 
     expect(q('[role="alert"]').textContent).toContain('Owner only.');
@@ -290,57 +384,71 @@ describe('Event journal page', () => {
 });
 
 describe('Event journal list', () => {
-  const journalCalls = (): Call[] => calls.filter((call) => call.method === 'GET');
+  const journalCalls = (): Call[] =>
+    calls.filter((call) => call.path.endsWith('/journal'));
 
-  it('lists the events newest first with their position, type and source', async () => {
+  it('says what happened in plain words, who did it and when, with no position numbers', async () => {
     window.localStorage.clear();
     await open();
 
     const rows = document.body.querySelectorAll('[data-journal-row]');
 
     expect(rows).toHaveLength(2);
-    expect(rows[0]!.textContent).toContain('42');
-    expect(rows[0]!.textContent).toContain('chat.message');
-    expect(rows[0]!.textContent).toContain('twitch');
-    expect(rows[1]!.textContent).toContain('channel.follow');
+    expect(rows[0]!.querySelector('[data-what]')!.textContent).toBe('New follower');
+    expect(rows[0]!.querySelector('[data-user="9001"]')!.textContent).toContain('Ada');
+    expect(rows[0]!.querySelector('time')).not.toBeNull();
+    expect(rows[0]!.textContent).not.toContain('42');
+    expect(rows[0]!.textContent).not.toContain('FollowEvent');
+    expect(rows[1]!.querySelector('[data-what]')!.textContent).toBe('Obs streaming state changed');
+    // The bot journals most events (a follow too) without a person; the row says so instead of naming the bot.
+    expect(rows[1]!.querySelector('[data-who]')!.textContent!.trim()).toBe('Not recorded');
+    expect(document.body.querySelector('thead')!.textContent).not.toContain('Position');
+
+    expect(calls.filter((call) => call.path.endsWith('/profile'))).toHaveLength(1);
 
     expect(journalCalls()[0]!.options).toMatchObject({
       params: { path: { channelId: 'c1' }, query: { Page: 1, Take: 25 } },
     });
   });
 
-  it('sends the typed filters to the bot and returns to page 1', async () => {
+  it('filters by a kind of event and a source picked from a list, and returns to page 1', async () => {
     window.localStorage.clear();
+    window.localStorage.setItem('nnz.event-journal.eventType', 'FollowEvent');
+    window.localStorage.setItem('nnz.event-journal.source', 'eventsub');
     await open();
+
+    expect(journalCalls().at(-1)!.options.params).toMatchObject({
+      query: {
+        Page: 1,
+        eventType: 'FollowEvent',
+        source: 'eventsub',
+      },
+    });
+
+    expect(q('[data-filter-type]').textContent).toContain('New follower');
+    expect(q('[data-filter-source]').textContent).toContain('Twitch');
+    expect(document.body.querySelector('input[data-filter-type]')).toBeNull();
+
     await click(q('[data-next]'));
 
     expect(journalCalls().at(-1)!.options.params).toMatchObject({ query: { Page: 2 } });
 
-    const type = q('[data-filter-type]') as HTMLInputElement;
+    await click(q('[data-clear-filters]'));
 
-    type.value = 'channel.follow';
-    type.dispatchEvent(new Event('input', { bubbles: true }));
-    await new Promise((done) => setTimeout(done, 400));
-    await settle();
+    const last = journalCalls().at(-1)!.options.params as { query: Record<string, unknown> };
 
-    expect(journalCalls().at(-1)!.options.params).toMatchObject({
-      query: { Page: 1, eventType: 'channel.follow' },
-    });
+    expect(last.query).toEqual({ Page: 1, Take: 25 });
+    expect(window.localStorage.getItem('nnz.event-journal.eventType')).toBe('');
   });
 
-  it('keeps a filter after the page is opened again', async () => {
+  it('ignores a remembered free-text type that is not a kind on the list', async () => {
     window.localStorage.clear();
+    window.localStorage.setItem('nnz.event-journal.eventType', 'chat.message');
     await open();
 
-    const source = q('[data-filter-source]') as HTMLInputElement;
+    const last = journalCalls().at(-1)!.options.params as { query: Record<string, unknown> };
 
-    source.value = 'kick';
-    source.dispatchEvent(new Event('input', { bubbles: true }));
-    await settle();
-    mounted?.unmount();
-    await open();
-
-    expect((q('[data-filter-source]') as HTMLInputElement).value).toBe('kick');
+    expect(last.query.eventType).toBeUndefined();
   });
 
   it('reads the list again when the channel journal changes', async () => {
@@ -359,7 +467,7 @@ describe('Event journal list', () => {
 describe('Event journal permissions', () => {
   it('shows none of the write controls to a person who holds no journal key', async () => {
     held.keys = new Set();
-    await open();
+    await openTools();
 
     const writeControls = [
       '[data-export]',

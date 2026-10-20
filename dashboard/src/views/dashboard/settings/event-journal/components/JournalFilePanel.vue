@@ -9,7 +9,10 @@
 -->
 <script setup lang="ts">
 // The journal as a file: export saves it, import loads one back. Import adds only the events that are missing.
+// A large journal takes the server minutes to write, so the export says it is working and for how long.
+import { useIntervalFn } from '@vueuse/core';
 import Download from '~icons/nnz/download';
+import LoaderFade from '~icons/nnz/loader-fade';
 import Upload from '~icons/nnz/upload';
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -20,6 +23,7 @@ import {
   type JournalFile,
   type JournalImportSummary,
 } from '@/api/eventJournal';
+import DateTime from '@/components/layout/DateTime.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
@@ -37,9 +41,16 @@ const picker = ref<HTMLInputElement | null>(null);
 const exported = ref<JournalFile | null>(null);
 const imported = ref<JournalImportSummary | null>(null);
 const failure = ref<string | undefined>(undefined);
+const waited = ref(0);
+const ticker = useIntervalFn(() => {
+  waited.value += 1;
+}, 1000, { immediate: false });
 
 async function save(): Promise<void> {
   failure.value = undefined;
+  exported.value = null;
+  waited.value = 0;
+  ticker.resume();
 
   try {
     const file = await exporter.mutateAsync();
@@ -49,6 +60,8 @@ async function save(): Promise<void> {
     exported.value = file;
   } catch (error) {
     failure.value = errorText(error, t);
+  } finally {
+    ticker.pause();
   }
 }
 
@@ -102,6 +115,16 @@ async function load(event: Event): Promise<void> {
         {{ $t('dashboard.settings.eventJournal.file.export') }}
       </Button>
     </template>
+    <p
+      v-if="exporter.isPending.value"
+      data-export-progress
+      role="status"
+      class="flex items-center gap-2 px-3 py-3 text-sm text-muted-foreground"
+    >
+      <LoaderFade class="size-5 shrink-0 motion-safe:animate-spin" aria-hidden="true" />
+      <span class="min-w-0 flex-1">{{ $t('dashboard.settings.eventJournal.file.exporting') }}</span>
+      <DateTime :value="waited" variant="durationClock" class="tabular-nums" />
+    </p>
     <p v-if="exported" data-export-result class="px-3 py-3 text-sm text-muted-foreground">
       {{ $t('dashboard.settings.eventJournal.file.exported', { count: exported.lines }) }}
     </p>
