@@ -121,8 +121,9 @@ const filters = computed(() => ({
 }) as const satisfies JournalFilters);
 
 const journal = useJournalPage(channelId, filters);
+// A page of only bot activity reads as empty while that activity is hidden.
 const panelState = usePanelState(journal, (data) =>
-  data.items.length === 0);
+  !data.items.some((row) => showHousekeeping.value || !isHousekeeping(row.eventType)));
 
 const fetched = computed(() => journal.data.value?.items ?? []);
 const rows = computed(() =>
@@ -134,7 +135,6 @@ const total = computed(() => Number(journal.data.value?.totalCount ?? 0));
 const pages = computed(() => Math.max(1, Math.ceil(total.value / take.value)));
 const actors = useJournalActors(channelId, rows);
 const runs = computed(() => foldRuns(rows.value));
-const anyActor = computed(() => rows.value.some((row) => actorOf(row) !== undefined));
 const filtered = computed(() =>
   kindChoice.value !== ALL || sourceChoice.value !== ALL || from.value !== '' || to.value !== '');
 
@@ -224,36 +224,26 @@ function clear(): void {
         <Label for="journal-housekeeping" class="font-normal">{{ $t('dashboard.settings.eventJournal.list.housekeeping') }}</Label>
       </div>
     </div>
-    <p v-if="!anyActor" data-who-note class="px-3 pb-3 text-sm text-muted-foreground">
-      {{ $t('dashboard.settings.eventJournal.list.whoNote') }}
-    </p>
     <Table>
       <TableHeader>
         <TableRow class="hover:bg-transparent">
           <TableHead>{{ $t('dashboard.settings.eventJournal.list.columns.what') }}</TableHead>
-          <TableHead>{{ $t('dashboard.settings.eventJournal.list.columns.who') }}</TableHead>
           <TableHead class="text-right">{{ $t('dashboard.settings.eventJournal.list.columns.when') }}</TableHead>
         </TableRow>
       </TableHeader>
       <TableBody>
         <TableRow v-for="{ entry: row, count } in runs" :key="row.eventId" data-journal-row>
           <TableCell class="font-medium">
-            <span data-what>{{ what(row) }}</span>
-            <span v-if="count > 1" data-repeat class="ml-2 font-normal text-muted-foreground tabular-nums">{{ $t('dashboard.settings.eventJournal.list.repeat', { count: $n(count) }) }}</span>
-          </TableCell>
-          <TableCell data-who>
+            <!-- The person, when the bot saved one, is the subject of the line. -->
             <UserName
               v-if="actorOf(row)"
+              class="mr-2"
               :user-id="actorOf(row)?.twitchUserId"
               :name="actorOf(row)?.name ?? ''"
               :color="actorOf(row)?.color"
             />
-            <span v-else
-                  class="text-muted-foreground"
-                  role="img"
-                  :aria-label="$t('dashboard.settings.eventJournal.list.whoNone')"
-                  :title="$t('dashboard.settings.eventJournal.list.whoNone')"
-            >{{ $t('dashboard.settings.eventJournal.list.whoDash') }}</span>
+            <span data-what>{{ what(row) }}</span>
+            <span v-if="count > 1" data-repeat class="ml-2 font-normal text-muted-foreground tabular-nums">{{ $t('dashboard.settings.eventJournal.list.repeat', { count: $n(count) }) }}</span>
           </TableCell>
           <TableCell class="text-right text-muted-foreground">
             <!-- A reused row keeps its first "now"; a fresh key gives each new moment a fresh clock. -->

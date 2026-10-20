@@ -17,19 +17,15 @@
           "allSources": "Everywhere",
           "from": "From date",
           "to": "To date",
-          "whoNone": "No person saved",
-          "whoDash": "—",
-          "whoNote": "Who shows only where the bot saved a person. For Twitch events it does not save one yet.",
-          "housekeeping": "Show bot housekeeping",
-          "hidden": "{count} bot housekeeping events hidden on this page",
+          "housekeeping": "Show bot activity",
+          "hidden": "{count} bot activity entries hidden on this page",
           "clear": "Clear filters",
           "repeat": "{count} times",
           "page": "Page {page} of {pages}",
           "previous": "Previous",
           "next": "Next",
           "columns": {
-            "what": "What",
-            "who": "Who",
+            "what": "What happened",
             "when": "When"
           }
         },

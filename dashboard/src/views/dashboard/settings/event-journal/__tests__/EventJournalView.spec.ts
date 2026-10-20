@@ -405,22 +405,20 @@ describe('Event journal list', () => {
   const journalCalls = (): Call[] =>
     calls.filter((call) => call.path.endsWith('/journal'));
 
-  it('says what happened in plain words, who did it and when, with no position numbers', async () => {
+  it('says what happened in the channel in plain words, with the person in the sentence and when', async () => {
     window.localStorage.clear();
     await open();
 
     const rows = document.body.querySelectorAll('[data-journal-row]');
 
-    expect(rows).toHaveLength(2);
+    // OBS state is the bot's own activity, so the default list shows only the follow.
+    expect(rows).toHaveLength(1);
     expect(rows[0]!.querySelector('[data-what]')!.textContent).toBe('New follower');
     expect(rows[0]!.querySelector('[data-user="9001"]')!.textContent).toContain('Ada');
     expect(rows[0]!.querySelector('time')).not.toBeNull();
     expect(rows[0]!.textContent).not.toContain('42');
     expect(rows[0]!.textContent).not.toContain('FollowEvent');
-    expect(rows[1]!.querySelector('[data-what]')!.textContent).toBe('OBS streaming state changed');
-    // The bot journals most events without a person; that cell stays a quiet dash instead of repeated filler.
-    expect(rows[1]!.querySelector('[data-who]')!.textContent!.trim()).toBe('—');
-    expect(document.body.querySelector('thead')!.textContent).not.toContain('Position');
+    expect(document.body.querySelector('thead')!.textContent).toBe('What happenedWhen');
 
     expect(calls.filter((call) => call.path.endsWith('/profile'))).toHaveLength(1);
 
@@ -460,26 +458,23 @@ describe('Event journal list', () => {
     expect(window.localStorage.getItem('nnz.event-journal.eventType')).toBe('');
   });
 
-  it('keeps the who column, leaves an unknown person as a dash and says once why', async () => {
+  it('names no person where none was saved: no empty who column, no dash and no note', async () => {
     window.localStorage.clear();
 
     listed.items = [
       bot('b2', 'FollowEvent', '2026-10-01T09:10:00Z'),
-      bot('b1', 'ObsStreamingStateChangedEvent', '2026-10-01T09:00:00Z'),
+      bot('b1', 'RaidEvent', '2026-10-01T09:00:00Z'),
     ];
 
     await open();
 
-    expect(document.body.querySelector('thead')!.textContent).toContain('Who');
-
-    const who = [...document.body.querySelectorAll('[data-who]')].map((cell) => cell.textContent!.trim());
-
-    expect(who).toEqual(['—', '—']);
-    expect(document.body.textContent).not.toContain('Not recorded');
-    expect(document.body.querySelectorAll('[data-who-note]')).toHaveLength(1);
+    expect(document.body.querySelector('thead')!.textContent).not.toContain('Who');
+    expect(document.body.querySelectorAll('[data-who]')).toHaveLength(0);
+    expect(document.body.textContent).not.toContain('—');
+    expect(document.body.querySelector('[data-who-note]')).toBeNull();
   });
 
-  it('hides bot housekeeping by default, says how many it hid, and shows it with the switch', async () => {
+  it('shows only what happened in the channel by default, says how much bot activity it hid, and shows it with the switch', async () => {
     window.localStorage.clear();
 
     listed.items = [
@@ -488,6 +483,9 @@ describe('Event journal list', () => {
       bot('b3', 'LedgerEntryRecordedEvent', '2026-10-01T09:30:00Z'),
       bot('b2', 'AdScheduleUpdatedEvent', '2026-10-01T09:20:00Z'),
       bot('b1', 'FollowEvent', '2026-10-01T09:10:00Z'),
+      bot('w3', 'WidgetConnectedEvent', '2026-10-01T09:05:00Z'),
+      bot('w2', 'StreamViewerCountSampledEvent', '2026-10-01T09:04:00Z'),
+      bot('w1', 'ObsDashboardStateChangedEvent', '2026-10-01T09:03:00Z'),
     ];
 
     await open();
@@ -496,11 +494,12 @@ describe('Event journal list', () => {
       [...document.body.querySelectorAll('[data-what]')].map((cell) => cell.textContent);
 
     expect(shown()).toEqual(['Chat message', 'New follower']);
-    expect(q('[data-hidden-count]').textContent).toContain('3');
+    expect(q('[data-hidden-count]').textContent).toContain('6');
+    expect(q('[data-show-housekeeping]').closest('div')!.textContent).toContain('Show bot activity');
 
     await click(q('[data-show-housekeeping]'));
 
-    expect(shown()).toHaveLength(5);
+    expect(shown()).toHaveLength(8);
     expect(journalCalls().at(-1)!.options.params).toMatchObject({ query: { Take: 25 } });
   });
 

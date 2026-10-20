@@ -17,19 +17,15 @@
           "allSources": "Overal",
           "from": "Vanaf datum",
           "to": "Tot datum",
-          "whoNone": "Geen persoon opgeslagen",
-          "whoDash": "—",
-          "whoNote": "Wie staat er alleen waar de bot een persoon opsloeg. Bij Twitch-events slaat hij die nog niet op.",
-          "housekeeping": "Toon onderhoud van de bot",
-          "hidden": "{count} onderhoudsevents van de bot verborgen op deze pagina",
+          "housekeeping": "Toon activiteit van de bot",
+          "hidden": "{count} regels botactiviteit verborgen op deze pagina",
           "clear": "Filters wissen",
           "repeat": "{count} keer",
           "page": "Pagina {page} van {pages}",
           "previous": "Vorige",
           "next": "Volgende",
           "columns": {
-            "what": "Wat",
-            "who": "Wie",
+            "what": "Wat er gebeurde",
             "when": "Wanneer"
           }
         },

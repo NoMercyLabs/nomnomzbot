@@ -70,23 +70,10 @@ export const EVENT_SOURCES = [
 
 export type EventSource = (typeof EVENT_SOURCES)[number];
 
-// The bot's own bookkeeping: a person did not do these, so the list hides them unless asked.
-const HOUSEKEEPING_KINDS = [
-  'EventSubNotificationJournaledEvent',
-  'LedgerEntryRecordedEvent',
-  'CurrencyCreditedEvent',
-  'CurrencyDebitedEvent',
-  'CurrencyEarnedEvent',
-  'AdScheduleUpdatedEvent',
-  'IntegrationTokenRefreshedEvent',
-  'CommunityStandingChangedEvent',
-  'TtsUtteranceQueuedEvent',
-  'TtsUtteranceReviewedEvent',
-] as const;
-
-// A dotted name is Twitch's raw notice as it arrived; the bot's own reading of it is the event a person looks for.
+// Only the kinds a streamer looks for are what happened in the channel; everything else (widgets, OBS, queues,
+// counters, Twitch's raw notices) is the bot's own activity, hidden unless asked.
 export function isHousekeeping(type: string): boolean {
-  return type.includes('.') || HOUSEKEEPING_KINDS.some((kind) => kind === type);
+  return !isEventKind(type);
 }
 
 export function isEventKind(type: string): type is EventKind {
