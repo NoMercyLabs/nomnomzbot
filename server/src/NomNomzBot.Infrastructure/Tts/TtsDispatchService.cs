@@ -164,6 +164,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
             );
 
         int cap = await ResolveCapAsync(request.BroadcasterId, config, ct);
+        if (request.Speaker == TtsSpeaker.Bot)
+            text = CutToCap(text, cap);
         if (text.Length > cap)
             return await RejectRequestAsync(
                 request,
@@ -280,6 +282,20 @@ public sealed class TtsDispatchService : ITtsDispatchService
     }
 
     /// <summary>
+    /// Cuts a bot-written line to the cap at the last word break, so a command reply that repeats a viewer's short
+    /// argument is read out shortened instead of refused. A viewer's own words still get refused when too long.
+    /// </summary>
+    private static string CutToCap(string text, int cap)
+    {
+        if (text.Length <= cap)
+            return text;
+
+        string cut = text[..cap];
+        int lastSpace = cut.LastIndexOf(' ');
+        return (lastSpace > 0 ? cut[..lastSpace] : cut).TrimEnd();
+    }
+
+    /// <summary>
     /// The segmented path of <see cref="RequestSpeakAsync"/>: every part passes the same cap, censor and voice
     /// checks as a single text, and one failing part rejects the whole request (never a half-spoken line). A part
     /// that is empty (before or after the censor) is dropped; if none is left the request is rejected. The
@@ -312,6 +328,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
             string text = part.Text.Trim();
             if (text.Length == 0)
                 continue;
+            if (request.Speaker == TtsSpeaker.Bot)
+                text = CutToCap(text, cap);
             if (text.Length > cap)
                 return await RejectRequestAsync(
                     request,

@@ -244,12 +244,12 @@ public sealed class TtsDispatchServiceTests
     }
 
     [Fact]
-    public async Task RequestSpeakAsync_OverCap_RejectsTooLong()
+    public async Task RequestSpeakAsync_ViewerWordsOverCap_RejectsTooLong()
     {
         Harness h = Build(maxLength: 10);
 
         Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
-            Speak("this is definitely longer than ten characters")
+            SpeakAsViewer("this is definitely longer than ten characters")
         );
 
         result.IsFailure.Should().BeTrue();
@@ -282,7 +282,7 @@ public sealed class TtsDispatchServiceTests
         );
 
         Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
-            Speak("this is definitely longer than ten characters")
+            SpeakAsViewer("this is definitely longer than ten characters")
         );
 
         result.IsFailure.Should().BeTrue();
@@ -302,6 +302,52 @@ public sealed class TtsDispatchServiceTests
                 Arg.Is<TtsUtteranceRejectedEvent>(e => e.Reason == "too_long"),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_BotLineOverCap_IsCutAtAWordAndSpokenNotRefused()
+    {
+        // A command reply such as !telsell repeats the viewer's short argument inside a long template; the
+        // bot's own line going over the cap must not refuse the whole command (S-PROFANITY-OFF-STILL-BLOCKS).
+        Harness h = Build(maxLength: 20);
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("this is definitely longer than twenty characters")
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync(
+                "this is definitely",
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
+        await h
+            .Bus.DidNotReceive()
+            .PublishAsync(Arg.Any<TtsUtteranceRejectedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_Segments_BotSegmentOverCap_IsCutAndTheClipStillPlays()
+    {
+        Harness h = await BuildWithVoicesAsync(maxLength: 10);
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("x") with
+            {
+                Segments =
+                [
+                    new("short", "en-US-GuyNeural"),
+                    new("this one is far too long", "en-US-AriaNeural"),
+                ],
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        SentSegments(h).Select(s => s.Text).Should().Equal("short", "this one");
     }
 
     [Fact]
@@ -1150,7 +1196,7 @@ public sealed class TtsDispatchServiceTests
         Harness h = Build(mode: "client_edge", maxLength: 10);
 
         Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
-            Speak("this is definitely longer than ten characters")
+            SpeakAsViewer("this is definitely longer than ten characters")
         );
 
         result.IsFailure.Should().BeTrue();
@@ -2044,12 +2090,12 @@ public sealed class TtsDispatchServiceTests
     }
 
     [Fact]
-    public async Task RequestSpeakAsync_Segments_OneSegmentOverTheCap_RejectsTheWholeRequestWithoutSynth()
+    public async Task RequestSpeakAsync_Segments_OneViewerSegmentOverTheCap_RejectsTheWholeRequestWithoutSynth()
     {
         Harness h = await BuildWithVoicesAsync(maxLength: 10);
 
         Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
-            Speak("x") with
+            SpeakAsViewer("x") with
             {
                 Segments =
                 [
