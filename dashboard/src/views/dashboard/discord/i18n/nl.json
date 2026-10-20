@@ -97,6 +97,8 @@
       "editor": {
         "description": "Kies waar het bericht heen gaat, wie het pingt en wat er staat.",
         "pickerError": "De bot kon de kanalen en rollen van je Discord-server niet lezen.",
+        "pickerNoBotToken": "De Discord-bot is nog niet ingesteld op deze botserver. Wie de botserver beheert, moet de Discord-bottoken toevoegen.",
+        "pickerNotConnected": "De Discord-bot is niet verbonden met je Discord-server. Voeg de bot eerst toe aan je server.",
         "enabled": "Stuur deze melding",
         "enabledHelp": "Zet uit om de regel te bewaren zonder te sturen.",
         "channel": "Discord-kanaal",

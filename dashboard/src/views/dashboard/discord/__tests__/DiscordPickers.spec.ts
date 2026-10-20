@@ -22,7 +22,13 @@ import DiscordView from '../DiscordView.vue';
 import en from '../i18n/en.json';
 import { dashboardDiscordRoute } from '../route';
 
-const reason = 'The Discord bot token is not configured on this server.';
+const reason = 'The Discord bot is not set up on this bot server yet. The person who runs the bot server must add the Discord bot token.';
+
+function expectPlain(text: string | null | undefined): void {
+  expect(text).toContain(reason);
+  expect(text).not.toContain('Discord:BotToken');
+  expect(text).not.toContain('Try again');
+}
 
 const connection = {
   id: 'conn1',
@@ -52,7 +58,11 @@ vi.mock('@/api/client', () => ({
 
       if (path.endsWith('/guild/channels/postable') || path.endsWith('/guild/roles'))
         return {
-          error: { status: 'error', message: 'The Discord bot token is not configured on this server.' },
+          error: {
+            status: 'error',
+            message: 'The Discord bot token is not configured on this server. Set Discord:BotToken (or DISCORD_BOT_TOKEN).',
+            code: 'DISCORD_BOT_TOKEN_NOT_CONFIGURED',
+          },
           response: { status: 500 },
         };
 
@@ -103,13 +113,13 @@ describe('the Discord pickers when the server cannot read Discord', () => {
     const alert = document.body.querySelector('[data-rule-editor] [data-picker-error]');
 
     expect(alert?.getAttribute('role')).toBe('alert');
-    expect(alert?.textContent).toContain(reason);
+    expectPlain(alert?.textContent);
   });
 
   it('the live role panel names the reason instead of an empty role list', async () => {
     await open();
 
-    expect(document.body.querySelector('[data-live-role-panel] [data-picker-error]')?.textContent).toContain(reason);
+    expectPlain(document.body.querySelector('[data-live-role-panel] [data-picker-error]')?.textContent);
   });
 
   it('the self-assign role editor names the reason', async () => {
@@ -118,8 +128,7 @@ describe('the Discord pickers when the server cannot read Discord', () => {
     document.body.querySelector<HTMLElement>('[data-add-role]')!.click();
     await flushPromises();
 
-    expect(document.body.querySelector('[data-notify-role-editor] [data-picker-error]')?.textContent)
-      .toContain(reason);
+    expectPlain(document.body.querySelector('[data-notify-role-editor] [data-picker-error]')?.textContent);
   });
 });
 

@@ -97,6 +97,8 @@
       "editor": {
         "description": "Pick where the message goes, who it pings and what it says.",
         "pickerError": "The bot could not read the channels and roles of your Discord server.",
+        "pickerNoBotToken": "The Discord bot is not set up on this bot server yet. The person who runs the bot server must add the Discord bot token.",
+        "pickerNotConnected": "The Discord bot is not connected to your Discord server. Add the bot to your server first.",
         "enabled": "Send this notification",
         "enabledHelp": "Turn it off to keep the rule without sending.",
         "channel": "Discord channel",
