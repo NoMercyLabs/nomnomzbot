@@ -124,6 +124,50 @@ async function readConfig(id: string): Promise<MusicConfig | null> {
   return data?.data ?? null;
 }
 
+export const musicDefaultsKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'music-config-defaults',
+];
+
+async function readDefaults(id: string): Promise<MusicConfig | null> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/music/config/defaults',
+    {
+      params: { path: { version, channelId: id } },
+    },
+  );
+
+  if (error !== undefined)
+    throw failed('music config', response.status, error);
+
+  return data?.data ?? null;
+}
+
+// The config a channel with nothing saved resolves to, read from the bot so the reset never carries its own copy.
+export function useMusicDefaults(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<MusicConfig | null, Error> {
+  return channelQuery(channelId, musicDefaultsKey, readDefaults);
+}
+
+// The request rules a reset writes back. The on/off switches and the banger playlist are the channel's own setup.
+export function rulesOf(defaults: MusicConfig) {
+  return {
+    preferredProvider: defaults.preferredProvider,
+    maxQueueSize: defaults.maxQueueSize,
+    maxRequestsPerUser: defaults.maxRequestsPerUser,
+    maxSongSeconds: defaults.maxSongSeconds,
+    allowExplicit: defaults.allowExplicit,
+    perStreamLimit: defaults.perStreamLimit,
+    youTubeMusicCategoryOnly: defaults.youTubeMusicCategoryOnly,
+    allowYouTube: defaults.allowYouTube,
+    allowSpotify: defaults.allowSpotify,
+    minTrustLevel: defaults.minTrustLevel,
+    maxRequestsPerRole: defaults.maxRequestsPerRole,
+  } as const satisfies MusicConfigChange;
+}
+
 export const musicQueueOptions = (id: string) => channelOptions(musicQueueKey, readQueue, id);
 export const musicConfigOptions = (id: string) => channelOptions(musicConfigKey, readConfig, id);
 

@@ -542,3 +542,30 @@ export function useResetCommandToPreset(channelId: MaybeRefOrGetter<string | nul
     },
   });
 }
+
+// A reset puts the built-in back to its defaults: on, quiet, default cooldowns, role and wording.
+export function useResetBuiltin(channelId: MaybeRefOrGetter<string | null>) {
+  const queries = useQueryClient();
+
+  return useMutation<void, Error, { builtinKey: string }>({
+    mutationFn: async ({ builtinKey }: { builtinKey: string }): Promise<void> => {
+      const { error, response } = await client.DELETE(
+        '/api/v{version}/channels/{channelId}/builtins/{builtinKey}/settings',
+        {
+          params: { path: {
+            version,
+            channelId: toValue(channelId) as string,
+            builtinKey,
+          } },
+        },
+      );
+
+      if (error !== undefined)
+        throw refusal('reset command', error, response.status);
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({ queryKey: builtinsKey(toValue(channelId)) });
+      await queries.invalidateQueries({ queryKey: builtinRepliesKey(toValue(channelId)) });
+    },
+  });
+}
