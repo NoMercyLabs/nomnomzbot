@@ -34,11 +34,13 @@ const channel = computed(() => String(route.params.channel ?? ''));
       v-for="entry in viewerNavEntries"
       :key="entry.route"
       :variant="route.name === entry.route ? 'secondary' : 'ghost'"
-      class="h-auto! min-h-11 min-w-0 flex-1 flex-col gap-1! px-1! py-1.5 text-xs md:h-9! md:min-h-0 md:flex-none md:flex-row md:gap-2! md:px-3! md:py-0 md:text-sm"
+      :class="route.name === entry.route ? 'flex-[2.4]' : 'flex-1'"
+      class="h-auto! min-h-11 min-w-0 flex-col gap-1! px-1! py-1.5 text-xs md:h-9! md:min-h-0 md:flex-none md:flex-row md:gap-2! md:px-3! md:py-0 md:text-sm"
       as-child
     >
       <RouterLink
         :to="{ name: entry.route, params: { channel } }"
+        class="no-underline!"
         :aria-current="route.name === entry.route ? 'page' : undefined"
       >
         <component :is="entry.icon" class="size-5 md:size-4" aria-hidden="true" />
