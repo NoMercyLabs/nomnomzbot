@@ -119,8 +119,8 @@ Stoney, verbatim, on preview v4 (avatar watermark, bottom-left of the Subscripti
 - The channel avatar is a faint watermark in the bottom-left of the first tall card. (Replaced on 2026-10-20, see below.)
 Stoney, verbatim, 2026-10-20: "i want my avatar to show up always in the left bottom card"
 
-- The bottom-left grid cell is always the streamer card: the channel's real Twitch profile image, large, with the channel name. It is one of the 8 grid cells, so at most 7 data blocks are shown beside it; blocks with no data still drop out and the rest grow to fill the row.
-- The grid has 8 layouts by cell count (1 to 8): 1, 2 and 3 cells are one row; 4 is 2 over 2; 5 is 3 over 2; 6 is 3 over 3; 7 is 4 over 3; 8 is 4 over 4. The streamer card is the first cell of the last row in every one. The old tall card is gone.
+- The bottom-left grid cell is always the streamer card: the channel's real Twitch profile image, large, with the channel name. It is one of up to 12 grid cells (4 x 3), so no data block is dropped while a cell is free (8 data blocks plus the streamer card are 9 cells); blocks with no data still drop out and the rest grow to fill the row.
+- The grid has 12 layouts by cell count (1 to 12): 1, 2 and 3 cells are one row; 4 is 2 over 2; 5 is 3 over 2; 6 is 3 over 3; 7 is 4 over 3; 8 is 4 over 4; 9 is 3/3/3; 10 is 4/3/3; 11 is 4/4/3; 12 is 4/4/4. The streamer card is the first cell of the last row in every one. The old tall card is gone.
 - The image is loaded with `crossorigin="anonymous"` so a PNG export of the recap is not tainted.
 
 Stoney, verbatim, 2026-10-20: "the stream report was nice but it needs to show longer, at least 60 seconds, that leaves 30 seconds for my default ending scene."

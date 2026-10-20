@@ -470,6 +470,8 @@ internal static class WidgetTestSamples
             Chat = new() { Messages = 480, UniqueChatters = 31 },
             TopChatters = [new() { Name = "TestChatter", Count = 120 }],
             CommandsRun = new() { Total = 55, Top = [new() { Name = "!test", Count = 20 }] },
+            Channel = new() { Name = "TestChannel", AvatarUrl = null },
+            HypeTrain = new() { Level = 5, Trains = 1 },
         };
 
     // A decorated chat line: resolved emote images, a native chat GIF (the branch a Tier 2+ viewer's GIF takes,

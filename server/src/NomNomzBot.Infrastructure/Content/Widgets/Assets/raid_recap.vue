@@ -264,20 +264,23 @@ const cards = computed<Card[]>(() => (recap.value ? buildCards(recap.value) : []
 
 // One grid for every block: 12 columns, so any row of 1 to 4 blocks adds up to the full width and every card edge
 // lines up with the top row. Blocks without data are gone. Up to 3 blocks share one row, 4 are 2 over 2, 5 are 3 over 2,
-// 6 are 3 over 3, 7 are 4 over 3, 8 are 4 over 4. The streamer card (the channel avatar) is one of those cells and is always
-// the first cell of the last row, bottom left (Stoney, 2026-10-20), so at most 7 data blocks are shown next to it.
+// 6 are 3 over 3, 7 are 4 over 3, 8 are 4 over 4, and 9 to 12 are three rows (9 are 3/3/3, 12 are 4/4/4). The streamer card
+// (the channel avatar) is one of those cells and is always the first cell of the last row, bottom left (Stoney, 2026-10-20).
+// Eight data blocks exist, so with the streamer card no metric is dropped; the 12-cell cap only guards future blocks.
 interface Placed { card: Card; span: number; tall: boolean }
 
 const GRID_COLUMNS = 12;
-const MAX_CARDS = 8;
+const MAX_CARDS = 12;
 const STREAMER_KEY = 'streamer';
 
 function rowSizes(count: number): number[] {
   if (count <= 3) return count ? [count] : [];
 
-  const top = Math.ceil(count / 2);
+  const rows = count <= 8 ? 2 : 3;
+  const base = Math.floor(count / rows);
+  const extra = count % rows;
 
-  return [top, count - top];
+  return Array.from({ length: rows }, (_, i) => base + (i < extra ? 1 : 0));
 }
 
 function flow(list: Card[], width: number): Placed[] {
@@ -290,7 +293,7 @@ function flow(list: Card[], width: number): Placed[] {
 function withStreamer(list: Card[]): Card[] {
   const shown = list.slice(0, MAX_CARDS - 1);
   const sizes = rowSizes(shown.length + 1);
-  const lastRowStart = sizes.length > 1 ? sizes[0]! : 0;
+  const lastRowStart = sizes.slice(0, -1).reduce((sum, size) => sum + size, 0);
   const streamer: Card = { key: STREAMER_KEY, big: '', unit: '', rows: [] };
 
   return shown.slice(0, lastRowStart).concat(streamer, shown.slice(lastRowStart));

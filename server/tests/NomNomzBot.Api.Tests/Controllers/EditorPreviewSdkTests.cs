@@ -84,6 +84,35 @@ public sealed class EditorPreviewSdkTests
     }
 
     [Fact]
+    public void Stream_stats_in_the_preview_answer_the_sample_stream_with_only_the_metrics_asked_for()
+    {
+        Engine preview = Preview();
+        preview.Execute(
+            """
+            window.WIDGET_PREVIEW_STATS = {
+              stream: { id: "test-stream", startedAt: "2026-10-20T10:00:00Z", game: "Sample game" },
+              followers: 3,
+              chat: { messages: 480, uniqueChatters: 31 },
+              commandsRun: { total: 55, top: [] },
+            };
+            var stats = null;
+            NomNomz.data.streamStats({ metrics: ["followers", "chat"] }).then(function (s) { stats = s; });
+            """
+        );
+
+        Text(preview, "stats.stream.game").Should().Be("Sample game");
+        Text(preview, "stats.followers").Should().Be("3");
+        Text(preview, "stats.chat.uniqueChatters").Should().Be("31");
+        Text(preview, "'commandsRun' in stats").Should().Be("false");
+        Text(
+                preview,
+                "__told.filter(function (t) { return t.what === 'streamStats'; }).map(function (t) { return t.key; }).join('|')"
+            )
+            .Should()
+            .Be("followers,chat");
+    }
+
+    [Fact]
     public void A_throwing_handler_is_shown_to_the_author_and_the_other_handlers_still_run()
     {
         Engine preview = Preview();
