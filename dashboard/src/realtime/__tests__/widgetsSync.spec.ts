@@ -12,7 +12,7 @@ import { QueryClient } from '@tanstack/vue-query';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { actionRequiredKey } from '@/api/actionRequired';
-import { widgetsKey } from '@/api/widgets';
+import { requiredOverlaysKey, widgetsKey } from '@/api/widgets';
 
 import { FakeHubConnection, fakeSignalR } from './fakeSignalR';
 
@@ -54,6 +54,23 @@ describe('overlay widgets live sync', () => {
       expect(queries.getQueryState(widgetsKey('other'))?.isInvalidated).toBe(false);
     },
   );
+
+  it('an overlay connect signal marks the widget list and the required overlays stale', async () => {
+    const [queries, connection] = await started();
+
+    queries.setQueryData(widgetsKey('c1'), []);
+    queries.setQueryData(requiredOverlaysKey('c1'), []);
+
+    connection.receive('ConfigChanged', {
+      broadcasterId: 'c1',
+      domain: 'widgets',
+      entityId: 'w1',
+      action: 'updated',
+    });
+
+    expect(queries.getQueryState(widgetsKey('c1'))?.isInvalidated).toBe(true);
+    expect(queries.getQueryState(requiredOverlaysKey('c1'))?.isInvalidated).toBe(true);
+  });
 
   it('a notifications change still marks only the action-required inbox stale', async () => {
     const [queries, connection] = await started();
