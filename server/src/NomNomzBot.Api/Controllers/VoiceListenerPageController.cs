@@ -77,6 +77,10 @@ public sealed class VoiceListenerPageController : ControllerBase
           .transcript { margin-top:16px; min-height:64px; background:#0c0c12; border:1px solid #2a2a38; border-radius:8px; padding:12px; font-size:14px; color:#c7c7d6; white-space:pre-wrap; word-break:break-word; }
           .warn { margin-top:16px; padding:12px; border-radius:8px; background:#3a2a12; color:#facc15; font-size:13px; display:none; }
           .warn.show { display:block; }
+          .heard { margin:16px 0 0; padding:0; list-style:none; font-size:13px; color:#c7c7d6; }
+          .heard li { padding:6px 0; border-top:1px solid #2a2a38; }
+          .heard .match { color:#4ade80; font-weight:600; }
+          .heard .miss { color:#6f6f80; }
           .hint { margin-top:20px; font-size:12px; color:#6f6f80; line-height:1.5; }
         </style>
         </head>
@@ -85,8 +89,9 @@ public sealed class VoiceListenerPageController : ControllerBase
           <h1>Voice Listener</h1>
           <p class="sub">Keep this REAL Chrome tab open in the background while you stream. Do not add it as an OBS browser source.</p>
           <div id="status" class="status stopped"><span class="dot"></span><span id="statusText">Starting…</span></div>
-          <div id="transcript" class="transcript">(waiting for speech)</div>
+          <div id="transcript" class="transcript">Say something. What the listener hears shows here.</div>
           <div id="warn" class="warn"></div>
+          <ol id="heard" class="heard"></ol>
           <p class="hint">This page listens for your defined trigger words using Chrome's free, built-in speech recognition and reports a hit to NomNomzBot. Nothing you say is sent anywhere except a short match check against your own trigger words. Closing this tab stops voice triggers from firing until you reopen it.</p>
         </div>
         <script nonce="__NONCE__">
@@ -120,12 +125,80 @@ public sealed class VoiceListenerPageController : ControllerBase
             return;
           }
 
+          var heardEl = document.getElementById("heard");
+          var maxHeard = 20;
+
+          // Every final chunk gets a row; the row then shows what the server said about it.
+          function addHeard(transcript) {
+            var row = document.createElement("li");
+            var text = document.createElement("span");
+            var verdict = document.createElement("span");
+            text.textContent = transcript.trim() + " ";
+            verdict.className = "miss";
+            verdict.textContent = "(checking…)";
+            row.appendChild(text);
+            row.appendChild(verdict);
+            heardEl.insertBefore(row, heardEl.firstChild);
+            while (heardEl.children.length > maxHeard) heardEl.removeChild(heardEl.lastChild);
+            return verdict;
+          }
+
+          function showVerdict(verdict, result) {
+            if (result.fired) {
+              verdict.className = "match";
+              verdict.textContent = "Matched \"" + result.word + "\"" + (result.newCount != null ? " (count " + result.newCount + ")" : "");
+              return;
+            }
+            verdict.className = "miss";
+            verdict.textContent = "(no trigger word)";
+          }
+
           function report(transcript) {
+            var verdict = addHeard(transcript);
             fetch("/overlay/voice-trigger/report", {
               method: "POST",
               headers: { "Content-Type": "application/json", "X-Overlay-Token": token },
               body: JSON.stringify({ transcript: transcript })
-            }).catch(function () { /* network hiccup — the next chunk will retry naturally */ });
+            }).then(function (response) {
+              if (response.status === 401) {
+                verdict.textContent = "(not sent: this listener link is no longer valid)";
+                return null;
+              }
+              if (!response.ok) {
+                verdict.textContent = "(not sent: the bot answered " + response.status + ")";
+                return null;
+              }
+              return response.json();
+            }).then(function (result) {
+              if (result) showVerdict(verdict, result);
+            }).catch(function () {
+              verdict.textContent = "(not sent: the bot could not be reached)";
+            });
+          }
+
+          // One plain sentence per Web Speech error kind, so a silent stop is never silent.
+          var errorText = {
+            "no-speech": "No speech heard for a while. Still listening; check that the right microphone is selected.",
+            "audio-capture": "No microphone found. Plug one in or pick one in Chrome's site settings, then reload.",
+            "network": "Chrome's speech service could not be reached. Retrying.",
+            "not-allowed": "Microphone access was blocked. Allow microphone access for this page and reload.",
+            "service-not-allowed": "Chrome's speech service is switched off for this page. Allow it and reload.",
+            "aborted": "Recognition was stopped. Restarting.",
+            "language-not-supported": "This language is not supported by Chrome's speech service."
+          };
+          var blocked = false;
+          var networkFailures = 0;
+
+          function showError(kind) {
+            warn(errorText[kind] || ("Speech recognition stopped: " + kind + ". Restarting."));
+            if (kind === "not-allowed" || kind === "service-not-allowed" || kind === "audio-capture") blocked = true;
+            networkFailures = kind === "network" ? networkFailures + 1 : 0;
+          }
+
+          // Back off when the speech service keeps failing, up to 30 seconds, so the tab never spins.
+          function restartDelay() {
+            if (networkFailures === 0) return 250;
+            return Math.min(30000, 1000 * Math.pow(2, networkFailures - 1));
           }
 
           var recognition = null;
@@ -138,6 +211,7 @@ public sealed class VoiceListenerPageController : ControllerBase
             recognition.lang = "en-US";
 
             recognition.onstart = function () { setListening(true); };
+            recognition.onaudiostart = function () { if (!blocked) warnEl.className = "warn"; };
 
             recognition.onresult = function (event) {
               var text = "";
@@ -148,18 +222,16 @@ public sealed class VoiceListenerPageController : ControllerBase
               if (text) transcriptEl.textContent = text;
             };
 
-            recognition.onerror = function (event) {
-              if (event.error === "not-allowed" || event.error === "service-not-allowed")
-                warn("Microphone access was blocked. Allow microphone access for this page and reload.");
-            };
+            recognition.onerror = function (event) { showError(event.error); };
 
             // Chrome silently ends continuous recognition periodically — this is expected, not a failure.
             // Restart it so the streamer never has to babysit this tab.
             recognition.onend = function () {
               setListening(false);
+              if (blocked) { statusText.textContent = "Stopped"; return; }
               if (restarting) return;
               restarting = true;
-              setTimeout(function () { restarting = false; start(); }, 250);
+              setTimeout(function () { restarting = false; start(); }, restartDelay());
             };
 
             try { recognition.start(); } catch (e) { setTimeout(start, 1000); }

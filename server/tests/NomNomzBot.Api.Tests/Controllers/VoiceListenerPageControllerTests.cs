@@ -74,6 +74,45 @@ public sealed class VoiceListenerPageControllerTests
         policy.Should().Contain("geolocation=()").And.Contain("camera=()");
     }
 
+    [Theory]
+    [InlineData("no-speech")]
+    [InlineData("audio-capture")]
+    [InlineData("network")]
+    [InlineData("not-allowed")]
+    public void Get_NamesEveryRecognitionErrorKindOnThePage(string kind)
+    {
+        (VoiceListenerPageController controller, _) = CreateController();
+
+        string html = ((ContentResult)controller.Get("listener-token")).Content!;
+
+        html.Should().Contain($"\"{kind}\":", "the onerror handler must explain this error kind");
+        html.Should().Contain("showError(event.error)");
+    }
+
+    [Fact]
+    public void Get_ShowsHeardChunksAndTheMatchReportFromTheServer()
+    {
+        (VoiceListenerPageController controller, _) = CreateController();
+
+        string html = ((ContentResult)controller.Get("listener-token")).Content!;
+
+        html.Should()
+            .Contain("id=\"heard\"", "final chunks are listed so the streamer sees what it heard");
+        html.Should().Contain("result.fired", "the report response says whether a trigger matched");
+        html.Should().Contain("result.word");
+        html.Should().NotContain("(waiting for speech)");
+    }
+
+    [Fact]
+    public void Get_BacksOffRestartsAfterRepeatedNetworkErrors()
+    {
+        (VoiceListenerPageController controller, _) = CreateController();
+
+        string html = ((ContentResult)controller.Get("listener-token")).Content!;
+
+        html.Should().Contain("restartDelay()");
+    }
+
     private static (
         VoiceListenerPageController Controller,
         DefaultHttpContext Context
