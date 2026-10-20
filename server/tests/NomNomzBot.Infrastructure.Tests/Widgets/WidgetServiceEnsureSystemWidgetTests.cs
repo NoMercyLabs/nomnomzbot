@@ -137,6 +137,35 @@ public sealed class WidgetServiceEnsureSystemWidgetTests
     }
 
     [Fact]
+    public async Task Ensure_returns_the_catalogue_obs_setup_of_the_system_widget_on_the_read_the_dashboard_uses()
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = Guid.CreateVersion7();
+        await SeedChannelAsync(database, channel);
+        await SeedTtsGalleryItemAsync(database);
+
+        WidgetDetail created;
+        WidgetDetail read;
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Result<WidgetDetail> result = await NewService(db)
+                .EnsureSystemWidgetAsync(channel.ToString(), "tts_caption");
+            created = result.Value;
+        }
+
+        await using (WidgetTestDbContext db = database.NewContext())
+        {
+            Result<WidgetDetail> result = await NewService(db)
+                .GetAsync(channel.ToString(), created.Id.ToString());
+            read = result.Value;
+        }
+
+        ObsBrowserSource expected = new(1920, 1080, false, false);
+        created.ObsSetup.Should().Be(expected);
+        read.ObsSetup.Should().Be(expected);
+    }
+
+    [Fact]
     public async Task Find_installed_never_creates_a_widget_and_returns_the_installed_one_untouched()
     {
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();

@@ -313,6 +313,25 @@ public sealed class WidgetActionServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task A_failure_event_carries_the_error_code_the_action_reported_and_a_plain_failure_carries_none()
+    {
+        Guid widgetId = await SeedAsync(Broadcaster);
+        _action.Behavior = () =>
+            ActionResult.Failure(
+                "No OBS bridge is connected for this channel.",
+                "OBS_BRIDGE_OFFLINE"
+            );
+        await using WidgetTestDbContext db = _database.NewContext();
+        await Service(db).InvokeAsync(Request(widgetId));
+
+        _action.Behavior = () => ActionResult.Failure("provider is down");
+        await Service(db).InvokeAsync(Request(widgetId));
+
+        List<OwnerActionFailedEvent> failed = [.. _bus.Published.OfType<OwnerActionFailedEvent>()];
+        failed.Select(f => f.ErrorCode).Should().Equal("OBS_BRIDGE_OFFLINE", null);
+    }
+
+    [Fact]
     public async Task An_action_that_throws_also_publishes_a_failure_event_with_the_reason()
     {
         Guid widgetId = await SeedAsync(Broadcaster);

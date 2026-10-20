@@ -95,8 +95,12 @@ function loadPreviewSdk() {
 }
 
 // The globals the overlay host page injects before the SDK and the bundle run (OverlayHostController).
-function widgetGlobals(widget, events) {
+// The server's sample of a stream's numbers (every metric filled); the preview answers data.streamStats with it.
+const STREAM_STATS_SAMPLE = 'raid_recap.show';
+
+function widgetGlobals(widget, events, streamStats) {
     const values = {
+        WIDGET_PREVIEW_STATS: streamStats ?? null,
         WIDGET_ID: widget.id ?? 'preview',
         WIDGET_TOKEN: 'preview',
         WIDGET_NAME: widget.name ?? t('previewWidgetName'),
@@ -280,7 +284,7 @@ export function initPreview({
     }
 
     function sdkScripts(files) {
-        return inlineScript(widgetGlobals(widget, subscribedEvents(files))) + inlineScript(previewSdk);
+        return inlineScript(widgetGlobals(widget, subscribedEvents(files), fireSamples[STREAM_STATS_SAMPLE])) + inlineScript(previewSdk);
     }
 
     const fireSearch = fireBar.querySelector('#fireSearch');

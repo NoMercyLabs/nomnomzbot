@@ -10708,6 +10708,12 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<DateTime>("FromAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("OutputHeight")
+                        .HasColumnType("integer");
+
+                    b.Property<int?>("OutputWidth")
+                        .HasColumnType("integer");
+
                     b.Property<string>("StreamId")
                         .IsRequired()
                         .HasMaxLength(50)

@@ -185,9 +185,14 @@
   function nowPlaying() { return readData("nowPlaying", null, FIXTURE_NOW_PLAYING); }
   function queue() { return readData("queue", null, []); }
   function storage(key) { return readData("storage", key, null); }
+  // The editor injects the server's sample of a stream's numbers (WIDGET_PREVIEW_STATS, the raid_recap.show sample), so a
+  // preview shows the same filled stream the live gallery does. Like the live read, it answers only the metrics asked for.
   function streamStats(options) {
-    var keys = options && options.metrics ? options.metrics.join(",") : "";
-    return readData("streamStats", keys, { stream: FIXTURE_STREAM_WINDOW });
+    var metrics = options && options.metrics ? options.metrics : [];
+    var sample = window.WIDGET_PREVIEW_STATS;
+    var answer = { stream: (sample && sample.stream) || FIXTURE_STREAM_WINDOW };
+    metrics.forEach(function (key) { if (sample && sample[key] != null) answer[key] = sample[key]; });
+    return readData("streamStats", metrics.join(","), answer);
   }
   function playbackToken() {
     tell({ kind: "data", what: "spotify.playbackToken", key: null });

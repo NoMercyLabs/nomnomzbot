@@ -25,7 +25,8 @@ namespace NomNomzBot.Infrastructure.Dashboard.Stats;
 public sealed class StreamRecapService(
     IApplicationDbContext db,
     IStreamStatsService stats,
-    TimeProvider timeProvider
+    TimeProvider timeProvider,
+    IStreamOutputResolutionService? output = null
 ) : IStreamRecapService
 {
     public async Task<Result<StreamRecapDto>> BuildAsync(
@@ -61,6 +62,18 @@ public sealed class StreamRecapService(
         row.FromAt = fromAt;
         row.ToAt = toAt;
         row.DataJson = JsonSerializer.Serialize(data);
+
+        // Only a live stream is still on the OBS output the viewers get; an ended one never reads the present OBS.
+        StreamOutputResolution? resolution =
+            output is not null && data.Stream.EndedAt is null
+                ? await output.ReadAsync(broadcasterId, cancellationToken)
+                : null;
+        if (resolution is not null)
+        {
+            row.OutputWidth = resolution.Width;
+            row.OutputHeight = resolution.Height;
+        }
+
         await db.SaveChangesAsync(cancellationToken);
 
         return Result.Success(ToDto(row, data));
@@ -117,6 +130,8 @@ public sealed class StreamRecapService(
             FromAt = Utc(row.FromAt),
             ToAt = Utc(row.ToAt),
             UpdatedAt = Utc(row.UpdatedAt),
+            OutputWidth = row.OutputWidth,
+            OutputHeight = row.OutputHeight,
             Stats = data,
         };
 

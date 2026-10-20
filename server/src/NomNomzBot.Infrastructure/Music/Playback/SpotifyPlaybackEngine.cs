@@ -21,15 +21,44 @@ namespace NomNomzBot.Infrastructure.Music.Playback;
 /// no push, so <see cref="ObserveAsync"/> turns each poll into a report and derives the track end.
 /// Every command opens an <see cref="EngineLease"/> and disposes it after, so the scoped provider never outlives it.
 /// </summary>
-public sealed class SpotifyPlaybackEngine(Guid broadcasterId, Func<EngineLease> open)
-    : IPolledPlaybackEngine,
-        IPlaybackEngineProviderControls
+public sealed class SpotifyPlaybackEngine(
+    Guid broadcasterId,
+    Func<EngineLease> open,
+    TimeProvider? time = null
+) : IPolledPlaybackEngine, IPlaybackEngineProviderControls
 {
     /// <summary>A track whose poll showed it within this long of its end counts as ended when it is replaced.</summary>
     private const int EndWindowMs = 10_000;
 
+    /// <summary>
+    /// After Spotify answers "no active device", the engine answers the same block itself for this long. The
+    /// poller asks the director to start the head every few seconds; without this pause each ask is a call
+    /// Spotify refuses again (live 2026-10-20: a 404 every 5 s). The block still shows once as the state.
+    /// </summary>
+    private static readonly TimeSpan NoDeviceBackoff = TimeSpan.FromSeconds(30);
+
     private readonly EngineSignalRelay _relay = new();
+    private readonly TimeProvider _time = time ?? TimeProvider.System;
+    private DateTimeOffset _noDeviceUntil;
     private TrackInfo? _lastPoll;
+
+    /// <summary>Runs a start or line-up through the guard, holding back while Spotify has no device.</summary>
+    private async Task<EngineStartResult> GuardedStartAsync(
+        EngineLease lease,
+        Func<Task<bool>> start,
+        string refusedReason,
+        CancellationToken ct
+    )
+    {
+        if (_time.GetUtcNow() < _noDeviceUntil)
+            return EngineStartResult.BlockedBy(EngineBlockReason.NoOutput);
+
+        EngineStartResult result = await GuardFor(lease).StartAsync(start, refusedReason, ct);
+        if (result.Block == EngineBlockReason.NoOutput)
+            _noDeviceUntil = _time.GetUtcNow() + NoDeviceBackoff;
+
+        return result;
+    }
 
     public EngineKind Kind => EngineKind.Spotify;
 
@@ -56,15 +85,15 @@ public sealed class SpotifyPlaybackEngine(Guid broadcasterId, Func<EngineLease> 
     {
         await using EngineLease lease = open();
 
-        return await GuardFor(lease)
-            .StartAsync(
-                async () =>
-                    await HoldsAsync(lease, item, ct)
-                        ? await SkipHeldAsync(lease, ct)
-                        : await lease.StartTrack.StartTrackAsync(broadcasterId, item.Uri, ct),
-                "Spotify could not start the track.",
-                ct
-            );
+        return await GuardedStartAsync(
+            lease,
+            async () =>
+                await HoldsAsync(lease, item, ct)
+                    ? await SkipHeldAsync(lease, ct)
+                    : await lease.StartTrack.StartTrackAsync(broadcasterId, item.Uri, ct),
+            "Spotify could not start the track.",
+            ct
+        );
     }
 
     /// <summary>
@@ -100,14 +129,14 @@ public sealed class SpotifyPlaybackEngine(Guid broadcasterId, Func<EngineLease> 
     {
         await using EngineLease lease = open();
 
-        return await GuardFor(lease)
-            .StartAsync(
-                async () =>
-                    await HoldsAsync(lease, item, ct)
-                    || await lease.Provider.AddToQueueAsync(broadcasterId, item.Uri, ct),
-                "Spotify could not queue the track.",
-                ct
-            );
+        return await GuardedStartAsync(
+            lease,
+            async () =>
+                await HoldsAsync(lease, item, ct)
+                || await lease.Provider.AddToQueueAsync(broadcasterId, item.Uri, ct),
+            "Spotify could not queue the track.",
+            ct
+        );
     }
 
     public Task PauseAsync(CancellationToken ct = default) =>

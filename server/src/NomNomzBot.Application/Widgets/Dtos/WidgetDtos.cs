@@ -43,7 +43,21 @@ public sealed record WidgetDetail(
     DateTime UpdatedAt,
     bool GalleryUpdateAvailable,
     bool IsAttached,
-    bool IsCustomized
+    bool IsCustomized,
+    ObsBrowserSource? ObsSetup = null
+);
+
+/// <summary>
+/// How a streamer sets up one overlay as an OBS browser source: the width and height to enter, whether to tick
+/// "Control audio via OBS", and whether to tick "Shutdown source when not visible" (OBS then unloads the page, so
+/// anything that must keep listening or playing leaves it off). Authored once per catalogue widget; a widget with no
+/// catalogue entry (custom, community) carries none.
+/// </summary>
+public sealed record ObsBrowserSource(
+    int Width,
+    int Height,
+    bool ControlAudioViaObs,
+    bool ShutdownWhenHidden
 );
 
 /// <summary>

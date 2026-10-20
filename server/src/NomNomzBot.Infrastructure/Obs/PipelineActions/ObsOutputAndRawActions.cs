@@ -195,10 +195,7 @@ public sealed class ObsRequestAction(IObsControlService obs) : ObsActionBase(obs
             ctx.CancellationToken
         );
         if (response.IsFailure)
-        {
-            ctx.Variables["obs.last_error"] = response.ErrorMessage ?? "OBS request failed";
-            return ActionResult.Failure(response.ErrorMessage ?? "OBS request failed");
-        }
+            return FailFrom(ctx, response, "OBS request failed");
         if (!response.Value.Ok)
         {
             ctx.Variables["obs.last_error"] = response.Value.Error ?? "OBS rejected the request";
@@ -315,10 +312,7 @@ public sealed class ObsRequestBatchAction(IObsControlService obs) : ObsActionBas
             ctx.CancellationToken
         );
         if (result.IsFailure)
-        {
-            ctx.Variables["obs.last_error"] = result.ErrorMessage ?? "OBS batch failed";
-            return ActionResult.Failure(result.ErrorMessage ?? "OBS batch failed");
-        }
+            return FailFrom(ctx, result, "OBS batch failed");
         int failed = result.Value.Count(r => !r.Ok);
         return failed == 0
             ? ActionResult.Success($"batch ok ({result.Value.Count} requests)")
@@ -371,10 +365,7 @@ public sealed class ObsCallVendorAction(IObsControlService obs) : ObsActionBase(
             ctx.CancellationToken
         );
         if (response.IsFailure)
-        {
-            ctx.Variables["obs.last_error"] = response.ErrorMessage ?? "vendor call failed";
-            return ActionResult.Failure(response.ErrorMessage ?? "vendor call failed");
-        }
+            return FailFrom(ctx, response, "vendor call failed");
         return response.Value.Ok
             ? ActionResult.Success($"vendor '{vendor}' '{type}' ok")
             : ActionResult.Failure(response.Value.Error ?? "vendor call rejected");

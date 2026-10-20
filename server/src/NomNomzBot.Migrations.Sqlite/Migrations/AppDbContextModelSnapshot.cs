@@ -11205,6 +11205,12 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<DateTime>("FromAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("OutputHeight")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("OutputWidth")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("StreamId")
                         .IsRequired()
                         .HasMaxLength(50)

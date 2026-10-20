@@ -116,7 +116,16 @@ Stoney, verbatim, on preview v4 (avatar watermark, bottom-left of the Subscripti
 
 - Fluid layout: the grid is built from the blocks that have data this stream. Empty blocks are gone and the others grow to fill the space. A quiet stream (no subs, no raids) still fills the screen without gaps; a busy one scrolls its long lists.
 - Card size follows content weight: a block with many rows gets more space than a block with one.
-- The channel avatar is a faint watermark in the bottom-left of the first tall card.
+- The channel avatar is a faint watermark in the bottom-left of the first tall card. (Replaced on 2026-10-20, see below.)
+Stoney, verbatim, 2026-10-20: "i want my avatar to show up always in the left bottom card"
+
+- The bottom-left grid cell is always the streamer card: the channel's real Twitch profile image, large, with the channel name. It is one of up to 12 grid cells (4 x 3), so no data block is dropped while a cell is free (8 data blocks plus the streamer card are 9 cells); blocks with no data still drop out and the rest grow to fill the row.
+- The grid has 12 layouts by cell count (1 to 12): 1, 2 and 3 cells are one row; 4 is 2 over 2; 5 is 3 over 2; 6 is 3 over 3; 7 is 4 over 3; 8 is 4 over 4; 9 is 3/3/3; 10 is 4/3/3; 11 is 4/4/3; 12 is 4/4/4. The streamer card is the first cell of the last row in every one. The old tall card is gone.
+- The image is loaded with `crossorigin="anonymous"` so a PNG export of the recap is not tainted.
+
+Stoney, verbatim, 2026-10-20: "the stream report was nice but it needs to show longer, at least 60 seconds, that leaves 30 seconds for my default ending scene."
+
+- `holdSeconds` defaults to 60. The raid countdown is at least 90 seconds, so the recap holds 60 s and the ending scene keeps the last 30 s.
 Stoney, verbatim, right after: "i want to trigger this as my ending scene triggered by the !raid command"
 
 - Trigger: the `!raid` command. Its raid commit pipeline (§7) shows the recap as the ending scene, built live from that stream's data. No stream-offline trigger.

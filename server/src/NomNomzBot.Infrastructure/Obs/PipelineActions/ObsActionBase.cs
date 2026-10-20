@@ -106,7 +106,22 @@ public abstract class ObsActionBase : ICommandAction
     {
         if (result.IsSuccess)
             return ActionResult.Success(success);
-        ctx.Variables["obs.last_error"] = result.ErrorMessage ?? "OBS request failed";
-        return ActionResult.Failure(result.ErrorMessage ?? "OBS request failed");
+        return FailFrom(ctx, result, "OBS request failed");
+    }
+
+    /// <summary>
+    /// The one failure mapping for an OBS request that did not run: the message lands in <c>obs.last_error</c>
+    /// and the failure keeps the transport's machine code (<c>OBS_NOT_CONNECTED</c>, <c>OBS_BRIDGE_OFFLINE</c>),
+    /// so the inbox can fold every failure caused by a missing OBS connection into one notice.
+    /// </summary>
+    internal static ActionResult FailFrom(
+        PipelineExecutionContext ctx,
+        Result failed,
+        string fallbackMessage
+    )
+    {
+        string message = failed.ErrorMessage ?? fallbackMessage;
+        ctx.Variables["obs.last_error"] = message;
+        return ActionResult.Failure(message, failed.ErrorCode);
     }
 }

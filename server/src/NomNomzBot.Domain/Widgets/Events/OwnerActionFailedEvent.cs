@@ -32,4 +32,7 @@ public sealed class OwnerActionFailedEvent : DomainEventBase
 
     /// <summary>Why the action failed, as the action reported it.</summary>
     public required string Error { get; init; }
+
+    /// <summary>The machine code of the cause when the action knew it, for example <c>OBS_NOT_CONNECTED</c>.</summary>
+    public string? ErrorCode { get; init; }
 }

@@ -261,10 +261,7 @@ public sealed class ObsScreenshotAction(IObsControlService obs) : ObsActionBase(
             ctx.CancellationToken
         );
         if (shot.IsFailure)
-        {
-            ctx.Variables["obs.last_error"] = shot.ErrorMessage ?? "screenshot failed";
-            return ActionResult.Failure(shot.ErrorMessage ?? "screenshot failed");
-        }
+            return FailFrom(ctx, shot, "screenshot failed");
         ctx.Variables["obs.screenshot"] = shot.Value;
         return ActionResult.Success($"screenshot of '{source}' captured");
     }
