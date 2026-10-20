@@ -51,6 +51,7 @@ import PipelineDeleteButton from './components/PipelineDeleteButton.vue';
 import PipelinePowerSwitch from './components/PipelinePowerSwitch.vue';
 import RunsPanel from './components/RunsPanel.vue';
 import StepCard from './components/StepCard.vue';
+import { earlierTexts } from './components/stepChain';
 import StepInspector from './components/StepInspector.vue';
 import { laneEnd, type MintId, type Spot, type StepPatch } from './components/stepEdits';
 import StepPalette from './components/StepPalette.vue';
@@ -212,11 +213,17 @@ function remove(): void {
 
 const paletteOpen = ref(false);
 
-// The palette (256px) and the details (480px) leave the steps about 215px on a laptop. While a step is open
-// the palette waits in its drawer, until the window holds three columns.
-const threeColumns = useScreenFrom('threePanels');
-const paletteBeside = computed<boolean>(() =>
-  !inspecting.value || threeColumns.value);
+// The steps never move when a step opens (Stoney 2026-10-20: "the pipeline editor needs to not layout shift
+// when toggeling the change pannel"): the details keep their column while no step is open, and the palette
+// (256px) sits beside only on a window that holds all three columns; on a laptop it waits in its drawer.
+const paletteBeside = useScreenFrom('threePanels');
+const wide = useScreenFrom('wide');
+
+// The text earlier steps hold, so the open step can use the same words instead of a typed copy.
+const earlier = computed(() =>
+  selectedKey.value === null
+    ? []
+    : earlierTexts(tree.value, selectedKey.value, descriptors.value));
 const palette = useTemplateRef<InstanceType<typeof StepPalette>>('palette');
 
 // The lane the person chose to add to, with its words; none adds at the end of the top level.
@@ -614,11 +621,24 @@ const leaveOpen = computed<boolean>({
         :number="selected.number"
         :descriptor="descriptors.get(selected.step.action.type)"
         :read-only="!canWrite"
+        :earlier="earlier"
         @duplicate="duplicate"
         @remove="remove"
         @patch="patch"
       />
     </SidePanel>
+    <!-- Holds the details column while no step is open, so opening one never moves the steps. -->
+    <aside
+      v-if="wide && !inspecting && !runsOpen"
+      data-step-inspector-empty
+      class="flex w-120 flex-none flex-col *:flex-1"
+    >
+      <PanelCard :title="$t('dashboard.pipelines.workbench.inspector.label')" pad>
+        <p class="text-sm text-muted-foreground">
+          {{ $t("dashboard.pipelines.workbench.inspector.pick") }}
+        </p>
+      </PanelCard>
+    </aside>
     <SidePanel
       v-if="access.can('pipelines:read')"
       v-model:open="runsOpen"

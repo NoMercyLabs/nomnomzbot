@@ -125,6 +125,11 @@
           "settings": "Instellingen",
           "plain": "In gewone woorden",
           "pick": "Kies een stap om te zien wat hij doet.",
+          "earlier": {
+            "button": "Eerdere tekst gebruiken",
+            "label": "Tekst uit eerdere stappen",
+            "from": "Stap {number}, {title}"
+          },
           "notSet": "Niet ingesteld",
           "noFields": "Deze stap heeft geen instellingen.",
           "condition": "Alleen uitvoeren als",

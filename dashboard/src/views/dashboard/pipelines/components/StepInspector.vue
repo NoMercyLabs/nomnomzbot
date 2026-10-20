@@ -26,6 +26,7 @@ import { FieldGroup } from '@/components/ui/field';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useLocalizedText } from '@/composables/useLocalizedText';
 
+import type { EarlierText } from './stepChain';
 import type { StepPatch } from './stepEdits';
 import StepField from './StepField.vue';
 import { actionRows, blockRows, choiceContext, type FieldRow, settingsAfter } from './stepFields';
@@ -36,6 +37,7 @@ const props = defineProps<{
   number: string;
   descriptor: PipelineActionDescriptor | undefined;
   readOnly: boolean;
+  earlier?: EarlierText[];
 }>();
 
 const emit = defineEmits<{
@@ -49,6 +51,17 @@ const text = useLocalizedText();
 const page = 'dashboard.pipelines.workbench';
 
 const tab = ref('settings');
+
+const earlierOptions = computed(() =>
+  (props.earlier ?? []).map((item) =>
+    ({
+      key: item.key,
+      text: item.text,
+      label: t(`${page}.inspector.earlier.from`, {
+        number: item.number,
+        title: stepTitle(item.step, { t, te }),
+      }),
+    })));
 
 watch(
   () => props.step.id,
@@ -165,6 +178,7 @@ const sentence = computed(() => stepSentence(props.descriptor, text));
               :key="`${step.id}:${row.name}`"
               :row="row"
               :context="context"
+              :earlier="earlierOptions"
               @change="change(row, $event)"
             />
             <p v-if="fields.length === 0" class="text-sm text-muted-foreground">

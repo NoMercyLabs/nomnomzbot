@@ -104,6 +104,15 @@ const catalog = {
       description: { key: 'pipeline.speak.description' },
       fields: [
         {
+          name: 'text',
+          kind: 'text',
+          required: false,
+          repeatable: false,
+          description: null,
+          templated: true,
+          declaresVariable: false,
+        },
+        {
           name: 'voice',
           kind: 'voice',
           required: false,
@@ -411,6 +420,11 @@ vi.mock('@/api/access', () => ({
   }),
 }));
 
+// A template field asks the bot for its helpers; the workbench tests do not type helpers.
+vi.mock('@/api/templates', () => ({
+  useTemplateHelpers: () => ({ data: ref([]) }),
+}));
+
 vi.mock('@/composables/useCurrentChannel', () => ({
   useCurrentChannel: () => ({ channelId: ref('c1') }),
 }));
@@ -541,11 +555,40 @@ describe('the palette beside an open step', () => {
     expect(document.body.querySelector('[data-step-palette]')).toBeNull();
   });
 
-  it('keeps the palette beside the steps while no step is open', async () => {
+  // The columns in the row, left to right: what each one is, so a moved or resized step list shows as a change.
+  const columns = (): string[] =>
+    [...document.body.querySelectorAll<HTMLElement>('[data-page-body] > *')].map((column) => {
+      if (column.querySelector('[data-step-palette]'))
+        return 'palette';
+
+      if (column.hasAttribute('data-step-inspector-empty'))
+        return 'details';
+
+      if (column.querySelector('[data-step-inspector]'))
+        return 'details';
+
+      return column.querySelector('[data-workbench-canvas]')
+        ? 'steps'
+        : column.tagName;
+    });
+
+  it.each([1400, 1700])('keeps the steps in place when a step opens at %ipx', async (width: number) => {
+    setWidth(width);
+    await open();
+    const before = columns();
+
+    await press('[data-step-id="hi"] button');
+
+    expect(document.body.querySelector('[data-step-inspector]')).not.toBeNull();
+    expect(columns()).toEqual(before);
+    expect(before).toContain('details');
+  });
+
+  it('keeps the palette in its drawer on a laptop, so the steps keep their width', async () => {
     setWidth(1400);
     await open();
 
-    expect(document.body.querySelector('[data-step-palette]')).not.toBeNull();
+    expect(document.body.querySelector('[data-step-palette]')).toBeNull();
   });
 
   it('keeps the palette beside the details on a window wide enough for three columns', async () => {
@@ -971,6 +1014,33 @@ describe('changing the steps', () => {
     expect(save.mutateAsync.mock.calls[1]?.[0].graph?.steps[3]?.action).toEqual({
       type: 'run_pipeline',
       named_args: { who: '{user}', mood: 'loud' },
+    });
+  });
+
+  it('reads aloud the text of the earlier Send message step without typing it again', async () => {
+    await open();
+    await press('[data-workbench-add]');
+    await press('[data-palette-action="speak"]');
+
+    const trigger = document.body.querySelector<HTMLButtonElement>(
+      '[data-step-field="text"] [data-earlier-text]',
+    )!;
+
+    trigger.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }));
+    await flushPromises();
+
+    const option = document.body.querySelector<HTMLElement>('[data-earlier-option]')!;
+
+    expect(option.textContent).toContain('Step 1.1, Send message');
+    expect(option.textContent).toContain('hi there');
+
+    option.click();
+    await flushPromises();
+    await press('[data-workbench-save]');
+
+    expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.action).toEqual({
+      type: 'speak',
+      text: 'hi there',
     });
   });
 

@@ -14,7 +14,17 @@ import type { JsonValue } from '@/lib/json';
 // over undefined: the step saves without the setting.
 import { computed, ref, useId, watch } from 'vue';
 
+import Quote from '~icons/nnz/quote';
+
 import TemplateField from '@/components/layout/TemplateField.vue';
+import { Button } from '@/components/ui/button';
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuTrigger,
+} from '@/components/ui/dropdown-menu';
 
 import type { OptionContext, PickerKind } from '@/api/pipelines';
 import { Field, FieldContent, FieldInfo, FieldLabel } from '@/components/ui/field';
@@ -29,7 +39,29 @@ import type { FieldRow } from './stepFields';
 import StepPicker from './StepPicker.vue';
 import { valueText } from './stepWords';
 
-const props = defineProps<{ row: FieldRow; context?: OptionContext }>();
+// The text earlier steps hold (stepChain.ts), offered on a template field so a step can reuse those words.
+export type EarlierOption = {
+  key: string;
+  label: string;
+  text: string;
+};
+
+const props = withDefaults(defineProps<{
+  row: FieldRow;
+  context?: OptionContext;
+  earlier?: EarlierOption[];
+}>(), {
+  context: undefined,
+  earlier: () => [],
+});
+
+function useEarlier(option: EarlierOption): void {
+  draft.value = option.text;
+
+  if (option.text !== text.value) {
+    emit('change', option.text);
+  }
+}
 
 const emit = defineEmits<{ change: [value: JsonValue | undefined] }>();
 
@@ -103,6 +135,33 @@ function typed(event: Event): void {
       :label="row.label"
       :help="row.help"
     />
+    <DropdownMenu v-if="earlier.length > 0">
+      <DropdownMenuTrigger as-child>
+        <Button
+          data-earlier-text
+          type="button"
+          variant="ghost"
+          size="sm"
+          class="mt-1"
+        >
+          <Quote aria-hidden="true" />
+          {{ $t('dashboard.pipelines.workbench.inspector.earlier.button') }}
+        </Button>
+      </DropdownMenuTrigger>
+      <DropdownMenuContent align="start" class="max-w-80">
+        <DropdownMenuLabel>{{ $t('dashboard.pipelines.workbench.inspector.earlier.label') }}</DropdownMenuLabel>
+        <DropdownMenuItem
+          v-for="option in earlier"
+          :key="option.key"
+          :data-earlier-option="option.key"
+          class="flex-col items-start gap-0.5"
+          @select="useEarlier(option)"
+        >
+          <span class="text-xs text-muted-foreground">{{ option.label }}</span>
+          <span class="line-clamp-2 wrap-break-word">{{ option.text }}</span>
+        </DropdownMenuItem>
+      </DropdownMenuContent>
+    </DropdownMenu>
   </div>
   <Field v-else :data-step-field="row.name" class="gap-1.5">
     <div class="flex items-center gap-1.5">

@@ -125,6 +125,11 @@
           "settings": "Settings",
           "plain": "In plain words",
           "pick": "Pick a step to see what it does.",
+          "earlier": {
+            "button": "Use earlier text",
+            "label": "Text from earlier steps",
+            "from": "Step {number}, {title}"
+          },
           "notSet": "Not set",
           "noFields": "This step has no settings.",
           "condition": "Only run if",
