@@ -410,6 +410,15 @@ describe('ObsView', () => {
     expect(bar!.compareDocumentPosition(board!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it('places each live panel in its own bento area, the outputs panel included', async () => {
+    await open();
+
+    const areas = [...document.querySelectorAll('[data-obs-live] > *')]
+      .map((panel) => /\[grid-area:(\w+)\]/.exec(panel.className)?.[1]);
+
+    expect(areas).toEqual(['outputs', 'scenes', 'audio', 'sources']);
+  });
+
   it('opens the saved connection in a dialog from Edit connection', async () => {
     held = [...held, 'obs:config:write'];
     await open();

@@ -38,3 +38,34 @@ describe('the OBS board packs its panels with CSS grid lanes', () => {
     expect(view).toMatch(/data-obs-board\s+class="board-lanes /);
   });
 });
+
+// Stoney: "properly make this a bento grid so te pannel is placed in view and not at the bottom".
+describe('the OBS Live tab is a bento grid with named areas', () => {
+  const live = /<div[^>]*data-obs-live[^>]*>/.exec(view)?.[0] ?? '';
+
+  it('lays the live board out with grid-template-areas, three columns on a wide page', () => {
+    expect(live).toContain('grid-template-areas');
+    expect(live).toContain(`'outputs_sources_audio'_'scenes_sources_audio'`);
+  });
+
+  it('puts every live panel in its own named area', () => {
+    for (const area of ['outputs', 'scenes', 'audio', 'sources']) {
+      expect(view).toContain(`[grid-area:${area}]`);
+    }
+  });
+
+  it('lets the audio mixer scroll inside its cell instead of setting the row height', () => {
+    expect(view).toMatch(/\[grid-area:audio\][^"]*\[contain:size\]/);
+  });
+
+  // Stoney: "span the page".
+  it('spans the page height: the board grows and its middle row takes the free space', () => {
+    expect(live).toContain('flex-1');
+    expect(live).toContain('@min-[74rem]:grid-rows-[auto_1fr]');
+    expect(view).toMatch(/data-page-inset[^>]*class="flex flex-1 flex-col/);
+  });
+
+  it('keeps the live areas off the grid-lanes utility', () => {
+    expect(live).not.toContain('board-lanes');
+  });
+});

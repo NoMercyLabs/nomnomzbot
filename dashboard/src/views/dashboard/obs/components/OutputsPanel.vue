@@ -41,6 +41,9 @@ const props = defineProps<{
 
 defineEmits<{ retry: [] }>();
 
+// The panel and its dialog make a fragment, so the parent's class (its grid area) goes to the panel by hand.
+defineOptions({ inheritAttrs: false });
+
 const { can } = useCan();
 const canBroadcast = computed<boolean>(() => can('obs:control:broadcast'));
 const action = useObsOutputAction(() => props.channelId);
@@ -90,6 +93,7 @@ async function stopStream(): Promise<void> {
 
 <template>
   <PanelCard
+    v-bind="$attrs"
     :title="$t('dashboard.obs.outputs.title')"
     :state="panel"
     :empty-text="$t('dashboard.obs.outputs.offline')"

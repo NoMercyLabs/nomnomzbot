@@ -168,7 +168,7 @@ function retry(): void {
     </template>
   </PageHeader>
   <PageBody>
-    <div ref="page" data-page-inset class="grid gap-3 @container">
+    <div ref="page" data-page-inset class="flex flex-1 flex-col gap-3 @container">
       <ObsConnectionBar
         v-if="canSeeConnection"
         :connection="connection.data.value"
@@ -189,36 +189,48 @@ function retry(): void {
         <p v-if="!canControl" data-obs-readonly-note class="text-sm text-muted-foreground">
           {{ $t("dashboard.obs.needsControl") }}
         </p>
-        <ReadOnlyScope :read-only="!canControl" :reason="$t('dashboard.obs.needsControl')">
-          <div data-obs-board class="board-lanes items-start gap-3" :style="boardStyle">
-            <template v-if="view === 'live'">
-              <OutputsPanel
-                :channel-id="channelId"
-                :state="state.data.value"
-                :virtual-cam="virtualCam.data.value === true"
-                :stream-timer="clocks.stream.value"
-                :record-timer="clocks.record.value"
-                :panel-state="outputsPanel"
-                :offline="!enabled"
-                @retry="retry"
-              />
-              <ScenesPanel
-                :scenes="scenes.data.value"
-                :panel-state="scenesPanel"
-                :offline="!enabled"
-                @retry="retry"
-              />
-              <AudioPanel :offline="!enabled" />
-              <SourcesPanel
-                :scene-name="state.data.value?.currentScene ?? null"
-                :offline="!enabled"
-              />
-            </template>
-            <template v-else>
-              <StudioPanel v-if="enabled" :scenes="scenes.data.value" />
-              <ObsHotkeysPanel :offline="!enabled" />
-              <ObsScreenshotPanel :offline="!enabled" />
-            </template>
+        <ReadOnlyScope
+          :class="view === 'live' ? 'flex flex-1 flex-col' : ''"
+          :read-only="!canControl"
+          :reason="$t('dashboard.obs.needsControl')"
+        >
+          <!-- The Live bento spans the page: outputs over scenes, with the sources and the tall audio mixer
+               beside them. The mixer and the sources fill their cells and scroll only when the window is short. -->
+          <div
+            v-if="view === 'live'"
+            data-obs-live
+            data-obs-board
+            class="grid flex-1 gap-3 [grid-template-areas:'outputs'_'scenes'_'audio'_'sources'] @min-[48rem]:grid-cols-2 @min-[48rem]:grid-rows-[auto_1fr_auto] @min-[48rem]:[grid-template-areas:'outputs_audio'_'scenes_audio'_'sources_sources'] @min-[74rem]:grid-cols-3 @min-[74rem]:grid-rows-[auto_1fr] @min-[74rem]:[grid-template-areas:'outputs_sources_audio'_'scenes_sources_audio']"
+          >
+            <OutputsPanel
+              class="[grid-area:outputs]"
+              :channel-id="channelId"
+              :state="state.data.value"
+              :virtual-cam="virtualCam.data.value === true"
+              :stream-timer="clocks.stream.value"
+              :record-timer="clocks.record.value"
+              :panel-state="outputsPanel"
+              :offline="!enabled"
+              @retry="retry"
+            />
+            <ScenesPanel
+              class="[grid-area:scenes]"
+              :scenes="scenes.data.value"
+              :panel-state="scenesPanel"
+              :offline="!enabled"
+              @retry="retry"
+            />
+            <AudioPanel class="[grid-area:audio] @min-[48rem]:[contain:size]" :offline="!enabled" />
+            <SourcesPanel
+              class="[grid-area:sources] @min-[74rem]:[contain:size]"
+              :scene-name="state.data.value?.currentScene ?? null"
+              :offline="!enabled"
+            />
+          </div>
+          <div v-else data-obs-board class="board-lanes items-start gap-3" :style="boardStyle">
+            <StudioPanel v-if="enabled" :scenes="scenes.data.value" />
+            <ObsHotkeysPanel :offline="!enabled" />
+            <ObsScreenshotPanel :offline="!enabled" />
           </div>
         </ReadOnlyScope>
       </template>
