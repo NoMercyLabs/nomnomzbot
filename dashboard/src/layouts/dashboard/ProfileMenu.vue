@@ -91,7 +91,11 @@ async function leave(): Promise<void> {
 }
 
 function startPreview(target: ViewAsRole): Promise<void> {
-  return preview.start(target);
+  const login = current.value?.login;
+
+  return target === 'viewer' && login !== undefined
+    ? preview.start(target, { login })
+    : preview.start(target);
 }
 </script>
 

@@ -17,12 +17,14 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 
 import ViewerNav from '@/views/viewer/nav/ViewerNav.vue';
 
+import ViewAsBanner from './dashboard/ViewAsBanner.vue';
 import ViewerChannelFinder from './dashboard/ViewerChannelFinder.vue';
 </script>
 
 <template>
   <TooltipProvider :delay-duration="300">
     <div class="min-h-svh bg-background text-foreground">
+      <ViewAsBanner />
       <header class="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-4">
         <span class="flex items-center gap-2 text-base font-semibold">
           <AppMark />

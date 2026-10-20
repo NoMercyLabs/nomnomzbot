@@ -23,14 +23,21 @@ export const viewAsHeader = 'X-View-As';
 // The role the owner looks through. Empty means no preview. The bot caps every answer at this role.
 export const viewAs: Ref<ViewAsRole | ''> = useLocalStorage<ViewAsRole | ''>('nnz.viewAs', '');
 
+// The page the owner left to look as a viewer. Exit goes back to it. Empty means the preview stayed on its page.
+const viewAsReturn: Ref<string> = useLocalStorage<string>('nnz.viewAs.return', '');
+
+// The viewer shell of the owner's own channel, where a viewer preview opens.
+export type ViewAsShell = { login: string };
+
 export type ViewAsControl = {
   role: Ref<ViewAsRole | ''>;
-  start: (role: ViewAsRole) => Promise<void>;
+  start: (role: ViewAsRole, shell?: ViewAsShell) => Promise<void>;
   exit: () => Promise<void>;
 };
 
 // Every answer on screen depends on the role, so a change drops them all and the open pages ask again.
 // Then the open page is checked again for the new role: a page it may not open gives way to one it may.
+// A viewer preview with a shell opens that channel's viewer pages instead, and Exit returns to the page left.
 export function useViewAs() {
   const router = hasInjectionContext()
     ? useRouter()
@@ -45,9 +52,37 @@ export function useViewAs() {
     }
   }
 
+  async function start(role: ViewAsRole, shell?: ViewAsShell): Promise<void> {
+    if (router === undefined || shell === undefined || role !== 'viewer') {
+      await change(role);
+
+      return;
+    }
+
+    viewAsReturn.value = router.currentRoute.value.fullPath;
+    viewAs.value = role;
+    await queryClient.invalidateQueries();
+    await router.push({ name: 'viewer-me', params: { channel: shell.login } });
+  }
+
+  async function exit(): Promise<void> {
+    const back = viewAsReturn.value;
+
+    if (router === undefined || back === '') {
+      await change('');
+
+      return;
+    }
+
+    viewAsReturn.value = '';
+    viewAs.value = '';
+    await queryClient.invalidateQueries();
+    await router.push(back);
+  }
+
   return {
     role: viewAs,
-    start: (role) => change(role),
-    exit: () => change(''),
+    start,
+    exit,
   } as const satisfies ViewAsControl;
 }
