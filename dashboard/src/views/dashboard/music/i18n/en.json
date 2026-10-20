@@ -109,15 +109,18 @@
         "allow": "Allow",
         "allowRow": "Allow {title}",
         "allowed": "{title} can be requested again.",
-        "notYet": "Not available yet.",
-        "missing": {
-          "cost": "Cost",
-          "words": "Blocked words"
+        "tabs": {
+          "requests": "Requests",
+          "sources": "Sources",
+          "blocked": "Blocked"
         },
+        "queue": "Queue",
+        "perPersonSection": "Per person",
+        "byRole": "By role",
+        "bangerPlaylist": "Playlist",
         "save": "Save",
         "discard": "Discard",
         "open": "Requests are open",
-        "limits": "Limits",
         "queueSize": "Songs in the queue, at most",
         "songSeconds": "Longest song (minutes:seconds)",
         "perStream": "Songs per person per stream",
@@ -152,7 +155,7 @@
           "Editor": "Editors and up",
           "Broadcaster": "Only me"
         },
-        "preferred": "Look here first",
+        "preferred": "Search first",
         "providers": {
           "auto": "Automatic",
           "spotify": "Spotify",

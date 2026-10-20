@@ -117,15 +117,18 @@
         "allow": "Toestaan",
         "allowRow": "{title} toestaan",
         "allowed": "{title} mag weer aangevraagd worden.",
-        "notYet": "Nog niet beschikbaar.",
-        "missing": {
-          "cost": "Kosten",
-          "words": "Geblokkeerde woorden"
+        "tabs": {
+          "requests": "Aanvragen",
+          "sources": "Bronnen",
+          "blocked": "Geblokkeerd"
         },
+        "queue": "Wachtrij",
+        "perPersonSection": "Per persoon",
+        "byRole": "Per rol",
+        "bangerPlaylist": "Afspeellijst",
         "save": "Opslaan",
         "discard": "Weggooien",
         "open": "Aanvragen staan open",
-        "limits": "Limieten",
         "queueSize": "Nummers in de wachtrij, maximaal",
         "perRoleHelp": "Nummers per persoon per rol. Laat een vak leeg voor de limiet hierboven.",
         "sameAsPerPerson": "Gelijk",

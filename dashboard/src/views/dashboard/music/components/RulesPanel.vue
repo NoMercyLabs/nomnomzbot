@@ -8,103 +8,33 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The request rules (mockup 15-music, panel 113-141): who may ask, one song per person, the blocked list.
+// The request rules (mockup 15-music, panel 113-141) in three tabs: Requests (who may ask and the limits),
+// Sources (the services and the banger playlist) and Blocked (the songs nobody may request).
 // Edits stay in a draft until Save; Discard drops the draft without a request. Only changed fields are sent.
-import { useTimeoutFn } from '@vueuse/core';
-import { computed, ref, useId, watch } from 'vue';
-import { useI18n } from 'vue-i18n';
+// Every tab stays mounted, so an edit made on one tab survives a visit to another.
+import { computed, ref, watch } from 'vue';
 
-import {
-  useBlockedTracks,
-  useBlockTrack,
-  useMusicConfig,
-  useMusicPlaylists,
-  useSaveMusicConfig,
-  useUnblockTrack,
-  type BlockedTrack,
-  type BlockTrack,
-  type MusicConfig,
-  type MusicConfigChange,
-} from '@/api/music';
-import DurationInput from '@/components/layout/DurationInput.vue';
-import KeyValueList from '@/components/layout/KeyValueList.vue';
-import type { KeyValueItem } from '@/components/layout/keyValueItem';
-import PanelCard from '@/components/layout/PanelCard.vue';
-import RowGroup from '@/components/layout/RowGroup.vue';
-import SummaryRow from '@/components/layout/SummaryRow.vue';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { RadioGroup, RadioGroupItem } from '@/components/ui/radio-group';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
-import { rungOf, rungs, useActionMatrix, useSetActionLevel, type RungName } from '@/api/permissions';
-import { musicProviders, musicRoleRungs, musicTrustLevels } from '@/api/vocabulary';
-import OptionSelect, { type Option } from '@/views/dashboard/settings/permissions/components/OptionSelect.vue';
-import GatedSwitch from '@/components/layout/GatedSwitch.vue';
+import { useMusicConfig, useSaveMusicConfig, type MusicConfig, type MusicConfigChange } from '@/api/music';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
+import PanelCard from '@/components/layout/PanelCard.vue';
+import { Button } from '@/components/ui/button';
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
-import { DEFAULT_UNDO_MS } from '@/composables/useInlineFlow';
 import { usePanelState } from '@/composables/usePanelState';
 
-import {
-  changeOf,
-  draftOf,
-  draftValid,
-  noPlaylist,
-  perStreamLimits,
-  playlistValue,
-  queueLimits,
-  requestLimits,
-  songSecondsLimits,
-  type RuleDraft,
-} from './requestRules';
+import { changeOf, draftOf, draftValid, type RuleDraft } from './requestRules';
+import RulesBlockedTab from './RulesBlockedTab.vue';
+import RulesRequestsTab from './RulesRequestsTab.vue';
+import RulesSourcesTab from './RulesSourcesTab.vue';
 
-const perPersonId = useId();
-const queueSizeId = useId();
-const songSecondsId = useId();
-const perStreamId = useId();
+const tabs = ['requests', 'sources', 'blocked'] as const;
+const tab = ref<(typeof tabs)[number]>('requests');
 
-const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const configQuery = useMusicConfig(channelId);
-const blockedQuery = useBlockedTracks(channelId);
-const playlistsQuery = useMusicPlaylists(channelId);
 const save = useSaveMusicConfig(channelId);
-const unblock = useUnblockTrack(channelId);
-const block = useBlockTrack(channelId);
-const matrix = useActionMatrix(channelId);
-const setLevel = useSetActionLevel(channelId);
-
-// Who may request from each service is the channel's role rule for that service's action key.
-const sourceActions = {
-  spotify: 'music:request:spotify',
-  youtube: 'music:request:youtube',
-} as const satisfies Record<string, string>;
-
-function sourceRung(actionKey: string): RungName | undefined {
-  const row = matrix.data.value?.find((entry) => entry.actionKey === actionKey);
-
-  return row
-    ? rungOf(row.effectiveLevel)
-    : undefined;
-}
-
-const rungOptions = computed<Option[]>(() =>
-  rungs.map((rung) => ({
-    value: rung.name,
-    label: t(`dashboard.music.rules.sourceRole.${rung.name}`),
-  })));
-
-function setSourceRung(actionKey: string, rung: string): void {
-  setLevel.mutate({ actionKey, rung: rung as RungName });
-}
 
 const state = usePanelState(configQuery, (config: MusicConfig | null): boolean =>
   config === null);
@@ -154,58 +84,6 @@ function discard(): void {
     ? draftOf(config)
     : null;
 }
-
-const blocked = computed<BlockedTrack[]>(() => blockedQuery.data.value ?? []);
-
-// Allow takes the row out at once; the notice below keeps the song for a short window so Undo can block it again.
-const allowed = ref<BlockedTrack | null>(null);
-const undoWindow = useTimeoutFn(
-  () => {
-    allowed.value = null;
-  },
-  DEFAULT_UNDO_MS,
-  { immediate: false },
-);
-
-function allow(track: BlockedTrack): void {
-  allowed.value = track;
-  unblock.mutate({ blockedTrackId: track.id });
-  undoWindow.start();
-}
-
-function undoAllow(): void {
-  const track = allowed.value;
-
-  if (track === null) return;
-
-  undoWindow.stop();
-  allowed.value = null;
-  const body: BlockTrack = {
-    provider: track.provider,
-    trackUri: track.trackUri,
-    title: track.title,
-  };
-
-  if (track.reason) {
-    body.reason = track.reason;
-  }
-
-  if (track.blockedByUserId) {
-    body.blockedByUserId = track.blockedByUserId;
-  }
-
-  block.mutate(body);
-}
-
-const missing = computed<KeyValueItem[]>(() =>
-  ['cost', 'words'].map(
-    (key) =>
-      ({
-        label: t(`dashboard.music.rules.missing.${key}`),
-        reason: t('dashboard.music.rules.notYet'),
-      }) as const satisfies KeyValueItem,
-  ),
-);
 </script>
 
 <template>
@@ -228,261 +106,22 @@ const missing = computed<KeyValueItem[]>(() =>
         @update:model-value="setRequestsOpen"
       />
     </template>
-    <div v-if="draft" class="grid gap-5">
-      <fieldset class="contents" :disabled="!can('music:config:write')">
-        <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.who')">
-          <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.who") }}</h3>
-          <RadioGroup v-model="draft.minTrustLevel" class="gap-2">
-            <label
-              v-for="level in musicTrustLevels"
-              :key="level"
-              class="flex items-center gap-2 text-sm"
-            >
-              <RadioGroupItem :value="level" />
-              {{ $t(`dashboard.music.rules.levels.${level}`) }}
-            </label>
-          </RadioGroup>
-        </section>
-        <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.limits')">
-          <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.limits") }}</h3>
-          <div class="flex items-center gap-3">
-            <label :for="queueSizeId" class="min-w-0 flex-1 text-sm">{{
-              $t("dashboard.music.rules.queueSize")
-            }}</label>
-            <Input
-              :id="queueSizeId"
-              v-model.number="draft.maxQueueSize"
-              name="queue-size"
-              type="number"
-              :min="queueLimits.min"
-              :max="queueLimits.max"
-              step="1"
-              :aria-invalid="!valid || undefined"
-              class="w-20"
-            />
-          </div>
-          <div class="flex items-center gap-3">
-            <span class="min-w-0 flex-1">
-              <label :for="perPersonId" class="block text-sm">{{
-                $t("dashboard.music.rules.perPerson")
-              }}</label>
-              <span class="block text-sm text-muted-foreground">{{
-                $t("dashboard.music.rules.perPersonHelp")
-              }}</span>
-            </span>
-            <Input
-              :id="perPersonId"
-              v-model.number="draft.perPerson"
-              name="songs-per-person"
-              type="number"
-              :min="requestLimits.min"
-              :max="requestLimits.max"
-              step="1"
-              :aria-invalid="!valid || undefined"
-              class="w-20"
-            />
-          </div>
-          <div class="flex items-center gap-3">
-            <label :for="songSecondsId" class="min-w-0 flex-1 text-sm">{{
-              $t("dashboard.music.rules.songSeconds")
-            }}</label>
-            <DurationInput
-              :id="songSecondsId"
-              v-model="draft.maxSongSeconds"
-              name="song-seconds"
-              :min="songSecondsLimits.min"
-              :max="songSecondsLimits.max"
-              class="w-20"
-            />
-          </div>
-          <div class="flex items-center gap-3">
-            <span class="min-w-0 flex-1">
-              <label :for="perStreamId" class="block text-sm">{{
-                $t("dashboard.music.rules.perStream")
-              }}</label>
-              <span class="block text-sm text-muted-foreground">{{
-                $t("dashboard.music.rules.perStreamHelp")
-              }}</span>
-            </span>
-            <Input
-              :id="perStreamId"
-              v-model.number="draft.perStreamLimit"
-              name="per-stream-limit"
-              type="number"
-              :min="perStreamLimits.min"
-              :max="perStreamLimits.max"
-              step="1"
-              :aria-invalid="!valid || undefined"
-              class="w-20"
-            />
-          </div>
-          <label class="flex items-center gap-3 text-sm">
-            <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowExplicit") }}</span>
-            <GatedSwitch
-              v-model="draft.allowExplicit"
-              action="music:config:write"
-              data-setting="allow-explicit"
-            />
-          </label>
-          <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.perRoleHelp") }}</p>
-          <label v-for="rung in musicRoleRungs" :key="rung" class="flex items-center gap-3 text-sm">
-            <span class="min-w-0 flex-1">{{ $t(`dashboard.music.rules.roles.${rung}`) }}</span>
-            <Input
-              v-model="draft.roleCaps[rung]"
-              :name="`songs-role-${rung}`"
-              type="number"
-              :min="requestLimits.min"
-              :max="requestLimits.max"
-              step="1"
-              :placeholder="$t('dashboard.music.rules.sameAsPerPerson')"
-              :aria-invalid="!valid || undefined"
-              class="w-20"
-            />
-          </label>
-        </section>
-        <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.sources')">
-          <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.sources") }}</h3>
-          <label class="flex items-center gap-3 text-sm">
-            <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowSpotify") }}</span>
-            <GatedSwitch
-              v-model="draft.allowSpotify"
-              action="music:config:write"
-              data-setting="allow-spotify"
-            />
-          </label>
-          <div v-if="draft.allowSpotify" class="flex items-center gap-3 text-sm">
-            <span class="min-w-0 flex-1 text-muted-foreground">{{
-              $t("dashboard.music.rules.whoSpotify")
-            }}</span>
-            <OptionSelect
-              :model-value="sourceRung(sourceActions.spotify)"
-              :options="rungOptions"
-              :label="$t('dashboard.music.rules.whoSpotify')"
-              :disabled="!can('roles:manage') || setLevel.isPending.value"
-              data-setting="who-spotify"
-              @update:model-value="setSourceRung(sourceActions.spotify, $event)"
-            />
-          </div>
-          <label class="flex items-center gap-3 text-sm">
-            <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.allowYouTube") }}</span>
-            <GatedSwitch
-              v-model="draft.allowYouTube"
-              action="music:config:write"
-              data-setting="allow-youtube"
-            />
-          </label>
-          <div v-if="draft.allowYouTube" class="flex items-center gap-3 text-sm">
-            <span class="min-w-0 flex-1 text-muted-foreground">{{
-              $t("dashboard.music.rules.whoYouTube")
-            }}</span>
-            <OptionSelect
-              :model-value="sourceRung(sourceActions.youtube)"
-              :options="rungOptions"
-              :label="$t('dashboard.music.rules.whoYouTube')"
-              :disabled="!can('roles:manage') || setLevel.isPending.value"
-              data-setting="who-youtube"
-              @update:model-value="setSourceRung(sourceActions.youtube, $event)"
-            />
-          </div>
-          <label v-if="draft.allowYouTube" class="flex items-center gap-3 text-sm">
-            <span class="min-w-0 flex-1 text-muted-foreground">{{
-              $t("dashboard.music.rules.youTubeMusicOnly")
-            }}</span>
-            <GatedSwitch
-              v-model="draft.youTubeMusicCategoryOnly"
-              action="music:config:write"
-              data-setting="youtube-music-only"
-            />
-          </label>
-          <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.preferred") }}</p>
-          <RadioGroup v-model="draft.preferredProvider" class="gap-2">
-            <label
-              v-for="provider in musicProviders"
-              :key="provider"
-              class="flex items-center gap-2 text-sm"
-            >
-              <RadioGroupItem :value="provider" />
-              {{ $t(`dashboard.music.rules.providers.${provider}`) }}
-            </label>
-          </RadioGroup>
-        </section>
-        <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.banger')">
-          <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.banger") }}</h3>
-          <p class="text-sm text-muted-foreground">{{ $t("dashboard.music.rules.bangerHelp") }}</p>
-          <Select v-model="draft.bangerPlaylist">
-            <SelectTrigger
-              data-setting="banger-playlist"
-              :aria-label="$t('dashboard.music.rules.banger')"
-              class="w-full"
-            >
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              <SelectItem :value="noPlaylist">{{
-                $t("dashboard.music.rules.bangerAuto")
-              }}</SelectItem>
-              <SelectItem
-                v-for="playlist in playlistsQuery.data.value ?? []"
-                :key="playlist.id"
-                :value="playlistValue(playlist.provider, playlist.id)"
-              >
-                {{ playlist.name }}
-              </SelectItem>
-            </SelectContent>
-          </Select>
-          <label class="flex items-center gap-3 text-sm">
-            <span class="min-w-0 flex-1">{{ $t("dashboard.music.rules.bangerAutoCreate") }}</span>
-            <GatedSwitch
-              v-model="draft.bangerAutoCreate"
-              action="music:config:write"
-              data-setting="banger-auto-create"
-            />
-          </label>
-        </section>
-      </fieldset>
-      <section class="grid gap-2" :aria-label="$t('dashboard.music.rules.blocked')">
-        <h3 class="text-sm font-medium">{{ $t("dashboard.music.rules.blocked") }}</h3>
-        <p v-if="blockedQuery.isError.value" role="alert" class="text-sm text-destructive">
-          {{ $t("dashboard.music.rules.blockedError") }}
-        </p>
-        <p
-          v-else-if="!blockedQuery.isPending.value && blocked.length === 0"
-          class="text-sm text-muted-foreground"
-        >
-          {{ $t("dashboard.music.rules.blockedEmpty") }}
-        </p>
-        <RowGroup v-if="blocked.length > 0">
-          <SummaryRow
-            v-for="track in blocked"
-            :key="track.id"
-            :title="track.title"
-            :detail="track.reason ?? undefined"
-            data-blocked-item
-          >
-            <template v-if="can('music:queue:moderate')" #trailing>
-              <Button
-                variant="outline"
-                size="sm"
-                class="border-border"
-                :aria-label="$t('dashboard.music.rules.allowRow', { title: track.title })"
-                @click="allow(track)"
-              >
-                {{ $t("dashboard.music.rules.allow") }}
-              </Button>
-            </template>
-          </SummaryRow>
-        </RowGroup>
-        <p v-if="allowed" role="status" class="flex items-center gap-2 text-sm">
-          <span class="min-w-0 flex-1">{{
-            $t("dashboard.music.rules.allowed", { title: allowed.title })
-          }}</span>
-          <Button variant="outline" size="sm" @click="undoAllow">{{
-            $t("common.flow.undo")
-          }}</Button>
-        </p>
-      </section>
-      <KeyValueList :items="missing" />
-    </div>
+    <Tabs v-if="draft" v-model="tab" class="gap-4">
+      <TabsList class="w-full">
+        <TabsTrigger v-for="name in tabs" :key="name" :value="name" :data-rules-tab="name">
+          {{ $t(`dashboard.music.rules.tabs.${name}`) }}
+        </TabsTrigger>
+      </TabsList>
+      <TabsContent value="requests" force-mount>
+        <RulesRequestsTab v-model="draft" :valid="valid" />
+      </TabsContent>
+      <TabsContent value="sources" force-mount>
+        <RulesSourcesTab v-model="draft" />
+      </TabsContent>
+      <TabsContent value="blocked" force-mount>
+        <RulesBlockedTab />
+      </TabsContent>
+    </Tabs>
     <template v-if="state === 'ready' && can('music:config:write')" #footer>
       <Button variant="outline" size="sm" :disabled="!dirty" @click="discard">{{
         $t("dashboard.music.rules.discard")

@@ -247,7 +247,48 @@ async function pickPlaylist(name: string, setting = 'banger-playlist'): Promise<
 const puts = (): Call[] => calls.filter((call) => call.method === 'PUT');
 
 describe('RulesPanel', () => {
-  it('shows the saved rules, the blocked songs and what cannot be set yet', async () => {
+  it('groups the rules into three tabs and titles every section', async () => {
+    await open();
+
+    const tabs = [...document.body.querySelectorAll('[role="tab"]')].map((tab) =>
+      tab.textContent?.trim());
+
+    expect(tabs).toEqual(['Requests', 'Sources', 'Blocked']);
+
+    const sections = [...document.body.querySelectorAll('[data-rules-section] > h3')].map((h) =>
+      h.textContent?.trim());
+
+    expect(sections).toEqual([
+      'Who may request',
+      'Queue',
+      'Per person',
+      'By role',
+      'Sources',
+      'Search first',
+      'Banger playlist',
+      'Blocked songs',
+    ]);
+  });
+
+  it('keeps each setting in its section', async () => {
+    await open();
+    const within = (title: string, selector: string): boolean =>
+      [...document.body.querySelectorAll('[data-rules-section]')]
+        .find((section) => section.querySelector('h3')?.textContent?.trim() === title)
+        ?.querySelector(selector) != null;
+
+    expect(within('Queue', 'input[name="queue-size"]')).toBe(true);
+    expect(within('Queue', 'input[name="song-seconds"]')).toBe(true);
+    expect(within('Per person', 'input[name="songs-per-person"]')).toBe(true);
+    expect(within('By role', 'input[name="songs-role-vip"]')).toBe(true);
+    expect(within('Sources', '[data-setting="allow-explicit"]')).toBe(false);
+    expect(within('Queue', '[data-setting="allow-explicit"]')).toBe(true);
+    expect(within('Sources', '[data-setting="allow-spotify"]')).toBe(true);
+    expect(within('Banger playlist', '[data-setting="banger-playlist"]')).toBe(true);
+    expect(within('Blocked songs', '[data-blocked-item]')).toBe(true);
+  });
+
+  it('shows the saved rules and the blocked songs, and no list of settings that cannot work yet', async () => {
     await open();
 
     expect(radio('moderators').getAttribute('aria-checked')).toBe('true');
@@ -260,7 +301,7 @@ describe('RulesPanel', () => {
 
     expect(text).toContain('Never Gonna Give You Up');
     expect(text).toContain('Baby Shark');
-    expect(text).toContain('Not available yet');
+    expect(text).not.toContain('Not available yet');
     expect(numberInput('song-seconds').value).toBe('6:00');
     expect(numberInput('per-stream-limit').value).toBe('0');
     expect(buttonIn('Save').disabled).toBe(true);
