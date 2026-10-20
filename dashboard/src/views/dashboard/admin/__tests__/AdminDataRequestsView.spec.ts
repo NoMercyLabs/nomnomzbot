@@ -166,11 +166,37 @@ const byText = (selector: string, label: string): HTMLElement | undefined =>
     (node) => node.textContent?.trim() === label,
   );
 
-async function pick(selector: string, value: string): Promise<void> {
-  const field = document.body.querySelector<HTMLSelectElement>(selector)!;
+async function openSelect(selector: string): Promise<HTMLElement[]> {
+  // jsdom lacks these three; the select calls them when it opens.
+  Element.prototype.hasPointerCapture = (): boolean => false;
+  Element.prototype.releasePointerCapture = (): void => undefined;
+  Element.prototype.scrollIntoView = (): void => undefined;
 
-  field.value = value;
-  field.dispatchEvent(new Event('change'));
+  document.body.querySelector<HTMLElement>(selector)!.dispatchEvent(
+    new PointerEvent('pointerdown', {
+      bubbles: true,
+      button: 0,
+      pointerType: 'mouse',
+    }),
+  );
+
+  await settle();
+
+  return [...document.body.querySelectorAll<HTMLElement>('[role="option"]')];
+}
+
+async function pick(selector: string, label: string): Promise<void> {
+  const option = (await openSelect(selector)).find((node) => node.textContent?.trim() === label)!;
+
+  option.dispatchEvent(
+    new PointerEvent('pointerup', {
+      bubbles: true,
+      button: 0,
+      pointerType: 'mouse',
+    }),
+  );
+
+  option.click();
   await settle();
 }
 
@@ -178,11 +204,43 @@ describe('AdminDataRequestsView', () => {
   it('shows the ledger counts and one row per request with its status, type and failure reason', async () => {
     await open();
 
-    expect(document.body.querySelector('[data-summary]')?.textContent).toContain('5');
     expect(document.body.querySelectorAll('[data-request-row]')).toHaveLength(2);
     expect(text()).toContain('hash-failed');
     expect(text()).toContain('database offline');
     expect(text()).toContain('42');
+  });
+
+  it('words each row in plain terms: who asked, and rows exported or erased', async () => {
+    await open();
+
+    const rows = [...document.body.querySelectorAll('[data-request-row]')].map(
+      (row) => row.textContent ?? '',
+    );
+
+    expect(rows[0]).toContain('Requested by a platform admin');
+    expect(rows[0]).toContain('0 rows erased');
+    expect(rows[1]).toContain('Requested by the person themselves');
+    expect(rows[1]).toContain('42 rows exported');
+    expect(text()).not.toContain('self_service');
+    expect(text()).not.toContain('rows changed');
+  });
+
+  it('puts the ledger counts on the status filter and drops the ledger card', async () => {
+    await open();
+
+    expect(document.body.querySelector('[data-summary]')).toBeNull();
+
+    const options = (await openSelect('[data-status-filter]')).map((option) =>
+      option.textContent?.trim());
+
+    expect(options).toEqual([
+      'All statuses (5)',
+      'Pending (1)',
+      'Running (0)',
+      'Completed (3)',
+      'Failed (1)',
+      'Canceled (0)',
+    ]);
   });
 
   it('shows no subject identity, only the hash', async () => {
@@ -199,7 +257,7 @@ describe('AdminDataRequestsView', () => {
 
   it('sends the chosen status and type to the list and remembers the status across a remount', async () => {
     await open();
-    await pick('[data-status-filter]', 'failed');
+    await pick('[data-status-filter]', 'Failed (1)');
 
     const list = calls.filter((call) => call.path.endsWith('/compliance/erasure')).at(-1)!;
 

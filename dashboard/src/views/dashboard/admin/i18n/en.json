@@ -843,22 +843,67 @@
           "title": "Service health",
           "description": "Read from the running bot. A new status arrives by itself.",
           "overall": "Overall",
-          "latency": "{ms} ms",
+          "latency": "Took {seconds} s",
           "empty": "No service reported a status.",
           "error": "The system status could not load."
+        },
+        "checks": {
+          "api": {
+            "name": "Bot API",
+            "meaning": "The server that answers the dashboard and the bot."
+          },
+          "postgresql": {
+            "name": "Database",
+            "meaning": "The database that stores every channel and setting."
+          },
+          "sqlite": {
+            "name": "Database",
+            "meaning": "The database that stores every channel and setting."
+          },
+          "redis": {
+            "name": "Shared cache",
+            "meaning": "Fast storage that lets several bot servers share live data."
+          },
+          "cache": {
+            "name": "Cache",
+            "meaning": "Fast storage inside the bot for live data."
+          },
+          "pending-migrations": {
+            "name": "Database upgrades",
+            "meaning": "Whether the database structure matches this version of the bot."
+          },
+          "eventsub": {
+            "name": "Twitch events",
+            "meaning": "Whether Twitch is sending this bot its live events, like follows and raids."
+          },
+          "eventsub-handover": {
+            "name": "Twitch events after an update",
+            "meaning": "Whether a freshly updated bot has taken over the Twitch event stream."
+          },
+          "shutdown": {
+            "name": "Restart in progress",
+            "meaning": "Healthy means the bot is running normally and is not shutting down."
+          },
+          "bot": {
+            "name": "Twitch bot account",
+            "meaning": "Whether the bot account is signed in and can speak in chat."
+          }
         },
         "process": {
           "title": "Running bot",
           "description": "The process that serves this deployment.",
           "version": "Version",
           "uptime": "Uptime",
-          "uptimeValue": "{days}d {hours}h {minutes}m",
+          "uptimeDays": "{days} d {hours} h",
+          "uptimeHours": "{hours} h {minutes} min",
+          "uptimeMinutes": "{minutes} min",
+          "uptimeUnderMinute": "Under 1 min",
           "memory": "Memory",
           "memoryValue": "{mb} MB",
           "cpu": "Processor",
           "cpuValue": "{percent}%",
           "events": "Events today",
-          "channels": "Active channels",
+          "channels": "Live channels",
           "channelsContext": "of {total} registered",
           "users": "Known users"
         },

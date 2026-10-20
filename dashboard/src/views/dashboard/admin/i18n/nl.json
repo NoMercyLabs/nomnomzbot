@@ -843,22 +843,67 @@
           "title": "Gezondheid van de services",
           "description": "Gelezen van de draaiende bot. Een nieuwe status komt vanzelf binnen.",
           "overall": "Totaal",
-          "latency": "{ms} ms",
+          "latency": "Duurde {seconds} s",
           "empty": "Geen enkele service meldde een status.",
           "error": "De systeemstatus kon niet laden."
+        },
+        "checks": {
+          "api": {
+            "name": "Bot-API",
+            "meaning": "De server die het dashboard en de bot antwoord geeft."
+          },
+          "postgresql": {
+            "name": "Database",
+            "meaning": "De database die elk kanaal en elke instelling bewaart."
+          },
+          "sqlite": {
+            "name": "Database",
+            "meaning": "De database die elk kanaal en elke instelling bewaart."
+          },
+          "redis": {
+            "name": "Gedeeld geheugen",
+            "meaning": "Snelle opslag waarmee meerdere botservers live gegevens delen."
+          },
+          "cache": {
+            "name": "Geheugen",
+            "meaning": "Snelle opslag in de bot voor live gegevens."
+          },
+          "pending-migrations": {
+            "name": "Database-upgrades",
+            "meaning": "Of de opbouw van de database bij deze versie van de bot past."
+          },
+          "eventsub": {
+            "name": "Twitch-events",
+            "meaning": "Of Twitch de live events naar deze bot stuurt, zoals follows en raids."
+          },
+          "eventsub-handover": {
+            "name": "Twitch-events na een update",
+            "meaning": "Of een net bijgewerkte bot de Twitch-eventstroom heeft overgenomen."
+          },
+          "shutdown": {
+            "name": "Herstart bezig",
+            "meaning": "Gezond betekent dat de bot normaal draait en niet afsluit."
+          },
+          "bot": {
+            "name": "Twitch-botaccount",
+            "meaning": "Of het botaccount is ingelogd en in de chat kan praten."
+          }
         },
         "process": {
           "title": "Draaiende bot",
           "description": "Het proces dat deze installatie bedient.",
           "version": "Versie",
           "uptime": "Draaitijd",
-          "uptimeValue": "{days}d {hours}u {minutes}m",
+          "uptimeDays": "{days} d {hours} u",
+          "uptimeHours": "{hours} u {minutes} min",
+          "uptimeMinutes": "{minutes} min",
+          "uptimeUnderMinute": "Minder dan 1 min",
           "memory": "Geheugen",
           "memoryValue": "{mb} MB",
           "cpu": "Processor",
           "cpuValue": "{percent}%",
           "events": "Events vandaag",
-          "channels": "Actieve kanalen",
+          "channels": "Kanalen live",
           "channelsContext": "van {total} geregistreerd",
           "users": "Bekende gebruikers"
         },

@@ -11,7 +11,7 @@
 -->
 <script setup lang="ts">
 // Data requests: the platform ledger of export, erasure and opt-out requests, newest first, with the
-// counts by status. An operator retries a failed erasure after the counted blast radius is shown.
+// counts by status on the status filter. An operator retries a failed erasure after the counted blast radius is shown.
 // A subject shows as a hash, never by name. A change arrives over the admin hub.
 import { useLocalStorage } from '@vueuse/core';
 import { computed, ref } from 'vue';
@@ -30,6 +30,13 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 import { useTime } from '@/composables/useTime';
@@ -43,7 +50,7 @@ const statusLabelKey = (key: string) =>
     : key}`;
 const types = ['erasure', 'export', 'opt_out'] as const;
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 const time = useTime();
 const { can } = usePlatformCan();
 
@@ -64,20 +71,27 @@ const retry = useRetryErasure();
 
 const listState = usePanelState(requests, (rows) =>
   rows.length === 0);
-const summaryState = usePanelState(summary);
 
-const counts = computed(() => {
+const statusOptions = computed(() => {
   const data = summary.data.value;
+  const counted = (label: string, count: string | number | undefined): string =>
+    count === undefined
+      ? label
+      : t('dashboard.admin.dataRequests.filters.statusOption', { label, count });
 
   return [
     {
-      key: 'total',
-      count: data?.total ?? 0,
+      key: 'all',
+      label: counted(t('dashboard.admin.dataRequests.status.all'), data?.total),
     },
-    ...statuses.map((key) => ({
-      key,
-      count: data?.[key] ?? 0,
-    })),
+    ...statuses.map((key) => {
+      const label = t(statusLabelKey(key));
+
+      return {
+        key,
+        label: counted(label, data?.[key]),
+      };
+    }),
   ];
 });
 
@@ -103,6 +117,27 @@ const error = computed<string | undefined>(() => failure.value ?? undefined);
 
 function hashOf(row: ErasureRequest): string {
   return row.subjectIdHash.slice(0, 12);
+}
+
+function requesterOf(row: ErasureRequest): string {
+  const key = `dashboard.admin.dataRequests.requestedBy.${row.requestedBy}`;
+
+  return t('dashboard.admin.dataRequests.list.by', {
+    by: te(key)
+      ? t(key)
+      : row.requestedBy,
+  });
+}
+
+function rowsOf(row: ErasureRequest): string {
+  const key = `dashboard.admin.dataRequests.list.rows.${row.requestType}`;
+
+  return t(
+    te(key)
+      ? key
+      : 'dashboard.admin.dataRequests.list.rows.opt_out',
+    { count: row.rowsAffected },
+  );
 }
 
 function when(value: string): string {
@@ -135,51 +170,36 @@ async function submit(): Promise<void> {
 <template>
   <PageHeader :title="$t('dashboard.admin.dataRequests.title')" :crumb="$t('dashboard.admin.crumb')" />
   <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
-    <PanelCard
-      tier="quiet"
-      :title="$t('dashboard.admin.dataRequests.summary.title')"
-      :description="$t('dashboard.admin.dataRequests.summary.description')"
-      :state="summaryState"
-      :error-text="$t('dashboard.admin.dataRequests.list.error')"
-      @retry="summary.refetch()"
-    >
-      <dl data-summary class="flex flex-wrap gap-x-6 gap-y-2">
-        <div v-for="item in counts" :key="item.key" class="grid gap-0.5">
-          <dt class="text-xs text-muted-foreground">
-            {{
-              item.key === "total"
-                ? $t("dashboard.admin.dataRequests.summary.total")
-                : $t(statusLabelKey(item.key))
-            }}
-          </dt>
-          <dd class="text-lg font-semibold tabular-nums">{{ item.count }}</dd>
-        </div>
-      </dl>
-    </PanelCard>
-
     <div class="flex flex-wrap items-center gap-2">
-      <select
-        v-model="status"
-        data-status-filter
-        :aria-label="$t('dashboard.admin.dataRequests.filters.status')"
-        class="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-      >
-        <option value="all">{{ $t("dashboard.admin.dataRequests.status.all") }}</option>
-        <option v-for="key in statuses" :key="key" :value="key">
-          {{ $t(statusLabelKey(key)) }}
-        </option>
-      </select>
-      <select
-        v-model="requestType"
-        data-type-filter
-        :aria-label="$t('dashboard.admin.dataRequests.filters.type')"
-        class="h-9 rounded-md border border-input bg-transparent px-3 text-sm"
-      >
-        <option value="all">{{ $t("dashboard.admin.dataRequests.type.all") }}</option>
-        <option v-for="key in types" :key="key" :value="key">
-          {{ $t(`dashboard.admin.dataRequests.type.${key}`) }}
-        </option>
-      </select>
+      <Select v-model="status">
+        <SelectTrigger
+          data-status-filter
+          :aria-label="$t('dashboard.admin.dataRequests.filters.status')"
+          class="w-48"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem v-for="option in statusOptions" :key="option.key" :value="option.key">
+            {{ option.label }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
+      <Select v-model="requestType">
+        <SelectTrigger
+          data-type-filter
+          :aria-label="$t('dashboard.admin.dataRequests.filters.type')"
+          class="w-40"
+        >
+          <SelectValue />
+        </SelectTrigger>
+        <SelectContent>
+          <SelectItem value="all">{{ $t("dashboard.admin.dataRequests.type.all") }}</SelectItem>
+          <SelectItem v-for="key in types" :key="key" :value="key">
+            {{ $t(`dashboard.admin.dataRequests.type.${key}`) }}
+          </SelectItem>
+        </SelectContent>
+      </Select>
     </div>
 
     <PanelCard
@@ -206,10 +226,8 @@ async function submit(): Promise<void> {
               }}</span>
             </span>
             <span class="flex flex-wrap gap-x-3 text-xs text-muted-foreground">
-              <span>{{ $t("dashboard.admin.dataRequests.list.by", { by: row.requestedBy }) }}</span>
-              <span>{{
-                $t("dashboard.admin.dataRequests.list.rows", { count: row.rowsAffected })
-              }}</span>
+              <span>{{ requesterOf(row) }}</span>
+              <span>{{ rowsOf(row) }}</span>
               <span>{{
                 $t("dashboard.admin.dataRequests.list.requested", { when: when(row.requestedAt) })
               }}</span>
