@@ -37,6 +37,17 @@ internal sealed class SoundClipOverlayNotifierAdapter : ISoundClipOverlayNotifie
             ct
         );
 
+    public Task PlayTtsAsync(
+        Guid broadcasterId,
+        SoundPlaybackDto playback,
+        CancellationToken ct = default
+    ) =>
+        _notifier.PlayTtsClipAsync(
+            broadcasterId.ToString(),
+            new(playback.PlaybackUrl, playback.Volume, playback.Handle, playback.Synced),
+            ct
+        );
+
     public Task StopSoundAsync(
         Guid broadcasterId,
         string? handle,

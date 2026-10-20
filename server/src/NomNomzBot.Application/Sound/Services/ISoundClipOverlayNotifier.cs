@@ -22,6 +22,13 @@ public interface ISoundClipOverlayNotifier
         CancellationToken ct = default
     );
 
+    /// <summary>Plays a synthesized TTS clip on the channel's TTS page, never on the Audio source page.</summary>
+    Task PlayTtsAsync(
+        Guid broadcasterId,
+        SoundPlaybackDto playback,
+        CancellationToken ct = default
+    ) => Task.CompletedTask;
+
     Task StopSoundAsync(
         Guid broadcasterId,
         string? handle,

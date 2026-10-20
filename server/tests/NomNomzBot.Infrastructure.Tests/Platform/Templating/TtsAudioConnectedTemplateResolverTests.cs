@@ -21,7 +21,7 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Templating;
 
 /// <summary>
 /// Proves <c>{tts.audioconnected}</c> reads the live overlay presence of the channel it renders for:
-/// "true" only while an Audio Source page is open for that channel, so a pipeline can refund a TTS
+/// "true" only while a TTS Caption page is open for that channel, so a pipeline can refund a TTS
 /// reward when nobody can hear it.
 /// </summary>
 public sealed class TtsAudioConnectedTemplateResolverTests
@@ -39,8 +39,12 @@ public sealed class TtsAudioConnectedTemplateResolverTests
 
         public string? GetAudioTarget(Guid broadcasterId) => null;
 
+        public HashSet<Guid> TtsSources { get; } = [];
+
         public bool IsAudioSourceConnected(Guid broadcasterId) =>
             AudioSources.Contains(broadcasterId);
+
+        public bool IsTtsSourceConnected(Guid broadcasterId) => TtsSources.Contains(broadcasterId);
     }
 
     private readonly FakePresence _presence = new();
@@ -65,23 +69,24 @@ public sealed class TtsAudioConnectedTemplateResolverTests
         _resolver.ResolveAsync("{tts.audioconnected}", new Dictionary<string, string>(), channel);
 
     [Fact]
-    public async Task Tts_audioconnected_is_false_when_no_audio_source_page_is_open_and_true_when_one_is()
+    public async Task Tts_audioconnected_is_true_only_while_a_tts_caption_page_is_open()
     {
-        string before = await ResolveAsync(Channel);
         _presence.AudioSources.Add(Channel);
+        string audioOnly = await ResolveAsync(Channel);
+        _presence.TtsSources.Add(Channel);
         string whileOpen = await ResolveAsync(Channel);
-        _presence.AudioSources.Remove(Channel);
+        _presence.TtsSources.Remove(Channel);
         string after = await ResolveAsync(Channel);
 
-        before.Should().Be("false");
+        audioOnly.Should().Be("false");
         whileOpen.Should().Be("true");
         after.Should().Be("false");
     }
 
     [Fact]
-    public async Task An_audio_source_page_of_another_channel_does_not_count()
+    public async Task A_tts_caption_page_of_another_channel_does_not_count()
     {
-        _presence.AudioSources.Add(OtherChannel);
+        _presence.TtsSources.Add(OtherChannel);
 
         string resolved = await ResolveAsync(Channel);
 

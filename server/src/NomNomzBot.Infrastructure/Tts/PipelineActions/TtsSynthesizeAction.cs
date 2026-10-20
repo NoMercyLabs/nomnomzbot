@@ -117,9 +117,9 @@ public sealed class TtsSynthesizeAction : ICommandAction
 
         // Checked before any synthesis: with nothing to play on, the caller must learn it now (a chat reply
         // and a refund), not after a silent run that the stream never hears.
-        if (playOnAudio && !_presence.IsAudioSourceConnected(ctx.BroadcasterId))
+        if (playOnAudio && !_presence.IsTtsSourceConnected(ctx.BroadcasterId))
             return ActionResult.Failure(
-                "tts_synthesize: no Audio overlay is connected, so the speech cannot be heard on stream."
+                "tts_synthesize: no TTS Caption overlay is connected, so the speech cannot be heard on stream."
             );
 
         string template = action.GetString("text") ?? string.Empty;
@@ -222,15 +222,15 @@ public sealed class TtsSynthesizeAction : ICommandAction
         ctx.Variables["tts.voiceId"] = synth.VoiceId;
 
         if (playOnAudio)
-            await PlayOnAudioBusAsync(ctx, url.Value, synth.DurationMs);
+            await PlayOnTtsPageAsync(ctx, url.Value, synth.DurationMs);
 
         return ActionResult.Success(
             $"tts_synthesize:{synth.VoiceId} durationMs={synth.DurationMs}"
         );
     }
 
-    /// <summary>Sends the clip to the routed Audio overlay at the channel's TTS volume (tts x master).</summary>
-    private async Task PlayOnAudioBusAsync(PipelineExecutionContext ctx, string url, int durationMs)
+    /// <summary>Sends the clip to the channel's TTS Caption page at the channel's TTS volume (tts x master).</summary>
+    private async Task PlayOnTtsPageAsync(PipelineExecutionContext ctx, string url, int durationMs)
     {
         Result<ChannelAudioMixDto> mix = await _mix.GetAsync(
             ctx.BroadcasterId,
@@ -238,7 +238,7 @@ public sealed class TtsSynthesizeAction : ICommandAction
         );
         int volume = mix.IsSuccess ? (int)Math.Round(mix.Value.TtsPlaybackVolume * 100) : 100;
 
-        await _audioBus.PlaySoundAsync(
+        await _audioBus.PlayTtsAsync(
             ctx.BroadcasterId,
             new(Guid.Empty, url, volume, durationMs),
             ctx.CancellationToken

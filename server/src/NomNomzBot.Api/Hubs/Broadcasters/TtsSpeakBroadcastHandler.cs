@@ -111,8 +111,8 @@ public sealed class TtsSpeakBroadcastHandler(
             return;
 
         logger.LogWarning(
-            "TTS spoke for channel {BroadcasterId} but no Audio Source page is open to play it. Add the TTS "
-                + "source in OBS.",
+            "TTS spoke for channel {BroadcasterId} but no TTS Caption page is open to play it. Add the TTS "
+                + "Caption source in OBS.",
             broadcasterId
         );
     }

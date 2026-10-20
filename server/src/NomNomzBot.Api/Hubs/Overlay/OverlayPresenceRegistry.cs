@@ -110,10 +110,14 @@ public sealed class OverlayPresenceRegistry : IOverlayPresenceRegistry
             KeyValuePair<string, OverlayConnection>[] sources = _overlays
                 .Where(o => o.Value.BroadcasterId == broadcasterId && o.Value.IsTtsSource)
                 .ToArray();
-            if (sources.Length > 0)
-                return sources.MaxBy(o => o.Value.Order).Key;
+            return sources.Length == 0 ? null : sources.MaxBy(o => o.Value.Order).Key;
         }
-        return GetAudioTarget(broadcasterId);
+    }
+
+    public bool IsTtsSourceConnected(Guid broadcasterId)
+    {
+        lock (_audioLock)
+            return _overlays.Values.Any(o => o.BroadcasterId == broadcasterId && o.IsTtsSource);
     }
 
     public string? GetAudioTarget(Guid broadcasterId)

@@ -87,15 +87,27 @@ public sealed class OverlayTtsRoutingTests
     }
 
     [Fact]
-    public async Task When_the_tts_page_closes_tts_falls_back_to_the_audio_page()
+    public async Task When_the_tts_page_closes_the_audio_page_still_never_speaks()
     {
         Pages pages = AudioAndTtsPages();
 
         pages.Registry.Drop("tts-conn");
         await pages.Notifier.TtsSpeakAsync(Broadcaster.ToString(), Line("back"));
 
-        pages.Registry.GetTtsTarget(Broadcaster).Should().Be("audio-conn");
-        await pages.Audio.Received(1).TtsSpeak(Arg.Is<TtsSpeakPayload>(p => p.Text == "back"));
+        pages.Registry.GetTtsTarget(Broadcaster).Should().BeNull();
+        pages.Registry.IsTtsSourceConnected(Broadcaster).Should().BeFalse();
+        await pages.Audio.DidNotReceiveWithAnyArgs().TtsSpeak(default!);
+    }
+
+    [Fact]
+    public async Task A_synthesized_tts_clip_plays_on_the_tts_page_not_the_audio_page()
+    {
+        Pages pages = AudioAndTtsPages();
+
+        await pages.Notifier.PlayTtsClipAsync(Broadcaster.ToString(), new("u", 80, null));
+
+        await pages.Tts.Received(1).PlaySound(Arg.Is<PlaySoundPayload>(p => p.PlaybackUrl == "u"));
+        await pages.Audio.DidNotReceiveWithAnyArgs().PlaySound(default!);
     }
 
     [Fact]
