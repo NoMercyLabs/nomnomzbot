@@ -17,7 +17,14 @@
         "error": "De koppeling met OBS is mislukt",
         "unreachable": "Gekoppeld, maar OBS antwoordde niet",
         "connected": "Verbonden",
-        "loadError": "De OBS-verbinding kon niet laden."
+        "loadError": "De OBS-verbinding kon niet laden.",
+        "edit": "Verbinding bewerken",
+        "link": "OBS koppelen"
+      },
+      "tabs": {
+        "live": "Live",
+        "tools": "Studio en hulpmiddelen",
+        "overlays": "Overlays in OBS"
       },
       "bridge": {
         "title": "Browserbron-brug",
@@ -26,12 +33,6 @@
         "optional": "Er is geen brugpagina open in OBS. Alleen browserbronnen hebben die nodig.",
         "noLeader": "{count} open, geen enkele leidt",
         "leader": "{count} open, een leidt"
-      },
-      "live": {
-        "title": "In de lucht",
-        "streaming": "Aan het streamen",
-        "notStreaming": "Niet aan het streamen",
-        "recording": "Neemt op"
       },
       "required": {
         "title": "Verplichte overlays",
@@ -95,6 +96,8 @@
         "noFilters": "Deze bron heeft geen filters."
       },
       "connectionForm": {
+        "title": "OBS-verbinding",
+        "description": "Waar de bot de OBS WebSocket-server vindt. In OBS: Extra, WebSocket-serverinstellingen.",
         "enabled": "Koppeling met OBS",
         "host": "Host",
         "port": "Poort",
@@ -132,16 +135,20 @@
       },
       "screenshot": {
         "title": "Bronscreenshot",
-        "source": "Naam van de bron",
+        "source": "Kies een bron",
+        "format": "Afbeeldingsformaat",
+        "pickFirst": "Kies eerst een bron.",
+        "offline": "OBS is niet gekoppeld.",
         "capture": "Vastleggen",
         "alt": "Screenshot van {name}"
       },
       "studio": {
         "title": "Studiomodus",
-        "mode": "Studiomodus",
+        "on": "Eerst een voorbeeld",
         "transition": "Overgang",
         "preview": "Voorbeeldscene",
-        "duration": "Duur (ms)",
+        "pickPreview": "Kies de scene die hierna komt",
+        "duration": "Duur (seconden)",
         "cut": "Overgang starten"
       },
       "needsControl": "OBS bedienen vraagt de rol Editor of de OBS-bedieningsrechten.",
@@ -185,10 +192,6 @@
         "unmute": "{name} aanzetten",
         "level": "Niveau van {name}",
         "decibels": "{value} dB"
-      },
-      "setup": {
-        "show": "Instellen: verbinding, vereiste overlays, browserbronnen",
-        "hide": "Instellen verbergen"
       },
       "stats": {
         "title": "OBS-status",

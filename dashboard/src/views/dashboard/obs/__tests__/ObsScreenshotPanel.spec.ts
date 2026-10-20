@@ -13,6 +13,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 
+import { Select } from '@/components/ui/select';
 import { i18n } from '@/i18n';
 
 import en from '../i18n/en.json';
@@ -29,7 +30,18 @@ vi.mock('@/api/access', () => ({
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async () => ({ data: { data: [] }, response: { status: 200, ok: true } }),
+    GET: async (path: string) => ({
+      data: {
+        data: path.endsWith('/obs/inputs')
+          ? [{
+              name: 'Camera',
+              muted: null,
+              volumeDb: null,
+            }]
+          : [],
+      },
+      response: { status: 200, ok: true },
+    }),
     POST: async (path: string, init: { body?: unknown }) => {
       posts.push({ path, body: init.body });
 
@@ -66,11 +78,17 @@ function show(): VueWrapper {
 }
 
 describe('ObsScreenshotPanel', () => {
-  it('captures the named source in the chosen format and shows the returned image', async () => {
+  // A source is picked from the inputs OBS reports, never typed by hand.
+  it('captures the picked source in the chosen format and shows the returned image', async () => {
     const view = show();
 
-    await view.get('[data-obs-shot-source]').setValue('Camera');
-    await view.get('[data-obs-shot-format="jpg"]').trigger('click');
+    await flushPromises();
+    view.findComponent(Select).vm.$emit('update:modelValue', 'Camera');
+    await flushPromises();
+
+    const jpg = view.findAll('[data-segmented] button').find((button) => button.text() === 'jpg');
+
+    await jpg?.trigger('click');
     await view.get('[data-obs-shot-capture]').trigger('click');
     await flushPromises();
 
@@ -84,10 +102,17 @@ describe('ObsScreenshotPanel', () => {
     expect(view.get('[data-obs-shot-image]').attributes('src')).toBe('data:image/jpeg;base64,AAAA');
   });
 
-  it('does not call OBS without a source name', async () => {
+  it('holds Capture off, with the reason, until a source is picked', async () => {
     const view = show();
 
-    await view.get('[data-obs-shot-capture]').trigger('click');
+    await flushPromises();
+
+    const capture = view.get('[data-obs-shot-capture]');
+
+    expect((capture.element as HTMLButtonElement).disabled).toBe(true);
+    expect(view.get('[data-obs-shot-hold]').attributes('title')).toBe(en.dashboard.obs.screenshot.pickFirst);
+
+    await capture.trigger('click');
     await flushPromises();
 
     expect(posts).toHaveLength(0);

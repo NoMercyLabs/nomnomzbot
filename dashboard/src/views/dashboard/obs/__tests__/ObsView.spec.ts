@@ -13,6 +13,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
+import { createMemoryHistory, createRouter } from 'vue-router';
 
 import { i18n } from '@/i18n';
 import { obsStateChanged } from '@/realtime/obs';
@@ -134,7 +135,6 @@ vi.mock('@/composables/useCurrentChannel', () => ({
 let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
-  localStorage.setItem('nnz.obs.setup', 'true');
   calls.length = 0;
   held = ['obs:scene:read', 'obs:control', 'obs:config:read', 'widget:read'];
   liveFails = false;
@@ -168,13 +168,27 @@ afterEach(() => {
 
 let queryClient = new QueryClient();
 
-async function open(): Promise<void> {
+// The page opens on its Live tab; a test names another tab the way the URL does (?view=).
+async function open(view?: 'live' | 'tools' | 'overlays'): Promise<void> {
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/app/obs', component: { template: '<div />' } }],
+  });
+
+  await router.push(view
+    ? `/app/obs?view=${view}`
+    : '/app/obs');
 
   mounted = mount(ObsView, {
     attachTo: document.body,
     global: {
-      plugins: [i18n, [VueQueryPlugin, { queryClient }]],
+      plugins: [
+        i18n,
+        router,
+        [VueQueryPlugin, { queryClient }],
+      ],
     },
   });
 
@@ -188,7 +202,7 @@ const dotsOf = (name: string): string[] =>
 
 describe('ObsView', () => {
   it('shows each browser source as green loaded, orange not loaded, red failed or gray off, with its reason', async () => {
-    await open();
+    await open('overlays');
 
     const rows = Array.from(document.querySelectorAll('[data-obs-source]'));
 
@@ -202,19 +216,16 @@ describe('ObsView', () => {
     expect(rows[3]?.textContent).toContain(en.dashboard.obs.sources.off);
   });
 
-  it('marks the connection green, lists the scenes with the live one, and shows the stream state', async () => {
+  it('marks the connection green and lists the scenes with the live one on the same first view', async () => {
     await open();
 
     expect(dotsOf('connection')).toEqual(['dot ok']);
     expect(dotsOf('bridge')).toEqual(['dot ok']);
+    expect(document.querySelector('[data-obs-connection]')?.textContent).toContain('localhost:4455');
 
     const scenes = Array.from(document.querySelectorAll('[data-obs-scene]'));
 
     expect(scenes.map((scene) => scene.getAttribute('data-current'))).toEqual(['true', 'false']);
-
-    expect(document.querySelector('[data-obs-live]')?.textContent).toContain(
-      en.dashboard.obs.live.streaming,
-    );
   });
 
   // Stoney 2026-10-15: "the current page does not even react to scene changes so i expect better".
@@ -323,7 +334,7 @@ describe('ObsView', () => {
 
   it('shows a required overlay only in the Required overlays panel, never in the browser sources', async () => {
     required = [{ key: 'audio', widget: widgets[3] }];
-    await open();
+    await open('overlays');
 
     const panelRows = Array.from(document.querySelectorAll('[data-required-overlay]'));
     const sourceRows = Array.from(document.querySelectorAll('[data-obs-source]'));
@@ -386,19 +397,84 @@ describe('ObsView', () => {
     expect(document.querySelectorAll('[data-obs-scene]')).toHaveLength(0);
   });
 
-  it('keeps the setup panels folded until the streamer opens them, and remembers the choice', async () => {
-    localStorage.removeItem('nnz.obs.setup');
+  // Stoney: "the settings are hidden in a hidden dropdown all the way down, this page needs a proper reorganization".
+  it('shows the connection first, above the live board, with no folded setup section', async () => {
     await open();
 
-    expect(document.querySelector('[data-obs-connection]')).toBeNull();
-    expect(document.querySelector('[data-obs-board]')).not.toBeNull();
+    const bar = document.querySelector('[data-obs-connection]');
+    const board = document.querySelector('[data-obs-board]');
 
-    const toggle = document.querySelector<HTMLButtonElement>('[data-obs-setup] button');
+    expect(bar).not.toBeNull();
+    expect(board).not.toBeNull();
+    expect(document.querySelector('[data-obs-setup]')).toBeNull();
+    expect(bar!.compareDocumentPosition(board!) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 
-    toggle?.click();
+  it('opens the saved connection in a dialog from Edit connection', async () => {
+    held = [...held, 'obs:config:write'];
+    await open();
+
+    expect(document.querySelector('[data-obs-host]')).toBeNull();
+
+    document.querySelector<HTMLButtonElement>('[data-obs-edit-connection]')?.click();
     await flushPromises();
 
+    const host = document.querySelector<HTMLInputElement>('[role="dialog"] [data-obs-host]');
+
+    expect(host?.value).toBe('localhost');
+  });
+
+  it('offers no Edit connection to a person who may read the connection but not change it', async () => {
+    await open();
+
     expect(document.querySelector('[data-obs-connection]')).not.toBeNull();
-    expect(localStorage.getItem('nnz.obs.setup')).toBe('true');
+    expect(document.querySelector('[data-obs-edit-connection]')).toBeNull();
+  });
+
+  it('makes Edit connection the one primary action only while OBS is not linked', async () => {
+    held = [...held, 'obs:config:write'];
+    await open();
+
+    expect(document.querySelector('[data-obs-edit-connection]')?.getAttribute('data-variant')).toBe('outline');
+
+    mounted?.unmount();
+    connection = { ...connection, isEnabled: false };
+    await open();
+
+    expect(document.querySelector('[data-obs-edit-connection]')?.getAttribute('data-variant')).toBe('default');
+  });
+
+  // Stoney 2026-10-18: "can you slap more things on in pannels that large?! how is that managible by the streamer while live?"
+  it('keeps only the live controls on the Live tab, and the tools and overlays on their own tabs', async () => {
+    required = [{ key: 'audio', widget: widgets[3] }];
+    await open();
+
+    expect(document.querySelectorAll('[data-output]')).toHaveLength(4);
+    expect(document.querySelectorAll('[data-obs-scene]')).toHaveLength(2);
+    expect(document.querySelector('[data-obs-shot-source]')).toBeNull();
+    expect(document.querySelector('[data-required-overlays]')).toBeNull();
+    expect(document.querySelector('[data-obs-source]')).toBeNull();
+
+    mounted?.unmount();
+    await open('tools');
+
+    expect(document.querySelector('[data-obs-shot-source]')).not.toBeNull();
+    expect(document.querySelector('[data-output]')).toBeNull();
+
+    mounted?.unmount();
+    await open('overlays');
+
+    expect(document.querySelector('[data-required-overlays]')).not.toBeNull();
+    expect(document.querySelector('[data-output]')).toBeNull();
+    expect(document.querySelector('[data-obs-connection]')).not.toBeNull();
+  });
+
+  it('shows only the tabs a person may open', async () => {
+    held = ['obs:scene:read', 'obs:control'];
+    await open();
+
+    const tabs = Array.from(document.querySelectorAll('[role="tab"]')).map((tab) => tab.textContent?.trim());
+
+    expect(tabs).toEqual([en.dashboard.obs.tabs.live, en.dashboard.obs.tabs.tools]);
   });
 });

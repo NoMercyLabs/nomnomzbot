@@ -17,7 +17,7 @@ import { ref } from 'vue';
 import type { ObsConnection, ObsState } from '@/api/obs';
 import { i18n } from '@/i18n';
 
-import ObsConnectionPanel from '../components/ObsConnectionPanel.vue';
+import ObsConnectionBar from '../components/ObsConnectionBar.vue';
 import OutputsPanel from '../components/OutputsPanel.vue';
 import en from '../i18n/en.json';
 
@@ -103,12 +103,11 @@ async function openOutputs(keys: string[]): Promise<VueWrapper> {
 async function openConnection(keys: string[]): Promise<VueWrapper> {
   held.keys = keys;
 
-  mounted = mount(ObsConnectionPanel, {
+  mounted = mount(ObsConnectionBar, {
     attachTo: document.body,
     props: {
       connection,
       bridge: null,
-      state,
       unreachable: false,
       panelState: 'ready',
     },
@@ -141,16 +140,19 @@ describe('OBS shows only what the person may use', () => {
     expect(view.find('[data-output="recording"] [data-act="start"]').exists()).toBe(true);
   });
 
-  it('shows the connection form only with obs:config:write', async () => {
+  it('offers Edit connection, and through it the form, only with obs:config:write', async () => {
     const reader = await openConnection(['obs:config:read']);
 
-    expect(reader.find('[data-obs-host]').exists()).toBe(false);
+    expect(reader.find('[data-obs-edit-connection]').exists()).toBe(false);
 
     reader.unmount();
     mounted = null;
 
     const writer = await openConnection(['obs:config:read', 'obs:config:write']);
 
-    expect(writer.find('[data-obs-host]').exists()).toBe(true);
+    await writer.get('[data-obs-edit-connection]').trigger('click');
+    await flushPromises();
+
+    expect(document.querySelector('[role="dialog"] [data-obs-host]')).not.toBeNull();
   });
 });

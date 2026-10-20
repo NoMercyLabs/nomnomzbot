@@ -8,10 +8,13 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The OBS page: is OBS linked, is every overlay loaded in it, and which scene is on air.
+// The OBS page: is OBS linked, which scene is on air, and the controls a streamer needs while live.
+// The connection sits on one line at the top of every tab. The Live tab holds only what is used on air;
+// the studio tools and the overlay setup each have their own tab, so no view grows into a wall of panels.
 // Dots: green works, orange needs a look (nothing loaded, OBS silent), red failed. The header dot is the worst of them.
-import { useDocumentVisibility, useLocalStorage } from '@vueuse/core';
+import { useDocumentVisibility } from '@vueuse/core';
 import { computed, useTemplateRef } from 'vue';
+import { useI18n } from 'vue-i18n';
 
 import { useChannelAccess } from '@/api/access';
 import {
@@ -23,38 +26,59 @@ import {
 } from '@/api/obs';
 import { useObsStats, useObsVirtualCam } from '@/api/obsOutputs';
 import { useRequiredOverlays, useWidgets, withoutRequired, type Widget } from '@/api/widgets';
-import PageBody from '@/components/layout/PageBody.vue';
-import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import { boardColumns } from '@/components/layout/board';
+import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import { Button } from '@/components/ui/button';
-import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
+import PageTabs from '@/components/layout/PageTabs.vue';
+import type { PageTab } from '@/components/layout/pageTab';
+import ReadOnlyScope from '@/components/layout/ReadOnlyScope.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useWidth } from '@/composables/useLayout';
+import { usePageView } from '@/composables/usePageView';
 import { usePanelState } from '@/composables/usePanelState';
+import { keysOf } from '@/lib/array';
 import { overlayHealth, type HealthDot } from '@/views/dashboard/overlays/components/overlayHealth';
-import ChevronDown from '~icons/nnz/chevron-down';
 
 import AudioPanel from './components/AudioPanel.vue';
 import BrowserSourcesPanel from './components/BrowserSourcesPanel.vue';
-import ObsConnectionPanel from './components/ObsConnectionPanel.vue';
+import ObsConnectionBar from './components/ObsConnectionBar.vue';
 import ObsHotkeysPanel from './components/ObsHotkeysPanel.vue';
 import ObsScreenshotPanel from './components/ObsScreenshotPanel.vue';
+import ObsStatusBar from './components/ObsStatusBar.vue';
 import OutputsPanel from './components/OutputsPanel.vue';
 import RequiredOverlaysPanel from './components/RequiredOverlaysPanel.vue';
 import ScenesPanel from './components/ScenesPanel.vue';
 import SourcesPanel from './components/SourcesPanel.vue';
 import StudioPanel from './components/StudioPanel.vue';
-import ObsStatusBar from './components/ObsStatusBar.vue';
 import { useObsClocks } from './obsClocks';
 import { bridgeHealth, connectionHealth, worstDot } from './obsHealth';
 
+const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 
 const access = useChannelAccess(channelId);
 const canRead = computed<boolean>(() => access.can('obs:scene:read'));
 const canControl = computed<boolean>(() => access.can('obs:control'));
 const canSeeConnection = computed<boolean>(() => access.can('obs:config:read'));
+const canSeeSources = computed<boolean>(() => access.can('widget:read'));
+
+// Each tab opens with the read key of the panels on it; the most panels side by side it ever needs.
+const tabKeys = {
+  live: { read: 'obs:scene:read', columns: 3 },
+  tools: { read: 'obs:scene:read', columns: 3 },
+  overlays: { read: 'widget:read', columns: 2 },
+} as const;
+const VIEWS = keysOf(tabKeys);
+
+type ObsTab = (typeof VIEWS)[number];
+const allTabs = computed<PageTab<ObsTab>[]>(() => [
+  { value: 'live', label: t('dashboard.obs.tabs.live') },
+  { value: 'tools', label: t('dashboard.obs.tabs.tools') },
+  { value: 'overlays', label: t('dashboard.obs.tabs.overlays') },
+]);
+const tabs = computed(() => allTabs.value.filter((tab) => access.can(tabKeys[tab.value].read)));
+const view = usePageView(VIEWS, 'view', () =>
+  tabs.value.map((tab) => tab.value));
 
 // The configuration and the bridge need the configuration key; the status needs only the control key.
 const configChannelId = computed<string | null>(() =>
@@ -69,7 +93,6 @@ const summary = computed(() => connection.data.value ?? status.data.value);
 const enabled = computed<boolean>(() => summary.value?.isEnabled === true);
 const state = useObsState(channelId, enabled);
 const scenes = useObsScenes(channelId, enabled);
-const canSeeSources = computed<boolean>(() => access.can('widget:read'));
 const widgets = useWidgets(channelId);
 const required = useRequiredOverlays(channelId, canSeeSources);
 const requiredPanel = usePanelState(required);
@@ -81,14 +104,13 @@ const ownSources = computed<Widget[] | undefined>(() =>
     : undefined,
 );
 
-// The live panels each need about 24rem; the page counts how many columns fit its measured width, up to three.
-// The setup panels (connection, required overlays, browser sources) are not a live task: they sit folded away,
-// and the page remembers whether the streamer opened them.
-const liveMinimum = 384;
-const live = useTemplateRef('live');
-const width = useWidth(live);
-const columns = computed<number>(() => boardColumns(width.value, liveMinimum, 3));
-const setupOpen = useLocalStorage<boolean>('nnz.obs.setup', false);
+// A panel needs about 24rem; the page counts how many columns fit its measured width, up to the tab's limit.
+const panelMinimum = 384;
+const page = useTemplateRef('page');
+const width = useWidth(page);
+const columns = computed<number>(() =>
+  boardColumns(width.value, panelMinimum, tabKeys[view.value].columns));
+const boardStyle = computed(() => ({ gridTemplateColumns: `repeat(${columns.value}, minmax(0, 1fr))` }));
 
 // The stats poll runs only while this tab is on screen.
 const visibility = useDocumentVisibility();
@@ -141,90 +163,82 @@ function retry(): void {
         {{ $t(overallReason) }}
       </span>
     </template>
+    <template v-if="tabs.length > 1" #bar>
+      <PageTabs :tabs="tabs" />
+    </template>
   </PageHeader>
   <PageBody>
-    <div data-page-inset class="grid gap-3 @container">
-      <ObsStatusBar
-        v-if="enabled && canRead"
-        :stats="stats.data.value"
-        :read-at="stats.dataUpdatedAt.value"
-        :live="clocks.live.value"
-        :stream-timer="clocks.stream.value"
-        :record-timer="clocks.record.value"
+    <div ref="page" data-page-inset class="grid gap-3 @container">
+      <ObsConnectionBar
+        v-if="canSeeConnection"
+        :connection="connection.data.value"
+        :bridge="bridge.data.value"
+        :unreachable="unreachable"
+        :panel-state="connectionPanel"
+        @retry="retry"
       />
-      <p v-if="canRead && !canControl" data-obs-readonly-note class="text-sm text-muted-foreground">
-        {{ $t("dashboard.obs.needsControl") }}
-      </p>
-      <ReadOnlyScope
-        v-if="canRead"
-        :read-only="!canControl"
-        :reason="$t('dashboard.obs.needsControl')"
-      >
-        <div
-          ref="live"
-          data-obs-board
-          class="board-lanes items-start gap-3"
-          :style="{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }"
-        >
-          <OutputsPanel
-            :channel-id="channelId"
-            :state="state.data.value"
-            :virtual-cam="virtualCam.data.value === true"
-            :stream-timer="clocks.stream.value"
-            :record-timer="clocks.record.value"
-            :panel-state="outputsPanel"
-            :offline="!enabled"
-            @retry="retry"
-          />
-          <ScenesPanel
-            :scenes="scenes.data.value"
-            :panel-state="scenesPanel"
-            :offline="!enabled"
-            @retry="retry"
-          />
-          <AudioPanel :offline="!enabled" />
-          <StudioPanel v-if="enabled" :scenes="scenes.data.value" />
-          <ObsHotkeysPanel :offline="!enabled" />
-          <ObsScreenshotPanel :offline="!enabled" />
-          <SourcesPanel :scene-name="state.data.value?.currentScene ?? null" :offline="!enabled" />
-        </div>
-      </ReadOnlyScope>
-      <Collapsible v-if="canSeeSources || canSeeConnection" v-model:open="setupOpen" data-obs-setup>
-        <CollapsibleTrigger as-child>
-          <Button variant="ghost" size="sm" class="text-muted-foreground">
-            {{ $t(setupOpen ? "dashboard.obs.setup.hide" : "dashboard.obs.setup.show") }}
-            <ChevronDown class="size-5" :class="{ '-rotate-90': !setupOpen }" aria-hidden="true" />
-          </Button>
-        </CollapsibleTrigger>
-        <CollapsibleContent>
-          <div
-            class="board-lanes mt-2 items-start gap-3"
-            :style="{ gridTemplateColumns: `repeat(${columns}, minmax(0, 1fr))` }"
-          >
-            <ObsConnectionPanel
-              v-if="canSeeConnection"
-              :connection="connection.data.value"
-              :bridge="bridge.data.value"
-              :state="state.data.value"
-              :unreachable="unreachable"
-              :panel-state="connectionPanel"
-              @retry="retry"
-            />
-            <RequiredOverlaysPanel
-              v-if="canSeeSources"
-              :overlays="required.data.value"
-              :panel-state="requiredPanel"
-              @retry="required.refetch()"
-            />
-            <BrowserSourcesPanel
-              v-if="access.can('widget:read')"
-              :widgets="ownSources"
-              :panel-state="sourcesPanel"
-              @retry="widgets.refetch()"
-            />
+      <template v-if="view !== 'overlays' && canRead">
+        <ObsStatusBar
+          v-if="view === 'live' && enabled"
+          :stats="stats.data.value"
+          :read-at="stats.dataUpdatedAt.value"
+          :live="clocks.live.value"
+          :stream-timer="clocks.stream.value"
+          :record-timer="clocks.record.value"
+        />
+        <p v-if="!canControl" data-obs-readonly-note class="text-sm text-muted-foreground">
+          {{ $t("dashboard.obs.needsControl") }}
+        </p>
+        <ReadOnlyScope :read-only="!canControl" :reason="$t('dashboard.obs.needsControl')">
+          <div data-obs-board class="board-lanes items-start gap-3" :style="boardStyle">
+            <template v-if="view === 'live'">
+              <OutputsPanel
+                :channel-id="channelId"
+                :state="state.data.value"
+                :virtual-cam="virtualCam.data.value === true"
+                :stream-timer="clocks.stream.value"
+                :record-timer="clocks.record.value"
+                :panel-state="outputsPanel"
+                :offline="!enabled"
+                @retry="retry"
+              />
+              <ScenesPanel
+                :scenes="scenes.data.value"
+                :panel-state="scenesPanel"
+                :offline="!enabled"
+                @retry="retry"
+              />
+              <AudioPanel :offline="!enabled" />
+              <SourcesPanel
+                :scene-name="state.data.value?.currentScene ?? null"
+                :offline="!enabled"
+              />
+            </template>
+            <template v-else>
+              <StudioPanel v-if="enabled" :scenes="scenes.data.value" />
+              <ObsHotkeysPanel :offline="!enabled" />
+              <ObsScreenshotPanel :offline="!enabled" />
+            </template>
           </div>
-        </CollapsibleContent>
-      </Collapsible>
+        </ReadOnlyScope>
+      </template>
+      <div
+        v-else-if="view === 'overlays' && canSeeSources"
+        data-obs-overlays
+        class="board-lanes items-start gap-3"
+        :style="boardStyle"
+      >
+        <RequiredOverlaysPanel
+          :overlays="required.data.value"
+          :panel-state="requiredPanel"
+          @retry="required.refetch()"
+        />
+        <BrowserSourcesPanel
+          :widgets="ownSources"
+          :panel-state="sourcesPanel"
+          @retry="widgets.refetch()"
+        />
+      </div>
     </div>
   </PageBody>
 </template>

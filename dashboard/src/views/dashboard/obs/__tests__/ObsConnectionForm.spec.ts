@@ -55,11 +55,35 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-function show(hasPassword: boolean): VueWrapper {
+// The form is a dialog, so it renders in a portal on the body: the tests read the page, not the wrapper.
+const field = (selector: string): HTMLElement => {
+  const found = document.querySelector<HTMLElement>(`[role="dialog"] ${selector}`);
+
+  if (!found)
+    throw new Error(`no ${selector} in the dialog`);
+
+  return found;
+};
+
+async function click(selector: string): Promise<void> {
+  field(selector).click();
+  await flushPromises();
+}
+
+async function type(selector: string, value: string): Promise<void> {
+  const input = field(selector) as HTMLInputElement;
+
+  input.value = value;
+  input.dispatchEvent(new Event('input'));
+  await flushPromises();
+}
+
+async function show(hasPassword: boolean): Promise<VueWrapper> {
   mounted = mount(ObsConnectionForm, {
     attachTo: document.body,
     global: { plugins: [[VueQueryPlugin, { queryClient: new QueryClient() }], i18n] },
     props: {
+      open: true,
       connection: {
         mode: 'direct',
         host: 'localhost',
@@ -91,17 +115,18 @@ function show(hasPassword: boolean): VueWrapper {
     },
   });
 
+  await flushPromises();
+
   return mounted;
 }
 
 describe('ObsConnectionForm', () => {
-  it('saves the typed password and the event mask, and clears the password field after', async () => {
-    const view = show(false);
+  it('saves the typed password and the event mask, then closes the dialog', async () => {
+    const view = await show(false);
 
-    await view.get('[data-obs-password]').setValue('s3cret');
-    await view.get('[data-kind="Inputs"]').trigger('click');
-    await view.get('[data-obs-save]').trigger('click');
-    await flushPromises();
+    await type('[data-obs-password]', 's3cret');
+    await click('[data-kind="Inputs"]');
+    await click('[data-form-action]');
 
     expect(puts).toHaveLength(1);
     expect(puts[0]?.path).toBe('/api/v{version}/channels/{channelId}/obs/connection');
@@ -115,18 +140,17 @@ describe('ObsConnectionForm', () => {
       isEnabled: true,
     });
 
-    expect((view.get('[data-obs-password]').element as HTMLInputElement).value).toBe('');
+    expect(view.emitted('update:open')).toEqual([[false]]);
   });
 
   it('shows the last error and last connection, and saves the switch state', async () => {
-    const view = show(false);
+    await show(false);
 
-    expect(view.get('[data-obs-last-error]').text()).toContain('Connection refused');
-    expect(view.find('[data-obs-last-connected] time').exists()).toBe(true);
+    expect(field('[data-obs-last-error]').textContent).toContain('Connection refused');
+    expect(field('[data-obs-last-connected] time')).not.toBeNull();
 
-    await view.get('[data-obs-enabled]').trigger('click');
-    await view.get('[data-obs-save]').trigger('click');
-    await flushPromises();
+    await click('[data-obs-enabled] [role="switch"]');
+    await click('[data-form-action]');
 
     const sent = puts[0]?.body as Record<string, unknown> | undefined;
 
@@ -134,15 +158,14 @@ describe('ObsConnectionForm', () => {
   });
 
   it('keeps a stored password by sending null and never shows it', async () => {
-    const view = show(true);
-    const field = view.get('[data-obs-password]').element as HTMLInputElement;
+    await show(true);
+    const password = field('[data-obs-password]') as HTMLInputElement;
 
-    expect(field.value).toBe('');
-    expect(field.type).toBe('password');
-    expect(view.text()).toContain(en.dashboard.obs.connectionForm.passwordKept);
+    expect(password.value).toBe('');
+    expect(password.type).toBe('password');
+    expect(field('[data-obs-password-kept]').textContent).toContain(en.dashboard.obs.connectionForm.passwordKept);
 
-    await view.get('[data-obs-save]').trigger('click');
-    await flushPromises();
+    await click('[data-form-action]');
 
     const sent = puts[0]?.body as Record<string, unknown> | undefined;
 
@@ -150,11 +173,10 @@ describe('ObsConnectionForm', () => {
   });
 
   it('sends an empty string when the stored password is cleared on purpose', async () => {
-    const view = show(true);
+    await show(true);
 
-    await view.get('[data-obs-password-clear]').trigger('click');
-    await view.get('[data-obs-save]').trigger('click');
-    await flushPromises();
+    await click('[data-obs-password-clear]');
+    await click('[data-form-action]');
 
     const sent = puts[0]?.body as Record<string, unknown> | undefined;
 

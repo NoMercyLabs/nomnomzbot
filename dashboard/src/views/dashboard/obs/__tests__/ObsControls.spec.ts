@@ -13,7 +13,9 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
+import { createMemoryHistory, createRouter } from 'vue-router';
 
+import { Select } from '@/components/ui/select';
 import { i18n } from '@/i18n';
 
 import en from '../i18n/en.json';
@@ -32,6 +34,7 @@ let program = 'Main';
 let studio = false;
 let transition = 'Fade';
 let postFails = false;
+let noTransitions = false;
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
@@ -79,10 +82,12 @@ vi.mock('@/api/client', () => ({
         return ok({ enabled: studio });
 
       if (path.endsWith('/obs/scene-transitions'))
-        return ok([
-          { name: 'Cut', isCurrent: transition === 'Cut' },
-          { name: 'Fade', isCurrent: transition === 'Fade' },
-        ]);
+        return ok(noTransitions
+          ? []
+          : [
+              { name: 'Cut', isCurrent: transition === 'Cut' },
+              { name: 'Fade', isCurrent: transition === 'Fade' },
+            ]);
 
       return ok([
         { name: 'Main', isCurrent: program === 'Main' },
@@ -126,6 +131,7 @@ beforeEach(() => {
   studio = false;
   transition = 'Fade';
   postFails = false;
+  noTransitions = false;
   setActivePinia(createPinia());
   i18n.global.mergeLocaleMessage('en', en);
 });
@@ -142,16 +148,43 @@ async function settle(): Promise<void> {
   await flushPromises();
 }
 
-async function open(): Promise<void> {
+// The scenes sit on the Live tab, studio mode on the Studio and tools tab (?view=tools).
+async function open(view?: 'tools'): Promise<void> {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+  const router = createRouter({
+    history: createMemoryHistory(),
+    routes: [{ path: '/app/obs', component: { template: '<div />' } }],
+  });
+
+  await router.push(view
+    ? `/app/obs?view=${view}`
+    : '/app/obs');
 
   mounted = mount(ObsView, {
     attachTo: document.body,
-    global: { plugins: [i18n, [VueQueryPlugin, { queryClient }]] },
+    global: {
+      plugins: [
+        i18n,
+        router,
+        [VueQueryPlugin, { queryClient }],
+      ],
+    },
   });
 
   await settle();
 }
+
+// The studio panel's two pickers; the trigger of each carries its name (data-obs-picker).
+const picker = (name: 'transition' | 'preview') => {
+  const found = mounted
+    ?.findAllComponents(Select)
+    .find((select) => select.find(`[data-obs-picker="${name}"]`).exists());
+
+  if (!found)
+    throw new Error(`no ${name} picker`);
+
+  return found;
+};
 
 const sceneRow = (name: string): HTMLElement => {
   const rows = Array.from(document.querySelectorAll<HTMLElement>('[data-obs-scene]'));
@@ -194,11 +227,19 @@ describe('OBS scene controls', () => {
     expect(current()).toEqual(['Main']);
   });
 
+  it('draws no empty studio body when OBS has no transitions and studio mode is off', async () => {
+    noTransitions = true;
+    await open('tools');
+
+    expect(document.querySelector('[data-obs-studio-toggle]')).not.toBeNull();
+    expect(document.querySelector('[data-obs-studio-body]')).toBeNull();
+  });
+
   it('hides the preview and transition controls until studio mode is on, then fires the transition with its duration', async () => {
-    await open();
+    await open('tools');
     expect(document.querySelector('[data-obs-transition-button]')).toBeNull();
 
-    document.querySelector<HTMLElement>('[data-obs-studio-toggle]')?.click();
+    document.querySelector<HTMLElement>('[data-obs-studio-toggle] [role="switch"]')?.click();
     await settle();
 
     expect(posts[0]).toEqual({
@@ -206,7 +247,7 @@ describe('OBS scene controls', () => {
       body: { enabled: true },
     });
 
-    document.querySelector<HTMLElement>('[data-obs-preview="BRB"]')?.click();
+    picker('preview').vm.$emit('update:modelValue', 'BRB');
     await settle();
 
     expect(posts[1]).toEqual({
@@ -216,8 +257,9 @@ describe('OBS scene controls', () => {
 
     const duration = document.querySelector<HTMLInputElement>('[data-obs-duration]');
 
+    // The streamer types seconds; OBS takes milliseconds.
     if (duration) {
-      duration.value = '300';
+      duration.value = '0.3';
       duration.dispatchEvent(new Event('input'));
     }
 
@@ -232,9 +274,11 @@ describe('OBS scene controls', () => {
   });
 
   it('picks another transition and marks it as the active one', async () => {
-    await open();
+    await open('tools');
 
-    document.querySelector<HTMLElement>('[data-obs-transition-pick="Cut"]')?.click();
+    expect(picker('transition').props('modelValue')).toBe('Fade');
+
+    picker('transition').vm.$emit('update:modelValue', 'Cut');
     await settle();
 
     expect(posts).toEqual([
@@ -244,8 +288,6 @@ describe('OBS scene controls', () => {
       },
     ]);
 
-    expect(
-      document.querySelector('[data-obs-transition-pick="Cut"]')?.getAttribute('aria-pressed'),
-    ).toBe('true');
+    expect(picker('transition').props('modelValue')).toBe('Cut');
   });
 });

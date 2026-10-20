@@ -11,7 +11,6 @@
 // Studio mode and transitions. The transition picker always works. With studio mode on, a preview scene
 // waits next to the program scene and the one primary button, Transition, cuts it to air.
 import { computed, ref } from 'vue';
-import { toastObsError } from '../obsToast';
 
 import {
   useObsSetPreviewScene,
@@ -23,11 +22,22 @@ import {
   type ObsScene,
   type ObsTransition,
 } from '@/api/obs';
+import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
-import { Switch } from '@/components/ui/switch';
+import { Label } from '@/components/ui/label';
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+
+import { toastObsError } from '../obsToast';
 
 defineProps<{ scenes: readonly ObsScene[] | undefined }>();
 
@@ -46,7 +56,9 @@ const activeTransition = computed<string>(
 );
 
 const previewScene = ref<string>('');
-const duration = ref<string>('');
+
+// The streamer types seconds; OBS takes milliseconds. An empty box keeps the transition's own length.
+const seconds = ref<string>('');
 
 function fail(error: Error): void {
   toastObsError(error);
@@ -74,72 +86,78 @@ function pickTransition(name: string): void {
 }
 
 function runTransition(): void {
-  const ms = Number.parseInt(duration.value, 10);
+  const value = Number.parseFloat(seconds.value);
 
-  cut.mutate(Number.isNaN(ms)
+  cut.mutate(Number.isNaN(value)
     ? null
-    : ms, { onError: fail });
+    : Math.round(value * 1000), { onError: fail });
 }
 </script>
 
 <template>
   <PanelCard :title="$t('dashboard.obs.studio.title')">
-    <div class="grid gap-4 p-3">
-      <label class="flex items-center justify-between gap-3 text-sm font-medium">
-        {{ $t('dashboard.obs.studio.mode') }}
-        <Switch
-          data-obs-studio-toggle
-          :model-value="studioOn"
-          :aria-label="$t('dashboard.obs.studio.mode')"
-          @update:model-value="toggleStudio"
-        />
-      </label>
-
-      <div v-if="transitions.data.value?.length" class="grid gap-2">
-        <span class="text-sm text-muted-foreground">{{ $t('dashboard.obs.studio.transition') }}</span>
-        <div class="flex flex-wrap gap-2">
-          <Button
-            v-for="item in transitions.data.value"
-            :key="item.name"
-            variant="outline"
-            :data-obs-transition-pick="item.name"
-            :aria-pressed="item.name === activeTransition"
-            :class="item.name === activeTransition && 'bg-accent text-accent-foreground'"
-            @click="pickTransition(item.name)"
-          >
-            {{ item.name }}
-          </Button>
-        </div>
+    <template #actions>
+      <LabeledSwitch
+        data-obs-studio-toggle
+        :model-value="studioOn"
+        :label="$t('dashboard.obs.studio.on')"
+        @update:model-value="toggleStudio"
+      />
+    </template>
+    <div v-if="transitions.data.value?.length || studioOn" data-obs-studio-body class="grid gap-4 p-3">
+      <div v-if="transitions.data.value?.length" class="grid gap-1.5">
+        <Label for="obs-transition">{{ $t('dashboard.obs.studio.transition') }}</Label>
+        <Select
+          :model-value="activeTransition"
+          @update:model-value="pickTransition(String($event))"
+        >
+          <SelectTrigger id="obs-transition" data-obs-picker="transition" class="w-full">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent position="popper">
+            <SelectGroup>
+              <SelectItem
+                v-for="item in transitions.data.value"
+                :key="item.name"
+                :value="item.name"
+              >
+                {{ item.name }}
+              </SelectItem>
+            </SelectGroup>
+          </SelectContent>
+        </Select>
       </div>
 
       <template v-if="studioOn">
-        <div class="grid gap-2">
-          <span class="text-sm text-muted-foreground">{{ $t('dashboard.obs.studio.preview') }}</span>
-          <div class="flex flex-wrap gap-2">
-            <Button
-              v-for="scene in scenes"
-              :key="scene.name"
-              variant="outline"
-              :data-obs-preview="scene.name"
-              :aria-pressed="scene.name === previewScene"
-              :class="scene.name === previewScene && 'bg-accent text-accent-foreground'"
-              @click="pickPreview(scene.name)"
-            >
-              {{ scene.name }}
-            </Button>
-          </div>
+        <div class="grid gap-1.5">
+          <Label for="obs-preview">{{ $t('dashboard.obs.studio.preview') }}</Label>
+          <Select :model-value="previewScene" @update:model-value="pickPreview(String($event))">
+            <SelectTrigger id="obs-preview" data-obs-picker="preview" class="w-full">
+              <SelectValue :placeholder="$t('dashboard.obs.studio.pickPreview')" />
+            </SelectTrigger>
+            <SelectContent position="popper">
+              <SelectGroup>
+                <SelectItem v-for="scene in scenes" :key="scene.name" :value="scene.name">
+                  {{ scene.name }}
+                </SelectItem>
+              </SelectGroup>
+            </SelectContent>
+          </Select>
         </div>
 
-        <div class="flex items-center gap-3">
-          <Input
-            v-model="duration"
-            data-obs-duration
-            type="number"
-            min="0"
-            class="w-28"
-            :placeholder="$t('dashboard.obs.studio.duration')"
-            :aria-label="$t('dashboard.obs.studio.duration')"
-          />
+        <div class="flex items-end gap-3">
+          <div class="grid gap-1.5">
+            <Label for="obs-duration">{{ $t('dashboard.obs.studio.duration') }}</Label>
+            <Input
+              id="obs-duration"
+              v-model="seconds"
+              data-obs-duration
+              type="number"
+              min="0"
+              step="0.1"
+              class="w-28"
+            />
+          </div>
           <Button data-obs-transition-button :disabled="cut.isPending.value" @click="runTransition">
             {{ $t('dashboard.obs.studio.cut') }}
           </Button>

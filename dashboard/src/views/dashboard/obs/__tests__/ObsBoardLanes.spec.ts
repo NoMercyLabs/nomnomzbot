@@ -31,7 +31,7 @@ describe('the OBS board packs its panels with CSS grid lanes', () => {
     expect(outside).toContain('display: grid');
   });
 
-  it('puts the utility on the live board and the setup board, not the plain grid class', () => {
+  it('puts the utility on the live board and the overlays board, not the plain grid class', () => {
     const boards = view.match(/class="[^"]*board-lanes[^"]*"/g) ?? [];
 
     expect(boards).toHaveLength(2);
