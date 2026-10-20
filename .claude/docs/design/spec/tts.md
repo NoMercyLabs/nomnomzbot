@@ -241,7 +241,9 @@ public interface ITtsDispatchService
     /// 2. Gates, each a reject event + Result.Failure: MinBitsToTts (bits_gate, VALIDATION_FAILED); MinPermission floor against
     ///    request.CommunityStanding (standing_gate, FORBIDDEN; an unknown standing counts as the lowest); empty text (empty).
     /// 3. Character cap = the STRICTER of the channel's MaxCharacters and the tier limit "tts_max_characters"
-    ///    (GetLimitAsync; -1 / self-host = no tier clamp). Over-cap → too_long, VALIDATION_FAILED.
+    ///    (GetLimitAsync; -1 / self-host = no tier clamp). Over-cap viewer words → too_long, VALIDATION_FAILED.
+    ///    Over-cap bot-written text (Speaker.Bot, e.g. a command reply) is cut to the cap at the last word break and spoken
+    ///    (single text and each segment), so a long command reply is never lost.
     /// 4. Opt-out profanity censor (only when ProfanityCensorEnabled); empty-after-censor → empty_after_censor.
     /// 5. Voice resolution: request.VoiceIdOverride → the requester's UserTtsVoice → config.DefaultVoiceId (the platform default
     ///    when the channel follows it) → the first catalogue voice. None → no_voice; an override naming an unknown voice → unknown_voice.
