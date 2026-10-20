@@ -61,6 +61,8 @@ public static class FirstPartyWidgetCatalogue
         WidgetKeyAliases.Audio,
         WidgetKeyAliases.MusicPlayer,
         "alerts",
+        // The media share player: without it no approved clip or video plays on stream.
+        "media_share",
     ];
 
     /// <summary>Every Twitch + supporter alert type the alerts widget and ticker default to listening for.</summary>
