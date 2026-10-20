@@ -27,6 +27,8 @@ import {
 import { useCan } from '@/composables/useCan';
 import { useTime } from '@/composables/useTime';
 
+import KeyEventsInfo from './KeyEventsInfo.vue';
+
 const { can } = useCan();
 
 defineProps<{ tokens: readonly AutomationToken[] }>();
@@ -78,7 +80,10 @@ function stateOf(token: AutomationToken): string {
           <span class="font-mono text-sm text-muted-foreground">{{ $t('dashboard.settings.apiDevices.prefixHint', { prefix: token.tokenPrefix }) }}</span>
         </TableCell>
         <TableCell class="text-sm">
-          {{ token.scopes.join(', ') }}
+          <div class="flex items-center gap-1">
+            {{ token.scopes.join(', ') }}
+            <KeyEventsInfo v-if="token.scopes.includes('events')" :name="token.name" />
+          </div>
           <span v-if="token.allowedPipelineIds.length > 0" class="block text-muted-foreground">
             {{ $t('dashboard.settings.apiDevices.pinned', { count: token.allowedPipelineIds.length }) }}
           </span>

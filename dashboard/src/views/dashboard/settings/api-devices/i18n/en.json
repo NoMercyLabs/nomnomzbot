@@ -81,8 +81,8 @@
           }
         },
         "events": {
-          "title": "Events a key can listen to",
-          "description": "A key with the listen scope can stream these public events.",
+          "title": "Events this key can listen to",
+          "aria": "Events {name} can listen to",
           "empty": "No public events yet.",
           "error": "The events could not be loaded."
         }

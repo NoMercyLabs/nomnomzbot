@@ -163,10 +163,31 @@ describe('API and devices', () => {
     expect(rows[1]?.querySelector('[data-revoke]')).toBeNull();
   });
 
-  it('lists the public events a key can stream', async () => {
+  it('has no separate events card', async () => {
     await open();
 
-    expect(q('[data-event-row]').textContent).toContain('song.changed');
+    expect(document.body.querySelector('[data-panel="events"]')).toBeNull();
+    expect(document.body.textContent).not.toContain('Events a key can listen to');
+  });
+
+  it('gives only a key with the listen scope an info button that lists the events with their descriptions', async () => {
+    tokens = [
+      token('t1', 'Deck'),
+      token('t3', 'Listener', { scopes: ['read', 'events'] }),
+    ];
+
+    await open();
+
+    const rows = [...document.body.querySelectorAll<HTMLElement>('[data-token-row]')];
+
+    expect(rows[0]?.querySelector('[data-events-info]')).toBeNull();
+
+    await click(rows[1]!.querySelector<HTMLElement>('[data-events-info]')!);
+
+    const list = q('[data-event-row]');
+
+    expect(list.textContent).toContain('song.changed');
+    expect(list.textContent).toContain('The song changed.');
   });
 
   it('makes a key with the chosen name and scopes, then shows the secret once', async () => {

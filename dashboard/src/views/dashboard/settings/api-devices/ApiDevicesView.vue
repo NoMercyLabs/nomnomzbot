@@ -34,7 +34,6 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
 import CreateTokenDialog from './components/CreateTokenDialog.vue';
-import EventsPanel from './components/EventsPanel.vue';
 import PairingPanel from './components/PairingPanel.vue';
 import SecretDialog from './components/SecretDialog.vue';
 import TokensTable from './components/TokensTable.vue';
@@ -150,7 +149,6 @@ async function confirmRevoke(): Promise<void> {
       <p v-if="actionError" role="alert" class="text-sm text-destructive">{{ actionError }}</p>
 
       <PairingPanel v-if="can('automation:tokens:write')" />
-      <EventsPanel />
     </div>
   </PageBody>
 

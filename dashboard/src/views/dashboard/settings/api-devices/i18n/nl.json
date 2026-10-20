@@ -81,8 +81,8 @@
           }
         },
         "events": {
-          "title": "Events waar een sleutel naar kan luisteren",
-          "description": "Een sleutel met het luisterrecht kan deze openbare events streamen.",
+          "title": "Events waar deze sleutel naar kan luisteren",
+          "aria": "Events waar {name} naar kan luisteren",
           "empty": "Nog geen openbare events.",
           "error": "De events konden niet worden geladen."
         }
