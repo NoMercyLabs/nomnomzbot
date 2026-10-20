@@ -39,12 +39,16 @@ function textsOf(node: StepNode, descriptor: PipelineActionDescriptor | undefine
     if (typeof value !== 'string' || value.trim() === '')
       return [];
 
+    // A field that names a variable the step writes (pick_from_list's variable) ties the steps together: the
+    // later step reads what the earlier one produced, not a copy of its settings.
     return [{
       key: `${node.key}:${field.name}`,
       number: node.number,
       step: node.step,
       field: field.name,
-      text: value,
+      text: field.declaresVariable
+        ? `{${value.trim()}}`
+        : value,
     }];
   });
 }
@@ -61,11 +65,16 @@ export function earlierTexts(
   if (at < 0)
     return [];
 
-  return order
+  const found = order
     .slice(0, at)
     .filter((node) =>
       node.step.block_kind === null)
     .reverse()
     .flatMap((node) =>
       textsOf(node, descriptors.get(node.step.action.type)));
+
+  // The same words from two steps are one choice; the nearest step names it.
+  return found.filter((item, index) =>
+    found.findIndex((other) =>
+      other.text === item.text) === index);
 }

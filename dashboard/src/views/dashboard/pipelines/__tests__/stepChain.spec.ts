@@ -104,4 +104,23 @@ describe('the text earlier steps hold', () => {
   it('offers nothing to the first step', () => {
     expect(earlierTexts(tree, keyOf('first'), descriptors)).toEqual([]);
   });
+
+  it('offers the variable an earlier step writes as a placeholder, so the later step reads its result', () => {
+    const picks = new Map<string, PipelineActionDescriptor>([
+      ['pick_from_list', { type: 'pick_from_list', fields: [{ ...textField('variable'), declaresVariable: true }] } as PipelineActionDescriptor],
+    ]);
+    const picked = buildStepTree([
+      step({ id: 'pick', action: { type: 'pick_from_list', variable: 'line' } }),
+      step({
+        id: 'speak',
+        order: 1,
+        action: { type: 'send_message', message: '{line}' },
+      }),
+      step({ id: 'say', order: 2 }),
+    ]);
+    const both = new Map([...picks, ...descriptors]);
+
+    expect(earlierTexts(picked, findStepNode(picked, 'say')!.key, both).map((item) =>
+      [item.step.id, item.text])).toEqual([['speak', '{line}']]);
+  });
 });
