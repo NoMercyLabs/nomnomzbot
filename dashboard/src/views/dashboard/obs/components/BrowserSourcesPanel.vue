@@ -17,6 +17,7 @@ import type { Widget } from '@/api/widgets';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
+import ObsSetupAction from '@/views/dashboard/overlays/components/ObsSetupAction.vue';
 import { overlayHealth } from '@/views/dashboard/overlays/components/overlayHealth';
 
 import { sourceReasonKey } from '../obsHealth';
@@ -58,6 +59,15 @@ const state = computed<PanelState>(() =>
       >
         <template #detail-lead>
           <span data-obs-dot="source" class="dot" :class="overlayHealth(widget)" aria-hidden="true" />
+        </template>
+        <template #trailing>
+          <ObsSetupAction
+            :title="widget.name"
+            :setup="widget.obsSetup"
+            :connected="widget.isAttached"
+            :disabled="!widget.overlayUrl"
+            :resolve-address="async () => widget.overlayUrl"
+          />
         </template>
       </SummaryRow>
     </div>

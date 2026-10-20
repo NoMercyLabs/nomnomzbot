@@ -58,6 +58,38 @@
         "notAttached": "Niets gekoppeld",
         "off": "Uit"
       },
+      "setup": {
+        "connect": "Verbinden",
+        "configure": "Instellen",
+        "title": "{name} instellen in OBS",
+        "description": "Voeg deze overlay één keer toe aan OBS, als browserbron.",
+        "loaded": "Geladen in OBS",
+        "notLoaded": "Niet geladen in OBS",
+        "size": {
+          "label": "Breedte en hoogte",
+          "full": "{width} x {height}, volledig scherm",
+          "tiny": "{width} x {height}, tekent niets",
+          "other": "{width} x {height}"
+        },
+        "audio": {
+          "label": "Control audio via OBS",
+          "on": "Vink het aan",
+          "off": "Laat het uit"
+        },
+        "shutdown": {
+          "label": "Shutdown source when not visible",
+          "on": "Vink het aan",
+          "off": "Laat het uit, anders mist de overlay gebeurtenissen terwijl hij verborgen is"
+        },
+        "stepsTitle": "Stappen in OBS",
+        "steps": {
+          "copy": "Kopieer hieronder het adres.",
+          "add": "Voeg in OBS een bron van het type Browser toe en plak het adres.",
+          "set": "Vul de breedte en hoogte in en zet de twee vakjes zoals hierboven staat."
+        },
+        "copy": "Adres kopiëren",
+        "copied": "Gekopieerd"
+      },
       "kinds": {
         "chat": "Chatvenster",
         "nowPlaying": "Speelt nu",

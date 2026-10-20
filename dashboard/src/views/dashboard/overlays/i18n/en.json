@@ -58,6 +58,38 @@
         "notAttached": "Nothing attached",
         "off": "Off"
       },
+      "setup": {
+        "connect": "Connect",
+        "configure": "Configure",
+        "title": "Set up {name} in OBS",
+        "description": "Add this overlay to OBS once, as a browser source.",
+        "loaded": "Loaded in OBS",
+        "notLoaded": "Not loaded in OBS",
+        "size": {
+          "label": "Width and height",
+          "full": "{width} x {height}, full screen",
+          "tiny": "{width} x {height}, it draws nothing",
+          "other": "{width} x {height}"
+        },
+        "audio": {
+          "label": "Control audio via OBS",
+          "on": "Tick it",
+          "off": "Leave it off"
+        },
+        "shutdown": {
+          "label": "Shutdown source when not visible",
+          "on": "Tick it",
+          "off": "Leave it off, or the overlay misses events while hidden"
+        },
+        "stepsTitle": "Steps in OBS",
+        "steps": {
+          "copy": "Copy the address below.",
+          "add": "In OBS, add a source of the type Browser and paste the address.",
+          "set": "Enter the width and height and set the two boxes as shown above."
+        },
+        "copy": "Copy address",
+        "copied": "Copied"
+      },
       "kinds": {
         "chat": "Chat box",
         "nowPlaying": "Now playing",

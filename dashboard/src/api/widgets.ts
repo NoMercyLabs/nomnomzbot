@@ -27,6 +27,7 @@ import type { KeyParts } from '@/lib/array';
 
 export type Widget = components['schemas']['WidgetDetail'];
 export type RequiredOverlay = components['schemas']['RequiredOverlay'];
+export type ObsBrowserSource = components['schemas']['ObsBrowserSource'];
 export type WidgetSettingsSchema = components['schemas']['WidgetSettingsSchema'];
 export type WidgetSettingsField = components['schemas']['WidgetSettingsField'];
 export type WidgetSettings = Widget['settings'];

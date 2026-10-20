@@ -16,6 +16,7 @@ import { ref } from 'vue';
 import type { RequiredOverlay } from '@/api/widgets';
 import { i18n } from '@/i18n';
 
+import overlaysEn from '../../overlays/i18n/en.json';
 import RequiredOverlaysPanel from '../components/RequiredOverlaysPanel.vue';
 import en from '../i18n/en.json';
 import nl from '../i18n/nl.json';
@@ -72,6 +73,7 @@ beforeEach(() => {
   held.configWrite = true;
   held.bridgeOpen = 1;
   i18n.global.mergeLocaleMessage('en', en);
+  i18n.global.mergeLocaleMessage('en', overlaysEn);
 
   Object.defineProperty(navigator, 'clipboard', {
     configurable: true,
@@ -106,10 +108,15 @@ function open(overlays: RequiredOverlay[]): void {
 
 const rows = (): HTMLElement[] => Array.from(document.querySelectorAll('[data-required-overlay]'));
 const buttons = (): HTMLButtonElement[] =>
-  Array.from(document.querySelectorAll<HTMLButtonElement>('[data-required-copy]'));
+  Array.from(document.querySelectorAll<HTMLButtonElement>('[data-obs-setup-open]'));
 
 const bridgeButton = (): HTMLButtonElement | null =>
-  document.querySelector<HTMLButtonElement>('[data-required-bridge-copy]');
+  buttons().at(-1) ?? null;
+
+async function copyFromDialog(): Promise<void> {
+  document.querySelector<HTMLButtonElement>('[data-obs-setup-copy]')!.click();
+  await flushPromises();
+}
 
 describe('RequiredOverlaysPanel', () => {
   it('lists every system surface by name under the #required-overlays anchor', () => {
@@ -145,15 +152,43 @@ describe('RequiredOverlaysPanel', () => {
     expect(nl.dashboard.obs.required.surfaces.music_player.name).toBe('Muziekspeler');
   });
 
-  it('copies the full address to the clipboard and never prints the token on the page', async () => {
+  it('copies the full address from the setup dialog and never prints the token on the page', async () => {
     open([surface('audio')]);
 
     buttons()[0]!.click();
     await flushPromises();
+    await copyFromDialog();
 
     expect(written).toEqual([`https://bot.example/overlay?widgetId=w-audio&token=${SECRET}`]);
-    expect(buttons()[0]?.textContent).toContain(en.dashboard.obs.required.copied);
     expect(document.body.innerHTML).not.toContain(SECRET);
+  });
+
+  it('says Connect on a surface not loaded in OBS and Configure on one that is', () => {
+    open([surface('audio', { isAttached: true }), surface('alerts')]);
+
+    expect(buttons()[0]?.textContent).toContain('Configure');
+    expect(buttons()[1]?.textContent).toContain('Connect');
+  });
+
+  it('teaches the catalog frame size and OBS boxes of a surface in its dialog', async () => {
+    open([
+      surface('tts_caption', {
+        obsSetup: {
+          width: 1920,
+          height: 1080,
+          controlAudioViaObs: false,
+          shutdownWhenHidden: false,
+        },
+      }),
+    ]);
+
+    buttons()[0]!.click();
+    await flushPromises();
+
+    const facts = document.querySelector('[data-obs-setup-facts]')?.textContent ?? '';
+
+    expect(facts).toContain('1920 x 1080, full screen');
+    expect(facts).toContain('Control audio via OBS');
   });
 
   it('gives only the first surface that is not open in OBS the primary button', () => {
@@ -169,10 +204,14 @@ describe('RequiredOverlaysPanel', () => {
     expect(primary).toEqual([false, true, false, false, false]);
   });
 
-  it('disables Copy for a surface that has no address yet', () => {
+  it('copies nothing for a surface that has no address yet', async () => {
     open([surface('audio', { overlayUrl: null })]);
 
-    expect(buttons()[0]?.disabled).toBe(true);
+    buttons()[0]!.click();
+    await flushPromises();
+    await copyFromDialog();
+
+    expect(written).toEqual([]);
   });
 
   it('lists the OBS control bridge and copies its setup address without printing it', async () => {
@@ -186,6 +225,7 @@ describe('RequiredOverlaysPanel', () => {
 
     bridgeButton()?.click();
     await flushPromises();
+    await copyFromDialog();
 
     expect(written).toEqual([BRIDGE_ADDRESS]);
     expect(document.body.innerHTML).not.toContain(SECRET);

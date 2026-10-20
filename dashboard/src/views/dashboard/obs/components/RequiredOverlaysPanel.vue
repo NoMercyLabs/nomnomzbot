@@ -10,26 +10,22 @@
 <script setup lang="ts">
 // The one place for the overlays the bot cannot work without (alerts, audio, TTS caption, raid recap).
 // Each is one browser source in OBS. The first one not loaded yet gets the one primary button; the rest are outline.
-// The address holds a secret token: Copy sends it to the clipboard and the page never prints it.
+// The address holds a secret token: it lives in the setup dialog's Copy button and the page never prints it.
+// Each row says Connect until the overlay is loaded in OBS, then Configure; both open the setup dialog.
 // The id is the anchor a setup guide links to: /app/<channel>/obs#required-overlays.
-import Check from '~icons/nnz/check';
-import Copy from '~icons/nnz/file-copy';
-import { useTimeoutFn } from '@vueuse/core';
-import { computed, ref } from 'vue';
+import { computed } from 'vue';
 
 import { readObsBridgeAddress, useObsBridge } from '@/api/obs';
-import type { RequiredOverlay } from '@/api/widgets';
+import type { ObsBrowserSource, RequiredOverlay } from '@/api/widgets';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
-import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import ObsSetupAction from '@/views/dashboard/overlays/components/ObsSetupAction.vue';
 import { overlayHealth } from '@/views/dashboard/overlays/components/overlayHealth';
 
 import { sourceReasonKey } from '../obsHealth';
-
-const COPIED_MS = 2000;
 
 const props = defineProps<{
   overlays: readonly RequiredOverlay[] | undefined;
@@ -37,15 +33,6 @@ const props = defineProps<{
 }>();
 
 defineEmits<{ retry: [] }>();
-
-const copiedKey = ref<string | null>(null);
-const { start: resetCopied } = useTimeoutFn(
-  () => {
-    copiedKey.value = null;
-  },
-  COPIED_MS,
-  { immediate: false },
-);
 
 // The first surface that is switched on but not open in OBS: the one thing to do next.
 const nextKey = computed<string | null>(
@@ -56,16 +43,15 @@ const nextKey = computed<string | null>(
     )?.key ?? null,
 );
 
-async function copyAddress(overlay: RequiredOverlay): Promise<void> {
-  if (!overlay.widget.overlayUrl) return;
-
-  await navigator.clipboard.writeText(overlay.widget.overlayUrl);
-  copiedKey.value = overlay.key;
-  resetCopied();
-}
-
 // The OBS control bridge is a browser source too. Its address is read when Copy is pressed, never kept on the page.
-const BRIDGE_KEY = 'bridge';
+// The bridge page is fixed, not a catalog widget: a 1 x 1 invisible page that must stay open to keep the
+// control link alive (ObsBridgeHostController.cs), so audio and shutdown are both off.
+const BRIDGE_SETUP = {
+  width: 1,
+  height: 1,
+  controlAudioViaObs: false,
+  shutdownWhenHidden: false,
+} as const satisfies ObsBrowserSource;
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const canCopyBridge = computed<boolean>(() => can('obs:config:write'));
@@ -93,16 +79,11 @@ const bridgeIsNext = computed<boolean>(
   () => nextKey.value === null && !bridgeOpen.value && canCopyBridge.value,
 );
 
-async function copyBridgeAddress(): Promise<void> {
-  if (!channelId.value) return;
+async function bridgeAddress(): Promise<string | null | undefined> {
+  if (!channelId.value)
+    return null;
 
-  const address = await readObsBridgeAddress(channelId.value);
-
-  if (!address) return;
-
-  await navigator.clipboard.writeText(address);
-  copiedKey.value = BRIDGE_KEY;
-  resetCopied();
+  return readObsBridgeAddress(channelId.value);
 }
 </script>
 
@@ -130,15 +111,13 @@ async function copyBridgeAddress(): Promise<void> {
           <span data-obs-dot="required" class="dot" :class="overlayHealth(overlay.widget)" aria-hidden="true" />
         </template>
         <template #trailing>
-          <Button
-            :variant="overlay.key === nextKey ? 'default' : 'outline'"
-            :disabled="!overlay.widget.overlayUrl"
-            data-required-copy
-            @click="copyAddress(overlay)"
-          >
-            <component :is="copiedKey === overlay.key ? Check : Copy" aria-hidden="true" />
-            {{ $t(copiedKey === overlay.key ? 'dashboard.obs.required.copied' : 'dashboard.obs.required.copy') }}
-          </Button>
+          <ObsSetupAction
+            :title="$t(`dashboard.obs.required.surfaces.${overlay.key}.name`)"
+            :setup="overlay.widget.obsSetup"
+            :connected="overlay.widget.isAttached"
+            :primary="overlay.key === nextKey"
+            :resolve-address="async () => overlay.widget.overlayUrl"
+          />
         </template>
       </SummaryRow>
       <SummaryRow
@@ -151,16 +130,14 @@ async function copyBridgeAddress(): Promise<void> {
           <span data-obs-dot="required" class="dot" :class="bridgeDot" aria-hidden="true" />
         </template>
         <template #trailing>
-          <Button
-            :variant="bridgeIsNext ? 'default' : 'outline'"
+          <ObsSetupAction
+            :title="$t('dashboard.obs.required.bridge.name')"
+            :setup="BRIDGE_SETUP"
+            :connected="bridgeOpen"
+            :primary="bridgeIsNext"
             :disabled="!canCopyBridge"
-            data-required-copy
-            data-required-bridge-copy
-            @click="copyBridgeAddress()"
-          >
-            <component :is="copiedKey === BRIDGE_KEY ? Check : Copy" aria-hidden="true" />
-            {{ $t(copiedKey === BRIDGE_KEY ? 'dashboard.obs.required.copied' : 'dashboard.obs.required.copy') }}
-          </Button>
+            :resolve-address="bridgeAddress"
+          />
         </template>
       </SummaryRow>
     </div>

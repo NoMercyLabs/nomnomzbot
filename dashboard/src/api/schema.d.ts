@@ -89220,7 +89220,8 @@ export interface components {
         /**
          * @description The wire shape of one BindingTarget on the automation API: `kind` is
          *     `command | pipeline | action` (any casing); `id` names the command or pipeline; an action names its
-         *     `actionType` and carries its `params` instead.
+         *     `actionType` and carries its `params` instead. The id is an owned id in its ULID wire form, the same
+         *     form every list sends; a raw Guid is still accepted on the way in.
          */
         AutomationTarget: {
             kind: string;
@@ -94067,6 +94068,20 @@ export interface components {
             hasLeader: boolean;
             /** Format: date-time */
             leaderSince?: null | string;
+        };
+        /**
+         * @description How a streamer sets up one overlay as an OBS browser source: the width and height to enter, whether to tick
+         *     "Control audio via OBS", and whether to tick "Shutdown source when not visible" (OBS then unloads the page, so
+         *     anything that must keep listening or playing leaves it off). Authored once per catalogue widget; a widget with no
+         *     catalogue entry (custom, community) carries none.
+         */
+        ObsBrowserSource: {
+            /** Format: int32 */
+            width: number | string;
+            /** Format: int32 */
+            height: number | string;
+            controlAudioViaObs: boolean;
+            shutdownWhenHidden: boolean;
         };
         /**
          * @description A channel's OBS connection as the dashboard sees it (obs-control.md §3). The OBS-WS password never
@@ -105541,6 +105556,7 @@ export interface components {
             galleryUpdateAvailable: boolean;
             isAttached: boolean;
             isCustomized: boolean;
+            obsSetup?: null | components["schemas"]["ObsBrowserSource"];
         };
         /** @description A preview action request: the action type, its parameters and the variables that seed its context. */
         WidgetPreviewActionRequest: {

@@ -17,6 +17,7 @@ import type { Widget } from '@/api/widgets';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 
+import ObsSetupAction from './ObsSetupAction.vue';
 import { overlayHealth, type HealthDot } from './overlayHealth';
 import { overlayKind, type OverlayKind } from './overlayKind';
 
@@ -67,6 +68,15 @@ const dotState = computed<HealthDot>(() => overlayHealth(props.widget));
           v-if="widget.lastRuntimeError"
           tone="bad"
           :label="$t('dashboard.overlays.list.fails')"
+        />
+      </template>
+      <template #trailing>
+        <ObsSetupAction
+          :title="widget.name"
+          :setup="widget.obsSetup"
+          :connected="widget.isAttached"
+          :disabled="!widget.overlayUrl"
+          :resolve-address="async () => widget.overlayUrl"
         />
       </template>
     </SummaryRow>
