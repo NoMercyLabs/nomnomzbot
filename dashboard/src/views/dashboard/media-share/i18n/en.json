@@ -3,6 +3,22 @@
     "mediaShare": {
       "title": "Media share",
       "crumb": "Community",
+      "player": {
+        "title": "On stream",
+        "description": "What the media share overlay plays now.",
+        "empty": "Nothing is playing.",
+        "ready": "Nothing is playing. Press Play to start the next item.",
+        "nothingToPlay": "Approve an item to play it on stream.",
+        "playing": "Playing",
+        "paused": "Paused",
+        "play": "Play",
+        "pause": "Pause",
+        "skip": "Skip to the next item",
+        "stop": "Stop playback",
+        "volume": "Overlay volume",
+        "overlayMissing": "The Media share browser source is not loaded in OBS, so nothing plays on stream.",
+        "setupOverlay": "Set up in OBS"
+      },
       "queue": {
         "title": "Queue",
         "waiting": "{count} in the queue",
@@ -19,7 +35,6 @@
         "moveDown": "Move down",
         "position": "Position {position}",
         "section": {
-          "playing": "Playing now",
           "pending": "Waiting for approval",
           "approved": "Up next",
           "history": "History"

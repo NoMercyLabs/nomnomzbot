@@ -66,6 +66,10 @@
           "music_player": {
             "name": "Muziekspeler",
             "detail": "Speelt de aangevraagde YouTube-nummers af. Zonder deze bron kunnen YouTube-aanvragen niet spelen."
+          },
+          "media_share": {
+            "name": "Media delen",
+            "detail": "Speelt de clips en video's af die kijkers delen. Zonder deze bron kan gedeelde media niet op stream spelen."
           }
         }
       },

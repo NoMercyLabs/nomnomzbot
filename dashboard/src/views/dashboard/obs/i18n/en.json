@@ -66,6 +66,10 @@
           "music_player": {
             "name": "Music Player",
             "detail": "Plays the YouTube song requests. Without it loaded, YouTube requests cannot play."
+          },
+          "media_share": {
+            "name": "Media share",
+            "detail": "Plays the clips and videos viewers share. Without it loaded, shared media cannot play on stream."
           }
         }
       },

@@ -3,6 +3,22 @@
     "mediaShare": {
       "title": "Media delen",
       "crumb": "Community",
+      "player": {
+        "title": "Op stream",
+        "description": "Wat de media-overlay nu afspeelt.",
+        "empty": "Er speelt niets.",
+        "ready": "Er speelt niets. Druk op Afspelen om het volgende item te starten.",
+        "nothingToPlay": "Keur een item goed om het op stream af te spelen.",
+        "playing": "Speelt",
+        "paused": "Gepauzeerd",
+        "play": "Afspelen",
+        "pause": "Pauzeren",
+        "skip": "Naar het volgende item",
+        "stop": "Afspelen stoppen",
+        "volume": "Volume van de overlay",
+        "overlayMissing": "De Media delen-bron is niet geladen in OBS, dus er speelt niets op stream.",
+        "setupOverlay": "Instellen in OBS"
+      },
       "queue": {
         "title": "Wachtrij",
         "waiting": "{count} in de wachtrij",
@@ -19,7 +35,6 @@
         "moveDown": "Omlaag",
         "position": "Plek {position}",
         "section": {
-          "playing": "Speelt nu",
           "pending": "Wacht op goedkeuring",
           "approved": "Hierna",
           "history": "Geschiedenis"

@@ -16,10 +16,14 @@ import { computed, ref } from 'vue';
 import {
   useDecideMediaShare,
   useMediaShareConfig,
+  useMediaSharePlayback,
+  useMediaSharePlayer,
   useMediaShareQueue,
   useReorderMediaShare,
+  type MediaPlaybackCommand,
   type MediaShareRequest,
 } from '@/api/mediaShare';
+import { useRequiredOverlays } from '@/api/widgets';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -31,6 +35,7 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
+import MediaSharePlayer from './components/MediaSharePlayer.vue';
 import MediaShareQueueRow from './components/MediaShareQueueRow.vue';
 import MediaShareQueueSection from './components/MediaShareQueueSection.vue';
 import MediaShareSettings from './components/MediaShareSettings.vue';
@@ -42,12 +47,28 @@ const queueQuery = useMediaShareQueue(channelId);
 const configQuery = useMediaShareConfig(channelId);
 const decide = useDecideMediaShare(channelId);
 const reorder = useReorderMediaShare(channelId);
+const playerQuery = useMediaSharePlayer(channelId);
+const playback = useMediaSharePlayback(channelId);
+const overlaysQuery = useRequiredOverlays(channelId, () =>
+  can('widget:read'));
+
+// Without the read (or before it loads) the page cannot tell, so it stays quiet rather than warn falsely.
+const overlayLoaded = computed<boolean>(() => {
+  const overlays = overlaysQuery.data.value;
+
+  if (!can('widget:read') || overlays === undefined)
+    return true;
+
+  return overlays.some((overlay): boolean => overlay.key === 'media_share' && overlay.widget.isAttached === true);
+});
 
 const settingsOpen = ref<boolean>(false);
 const removing = ref<MediaShareRequest | null>(null);
 const confirmOpen = ref<boolean>(false);
 
 const rows = computed<MediaShareRequest[]>(() => queueQuery.data.value ?? []);
+const current = computed<MediaShareRequest | null>(() =>
+  rows.value.find((row): boolean => row.status === 'playing') ?? null);
 const sections = computed(() => groupQueue(rows.value));
 const approved = computed<MediaShareRequest[]>(() =>
   rows.value.filter((row): boolean => row.status === 'approved'),
@@ -73,6 +94,20 @@ function playPosition(row: MediaShareRequest): number | null {
 
 function move(row: MediaShareRequest, step: number): void {
   reorder.mutate({ id: row.id, position: position(row) + step });
+}
+
+function command(name: MediaPlaybackCommand, value?: number): void {
+  playback.mutate({ command: name, value });
+}
+
+// Play now puts the item first, then the player takes it: a skip ends what plays, a play starts an idle player.
+function playNow(row: MediaShareRequest): void {
+  reorder.mutate({ id: row.id, position: 1 }, {
+    onSuccess: () =>
+      command(current.value
+        ? 'skip'
+        : 'play'),
+  });
 }
 
 function askRemove(row: MediaShareRequest): void {
@@ -104,9 +139,18 @@ function confirmRemove(): void {
   </PageHeader>
   <PanelBeside>
     <PageBody>
+      <MediaSharePlayer
+        v-if="can('media:read')"
+        :current="current"
+        :player="playerQuery.data.value ?? null"
+        :has-next="approved.length > 0"
+        :can-control="can('pipelines:write')"
+        :busy="playback.isPending.value"
+        :overlay-loaded="overlayLoaded"
+        @command="command"
+      />
       <PanelCard
         v-if="can('media:read')"
-        tier="lead"
         :title="$t('dashboard.mediaShare.queue.title')"
         :description="
           waiting > 0
@@ -134,7 +178,7 @@ function confirmRemove(): void {
             :can-move-down="row.status === 'approved' && position(row) < approved.length"
             @decide="(action) => decide.mutate({ id: row.id, action })"
             @move="(step) => move(row, step)"
-            @play-now="reorder.mutate({ id: row.id, position: 1 })"
+            @play-now="playNow(row)"
             @remove="askRemove(row)"
           />
         </MediaShareQueueSection>

@@ -33,6 +33,7 @@ type Row = Record<string, unknown>;
 
 const calls: Call[] = [];
 let queue: Row[] = [];
+let overlayAttached = true;
 
 const config = {
   isEnabled: true,
@@ -69,10 +70,14 @@ vi.mock('@/api/access', () => ({
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async (path: string) =>
-      path.endsWith('/config')
+    GET: async (path: string) => {
+      if (path.endsWith('/overlays/required'))
+        return answer([{ key: 'media_share', widget: { isAttached: overlayAttached } }]);
+
+      return path.endsWith('/config')
         ? answer(config)
-        : answer(queue),
+        : answer(queue);
+    },
     POST: async (path: string, options?: Options) => {
       calls.push({
         method: 'POST',
@@ -103,6 +108,14 @@ let pinia: Pinia;
 
 beforeEach(() => {
   calls.length = 0;
+  overlayAttached = true;
+
+  // The volume slider measures itself; jsdom has no ResizeObserver.
+  vi.stubGlobal('ResizeObserver', class {
+    observe(): void {}
+    unobserve(): void {}
+    disconnect(): void {}
+  });
 
   queue = [
     item('p', 'playing'),
@@ -202,9 +215,10 @@ describe('Media share page', () => {
     ]);
   });
 
-  it('plays the second approved item now by moving it to play position 1', async () => {
+  it('plays the second approved item now: first in line, then a skip ends what plays', async () => {
     await open();
     await press(rowOf('c'), '[data-action="play-now"]');
+    await settle();
 
     expect(calls).toEqual([
       {
@@ -212,7 +226,75 @@ describe('Media share page', () => {
         path: '/api/v{version}/media-share/{id}/reorder',
         body: { position: 1 },
       },
+      {
+        method: 'POST',
+        path: '/api/v{version}/channels/{channelId}/actions/run',
+        body: { actionType: 'media_playback', parameters: { command: 'skip', value: '' } },
+      },
     ]);
+  });
+
+  it('shows the playing item in the player card, and Pause, Skip and Stop drive the overlay', async () => {
+    await open();
+
+    const player = document.body.querySelector<HTMLElement>('[data-media-share-player]')!;
+
+    expect(player.querySelector('[data-player-title]')?.textContent).toContain('Clip p');
+    expect(player.querySelector('[data-action="toggle-play"]')?.textContent).toContain('Pause');
+
+    await press(player, '[data-action="toggle-play"]');
+    await press(player, '[data-action="player-skip"]');
+    await press(player, '[data-action="player-stop"]');
+
+    expect(calls.map((call) => call.body?.parameters)).toEqual([
+      { command: 'pause', value: '' },
+      { command: 'skip', value: '' },
+      { command: 'stop', value: '' },
+    ]);
+  });
+
+  it('starts an idle player with Play when items are approved', async () => {
+    queue = [item('b', 'approved')];
+    await open();
+
+    const player = document.body.querySelector<HTMLElement>('[data-media-share-player]')!;
+
+    expect(player.querySelector('[data-player-title]')).toBeNull();
+    expect(player.querySelector('[data-action="player-skip"]')).toBeNull();
+
+    await press(player, '[data-action="toggle-play"]');
+
+    expect(calls).toEqual([
+      {
+        method: 'POST',
+        path: '/api/v{version}/channels/{channelId}/actions/run',
+        body: { actionType: 'media_playback', parameters: { command: 'play', value: '' } },
+      },
+    ]);
+  });
+
+  it('says nothing plays on stream while the media share source is not loaded in OBS', async () => {
+    overlayAttached = false;
+    await open();
+
+    expect(document.body.querySelector('[data-player-overlay-missing]')?.textContent)
+      .toContain('not loaded in OBS');
+  });
+
+  it('shows no overlay warning once the media share source is loaded', async () => {
+    await open();
+
+    expect(document.body.querySelector('[data-player-overlay-missing]')).toBeNull();
+  });
+
+  it('disables Play and says why when nothing is approved', async () => {
+    queue = [item('a', 'pending')];
+    await open();
+
+    const player = document.body.querySelector<HTMLElement>('[data-media-share-player]')!;
+
+    expect(player.querySelector<HTMLButtonElement>('[data-action="toggle-play"]')?.disabled).toBe(true);
+    expect(player.querySelector('[data-player-reason]')?.textContent).toContain('Approve an item');
   });
 
   it('offers no play now on the first approved item and no approve on an approved one', async () => {
@@ -220,13 +302,6 @@ describe('Media share page', () => {
 
     expect(rowOf('b').querySelector('[data-action="play-now"]')).toBeNull();
     expect(rowOf('b').querySelector('[data-action="approve"]')).toBeNull();
-  });
-
-  it('skips the playing item', async () => {
-    await open();
-    await press(rowOf('p'), '[data-action="skip"]');
-
-    expect(calls.map((call) => call.path)).toEqual(['/api/v{version}/media-share/{id}/skip']);
   });
 
   it('removes an approved item only after the confirm, with the reject endpoint', async () => {
@@ -259,13 +334,14 @@ describe('Media share page', () => {
     ]);
   });
 
-  it('groups the queue into playing, waiting, up next and history, and history has no controls', async () => {
+  it('groups the queue into waiting, up next and history, and history has no controls', async () => {
     await open();
 
     const sections = [...document.body.querySelectorAll<HTMLElement>('[data-queue-section]')];
 
+    expect(rowOf('p')).toBeUndefined();
+
     expect(sections.map((section) => section.dataset.queueSection)).toEqual([
-      'playing',
       'pending',
       'approved',
       'history',
