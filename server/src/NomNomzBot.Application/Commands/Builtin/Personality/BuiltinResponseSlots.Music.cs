@@ -77,9 +77,6 @@ public static partial class BuiltinResponseSlots
         /// <summary>The queue is closed to new requests (<c>!closequeue</c>) — no variables.</summary>
         public const string QueueClosed = "queueclosed";
 
-        /// <summary>The requester's role is below the channel's minimum; <c>{trust.level}</c> is set.</summary>
-        public const string MinTrust = "mintrust";
-
         /// <summary>The track is on the channel's blocklist; <c>{track.name}</c> is set.</summary>
         public const string TrackBlocked = "trackblocked";
 

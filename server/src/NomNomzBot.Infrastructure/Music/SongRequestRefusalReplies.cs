@@ -156,16 +156,6 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
                 null,
                 ct
             ),
-            "MIN_TRUST_LEVEL" => ComposeAsync(
-                context,
-                BuiltinResponseSlots.SongRequest.MinTrust,
-                "Song requests need at least {trust.level} right now.",
-                new Dictionary<string, string>
-                {
-                    ["trust.level"] = data?.TrustLevel ?? "a higher role",
-                },
-                ct
-            ),
             "SR_REVOKED" => ComposeAsync(
                 context,
                 BuiltinResponseSlots.SongRequest.Revoked,

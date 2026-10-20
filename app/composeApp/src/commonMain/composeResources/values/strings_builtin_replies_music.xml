@@ -87,8 +87,6 @@
     <string name="builtin_reply_sr_usage_description">A viewer types the song command with no song.</string>
     <string name="builtin_reply_sr_requestsoff_label">Requests turned off</string>
     <string name="builtin_reply_sr_requestsoff_description">A viewer asks for a song while requests are off.</string>
-    <string name="builtin_reply_sr_mintrust_label">Role too low</string>
-    <string name="builtin_reply_sr_mintrust_description">The viewer has a lower role than song requests need.</string>
     <string name="builtin_reply_sr_trackblocked_label">Song blocked</string>
     <string name="builtin_reply_sr_trackblocked_description">The requested song is on the block list.</string>
     <string name="builtin_reply_sr_noactivedevice_label">Nothing is playing</string>
@@ -193,7 +191,6 @@
     <string name="builtin_reply_var_retry_minutes">Minutes until the music service accepts calls again</string>
     <string name="builtin_reply_var_retry_time">When the music service accepts requests again (UTC clock time)</string>
     <string name="builtin_reply_var_request_code">The request's code that !wrongsong uses</string>
-    <string name="builtin_reply_var_trust_level">The lowest role allowed to request</string>
     <string name="builtin_reply_var_volume_level">The volume, from 0 to 100</string>
     <string name="builtin_reply_var_playlist_url">A link to the bangers playlist</string>
     <string name="builtin_reply_var_playlist_name">The name of the bangers playlist</string>
