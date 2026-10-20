@@ -206,6 +206,37 @@ public sealed class SpotifyPlaybackEngineTests
     }
 
     [Fact]
+    public async Task With_no_device_Spotify_is_asked_once_per_half_minute_not_on_every_poll_tick()
+    {
+        Microsoft.Extensions.Time.Testing.FakeTimeProvider clock = new();
+        SpotifyPlaybackEngine engine = new(Channel, () => EngineLease.Of(_provider), clock);
+        _provider
+            .AddToQueueAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .ThrowsAsync(new NoActiveDeviceException("spotify"));
+        PlaybackItem item = Item();
+
+        List<EngineStartResult> results = [];
+        for (int tick = 0; tick < 6; tick++)
+        {
+            results.Add(await engine.QueueNextAsync(item));
+            clock.Advance(TimeSpan.FromSeconds(5));
+        }
+
+        results.Should().OnlyContain(r => r.Block == EngineBlockReason.NoOutput);
+        await _provider
+            .Received(1)
+            .AddToQueueAsync(Channel, item.Uri, Arg.Any<CancellationToken>());
+        await _provider.Received(1).GetQueueAsync(Channel, Arg.Any<CancellationToken>());
+
+        clock.Advance(TimeSpan.FromSeconds(30));
+        await engine.QueueNextAsync(item);
+
+        await _provider
+            .Received(2)
+            .AddToQueueAsync(Channel, item.Uri, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
     public async Task Pause_with_no_device_throws_Blocked_NoOutput()
     {
         _provider
@@ -377,10 +408,7 @@ public sealed class SpotifyPlaybackEngineTests
             });
         _provider
             .GetQueueAsync(Channel, Arg.Any<CancellationToken>())
-            .Returns(_ =>
-                (IReadOnlyList<TrackInfo>?)
-                    held.Select(uri => Track(uri, progressMs: 0, playing: false)).ToList()
-            );
+            .Returns(_ => held.Select(uri => Track(uri, progressMs: 0, playing: false)).ToList());
 
         return held;
     }
