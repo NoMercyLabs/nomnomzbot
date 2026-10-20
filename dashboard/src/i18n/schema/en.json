@@ -916,10 +916,6 @@
           "description": "The link is a live stream or a premiere, which has no fixed song to queue.",
           "label": "Live stream or premiere"
         },
-        "mintrust": {
-          "description": "The viewer has a lower role than song requests need.",
-          "label": "Role too low"
-        },
         "missingscope": {
           "description": "The music connection must be reconnected before search works.",
           "label": "Reconnect music"
@@ -1247,7 +1243,6 @@
         "track_link": "A link to the track",
         "track_max": "The longest song length allowed",
         "track_name": "The track's title",
-        "trust_level": "The lowest role allowed to request",
         "uptime": "How long the stream has been live",
         "user": "The viewer's display name",
         "viewer": "The viewer whose voice was set",

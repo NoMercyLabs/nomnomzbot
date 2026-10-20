@@ -916,10 +916,6 @@
           "description": "De link is een livestream of premiere, zonder vast nummer om in de wachtrij te zetten.",
           "label": "Livestream of premiere"
         },
-        "mintrust": {
-          "description": "De kijker heeft een lagere rol dan verzoeknummers nodig hebben.",
-          "label": "Rol te laag"
-        },
         "missingscope": {
           "description": "De muziekverbinding moet opnieuw verbonden worden voordat zoeken werkt.",
           "label": "Muziek opnieuw verbinden"
@@ -1247,7 +1243,6 @@
         "track_link": "Een link naar het nummer",
         "track_max": "De langste toegestane nummerlengte",
         "track_name": "De titel van het nummer",
-        "trust_level": "De laagste rol die mag aanvragen",
         "uptime": "Hoe lang de stream al live is",
         "user": "De weergavenaam van de kijker",
         "viewer": "De kijker van wie de stem is ingesteld",
