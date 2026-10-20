@@ -3641,6 +3641,15 @@ than each consumer needing their own clone-and-customize pass.
 
 ## Phase 6 — new features and personas (D3 X, D4 viewer, moderator-of-many, new capabilities)
 
+- **S-VOD-TRANSCRIPT (idea, D8: not started)** — the bot makes a transcript of each VOD. Stoney,
+  2026-10-20 (translated from Dutch): "Yes, not only that, but also for the bot to be able to make a
+  transcript of the VOD. You know, professional bot stuff." Trigger: a Better Stack Short (2026-10-19)
+  about a 164 MB local speech-to-text model (word error rate 5.21 vs Whisper Turbo 6.58, an hour of audio
+  in 21 s on a MacBook Air; English only; model name not yet confirmed, probably an Nvidia Parakeet
+  derivative). Shape to settle: ffmpeg extracts the VOD audio, the local model transcribes, the transcript
+  is stored per VOD. Open: which model (license, languages beyond English), where it runs (self-host box
+  CPU or GPU), and what the streamer sees (searchable transcript, highlights).
+
 - **S044** Helper expansion + presets — math/string/date namespaces, general `{{ns.key:arg}}` grammar,
   any-step output, `{{stream.viewers}}`; raid preset (shoutout → raid → countdown → optional OBS/
   Spotify) + `channel.raid.out` seeded on onboarding (W·§6, U·A1 i4). Done-when: `!raid <user>` from a
