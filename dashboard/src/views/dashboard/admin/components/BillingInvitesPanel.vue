@@ -55,6 +55,10 @@ const maxRedemptions = ref('1');
 const tierId = ref('');
 const foundersBadge = ref(false);
 
+function grantedTierName(invite: InviteCode): string | undefined {
+  return (tiers.data.value ?? []).find((tier) => tier.key === invite.grantsTierKey)?.displayName;
+}
+
 // Revoking sets the expiry to now, so a code with a past expiry has ended and cannot be revoked again.
 function isEnded(invite: InviteCode): boolean {
   return invite.expiresAt != null && new Date(invite.expiresAt).getTime() <= Date.now();
@@ -106,7 +110,9 @@ async function confirmRevoke(): Promise<void> {
           <Badge v-if="isEnded(invite)" variant="outline" data-invite-ended>
             {{ t("dashboard.admin.billing.invites.ended") }}
           </Badge>
-          <Badge v-if="invite.grantsTierKey" variant="secondary">{{ invite.grantsTierKey }}</Badge>
+          <Badge v-if="grantedTierName(invite)" variant="secondary" data-invite-tier>
+            {{ grantedTierName(invite) }}
+          </Badge>
           <Badge v-if="invite.grantsFoundersBadge" variant="secondary">
             {{ t("dashboard.admin.billing.invites.founder") }}
           </Badge>

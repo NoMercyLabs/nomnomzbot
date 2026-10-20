@@ -60,6 +60,7 @@ const reads = {
     code: 'WELCOME',
     maxRedemptions: 5,
     redemptionCount: 2,
+    grantsTierKey: 'pro',
     grantsFoundersBadge: false,
   }, {
     id: 'v2',
@@ -192,6 +193,12 @@ describe('AdminBillingView', () => {
     expect(row.textContent).toContain('Revoked or expired');
     expect(row.querySelector('[data-invite-revoke]')).toBeNull();
     expect(hook('[data-invite-row="v1"]').textContent).not.toContain('Revoked or expired');
+  });
+
+  it('names the tier an invite code grants by its display name, never its internal key', async () => {
+    await open();
+
+    expect(hook('[data-invite-row="v1"] [data-invite-tier]').textContent?.trim()).toBe('Pro');
   });
 
   it('counts the affected channels before it saves a tier, and sends that count back', async () => {
