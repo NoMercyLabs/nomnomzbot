@@ -41,6 +41,11 @@
         "copied": "Gekopieerd",
         "empty": "Dit kanaal heeft nog geen verplichte overlays.",
         "loadError": "De verplichte overlays konden niet laden.",
+        "bridge": {
+          "name": "OBS-besturing",
+          "detail": "Laat de bot OBS-scènes en -bronnen besturen via deze browserbron. Nodig als OBS op een andere computer draait.",
+          "locked": "Je hebt toestemming nodig om de OBS-koppeling te wijzigen"
+        },
         "surfaces": {
           "audio": {
             "name": "Bot Audio",

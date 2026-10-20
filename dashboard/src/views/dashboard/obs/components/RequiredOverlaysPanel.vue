@@ -17,11 +17,14 @@ import Copy from '~icons/nnz/file-copy';
 import { useTimeoutFn } from '@vueuse/core';
 import { computed, ref } from 'vue';
 
+import { readObsBridgeAddress, useObsBridge } from '@/api/obs';
 import type { RequiredOverlay } from '@/api/widgets';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
+import { useCan } from '@/composables/useCan';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { overlayHealth } from '@/views/dashboard/overlays/components/overlayHealth';
 
 import { sourceReasonKey } from '../obsHealth';
@@ -60,6 +63,47 @@ async function copyAddress(overlay: RequiredOverlay): Promise<void> {
   copiedKey.value = overlay.key;
   resetCopied();
 }
+
+// The OBS control bridge is a browser source too. Its address is read when Copy is pressed, never kept on the page.
+const BRIDGE_KEY = 'bridge';
+const { channelId } = useCurrentChannel();
+const { can } = useCan();
+const canCopyBridge = computed<boolean>(() => can('obs:config:write'));
+const bridgeChannelId = computed<string | null>(() =>
+  can('obs:config:read')
+    ? channelId.value
+    : null,
+);
+const bridge = useObsBridge(bridgeChannelId);
+const bridgeOpen = computed<boolean>(() => Number(bridge.data.value?.instanceCount ?? 0) > 0);
+const bridgeDot = computed<string>(() =>
+  bridgeOpen.value
+    ? 'ok'
+    : 'warn',
+);
+const bridgeMeta = computed<string>(() => {
+  if (!canCopyBridge.value)
+    return 'dashboard.obs.required.bridge.locked';
+
+  return bridgeOpen.value
+    ? 'dashboard.obs.sources.loaded'
+    : 'dashboard.obs.sources.notLoaded';
+});
+const bridgeIsNext = computed<boolean>(
+  () => nextKey.value === null && !bridgeOpen.value && canCopyBridge.value,
+);
+
+async function copyBridgeAddress(): Promise<void> {
+  if (!channelId.value) return;
+
+  const address = await readObsBridgeAddress(channelId.value);
+
+  if (!address) return;
+
+  await navigator.clipboard.writeText(address);
+  copiedKey.value = BRIDGE_KEY;
+  resetCopied();
+}
 </script>
 
 <template>
@@ -94,6 +138,28 @@ async function copyAddress(overlay: RequiredOverlay): Promise<void> {
           >
             <component :is="copiedKey === overlay.key ? Check : Copy" aria-hidden="true" />
             {{ $t(copiedKey === overlay.key ? 'dashboard.obs.required.copied' : 'dashboard.obs.required.copy') }}
+          </Button>
+        </template>
+      </SummaryRow>
+      <SummaryRow
+        data-required-bridge
+        :title="$t('dashboard.obs.required.bridge.name')"
+        :detail="$t('dashboard.obs.required.bridge.detail')"
+        :meta="$t(bridgeMeta)"
+      >
+        <template #leading>
+          <span data-obs-dot="required" class="dot" :class="bridgeDot" aria-hidden="true" />
+        </template>
+        <template #trailing>
+          <Button
+            :variant="bridgeIsNext ? 'default' : 'outline'"
+            :disabled="!canCopyBridge"
+            data-required-copy
+            data-required-bridge-copy
+            @click="copyBridgeAddress()"
+          >
+            <component :is="copiedKey === BRIDGE_KEY ? Check : Copy" aria-hidden="true" />
+            {{ $t(copiedKey === BRIDGE_KEY ? 'dashboard.obs.required.copied' : 'dashboard.obs.required.copy') }}
           </Button>
         </template>
       </SummaryRow>

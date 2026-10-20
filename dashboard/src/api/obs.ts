@@ -131,6 +131,19 @@ export function obsBridgeOptions(id: string) {
   return channelOptions(obsBridgeKey, readObsBridge, id);
 }
 
+// The address of the bridge browser source. It holds the channel's bridge token, so it is read when asked for and never cached.
+export async function readObsBridgeAddress(id: string): Promise<string> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/obs/bridge/setup',
+    { params: { path: { version, channelId: id } } },
+  );
+
+  if (error !== undefined)
+    throw failed('obs bridge', response.status, error);
+
+  return data?.data?.bridgeUrl ?? '';
+}
+
 // OBS answers the live reads only while the connection is switched on; a refusal is the "not reachable" state.
 export function useObsState(
   channelId: MaybeRefOrGetter<string | null>,

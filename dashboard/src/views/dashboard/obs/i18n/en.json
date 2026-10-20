@@ -41,6 +41,11 @@
         "copied": "Copied",
         "empty": "This channel has no required overlays yet.",
         "loadError": "The required overlays could not load.",
+        "bridge": {
+          "name": "OBS control",
+          "detail": "Lets the bot control OBS scenes and sources from this browser source. Needed when OBS runs on another computer.",
+          "locked": "Needs permission to change the OBS link"
+        },
         "surfaces": {
           "audio": {
             "name": "Bot Audio",

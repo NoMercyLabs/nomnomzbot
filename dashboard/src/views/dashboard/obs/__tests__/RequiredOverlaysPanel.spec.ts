@@ -8,8 +8,10 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ref } from 'vue';
 
 import type { RequiredOverlay } from '@/api/widgets';
 import { i18n } from '@/i18n';
@@ -19,6 +21,34 @@ import en from '../i18n/en.json';
 import nl from '../i18n/nl.json';
 
 const SECRET = 'SECRET123';
+const BRIDGE_ADDRESS = `https://bot.example/obs-bridge?token=${SECRET}`;
+
+const held = { configWrite: true, bridgeOpen: 1 };
+
+vi.mock('@/composables/useCurrentChannel', () => ({
+  useCurrentChannel: () => ({ channelId: ref('c1') }),
+}));
+
+vi.mock('@/composables/useCan', () => ({
+  useCan: () => ({
+    known: ref(true),
+    can: (key: string): boolean => key !== 'obs:config:write' || held.configWrite,
+  }),
+}));
+
+vi.mock('@/api/client', () => ({
+  client: {
+    use: () => undefined,
+    GET: async (path: string) => ({
+      data: {
+        data: path.endsWith('/obs/bridge/setup')
+          ? { bridgeUrl: BRIDGE_ADDRESS }
+          : { instanceCount: held.bridgeOpen, hasLeader: held.bridgeOpen > 0 },
+      },
+      response: { status: 200, ok: true },
+    }),
+  },
+}));
 
 const surface = (key: string, over: Record<string, unknown> = {}): RequiredOverlay =>
   ({
@@ -39,6 +69,8 @@ let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
   written.length = 0;
+  held.configWrite = true;
+  held.bridgeOpen = 1;
   i18n.global.mergeLocaleMessage('en', en);
 
   Object.defineProperty(navigator, 'clipboard', {
@@ -58,16 +90,26 @@ afterEach(() => {
 });
 
 function open(overlays: RequiredOverlay[]): void {
+  const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
   mounted = mount(RequiredOverlaysPanel, {
     attachTo: document.body,
     props: { overlays, panelState: 'ready' },
-    global: { plugins: [i18n] },
+    global: {
+      plugins: [
+        i18n,
+        [VueQueryPlugin, { queryClient }],
+      ],
+    },
   });
 }
 
 const rows = (): HTMLElement[] => Array.from(document.querySelectorAll('[data-required-overlay]'));
 const buttons = (): HTMLButtonElement[] =>
   Array.from(document.querySelectorAll<HTMLButtonElement>('[data-required-copy]'));
+
+const bridgeButton = (): HTMLButtonElement | null =>
+  document.querySelector<HTMLButtonElement>('[data-required-bridge-copy]');
 
 describe('RequiredOverlaysPanel', () => {
   it('lists every system surface by name under the #required-overlays anchor', () => {
@@ -124,12 +166,49 @@ describe('RequiredOverlaysPanel', () => {
 
     const primary = buttons().map((button) => button.className.includes('rounded-full'));
 
-    expect(primary).toEqual([false, true, false, false]);
+    expect(primary).toEqual([false, true, false, false, false]);
   });
 
   it('disables Copy for a surface that has no address yet', () => {
     open([surface('audio', { overlayUrl: null })]);
 
     expect(buttons()[0]?.disabled).toBe(true);
+  });
+
+  it('lists the OBS control bridge and copies its setup address without printing it', async () => {
+    open([surface('audio')]);
+    await flushPromises();
+
+    const row = document.querySelector('[data-required-bridge]');
+
+    expect(row?.textContent).toContain(en.dashboard.obs.required.bridge.name);
+    expect(row?.textContent).toContain(en.dashboard.obs.sources.loaded);
+
+    bridgeButton()?.click();
+    await flushPromises();
+
+    expect(written).toEqual([BRIDGE_ADDRESS]);
+    expect(document.body.innerHTML).not.toContain(SECRET);
+  });
+
+  it('shows the bridge as not loaded when no bridge page is open in OBS', async () => {
+    held.bridgeOpen = 0;
+    open([surface('audio')]);
+    await flushPromises();
+
+    expect(document.querySelector('[data-required-bridge]')?.textContent).toContain(
+      en.dashboard.obs.sources.notLoaded,
+    );
+  });
+
+  it('locks the bridge Copy button for a viewer who cannot change the OBS link', async () => {
+    held.configWrite = false;
+    open([surface('audio')]);
+    await flushPromises();
+
+    const row = document.querySelector('[data-required-bridge]');
+
+    expect(bridgeButton()?.disabled).toBe(true);
+    expect(row?.textContent).toContain(en.dashboard.obs.required.bridge.locked);
   });
 });
