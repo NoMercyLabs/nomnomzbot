@@ -418,8 +418,8 @@ describe('Event journal list', () => {
     expect(rows[0]!.textContent).not.toContain('42');
     expect(rows[0]!.textContent).not.toContain('FollowEvent');
     expect(rows[1]!.querySelector('[data-what]')!.textContent).toBe('OBS streaming state changed');
-    // The bot journals most events (a follow too) without a person; the row says so instead of naming the bot.
-    expect(rows[1]!.querySelector('[data-who]')!.textContent!.trim()).toBe('Not recorded');
+    // The bot journals most events (a follow too) without a person; the row says so and names where it came from.
+    expect(rows[1]!.querySelector('[data-who]')!.textContent!.trim()).toBe('Not recorded, from the bot');
     expect(document.body.querySelector('thead')!.textContent).not.toContain('Position');
 
     expect(calls.filter((call) => call.path.endsWith('/profile'))).toHaveLength(1);
@@ -459,14 +459,13 @@ describe('Event journal list', () => {
     expect(window.localStorage.getItem('nnz.event-journal.eventType')).toBe('');
   });
 
-  it('drops the who column when no event on the page names a person', async () => {
+  it('keeps the who column and says where the event came from when the bot saved no person', async () => {
     window.localStorage.clear();
     listed.items = [bot('b1', 'ObsStreamingStateChangedEvent', '2026-10-01T09:00:00Z')];
     await open();
 
-    expect(document.body.querySelector('thead')!.textContent).not.toContain('Who');
-    expect(document.body.querySelector('[data-who]')).toBeNull();
-    expect(document.body.textContent).not.toContain('Not recorded');
+    expect(document.body.querySelector('thead')!.textContent).toContain('Who');
+    expect(q('[data-who]').textContent!.trim()).toBe('Not recorded, from the bot');
   });
 
   it('folds the same event in a row into one line that says how many times it happened', async () => {
@@ -493,8 +492,12 @@ describe('Event journal list', () => {
     window.localStorage.clear();
 
     listed.items = [
-      bot('b2', 'channel.chat.message', '2026-10-01T09:10:00Z'),
-      bot('b1', 'TtsUtteranceDispatchedEvent', '2026-10-01T09:00:00Z'),
+      bot('b6', 'channel.chat.message', '2026-10-01T09:50:00Z'),
+      bot('b5', 'ChatMessageReceivedEvent', '2026-10-01T09:40:00Z'),
+      bot('b4', 'EventSubNotificationJournaledEvent', '2026-10-01T09:30:00Z'),
+      bot('b3', 'LedgerEntryRecordedEvent', '2026-10-01T09:20:00Z'),
+      bot('b2', 'TtsUtteranceDispatchedEvent', '2026-10-01T09:10:00Z'),
+      bot('b1', 'SomeFutureThingEvent', '2026-10-01T09:00:00Z'),
     ];
 
     listed.total = 1_423_155;
@@ -502,7 +505,15 @@ describe('Event journal list', () => {
 
     const what = [...document.body.querySelectorAll('[data-what]')].map((cell) => cell.textContent);
 
-    expect(what).toEqual(['Channel chat message', 'TTS utterance dispatched']);
+    expect(what).toEqual([
+      'Twitch notice: chat message',
+      'Chat message',
+      'Twitch notice saved',
+      'Points balance changed',
+      'Read a message aloud',
+      'Some future thing',
+    ]);
+
     expect(document.body.querySelector('[role="status"]')!.textContent).toContain('56,927');
   });
 

@@ -50,7 +50,7 @@ import { useJournalActors } from './useJournalActors';
 const PAGE_SIZE = 25;
 const ALL = 'all';
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 const { channelId } = useCurrentChannel();
 
 const eventType = useLocalStorage('nnz.event-journal.eventType', '');
@@ -119,15 +119,34 @@ const total = computed(() => Number(journal.data.value?.totalCount ?? 0));
 const pages = computed(() => Math.max(1, Math.ceil(total.value / PAGE_SIZE)));
 const actors = useJournalActors(channelId, rows);
 const runs = computed(() => foldRuns(rows.value));
-// The bot journals most events with no person yet; a column that would say "not recorded" on every line goes.
-const anyActor = computed(() => rows.value.some((row) => Boolean(row.actorUserId)));
 const filtered = computed(() =>
   kindChoice.value !== ALL || sourceChoice.value !== ALL || from.value !== '' || to.value !== '');
 
 function what(row: JournalEntry): string {
-  return isEventKind(row.eventType)
-    ? t(`dashboard.settings.eventJournal.events.${row.eventType}`)
-    : spokenEventName(row.eventType);
+  // The server spells one type name in British English; the translation key is American.
+  // cspell:disable-next-line -- the server's type name
+  const key = `dashboard.settings.eventJournal.events.${row.eventType.replace('Cancelled', 'Canceled')}`;
+
+  if (te(key, 'en')) {
+    return t(key);
+  }
+
+  // A dotted name is Twitch's own notice as it arrived (channel.chat.message), kept apart from the bot's reading of it.
+  if (row.eventType.includes('.')) {
+    const spoken = spokenEventName(row.eventType.replace(/^channel\./, ''));
+    const words = spoken.charAt(0).toLowerCase() + spoken.slice(1);
+
+    return t('dashboard.settings.eventJournal.twitchNotice', { what: words });
+  }
+
+  return spokenEventName(row.eventType);
+}
+
+// The bot saves most events with no person yet; the line then says where the event came from.
+function noActor(row: JournalEntry): string {
+  return isEventSource(row.source)
+    ? t('dashboard.settings.eventJournal.list.whoFrom', { source: t(`dashboard.settings.eventJournal.origins.${row.source}`) })
+    : t('dashboard.settings.eventJournal.list.whoUnknown');
 }
 
 function actorOf(row: JournalEntry) {
@@ -186,7 +205,7 @@ function clear(): void {
       <TableHeader>
         <TableRow class="hover:bg-transparent">
           <TableHead>{{ $t('dashboard.settings.eventJournal.list.columns.what') }}</TableHead>
-          <TableHead v-if="anyActor">{{ $t('dashboard.settings.eventJournal.list.columns.who') }}</TableHead>
+          <TableHead>{{ $t('dashboard.settings.eventJournal.list.columns.who') }}</TableHead>
           <TableHead class="text-right">{{ $t('dashboard.settings.eventJournal.list.columns.when') }}</TableHead>
         </TableRow>
       </TableHeader>
@@ -196,14 +215,14 @@ function clear(): void {
             <span data-what>{{ what(row) }}</span>
             <span v-if="count > 1" data-repeat class="ml-2 font-normal text-muted-foreground tabular-nums">{{ $t('dashboard.settings.eventJournal.list.repeat', { count: $n(count) }) }}</span>
           </TableCell>
-          <TableCell v-if="anyActor" data-who>
+          <TableCell data-who>
             <UserName
               v-if="actorOf(row)"
               :user-id="actorOf(row)?.twitchUserId"
               :name="actorOf(row)?.name ?? ''"
               :color="actorOf(row)?.color"
             />
-            <span v-else class="text-muted-foreground">{{ $t('dashboard.settings.eventJournal.list.whoUnknown') }}</span>
+            <span v-else class="text-muted-foreground">{{ noActor(row) }}</span>
           </TableCell>
           <TableCell class="text-right text-muted-foreground">
             <DateTime :value="row.occurredAt" variant="relative" />
