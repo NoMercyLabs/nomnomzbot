@@ -141,12 +141,21 @@
         "log": "Log",
         "close": "Close"
       },
+      "blast": {
+        "blast_radius_category_code_script_versions": "saved versions of this script",
+        "blast_radius_category_pipeline_steps": "pipeline steps",
+        "blast_radius_category_pipelines": "pipelines",
+        "blast_radius_category_commands": "commands",
+        "blast_radius_category_widgets": "widgets"
+      },
       "delete": {
         "title": "Delete {name}?",
         "description": "This cannot be undone.",
         "action": "Delete script",
         "line": "{count} {what}: {names}",
         "lineAtLeast": "At least {count} {what}: {names}",
+        "count": "{count} {what}",
+        "countAtLeast": "At least {count} {what}",
         "nothing": "Nothing else uses this script."
       },
       "new": {

@@ -569,6 +569,35 @@ describe('ScriptsView', () => {
     );
   });
 
+  it('leaves the own saved versions out of what runs the script, and names a kind with no samples', async () => {
+    blast = {
+      categories: [
+        {
+          categoryKey: 'blast_radius_category_code_script_versions',
+          count: 5,
+          sample: [],
+        },
+        {
+          categoryKey: 'blast_radius_category_pipeline_steps',
+          count: 2,
+          sample: [],
+        },
+      ],
+      isMinimum: false,
+      totalReferences: 7,
+    };
+
+    await open('/app/scripts?script=s1');
+
+    const usedBy = document.body.querySelector('[data-slot="script-used-by"]') as HTMLElement;
+
+    expect([...usedBy.querySelectorAll('li')].map((li) => li.textContent?.trim())).toEqual([
+      '2 pipeline steps',
+    ]);
+
+    expect(usedBy.textContent).not.toContain('blast_radius');
+  });
+
   it('shows no settings section while the script declares no settings', async () => {
     await open('/app/scripts?script=s1');
 

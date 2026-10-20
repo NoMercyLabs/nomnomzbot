@@ -97,9 +97,20 @@ const facts = computed<KeyValueItem[]>(() => [
 const powers = computed<string[]>(() =>
   (script.value?.currentVersion?.declaredCapabilities ?? []).map((key) => powerLabel(key, t, te)),
 );
+// The script's own saved versions are part of the delete list, but they do not run the script.
+const OWN_VERSIONS = 'blast_radius_category_code_script_versions';
 const usedBy = computed<string[]>(() =>
   blast.data.value
-    ? blastLines(blast.data.value, t, te)
+    ? blastLines(
+        {
+          ...blast.data.value,
+          categories: blast.data.value.categories.filter(
+            (category) => category.categoryKey !== OWN_VERSIONS,
+          ),
+        },
+        t,
+        te,
+      )
     : [],
 );
 const problems = computed<string[]>(() =>
