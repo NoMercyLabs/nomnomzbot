@@ -51,9 +51,12 @@ const props = withDefaults(
     // Inside another row (the service row of a connected service): the app in use as two muted lines and a
     // small Edit button, with no row group of its own.
     inline?: boolean;
+    // A rotation: Save needs only one typed field, and the owner sends just the fields that hold text.
+    partial?: boolean;
   }>(),
   {
     inline: false,
+    partial: false,
     detail: undefined,
     dialogDescription: undefined,
     removable: false,
@@ -69,8 +72,11 @@ const emit = defineEmits<{ submit: [values: Record<string, string>]; remove: [] 
 const open = defineModel<boolean>('open', { default: false });
 const draft = ref<Record<string, string>>({});
 
+const filled = (name: string): boolean => (draft.value[name] ?? '').trim() !== '';
 const complete = computed<boolean>(() =>
-  props.fields.every((field) => (draft.value[field.name] ?? '').trim() !== ''));
+  props.partial
+    ? props.fields.some((field) => filled(field.name))
+    : props.fields.every((field) => filled(field.name)));
 
 function resetDraft(): void {
   draft.value = Object.fromEntries(
