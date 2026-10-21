@@ -32,7 +32,9 @@ function plainProblems(text: string | null | undefined): string[] {
     'offers a retry': text?.includes('Try again') === true,
   } as const satisfies Record<string, boolean>;
 
-  return Object.keys(checks).filter((problem) => checks[problem]);
+  return Object.entries(checks)
+    .filter(([, wrong]) => wrong)
+    .map(([problem]) => problem);
 }
 
 const connection = {
