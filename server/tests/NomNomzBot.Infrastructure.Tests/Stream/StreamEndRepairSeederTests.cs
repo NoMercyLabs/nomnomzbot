@@ -11,12 +11,15 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Stream;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Stream;
 
@@ -73,8 +76,8 @@ public sealed class StreamEndRepairSeederTests
             CreatedAt = at.UtcDateTime,
         };
 
-    private static StreamEndRepairSeeder Sut(AuthDbContext db) =>
-        new(db, NullLogger<StreamEndRepairSeeder>.Instance);
+    private static StreamEndRepairSeeder Sut(AuthDbContext db, ITwitchVideosApi? videos = null) =>
+        new(db, videos ?? Archives(), NullLogger<StreamEndRepairSeeder>.Instance);
 
     private static async Task<Domain.Stream.Entities.Stream> Reload(AuthDbContext db, string id) =>
         await db.Streams.AsNoTracking().SingleAsync(s => s.Id == id);
@@ -254,6 +257,97 @@ public sealed class StreamEndRepairSeederTests
         await Sut(db).SeedAsync();
 
         (await Reload(db, "short")).EndedAt.Should().Be(start.AddHours(3));
+    }
+
+    private static TwitchVideo Vod(DateTimeOffset createdAt, string duration) =>
+        new(
+            Id: "v1",
+            StreamId: "s1",
+            UserId: "tw-f1",
+            UserLogin: "streamer_f1",
+            UserName: "Streamer_F1",
+            Title: "t",
+            Description: "",
+            CreatedAt: createdAt,
+            PublishedAt: createdAt,
+            Url: "u",
+            ThumbnailUrl: "th",
+            Viewable: "public",
+            ViewCount: 1,
+            Language: "en",
+            Type: "archive",
+            Duration: duration,
+            MutedSegments: null
+        );
+
+    private static ITwitchVideosApi Archives(params TwitchVideo[] vods)
+    {
+        ITwitchVideosApi videos = Substitute.For<ITwitchVideosApi>();
+        videos
+            .GetVideosByTwitchUserIdAsync(
+                "tw-f1",
+                "archive",
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<TwitchPageRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(new TwitchPage<TwitchVideo>(vods, null, vods.Length)));
+        return videos;
+    }
+
+    [Fact]
+    public async Task A_row_whose_twitch_video_is_far_shorter_ends_where_the_video_ends()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(NewChannel());
+        DateTimeOffset start = new(2026, 8, 23, 11, 0, 44, TimeSpan.Zero);
+        db.Streams.Add(Row("long", start, start.AddHours(48).AddMinutes(12)));
+        for (int hour = 1; hour <= 47; hour++)
+            db.EventJournals.Add(Sample(start.AddHours(hour)));
+        db.EventJournals.Add(Sample(start.AddHours(48).AddMinutes(11)));
+        await db.SaveChangesAsync();
+        ITwitchVideosApi videos = Archives(Vod(start.AddSeconds(7), "9h34m50s"));
+
+        await Sut(db, videos).SeedAsync();
+
+        (await Reload(db, "long"))
+            .EndedAt.Should()
+            .Be(start.AddSeconds(7).AddHours(9).AddMinutes(34).AddSeconds(50));
+    }
+
+    [Fact]
+    public async Task A_row_whose_twitch_video_matches_its_length_is_not_cut()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(NewChannel());
+        DateTimeOffset start = new(2026, 10, 15, 11, 59, 43, TimeSpan.Zero);
+        DateTimeOffset end = start.AddHours(14).AddSeconds(53);
+        db.Streams.Add(Row("real", start, end));
+        db.EventJournals.Add(Sample(end.AddMinutes(-2)));
+        await db.SaveChangesAsync();
+        ITwitchVideosApi videos = Archives(Vod(start.AddSeconds(5), "14h0m51s"));
+
+        await Sut(db, videos).SeedAsync();
+
+        (await Reload(db, "real")).EndedAt.Should().Be(end);
+    }
+
+    [Fact]
+    public async Task A_twitch_video_that_started_at_another_time_is_not_proof_for_the_row()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(NewChannel());
+        DateTimeOffset start = new(2026, 8, 23, 11, 0, 44, TimeSpan.Zero);
+        DateTimeOffset end = start.AddHours(20);
+        db.Streams.Add(Row("long", start, end));
+        db.EventJournals.Add(Sample(end.AddMinutes(-2)));
+        await db.SaveChangesAsync();
+        ITwitchVideosApi videos = Archives(Vod(start.AddHours(5), "1h"));
+
+        await Sut(db, videos).SeedAsync();
+
+        (await Reload(db, "long")).EndedAt.Should().Be(end);
     }
 
     [Fact]
