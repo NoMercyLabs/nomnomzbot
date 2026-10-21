@@ -32,16 +32,19 @@ namespace NomNomzBot.Api.Controllers.V1;
 public class MediaShareController : BaseController
 {
     private readonly IMediaShareService _media;
+    private readonly IMediaSharePlaybackService _playback;
     private readonly ICurrentTenantService _tenant;
     private readonly ICurrentUserService _currentUser;
 
     public MediaShareController(
         IMediaShareService media,
+        IMediaSharePlaybackService playback,
         ICurrentTenantService tenant,
         ICurrentUserService currentUser
     )
     {
         _media = media;
+        _playback = playback;
         _tenant = tenant;
         _currentUser = currentUser;
     }
@@ -149,6 +152,17 @@ public class MediaShareController : BaseController
             return UnauthenticatedResponse("No tenant resolved.");
 
         return ResultResponse(await _media.MarkPlayedAsync(broadcasterId, id, ct));
+    }
+
+    /// <summary>The player state the overlay last reported: item, position, length and volume.</summary>
+    [RequireAction("media:read")]
+    [HttpGet("player")]
+    [ProducesResponseType<StatusResponseDto<MediaPlayerStateDto>>(StatusCodes.Status200OK)]
+    public IActionResult GetPlayer()
+    {
+        if (_tenant.BroadcasterId is not { } broadcasterId)
+            return UnauthenticatedResponse("No tenant resolved.");
+        return ResultResponse(Result.Success(_playback.GetState(broadcasterId)));
     }
 
     /// <summary>The channel's media-share config (defaults when never set).</summary>
