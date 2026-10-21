@@ -147,6 +147,80 @@ public sealed class StreamEndRepairSeederTests
         (old.EndedAt - old.StartedAt).Should().Be(TimeSpan.Zero);
     }
 
+    private static long _position;
+
+    private static EventJournal Sample(DateTimeOffset at) =>
+        new()
+        {
+            EventId = Guid.NewGuid(),
+            BroadcasterId = Broadcaster,
+            StreamPosition = Interlocked.Increment(ref _position),
+            EventType = "StreamViewerCountSampledEvent",
+            EventVersion = 1,
+            Source = "domain",
+            Payload = "{}",
+            Metadata = "{}",
+            OccurredAt = at.UtcDateTime,
+            RecordedAt = at.UtcDateTime,
+        };
+
+    [Fact]
+    public async Task A_row_that_ran_for_days_ends_at_its_last_viewer_sample_not_at_later_offline_chat()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(NewChannel());
+        DateTimeOffset start = new(2026, 10, 8, 11, 59, 37, TimeSpan.Zero);
+        DateTimeOffset nextStart = start.AddDays(3);
+        db.Streams.Add(Row("old", start, nextStart.AddMinutes(-1)));
+        db.Streams.Add(Row("next", nextStart, nextStart.AddHours(7)));
+        db.EventJournals.Add(Sample(start.AddHours(1)));
+        db.EventJournals.Add(Sample(start.AddHours(7)));
+        db.ChatMessages.Add(Chat("offline-chat", start.AddHours(40)));
+        await db.SaveChangesAsync();
+
+        await Sut(db).SeedAsync();
+
+        Domain.Stream.Entities.Stream old = await Reload(db, "old");
+        old.EndedAt.Should().Be(start.AddHours(7));
+        (old.EndedAt - old.StartedAt).Should().Be(TimeSpan.FromHours(7));
+    }
+
+    [Fact]
+    public async Task Without_samples_a_long_row_ends_where_the_first_run_of_chat_goes_quiet()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(NewChannel());
+        DateTimeOffset start = new(2026, 6, 30, 16, 11, 47, TimeSpan.Zero);
+        db.Streams.Add(Row("old", start, start.AddDays(16)));
+        db.ChatMessages.Add(Chat("a", start.AddHours(1)));
+        db.ChatMessages.Add(Chat("b", start.AddHours(4)));
+        db.ChatMessages.Add(Chat("next-day", start.AddHours(30)));
+        await db.SaveChangesAsync();
+
+        await Sut(db).SeedAsync();
+        await Sut(db).SeedAsync();
+
+        (await Reload(db, "old")).EndedAt.Should().Be(start.AddHours(4));
+    }
+
+    [Fact]
+    public async Task A_real_24_hour_stream_with_activity_up_to_its_end_is_not_cut()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(NewChannel());
+        DateTimeOffset start = new(2026, 9, 1, 11, 0, 0, TimeSpan.Zero);
+        DateTimeOffset end = start.AddHours(24);
+        db.Streams.Add(Row("marathon", start, end));
+        for (int hour = 1; hour <= 23; hour++)
+            db.EventJournals.Add(Sample(start.AddHours(hour)));
+        db.EventJournals.Add(Sample(end.AddMinutes(-3)));
+        await db.SaveChangesAsync();
+
+        await Sut(db).SeedAsync();
+
+        (await Reload(db, "marathon")).EndedAt.Should().Be(end);
+    }
+
     [Fact]
     public async Task A_real_end_before_the_next_start_is_not_touched()
     {

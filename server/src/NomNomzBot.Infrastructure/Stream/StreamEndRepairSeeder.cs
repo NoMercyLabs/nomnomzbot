@@ -37,6 +37,14 @@ public sealed class StreamEndRepairSeeder : ISeeder
         _logger = logger;
     }
 
+    // No stream of these channels runs longer than this unless activity proves it to the end.
+    private static readonly TimeSpan MaxPlausibleLength = TimeSpan.FromHours(12);
+
+    private static readonly TimeSpan StaleEndSlack = TimeSpan.FromHours(1);
+
+    private static bool IsImplausiblyLong(Domain.Stream.Entities.Stream row) =>
+        row.EndedAt - row.StartedAt > MaxPlausibleLength;
+
     // Late, like the other backfills: it only reads chat, the journal and the Streams rows themselves.
     public int Order => 940;
 
@@ -50,26 +58,38 @@ public sealed class StreamEndRepairSeeder : ISeeder
             .ToListAsync(ct);
 
         int repaired = 0;
-        for (int i = 0; i < rows.Count - 1; i++)
+        for (int i = 0; i < rows.Count; i++)
         {
             Domain.Stream.Entities.Stream row = rows[i];
-            Domain.Stream.Entities.Stream next = rows[i + 1];
-            if (
-                row.ChannelId != next.ChannelId
-                || row.EndedAt is null
-                || row.EndedAt != next.StartedAt
-                || next.StartedAt <= row.StartedAt
-            )
+            if (row.EndedAt is null)
+                continue;
+
+            DateTimeOffset? nextStart = rows.Skip(i + 1)
+                .TakeWhile(r => r.ChannelId == row.ChannelId)
+                .Select(r => r.StartedAt)
+                .FirstOrDefault(s => s > row.StartedAt);
+
+            // Window of the proof: up to the end the row claims, but never past the next stream's start.
+            DateTimeOffset windowEnd =
+                nextStart is { } next && next < row.EndedAt ? next : row.EndedAt.Value;
+            bool stampedWithNextStart = row.EndedAt == nextStart;
+            if (!stampedWithNextStart && !IsImplausiblyLong(row))
                 continue;
 
             DateTimeOffset? lastActivity = await StreamRowReconciler.LastActivityAsync(
                 _db,
                 row.ChannelId,
                 row,
-                next.StartedAt!.Value,
+                windowEnd,
                 ct
             );
-            row.EndedAt = lastActivity ?? row.StartedAt;
+            DateTimeOffset proven = lastActivity ?? row.StartedAt!.Value;
+
+            // A long stream that really ran to its stored end has activity up to it: leave that row alone.
+            if (!stampedWithNextStart && row.EndedAt - proven <= StaleEndSlack)
+                continue;
+
+            row.EndedAt = proven;
             repaired++;
         }
 

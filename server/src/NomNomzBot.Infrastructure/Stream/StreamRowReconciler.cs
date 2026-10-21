@@ -23,6 +23,8 @@ internal static class StreamRowReconciler
 {
     private const string ViewerSampleEventType = "StreamViewerCountSampledEvent";
 
+    private static readonly TimeSpan MaxChatSilence = TimeSpan.FromHours(6);
+
     /// <summary>
     /// Closes every open Stream row of a channel the bot knows is not streaming, but only where the end is
     /// provable: the latest chat message stored against that stream, else the latest chat message of the
@@ -124,20 +126,8 @@ internal static class StreamRowReconciler
         DateTime from = start.UtcDateTime;
         DateTime to = windowEnd.UtcDateTime;
 
-        DateTime? lastStreamChat = await db
-            .ChatMessages.Where(m => m.StreamId == row.Id)
-            .OrderByDescending(m => m.CreatedAt)
-            .Select(m => (DateTime?)m.CreatedAt)
-            .FirstOrDefaultAsync(ct);
-
-        DateTime? lastWindowChat = await db
-            .ChatMessages.Where(m =>
-                m.BroadcasterId == channelId && m.CreatedAt >= from && m.CreatedAt < to
-            )
-            .OrderByDescending(m => m.CreatedAt)
-            .Select(m => (DateTime?)m.CreatedAt)
-            .FirstOrDefaultAsync(ct);
-
+        // A viewer-count sample is published only while Twitch reports the channel live, so the last one is the
+        // proof. Chat is weaker: viewers keep talking after the stream ends, up to the next stream's start.
         DateTime? lastSample = await db
             .EventJournals.Where(j =>
                 j.BroadcasterId == channelId
@@ -149,10 +139,45 @@ internal static class StreamRowReconciler
             .Select(j => (DateTime?)j.OccurredAt)
             .FirstOrDefaultAsync(ct);
 
-        DateTime? latest = new[] { lastStreamChat, lastWindowChat, lastSample }.Max();
+        DateTime? latest =
+            lastSample ?? await LastChatOfFirstRunAsync(db, channelId, row, from, to, ct);
         return latest is { } at
             ? new DateTimeOffset(DateTime.SpecifyKind(at, DateTimeKind.Utc))
             : null;
+    }
+
+    /// <summary>
+    /// The last chat message of the first unbroken run of chat that starts the stream: the run ends at the first
+    /// silence longer than <see cref="MaxChatSilence"/>, because chat after that is the channel talking while
+    /// offline, not the stream.
+    /// </summary>
+    private static async Task<DateTime?> LastChatOfFirstRunAsync(
+        IApplicationDbContext db,
+        Guid channelId,
+        Domain.Stream.Entities.Stream row,
+        DateTime from,
+        DateTime to,
+        CancellationToken ct
+    )
+    {
+        List<DateTime> times = await db
+            .ChatMessages.Where(m =>
+                (m.BroadcasterId == channelId && m.CreatedAt >= from && m.CreatedAt < to)
+                || m.StreamId == row.Id
+            )
+            .Select(m => m.CreatedAt)
+            .ToListAsync(ct);
+        times.Sort();
+
+        DateTime? last = null;
+        foreach (DateTime at in times)
+        {
+            if (last is { } previous && at - previous > MaxChatSilence)
+                break;
+            last = at;
+        }
+
+        return last;
     }
 
     /// <summary>
