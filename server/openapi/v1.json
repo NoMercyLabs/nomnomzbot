@@ -107485,6 +107485,7 @@
           "replyGroup",
           "speakWithTts",
           "isReserved",
+          "isAlwaysOn",
           "replyOverrideCount"
         ],
         "type": "object",
@@ -107534,6 +107535,10 @@
           "isReserved": {
             "type": "boolean",
             "description": "A data-rights command: always on, settings locked."
+          },
+          "isAlwaysOn": {
+            "type": "boolean",
+            "description": "A system command: always on with no off switch (every reserved one is too)."
           },
           "cooldownSecondsOverride": {
             "pattern": "^-?(?:0|[1-9]\\d*)$",

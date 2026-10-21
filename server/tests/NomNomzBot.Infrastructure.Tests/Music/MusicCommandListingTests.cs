@@ -100,6 +100,7 @@ public sealed class MusicCommandListingTests
                         i.BuiltinKey,
                         false,
                         false,
+                        false,
                         null,
                         null,
                         null,

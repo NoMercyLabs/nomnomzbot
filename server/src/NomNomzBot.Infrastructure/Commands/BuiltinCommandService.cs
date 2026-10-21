@@ -105,6 +105,12 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
                 "VALIDATION_FAILED"
             );
 
+        if (command.IsAlwaysOn)
+            return Result.Failure(
+                $"'{builtinKey}' is a system command — it is always on and cannot be toggled.",
+                "VALIDATION_FAILED"
+            );
+
         if (!enabled)
         {
             Result unbound = await _bindingGuard.EnsureUnboundAsync(
@@ -405,13 +411,14 @@ public sealed class BuiltinCommandService : IBuiltinCommandService
         return new BuiltinCommandDto(
             command.BuiltinKey,
             "!" + command.BuiltinKey,
-            reserved || own is null || own.IsEnabled,
+            command.IsAlwaysOn || own is null || own.IsEnabled,
             command.DefaultCooldownSeconds,
             command.DefaultUserCooldownSeconds,
             PermissionLevelNames.ToName(command.DefaultMinPermissionLevel),
             replyGroup,
             !reserved && overrides.SpeakWithTts,
             reserved,
+            command.IsAlwaysOn,
             reserved ? null : overrides.CooldownSeconds,
             reserved ? null : overrides.UserCooldownSeconds,
             reserved || overrides.MinPermissionLevel is not { } floor
