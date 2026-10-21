@@ -163,6 +163,19 @@ describe('API and devices', () => {
     expect(rows[1]?.querySelector('[data-revoke]')).toBeNull();
   });
 
+  it('on a phone stacks each key as a card with last used, ends and state as labeled lines and the actions at the end', async () => {
+    await open();
+
+    const row = document.body.querySelector<HTMLElement>('[data-token-row]')!;
+    const labels = [...row.querySelectorAll('[data-cell-label]')].map((label) => label.textContent?.trim());
+    const actions = row.querySelector<HTMLElement>('[data-stack=actions]')!;
+
+    expect(row.className).toContain('max-md:flex-col');
+    expect(labels).toHaveLength(4);
+    expect(actions.querySelector('[data-revoke]')).not.toBeNull();
+    expect(actions.querySelector('[data-rotate]')).not.toBeNull();
+  });
+
   it('has no separate events card', async () => {
     await open();
 

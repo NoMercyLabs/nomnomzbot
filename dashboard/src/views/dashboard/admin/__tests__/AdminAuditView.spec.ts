@@ -148,6 +148,16 @@ describe('AdminAuditView', () => {
     expect(rows()[1]!.textContent).toContain('Denied');
   });
 
+  it('on a phone stacks each entry as a card with the time as its title and every column as a labeled line', async () => {
+    await open();
+
+    const labels = [...rows()[0]!.querySelectorAll('[data-cell-label]')].map((label) => label.textContent?.trim());
+
+    expect(rows()[0]!.className).toContain('max-md:flex-col');
+    expect(rows()[0]!.querySelector('[data-stack=title]')).not.toBeNull();
+    expect(labels).toHaveLength(5);
+  });
+
   it('flags a break-glass row and only that one', async () => {
     await open();
 

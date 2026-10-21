@@ -26,7 +26,7 @@ defineProps<{ rows: readonly AdminAuditEntry[] }>();
 </script>
 
 <template>
-  <Table>
+  <Table stacked>
     <TableHeader>
       <TableRow class="hover:bg-transparent">
         <TableHead>{{ $t("dashboard.admin.audit.columns.when") }}</TableHead>
@@ -39,20 +39,24 @@ defineProps<{ rows: readonly AdminAuditEntry[] }>();
     </TableHeader>
     <TableBody>
       <TableRow v-for="row in rows" :key="row.id" data-audit-row>
-        <TableCell class="whitespace-nowrap tabular-nums"><DateTime :value="row.occurredAt" variant="dateTimeFull" /></TableCell>
-        <TableCell>
-          <span class="font-mono text-xs">{{ row.principalId }}</span>
-          <span class="block text-xs text-muted-foreground">{{ row.principalType }}</span>
+        <TableCell stack="title" class="whitespace-nowrap tabular-nums max-md:font-medium"><DateTime :value="row.occurredAt" variant="dateTimeFull" /></TableCell>
+        <TableCell :label="$t('dashboard.admin.audit.columns.principal')">
+          <div class="min-w-0">
+            <span class="font-mono text-xs break-all">{{ row.principalId }}</span>
+            <span class="block text-xs text-muted-foreground">{{ row.principalType }}</span>
+          </div>
         </TableCell>
-        <TableCell class="font-mono text-xs">{{ row.permission }}</TableCell>
-        <TableCell class="text-xs">
-          <span v-if="row.targetBroadcasterId" class="font-mono">{{ row.targetBroadcasterId }}</span>
-          <span v-if="row.targetResource" class="block text-muted-foreground">
-            {{ row.targetResource }}
-          </span>
+        <TableCell class="font-mono text-xs max-md:break-all" :label="$t('dashboard.admin.audit.columns.permission')">{{ row.permission }}</TableCell>
+        <TableCell class="text-xs" :label="$t('dashboard.admin.audit.columns.target')">
+          <div class="min-w-0">
+            <span v-if="row.targetBroadcasterId" class="font-mono break-all">{{ row.targetBroadcasterId }}</span>
+            <span v-if="row.targetResource" class="block text-muted-foreground">
+              {{ row.targetResource }}
+            </span>
+          </div>
         </TableCell>
-        <TableCell class="max-w-64 truncate text-sm">{{ row.justification }}</TableCell>
-        <TableCell>
+        <TableCell class="max-w-64 truncate text-sm max-md:max-w-none max-md:overflow-visible max-md:whitespace-normal" :label="$t('dashboard.admin.audit.columns.justification')">{{ row.justification }}</TableCell>
+        <TableCell :label="$t('dashboard.admin.audit.columns.outcome')">
           <div class="flex items-center gap-2">
             <Badge :variant="row.outcome === 'Denied' ? 'destructive' : 'secondary'" data-outcome>
               {{ $t(`dashboard.admin.audit.outcome.${row.outcome}`) }}

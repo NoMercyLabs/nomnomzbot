@@ -187,15 +187,15 @@ describe('AdminUsersView', () => {
     expect(text()).toContain('2 users');
   });
 
-  it('on a phone keeps the user, role and last active columns and hides the channel count and created date so no date is cut', async () => {
+  it('on a phone stacks each user as a card that keeps every column as a labeled line', async () => {
     await open();
 
-    const heads = [...document.body.querySelectorAll('thead th')] as HTMLElement[];
-    const hidden = heads.filter((head) => head.className.includes('max-md:hidden')).map((head) => head.textContent?.trim());
-    const cells = [...rows()[0]!.querySelectorAll('td')] as HTMLElement[];
+    const labels = [...rows()[0]!.querySelectorAll('[data-cell-label]')].map((label) => label.textContent?.trim());
 
-    expect(hidden).toEqual(['Channels', 'Created']);
-    expect(cells.filter((cell) => cell.className.includes('max-md:hidden'))).toHaveLength(2);
+    expect(document.body.querySelector('thead')!.className).toContain('max-md:hidden');
+    expect(rows()[0]!.className).toContain('max-md:flex-col');
+    expect(labels).toEqual(['Role', 'Channels', 'Last active', 'Created']);
+    expect(rows()[0]!.querySelectorAll('td.max-md\\:hidden')).toHaveLength(0);
   });
 
   it('sends the role filter, goes back to page 1 and keeps the choice after a remount', async () => {

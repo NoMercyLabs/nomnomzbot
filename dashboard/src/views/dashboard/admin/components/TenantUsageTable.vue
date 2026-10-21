@@ -53,7 +53,7 @@ function unpricedList(row: AdminTenantUsage): string {
 </script>
 
 <template>
-  <Table>
+  <Table stacked>
     <TableHeader>
       <TableRow class="hover:bg-transparent">
         <TableHead>{{ $t("dashboard.admin.tenantUsage.columns.channel") }}</TableHead>
@@ -69,33 +69,35 @@ function unpricedList(row: AdminTenantUsage): string {
     </TableHeader>
     <TableBody>
       <TableRow v-for="row in rows" :key="row.broadcasterId" data-usage-row>
-        <TableCell class="font-medium">{{ row.channelDisplayName }}</TableCell>
-        <TableCell class="text-muted-foreground">{{ period(row) }}</TableCell>
-        <TableCell>
-          <ul v-if="row.metrics.length > 0" class="flex flex-col gap-0.5 text-sm">
-            <li v-for="metric in row.metrics" :key="metric.metricKey" class="tabular-nums">
-              <span class="text-muted-foreground">{{ metric.metricKey }}</span>
-              {{ count(metric.quantity) }}
-            </li>
-          </ul>
-          <span v-else class="text-muted-foreground">
-            {{ $t("dashboard.admin.tenantUsage.noUsage") }}
-          </span>
-          <p
-            v-if="(row.unpricedUnitKeys?.length ?? 0) > 0"
-            data-unpriced
-            class="mt-1 text-xs text-muted-foreground"
-          >
-            {{ $t("dashboard.admin.tenantUsage.unpriced", { units: unpricedList(row) }) }}
-          </p>
+        <TableCell stack="title" class="font-medium">{{ row.channelDisplayName }}</TableCell>
+        <TableCell class="text-muted-foreground" :label="$t('dashboard.admin.tenantUsage.columns.period')">{{ period(row) }}</TableCell>
+        <TableCell :label="$t('dashboard.admin.tenantUsage.columns.metrics')">
+          <div class="min-w-0">
+            <ul v-if="row.metrics.length > 0" class="flex flex-col gap-0.5 text-sm">
+              <li v-for="metric in row.metrics" :key="metric.metricKey" class="tabular-nums">
+                <span class="text-muted-foreground">{{ metric.metricKey }}</span>
+                {{ count(metric.quantity) }}
+              </li>
+            </ul>
+            <span v-else class="text-muted-foreground">
+              {{ $t("dashboard.admin.tenantUsage.noUsage") }}
+            </span>
+            <p
+              v-if="(row.unpricedUnitKeys?.length ?? 0) > 0"
+              data-unpriced
+              class="mt-1 text-xs text-muted-foreground"
+            >
+              {{ $t("dashboard.admin.tenantUsage.unpriced", { units: unpricedList(row) }) }}
+            </p>
+          </div>
         </TableCell>
-        <TableCell class="text-right tabular-nums">{{ count(row.ttsCharacterCount) }}</TableCell>
-        <TableCell class="text-right tabular-nums">
-          <template v-if="(row.totalCostsByCurrency?.length ?? 0) > 0">
+        <TableCell class="text-right tabular-nums" :label="$t('dashboard.admin.tenantUsage.columns.tts')">{{ count(row.ttsCharacterCount) }}</TableCell>
+        <TableCell class="text-right tabular-nums" :label="$t('dashboard.admin.tenantUsage.columns.cost')">
+          <div v-if="(row.totalCostsByCurrency?.length ?? 0) > 0">
             <div v-for="total in row.totalCostsByCurrency" :key="total.currency">
               {{ money(total.minorUnits, total.currency) }}
             </div>
-          </template>
+          </div>
           <span v-else class="text-muted-foreground">
             {{ $t("dashboard.admin.tenantUsage.noCost") }}
           </span>

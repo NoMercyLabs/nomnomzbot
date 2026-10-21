@@ -58,14 +58,14 @@ function day(value: string | null | undefined): string {
 </script>
 
 <template>
-  <Table>
+  <Table stacked>
     <TableHeader>
       <TableRow class="hover:bg-transparent">
         <TableHead>{{ t('dashboard.admin.users.columns.user') }}</TableHead>
         <TableHead>{{ t('dashboard.admin.users.columns.role') }}</TableHead>
-        <TableHead class="text-right max-md:hidden">{{ t('dashboard.admin.users.columns.channels') }}</TableHead>
+        <TableHead class="text-right">{{ t('dashboard.admin.users.columns.channels') }}</TableHead>
         <TableHead>{{ t('dashboard.admin.users.columns.lastActive') }}</TableHead>
-        <TableHead class="max-md:hidden">{{ t('dashboard.admin.users.columns.created') }}</TableHead>
+        <TableHead>{{ t('dashboard.admin.users.columns.created') }}</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -77,7 +77,7 @@ function day(value: string | null | undefined): string {
         class="cursor-pointer"
         @click="$emit('pick', row)"
       >
-        <TableCell>
+        <TableCell stack="title">
           <button
             type="button"
             :aria-pressed="row.id === selectedId"
@@ -93,12 +93,12 @@ function day(value: string | null | undefined): string {
             </span>
           </button>
         </TableCell>
-        <TableCell>
+        <TableCell :label="t('dashboard.admin.users.columns.role')">
           <StatusBadge :tone="tone(row.role)" :label="roleLabel(row.role)" />
         </TableCell>
-        <TableCell class="text-right tabular-nums max-md:hidden">{{ Number(row.channelCount) }}</TableCell>
-        <TableCell class="text-muted-foreground">{{ day(row.lastActive) }}</TableCell>
-        <TableCell class="text-muted-foreground max-md:hidden">{{ day(row.createdAt) }}</TableCell>
+        <TableCell class="text-right tabular-nums" :label="t('dashboard.admin.users.columns.channels')">{{ Number(row.channelCount) }}</TableCell>
+        <TableCell class="text-muted-foreground" :label="t('dashboard.admin.users.columns.lastActive')">{{ day(row.lastActive) }}</TableCell>
+        <TableCell class="text-muted-foreground" :label="t('dashboard.admin.users.columns.created')">{{ day(row.createdAt) }}</TableCell>
       </TableRow>
     </TableBody>
   </Table>

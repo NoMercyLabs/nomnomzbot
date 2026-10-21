@@ -153,6 +153,16 @@ describe('AdminTenantUsageView', () => {
     expect(rows()[0]!.textContent).toContain('4.00');
   });
 
+  it('on a phone stacks each tenant as a card titled with the channel name and the other columns as labeled lines', async () => {
+    await open();
+
+    const labels = [...rows()[0]!.querySelectorAll('[data-cell-label]')].map((label) => label.textContent?.trim());
+
+    expect(rows()[0]!.className).toContain('max-md:flex-col');
+    expect(rows()[0]!.querySelector('[data-stack=title]')!.textContent).toContain('Stoney_Eagle');
+    expect(labels).toHaveLength(4);
+  });
+
   it('names an unpriced unit instead of reading it as free', async () => {
     await open();
 
