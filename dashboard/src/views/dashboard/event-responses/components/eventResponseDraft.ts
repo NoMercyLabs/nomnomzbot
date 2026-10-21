@@ -87,8 +87,24 @@ export function changeOf(draft: EventDraft, saved: EventResponseDetail): EventRe
   return change;
 }
 
+const integrationNames = new Map([['obs', 'OBS'], ['vts', 'VTube Studio']]);
+
 // "channel.subscription.gift" reads "Subscription gift".
+// "obs.RecordStateChanged" reads "OBS record state changed".
 export function nameOf(eventType: string): string {
+  const [head, ...rest] = eventType.split('.');
+  const product = integrationNames.get(head ?? '');
+
+  if (product !== undefined) {
+    const words = rest
+      .join(' ')
+      .replace(/([a-z])([A-Z])/g, '$1 $2')
+      .replace(/ Event$/, '')
+      .toLowerCase();
+
+    return `${product} ${words}`;
+  }
+
   const words = eventType
     .replace(/^channel\./, '')
     .replace(/[._]/g, ' ')
