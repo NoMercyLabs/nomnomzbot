@@ -284,7 +284,7 @@ function setLeavingOpen(open: boolean): void {
             <Input
               v-if="needsShop(row) && !row.connected"
               v-model="shopDomain"
-              class="h-8 w-48"
+              class="h-9 w-48 md:h-8"
               name="shopDomain"
               :placeholder="$t('dashboard.settings.integrations.shopDomain')"
               :aria-label="$t('dashboard.settings.integrations.shopDomain')"

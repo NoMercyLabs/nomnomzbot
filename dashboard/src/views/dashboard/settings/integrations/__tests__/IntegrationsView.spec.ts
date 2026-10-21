@@ -278,6 +278,16 @@ describe('Integrations page', () => {
     vi.unstubAllGlobals();
   });
 
+  it('gives the shop name field a 36 px height on a phone and the compact height from md', async () => {
+    await open();
+
+    const input = row('shopify').querySelector('input') as HTMLInputElement;
+
+    expect(input.classList.contains('h-9')).toBe(true);
+    expect(input.classList.contains('md:h-8')).toBe(true);
+    expect(input.classList.contains('h-8')).toBe(false);
+  });
+
   it('asks for the shop name before Shopify connects and sends it', async () => {
     vi.stubGlobal('location', { ...window.location, assign: vi.fn<(url: string) => void>() });
     await open();
