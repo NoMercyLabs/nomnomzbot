@@ -414,7 +414,7 @@ async function startImpersonation(): Promise<void> {
           <div class="flex items-center gap-3">
             <CollapsibleTrigger
               data-role-toggle
-              class="group flex min-w-0 flex-1 items-center gap-2 rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
+              class="group touch-hit flex min-w-0 flex-1 items-center gap-2 rounded-md text-left outline-none focus-visible:ring-3 focus-visible:ring-ring/50"
             >
               <ChevronDown
                 class="size-4 shrink-0 text-muted-foreground transition-transform group-data-[state=open]:rotate-180 motion-reduce:transition-none"
