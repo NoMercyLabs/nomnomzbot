@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
+import { laptopWidth, phoneWidth, setWidth } from '@/__tests__/viewport';
 import { onTheWire } from '@/api/__tests__/wire';
 import { i18n } from '@/i18n';
 
@@ -178,6 +179,7 @@ let mounted: VueWrapper | null = null;
 let pinia: Pinia;
 
 beforeEach(() => {
+  setWidth(laptopWidth);
   access.held = ['analytics:read'];
   calls.length = 0;
   localStorage.clear();
@@ -383,7 +385,26 @@ describe('what the person may see', () => {
     await open();
 
     expect(document.body.querySelector('[role="tablist"]')).toBeNull();
-    expect(document.body.querySelector('[role="radiogroup"]')).toBeNull();
+    expect(document.body.querySelector('[data-segmented]')).toBeNull();
     expect(calls).toHaveLength(0);
+  });
+
+  it('moves the range into the frame footer on a phone and keeps it in the header on a laptop', async () => {
+    setWidth(phoneWidth);
+
+    const footer = document.createElement('div');
+
+    footer.dataset.slot = 'frame-action-footer';
+    document.body.append(footer);
+    await open();
+
+    expect(footer.querySelector('[data-segmented]')).not.toBeNull();
+    expect(document.body.querySelector('header [data-segmented]')).toBeNull();
+
+    document.body.innerHTML = '';
+    setWidth(laptopWidth);
+    await open();
+
+    expect(document.body.querySelector('header [data-segmented]')).not.toBeNull();
   });
 });

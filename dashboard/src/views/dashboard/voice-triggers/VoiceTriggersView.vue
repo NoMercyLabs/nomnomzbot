@@ -22,6 +22,7 @@ import {
 } from '@/api/voiceTriggers';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
+import PageActionFooter from '@/components/layout/PageActionFooter.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
@@ -82,16 +83,21 @@ function removeTrigger(item: VoiceTrigger): void {
     :crumb="$t('dashboard.voiceTriggers.crumb')"
   >
     <template #actions>
-      <VoiceListenerHeader :triggers="triggers.data.value ?? []" :link="listener.data.value" />
-      <Button v-if="canWrite"
-              type="button"
-              variant="outline"
-              size="sm"
-              @click="creating = true"
-      >
-        <Plus aria-hidden="true" />
-        {{ $t('dashboard.voiceTriggers.new') }}
-      </Button>
+      <!-- Below the tablet width the listener and the new button move into the frame's sticky action footer. -->
+      <PageActionFooter>
+        <div class="flex flex-wrap items-center gap-3">
+          <VoiceListenerHeader :triggers="triggers.data.value ?? []" :link="listener.data.value" />
+          <Button v-if="canWrite"
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  @click="creating = true"
+          >
+            <Plus aria-hidden="true" />
+            {{ $t('dashboard.voiceTriggers.new') }}
+          </Button>
+        </div>
+      </PageActionFooter>
     </template>
   </PageHeader>
   <ListDetail :show-detail="row !== undefined">

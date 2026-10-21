@@ -15,6 +15,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { ANALYTICS_RANGES, type AnalyticsRange } from '@/api/analytics';
+import PageActionFooter from '@/components/layout/PageActionFooter.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
 import type { PageTab } from '@/components/layout/pageTab';
@@ -50,11 +51,14 @@ const rangeOptions = computed(() =>
     :crumb="$t('dashboard.analytics.crumb')"
   >
     <template #actions>
-      <SegmentedControl
-        v-model="range"
-        :label="$t('dashboard.analytics.range.label')"
-        :options="rangeOptions"
-      />
+      <!-- Below the tablet width the range sits in the frame's sticky action footer, so the header stays one row. -->
+      <PageActionFooter>
+        <SegmentedControl
+          v-model="range"
+          :label="$t('dashboard.analytics.range.label')"
+          :options="rangeOptions"
+        />
+      </PageActionFooter>
     </template>
     <template #bar><PageTabs :tabs="views" /></template>
   </PageHeader>

@@ -15,6 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
+import { laptopWidth, phoneWidth, setWidth } from '@/__tests__/viewport';
 import { i18n } from '@/i18n';
 
 import en from '../i18n/en.json';
@@ -117,6 +118,7 @@ let mounted: VueWrapper | null = null;
 let pinia: Pinia;
 
 beforeEach(() => {
+  setWidth(laptopWidth);
   calls.length = 0;
   rows = [voice('a'), voice('b', { isEnabled: false })];
   refusePatch = null;
@@ -333,5 +335,29 @@ describe('VoiceTriggersView header listener', () => {
 
     expect(status.textContent?.trim()).toBe('No match heard yet');
     expect(status.dataset.tone).toBe('off');
+  });
+
+  it('moves the listener and the new button into the frame footer on a phone', async () => {
+    setWidth(phoneWidth);
+
+    const footer = document.createElement('div');
+
+    footer.dataset.slot = 'frame-action-footer';
+    document.body.append(footer);
+    await open();
+
+    expect(footer.textContent).toContain('New voice trigger');
+    expect(footer.textContent).toContain('Popout listener');
+    expect(document.body.querySelector('header')?.textContent).not.toContain('New voice trigger');
+
+    setWidth(laptopWidth);
+  });
+
+  it('keeps the listener and the new button in the header from the tablet width up', async () => {
+    setWidth(laptopWidth);
+    await open();
+
+    expect(document.body.querySelector('header')?.textContent).toContain('New voice trigger');
+    expect(document.body.querySelector('header')?.textContent).toContain('Popout listener');
   });
 });
