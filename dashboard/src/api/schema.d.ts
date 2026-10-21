@@ -93812,6 +93812,7 @@ export interface components {
             nowPlaying: null | components["schemas"]["NowPlaying"];
             queue: components["schemas"]["QueueItem"][];
             requestsOpen: boolean;
+            blockedReason?: null | string;
         };
         /** @description An item in the music playback queue. Cost is 0 for a free request. */
         MusicQueueItem: {
@@ -93830,6 +93831,8 @@ export interface components {
             code: string;
             /** @default false */
             inFlight: boolean;
+            /** @default false */
+            waitsForMusicPlayer: boolean;
         };
         /**
          * @description The outcome of a ban for either scope. `this_channel` collapses to a one-row result; `all_moderated`
@@ -94038,6 +94041,7 @@ export interface components {
             volume: number | string;
             muted: boolean;
             state: string;
+            blockedReason?: null | string;
         };
         /** @description OAuth callback data received from the Twitch redirect. */
         OAuthCallback: {
@@ -96186,6 +96190,8 @@ export interface components {
             cost: number | string;
             requesterId?: null | string;
             requesterColor?: null | string;
+            /** @default false */
+            waitsForMusicPlayer: boolean;
         };
         /** @description The transport/read shape of a quote (quotes.md §3). */
         Quote: {

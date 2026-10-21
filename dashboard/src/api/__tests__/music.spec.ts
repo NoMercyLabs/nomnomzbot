@@ -58,6 +58,7 @@ const queue: MusicQueue = {
       durationMs: 1000,
       requestedBy: 'x',
       cost: 0,
+      waitsForMusicPlayer: false,
     },
     {
       position: 2,
@@ -68,6 +69,7 @@ const queue: MusicQueue = {
       durationMs: 1000,
       requestedBy: 'y',
       cost: 0,
+      waitsForMusicPlayer: false,
     },
     {
       position: 3,
@@ -78,6 +80,7 @@ const queue: MusicQueue = {
       durationMs: 1000,
       requestedBy: 'z',
       cost: 0,
+      waitsForMusicPlayer: false,
     },
   ],
 };
