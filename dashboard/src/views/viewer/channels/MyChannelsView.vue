@@ -35,15 +35,12 @@ const primaryId = computed<string | undefined>(
 );
 
 // One chip per channel: the same channel can be on both lists.
-const managed = computed(() =>
-  Array.from(
-    new Map(
-      merge(mine.data.value ?? [], moderated.data.value ?? []).map((channel) => [
-        channel.login,
-        channel,
-      ]),
-    ).values(),
-  ));
+const managed = computed(() => {
+  const both = merge(mine.data.value ?? [], moderated.data.value ?? []);
+  const byLogin = new Map(both.map((channel) => [channel.login, channel]));
+
+  return Array.from(byLogin.values());
+});
 
 function lastSeen(channel: WatchedChannel): string {
   return channel.lastSeenAt
