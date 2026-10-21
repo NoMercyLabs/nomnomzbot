@@ -659,6 +659,31 @@ describe('AdminPlatformDefaultsView', () => {
     });
   });
 
+  it('offers a phone-only jump menu with one button per section, each scrolling to its section', async () => {
+    await open();
+
+    const nav = document.body.querySelector<HTMLElement>('nav[data-jump-menu]')!;
+    const buttons = Array.from(nav.querySelectorAll<HTMLElement>('[data-jump]'));
+
+    expect(nav.className).toContain('md:hidden');
+    expect(nav.className).toContain('sticky');
+
+    expect(buttons.map((button) => button.dataset.jump)).toEqual([
+      'actions',
+      'replies',
+      'events',
+      'voice',
+    ]);
+
+    const scroll = vi.fn();
+    const target = document.body.querySelector<HTMLElement>('[data-section="events"]')!;
+
+    target.scrollIntoView = scroll;
+    buttons[2]!.click();
+
+    expect(scroll).toHaveBeenCalledWith({ behavior: 'smooth', block: 'start' });
+  });
+
   it('is an admin-only route', () => {
     expect(dashboardAdminPlatformDefaultsRoute.name).toBe('dashboard-admin-platform-defaults');
     expect(dashboardAdminPlatformDefaultsRoute.beforeEnter).toBeTypeOf('function');
