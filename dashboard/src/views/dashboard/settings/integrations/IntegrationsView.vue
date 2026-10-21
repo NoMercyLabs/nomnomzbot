@@ -15,6 +15,7 @@
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
+import ChevronDown from '~icons/nnz/chevron-down';
 
 import { useConnections, type IntegrationStatus } from '@/api/home';
 import {
@@ -34,6 +35,7 @@ import type { PanelState } from '@/composables/usePanelState';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -130,6 +132,10 @@ function capabilitiesOf(row: ChannelIntegration): string[] {
   return Object.entries(map)
     .filter(([, granted]) => granted)
     .map(([name]) => plainName('capabilityNames', name));
+}
+
+function hasDetails(row: ChannelIntegration): boolean {
+  return Boolean(row.lastSync) || scopesOf(row) !== '' || capabilitiesOf(row).length > 0;
 }
 
 function canConnect(row: ChannelIntegration): boolean {
@@ -246,24 +252,34 @@ function setLeavingOpen(open: boolean): void {
           :data-integration="row.id"
           class="flex min-h-11 flex-wrap items-center gap-x-4 gap-y-2 rounded-[8px] px-3 py-2"
         >
-          <div class="min-w-0 flex-1 basis-64">
-            <span class="flex flex-wrap items-center gap-x-3 gap-y-1">
+          <Collapsible class="min-w-0 flex-1 basis-64">
+            <div data-slot="summary" class="flex flex-wrap items-center gap-x-3 gap-y-1">
               <span class="text-sm font-medium wrap-break-word">{{ row.name }}</span>
               <StatusBadge :tone="toneOf(row)" :label="labelOf(row)" />
-            </span>
-            <span class="block text-sm text-muted-foreground">{{ row.description }}</span>
-            <span v-if="accountOf(row)" class="block text-sm text-muted-foreground">
-              {{ $t('dashboard.settings.integrations.account', { account: accountOf(row) }) }}
-            </span>
-            <span v-if="row.lastSync" class="block text-sm text-muted-foreground">
-              {{ $t('dashboard.settings.integrations.lastSync', { date: time.dateTime(row.lastSync) }) }}
-            </span>
-            <span v-if="scopesOf(row)" data-slot="scope-sets" class="block text-sm text-muted-foreground">{{ scopesOf(row) }}</span>
-            <span v-if="capabilitiesOf(row).length > 0" data-slot="capabilities" class="block text-sm text-muted-foreground">
-              {{ $t('dashboard.settings.integrations.capabilities', { list: capabilitiesOf(row).join(', ') }) }}
-            </span>
+              <span v-if="accountOf(row)" class="text-sm text-muted-foreground wrap-break-word">
+                {{ $t('dashboard.settings.integrations.account', { account: accountOf(row) }) }}
+              </span>
+            </div>
+            <p class="text-sm text-muted-foreground">{{ row.description }}</p>
             <SpotifyCredentialsPanel v-if="row.id === 'spotify' && can('integration:write')" />
-          </div>
+            <CollapsibleTrigger v-if="hasDetails(row)" as-child>
+              <Button variant="ghost" size="sm" class="-ml-2 mt-1 text-muted-foreground" data-action="details">
+                {{ $t('dashboard.settings.integrations.details') }}
+                <ChevronDown class="size-4" aria-hidden="true" />
+              </Button>
+            </CollapsibleTrigger>
+            <CollapsibleContent>
+              <div class="grid gap-1 border-l border-border pl-3 text-sm text-muted-foreground">
+                <p v-if="scopesOf(row)" data-slot="scope-sets">{{ scopesOf(row) }}</p>
+                <p v-if="capabilitiesOf(row).length > 0" data-slot="capabilities">
+                  {{ $t('dashboard.settings.integrations.capabilities', { list: capabilitiesOf(row).join(', ') }) }}
+                </p>
+                <p v-if="row.lastSync">
+                  {{ $t('dashboard.settings.integrations.lastSync', { date: time.dateTime(row.lastSync) }) }}
+                </p>
+              </div>
+            </CollapsibleContent>
+          </Collapsible>
           <div v-if="can('integration:write')" class="flex flex-wrap items-center justify-end gap-2">
             <Input
               v-if="needsShop(row) && !row.connected"

@@ -213,9 +213,16 @@ describe('Integrations page', () => {
   it('lists each service with its state, account, permission sets and capabilities', async () => {
     await open();
 
+    const summary = row('spotify').querySelector('[data-slot="summary"]')?.textContent ?? '';
+
+    expect(summary).toContain('Spotify');
+    expect(summary).toContain('stoney');
+    expect(summary).toContain(en.dashboard.settings.integrations.needsReauth);
     expect(row('spotify').textContent).toContain('Plays music.');
-    expect(row('spotify').textContent).toContain('Connected as stoney');
-    expect(row('spotify').textContent).toContain(en.dashboard.settings.integrations.needsReauth);
+    expect(row('spotify').querySelector('[data-slot="scope-sets"]')).toBeNull();
+    expect(row('spotify').querySelector('[data-slot="capabilities"]')).toBeNull();
+
+    await click(row('spotify').querySelector('[data-action="details"]'));
 
     const scopeText = row('spotify').querySelector('[data-slot="scope-sets"]')?.textContent;
 
@@ -235,6 +242,7 @@ describe('Integrations page', () => {
 
   it('names the premium ability in words and ranks the row buttons: Disconnect is quiet, Edit is visible', async () => {
     await open();
+    await click(row('spotify').querySelector('[data-action="details"]'));
 
     const text = row('spotify').querySelector('[data-slot="capabilities"]')?.textContent ?? '';
 
