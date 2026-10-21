@@ -20,6 +20,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { Empty, EmptyDescription, EmptyHeader, EmptyTitle } from '@/components/ui/empty';
+import { Skeleton } from '@/components/ui/skeleton';
 import { useTime } from '@/composables/useTime';
 import { merge } from '@/lib/array';
 
@@ -59,6 +60,18 @@ function lastSeen(channel: WatchedChannel): string {
         {{ $t('viewer.channels.retry') }}
       </Button>
     </p>
+
+    <ul v-else-if="watched.isPending.value" class="grid gap-3 sm:grid-cols-2" aria-busy="true">
+      <li v-for="slot in 2" :key="slot">
+        <Card data-viewer-channel-loading>
+          <CardContent class="flex items-center gap-3">
+            <Skeleton class="size-8 rounded-full" />
+            <Skeleton class="h-4 flex-1" />
+            <Skeleton class="h-8 w-16" />
+          </CardContent>
+        </Card>
+      </li>
+    </ul>
 
     <Empty v-else-if="watched.isSuccess.value && channels.length === 0" data-viewer-channels-empty>
       <EmptyHeader>

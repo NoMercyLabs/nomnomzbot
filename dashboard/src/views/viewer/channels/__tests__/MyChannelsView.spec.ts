@@ -21,12 +21,17 @@ import en from '../i18n/en.json';
 type Answer = { data?: unknown; response: { status: number; ok: boolean } };
 
 let answers: Record<string, unknown> = {};
+let hangReads = false;
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
 vi.mock('@/api/client', () => ({
   client: {
     GET: vi.fn(async (path: string) => {
+      if (hangReads) {
+        return new Promise<never>(() => undefined);
+      }
+
       const match = Object.keys(answers).find((suffix) => path.endsWith(suffix));
 
       return match
@@ -77,6 +82,7 @@ async function mountPage(): Promise<VueWrapper> {
 
 beforeEach(() => {
   answers = {};
+  hangReads = false;
 });
 
 afterEach(() => {
@@ -149,5 +155,17 @@ describe('MyChannelsView', () => {
 
     expect(wrapper.find('[data-viewer-channel]').exists()).toBe(false);
     expect(wrapper.find('[data-viewer-channels-empty]').text()).toContain(en.viewer.channels.empty.title);
+  });
+});
+
+describe('MyChannelsView loading', () => {
+  it('shows placeholder cards while the read runs, and neither the empty state nor a card', async () => {
+    hangReads = true;
+
+    const wrapper = await mountPage();
+
+    expect(wrapper.findAll('[data-viewer-channel-loading]')).toHaveLength(2);
+    expect(wrapper.find('[data-viewer-channels-empty]').exists()).toBe(false);
+    expect(wrapper.find('[data-viewer-channel]').exists()).toBe(false);
   });
 });
