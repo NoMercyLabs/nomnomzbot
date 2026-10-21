@@ -47,7 +47,7 @@ function jumpTo(key: string): void {
     <nav
       data-jump-menu
       :aria-label="$t('dashboard.admin.spamDefaults.jumpTo')"
-      class="sticky top-0 z-10 -mx-4 flex gap-2 overflow-x-auto bg-background px-4 py-2 md:hidden"
+      class="sticky top-0 z-10 -mx-4 flex gap-2 overflow-x-auto scrollbar-none bg-background px-4 py-2 md:hidden"
     >
       <Button
         v-for="section in sections"
