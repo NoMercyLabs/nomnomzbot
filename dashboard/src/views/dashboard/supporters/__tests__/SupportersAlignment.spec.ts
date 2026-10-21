@@ -119,3 +119,26 @@ describe('the cheers list rows', () => {
     expect(marks[0]?.classes()).toContain('size-5');
   });
 });
+
+describe('the stat strip on a phone', () => {
+  it('keeps the three tiles in one compact row instead of three full-width cards', async () => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    mounted = mount(SupportersView, {
+      attachTo: document.body,
+      global: { plugins: [i18n, [VueQueryPlugin, { queryClient }]] },
+    });
+
+    await flushPromises();
+
+    const strip = mounted.find('[data-slot="stat-strip"]');
+    const tiles = strip.findAll('[data-slot="stat-tile"]');
+
+    expect(tiles).toHaveLength(3);
+    expect(strip.classes()).toContain('max-sm:grid-cols-3!');
+
+    for (const tile of tiles) {
+      expect(tile.classes()).toContain('max-sm:p-3!');
+    }
+  });
+});

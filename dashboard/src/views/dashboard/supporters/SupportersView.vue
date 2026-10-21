@@ -123,18 +123,21 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
 <template>
   <PageHeader :title="t('dashboard.supporters.title')" />
   <PageBody>
-    <StatStrip v-if="can('dashboard:read')">
+    <StatStrip v-if="can('dashboard:read')" class="max-sm:grid-cols-3! max-sm:gap-2!">
       <StatTile
+        class="max-sm:p-3!"
         :label="t('dashboard.supporters.stats.subscribers')"
         :value="subscriberCount"
         :context="t('dashboard.supporters.stats.subscribersContext')"
       />
       <StatTile
+        class="max-sm:p-3!"
         :label="t('dashboard.supporters.stats.gifts')"
         :value="subscriptions.filter((row) => row.kind === 'gift').length"
         :context="t('dashboard.supporters.stats.recent')"
       />
       <StatTile
+        class="max-sm:p-3!"
         :label="t('dashboard.supporters.stats.bits')"
         :value="n(cheers.reduce((sum, row) => sum + row.bits, 0))"
         :context="t('dashboard.supporters.stats.recent')"
