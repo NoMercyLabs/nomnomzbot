@@ -138,6 +138,22 @@ describe('the setup wizard', () => {
     expect(wrapper.text()).toContain('Step 1 of 3');
   });
 
+  it('pins the page to the top while the steps show, so nothing moves between steps', async () => {
+    stubBot([step('twitch_app', { required: true, fields: [idField] })]);
+    const wrapper = await mountWizard();
+    const classes = wrapper.get('main').classes();
+
+    expect(classes).not.toContain('justify-center');
+    expect(classes).toContain('justify-start');
+  });
+
+  it('centers the page only while it loads', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => new Promise<Response>(() => undefined)));
+    const wrapper = await mountWizard();
+
+    expect(wrapper.get('main').classes()).toContain('justify-center');
+  });
+
   it('blocks Next while a required step is not complete', async () => {
     stubBot([step('twitch_app', { required: true, fields: [idField] })]);
     const wrapper = await mountWizard();

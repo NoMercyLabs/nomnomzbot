@@ -116,6 +116,72 @@ describe('the steps frame', () => {
     expect(wrapper.find('a').exists()).toBe(false);
   });
 
+  it('shows the short label of each known key in full, never cut with an ellipsis', () => {
+    i18n.global.mergeLocaleMessage('en', words);
+
+    const wrapper = mount(StepsFrame, {
+      props: {
+        steps: [
+          {
+            key: 'twitch_app',
+            title: 'Connect your Twitch application',
+            complete: true,
+          },
+          {
+            key: 'platform_bot',
+            title: 'Authorize the bot account (optional)',
+            complete: false,
+          },
+          {
+            key: 'spotify',
+            title: 'Spotify (optional)',
+            complete: false,
+          },
+          {
+            key: 'discord',
+            title: 'Discord (optional)',
+            complete: false,
+          },
+          {
+            key: 'youtube',
+            title: 'YouTube (optional)',
+            complete: false,
+          },
+          {
+            key: 'mystery',
+            title: 'Something the frame does not know',
+            complete: false,
+          },
+        ],
+        finishTitle: 'Finish setup',
+        current: 0,
+      },
+      global: { plugins: [i18n] },
+    });
+
+    const labels = wrapper.findAll('[data-step-label]');
+
+    expect(labels.map((l) => l.text())).toEqual([
+      'Twitch app',
+      'Bot account',
+      'Spotify',
+      'Discord',
+      'YouTube',
+      'Something the frame does not know',
+      'Finish setup',
+    ]);
+
+    labels.forEach((l) => expect(l.classes()).not.toContain('truncate'));
+    expect(labels.every((l) => l.classes().includes('text-balance'))).toBe(true);
+  });
+
+  it('names a finished step "Set" for screen readers and marks the current one', () => {
+    const entries = mountFrame(1).findAll('li');
+
+    expect(entries.at(0)?.get('.sr-only').text()).toBe('Set');
+    expect(entries.at(1)?.attributes('aria-current')).toBe('step');
+  });
+
   it('says Step N of M and the current title in the compact form', () => {
     const compact = mountFrame(1).get('[data-steps-compact]');
 

@@ -20,6 +20,7 @@ import LanguagePicker from '@/components/layout/LanguagePicker.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
+import { cn } from '@/lib/utils';
 
 import BotAccountStep from './components/BotAccountStep.vue';
 import CredentialsStep from './components/CredentialsStep.vue';
@@ -49,7 +50,12 @@ async function finish(): Promise<void> {
 </script>
 
 <template>
-  <main class="relative flex min-h-svh flex-col items-center justify-center gap-6 p-6">
+  <main
+    :class="cn(
+      'relative flex min-h-svh flex-col items-center gap-6 p-6 pt-16',
+      wizard.isSuccess.value ? 'justify-start' : 'justify-center',
+    )"
+  >
     <div class="absolute top-4 right-4"><LanguagePicker /></div>
     <h1 class="flex items-center gap-2 text-base font-semibold">
       <AppMark />

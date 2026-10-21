@@ -12,6 +12,7 @@
 // ones checked. Entries are plain text, not buttons: a required step cannot be jumped over. Below 640 px the
 // row collapses to "Step N of M" and the current title.
 import { computed } from 'vue';
+import { useI18n } from 'vue-i18n';
 import Check from '~icons/nnz/check';
 
 import { merge } from '@/lib/array';
@@ -29,6 +30,8 @@ const props = defineProps<{
   current: number;
 }>();
 
+const { t, te } = useI18n();
+
 type EntryState = 'done' | 'current' | 'todo';
 
 function stateOf(complete: boolean, index: number): EntryState {
@@ -38,6 +41,16 @@ function stateOf(complete: boolean, index: number): EntryState {
   return complete
     ? 'done'
     : 'todo';
+}
+
+// The server title is long ("Connect your Twitch application"), so the frame has its own short label per known
+// key. An unknown key falls back to the server title, which wraps instead of being cut.
+function labelOf(entry: FrameStep): string {
+  const path = `site.setup.stepLabels.${entry.key}`;
+
+  return te(path)
+    ? t(path)
+    : entry.title;
 }
 
 const finish = computed<FrameStep[]>(() => [
@@ -51,12 +64,13 @@ const all = computed(() => merge(props.steps, finish.value));
 const entries = computed(() =>
   all.value.map((entry, index) => ({
     ...entry,
+    label: labelOf(entry),
     number: index + 1,
     state: stateOf(entry.complete, index),
   })),
 );
 
-const currentTitle = computed(() => entries.value[props.current]?.title ?? '');
+const currentTitle = computed(() => entries.value[props.current]?.label ?? '');
 </script>
 
 <template>
@@ -86,15 +100,15 @@ const currentTitle = computed(() => entries.value[props.current]?.title ?? '');
           )"
         >{{ entry.number }}</span>
         <span
+          data-step-label
           :class="cn(
-            'truncate text-xs',
+            'min-w-0 text-xs text-balance',
             entry.state === 'current' ? 'font-medium text-foreground' : 'text-muted-foreground',
           )"
-          :title="entry.title"
-        >{{ entry.title }}</span>
+        >{{ entry.label }}</span>
         <template v-if="entry.state === 'done'">
           <Check data-step-done class="size-4 shrink-0 text-muted-foreground" aria-hidden="true" />
-          <span class="sr-only">{{ $t('site.setup.done') }}</span>
+          <span class="sr-only">{{ $t('site.setup.stepSet') }}</span>
         </template>
       </li>
     </ol>

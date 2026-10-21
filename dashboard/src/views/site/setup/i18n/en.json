@@ -14,6 +14,14 @@
       "next": "Next",
       "skip": "Skip",
       "done": "Done",
+      "stepSet": "Set",
+      "stepLabels": {
+        "twitch_app": "Twitch app",
+        "platform_bot": "Bot account",
+        "spotify": "Spotify",
+        "discord": "Discord",
+        "youtube": "YouTube"
+      },
       "notSet": "Not set",
       "saveCredentials": "Save",
       "useShared": "Use the shared NomNomzBot app",
