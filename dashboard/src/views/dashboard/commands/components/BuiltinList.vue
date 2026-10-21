@@ -9,7 +9,7 @@
 -->
 <script setup lang="ts">
 // The commands the bot ships with. A row opens the command's editor; the switch beside it turns the
-// command on or off. The row shows who may use it, its cooldowns and whether the channel changed them.
+// command on or off; a system command that is always on has no switch. The row shows who may use it, its cooldowns and whether the channel changed them.
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -70,10 +70,16 @@ const isChanged = (row: BuiltinCommand): boolean =>
   row.cooldownSecondsOverride != null ||
   row.userCooldownSecondsOverride != null;
 
-const descriptionOf = (row: BuiltinCommand): string =>
-  row.isReserved
-    ? t('dashboard.commands.builtin.reserved')
-    : settingsLine(effectiveOf(row));
+function descriptionOf(row: BuiltinCommand): string {
+  if (row.isReserved)
+    return t('dashboard.commands.builtin.reserved');
+
+  const settings = settingsLine(effectiveOf(row));
+
+  return row.isAlwaysOn
+    ? t('dashboard.commands.builtin.alwaysOn', { settings })
+    : settings;
+}
 
 const hintOf = (row: BuiltinCommand): string =>
   isChanged(row)
@@ -116,11 +122,10 @@ const state = usePanelState(builtins, (data: BuiltinCommand[]): boolean =>
       data-builtin-row
       @click="emit('pick', triggerWord(row))"
     >
-      <template #trailing>
+      <template v-if="!row.isAlwaysOn" #trailing>
         <GatedSwitch
           action="commands:write"
           :model-value="row.isEnabled"
-          :disabled="row.isReserved"
           :aria-label="`!${triggerWord(row)}`"
           @update:model-value="toggle.mutate({ builtinKey: row.builtinKey, enabled: $event })"
         />

@@ -6,9 +6,8 @@
       "new": "Nieuw commando",
       "back": "Terug naar de lijst",
       "tabs": {
-        "all": "Alles",
-        "custom": "Eigen",
-        "builtin": "Ingebouwd"
+        "custom": "Kanaalcommando's",
+        "builtin": "Systeemcommando's"
       },
       "list": {
         "title": "Commando's",
@@ -21,6 +20,8 @@
         "error": "De commando's konden niet laden.",
         "noMatch": "Geen commando past bij je zoekopdracht.",
         "off": "Uit",
+        "repeats": "Herhaalt {name}",
+        "duplicates": "{count} van {total} kanaalcommando's herhalen een systeemcommando. Verwijder de kopie om er één te houden.",
         "uses": "{count} keer gebruikt | {count} keer gebruikt",
         "kindText": "Tekstantwoord",
         "kindBuiltin": "Ingebouwd",
@@ -170,6 +171,7 @@
           "Broadcaster": "Streamer"
         },
         "summary": "{role} · {cooldown}s chat · {userCooldown}s per persoon",
+        "alwaysOn": "Altijd aan · {settings}",
         "usingDefault": "Gebruikt de standaard",
         "back": "Terug naar standaard",
         "backTo": "Terug naar standaard: {field}",

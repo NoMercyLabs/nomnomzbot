@@ -308,10 +308,10 @@ const unsaved = computed<string>(() =>
       <DetailClose @click="emit('close')" />
     </template>
     <div class="grid gap-5">
-      <RowGroup>
+      <!-- A system command is always on, so it has no on/off row. -->
+      <RowGroup v-if="!builtin.isAlwaysOn">
         <SettingRow
           :title="$t('dashboard.commands.builtin.enabled')"
-          :disabled="locked"
           :model-value="builtin.isEnabled"
           @update:model-value="toggle.mutate({ builtinKey: builtin.builtinKey, enabled: $event })"
         />

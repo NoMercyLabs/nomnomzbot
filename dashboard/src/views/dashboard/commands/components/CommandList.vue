@@ -8,7 +8,9 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The commands: one row per command that matches the search, in the page's sort. The open command is the `selected` name.
+// The channel's own commands: one row per command that matches the search, in the page's sort. The open
+// command is the `selected` name. The bot's system commands live on their own tab, never in this list; a
+// channel command that repeats one is marked, so the owner can delete the copy.
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -16,7 +18,6 @@ import {
   triggerWord,
   useBuiltins,
   useCommands,
-  useToggleBuiltin,
   useToggleCommand,
   type CommandListItem,
 } from '@/api/commands';
@@ -30,24 +31,16 @@ import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useCan } from '@/composables/useCan';
 import { usePanelState } from '@/composables/usePanelState';
-import { merge } from '@/lib/array';
 
 export type CommandSort = 'uses' | 'name';
 
 // The sort sits in the page control bar; the search sits in the panel header, so the list panel lines up with the detail panel.
-// With `withBuiltins` (the All tab) the bot's own commands join the list, after the custom ones by use.
-const props = withDefaults(
-  defineProps<{
-    selected: string | null;
-    selectedBuiltin?: string | null;
-    sort: CommandSort;
-    withBuiltins?: boolean;
-  }>(),
-  { selectedBuiltin: null, withBuiltins: false },
-);
+const props = defineProps<{
+  selected: string | null;
+  sort: CommandSort;
+}>();
 const emit = defineEmits<{
   pick: [name: string];
-  pickBuiltin: [name: string];
   create: [];
 }>();
 
@@ -57,7 +50,6 @@ const { can } = useCan();
 const commands = useCommands(channelId);
 const builtins = useBuiltins(channelId);
 const toggleCommand = useToggleCommand(channelId);
-const toggleBuiltin = useToggleBuiltin(channelId);
 
 const search = ref('');
 
@@ -74,93 +66,35 @@ function matches(row: CommandListItem, needle: string): boolean {
   return [row.name, ...row.aliases].some((word): boolean => word.toLowerCase().includes(needle));
 }
 
-// One list row: a custom command, or a built-in one when the page shows all. A built-in has no use count.
-type ListRow = {
-  key: string;
-  name: string;
-  detail: string;
-  isEnabled: boolean;
-  uses: number;
-  builtin: boolean;
-  builtinKey: string;
-  reserved: boolean;
-};
-
 const needle = computed<string>(() => search.value.trim().replace(/^!+/, '').toLowerCase());
 
-const customRows = computed<ListRow[]>(() =>
-  (commands.data.value ?? [])
-    .filter((row): boolean => matches(row, needle.value))
-    .map(
-      (row) =>
-        ({
-          key: row.id,
-          name: row.name,
-          detail: detailOf(row),
-          isEnabled: row.isEnabled,
-          uses: Number(row.useCount),
-          builtin: false,
-          builtinKey: '',
-          reserved: false,
-        }) as const satisfies ListRow,
-    ),
+// The system command words, so a channel command named like one (or with one as an alias) is found.
+const systemWords = computed<Set<string>>(
+  () =>
+    new Set((builtins.data.value ?? []).map((row): string => triggerWord(row).toLowerCase())),
 );
 
-const builtinRows = computed<ListRow[]>(() => {
-  if (!props.withBuiltins)
-    return [];
+function systemTwin(row: CommandListItem): string | undefined {
+  return [row.name, ...row.aliases].find((word): boolean =>
+    systemWords.value.has(word.toLowerCase()));
+}
 
-  return (builtins.data.value ?? [])
-    .filter((row): boolean => triggerWord(row).toLowerCase().includes(needle.value))
-    .map(
-      (row) =>
-        ({
-          key: `builtin:${row.builtinKey}`,
-          name: triggerWord(row),
-          detail: t('dashboard.commands.list.kindBuiltin'),
-          isEnabled: row.isEnabled,
-          uses: -1,
-          builtin: true,
-          builtinKey: row.builtinKey,
-          reserved: row.isReserved,
-        }) as const satisfies ListRow,
-    );
-});
+const all = computed<CommandListItem[]>(() => commands.data.value ?? []);
+const duplicates = computed<number>(
+  () => all.value.filter((row): boolean => systemTwin(row) !== undefined).length,
+);
 
-const rows = computed<ListRow[]>(() =>
-  merge(customRows.value, builtinRows.value)
-    .slice()
-    .sort((left: ListRow, right: ListRow): number =>
+const rows = computed<CommandListItem[]>(() =>
+  all.value
+    .filter((row): boolean => matches(row, needle.value))
+    .sort((left: CommandListItem, right: CommandListItem): number =>
       props.sort === 'name'
         ? left.name.localeCompare(right.name)
-        : right.uses - left.uses,
-    ),
-);
+        : Number(right.useCount) - Number(left.useCount),
+    ));
 
-function isSelected(row: ListRow): boolean {
-  return row.builtin
-    ? row.name === props.selectedBuiltin
-    : row.name === props.selected;
-}
-
-function toggle(row: ListRow, enabled: boolean): void {
-  if (row.builtin) {
-    toggleBuiltin.mutate({ builtinKey: row.builtinKey, enabled });
-
-    return;
-  }
-
-  toggleCommand.mutate({ commandName: row.name, isEnabled: enabled });
-}
-
-function pick(row: ListRow): void {
-  if (row.builtin) {
-    emit('pickBuiltin', row.name);
-
-    return;
-  }
-
-  emit('pick', row.name);
+function toggle(commandName: string, isEnabled: boolean): void {
+  toggleCommand.mutate({ commandName, isEnabled });
 }
 
 // The row names what kind of command it is; the reply text itself lives in the editor (owner 2026-10-13).
@@ -210,34 +144,46 @@ function detailOf(row: CommandListItem): string {
           $t("dashboard.commands.list.makeFirst")
         }}</Button>
       </div>
-      <p v-else-if="rows.length === 0" class="p-4 text-center text-sm text-muted-foreground">
-        {{ $t("dashboard.commands.list.noMatch") }}
-      </p>
-      <SummaryRow
-        v-for="row in rows"
-        v-else
-        :key="row.key"
-        pick
-        :selected="isSelected(row)"
-        :title="`!${row.name}`"
-        :detail="row.detail"
-        data-command-row
-        :data-command-name="row.name"
-        :data-command-builtin="row.builtin ? '' : undefined"
-        @click="pick(row)"
-      >
-        <template v-if="!row.isEnabled" #end>
-          <StatusBadge tone="off" :label="$t('dashboard.commands.list.off')" />
-        </template>
-        <template v-if="can('commands:write')" #trailing>
-          <Switch
-            :model-value="row.isEnabled"
-            :disabled="row.reserved"
-            :aria-label="`!${row.name}`"
-            @update:model-value="toggle(row, $event)"
-          />
-        </template>
-      </SummaryRow>
+      <template v-else>
+        <p
+          v-if="duplicates > 0"
+          data-system-duplicates
+          class="px-4 py-2 text-sm text-muted-foreground"
+        >
+          {{ $t("dashboard.commands.list.duplicates", { count: duplicates, total: all.length }) }}
+        </p>
+        <p v-if="rows.length === 0" class="p-4 text-center text-sm text-muted-foreground">
+          {{ $t("dashboard.commands.list.noMatch") }}
+        </p>
+        <SummaryRow
+          v-for="row in rows"
+          :key="row.id"
+          pick
+          :selected="row.name === selected"
+          :title="`!${row.name}`"
+          :detail="detailOf(row)"
+          data-command-row
+          :data-command-name="row.name"
+          @click="emit('pick', row.name)"
+        >
+          <template v-if="!row.isEnabled || systemTwin(row)" #end>
+            <StatusBadge
+              v-if="systemTwin(row)"
+              data-system-duplicate
+              tone="off"
+              :label="$t('dashboard.commands.list.repeats', { name: `!${systemTwin(row)}` })"
+            />
+            <StatusBadge v-if="!row.isEnabled" tone="off" :label="$t('dashboard.commands.list.off')" />
+          </template>
+          <template v-if="can('commands:write')" #trailing>
+            <Switch
+              :model-value="row.isEnabled"
+              :aria-label="`!${row.name}`"
+              @update:model-value="toggle(row.name, $event)"
+            />
+          </template>
+        </SummaryRow>
+      </template>
     </PanelCard>
   </div>
 </template>

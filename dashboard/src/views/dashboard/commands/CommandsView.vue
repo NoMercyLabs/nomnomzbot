@@ -52,11 +52,11 @@ const builtins = useBuiltins(channelId);
 
 // Editing is a write: a reader gets the lists only, and the Built-in tab (switches only) is hidden.
 const canWrite = computed<boolean>(() => can('commands:write'));
-const VIEWS = ['all', 'custom', 'builtin'] as const;
+// The channel's own commands and the bot's system commands never share one list (owner 2026-10-21).
+const VIEWS = ['custom', 'builtin'] as const;
 
 type CommandView = (typeof VIEWS)[number];
 const allTabs = computed<PageTab<CommandView>[]>(() => [
-  { value: 'all', label: t('dashboard.commands.tabs.all') },
   { value: 'custom', label: t('dashboard.commands.tabs.custom') },
   { value: 'builtin', label: t('dashboard.commands.tabs.builtin') },
 ]);
@@ -175,11 +175,8 @@ const creating = ref(false);
       <CommandList
         v-else
         :selected="selected"
-        :selected-builtin="selectedBuiltin"
         :sort="sort"
-        :with-builtins="view === 'all'"
         @pick="select"
-        @pick-builtin="selectBuiltin"
         @create="creating = true"
       />
     </template>
@@ -199,7 +196,7 @@ const creating = ref(false);
           @close="select(undefined)"
         />
       </div>
-      <div v-else-if="builtin && view !== 'custom'" class="flex flex-1 flex-col gap-2 md:min-h-0">
+      <div v-else-if="builtin && view === 'builtin'" class="flex flex-1 flex-col gap-2 md:min-h-0">
         <BackLink
           data-detail-back
           data-page-inset

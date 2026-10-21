@@ -47,6 +47,7 @@ const builtin = (overrides: Row = {}) =>
     name: '!uptime',
     isEnabled: true,
     isReserved: false,
+    isAlwaysOn: false,
     speakWithTts: false,
     replyGroup: 'uptime',
     replyOverrideCount: 0,
@@ -382,5 +383,13 @@ describe('BuiltinEditor', () => {
 
     expect(input('Chat cooldown (seconds)').disabled).toBe(false);
     expect(replyBox().disabled).toBe(true);
+  });
+
+  it('gives an always-on system command no on/off switch, but keeps its settings editable', async () => {
+    builtins = [builtin({ isAlwaysOn: true })];
+    await open();
+
+    expect(editor().textContent).not.toContain(en.dashboard.commands.builtin.enabled);
+    expect(button('Customize').disabled).toBe(false);
   });
 });

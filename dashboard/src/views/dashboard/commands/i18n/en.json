@@ -6,9 +6,8 @@
       "new": "New command",
       "back": "Back to the list",
       "tabs": {
-        "all": "All",
-        "custom": "Custom",
-        "builtin": "Built-in"
+        "custom": "Channel commands",
+        "builtin": "System commands"
       },
       "list": {
         "title": "Commands",
@@ -21,6 +20,8 @@
         "error": "The commands could not load.",
         "noMatch": "No command matches your search.",
         "off": "Off",
+        "repeats": "Repeats {name}",
+        "duplicates": "{count} of {total} channel commands repeat a system command. Delete the copy to keep one.",
         "uses": "{count} use | {count} uses",
         "kindText": "Text reply",
         "kindBuiltin": "Built-in",
@@ -170,6 +171,7 @@
           "Broadcaster": "Broadcaster"
         },
         "summary": "{role} · {cooldown}s chat · {userCooldown}s each",
+        "alwaysOn": "Always on · {settings}",
         "usingDefault": "Using the default",
         "back": "Back to default",
         "backTo": "Back to default: {field}",

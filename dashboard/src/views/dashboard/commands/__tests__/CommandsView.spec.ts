@@ -119,10 +119,26 @@ function freshAnswers() {
           minPermissionLevelOverride: 'Broadcaster',
         },
         {
+          builtinKey: 'permit',
+          name: '!permit',
+          isEnabled: true,
+          isReserved: false,
+          isAlwaysOn: true,
+          speakWithTts: false,
+          replyOverrideCount: 0,
+          defaultCooldownSeconds: 0,
+          defaultUserCooldownSeconds: 0,
+          defaultMinPermissionLevel: 'Moderator',
+          cooldownSecondsOverride: null,
+          userCooldownSecondsOverride: null,
+          minPermissionLevelOverride: null,
+        },
+        {
           builtinKey: 'mydata',
           name: '!mydata',
           isEnabled: true,
           isReserved: true,
+          isAlwaysOn: true,
           speakWithTts: false,
           replyOverrideCount: 0,
           defaultCooldownSeconds: 0,
@@ -403,33 +419,36 @@ describe('CommandsView list', () => {
     expect(document.body.querySelector('[data-slot="page-bar"] [data-segmented]')).toBeNull();
   });
 
-  it('shows all commands by default: the custom ones and the built-in ones with a single "!"', async () => {
+  it('shows only the channel\'s own commands by default, with the system commands on their own tab', async () => {
     await open();
 
-    expect(document.body.querySelector('[role="tab"][data-state="active"]')?.textContent).toContain(
-      'All',
-    );
+    expect(
+      document.body.querySelector('[role="tab"][data-state="active"]')?.textContent?.trim(),
+    ).toBe('Channel commands');
 
-    expect(rowNames().sort()).toEqual(['hello', 'mydata', 'pipe', 'shoutout', 'socials', 'uptime']);
-    const uptime = rowEls().find((row) => row.dataset.commandName === 'uptime')!;
-
-    expect(uptime.hasAttribute('data-command-builtin')).toBe(true);
-    expect(uptime.textContent).toContain('!uptime');
-    expect(uptime.textContent).not.toContain('!!uptime');
-    expect(uptime.textContent).toContain('Built-in');
+    expect(rowNames().sort()).toEqual(['hello', 'pipe', 'socials']);
+    expect(buttonByText('System commands')).toBeDefined();
+    expect(buttonByText('All')).toBeUndefined();
   });
 
-  it('opens a built-in from the All list with its on/off switch, and keeps it in the address', async () => {
+  it('marks a channel command that repeats a system command, by name or by alias, and counts them', async () => {
+    rows = [command('hello'), command('permit'), command('so', { aliases: ['shoutout'] })];
     await open();
-    await pick('uptime');
 
-    expect(router.currentRoute.value.query.builtin).toBe('uptime');
-    const detail = document.body.querySelector('[data-builtin-detail]')!;
+    const marked = rowEls()
+      .filter((row) => row.querySelector('[data-system-duplicate]') !== null)
+      .map((row) => row.dataset.commandName);
 
-    expect(detail.textContent).toContain('!uptime');
+    expect(marked).toEqual(['permit', 'so']);
 
-    expect(detail.querySelector('button[role="switch"]')?.getAttribute('aria-checked')).toBe(
-      'true',
+    expect(
+      rowEls()
+        .find((row) => row.dataset.commandName === 'so')!
+        .querySelector('[data-system-duplicate]')?.textContent?.trim(),
+    ).toBe('Repeats !shoutout');
+
+    expect(document.body.querySelector('[data-system-duplicates]')?.textContent?.trim()).toBe(
+      '2 of 3 channel commands repeat a system command. Delete the copy to keep one.',
     );
   });
 
@@ -1296,9 +1315,7 @@ describe('CommandsView built-in rows', () => {
 
     const reserved = builtinBody('!mydata');
 
-    expect(
-      reserved.parentElement!.querySelector('button[role="switch"]')?.hasAttribute('disabled'),
-    ).toBe(true);
+    expect(reserved.parentElement!.querySelector('button[role="switch"]')).toBeNull();
 
     expect(
       reserved.querySelector('[data-slot="summary-row-text"] > span:nth-child(2)')?.textContent,
@@ -1307,25 +1324,25 @@ describe('CommandsView built-in rows', () => {
 });
 
 describe('CommandsView permission gating', () => {
-  it('shows a reader the list only: no New command, no editor, no Built-in tab', async () => {
+  it('shows a reader the list only: no New command, no editor, no system tab', async () => {
     held = ['commands:read'];
     await open('/app/commands?command=hello');
 
     expect(rowNames()).toContain('hello');
     expect(buttonByText('New command')).toBeUndefined();
     expect(editor()).toBeNull();
-    expect(buttonByText('Built-in')).toBeUndefined();
+    expect(buttonByText('System commands')).toBeUndefined();
   });
 
-  it('shows a person with commands:write the New command button, the editor and the Built-in tab', async () => {
+  it('shows a person with commands:write the New command button, the editor and the system tab', async () => {
     await open('/app/commands?command=hello');
 
     expect(buttonByText('New command')).toBeDefined();
     expect(editor()).not.toBeNull();
-    expect(buttonByText('Built-in')).toBeDefined();
+    expect(buttonByText('System commands')).toBeDefined();
   });
 
-  it('opens the All tab for a reader who asks for the Built-in tab by address', async () => {
+  it('opens the channel commands for a reader who asks for the system tab by address', async () => {
     held = ['commands:read'];
     await open('/app/commands?view=builtin');
 
@@ -1426,15 +1443,18 @@ describe('CommandsView switches in the All list', () => {
     expect(writes('PUT')[0]!.body).toEqual({ isEnabled: false });
   });
 
-  it('switches a built-in command with a PATCH, and locks a reserved one', async () => {
-    await open();
-    rowSwitch('uptime')!.click();
-    await settle();
+  it('gives an always-on system command no off switch and says it is always on', async () => {
+    await open('/app/commands?view=builtin');
 
-    expect(writes('PATCH')).toHaveLength(1);
-    expect(writes('PATCH')[0]!.name).toBe('uptime');
-    expect(writes('PATCH')[0]!.body).toEqual({ enabled: false });
-    expect(rowSwitch('mydata')!.disabled).toBe(true);
+    const permit = builtinBody('!permit');
+
+    expect(permit.parentElement!.querySelector('button[role="switch"]')).toBeNull();
+
+    expect(
+      permit.querySelector('[data-slot="summary-row-text"] > span:nth-child(2)')?.textContent,
+    ).toBe('Always on · Moderator · 0s chat · 0s each');
+
+    expect(builtinBody('!mydata').parentElement!.querySelector('button[role="switch"]')).toBeNull();
   });
 
   it('shows no switches to a reader', async () => {
