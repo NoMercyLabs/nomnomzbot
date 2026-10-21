@@ -13,7 +13,6 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Content;
 using NomNomzBot.Application.Abstractions.Persistence;
-using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 
 namespace NomNomzBot.Infrastructure.Stream;
@@ -90,7 +89,9 @@ public sealed class StreamEndRepairSeeder : ISeeder
                 .Where(c => c.Id == row.ChannelId)
                 .Select(c => c.TwitchChannelId)
                 .FirstOrDefaultAsync(ct);
-            list = string.IsNullOrEmpty(twitchId) ? [] : await ReadArchivesAsync(twitchId, ct);
+            list = string.IsNullOrEmpty(twitchId)
+                ? []
+                : await TwitchArchiveReader.ReadAsync(_videos, twitchId, ct);
             archives[row.ChannelId] = list;
         }
 
@@ -110,37 +111,6 @@ public sealed class StreamEndRepairSeeder : ISeeder
 
     private static int ParsePart(Match match, string name) =>
         match.Groups[name].Success ? int.Parse(match.Groups[name].Value) : 0;
-
-    private async Task<IReadOnlyList<TwitchVideo>> ReadArchivesAsync(
-        string twitchId,
-        CancellationToken ct
-    )
-    {
-        List<TwitchVideo> all = [];
-        string? after = null;
-        for (int page = 0; page < MaxVodPages; page++)
-        {
-            Result<TwitchPage<TwitchVideo>> result = await _videos.GetVideosByTwitchUserIdAsync(
-                twitchId,
-                "archive",
-                null,
-                "time",
-                new TwitchPageRequest(after),
-                ct
-            );
-            if (result.IsFailure)
-                break;
-
-            all.AddRange(result.Value.Items);
-            if (result.Value.NextCursor is null)
-                break;
-            after = result.Value.NextCursor;
-        }
-
-        return all;
-    }
-
-    private const int MaxVodPages = 10;
 
     public async Task SeedAsync(CancellationToken ct = default)
     {
