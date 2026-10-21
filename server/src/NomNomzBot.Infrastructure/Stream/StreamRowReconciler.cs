@@ -126,9 +126,50 @@ internal static class StreamRowReconciler
         DateTime from = start.UtcDateTime;
         DateTime to = windowEnd.UtcDateTime;
 
-        // A viewer-count sample is published only while Twitch reports the channel live, so the last one is the
-        // proof. Chat is weaker: viewers keep talking after the stream ends, up to the next stream's start.
-        DateTime? lastSample = await db
+        // Chat is weaker proof than a sample: viewers keep talking after the stream ends, up to the next start.
+        DateTime? lastSample = await LastSampleUtcAsync(db, channelId, from, to, ct);
+        DateTime? latest =
+            lastSample ?? await LastChatOfFirstRunAsync(db, channelId, row, from, to, ct);
+        return latest is { } at
+            ? new DateTimeOffset(DateTime.SpecifyKind(at, DateTimeKind.Utc))
+            : null;
+    }
+
+    /// <summary>
+    /// The newest journaled viewer-count sample of the channel inside the row's window, or null. A sample is
+    /// published only while Twitch reports the channel live, so it is the strongest proof of live time.
+    /// </summary>
+    internal static async Task<DateTimeOffset?> LastSampleAsync(
+        IApplicationDbContext db,
+        Guid channelId,
+        Domain.Stream.Entities.Stream row,
+        DateTimeOffset windowEnd,
+        CancellationToken ct
+    )
+    {
+        if (row.StartedAt is not { } start)
+            return null;
+
+        DateTime? at = await LastSampleUtcAsync(
+            db,
+            channelId,
+            start.UtcDateTime,
+            windowEnd.UtcDateTime,
+            ct
+        );
+        return at is { } sample
+            ? new DateTimeOffset(DateTime.SpecifyKind(sample, DateTimeKind.Utc))
+            : null;
+    }
+
+    private static Task<DateTime?> LastSampleUtcAsync(
+        IApplicationDbContext db,
+        Guid channelId,
+        DateTime from,
+        DateTime to,
+        CancellationToken ct
+    ) =>
+        db
             .EventJournals.Where(j =>
                 j.BroadcasterId == channelId
                 && j.EventType == ViewerSampleEventType
@@ -138,13 +179,6 @@ internal static class StreamRowReconciler
             .OrderByDescending(j => j.OccurredAt)
             .Select(j => (DateTime?)j.OccurredAt)
             .FirstOrDefaultAsync(ct);
-
-        DateTime? latest =
-            lastSample ?? await LastChatOfFirstRunAsync(db, channelId, row, from, to, ct);
-        return latest is { } at
-            ? new DateTimeOffset(DateTime.SpecifyKind(at, DateTimeKind.Utc))
-            : null;
-    }
 
     /// <summary>
     /// The last chat message of the first unbroken run of chat that starts the stream: the run ends at the first

@@ -41,6 +41,7 @@ public sealed class SongRequestersMetric(IApplicationDbContext db, StreamBanFilt
             .Where(r =>
                 r.BroadcasterId == window.ChannelId
                 && r.RecordType == SongRequestHistory.RecordType
+                && r.DeletedAt == null
                 && r.CreatedAt >= from
                 && r.CreatedAt <= to
             )

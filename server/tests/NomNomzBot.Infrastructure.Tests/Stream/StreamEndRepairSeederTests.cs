@@ -222,6 +222,41 @@ public sealed class StreamEndRepairSeederTests
     }
 
     [Fact]
+    public async Task A_real_14_hour_stream_with_samples_to_its_end_is_not_cut()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(NewChannel());
+        DateTimeOffset start = new(2026, 10, 15, 11, 59, 0, TimeSpan.Zero);
+        DateTimeOffset end = start.AddHours(14);
+        db.Streams.Add(Row("long", start, end));
+        for (int hour = 1; hour <= 13; hour++)
+            db.EventJournals.Add(Sample(start.AddHours(hour)));
+        db.EventJournals.Add(Sample(end.AddMinutes(-2)));
+        await db.SaveChangesAsync();
+
+        await Sut(db).SeedAsync();
+
+        (await Reload(db, "long")).EndedAt.Should().Be(end);
+    }
+
+    [Fact]
+    public async Task A_short_row_whose_end_is_far_past_its_last_sample_ends_at_that_sample()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(NewChannel());
+        DateTimeOffset start = new(2026, 10, 12, 12, 0, 0, TimeSpan.Zero);
+        db.Streams.Add(Row("short", start, start.AddHours(9)));
+        db.EventJournals.Add(Sample(start.AddHours(1)));
+        db.EventJournals.Add(Sample(start.AddHours(3)));
+        await db.SaveChangesAsync();
+
+        await Sut(db).SeedAsync();
+        await Sut(db).SeedAsync();
+
+        (await Reload(db, "short")).EndedAt.Should().Be(start.AddHours(3));
+    }
+
+    [Fact]
     public async Task A_real_end_before_the_next_start_is_not_touched()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();

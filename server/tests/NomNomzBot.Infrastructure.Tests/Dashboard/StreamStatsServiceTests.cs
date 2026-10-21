@@ -682,6 +682,27 @@ public sealed class StreamStatsServiceTests
     }
 
     [Fact]
+    public async Task A_song_request_that_was_deleted_is_not_counted()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        DateTimeOffset inside = Started.AddHours(1);
+        db.Streams.Add(NewStream("s-1", Started, Ended));
+        Record removed = Song("Song B", "Artist B", "alice", inside.AddMinutes(1));
+        removed.DeletedAt = inside.AddMinutes(2).UtcDateTime;
+        db.Records.AddRange(Song("Song A", "Artist A", "alice", inside), removed);
+        await db.SaveChangesAsync();
+
+        Result<StreamStatsDto> result = await NewService(db, Ended.AddHours(1))
+            .GetAsync(Broadcaster, "s-1", ["songRequesters"]);
+
+        result.IsSuccess.Should().BeTrue();
+        result
+            .Value.SongRequesters!.Total.Should()
+            .Be(1, "the removed request is gone from the history");
+        result.Value.SongRequesters.Top.Select(r => (r.Name, r.Count)).Should().Equal(("alice", 1));
+    }
+
+    [Fact]
     public async Task An_unknown_stream_fails_with_not_found()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
