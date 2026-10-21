@@ -103,6 +103,38 @@ public sealed class StreamRecapBackfillSeederTests
     }
 
     [Fact]
+    public async Task A_recap_built_before_the_metrics_were_revised_is_rebuilt_even_when_its_end_matches()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Streams.Add(Row("old", First, First.AddHours(8), 30));
+        StreamRecap stale = new()
+        {
+            ChannelId = Broadcaster,
+            StreamId = "old",
+            FromAt = First.UtcDateTime,
+            ToAt = First.AddHours(8).UtcDateTime,
+            DataJson = "{}",
+        };
+        db.StreamRecaps.Add(stale);
+        await db.SaveChangesAsync();
+        db.Entry(stale).Property(r => r.UpdatedAt).CurrentValue = new DateTime(
+            2026,
+            10,
+            18,
+            0,
+            0,
+            0,
+            DateTimeKind.Utc
+        );
+        await db.SaveChangesAsync();
+
+        await Sut(db).SeedAsync();
+
+        StreamRecap kept = await db.StreamRecaps.AsNoTracking().SingleAsync();
+        DurationOf(kept).Should().Be(8 * 3600, "the empty snapshot was replaced by a fresh build");
+    }
+
+    [Fact]
     public async Task A_stream_that_never_ran_and_a_duplicate_row_of_one_start_get_no_extra_recap()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();

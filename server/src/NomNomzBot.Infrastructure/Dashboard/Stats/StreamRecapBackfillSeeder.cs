@@ -36,6 +36,17 @@ public sealed class StreamRecapBackfillSeeder(
     // After StreamEndRepairSeeder (940): a recap is a snapshot of the window, so the window must be final first.
     public int Order => 950;
 
+    // Raise this date whenever a recap metric changes how it counts, so every kept recap is rebuilt once.
+    private static readonly DateTime MetricsRevisedAt = new(
+        2026,
+        10,
+        21,
+        6,
+        45,
+        0,
+        DateTimeKind.Utc
+    );
+
     public async Task SeedAsync(CancellationToken ct = default)
     {
         List<StreamEntity> ended = await db
@@ -43,10 +54,16 @@ public sealed class StreamRecapBackfillSeeder(
             .AsNoTracking()
             .Where(s => s.StartedAt != null && s.EndedAt != null)
             .ToListAsync(ct);
+        // A recap built before the metrics were last revised keeps old numbers (for example a peak read from the
+        // stored value only). Counting it as not matching rebuilds it once; the rebuild stamps UpdatedAt anew.
         Dictionary<string, DateTime> kept = await db
             .StreamRecaps.IgnoreQueryFilters()
             .AsNoTracking()
-            .ToDictionaryAsync(r => r.ChannelId + "/" + r.StreamId, r => r.ToAt, ct);
+            .ToDictionaryAsync(
+                r => r.ChannelId + "/" + r.StreamId,
+                r => r.UpdatedAt < MetricsRevisedAt ? DateTime.MinValue : r.ToAt,
+                ct
+            );
 
         List<StreamEntity> pending = ended
             .Where(s => s.EndedAt > s.StartedAt)
