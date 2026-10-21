@@ -89,9 +89,6 @@ function grouped(held: IamAssignment[]): HeldGroup[] {
   return [...groups.values()];
 }
 
-// A short end of the id tells apart principals that share a name.
-const idTail = (id: string): string => id.slice(-6);
-
 const hideInactive = useLocalStorage<boolean>('nnz.adminAccess.hideInactive', false);
 const step = ref<Step | null>(null);
 const target = ref<IamPrincipal | null>(null);
@@ -147,9 +144,6 @@ const dialogTitle = computed<string>(() => {
   return t(`dashboard.admin.access.${step.value}.title`, {
     name: name.value,
     role: roleName.value,
-    id: target.value
-      ? t('dashboard.admin.access.principals.id', { id: idTail(target.value.id) })
-      : '',
   });
 });
 
@@ -318,9 +312,6 @@ async function startImpersonation(): Promise<void> {
                   ? $t("dashboard.admin.access.principals.employee")
                   : $t("dashboard.admin.access.principals.serviceAccount")
               }}
-              <span data-principal-id class="font-mono">{{
-                $t("dashboard.admin.access.principals.id", { id: idTail(row.id) })
-              }}</span>
             </span>
             <span
               v-if="row.expiresAt"

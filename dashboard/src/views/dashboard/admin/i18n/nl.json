@@ -994,8 +994,7 @@
           "expires": "Verloopt",
           "scope": "Kanaal {channel}",
           "scopeUnknown": "Eén kanaal",
-          "times": "×{count}",
-          "id": "ID {id}"
+          "times": "×{count}"
         },
         "selfWarning": "Dit is je eigen account. Je verliest deze toegang in je eigen sessie.",
         "actions": {
@@ -1005,7 +1004,7 @@
           "revoke": "{role} intrekken"
         },
         "assign": {
-          "title": "Een rol toewijzen aan {name} ({id})",
+          "title": "Een rol toewijzen aan {name}",
           "action": "Toewijzen",
           "role": "Rol",
           "pickRole": "Kies een rol",
@@ -1013,12 +1012,12 @@
           "expiresHelp": "Laat leeg voor geen einddatum."
         },
         "revoke": {
-          "title": "{role} intrekken van {name} ({id})",
+          "title": "{role} intrekken van {name}",
           "action": "Rol intrekken",
           "consequence": "{name} verliest de rechten van {role} direct."
         },
         "deactivate": {
-          "title": "{name} deactiveren ({id})",
+          "title": "{name} deactiveren",
           "action": "Principal deactiveren",
           "consequence": "{name} heeft geen actieve rollen en kan niets doen tot heractivering. | {name} verliest {count} actieve rol en kan niets doen tot heractivering. | {name} verliest {count} actieve rollen en kan niets doen tot heractivering."
         },

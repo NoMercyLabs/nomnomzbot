@@ -460,7 +460,7 @@ describe('AdminAccessView', () => {
     expect(held.querySelector('[data-assignment-scope]')?.textContent).toContain('Kitte Live');
   });
 
-  it('tells two principals with the same name apart by the end of their id', async () => {
+  it('shows no raw id on a principal row, even when two principals share a name', async () => {
     keys.extra = [
       {
         ...operator,
@@ -471,11 +471,11 @@ describe('AdminAccessView', () => {
 
     await open();
 
-    const tails = [...document.body.querySelectorAll('[data-principal-id]')].map((node) =>
-      node.textContent?.trim(),
-    );
+    const rows = [...document.body.querySelectorAll('[data-principal-row]')];
 
-    expect(tails).toEqual(['ID p1', 'ID p2', 'ID 46MGQ8']);
+    expect(rows).toHaveLength(3);
+    expect(document.body.textContent).not.toContain('46MGQ8');
+    expect(document.body.textContent).not.toMatch(/\bID\b/);
   });
 
   it('shows two identical role assignments as one chip with a count', async () => {
@@ -663,13 +663,13 @@ describe('AdminAccessView', () => {
     expect(document.body.querySelector('[data-assignment]')!.className).toContain('h-9');
   });
 
-  it('puts the principal id in the dialog title so same-named principals stay apart', async () => {
+  it('names the principal, never an id, in the dialog title', async () => {
     await open();
     (document.body.querySelector('[data-deactivate]') as HTMLElement).click();
     await settle();
 
     expect(document.body.querySelector('[role="dialog"] h2')?.textContent).toBe(
-      'Deactivate Ada Operator (ID p1)',
+      'Deactivate Ada Operator',
     );
 
     byText('[role="dialog"] button', 'Cancel')!.click();
@@ -678,7 +678,7 @@ describe('AdminAccessView', () => {
     await settle();
 
     expect(document.body.querySelector('[role="dialog"] h2')?.textContent).toBe(
-      'Revoke Support from Ada Operator (ID p1)',
+      'Revoke Support from Ada Operator',
     );
   });
 

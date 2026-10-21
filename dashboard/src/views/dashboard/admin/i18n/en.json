@@ -994,8 +994,7 @@
           "expires": "Expires",
           "scope": "Channel {channel}",
           "scopeUnknown": "One channel",
-          "times": "×{count}",
-          "id": "ID {id}"
+          "times": "×{count}"
         },
         "selfWarning": "This is your own account. You lose this access in your own session.",
         "actions": {
@@ -1005,7 +1004,7 @@
           "revoke": "Revoke {role}"
         },
         "assign": {
-          "title": "Assign a role to {name} ({id})",
+          "title": "Assign a role to {name}",
           "action": "Assign",
           "role": "Role",
           "pickRole": "Pick a role",
@@ -1013,12 +1012,12 @@
           "expiresHelp": "Leave empty for no end date."
         },
         "revoke": {
-          "title": "Revoke {role} from {name} ({id})",
+          "title": "Revoke {role} from {name}",
           "action": "Revoke role",
           "consequence": "{name} loses the permissions of {role} at once."
         },
         "deactivate": {
-          "title": "Deactivate {name} ({id})",
+          "title": "Deactivate {name}",
           "action": "Deactivate principal",
           "consequence": "{name} holds no active roles and cannot act until reactivated. | {name} loses {count} active role and cannot act until reactivated. | {name} loses {count} active roles and cannot act until reactivated."
         },
