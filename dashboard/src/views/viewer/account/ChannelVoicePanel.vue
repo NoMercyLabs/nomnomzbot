@@ -85,7 +85,8 @@ function use(voice: TtsVoice): void {
       <p v-if="voiceId === null" class="text-sm text-muted-foreground" data-channel-voice>
         {{ $t('viewer.account.voice.channelVoice') }}
       </p>
-      <RowGroup class="max-h-96 overflow-y-auto">
+      <!-- Below the tablet width the page is one scroll (owner rule 2026-10-21), so the list takes its full height. -->
+      <RowGroup class="md:max-h-96 md:overflow-y-auto">
         <SummaryRow
           v-for="voice in voices"
           :key="voice.id"

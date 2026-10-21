@@ -539,7 +539,8 @@ function confirmDelete(): void {
                 :label="t('dashboard.catalog.template.label')"
                 :placeholder="t('dashboard.catalog.template.placeholder')"
               />
-              <div class="flex h-72 flex-col">
+              <!-- A phone shows the helper at its full height in the one page scroll (owner rule 2026-10-21). -->
+              <div class="flex flex-col md:h-72">
                 <HelperPanel :target="templateField" context="command" />
               </div>
             </div>
