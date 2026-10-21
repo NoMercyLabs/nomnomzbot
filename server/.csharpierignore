@@ -1,0 +1,2 @@
+# The translation word files are data, not source: their layout is kept as the dashboard script reads it.
+i18n/strings/

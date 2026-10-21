@@ -21,7 +21,7 @@ import { fileURLToPath } from 'node:url';
 import { XMLParser } from 'fast-xml-parser';
 
 const root = fileURLToPath(new URL('../../', import.meta.url));
-const resources = `${root}app/composeApp/src/commonMain/composeResources`;
+const resources = `${root}server/i18n/strings`;
 const folders = { en: 'values', nl: 'values-nl' };
 const checkOnly = process.argv.includes('--check');
 

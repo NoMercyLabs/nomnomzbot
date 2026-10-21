@@ -19,12 +19,8 @@ fi
 # V0: no added line may plan or add backwards-compat code (owner 2026-10-11).
 python "$(git rev-parse --show-toplevel)/scripts/check-no-compat.py" || exit 1
 # Browser speech is gone; bot speech is server audio only (Stoney 2026-10-05, 2026-10-19).
-if git diff --cached --name-only --diff-filter=ACMR -- 'server/src/*' 'dashboard/src/*' 'app/*' 'scripts/check-no-speech-synthesis.py' | grep -q .; then
+if git diff --cached --name-only --diff-filter=ACMR -- 'server/src/*' 'dashboard/src/*' 'scripts/check-no-speech-synthesis.py' | grep -q .; then
   python "$(dirname "$0")/../scripts/check-no-speech-synthesis.py" "$(git rev-parse --show-toplevel)" || exit 1
-fi
-# Every Compose resource a staged Kotlin file uses needs its own import; jvmTest cannot see the Wasm break.
-if git diff --cached --name-only --diff-filter=ACMR -- '*.kt' | grep -q .; then
-  python "$(git rev-parse --show-toplevel)/scripts/check-res-imports.py" || exit 1
 fi
 # Every table a live event handler writes gets a projection, so an import reaches it (owner 2026-10-12).
 # core.hooksPath is absolute, so a worktree runs this hook; load the script beside the hook, not from the

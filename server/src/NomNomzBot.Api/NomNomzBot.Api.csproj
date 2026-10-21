@@ -86,74 +86,34 @@
     <PackageReference Include="Ulid" />
   </ItemGroup>
 
-  <!-- Bundle the compiled Wasm dashboard into the published web root so the bot serves the SAME app the desktop
-       client runs (deployment-distribution §5 — identical onboarding in any client; single-origin). Opt-in via
-       -p:BundleWasm=true so ordinary build/test/publish stay Gradle-free; the self-host release publish sets it.
-       Builds the wasmJs browser distribution through the frontend's Gradle wrapper (up-to-date and fast after the
-       first run), then copies the bundle into <publish>/wwwroot — which the runtime serves from the binary's own
-       directory (ContentRoot/wwwroot). Runs AfterTargets=Publish so the files land in the publish output directly,
-       not through the static-web-assets pipeline. -->
-  <Target Name="BundleWasmDashboard" AfterTargets="Publish" Condition="'$(BundleWasm)' == 'true'">
+  <!-- Bundle the compiled Vue dashboard into the published web root so the bot serves it (deployment-distribution
+       §5 — single-origin). Opt-in via -p:BundleDashboard=true so ordinary build/test/publish stay Node-free; the
+       self-host release publish sets it. Builds the dashboard (npm ci, then vite build with sign-in open), then
+       copies dist/ into <publish>/wwwroot — which the runtime serves from the binary's own directory
+       (ContentRoot/wwwroot). Runs AfterTargets=Publish so the files land in the publish output directly. -->
+  <Target Name="BundleDashboard" AfterTargets="Publish" Condition="'$(BundleDashboard)' == 'true'">
     <PropertyGroup>
-      <FrontendDir>$(MSBuildThisFileDirectory)..\..\..\app</FrontendDir>
-      <WasmDistDir>$(FrontendDir)\composeApp\build\dist\wasmJs\productionExecutable</WasmDistDir>
-      <GradleCommand Condition="'$(OS)' == 'Windows_NT'">.\gradlew.bat</GradleCommand>
-      <GradleCommand Condition="'$(OS)' != 'Windows_NT'">./gradlew</GradleCommand>
-      <!-- Cap the wasm-opt (Binaryen) optimizer's thread pool so the production wasm build doesn't peg every core
-           (e.g. while streaming). Binaryen reads BINARYEN_CORES from its environment. Tune with -p:WasmOptCores=N. -->
-      <WasmOptCores Condition="'$(WasmOptCores)' == ''">4</WasmOptCores>
+      <DashboardDir>$(MSBuildThisFileDirectory)../../../dashboard</DashboardDir>
     </PropertyGroup>
-    <Message
-      Importance="high"
-      Text="BundleWasmDashboard: building the wasmJs browser distribution (wasm-opt capped at $(WasmOptCores) cores)…"
-    />
+    <Message Importance="high" Text="BundleDashboard: building the Vue dashboard…" />
+    <Exec Command="npm ci --no-audit --no-fund" WorkingDirectory="$(DashboardDir)" />
     <Exec
-      Command="$(GradleCommand) :composeApp:wasmJsBrowserDistribution --console=plain"
-      WorkingDirectory="$(FrontendDir)"
-      EnvironmentVariables="BINARYEN_CORES=$(WasmOptCores)"
+      Command="npm run build-only"
+      WorkingDirectory="$(DashboardDir)"
+      EnvironmentVariables="VITE_SIGN_IN_OPEN=true"
     />
     <ItemGroup>
-      <WasmDashboardFiles Include="$(WasmDistDir)\**\*" />
+      <DashboardFiles Include="$(DashboardDir)/dist/**/*" />
     </ItemGroup>
     <Copy
-      SourceFiles="@(WasmDashboardFiles)"
-      DestinationFiles="@(WasmDashboardFiles-&gt;'$(PublishDir)wwwroot\%(RecursiveDir)%(Filename)%(Extension)')"
+      SourceFiles="@(DashboardFiles)"
+      DestinationFiles="@(DashboardFiles-&gt;'$(PublishDir)wwwroot/%(RecursiveDir)%(Filename)%(Extension)')"
       SkipUnchangedFiles="true"
     />
     <Message
       Importance="high"
-      Text="BundleWasmDashboard: copied the dashboard into $(PublishDir)wwwroot."
+      Text="BundleDashboard: copied the dashboard into $(PublishDir)wwwroot."
     />
   </Target>
 
-  <!-- Bundle the native desktop app into the published install so the self-host single-exe ships EVERYTHING for
-       the platform: the bot's system-tray double-click launches <publish>/desktop/NomNomzBot.exe. Same -p:BundleWasm
-       opt-in as the dashboard (the self-host release publish sets it). Builds the Compose desktop distributable
-       (jpackage app image with its own bundled Java runtime) through the frontend's Gradle wrapper, then copies it
-       under <publish>/desktop. Runs AfterTargets=Publish so it lands in the publish output directly. -->
-  <Target Name="BundleDesktopApp" AfterTargets="Publish" Condition="'$(BundleWasm)' == 'true'">
-    <PropertyGroup>
-      <FrontendDir>$(MSBuildThisFileDirectory)..\..\..\app</FrontendDir>
-      <DesktopAppDir>$(FrontendDir)\composeApp\build\compose\binaries\main\app\NomNomzBot</DesktopAppDir>
-      <GradleCommand Condition="'$(OS)' == 'Windows_NT'">.\gradlew.bat</GradleCommand>
-      <GradleCommand Condition="'$(OS)' != 'Windows_NT'">./gradlew</GradleCommand>
-    </PropertyGroup>
-    <Message Importance="high" Text="BundleDesktopApp: building the desktop app distributable…" />
-    <Exec
-      Command="$(GradleCommand) :composeApp:createDistributable --console=plain"
-      WorkingDirectory="$(FrontendDir)"
-    />
-    <ItemGroup>
-      <DesktopAppFiles Include="$(DesktopAppDir)\**\*" />
-    </ItemGroup>
-    <Copy
-      SourceFiles="@(DesktopAppFiles)"
-      DestinationFiles="@(DesktopAppFiles-&gt;'$(PublishDir)desktop\%(RecursiveDir)%(Filename)%(Extension)')"
-      SkipUnchangedFiles="true"
-    />
-    <Message
-      Importance="high"
-      Text="BundleDesktopApp: copied the desktop app into $(PublishDir)desktop."
-    />
-  </Target>
 </Project>

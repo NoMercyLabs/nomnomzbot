@@ -16,7 +16,7 @@ namespace NomNomzBot.Application.Abstractions.Localization;
 /// string instead of a bare English literal or string parameter, so a schema-authoring call site cannot
 /// accidentally pass raw English text where a translation key belongs. It carries no English or Dutch text —
 /// translations live exclusively in the dashboard's existing i18n home
-/// (<c>app/composeApp/src/commonMain/composeResources/values/strings.xml</c> for <c>en</c>, <c>values-nl/</c> for
+/// (<c>server/i18n/strings/values/strings.xml</c> for <c>en</c>, <c>values-nl/</c> for
 /// <c>nl</c>), the single place a translator can find and edit every user-facing string in the product. The
 /// dashboard resolves <see cref="Key"/> to display text via <c>core/i18n</c> (dots replaced with underscores to
 /// match the Compose Resources string-name convention, e.g. <c>widget.alerts.events.label</c> →

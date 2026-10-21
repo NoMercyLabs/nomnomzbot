@@ -14,7 +14,7 @@ namespace NomNomzBot.Infrastructure.Tests.Localization;
 
 /// <summary>
 /// Reads the dashboard's committed translation files directly — every <c>values/*.xml</c> (en) and
-/// <c>values-nl/*.xml</c> (nl) file under <c>app/composeApp/src/commonMain/composeResources</c> — the single
+/// <c>values-nl/*.xml</c> (nl) file under <c>server/i18n/strings</c> — the single
 /// home for every user-facing string in the product (S-SCHEMA-I18N-redesign). Walks up from the test binary's
 /// output folder to the repo root (mirrors <see cref="Widgets.WidgetAssetPaths"/>'s pattern) so the guard tests
 /// read the SAME files the dashboard build packages, not a copy. A backend <see cref="LocalizedText"/> key like
@@ -23,12 +23,9 @@ namespace NomNomzBot.Infrastructure.Tests.Localization;
 /// </summary>
 internal sealed class DashboardStringsXmlCatalog
 {
-    private const string EnglishRelativePath =
-        "app/composeApp/src/commonMain/composeResources/values/strings.xml";
-    private const string EnglishRelativeDir =
-        "app/composeApp/src/commonMain/composeResources/values";
-    private const string DutchRelativeDir =
-        "app/composeApp/src/commonMain/composeResources/values-nl";
+    private const string EnglishRelativePath = "server/i18n/strings/values/strings.xml";
+    private const string EnglishRelativeDir = "server/i18n/strings/values";
+    private const string DutchRelativeDir = "server/i18n/strings/values-nl";
 
     private readonly IReadOnlyDictionary<string, string> _english;
     private readonly IReadOnlyDictionary<string, string> _dutch;

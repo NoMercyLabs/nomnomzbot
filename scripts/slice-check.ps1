@@ -162,29 +162,6 @@ try {
         }
     }
 
-    # The dashboard sends every editor.js label id in its own language. A new label without its app strings
-    # passed every server gate and turned CI red in the frontend job (2026-10-07), so an editor asset change
-    # runs the app's label guard too.
-    if (@($Paths | Where-Object { ($_ -replace '\\', '/') -match 'server/src/NomNomzBot\.Api/Assets/editor/' }).Count -gt 0) {
-        [string]$appRoot = Join-Path $(if ($worktree) { $worktree } else { $repo }) 'app'
-        [string]$gradlew = Join-Path $appRoot $(if ($IsWindows -or $env:OS -eq 'Windows_NT') { 'gradlew.bat' } else { 'gradlew' })
-        Write-Host '== test (app editor label guard) =='
-        Invoke-Native 'an editor label has no English or Dutch app string - add editor_* to values and values-nl' {
-            & $gradlew -p $appRoot --console=plain :composeApp:jvmTest --tests '*EditorLabels*'
-        }
-    }
-
-    # The app page registry (ShellPage.kt) and the UI placement ledger must stay in step. An app slice or a
-    # ledger edit runs the placement guard: it fails on a page with no ledger row and on a ledger row whose
-    # slice is closed but whose page is missing from the app.
-    if (@($Paths | Where-Object { ($_ -replace '\\', '/') -match '^(app/|\.claude/docs/design/ui-placement-ledger)' }).Count -gt 0) {
-        [string]$placementRoot = if ($worktree) { $worktree } else { $repo }
-        Write-Host '== check (app page registry vs UI placement ledger) =='
-        Invoke-Native 'the app page list and the UI placement ledger are out of step - see the lines above' {
-            python (Join-Path $placementRoot 'scripts/check-ia-placement.py')
-        }
-    }
-
     Write-Host '== format (slice files only) =='
     # -Paths are given repo-relative. In -AtCommit mode the build runs inside the worktree, so they must
     # be rebased onto the worktree root; formatting the shared tree's copies from here would be wrong.
