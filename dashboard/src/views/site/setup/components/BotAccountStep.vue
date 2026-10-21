@@ -21,8 +21,8 @@ import {
 } from '@/api/setup';
 import { Button } from '@/components/ui/button';
 
-import LinkActions from './LinkActions.vue';
 import InstructionLine from './InstructionLine.vue';
+import SetupAddress from './SetupAddress.vue';
 
 defineProps<{ step: SetupStep }>();
 
@@ -82,7 +82,7 @@ watch(connected, (now) => {
 
     <div v-if="authorizeUrl && !connected" class="flex flex-col gap-2">
       <p class="text-sm text-muted-foreground">{{ $t('site.setup.botOtherProfile') }}</p>
-      <LinkActions :url="authorizeUrl" />
+      <p class="text-sm"><SetupAddress :url="authorizeUrl" use="both" /></p>
     </div>
   </div>
 </template>

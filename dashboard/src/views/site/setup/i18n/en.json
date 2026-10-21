@@ -7,7 +7,6 @@
       "retry": "Try again",
       "progress": "Step {current} of {total}",
       "stepsLabel": "Setup steps",
-      "openLink": "Open in new tab",
       "copyLink": "Copy link",
       "botOtherProfile": "Use another browser or profile? Copy this link there.",
       "back": "Back",

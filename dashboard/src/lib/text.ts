@@ -46,14 +46,15 @@ export function parseHeaderLines(text: string) {
   };
 }
 
-// A piece of a line of prose: plain text, or a web address the reader may want to open or copy.
+// A piece of a line of prose: plain text, a web address to open, or a web address to paste somewhere else.
 export type LinkPart = {
-  kind: 'text' | 'link';
+  kind: 'text' | 'open' | 'paste';
   value: string;
 };
 
 const addressPattern = /https?:\/\/[^\s<>"']+/g;
 const addressTail = /[.,;:!?)\]]+$/;
+const pasteAddressPath = /^https?:\/\/[^/]+\/api\//;
 
 // A line of prose to its text and web address parts, in order. The punctuation that ends a sentence
 // ("...dashboard.") belongs to the text after the address, not to the address.
@@ -72,7 +73,9 @@ export function splitLinks(line: string): LinkPart[] {
     }
 
     parts.push({
-      kind: 'link',
+      kind: pasteAddressPath.test(link)
+        ? 'paste'
+        : 'open',
       value: link,
     });
 

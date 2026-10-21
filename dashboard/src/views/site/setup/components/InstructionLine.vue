@@ -8,25 +8,22 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// One instruction line from the bot. The text stays text; each web address in it becomes a row the person can
-// open in a new tab or copy.
+// One instruction line from the bot. The text stays text, inline: an address to open becomes a link, an address
+// to paste (under /api/) becomes text with a small copy button beside it.
 import { computed } from 'vue';
 
 import { splitLinks } from '@/lib/text';
 
-import LinkActions from './LinkActions.vue';
+import SetupAddress from './SetupAddress.vue';
 
 const props = defineProps<{ line: string }>();
 
-// Punctuation left over after an address ("...dashboard.") would stand alone on a row.
-const parts = computed(() =>
-  splitLinks(props.line).filter((part) => part.kind === 'link' || /[^\s.,;:!?)\]]/.test(part.value)),
-);
+const parts = computed(() => splitLinks(props.line));
 </script>
 
 <template>
   <template v-for="(part, index) in parts" :key="index">
-    <LinkActions v-if="part.kind === 'link'" :url="part.value" class="my-1" />
+    <SetupAddress v-if="part.kind !== 'text'" :url="part.value" :use="part.kind" />
     <template v-else>{{ part.value }}</template>
   </template>
 </template>

@@ -91,8 +91,7 @@ afterEach(() => {
 });
 
 describe('a link in an instruction line', () => {
-  it('opens in a new tab through a safe anchor and copies to the clipboard', async () => {
-    const writeText = stubClipboard();
+  it('shows an address to open as a plain link with no buttons', async () => {
     const wrapper = await mountStep(
       'credentials',
       setupStep({
@@ -105,16 +104,37 @@ describe('a link in an instruction line', () => {
 
     expect(open.attributes('target')).toBe('_blank');
     expect(open.attributes('rel')).toBe('noopener noreferrer');
-    expect(open.text()).toBe('Open in new tab');
-    expect(wrapper.text()).toContain('Open');
+    expect(open.text()).toBe('https://dev.twitch.tv/console/apps');
     expect(wrapper.text()).toContain('and sign in.');
-
-    await wrapper.get('[data-copy-link]').trigger('click');
-
-    expect(writeText).toHaveBeenCalledWith('https://dev.twitch.tv/console/apps');
+    expect(wrapper.find('li button').exists()).toBe(false);
+    expect(wrapper.find('[data-copy-link]').exists()).toBe(false);
   });
 
-  it('gives each link of a line its own pair of actions and keeps a trailing period out', async () => {
+  it('shows an address to paste as text with a copy button and no anchor, and the button copies it', async () => {
+    const writeText = stubClipboard();
+    const pasteUrl = 'https://dev.nomnomz.bot/api/v1/auth/twitch/callback';
+    const wrapper = await mountStep(
+      'credentials',
+      setupStep({
+        key: 'twitch_app',
+        instructions: [`Set the OAuth Redirect URL to exactly: ${pasteUrl}`],
+      }),
+    );
+
+    expect(wrapper.find('a').exists()).toBe(false);
+    expect(wrapper.get('code').text()).toBe(pasteUrl);
+
+    const copy = wrapper.get('[data-copy-link]');
+
+    expect(copy.attributes('aria-label')).toBe('Copy link');
+    expect(copy.text()).toBe('');
+
+    await copy.trigger('click');
+
+    expect(writeText).toHaveBeenCalledWith(pasteUrl);
+  });
+
+  it('keeps each address of a line in its own kind and a trailing period out', async () => {
     stubClipboard();
     const wrapper = await mountStep(
       'credentials',
@@ -127,7 +147,7 @@ describe('a link in an instruction line', () => {
     const hrefs = wrapper.findAll('a[target="_blank"]').map((a) => a.attributes('href'));
 
     expect(hrefs).toEqual(['https://a.example/one', 'https://developer.spotify.com/dashboard']);
-    expect(wrapper.findAll('[data-copy-link]')).toHaveLength(2);
+    expect(wrapper.findAll('[data-copy-link]')).toHaveLength(0);
   });
 
   it('shows a line without a link as plain text with no actions', async () => {
@@ -177,7 +197,7 @@ describe('the bot account step', () => {
     await wrapper.get('button').trigger('click');
     await flushPromises();
 
-    expect(wrapper.get(`a[href="${authorizeUrl}"]`).text()).toBe('Open in new tab');
+    expect(wrapper.get(`a[href="${authorizeUrl}"]`).text()).toBe(authorizeUrl);
     expect(wrapper.find('[data-copy-link]').exists()).toBe(true);
   });
 });

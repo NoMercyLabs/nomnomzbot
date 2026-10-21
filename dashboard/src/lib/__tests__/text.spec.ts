@@ -16,7 +16,7 @@ describe('splitLinks', () => {
   it('keeps the text before a link and leaves a trailing period out of the link', () => {
     expect(splitLinks('Open https://developer.spotify.com/dashboard.')).toEqual([
       { kind: 'text', value: 'Open ' },
-      { kind: 'link', value: 'https://developer.spotify.com/dashboard' },
+      { kind: 'open', value: 'https://developer.spotify.com/dashboard' },
       { kind: 'text', value: '.' },
     ]);
   });
@@ -24,9 +24,9 @@ describe('splitLinks', () => {
   it('finds two links in one line with the text between them', () => {
     expect(splitLinks('Go to http://a.example/x, then https://b.example/y; done')).toEqual([
       { kind: 'text', value: 'Go to ' },
-      { kind: 'link', value: 'http://a.example/x' },
+      { kind: 'open', value: 'http://a.example/x' },
       { kind: 'text', value: ', then ' },
-      { kind: 'link', value: 'https://b.example/y' },
+      { kind: 'open', value: 'https://b.example/y' },
       { kind: 'text', value: '; done' },
     ]);
   });
@@ -34,8 +34,20 @@ describe('splitLinks', () => {
   it('leaves a closing bracket and a query string in the right place', () => {
     expect(splitLinks('(see https://a.example/p?x=1&y=2)')).toEqual([
       { kind: 'text', value: '(see ' },
-      { kind: 'link', value: 'https://a.example/p?x=1&y=2' },
+      { kind: 'open', value: 'https://a.example/p?x=1&y=2' },
       { kind: 'text', value: ')' },
+    ]);
+  });
+
+  it('marks an address under /api/ as one to paste and every other address as one to open', () => {
+    expect(
+      splitLinks('Set https://dev.nomnomz.bot/api/v1/auth/twitch/callback and see https://dev.twitch.tv/console/apps.'),
+    ).toEqual([
+      { kind: 'text', value: 'Set ' },
+      { kind: 'paste', value: 'https://dev.nomnomz.bot/api/v1/auth/twitch/callback' },
+      { kind: 'text', value: ' and see ' },
+      { kind: 'open', value: 'https://dev.twitch.tv/console/apps' },
+      { kind: 'text', value: '.' },
     ]);
   });
 

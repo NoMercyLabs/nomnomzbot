@@ -25,7 +25,7 @@ import {
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 
-import LinkActions from './LinkActions.vue';
+import SetupAddress from './SetupAddress.vue';
 
 const signedIn = useSignedIn();
 const channels = useQuery({ ...myChannelsQuery, enabled: signedIn });
@@ -67,7 +67,7 @@ const tone = computed(() =>
         <p class="text-sm text-muted-foreground">{{ verdict.scopes.join(', ') }}</p>
         <div v-if="regrant.data.value" class="flex flex-col gap-2 text-sm">
           {{ $t('site.setup.feed.regrantCode', { code: regrant.data.value.userCode }) }}
-          <LinkActions :url="regrant.data.value.verificationUri" />
+          <SetupAddress :url="regrant.data.value.verificationUri" use="both" />
         </div>
         <div class="flex gap-2">
           <Button variant="outline" :disabled="regrant.isPending.value" @click="regrant.mutate()">
