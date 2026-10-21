@@ -28,6 +28,7 @@ import {
 } from '@/api/adminBilling';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import OptionSelect from '@/components/layout/OptionSelect.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
@@ -43,6 +44,8 @@ const channelId = refDebounced(typed, 300);
 const invoices = useBillingInvoices(channelId);
 const grants = useBillingGrants(channelId);
 const tiers = useBillingTiers();
+const tierChoices = computed(() =>
+  (tiers.data.value ?? []).map((tier) => ({ value: tier.id, label: tier.displayName })));
 const invoiceState = usePanelState(invoices, (list) =>
   list.length === 0);
 
@@ -174,12 +177,13 @@ async function confirmAction(): Promise<void> {
     </ul>
     <template v-if="ready && can('billing:write')" #footer>
       <div class="flex flex-wrap items-center gap-2">
-        <select v-model="tierId" data-grant-tier class="h-9 rounded-md border border-input bg-transparent px-3 text-sm">
-          <option value="">{{ t("dashboard.admin.billing.channel.pickTier") }}</option>
-          <option v-for="tier in tiers.data.value ?? []" :key="tier.id" :value="tier.id">
-            {{ tier.displayName }}
-          </option>
-        </select>
+        <OptionSelect
+          v-model="tierId"
+          data-grant-tier
+          class="w-48"
+          :options="tierChoices"
+          :placeholder="t('dashboard.admin.billing.channel.pickTier')"
+        />
         <Button variant="outline"
                 size="sm"
                 data-grant-tier-go

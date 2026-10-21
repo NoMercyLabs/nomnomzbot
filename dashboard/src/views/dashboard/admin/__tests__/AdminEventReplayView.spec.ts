@@ -162,18 +162,56 @@ const byText = (selector: string, label: string): HTMLElement | undefined =>
 
 async function set(selector: string, value: string): Promise<void> {
   const node = field(selector);
-  const kind = node.tagName === 'SELECT'
-    ? 'change'
-    : 'input';
 
   node.value = value;
-  node.dispatchEvent(new Event(kind));
+  node.dispatchEvent(new Event('input'));
+  await settle();
+}
+
+// The channel list is a searchable combobox (click opens it); the other two are the design-system Select.
+async function openChoice(selector: string): Promise<void> {
+  Element.prototype.hasPointerCapture = (): boolean => false;
+  Element.prototype.releasePointerCapture = (): void => undefined;
+
+  const trigger = field(selector);
+
+  trigger.dispatchEvent(
+    new PointerEvent('pointerdown', {
+      bubbles: true,
+      button: 0,
+      pointerType: 'mouse',
+    }),
+  );
+
+  trigger.click();
+  await settle();
+}
+
+const choiceValues = (): string[] =>
+  Array.from(document.body.querySelectorAll<HTMLElement>('[data-option]')).map(
+    (node) => node.dataset.option ?? '',
+  );
+
+async function choose(selector: string, value: string): Promise<void> {
+  await openChoice(selector);
+
+  const option = document.body.querySelector<HTMLElement>(`[data-option="${value}"]`)!;
+
+  option.dispatchEvent(
+    new PointerEvent('pointerup', {
+      bubbles: true,
+      button: 0,
+      pointerType: 'mouse',
+    }),
+  );
+
+  option.click();
   await settle();
 }
 
 async function chooseScope(): Promise<void> {
-  await set('[data-tenant]', 'b1');
-  await set('[data-projection]', 'chat-history');
+  await choose('[data-tenant]', 'b1');
+  await choose('[data-projection]', 'chat-history');
   await set('[data-from]', '2026-10-17T10:00');
   await set('[data-to]', '2026-10-17T11:00');
 }
@@ -187,23 +225,24 @@ describe('AdminEventReplayView', () => {
   it('offers the projections and channels the API returned, never a fixed list', async () => {
     await open();
 
-    const projectionOptions = document.body.querySelectorAll('[data-projection] option');
-    const tenantOptions = document.body.querySelectorAll('[data-tenant] option');
-    const projections = [...projectionOptions].map((node) => node.getAttribute('value'));
-    const tenants = [...tenantOptions].map((node) => node.textContent?.trim());
+    expect(document.body.querySelector('select')).toBeNull();
 
-    expect(projections).toContain('chat-history');
-    expect(tenants).toContain('Alpha');
+    await openChoice('[data-projection]');
+    expect(choiceValues()).toContain('chat-history');
+
+    await openChoice('[data-tenant]');
+
+    const tenants = [...document.body.querySelectorAll('[data-option]')];
+
+    expect(tenants.map((node) => node.textContent?.trim())).toContain('Alpha');
   });
 
   it('offers only the event types the chosen projection subscribes to', async () => {
     await open();
-    await set('[data-projection]', 'chat-history');
+    await choose('[data-projection]', 'chat-history');
+    await openChoice('[data-event-type]');
 
-    const options = document.body.querySelectorAll('[data-event-type] option');
-    const types = [...options].map((node) => node.getAttribute('value'));
-
-    expect(types).toEqual(['all', 'chat.message', 'chat.cleared']);
+    expect(choiceValues()).toEqual(['all', 'chat.message', 'chat.cleared']);
   });
 
   it('counts the scope with a preview that replays nothing, and blocks the replay until then', async () => {
@@ -271,14 +310,14 @@ describe('AdminEventReplayView', () => {
 
   it('remembers the chosen projection across a remount', async () => {
     await open();
-    await set('[data-projection]', 'chat-history');
+    await choose('[data-projection]', 'chat-history');
 
     expect(localStorage.getItem('nnz.adminEventReplay.projection')).toBe('chat-history');
 
     mounted?.unmount();
     await open();
 
-    expect(field('[data-projection]').value).toBe('chat-history');
+    expect(field('[data-projection]').textContent).toContain('chat-history');
   });
 
   it('lists the executed replays from the audit log of the replay permission', async () => {

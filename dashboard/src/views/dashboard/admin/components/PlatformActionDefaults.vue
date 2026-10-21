@@ -22,9 +22,11 @@ import {
 } from '@/api/adminPlatformDefaults';
 import { rungNames, rungOf, rungs as ladder } from '@/api/permissions';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import OptionSelect from '@/components/layout/OptionSelect.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
+import { merge } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 import { usePlatformDefaultListError } from '@/composables/usePlatformDefaultListError';
@@ -75,6 +77,12 @@ const shippedOption = computed<string>(() =>
   }),
 );
 
+const levelChoices = computed(() =>
+  merge(
+    [{ value: SHIPPED, label: shippedOption.value }],
+    rungs.value.map((rung) => ({ value: String(rung), label: levelName(rung) })),
+  ));
+
 const panelState = usePanelState(actions, (list: ActionDefault[]) =>
   list.length === 0);
 
@@ -108,10 +116,6 @@ function close(): void {
 function pick(value: string): void {
   choice.value = value;
   void preview.request();
-}
-
-function onPick(event: Event): void {
-  pick((event.target as HTMLSelectElement).value);
 }
 
 function apply(): void {
@@ -214,19 +218,12 @@ function apply(): void {
   >
     <label class="grid gap-1 text-xs text-muted-foreground">
       {{ $t("dashboard.admin.platformDefaults.actions.dialog.role") }}
-      <select
+      <OptionSelect
         data-level
-        :value="choice"
-        class="h-9 rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
-        @change="onPick"
-      >
-        <option :value="SHIPPED">
-          {{ shippedOption }}
-        </option>
-        <option v-for="rung in rungs" :key="rung" :value="String(rung)">
-          {{ levelName(rung) }}
-        </option>
-      </select>
+        :model-value="choice"
+        :options="levelChoices"
+        @update:model-value="pick"
+      />
     </label>
     <PlatformDefaultPreview
       v-if="preview.pending.value || preview.failed.value || preview.preview.value"

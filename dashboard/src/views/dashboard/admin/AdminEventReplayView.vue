@@ -15,7 +15,7 @@
 // counted number, after a confirm dialog names the channel, the projection and the count. The list of
 // executed replays comes from the audit log and reloads when the admin hub reports a finished replay.
 import { useLocalStorage } from '@vueuse/core';
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useAdminTenants } from '@/api/admin';
@@ -27,11 +27,13 @@ import {
   type ReplayScope,
 } from '@/api/adminEventReplay';
 import DateTime from '@/components/layout/DateTime.vue';
+import OptionSelect from '@/components/layout/OptionSelect.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { merge } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 
@@ -65,6 +67,24 @@ const eventTypes = computed(() => {
   );
 
   return chosen?.subscribedEventTypes ?? [];
+});
+
+const tenantChoices = computed(() =>
+  (tenants.data.value?.data ?? []).map((entry) => ({ value: entry.id, label: entry.name })));
+const projectionChoices = computed(() =>
+  (projections.data.value ?? []).map((entry) => ({
+    value: entry.projectionName,
+    label: entry.projectionName,
+  })));
+const eventTypeChoices = computed(() =>
+  merge(
+    [{ value: allTypes, label: t('dashboard.admin.eventReplay.scope.allTypes') }],
+    eventTypes.value.map((entry) => ({ value: entry, label: entry })),
+  ));
+
+// A new projection subscribes to other event types, so the type goes back to all.
+watch(projectionName, () => {
+  eventType.value = allTypes;
 });
 
 const scope = computed(() => {
@@ -181,49 +201,35 @@ async function submit(): Promise<void> {
       <div class="flex flex-wrap items-end gap-3">
         <label class="grid gap-1 text-xs text-muted-foreground">
           {{ $t("dashboard.admin.eventReplay.scope.channel") }}
-          <select
+          <OptionSelect
             v-model="broadcasterId"
             data-tenant
-            class="h-9 rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
-          >
-            <option value="">{{ $t("dashboard.admin.eventReplay.scope.choose") }}</option>
-            <option
-              v-for="entry in tenants.data.value?.data ?? []"
-              :key="entry.id"
-              :value="entry.id"
-            >
-              {{ entry.name }}
-            </option>
-          </select>
+            searchable
+            class="w-56"
+            :options="tenantChoices"
+            :placeholder="$t('dashboard.admin.eventReplay.scope.choose')"
+            :search-placeholder="$t('frame.channel.find')"
+            :empty-text="$t('frame.channel.noMatch')"
+          />
         </label>
         <label class="grid gap-1 text-xs text-muted-foreground">
           {{ $t("dashboard.admin.eventReplay.scope.projection") }}
-          <select
+          <OptionSelect
             v-model="projectionName"
             data-projection
-            class="h-9 rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
-            @change="eventType = 'all'"
-          >
-            <option value="">{{ $t("dashboard.admin.eventReplay.scope.choose") }}</option>
-            <option
-              v-for="entry in projections.data.value ?? []"
-              :key="entry.projectionName"
-              :value="entry.projectionName"
-            >
-              {{ entry.projectionName }}
-            </option>
-          </select>
+            class="w-56"
+            :options="projectionChoices"
+            :placeholder="$t('dashboard.admin.eventReplay.scope.choose')"
+          />
         </label>
         <label class="grid gap-1 text-xs text-muted-foreground">
           {{ $t("dashboard.admin.eventReplay.scope.eventType") }}
-          <select
+          <OptionSelect
             v-model="eventType"
             data-event-type
-            class="h-9 rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
-          >
-            <option value="all">{{ $t("dashboard.admin.eventReplay.scope.allTypes") }}</option>
-            <option v-for="entry in eventTypes" :key="entry" :value="entry">{{ entry }}</option>
-          </select>
+            class="w-56"
+            :options="eventTypeChoices"
+          />
         </label>
         <label class="grid gap-1 text-xs text-muted-foreground">
           {{ $t("dashboard.admin.eventReplay.scope.from") }}

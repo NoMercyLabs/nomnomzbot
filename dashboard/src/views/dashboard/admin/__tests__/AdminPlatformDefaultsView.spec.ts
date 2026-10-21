@@ -258,8 +258,12 @@ const row = (key: string): HTMLElement =>
   document.body.querySelector<HTMLElement>(`[data-action="${key}"]`)!;
 const applyButton = (): HTMLButtonElement =>
   document.body.querySelector<HTMLButtonElement>('[data-form-action]')!;
-const levelSelect = (): HTMLSelectElement =>
-  document.body.querySelector<HTMLSelectElement>('[data-level]')!;
+const levelSelect = (): HTMLElement =>
+  document.body.querySelector<HTMLElement>('[data-level]')!;
+const levelOptions = (): string[] =>
+  Array.from(document.body.querySelectorAll<HTMLElement>('[role="option"]')).map(
+    (node) => node.dataset.option ?? '',
+  );
 const preview = (): HTMLElement | null =>
   document.body.querySelector<HTMLElement>('[data-preview]');
 
@@ -268,11 +272,35 @@ async function edit(key: string): Promise<void> {
   await settle();
 }
 
-async function choose(value: string): Promise<void> {
-  const select = levelSelect();
+async function openLevels(): Promise<void> {
+  Element.prototype.hasPointerCapture = (): boolean => false;
+  Element.prototype.releasePointerCapture = (): void => undefined;
 
-  select.value = value;
-  select.dispatchEvent(new Event('change', { bubbles: true }));
+  levelSelect().dispatchEvent(
+    new PointerEvent('pointerdown', {
+      bubbles: true,
+      button: 0,
+      pointerType: 'mouse',
+    }),
+  );
+
+  await settle();
+}
+
+async function choose(value: string): Promise<void> {
+  await openLevels();
+
+  const option = document.body.querySelector<HTMLElement>(`[role="option"][data-option="${value}"]`)!;
+
+  option.dispatchEvent(
+    new PointerEvent('pointerup', {
+      bubbles: true,
+      button: 0,
+      pointerType: 'mouse',
+    }),
+  );
+
+  option.click();
   await settle();
 }
 
@@ -404,10 +432,13 @@ describe('AdminPlatformDefaultsView', () => {
     await open();
     await edit('timers.create');
 
-    const values = Array.from(levelSelect().options).map((option) => option.value);
+    await openLevels();
 
-    expect(values).toEqual(['shipped', '6', '10', '20', '30', '40']);
-    expect(levelSelect().value).toBe('20');
+    expect(levelOptions()).toEqual(['shipped', '6', '10', '20', '30', '40']);
+
+    expect(
+      document.body.querySelector('[role="option"][data-state="checked"]')?.getAttribute('data-option'),
+    ).toBe('20');
   });
 
   it('names an action in plain words and never prints its internal key', async () => {

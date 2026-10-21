@@ -88,6 +88,17 @@ describe('folder layout', () => {
   // A caller hides the built-in close button and brings a translated one, and uses its own
   // translated button instead of SidebarTrigger or BreadcrumbEllipsis. DialogScrollContent cannot
   // hide its close label, so it is not used.
+  // A raw browser select ignores the design system. OptionSelect (components/layout) is the one picker; a long
+  // list sets its `searchable` prop.
+  it('builds no native select element anywhere in the dashboard', () => {
+    const offenders: string[] = allPaths(src)
+      .filter((path) => path.endsWith('.vue') && !path.endsWith('OptionSelect.vue'))
+      .filter((path) => /<select[\s>]/.test(readFileSync(path, 'utf8')))
+      .map((path) => relative(src, path).replace(/\\/g, '/'));
+
+    expect(offenders).toEqual([]);
+  });
+
   it('shows no untranslated shadcn label on any page', () => {
     const ownFiles = allPaths(src).filter(
       (path) =>

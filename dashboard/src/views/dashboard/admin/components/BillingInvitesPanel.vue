@@ -21,10 +21,12 @@ import {
 } from '@/api/adminBilling';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import OptionSelect from '@/components/layout/OptionSelect.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { merge } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 
@@ -33,6 +35,12 @@ const { can } = usePlatformCan();
 
 const invites = useBillingInvites();
 const tiers = useBillingTiers();
+// "No tier" is the empty choice, so the invite carries no tier unless one is picked.
+const tierChoices = computed(() =>
+  merge(
+    [{ value: '', label: t('dashboard.admin.billing.invites.noTier') }],
+    (tiers.data.value ?? []).map((tier) => ({ value: tier.id, label: tier.displayName })),
+  ));
 const rows = computed<InviteCode[]>(() => invites.data.value ?? []);
 const state = usePanelState(invites, (list) =>
   list.length === 0);
@@ -138,12 +146,12 @@ async function confirmRevoke(): Promise<void> {
   >
     <div class="grid gap-3">
       <Input v-model="maxRedemptions" type="number" :aria-label="t('dashboard.admin.billing.invites.max')" />
-      <select v-model="tierId" class="h-9 rounded-md border border-input bg-transparent px-3 text-sm">
-        <option value="">{{ t("dashboard.admin.billing.invites.noTier") }}</option>
-        <option v-for="tier in tiers.data.value ?? []" :key="tier.id" :value="tier.id">
-          {{ tier.displayName }}
-        </option>
-      </select>
+      <OptionSelect
+        v-model="tierId"
+        data-invite-tier
+        :options="tierChoices"
+        :placeholder="t('dashboard.admin.billing.invites.noTier')"
+      />
       <label class="flex items-center gap-2 text-sm">
         <input v-model="foundersBadge" type="checkbox" />
         {{ t("dashboard.admin.billing.invites.founder") }}

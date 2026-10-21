@@ -20,6 +20,7 @@ import {
   type SupportTenantKind,
 } from '@/api/adminSupport';
 import DateTime from '@/components/layout/DateTime.vue';
+import OptionSelect from '@/components/layout/OptionSelect.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import { usePanelState } from '@/composables/usePanelState';
@@ -47,6 +48,9 @@ const picked = ref<string | null>(null);
 const channelId = computed<string | null>(
   () => picked.value ?? connections.value[0]?.broadcasterId ?? null,
 );
+
+const channelChoices = computed(() =>
+  connections.value.map((row) => ({ value: row.broadcasterId, label: row.channelName })));
 
 const commands = useSupportTenantItems('commands', channelId, () => props.justification);
 const pipelines = useSupportTenantItems('pipelines', channelId, () => props.justification);
@@ -105,16 +109,14 @@ const kinds = computed(() =>
     @retry="itemQuery.refetch()"
   >
     <template #actions>
-      <select
+      <OptionSelect
         v-if="connections.length > 1"
-        v-model="picked"
-        class="h-8 rounded-md border bg-background px-2 text-sm"
+        :model-value="channelId ?? ''"
+        class="w-48"
+        :options="channelChoices"
         :aria-label="t('dashboard.admin.support.items.channel')"
-      >
-        <option v-for="row in connections" :key="row.broadcasterId" :value="row.broadcasterId">
-          {{ row.channelName }}
-        </option>
-      </select>
+        @update:model-value="picked = $event"
+      />
       <SegmentedControl
         v-model="kind"
         :label="t('dashboard.admin.support.items.title')"
