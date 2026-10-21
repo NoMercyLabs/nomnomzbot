@@ -163,12 +163,12 @@ describe('raid_recap widget', () => {
         'bits',
         'followers',
         'redemptions',
-        'streamer',
       ]),
     );
 
-    // Eight data blocks have data and the streamer card is the ninth cell: no metric is dropped while a cell is free.
+    // Eight data blocks have data: no metric is dropped while a cell is free, and there is no card for the streamer.
     expect(blocks).toContain('topCommands');
+    expect(blocks).not.toContain('streamer');
 
     expect(wrapper.find('[data-block="peak"]').text()).toContain('36');
     expect(wrapper.find('[data-block="subs"]').text()).toContain('iFiLLz');
@@ -214,12 +214,11 @@ describe('raid_recap widget', () => {
       .findAll('.grid [data-block]')
       .map((b) => b.attributes('data-block') ?? '');
 
-    expect(blocks).toEqual(['streamer', 'chatters', 'followers']);
+    expect(blocks).toEqual(['chatters', 'followers']);
 
     expect(spans(wrapper)).toEqual([
-      [4, 1],
-      [4, 1],
-      [4, 1],
+      [6, 1],
+      [6, 1],
     ]);
 
     expect(wrapper.find('.grid').attributes('style')).toContain(
@@ -424,13 +423,12 @@ describe('raid_recap widget', () => {
         'songs',
         'bits',
         'followers',
-        'streamer',
         'redemptions',
         'topCommands',
       ]);
     });
 
-    it('lays seven data blocks and the streamer card as 4 over 4, the streamer card first in the bottom row', async () => {
+    it('lays seven data blocks as 4 over 3 and gives the streamer no card', async () => {
       const wrapper = show(streamRecap, { labels });
 
       await flushPromises();
@@ -443,20 +441,27 @@ describe('raid_recap widget', () => {
         'chatters',
         'songs',
         'bits',
-        'streamer',
         'followers',
         'redemptions',
         'topCommands',
       ]);
 
-      expect(spans(wrapper)).toEqual(Array.from({ length: 8 }, () => [3, 1]));
+      expect(spans(wrapper)).toEqual([
+        [3, 1],
+        [3, 1],
+        [3, 1],
+        [3, 1],
+        [4, 1],
+        [4, 1],
+        [4, 1],
+      ]);
 
       expect(wrapper.find('.grid').attributes('style')).toContain(
         'grid-template-rows: repeat(2, minmax(0, 1fr))',
       );
     });
 
-    it('fills every row to the full width whatever the count: 7 cells are 4 over 3, 6 are 3 over 3, 5 are 3 over 2', async () => {
+    it('fills every row to the full width whatever the count: 6 cards are 3 over 3, 5 are 3 over 2, 4 are 2 over 2', async () => {
       const six = { ...streamRecap, redemptions: { total: 0, top: [] } };
       const five = { ...six, followers: 0 };
       const four = { ...five, bits: { total: 0, top: [] } };
@@ -473,35 +478,20 @@ describe('raid_recap widget', () => {
         counts[name] = spans(wrapper);
       }
 
-      expect(counts.six).toEqual([
-        [3, 1],
-        [3, 1],
-        [3, 1],
-        [3, 1],
-        [4, 1],
-        [4, 1],
-        [4, 1],
-      ]);
+      expect(counts.six).toEqual(Array.from({ length: 6 }, () => [4, 1]));
 
       expect(counts.five).toEqual([
         [4, 1],
         [4, 1],
         [4, 1],
-        [4, 1],
-        [4, 1],
-        [4, 1],
+        [6, 1],
+        [6, 1],
       ]);
 
-      expect(counts.four).toEqual([
-        [4, 1],
-        [4, 1],
-        [4, 1],
-        [6, 1],
-        [6, 1],
-      ]);
+      expect(counts.four).toEqual(Array.from({ length: 4 }, () => [6, 1]));
     });
 
-    it('lays all eight data blocks and the streamer card as 3 rows of 3, the streamer card first in the bottom row', async () => {
+    it('lays all eight data blocks as 4 over 4 with no streamer card', async () => {
       const full = { ...fixture, followers: 3 };
       const wrapper = show(full, { labels });
 
@@ -510,38 +500,39 @@ describe('raid_recap widget', () => {
         .findAll('.grid [data-block]')
         .map((b) => b.attributes('data-block') ?? '');
 
-      expect(blocks).toHaveLength(9);
-      expect(blocks.indexOf('streamer')).toBe(6);
+      expect(blocks).toHaveLength(8);
+      expect(blocks).not.toContain('streamer');
       expect(blocks).toContain('topCommands');
-      expect(spans(wrapper)).toEqual(Array.from({ length: 9 }, () => [4, 1]));
+      expect(spans(wrapper)).toEqual(Array.from({ length: 8 }, () => [3, 1]));
 
       expect(wrapper.find('.grid').attributes('style')).toContain(
-        'grid-template-rows: repeat(3, minmax(0, 1fr))',
+        'grid-template-rows: repeat(2, minmax(0, 1fr))',
       );
     });
 
-    it('draws the channel avatar in the streamer card and names the channel in the header', async () => {
+    it('draws the channel avatar as one watermark and names the channel in the header', async () => {
       const channel = { name: 'Stoney_Eagle', avatarUrl: 'https://cdn.example/stoney.png' };
       const wrapper = show({ ...streamRecap, channel }, { labels });
 
       await flushPromises();
-      const avatars = wrapper.findAll('img.avatar');
+      const marks = wrapper.findAll('img.watermark');
 
-      expect(avatars).toHaveLength(1);
-      expect(avatars.at(0)?.attributes('src')).toBe('https://cdn.example/stoney.png');
-      expect(avatars.at(0)?.attributes('crossorigin')).toBe('anonymous');
-      expect(wrapper.find('.grid [data-block="streamer"] img.avatar').exists()).toBe(true);
+      expect(marks).toHaveLength(1);
+      expect(marks.at(0)?.attributes('src')).toBe('https://cdn.example/stoney.png');
+      expect(marks.at(0)?.attributes('crossorigin')).toBe('anonymous');
+      expect(marks.at(0)?.attributes('alt')).toBe('');
+      expect(wrapper.findAll('img.avatar')).toHaveLength(0);
       expect(wrapper.find('.sub').text()).toContain('Stoney_Eagle');
       expect(wrapper.find('.sub').text()).not.toContain('NoMercyTV');
     });
 
-    it('draws the streamer card without an image when the channel has no avatar', async () => {
+    it('draws no watermark when the channel has no avatar', async () => {
       const channel = { name: 'Stoney_Eagle', avatarUrl: null };
       const wrapper = show({ ...streamRecap, channel }, { labels });
 
       await flushPromises();
-      expect(wrapper.findAll('img.avatar')).toHaveLength(0);
-      expect(wrapper.find('[data-block="streamer"]').text()).toContain('Stoney_Eagle');
+      expect(wrapper.findAll('img.watermark')).toHaveLength(0);
+      expect(wrapper.findAll('img')).toHaveLength(0);
     });
 
     it('closes the header with a thank-you line that names the stream length in hours', async () => {
@@ -649,7 +640,7 @@ describe('raid_recap widget', () => {
     });
   });
 
-  describe('the streamer card (Stoney, 2026-10-20: "i want my avatar to show up always in the left bottom card")', () => {
+  describe('the avatar watermark (Stoney, 2026-10-21: the avatar is a watermark in the bottom-left corner of the bottom-left card, no dedicated image card)', () => {
     const SHOWN = [
       'showSubs',
       'showRaids',
@@ -685,8 +676,8 @@ describe('raid_recap widget', () => {
       return rows;
     }
 
-    it.each([0, 1, 2, 3, 4, 5, 6, 7, 8])(
-      'is the first cell of the last row when %i metric blocks are shown',
+    it.each([1, 2, 3, 4, 5, 6, 7, 8])(
+      'sits only inside the first card of the last row when %i metric blocks are shown',
       async (metricBlocks) => {
         const settings = Object.fromEntries(
           SHOWN.map((flag, i) => [flag, i < metricBlocks]),
@@ -696,21 +687,44 @@ describe('raid_recap widget', () => {
         await flushPromises();
         const rows = rowsOf(wrapper);
         const last = rows[rows.length - 1]!;
+        const marks = wrapper.findAll('img.watermark');
+        const host = marks.at(0)?.element.closest('[data-block]');
 
-        expect(last[0]).toBe('streamer');
-        expect(wrapper.findAll('.grid [data-block]')).toHaveLength(metricBlocks + 1);
-        expect(wrapper.findAll('[data-block="streamer"]')).toHaveLength(1);
+        expect(wrapper.findAll('.grid [data-block]')).toHaveLength(metricBlocks);
+        expect(wrapper.find('[data-block="streamer"]').exists()).toBe(false);
+        expect(wrapper.findAll('img')).toHaveLength(1);
+        expect(marks).toHaveLength(1);
+        expect(host?.getAttribute('data-block')).toBe(last[0]);
+        expect(host?.parentElement?.classList.contains('grid')).toBe(true);
       },
     );
 
-    it('shows the channel avatar large with the channel name', async () => {
-      const wrapper = show(withChannel);
+    it('draws nothing when no metric block is shown', async () => {
+      const settings = Object.fromEntries(SHOWN.map((flag) => [flag, false]));
+      const wrapper = show(withChannel, settings);
 
       await flushPromises();
-      const card = wrapper.find('[data-block="streamer"]');
+      expect(wrapper.findAll('.grid [data-block]')).toHaveLength(0);
+      expect(wrapper.findAll('img')).toHaveLength(0);
+    });
 
-      expect(card.find('img.avatar').attributes('src')).toBe('https://cdn.example/stoney.png');
-      expect(card.text()).toContain('Stoney_Eagle');
+    it('styles the watermark gray, faint and anchored to the bottom left of its card', () => {
+      const source = readFileSync(
+        resolve(
+          __dirname,
+          '../../../server/src/NomNomzBot.Infrastructure/Content/Widgets/Assets/raid_recap.vue',
+        ),
+        'utf8',
+      );
+      const rule = /\.watermark\s*\{([^}]*)\}/.exec(source)?.[1] ?? '';
+      const opacity = Number(/opacity:\s*([\d.]+)/.exec(rule)?.[1] ?? '1');
+
+      expect(rule).toContain('position: absolute');
+      expect(rule).toContain('filter: grayscale(1)');
+      expect(rule).toMatch(/left:\s*-?\d/);
+      expect(rule).toMatch(/bottom:\s*-?\d/);
+      expect(opacity).toBeGreaterThan(0);
+      expect(opacity).toBeLessThanOrEqual(0.2);
     });
   });
 });

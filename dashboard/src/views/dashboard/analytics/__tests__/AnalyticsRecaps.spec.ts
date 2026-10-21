@@ -189,10 +189,14 @@ describe('the Recaps tab', () => {
     expect(frame.querySelector('.recap')).not.toBeNull();
     expect(frame.textContent).toContain('Peak viewers');
     expect(frame.textContent).toContain('87');
-    expect(frame.querySelector('img.avatar')?.getAttribute('src')).toBe('https://cdn.example/stoney.png');
+    expect(frame.querySelector('[data-block="streamer"]')).toBeNull();
+
+    expect(frame.querySelector('.grid > .block img.watermark')?.getAttribute('src')).toBe(
+      'https://cdn.example/stoney.png',
+    );
   });
 
-  it('fills the streamer card of a recap that stored no channel from the managed channel', async () => {
+  it('draws the watermark of a recap that stored no channel from the managed channel', async () => {
     await open();
     const thumbnails = [...document.body.querySelectorAll('[data-recap-row]')].map((row) => row.textContent);
 
@@ -202,10 +206,11 @@ describe('the Recaps tab', () => {
     await new Promise((done) => setTimeout(done, 0));
     await flushPromises();
 
-    const card = document.body.querySelector('[data-recap-frame] [data-block="streamer"]')!;
+    const frame = document.body.querySelector('[data-recap-frame]')!;
 
-    expect(card.querySelector('img.avatar')?.getAttribute('src')).toBe('https://cdn.example/current.png');
-    expect(card.textContent).toContain('Stoney_Eagle');
+    expect(frame.querySelector('[data-block="streamer"]')).toBeNull();
+    expect(frame.querySelector('img.watermark')?.getAttribute('src')).toBe('https://cdn.example/current.png');
+    expect(frame.querySelector('.sub')?.textContent).toContain('Stoney_Eagle');
   });
 
   it('saves the PNG at the stored resolution, and 1920 x 1080 for an old recap', async () => {
