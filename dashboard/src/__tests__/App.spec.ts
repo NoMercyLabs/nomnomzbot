@@ -12,6 +12,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { dashboardHomeRoute } from '../views/dashboard/home/route';
 import { loginRoute } from '../views/site/login/route';
+import { viewerChannelsRoute } from '../views/viewer/channels/route';
 
 type Router = typeof import('../router').default;
 
@@ -64,13 +65,14 @@ describe('sign-in guard', () => {
     expect(i18n.global.t('site.login.title')).toBe('Welcome');
   });
 
-  it('lets a visitor with a refresh cookie into the dashboard', async () => {
+  // A person with no own and no moderated channel lands on My channels from the bare /app (c644e2204).
+  it('lets a visitor with a refresh cookie into the app, on My channels when they have no channel', async () => {
     stubFetch(200);
     const router = await freshRouter();
 
     await router.push('/app');
 
-    expect(router.currentRoute.value.name).toBe(dashboardHomeRoute.name);
+    expect(router.currentRoute.value.name).toBe(viewerChannelsRoute.name);
   });
 
   it('takes the token from the OAuth fragment, strips it from the address and never stores it', async () => {
@@ -92,13 +94,13 @@ describe('sign-in guard', () => {
   });
 
   // Stoney 2026-10-13: "the login screen should redirect to the app if the user has a valid session".
-  it('sends a visitor with a valid session from the login page into the dashboard', async () => {
+  it('sends a visitor with a valid session from the login page into the app', async () => {
     stubFetch(200);
     const router = await freshRouter();
 
     await router.push({ name: loginRoute.name });
 
-    expect(router.currentRoute.value.name).toBe(dashboardHomeRoute.name);
+    expect(router.currentRoute.value.name).toBe(viewerChannelsRoute.name);
   });
 
   it('sends a signed-in visitor on to the page the login was asked for', async () => {
@@ -116,7 +118,8 @@ describe('sign-in guard', () => {
 
     await router.push({ name: loginRoute.name, query: { return_to: '//evil.example' } });
 
-    expect(router.currentRoute.value.name).toBe(dashboardHomeRoute.name);
+    expect(router.currentRoute.value.name).toBe(viewerChannelsRoute.name);
+    expect(router.currentRoute.value.path).not.toContain('evil');
   });
 
   it('keeps a signed-out visitor on the login page', async () => {
