@@ -43,8 +43,10 @@ You need Docker with Compose v2. You also need a Twitch application for the Clie
 3. Run this command:
 
 ```bash
-docker compose -f docker-compose.lite.yml up -d --build
+docker compose -f docker-compose.lite.yml up -d
 ```
+
+This downloads the ready-made image. It is built and tested for every release.
 
 4. Open `http://localhost:5080` in your browser.
 5. Follow the setup wizard. You can enter your Twitch credentials there.
@@ -52,7 +54,9 @@ docker compose -f docker-compose.lite.yml up -d --build
 You can also put settings in a `.env` file first. Copy `.env.example` to `.env`. All values are optional in lite.
 If you leave the secrets empty, the bot makes its own and saves them in the data folder.
 
-To use a ready-made image, set `API_IMAGE=ghcr.io/nomercylabs/nomnomzbot:latest` in `.env`. Then leave out `--build`.
+To build the image yourself, set `API_IMAGE=nomnomzbot-api:local` in `.env` and add `--build` to the command.
+The build needs a lot of memory for Docker. With too little, the build can stop with `wasm-opt` and `exit value 139`.
+Give Docker more memory, or use the ready-made image.
 
 To use another port, set `API_HTTP_PORT` in `.env`.
 
