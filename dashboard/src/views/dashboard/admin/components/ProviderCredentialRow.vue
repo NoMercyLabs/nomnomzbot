@@ -8,12 +8,11 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// One provider's OAuth app. The secret and the API key are write-only: the boxes start empty, only a typed
-// field is sent, and the bot answers with where each value comes from, never the value.
+// One provider's OAuth app as a row: name, what is stored and where it comes from. Edit opens the form in a
+// dialog. The secret and the API key are write-only: their boxes start empty, only a typed (or changed) field
+// is sent, and the bot answers with where each value comes from, never the value.
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-
-import { usePlatformCan } from '@/composables/usePlatformCan';
 import { toast } from 'vue-sonner';
 
 import {
@@ -22,10 +21,11 @@ import {
   type ProviderCredential,
   type SaveProviderCredentialRequest,
 } from '@/api/adminProviders';
-import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import { Label } from '@/components/ui/label';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import RowGroup from '@/components/layout/RowGroup.vue';
+import StoredCredentialRow, { type CredentialField } from '@/components/layout/StoredCredentialRow.vue';
+import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 
 const props = defineProps<{ credential: ProviderCredential }>();
 
@@ -37,47 +37,98 @@ const copy = (key: string, values: Record<string, string | number> = {}): string
 const save = useSaveProviderCredential();
 const clear = useClearProviderCredential();
 
-const clientId = ref('');
-const clientSecret = ref('');
-const apiKey = ref('');
+const editing = ref(false);
 const confirmingClear = ref(false);
+const error = ref<string | undefined>(undefined);
 
-const isYouTube = computed<boolean>(() => props.credential.provider === 'youtube');
 const sourceOf = (source: string): string => copy(`source.${source}`);
+const name = computed<string>(() => {
+  const provider = props.credential.provider;
 
-function body(): SaveProviderCredentialRequest {
+  return provider.charAt(0).toUpperCase() + provider.slice(1);
+});
+const editable = computed<boolean>(() => props.credential.supported && can('iam:manage'));
+
+const detail = computed<string>(() => {
+  const credential = props.credential;
+  const parts: string[] = [
+    credential.clientId ?? copy('clientIdNone'),
+    copy('clientIdLabel', { source: sourceOf(credential.clientIdSource) }),
+    copy('secretLabel', { source: sourceOf(credential.secretSource) }),
+  ];
+
+  if (credential.apiKeySource) {
+    parts.push(copy('apiKeyLabel', { source: sourceOf(credential.apiKeySource) }));
+  }
+
+  parts.push(credential.appDecisionRecorded
+    ? copy('decisionRecorded')
+    : copy('decisionMissing'));
+
+  if (!credential.supported) {
+    parts.push(copy('unsupported'));
+  }
+
+  return parts.join(' · ');
+});
+
+const fields = computed<CredentialField[]>(() => {
+  const list: CredentialField[] = [
+    {
+      name: 'clientId',
+      label: copy('fields.clientId'),
+      value: props.credential.clientId ?? '',
+    },
+    {
+      name: 'clientSecret',
+      label: copy('fields.clientSecret'),
+      secret: true,
+    },
+  ];
+
+  if (props.credential.provider === 'youtube') {
+    list.push({
+      name: 'apiKey',
+      label: copy('fields.apiKey'),
+      secret: true,
+    });
+  }
+
+  return list;
+});
+
+function bodyOf(values: Record<string, string>): SaveProviderCredentialRequest {
   const request: SaveProviderCredentialRequest = {};
+  const clientId = (values.clientId ?? '').trim();
 
-  if (clientId.value.trim() !== '') {
-    request.clientId = clientId.value.trim();
+  if (clientId !== '' && clientId !== (props.credential.clientId ?? '')) {
+    request.clientId = clientId;
   }
 
-  if (clientSecret.value !== '') {
-    request.clientSecret = clientSecret.value;
+  if ((values.clientSecret ?? '') !== '') {
+    request.clientSecret = values.clientSecret;
   }
 
-  if (apiKey.value !== '') {
-    request.apiKey = apiKey.value;
+  if ((values.apiKey ?? '') !== '') {
+    request.apiKey = values.apiKey;
   }
 
   return request;
 }
 
-const canSave = computed<boolean>(
-  () => Object.keys(body()).length > 0 && !save.isPending.value && props.credential.supported,
-);
+function submit(values: Record<string, string>): void {
+  error.value = undefined;
 
-function submit(): void {
   save.mutate(
-    { provider: props.credential.provider, body: body() },
+    { provider: props.credential.provider, body: bodyOf(values) },
     {
       onSuccess: () => {
         toast.success(copy('saved'));
-        clientId.value = '';
-        clientSecret.value = '';
-        apiKey.value = '';
+        editing.value = false;
       },
-      onError: (error: Error) => toast.error(copy('saveError', { reason: error.message })),
+      onError: (failure: Error) => {
+        error.value = copy('saveError', { reason: failure.message });
+      },
     },
   );
 }
@@ -87,66 +138,48 @@ function wipe(): void {
     onSuccess: () => {
       toast.success(copy('cleared'));
       confirmingClear.value = false;
+      editing.value = false;
     },
-    onError: (error: Error) => toast.error(copy('clearError', { reason: error.message })),
+    onError: (failure: Error) => {
+      confirmingClear.value = false;
+      error.value = copy('clearError', { reason: failure.message });
+    },
   });
 }
 </script>
 
 <template>
-  <li :data-provider="credential.provider" class="flex flex-col gap-3 px-4 py-3">
-    <div class="flex flex-wrap items-center gap-2">
-      <span class="text-sm font-medium capitalize">{{ credential.provider }}</span>
-      <Badge variant="secondary">{{ credential.appDecisionRecorded ? copy('decisionRecorded') : copy('decisionMissing') }}</Badge>
-      <Badge data-secret-source variant="outline">{{ copy('secretLabel', { source: sourceOf(credential.secretSource) }) }}</Badge>
-      <Badge variant="outline">{{ copy('clientIdLabel', { source: sourceOf(credential.clientIdSource) }) }}</Badge>
-      <Badge v-if="credential.apiKeySource" variant="outline">
-        {{ copy('apiKeyLabel', { source: sourceOf(credential.apiKeySource) }) }}
-      </Badge>
-    </div>
-    <p class="text-sm text-muted-foreground tabular-nums">{{ credential.clientId ?? copy('clientIdNone') }}</p>
-    <p v-if="!credential.supported" class="text-sm text-muted-foreground">{{ copy('unsupported') }}</p>
-    <div v-else class="flex flex-col gap-3">
-      <div class="flex flex-col gap-1.5">
-        <Label :for="`${credential.provider}-client-id`">{{ copy('fields.clientId') }}</Label>
-        <Input :id="`${credential.provider}-client-id`" v-model="clientId" data-field="clientId" autocomplete="off" />
-      </div>
-      <div class="flex flex-col gap-1.5">
-        <Label :for="`${credential.provider}-secret`">{{ copy('fields.clientSecret') }}</Label>
-        <Input
-          :id="`${credential.provider}-secret`"
-          v-model="clientSecret"
-          data-field="clientSecret"
-          type="password"
-          autocomplete="new-password"
-        />
-        <p class="text-sm text-muted-foreground">{{ copy('secretHint') }}</p>
-      </div>
-      <div v-if="isYouTube" class="flex flex-col gap-1.5">
-        <Label :for="`${credential.provider}-api-key`">{{ copy('fields.apiKey') }}</Label>
-        <Input
-          :id="`${credential.provider}-api-key`"
-          v-model="apiKey"
-          data-field="apiKey"
-          type="password"
-          autocomplete="new-password"
-        />
-      </div>
-      <div v-if="can('iam:manage')" class="flex flex-wrap items-center justify-end gap-2">
-        <template v-if="confirmingClear">
-          <span class="mr-auto text-sm text-muted-foreground">{{ copy('clearConfirmText') }}</span>
-          <Button variant="ghost" @click="confirmingClear = false">{{ copy('cancel') }}</Button>
-          <Button data-clear-confirm variant="destructive" :disabled="clear.isPending.value" @click="wipe">
-            {{ copy('clearConfirm') }}
-          </Button>
-        </template>
-        <template v-else>
-          <Button data-clear variant="ghost" @click="confirmingClear = true">{{ copy('clear') }}</Button>
-          <Button data-save :disabled="!canSave" @click="submit">
-            {{ save.isPending.value ? copy('saving') : copy('save') }}
-          </Button>
-        </template>
-      </div>
-    </div>
-  </li>
+  <div :data-provider="credential.provider">
+    <StoredCredentialRow
+      v-if="editable"
+      v-model:open="editing"
+      partial
+      :title="name"
+      :detail="detail"
+      :edit-label="copy('edit')"
+      :dialog-title="copy('dialogTitle', { provider: name })"
+      :dialog-description="copy('secretHint')"
+      :save-label="copy('save')"
+      :remove-label="copy('clear')"
+      remove-action="clear"
+      :fields="fields"
+      removable
+      :pending="save.isPending.value"
+      :removing="clear.isPending.value"
+      :error="error"
+      @submit="submit"
+      @remove="confirmingClear = true"
+    />
+    <RowGroup v-else>
+      <SummaryRow :title="name" :detail="detail" />
+    </RowGroup>
+    <ConfirmDialog
+      v-model:open="confirmingClear"
+      :title="copy('clearTitle', { provider: name })"
+      :description="copy('clearConfirmText')"
+      :action="copy('clearConfirm')"
+      :pending="clear.isPending.value"
+      @confirm="wipe"
+    />
+  </div>
 </template>

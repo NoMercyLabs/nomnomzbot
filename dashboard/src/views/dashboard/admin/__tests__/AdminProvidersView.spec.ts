@@ -166,66 +166,66 @@ async function click(selector: string): Promise<void> {
 }
 
 describe('AdminProvidersView', () => {
-  it('lists every provider with the source of its id and secret, and never a stored secret', async () => {
+  it('lists every provider as one row with its stored client id and sources, and no open input', async () => {
     await open();
 
     expect(document.body.querySelectorAll('[data-provider]')).toHaveLength(3);
+    expect(document.body.querySelectorAll('input')).toHaveLength(0);
     expect(one('[data-provider="twitch"]').textContent).toContain('abc123client');
-    expect(one('[data-provider="twitch"] [data-secret-source]').textContent).toContain('Stored');
-
-    expect(one('[data-provider="youtube"] [data-secret-source]').textContent).toContain(
-      'Environment',
-    );
-
+    expect(one('[data-provider="twitch"]').textContent).toContain('Secret: Stored');
+    expect(one('[data-provider="youtube"]').textContent).toContain('Secret: Environment');
     expect(one('[data-provider="kick"]').textContent).toContain('does not support');
-
-    const secret = one<HTMLInputElement>('[data-provider="twitch"] [data-field="clientSecret"]');
-
-    expect(secret.type).toBe('password');
-    expect(secret.value).toBe('');
+    expect(document.body.querySelector('[data-provider="kick"] [data-action="edit-credentials"]')).toBeNull();
     expect(one('[data-restricted]').textContent).toContain('restricted option');
   });
 
-  it('sends only the typed fields and clears the secret box after saving', async () => {
+  it('opens the form in a dialog on Edit, with the secret empty and write only', async () => {
     await open();
+    await click('[data-provider="twitch"] [data-action="edit-credentials"]');
 
-    expect(one<HTMLButtonElement>('[data-provider="twitch"] [data-save]').disabled).toBe(true);
+    const secret = one<HTMLInputElement>('input[name="clientSecret"]');
 
-    await type('[data-provider="twitch"] [data-field="clientSecret"]', 'rotated-secret');
-    await click('[data-provider="twitch"] [data-save]');
+    expect(secret.type).toBe('password');
+    expect(secret.value).toBe('');
+    expect(one<HTMLInputElement>('input[name="clientId"]').value).toBe('abc123client');
+    expect(document.body.querySelector('input[name="apiKey"]')).toBeNull();
+  });
+
+  it('sends only the changed fields and closes the dialog after saving', async () => {
+    await open();
+    await click('[data-provider="twitch"] [data-action="edit-credentials"]');
+
+    await type('input[name="clientSecret"]', 'rotated-secret');
+    await click('[data-form-action]');
 
     expect(puts).toHaveLength(1);
     expect(puts[0]?.params).toMatchObject({ path: { provider: 'twitch' } });
     expect(puts[0]?.body).toEqual({ clientSecret: 'rotated-secret' });
-
-    expect(
-      one<HTMLInputElement>('[data-provider="twitch"] [data-field="clientSecret"]').value,
-    ).toBe('');
-
+    expect(document.body.querySelector('input[name="clientSecret"]')).toBeNull();
     expect(reads.length).toBeGreaterThan(1);
   });
 
   it('sends the client id and an api key for youtube only', async () => {
     await open();
+    await click('[data-provider="youtube"] [data-action="edit-credentials"]');
 
-    expect(
-      document.body.querySelector('[data-provider="twitch"] [data-field="apiKey"]'),
-    ).toBeNull();
+    expect(one<HTMLButtonElement>('[data-form-action]').disabled).toBe(true);
 
-    await type('[data-provider="youtube"] [data-field="clientId"]', 'yt-client');
-    await type('[data-provider="youtube"] [data-field="apiKey"]', 'yt-key');
-    await click('[data-provider="youtube"] [data-save]');
+    await type('input[name="clientId"]', 'yt-client');
+    await type('input[name="apiKey"]', 'yt-key');
+    await click('[data-form-action]');
 
     expect(puts[0]?.body).toEqual({ clientId: 'yt-client', apiKey: 'yt-key' });
   });
 
-  it('clears stored credentials only after a second confirm', async () => {
+  it('clears stored credentials only after a confirm dialog', async () => {
     await open();
-    await click('[data-provider="twitch"] [data-clear]');
+    await click('[data-provider="twitch"] [data-action="edit-credentials"]');
+    await click('[data-action="clear"]');
 
     expect(deletes).toHaveLength(0);
 
-    await click('[data-provider="twitch"] [data-clear-confirm]');
+    await click('[data-confirm-action]');
 
     expect(deletes).toHaveLength(1);
     expect(deletes[0]?.params).toMatchObject({ path: { provider: 'twitch' } });

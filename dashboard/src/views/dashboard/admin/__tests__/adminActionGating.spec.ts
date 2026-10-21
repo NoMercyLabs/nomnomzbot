@@ -116,18 +116,16 @@ describe('admin action buttons need the matching platform key', () => {
     expect(withKey.emitted('replay')).toEqual([[7]]);
   });
 
-  it('shows the provider save and clear buttons only with iam:manage', () => {
+  it('shows the provider Edit button only with iam:manage', () => {
     const props = { credential };
 
     const without = mount(ProviderCredentialRow, { props, global });
 
-    expect(without.find('[data-save]').exists()).toBe(false);
-    expect(without.find('[data-clear]').exists()).toBe(false);
+    expect(without.find('[data-action="edit-credentials"]').exists()).toBe(false);
 
     held.keys = ['iam:manage'];
     const withKey = mount(ProviderCredentialRow, { props, global });
 
-    expect(withKey.find('[data-save]').exists()).toBe(true);
-    expect(withKey.find('[data-clear]').exists()).toBe(true);
+    expect(withKey.find('[data-action="edit-credentials"]').exists()).toBe(true);
   });
 });
