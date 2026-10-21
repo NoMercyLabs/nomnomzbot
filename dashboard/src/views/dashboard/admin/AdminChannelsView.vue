@@ -14,21 +14,21 @@ import { refDebounced, useLocalStorage } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import ChevronLeft from '~icons/nnz/chevron-left';
-import ChevronRight from '~icons/nnz/chevron-right';
 
 import { useAdminTenants, type AdminTenant, type AdminTenantsParams } from '@/api/admin';
 import { ApiError } from '@/api/errors';
 import FilterBar from '@/components/layout/FilterBar.vue';
 import type { FilterOption } from '@/components/layout/filterOption';
+import PageActionFooter from '@/components/layout/PageActionFooter.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
 import PanelBeside from '@/components/layout/PanelBeside.vue';
 import SidePanel from '@/components/layout/SidePanel.vue';
-import { Button } from '@/components/ui/button';
+import { useScreenFrom } from '@/composables/useLayout';
 import { usePanelState } from '@/composables/usePanelState';
 
+import AdminPager from './components/AdminPager.vue';
 import ChannelDetailPanel from './components/ChannelDetailPanel.vue';
 import ChannelsTable from './components/ChannelsTable.vue';
 
@@ -36,6 +36,7 @@ const PAGE_SIZE: number = 25;
 const SEARCH_PAUSE_MS: number = 300;
 
 const { t } = useI18n();
+const tablet = useScreenFrom('tablet');
 const route = useRoute();
 const router = useRouter();
 
@@ -120,7 +121,7 @@ function pick(row: AdminTenant): void {
       </span>
     </template>
     <template #bar>
-      <div class="flex min-w-0 flex-1 items-center gap-4 overflow-x-auto scrollbar-none md:justify-end">
+      <div class="flex min-w-0 flex-1 items-center gap-x-4 gap-y-2 max-md:flex-wrap md:overflow-x-auto md:scrollbar-none md:justify-end">
         <div class="flex shrink-0 items-center gap-2">
           <span data-filter-label class="text-sm text-muted-foreground">
             {{ $t('dashboard.admin.filters.statusLabel') }}
@@ -165,22 +166,14 @@ function pick(row: AdminTenant): void {
           />
         </template>
         <ChannelsTable :rows="rows" :selected-id="selectedId" @pick="pick" />
-        <template #footer>
-          <span class="text-sm text-muted-foreground tabular-nums" role="status">
-            {{ $t('dashboard.admin.pager.page', { page, pages }) }}
-          </span>
-          <div class="ml-auto flex items-center gap-2">
-            <Button variant="outline" size="sm" :disabled="page <= 1" @click="page -= 1">
-              <ChevronLeft aria-hidden="true" />
-              {{ $t('dashboard.admin.pager.previous') }}
-            </Button>
-            <Button variant="outline" size="sm" :disabled="page >= pages" @click="page += 1">
-              {{ $t('dashboard.admin.pager.next') }}
-              <ChevronRight aria-hidden="true" />
-            </Button>
-          </div>
+        <template v-if="tablet" #footer>
+          <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
         </template>
       </PanelCard>
+      <!-- On a phone the list takes its full height and the pager rides in the sticky page footer. -->
+      <PageActionFooter v-if="!tablet">
+        <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
+      </PageActionFooter>
     </div>
     <template #panel>
       <SidePanel v-model:open="detailOpen" :label="$t('dashboard.admin.detail.title')">

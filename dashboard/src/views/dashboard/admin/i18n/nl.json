@@ -770,6 +770,7 @@
           "Denied": "Geweigerd"
         },
         "filters": {
+          "toggle": "Filters",
           "permission": "Recht",
           "permissionHint": "tenant:suspend",
           "outcome": "Uitkomst",

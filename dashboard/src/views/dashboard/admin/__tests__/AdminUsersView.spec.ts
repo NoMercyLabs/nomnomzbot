@@ -107,6 +107,9 @@ const settle = async (): Promise<void> => {
 };
 
 async function open(start: string = '/app/admin/users'): Promise<void> {
+  // The frame's sticky footer, where a phone-width page moves its pager.
+  document.body.insertAdjacentHTML('beforeend', '<div data-slot="frame-action-footer"></div>');
+
   router = createRouter({
     history: createMemoryHistory(),
     routes: [

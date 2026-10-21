@@ -139,6 +139,9 @@ const settle = async (): Promise<void> => {
 };
 
 async function open(start: string = '/app/admin/channels'): Promise<void> {
+  // The frame's sticky footer, where a phone-width page moves its pager.
+  document.body.insertAdjacentHTML('beforeend', '<div data-slot="frame-action-footer"></div>');
+
   const blank = { template: '<div />' };
 
   router = createRouter({
@@ -203,7 +206,7 @@ describe('AdminChannelsView', () => {
     expect(text()).toContain('2 channels');
   });
 
-  it('labels both filter groups in view and keeps the bar on one scrolling line', async () => {
+  it('labels both filter groups in view; a phone wraps the second group to its own row, never clipped', async () => {
     await open();
 
     const labels = [...document.body.querySelectorAll('[data-filter-label]')].map((node) =>
@@ -211,8 +214,9 @@ describe('AdminChannelsView', () => {
     const strip = document.body.querySelector('[data-slot="page-bar"] > div') as HTMLElement;
 
     expect(labels).toEqual(['Status', 'Live']);
-    expect(strip.className).toContain('overflow-x-auto');
-    expect(strip.className).not.toContain('flex-wrap');
+    expect(strip.className).toContain('max-md:flex-wrap');
+    expect(strip.className).toContain('md:overflow-x-auto');
+    expect(strip.className).not.toMatch(/(^|\s)overflow-x-auto/);
   });
 
   it('lets the search and the table stay inside the page width on a phone', async () => {
