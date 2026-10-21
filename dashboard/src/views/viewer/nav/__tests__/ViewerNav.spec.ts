@@ -9,7 +9,7 @@
 // -----------------------------------------------------------------------------
 import { mount } from '@vue/test-utils';
 import { createMemoryHistory, createRouter } from 'vue-router';
-import { describe, expect, it } from 'vitest';
+import { afterEach, describe, expect, it, vi } from 'vitest';
 import { createI18n } from 'vue-i18n';
 
 import en from '@/i18n/locales/en.json';
@@ -74,5 +74,32 @@ describe('ViewerNav', () => {
     const wrapper = await mountAt('/me/stoney_eagle');
 
     expect(wrapper.findAll('a[aria-current="page"]').map((link) => link.text())).toEqual(['My channel']);
+  });
+
+  // Stoney 2026-10-21 (mobile ledger M-12): the phone bar showed a label only under the open page.
+  describe('on a phone', () => {
+    afterEach(() => {
+      vi.unstubAllGlobals();
+    });
+
+    it('keeps a short label under every icon, each one fitting a seventh of the bar', async () => {
+      vi.stubGlobal('matchMedia', (query: string) => ({
+        matches: query.includes('max-width'),
+        media: query,
+        addEventListener: () => undefined,
+        removeEventListener: () => undefined,
+        addListener: () => undefined,
+        removeListener: () => undefined,
+      }));
+
+      const wrapper = await mountAt('/me/stoney_eagle/chat');
+      const labels = wrapper.findAll('a').map((link) => link.text());
+
+      expect(labels).toEqual(['Home', 'Chat', 'Music', 'Ranks', 'Store', 'Games', 'Me']);
+
+      const hidden = wrapper.findAll('a span').filter((span) => span.classes().includes('max-md:sr-only'));
+
+      expect(hidden).toEqual([]);
+    });
   });
 });

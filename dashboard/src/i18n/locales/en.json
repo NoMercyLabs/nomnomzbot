@@ -759,7 +759,9 @@
         "leaderboards": "Leaderboards",
         "pointsStore": "Points and store",
         "games": "Games",
-        "me": "Me"
+        "me": "Me",
+        "ranks": "Ranks",
+        "store": "Store"
       },
       "settingsPages": {
         "readability": "Readability",

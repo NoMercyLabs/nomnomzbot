@@ -26,16 +26,26 @@ import {
 import { Item, ItemActions, ItemContent, ItemGroup, ItemMedia, ItemTitle } from '@/components/ui/item';
 import { splitBottomBar, type BottomBarSplit } from './bottomBarSplit';
 import type { NavEntry } from './navigation';
-import { useNavigation } from './useNavigation';
+import { useNavigation, type VisibleGroup } from './useNavigation';
 
 const { t } = useI18n();
-const { entries, isCurrent, linkTo } = useNavigation();
+const { entries, groups, isCurrent, linkTo } = useNavigation();
 const more = ref(false);
 
 // The pages a thumb needs most stay in the bar; the rest open in the sheet.
 const split = computed<BottomBarSplit>(() => splitBottomBar(entries.value));
 const barEntries = computed<NavEntry[]>(() => split.value.bar);
 const sheetEntries = computed<NavEntry[]>(() => split.value.sheet);
+
+// The sheet keeps the sidebar's groups, so 23 pages read as a few named lists. A group the bar emptied has no heading.
+const sheetGroups = computed<VisibleGroup[]>(() =>
+  groups.value
+    .map((group) => ({
+      ...group,
+      entries: group.entries.filter((entry) => sheetEntries.value.includes(entry)),
+    }))
+    .filter((group) => group.entries.length > 0),
+);
 </script>
 
 <template>
@@ -53,7 +63,7 @@ const sheetEntries = computed<NavEntry[]>(() => split.value.sheet);
     >
       <RouterLink :to="linkTo(entry)">
         <component :is="entry.icon" class="size-5" aria-hidden="true" />
-        <span class="min-w-0 max-w-full truncate">{{ t(`frame.nav.${entry.label}`) }}</span>
+        <span class="min-w-0 max-w-full text-center leading-tight text-balance">{{ t(`frame.nav.${entry.label}`) }}</span>
       </RouterLink>
     </Button>
     <!-- The rest opens in a bottom drawer, as the "More" tab of a phone app does: a handle to swipe it away,
@@ -62,7 +72,7 @@ const sheetEntries = computed<NavEntry[]>(() => split.value.sheet);
       <DrawerTrigger as-child>
         <Button variant="ghost" class="h-auto! min-h-11 min-w-0 flex-1 flex-col gap-1! px-1! py-1.5 text-xs">
           <MenuDotsHorizontal aria-hidden="true" />
-          <span class="min-w-0 max-w-full truncate">{{ t('frame.nav.more') }}</span>
+          <span class="min-w-0 max-w-full text-center leading-tight">{{ t('frame.nav.more') }}</span>
         </Button>
       </DrawerTrigger>
       <DrawerContent data-slot="more-drawer">
@@ -79,27 +89,34 @@ const sheetEntries = computed<NavEntry[]>(() => split.value.sheet);
             <Cross class="size-5" aria-hidden="true" />
           </Button>
         </DrawerHeader>
-        <ItemGroup class="overflow-y-auto px-2 pb-4">
-          <Item
-            v-for="entry in sheetEntries"
-            :key="entry.route"
-            size="sm"
-            :class="isCurrent(entry) && 'bg-muted'"
-            as-child
-          >
-            <RouterLink :to="linkTo(entry)" @click="more = false">
-              <ItemMedia variant="icon">
-                <component :is="entry.icon" aria-hidden="true" />
-              </ItemMedia>
-              <ItemContent>
-                <ItemTitle>{{ t(`frame.nav.${entry.label}`) }}</ItemTitle>
-              </ItemContent>
-              <ItemActions>
-                <ChevronRight class="size-4 text-muted-foreground" aria-hidden="true" />
-              </ItemActions>
-            </RouterLink>
-          </Item>
-        </ItemGroup>
+        <div class="overflow-y-auto px-2 pb-4">
+          <ItemGroup v-for="group in sheetGroups" :key="group.key" data-slot="more-group" class="pb-2">
+            <p
+              v-if="group.foldable"
+              data-slot="more-group-label"
+              class="px-2 pt-2 pb-1 text-xs font-medium text-muted-foreground"
+            >{{ t(`frame.group.${group.key}`) }}</p>
+            <Item
+              v-for="entry in group.entries"
+              :key="entry.route"
+              size="sm"
+              :class="isCurrent(entry) && 'bg-muted'"
+              as-child
+            >
+              <RouterLink :to="linkTo(entry)" @click="more = false">
+                <ItemMedia variant="icon">
+                  <component :is="entry.icon" aria-hidden="true" />
+                </ItemMedia>
+                <ItemContent>
+                  <ItemTitle>{{ t(`frame.nav.${entry.label}`) }}</ItemTitle>
+                </ItemContent>
+                <ItemActions>
+                  <ChevronRight class="size-4 text-muted-foreground" aria-hidden="true" />
+                </ItemActions>
+              </RouterLink>
+            </Item>
+          </ItemGroup>
+        </div>
       </DrawerContent>
     </Drawer>
   </nav>

@@ -10,6 +10,7 @@
 <script setup lang="ts">
 // The viewer's navigation for one channel: the seven pages under /me/<channel>. A row of links under the header
 // on a wide screen, a bar along the bottom edge on a narrow one (one element, two places, no second list).
+import { useMediaQuery } from '@vueuse/core';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
@@ -21,6 +22,8 @@ import { viewerNavEntries } from './viewerNavigation';
 const { t } = useI18n();
 const route = useRoute();
 
+// The phone bar shows the one-word labels; the row from the tablet width up has room for the full ones.
+const phone = useMediaQuery('(max-width: 767px)');
 const channel = computed(() => String(route.params.channel ?? ''));
 </script>
 
@@ -35,8 +38,7 @@ const channel = computed(() => String(route.params.channel ?? ''));
       v-for="entry in viewerNavEntries"
       :key="entry.route"
       :variant="route.name === entry.route ? 'secondary' : 'ghost'"
-      :class="route.name === entry.route ? 'flex-[2.4]' : 'flex-1'"
-      class="h-auto! min-h-11 min-w-0 flex-col gap-1! px-1! py-1.5 text-xs md:h-9! md:min-h-0 md:flex-none md:flex-row md:gap-2! md:px-3! md:py-0 md:text-sm"
+      class="flex-1 h-auto! min-h-11 min-w-0 flex-col gap-1! px-1! py-1.5 text-xs md:h-9! md:min-h-0 md:flex-none md:flex-row md:gap-2! md:px-3! md:py-0 md:text-sm"
       as-child
     >
       <RouterLink
@@ -45,7 +47,7 @@ const channel = computed(() => String(route.params.channel ?? ''));
         :aria-current="route.name === entry.route ? 'page' : undefined"
       >
         <component :is="entry.icon" class="size-5 md:size-4" aria-hidden="true" />
-        <span :class="['min-w-0 max-w-full truncate', route.name !== entry.route && 'max-md:sr-only']">{{ t(`frame.nav.${entry.label}`) }}</span>
+        <span class="min-w-0 max-w-full text-center leading-tight">{{ t(`frame.nav.${phone ? entry.shortLabel : entry.label}`) }}</span>
       </RouterLink>
     </Button>
   </nav>

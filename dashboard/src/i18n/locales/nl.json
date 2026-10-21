@@ -759,7 +759,9 @@
         "leaderboards": "Ranglijsten",
         "pointsStore": "Punten en winkel",
         "games": "Spellen",
-        "me": "Ik"
+        "me": "Ik",
+        "ranks": "Scores",
+        "store": "Winkel"
       },
       "settingsPages": {
         "readability": "Leesbaarheid",

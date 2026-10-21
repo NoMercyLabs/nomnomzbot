@@ -44,6 +44,14 @@ describe('ViewerLayout', () => {
     expect(wrapper.find('header span span').classes()).toContain('max-sm:sr-only');
   });
 
+  // Stoney 2026-10-21 (mobile ledger M-12): the top band was 130 px before the page.
+  it('keeps the brand row one compact line on a phone and the roomy one from the tablet width up', () => {
+    const classes = mountLayout().find('header').classes();
+
+    expect(classes).toContain('max-md:py-2');
+    expect(classes).toContain('py-4');
+  });
+
   it('leaves the page area without a side inset, so a page header sits flush with the brand', () => {
     const wrapper = mountLayout();
     const sideInsets = wrapper

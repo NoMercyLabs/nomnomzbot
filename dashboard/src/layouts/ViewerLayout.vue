@@ -27,7 +27,7 @@ import ViewerChannelFinder from './dashboard/ViewerChannelFinder.vue';
       <ViewAsBanner />
       <!-- Below the tablet width the header stays on top while the page scrolls (owner rule 2026-10-21). -->
       <header
-        class="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-4 max-md:sticky max-md:top-0 max-md:z-30 max-md:bg-background"
+        class="mx-auto flex w-full max-w-4xl items-center justify-between px-6 py-4 max-md:sticky max-md:py-2 max-md:top-0 max-md:z-30 max-md:bg-background"
       >
         <span class="flex items-center gap-2 text-base font-semibold">
           <AppMark />

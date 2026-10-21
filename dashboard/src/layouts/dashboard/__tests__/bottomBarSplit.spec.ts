@@ -12,6 +12,7 @@ import { defineComponent } from 'vue';
 import { describe, expect, it } from 'vitest';
 
 import { splitBottomBar } from '../bottomBarSplit';
+import { settingsNav } from '../settingsNavigation';
 import type { NavEntry } from '../navigation';
 
 const icon = defineComponent({ render: () => null });
@@ -49,5 +50,22 @@ describe('splitBottomBar', () => {
 
     expect(routes(bar)).toEqual(['b', 'd', 'a', 'c']);
     expect(routes(sheet)).toEqual(['e', 'f']);
+  });
+});
+
+// Stoney 2026-10-21 (mobile ledger ST-08): the settings bar showed three entries and More.
+describe('the settings bottom bar', () => {
+  it('keeps the way back and the three pages a person opens most, and sends the rest to More', () => {
+    const all = settingsNav.flatMap((group) => [...group.entries]);
+    const { bar, sheet } = splitBottomBar(all);
+
+    expect(routes(bar)).toEqual([
+      'dashboard-home',
+      'dashboard-settings',
+      'dashboard-settings-bot-basics',
+      'dashboard-settings-integrations',
+    ]);
+
+    expect(sheet).toHaveLength(all.length - 4);
   });
 });

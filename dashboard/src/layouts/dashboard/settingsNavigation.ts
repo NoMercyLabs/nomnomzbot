@@ -38,16 +38,16 @@ import { backEntry, navEntry, type NavGroup } from './navigation';
 export const settingsNav: readonly NavGroup[] = [
   {
     key: 'back',
-    entries: [backEntry('back.dashboard')],
+    entries: [{ ...backEntry('back.dashboard'), bottom: true }],
   },
   {
     key: 'settings.you',
-    entries: [navEntry('dashboard-settings', 'settingsPages.readability', BookOpen, true)],
+    entries: [{ ...navEntry('dashboard-settings', 'settingsPages.readability', BookOpen, true), bottom: true }],
   },
   {
     key: 'settings.bot',
     entries: [
-      navEntry('dashboard-settings-bot-basics', 'settingsPages.botBasics', SettingsFader),
+      { ...navEntry('dashboard-settings-bot-basics', 'settingsPages.botBasics', SettingsFader), bottom: true },
       navEntry('dashboard-settings-bot-personality', 'settingsPages.botPersonality', ChatLove),
       navEntry('dashboard-settings-engagement-triggers', 'settingsPages.engagementTriggers', Sparkles),
       navEntry('dashboard-settings-white-label-bot', 'settingsPages.whiteLabelBot', ChatBot),
@@ -57,7 +57,7 @@ export const settingsNav: readonly NavGroup[] = [
   {
     key: 'settings.connections',
     entries: [
-      navEntry('dashboard-settings-integrations', 'settingsPages.integrations', Plugged),
+      { ...navEntry('dashboard-settings-integrations', 'settingsPages.integrations', Plugged), bottom: true },
       navEntry('dashboard-settings-discord', 'settingsPages.discord', ChatBubble),
       navEntry('dashboard-settings-supporter-sources', 'settingsPages.supporterSources', Handshake),
       navEntry('dashboard-settings-federation', 'settingsPages.federation', MultiPoint),

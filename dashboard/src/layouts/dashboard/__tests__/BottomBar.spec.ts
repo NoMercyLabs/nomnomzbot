@@ -110,6 +110,25 @@ describe('the bottom bar More menu', () => {
     expect(document.activeElement).not.toBe(more!.element);
   });
 
+  // Stoney 2026-10-21 (mobile ledger M-11): the sheet listed every page in one column with no groups.
+  it('names the groups of its pages, each page under its own group', async () => {
+    await openMore('/dashboard-analytics');
+
+    const groups = Array.from(sheet().querySelectorAll('[data-slot="more-group"]'));
+    const headings = groups.map((group) => group.querySelector('[data-slot="more-group-label"]')?.textContent);
+
+    expect(headings.length).toBeGreaterThan(1);
+    expect(headings).toContain('Build');
+
+    const build = groups.find((group) => group.textContent?.startsWith('Build'));
+
+    expect(build!.querySelectorAll('a').length).toBeGreaterThan(1);
+
+    expect(sheet().querySelectorAll('a').length).toBe(
+      groups.reduce((total, group) => total + group.querySelectorAll('a').length, 0),
+    );
+  });
+
   it('marks only the row of the current page, and focus does not land on another row', async () => {
     await openMore('/dashboard-analytics');
 
@@ -153,6 +172,13 @@ describe('the bottom bar tabs', () => {
       .map((tab) =>
         tab.text());
 
+    const cutLabels = tabs
+      .filter((tab) =>
+        tab.find('span').classes().includes('truncate'))
+      .map((tab) =>
+        tab.text());
+
+    expect(cutLabels).toEqual([]);
     expect(tabsThatCannotShrink).toEqual([]);
     expect(labelsThatCannotShrink).toEqual([]);
   });
