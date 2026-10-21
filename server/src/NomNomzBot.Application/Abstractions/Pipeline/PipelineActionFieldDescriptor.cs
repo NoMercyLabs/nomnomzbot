@@ -54,6 +54,9 @@ public enum PipelineActionFieldKind
     /// position.
     /// </summary>
     KeyValueMap,
+
+    /// <summary>One member of the linked Discord server, searched and picked by name; the saved value is the Discord user id.</summary>
+    DiscordUser,
 }
 
 /// <summary>
@@ -121,6 +124,7 @@ public static class PipelineActionFieldKindExtensions
             PipelineActionFieldKind.Enum => "enum",
             PipelineActionFieldKind.DiscordChannel => "discord_channel",
             PipelineActionFieldKind.DiscordRole => "discord_role",
+            PipelineActionFieldKind.DiscordUser => "discord_user",
             PipelineActionFieldKind.TwitchUser => "twitch_user",
             PipelineActionFieldKind.Reward => "reward",
             PipelineActionFieldKind.Widget => "widget",

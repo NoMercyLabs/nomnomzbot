@@ -214,6 +214,17 @@ public sealed record DiscordGuildRoleDto(
     string Permissions = "0"
 );
 
+/// <summary>
+/// A live guild member, for the member pickers. <see cref="DisplayName"/> is the name the guild shows (nickname,
+/// then global name, then username); <see cref="AvatarUrl"/> is the Discord CDN avatar, null when the member has none.
+/// </summary>
+public sealed record DiscordGuildMemberDto(
+    string Id,
+    string Username,
+    string DisplayName,
+    string? AvatarUrl
+);
+
 /// <summary>A live guild channel, for the target/button channel pickers. <c>Type</c> is Discord's channel type (0 = text).</summary>
 public sealed record DiscordGuildChannelDto(
     string Id,

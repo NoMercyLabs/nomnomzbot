@@ -296,4 +296,32 @@ internal sealed class RecordingGateway : IDiscordBotGateway
         GuildReads.Add($"invite:{channelId}");
         return Task.FromResult(NextInviteResult);
     }
+
+    public Result<IReadOnlyList<DiscordGuildMemberDto>> NextMembersResult { get; set; } =
+        Result.Success<IReadOnlyList<DiscordGuildMemberDto>>([]);
+
+    public Task<Result<IReadOnlyList<DiscordGuildMemberDto>>> SearchGuildMembersAsync(
+        Guid broadcasterId,
+        string guildId,
+        string? query,
+        int limit,
+        CancellationToken ct = default
+    )
+    {
+        GuildReads.Add($"members:{guildId}:{query}");
+        return Task.FromResult(NextMembersResult);
+    }
+
+    public Task<Result<DiscordGuildMemberDto>> GetGuildMemberAsync(
+        Guid broadcasterId,
+        string guildId,
+        string memberId,
+        CancellationToken ct = default
+    )
+    {
+        GuildReads.Add($"member:{guildId}:{memberId}");
+        return Task.FromResult(
+            Result.Failure<DiscordGuildMemberDto>("Unknown member", "DISCORD_NOT_FOUND")
+        );
+    }
 }

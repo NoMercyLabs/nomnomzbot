@@ -270,6 +270,75 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
         return Result.Success(dtos);
     }
 
+    public async Task<Result<IReadOnlyList<DiscordGuildMemberDto>>> SearchGuildMembersAsync(
+        Guid broadcasterId,
+        string guildId,
+        string? query,
+        int limit,
+        CancellationToken ct = default
+    )
+    {
+        int bounded = Math.Clamp(limit, 1, 1000);
+        string guildPath = $"guilds/{Uri.EscapeDataString(guildId)}/members";
+        string path = string.IsNullOrWhiteSpace(query)
+            ? $"{guildPath}?limit={bounded}"
+            : $"{guildPath}/search?query={Uri.EscapeDataString(query.Trim())}&limit={bounded}";
+
+        Result<List<DiscordMemberProfileWire>> members = await GetAsync<
+            List<DiscordMemberProfileWire>
+        >(broadcasterId, path, ct);
+        if (members.IsFailure)
+            return Result.Failure<IReadOnlyList<DiscordGuildMemberDto>>(
+                members.ErrorMessage,
+                members.ErrorCode,
+                members.ErrorDetail
+            );
+
+        IReadOnlyList<DiscordGuildMemberDto> dtos =
+        [
+            .. members.Value.Where(m => m.User is not null).Select(ToMemberDto),
+        ];
+        return Result.Success(dtos);
+    }
+
+    public async Task<Result<DiscordGuildMemberDto>> GetGuildMemberAsync(
+        Guid broadcasterId,
+        string guildId,
+        string memberId,
+        CancellationToken ct = default
+    )
+    {
+        Result<DiscordMemberProfileWire> member = await GetAsync<DiscordMemberProfileWire>(
+            broadcasterId,
+            $"guilds/{Uri.EscapeDataString(guildId)}/members/{Uri.EscapeDataString(memberId)}",
+            ct
+        );
+        if (member.IsFailure)
+            return Result.Failure<DiscordGuildMemberDto>(
+                member.ErrorMessage,
+                member.ErrorCode,
+                member.ErrorDetail
+            );
+        if (member.Value.User is null)
+            return Result.Failure<DiscordGuildMemberDto>(
+                "Discord returned a member without a user.",
+                "DISCORD_ERROR"
+            );
+
+        return Result.Success(ToMemberDto(member.Value));
+    }
+
+    private static DiscordGuildMemberDto ToMemberDto(DiscordMemberProfileWire member)
+    {
+        DiscordMemberUserWire user = member.User!;
+        string displayName = member.Nick ?? user.GlobalName ?? user.Username;
+        string? avatarUrl = user.Avatar is null
+            ? null
+            : $"https://cdn.discordapp.com/avatars/{user.Id}/{user.Avatar}.png";
+
+        return new DiscordGuildMemberDto(user.Id, user.Username, displayName, avatarUrl);
+    }
+
     public async Task<Result<IReadOnlyList<DiscordGuildChannelDto>>> GetGuildChannelsAsync(
         Guid broadcasterId,
         string guildId,
@@ -1034,6 +1103,19 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
 
     private sealed record DiscordGuildMemberWire(
         [property: JsonPropertyName("roles")] List<string> Roles
+    );
+
+    /// <summary>A guild member as the member list, search and single-member reads return it.</summary>
+    private sealed record DiscordMemberProfileWire(
+        [property: JsonPropertyName("user")] DiscordMemberUserWire? User,
+        [property: JsonPropertyName("nick")] string? Nick = null
+    );
+
+    private sealed record DiscordMemberUserWire(
+        [property: JsonPropertyName("id")] string Id,
+        [property: JsonPropertyName("username")] string Username,
+        [property: JsonPropertyName("global_name")] string? GlobalName = null,
+        [property: JsonPropertyName("avatar")] string? Avatar = null
     );
 
     /// <summary><c>POST /channels/{id}/invites</c> request body.</summary>

@@ -12,6 +12,7 @@ using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
+using NomNomzBot.Domain.Discord;
 
 namespace NomNomzBot.Infrastructure.Discord.PipelineActions;
 
@@ -36,8 +37,9 @@ public sealed class SendDiscordNotificationAction : ICommandAction
         [
             new(
                 "trigger_type",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.Enum,
                 Required: true,
+                Options: DiscordConfigDefaults.NotificationTriggers,
                 Description: new("pipeline.send_discord_notification.trigger_type.help")
             ),
             new(

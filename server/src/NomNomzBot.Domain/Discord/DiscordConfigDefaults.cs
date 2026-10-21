@@ -25,4 +25,13 @@ public static class DiscordConfigDefaults
 
     /// <summary>The current shape version of the stored embed JSON. Only a breaking reshape raises it.</summary>
     public const int EmbedConfigVersion = 1;
+
+    /// <summary>The events a notification rule can post for. The rule editor and the pipeline step offer only these.</summary>
+    public static readonly IReadOnlyList<string> NotificationTriggers =
+    [
+        "go_live",
+        "new_clip",
+        "schedule",
+        "milestone",
+    ];
 }

@@ -83,6 +83,27 @@ public interface IDiscordBotGateway
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Finds guild members by name: <c>GET /guilds/{id}/members/search</c> for a non-empty
+    /// <paramref name="query"/> (prefix of username or nickname), else the first <paramref name="limit"/> members
+    /// (<c>GET /guilds/{id}/members</c>, needs the Server Members intent).
+    /// </summary>
+    Task<Result<IReadOnlyList<DiscordGuildMemberDto>>> SearchGuildMembersAsync(
+        Guid broadcasterId,
+        string guildId,
+        string? query,
+        int limit,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Reads one guild member (<c>GET /guilds/{id}/members/{user.id}</c>), to show a saved member by name.</summary>
+    Task<Result<DiscordGuildMemberDto>> GetGuildMemberAsync(
+        Guid broadcasterId,
+        string guildId,
+        string memberId,
+        CancellationToken ct = default
+    );
+
     /// <summary>Reads the guild's live channel list (<c>GET /guilds/{id}/channels</c>).</summary>
     Task<Result<IReadOnlyList<DiscordGuildChannelDto>>> GetGuildChannelsAsync(
         Guid broadcasterId,

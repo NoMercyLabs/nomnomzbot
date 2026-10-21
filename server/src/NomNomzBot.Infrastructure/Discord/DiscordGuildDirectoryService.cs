@@ -77,6 +77,39 @@ public sealed class DiscordGuildDirectoryService : IDiscordGuildDirectoryService
         return await _gateway.GetGuildChannelsAsync(broadcasterId, guildId, ct);
     }
 
+    public async Task<Result<IReadOnlyList<DiscordGuildMemberDto>>> SearchGuildMembersAsync(
+        Guid broadcasterId,
+        Guid connectionId,
+        string? query,
+        int limit,
+        CancellationToken ct = default
+    )
+    {
+        string? guildId = await ResolveGuildIdAsync(broadcasterId, connectionId, ct);
+        if (guildId is null)
+            return Errors.NotFound<IReadOnlyList<DiscordGuildMemberDto>>(
+                "Discord connection",
+                connectionId.ToString()
+            );
+        return await _gateway.SearchGuildMembersAsync(broadcasterId, guildId, query, limit, ct);
+    }
+
+    public async Task<Result<DiscordGuildMemberDto>> GetGuildMemberAsync(
+        Guid broadcasterId,
+        Guid connectionId,
+        string memberId,
+        CancellationToken ct = default
+    )
+    {
+        string? guildId = await ResolveGuildIdAsync(broadcasterId, connectionId, ct);
+        if (guildId is null)
+            return Errors.NotFound<DiscordGuildMemberDto>(
+                "Discord connection",
+                connectionId.ToString()
+            );
+        return await _gateway.GetGuildMemberAsync(broadcasterId, guildId, memberId, ct);
+    }
+
     private async Task<string?> ResolveGuildIdAsync(
         Guid broadcasterId,
         Guid connectionId,

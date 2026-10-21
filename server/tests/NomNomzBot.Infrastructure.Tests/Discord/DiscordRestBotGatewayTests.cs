@@ -219,6 +219,97 @@ public sealed class DiscordRestBotGatewayTests
     }
 
     [Fact]
+    public async Task SearchGuildMembersAsync_WithQuery_HitsTheSearchEndpoint_AndNamesEachMemberAsTheGuildShowsThem()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        await SeedDiscordConnectionAsync(database);
+        CapturingHandler handler = new(
+            JsonResponse(
+                """
+                [
+                  {"nick":"Stoney","user":{"id":"u1","username":"stoney_eagle","global_name":"Stoney Eagle","avatar":"abc"}},
+                  {"nick":null,"user":{"id":"u2","username":"st_bot","global_name":null,"avatar":null}}
+                ]
+                """
+            )
+        );
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(
+            handler,
+            db,
+            CredentialsWithBotToken(PlatformBotToken)
+        );
+
+        Result<IReadOnlyList<DiscordGuildMemberDto>> result = await gateway.SearchGuildMembersAsync(
+            Channel,
+            "guild1",
+            " st ",
+            25
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        handler
+            .Request!.RequestUri!.PathAndQuery.Should()
+            .EndWith("/guilds/guild1/members/search?query=st&limit=25");
+        result
+            .Value.Should()
+            .Equal(
+                new DiscordGuildMemberDto(
+                    "u1",
+                    "stoney_eagle",
+                    "Stoney",
+                    "https://cdn.discordapp.com/avatars/u1/abc.png"
+                ),
+                new DiscordGuildMemberDto("u2", "st_bot", "st_bot", null)
+            );
+    }
+
+    [Fact]
+    public async Task SearchGuildMembersAsync_WithoutQuery_ListsTheFirstMembers()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        await SeedDiscordConnectionAsync(database);
+        CapturingHandler handler = new(JsonResponse("[]"));
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(
+            handler,
+            db,
+            CredentialsWithBotToken(PlatformBotToken)
+        );
+
+        Result<IReadOnlyList<DiscordGuildMemberDto>> result = await gateway.SearchGuildMembersAsync(
+            Channel,
+            "guild1",
+            null,
+            50
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        handler
+            .Request!.RequestUri!.PathAndQuery.Should()
+            .EndWith("/guilds/guild1/members?limit=50");
+    }
+
+    [Fact]
+    public async Task GetGuildMemberAsync_NoPlatformBotTokenConfigured_FailsClosed()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        await SeedDiscordConnectionAsync(database);
+        CapturingHandler handler = new(new(HttpStatusCode.OK));
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(handler, db, CredentialsWithNoBotToken());
+
+        Result<DiscordGuildMemberDto> result = await gateway.GetGuildMemberAsync(
+            Channel,
+            "guild1",
+            "u1"
+        );
+
+        result.ErrorCode.Should().Be("DISCORD_BOT_TOKEN_NOT_CONFIGURED");
+        handler.Request.Should().BeNull();
+    }
+
+    [Fact]
     public async Task GetGuildRolesAsync_And_GetGuildChannelsAsync_AuthenticateWithThePlatformBotToken_NotAConnectionArtifact()
     {
         // The two exact endpoints that 401'd in production (guild/roles, guild/channels), proven to authenticate

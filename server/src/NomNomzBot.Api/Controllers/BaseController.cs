@@ -374,6 +374,7 @@ public abstract class BaseController : ControllerBase
             or "MARKETPLACE_UNAVAILABLE"
             or "DISCORD_ERROR"
             or "DISCORD_TRANSPORT"
+            or "DISCORD_BOT_TOKEN_NOT_CONFIGURED"
             or "PROVIDER_UNAVAILABLE"
             or "PROVIDER_NOT_CONFIGURED"
             or "PROVIDER_NOT_CONNECTED"
