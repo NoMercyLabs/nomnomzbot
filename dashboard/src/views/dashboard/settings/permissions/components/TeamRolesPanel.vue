@@ -95,12 +95,13 @@ async function add(): Promise<void> {
     <RowGroup>
       <SummaryRow
         v-for="member in rows"
+        wrap
         :key="member.id"
         :data-member="member.username ?? member.userId"
         :title="member.username ?? member.userId"
         :detail="roleLabel(teamRoleOf(member.role))"
       >
-        <template #end>
+        <template #trailing>
           <OptionSelect
             data-member-role
             :label="$t('dashboard.settings.permissions.team.roleOf', { name: member.username ?? member.userId })"

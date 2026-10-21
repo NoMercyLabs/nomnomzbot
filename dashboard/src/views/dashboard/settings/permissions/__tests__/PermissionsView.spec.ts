@@ -298,21 +298,39 @@ function selectLabeled(wrapper: VueWrapper, label: string) {
   return found!;
 }
 
+const rowOf = (name: string): HTMLElement =>
+  q(`[data-member="${name}"]`).parentElement as HTMLElement;
+
+const removeOf = (name: string): HTMLElement =>
+  rowOf(name).querySelector('[data-member-remove]') as HTMLElement;
+
 describe('Permissions', () => {
+  it('keeps a name on one line: the role select and remove button wrap to a second line instead of squeezing it', async () => {
+    await open();
+
+    const row = rowOf('modmary');
+    const trailing = row.querySelector('[data-slot="summary-row-trailing"]');
+
+    expect(row.className).toContain('flex-wrap');
+    expect(trailing?.querySelector('[data-member-role]')).not.toBeNull();
+    expect(trailing?.querySelector('[data-member-remove]')).not.toBeNull();
+    expect(q('[data-member="modmary"]').querySelector('[data-member-role]')).toBeNull();
+  });
+
   it('shows each person with the role name, never a number, and locks the broadcaster', async () => {
     await open();
 
     expect(q('[data-member="modmary"]').textContent).toContain('Moderator');
     expect(q('[data-member="ownerolly"]').textContent).toContain('Broadcaster');
     expect(q('[data-member="ownerolly"]').textContent).not.toMatch(/\d/);
-    expect(q('[data-member="ownerolly"] [data-member-remove]').hasAttribute('disabled')).toBe(true);
-    expect(q('[data-member="modmary"] [data-member-remove]').hasAttribute('disabled')).toBe(false);
+    expect(removeOf('ownerolly').hasAttribute('disabled')).toBe(true);
+    expect(removeOf('modmary').hasAttribute('disabled')).toBe(false);
   });
 
   it('locks only the real owner: a stored Broadcaster label on someone else stays editable', async () => {
     const wrapper = await open();
 
-    expect(q('[data-member="stalesam"] [data-member-remove]').hasAttribute('disabled')).toBe(false);
+    expect(removeOf('stalesam').hasAttribute('disabled')).toBe(false);
     expect(selectLabeled(wrapper, 'Role of stalesam').props('disabled')).toBe(false);
     expect(selectLabeled(wrapper, 'Role of ownerolly').props('disabled')).toBe(true);
   });
@@ -332,7 +350,7 @@ describe('Permissions', () => {
 
   it('removes a person from the team with a DELETE of their id', async () => {
     await open();
-    await click(q('[data-member="modmary"] [data-member-remove]'));
+    await click(removeOf('modmary'));
 
     expect(callTo('DELETE', '/roles/{userId}')?.params).toMatchObject({
       path: { userId: 'u-mod' },
