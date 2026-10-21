@@ -49,7 +49,7 @@ public sealed class StreamRecapServiceTests
     {
         TimeProvider clock = Substitute.For<TimeProvider>();
         clock.GetUtcNow().Returns(Now);
-        IStreamMetric[] metrics = [new DurationMetric(), new PeakViewersMetric()];
+        IStreamMetric[] metrics = [new DurationMetric(), new PeakViewersMetric(db)];
         StreamStatsService stats = new(db, clock, metrics);
         return new StreamRecapService(db, stats, clock);
     }
@@ -81,7 +81,7 @@ public sealed class StreamRecapServiceTests
     {
         TimeProvider clock = Substitute.For<TimeProvider>();
         clock.GetUtcNow().Returns(Now);
-        IStreamMetric[] metrics = [new DurationMetric(), new PeakViewersMetric()];
+        IStreamMetric[] metrics = [new DurationMetric(), new PeakViewersMetric(db)];
         return new StreamRecapService(
             db,
             new StreamStatsService(db, clock, metrics),
@@ -144,7 +144,7 @@ public sealed class StreamRecapServiceTests
         Result<StreamRecapDto> built = await NewServiceWithOutput(db, reader)
             .BuildAsync(Broadcaster, "s-1", null);
 
-        await reader.DidNotReceiveWithAnyArgs().ReadAsync(default, default);
+        await reader.DidNotReceiveWithAnyArgs().ReadAsync(default);
         built
             .Value.OutputWidth.Should()
             .BeNull("an old recap has no stored resolution; the dashboard labels the fallback");

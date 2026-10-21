@@ -8,18 +8,48 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.Json.Nodes;
+using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Application.Dashboard.Stats;
 
 namespace NomNomzBot.Infrastructure.Dashboard.Stats;
 
-/// <summary>The peak viewer count Twitch reported for the stream; omitted when none was recorded.</summary>
-public sealed class PeakViewersMetric : StreamMetric<int?>
+/// <summary>
+/// The highest viewer count Twitch reported while the stream was live: the larger of the peak kept on the stream
+/// row and the largest journaled viewer-count sample inside the window. The row's peak alone under-reports when
+/// the poll missed a stretch, so the samples are read too. Omitted when neither exists.
+/// </summary>
+public sealed class PeakViewersMetric(IApplicationDbContext db) : StreamMetric<int?>
 {
+    private const string ViewerSampleEventType = "StreamViewerCountSampledEvent";
+
     public override string Key => "peakViewers";
 
-    protected override Task<int?> ComputeAsync(StreamWindow window, CancellationToken ct) =>
-        Task.FromResult(window.PeakViewers);
+    protected override async Task<int?> ComputeAsync(StreamWindow window, CancellationToken ct)
+    {
+        DateTime from = window.From;
+        DateTime to = window.To;
+        List<string> payloads = await db
+            .EventJournals.AsNoTracking()
+            .Where(j =>
+                j.BroadcasterId == window.ChannelId
+                && j.EventType == ViewerSampleEventType
+                && j.OccurredAt >= from
+                && j.OccurredAt <= to
+            )
+            .Select(j => j.Payload)
+            .ToListAsync(ct);
+
+        int? sampled = payloads.Select(ViewerCountOf).Max();
+        return window.PeakViewers is { } stored && stored > (sampled ?? -1) ? stored : sampled;
+    }
+
+    private static int? ViewerCountOf(string payload) =>
+        JsonNode.Parse(payload)?["ViewerCount"] is JsonValue v && v.TryGetValue(out int count)
+            ? count
+            : null;
 
     protected override void Assign(StreamStatsDto stats, int? result) => stats.PeakViewers = result;
 }

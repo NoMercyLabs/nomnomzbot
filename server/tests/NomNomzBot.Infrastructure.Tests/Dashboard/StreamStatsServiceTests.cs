@@ -16,6 +16,7 @@ using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Application.Dashboard.Stats;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Music.ValueObjects;
@@ -79,7 +80,7 @@ public sealed class StreamStatsServiceTests
         IStreamMetric[] metrics =
         [
             new DurationMetric(),
-            new PeakViewersMetric(),
+            new PeakViewersMetric(db),
             new FollowersMetric(facts),
             new SubsMetric(facts),
             new GiftersMetric(facts),
@@ -381,6 +382,56 @@ public sealed class StreamStatsServiceTests
         stats
             .Followers.Should()
             .Be(3, "the follows before, after and on another channel are outside");
+    }
+
+    private static EventJournal ViewerSample(long position, DateTimeOffset at, int viewers) =>
+        new()
+        {
+            EventId = Guid.NewGuid(),
+            BroadcasterId = Broadcaster,
+            StreamPosition = position,
+            EventType = "StreamViewerCountSampledEvent",
+            EventVersion = 1,
+            Source = "domain",
+            Payload = $"{{\"ViewerCount\":{viewers},\"StreamId\":\"tw-1\"}}",
+            Metadata = "{}",
+            OccurredAt = at.UtcDateTime,
+            RecordedAt = at.UtcDateTime,
+        };
+
+    [Fact]
+    public async Task The_peak_is_the_largest_viewer_sample_inside_the_window_when_it_beats_the_stored_peak()
+    {
+        AuthDbContext db = await SeededAsync();
+        db.EventJournals.AddRange(
+            ViewerSample(1, Started.AddHours(1), 30),
+            ViewerSample(2, Started.AddHours(2), 112),
+            ViewerSample(3, Ended.AddHours(1), 900)
+        );
+        await db.SaveChangesAsync();
+
+        Result<StreamStatsDto> result = await NewService(db, Ended.AddHours(2))
+            .GetAsync(Broadcaster, "s-1", ["peakViewers"]);
+
+        result
+            .Value.PeakViewers.Should()
+            .Be(
+                112,
+                "the stored 87 is lower than a sample inside the window; the sample after the end is outside"
+            );
+    }
+
+    [Fact]
+    public async Task The_stored_peak_stands_when_no_sample_beats_it()
+    {
+        AuthDbContext db = await SeededAsync();
+        db.EventJournals.Add(ViewerSample(1, Started.AddHours(1), 30));
+        await db.SaveChangesAsync();
+
+        Result<StreamStatsDto> result = await NewService(db, Ended.AddHours(2))
+            .GetAsync(Broadcaster, "s-1", ["peakViewers"]);
+
+        result.Value.PeakViewers.Should().Be(87);
     }
 
     [Fact]
