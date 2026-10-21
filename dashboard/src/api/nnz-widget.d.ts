@@ -1339,7 +1339,7 @@ interface NnzActionParams {
     dedupe_key?: string;
   };
   'send_discord_notification': {
-    trigger_type: string;
+    trigger_type: 'go_live' | 'new_clip' | 'schedule' | 'milestone';
     dedupe_key?: string;
   };
   'send_message': {

@@ -62,4 +62,21 @@ public interface IDiscordGuildDirectoryService
         Guid connectionId,
         CancellationToken ct = default
     );
+
+    /// <summary>The guild's live members whose name starts with <paramref name="query"/> (or the first members when empty), for the member pickers.</summary>
+    Task<Result<IReadOnlyList<DiscordGuildMemberDto>>> SearchGuildMembersAsync(
+        Guid broadcasterId,
+        Guid connectionId,
+        string? query,
+        int limit,
+        CancellationToken ct = default
+    );
+
+    /// <summary>One live guild member, so a saved member id shows by name.</summary>
+    Task<Result<DiscordGuildMemberDto>> GetGuildMemberAsync(
+        Guid broadcasterId,
+        Guid connectionId,
+        string memberId,
+        CancellationToken ct = default
+    );
 }

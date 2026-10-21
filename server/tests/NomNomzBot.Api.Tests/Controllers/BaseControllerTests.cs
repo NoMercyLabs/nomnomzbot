@@ -561,4 +561,20 @@ public class BaseControllerTests
 
         ((StatusResponseDto<object>)result.Value!).Code.Should().Be(code);
     }
+
+    [Fact]
+    public void ResultResponseT_DiscordBotTokenNotConfigured_Returns503WithTheCode()
+    {
+        // A missing bot token is server configuration, not a fault of the bot: 503 with the code, never 500.
+        TestController ctrl = CreateController();
+        ObjectResult result = (ObjectResult)
+            ctrl.TestResultResponse(
+                Result.Failure<object>("not configured", "DISCORD_BOT_TOKEN_NOT_CONFIGURED")
+            );
+
+        result.StatusCode.Should().Be(503);
+        ((StatusResponseDto<object>)result.Value!)
+            .Code.Should()
+            .Be("DISCORD_BOT_TOKEN_NOT_CONFIGURED");
+    }
 }

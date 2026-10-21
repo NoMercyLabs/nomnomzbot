@@ -32,13 +32,8 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
     /// <summary>The current EmbedConfig shape version. Only a breaking reshape raises it + adds an upcast step.</summary>
     private const int CurrentEmbedConfigVersion = DiscordConfigDefaults.EmbedConfigVersion;
 
-    private static readonly string[] AllowedTriggers =
-    [
-        "go_live",
-        "new_clip",
-        "schedule",
-        "milestone",
-    ];
+    private static readonly IReadOnlyList<string> AllowedTriggers =
+        DiscordConfigDefaults.NotificationTriggers;
 
     private readonly IApplicationDbContext _db;
     private readonly IUnitOfWork _unitOfWork;

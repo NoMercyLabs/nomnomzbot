@@ -904,6 +904,97 @@ public sealed class PipelineOptionProviderTests
         Assert.Empty(unknown.Value.Items);
     }
 
+    [Fact]
+    public async Task DiscordUser_search_names_members_by_display_name_and_passes_the_search_to_discord()
+    {
+        using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        await AddActiveGuildAsync(db);
+        FakeDirectory directory = new(
+            members:
+            [
+                new DiscordGuildMemberDto("u1", "stoney_eagle", "Stoney", "https://cdn/a.png"),
+            ]
+        );
+        DiscordUserOptionProvider provider = new(db, directory);
+
+        Result<PipelineOptionListResult> result = await provider.GetOptionsAsync(
+            Broadcaster,
+            new PipelineOptionQuery(Search: "sto", Value: null, DefaultPage)
+        );
+
+        Assert.Equal("sto", directory.LastMemberQuery);
+        PipelineOption option = Assert.Single(result.Value.Items);
+        Assert.Equal("u1", option.Value);
+        Assert.Equal("Stoney", option.Label);
+        Assert.Equal("@stoney_eagle", option.SecondaryText);
+        Assert.Equal("https://cdn/a.png", option.ImageUrl);
+        Assert.Equal(PipelineOptionState.Selectable, option.State);
+    }
+
+    [Fact]
+    public async Task DiscordUser_value_lookup_reads_the_one_saved_member()
+    {
+        using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        await AddActiveGuildAsync(db);
+        FakeDirectory directory = new(
+            members:
+            [
+                new DiscordGuildMemberDto("u1", "first", "First", null),
+                new DiscordGuildMemberDto("u2", "second", "Second", null),
+            ]
+        );
+        DiscordUserOptionProvider provider = new(db, directory);
+
+        Result<PipelineOptionListResult> found = await provider.GetOptionsAsync(
+            Broadcaster,
+            Lookup("u2")
+        );
+
+        PipelineOption option = Assert.Single(found.Value.Items);
+        Assert.Equal("Second", option.Label);
+        Assert.Null(directory.LastMemberQuery);
+    }
+
+    [Fact]
+    public async Task DiscordUser_missing_bot_token_reads_plainly_without_config_keys()
+    {
+        using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        await AddActiveGuildAsync(db);
+        DiscordUserOptionProvider provider = new(
+            db,
+            new FailingDirectory(
+                "Set Discord:BotToken (or DISCORD_BOT_TOKEN).",
+                "DISCORD_BOT_TOKEN_NOT_CONFIGURED"
+            )
+        );
+
+        Result<PipelineOptionListResult> result = await provider.GetOptionsAsync(
+            Broadcaster,
+            new PipelineOptionQuery(Search: "st", Value: null, DefaultPage)
+        );
+
+        Assert.False(result.Value.SourceAvailable);
+        Assert.Equal(
+            "The Discord bot is not set up on this bot server yet. The person who runs the bot server must add the Discord bot token.",
+            result.Value.UnavailableReason
+        );
+    }
+
+    [Fact]
+    public async Task DiscordUser_without_an_active_guild_is_unavailable_with_the_reason()
+    {
+        using PipelineOptionsTestDbContext db = PipelineOptionsTestDbContext.New();
+        DiscordUserOptionProvider provider = new(db, new ThrowingDirectory());
+
+        Result<PipelineOptionListResult> result = await provider.GetOptionsAsync(
+            Broadcaster,
+            new PipelineOptionQuery(Search: null, Value: null, DefaultPage)
+        );
+
+        Assert.Empty(result.Value.Items);
+        Assert.Contains("No active Discord server link", result.Value.UnavailableReason);
+    }
+
     private static async Task AddActiveGuildAsync(PipelineOptionsTestDbContext db)
     {
         db.DiscordGuildConnections.Add(
@@ -952,13 +1043,33 @@ public sealed class PipelineOptionProviderTests
             Guid connectionId,
             CancellationToken ct = default
         ) => throw new InvalidOperationException("Should not be reached — no active connection.");
+
+        public Task<Result<IReadOnlyList<DiscordGuildMemberDto>>> SearchGuildMembersAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            string? query,
+            int limit,
+            CancellationToken ct = default
+        ) => throw new InvalidOperationException("Should not be reached — no active connection.");
+
+        public Task<Result<DiscordGuildMemberDto>> GetGuildMemberAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            string memberId,
+            CancellationToken ct = default
+        ) => throw new InvalidOperationException("Should not be reached — no active connection.");
     }
 
     private sealed class FailingDirectory : IDiscordGuildDirectoryService
     {
         private readonly string _message;
+        private readonly string? _code;
 
-        public FailingDirectory(string message) => _message = message;
+        public FailingDirectory(string message, string? code = null)
+        {
+            _message = message;
+            _code = code;
+        }
 
         public Task<Result<DiscordGuildInfoDto>> GetGuildAsync(
             Guid broadcasterId,
@@ -989,20 +1100,38 @@ public sealed class PipelineOptionProviderTests
             Guid connectionId,
             CancellationToken ct = default
         ) => Task.FromResult(Result.Failure<IReadOnlyList<DiscordPostableChannelDto>>(_message));
+
+        public Task<Result<IReadOnlyList<DiscordGuildMemberDto>>> SearchGuildMembersAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            string? query,
+            int limit,
+            CancellationToken ct = default
+        ) => Task.FromResult(Result.Failure<IReadOnlyList<DiscordGuildMemberDto>>(_message, _code));
+
+        public Task<Result<DiscordGuildMemberDto>> GetGuildMemberAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            string memberId,
+            CancellationToken ct = default
+        ) => Task.FromResult(Result.Failure<DiscordGuildMemberDto>(_message));
     }
 
     private sealed class FakeDirectory : IDiscordGuildDirectoryService
     {
         private readonly IReadOnlyList<DiscordGuildRoleDto> _roles;
         private readonly IReadOnlyList<DiscordGuildChannelDto> _channels;
+        private readonly IReadOnlyList<DiscordGuildMemberDto> _members;
 
         public FakeDirectory(
             IReadOnlyList<DiscordGuildRoleDto>? roles = null,
-            IReadOnlyList<DiscordGuildChannelDto>? channels = null
+            IReadOnlyList<DiscordGuildChannelDto>? channels = null,
+            IReadOnlyList<DiscordGuildMemberDto>? members = null
         )
         {
             _roles = roles ?? [];
             _channels = channels ?? [];
+            _members = members ?? [];
         }
 
         public Task<Result<DiscordGuildInfoDto>> GetGuildAsync(
@@ -1067,5 +1196,34 @@ public sealed class PipelineOptionProviderTests
                     )),
                 ])
             );
+
+        public string? LastMemberQuery { get; private set; }
+
+        public Task<Result<IReadOnlyList<DiscordGuildMemberDto>>> SearchGuildMembersAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            string? query,
+            int limit,
+            CancellationToken ct = default
+        )
+        {
+            LastMemberQuery = query;
+            return Task.FromResult(Result.Success(_members));
+        }
+
+        public Task<Result<DiscordGuildMemberDto>> GetGuildMemberAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            string memberId,
+            CancellationToken ct = default
+        )
+        {
+            DiscordGuildMemberDto? member = _members.FirstOrDefault(m => m.Id == memberId);
+            return Task.FromResult(
+                member is null
+                    ? Result.Failure<DiscordGuildMemberDto>("Unknown member", "DISCORD_NOT_FOUND")
+                    : Result.Success(member)
+            );
+        }
     }
 }
