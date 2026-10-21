@@ -24,7 +24,7 @@ const forwardedProps = useForwardProps(delegatedProps)
     v-bind="forwardedProps"
     :class="
       cn(
-        'border-(--kit-outline) data-checked:bg-(--kit-ink) data-checked:border-4 data-checked:border-(--kit-pill-from) aria-invalid:aria-checked:border-(--kit-pill-from) aria-invalid:border-destructive focus-visible:border-(--kit-focus) focus-visible:ring-(--kit-focus)/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 dark:aria-invalid:border-destructive/50 flex size-4 rounded-full focus-visible:ring-3 aria-invalid:ring-3 group/radio-group-item peer relative aspect-square shrink-0 border outline-none after:absolute after:-inset-x-3 after:-inset-y-2 disabled:cursor-not-allowed disabled:opacity-50',
+        'border-(--kit-outline) data-checked:bg-(--kit-ink) data-checked:border-4 data-checked:border-(--kit-pill-from) aria-invalid:aria-checked:border-(--kit-pill-from) aria-invalid:border-destructive focus-visible:border-(--kit-focus) focus-visible:ring-(--kit-focus)/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 dark:aria-invalid:border-destructive/50 flex size-4 rounded-full focus-visible:ring-3 aria-invalid:ring-3 group/radio-group-item peer relative aspect-square shrink-0 border outline-none after:absolute after:-inset-x-3 after:-inset-y-2 pointer-coarse:after:-inset-y-3 disabled:cursor-not-allowed disabled:opacity-50',
         props.class,
       )
     "
