@@ -56,8 +56,8 @@ async function change(on: boolean): Promise<void> {
     @retry="optIn.refetch()"
   >
     <RowGroup>
-      <div class="flex min-h-11 flex-wrap items-center gap-3 rounded-[8px] px-3 py-2">
-        <div class="min-w-0 flex-1">
+      <div class="flex min-h-11 flex-col gap-2 rounded-[8px] px-3 py-2 md:flex-row md:flex-wrap md:items-center md:gap-3">
+        <div class="min-w-0 md:flex-1">
           <span class="block text-sm font-medium wrap-break-word">
             {{ $t('dashboard.settings.federation.networkBlock.label') }}
           </span>

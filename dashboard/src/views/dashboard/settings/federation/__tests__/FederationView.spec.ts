@@ -327,6 +327,16 @@ describe('Network block opt-in card', () => {
     expect(card().querySelector('[data-labeled-switch]')?.textContent?.trim()).toBe('Ban here');
   });
 
+  it('stacks the ban row below md so the description keeps the full width', async () => {
+    held = [...held, 'moderation:networkblock:optin'];
+    await open();
+
+    const line = card().querySelector('[data-labeled-switch]')?.closest('div.flex');
+
+    expect(line?.className).toContain('flex-col');
+    expect(line?.className).toContain('md:flex-row');
+  });
+
   it('gives a person without the broadcaster key a read-only state and no switch', async () => {
     await open();
 
