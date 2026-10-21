@@ -2,6 +2,13 @@
   "site": {
     "login": {
       "brand": "NomNomzBot",
+      "comingSoon": {
+        "title": "Sign-in is coming soon",
+        "body": "Sign-in to the hosted NomNomzBot is not open yet.",
+        "label": "Coming soon",
+        "note": "You can self-host your own bot today. It is free.",
+        "home": "Back to the home page"
+      },
       "title": "Welcome",
       "subtitle": "Continue with a connected platform.",
       "terms": "By continuing, you agree to the terms of service and the privacy policy.",

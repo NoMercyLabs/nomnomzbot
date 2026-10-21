@@ -2,6 +2,13 @@
   "site": {
     "login": {
       "brand": "NomNomzBot",
+      "comingSoon": {
+        "title": "Inloggen komt binnenkort",
+        "body": "Inloggen bij de gehoste NomNomzBot is nog niet open.",
+        "label": "Binnenkort",
+        "note": "Je kunt nu al je eigen bot zelf hosten. Dat is gratis.",
+        "home": "Terug naar de startpagina"
+      },
       "title": "Welkom",
       "subtitle": "Ga verder met een gekoppeld platform.",
       "terms": "Door verder te gaan, ga je akkoord met de servicevoorwaarden en het privacybeleid.",

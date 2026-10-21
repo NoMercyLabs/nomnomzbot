@@ -9,13 +9,17 @@
 -->
 <script setup lang="ts">
 // The public home page (V20). One primary action per view region: the hero and the closing call
-// carry the pink button; the header and the hosting card use outline buttons.
+// carry the main button; the header and the hosting card use outline buttons. Sign-in is closed for
+// now, so every sign-in action is a disabled "Coming soon" button (HomeSignIn). The page makes no
+// request: its previews are filled from the sample file.
 import { useI18n } from 'vue-i18n';
 
 import { Button } from '@/components/ui/button';
 
 import DeploySection from './DeploySection.vue';
+import FeatureGroups from './FeatureGroups.vue';
 import HomeHeader from './HomeHeader.vue';
+import HomeSignIn from './HomeSignIn.vue';
 import OutcomeBlocks from './OutcomeBlocks.vue';
 import ShellDemo from './ShellDemo.vue';
 
@@ -41,9 +45,7 @@ const { t } = useI18n();
           </div>
           <div class="flex flex-col items-center gap-3">
             <div class="flex flex-wrap justify-center gap-2">
-              <Button as-child size="lg">
-                <RouterLink :to="{ name: 'login' }">{{ t('site.home.connect') }}</RouterLink>
-              </Button>
+              <HomeSignIn size="lg" show-note />
               <Button as-child size="lg" variant="ghost">
                 <a :href="t('site.home.githubUrl')" target="_blank" rel="noopener">{{
                   t('site.home.viewSource')
@@ -62,6 +64,7 @@ const { t } = useI18n();
         </p>
         <OutcomeBlocks />
       </div>
+      <FeatureGroups />
       <DeploySection />
 
       <section id="integrations" class="flex scroll-mt-6 flex-col items-center gap-3 text-center">
@@ -82,9 +85,7 @@ const { t } = useI18n();
           {{ t('site.home.cta.title') }}
         </h2>
         <p class="text-base text-muted-foreground">{{ t('site.home.cta.body') }}</p>
-        <Button as-child size="lg">
-          <RouterLink :to="{ name: 'login' }">{{ t('site.home.connect') }}</RouterLink>
-        </Button>
+        <HomeSignIn size="lg" show-note />
       </section>
     </main>
 

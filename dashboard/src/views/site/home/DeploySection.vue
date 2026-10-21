@@ -14,7 +14,8 @@ import { useI18n } from 'vue-i18n';
 import Check from '~icons/nnz/check';
 
 import PanelCard from '@/components/layout/PanelCard.vue';
-import { Button } from '@/components/ui/button';
+
+import HomeSignIn from './HomeSignIn.vue';
 
 type Option = { id: 'self' | 'hosted'; connect: boolean };
 
@@ -54,9 +55,7 @@ const { t } = useI18n();
           </li>
         </ul>
         <template v-if="option.connect" #footer>
-          <Button as-child variant="outline">
-            <RouterLink :to="{ name: 'login' }">{{ t('site.home.connect') }}</RouterLink>
-          </Button>
+          <HomeSignIn variant="outline" />
         </template>
       </PanelCard>
     </div>

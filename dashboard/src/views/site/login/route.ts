@@ -18,7 +18,7 @@ export const loginRoute = {
   meta: { guestOnly: true },
   component: () =>
     loadPage(
-      () => import('./LoginView.vue'),
+      () => import('./LoginGate.vue'),
       (locale) => import(`./i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;

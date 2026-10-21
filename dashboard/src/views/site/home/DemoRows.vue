@@ -16,6 +16,8 @@ import { useI18n } from 'vue-i18n';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 
+import { sampleChannel, sampleViewers } from './sampleChannel';
+
 type Kind = 'requests' | 'commands' | 'queue' | 'alerts' | 'sub';
 type Row = {
   title: string;
@@ -28,16 +30,22 @@ const props = defineProps<{ kind: Kind }>();
 const { t } = useI18n();
 
 function line(user: string, text: string) {
-  return { title: t(`site.home.chatLines.${user}`), detail: t(`site.home.chatLines.${text}`) } as const satisfies Row;
+  return { title: user, detail: t(`site.home.chatLines.${text}`) } as const satisfies Row;
 }
 
 function bot(reply: string) {
   return { title: t('site.home.chatLines.botName'), detail: t(`site.home.chatLines.${reply}`) } as const satisfies Row;
 }
 
+const queuedViewers = {
+  1: sampleViewers.reported,
+  2: sampleViewers.unban,
+  3: sampleViewers.offTopic,
+} as const satisfies Record<1 | 2 | 3, string>;
+
 function queued(n: 1 | 2 | 3) {
   return {
-    title: t(`site.home.queue.who${n}`),
+    title: queuedViewers[n],
     detail: t(`site.home.queue.reason${n}`),
     action: t(`site.home.queue.action${n}`),
     harm: n === 1,
@@ -46,7 +54,11 @@ function queued(n: 1 | 2 | 3) {
 
 function alert(which: 'raid' | 'sub') {
   return {
-    title: t(`site.home.alerts.${which}Title`),
+    title: t(`site.home.alerts.${which}Title`, {
+      channel: sampleChannel.handle,
+      count: sampleChannel.raiders,
+      months: sampleChannel.resubMonths,
+    }),
     detail: t(`site.home.alerts.${which}Detail`),
   } as const satisfies Row;
 }
@@ -55,15 +67,15 @@ const rows = computed<Row[]>(() => {
   switch (props.kind) {
     case 'requests':
       return [
-        line('songrequestUser', 'songrequestText'),
+        line(sampleViewers.songRequest, 'songrequestText'),
         bot('songrequestReply'),
-        line('raidUser', 'raidText'),
+        line(sampleViewers.raidMod, 'raidText'),
       ];
     case 'commands':
       return [
-        line('socialsUser', 'socialsText'),
+        line(sampleViewers.socials, 'socialsText'),
         bot('socialsReply'),
-        line('uptimeUser', 'uptimeText'),
+        line(sampleViewers.uptime, 'uptimeText'),
         bot('uptimeReply'),
       ];
     case 'queue':

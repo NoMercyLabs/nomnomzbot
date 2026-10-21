@@ -3,7 +3,8 @@
     "home": {
       "title": "NomNomzBot: run je stream, niet je administratie",
       "brand": "NomNomzBot",
-      "connect": "Verbind je kanaal",
+      "comingSoon": "Binnenkort",
+      "comingSoonNote": "Inloggen is nog niet open. Je kunt nu al je eigen bot zelf hosten.",
       "github": "GitHub",
       "githubUrl": "https://github.com/NoMercyLabs/nomnomzbot",
       "viewSource": "Bekijk de broncode",
@@ -22,8 +23,7 @@
       },
       "demo": {
         "label": "Een kijkje in het dashboard",
-        "channel": "crumb_tv",
-        "role": "Streamer",
+        "sample": "Voorbeeldkanaal met verzonnen kijkers",
         "tabs": {
           "dashboard": "Dashboard",
           "chat": "Chat",
@@ -40,13 +40,10 @@
         "dashboard": {
           "title": "Dashboard",
           "viewers": "Kijkers",
-          "viewersValue": "1.204",
           "followers": "Volgers",
-          "followersValue": "38.910",
           "chatters": "Chatters vandaag",
-          "chattersValue": "612",
           "uptime": "Live sinds",
-          "uptimeValue": "2u 14m"
+          "uptimeValue": "{hours}u {minutes}m"
         },
         "chat": {
           "title": "Chat"
@@ -72,35 +69,103 @@
         }
       },
       "chatLines": {
-        "songrequestUser": "daisy_plays",
         "songrequestText": "!songrequest never gonna give you up",
         "botName": "NomNomzBot",
         "songrequestReply": "in de wachtrij, 3e. Nu speelt: Come Alive, Foals",
-        "raidUser": "mod_kris",
         "raidText": "!raid shoutout on",
-        "socialsUser": "viewer_87",
         "socialsText": "!socials",
         "socialsReply": "volg op X en Kick, de links staan in het paneel",
-        "uptimeUser": "viewer_42",
         "uptimeText": "!uptime",
         "uptimeReply": "al 2u 14m live"
       },
       "queue": {
-        "who1": "viewer_204",
         "reason1": "gemeld: dezelfde link 6 keer geplaatst",
         "action1": "Time-out",
-        "who2": "nite_owl22",
         "reason2": "unbanverzoek: de time-out van 14 dagen is voorbij",
         "action2": "Goedkeuren",
-        "who3": "chat_fan99",
         "reason3": "gemeld: off-topic, niet tegen de regels",
         "action3": "Negeren"
       },
       "alerts": {
-        "raidTitle": "crumb_tv raidde met 214 kijkers",
+        "raidTitle": "{channel} raidde met {count} kijkers",
         "raidDetail": "shoutout in de chat geplaatst · overlay op de stream afgespeeld",
-        "subTitle": "crumb_tv is voor maand 6 opnieuw gesubd op Twitch",
+        "subTitle": "{channel} is voor maand {months} opnieuw gesubd op Twitch",
         "subDetail": "overlay afgespeeld · TTS las het bericht voor"
+      },
+      "features": {
+        "title": "Wat het dashboard je geeft",
+        "sampleNote": "Elk voorbeeld hieronder gebruikt een verzonnen kanaal met verzonnen kijkers. Het toont de echte onderdelen van het dashboard, geen echte community.",
+        "chat": {
+          "title": "Chat en commando's",
+          "line": "Eigen commando's, ingebouwde commando's, cooldowns en ruim 90 sjabloonvariabelen in elk antwoord.",
+          "rows": {
+            "request": { "title": "{who}", "detail": "!songrequest never gonna give you up" },
+            "reply": { "title": "NomNomzBot", "detail": "in de wachtrij, 3e" },
+            "uptime": { "title": "{who}", "detail": "!uptime" },
+            "uptimeReply": { "title": "NomNomzBot", "detail": "al 2u 14m live" }
+          }
+        },
+        "pipelines": {
+          "title": "Pipelines",
+          "line": "Bouw een antwoord één keer als een keten van stappen met controles en gebruik het opnieuw voor commando's, timers en events.",
+          "rows": {
+            "trigger": { "title": "Een kijker typt !shoutout", "detail": "Start de pipeline" },
+            "check": { "title": "Controle: is de kijker een vaste kijker?", "detail": "Splitst de flow in twee paden" },
+            "chat": { "title": "Stuur een chatbericht", "detail": "Bedankt voor de support!" },
+            "overlay": { "title": "Toon de shoutout-overlay", "detail": "Speelt af op de stream" }
+          }
+        },
+        "moderation": {
+          "title": "Moderatie",
+          "line": "Eén wachtrij voor meldingen en unbanverzoeken, plus filters, geblokkeerde woorden en spambescherming.",
+          "rows": {
+            "spam": { "title": "{who}", "detail": "gemeld: dezelfde link 6 keer geplaatst", "status": "Actie nodig" },
+            "unban": { "title": "{who}", "detail": "unbanverzoek: de time-out van 14 dagen is voorbij", "status": "Wacht" },
+            "offTopic": { "title": "{who}", "detail": "gemeld: off-topic, niet tegen de regels", "status": "Lage prioriteit" }
+          }
+        },
+        "loyalty": {
+          "title": "Loyaliteit",
+          "line": "Kanaalmunt, een winkel, ranglijsten, kanaalpuntenbeloningen, giveaways en chatspellen.",
+          "unit": "voorbeeldpunten"
+        },
+        "music": {
+          "title": "Muziek en TTS",
+          "line": "Spotify- en YouTube-verzoeknummers met een eerlijke wachtrij, en tekst-naar-spraak met een stem per kijker.",
+          "rows": {
+            "now": { "title": "Come Alive, Foals", "detail": "Spotify · speelt nu", "status": "Speelt" },
+            "queued": { "title": "Never Gonna Give You Up", "detail": "aangevraagd door {who}", "status": "In de wachtrij" },
+            "tts": { "title": "TTS-bericht van {who}", "detail": "Goedgekeurd door een moderator, klaar om af te spelen", "status": "Goedgekeurd" }
+          }
+        },
+        "overlays": {
+          "title": "Overlays en widgets",
+          "line": "Browserbronnen voor OBS, een widgetgalerij en een code-editor voor je eigen widgets.",
+          "rows": {
+            "alerts": { "title": "Alerts-overlay", "detail": "Volgers, subs en raids", "status": "Gekoppeld" },
+            "chat": { "title": "Chat-overlay", "detail": "Toont de chat op de stream", "status": "Gekoppeld" },
+            "goal": { "title": "Doelbalk", "detail": "Geïnstalleerd, niet aangezet", "status": "Uit" }
+          }
+        },
+        "analytics": {
+          "title": "Statistieken en recaps",
+          "line": "Streamstatistieken, een activiteitenfeed die je kunt terugspelen naar je widgets en een recap na de stream.",
+          "rows": {
+            "viewers": { "title": "Kijkers", "detail": "op het hoogtepunt" },
+            "followers": { "title": "Volgers", "detail": "in het voorbeeldkanaal" },
+            "chatters": { "title": "Chatters", "detail": "vandaag in de chat" }
+          }
+        },
+        "platforms": {
+          "title": "Meerdere platforms",
+          "line": "Eén kanaal, veel platformkoppelingen, beheerd vanuit één dashboard.",
+          "rows": {
+            "twitch": { "title": "Twitch", "detail": "Chat, events en moderatie", "status": "Verbonden" },
+            "kick": { "title": "Kick", "detail": "Chat en events", "status": "Verbonden" },
+            "youtube": { "title": "YouTube", "detail": "Chat en events", "status": "Verbonden" },
+            "x": { "title": "X Live", "detail": "Niet verbonden in dit voorbeeld", "status": "Uit" }
+          }
+        }
       },
       "audience": {
         "line": "Gemaakt voor de streamer die de show runt en de mods die de chat schoon houden."

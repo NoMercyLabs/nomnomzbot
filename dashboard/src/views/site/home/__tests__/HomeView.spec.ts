@@ -42,19 +42,8 @@ describe('the site root', () => {
     expect(wrapper.find('h1').text()).toBe('Run your stream. Skip the busywork.');
   });
 
-  it('sends every connect action to the login route, not to the app', async () => {
-    const { wrapper, router } = await openRoot();
-    const login: string = router.resolve({ name: 'login' }).href;
-
-    const connects: ReturnType<VueWrapper['findAll']> = wrapper
-      .findAll('a')
-      .filter((link) => link.text() === 'Connect your channel');
-
-    expect(connects.length).toBeGreaterThanOrEqual(3);
-
-    for (const link of connects) {
-      expect(link.attributes('href')).toBe(login);
-    }
+  it('never sends a visitor to the app while sign-in is closed', async () => {
+    const { wrapper } = await openRoot();
 
     expect(wrapper.findAll('a').some((link) => link.attributes('href') === '/app')).toBe(false);
   });
@@ -78,10 +67,10 @@ describe('the site root', () => {
       'Self-host vs hosted',
       'Integrations',
       'GitHub',
-      'Connect your channel',
     ]);
 
     expect(panel!.querySelector('[data-slot="select-trigger"]')).not.toBeNull();
+    expect(panel!.querySelector('button[disabled]')!.textContent).toBe('Coming soon');
   });
 
   it('keeps the license restriction next to the hosting choice', async () => {

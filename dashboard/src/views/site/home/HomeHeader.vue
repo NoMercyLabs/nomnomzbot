@@ -26,6 +26,8 @@ import {
   SheetTrigger,
 } from '@/components/ui/sheet';
 
+import HomeSignIn from './HomeSignIn.vue';
+
 type Link = {
   key: string;
   href: string;
@@ -66,9 +68,7 @@ const links: Link[] = [
     </nav>
     <div class="hidden items-center gap-2 md:flex">
       <LanguagePicker />
-      <Button as-child variant="outline">
-        <RouterLink :to="{ name: 'login' }">{{ t('site.home.connect') }}</RouterLink>
-      </Button>
+      <HomeSignIn variant="outline" />
     </div>
 
     <Sheet>
@@ -105,9 +105,7 @@ const links: Link[] = [
         </nav>
         <div class="flex flex-col gap-3">
           <LanguagePicker />
-          <Button as-child variant="outline">
-            <RouterLink :to="{ name: 'login' }">{{ t('site.home.connect') }}</RouterLink>
-          </Button>
+          <HomeSignIn variant="outline" show-note />
         </div>
       </SheetContent>
     </Sheet>

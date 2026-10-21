@@ -13,10 +13,13 @@ import { useI18n } from 'vue-i18n';
 
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
+import StatStrip from '@/components/layout/StatStrip.vue';
+import StatTile from '@/components/layout/StatTile.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
 import DemoRows from './DemoRows.vue';
+import { sampleChannel } from './sampleChannel';
 
 type Tab = {
   id: 'dashboard' | 'chat' | 'mod' | 'rules' | 'alerts';
@@ -30,7 +33,19 @@ const tabs: Tab[] = [
   { id: 'rules', group: 'moderation' },
   { id: 'alerts', group: 'stream' },
 ];
-const stats: string[] = ['viewers', 'followers', 'chatters', 'uptime'];
+const { t } = useI18n();
+const stats = [
+  { id: 'viewers', value: sampleChannel.viewers },
+  { id: 'followers', value: sampleChannel.followers },
+  { id: 'chatters', value: sampleChannel.chatters },
+  {
+    id: 'uptime',
+    value: t('site.home.demo.dashboard.uptimeValue', {
+      hours: Math.floor(sampleChannel.uptimeMinutes / 60),
+      minutes: sampleChannel.uptimeMinutes % 60,
+    }),
+  },
+] as const satisfies readonly { id: string; value: string | number }[];
 const filters: {
   name: string;
   detail?: string;
@@ -45,14 +60,12 @@ const filters: {
   { name: 'bannedPhrases', on: false },
 ];
 const blocked: string[] = ['blocked1', 'blocked2', 'blocked3'];
-
-const { t } = useI18n();
 </script>
 
 <template>
   <PanelCard
-    :title="t('site.home.demo.channel')"
-    :description="t('site.home.demo.role')"
+    :title="sampleChannel.handle"
+    :description="t('site.home.demo.sample')"
     pad
     class="w-full text-left"
   >
@@ -73,19 +86,14 @@ const { t } = useI18n();
         </p>
         <h3 class="text-sm font-semibold">{{ t(`site.home.demo.${tab.id}.title`) }}</h3>
 
-        <div
-          v-if="tab.id === 'dashboard'"
-          class="grid grid-cols-2 gap-1 rounded-[12px] border border-border bg-muted p-1 sm:grid-cols-4"
-        >
-          <div v-for="stat in stats" :key="stat" class="rounded-[8px] px-3 py-2">
-            <div class="text-lg font-semibold">
-              {{ t(`site.home.demo.dashboard.${stat}Value`) }}
-            </div>
-            <div class="text-sm text-muted-foreground">
-              {{ t(`site.home.demo.dashboard.${stat}`) }}
-            </div>
-          </div>
-        </div>
+        <StatStrip v-if="tab.id === 'dashboard'">
+          <StatTile
+            v-for="stat in stats"
+            :key="stat.id"
+            :label="t(`site.home.demo.dashboard.${stat.id}`)"
+            :value="stat.value"
+          />
+        </StatStrip>
         <DemoRows v-else-if="tab.id === 'chat'" kind="requests" />
         <DemoRows v-else-if="tab.id === 'mod'" kind="queue" />
         <DemoRows v-else-if="tab.id === 'alerts'" kind="alerts" />
