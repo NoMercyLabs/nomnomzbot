@@ -17,6 +17,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import { onTheWire } from '@/api/__tests__/wire';
 import { i18n } from '@/i18n';
+import { merge } from '@/lib/array';
 
 import AnalyticsRecaps from '../AnalyticsRecaps.vue';
 import en from '../i18n/en.json';
@@ -30,6 +31,9 @@ type CaptureOptions = {
 };
 
 const queries: Array<Record<string, unknown> | undefined> = [];
+
+// Recaps a test adds after the three standard ones.
+const extra: Record<string, unknown>[] = [];
 
 const recap = (
   id: string,
@@ -83,8 +87,8 @@ vi.mock('@/api/client', () => ({
 
       return {
         data: {
-          data: onTheWire(recaps),
-          total: 3,
+          data: onTheWire(merge(recaps, extra)),
+          total: 3 + extra.length,
           hasMore: false,
         },
         response: { ok: true, status: 200 },
@@ -127,6 +131,7 @@ const saved: string[] = [];
 
 beforeEach(() => {
   queries.length = 0;
+  extra.length = 0;
   saved.length = 0;
   pinia = createPinia();
   setActivePinia(pinia);
@@ -183,17 +188,57 @@ const rows = (): string[] =>
   [...document.body.querySelectorAll('[data-recap-row]')].map((row) => row.textContent ?? '');
 
 describe('the Recaps tab', () => {
-  it('lists the kept recaps from the endpoint, newest first, with date, title, length and size', async () => {
+  it('lists the kept recaps from the endpoint, newest first, with date, title and length, and no saved size', async () => {
     await open();
 
     expect(queries).toEqual([{ Page: 1, PageSize: 100 }]);
     expect(rows()).toHaveLength(3);
     expect(rows()[0]).toContain('Celeste night');
     expect(rows()[0]).toContain('3 hr');
-    expect(rows()[0]).toContain('2560 x 1440');
     expect(rows()[1]).toContain('Older stream');
-    expect(rows()[1]).toContain('1920 x 1080 (assumed');
     expect(rows()[2]).toContain('Longest');
+    expect(rows().join(' ')).not.toMatch(/\d+ x \d+/);
+    expect(document.body.querySelector('[data-sort="size"]')).toBeNull();
+  });
+
+  it('counts in its header exactly the recaps it lists', async () => {
+    extra.push(recap('s-extra', '2026-10-05', 'Fourth'));
+    await open();
+
+    expect(rows()).toHaveLength(4);
+    expect(document.body.textContent).toContain('4 recaps kept');
+  });
+
+  it('shows a dash, never a zero or an empty cell, for a title and a peak that were never stored', async () => {
+    const unknown = recap('s-unknown', '2026-10-05', '');
+
+    extra.push({
+      ...unknown,
+      stats: {
+        ...unknown.stats,
+        stream: { ...unknown.stats.stream, title: null },
+        peakViewers: null,
+      },
+    });
+
+    await open();
+
+    const cells = [...document.body.querySelectorAll('[data-recap-row]')]
+      .map((row) => [...row.querySelectorAll('td')].map((cell) => cell.textContent?.trim()))
+      .find((row) => row.includes('–'));
+
+    expect(cells?.[2]).toBe('–');
+    expect(cells?.[4]).toBe('–');
+    expect(cells?.[5]).toBe('900');
+  });
+
+  it('sorts a recap with an unknown peak below every known peak', async () => {
+    const unknown = recap('s-unknown', '2026-10-05', 'No samples');
+
+    extra.push({ ...unknown, stats: { ...unknown.stats, peakViewers: null } });
+    await open('/?sort=peak&dir=desc');
+
+    expect(titles().at(-1)).toBe('No samples');
   });
 
   it('shows the peak and the chat lines of each recap', async () => {
@@ -241,7 +286,7 @@ describe('the Recaps tab', () => {
   it('gives every sortable column a button and fixes the table layout and the column widths', async () => {
     await open();
 
-    const keys = ['started', 'title', 'length', 'peak', 'chat', 'size'];
+    const keys = ['started', 'title', 'length', 'peak', 'chat'];
     const buttons = [...document.body.querySelectorAll('[data-sort]')].map((button) => button.getAttribute('data-sort'));
 
     expect(buttons).toEqual(keys);

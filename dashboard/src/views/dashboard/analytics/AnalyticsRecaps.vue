@@ -34,6 +34,7 @@ const { t } = useI18n();
 const time = useTime();
 const { channelId, current: channel } = useCurrentChannel();
 const page = 'dashboard.analytics.recaps';
+const DASH = '–';
 
 // Every column sorts. The width classes are fixed so the table never reflows when a title or a number changes; the
 // title takes what is left.
@@ -63,13 +64,8 @@ const COLUMNS = [
     width: 'w-24',
     hidden: '',
   },
-  {
-    key: 'size',
-    width: 'w-44',
-    hidden: 'max-md:hidden',
-  },
 ] as const;
-const sort = useTableSort(['started', 'title', 'length', 'peak', 'chat', 'size'], {
+const sort = useTableSort(['started', 'title', 'length', 'peak', 'chat'], {
   fallback: { column: 'started', direction: 'desc' },
   ascending: ['title'],
 });
@@ -91,14 +87,12 @@ watch([sort.column, sort.direction], () => {
 });
 
 function sortValue(recap: StreamRecap, column: (typeof COLUMNS)[number]['key']): number | string {
-  const size = recapResolution(recap);
   const values = {
     started: Date.parse(recap.fromAt ?? ''),
     title: recap.stats.stream.title ?? '',
     length: Number(recap.stats.duration ?? 0),
-    peak: Number(recap.stats.peakViewers ?? 0),
+    peak: Number(recap.stats.peakViewers ?? -1),
     chat: Number(recap.stats.chat?.messages ?? 0),
-    size: size.width * size.height,
   } as const satisfies Record<(typeof COLUMNS)[number]['key'], number | string>;
 
   return values[column];
@@ -128,20 +122,19 @@ function length(recap: StreamRecap): string {
   return time.duration(Number(recap.stats.duration ?? 0));
 }
 
+// A stream without viewer samples has no known peak: a dash, never 0.
 function peak(recap: StreamRecap): string {
-  return String(recap.stats.peakViewers ?? 0);
+  return recap.stats.peakViewers === null || recap.stats.peakViewers === undefined
+    ? DASH
+    : String(recap.stats.peakViewers);
+}
+
+function title(recap: StreamRecap): string {
+  return recap.stats.stream.title || DASH;
 }
 
 function chat(recap: StreamRecap): string {
   return String(recap.stats.chat?.messages ?? 0);
-}
-
-function sizeLabel(recap: StreamRecap): string {
-  const size = recapResolution(recap);
-
-  return t(`${page}.${size.assumed
-    ? 'sizeAssumed'
-    : 'size'}`, { width: size.width, height: size.height });
 }
 
 function close(open: boolean): void {
@@ -219,11 +212,10 @@ async function save(): Promise<void> {
               </Avatar>
             </TableCell>
             <TableCell class="truncate font-medium">{{ started(recap) }}</TableCell>
-            <TableCell class="truncate" :title="recap.stats.stream.title ?? ''">{{ recap.stats.stream.title }}</TableCell>
+            <TableCell class="truncate" :title="recap.stats.stream.title ?? ''">{{ title(recap) }}</TableCell>
             <TableCell class="tabular-nums">{{ length(recap) }}</TableCell>
             <TableCell class="tabular-nums">{{ peak(recap) }}</TableCell>
             <TableCell class="tabular-nums">{{ chat(recap) }}</TableCell>
-            <TableCell class="truncate text-muted-foreground max-md:hidden">{{ sizeLabel(recap) }}</TableCell>
             <TableCell class="text-right">
               <Button variant="outline" size="sm" data-recap-open @click="opened = recap">{{ t(`${page}.open`) }}</Button>
             </TableCell>
@@ -240,7 +232,7 @@ async function save(): Promise<void> {
     <Dialog :open="opened !== null" @update:open="close">
       <DialogContent class="sm:max-w-4xl">
         <DialogHeader>
-          <DialogTitle>{{ opened?.stats.stream.title }}</DialogTitle>
+          <DialogTitle>{{ opened ? title(opened) : '' }}</DialogTitle>
           <DialogDescription>
             {{ t(`${page}.${resolution.assumed ? 'sizeAssumed' : 'size'}`, { width: resolution.width, height: resolution.height }) }}
           </DialogDescription>

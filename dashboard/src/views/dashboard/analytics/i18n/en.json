@@ -70,8 +70,7 @@
           "title": "Title",
           "length": "Length",
           "peak": "Peak",
-          "chat": "Chat",
-          "size": "Saved size"
+          "chat": "Chat"
         },
         "open": "Open",
         "previous": "Previous",

@@ -70,8 +70,7 @@
           "title": "Titel",
           "length": "Duur",
           "peak": "Piek",
-          "chat": "Chat",
-          "size": "Opslagformaat"
+          "chat": "Chat"
         },
         "open": "Openen",
         "previous": "Vorige",
