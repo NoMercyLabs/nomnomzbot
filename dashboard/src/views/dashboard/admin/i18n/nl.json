@@ -1033,6 +1033,7 @@
           "title": "Supportsessie",
           "description": "Beëindig een toegangsrecht tot een kanaal, of handel als een gebruiker via een open toegangsrecht. Start het toegangsrecht op de pagina Kanalen.",
           "grant": "Toegangsrecht-ID",
+          "grantHint": "De toegang is een ticket, geen persoon. Start die op de pagina Tenants en plak het ID hier.",
           "user": "Persoon om over te nemen",
           "userWait": "Schrijf eerst de reden, zoek dan op naam.",
           "justification": "Reden",

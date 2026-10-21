@@ -468,6 +468,7 @@ async function startImpersonation(): Promise<void> {
         <div class="grid gap-1.5">
           <Label for="access-grant">{{ $t("dashboard.admin.access.session.grant") }}</Label>
           <Input id="access-grant" v-model="grantId" data-field-grant />
+          <p class="text-sm text-muted-foreground">{{ $t("dashboard.admin.access.session.grantHint") }}</p>
         </div>
         <template v-if="canImpersonate">
           <div class="grid gap-1.5">

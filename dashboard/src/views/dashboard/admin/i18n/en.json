@@ -1033,6 +1033,7 @@
           "title": "Support session",
           "description": "End a tenant access grant, or act as a user through an open grant. Begin the grant on the Tenants page.",
           "grant": "Access grant ID",
+          "grantHint": "The grant is a ticket, not a person. Begin it on the Tenants page and paste its code here.",
           "user": "Person to act as",
           "userWait": "Write the reason first, then search by name.",
           "justification": "Reason",
