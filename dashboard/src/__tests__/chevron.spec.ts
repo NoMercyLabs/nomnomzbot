@@ -20,6 +20,7 @@ const openCloseTrigger = /<(CollapsibleTrigger|AccordionTrigger|PopoverTrigger|D
 // suggests as you type. A chevron next to a lone icon would be noise.
 const iconOnlyOrTextBox = new Set([
   'components/layout/AssetCard.vue',
+  'components/layout/BoardPanelToggles.vue',
   'components/layout/TemplateField.vue',
   'components/layout/profile/ProfileNotes.vue',
   'layouts/dashboard/ErrorInbox.vue',
