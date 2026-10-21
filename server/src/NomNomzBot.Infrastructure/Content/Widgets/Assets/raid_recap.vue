@@ -505,7 +505,7 @@ h1 { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1; co
 .big small { font-size: 20px; font-weight: 600; color: var(--mute); margin-left: 8px; }
 .list { display: grid; gap: 6px; padding-bottom: 6px; }
 .row { display: flex; align-items: center; gap: 10px; font-size: 20px; font-weight: 600; background: hsl(from var(--color-900) h s l / 55%); backdrop-filter: blur(4px); border-radius: 6px; padding: 6px 12px; }
-.row .n { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.row .n { flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.35; }
 .row .v { font-weight: 800; font-variant-numeric: tabular-nums; }
 .row .r { width: 18px; color: var(--mute); font-weight: 900; text-align: center; }
 .sect { font-size: 15px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--mute); margin: 14px 0 8px; }
