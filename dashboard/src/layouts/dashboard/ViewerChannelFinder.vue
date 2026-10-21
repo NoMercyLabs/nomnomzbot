@@ -16,9 +16,14 @@ import { useRoute } from 'vue-router';
 import ChevronDown from '~icons/nnz/chevron-down';
 
 import { Button } from '@/components/ui/button';
-import { Command, CommandEmpty, CommandInput, CommandList } from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Command, CommandInput, CommandList } from '@/components/ui/command';
+import {
+  ResponsivePopover,
+  ResponsivePopoverContent,
+  ResponsivePopoverTrigger,
+} from '@/components/ui/responsive-popover';
 
+import ChannelSearchEmpty from './ChannelSearchEmpty.vue';
 import ViewerChannelGroups from './ViewerChannelGroups.vue';
 
 const { t } = useI18n();
@@ -34,8 +39,8 @@ const label = computed(() => {
 </script>
 
 <template>
-  <Popover v-model:open="open">
-    <PopoverTrigger as-child>
+  <ResponsivePopover v-model:open="open">
+    <ResponsivePopoverTrigger>
       <Button
         variant="outline"
         data-slot="viewer-channel-finder"
@@ -48,15 +53,15 @@ const label = computed(() => {
           aria-hidden="true"
         />
       </Button>
-    </PopoverTrigger>
-    <PopoverContent align="end" class="w-72 p-0">
+    </ResponsivePopoverTrigger>
+    <ResponsivePopoverContent align="end" class="w-72 p-0" :title="t('frame.channel.switch')">
       <Command>
         <CommandInput :placeholder="t('frame.channel.find')" />
-        <CommandList>
-          <CommandEmpty>{{ t('frame.channel.noMatch') }}</CommandEmpty>
+        <CommandList class="max-md:max-h-none max-md:overflow-visible">
+          <ChannelSearchEmpty />
           <ViewerChannelGroups @picked="open = false" />
         </CommandList>
       </Command>
-    </PopoverContent>
-  </Popover>
+    </ResponsivePopoverContent>
+  </ResponsivePopover>
 </template>

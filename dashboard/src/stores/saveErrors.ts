@@ -26,6 +26,8 @@ export type SaveError = {
   // The page the change was made on, so the inbox can name it and lead back to it.
   where: string;
   detectedAt: string;
+  // How many times this same change failed on this same page; the inbox lists it once with the count.
+  count: number;
 };
 
 // Saves that failed in this browser. The error inbox lists them beside the items the server reports.
@@ -38,6 +40,19 @@ export const useSaveErrorsStore = defineStore('saveErrors', () => {
     what: SaveWhat | null = null,
     where = `${location.pathname}${location.search}`,
   ): void {
+    const same = items.value.find((item) =>
+      item.titleKey === titleKey &&
+      item.messageKey === messageKey &&
+      item.where === where &&
+      JSON.stringify(item.what) === JSON.stringify(what));
+
+    if (same) {
+      same.count += 1;
+      same.detectedAt = new Date().toISOString();
+
+      return;
+    }
+
     items.value.push({
       id: crypto.randomUUID(),
       titleKey,
@@ -45,6 +60,7 @@ export const useSaveErrorsStore = defineStore('saveErrors', () => {
       what,
       where,
       detectedAt: new Date().toISOString(),
+      count: 1,
     });
   }
 

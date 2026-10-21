@@ -10,18 +10,16 @@
 <script setup lang="ts">
 // Inside a channel Command: the person's recent viewer chats, then every channel this bot serves that
 // matches what they type (chat-client.md 9a "Reaching any channel"). Picking one opens its viewer chat.
-import { refDebounced } from '@vueuse/core';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { useChannelDirectory } from '@/api/channels';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
-import { CommandGroup, CommandItem, useCommand } from '@/components/ui/command';
+import { CommandGroup, CommandItem } from '@/components/ui/command';
 import { useRecentChannels, type RecentChannel } from '@/composables/useRecentChannels';
 import { initials } from '@/lib/text';
 
-const SEARCH_DELAY_MS = 250;
+import { useChannelSearch } from './useChannelSearch';
 
 const { target = 'chat' } = defineProps<{ target?: 'chat' | 'home' }>();
 
@@ -29,12 +27,8 @@ const emit = defineEmits<{ picked: [] }>();
 
 const { t } = useI18n();
 const router = useRouter();
-const { filterState } = useCommand();
 const { recent, remember } = useRecentChannels();
-
-const typed = computed(() => filterState.search.trim());
-const asked = refDebounced(typed, SEARCH_DELAY_MS);
-const directory = useChannelDirectory(asked);
+const { directory } = useChannelSearch();
 
 const recentLogins = computed(() => new Set(recent.value.map((row) => row.login)));
 const found = computed(() =>

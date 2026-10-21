@@ -17,7 +17,11 @@ import { useActionRequired, useDismissActionRequired } from '@/api/actionRequire
 import { attentionWords } from '@/api/actionRequiredText';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  ResponsivePopover,
+  ResponsivePopoverContent,
+  ResponsivePopoverTrigger,
+} from '@/components/ui/responsive-popover';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { type SaveError, useSaveErrorsStore } from '@/stores/saveErrors';
 
@@ -62,27 +66,30 @@ const attention = computed(() =>
 </script>
 
 <template>
-  <Popover v-model:open="open">
-    <PopoverTrigger as-child>
+  <ResponsivePopover v-model:open="open">
+    <ResponsivePopoverTrigger>
       <Button variant="outline" :size="count ? 'default' : 'icon'" data-error-inbox :aria-label="t('frame.inbox.title')">
         <Inbox class="size-5" aria-hidden="true" />
         <Badge v-if="count" variant="secondary">{{ count }}</Badge>
       </Button>
-    </PopoverTrigger>
-    <PopoverContent align="end" class="w-80 p-0">
+    </ResponsivePopoverTrigger>
+    <ResponsivePopoverContent align="end" class="w-80 p-0" :title="t('frame.inbox.title')">
       <h2 class="border-b border-border px-4 py-3 text-sm font-semibold">
         {{ t('frame.inbox.title') }}
       </h2>
       <p v-if="!count" class="px-4 py-6 text-sm text-muted-foreground">
         {{ t('frame.inbox.empty') }}
       </p>
-      <ul v-else class="flex max-h-80 flex-col overflow-y-auto p-1">
+      <ul v-else class="flex flex-col p-1 md:max-h-80 md:overflow-y-auto">
         <li
           v-for="failed in saveErrors.items"
           :key="failed.id"
           class="flex flex-col gap-1 rounded-md px-3 py-2"
         >
-          <span class="text-sm font-medium" data-save-what>{{ titleOf(failed) }}</span>
+          <span class="flex items-center gap-2">
+            <span class="text-sm font-medium" data-save-what>{{ titleOf(failed) }}</span>
+            <Badge v-if="failed.count > 1" variant="secondary" data-save-count>{{ failed.count }}</Badge>
+          </span>
           <span class="text-sm text-muted-foreground" data-save-where>{{
             t('frame.inbox.on', { page: pageOf(failed) })
           }}</span>
@@ -117,6 +124,6 @@ const attention = computed(() =>
           </div>
         </li>
       </ul>
-    </PopoverContent>
-  </Popover>
+    </ResponsivePopoverContent>
+  </ResponsivePopover>
 </template>

@@ -17,17 +17,21 @@ import { useViewAs } from '@/api/viewAs';
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import {
   Command,
-  CommandEmpty,
   CommandGroup,
   CommandInput,
   CommandItem,
   CommandList,
 } from '@/components/ui/command';
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import {
+  ResponsivePopover,
+  ResponsivePopoverContent,
+  ResponsivePopoverTrigger,
+} from '@/components/ui/responsive-popover';
 import { useCurrentChannel, type ChannelChoice } from '@/composables/useCurrentChannel';
 import { initials } from '@/lib/text';
 import { switchLocation } from '@/router/channelRoutes';
 
+import ChannelSearchEmpty from './ChannelSearchEmpty.vue';
 import ViewerChannelGroups from './ViewerChannelGroups.vue';
 
 // compact: the name only, for the narrow header where the sidebar is not shown.
@@ -119,8 +123,8 @@ async function pick(row: ChannelChoice): Promise<void> {
       current?.displayName ?? t('frame.channel.none')
     }}</span>
   </div>
-  <Popover v-else v-model:open="open">
-    <PopoverTrigger as-child>
+  <ResponsivePopover v-else v-model:open="open">
+    <ResponsivePopoverTrigger>
       <button
         type="button"
         data-slot="channel-switch"
@@ -154,12 +158,12 @@ async function pick(row: ChannelChoice): Promise<void> {
           aria-hidden="true"
         />
       </button>
-    </PopoverTrigger>
-    <PopoverContent align="start" class="w-72 p-0">
+    </ResponsivePopoverTrigger>
+    <ResponsivePopoverContent align="start" class="w-72 p-0" :title="t('frame.channel.switch')">
       <Command>
         <CommandInput :placeholder="t('frame.channel.find')" />
-        <CommandList>
-          <CommandEmpty>{{ t('frame.channel.noMatch') }}</CommandEmpty>
+        <CommandList class="max-md:max-h-none max-md:overflow-visible">
+          <ChannelSearchEmpty />
           <CommandGroup v-for="group in groups" :key="group.key" :heading="group.heading">
             <CommandItem
               v-for="row in group.rows"
@@ -191,6 +195,6 @@ async function pick(row: ChannelChoice): Promise<void> {
           <ViewerChannelGroups :target="viewerChat ? 'chat' : 'home'" @picked="open = false" />
         </CommandList>
       </Command>
-    </PopoverContent>
-  </Popover>
+    </ResponsivePopoverContent>
+  </ResponsivePopover>
 </template>

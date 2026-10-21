@@ -148,6 +148,39 @@ describe('the viewer channel finder', () => {
     finder.unmount();
   });
 
+  // Stoney 2026-10-21 (mobile ledger M-13): searching a channel that was not in the first 20 said "No channel found".
+  it('says it is searching, never "No channel found", while the typed search is still being asked', async () => {
+    const router = buildRouter();
+
+    await router.push('/');
+    await router.isReady();
+
+    const finder = mount(ViewerChannelFinder, {
+      attachTo: document.body,
+      global: { plugins: [i18n, router] },
+    });
+
+    await finder.get('[data-slot="viewer-channel-finder"]').trigger('click');
+    await flushPromises();
+
+    const input = document.body.querySelector<HTMLInputElement>('input');
+
+    input!.value = 'Zynkah';
+    input!.dispatchEvent(new Event('input', { bubbles: true }));
+    await flushPromises();
+
+    expect(document.body.textContent).toContain('Searching');
+    expect(document.body.textContent).not.toContain('No channel found');
+
+    await new Promise((done) => setTimeout(done, 300));
+    await flushPromises();
+
+    expect(document.body.textContent).toContain('No channel found');
+    expect(document.body.textContent).not.toContain('Searching');
+
+    finder.unmount();
+  });
+
   it('shows the channel being read as the button label', async () => {
     const router = buildRouter();
 

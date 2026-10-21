@@ -147,6 +147,31 @@ describe('a failed save in the inbox', () => {
   });
 });
 
+// Stoney 2026-10-21 (mobile ledger M-06): "Action music_toggle_saved failed" showed twice in the inbox.
+describe('a failed save that repeats', () => {
+  it('is listed once with a count, and one dismiss clears it', async () => {
+    held = [];
+
+    const what = { key: 'star', params: { name: 'a' } };
+
+    useSaveErrorsStore().report(SAVE_FAILED_TITLE, SAVE_FAILED_MESSAGE, what, '/app/chat');
+    useSaveErrorsStore().report(SAVE_FAILED_TITLE, SAVE_FAILED_MESSAGE, what, '/app/chat');
+    useSaveErrorsStore().report(SAVE_FAILED_TITLE, SAVE_FAILED_MESSAGE, { key: 'star', params: { name: 'b' } }, '/app/chat');
+    await openInbox();
+
+    expect(rows()).toHaveLength(2);
+    expect(rows()[0]!.querySelector('[data-save-count]')?.textContent?.trim()).toBe('2');
+    expect(rows()[1]!.querySelector('[data-save-count]')).toBeNull();
+    expect(document.body.querySelector('[data-error-inbox]')?.textContent?.trim()).toBe('2');
+
+    dismissIn(rows()[0]!).click();
+    await settle();
+
+    expect(rows()).toHaveLength(1);
+    expect(useSaveErrorsStore().items).toHaveLength(1);
+  });
+});
+
 // Stoney 2026-10-20: when OBS shuts down, one notice says OBS is not connected, with a way to go there.
 describe('the OBS not connected notice', () => {
   const obsDown = {

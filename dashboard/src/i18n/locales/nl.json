@@ -818,6 +818,7 @@
       "none": "Geen kanaal",
       "find": "Zoek een kanaal",
       "noMatch": "Geen kanaal gevonden.",
+      "searching": "Alle kanalen doorzoeken...",
       "noAccess": {
         "title": "Geen toegang tot {name}",
         "description": "Je beheert dit kanaal niet. Kies een van je kanalen in de kanaalwisselaar, of vraag de streamer je moderator te maken."
