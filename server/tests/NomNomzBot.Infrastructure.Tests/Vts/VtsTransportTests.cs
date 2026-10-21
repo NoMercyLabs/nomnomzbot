@@ -354,8 +354,15 @@ public sealed class VtsTransportTests
     {
         for (int i = 0; i < 150; i++)
         {
-            if (probe() is { } hit)
-                return hit;
+            // The recording bus is a plain list the transport thread appends to while this probe reads it.
+            // A read that lands mid-append throws; the next tick reads the settled list.
+            try
+            {
+                if (probe() is { } hit)
+                    return hit;
+            }
+            catch (InvalidOperationException) { }
+
             await Task.Delay(20);
         }
         throw new Xunit.Sdk.XunitException($"Timed out waiting for {typeof(T).Name}.");
