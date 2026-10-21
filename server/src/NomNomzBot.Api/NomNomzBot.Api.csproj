@@ -115,5 +115,4 @@
       Text="BundleDashboard: copied the dashboard into $(PublishDir)wwwroot."
     />
   </Target>
-
 </Project>
