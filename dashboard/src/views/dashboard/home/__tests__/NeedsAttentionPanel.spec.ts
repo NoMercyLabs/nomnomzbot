@@ -106,6 +106,20 @@ const dismissButtons = (): HTMLElement[] =>
     (button) => button.textContent?.trim() === 'Dismiss',
   );
 
+// Stoney 2026-10-21: on a phone an empty Home panel left a big blank area. A board cell stretches its panel to
+// the screen height, so an empty panel below md keeps only the height of its own message.
+describe('NeedsAttentionPanel empty', () => {
+  it('shrinks to its message below md when nothing needs attention, and keeps its size otherwise', async () => {
+    held = [];
+    await openPanel();
+
+    const card = document.body.querySelector('[data-slot="panel-card"]');
+
+    expect(card?.getAttribute('data-state')).toBe('empty');
+    expect(card?.className).toContain('max-md:data-[state=empty]:flex-none!');
+  });
+});
+
 describe('NeedsAttentionPanel dismiss', () => {
   it('posts the id of the dismissed item and drops only that item from the list', async () => {
     await openPanel();

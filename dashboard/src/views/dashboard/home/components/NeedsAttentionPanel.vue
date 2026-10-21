@@ -24,6 +24,8 @@ import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
+import { SHRINK_WHEN_EMPTY } from './shrinkWhenEmpty';
+
 const { t, te, locale } = useI18n();
 const { channelId } = useCurrentChannel();
 
@@ -48,6 +50,7 @@ const attention = computed(() =>
 
 <template>
   <PanelCard
+    :class="SHRINK_WHEN_EMPTY"
     :title="t('dashboard.home.attention.title')"
     :state="attentionState"
     :empty-text="t('dashboard.home.attention.empty')"

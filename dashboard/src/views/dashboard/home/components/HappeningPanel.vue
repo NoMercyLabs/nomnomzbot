@@ -34,6 +34,7 @@ import ArrowRight from '~icons/nnz/arrow-right';
 import Repeat from '~icons/nnz/repeat';
 
 import { describeActivity, type ActivityRowText } from './activityKinds';
+import { SHRINK_WHEN_EMPTY } from './shrinkWhenEmpty';
 
 defineProps<{ live: boolean }>();
 
@@ -137,6 +138,7 @@ const rows = computed<Row[]>(() =>
 
 <template>
   <PanelCard
+    :class="SHRINK_WHEN_EMPTY"
     :title="live ? t('dashboard.home.activity.live') : t('dashboard.home.activity.offline')"
     :state="activityState"
     :empty-text="t('dashboard.home.activity.empty')"

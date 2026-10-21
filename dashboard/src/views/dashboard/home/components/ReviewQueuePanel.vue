@@ -24,6 +24,8 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { DEFAULT_UNDO_MS } from '@/composables/useInlineFlow';
 import { usePanelState } from '@/composables/usePanelState';
 
+import { SHRINK_WHEN_EMPTY } from './shrinkWhenEmpty';
+
 defineProps<{ live: boolean }>();
 
 const { t } = useI18n();
@@ -77,6 +79,7 @@ onBeforeUnmount(() => {
 
 <template>
   <PanelCard
+    :class="SHRINK_WHEN_EMPTY"
     :title="t('dashboard.home.queue.title')"
     :description="t('dashboard.home.queue.hint')"
     :tier="live ? 'lead' : 'default'"
