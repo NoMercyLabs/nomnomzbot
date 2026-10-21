@@ -156,67 +156,117 @@ async function choose(tier: BillingTier): Promise<void> {
       />
     </template>
     <div class="grid gap-3">
-      <Table>
-        <TableHeader>
-          <TableRow>
-            <TableHead class="w-1/4" />
-            <TableHead
-              v-for="tier in rows"
-              :key="tier.key"
-              :data-tier="tier.key"
-              :data-current="tier.key === currentKey"
-              class="h-auto py-3 align-top"
+      <div class="hidden md:block">
+        <Table>
+          <TableHeader>
+            <TableRow>
+              <TableHead class="w-1/4" />
+              <TableHead
+                v-for="tier in rows"
+                :key="tier.key"
+                :data-tier="tier.key"
+                :data-current="tier.key === currentKey"
+                class="h-auto py-3 align-top"
+              >
+                <div class="grid gap-1">
+                  <span class="text-sm font-semibold">{{ tier.displayName }}</span>
+                  <span data-tier-price class="text-sm font-normal text-muted-foreground">{{ priceOf(tier) }}</span>
+                  <span
+                    v-if="tier.key === currentKey"
+                    data-current-marker
+                    class="text-sm font-medium"
+                  >
+                    {{ $t('dashboard.settings.billing.tiers.current') }}
+                  </span>
+                  <Button
+                    v-else-if="offered(tier) && can('billing:manage')"
+                    data-action="choose"
+                    size="sm"
+                    variant="outline"
+                    class="mt-1 w-fit"
+                    :disabled="checkout.isPending.value || change.isPending.value"
+                    @click="choose(tier)"
+                  >
+                    {{ hasPaidPlan ? $t('dashboard.settings.billing.tiers.switch') : $t('dashboard.settings.billing.tiers.choose') }}
+                  </Button>
+                </div>
+              </TableHead>
+            </TableRow>
+          </TableHeader>
+          <TableBody>
+            <TableRow v-for="key in limitKeys" :key="key" :data-limit-key="key">
+              <TableCell class="font-medium">{{ $t(`dashboard.settings.billing.tiers.limits.${key}`) }}</TableCell>
+              <TableCell
+                v-for="tier in rows"
+                :key="tier.key"
+                :data-limit-tier="tier.key"
+                class="tabular-nums text-muted-foreground"
+              >
+                {{ limitText(tier, key) }}
+              </TableCell>
+            </TableRow>
+            <TableRow v-for="feature in features" :key="feature.key" :data-feature="feature.key">
+              <TableCell class="font-medium">{{ $t(`dashboard.settings.billing.tiers.${feature.key}`) }}</TableCell>
+              <TableCell
+                v-for="tier in rows"
+                :key="tier.key"
+                :data-feature-tier="tier.key"
+                class="text-muted-foreground"
+              >
+                {{ featureText(feature.has(tier)) }}
+              </TableCell>
+            </TableRow>
+          </TableBody>
+        </Table>
+      </div>
+      <div class="grid gap-3 md:hidden">
+        <section
+          v-for="tier in rows"
+          :key="tier.key"
+          :data-tier-card="tier.key"
+          :data-current="tier.key === currentKey"
+          class="grid gap-3 rounded-[8px] border p-3"
+        >
+          <div class="grid gap-1">
+            <span class="text-sm font-semibold">{{ tier.displayName }}</span>
+            <span data-card-price class="text-sm text-muted-foreground">{{ priceOf(tier) }}</span>
+            <span v-if="tier.key === currentKey" class="text-sm font-medium">
+              {{ $t('dashboard.settings.billing.tiers.current') }}
+            </span>
+            <Button
+              v-else-if="offered(tier) && can('billing:manage')"
+              data-action="choose"
+              size="sm"
+              variant="outline"
+              class="mt-1 w-fit"
+              :disabled="checkout.isPending.value || change.isPending.value"
+              @click="choose(tier)"
             >
-              <div class="grid gap-1">
-                <span class="text-sm font-semibold">{{ tier.displayName }}</span>
-                <span data-tier-price class="text-sm font-normal text-muted-foreground">{{ priceOf(tier) }}</span>
-                <span
-                  v-if="tier.key === currentKey"
-                  data-current-marker
-                  class="text-sm font-medium"
-                >
-                  {{ $t('dashboard.settings.billing.tiers.current') }}
-                </span>
-                <Button
-                  v-else-if="offered(tier) && can('billing:manage')"
-                  data-action="choose"
-                  size="sm"
-                  variant="outline"
-                  class="mt-1 w-fit"
-                  :disabled="checkout.isPending.value || change.isPending.value"
-                  @click="choose(tier)"
-                >
-                  {{ hasPaidPlan ? $t('dashboard.settings.billing.tiers.switch') : $t('dashboard.settings.billing.tiers.choose') }}
-                </Button>
-              </div>
-            </TableHead>
-          </TableRow>
-        </TableHeader>
-        <TableBody>
-          <TableRow v-for="key in limitKeys" :key="key" :data-limit-key="key">
-            <TableCell class="font-medium">{{ $t(`dashboard.settings.billing.tiers.limits.${key}`) }}</TableCell>
-            <TableCell
-              v-for="tier in rows"
-              :key="tier.key"
-              :data-limit-tier="tier.key"
-              class="tabular-nums text-muted-foreground"
+              {{ hasPaidPlan ? $t('dashboard.settings.billing.tiers.switch') : $t('dashboard.settings.billing.tiers.choose') }}
+            </Button>
+          </div>
+          <dl class="grid gap-1 text-sm">
+            <div
+              v-for="key in limitKeys"
+              :key="key"
+              :data-card-limit="key"
+              class="flex justify-between gap-3"
             >
-              {{ limitText(tier, key) }}
-            </TableCell>
-          </TableRow>
-          <TableRow v-for="feature in features" :key="feature.key" :data-feature="feature.key">
-            <TableCell class="font-medium">{{ $t(`dashboard.settings.billing.tiers.${feature.key}`) }}</TableCell>
-            <TableCell
-              v-for="tier in rows"
-              :key="tier.key"
-              :data-feature-tier="tier.key"
-              class="text-muted-foreground"
+              <dt class="font-medium">{{ $t(`dashboard.settings.billing.tiers.limits.${key}`) }}</dt>
+              <dd class="text-right tabular-nums text-muted-foreground">{{ limitText(tier, key) }}</dd>
+            </div>
+            <div
+              v-for="feature in features"
+              :key="feature.key"
+              :data-card-feature="feature.key"
+              class="flex justify-between gap-3"
             >
-              {{ featureText(feature.has(tier)) }}
-            </TableCell>
-          </TableRow>
-        </TableBody>
-      </Table>
+              <dt class="font-medium">{{ $t(`dashboard.settings.billing.tiers.${feature.key}`) }}</dt>
+              <dd class="text-right text-muted-foreground">{{ featureText(feature.has(tier)) }}</dd>
+            </div>
+          </dl>
+        </section>
+      </div>
       <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
     </div>
   </PanelCard>

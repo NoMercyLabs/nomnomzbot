@@ -173,6 +173,16 @@ describe('Federation', () => {
     expect(document.body.querySelectorAll('[data-opt-in]').length).toBe(4);
   });
 
+  it('puts the Accept and Share pair under the description on a phone, beside it from md up', async () => {
+    await open();
+
+    const pair = row('shared_ban_list').querySelector<HTMLElement>('[data-choice-pair]')!;
+
+    expect(row('shared_ban_list').className).toContain('flex-col');
+    expect(row('shared_ban_list').className).toContain('md:flex-row');
+    expect(pair.querySelectorAll('[role="switch"]').length).toBe(2);
+  });
+
   it('sends accept when Accept is switched on from off', async () => {
     await open();
     await click(toggle('shared_chat_bans', 'Accept'));

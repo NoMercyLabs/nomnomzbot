@@ -348,6 +348,19 @@ describe('Billing page: plans on offer', () => {
     expect(document.body.querySelector('[data-tier="plus"] [data-action="choose"]')).toBeNull();
   });
 
+  it('lists each plan as a card on a phone with its price, limits and features under the name', async () => {
+    subscription = subscriptionOf('plus', 'Plus');
+    await open();
+
+    const cards = [...document.body.querySelectorAll<HTMLElement>('[data-tier-card]')];
+
+    expect(cards.map((card) => card.dataset.tierCard)).toEqual(['free', 'plus', 'pro']);
+    expect(find('[data-tier-card="plus"] [data-card-price]').textContent).toBe('€12.50 per month');
+    expect(find('[data-tier-card="plus"]').textContent).toContain('Current plan');
+    expect(find('[data-tier-card="free"] [data-card-limit="sound_clip_storage_bytes"]').textContent).toContain('Sound clip storage');
+    expect(find('[data-tier-card="pro"] [data-action="choose"]')).not.toBeNull();
+  });
+
   it('compares the plans side by side with plain limit names and units, never a raw key', async () => {
     subscription = subscriptionOf('plus', 'Plus');
     await open();

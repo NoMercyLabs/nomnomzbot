@@ -52,12 +52,12 @@ const shares = computed({
 </script>
 
 <template>
-  <div :data-opt-in="type" class="flex min-h-11 flex-wrap items-center gap-3 rounded-[8px] px-3 py-2">
+  <div :data-opt-in="type" class="flex min-h-11 flex-col gap-2 rounded-[8px] px-3 py-2 md:flex-row md:flex-wrap md:items-center md:gap-3">
     <div class="min-w-0 flex-1">
       <span class="block text-sm font-medium wrap-break-word">{{ $t(`${base}.title`) }}</span>
       <span class="block text-sm text-muted-foreground">{{ $t(`${base}.description`) }}</span>
     </div>
-    <div class="flex items-center gap-4">
+    <div data-choice-pair class="flex items-center gap-4">
       <LabeledSwitch
         v-model="accepts"
         action="federation:optin:write"
