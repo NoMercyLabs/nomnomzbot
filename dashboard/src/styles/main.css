@@ -30,6 +30,24 @@
   }
 }
 
+/* A small inline target (a name, a badge, an emote) keeps its look and its line height; on a touch screen an
+   absolute ::after grows its hit area to 36 px each way (Stoney 2026-10-21, mobile). Desktop is unchanged. */
+@utility touch-hit {
+  position: relative;
+
+  @media (pointer: coarse) {
+    &::after {
+      content: '';
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      width: max(100%, 2.25rem);
+      height: max(100%, 2.25rem);
+      transform: translate(-50%, -50%);
+    }
+  }
+}
+
 /* Colors and fonts map to the tokens. Radii and text sizes share Tailwind's variable
    names (--radius-sm, --text-sm), so the :root values in tokens.css override them directly. */
 @theme inline {

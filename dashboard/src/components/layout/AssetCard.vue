@@ -43,7 +43,7 @@ function personOf(item: KeyValueItem): AssetPerson | undefined {
     <PopoverTrigger
       data-asset-trigger
       :aria-label="label"
-      class="inline-flex cursor-pointer rounded-sm align-top focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
+      class="touch-hit inline-flex cursor-pointer rounded-sm align-top focus-visible:ring-2 focus-visible:ring-ring/50 focus-visible:outline-none"
     >
       <slot />
     </PopoverTrigger>
