@@ -16,6 +16,7 @@ import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 import { laptopWidth, phoneWidth, setWidth } from '@/__tests__/viewport';
 import BoardCell from '@/components/layout/BoardCell.vue';
 import BoardGrid from '@/components/layout/BoardGrid.vue';
+import { i18n } from '@/i18n';
 
 let mounted: VueWrapper | undefined;
 
@@ -51,7 +52,7 @@ async function boardAt(
   });
 
   await router.push(path);
-  mounted = mount(Board, { global: { plugins: [router] } });
+  mounted = mount(Board, { global: { plugins: [router, i18n] } });
   await flushPromises();
 
   return { router, wrapper: mounted };
@@ -156,7 +157,7 @@ describe('the tab strip of a tabbed board', () => {
   it('has the same side inset as the page header bar, for the strip and the panel under it', async () => {
     const { wrapper } = await boardAt(phoneWidth);
     const strip = wrapper.get('[data-slot="board-grid"] > [data-slot="tabs"]');
-    const body = wrapper.get('[data-slot="board-grid"] > div');
+    const body = wrapper.get('[data-slot="board-grid"] > div:not([data-slot])');
 
     expect(strip.classes()).toContain('px-6');
     expect(body.classes()).toContain('px-6');
@@ -180,5 +181,28 @@ describe('the tab strip of a tabbed board', () => {
 
     expect(strip.classes()).toContain('overflow-x-auto');
     expect(strip.classes()).toContain('overflow-y-hidden');
+  });
+});
+
+// Ledger M-04: a second tab strip under the page tabs cost a whole band on a phone. Below md the panel tabs
+// become one Select in the same band; the tab strip stays for the tablet width.
+describe('the panel picker of a phone board', () => {
+  it('offers a Select of the panels below md, and the strip only from md', async () => {
+    const { wrapper } = await boardAt(phoneWidth);
+    const picker = wrapper.get('[data-board-panel-select]');
+    const strip = wrapper.get('[data-slot="board-grid"] > [data-slot="tabs"]');
+
+    expect(picker.classes()).toContain('md:hidden');
+    expect(picker.text()).toContain('Review queue');
+    expect(strip.classes()).toContain('max-md:hidden');
+  });
+
+  it('opens the panel the Select is moved to', async () => {
+    const { router, wrapper } = await boardAt(phoneWidth);
+
+    await router.push({ query: { panel: 'connections' } });
+    await flushPromises();
+
+    expect(wrapper.get('[data-board-panel-select]').text()).toContain('Connections');
   });
 });

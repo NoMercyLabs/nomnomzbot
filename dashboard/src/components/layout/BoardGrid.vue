@@ -13,6 +13,7 @@
 // is bad, so the board shows one panel at a time, full height, behind a tab per panel (?panel=).
 import { computed, provide, useTemplateRef } from 'vue';
 
+import OptionSelect from '@/components/layout/OptionSelect.vue';
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 import { type Board, useBoard } from '@/composables/useBoard';
 import { usePageView } from '@/composables/usePageView';
@@ -62,7 +63,7 @@ provide(boardKey, (panel: string) =>
       <Tabs
         ref="strip"
         v-model="open"
-        class="min-w-0 flex-none overflow-x-auto overflow-y-hidden px-6 scrollbar-none max-md:px-4"
+        class="min-w-0 flex-none overflow-x-auto overflow-y-hidden px-6 scrollbar-none max-md:hidden max-md:px-4"
         :class="fade"
       >
         <TabsList>
@@ -71,6 +72,15 @@ provide(boardKey, (panel: string) =>
           </TabsTrigger>
         </TabsList>
       </Tabs>
+      <div data-slot="board-panel-picker" class="flex-none px-4 md:hidden">
+        <OptionSelect
+          v-model="open"
+          data-board-panel-select
+          class="md:hidden"
+          :aria-label="$t('frame.panelPicker')"
+          :options="tabPanels.map((panel) => ({ value: panel.id, label: panel.label }))"
+        />
+      </div>
       <div class="flex min-h-0 flex-1 flex-col px-6 max-md:px-0">
         <slot />
       </div>

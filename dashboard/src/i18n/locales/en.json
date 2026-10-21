@@ -689,6 +689,7 @@
   "frame": {
     "brand": "NomNomzBot",
     "panels": "Panels",
+    "panelPicker": "Panel",
     "nav": {
       "label": "Main navigation",
       "more": "More",
