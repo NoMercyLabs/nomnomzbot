@@ -8,7 +8,9 @@
 
     // Path mapping for cleaner imports.
     "paths": {
-      "@/*": ["./src/*"]
+      "@/*": ["./src/*"],
+      // The recap preview imports a widget file from the server tree, which has no node_modules above it.
+      "vue": ["./node_modules/vue"]
     },
 
     // `vue-tsc --build` produces a .tsbuildinfo file for incremental type-checking.
