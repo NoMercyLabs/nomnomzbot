@@ -122,7 +122,7 @@ export function useReorderMediaShare(
   });
 }
 
-// What the media share overlay last reported. The bot has no read for it, so the realtime event fills it.
+// What the media share overlay last reported: read on load, then kept fresh by the realtime event.
 export type MediaSharePlayerState = {
   state: 'idle' | 'playing' | 'paused' | 'ended' | 'error';
   requestId: string | null;
@@ -134,7 +134,7 @@ export type MediaSharePlayerState = {
   volume: number;
 };
 
-export type MediaPlaybackCommand = 'play' | 'pause' | 'stop' | 'skip' | 'volume';
+export type MediaPlaybackCommand = 'play' | 'pause' | 'stop' | 'skip' | 'seek' | 'volume';
 
 export type MediaPlaybackRequest = { command: MediaPlaybackCommand; value?: number };
 
@@ -152,10 +152,25 @@ export function useMediaSharePlayer(
 
   return useQuery({
     queryKey: key,
-    queryFn: () =>
-      queries.getQueryData<MediaSharePlayerState>(key.value) ?? null,
+    queryFn: async () =>
+      await readPlayer() ?? queries.getQueryData<MediaSharePlayerState>(key.value) ?? null,
     staleTime: Infinity,
   });
+}
+
+// A bot without the player read (404) answers null; the realtime event fills the state then.
+async function readPlayer(): Promise<MediaSharePlayerState | null> {
+  const { data, error, response } = await client.GET('/api/v{version}/media-share/player', {
+    params: { path: { version } },
+  });
+
+  if (response.status === 404)
+    return null;
+
+  if (error !== undefined)
+    throw failed('media share player', response.status, error);
+
+  return (data?.data ?? null) as MediaSharePlayerState | null;
 }
 
 // One player command through the bot's media_playback action; the bot then drives the overlay.
