@@ -10,14 +10,14 @@
 
 ### Adding a New Dashboard Page
 
-1. **Load the `sleak` skill first** — before a line of Compose is written, not as a review pass
+1. **Load the `sleak` skill first** — before a line of UI is written, not as a review pass
    afterwards. Hierarchy decisions (which action is primary, what the eye lands on) are made while
    the screen is being laid out; retrofitting them means rewriting it.
-2. Screen + state under `app/composeApp/src/commonMain/.../feature/<domain>/`; navigation and page
+2. View under `dashboard/src/views/dashboard/<area>/` (with its own `i18n/`); router entry and page
    placement per `frontend-ia.md` (the definitive page inventory).
-3. Fetch/mutate exclusively through the **typed shared KMP client** (`core/network`, REST + SignalR) —
-   never call the API ad hoc. New DTOs register in `ApiContractTest`; refresh `server/openapi/v1.json`
-   on any contract change.
+3. Fetch/mutate exclusively through the **typed API client** (`dashboard/src/api`, REST + SignalR) —
+   never call the API ad hoc. Refresh `server/openapi/v1.json` on any contract change, then run
+   `npm run gen:api` in `dashboard/` and commit `src/api/schema.d.ts`.
 4. Design-system components only (`frontend-design-system.md` + catalogue) — no raw hex/`dp`.
 5. i18n keys for both `en` and `nl`; never hardcode user-facing strings.
 6. Role-gate per `frontend-ia.md` §7 — hide pages below the read floor; **disable** (don't hide)

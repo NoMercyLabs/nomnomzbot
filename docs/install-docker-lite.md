@@ -55,7 +55,7 @@ You can also put settings in a `.env` file first. Copy `.env.example` to `.env`.
 If you leave `ENCRYPTION_KEY` empty, the bot makes its own key and saves it in the data folder, in the file `keys/root-kek.key`. See "Your secret key" below.
 
 To build the image yourself, set `API_IMAGE=nomnomzbot-api:local` in `.env` and add `--build` to the command.
-The build needs a lot of memory for Docker. With too little, the build can stop with `wasm-opt` and `exit value 139`.
+The build needs memory for Docker, mostly for the dashboard build step. With too little, the build can stop with an out-of-memory error.
 Give Docker more memory, or use the ready-made image.
 
 To use another port, set `API_HTTP_PORT` in `.env`.

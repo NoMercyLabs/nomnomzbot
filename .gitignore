@@ -57,8 +57,8 @@ server/docs/
 # Twitch OpenAPI spec + extraction scripts — a build-time reference for hand-authoring the
 # Helix wire DTOs (auto-generated community spec, not a runtime dependency). Kept on disk, out of the repo.
 server/.twitch-spec/
-# wwwroot holds the compiled Wasm dashboard — built from source inside the Dockerfile
-# (wasm-build stage) and committed wasm files are no longer tracked.
+# wwwroot holds the compiled Vue dashboard — built from source inside the Dockerfile
+# (the Node stage) and is not tracked.
 server/src/NomNomzBot.Api/wwwroot/
 server/src/NomNomzBot.Migrations.Sqlite/nomnomz.db
 server/src/NomNomzBot.Migrations.Sqlite/nomnomz.db-shm

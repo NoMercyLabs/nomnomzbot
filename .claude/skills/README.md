@@ -12,7 +12,6 @@ tool; they are written to be handed to a subagent verbatim.
 | Skill | The job | Wraps |
 |---|---|---|
 | `build-server` | build + test the backend; is my slice green, is the tree green, will the migration survive an upgrade | `slice-check.ps1` · `verify-tree.ps1` · `migration-check.ps1` |
-| `build-app` | build + test the KMP/Compose dashboard, both targets | Gradle `jvmTest` + `compileKotlinWasmJs` |
 | `run-the-stack` | start/verify/stop the API + dashboard, prove it in the rendered client | `dev-api.ps1` · `refresh-openapi.ps1` · `mint-jwt.py` |
 | `commit-a-slice` | gate, stage by pathspec, sign off, close the tracker entry | `close-slice.ps1` |
 | `watch-ci` | push and block on the verdict; read a red | `push-and-watch.ps1` |
@@ -25,7 +24,7 @@ tool; they are written to be handed to a subagent verbatim.
 Order for a normal piece of work:
 
 ```
-build-server / build-app  →  run-the-stack  →  commit-a-slice  →  watch-ci  →  deploy-and-verify
+build-server  →  run-the-stack  →  commit-a-slice  →  watch-ci  →  deploy-and-verify
 ```
 
 `.claude/` is gitignored — these files need `git add -f`.

@@ -11,7 +11,7 @@
   "forwardPorts": [5080, 5090, 8080],
   "portsAttributes": {
     "5080": { "label": "API", "onAutoForward": "notify" },
-    "5090": { "label": "Dashboard (Wasm dev server)", "onAutoForward": "notify" },
+    "5090": { "label": "Dashboard (Vite dev server)", "onAutoForward": "notify" },
     "8080": { "label": "code-server", "onAutoForward": "silent" }
   },
   "customizations": {
@@ -24,9 +24,6 @@
         "ms-dotnettools.csharp",
         "csharpier.csharpier-vscode",
         "editorconfig.editorconfig",
-        "jetbrains.kotlin-server",
-        "redhat.java",
-        "vscjava.vscode-gradle",
         "vue.volar",
         "sdras.vue-vscode-snippets",
         "esbenp.prettier-vscode",

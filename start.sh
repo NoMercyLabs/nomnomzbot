@@ -14,9 +14,9 @@
 #
 #   1. the API  (dotnet run, ASPNETCORE_ENVIRONMENT=Development) — SQLite,
 #      self-contained "SelfHostLite" profile, /scalar docs enabled.
-#   2. the dashboard (Kotlin/Wasm webpack dev server, --watch-fs -t) — same
-#      Compose UI as the desktop app, hot-reloading in the browser as Kotlin
-#      source changes. NOT the ~25-minute production bundle.
+#   2. the dashboard (the Vue dashboard in dashboard/, Vite dev server) —
+#      hot-reloading in the browser as the source changes. NOT the production
+#      build, which the Docker image makes with `npm run build`.
 #
 # For an installable build instead of a dev inner loop, see deploy.sh/DEPLOY.md.
 #
@@ -56,19 +56,18 @@ Install .NET ${NEEDED_DOTNET_MAJOR} from: https://dot.net/download"
 fi
 say "OK  .NET SDK ${INSTALLED_DOTNET_VERSION} (repo needs ${NEEDED_DOTNET_MAJOR}.x)"
 
-# JDK — Gradle (the dashboard's build tool) needs one to run the webpack dev server.
-if ! command -v java >/dev/null 2>&1; then
-  die "A JDK is required to run the dashboard (it's built with Gradle/Kotlin).
-Install a JDK 21 from: https://adoptium.net"
+# Node.js + npm — the Vue dashboard's build tool runs the Vite dev server.
+if ! command -v node >/dev/null 2>&1 || ! command -v npm >/dev/null 2>&1; then
+  die "Node.js 22 (with npm) is required to run the dashboard.
+Install it from: https://nodejs.org"
 fi
-say "OK  Java found ($(command -v java))"
+say "OK  Node $(node --version) found"
 
 # --- 2. ports ----------------------------------------------------------------
 #
 # The API runs on its committed, documented default — 5080. The dashboard dev
-# server listens on 5090 (app/composeApp/build.gradle.kts) — that's the URL to
-# open in a browser. The dashboard's own dev-only webpack proxy
-# (app/composeApp/webpack.config.d/proxy.js) forwards /api + /hubs from 5090
+# server listens on 5090 (dashboard/vite.config.ts) — that's the URL to open in
+# a browser. The Vite dev proxy (same file) forwards /api + /hubs from 5090
 # through to the API on 5080 by default, so the browser only ever talks to one
 # origin and no env var is needed here.
 #
@@ -92,13 +91,11 @@ API_PID=$!
 
 # --- 4. start the dashboard dev server (hot reload) --------------------------
 
-say "Starting the dashboard dev server (Kotlin/Wasm, hot reload — first start can"
-say "take a few minutes while Gradle compiles)..."
-GRADLEW="$REPO_ROOT/app/gradlew"
-[ -x "$GRADLEW" ] || GRADLEW="sh $REPO_ROOT/app/gradlew"
+say "Starting the dashboard dev server (Vue + Vite, hot reload)..."
 (
-  cd "$REPO_ROOT/app"
-  exec $GRADLEW --no-daemon :composeApp:wasmJsBrowserDevelopmentRun --watch-fs -t --console=plain
+  cd "$REPO_ROOT/dashboard"
+  [ -d node_modules ] || npm ci --no-audit --no-fund
+  exec npm run dev
 ) &
 WEB_PID=$!
 
@@ -148,8 +145,8 @@ say " Twitch redirect URL    : register this in the Twitch Developer Console if"
 say "                           it isn't there already:"
 say "                           http://localhost:${API_PORT}/api/v1/auth/twitch/callback"
 say "--------------------------------------------------------------------------"
-say " The dashboard needs a little longer to finish its first compile before"
-say " http://localhost:${DASHBOARD_PORT} responds — refresh once it does."
+say " The dashboard needs a few seconds (more on the first run, which installs"
+say " packages) before http://localhost:${DASHBOARD_PORT} responds — refresh once it does."
 say " Press Ctrl+C to stop both the API and the dashboard."
 say "--------------------------------------------------------------------------"
 say ""

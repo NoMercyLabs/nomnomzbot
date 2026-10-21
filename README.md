@@ -8,7 +8,7 @@
 >
 > Binding product statement: [`.claude/docs/design/PRODUCT-ALIGNMENT.md`](.claude/docs/design/PRODUCT-ALIGNMENT.md).
 
-[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](server/LICENSE) [![Backend: .NET 10](https://img.shields.io/badge/backend-.NET%2010-512BD4.svg)](#how-it-works) [![Frontend: Kotlin Multiplatform + Compose](https://img.shields.io/badge/frontend-Kotlin%20Multiplatform%20%2B%20Compose-7F52FF.svg)](#how-it-works) [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)](#project-status)
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](server/LICENSE) [![Backend: .NET 10](https://img.shields.io/badge/backend-.NET%2010-512BD4.svg)](#how-it-works) [![Frontend: Vue 3](https://img.shields.io/badge/frontend-Vue%203-42B883.svg)](#how-it-works) [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)](#project-status)
 
 You run NomNomzBot through its **dashboard app**, which gives you a **guided setup** — it connects your
 Twitch and bot accounts and collects everything the bot needs through proper input fields, so you never
@@ -57,9 +57,9 @@ Pre-1.0, under active development. Honest snapshot:
 - **Public surfaces (widgets & overlays + song-request)** — delivered by the **widget system**: each widget is
   a standalone Vue SPA compiled from source, served by the bot, and CDN-cached for SaaS (not static files).
   Shipped — the gallery, editor, overlay host page and per-widget event subscriptions are live.
-- **Dashboard (`app/`)** — the **Kotlin Multiplatform + Compose** client (one codebase for desktop and
-  web) is **built and functional**: guided setup, Twitch device-code login, and management pages for the
-  core modules, all against the live API. The web build ships inside every backend artifact; pre-release
+- **Dashboard (`dashboard/`)** — the **Vue 3** web client (Vite, TypeScript, shadcn-vue components) is
+  **built and functional**: guided setup, Twitch device-code login, and management pages for the
+  core modules, all against the live API. It ships inside every backend artifact; pre-release
   polish is ongoing. Every operation is also available through the self-describing REST API (`/scalar`).
 
 It has not yet been validated in a long-running production deployment, so treat it as early software.
@@ -100,7 +100,7 @@ What a connected channel gets:
 │   Versioned REST API (v1)  ·  interactive docs at /scalar
 │   Public surfaces (OBS overlays, song-request) — compiled widgets served by the bot, CDN-cached for SaaS
 │
-└─ app/     — Kotlin Multiplatform + Compose dashboard (desktop + web/Wasm; the web build is served by the bot)
+└─ dashboard/ — Vue 3 dashboard (Vite + TypeScript; the build is served by the bot)
 ```
 
 The backend is **profile-agnostic and direct-connect**: the dashboard just needs the backend URL and talks
@@ -120,7 +120,7 @@ points it at the SaaS API. There is no central broker.
 | YouTube | Platform connection — live chat + events via the YouTube Data API (also the YouTube music provider) |
 | X Live | Platform connection — X Live chat + events (OAuth 2.0 + PKCE) |
 | Logging | Serilog |
-| Dashboard | Kotlin Multiplatform + Compose (desktop + web) |
+| Dashboard | Vue 3 + Vite + TypeScript |
 | API docs | OpenAPI + Scalar |
 
 ## Getting started
@@ -132,10 +132,10 @@ dashboard. To **self-host**, run your own backend and point the dashboard at it.
 > **Quickest path:** one deploy script per OS, covering every scenario — the zero-dependency
 > single-file binary, the Docker stack, and SaaS mode (a **restricted option** — hosting NomNomzBot
 > for others is against the project license, reserved to NoMercy Labs), each with the bundled web
-> dashboard or the standalone desktop app. **[DEPLOY.md](DEPLOY.md)** explains which to choose.
+> dashboard. **[DEPLOY.md](DEPLOY.md)** explains which to choose.
 >
-> - **Linux / macOS:** `./deploy.sh <scenario> [--app]`
-> - **Windows (PowerShell):** `.\deploy.ps1 <scenario> [-App]`
+> - **Linux / macOS:** `./deploy.sh <scenario>`
+> - **Windows (PowerShell):** `.\deploy.ps1 <scenario>`
 
 ### Set up with the dashboard
 
@@ -158,10 +158,7 @@ wizard** walks you through everything, with a labelled input for each value the 
 When you finish, you land on the dashboard home with the bot live in your channel.
 
 > **Where to get it:** the **web dashboard ships inside every backend build** — just open the bot's URL in
-> a browser. The **desktop app** builds with the deploy script's app flag (see [DEPLOY.md](DEPLOY.md)):
->
-> - **Linux / macOS:** `./deploy.sh <scenario> --app`
-> - **Windows (PowerShell):** `.\deploy.ps1 <scenario> -App`
+> a browser (see [DEPLOY.md](DEPLOY.md)).
 >
 > The same guided flow is also available through the self-describing API: `GET /api/v1/system/setup/wizard`
 > returns each step and the endpoint to call, runnable from the interactive docs at **`/scalar`**.
@@ -301,7 +298,7 @@ address (e.g. a containerised sidecar), set `TRUSTED_PROXY_NETWORKS` so the real
 ```
 nomnomzbot/
 ├── server/   .NET 10 backend (Domain → Application → Infrastructure → Api), tests, Docker
-└── app/      Kotlin Multiplatform + Compose dashboard (desktop + web/Wasm)
+└── dashboard/  Vue 3 dashboard (Vite + TypeScript)
 ```
 
 The backend follows Clean Architecture (dependencies flow inward) with the `Result<T>` pattern, soft
@@ -314,6 +311,14 @@ cd server
 docker compose up -d postgres redis        # just the infrastructure
 cd src/NomNomzBot.Api
 dotnet run                                  # auto-migrates and seeds on first start
+```
+
+### Run the dashboard locally
+
+```bash
+cd dashboard
+npm ci
+npm run dev                                 # Vite dev server on http://localhost:5090, proxies /api to :5080
 ```
 
 ### Build & test

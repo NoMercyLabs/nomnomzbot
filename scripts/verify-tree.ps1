@@ -18,7 +18,6 @@
 # of "all green" from a FILTERED run.
 #
 #   scripts/verify-tree.ps1                      # build + all 5 server suites (incl. E2E) + csharpier
-#   scripts/verify-tree.ps1 -IncludeApp          # also force the Kotlin jvmTest suite
 #   scripts/verify-tree.ps1 -AtCommit <sha>      # verify a commit in a throwaway worktree instead
 #
 # Three traps it encodes, each of which produced a WRONG green today:
@@ -26,16 +25,11 @@
 #      errors that look like compile errors. Killed first.
 #   2. `dotnet test --no-build` against a STALE test assembly silently runs a subset - a run once
 #      reported 1243 tests where the truth was 4279. The test projects are rebuilt explicitly.
-#   3. Gradle skips :composeApp:jvmTest as up-to-date and prints BUILD SUCCESSFUL in ~3s. That is not a
-#      test run. `cleanJvmTest jvmTest` invalidates the TEST task only, so every test really runs (~30s)
-#      without the full Kotlin recompile `--rerun-tasks` forced (~minutes). Counts are still read out of
-#      the XML rather than trusted from "BUILD SUCCESSFUL".
 #
-# The Kotlin suite runs when app/ actually changed, or on demand with -IncludeApp. A backend-only slice
-# does not pay for it.
+# The dashboard (dashboard/) has its own gate: npm run type-check, npm run lint, npx vitest run and
+# npm run build-only, the same commands as the CI dashboard job. This script covers the server only.
 
 param(
-    [switch]$IncludeApp,
     [string]$AtCommit
 )
 
@@ -92,44 +86,6 @@ try {
     if ($LASTEXITCODE -ne 0) { $failed = $true }
 }
 finally { Pop-Location }
-
-[bool]$appChanged = [bool](git -C $repo status --porcelain -- app | Select-Object -First 1) -or
-    [bool](git -C $repo diff --name-only HEAD~1 -- app 2>$null | Select-Object -First 1)
-
-if ($IncludeApp -or $appChanged) {
-    # A Kotlin daemon left behind by a concurrent agent or a killed run keeps a handle on the output
-    # tree, and gradle then reports "Could not delete build/classes/kotlin/jvm/main/..." - a lock,
-    # printed as BUILD FAILED, indistinguishable from a compile error unless you read the message.
-    # Same failure mode the dotnet side already guards against above, so guard it the same way.
-    & (Join-Path $root 'app/gradlew.bat') -p (Join-Path $root 'app') --stop 2>&1 | Out-Null
-    Get-Process -Name 'kotlin-daemon' -ErrorAction SilentlyContinue | Stop-Process -Force -ErrorAction SilentlyContinue
-    Remove-Item -Recurse -Force -ErrorAction SilentlyContinue `
-        (Join-Path $root 'app/composeApp/build/classes/kotlin/jvm/main')
-
-    Write-Host '== jvmTest (test task invalidated so it cannot be skipped as up-to-date) =='
-    Push-Location $root
-    try {
-        # compileKotlinWasmJs rides along deliberately: jvmTest CANNOT catch a wasmJs break. The JVM
-        # stdlib carries members the Wasm target does not (getOrDefault, toSortedMap), so a screen can
-        # be fully green here and fail the web build - which is the build a user actually loads.
-        & (Join-Path $root 'app/gradlew.bat') -p (Join-Path $root 'app') `
-            :composeApp:cleanJvmTest :composeApp:jvmTest :composeApp:compileKotlinWasmJs --console=plain | Out-Host
-        if ($LASTEXITCODE -ne 0) { $failed = $true }
-    }
-    finally { Pop-Location }
-
-    # Read the REAL counts rather than trusting "BUILD SUCCESSFUL".
-    [int]$total = 0
-    [int]$bad = 0
-    Get-ChildItem -Path (Join-Path $root 'app/composeApp/build/test-results/jvmTest') -Filter '*.xml' -ErrorAction SilentlyContinue |
-        ForEach-Object {
-            [xml]$xml = Get-Content -LiteralPath $_.FullName
-            $total += [int]$xml.testsuite.tests
-            $bad += [int]$xml.testsuite.failures + [int]$xml.testsuite.errors
-        }
-    Write-Host "jvmTest: $total tests, $bad failures/errors"
-    if ($bad -gt 0) { $failed = $true }
-}
 
 if ($worktree) { & (Join-Path $PSScriptRoot 'remove-worktree.ps1') -Repo $repo $worktree | Out-Null }
 

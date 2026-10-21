@@ -26,14 +26,12 @@
     "**/bin": true,
     "**/obj": true,
     "**/build": true,
-    "**/.gradle": true,
     "**/node_modules": true
   },
   "files.watcherExclude": {
     "**/bin/**": true,
     "**/obj/**": true,
     "**/build/**": true,
-    "**/.gradle/**": true,
     "**/node_modules/**": true
   },
   "search.exclude": {
@@ -56,12 +54,10 @@
     "editor.defaultFormatter": "csharpier.csharpier-vscode",
     "editor.tabSize": 4
   },
-  "[kotlin]": { "editor.tabSize": 4 },
   "[xml]": { "editor.tabSize": 4 },
   "[json]": { "editor.tabSize": 2 },
   "[yaml]": { "editor.tabSize": 2 },
   "git.autofetch": true,
   "git.confirmSync": false,
-  "telemetry.telemetryLevel": "off",
-  "java.jdt.ls.java.home": "/usr/lib/jvm/java-21-openjdk-amd64"
+  "telemetry.telemetryLevel": "off"
 }

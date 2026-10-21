@@ -87,5 +87,5 @@ Rules applied:
 
 ## Related playbooks
 
-`sleak` (mandatory for UI work) · `build-server` · `build-app` · `run-the-stack` ·
+`sleak` (mandatory for UI work) · `build-server` · `run-the-stack` ·
 `commit-a-slice` · `watch-ci` · `deploy-and-verify` · `devbox`

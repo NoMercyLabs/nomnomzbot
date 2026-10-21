@@ -22,15 +22,12 @@ ARG USER_GID=1000
 ENV DEBIAN_FRONTEND=noninteractive \
     DOTNET_CLI_TELEMETRY_OPTOUT=1 \
     DOTNET_NOLOGO=1 \
-    JAVA_HOME=/usr/lib/jvm/java-21-openjdk-${TARGETARCH} \
-    GRADLE_USER_HOME=/home/${USERNAME}/.gradle \
     NOMNOMZ_DEVBOX=1
 
 # --- OS packages -------------------------------------------------------------
 RUN apt-get update && apt-get install -y --no-install-recommends \
         ca-certificates curl wget gnupg lsb-release \
         git git-lfs openssh-client openssh-server \
-        openjdk-21-jdk-headless \
         build-essential unzip zip jq less nano vim procps htop \
         iproute2 lsof \
         sudo locales tzdata rsync \
@@ -101,7 +98,7 @@ RUN if getent group ${USER_GID} >/dev/null; then groupmod -n ${USERNAME} "$(gete
     && echo "${USERNAME} ALL=(ALL) NOPASSWD:ALL" > /etc/sudoers.d/${USERNAME} \
     && chmod 0440 /etc/sudoers.d/${USERNAME} \
     && mkdir -p /home/${USERNAME}/.local/share/code-server \
-                /home/${USERNAME}/.nuget /home/${USERNAME}/.gradle \
+                /home/${USERNAME}/.nuget \
                 /home/${USERNAME}/.dotnet /home/${USERNAME}/.config \
                 /home/${USERNAME}/.ssh/sshd /home/${USERNAME}/.vscode-server \
                 /home/${USERNAME}/artifacts \

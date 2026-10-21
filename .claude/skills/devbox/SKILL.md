@@ -16,7 +16,7 @@ Copy-Item devbox/.env.example devbox/.env    # set DEVBOX_PASSWORD
 docker compose -f devbox/docker-compose.yml up -d --build
 ```
 
-First build ≈ 10 minutes, ≈ 3.5 GB. Caches (NuGet, Gradle, extensions, `.vscode-server`) live on
+First build ≈ 10 minutes, ≈ 3.5 GB. Caches (NuGet, extensions, `.vscode-server`) live on
 named volumes, so a rebuild never re-downloads them.
 
 ## Three ways in

@@ -19,8 +19,8 @@ cp devbox/.env.example devbox/.env      # set DEVBOX_PASSWORD
 docker compose -f devbox/docker-compose.yml up -d --build
 ```
 
-First build pulls the .NET SDK, a JDK, Node and code-server — expect ~10 minutes and ~4.7 GB.
-Rebuilds are cached, and every cache that matters (NuGet, Gradle, extensions) lives on a named
+First build pulls the .NET SDK, Node and code-server — expect ~10 minutes and a few GB.
+Rebuilds are cached, and every cache that matters (NuGet, extensions) lives on a named
 volume, so a rebuild never re-downloads them.
 
 ## The three ways in
@@ -60,9 +60,8 @@ Three things a fresh container does not have, and each fails in a way that does 
   a full path — `~` does not expand as you expect).
 - **GitHub auth.** Run `gh auth login` inside the box. Credentials are created there, never
   forwarded in from the host, so each one is scoped to the box and revocable on its own.
-- **Memory.** A container sees the *host's* total RAM, so the Gradle and Kotlin daemons size their
-  heaps for a machine they do not have and get OOM-killed mid-build — which surfaces as a compiler
-  crash, not as an out-of-memory error. `GRADLE_OPTS` caps them and `mem_limit` (default 8g,
+- **Memory.** A container sees the *host's* total RAM, so build tools size their heaps for a
+  machine they do not have and can get OOM-killed mid-build. `mem_limit` (default 8g,
   `DEVBOX_MEM_LIMIT`) caps the box, so a runaway build dies instead of the host.
 
 Claude Code is installed; log in inside the box on first use.
@@ -70,7 +69,7 @@ Claude Code is installed; log in inside the box on first use.
 ## Bind-mount performance
 
 On Docker Desktop (Windows/macOS) the bind-mounted repo crosses a VM boundary and is markedly
-slower than native disk. That is why every dependency cache — NuGet, Gradle, npm, extensions —
+slower than native disk. That is why every dependency cache — NuGet, npm, extensions —
 lives on a **named volume** instead of under the repo: those are the paths a build hammers. If a
 build is still painfully slow, the fix is to move its output directory onto a volume too, not to
 add more RAM.
@@ -81,8 +80,7 @@ add more RAM.
 |------|-----|
 | .NET 10 SDK | `server/` — build, test, `dotnet-ef` |
 | csharpier 1.3.0 · jb (ReSharper CLI) 2026.2.1 · dotnet-ef | restored on start from `server/.config/dotnet-tools.json` — the exact pins `scripts/slice-check.ps1` needs |
-| JDK 21 | `app/` — Gradle wrapper, KMP + Compose Multiplatform |
-| Node 22 + npm | widget / Vue SFC tooling |
+| Node 22 + npm | `dashboard/` (Vue + Vite) and widget / Vue SFC tooling |
 | PowerShell 7 | `scripts/*.ps1` run unchanged |
 | git · git-lfs · gh | the CI gate (`gh run watch`) |
 | docker CLI + compose plugin | drives the **host** daemon through the mounted socket (`sudo` on Docker Desktop) |
@@ -99,7 +97,7 @@ works:
 ```bash
 sudo docker compose up -d postgres redis adminer   # from /workspace
 cd server/src/NomNomzBot.Api && dotnet run      # API on 5080, published to the host
-cd app && ./gradlew :composeApp:wasmJsBrowserDevelopmentRun --watch-fs -t   # 5090
+cd dashboard && npm ci && npm run dev           # 5090
 ```
 
 Both ports are published by the devbox itself, so `http://localhost:5080` and `:5090` work on

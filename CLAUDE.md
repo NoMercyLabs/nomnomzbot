@@ -17,7 +17,7 @@ Licensed under **AGPL-3.0**. Copyright (C) NoMercy Labs.
 
 - **Everything is `NomNomzBot.*`** — namespace, folder, assembly, and product all match. Every `.cs` file's `namespace` and every csproj `<RootNamespace>` is `NomNomzBot.*`. (History: the legacy code carried `NoMercyBot.*` from an incomplete earlier rename; the clean-slate rebuild **fully migrated** it to `NomNomzBot.*` via a repo-wide rename — there is no `NoMercyBot` left in code or specs, **do not reintroduce it**. The **copyright holder is still NoMercy Labs** — the company name in license headers is unaffected.)
 - **Username is `Stoney_Eagle`** — underscore, not hyphen. Never change this.
-- **shadcn/ui (new-york) is the source of truth for the dashboard design** — ported 1:1 to Compose; full spec in `.claude/docs/design/spec/frontend-design-system.md`. The old Figma file (`MkKBuW2Ee6T5jC8fCtZsM0`) is **discarded** (not a viable dashboard); a fresh Figma may be minted from the spec later.
+- **shadcn/ui (new-york) is the source of truth for the dashboard design** — ported 1:1 to the Vue dashboard (shadcn-vue); full spec in `.claude/docs/design/spec/frontend-design-system.md`. The old Figma file (`MkKBuW2Ee6T5jC8fCtZsM0`) is **discarded** (not a viable dashboard); a fresh Figma may be minted from the spec later.
 - **HTML mockups** (the `nomnomzbot-design` repo — an external archived repo, not in this tree) are a loose historical reference only — the design system, not the mockups, is authoritative.
 - **No `Co-Authored-By` in git commits** — ever. Mechanically enforced by a `commit-msg` hook;
   run `git config core.hooksPath .githooks` once per clone (see *Git Conventions*).
@@ -98,14 +98,14 @@ Two people, one repo, two strictly separated tracks. Detect the active track fro
 
 | Track | Person | Owns (commit surface) | Never touches |
 |-------|--------|-----------------------|---------------|
-| **Backend** | `Stoney_Eagle` | `server/`, root infra (`docker-compose.yml`, `deploy.*`, `.env.example`, `.github/`), `CLAUDE.md`, `.claude/` | `app/` |
-| **Frontend** | `aaoa-dev` (designer) | `app/` | `server/`, root infra, `CLAUDE.md`, anything security-sensitive |
+| **Backend** | `Stoney_Eagle` | `server/`, root infra (`docker-compose.yml`, `deploy.*`, `.env.example`, `.github/`), `CLAUDE.md`, `.claude/` | `dashboard/` |
+| **Frontend** | `aaoa-dev` (designer) | `dashboard/` | `server/`, root infra, `CLAUDE.md`, anything security-sensitive |
 
-- **Commits never cross the boundary.** A backend commit contains no `app/` files; a frontend commit contains no `server/` or root-infra files. If the working tree mixes both, stage and commit only your track's files — leave the rest untouched.
+- **Commits never cross the boundary.** A backend commit contains no `dashboard/` files; a frontend commit contains no `server/` or root-infra files. If the working tree mixes both, stage and commit only your track's files — leave the rest untouched.
 - **Never rewrite the other track's history.** No rebase, amend, force-push, or revert of anything the other track has pushed. Rebasing your **own unpushed** commits onto `origin/master` is fine (`git pull --rebase`); everything already on the remote stays as-is. A conflict inside the other track's files → stop and coordinate via a handoff entry, don't resolve it yourself.
 - **`aaoa-dev` does not do backend or security — Claude carries that for him.** On the frontend track: never edit server code, secrets, tokens, OAuth, CORS, JWT, or auth logic on your own initiative. If a task seems to need it, use the boundary override below, and explain the backend/security reasoning to him in plain, non-jargon language so he learns why.
 - **Boundary override — only via an explicit yes/no question, never silently.** When work on your track genuinely requires a change on the other track's side, ask the user directly with a yes/no `AskUserQuestion` ("This needs a <backend/frontend> change: <what and why>. Make it now?"). **Yes** → make the change, in its own commit(s), scoped to that need. **No** → write the full findings into the other track's handoff file: what is needed, the exact desired change, and your reasoning — then continue your work without crossing. This is self-enforcing: apply it unprompted, every time — needing a reminder is a failure.
-- **The API contract is the only bridge.** The frontend consumes the backend exclusively through the typed shared KMP client and the committed `server/openapi/v1.json` snapshot. Contract changes originate on the backend track; the frontend syncs Kotlin DTOs from the snapshot (`ApiContractTest` guards drift).
+- **The API contract is the only bridge.** The frontend consumes the backend exclusively through the typed dashboard API client and the committed `server/openapi/v1.json` snapshot. Contract changes originate on the backend track; the frontend regenerates `dashboard/src/api/schema.d.ts` from the snapshot (`npm run gen:api`; the CI dashboard job fails on drift).
 
 ### Handoff TODOs — cross-track work orders (pre-campaign rule; unused under D7)
 
@@ -125,7 +125,7 @@ Rules:
 
 ## CI Gate — a push is not done until CI is green
 
-1. **Before EVERY commit: run the tests.** Backend: `scripts/slice-check.ps1` (build + slice tests + csharpier + cleanup + ReSharper inspection); full-tree equivalent is `dotnet test` + `dotnet csharpier check .` from `server/`. Dashboard (Vue): `npx vitest run`, `npm run type-check`, `npm run lint` in `dashboard/`. The frozen KMP app is checked by CI's contract test only. Never commit on red.
+1. **Before EVERY commit: run the tests.** Backend: `scripts/slice-check.ps1` (build + slice tests + csharpier + cleanup + ReSharper inspection); full-tree equivalent is `dotnet test` + `dotnet csharpier check .` from `server/`. Dashboard (Vue): `npx vitest run`, `npm run type-check`, `npm run lint` in `dashboard/`. CI's dashboard job runs the same commands plus `npm run gen:api` and `npm run build-only`. Never commit on red.
 2. **After EVERY push: watch the run and block on it.**
    ```bash
    gh run list --limit 1                 # grab the run id for the pushed commit
@@ -159,8 +159,8 @@ Rules:
 - Main branch: `master` (never `main`)
 - Remotes: `origin` = `NoMercyLabs/nomnomzbot` (canonical, push here); `fork` = personal `StoneyEagle/nomnomzbot`
 - Feature branches: `feat/description` or `fix/description`
-- All code lives in this monorepo (`server/` backend, `app/` KMP + Compose frontend)
-- (Suspended during the remediation campaign — PRODUCT-ALIGNMENT D7; while suspended, one slice may span `server/` and `app/`, and a contract and its consumer land in the same commit.) Backend and frontend are separate tracks — commits never mix `server/` and `app/` files, and neither track rewrites the other's history (see *Team & Track Ownership*)
+- All code lives in this monorepo (`server/` backend, `dashboard/` Vue frontend)
+- (Suspended during the remediation campaign — PRODUCT-ALIGNMENT D7; while suspended, one slice may span `server/` and `dashboard/`, and a contract and its consumer land in the same commit.) Backend and frontend are separate tracks — commits never mix `server/` and `dashboard/` files, and neither track rewrites the other's history (see *Team & Track Ownership*)
 - Tests pass before every commit; every push is followed by `gh run watch <run-id> --exit-status` (see *CI Gate*)
 
 ---
@@ -187,4 +187,4 @@ Moved out of this file so every session starts lean; Grimora indexes them (`doc 
 - `FEATURES.md` and `FEATURES-BY-SIDEBAR.md` are the capability inventory.
 - Playbooks: `.claude/skills/README.md` (build-server, build-app, run-the-stack, commit-a-slice, watch-ci, deploy-and-verify, dispatch-a-builder, devbox, sleak), and the scripts they wrap: `slice-check`, `verify-tree`, `migration-check`, `push-and-watch`, `close-slice`, `land-worktree`, `refresh-openapi`, `mint-jwt.py`, `ship`, `switchover`.
 - Any schema change lands in BOTH migration sets (Postgres: `Infrastructure/Platform/Persistence/Migrations`; SQLite: `NomNomzBot.Migrations.Sqlite`).
-- The KMP app (`app/`) is frozen. Stoney, 2026-10-19: "i don't want to put in work for kmp, its development is stopped, it only needs to keep worling until the vue ui can replace it". No KMP work and no routine local Gradle gates; CI's frontend contract test is the keeps-working check. Touch `app/` only to keep it compiling after a server contract change.
+- The KMP app (`app/`) was removed on 2026-10-21 by Stoney's decision ("get Vue ported over to dev and take down kmp fully"; on 2026-10-19 he had said "i don't want to put in work for kmp, its development is stopped, it only needs to keep worling until the vue ui can replace it"). The Vue dashboard in `dashboard/` replaces it; the Docker image builds it in a Node stage and CI's dashboard job is its gate. Do not recreate `app/`, Gradle or Kotlin files.

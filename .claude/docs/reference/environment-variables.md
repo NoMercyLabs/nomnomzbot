@@ -64,10 +64,10 @@ For local `dotnet run` dev (not Docker): put Twitch credentials in `appsettings.
 
 ### Frontend
 
-The KMP + Compose dashboard is **profile-agnostic** — its only required configuration is the
-**backend URL**. The web build talks to the origin that served it (no picker); the native app keeps
-a list of saved server connections (mDNS LAN discovery + manual add) with per-server tokens in the
-OS keychain, switchable from the profile menu.
+The Vue dashboard is **profile-agnostic** — it needs no configuration of its own. It talks to the
+origin that served it (no picker). In development only, `NNZ_API` points the Vite proxy at another bot
+(default `http://localhost:5080`). `VITE_SIGN_IN_OPEN=true` at build time keeps sign-in open (the Docker
+image and the single-file publish set it).
 
 ### `appsettings.json` structure (config hierarchy — abridged; see `appsettings.json` for the full list)
 

@@ -198,5 +198,5 @@ finally {
 }
 
 Write-Host ''
-Write-Host 'Now run the contract guards:'
-Write-Host '  & app\gradlew.bat -p app :composeApp:jvmTest --tests "*ApiContractTest*" --tests "*ApiRouteContractTest*"'
+Write-Host 'Now regenerate the dashboard API types and commit them with the snapshot:'
+Write-Host '  npm --prefix dashboard run gen:api'

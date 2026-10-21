@@ -13,17 +13,14 @@
 #   .\deploy.ps1 desktop        single-file bot on this machine - no Docker, SQLite
 #   .\deploy.ps1 docker         full stack in Docker - Postgres + Redis + API (+ Adminer)
 #   .\deploy.ps1 saas           the Docker stack in multi-tenant SaaS mode
-#   .\deploy.ps1 <any> -App     ALSO build the standalone desktop dashboard installer
 #
-# Idempotent: re-run any time. The web dashboard is bundled into every backend
+# Idempotent: re-run any time. The Vue dashboard is bundled into every backend
 # artifact automatically - after any scenario, open the API URL in a browser.
 
 [CmdletBinding()]
 param(
     [Parameter(Position = 0)]
     [string]$Scenario,
-
-    [switch]$App,
 
     # Legacy alias for the desktop scenario.
     [switch]$Lite
@@ -48,11 +45,11 @@ NomNomzBot deploy - pick a scenario (full guide: DEPLOY.md)
                          against the project license (reserved to NoMercy Labs).
                          Self-hosting your own bot is always free and unrestricted.
 
-Dashboard (both work in every scenario):
-  web app     nothing to build - the bot serves it; open the API URL in a browser.
-  -App        also build the standalone desktop dashboard installer for THIS OS.
+Dashboard (every scenario):
+  The Vue dashboard is built into the bot's image or binary. Nothing extra to
+  build - the bot serves it; open the API URL in a browser.
 
-Example: .\deploy.ps1 desktop -App
+Example: .\deploy.ps1 desktop
 '@
 }
 
@@ -156,7 +153,7 @@ function Start-ComposeStack {
             Write-Host "  Health          : $baseUrl/health"
             Write-Host "  Adminer (DB)    : http://localhost:$adminerPort"
             Write-Host ''
-            Write-Host "Point the desktop dashboard app at $baseUrl, or just use the web dashboard."
+            Write-Host "Open $baseUrl in a browser to use the dashboard."
             return
         }
         catch {
@@ -186,7 +183,11 @@ function Invoke-DesktopScenario {
     [string]$rid = "win-$arch"
 
     Write-Host "Publishing the single-file bot (self_host_lite) for $rid - the web dashboard is bundled in..."
-    dotnet publish server/src/NomNomzBot.Api -c Release -r $rid --self-contained true
+    if (-not (Get-Command npm -ErrorAction SilentlyContinue)) {
+        Write-Error 'Node.js 22 (with npm) is required to build the bundled dashboard. Install it from https://nodejs.org'
+        exit 1
+    }
+    dotnet publish server/src/NomNomzBot.Api -c Release -r $rid --self-contained true -p:BundleDashboard=true
     if ($LASTEXITCODE -ne 0) { Write-Error 'dotnet publish failed.'; exit $LASTEXITCODE }
 
     [string]$out = "server/src/NomNomzBot.Api/bin/Release/net10.0/$rid/publish/nomnomz.exe"
@@ -196,7 +197,7 @@ function Invoke-DesktopScenario {
     Write-Host 'Copy it anywhere and run it:'
     Write-Host "  Copy-Item `"$out`" .\nomnomz.exe; .\nomnomz.exe"
     Write-Host 'Its data (SQLite DB, keys, logs) lives in %LOCALAPPDATA%\NomNomzBot - override with NOMNOMZ_DATA_DIR.'
-    Write-Host 'Then open the web dashboard at http://localhost:5080 - or use the desktop app (-App).'
+    Write-Host 'Then open the dashboard at http://localhost:5080 in a browser.'
 }
 
 # --- scenario: docker (self_host_full - compose stack) --------------------------
@@ -259,32 +260,6 @@ function Invoke-SaasScenario {
     Start-ComposeStack
 }
 
-# --- standalone desktop dashboard app (optional, any scenario) ------------------
-
-function Build-DesktopApp {
-    if (-not (Get-Command java -ErrorAction SilentlyContinue)) {
-        Write-Error 'A JDK (21 recommended) is required to build the desktop dashboard app - https://adoptium.net'
-        exit 1
-    }
-
-    Write-Host ''
-    Write-Host 'Building the standalone desktop dashboard installer for this OS...'
-    Push-Location app
-    try {
-        .\gradlew.bat :composeApp:packageDistributionForCurrentOS --console=plain
-        if ($LASTEXITCODE -ne 0) {
-            Write-Error 'Gradle packaging failed. On Windows, building the MSI additionally requires the WiX Toolset 3.x (https://wixtoolset.org) on PATH.'
-            exit $LASTEXITCODE
-        }
-    }
-    finally { Pop-Location }
-
-    Write-Host ''
-    Write-Host 'Desktop app installer(s) at:'
-    Write-Host '  app\composeApp\build\compose\binaries\main\'
-    Write-Host "Install it, launch it, and point it at your bot's URL (it also finds LAN bots automatically)."
-}
-
 # --- scenario dispatch ----------------------------------------------------------
 
 if ($Lite) { $Scenario = 'desktop' }   # legacy alias
@@ -305,7 +280,5 @@ switch ($Scenario.ToLowerInvariant()) {
         exit 2
     }
 }
-
-if ($App) { Build-DesktopApp }
 
 exit 0

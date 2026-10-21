@@ -13,7 +13,8 @@ state, not progress.
 ## The sequence
 
 1. **Gate it.** Backend → `scripts/slice-check.ps1` (see `build-server`). Frontend →
-   `jvmTest` **and** `compileKotlinWasmJs` (see `build-app`). Never commit on red.
+   the dashboard lane gate (`lane-gate.sh` on the lane's own files; the CI dashboard job runs
+   `npm run type-check`, `npm run lint`, `npx vitest run`, `npm run build-only`). Never commit on red.
 2. **Stage by explicit pathspec.** The tree is shared with other agents.
 
    ```powershell
@@ -33,8 +34,8 @@ state, not progress.
    - **Never `git stash`** on a shared tree. To verify around someone else's broken WIP, use
      `slice-check.ps1 -AtCommit <sha>` in a throwaway worktree.
 3. **The track split is suspended during the remediation campaign (D7); one slice may span
-   `server/` and `app/`.** Keep a contract and its consumer in the same commit
-   (`openapi/v1.json` + Kotlin DTOs).
+   `server/` and `dashboard/`.** Keep a contract and its consumer in the same commit
+   (`openapi/v1.json` + `dashboard/src/api/schema.d.ts`).
 4. **Close the tracker entry** — the tracker holds **remaining work only**, so a shipped slice
    is *deleted*, never annotated as done:
 

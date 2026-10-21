@@ -43,7 +43,6 @@ uncommitted work in the shared tree breaks a file you do not own. **Never `git s
 
 ```powershell
 scripts/verify-tree.ps1                # build + all 5 suites incl. E2E + csharpier
-scripts/verify-tree.ps1 -IncludeApp    # also forces the Kotlin jvmTest suite
 scripts/verify-tree.ps1 -AtCommit <sha>
 ```
 

@@ -14,9 +14,8 @@
 #   ./deploy.sh desktop        single-file bot on this machine — no Docker, SQLite
 #   ./deploy.sh docker         full stack in Docker — Postgres + Redis + API (+ Adminer)
 #   ./deploy.sh saas           the Docker stack in multi-tenant SaaS mode
-#   ./deploy.sh <any> --app    ALSO build the standalone desktop dashboard installer
 #
-# Idempotent: re-run any time. The web dashboard is bundled into every backend
+# Idempotent: re-run any time. The Vue dashboard is bundled into every backend
 # artifact automatically — after any scenario, open the API URL in a browser.
 
 set -euo pipefail
@@ -41,11 +40,11 @@ NomNomzBot deploy — pick a scenario (full guide: DEPLOY.md)
                         against the project license (reserved to NoMercy Labs).
                         Self-hosting your own bot is always free and unrestricted.
 
-Dashboard (both work in every scenario):
-  web app     nothing to build — the bot serves it; open the API URL in a browser.
-  --app       also build the standalone desktop dashboard installer for THIS OS.
+Dashboard (every scenario):
+  The Vue dashboard is built into the bot's image or binary. Nothing extra to
+  build — the bot serves it; open the API URL in a browser.
 
-Example: ./deploy.sh desktop --app
+Example: ./deploy.sh desktop
 EOF
 }
 
@@ -131,7 +130,7 @@ compose_up_and_wait() {
       echo "  Health          : ${base_url}/health"
       echo "  Adminer (DB)    : http://localhost:$(env_get ADMINER_PORT | grep . || echo 8082)"
       echo
-      echo "Point the desktop dashboard app at ${base_url}, or just use the web dashboard."
+      echo "Open ${base_url} in a browser to use the dashboard."
       return 0
     fi
     printf '.'
@@ -162,7 +161,9 @@ scenario_desktop() {
   rid="${os}-${arch}"
 
   echo "Publishing the single-file bot (self_host_lite) for ${rid} — the web dashboard is bundled in..."
-  dotnet publish server/src/NomNomzBot.Api -c Release -r "$rid" --self-contained true
+  command -v npm >/dev/null 2>&1 \
+    || die "Node.js 22 (with npm) is required to build the bundled dashboard. Install it from https://nodejs.org"
+  dotnet publish server/src/NomNomzBot.Api -c Release -r "$rid" --self-contained true -p:BundleDashboard=true
 
   local data_dir
   case "$os" in
@@ -177,7 +178,7 @@ scenario_desktop() {
   echo "Run it from any folder:"
   echo "  cp \"${out}\" ./nomnomz && ./nomnomz"
   echo "Its data (SQLite DB, keys, logs) lives in ${data_dir} — override with NOMNOMZ_DATA_DIR."
-  echo "Then open the web dashboard at http://localhost:5080 — or use the desktop app (--app)."
+  echo "Then open the dashboard at http://localhost:5080 in a browser."
 }
 
 # --- scenario: docker (self_host_full — compose stack) --------------------------
@@ -235,26 +236,9 @@ scenario_saas() {
   compose_up_and_wait
 }
 
-# --- standalone desktop dashboard app (optional, any scenario) ------------------
-
-build_desktop_app() {
-  command -v java >/dev/null 2>&1 \
-    || die "a JDK (21 recommended) is required to build the desktop dashboard app — https://adoptium.net"
-
-  echo
-  echo "Building the standalone desktop dashboard installer for this OS..."
-  (cd app && ./gradlew :composeApp:packageDistributionForCurrentOS --console=plain)
-
-  echo
-  echo "Desktop app installer(s) at:"
-  echo "  app/composeApp/build/compose/binaries/main/"
-  echo "Install it, launch it, and point it at your bot's URL (it also finds LAN bots automatically)."
-}
-
 # --- argument parsing -----------------------------------------------------------
 
 SCENARIO=""
-BUILD_APP=0
 for arg in "$@"; do
   case "$arg" in
     desktop|docker|saas)
@@ -262,7 +246,6 @@ for arg in "$@"; do
       SCENARIO="$arg"
       ;;
     --lite) SCENARIO="desktop" ;;   # legacy alias
-    --app)  BUILD_APP=1 ;;
     -h|--help) guide; exit 0 ;;
     *) echo "Unknown option: $arg" >&2; echo >&2; guide >&2; exit 2 ;;
   esac
@@ -278,7 +261,5 @@ case "$SCENARIO" in
   docker)  scenario_docker ;;
   saas)    scenario_saas ;;
 esac
-
-[ "$BUILD_APP" -eq 1 ] && build_desktop_app
 
 exit 0

@@ -65,7 +65,7 @@ billing, platform admin (IAM, feature flags, tenant ops).
 
 For the full event list, see `Api/Hubs/Clients/IDashboardClient.cs`.
 
-The frontend connects through the shared KMP SignalR client. Auth token passed as `?access_token=<jwt>`.
+The dashboard connects through its SignalR client (`dashboard/src/realtime`). Auth token passed as `?access_token=<jwt>`.
 
 ### Authentication Flow
 
@@ -113,12 +113,10 @@ the dashboard dev server is also running:
 - `http://localhost:5080/health/version` — running build/commit
 - `http://localhost:8082` — Adminer (DB browser)
 
-The dashboard dev server (`wasmJsBrowserDevelopmentRun`) listens on its own port, `5090`
-(`build.gradle.kts`), so it never collides with the API's `5080`; its dev-only webpack proxy
-(`webpack.config.d/proxy.js`) targets `http://localhost:5080` when an API is actually listening there,
-and otherwise falls back to the deployed dev backend so a frontend-only dev never needs to run `dotnet`
-(override with `NNZ_DEV_BACKEND`; the chosen target is printed at startup). The two documented commands (`dotnet run` + `wasmJsBrowserDevelopmentRun`) run together with
-**zero flags and zero env vars** on a fresh clone. See *Running the Frontend* below.
+The dashboard dev server (`npm run dev` in `dashboard/`) listens on its own port, `5090`
+(`vite.config.ts`), so it never collides with the API's `5080`; its dev-only Vite proxy targets
+`http://localhost:5080` (override with `NNZ_API` to point at another bot). The two documented commands
+(`dotnet run` + `npm run dev`) run together with **zero flags and zero env vars** on a fresh clone. See *Running the Frontend* below.
 
 **OAuth redirect URI for local dev — always `http://localhost:5080/api/v1/auth/twitch/callback`.**
 `ResolvePublicOrigin` picks the public origin by this precedence: (1) an explicit non-loopback

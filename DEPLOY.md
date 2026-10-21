@@ -3,10 +3,9 @@
 NomNomzBot is two pieces:
 
 - The **bot** (backend) — runs somewhere: your PC, a home server, or your cloud.
-- The **dashboard** (client) — how you control it. 
-- The **web dashboard** is bundled into every backend artifact: whichever scenario you pick, opening the bot's URL in a browser gives you the full dashboard with nothing extra to install or build. 
-- A **standalone desktop app** with the exact
-  same UI is optional on top.
+- The **dashboard** (client) — how you control it. It is a Vue web app, bundled into every backend
+  artifact: whichever scenario you pick, opening the bot's URL in a browser gives you the full
+  dashboard with nothing extra to install or build.
 
 One script per operating system drives every scenario:
 
@@ -26,12 +25,6 @@ API and the dashboard in development mode with hot reload, no Docker — see its
 | The bot on a **home server** with a real database | **docker** (`self_host_full`) | `./deploy.sh docker` | `.\deploy.ps1 docker` |
 | To **host the bot for other streamers** (multi-tenant) — **restricted, see below** | **saas** (`saas`) | `./deploy.sh saas` | `.\deploy.ps1 saas` |
 
-Any scenario can also build the **standalone desktop dashboard app** for your OS by adding the
-app flag (single dash on Windows — that's PowerShell's native flag style):
-
-- **Linux / macOS:** `./deploy.sh desktop --app`
-- **Windows (PowerShell):** `.\deploy.ps1 desktop -App`
-
 Prefer Docker but want no Postgres or Redis? Use the one-container SQLite stack:
 `docker compose -f docker-compose.lite.yml up -d --build`. See
 [docs/install-docker-lite.md](docs/install-docker-lite.md).
@@ -39,32 +32,13 @@ Prefer Docker but want no Postgres or Redis? Use the one-container SQLite stack:
 Rule of thumb: start with **desktop**. Move to **docker** when you want Postgres-grade durability
 or the bot lives on a server. **saas** is a **restricted option** — see its section below.
 
-## The dashboard — web vs desktop app
+## The dashboard
 
-| | Web dashboard | Desktop app |
-|---|---|---|
-| Build step | **none — always bundled** | `--app` (Linux/macOS) · `-App` (Windows) |
-| Get it | open the bot's URL in a browser | installer in `app/composeApp/build/compose/binaries/main/` |
-| Connects to | the bot that served it | any bot — saved connections + automatic LAN discovery (mDNS) |
-| Best for | quick access, other devices, no install | daily driving, multiple bots |
-
-They are the **same application** (Kotlin Multiplatform + Compose) — identical screens and
-features. Requirements for `--app`: a JDK (21 recommended, [adoptium.net](https://adoptium.net));
-on Windows the MSI additionally needs the [WiX Toolset 3.x](https://wixtoolset.org). The installer
-is always built for the OS you run the script on.
-
-**Windows first launch:** the desktop app opens no console window (a windowless launcher), which
-Windows Defender Firewall treats like any other app making its first outbound connection — expect
-one "Windows Defender Firewall has blocked some features of this app" prompt the first time it
-reaches the bot over the network. Allow it (Private networks is enough for LAN bots); this is a
-one-time OS prompt, not a bot/app misconfiguration.
-
-**Desktop data & logs:** the app's per-user state (saved connections, the encrypted token vault,
-window position/size, language/emoji preferences) lives under the OS-standard app-data directory —
-`%LOCALAPPDATA%\NomNomzBot` on Windows, `~/Library/Application Support/NomNomzBot` on macOS,
-`$XDG_DATA_HOME/NomNomzBot` (falling back to `~/.local/share/NomNomzBot`) on Linux. A rolling
-diagnostics log lives at `<that directory>/logs/app.log`, capped at 2 MB (oldest lines are dropped
-once it would grow past the cap) — check it first when the app fails to reach a bot or won't start.
+The dashboard is the **Vue web app** in `dashboard/`. There is nothing to install: every backend
+artifact bundles it, and the bot serves it at its own URL. Open that URL in a browser, on this
+machine or any other device that can reach the bot. The Docker image builds it with
+`npm run build` in a Node stage; the single-file publish builds it with `-p:BundleDashboard=true`.
+(The old Kotlin desktop app was removed on 2026-10-21.)
 
 ## Scenario: desktop — `self_host_lite`
 
@@ -73,7 +47,8 @@ database, encryption keys, logs) in **one per-user folder**: `%LOCALAPPDATA%\Nom
 Windows, `~/.local/share/NomNomzBot` on Linux, `~/Library/Application Support/NomNomzBot` on
 macOS. Back up that folder and you've backed up the bot; set `NOMNOMZ_DATA_DIR` to relocate it.
 
-**Requirements:** the [.NET 10 SDK](https://dot.net) (build only — the produced binary needs nothing).
+**Requirements:** the [.NET 10 SDK](https://dot.net) and [Node.js 22](https://nodejs.org) (build only — the
+produced binary needs nothing; Node builds the Vue dashboard that the binary bundles).
 
 **Linux / macOS**
 
@@ -104,8 +79,7 @@ Copy-Item server\src\NomNomzBot.Api\bin\Release\net10.0\win-x64\publish\nomnomz.
 ```
 
 First start creates the data folder and walks you through setup in the dashboard — open
-**http://localhost:5080** in a browser (or connect the desktop app; it finds LAN bots
-automatically). **Update** by re-running the scenario and replacing the binary; your data stays in
+**http://localhost:5080** in a browser. **Update** by re-running the scenario and replacing the binary; your data stays in
 place. There are no prebuilt binaries yet — this scenario is the build.
 
 ## Scenario: docker — `self_host_full`
@@ -238,11 +212,10 @@ stream ends. Discord's own rules put these steps on the server owner. The bot ca
 
 ## Every combination at a glance
 
-| Backend scenario | Web dashboard | Desktop app (Linux/macOS) | Desktop app (Windows) |
-|---|---|---|---|
-| desktop | `http://localhost:5080` | `./deploy.sh desktop --app` | `.\deploy.ps1 desktop -App` |
-| docker | `http://localhost:5080` (or your URL) | `./deploy.sh docker --app` | `.\deploy.ps1 docker -App` |
-| saas *(restricted — see above)* | `https://your-domain` | `./deploy.sh saas --app` | `.\deploy.ps1 saas -App` |
+| Backend scenario | Dashboard (open in a browser) |
+|---|---|
+| desktop | `http://localhost:5080` |
+| docker | `http://localhost:5080` (or your URL) |
+| saas *(restricted — see above)* | `https://your-domain` |
 
-The `--app` build is independent of the backend scenario — you can also run it on a different
-machine than the bot (build the app on your PC, point it at the server).
+The dashboard is the same Vue build in every scenario. Any device on your network can open it.

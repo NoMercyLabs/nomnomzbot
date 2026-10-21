@@ -38,10 +38,8 @@ services:
       DEVBOX_AUTH: "git,gh,claude,docker"
       DEVBOX_BOOTSTRAP: "cd /workspace/server && dotnet tool restore"
       TZ: ${TZ:-Europe/Amsterdam}
-      GRADLE_USER_HOME: /home/dev/.gradle
       NUGET_PACKAGES: /home/dev/.nuget/packages
       ArtifactsPath: /home/dev/artifacts
-      GRADLE_OPTS: "-Dorg.gradle.jvmargs=-Xmx3g -Dkotlin.daemon.jvmargs=-Xmx2g"
       DOTNET_GCHeapHardLimit: "0xC0000000"
     ports:
       - "${DEVBOX_PORT:-8443}:8080"   # code-server (browser VS Code)
@@ -52,7 +50,6 @@ services:
       - ..:/workspace
       - devbox-home:/home/dev
       - devbox-nuget:/home/dev/.nuget
-      - devbox-gradle:/home/dev/.gradle
       - devbox-dotnet:/home/dev/.dotnet
       - devbox-extensions:/home/dev/.local/share/code-server
       - devbox-vscode-server:/home/dev/.vscode-server
@@ -72,7 +69,6 @@ services:
 volumes:
   devbox-home:
   devbox-nuget:
-  devbox-gradle:
   devbox-dotnet:
   devbox-extensions:
   devbox-vscode-server:

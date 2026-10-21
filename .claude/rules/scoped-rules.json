@@ -183,7 +183,7 @@
   {
    "id": "design-system-shadcn",
    "paths": [
-    "**/app/**"
+    "**/dashboard/src/**"
    ],
    "brief": [
     "\\bUI\\b",
@@ -740,11 +740,11 @@
     "compileKotlinWasmJs",
     "gradlew"
    ],
-   "text": "The KMP app (app/) is frozen: no KMP features, fixes, polish or routine local Gradle gates (jvmTest, compileKotlinWasmJs). CI's frontend contract test is the keeps-working check. Touch app/ only to keep it compiling after a server contract change, with the smallest edit.",
-   "source": "Stoney 2026-10-19: \"i don't want to put in work for kmp, its development is stopped, it only needs to keep worling until the vue ui can replace it\"",
+   "text": "The KMP app (app/) was removed on 2026-10-21 by Stoney's decision, after the Vue dashboard replaced it. Do not recreate app/, Gradle or Kotlin files, or a Wasm/desktop publish target. The frontend is dashboard/ (Vue); CI's dashboard job is its gate.",
+   "source": "Stoney 2026-10-19: \"i don't want to put in work for kmp, its development is stopped, it only needs to keep worling until the vue ui can replace it\"; Stoney 2026-10-21: \"get Vue ported over to dev and take down kmp fully\"",
    "covers": [
     "feedback-kmp-frozen-keep-working-only.md",
-    "The KMP app (`app/`) is frozen"
+    "The KMP app (`app/`) was removed on 2026-10-21"
    ]
   },
   {
@@ -1012,7 +1012,7 @@
   },
   {
    "id": "git-conventions",
-   "text": "Conventional commit messages preferred. Main branch is `master` (never `main`). `origin` = NoMercyLabs/nomnomzbot canonical, `fork` = personal. Feature branches `feat/description` or `fix/description`. All code in this monorepo (server/, app/); backend and frontend commits never mix `server/` and `app/` files (suspended under D7); while suspended, keep a contract and its consumer in one commit. Tests pass before every commit; every push is followed by `gh run watch`.",
+   "text": "Conventional commit messages preferred. Main branch is `master` (never `main`). `origin` = NoMercyLabs/nomnomzbot canonical, `fork` = personal. Feature branches `feat/description` or `fix/description`. All code in this monorepo (server/, dashboard/); backend and frontend commits never mix `server/` and `dashboard/` files (suspended under D7); while suspended, keep a contract and its consumer in one commit. Tests pass before every commit; every push is followed by `gh run watch`.",
    "source": "CLAUDE.md: Git Conventions",
    "covers": [
     "Conventional commit messages preferred",
@@ -1020,7 +1020,7 @@
     "Remotes: `origin`",
     "Feature branches:",
     "All code lives in this monorepo",
-    "commits never mix `server/` and `app/`",
+    "commits never mix `server/` and `dashboard/`",
     "Tests pass before every commit"
    ]
   },

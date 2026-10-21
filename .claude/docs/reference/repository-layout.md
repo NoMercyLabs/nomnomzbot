@@ -21,10 +21,9 @@ nomnomzbot/
 │   ├── openapi/             # Committed OpenAPI snapshot v1.json (contract drift guard)
 │   ├── Dockerfile           # NOT the shipped image — the root Dockerfile is; this one builds the API alone by hand
 │   └── docker-compose.yml, docker-compose.dev.yml   # server-local compose files (not the deployed stack)
-├── app/                     # Frontend — Kotlin Multiplatform + Compose Multiplatform (desktop + web/Wasm)
-│   └── composeApp/          #   src/commonMain: App.kt, core/ (network client, i18n, design system),
-│                            #   feature/<domain>/ (screens + state); i18n resources in
-│                            #   composeResources/values/strings.xml (en) + values-nl/ (nl)
+├── dashboard/               # Frontend — Vue 3 + Vite + TypeScript (the KMP app/ was removed 2026-10-21)
+│   └── src/                 #   api/ (typed client), views/<area>/ (pages, each with i18n/en.json + nl.json),
+│                            #   components/, composables/, lib/, router/, stores/, realtime/
 │                            # Public surfaces (OBS overlays, song-request) = compiled widgets served by the
 │                            # bot + CDN-cached for SaaS (widgets-overlays); there is no static web/ folder.
 ├── docs/                    # Published documentation
@@ -46,8 +45,8 @@ nomnomzbot/
 ├── README.md
 ├── FEATURES.md              # Feature inventory
 ├── FEATURES-BY-SIDEBAR.md   # Feature inventory grouped by dashboard sidebar entry
-├── DEPLOY.md                # Deployment chooser — desktop / docker / saas × web / desktop app
-├── deploy.sh                # One deploy script per OS: <scenario> [--app]
+├── DEPLOY.md                # Deployment chooser — desktop / docker / saas (the dashboard is bundled in each)
+├── deploy.sh                # One deploy script per OS: <scenario>
 ├── deploy.ps1
 └── .env.example
 ```
@@ -63,7 +62,7 @@ not in this tree.
 | `dev-api.ps1` | Start / stop / status of the local dev API (waits for `/health`) |
 | `free-disk-and-recover.ps1` | Disk-full Postgres crash-loop recovery: prune dangling images, verify recovery |
 | `guard-single-color.sh` | Runs on the deploy host via cron; keeps only the healthy blue/green colour up |
-| `land-worktree.ps1` | Merge a finished worktree-agent branch, sanity-check `v1.json` / `strings.xml`, push and watch |
+| `land-worktree.ps1` | Merge a finished worktree-agent branch, sanity-check `v1.json`, push and watch |
 | `migration-check.ps1` | Prove a migration works on an upgrade (database that already holds rows) |
 | `mint-jwt.py` | Mint an HS256 access JWT to drive a deployed instance as an authenticated user |
 | `spam-enforcement-mutation-check.ps1` | Spam-enforcement mutation harness: delete one guard in SpamEnforcementExecutor, run its tests, record which tests notice, restore |

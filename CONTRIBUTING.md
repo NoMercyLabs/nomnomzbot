@@ -63,7 +63,7 @@ To run the bot locally, see [Getting started](README.md#getting-started) and
 
 ```
 server/   .NET 10 backend: Domain → Application → Infrastructure → Api, plus tests
-app/      Kotlin Multiplatform + Compose dashboard (desktop and web/Wasm)
+dashboard/  Vue 3 dashboard (Vite + TypeScript)
 scripts/  Helper scripts (PowerShell 7, runs on every OS)
 ```
 
@@ -79,11 +79,14 @@ dotnet csharpier format .
 dotnet csharpier check .
 ```
 
-**Dashboard** (from `app/`):
+**Dashboard** (from `dashboard/`):
 
 ```bash
-./gradlew :composeApp:jvmTest
-./gradlew :composeApp:compileKotlinWasmJs   # jvmTest cannot catch a web-only break
+npm ci
+npm run type-check
+npm run lint
+npx vitest run
+npm run build-only
 ```
 
 CI runs the same checks on every push.
@@ -103,22 +106,22 @@ CI runs the same checks on every push.
   (`server/src/NomNomzBot.Infrastructure/Platform/Persistence/Migrations`) and SQLite
   (`server/src/NomNomzBot.Migrations.Sqlite`). A change in only one set breaks the other database.
 - **API changes** must update `server/openapi/v1.json` with `scripts/refresh-openapi.ps1`. Do not edit
-  that file by hand. The dashboard tests (`ApiContractTest`, `ApiRouteContractTest`) fail when the
-  snapshot and the code disagree.
+  that file by hand. Then run `npm run gen:api` in `dashboard/` and commit `src/api/schema.d.ts`. The CI
+  dashboard job fails when the generated types and the snapshot disagree.
 
 ### Dashboard
 
 - Follow the design system in `.claude/docs/design/spec/frontend-design-system.md`. Use its tokens and
   components. Never hard-code a color or a size.
 - One primary action per group. Other buttons are outline or ghost.
-- All visible text comes from string resources, in English (`values/strings.xml`) and Dutch
-  (`values-nl/strings.xml`). Never put text in code.
+- All visible text comes from the i18n files next to each view, in English (`i18n/en.json`) and Dutch
+  (`i18n/nl.json`). Never put text in code.
 - Show only what the bot really does. A setting that has no effect yet must say so.
 
 ### Every file
 
 - Every new source file starts with the license header. Copy it from any existing file.
-  Use `//` for C#, Kotlin, TypeScript and JavaScript, and `#` for PowerShell, shell, YAML and Docker files.
+  Use `//` for C#, TypeScript and JavaScript, and `#` for PowerShell, shell, YAML and Docker files.
 - Leave no temporary files in the tree.
 
 ## Tests

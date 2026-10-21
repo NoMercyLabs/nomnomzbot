@@ -10,10 +10,10 @@
 | Real-time | ASP.NET SignalR (WebSocket) |
 | Auth | JWT · provider-generic sign-in (D2): device code or auth code + PKCE per platform · OAuth code flow for integrations · web refresh token in an HttpOnly cookie |
 | Logging | Serilog |
-| Frontend (dashboard) | Kotlin Multiplatform (KMP) + Compose Multiplatform — one codebase, **desktop + web (Wasm)** identical UI; mobile later |
+| Frontend (dashboard) | Vue 3 + Vite + TypeScript + shadcn-vue + Tailwind (`dashboard/`), served by the bot; PWA |
 | Public surfaces | Widget system (OBS overlays, song-request, OAuth landing) — compiled from source, served by the bot, CDN-cached for SaaS |
 | Widgets | Vue SFC compiled by a pooled Jint + @vue/compiler-sfc (`JintVueSfcCompiler`), bundled by the esbuild binary, served by `OverlayVueRuntimeController` |
-| Backend comms (FE) | Typed shared KMP client over REST (v1 API) + SignalR (realtime) |
+| Backend comms (FE) | Typed API client over REST (v1 API, types generated from the OpenAPI snapshot) + SignalR (realtime) |
 | Payments | Stripe.net (present in `Directory.Packages.props`) |
 | Scripting | Jint runs the script; on save the esbuild binary (`EsbuildScriptBundler`) strips TypeScript and bundles relative imports. esbuild is in the Docker image and CI; for local tests set `Widgets__EsbuildPath` to a downloaded `@esbuild/<platform>` binary |
 | WASM runtime | Wasmtime (present in `Directory.Packages.props`) |

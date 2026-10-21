@@ -31,7 +31,7 @@ docker compose up -d postgres redis adminer
 ## The dashboard
 
 ```powershell
-& app\gradlew.bat -p app :composeApp:wasmJsBrowserDevelopmentRun --watch-fs -t
+npm --prefix dashboard run dev
 ```
 
 Serves on **5090** and proxies `/api` + `/hubs` to `http://localhost:5080`. No flags, no env
@@ -61,8 +61,9 @@ An overlay- or preview-only output (TTS, alerts, widget previews) needs a **pres
 
 ## Refreshing the OpenAPI snapshot
 
-Run `scripts/refresh-openapi.ps1`, then `:composeApp:jvmTest` so `ApiContractTest` AND
-`ApiRouteContractTest` pass. **Never commit a consumer without its contract.**
+Run `scripts/refresh-openapi.ps1`, then `npm --prefix dashboard run gen:api` so
+`dashboard/src/api/schema.d.ts` matches the snapshot (the CI dashboard job fails on a diff).
+**Never commit a consumer without its contract.**
 
 ## Report back
 

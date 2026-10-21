@@ -11,10 +11,10 @@
 
 - [ ] One complete change, with its tests. No unrelated edits.
 - [ ] Backend: `dotnet build NomNomzBot.slnx` has no warnings, `dotnet test` passes, `dotnet csharpier check .` passes.
-- [ ] Dashboard: `./gradlew :composeApp:jvmTest` and `./gradlew :composeApp:compileKotlinWasmJs` pass.
+- [ ] Dashboard: `npm run type-check`, `npm run lint`, `npx vitest run` and `npm run build-only` pass in `dashboard/`.
 - [ ] Database change: a migration in **both** sets (Postgres and SQLite), or no schema change.
 - [ ] API change: `server/openapi/v1.json` refreshed with `scripts/refresh-openapi.ps1`, or no API change.
 - [ ] New source files start with the license header.
-- [ ] Visible text is in string resources, in English and Dutch.
+- [ ] Visible text is in the i18n files, in English and Dutch.
 - [ ] No `var` in C#, no hard-coded colors or sizes in the dashboard.
 - [ ] No attribution trailers in commit messages.
