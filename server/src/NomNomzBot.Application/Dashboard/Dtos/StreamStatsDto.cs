@@ -43,6 +43,11 @@ public sealed record StreamStatsDto
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public int? Followers { get; set; }
 
+    /// <summary>Display names of the viewers who followed during the stream, oldest first.</summary>
+    [JsonPropertyName("newFollowers")]
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public List<string>? NewFollowers { get; set; }
+
     /// <summary>Subscriptions during the stream: new, resubscribed, gifted and the total.</summary>
     [JsonPropertyName("subs")]
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]

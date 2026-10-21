@@ -22,6 +22,7 @@ interface RecapDto {
   duration?: number | null;
   peakViewers?: number | null;
   followers?: number | null;
+  newFollowers?: string[] | null;
   subs?: { total?: number | null } | null;
   gifters?: NamedCount[] | null;
   selfSubs?: string[] | null;
@@ -40,6 +41,7 @@ const ALL_METRICS = [
   'duration',
   'peakViewers',
   'followers',
+  'newFollowers',
   'subs',
   'gifters',
   'selfSubs',
@@ -197,13 +199,17 @@ function rowsOf(items: NamedCount[] | null | undefined, ranked: boolean): Row[] 
   }));
 }
 
+function nameRows(names: string[] | null | undefined): Row[] {
+  return (names || []).map((name) => ({ kind: 'row' as const, name, value: '', rank: 0 }));
+}
+
 function heading(text: string): Row[] {
   return text ? [{ kind: 'heading', name: text, value: '', rank: 0 }] : [];
 }
 
 function subsRows(r: RecapDto): Row[] {
   const gifted = rowsOf(r.gifters, false);
-  const own: Row[] = (r.selfSubs || []).map((name) => ({ kind: 'row', name, value: '', rank: 0 }));
+  const own: Row[] = nameRows(r.selfSubs);
   return [
     ...(gifted.length ? [...heading(label('subs.gifted')), ...gifted] : []),
     ...(own.length ? [...heading(label('subs.own')), ...own] : []),
@@ -246,7 +252,7 @@ function buildCards(r: RecapDto): Card[] {
       on: cfg.showBits,
       has: !!r.bits?.total,
     },
-    { key: 'followers', big: stat(r.followers), unit: '', rows: [], on: cfg.showFollowers, has: !!r.followers },
+    { key: 'followers', big: stat(r.followers), unit: '', rows: nameRows(r.newFollowers), on: cfg.showFollowers, has: !!r.followers },
     {
       key: 'redemptions',
       big: stat(r.redemptions?.total),

@@ -41,8 +41,8 @@ public sealed class StreamRecapBackfillSeeder(
         2026,
         10,
         21,
-        6,
-        45,
+        9,
+        30,
         0,
         DateTimeKind.Utc
     );

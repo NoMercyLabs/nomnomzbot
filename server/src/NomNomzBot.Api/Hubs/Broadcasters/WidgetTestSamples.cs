@@ -450,6 +450,7 @@ internal static class WidgetTestSamples
             Duration = 4 * 3600,
             PeakViewers = 36,
             Followers = 3,
+            NewFollowers = ["TestFollower"],
             Subs = new()
             {
                 New = 2,
