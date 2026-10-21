@@ -52,7 +52,7 @@ This downloads the ready-made image. It is built and tested for every release.
 5. Follow the setup wizard. You can enter your Twitch credentials there.
 
 You can also put settings in a `.env` file first. Copy `.env.example` to `.env`. All values are optional in lite.
-If you leave the secrets empty, the bot makes its own and saves them in the data folder.
+If you leave `ENCRYPTION_KEY` empty, the bot makes its own key and saves it in the data folder, in the file `keys/root-kek.key`. See "Your secret key" below.
 
 To build the image yourself, set `API_IMAGE=nomnomzbot-api:local` in `.env` and add `--build` to the command.
 The build needs a lot of memory for Docker. With too little, the build can stop with `wasm-opt` and `exit value 139`.
@@ -75,6 +75,17 @@ sudo chown 1654:1654 data
 ```
 
 Keep the whole folder together. The database has side files that end in `-wal` and `-shm`. Never copy the database file alone.
+
+## Your secret key
+
+The bot encrypts the secrets you save, such as your Twitch client secret. It needs a key for this.
+
+- If you set `ENCRYPTION_KEY` in `.env`, the bot uses that key. It makes no key file.
+- If `ENCRYPTION_KEY` is empty, the bot makes a random key on the first start. It saves the key in `keys/root-kek.key` in the data folder. Only the bot user can read the file.
+
+The backup must include this file. Copy the whole data folder, as described below.
+
+If you lose the key, the bot cannot read the saved secrets. Enter them again in the setup wizard. Do not delete `keys/root-kek.key`.
 
 ## Back up your data
 
