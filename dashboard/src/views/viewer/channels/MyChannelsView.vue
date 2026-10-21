@@ -34,7 +34,16 @@ const primaryId = computed<string | undefined>(
   () => channels.value.find((channel) => channel.isLive)?.channelId,
 );
 
-const managed = computed(() => merge(mine.data.value ?? [], moderated.data.value ?? []));
+// One chip per channel: the same channel can be on both lists.
+const managed = computed(() =>
+  Array.from(
+    new Map(
+      merge(mine.data.value ?? [], moderated.data.value ?? []).map((channel) => [
+        channel.login,
+        channel,
+      ]),
+    ).values(),
+  ));
 
 function lastSeen(channel: WatchedChannel): string {
   return channel.lastSeenAt

@@ -115,12 +115,20 @@ describe('MyChannelsView', () => {
         displayName: 'Mine',
         isLive: false,
       }],
-      '/channels/moderated': [{
-        id: 'c2',
-        login: 'other',
-        displayName: 'Other',
-        isOnboarded: true,
-      }],
+      '/channels/moderated': [
+        {
+          id: 'c2',
+          login: 'other',
+          displayName: 'Other',
+          isOnboarded: true,
+        },
+        {
+          id: 'c1',
+          login: 'mine',
+          displayName: 'Mine',
+          isOnboarded: true,
+        },
+      ],
     };
 
     const wrapper = await mountPage();
