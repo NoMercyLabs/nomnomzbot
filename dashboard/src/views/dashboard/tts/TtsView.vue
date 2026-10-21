@@ -13,8 +13,6 @@ import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import { useTtsConfig, useTtsVoices, type TtsConfig } from '@/api/tts';
-import BoardCell from '@/components/layout/BoardCell.vue';
-import BoardGrid from '@/components/layout/BoardGrid.vue';
 import type { BoardPanel } from '@/components/layout/board';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
@@ -35,6 +33,7 @@ import KeysPanel from './KeysPanel.vue';
 import LexiconPanel from './LexiconPanel.vue';
 import RulesPanel from './RulesPanel.vue';
 import SpeakingPanel from './SpeakingPanel.vue';
+import TtsBoard from './TtsBoard.vue';
 import TtsRewardsPanel from './TtsRewardsPanel.vue';
 import VoicesTab from './VoicesTab.vue';
 
@@ -170,15 +169,17 @@ const pronunciationPanels = computed(
     <template #bar><PageTabs :tabs="tabs" /></template>
   </PageHeader>
 
-  <BoardGrid
+  <TtsBoard
     v-if="view === 'overview' && can('tts:config:read')"
     :panels="overviewPanels"
+    :spans="{ history: 7, settings: 5 }"
     :rows="1"
+    phone-first="settings"
   >
-    <BoardCell panel="history" :span="7">
+    <template #history>
       <HistoryPanel />
-    </BoardCell>
-    <BoardCell panel="settings" :span="5">
+    </template>
+    <template #settings>
       <PanelCard
         :title="$t('dashboard.tts.settings.title')"
         :description="$t('dashboard.tts.settings.description')"
@@ -232,38 +233,39 @@ const pronunciationPanels = computed(
           />
         </RowGroup>
       </PanelCard>
-    </BoardCell>
-  </BoardGrid>
+    </template>
+  </TtsBoard>
 
   <VoicesTab v-else-if="view === 'voices' && can('tts:voice:read')" />
 
   <!-- Two columns at every laptop width: the speaking settings on the left, the rules on the right. The
        pronunciation lexicon and the keys have their own tabs, so no panel scrolls inside the page. -->
-  <BoardGrid v-else-if="view === 'rules' && can('tts:config:read')" :panels="rulesPanels" :rows="2">
-    <BoardCell panel="speaking" :span="6">
-      <SpeakingPanel />
-    </BoardCell>
-    <BoardCell panel="rules" :span="6">
-      <RulesPanel />
-    </BoardCell>
-    <BoardCell panel="rewards" :span="12">
-      <TtsRewardsPanel />
-    </BoardCell>
-  </BoardGrid>
+  <TtsBoard
+    v-else-if="view === 'rules' && can('tts:config:read')"
+    :panels="rulesPanels"
+    :spans="{ speaking: 6, rules: 6, rewards: 12 }"
+    :rows="2"
+  >
+    <template #speaking><SpeakingPanel /></template>
+    <template #rules><RulesPanel /></template>
+    <template #rewards><TtsRewardsPanel /></template>
+  </TtsBoard>
 
-  <BoardGrid
+  <TtsBoard
     v-else-if="view === 'pronunciation' && can('tts:config:read')"
     :panels="pronunciationPanels"
+    :spans="{ lexicon: 12 }"
     :rows="1"
   >
-    <BoardCell panel="lexicon" :span="12">
-      <LexiconPanel />
-    </BoardCell>
-  </BoardGrid>
+    <template #lexicon><LexiconPanel /></template>
+  </TtsBoard>
 
-  <BoardGrid v-else-if="view === 'keys' && can('tts:config:write')" :panels="keysPanels" :rows="1">
-    <BoardCell panel="keys" :span="12">
-      <KeysPanel />
-    </BoardCell>
-  </BoardGrid>
+  <TtsBoard
+    v-else-if="view === 'keys' && can('tts:config:write')"
+    :panels="keysPanels"
+    :spans="{ keys: 12 }"
+    :rows="1"
+  >
+    <template #keys><KeysPanel /></template>
+  </TtsBoard>
 </template>

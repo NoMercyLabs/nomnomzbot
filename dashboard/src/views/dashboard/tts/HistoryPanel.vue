@@ -88,7 +88,7 @@ const state = computed<PanelState>(() => {
       <Button
         data-slot="history-older"
         type="button"
-        variant="ghost"
+        variant="outline"
         size="sm"
         class="w-full"
         :disabled="history.isFetchingNextPage.value"

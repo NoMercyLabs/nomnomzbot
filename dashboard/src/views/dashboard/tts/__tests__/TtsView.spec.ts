@@ -15,7 +15,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
-import { laptopWidth, setWidth } from '@/__tests__/viewport';
+import { laptopWidth, phoneWidth, setWidth } from '@/__tests__/viewport';
 import { i18n } from '@/i18n';
 
 import en from '../i18n/en.json';
@@ -494,5 +494,76 @@ describe('TtsView polish', () => {
     );
 
     expect(labels).toEqual(['Reset to defaults', 'Reset to defaults']);
+  });
+});
+
+// Stoney 2026-10-21: "Mobile needs more scrolling pages that are longer". A phone shows every panel of a tab
+// stacked in the one page scroll, so the page has one tab band and no second panel picker.
+describe('TtsView on a phone', () => {
+  const entry = (id: number): Record<string, unknown> => ({
+    id,
+    text: `line ${id}`,
+    voiceId: 'v',
+    provider: 'edge',
+    requestedByUserId: '42',
+    requestedByName: 'Viewer One',
+    requestedByColor: null,
+    occurredAt: '2026-10-20T10:00:00Z',
+  });
+
+  beforeEach(() => {
+    setWidth(phoneWidth);
+    answers['/tts/history'] = () => ok({ items: [entry(2), entry(1)], nextBefore: 1 });
+  });
+
+  it('stacks the settings and the history in one page with no second tab strip', async () => {
+    await open();
+
+    expect(document.body.querySelector('[data-slot="board-panel-picker"]')).toBeNull();
+    expect(document.body.querySelector('[data-slot="board-grid"]')).toBeNull();
+
+    const stack = document.body.querySelector('[data-slot="tts-stack"]');
+    const titles = [...(stack?.querySelectorAll('h2') ?? [])].map((title) => title.textContent);
+
+    expect(titles).toEqual(['Settings', 'Spoken history']);
+  });
+
+  it('lists the spoken history at its natural height with Show older messages at its end', async () => {
+    await open();
+
+    const history = panel('Spoken history');
+    const rows = history.querySelectorAll('[data-history-row]');
+    const older = history.querySelector<HTMLElement>('[data-slot="history-older"]');
+
+    expect(rows).toHaveLength(2);
+    expect(history.closest('[data-slot="tts-stack"]')).not.toBeNull();
+    expect(older?.textContent).toContain('Show older messages');
+    expect(older?.closest('footer')).not.toBeNull();
+  });
+
+  it('stacks the three panels of Rules and the one of Keys without a picker', async () => {
+    await open('?view=rules');
+    expect(document.body.querySelector('[data-slot="board-panel-picker"]')).toBeNull();
+
+    expect(
+      document.body.querySelectorAll('[data-slot="tts-stack"] [data-slot="panel-card"]'),
+    ).toHaveLength(3);
+
+    mounted?.unmount();
+    mounted = null;
+    await open('?view=keys');
+    expect(document.body.querySelector('[data-slot="board-panel-picker"]')).toBeNull();
+
+    expect(
+      document.body.querySelectorAll('[data-slot="tts-stack"] [data-slot="panel-card"]'),
+    ).toHaveLength(1);
+  });
+
+  it('keeps the board at laptop width', async () => {
+    setWidth(laptopWidth);
+    await open();
+
+    expect(document.body.querySelector('[data-slot="tts-stack"]')).toBeNull();
+    expect(document.body.querySelector('[data-slot="board-grid"]')).not.toBeNull();
   });
 });
