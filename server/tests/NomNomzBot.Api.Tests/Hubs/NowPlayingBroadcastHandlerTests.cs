@@ -53,6 +53,7 @@ public sealed class NowPlayingBroadcastHandlerTests
         IPlaybackStateReader state = Substitute.For<IPlaybackStateReader>();
         state.StateOf(channel).Returns(PlaybackState.Playing(engine, item));
         state.LevelOf(channel).Returns(new PlaybackLevel(40, true));
+        state.BlockedReasonOf(channel).Returns((string?)null);
         IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
         NowPlayingBroadcastHandler handler = new(notifier, state);
 
@@ -108,7 +109,7 @@ public sealed class NowPlayingBroadcastHandlerTests
         NowPlayingShapeDto? youtube = await Push(EngineKind.YouTube, "youtube");
 
         youtube.Should().NotBeNull();
-        youtube!.Engine.Should().Be("youtube");
+        youtube.Engine.Should().Be("youtube");
         youtube.Should().BeEquivalentTo(spotify!, o => o.Excluding(s => s.Engine));
     }
 
@@ -127,7 +128,7 @@ public sealed class NowPlayingBroadcastHandlerTests
 
         NowPlayingShapeDto? shape = PushedShape(notifier, channel.ToString());
         shape.Should().NotBeNull();
-        shape!.State.Should().Be("idle");
+        shape.State.Should().Be("idle");
         shape.Title.Should().BeEmpty();
         shape.IsPlaying.Should().BeFalse();
     }

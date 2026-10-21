@@ -195,6 +195,6 @@ public sealed class MusicCommandListingTests
         Result<string> result = await sut.ExecuteAsync(Ctx("80"));
 
         result.Value.Should().NotContain("80");
-        await music.DidNotReceiveWithAnyArgs().SetVolumeAsync(default!, default, default);
+        await music.DidNotReceiveWithAnyArgs().SetVolumeAsync(default!, default);
     }
 }

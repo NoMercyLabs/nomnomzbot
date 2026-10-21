@@ -139,7 +139,7 @@ public sealed class MediaPlaybackActionTests
         ActionResult result = await Run(action, "seek", "soon");
 
         result.Succeeded.Should().BeFalse();
-        await playback.DidNotReceiveWithAnyArgs().SendCommandAsync(default, default!, default);
+        await playback.DidNotReceiveWithAnyArgs().SendCommandAsync(default, default!);
     }
 
     [Fact]
