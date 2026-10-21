@@ -8,6 +8,8 @@
         "ok": "Everything is loaded",
         "warn": "Something is not loaded",
         "bad": "Something failed",
+        "sourcesMissing": "{count} browser source is not loaded in OBS | {count} browser sources are not loaded in OBS",
+        "sourcesFailed": "{count} browser source failed on its last run | {count} browser sources failed on their last run",
         "off": "OBS is not linked"
       },
       "connection": {

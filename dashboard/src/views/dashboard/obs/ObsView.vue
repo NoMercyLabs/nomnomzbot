@@ -51,7 +51,7 @@ import ScenesPanel from './components/ScenesPanel.vue';
 import SourcesPanel from './components/SourcesPanel.vue';
 import StudioPanel from './components/StudioPanel.vue';
 import { useObsClocks } from './obsClocks';
-import { bridgeHealth, connectionHealth, worstDot } from './obsHealth';
+import { bridgeHealth, connectionHealth, overallWords, worstDot } from './obsHealth';
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
@@ -144,7 +144,21 @@ const overall = computed<HealthDot>(() => {
   ]);
 });
 
-const overallReason = computed<string>(() => `dashboard.obs.overall.${overall.value || 'off'}`);
+// Green and gray keep their plain words; orange and red name what is not loaded or what failed.
+const overallText = computed<string>(() => {
+  if (overall.value === 'warn' || overall.value === 'bad') {
+    const words = overallWords(
+      connectionHealth(summary.value, unreachable.value),
+      bridgeHealth(summary.value, bridge.data.value),
+      Number(bridge.data.value?.instanceCount ?? 0),
+      widgets.data.value ?? [],
+    );
+
+    return t(words.key, { count: words.count ?? 0 }, words.count ?? 0);
+  }
+
+  return t(`dashboard.obs.overall.${overall.value || 'off'}`);
+});
 
 function retry(): void {
   void status.refetch();
@@ -160,7 +174,7 @@ function retry(): void {
     <template #status>
       <span data-obs-overall class="inline-flex items-center gap-2 text-sm text-muted-foreground">
         <span class="dot" :class="overall" aria-hidden="true" />
-        {{ $t(overallReason) }}
+        {{ overallText }}
       </span>
     </template>
     <template v-if="tabs.length > 1" #bar>

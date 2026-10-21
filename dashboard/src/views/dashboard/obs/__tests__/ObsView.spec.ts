@@ -296,6 +296,32 @@ describe('ObsView', () => {
     );
   });
 
+  // Stoney 2026-10-21 (mobile ledger Z-02): "Something is not loaded" never said what.
+  it('names the browser sources that are not loaded in the header words', async () => {
+    widgets = [
+      widget('w1', 'Chat', { isAttached: true }),
+      widget('w2', 'Alerts', { isAttached: false }),
+      widget('w3', 'Goals', { isAttached: false }),
+    ];
+
+    await open();
+
+    const words = document.querySelector('[data-obs-overall]')?.textContent ?? '';
+
+    expect(document.querySelector('[data-obs-overall] .dot')?.className).toContain('warn');
+    expect(words).toContain('2 browser sources are not loaded in OBS');
+    expect(words).not.toContain(en.dashboard.obs.overall.warn);
+  });
+
+  it('names the failed browser sources in the header words', async () => {
+    widgets = [widget('w1', 'Chat', { isAttached: true, lastRuntimeError: 'boom' })];
+    await open();
+
+    expect(document.querySelector('[data-obs-overall]')?.textContent).toContain(
+      '1 browser source failed on its last run',
+    );
+  });
+
   it('still turns the bridge orange when OBS is driven through the bridge and no page is open', async () => {
     bridgeCount = 0;
     connection = { ...connection, mode: 'bridge' };

@@ -129,6 +129,25 @@ describe('the pipelines list', () => {
     );
   });
 
+  // Mobile ledger Z-01: rows were plain text; the page scrolled inside the panel.
+  it('ends every row with a chevron, clamps the description to two lines and lets the page scroll on a phone', async () => {
+    await open();
+
+    const rows = [...document.body.querySelectorAll<HTMLElement>('[data-pipeline-row]')];
+
+    expect(rows).toHaveLength(2);
+
+    for (const row of rows) {
+      expect(row.querySelector('[data-slot="summary-row-chevron"]')).not.toBeNull();
+      expect(row.className).toContain('line-clamp-2');
+    }
+
+    const body = document.body.querySelector<HTMLElement>('[data-page-body]')!;
+
+    expect(body.className).toContain('max-md:overflow-y-auto');
+    expect(body.className).toContain('max-md:*:shrink-0');
+  });
+
   it('filters by name and description as the person types', async () => {
     await open();
     await mounted!.find('input').setValue('viewer');

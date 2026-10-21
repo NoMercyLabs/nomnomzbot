@@ -97,7 +97,7 @@ const creating = ref(false);
       </Button>
     </template>
   </PageHeader>
-  <div data-page-body class="flex min-h-0 flex-1 flex-col gap-3 p-6 max-md:pt-3 max-md:pb-0">
+  <div data-page-body class="flex min-h-0 flex-1 flex-col gap-3 p-6 max-md:overflow-y-auto max-md:p-4 max-md:*:shrink-0">
     <PanelCard
       v-if="access.can('pipelines:read')"
       :title="$t('dashboard.pipelines.list.title')"
@@ -131,8 +131,10 @@ const creating = ref(false);
         v-else
         :key="row.id"
         pick
+        chevron
         :title="row.name"
         :detail="row.description || detailOf(row)"
+        class="[&_[data-slot=summary-row-text]>span:nth-child(2)>span]:line-clamp-2"
         data-pipeline-row
         :data-pipeline-id="row.id"
         @click="open(row.id)"

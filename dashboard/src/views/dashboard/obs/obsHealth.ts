@@ -10,7 +10,7 @@
 
 import type { ObsBridgeStatus, ObsConnectionStatus } from '@/api/obs';
 import type { Widget } from '@/api/widgets';
-import type { HealthDot } from '@/views/dashboard/overlays/components/overlayHealth';
+import { overlayHealth, type HealthDot } from '@/views/dashboard/overlays/components/overlayHealth';
 
 // The connection as far as the viewer may see it: the status always, the last error only with the configuration.
 export type ObsConnectionSummary = ObsConnectionStatus & { lastError?: string | null };
@@ -73,6 +73,37 @@ export function bridgeHealth(
   return bridge.hasLeader
     ? { dot: 'ok', reason: 'bridge.leader' }
     : { dot: 'warn', reason: 'bridge.noLeader' };
+}
+
+// The header words: the worst finding, named. A connection or bridge finding keeps its own reason; browser
+// sources are counted ("2 browser sources are not loaded in OBS"). Equal severity keeps the first, so the link comes first.
+export type OverallWords = { key: string; count?: number };
+
+export function overallWords(
+  connection: Health,
+  bridge: Health,
+  bridgeOpen: number,
+  widgets: readonly Pick<Widget, 'isEnabled' | 'lastRuntimeError' | 'isAttached'>[],
+): OverallWords {
+  const failed = widgets.filter((widget) => overlayHealth(widget) === 'bad').length;
+  const missing = widgets.filter((widget) => overlayHealth(widget) === 'warn').length;
+  const findings: { dot: HealthDot; words: OverallWords }[] = [
+    { dot: connection.dot, words: { key: `dashboard.obs.${connection.reason}` } },
+    { dot: bridge.dot, words: { key: `dashboard.obs.${bridge.reason}`, count: bridgeOpen } },
+    { dot: failed > 0
+      ? 'bad'
+      : '', words: { key: 'dashboard.obs.overall.sourcesFailed', count: failed } },
+    { dot: missing > 0
+      ? 'warn'
+      : '', words: { key: 'dashboard.obs.overall.sourcesMissing', count: missing } },
+  ];
+
+  const worst = findings.reduce((top, next) =>
+    SEVERITY[next.dot] > SEVERITY[top.dot]
+      ? next
+      : top);
+
+  return worst.words;
 }
 
 // The i18n key of the words for one browser source: switched off, failed, loaded in OBS or not.
