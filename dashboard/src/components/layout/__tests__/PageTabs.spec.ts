@@ -140,4 +140,19 @@ describe('the page tabs', () => {
     expect(strip.classes()).toContain('overflow-x-auto');
     expect(strip.classes()).toContain('overflow-y-hidden');
   });
+
+  it('centers the open tab in the strip, so neighbors show on both sides and none is cut mid-word', async () => {
+    const calls: ScrollIntoViewOptions[] = [];
+
+    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
+      configurable: true,
+      value(this: HTMLElement, options: ScrollIntoViewOptions): void {
+        calls.push(options);
+      },
+    });
+
+    await open('/?view=history');
+
+    expect(calls.at(-1)).toEqual({ block: 'nearest', inline: 'center' });
+  });
 });

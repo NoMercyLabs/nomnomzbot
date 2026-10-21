@@ -45,7 +45,7 @@ const frameActions: Component | null = inject(frameActionsKey, null);
   <!-- A narrow pane drops the quiet text first (meta, then the crumb); past that the actions wrap to their own full-width line, starting at the left. -->
   <header class="@container flex-none">
     <div
-      class="flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-6 py-3 @2xl:flex-nowrap @2xl:py-0"
+      class="flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-6 py-3 @2xl:flex-nowrap @2xl:py-0 max-md:min-h-12 max-md:flex-nowrap max-md:gap-x-2 max-md:px-4 max-md:py-1.5"
     >
       <BackLink v-if="back" :to="back" :label="backLabel" class="-ms-2 flex-none" />
       <span
@@ -62,8 +62,8 @@ const frameActions: Component | null = inject(frameActionsKey, null);
         class="flex items-center gap-3"
         :class="
           $slots.actions
-            ? 'w-full flex-wrap @2xl:ml-auto @2xl:w-auto @2xl:shrink-0 @2xl:flex-nowrap'
-            : 'ml-auto shrink-0 flex-nowrap'
+            ? 'w-full flex-wrap @2xl:ml-auto @2xl:w-auto @2xl:shrink-0 @2xl:flex-nowrap max-md:ml-auto max-md:w-auto max-md:shrink-0 max-md:flex-nowrap max-md:gap-2'
+            : 'ml-auto shrink-0 flex-nowrap max-md:gap-2'
         "
       >
         <span v-if="$slots.meta"
@@ -77,7 +77,7 @@ const frameActions: Component | null = inject(frameActionsKey, null);
     <div
       v-if="$slots.bar"
       data-slot="page-bar"
-      class="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-6 py-1.5"
+      class="flex min-h-12 flex-wrap items-center gap-x-3 gap-y-1.5 border-b border-border px-6 py-1.5 max-md:min-h-10 max-md:px-4 max-md:py-1"
       :class="barHiddenOnPhone ? 'max-md:hidden' : ''"
     >
       <slot name="bar" />

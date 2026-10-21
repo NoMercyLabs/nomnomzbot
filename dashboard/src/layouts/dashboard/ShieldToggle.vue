@@ -8,18 +8,42 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
+// Shield mode is a one-tap write to the live channel. A phone-sized thumb hits it by mistake, so below md
+// a tap asks first and names the effect; a wide screen keeps the one tap.
+import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Shield from '~icons/nnz/shield';
 import ShieldCheck from '~icons/nnz/shield-check';
 
 import { useSetShieldMode, useShieldMode } from '@/api/shield';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import { Toggle } from '@/components/ui/toggle';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useNarrowScreen } from '@/composables/useLayout';
 
 const { t } = useI18n();
 const { channelId, current } = useCurrentChannel();
 const shield = useShieldMode(channelId);
 const setShield = useSetShieldMode(channelId);
+const narrow = useNarrowScreen();
+const asking = ref(false);
+const wanted = ref(false);
+
+function change(on: boolean): void {
+  if (!narrow.value) {
+    setShield.mutate(on);
+
+    return;
+  }
+
+  wanted.value = on;
+  asking.value = true;
+}
+
+function confirm(): void {
+  setShield.mutate(wanted.value);
+  asking.value = false;
+}
 </script>
 
 <template>
@@ -31,7 +55,7 @@ const setShield = useSetShieldMode(channelId);
     :model-value="shield.data.value"
     :disabled="setShield.isPending.value"
     :title="t('frame.shield.for', { channel: current?.displayName ?? '' })"
-    @update:model-value="(on: boolean) => setShield.mutate(on)"
+    @update:model-value="change"
   >
     <ShieldCheck v-if="shield.data.value" class="size-5" aria-hidden="true" />
     <Shield v-else class="size-5" aria-hidden="true" />
@@ -40,4 +64,12 @@ const setShield = useSetShieldMode(channelId);
       shield.data.value ? t('frame.shield.on') : t('frame.shield.off')
     }}</span>
   </Toggle>
+  <ConfirmDialog
+    v-model:open="asking"
+    :title="t(wanted ? 'frame.shield.confirmOn' : 'frame.shield.confirmOff', { channel: current?.displayName ?? '' })"
+    :description="t(wanted ? 'frame.shield.effectOn' : 'frame.shield.effectOff')"
+    :action="wanted ? t('frame.shield.turnOn') : t('frame.shield.turnOff')"
+    :pending="setShield.isPending.value"
+    @confirm="confirm"
+  />
 </template>

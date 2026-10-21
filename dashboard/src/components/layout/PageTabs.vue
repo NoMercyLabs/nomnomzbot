@@ -34,7 +34,7 @@ watch(
 
     element?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.scrollIntoView?.({
       block: 'nearest',
-      inline: 'nearest',
+      inline: 'center',
     });
   },
   { immediate: true, flush: 'post' },

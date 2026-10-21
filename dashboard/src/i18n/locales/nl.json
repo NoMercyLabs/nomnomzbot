@@ -862,7 +862,13 @@
     "shield": {
       "for": "Schildmodus voor {channel}",
       "on": "Schild aan",
-      "off": "Schild uit"
+      "off": "Schild uit",
+      "confirmOn": "Schildmodus aanzetten voor {channel}?",
+      "confirmOff": "Schildmodus uitzetten voor {channel}?",
+      "effectOn": "Twitch past je Schildmodus-instellingen meteen toe op het live kanaal.",
+      "effectOff": "Twitch stopt de Schildmodus-bescherming op het live kanaal meteen.",
+      "turnOn": "Aanzetten",
+      "turnOff": "Uitzetten"
     },
     "inbox": {
       "title": "Actie nodig",

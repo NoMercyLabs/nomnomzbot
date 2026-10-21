@@ -26,10 +26,29 @@ describe('PageHeader actions group', () => {
     expect(classes).not.toContain('ml-auto');
   });
 
-  it('fills its own row from the left when the header wraps on a phone', () => {
+  it('keeps the title and the actions on one compact row below md instead of wrapping to a second row', () => {
+    const row = wrapper.get('header > div').classes();
+
+    expect(classes).toContain('max-md:ml-auto');
+    expect(classes).toContain('max-md:flex-nowrap');
+    expect(classes).toContain('max-md:w-auto');
+    expect(row).toContain('max-md:flex-nowrap');
+    expect(row).toContain('max-md:min-h-12');
+  });
+
+  it('keeps the wide layout: wrapping lines in a narrow pane, one right-aligned row from @2xl', () => {
     expect(classes).toContain('w-full');
-    expect(classes).toContain('flex-wrap');
     expect(classes).toContain('@2xl:w-auto');
+    expect(classes).toContain('@2xl:ml-auto');
+  });
+
+  it('draws a compact tab band below md', () => {
+    const bar = mount(PageHeader, { props: { title: 'Music' }, slots: { bar: '<i />' } }).get(
+      '[data-slot="page-bar"]',
+    );
+
+    expect(bar.classes()).toContain('max-md:min-h-10');
+    expect(bar.classes()).toContain('max-md:px-4');
   });
 });
 

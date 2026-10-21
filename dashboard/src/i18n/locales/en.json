@@ -862,7 +862,13 @@
     "shield": {
       "for": "Shield mode for {channel}",
       "on": "Shield on",
-      "off": "Shield off"
+      "off": "Shield off",
+      "confirmOn": "Turn Shield mode on for {channel}?",
+      "confirmOff": "Turn Shield mode off for {channel}?",
+      "effectOn": "Twitch applies your Shield mode settings to the live channel at once.",
+      "effectOff": "Twitch stops the Shield mode protections on the live channel at once.",
+      "turnOn": "Turn on",
+      "turnOff": "Turn off"
     },
     "inbox": {
       "title": "Action required",
