@@ -29,15 +29,20 @@ function viewOf(route: RouteRecordRaw): string {
   return JSON.stringify([route.props ?? null, route.meta?.viewerChat ?? false]);
 }
 
-describe('every page has one home in the navigation', () => {
-  it('lists each page once in each sidebar', () => {
-    const repeated = Object.entries(navByMode).flatMap(([mode, groups]) => {
-      const names = sidebarRouteNames(groups);
+function repeatedNames(names: string[]): string[] {
+  return names.filter((name, index) => names.indexOf(name) !== index);
+}
 
-      return names
-        .filter((name, index) => names.indexOf(name) !== index)
-        .map((name) => `${mode}: ${name}`);
-    });
+describe('every page has one home in the navigation', () => {
+  it('finds a page listed twice', () => {
+    expect(repeatedNames(['a', 'b', 'a'])).toEqual(['a']);
+    expect(repeatedNames(['a', 'b'])).toEqual([]);
+  });
+
+  it('lists each page once in each sidebar', () => {
+    const repeated = Object.entries(navByMode).flatMap(([mode, groups]) =>
+      repeatedNames(sidebarRouteNames(groups)).map((name) => `${mode}: ${name}`),
+    );
 
     expect(repeated).toEqual([]);
   });
