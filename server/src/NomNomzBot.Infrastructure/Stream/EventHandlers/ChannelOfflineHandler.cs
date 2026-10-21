@@ -13,6 +13,9 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Dashboard.Dtos;
+using NomNomzBot.Application.Dashboard.Services;
 using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -55,6 +58,40 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         _logger = logger;
     }
 
+    // The recap of the stream that just ended is kept now, so the gallery never waits for a raid or a restart.
+    // A failed build is logged and never stops the offline flow.
+    private async Task KeepRecapAsync(
+        IServiceScope scope,
+        Guid broadcasterId,
+        string? streamId,
+        CancellationToken cancellationToken
+    )
+    {
+        IStreamRecapService? recaps = scope.ServiceProvider.GetService<IStreamRecapService>();
+        if (recaps is null || streamId is null)
+            return;
+
+        try
+        {
+            Result<StreamRecapDto> built = await recaps.BuildAsync(
+                broadcasterId,
+                streamId,
+                null,
+                cancellationToken
+            );
+            if (built.IsFailure)
+                _logger.LogWarning(
+                    "Recap of stream {StreamId} was not kept: {Error}",
+                    streamId,
+                    built.ErrorMessage
+                );
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            _logger.LogError(ex, "Recap of stream {StreamId} failed", streamId);
+        }
+    }
+
     public async Task HandleAsync(
         ChannelOfflineEvent @event,
         CancellationToken cancellationToken = default
@@ -84,6 +121,8 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
         ChannelContext? channelCtx = _registry.Get(broadcasterId);
         DateTimeOffset endedAt = _timeProvider.GetUtcNow();
         TimeSpan streamDuration = @event.StreamDuration;
+
+        string? endedStreamId = channelCtx?.CurrentStreamId;
 
         // Finalize the Stream record with EndedAt
         if (channelCtx?.CurrentStreamId is not null)
@@ -116,6 +155,8 @@ public sealed class ChannelOfflineHandler : IEventHandler<ChannelOfflineEvent>
             broadcasterId,
             streamDuration
         );
+
+        await KeepRecapAsync(scope, broadcasterId, endedStreamId, cancellationToken);
 
         await _pipeline.CancelAllForChannelAsync(broadcasterId);
 

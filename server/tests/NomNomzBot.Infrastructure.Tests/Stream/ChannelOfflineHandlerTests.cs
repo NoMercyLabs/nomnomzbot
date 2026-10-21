@@ -15,9 +15,12 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Dashboard.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Stream.Entities;
 using NomNomzBot.Domain.Stream.Events;
+using NomNomzBot.Infrastructure.Dashboard.Stats;
 using NomNomzBot.Infrastructure.Stream;
 using NomNomzBot.Infrastructure.Stream.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -82,6 +85,88 @@ public sealed class ChannelOfflineHandlerTests
         );
 
         inbox.Calls.Should().Equal((Broadcaster, false));
+    }
+
+    [Fact]
+    public async Task Going_offline_keeps_the_recap_of_the_stream_that_just_ended()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        DateTimeOffset started = new(2026, 10, 3, 9, 0, 0, TimeSpan.Zero);
+        DateTimeOffset now = new(2026, 10, 3, 12, 0, 0, TimeSpan.Zero);
+        db.Channels.Add(
+            new()
+            {
+                Id = Broadcaster,
+                OwnerUserId = Owner,
+                Provider = AuthEnums.Platform.Twitch,
+                ExternalChannelId = "tw-8",
+                TwitchChannelId = "tw-8",
+                Name = "streamer8",
+                NameNormalized = "streamer8",
+                IsOnboarded = true,
+                IsLive = true,
+                DeploymentMode = AuthEnums.DeploymentMode.Saas,
+                BillingTierKey = "free",
+            }
+        );
+        db.Streams.Add(
+            new()
+            {
+                Id = "s-live",
+                ChannelId = Broadcaster,
+                StartedAt = started,
+                PeakViewers = 12,
+            }
+        );
+        db.SaveChanges();
+        FakeTimeProvider clock = new(now);
+        StreamRecapService recaps = new(
+            db,
+            new StreamStatsService(db, clock, [new DurationMetric(), new PeakViewersMetric(db)]),
+            clock
+        );
+        ServiceProvider provider = new ServiceCollection()
+            .AddSingleton<IApplicationDbContext>(db)
+            .AddSingleton<IStreamRecapService>(recaps)
+            .AddSingleton(Substitute.For<IEventResponseExecutor>())
+            .BuildServiceProvider();
+        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
+        registry
+            .Get(Broadcaster)
+            .Returns(
+                new ChannelContext
+                {
+                    BroadcasterId = Broadcaster,
+                    TwitchChannelId = "tw-8",
+                    ChannelName = "streamer8",
+                    CurrentStreamId = "s-live",
+                }
+            );
+        ChannelOfflineHandler sut = new(
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            Substitute.For<IPipelineEngine>(),
+            registry,
+            new LiveStateCapturingNotifier(db),
+            new ShoutoutQueue(),
+            clock,
+            NullLogger<ChannelOfflineHandler>.Instance
+        );
+
+        await sut.HandleAsync(
+            new ChannelOfflineEvent
+            {
+                Provider = AuthEnums.Platform.Twitch,
+                BroadcasterId = Broadcaster,
+                BroadcasterDisplayName = "Streamer8",
+                StreamDuration = TimeSpan.FromHours(3),
+            }
+        );
+
+        StreamRecap kept = db.StreamRecaps.Single();
+        kept.StreamId.Should().Be("s-live");
+        kept.FromAt.Should().Be(started.UtcDateTime);
+        kept.ToAt.Should().Be(now.UtcDateTime, "the recap ends where the stream ended");
+        kept.DataJson.Should().Contain("\"duration\":10800");
     }
 
     [Fact]

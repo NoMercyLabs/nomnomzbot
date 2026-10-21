@@ -22,7 +22,8 @@ namespace NomNomzBot.Infrastructure.Stream;
 /// the end to the last proof the stream was live (<see cref="StreamRowReconciler.LastActivityAsync"/>: the
 /// latest chat or journaled viewer-count sample inside its window), else to the row's own start. A real
 /// observed end is never equal to the next start, so a correct row is never selected. Idempotent: a repaired
-/// row no longer matches, so a re-run selects nothing. The analytics duration is derived from
+/// row no longer matches, so a re-run selects nothing. A row stamped any other way is also repaired when its end
+/// lies more than an hour past its last proof of live time; a stream's length never decides. The analytics duration is derived from
 /// <c>EndedAt - StartedAt</c> on read, so repairing <c>EndedAt</c> repairs the duration. Plain EF, so it runs
 /// the same on SQLite and Postgres.
 /// </summary>
@@ -37,13 +38,11 @@ public sealed class StreamEndRepairSeeder : ISeeder
         _logger = logger;
     }
 
-    // No stream of these channels runs longer than this unless activity proves it to the end.
-    private static readonly TimeSpan MaxPlausibleLength = TimeSpan.FromHours(12);
-
+    // A stored end this far past the last proof of live time is a stale end. Length never decides: a 14 h or a
+    // 24 h stream with proof up to its end stays as it is.
     private static readonly TimeSpan StaleEndSlack = TimeSpan.FromHours(1);
 
-    private static bool IsImplausiblyLong(Domain.Stream.Entities.Stream row) =>
-        row.EndedAt - row.StartedAt > MaxPlausibleLength;
+    private static readonly TimeSpan ChatOnlySlack = TimeSpan.FromHours(6);
 
     // Late, like the other backfills: it only reads chat, the journal and the Streams rows themselves.
     public int Order => 940;
@@ -73,20 +72,39 @@ public sealed class StreamEndRepairSeeder : ISeeder
             DateTimeOffset windowEnd =
                 nextStart is { } next && next < row.EndedAt ? next : row.EndedAt.Value;
             bool stampedWithNextStart = row.EndedAt == nextStart;
-            if (!stampedWithNextStart && !IsImplausiblyLong(row))
-                continue;
 
-            DateTimeOffset? lastActivity = await StreamRowReconciler.LastActivityAsync(
+            // Viewer samples are the proof. Where none exist (before sampling began) the chat of the first run
+            // stands in for it, with a wide slack because chat can go quiet well before a real stream ends.
+            // The window end is exclusive: a sample stamped at the row's own end still counts, so a repaired
+            // row (end = its last sample) is stable on a second run.
+            DateTimeOffset? sample = await StreamRowReconciler.LastSampleAsync(
                 _db,
                 row.ChannelId,
                 row,
-                windowEnd,
+                !stampedWithNextStart && windowEnd == row.EndedAt
+                    ? windowEnd.AddTicks(1)
+                    : windowEnd,
                 ct
             );
+            DateTimeOffset? lastActivity =
+                sample
+                ?? await StreamRowReconciler.LastActivityAsync(
+                    _db,
+                    row.ChannelId,
+                    row,
+                    windowEnd,
+                    ct
+                );
+            TimeSpan slack = sample is null ? ChatOnlySlack : StaleEndSlack;
+
+            // A row with no proof at all is only touched when it was stamped with the next start.
+            if (lastActivity is null && !stampedWithNextStart)
+                continue;
+
             DateTimeOffset proven = lastActivity ?? row.StartedAt!.Value;
 
-            // A long stream that really ran to its stored end has activity up to it: leave that row alone.
-            if (!stampedWithNextStart && row.EndedAt - proven <= StaleEndSlack)
+            // A stream whose proof reaches (nearly) its stored end is real, whatever its length: leave it alone.
+            if (!stampedWithNextStart && row.EndedAt - proven <= slack)
                 continue;
 
             row.EndedAt = proven;
