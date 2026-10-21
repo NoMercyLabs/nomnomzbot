@@ -175,7 +175,7 @@ function submit(): void {
               @click="setTitle(info.title)"
             >
               {{ info.title }}
-              <span class="text-xs text-muted-foreground">{{
+              <span class="text-xs text-muted-foreground max-md:text-sm">{{
                 t("dashboard.stream.info.currentTitle")
               }}</span>
             </button>
