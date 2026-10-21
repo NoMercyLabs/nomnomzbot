@@ -16,6 +16,7 @@
         "skip": "Skip to the next item",
         "stop": "Stop playback",
         "volume": "Overlay volume",
+        "seek": "Place in the item",
         "overlayMissing": "The Media share browser source is not loaded in OBS, so nothing plays on stream.",
         "setupOverlay": "Set up in OBS"
       },

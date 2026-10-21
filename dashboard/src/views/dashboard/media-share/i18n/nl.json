@@ -16,6 +16,7 @@
         "skip": "Naar het volgende item",
         "stop": "Afspelen stoppen",
         "volume": "Volume van de overlay",
+        "seek": "Plek in het item",
         "overlayMissing": "De Media delen-bron is niet geladen in OBS, dus er speelt niets op stream.",
         "setupOverlay": "Instellen in OBS"
       },

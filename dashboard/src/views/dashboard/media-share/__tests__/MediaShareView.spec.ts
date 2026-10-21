@@ -34,6 +34,8 @@ type Row = Record<string, unknown>;
 const calls: Call[] = [];
 let queue: Row[] = [];
 let overlayAttached = true;
+// What the bot's player read returns; null answers a 404 like a bot without the read.
+let playerState: Record<string, unknown> | null = null;
 
 const config = {
   isEnabled: true,
@@ -74,6 +76,12 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/overlays/required'))
         return answer([{ key: 'media_share', widget: { isAttached: overlayAttached } }]);
 
+      if (path.endsWith('/player')) {
+        return playerState === null
+          ? { error: {}, response: { status: 404 } }
+          : answer(playerState);
+      }
+
       return path.endsWith('/config')
         ? answer(config)
         : answer(queue);
@@ -109,6 +117,7 @@ let pinia: Pinia;
 beforeEach(() => {
   calls.length = 0;
   overlayAttached = true;
+  playerState = null;
 
   // The volume slider measures itself; jsdom has no ResizeObserver.
   vi.stubGlobal('ResizeObserver', class {
@@ -251,6 +260,54 @@ describe('Media share page', () => {
       { command: 'skip', value: '' },
       { command: 'stop', value: '' },
     ]);
+  });
+
+  it('reads the player on load: time, length and the stream volume', async () => {
+    playerState = {
+      state: 'playing',
+      requestId: 'p',
+      title: 'Clip p',
+      sharerName: 'viewer',
+      thumbnailUrl: null,
+      positionSeconds: 65,
+      durationSeconds: 200,
+      volume: 40,
+    };
+
+    await open();
+
+    const player = document.body.querySelector<HTMLElement>('[data-media-share-player]')!;
+
+    expect(player.querySelector('[data-player-time]')?.textContent?.replace(/\s+/g, ' ').trim())
+      .toBe('1:05 / 3:20');
+
+    expect(player.querySelector('[data-player-volume] [role="slider"]')?.getAttribute('aria-valuenow'))
+      .toBe('40');
+
+    expect(player.querySelector('[data-player-seek] [role="slider"]')?.getAttribute('aria-valuemax'))
+      .toBe('200');
+  });
+
+  it('seeks the overlay to the place the streamer picks', async () => {
+    playerState = {
+      state: 'playing',
+      requestId: 'p',
+      title: 'Clip p',
+      sharerName: 'viewer',
+      thumbnailUrl: null,
+      positionSeconds: 10,
+      durationSeconds: 200,
+      volume: 40,
+    };
+
+    await open();
+
+    const thumb = document.body.querySelector<HTMLElement>('[data-player-seek] [role="slider"]')!;
+
+    thumb.dispatchEvent(new KeyboardEvent('keydown', { key: 'End', bubbles: true }));
+    await settle();
+
+    expect(calls.map((call) => call.body?.parameters)).toEqual([{ command: 'seek', value: '200' }]);
   });
 
   it('starts an idle player with Play when items are approved', async () => {

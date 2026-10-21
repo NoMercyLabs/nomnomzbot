@@ -18,7 +18,7 @@ import Play from '~icons/nnz/play';
 import Stop from '~icons/nnz/stop';
 import VolumeMuted from '~icons/nnz/volume-muted';
 import VolumeTwo from '~icons/nnz/volume-two';
-import { computed, ref, watch } from 'vue';
+import { computed, onBeforeUnmount, ref, watch } from 'vue';
 import { useRouter } from 'vue-router';
 
 import type { MediaPlaybackCommand, MediaSharePlayerState, MediaShareRequest } from '@/api/mediaShare';
@@ -27,6 +27,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Slider } from '@/components/ui/slider';
+import { clockLength } from '@/lib/time';
 
 const props = defineProps<{
   // The queue item the bot marks as playing; null when nothing plays.
@@ -61,6 +62,33 @@ watch(
     }
   },
 );
+
+// The place in the item: the overlay's last report, moved on by the clock while it plays.
+const position = ref<number[]>([props.player?.positionSeconds ?? 0]);
+const duration = computed<number>(() => props.player?.durationSeconds ?? 0);
+const showsTime = computed<boolean>(() => props.current !== null && duration.value > 0);
+
+watch(
+  () => props.player?.positionSeconds,
+  (next: number | undefined) => {
+    position.value = [next ?? 0];
+  },
+);
+
+const ticker = setInterval(() => {
+  if (playing.value && showsTime.value) {
+    position.value = [Math.min(duration.value, (position.value[0] ?? 0) + 1)];
+  }
+}, 1000);
+
+onBeforeUnmount(() => clearInterval(ticker));
+
+const time = computed<string>(() =>
+  `${clockLength(position.value[0] ?? 0)} / ${clockLength(duration.value)}`);
+
+function commitSeek(value: number[]): void {
+  emit('command', 'seek', value[0] ?? 0);
+}
 
 const title = computed<string>(() =>
   props.current?.title ?? props.current?.sourceUrl ?? '');
@@ -113,6 +141,22 @@ function commitVolume(value: number[]): void {
               : $t("dashboard.mediaShare.player.playing")
           }}
         </Badge>
+      </div>
+
+      <div v-if="showsTime" class="flex items-center gap-3">
+        <Slider
+          v-if="canControl"
+          v-model="position"
+          data-player-seek
+          class="flex-1"
+          :max="duration"
+          :step="1"
+          :thumb-label="$t('dashboard.mediaShare.player.seek')"
+          @value-commit="commitSeek"
+        />
+        <span data-player-time class="flex-none text-sm tabular-nums text-muted-foreground">
+          {{ time }}
+        </span>
       </div>
 
       <div v-if="canControl" data-player-controls class="flex flex-wrap items-center gap-2">
