@@ -675,7 +675,7 @@ describe('AdminPlatformDefaultsView', () => {
       'voice',
     ]);
 
-    const scroll = vi.fn();
+    const scroll = vi.fn<(options?: ScrollIntoViewOptions) => void>();
     const target = document.body.querySelector<HTMLElement>('[data-section="events"]')!;
 
     target.scrollIntoView = scroll;

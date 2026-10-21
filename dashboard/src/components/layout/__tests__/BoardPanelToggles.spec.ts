@@ -20,7 +20,7 @@ describe('BoardPanelToggles', () => {
   });
 
   it('keeps one switch per optional panel from md and folds them into one Panels menu below md', () => {
-    const set = vi.fn();
+    const set = vi.fn<(shown: boolean) => void>();
 
     boardToggles.value = [
       {

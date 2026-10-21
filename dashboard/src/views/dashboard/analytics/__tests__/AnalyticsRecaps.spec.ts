@@ -109,7 +109,8 @@ vi.mock('@/composables/useCurrentChannel', () => ({
 }));
 
 // A PNG whose header states the size the capture was asked for.
-const toPng = vi.hoisted(() => vi.fn());
+const toPng = vi.hoisted(() =>
+  vi.fn<(node: HTMLElement, options: CaptureOptions) => Promise<string>>());
 
 vi.mock('html-to-image', () => ({ toPng }));
 
@@ -295,7 +296,7 @@ describe('the Recaps tab', () => {
     for (const key of keys.filter((known) => known !== 'title')) {
       const head = document.body.querySelector(`[data-sort="${key}"]`)!.closest('th')!;
 
-      expect(head.className, key).toMatch(/\bw-\d+\b/);
+      expect(head.className).toMatch(/\bw-\d+\b/);
     }
 
     const cell = document.body.querySelector('[data-recap-row] td:nth-child(3)')!;
