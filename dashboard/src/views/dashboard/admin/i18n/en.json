@@ -277,7 +277,7 @@
         "noSubscriptions": "No Twitch subscriptions",
         "working": "Working",
         "needAttention": "{broken} of {total} need attention",
-        "subscriptions": "{count} subscription | {count} subscriptions",
+        "subscriptions": "{count} Twitch subscription | {count} Twitch subscriptions",
         "signInAgain": "Re-authorize the channel.",
         "details": "Details",
         "list": {

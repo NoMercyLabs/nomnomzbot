@@ -181,7 +181,7 @@ describe('AdminEventSubHealthView', () => {
     await open();
 
     expect(channelRows()[0]!.textContent).toContain('Working');
-    expect(channelRows()[0]!.textContent).toContain('1 subscription');
+    expect(channelRows()[0]!.textContent).toContain('1 Twitch subscription');
     expect(channelRows()[0]!.querySelector('[data-tone="ok"]')).not.toBeNull();
   });
 

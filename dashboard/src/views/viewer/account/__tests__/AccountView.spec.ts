@@ -263,7 +263,7 @@ describe('the viewer account page', () => {
     const wrapper = await mountPage();
     const text = wrapper.get('[data-viewer-standing]').text();
 
-    expect(text).toContain('Subscriber');
+    expect(text).toContain('Twitch subscriber');
     expect(text).not.toMatch(/\d/);
   });
 

@@ -14,7 +14,7 @@
       "setup": {
         "posts": {
           "title": "Posts a message in a Discord channel",
-          "detail": "when you go live, get a follower, a raid, a sub and more."
+          "detail": "when you go live, get a Twitch follower, a raid, a Twitch sub and more."
         },
         "roles": {
           "title": "Lets viewers pick a role",

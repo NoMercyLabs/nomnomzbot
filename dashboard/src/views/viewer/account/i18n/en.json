@@ -7,7 +7,7 @@
       "standing": {
         "label": "Your standing here: {standing}",
         "Everyone": "Viewer",
-        "Subscriber": "Subscriber",
+        "Subscriber": "Twitch subscriber",
         "Vip": "VIP",
         "Artist": "Artist",
         "Moderator": "Moderator",
