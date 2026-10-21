@@ -120091,6 +120091,12 @@
           },
           "requestsOpen": {
             "type": "boolean"
+          },
+          "blockedReason": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "Full music queue including now playing and upcoming tracks."
@@ -120143,6 +120149,10 @@
             "default": ""
           },
           "inFlight": {
+            "type": "boolean",
+            "default": false
+          },
+          "waitsForMusicPlayer": {
             "type": "boolean",
             "default": false
           }
@@ -120736,6 +120746,12 @@
           },
           "state": {
             "type": "string"
+          },
+          "blockedReason": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "The wire form of the one now-playing shape (music-playback-determinism.md section 2.1), pushed as the\r\nhub event `music.nowPlaying`. Engine is \"spotify\" or \"youtube\"; every other field\r\nis filled the same way for both engines. State is the camelCase director state:\r\nidle, starting, playing, pausedByOwner or blocked."
@@ -127695,6 +127711,10 @@
               "null",
               "string"
             ]
+          },
+          "waitsForMusicPlayer": {
+            "type": "boolean",
+            "default": false
           }
         },
         "description": "A queue item with its zero-based position and the number viewers see\r\n            (QueueNumbering — the one `!queue` prints and `!wrongsong N` reads back).\r\n            Cost is 0 for a free request."

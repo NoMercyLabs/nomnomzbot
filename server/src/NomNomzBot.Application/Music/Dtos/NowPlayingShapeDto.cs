@@ -30,7 +30,8 @@ public sealed record NowPlayingShapeDto(
     string? RequestedBy,
     int Volume,
     bool Muted,
-    string State
+    string State,
+    string? BlockedReason = null
 )
 {
     /// <summary>The hub event name this shape is pushed under.</summary>

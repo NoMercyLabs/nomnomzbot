@@ -53,7 +53,10 @@ public sealed class NowPlayingBroadcastHandler : IEventHandler<PlaybackStateChan
             @event.ProgressMs,
             @event.IsPlaying,
             @event.RequestedBy
-        );
+        ) with
+        {
+            BlockedReason = _playbackState.BlockedReasonOf(@event.BroadcasterId),
+        };
 
         return _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),

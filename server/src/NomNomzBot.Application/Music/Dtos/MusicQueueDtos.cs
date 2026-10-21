@@ -50,7 +50,8 @@ public sealed record QueueItemDto(
     string? RequestedBy,
     int Cost = 0,
     string? RequesterId = null,
-    string? RequesterColor = null
+    string? RequesterColor = null,
+    bool WaitsForMusicPlayer = false
 );
 
 /// <summary>Current now-playing state. <paramref name="ShuffleState"/> and <paramref name="RepeatState"/>
@@ -107,5 +108,7 @@ public sealed record NowPlayingDto(
 public sealed record MusicQueueDto(
     NowPlayingDto? NowPlaying,
     IReadOnlyList<QueueItemDto> Queue,
-    bool RequestsOpen
+    bool RequestsOpen,
+    // Why no request plays (a PlaybackBlockedReason name); null when playback is not blocked.
+    string? BlockedReason = null
 );

@@ -29,4 +29,10 @@ public interface IPlaybackStateReader
     /// <see cref="PlaybackLevel.Default"/>.
     /// </summary>
     PlaybackLevel LevelOf(Guid channelId);
+
+    /// <summary>
+    /// Why the channel director is blocked, as a <see cref="PlaybackBlockedReason"/> name. Null when it is not
+    /// blocked, or the channel has no director yet.
+    /// </summary>
+    string? BlockedReasonOf(Guid channelId);
 }

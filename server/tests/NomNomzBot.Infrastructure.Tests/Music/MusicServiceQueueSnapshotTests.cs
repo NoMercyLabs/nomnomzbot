@@ -17,6 +17,7 @@ using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
@@ -123,7 +124,41 @@ public sealed class MusicServiceQueueSnapshotTests
             .ContainSingle(i => i.Title == "Song Q");
     }
 
-    private static (MusicService Sut, RecordingEventBus Bus) Build()
+    [Theory]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    public async Task GetQueue_marks_a_YouTube_request_as_waiting_for_the_Music_Player_only_while_no_player_page_is_open(
+        bool playerOpen,
+        bool youTubeWaits
+    )
+    {
+        IMusicProvider youTube = Substitute.For<IMusicProvider, IMusicProviderPlayerGate>();
+        youTube.Provider.Returns("youtube");
+        ((IMusicProviderPlayerGate)youTube)
+            .HasPlayerAsync(ChannelId, Arg.Any<CancellationToken>())
+            .Returns(playerOpen);
+        (MusicService sut, _) = Build(out SongRequestQueueStore store, youTube);
+        FairQueue<SongRequestEntry> queue = store.GetOrCreate(ChannelId.ToString());
+        queue.Enqueue("viewer1", QueuedEntry("https://www.youtube.com/watch?v=abc", "Video"));
+        queue.Enqueue("viewer2", QueuedEntry("spotify:track:q1", "Song"));
+
+        MusicQueue result = await sut.GetQueueAsync(ChannelId.ToString());
+
+        result
+            .Queue.Select(i => (i.TrackName, i.WaitsForMusicPlayer))
+            .Should()
+            .Equal(("Video", youTubeWaits), ("Song", false));
+    }
+
+    private static SongRequestEntry QueuedEntry(string uri, string title) =>
+        new(uri, title, "Artist", null, 200_000, "viewer", 0, null, "");
+
+    private static (MusicService Sut, RecordingEventBus Bus) Build() => Build(out _);
+
+    private static (MusicService Sut, RecordingEventBus Bus) Build(
+        out SongRequestQueueStore store,
+        IMusicProvider? extraProvider = null
+    )
     {
         MusicTestDbContext db = MusicTestDbContext.New();
         db.Services.Add(
@@ -158,7 +193,7 @@ public sealed class MusicServiceQueueSnapshotTests
 
         RecordingEventBus bus = new();
         MusicService sut = new(
-            [spotify],
+            extraProvider is null ? [spotify] : [spotify, extraProvider],
             db,
             bus,
             new BlockedTrackService(db),
@@ -175,6 +210,7 @@ public sealed class MusicServiceQueueSnapshotTests
             DirectorRig.Of(directorStore).Registry,
             DirectorRig.Of(directorStore).Registry
         );
+        store = directorStore;
         return (sut, bus);
     }
 

@@ -189,7 +189,8 @@ public class MusicController : BaseController
                         item.RequestedBy,
                         item.Cost,
                         RequesterOf(requesters, item.RequestedBy)?.UserId,
-                        RequesterOf(requesters, item.RequestedBy)?.Color
+                        RequesterOf(requesters, item.RequestedBy)?.Color,
+                        item.WaitsForMusicPlayer
                     )
             ),
         ];
@@ -198,7 +199,10 @@ public class MusicController : BaseController
         bool requestsOpen = config.IsFailure
             ? MusicConfigDefaults.RequestsOpen
             : config.Value.RequestsOpen;
-        MusicQueueDto dto = new(nowPlaying, items, requestsOpen);
+        string? blockedReason = Guid.TryParse(channelId, out Guid broadcasterId)
+            ? _playbackState.BlockedReasonOf(broadcasterId)
+            : null;
+        MusicQueueDto dto = new(nowPlaying, items, requestsOpen, blockedReason);
         return Ok(new StatusResponseDto<MusicQueueDto> { Data = dto });
     }
 

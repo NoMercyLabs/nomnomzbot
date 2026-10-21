@@ -25,6 +25,7 @@ using NomNomzBot.Domain.Music.Exceptions;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Music.Playback;
 using NomNomzBot.Infrastructure.Music.YouTubeKeyless;
 
 namespace NomNomzBot.Infrastructure.Music;
@@ -502,23 +503,53 @@ public sealed class MusicService : IMusicService
         FairQueue<SongRequestEntry>? queue = _queueStore.TryGet(broadcasterId);
 
         SongRequestEntry? inFlight = _queueStore.GetInFlight(broadcasterId);
-        IReadOnlyList<MusicQueueItem> items = queue is null
+        List<SongRequestEntry> entries = queue is null
             ? []
-            : queue
-                .GetSnapshot()
-                .Select(e => new MusicQueueItem(
-                    e.Item.TrackName,
-                    e.Item.Artist,
-                    e.Item.ImageUrl,
-                    e.Item.DurationMs,
-                    e.Item.RequestedBy,
-                    e.Item.Cost,
-                    e.Item.Code,
-                    ReferenceEquals(e.Item, inFlight)
-                ))
-                .ToList();
+            : [.. queue.GetSnapshot().Select(e => e.Item)];
+        bool playerMissing = await MusicPlayerMissingAsync(
+            broadcasterId,
+            entries,
+            cancellationToken
+        );
+        List<MusicQueueItem> items =
+        [
+            .. entries.Select(e => new MusicQueueItem(
+                e.TrackName,
+                e.Artist,
+                e.ImageUrl,
+                e.DurationMs,
+                e.RequestedBy,
+                e.Cost,
+                e.Code,
+                ReferenceEquals(e, inFlight),
+                playerMissing && IsYouTube(e)
+            )),
+        ];
 
         return new(nowPlaying, items);
+    }
+
+    private static bool IsYouTube(SongRequestEntry entry) =>
+        EngineKinds.ForTrack(null, entry.TrackUri) == EngineKind.YouTube;
+
+    /// <summary>
+    /// True when a YouTube request waits and no Music Player page is open to play it. The player is asked only
+    /// when the queue holds a YouTube request; a channel with no YouTube provider has no page to wait for.
+    /// </summary>
+    private async Task<bool> MusicPlayerMissingAsync(
+        string broadcasterId,
+        List<SongRequestEntry> entries,
+        CancellationToken cancellationToken
+    )
+    {
+        if (!entries.Any(IsYouTube) || !Guid.TryParse(broadcasterId, out Guid tenantId))
+            return false;
+
+        IMusicProviderPlayerGate? gate = _providers
+            .OfType<IMusicProviderPlayerGate>()
+            .FirstOrDefault();
+
+        return gate is not null && !await gate.HasPlayerAsync(tenantId, cancellationToken);
     }
 
     public async Task<Result> AddToQueueAsync(
