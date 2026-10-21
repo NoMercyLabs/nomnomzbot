@@ -45,7 +45,7 @@ const frameActions: Component | null = inject(frameActionsKey, null);
   <!-- A narrow pane drops the quiet text first (meta, then the crumb); past that the actions wrap to their own full-width line, starting at the left. -->
   <header class="@container flex-none">
     <div
-      class="flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-6 py-3 @2xl:flex-nowrap @2xl:py-0 max-md:min-h-12 max-md:flex-nowrap max-md:gap-x-2 max-md:px-4 max-md:py-1.5"
+      class="flex min-h-16 flex-wrap items-center gap-x-3 gap-y-2 border-b border-border px-6 py-3 @2xl:flex-nowrap @2xl:py-0 max-md:min-h-12 max-md:gap-x-2 max-md:px-4 max-md:py-1.5"
     >
       <BackLink v-if="back" :to="back" :label="backLabel" class="-ms-2 flex-none" />
       <span

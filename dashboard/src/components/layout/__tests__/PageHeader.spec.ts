@@ -26,14 +26,14 @@ describe('PageHeader actions group', () => {
     expect(classes).not.toContain('ml-auto');
   });
 
-  it('keeps the title and the actions on one compact row below md instead of wrapping to a second row', () => {
+  it('keeps the title and the actions on one compact row below md, and drops the actions to the right of a second line only when they do not fit', () => {
     const row = wrapper.get('header > div').classes();
 
     expect(classes).toContain('max-md:ml-auto');
     expect(classes).toContain('max-md:flex-nowrap');
     expect(classes).toContain('max-md:w-auto');
-    expect(row).toContain('max-md:flex-nowrap');
     expect(row).toContain('max-md:min-h-12');
+    expect(row).not.toContain('max-md:flex-nowrap');
   });
 
   it('keeps the wide layout: wrapping lines in a narrow pane, one right-aligned row from @2xl', () => {
