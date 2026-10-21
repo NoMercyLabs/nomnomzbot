@@ -2484,6 +2484,16 @@ describe('ChatView emote picker', () => {
       window.matchMedia = realMatchMedia;
     });
 
+    // Stoney 2026-10-21, mobile: the frame no longer clips the page below md, so the feed grew to its whole height
+    // and the composer sat 10000 px down. The chat body takes the height left under the headers and above the bar.
+    it('gives the chat body the screen height left under the headers and above the bottom bar', async () => {
+      await open();
+      const body = document.querySelector<HTMLElement>('[data-page-body]')!;
+
+      expect(body.style.height).toContain('100svh');
+      expect(body.style.height).toContain('6rem');
+    });
+
     it('opens a tray with no search box and no preview, and leaves the focus off it', async () => {
       await open();
       await openPicker();

@@ -11,8 +11,8 @@
 // The live chat of the open channel: the feed, the moderation on each line, and the send box.
 // The hub keeps the feed cache current; this page only reads it. Ban asks once, here, and
 // bans in this channel only (the all-channels ban is its own opt-in action elsewhere).
-import { refDebounced, useEventListener } from '@vueuse/core';
-import { computed, ref, watch, watchEffect } from 'vue';
+import { refDebounced, useElementSize, useEventListener } from '@vueuse/core';
+import { computed, onMounted, ref, watch, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 import ArrowUpRight from '~icons/nnz/arrow-up-right';
@@ -110,6 +110,41 @@ const docked = computed(() => poppedOut.value || phone.value);
 // The docked header keeps the search field shut until the person asks for it; the desktop page always shows it.
 const dockSearchOpen = ref(false);
 const searchShown = computed(() => !docked.value || dockSearchOpen.value);
+
+// Below md the frame lets the page grow, so a phone chat takes the screen height left under the frame header, the
+// dock header (and the open search band) and above the bottom bar. The feed scrolls inside that, so the page does not.
+const bottomBar = ref<HTMLElement | null>(null);
+
+onMounted(() => {
+  bottomBar.value = document.querySelector<HTMLElement>('[data-slot=bottom-bar],[data-slot=viewer-nav]');
+});
+
+const { height: bottomBarHeight } = useElementSize(bottomBar, undefined, { box: 'border-box' });
+
+// The viewer frame keeps 6rem of bottom padding for its fixed nav (pb-24) and 8.75rem above the feed (header, main
+// padding, dock header, gap), so the body claims the padding the nav covers; the dashboard frame has 6rem of headers.
+const viewerAbove: number = 8.75;
+const dashboardAbove: number = 6;
+const searchBand: number = 3.3;
+const bodyStyle = computed<Record<string, string> | undefined>(() => {
+  if (!phone.value || poppedOut.value)
+    return undefined;
+
+  const above = (viewerRoute
+    ? viewerAbove
+    : dashboardAbove) + (dockSearchOpen.value
+    ? searchBand
+    : 0);
+  const height = `calc(100svh - ${above}rem - ${bottomBarHeight.value}px)`;
+
+  return viewerRoute
+    ? {
+        height,
+        flex: 'none',
+        marginBottom: `calc(${bottomBarHeight.value}px - 6rem)`,
+      }
+    : { height, flex: 'none' };
+});
 
 // Closing the docked search clears what was typed.
 watch(dockSearchOpen, (open) => {
@@ -436,6 +471,7 @@ async function confirmBan(): Promise<void> {
   </div>
   <div
     data-page-body
+    :style="bodyStyle"
     class="flex min-h-0 flex-1 flex-col"
     :class="docked ? 'gap-0 p-0' : 'gap-3 p-6 max-md:py-0'"
   >
