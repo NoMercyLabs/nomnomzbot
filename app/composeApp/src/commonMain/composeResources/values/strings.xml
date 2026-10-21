@@ -5132,6 +5132,7 @@
     <string name="widget_raid_recap_metrics_option_followers">New followers</string>
     <string name="widget_raid_recap_metrics_option_subs">Subscription counts</string>
     <string name="widget_raid_recap_metrics_option_gifters">Gifters</string>
+    <string name="widget_raid_recap_metrics_option_newFollowers">New follower names</string>
     <string name="widget_raid_recap_metrics_option_selfSubs">Self subscribers</string>
     <string name="widget_raid_recap_metrics_option_bits">Bits</string>
     <string name="widget_raid_recap_metrics_option_raidsIn">Raids in</string>

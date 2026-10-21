@@ -61,6 +61,7 @@ const fixture = {
     { name: 'finwo_', count: 10 },
   ],
   selfSubs: ['kani_dev'],
+  newFollowers: ['FirstFollower', 'SecondFollower', 'ThirdFollower'],
   bits: { total: 200, top: [{ name: 'iFiLLz', count: 200 }] },
   raidsIn: [
     { name: 'MayaRainer', viewers: 49 },
@@ -174,6 +175,16 @@ describe('raid_recap widget', () => {
     expect(wrapper.find('[data-block="subs"]').text()).toContain('iFiLLz');
     expect(wrapper.find('[data-block="subs"]').text()).toContain('kani_dev');
     expect(wrapper.find('[data-block="raids"]').text()).toContain('MayaRainer');
+  });
+
+  it('lists who followed under the new followers count', async () => {
+    const wrapper = show(fixture);
+
+    await flushPromises();
+    const text: string = wrapper.find('[data-block="followers"]').text();
+
+    expect(text).toContain('FirstFollower');
+    expect(text.indexOf('FirstFollower')).toBeLessThan(text.indexOf('ThirdFollower'));
   });
 
   it('reads the shown stream through data.streamStats with the metrics setting', async () => {

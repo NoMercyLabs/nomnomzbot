@@ -5116,6 +5116,7 @@
     <string name="widget_raid_recap_metrics_option_followers">Nieuwe volgers</string>
     <string name="widget_raid_recap_metrics_option_subs">Abonnementen</string>
     <string name="widget_raid_recap_metrics_option_gifters">Gevers</string>
+    <string name="widget_raid_recap_metrics_option_newFollowers">Namen van nieuwe volgers</string>
     <string name="widget_raid_recap_metrics_option_selfSubs">Zelf geabonneerd</string>
     <string name="widget_raid_recap_metrics_option_bits">Bits</string>
     <string name="widget_raid_recap_metrics_option_raidsIn">Binnenkomende raids</string>

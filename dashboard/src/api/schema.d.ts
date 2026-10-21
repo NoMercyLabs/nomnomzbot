@@ -102926,6 +102926,8 @@ export interface components {
              * @description New followers during the stream.
              */
             followers?: null | number | string;
+            /** @description Display names of the viewers who followed during the stream, oldest first. */
+            newFollowers?: null | string[];
             subs?: null | components["schemas"]["StreamStatsSubs"];
             /** @description Gifters by gift count; anonymous gifts are merged as "Anonymous". */
             gifters?: null | components["schemas"]["StreamStatsNamedCount"][];
