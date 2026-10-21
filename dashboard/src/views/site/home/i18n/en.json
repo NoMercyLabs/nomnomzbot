@@ -142,7 +142,7 @@
           "title": "Overlays and widgets",
           "line": "Browser sources for OBS, a widget gallery, and a code editor for your own widgets.",
           "rows": {
-            "alerts": { "title": "Alerts overlay", "detail": "Follows, subs, and raids", "status": "Attached" },
+            "alerts": { "title": "Alerts overlay", "detail": "Twitch follows, subs, and raids", "status": "Attached" },
             "chat": { "title": "Chat overlay", "detail": "Shows chat on stream", "status": "Attached" },
             "goal": { "title": "Goal bar", "detail": "Installed, not switched on", "status": "Off" }
           }
