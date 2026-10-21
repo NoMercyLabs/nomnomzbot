@@ -694,6 +694,20 @@ describe('MusicView', () => {
     );
   });
 
+  // Stoney 2026-10-21: a phone header row of Add button, label, info and switch was crowded. Below md the Playback
+  // switch takes its own full-width row, 36 px tall so the whole row is the touch target.
+  it('gives the Playback switch its own full-width 36 px row below md', async () => {
+    heldActionKeys = ['music:queue:moderate', 'music:config:read', 'music:config:write'];
+    answers['/music/config'] = () => ok({ isEnabled: true });
+    await open();
+
+    const playback = document.body.querySelector<HTMLElement>('[data-music-playback]');
+
+    expect(playback?.classList.contains('max-md:w-full')).toBe(true);
+    expect(playback?.classList.contains('max-md:min-h-9')).toBe(true);
+    expect(playback?.classList.contains('max-md:*:last:ml-auto')).toBe(true);
+  });
+
   // Stoney 2026-10-19: "i also don't need the same button twice lol". Music on/off leaves the request rules, worded
   // as playback so it never reads as the requests switch. Then: "extra useless dropdowns". It is a switch on the
   // Now playing panel, never a menu that holds only this one item.

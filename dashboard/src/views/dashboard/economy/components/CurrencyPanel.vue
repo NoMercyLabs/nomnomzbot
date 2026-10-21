@@ -150,7 +150,7 @@ async function submit(): Promise<void> {
           />
         </Field>
         <Field>
-          <div class="flex items-center gap-1.5">
+          <div data-field-hint-row class="-my-2 flex items-center gap-0">
             <FieldLabel for="currency-max">{{ $t("dashboard.economy.currency.max") }}</FieldLabel>
             <FieldInfo>{{ $t("dashboard.economy.currency.maxHelp") }}</FieldInfo>
           </div>

@@ -300,6 +300,7 @@ const span = layout.span;
             <LabeledSwitch
               v-if="playbackOn !== undefined"
               data-music-playback
+              class="max-md:min-h-9 max-md:w-full max-md:*:last:ml-auto"
               :model-value="playbackOn"
               :label="$t('dashboard.music.playback.label')"
               :help="$t('dashboard.music.playback.help')"

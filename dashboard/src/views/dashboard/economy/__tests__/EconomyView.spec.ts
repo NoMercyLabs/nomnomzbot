@@ -416,6 +416,19 @@ describe('Economy page gating', () => {
     expect(present('[data-currency-form] [data-slot="enabled-state"]')).toBe(true);
   });
 
+  // Stoney 2026-10-21: "some content is cut off or super small". The 36 px info button left the "Highest balance"
+  // label about 14 px away and made its row taller than the others; the row pulls the button in beside the label.
+  it('keeps the info button of the Highest balance label beside it without a taller row', async () => {
+    await open('currency');
+
+    const row = document.body.querySelector<HTMLElement>('[data-field-hint-row]');
+
+    expect(row?.querySelector('[data-slot="field-label"]')?.textContent).toContain('Highest balance');
+    expect(row?.querySelector('[data-slot="field-info"]')).not.toBeNull();
+    expect(row?.classList.contains('gap-0')).toBe(true);
+    expect(row?.classList.contains('-my-2')).toBe(true);
+  });
+
   it('shows the switches when the write keys are held', async () => {
     catalog = [
       {
