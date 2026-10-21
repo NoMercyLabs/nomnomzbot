@@ -59,10 +59,76 @@ function record(method: string, path: string, options?: Options): unknown {
   return ok(stored);
 }
 
+type OptionsQuery = { Search?: string; value?: string };
+type OptionsAsk = { params: { path: { kind: string }; query: OptionsQuery } };
+
+const memberAsks: Array<{
+  kind: string;
+  search?: string;
+  value?: string;
+}> = [];
+let membersReadable = true;
+let memberReadFails = false;
+
+const members = [
+  {
+    value: '5678',
+    label: 'Stoney',
+    secondaryText: '@stoney_eagle',
+    state: 'selectable',
+  },
+  {
+    value: '1234',
+    label: 'Saved Sam',
+    secondaryText: '@sam',
+    state: 'selectable',
+  },
+];
+
+function memberList(options: OptionsAsk): unknown {
+  const { kind } = options.params.path;
+  const { Search: search, value } = options.params.query;
+
+  memberAsks.push({
+    kind,
+    search,
+    value,
+  });
+
+  if (memberReadFails)
+    return {
+      error: { message: 'Unknown picker kind.' },
+      response: { status: 400, ok: false },
+    };
+
+  if (!membersReadable)
+    return ok({
+      sourceAvailable: false,
+      unavailableReason: 'The Discord bot token is not configured on this server.',
+      items: [],
+      totalCount: 0,
+    });
+
+  const items = value === undefined
+    ? members.filter((member) =>
+        search === undefined || member.label.toLowerCase().startsWith(search.toLowerCase()))
+    : members.filter((member) =>
+        member.value === value);
+
+  return ok({
+    sourceAvailable: true,
+    items,
+    totalCount: items.length,
+  });
+}
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async () => ok(rows),
+    GET: async (path: string, options: OptionsAsk) =>
+      path.includes('/pipelines/options/')
+        ? memberList(options)
+        : ok(rows),
     PUT: async (path: string, options?: Options) => record('PUT', path, options),
     POST: async (path: string, options?: Options) => record('POST', path, options),
     DELETE: async (path: string, options?: Options) => record('DELETE', path, options),
@@ -82,6 +148,9 @@ let pinia: Pinia;
 
 beforeEach(() => {
   calls.length = 0;
+  memberAsks.length = 0;
+  membersReadable = true;
+  memberReadFails = false;
   rows = [];
   refusePut = false;
   pinia = createPinia();
@@ -171,6 +240,11 @@ const click = async (selector: string): Promise<void> => {
   await settle();
 };
 
+async function pickMember(value: string): Promise<void> {
+  await click('[data-field="live-member"]');
+  await click(`[data-member-option="${value}"]`);
+}
+
 describe('the live role panel', () => {
   it('creates the rule for the picked member with the default of enabled when none is stored', async () => {
     await panel();
@@ -178,7 +252,7 @@ describe('the live role panel', () => {
     expect(document.body.querySelector('[data-live-role-panel] input')).toBeNull();
 
     await pickFirst('live-role');
-    await pickFirst('live-member');
+    await pickMember('5678');
     await click('[data-save-live-role]');
 
     expect(calls).toHaveLength(1);
@@ -190,6 +264,45 @@ describe('the live role panel', () => {
       discordMemberId: '5678',
       enabled: true,
     });
+  });
+
+  it('lists the Discord server members by name from the bot and names the saved member', async () => {
+    rows = [stored];
+    await panel();
+
+    expect(document.body.querySelector('[data-field="live-member"]')?.textContent).toContain('Saved Sam');
+
+    expect(memberAsks.every((ask) =>
+      ask.kind === 'discord_user')).toBe(true);
+
+    expect(memberAsks.length).toBeGreaterThan(0);
+
+    await click('[data-field="live-member"]');
+
+    const labels = [...document.body.querySelectorAll('[data-member-option]')].map((option) =>
+      option.textContent);
+
+    expect(labels.some((label) => label?.includes('Stoney') && label.includes('@stoney_eagle'))).toBe(true);
+    expect(document.body.querySelector('[data-live-role-panel] input:not([role="combobox"])')).toBeNull();
+  });
+
+  it('says why no member can be picked when the bot cannot read Discord', async () => {
+    membersReadable = false;
+    await panel();
+
+    const alert = document.body.querySelector('[data-member-error]');
+
+    expect(alert?.getAttribute('role')).toBe('alert');
+    expect(alert?.textContent).toContain('The Discord bot token is not configured on this server.');
+  });
+
+  it('says the members cannot be read when the member read fails', async () => {
+    memberReadFails = true;
+    await panel();
+
+    expect(document.body.querySelector('[data-member-error]')?.textContent).toContain(
+      'The bot cannot read the members of this Discord server right now.',
+    );
   });
 
   it('updates a stored rule with the switch turned off', async () => {

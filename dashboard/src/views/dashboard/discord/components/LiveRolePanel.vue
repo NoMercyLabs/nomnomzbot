@@ -36,6 +36,7 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
+import MemberPicker from './MemberPicker.vue';
 import PickerError from './PickerError.vue';
 
 const props = defineProps<{
@@ -56,22 +57,8 @@ const save = useSaveDiscordLiveRole(channelId, connectionId, () =>
 const remove = useDeleteDiscordLiveRole(channelId, connectionId);
 
 const roleId = ref<string>('');
+// The member is found by name in the Discord server's member list; nobody types a Discord id.
 const memberId = ref<string>('');
-
-// The bot cannot list the server's members yet, so the choice is the person who added the bot,
-// plus the member a stored rule already names. Nobody types a Discord id.
-type MemberChoice = { id: string | null; label: string };
-
-const members = computed(() => {
-  const installer = props.connection.approvedByDiscordUserId ?? null;
-  const choices: MemberChoice[] = [
-    { id: installer, label: t('dashboard.discord.liveRole.memberInstaller') },
-    { id: stored.value?.discordMemberId ?? null, label: t('dashboard.discord.liveRole.memberSaved') },
-  ];
-
-  return choices.filter((choice, index): choice is { id: string; label: string } =>
-    choice.id !== null && choices.findIndex((other) => other.id === choice.id) === index);
-});
 const enabled = ref<boolean>(liveRoleDefaultEnabled);
 
 // The form follows the stored rule whenever it loads or changes.
@@ -128,16 +115,7 @@ function removeRule(): void {
 
     <Field>
       <FieldLabel>{{ t('dashboard.discord.liveRole.member') }}</FieldLabel>
-      <Select v-model="memberId" :disabled="!writable || applied">
-        <SelectTrigger data-field="live-member" class="w-full">
-          <SelectValue :placeholder="t('dashboard.discord.liveRole.memberPlaceholder')" />
-        </SelectTrigger>
-        <SelectContent>
-          <SelectItem v-for="member in members" :key="member.id" :value="member.id">
-            {{ member.label }}
-          </SelectItem>
-        </SelectContent>
-      </Select>
+      <MemberPicker v-model="memberId" :disabled="!writable || applied" />
     </Field>
 
     <div class="rounded-[8px] border border-border p-1">

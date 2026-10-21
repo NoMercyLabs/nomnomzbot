@@ -127,13 +127,16 @@ const plugins = (): Array<Plugin | [Plugin, ...unknown[]]> => [
   ],
 ];
 
-async function editor(role: typeof storedRole | null): Promise<void> {
+async function editor(
+  role: typeof storedRole | null,
+  pickerError: Error | null = null,
+): Promise<void> {
   mounted = mount(NotifyRoleEditor, {
     attachTo: document.body,
     props: {
       role: role as never,
       connectionId: 'conn1',
-      pickerError: null,
+      pickerError,
       guildRoles: [
         {
           id: 'dr9',
@@ -235,6 +238,17 @@ describe('the notify role editor', () => {
     expect(calls).toHaveLength(1);
     expect(calls[0]?.path).toContain('/discord/roles/{roleId}/button');
     expect(calls[0]?.body).toEqual({ buttonChannelId: 'ch1' });
+  });
+
+  it('says why under the role and the button channel picker when the bot cannot read Discord', async () => {
+    await editor(storedRole, new Error('Discord read failed'));
+
+    const fields = ['discord-role', 'button-channel'].map((field) =>
+      document.body.querySelector(`[data-field="${field}"]`)?.closest('[data-slot="field"], [role="group"]'));
+    const lines = fields.map((field) =>
+      field?.querySelector('[data-picker-error]')?.textContent);
+
+    expect(lines.every((line) => line?.includes('Discord read failed'))).toBe(true);
   });
 
   it('creates a role from the picked Discord role', async () => {

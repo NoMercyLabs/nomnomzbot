@@ -176,6 +176,7 @@ async function postRoleButton(): Promise<void> {
           {{ t('dashboard.discord.roles.postButton') }}
         </Button>
       </div>
+      <PickerError :error="pickerError" />
     </Field>
 
     <p v-if="failure" role="alert" data-role-error class="text-sm text-destructive">

@@ -110,10 +110,15 @@ describe('the Discord pickers when the server cannot read Discord', () => {
     document.body.querySelector<HTMLElement>('[data-edit="stream.online"]')!.click();
     await flushPromises();
 
-    const alert = document.body.querySelector('[data-rule-editor] [data-picker-error]');
+    const alerts = [...document.body.querySelectorAll('[data-rule-editor] [data-picker-error]')];
 
-    expect(alert?.getAttribute('role')).toBe('alert');
-    expectPlain(alert?.textContent);
+    // One line under the channel picker and one under the ping role picker.
+    expect(alerts).toHaveLength(2);
+
+    for (const alert of alerts) {
+      expect(alert.getAttribute('role')).toBe('alert');
+      expectPlain(alert.textContent);
+    }
   });
 
   it('the live role panel names the reason instead of an empty role list', async () => {

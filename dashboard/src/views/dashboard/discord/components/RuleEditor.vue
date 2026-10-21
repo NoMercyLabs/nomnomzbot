@@ -221,6 +221,7 @@ function removeField(index: number): void {
           </SelectItem>
         </SelectContent>
       </Select>
+      <PickerError :error="pickerError" />
     </Field>
 
     <TemplateField
