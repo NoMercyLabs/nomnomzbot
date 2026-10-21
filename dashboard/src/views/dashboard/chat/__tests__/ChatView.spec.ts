@@ -1772,6 +1772,16 @@ describe('ChatView reply', () => {
     expect(mark!.classList).toContain('group-focus-within/box:hidden');
   });
 
+  // Stoney 2026-10-21, mobile: the emoji button leaves the input on a phone and sits beside it, as its own 36 px button.
+  it('puts the emote picker beside the box below md, not inside it', async () => {
+    await open();
+    const tray = document.querySelector<HTMLElement>('[data-composer-box] [data-emote-picker]')!.parentElement!;
+
+    expect(tray.classList).toContain('max-md:static');
+    expect(document.querySelector('[data-composer-box]')!.classList).toContain('max-md:flex');
+    expect(input().classList).toContain('max-md:pe-2.5');
+  });
+
   it('shows the parent a reply line answers, from the names Twitch sent', async () => {
     history = [
       line('m4', 'u2', 'Bob', '@Alice yes', {
