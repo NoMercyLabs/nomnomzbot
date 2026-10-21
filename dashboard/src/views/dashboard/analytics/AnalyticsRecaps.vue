@@ -156,7 +156,7 @@ async function save(): Promise<void> {
     const link = document.createElement('a');
 
     link.href = url;
-    link.download = `recap-${opened.value.stats.stream.startedAt.slice(0, 10)}.png`;
+    link.download = `recap-${(opened.value.stats.stream.startedAt ?? '').slice(0, 10)}.png`;
     link.click();
   } catch {
     failed.value = true;
@@ -230,7 +230,7 @@ async function save(): Promise<void> {
     </PanelCard>
 
     <Dialog :open="opened !== null" @update:open="close">
-      <DialogContent class="sm:max-w-4xl">
+      <DialogContent class="sm:max-w-4xl" :show-close-button="false">
         <DialogHeader>
           <DialogTitle>{{ opened ? title(opened) : '' }}</DialogTitle>
           <DialogDescription>
