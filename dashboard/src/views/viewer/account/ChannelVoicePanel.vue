@@ -20,6 +20,7 @@ import SearchField from '@/components/layout/SearchField.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
+import { merge } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 
 const props = defineProps<{ channelId: string | null }>();
@@ -34,7 +35,16 @@ const save = useSetMyVoice(() => props.channelId);
 const catalog = useTtsVoices(() => props.channelId, () => ({ q: query.value }));
 
 const pages = computed<readonly TtsVoicePage[]>(() => catalog.data.value?.pages ?? []);
-const voices = computed<readonly TtsVoice[]>(() => pages.value.flatMap(voicesOf));
+const voiceId = computed<string | null>(() => mine.data.value?.voiceId ?? null);
+// The voice in use leads the list so it never hides below the search results.
+const voices = computed<readonly TtsVoice[]>(() => {
+  const all = pages.value.flatMap(voicesOf);
+
+  return merge(
+    all.filter((voice) => voice.id === voiceId.value),
+    all.filter((voice) => voice.id !== voiceId.value),
+  );
+});
 const state = usePanelState(
   {
     data: computed(() => catalog.data.value?.pages),
@@ -43,8 +53,6 @@ const state = usePanelState(
   },
   () => voices.value.length === 0,
 );
-
-const voiceId = computed<string | null>(() => mine.data.value?.voiceId ?? null);
 
 function use(voice: TtsVoice): void {
   save.mutate(voice.id);
@@ -91,7 +99,7 @@ function use(voice: TtsVoice): void {
               {{ $t('viewer.account.voice.inUse') }}
             </Badge>
             <Button v-else
-                    variant="outline"
+                    variant="ghost"
                     size="sm"
                     data-voice-use
                     @click="use(voice)"

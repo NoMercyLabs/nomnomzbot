@@ -281,7 +281,17 @@ describe('the viewer account page', () => {
     expect(put?.params.channelId).toBe('chan-1');
     expect(sent.some((call) => call.path.endsWith('/tts/config'))).toBe(false);
     expect(sent.filter((call) => call.method !== 'GET').map((call) => call.path)).toEqual([put?.path]);
-    expect(wrapper.findAll('[data-voice-row]')[1]!.text()).toContain('Your voice');
+    expect(wrapper.findAll('[data-voice-row]')[0]!.text()).toContain('Your voice');
+  });
+
+  it('lists the voice in use first so it never hides below the search results', async () => {
+    myVoice = { userId: 'u-1', voiceId: 'v-2' };
+    const wrapper = await mountPage();
+    const rows = wrapper.findAll('[data-voice-row]');
+
+    expect(rows[0]!.text()).toContain('Guy');
+    expect(rows[0]!.text()).toContain('Your voice');
+    expect(rows[1]!.text()).toContain('Aria');
   });
 
   it('goes back to the channel voice when the person resets their own', async () => {
