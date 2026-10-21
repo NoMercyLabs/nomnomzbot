@@ -137,13 +137,15 @@ const bodyStyle = computed<Record<string, string> | undefined>(() => {
     : 0);
   const height = `calc(100svh - ${above}rem - ${bottomBarHeight.value}px)`;
 
-  return viewerRoute
-    ? {
-        height,
-        flex: 'none',
-        marginBottom: `calc(${bottomBarHeight.value}px - 6rem)`,
-      }
-    : { height, flex: 'none' };
+  const marginBottom = viewerRoute
+    ? `calc(${bottomBarHeight.value}px - 6rem)`
+    : '0px';
+
+  return {
+    height,
+    flex: 'none',
+    marginBottom,
+  };
 });
 
 // Closing the docked search clears what was typed.
