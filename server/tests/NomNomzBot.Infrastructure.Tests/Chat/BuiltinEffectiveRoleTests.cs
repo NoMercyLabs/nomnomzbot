@@ -139,6 +139,41 @@ public sealed class BuiltinEffectiveRoleTests
         await h.Resolver.DidNotReceiveWithAnyArgs().ResolveEffectiveLevelAsync(default, default);
     }
 
+    [Fact]
+    public async Task Always_on_system_command_wins_over_a_same_named_channel_command()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        Harness h = Build(db, builtinFloor: 0, authoredFallthroughFloor: 0, alwaysOn: true, channelCopy: true);
+
+        await h.Sut.HandleAsync(Event($"!{BuiltinKey}", broadcaster: false), CancellationToken.None);
+
+        Assert.Single(h.Probe.Seen);
+        Assert.Empty(h.TemplateVariables);
+    }
+
+    [Fact]
+    public async Task Always_on_system_command_runs_even_when_the_channel_turned_it_off()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        Harness h = Build(db, builtinFloor: 0, alwaysOn: true, disabled: true);
+
+        await h.Sut.HandleAsync(Event($"!{BuiltinKey}", broadcaster: false), CancellationToken.None);
+
+        Assert.Single(h.Probe.Seen);
+    }
+
+    [Fact]
+    public async Task Ordinary_builtin_yields_to_a_same_named_channel_command()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        Harness h = Build(db, builtinFloor: 0, authoredFallthroughFloor: 0, channelCopy: true);
+
+        await h.Sut.HandleAsync(Event($"!{BuiltinKey}", broadcaster: false), CancellationToken.None);
+
+        Assert.Empty(h.Probe.Seen);
+        Assert.Single(h.TemplateVariables);
+    }
+
     private static async Task AssertResolverAskedOnceAsync(Harness h)
     {
         await h
@@ -172,8 +207,10 @@ public sealed class BuiltinEffectiveRoleTests
     );
 
     /// <summary>Records every context it is executed with.</summary>
-    private sealed class ProbeBuiltin(int floor) : IBuiltinCommand
+    private sealed class ProbeBuiltin(int floor, bool alwaysOn) : IBuiltinCommand
     {
+        public bool IsAlwaysOn => alwaysOn;
+
         public List<BuiltinCommandContext> Seen { get; } = [];
 
         public string BuiltinKey => BuiltinEffectiveRoleTests.BuiltinKey;
@@ -194,7 +231,10 @@ public sealed class BuiltinEffectiveRoleTests
         AuthDbContext db,
         int builtinFloor,
         int? authoredFallthroughFloor = null,
-        string? templateReply = null
+        string? templateReply = null,
+        bool alwaysOn = false,
+        bool disabled = false,
+        bool channelCopy = false
     )
     {
         ChannelContext ctx = new()
@@ -207,7 +247,7 @@ public sealed class BuiltinEffectiveRoleTests
             ctx.Commands[BuiltinKey] = new()
             {
                 Name = BuiltinKey,
-                TemplateResponses = [],
+                TemplateResponses = channelCopy ? ["channel copy"] : [],
                 GlobalCooldown = 0,
                 UserCooldown = 0,
                 MinPermissionLevel = floor,
@@ -270,7 +310,10 @@ public sealed class BuiltinEffectiveRoleTests
         services.AddSingleton(resolver);
         ServiceProvider provider = services.BuildServiceProvider();
 
-        ProbeBuiltin probe = new(builtinFloor);
+        if (disabled)
+            ctx.DisabledBuiltins[BuiltinKey] = 0;
+
+        ProbeBuiltin probe = new(builtinFloor, alwaysOn);
         IBuiltinCommandCatalog catalog = Substitute.For<IBuiltinCommandCatalog>();
         catalog.Get(BuiltinKey).Returns(probe);
 
