@@ -19,8 +19,10 @@ import { oneOf } from '../lib/array';
 // hold a raw number field for seconds; the sweep removes them from the list, and a clean file must leave it.
 const src = join(__dirname, '..');
 const rawSecondsField = /<Input\b[^>]*?type="number"[^>]*?seconds[^>]*?\/>|<Input\b[^>]*?seconds[^>]*?type="number"[^>]*?\/>/is;
+// StudioPanel stays: an OBS transition lasts tenths of a second (0.3 s), and DurationInput counts whole seconds.
 const sweepList = [
   'views/dashboard/commands/components/CommandEditor.vue',
+  'views/dashboard/obs/components/StudioPanel.vue',
   'views/dashboard/timers/components/ChatTriggerEditor.vue',
   'views/dashboard/voice-triggers/components/NewVoiceTriggerDialog.vue',
   'views/dashboard/voice-triggers/components/VoiceTriggerEditor.vue',

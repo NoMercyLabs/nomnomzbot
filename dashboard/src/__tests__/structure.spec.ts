@@ -123,12 +123,16 @@ describe('folder layout', () => {
 
   // styles/frame.css gives harm one look: variant="destructive". A red class on another variant
   // makes a second harm style (a red underlined link) that the frame rules never approved.
+  // Exception (734a9eb33, 2026-10-21): the Integrations row Disconnect is a deliberate quiet ghost button
+  // with red text, so a loud filled button does not outrank the row's Edit.
   it('marks a harmful button only with the destructive variant, never a red class', () => {
+    const quietDisconnect = 'views/dashboard/settings/integrations/IntegrationsView.vue';
     const tinted: string[] = allPaths(src)
       .filter(
         (path) =>
           path.endsWith('.vue') &&
-          !relative(src, path).replace(/\\/g, '/').startsWith('components/ui/'),
+          !relative(src, path).replace(/\\/g, '/').startsWith('components/ui/') &&
+          relative(src, path).replace(/\\/g, '/') !== quietDisconnect,
       )
       .filter((path) =>
         /<Button\b[^>]*\bclass="[^"]*\btext-destructive\b/.test(readFileSync(path, 'utf8')),
@@ -844,7 +848,6 @@ const smallIconButtonAllowlist = [
   'views/dashboard/discord/DiscordView.vue',
   'views/dashboard/home/components/HappeningPanel.vue',
   'views/dashboard/music/MusicView.vue',
-  'views/dashboard/overlays/components/OverlaySettingField.vue',
   'views/dashboard/pipelines/WorkbenchView.vue',
   'views/dashboard/pipelines/components/StepPalette.vue',
   'views/site/login/components/BotChooser.vue',

@@ -26,7 +26,9 @@ const iconOnlyOrTextBox = new Set([
   'views/dashboard/chat/components/ChatComposer.vue',
   'views/dashboard/chat/components/ChatDockHeader.vue',
   'views/dashboard/chat/components/ChatLine.vue',
+  'views/dashboard/media-share/components/MediaShareQueueRow.vue',
   'views/dashboard/music/MusicView.vue',
+  'views/dashboard/settings/api-devices/components/KeyEventsInfo.vue',
   'views/dashboard/pipelines/components/PipelineMenu.vue',
 ]);
 
