@@ -39,7 +39,7 @@ function choose(person: SupportPerson): void {
 </script>
 
 <template>
-  <div class="relative">
+  <div>
     <div
       v-if="person"
       data-person-picked
@@ -71,7 +71,7 @@ function choose(person: SupportPerson): void {
       </p>
       <ul
         v-else-if="asking && options.length > 0"
-        class="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md border bg-popover p-1 text-popover-foreground shadow-md"
+        class="mt-1.5 max-h-56 w-full overflow-auto rounded-md border bg-popover p-1 text-popover-foreground"
       >
         <li v-for="option in options" :key="option.userId">
           <button
