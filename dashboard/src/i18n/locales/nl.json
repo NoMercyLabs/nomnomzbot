@@ -688,6 +688,7 @@
   },
   "frame": {
     "brand": "NomNomzBot",
+    "panels": "Panelen",
     "nav": {
       "label": "Hoofdnavigatie",
       "more": "Meer",
