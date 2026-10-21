@@ -46,6 +46,49 @@ export function parseHeaderLines(text: string) {
   };
 }
 
+// A piece of a line of prose: plain text, or a web address the reader may want to open or copy.
+export type LinkPart = {
+  kind: 'text' | 'link';
+  value: string;
+};
+
+const addressPattern = /https?:\/\/[^\s<>"']+/g;
+const addressTail = /[.,;:!?)\]]+$/;
+
+// A line of prose to its text and web address parts, in order. The punctuation that ends a sentence
+// ("...dashboard.") belongs to the text after the address, not to the address.
+export function splitLinks(line: string): LinkPart[] {
+  const parts: LinkPart[] = [];
+  let from = 0;
+
+  for (const match of line.matchAll(addressPattern)) {
+    const link = match[0].replace(addressTail, '');
+
+    if (match.index > from) {
+      parts.push({
+        kind: 'text',
+        value: line.slice(from, match.index),
+      });
+    }
+
+    parts.push({
+      kind: 'link',
+      value: link,
+    });
+
+    from = match.index + link.length;
+  }
+
+  if (from < line.length) {
+    parts.push({
+      kind: 'text',
+      value: line.slice(from),
+    });
+  }
+
+  return parts;
+}
+
 // Two letters for an avatar without a picture: "Stoney_Eagle" -> "ST".
 export function initials(name: string): string {
   return name
