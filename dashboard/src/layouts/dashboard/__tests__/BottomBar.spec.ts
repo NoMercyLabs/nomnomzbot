@@ -95,6 +95,21 @@ describe('the bottom bar More menu', () => {
     expect(document.body.querySelector('[data-slot="more-drawer"]')).toBeNull();
   });
 
+  // Stoney 2026-10-21 (mobile ledger M-10): More kept a focus ring after the sheet closed on a phone.
+  it('leaves the More tab without focus after a touch close, so no ring shows', async () => {
+    await openMore('/dashboard-analytics');
+
+    window.dispatchEvent(new Event('pointerdown'));
+
+    sheet().querySelector<HTMLElement>('[data-drawer-close]')!.click();
+    await flushPromises();
+    await new Promise((done) => setTimeout(done, 50));
+
+    const more = mounted!.findAll('button').find((button) => button.text() === 'More');
+
+    expect(document.activeElement).not.toBe(more!.element);
+  });
+
   it('marks only the row of the current page, and focus does not land on another row', async () => {
     await openMore('/dashboard-analytics');
 
