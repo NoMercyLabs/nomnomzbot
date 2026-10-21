@@ -24,10 +24,15 @@ import { dashboardDiscordRoute } from '../route';
 
 const reason = 'The Discord bot is not set up on this bot server yet. The person who runs the bot server must add the Discord bot token.';
 
-function expectPlain(text: string | null | undefined): void {
-  expect(text).toContain(reason);
-  expect(text).not.toContain('Discord:BotToken');
-  expect(text).not.toContain('Try again');
+// What is wrong with a picker's error text: it must name the reason and show no config key or retry hint.
+function plainProblems(text: string | null | undefined): string[] {
+  const checks = {
+    'does not name the reason': text?.includes(reason) !== true,
+    'shows the config key': text?.includes('Discord:BotToken') === true,
+    'offers a retry': text?.includes('Try again') === true,
+  } as const satisfies Record<string, boolean>;
+
+  return Object.keys(checks).filter((problem) => checks[problem]);
 }
 
 const connection = {
@@ -117,14 +122,16 @@ describe('the Discord pickers when the server cannot read Discord', () => {
 
     for (const alert of alerts) {
       expect(alert.getAttribute('role')).toBe('alert');
-      expectPlain(alert.textContent);
+      expect(plainProblems(alert.textContent)).toEqual([]);
     }
   });
 
   it('the live role panel names the reason instead of an empty role list', async () => {
     await open();
 
-    expectPlain(document.body.querySelector('[data-live-role-panel] [data-picker-error]')?.textContent);
+    expect(
+      plainProblems(document.body.querySelector('[data-live-role-panel] [data-picker-error]')?.textContent),
+    ).toEqual([]);
   });
 
   it('the self-assign role editor names the reason', async () => {
@@ -133,7 +140,9 @@ describe('the Discord pickers when the server cannot read Discord', () => {
     document.body.querySelector<HTMLElement>('[data-add-role]')!.click();
     await flushPromises();
 
-    expectPlain(document.body.querySelector('[data-notify-role-editor] [data-picker-error]')?.textContent);
+    expect(
+      plainProblems(document.body.querySelector('[data-notify-role-editor] [data-picker-error]')?.textContent),
+    ).toEqual([]);
   });
 });
 

@@ -355,6 +355,7 @@ describe('built-in commands', () => {
     replyGroup: 'sr',
     speakWithTts: false,
     isReserved: false,
+    isAlwaysOn: false,
     cooldownSecondsOverride: null,
     minPermissionLevelOverride: null,
     replyOverrideCount: 0,

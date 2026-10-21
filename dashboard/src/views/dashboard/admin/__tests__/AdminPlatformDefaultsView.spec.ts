@@ -467,8 +467,8 @@ describe('AdminPlatformDefaultsView', () => {
     sections.forEach((name) => {
       const text = document.body.querySelector(`[data-section="${name}"]`)?.textContent ?? '';
 
-      expect(text, name).toContain('You may not see the platform defaults.');
-      expect(text, name).not.toMatch(/No .* (are|is) listed/);
+      expect({ name, refused: text.includes('You may not see the platform defaults.') }).toEqual({ name, refused: true });
+      expect({ name, listsNothing: /No .* (are|is) listed/.test(text) }).toEqual({ name, listsNothing: false });
     });
   });
 

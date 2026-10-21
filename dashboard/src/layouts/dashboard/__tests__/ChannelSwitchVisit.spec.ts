@@ -63,7 +63,7 @@ vi.mock('@/composables/useCurrentChannel', () => ({
       channelId: 'own1',
     }),
     isPending: ref(false),
-    choose: vi.fn(),
+    choose: vi.fn<() => void>(),
   }),
 }));
 

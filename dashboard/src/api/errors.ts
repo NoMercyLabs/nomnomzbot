@@ -300,6 +300,7 @@ export const apiOperations = {
   'save timer': 'liveOps',
   'media share': 'liveOps',
   'media share config': 'liveOps',
+  'media share player': 'liveOps',
   'save media share config': 'liveOps',
   'media share action': 'liveOps',
   'delete timer': 'liveOps',

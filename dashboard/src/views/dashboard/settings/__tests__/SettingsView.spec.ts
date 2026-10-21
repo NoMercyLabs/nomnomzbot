@@ -198,7 +198,9 @@ describe('Readability controls', () => {
     } as const satisfies Record<string, string>;
 
     for (const [title, selector] of Object.entries(kinds)) {
-      expect(rowOf(title).querySelector(selector), title).not.toBeNull();
+      const found = rowOf(title).querySelector(selector) !== null;
+
+      expect({ title, found }).toEqual({ title, found: true });
     }
   });
 });

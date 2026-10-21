@@ -25,20 +25,22 @@ let hangReads = false;
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
+type Refused = { error: { status: string }; response: { status: number; ok: boolean } };
+
+async function read(path: string): Promise<Answer | Refused> {
+  if (hangReads) {
+    return new Promise<never>(() => undefined);
+  }
+
+  const match = Object.keys(answers).find((suffix) => path.endsWith(suffix));
+
+  return match
+    ? ok(answers[match])
+    : { error: { status: 'error' }, response: { status: 404, ok: false } };
+}
+
 vi.mock('@/api/client', () => ({
-  client: {
-    GET: vi.fn(async (path: string) => {
-      if (hangReads) {
-        return new Promise<never>(() => undefined);
-      }
-
-      const match = Object.keys(answers).find((suffix) => path.endsWith(suffix));
-
-      return match
-        ? ok(answers[match])
-        : { error: { status: 'error' }, response: { status: 404, ok: false } };
-    }),
-  },
+  client: { GET: vi.fn<typeof read>(read) },
 }));
 
 const watched = (name: string, isLive: boolean) => ({

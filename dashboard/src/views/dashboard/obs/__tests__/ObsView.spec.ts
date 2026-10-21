@@ -109,6 +109,12 @@ vi.mock('@/api/client', () => ({
           response: { status: 200, ok: true },
         };
 
+      if (path.endsWith('/obs/hotkeys'))
+        return {
+          data: { data: ['OBSBasic.StartStreaming', 'OBSBasic.StopStreaming'] },
+          response: { status: 200, ok: true },
+        };
+
       return {
         data: {
           data: [

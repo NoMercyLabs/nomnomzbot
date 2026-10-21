@@ -33,7 +33,7 @@ type Answer = {
   response: { status: number; ok: boolean };
 };
 
-vi.mock('vue-sonner', () => ({ toast: { success: vi.fn(), error: vi.fn() } }));
+vi.mock('vue-sonner', () => ({ toast: { success: vi.fn<() => void>(), error: vi.fn<() => void>() } }));
 
 const calls: Call[] = [];
 let config: Record<string, unknown> | null = null;
