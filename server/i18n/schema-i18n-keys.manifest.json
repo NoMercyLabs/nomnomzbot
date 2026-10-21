@@ -1443,6 +1443,7 @@
     "widget.raid_recap.metrics.option.duration",
     "widget.raid_recap.metrics.option.followers",
     "widget.raid_recap.metrics.option.gifters",
+    "widget.raid_recap.metrics.option.newFollowers",
     "widget.raid_recap.metrics.option.peakViewers",
     "widget.raid_recap.metrics.option.raidsIn",
     "widget.raid_recap.metrics.option.redemptions",

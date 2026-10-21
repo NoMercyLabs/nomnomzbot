@@ -293,6 +293,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                         "duration",
                         "peakViewers",
                         "followers",
+                        "newFollowers",
                         "subs",
                         "gifters",
                         "selfSubs",

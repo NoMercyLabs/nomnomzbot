@@ -146520,6 +146520,16 @@
             "description": "New followers during the stream.",
             "format": "int32"
           },
+          "newFollowers": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Display names of the viewers who followed during the stream, oldest first."
+          },
           "subs": {
             "oneOf": [
               {

@@ -502,6 +502,7 @@ public static class FirstPartyWidgetCatalogue
                     "duration",
                     "peakViewers",
                     "followers",
+                    "newFollowers",
                     "subs",
                     "gifters",
                     "selfSubs",

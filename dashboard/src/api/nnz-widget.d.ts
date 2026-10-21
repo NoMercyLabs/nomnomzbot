@@ -156,6 +156,8 @@ interface NnzStreamStatsDto {
   peakViewers?: number | null;
   /** New followers during the stream. */
   followers?: number | null;
+  /** Display names of the viewers who followed during the stream, oldest first. */
+  newFollowers?: string[] | null;
   /** Subscriptions during the stream: new, resubscribed, gifted and the total. */
   subs?: NnzStreamStatsSubsDto | null;
   /** Gifters by gift count; anonymous gifts are merged as "Anonymous". */
@@ -1045,6 +1047,8 @@ interface NnzStreamMetricMap {
   gifters: NnzStreamNamedCount[];
   /** The hype trains that ended during the stream. Absent when there was none. */
   hypeTrain: NnzStreamHypeTrain;
+  /** Display names of the viewers who followed during the stream, oldest first. */
+  newFollowers: string[];
   /** The highest viewer count the stream recorded. */
   peakViewers?: number;
   /** Raids that arrived during the stream: who raided and with how many viewers. */

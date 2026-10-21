@@ -82,6 +82,7 @@ public sealed class StreamStatsServiceTests
             new DurationMetric(),
             new PeakViewersMetric(db),
             new FollowersMetric(facts),
+            new NewFollowersMetric(facts),
             new SubsMetric(facts),
             new GiftersMetric(facts),
             new SelfSubsMetric(facts),
@@ -179,9 +180,24 @@ public sealed class StreamStatsServiceTests
 
         // Inside the window.
         db.ChannelEvents.AddRange(
-            Fact(Broadcaster, "channel.follow", inside, new { userId = "f1" }),
-            Fact(Broadcaster, "channel.follow", inside.AddMinutes(1), new { userId = "f2" }),
-            Fact(Broadcaster, "channel.follow", inside.AddMinutes(2), new { userId = "f3" }),
+            Fact(
+                Broadcaster,
+                "channel.follow",
+                inside,
+                new { userId = "f1", userDisplayName = "FirstFollower" }
+            ),
+            Fact(
+                Broadcaster,
+                "channel.follow",
+                inside.AddMinutes(2),
+                new { userId = "f3", userDisplayName = "ThirdFollower" }
+            ),
+            Fact(
+                Broadcaster,
+                "channel.follow",
+                inside.AddMinutes(1),
+                new { userId = "f2", userDisplayName = "SecondFollower" }
+            ),
             Fact(
                 Broadcaster,
                 "channel.subscribe",
@@ -279,8 +295,18 @@ public sealed class StreamStatsServiceTests
 
         // Outside the window: before, after, and another channel.
         db.ChannelEvents.AddRange(
-            Fact(Broadcaster, "channel.follow", before, new { userId = "old" }),
-            Fact(Broadcaster, "channel.follow", after, new { userId = "late" }),
+            Fact(
+                Broadcaster,
+                "channel.follow",
+                before,
+                new { userId = "old", userDisplayName = "EarlyFollower" }
+            ),
+            Fact(
+                Broadcaster,
+                "channel.follow",
+                after,
+                new { userId = "late", userDisplayName = "LateFollower" }
+            ),
             Fact(
                 Broadcaster,
                 "channel.subscribe",
@@ -448,6 +474,19 @@ public sealed class StreamStatsServiceTests
             .Should()
             .Equal(("Generous", 3), ("Anonymous", 1));
         stats.SelfSubs.Should().Equal("NewOne", "NewTwo", "Returning");
+    }
+
+    [Fact]
+    public async Task New_followers_lists_the_names_inside_the_window_oldest_first()
+    {
+        StreamStatsDto stats = await AllAsync();
+
+        stats
+            .NewFollowers.Should()
+            .Equal(
+                ["FirstFollower", "SecondFollower", "ThirdFollower"],
+                "the follows before and after the window and on another channel are out"
+            );
     }
 
     [Fact]
