@@ -63,7 +63,7 @@ function undo(): void {
         {{ tag }}
         <button
           type="button"
-          class="inline-flex size-6 items-center justify-center rounded-[6px] text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
+          class="relative inline-flex size-6 items-center after:absolute after:-inset-1.5 after:content-[''] justify-center rounded-[6px] text-muted-foreground hover:bg-foreground/10 hover:text-foreground"
           :aria-label="t('dashboard.stream.info.tagRemove', { tag })"
           @click="remove(index)"
         >
