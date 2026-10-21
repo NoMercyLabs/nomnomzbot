@@ -65,6 +65,19 @@ const vacationValid = computed(
   () => !vacationOn.value || (vacationStart.value !== '' && vacationEnd.value > vacationStart.value),
 );
 
+// Save vacation shows only when the window differs from what Twitch holds, so it never sits idle under the switch.
+const vacationDirty = computed<boolean>(() => {
+  const held = schedule.value?.vacation ?? null;
+
+  if (vacationOn.value !== (held !== null))
+    return true;
+
+  const startChanged = vacationStart.value !== toLocalInput(held?.startTime);
+  const endChanged = vacationEnd.value !== toLocalInput(held?.endTime);
+
+  return vacationOn.value && (startChanged || endChanged);
+});
+
 const when = (iso: string): string => time.dateTime(iso);
 
 const isCanceled = (segment: ScheduleSegment): boolean => segment.canceledUntil != null;
@@ -105,7 +118,7 @@ function toggleCanceled(segment: ScheduleSegment): void {
     :error-text="t('dashboard.stream.schedule.error')"
     @retry="query.refetch()"
   >
-    <div class="flex flex-col gap-6">
+    <div class="flex flex-col gap-6 max-md:px-2">
       <div v-if="canEdit" class="flex flex-col gap-2">
         <span class="text-sm font-medium">{{ t('dashboard.stream.schedule.vacation') }}</span>
         <RowGroup>
@@ -125,7 +138,10 @@ function toggleCanceled(segment: ScheduleSegment): void {
             <Input id="vacation-end" v-model="vacationEnd" type="datetime-local" />
           </div>
         </div>
-        <div class="flex justify-end">
+        <div v-if="vacationDirty" class="flex items-center justify-end gap-3">
+          <span v-if="!vacationValid" class="min-w-0 text-sm text-muted-foreground">
+            {{ t('dashboard.stream.schedule.vacationInvalid') }}
+          </span>
           <Button
             variant="outline"
             data-vacation-save
@@ -154,7 +170,7 @@ function toggleCanceled(segment: ScheduleSegment): void {
             data-segment-row
             class="flex min-h-11 flex-wrap items-center gap-3 rounded-[8px] px-3 py-2"
           >
-            <span class="min-w-0 flex-1">
+            <span data-segment-title class="min-w-0 flex-1 max-md:basis-full">
               <span class="block text-sm font-medium wrap-break-word">{{
                 segment.title || segment.category?.name || t('dashboard.stream.schedule.untitled')
               }}</span>
@@ -166,26 +182,31 @@ function toggleCanceled(segment: ScheduleSegment): void {
                 }}
               </span>
             </span>
-            <StatusBadge v-if="segment.isRecurring" tone="off" :label="t('dashboard.stream.schedule.weekly')" />
-            <StatusBadge v-if="isCanceled(segment)" tone="off" :label="t('dashboard.stream.schedule.isCanceled')" />
-            <Button v-if="canEdit"
-                    variant="ghost"
-                    size="sm"
-                    data-segment-edit
-                    @click="editSegment(segment)"
-            >
-              {{ t('dashboard.stream.schedule.edit') }}
-            </Button>
-            <Button
-              v-if="canEdit"
-              variant="ghost"
-              size="sm"
-              data-segment-cancel
-              :disabled="updateSegment.isPending.value"
-              @click="toggleCanceled(segment)"
-            >
-              {{ isCanceled(segment) ? t('dashboard.stream.schedule.restore') : t('dashboard.stream.schedule.cancel') }}
-            </Button>
+            <div data-segment-actions class="flex items-center gap-3 max-md:basis-full max-md:gap-2">
+              <StatusBadge v-if="segment.isRecurring" tone="off" :label="t('dashboard.stream.schedule.weekly')" />
+              <StatusBadge v-if="isCanceled(segment)" tone="off" :label="t('dashboard.stream.schedule.isCanceled')" />
+              <Button
+                v-if="canEdit"
+                variant="ghost"
+                size="sm"
+                data-segment-edit
+                class="max-md:ml-auto max-md:h-9!"
+                @click="editSegment(segment)"
+              >
+                {{ t('dashboard.stream.schedule.edit') }}
+              </Button>
+              <Button
+                v-if="canEdit"
+                variant="ghost"
+                size="sm"
+                data-segment-cancel
+                class="max-md:h-9!"
+                :disabled="updateSegment.isPending.value"
+                @click="toggleCanceled(segment)"
+              >
+                {{ isCanceled(segment) ? t('dashboard.stream.schedule.restore') : t('dashboard.stream.schedule.cancel') }}
+              </Button>
+            </div>
           </div>
         </RowGroup>
       </div>

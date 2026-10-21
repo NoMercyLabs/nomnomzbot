@@ -248,6 +248,9 @@ afterEach(() => {
 });
 
 async function open(): Promise<void> {
+  // The frame's sticky footer, where a phone-width page moves its Save and Discard.
+  document.body.insertAdjacentHTML('beforeend', '<div data-slot="frame-action-footer"></div>');
+
   const blank = { template: '<div />' };
   const router: Router = createRouter({
     history: createMemoryHistory(),
@@ -322,6 +325,16 @@ describe('the stream info form', () => {
     expect(text()).toContain('coding');
     expect(text()).toContain('English');
     expect(button('Save changes')?.disabled).toBe(true);
+  });
+
+  // Owner rule 2026-10-21: below the tablet width the page-level Save and Discard ride in the frame's sticky footer.
+  it('puts Save and Discard in the frame action footer below the tablet width', async () => {
+    await open();
+
+    const footer = document.body.querySelector('[data-slot="frame-action-footer"]');
+
+    expect(footer?.textContent).toContain('Save changes');
+    expect(footer?.textContent).toContain('Discard');
   });
 
   it('sends the whole stream info with the new title and then has nothing left to save', async () => {

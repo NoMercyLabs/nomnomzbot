@@ -97,6 +97,7 @@
         "vacation": "Vacation",
         "isVacationEnabled": "Vacation mode",
         "vacationHint": "Twitch hides your schedule during a vacation.",
+        "vacationInvalid": "Pick a start and an end after it to save.",
         "vacationStartTime": "Vacation starts",
         "vacationEndTime": "Vacation ends",
         "saveVacation": "Save vacation",

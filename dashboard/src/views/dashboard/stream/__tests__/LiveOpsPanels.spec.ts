@@ -210,14 +210,35 @@ describe('the schedule panel', () => {
     expect(patch?.body).toEqual({ isCanceled: true });
   });
 
-  it('turns the vacation off with only the switch value, and reads the schedule again', async () => {
+  it('offers Save vacation only after the vacation changed, and sends the window, then reads again', async () => {
     await show(SchedulePanel);
     const readsBefore = calls.filter((call) => call.method === 'GET').length;
 
+    expect(document.body.querySelector('[data-vacation-save]')).toBeNull();
+
+    await press('[data-slot="setting-row"] button[role="switch"]');
+    expect(pick<HTMLButtonElement>('[data-vacation-save]').disabled).toBe(true);
+
+    await typeInto('#vacation-start', '2026-11-01T10:00');
+    await typeInto('#vacation-end', '2026-11-08T10:00');
+    expect(pick<HTMLButtonElement>('[data-vacation-save]').disabled).toBe(false);
+
     await press('[data-vacation-save]');
 
-    expect(sent('PUT')[0]?.body).toEqual({ isVacationEnabled: false });
+    expect(sent('PUT')[0]?.body).toMatchObject({ isVacationEnabled: true });
     expect(calls.filter((call) => call.method === 'GET').length).toBeGreaterThan(readsBefore);
+  });
+
+  // Stoney 2026-10-21 (his phone): the title got one word per line beside Weekly, Edit and Cancel.
+  it('gives a segment title its own full-width line below md, with Edit and Cancel in one group under it', async () => {
+    await show(SchedulePanel);
+
+    const title = pick<HTMLElement>('[data-segment-title]');
+    const actions = pick<HTMLElement>('[data-segment-actions]');
+
+    expect(title.className).toContain('max-md:basis-full');
+    expect(actions.contains(pick('[data-segment-edit]'))).toBe(true);
+    expect(actions.contains(pick('[data-segment-cancel]'))).toBe(true);
   });
 });
 

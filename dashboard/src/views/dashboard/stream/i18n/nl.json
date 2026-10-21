@@ -97,6 +97,7 @@
         "vacation": "Vakantie",
         "isVacationEnabled": "Vakantiemodus",
         "vacationHint": "Twitch verbergt je schema tijdens een vakantie.",
+        "vacationInvalid": "Kies een start en een einde daarna om op te slaan.",
         "vacationStartTime": "Vakantie begint",
         "vacationEndTime": "Vakantie eindigt",
         "saveVacation": "Vakantie opslaan",

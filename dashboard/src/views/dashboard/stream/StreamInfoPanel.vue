@@ -23,6 +23,7 @@ import {
   type StreamInfo,
   type StreamInfoDraft,
 } from '@/api/stream';
+import PageActionFooter from '@/components/layout/PageActionFooter.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
@@ -144,7 +145,7 @@ function submit(): void {
     :error-text="t('dashboard.stream.info.error')"
     @retry="infoQuery.refetch()"
   >
-    <div class="flex flex-col gap-6" :inert="!canEdit">
+    <div class="flex flex-col gap-6 max-md:px-2" :inert="!canEdit">
       <div class="flex flex-col gap-2">
         <div class="flex items-baseline justify-between">
           <label for="stream-title" class="text-sm font-medium">{{
@@ -246,14 +247,16 @@ function submit(): void {
         </RowGroup>
       </div>
 
-      <div v-if="canEdit" class="flex items-center justify-end gap-2">
-        <Button variant="ghost" :disabled="!dirty" @click="draft = {}">{{
-          t("dashboard.stream.info.discard")
-        }}</Button>
-        <Button :disabled="!dirty || save.isPending.value" @click="submit">{{
-          t("dashboard.stream.info.save")
-        }}</Button>
-      </div>
+      <PageActionFooter v-if="canEdit">
+        <div class="flex flex-1 items-center justify-end gap-2">
+          <Button variant="ghost" :disabled="!dirty" @click="draft = {}">{{
+            t("dashboard.stream.info.discard")
+          }}</Button>
+          <Button :disabled="!dirty || save.isPending.value" @click="submit">{{
+            t("dashboard.stream.info.save")
+          }}</Button>
+        </div>
+      </PageActionFooter>
     </div>
   </PanelCard>
 </template>
