@@ -69,6 +69,8 @@
           "started": "Stream",
           "title": "Title",
           "length": "Length",
+          "peak": "Peak",
+          "chat": "Chat",
           "size": "Saved size"
         },
         "open": "Open",

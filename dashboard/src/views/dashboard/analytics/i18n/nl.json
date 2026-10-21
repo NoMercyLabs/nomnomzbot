@@ -69,6 +69,8 @@
           "started": "Stream",
           "title": "Titel",
           "length": "Duur",
+          "peak": "Piek",
+          "chat": "Chat",
           "size": "Opslagformaat"
         },
         "open": "Openen",

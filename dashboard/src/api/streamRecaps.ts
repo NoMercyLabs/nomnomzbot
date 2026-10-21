@@ -42,12 +42,15 @@ export function withChannel(
   return { ...recap, stats: { ...recap.stats, channel: filled } } as const satisfies StreamRecap;
 }
 
+// The most the server sends in one request (PaginationParams.MaxPageSize).
+const FETCH_PAGE_SIZE = 100;
+
 const version = '1';
 
 async function readPage(channelId: string, page: number): Promise<StreamRecapPage> {
   const { data, error, response } = await client.GET(
     '/api/v{version}/dashboard/{channelId}/stream-recaps',
-    { params: { path: { version, channelId }, query: { Page: page, PageSize: RECAP_PAGE_SIZE } } },
+    { params: { path: { version, channelId }, query: { Page: page, PageSize: FETCH_PAGE_SIZE } } },
   );
 
   if (error !== undefined)
@@ -62,14 +65,34 @@ async function readPage(channelId: string, page: number): Promise<StreamRecapPag
   };
 }
 
-// Every kept recap of the channel, newest stream first, one page at a time.
+// Sorting by any column needs the whole list, so the pages are read one after the other until the last one.
+async function readAll(channelId: string): Promise<StreamRecapPage> {
+  const recaps: StreamRecap[] = [];
+  let page = 1;
+  let last = await readPage(channelId, page);
+
+  recaps.push(...last.recaps);
+
+  while (last.hasMore) {
+    page++;
+    last = await readPage(channelId, page);
+    recaps.push(...last.recaps);
+  }
+
+  return {
+    recaps,
+    total: recaps.length,
+    hasMore: false,
+  };
+}
+
+// Every kept recap of the channel, newest stream first.
 export function useStreamRecaps(
   channelId: MaybeRefOrGetter<string | null>,
-  page: MaybeRefOrGetter<number>,
 ): UseQueryReturnType<StreamRecapPage, Error> {
   return useQuery({
-    queryKey: computed(() => ['stream-recaps', toValue(channelId), toValue(page)]),
-    queryFn: (): Promise<StreamRecapPage> => readPage(toValue(channelId) as string, toValue(page)),
+    queryKey: computed(() => ['stream-recaps', toValue(channelId)]),
+    queryFn: (): Promise<StreamRecapPage> => readAll(toValue(channelId) as string),
     enabled: computed(() => toValue(channelId) !== null),
   });
 }

@@ -10,8 +10,11 @@
 <script setup lang="ts">
 // The Recaps tab: every kept stream recap (the end credits), newest first. Opening one shows it drawn by the real
 // raid_recap widget; "Save as PNG" saves it at the size of the stream it was made for.
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
+import ArrowDown from '~icons/nnz/arrow-down';
+import ArrowsUpDown from '~icons/nnz/arrow-arrows-up-down';
+import ArrowUp from '~icons/nnz/arrow-up';
 
 import { RECAP_PAGE_SIZE, useStreamRecaps, withChannel, type StreamRecap, type StreamRecapPage } from '@/api/streamRecaps';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -21,6 +24,7 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+import { useTableSort } from '@/composables/useTableSort';
 import { useTime } from '@/composables/useTime';
 
 import RecapPreview from './RecapPreview.vue';
@@ -31,14 +35,83 @@ const time = useTime();
 const { channelId, current: channel } = useCurrentChannel();
 const page = 'dashboard.analytics.recaps';
 
+// Every column sorts. The width classes are fixed so the table never reflows when a title or a number changes; the
+// title takes what is left.
+const COLUMNS = [
+  {
+    key: 'started',
+    width: 'w-48',
+    hidden: '',
+  },
+  {
+    key: 'title',
+    width: '',
+    hidden: '',
+  },
+  {
+    key: 'length',
+    width: 'w-28',
+    hidden: '',
+  },
+  {
+    key: 'peak',
+    width: 'w-24',
+    hidden: '',
+  },
+  {
+    key: 'chat',
+    width: 'w-24',
+    hidden: '',
+  },
+  {
+    key: 'size',
+    width: 'w-44',
+    hidden: 'max-md:hidden',
+  },
+] as const;
+const sort = useTableSort(['started', 'title', 'length', 'peak', 'chat', 'size'], {
+  fallback: { column: 'started', direction: 'desc' },
+  ascending: ['title'],
+});
+
 const current = ref(1);
-const recaps = useStreamRecaps(channelId, current);
-const rows = computed<StreamRecap[]>(() =>
-  (recaps.data.value?.recaps ?? []).map((kept) => withChannel(kept, channel.value)));
+const recaps = useStreamRecaps(channelId);
+const kept = computed<StreamRecap[]>(() =>
+  (recaps.data.value?.recaps ?? []).map((recap) => withChannel(recap, channel.value)));
+const sortedRows = computed(() => sort.sorted(kept.value, sortValue));
+const rows = computed(() =>
+  sortedRows.value.slice((current.value - 1) * RECAP_PAGE_SIZE, current.value * RECAP_PAGE_SIZE));
 const state = usePanelState(recaps, (data: StreamRecapPage) =>
   data.recaps.length === 0);
 const total = computed(() => recaps.data.value?.total ?? 0);
 const pages = computed(() => Math.max(1, Math.ceil(total.value / RECAP_PAGE_SIZE)));
+
+watch([sort.column, sort.direction], () => {
+  current.value = 1;
+});
+
+function sortValue(recap: StreamRecap, column: (typeof COLUMNS)[number]['key']): number | string {
+  const size = recapResolution(recap);
+  const values = {
+    started: Date.parse(recap.fromAt ?? ''),
+    title: recap.stats.stream.title ?? '',
+    length: Number(recap.stats.duration ?? 0),
+    peak: Number(recap.stats.peakViewers ?? 0),
+    chat: Number(recap.stats.chat?.messages ?? 0),
+    size: size.width * size.height,
+  } as const satisfies Record<(typeof COLUMNS)[number]['key'], number | string>;
+
+  return values[column];
+}
+
+function ariaSort(column: (typeof COLUMNS)[number]['key']): 'ascending' | 'descending' | 'none' {
+  if (sort.column.value !== column)
+    return 'none';
+
+  return sort.direction.value === 'asc'
+    ? 'ascending'
+    : 'descending';
+}
 
 const opened = ref<StreamRecap | null>(null);
 const preview = ref<InstanceType<typeof RecapPreview> | null>(null);
@@ -53,6 +126,14 @@ function started(recap: StreamRecap): string {
 
 function length(recap: StreamRecap): string {
   return time.duration(Number(recap.stats.duration ?? 0));
+}
+
+function peak(recap: StreamRecap): string {
+  return String(recap.stats.peakViewers ?? 0);
+}
+
+function chat(recap: StreamRecap): string {
+  return String(recap.stats.chat?.messages ?? 0);
 }
 
 function sizeLabel(recap: StreamRecap): string {
@@ -103,14 +184,29 @@ async function save(): Promise<void> {
       :error-text="t('dashboard.analytics.error')"
       @retry="recaps.refetch()"
     >
-      <Table>
+      <Table class="min-w-176 table-fixed">
         <TableHeader>
           <TableRow class="hover:bg-transparent">
             <TableHead class="w-16" />
-            <TableHead>{{ t(`${page}.columns.started`) }}</TableHead>
-            <TableHead>{{ t(`${page}.columns.title`) }}</TableHead>
-            <TableHead>{{ t(`${page}.columns.length`) }}</TableHead>
-            <TableHead class="max-md:hidden">{{ t(`${page}.columns.size`) }}</TableHead>
+            <TableHead
+              v-for="column in COLUMNS"
+              :key="column.key"
+              :class="[column.width, column.hidden]"
+              :aria-sort="ariaSort(column.key)"
+            >
+              <Button
+                variant="ghost"
+                size="sm"
+                class="-ml-2.5 gap-1.5!"
+                :data-sort="column.key"
+                @click="sort.press(column.key)"
+              >
+                {{ t(`${page}.columns.${column.key}`) }}
+                <ArrowUp v-if="sort.column.value === column.key && sort.direction.value === 'asc'" class="size-4" />
+                <ArrowDown v-else-if="sort.column.value === column.key" class="size-4" />
+                <ArrowsUpDown v-else class="size-4 text-muted-foreground" />
+              </Button>
+            </TableHead>
             <TableHead class="w-24" />
           </TableRow>
         </TableHeader>
@@ -122,10 +218,12 @@ async function save(): Promise<void> {
                 <AvatarFallback class="rounded-md">{{ recap.stats.channel?.name?.slice(0, 1) }}</AvatarFallback>
               </Avatar>
             </TableCell>
-            <TableCell class="font-medium">{{ started(recap) }}</TableCell>
-            <TableCell>{{ recap.stats.stream.title }}</TableCell>
+            <TableCell class="truncate font-medium">{{ started(recap) }}</TableCell>
+            <TableCell class="truncate" :title="recap.stats.stream.title ?? ''">{{ recap.stats.stream.title }}</TableCell>
             <TableCell class="tabular-nums">{{ length(recap) }}</TableCell>
-            <TableCell class="text-muted-foreground max-md:hidden">{{ sizeLabel(recap) }}</TableCell>
+            <TableCell class="tabular-nums">{{ peak(recap) }}</TableCell>
+            <TableCell class="tabular-nums">{{ chat(recap) }}</TableCell>
+            <TableCell class="truncate text-muted-foreground max-md:hidden">{{ sizeLabel(recap) }}</TableCell>
             <TableCell class="text-right">
               <Button variant="outline" size="sm" data-recap-open @click="opened = recap">{{ t(`${page}.open`) }}</Button>
             </TableCell>

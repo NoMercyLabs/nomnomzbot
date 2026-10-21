@@ -13,6 +13,7 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
+import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import { onTheWire } from '@/api/__tests__/wire';
 import { i18n } from '@/i18n';
@@ -30,7 +31,13 @@ type CaptureOptions = {
 
 const queries: Array<Record<string, unknown> | undefined> = [];
 
-const recap = (id: string, day: string, title: string, size?: { w: number; h: number }) => ({
+const recap = (
+  id: string,
+  day: string,
+  title: string,
+  size?: { w: number; h: number },
+  duration = 10_800,
+) => ({
   streamId: id,
   fromAt: `${day}T18:00:00Z`,
   toAt: `${day}T21:00:00Z`,
@@ -46,7 +53,7 @@ const recap = (id: string, day: string, title: string, size?: { w: number; h: nu
       game: 'Celeste',
     },
     channel: { name: 'Stoney_Eagle', avatarUrl: 'https://cdn.example/stoney.png' },
-    duration: 10_800,
+    duration,
     peakViewers: 87,
     followers: 4,
     chat: { messages: 900, uniqueChatters: 31 },
@@ -64,6 +71,8 @@ const recaps = [
   recap('s2', '2026-10-18', 'Celeste night', { w: 2560, h: 1440 }),
   // A recap kept before the channel metric existed stores no channel.
   withoutChannel(recap('s1', '2026-10-10', 'Older stream')),
+  // The 24 hour stream: the longest and the oldest.
+  recap('s0', '2026-10-02', 'Longest', undefined, 86_400),
 ];
 
 vi.mock('@/api/client', () => ({
@@ -75,7 +84,7 @@ vi.mock('@/api/client', () => ({
       return {
         data: {
           data: onTheWire(recaps),
-          total: 2,
+          total: 3,
           hasMore: false,
         },
         response: { ok: true, status: 200 },
@@ -146,18 +155,29 @@ afterEach(() => {
   toPng.mockReset();
 });
 
-async function open(): Promise<void> {
+let router: Router;
+
+async function open(url = '/'): Promise<void> {
   const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+  router = createRouter({ history: createMemoryHistory(), routes: [{ path: '/', component: { render: () => null } }] });
+  await router.push(url);
 
   mounted = mount(AnalyticsRecaps, {
     attachTo: document.body,
-    global: { plugins: [i18n, pinia, [VueQueryPlugin, { queryClient }]] },
+    global: { plugins: [i18n, pinia, router, [VueQueryPlugin, { queryClient }]] },
   });
 
   await flushPromises();
   await new Promise((done) => setTimeout(done, 0));
   await flushPromises();
 }
+
+const titles = (): string[] =>
+  [...document.body.querySelectorAll('[data-recap-row] td:nth-child(3)')].map((cell) => cell.textContent ?? '');
+
+const headerSort = (key: string): string | null =>
+  document.body.querySelector(`[data-sort="${key}"]`)!.closest('th')!.getAttribute('aria-sort');
 
 const rows = (): string[] =>
   [...document.body.querySelectorAll('[data-recap-row]')].map((row) => row.textContent ?? '');
@@ -166,13 +186,77 @@ describe('the Recaps tab', () => {
   it('lists the kept recaps from the endpoint, newest first, with date, title, length and size', async () => {
     await open();
 
-    expect(queries).toEqual([{ Page: 1, PageSize: 12 }]);
-    expect(rows()).toHaveLength(2);
+    expect(queries).toEqual([{ Page: 1, PageSize: 100 }]);
+    expect(rows()).toHaveLength(3);
     expect(rows()[0]).toContain('Celeste night');
     expect(rows()[0]).toContain('3 hr');
     expect(rows()[0]).toContain('2560 x 1440');
     expect(rows()[1]).toContain('Older stream');
     expect(rows()[1]).toContain('1920 x 1080 (assumed');
+    expect(rows()[2]).toContain('Longest');
+  });
+
+  it('shows the peak and the chat lines of each recap', async () => {
+    await open();
+
+    expect(rows()[0]).toContain('87');
+    expect(rows()[0]).toContain('900');
+  });
+
+  it('sorts by length, longest first, and keeps the sort in the URL', async () => {
+    await open();
+    document.body.querySelector<HTMLButtonElement>('[data-sort="length"]')!.click();
+    await flushPromises();
+
+    expect(titles()).toEqual(['Longest', 'Celeste night', 'Older stream']);
+    expect(router.currentRoute.value.query).toMatchObject({ sort: 'length', dir: 'desc' });
+
+    document.body.querySelector<HTMLButtonElement>('[data-sort="length"]')!.click();
+    await flushPromises();
+
+    expect(titles()[0]).not.toBe('Longest');
+    expect(titles()[2]).toBe('Longest');
+    expect(router.currentRoute.value.query).toMatchObject({ sort: 'length', dir: 'asc' });
+  });
+
+  it('sorts by title from A to Z on the first press, and reads the sort from the URL', async () => {
+    await open('/?sort=title&dir=asc');
+
+    expect(titles()).toEqual(['Celeste night', 'Longest', 'Older stream']);
+    expect(headerSort('title')).toBe('ascending');
+    expect(headerSort('started')).toBe('none');
+  });
+
+  it('sorts by date when asked and opens newest first by default', async () => {
+    await open();
+
+    expect(headerSort('started')).toBe('descending');
+
+    document.body.querySelector<HTMLButtonElement>('[data-sort="started"]')!.click();
+    await flushPromises();
+
+    expect(titles()).toEqual(['Longest', 'Older stream', 'Celeste night']);
+  });
+
+  it('gives every sortable column a button and fixes the table layout and the column widths', async () => {
+    await open();
+
+    const keys = ['started', 'title', 'length', 'peak', 'chat', 'size'];
+    const buttons = [...document.body.querySelectorAll('[data-sort]')].map((button) => button.getAttribute('data-sort'));
+
+    expect(buttons).toEqual(keys);
+    expect(document.body.querySelector('table[data-slot="table"]')!.className).toContain('table-fixed');
+
+    for (const key of keys.filter((known) => known !== 'title')) {
+      const head = document.body.querySelector(`[data-sort="${key}"]`)!.closest('th')!;
+
+      expect(head.className, key).toMatch(/\bw-\d+\b/);
+    }
+
+    const cell = document.body.querySelector('[data-recap-row] td:nth-child(3)')!;
+
+    expect(cell.className).toContain('truncate');
+    expect(cell.getAttribute('title')).toBe('Celeste night');
   });
 
   it('opens a recap drawn by the real raid_recap widget with that recap\'s data', async () => {
