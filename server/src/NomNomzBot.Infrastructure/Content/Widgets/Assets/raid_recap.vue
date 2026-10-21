@@ -477,7 +477,7 @@ h1 { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1; co
 .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; min-height: 0; }
 .block { position: relative; }
 .block > :not(.watermark) { position: relative; }
-.watermark { position: absolute; right: -8%; bottom: -12%; height: 90%; aspect-ratio: 1; border-radius: 50%; object-fit: cover; filter: grayscale(1); opacity: 0.12; pointer-events: none; }
+.watermark { position: absolute; left: -8%; bottom: -12%; height: 90%; aspect-ratio: 1; border-radius: 50%; object-fit: cover; filter: grayscale(1); opacity: 0.12; pointer-events: none; }
 .card {
   background: linear-gradient(45deg, hsl(from var(--color-300) h s l / 50%), hsl(from var(--color-600) h s l / 50%) 15%, hsl(from var(--color-900) h s l / 75%));
   backdrop-filter: blur(24px);
