@@ -144,7 +144,7 @@ watch(
       <div
         v-if="$slots.actions || drawerClose.shown.value"
         data-slot="panel-actions"
-        class="flex max-w-full min-w-0 items-center gap-2"
+        class="flex max-w-full min-w-0 flex-wrap items-center gap-2"
       >
         <slot name="actions" />
         <Button

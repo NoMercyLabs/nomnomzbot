@@ -60,6 +60,17 @@ describe('the panel card header', () => {
     expect(actions.classes()).not.toContain('ml-auto');
     expect(description.classes()).toContain('basis-full');
   });
+
+  // Mobile ledger MU-01: the Add button and the Playback switch cannot fit one 390 px row, so the actions wrap.
+  it('lets several actions wrap onto a second line instead of overflowing', () => {
+    const wrapper = mount(PanelCard, {
+      props: { title: 'Now playing' },
+      slots: { actions: '<button>Add button</button><label>Playback</label>' },
+      global: { plugins: [i18n] },
+    });
+
+    expect(wrapper.find('[data-slot="panel-actions"]').classes()).toContain('flex-wrap');
+  });
 });
 
 describe('the panel card states', () => {
