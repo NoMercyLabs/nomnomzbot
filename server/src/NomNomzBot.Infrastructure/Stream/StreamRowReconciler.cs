@@ -21,7 +21,7 @@ namespace NomNomzBot.Infrastructure.Stream;
 /// </summary>
 internal static class StreamRowReconciler
 {
-    private const string ViewerSampleEventType = "StreamViewerCountSampledEvent";
+    internal const string ViewerSampleEventType = "StreamViewerCountSampledEvent";
 
     private static readonly TimeSpan MaxChatSilence = TimeSpan.FromHours(6);
 
