@@ -8,8 +8,16 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { mount, type VueWrapper } from '@vue/test-utils';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+vi.mock('@/api/client', () => ({
+  client: {
+    use: () => undefined,
+    GET: async () => ({ data: { data: [], total: 0 }, response: { status: 200, ok: true } }),
+  },
+}));
 
 import { i18n } from '@/i18n';
 
@@ -31,7 +39,7 @@ function open(values: AuditFilterValues): VueWrapper {
   mounted = mount(AuditFilters, {
     attachTo: document.body,
     props: { modelValue: values },
-    global: { plugins: [i18n] },
+    global: { plugins: [i18n, [VueQueryPlugin, { queryClient: new QueryClient() }]] },
   });
 
   return mounted;

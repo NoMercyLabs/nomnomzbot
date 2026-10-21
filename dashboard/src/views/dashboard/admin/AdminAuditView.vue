@@ -14,8 +14,10 @@ import { useI18n } from 'vue-i18n';
 
 import { useAdminAudit, type AdminAuditEntry, type AdminAuditParams } from '@/api/adminAudit';
 import { ApiError } from '@/api/errors';
+import PageActionFooter from '@/components/layout/PageActionFooter.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import { useScreenFrom } from '@/composables/useLayout';
 import { usePanelState } from '@/composables/usePanelState';
 
 import AdminPager from './components/AdminPager.vue';
@@ -25,6 +27,7 @@ import AuditTable from './components/AuditTable.vue';
 const PAGE_SIZE: number = 25;
 
 const { t } = useI18n();
+const tablet = useScreenFrom('tablet');
 
 const page = ref(1);
 const filters = ref<AuditFilterValues>({
@@ -83,9 +86,13 @@ const listError = computed<string>(() =>
       @retry="log.refetch()"
     >
       <AuditTable :rows="rows" />
-      <template #footer>
+      <template v-if="tablet" #footer>
         <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
       </template>
     </PanelCard>
+    <!-- On a phone the list takes its full height and the pager rides in the sticky page footer. -->
+    <PageActionFooter v-if="!tablet">
+      <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
+    </PageActionFooter>
   </div>
 </template>

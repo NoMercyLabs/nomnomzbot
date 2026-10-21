@@ -41,19 +41,11 @@ defineProps<{ rows: readonly AdminAuditEntry[] }>();
       <TableRow v-for="row in rows" :key="row.id" data-audit-row>
         <TableCell stack="title" class="whitespace-nowrap tabular-nums max-md:font-medium"><DateTime :value="row.occurredAt" variant="dateTimeFull" /></TableCell>
         <TableCell :label="$t('dashboard.admin.audit.columns.principal')">
-          <div class="min-w-0">
-            <span class="font-mono text-xs break-all">{{ row.principalId }}</span>
-            <span class="block text-xs text-muted-foreground">{{ row.principalType }}</span>
-          </div>
+          <span class="text-sm">{{ row.principalType }}</span>
         </TableCell>
         <TableCell class="font-mono text-xs max-md:break-all" :label="$t('dashboard.admin.audit.columns.permission')">{{ row.permission }}</TableCell>
-        <TableCell class="text-xs" :label="$t('dashboard.admin.audit.columns.target')">
-          <div class="min-w-0">
-            <span v-if="row.targetBroadcasterId" class="font-mono break-all">{{ row.targetBroadcasterId }}</span>
-            <span v-if="row.targetResource" class="block text-muted-foreground">
-              {{ row.targetResource }}
-            </span>
-          </div>
+        <TableCell class="text-sm" :label="$t('dashboard.admin.audit.columns.target')">
+          <span v-if="row.targetResource" class="break-all">{{ row.targetResource }}</span>
         </TableCell>
         <TableCell class="max-w-64 truncate text-sm max-md:max-w-none max-md:overflow-visible max-md:whitespace-normal" :label="$t('dashboard.admin.audit.columns.justification')">{{ row.justification }}</TableCell>
         <TableCell :label="$t('dashboard.admin.audit.columns.outcome')">

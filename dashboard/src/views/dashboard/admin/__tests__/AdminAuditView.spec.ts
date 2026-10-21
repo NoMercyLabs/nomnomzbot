@@ -33,6 +33,28 @@ let refused: boolean = false;
 async function answer(path: string, options?: Options) {
   calls.push({ path, query: { ...options?.params?.query } });
 
+  if (path.endsWith('/admin/users')) {
+    return {
+      data: { data: [{
+        id: 'U1',
+        displayName: 'Ada Lovelace',
+        login: 'ada',
+      }], total: 1 },
+      response: { status: 200, ok: true },
+    };
+  }
+
+  if (path.endsWith('/admin/tenants')) {
+    return {
+      data: { data: [{
+        id: 'T1',
+        name: 'Chan Nel',
+        status: 'active',
+      }], total: 1 },
+      response: { status: 200, ok: true },
+    };
+  }
+
   if (refused)
     return { error: { message: 'no' }, response: { status: 403, ok: false } };
 
@@ -110,6 +132,9 @@ const settle = async (): Promise<void> => {
 };
 
 async function open(): Promise<void> {
+  // The frame's sticky footer, where a phone-width page moves its pager.
+  document.body.insertAdjacentHTML('beforeend', '<div data-slot="frame-action-footer"></div>');
+
   mounted = mount(AdminAuditView, {
     attachTo: document.body,
     global: { plugins: [i18n, pinia, [VueQueryPlugin, { queryClient: queries }]] },
@@ -122,7 +147,8 @@ const text = (): string => document.body.textContent ?? '';
 const rows = (): HTMLElement[] => [
   ...document.body.querySelectorAll<HTMLElement>('[data-audit-row]'),
 ];
-const lastQuery = (): Record<string, unknown> => calls[calls.length - 1]!.query;
+const lastQuery = (): Record<string, unknown> =>
+  calls.filter((call) => call.path.endsWith('/admin/audit')).at(-1)!.query;
 
 async function type(label: string, value: string): Promise<void> {
   const field = [...document.body.querySelectorAll('label')].find((entry) =>
@@ -175,6 +201,52 @@ describe('AdminAuditView', () => {
 
     expect(lastQuery().permission).toBe('billing:write');
     expect(lastQuery().Page).toBe(1);
+  });
+
+  it('finds an operator by name and filters on the id of the pick, never on typed text', async () => {
+    await open();
+
+    await type('Operator', 'ada');
+
+    const option = document.body.querySelector<HTMLElement>('[data-picker-option]')!;
+
+    expect(option.textContent).toContain('Ada Lovelace');
+
+    option.click();
+    await settle();
+
+    expect(lastQuery().principalId).toBe('U1');
+    expect(document.body.querySelector('[data-picker-picked]')?.textContent).toContain('Ada Lovelace');
+    expect(document.body.querySelector('[data-picker-picked]')?.textContent).not.toContain('U1');
+  });
+
+  it('finds a channel by name and clears the pick back to no filter', async () => {
+    await open();
+
+    await type('Channel', 'chan');
+    document.body.querySelector<HTMLElement>('[data-picker-option]')!.click();
+    await settle();
+
+    expect(lastQuery().targetBroadcasterId).toBe('T1');
+
+    document.body.querySelector<HTMLElement>('[data-picker-clear]')!.click();
+    await settle();
+
+    expect(lastQuery().targetBroadcasterId).toBeUndefined();
+  });
+
+  it('shows no raw id in a row: the operator kind and the target resource stand in', async () => {
+    entries[0] = {
+      ...entries[0],
+      principalId: '01KWA6X0E7FMY8PRY6WTZAW0M3',
+      targetBroadcasterId: '01KWA6X0E7FMY8PRY6WTZAW0M4',
+    };
+
+    await open();
+
+    expect(rows()[0]!.textContent).not.toContain('01KWA6X0E7FMY8PRY6WTZAW0M3');
+    expect(rows()[0]!.textContent).not.toContain('01KWA6X0E7FMY8PRY6WTZAW0M4');
+    expect(rows()[0]!.textContent).toContain('Employee');
   });
 
   it('turns a day range into a whole-day window', async () => {

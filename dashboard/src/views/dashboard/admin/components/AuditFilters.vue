@@ -10,8 +10,10 @@
 <script setup lang="ts">
 // The audit search filters: permission, outcome, who, which tenant and a day range. All optional.
 import type { AcceptableValue } from 'reka-ui';
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 
+import { useAdminTenants } from '@/api/admin';
+import { useAdminUsers } from '@/api/adminUsers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -25,6 +27,8 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import ChevronDown from '~icons/nnz/chevron-down';
+
+import AuditFilterPicker, { type AuditPickerOption } from './AuditFilterPicker.vue';
 
 export type AuditFilterValues = {
   permission: string;
@@ -44,6 +48,50 @@ const filters = defineModel<AuditFilterValues>({ required: true });
 const setCount = computed<number>(
   () => Object.values(filters.value).filter((value) => value !== '').length,
 );
+
+const PICK_SIZE: number = 8;
+
+// The operator and the channel are found by name; the filter keeps the id of the pick, the field shows the name.
+const operatorSearch = ref('');
+const channelSearch = ref('');
+const operatorName = ref('');
+const channelName = ref('');
+
+const operatorFound = useAdminUsers(() => ({
+  search: operatorSearch.value.trim(),
+  page: 1,
+  take: PICK_SIZE,
+}));
+const channelFound = useAdminTenants(() => ({
+  search: channelSearch.value.trim(),
+  page: 1,
+  take: PICK_SIZE,
+}));
+
+const operatorOptions = computed<AuditPickerOption[]>(() =>
+  (operatorFound.data.value?.data ?? []).map((user) => ({
+    id: user.id,
+    name: user.displayName,
+    hint: user.login,
+  }) as const satisfies AuditPickerOption),
+);
+const channelOptions = computed<AuditPickerOption[]>(() =>
+  (channelFound.data.value?.data ?? []).map((tenant) => ({
+    id: tenant.id,
+    name: tenant.name,
+    hint: tenant.status,
+  }) as const satisfies AuditPickerOption),
+);
+
+function pickOperator(option: AuditPickerOption | null): void {
+  operatorName.value = option?.name ?? '';
+  change('principalId', option?.id ?? '');
+}
+
+function pickChannel(option: AuditPickerOption | null): void {
+  channelName.value = option?.name ?? '';
+  change('targetBroadcasterId', option?.id ?? '');
+}
 
 function change(key: keyof AuditFilterValues, value: string | number): void {
   filters.value = { ...filters.value, [key]: String(value) };
@@ -95,16 +143,28 @@ function changeOutcome(value: AcceptableValue): void {
       </Field>
       <Field>
         <FieldLabel>{{ $t("dashboard.admin.audit.filters.principal") }}</FieldLabel>
-        <Input
-          :model-value="filters.principalId"
-          @update:model-value="change('principalId', $event)"
+        <AuditFilterPicker
+          v-model:search="operatorSearch"
+          :picked="filters.principalId === '' ? '' : operatorName"
+          :options="operatorOptions"
+          :settled="operatorFound.isSuccess.value"
+          :placeholder="$t('dashboard.admin.audit.filters.principalHint')"
+          :clear-label="$t('dashboard.admin.person.clear')"
+          :none-text="$t('dashboard.admin.person.none')"
+          @pick="pickOperator"
         />
       </Field>
       <Field>
         <FieldLabel>{{ $t("dashboard.admin.audit.filters.tenant") }}</FieldLabel>
-        <Input
-          :model-value="filters.targetBroadcasterId"
-          @update:model-value="change('targetBroadcasterId', $event)"
+        <AuditFilterPicker
+          v-model:search="channelSearch"
+          :picked="filters.targetBroadcasterId === '' ? '' : channelName"
+          :options="channelOptions"
+          :settled="channelFound.isSuccess.value"
+          :placeholder="$t('dashboard.admin.audit.filters.tenantHint')"
+          :clear-label="$t('dashboard.admin.audit.filters.tenantClear')"
+          :none-text="$t('dashboard.admin.audit.filters.tenantNone')"
+          @pick="pickChannel"
         />
       </Field>
       <Field>
