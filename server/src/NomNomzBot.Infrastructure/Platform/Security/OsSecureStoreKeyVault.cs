@@ -42,6 +42,7 @@ public sealed class OsSecureStoreKeyVault : IKeyVault
     private static readonly byte[] WrapContext = Encoding.UTF8.GetBytes("nomnomzbot:dek-wrap:v1");
 
     private const string OsKekReference = "os-secure-store:dpapi";
+    private const string DataFolderKekReference = "data-folder:file";
     private const string ConfigKekReference = "config:hkdf";
 
     // New DEKs wrap under the active KEK; an existing DEK unwraps under the KEK its persisted reference names,
@@ -67,7 +68,10 @@ public sealed class OsSecureStoreKeyVault : IKeyVault
                 LazyThreadSafetyMode.ExecutionAndPublication
             );
         _osKek = new(loadOsKek, LazyThreadSafetyMode.ExecutionAndPublication);
-        _kekReference = _configKek is null ? OsKekReference : ConfigKekReference;
+        _kekReference =
+            _configKek is not null ? ConfigKekReference
+            : OperatingSystem.IsWindows() ? OsKekReference
+            : DataFolderKekReference;
     }
 
     private byte[] ActiveKek => (_configKek ?? _osKek).Value;
@@ -163,7 +167,7 @@ public sealed class OsSecureStoreKeyVault : IKeyVault
                 );
             case ConfigKekReference:
                 return Result.Success(_configKek.Value);
-            case OsKekReference:
+            case OsKekReference or DataFolderKekReference:
                 try
                 {
                     return Result.Success(_osKek.Value);
@@ -209,19 +213,19 @@ public sealed class OsSecureStoreKeyVault : IKeyVault
     // OS-native custody path: DPAPI on Windows. A random KEK is generated once and persisted
     // DPAPI-protected; subsequent boots unprotect it. macOS Keychain / Linux libsecret
     // are the equivalent backends and are the platform follow-ups.
-    private static byte[] LoadOsKek(ILogger logger)
+    private static byte[] LoadOsKek(ILogger logger) =>
+        LoadLocalKek(SelfHostDataPaths.KeysDirectory, OperatingSystem.IsWindows(), logger);
+
+    // Hosts with no OS store (Docker / Linux) and no Encryption:Key keep a generated KEK in the data folder.
+    internal static byte[] LoadLocalKek(string keysDirectory, bool isWindows, ILogger logger)
     {
-        if (OperatingSystem.IsWindows())
+        if (isWindows && OperatingSystem.IsWindows())
         {
             byte[] kek = DpapiKekStore.LoadOrCreate(logger);
             logger.LogInformation("KEK loaded from OS-native secure store (Windows DPAPI).");
             return kek;
         }
 
-        throw new InvalidOperationException(
-            "No KEK custody available: configure Encryption:Key for the deterministic fallback, or run on a "
-                + "platform with an implemented OS-native secure store (Windows DPAPI). macOS Keychain / Linux "
-                + "libsecret backends are pending."
-        );
+        return DataFolderKekStore.LoadOrCreate(keysDirectory, logger);
     }
 }

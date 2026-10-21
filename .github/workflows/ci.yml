@@ -290,11 +290,14 @@ jobs:
           set -eu
           curl -sf -X PUT http://localhost:5080/api/v1/system/setup/credentials/twitch \
             -H 'Content-Type: application/json' \
-            -d '{"clientId":"ci-lite-marker-client","clientSecret":"","botUsername":"ci_lite_bot"}'
+            -d '{"clientId":"ci-lite-marker-client","clientSecret":"ci-lite-marker-secret","botUsername":"ci_lite_bot"}'
           curl -sf -X POST http://localhost:5080/api/v1/system/setup/credentials/twitch/use-shared
           body=$(curl -sf http://localhost:5080/api/v1/system/status)
           echo "$body"
           echo "$body" | grep -Eqi '"onboardingComplete": ?true'
+          # A saved secret is encrypted under the generated key; "ready_redirect" means it was stored and read back.
+          echo "$body" | grep -q 'ready_redirect'
+          docker compose -f docker-compose.lite.yml exec -T api test -s /app/data/keys/root-kek.key
 
       - name: Restart the container
         run: |
@@ -313,7 +316,9 @@ jobs:
           body=$(curl -sf http://localhost:5080/api/v1/system/status)
           echo "$body"
           echo "$body" | grep -Eqi '"onboardingComplete": ?true'
-          docker compose -f docker-compose.lite.yml exec -T api ls -la /app/data
+          # The saved secret still decrypts after the restart, so the generated key was kept.
+          echo "$body" | grep -q 'ready_redirect'
+          docker compose -f docker-compose.lite.yml exec -T api ls -la /app/data /app/data/keys
 
       - name: Prove the data survives removing the container
         run: |
@@ -326,7 +331,9 @@ jobs:
             sleep 3
           done
           [ "$code" = "200" ]
-          curl -sf http://localhost:5080/api/v1/system/status | grep -Eqi '"onboardingComplete": ?true'
+          body=$(curl -sf http://localhost:5080/api/v1/system/status)
+          echo "$body" | grep -Eqi '"onboardingComplete": ?true'
+          echo "$body" | grep -q 'ready_redirect'
 
       - name: Show logs on failure
         if: failure()
