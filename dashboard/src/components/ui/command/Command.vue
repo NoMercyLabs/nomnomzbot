@@ -66,7 +66,8 @@ function filterItems() {
   filterState.filtered.count = itemCount
 }
 
-watch(() => filterState.search, () => {
+// An item that mounts after the search changed (a server answer) is filtered too, so the count and the groups follow it.
+watch([() => filterState.search, () => allItems.value.size], () => {
   filterItems()
 })
 
