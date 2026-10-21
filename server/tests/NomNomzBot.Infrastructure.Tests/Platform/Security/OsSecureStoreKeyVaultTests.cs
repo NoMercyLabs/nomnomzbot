@@ -33,7 +33,9 @@ public class OsSecureStoreKeyVaultTests
         Result<byte[]> unwrapped = await Vault(ConfigKey)
             .UnwrapAsync(wrapped.WrappedKeyMaterial, wrapped.KekReference);
 
-        wrapped.KekReference.Should().Be("os-secure-store:dpapi");
+        wrapped
+            .KekReference.Should()
+            .Be(OperatingSystem.IsWindows() ? "os-secure-store:dpapi" : "data-folder:file");
         unwrapped.IsSuccess.Should().BeTrue(unwrapped.ErrorMessage);
         unwrapped.Value.Should().Equal(dek);
     }
