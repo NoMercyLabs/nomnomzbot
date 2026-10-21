@@ -14,6 +14,7 @@ import { useI18n } from 'vue-i18n';
 import { useRoute } from 'vue-router';
 import Hourglass from '~icons/nnz/hourglass';
 
+import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import {
   Empty,
@@ -23,21 +24,30 @@ import {
   EmptyTitle,
 } from '@/components/ui/empty';
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 const route = useRoute();
 
 const title = computed(() => t(`frame.nav.${route.meta.comingSoon ?? 'home'}`));
+
+// A page with a line of its own says what it will do; every other planned page keeps the plain line.
+const description = computed(() => {
+  const about = `frame.comingSoon.about.${route.meta.comingSoon}`;
+
+  return te(about)
+    ? t(about)
+    : t('frame.comingSoon.description', { page: title.value });
+});
 </script>
 
 <template>
   <PageHeader :title="title" />
-  <div class="flex min-h-0 flex-1 items-center justify-center overflow-y-auto p-6">
+  <PageBody class="items-center justify-center">
     <Empty>
       <EmptyHeader>
         <EmptyMedia variant="icon"><Hourglass aria-hidden="true" /></EmptyMedia>
         <EmptyTitle>{{ t('frame.comingSoon.title') }}</EmptyTitle>
-        <EmptyDescription>{{ t('frame.comingSoon.description', { page: title }) }}</EmptyDescription>
+        <EmptyDescription>{{ description }}</EmptyDescription>
       </EmptyHeader>
     </Empty>
-  </div>
+  </PageBody>
 </template>

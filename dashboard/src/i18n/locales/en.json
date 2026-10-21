@@ -790,7 +790,12 @@
     },
     "comingSoon": {
       "title": "Coming soon",
-      "description": "{page} is planned and not built yet. It will appear here when it is ready."
+      "description": "{page} is planned and not built yet. It will appear here when it is ready.",
+      "about": {
+        "games": "Run chat games for your viewers and see how they play.",
+        "gallery": "Browse ready-made widgets and add them to your channel.",
+        "library": "Keep your reusable bundles, sounds and files in one place."
+      }
     },
     "group": {
       "home": "Home",

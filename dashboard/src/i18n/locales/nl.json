@@ -790,7 +790,12 @@
     },
     "comingSoon": {
       "title": "Binnenkort",
-      "description": "{page} is gepland en nog niet gebouwd. De pagina verschijnt hier als hij klaar is."
+      "description": "{page} is gepland en nog niet gebouwd. De pagina verschijnt hier als hij klaar is.",
+      "about": {
+        "games": "Draai chatspellen voor je kijkers en bekijk hoe ze spelen.",
+        "gallery": "Blader door kant-en-klare widgets en voeg ze toe aan je kanaal.",
+        "library": "Bewaar je herbruikbare bundels, geluiden en bestanden op een plek."
+      }
     },
     "group": {
       "home": "Start",
