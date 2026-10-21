@@ -24,6 +24,7 @@ import { Button } from '@/components/ui/button';
 import BotAccountStep from './components/BotAccountStep.vue';
 import CredentialsStep from './components/CredentialsStep.vue';
 import EventFeedHealth from './components/EventFeedHealth.vue';
+import StepsFrame from './components/StepsFrame.vue';
 
 const router = useRouter();
 const wizard = useQuery(setupWizardQuery);
@@ -31,7 +32,6 @@ const complete = useCompleteSetup();
 const index = ref(0);
 
 const steps = computed<SetupStep[]>(() => wizard.data.value?.steps ?? []);
-const total = computed(() => steps.value.length + 1);
 const onFinish = computed(() => index.value >= steps.value.length);
 const step = computed<SetupStep | null>(() => steps.value[index.value] ?? null);
 // A required step must be done before Next; an optional one can be skipped.
@@ -64,8 +64,15 @@ async function finish(): Promise<void> {
       <Button variant="outline" @click="wizard.refetch()">{{ $t('site.setup.retry') }}</Button>
     </div>
 
+    <StepsFrame
+      v-if="wizard.isSuccess.value"
+      :steps="steps"
+      :finish-title="$t('site.setup.finish.title')"
+      :current="index"
+    />
+
     <PanelCard
-      v-else
+      v-if="wizard.isSuccess.value"
       :title="onFinish ? $t('site.setup.finish.title') : (step?.title ?? '')"
       :description="onFinish ? $t('site.setup.finish.description') : step?.description"
       tier="lead"
@@ -73,10 +80,6 @@ async function finish(): Promise<void> {
       class="w-full max-w-xl"
     >
       <div class="flex flex-col gap-4">
-        <p class="text-xs text-muted-foreground">
-          {{ $t('site.setup.progress', { current: index + 1, total }) }}
-        </p>
-
         <template v-if="step && !onFinish">
           <CredentialsStep v-if="hasCredentialForm(step.key)" :key="step.key" :step="step" />
           <BotAccountStep v-else :key="step.key" :step="step" />

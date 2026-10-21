@@ -16,6 +16,8 @@ import { Button } from '@/components/ui/button';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
 
+import InstructionLine from './InstructionLine.vue';
+
 const props = defineProps<{ step: SetupStep }>();
 
 const values = reactive<Record<string, string>>({});
@@ -29,7 +31,7 @@ const canSave = () =>
 <template>
   <div class="flex flex-col gap-4">
     <ol class="flex list-decimal flex-col gap-1 pl-5 text-sm text-muted-foreground">
-      <li v-for="line in step.instructions" :key="line">{{ line }}</li>
+      <li v-for="line in step.instructions" :key="line"><InstructionLine :line="line" /></li>
     </ol>
 
     <form class="flex flex-col gap-3" @submit.prevent="save.mutate({ ...values })">

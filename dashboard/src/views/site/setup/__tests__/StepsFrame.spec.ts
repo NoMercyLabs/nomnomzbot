@@ -1,0 +1,125 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+import { mount, type VueWrapper } from '@vue/test-utils';
+import { afterEach, describe, expect, it, vi } from 'vitest';
+
+import { i18n } from '@/i18n';
+
+import StepsFrame from '../components/StepsFrame.vue';
+import words from '../i18n/en.json';
+
+function mountFrame(current: number): VueWrapper {
+  i18n.global.mergeLocaleMessage('en', words);
+
+  return mount(StepsFrame, {
+    props: {
+      steps: [
+        {
+          key: 'twitch_app',
+          title: 'Twitch app',
+          complete: true,
+        },
+        {
+          key: 'platform_bot',
+          title: 'Bot account',
+          complete: false,
+        },
+        {
+          key: 'spotify',
+          title: 'Spotify',
+          complete: false,
+        },
+      ],
+      finishTitle: 'Finish setup',
+      current,
+    },
+    global: { plugins: [i18n] },
+  });
+}
+
+afterEach(() => {
+  vi.restoreAllMocks();
+});
+
+describe('the steps frame', () => {
+  it('lists every step plus Finish with its number and title', () => {
+    const entries = mountFrame(1).findAll('li');
+
+    expect(entries.map((e) => e.text())).toEqual([
+      expect.stringContaining('Twitch app'),
+      expect.stringContaining('Bot account'),
+      expect.stringContaining('Spotify'),
+      expect.stringContaining('Finish setup'),
+    ]);
+
+    expect(entries.map((e) => e.get('[data-step-number]').text())).toEqual(['1', '2', '3', '4']);
+
+    expect(entries.map((e) => e.find('[data-step-done]').exists())).toEqual([
+      true,
+      false,
+      false,
+      false,
+    ]);
+  });
+
+  it('marks the current entry and the finished ones, and nothing else', () => {
+    const entries = mountFrame(1).findAll('li');
+
+    expect(entries.map((e) => e.attributes('aria-current'))).toEqual([
+      undefined,
+      'step',
+      undefined,
+      undefined,
+    ]);
+
+    expect(entries.map((e) => e.attributes('data-state'))).toEqual([
+      'done',
+      'current',
+      'todo',
+      'todo',
+    ]);
+  });
+
+  it('marks the Finish entry as current on the last step', () => {
+    const entries = mountFrame(3).findAll('li');
+
+    expect(entries.map((e) => e.attributes('data-state'))).toEqual([
+      'done',
+      'todo',
+      'todo',
+      'current',
+    ]);
+  });
+
+  it('draws without a Vue warning or an error, unlike the progress bar it replaces', () => {
+    const warn = vi.spyOn(console, 'warn').mockImplementation(() => undefined);
+    const error = vi.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    mountFrame(2);
+
+    expect(warn).not.toHaveBeenCalled();
+    expect(error).not.toHaveBeenCalled();
+  });
+
+  it('is not a row of buttons, so a required step cannot be jumped over', () => {
+    const wrapper = mountFrame(0);
+
+    expect(wrapper.find('button').exists()).toBe(false);
+    expect(wrapper.find('a').exists()).toBe(false);
+  });
+
+  it('says Step N of M and the current title in the compact form', () => {
+    const compact = mountFrame(1).get('[data-steps-compact]');
+
+    expect(compact.text()).toContain('Step 2 of 4');
+    expect(compact.text()).toContain('Bot account');
+  });
+});

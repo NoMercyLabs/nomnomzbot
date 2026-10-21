@@ -21,6 +21,9 @@ import {
 } from '@/api/setup';
 import { Button } from '@/components/ui/button';
 
+import LinkActions from './LinkActions.vue';
+import InstructionLine from './InstructionLine.vue';
+
 defineProps<{ step: SetupStep }>();
 
 const queries = useQueryClient();
@@ -31,9 +34,13 @@ const status = useQuery({
   refetchInterval: 3000,
 });
 const connected = computed(() => status.data.value?.connected === true);
+const authorizeUrl = ref('');
 const authorize = useMutation({
   mutationFn: fetchBotAuthorizeUrl,
   onSuccess: (url) => {
+    // The link stays on screen: a popup blocker can eat the window, and the person may need it in another
+    // browser profile.
+    authorizeUrl.value = url;
     window.open(url, '_blank', 'noopener');
     waiting.value = true;
   },
@@ -50,7 +57,7 @@ watch(connected, (now) => {
 <template>
   <div class="flex flex-col gap-4">
     <ul class="flex list-disc flex-col gap-1 pl-5 text-sm text-muted-foreground">
-      <li v-for="line in step.instructions" :key="line">{{ line }}</li>
+      <li v-for="line in step.instructions" :key="line"><InstructionLine :line="line" /></li>
     </ul>
 
     <p v-if="connected" class="text-sm" role="status">
@@ -71,6 +78,11 @@ watch(connected, (now) => {
       >
         {{ $t('site.setup.botAuthorize') }}
       </Button>
+    </div>
+
+    <div v-if="authorizeUrl && !connected" class="flex flex-col gap-2">
+      <p class="text-sm text-muted-foreground">{{ $t('site.setup.botOtherProfile') }}</p>
+      <LinkActions :url="authorizeUrl" />
     </div>
   </div>
 </template>

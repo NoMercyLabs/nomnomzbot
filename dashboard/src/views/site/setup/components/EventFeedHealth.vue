@@ -25,6 +25,8 @@ import {
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 
+import LinkActions from './LinkActions.vue';
+
 const signedIn = useSignedIn();
 const channels = useQuery({ ...myChannelsQuery, enabled: signedIn });
 const channelId = computed(() => channels.data.value?.[0]?.id ?? '');
@@ -63,14 +65,9 @@ const tone = computed(() =>
 
       <div v-if="verdict.state === 'missingScopes'" class="flex flex-col gap-2">
         <p class="text-sm text-muted-foreground">{{ verdict.scopes.join(', ') }}</p>
-        <div v-if="regrant.data.value" class="text-sm">
+        <div v-if="regrant.data.value" class="flex flex-col gap-2 text-sm">
           {{ $t('site.setup.feed.regrantCode', { code: regrant.data.value.userCode }) }}
-          <a
-            class="underline"
-            :href="regrant.data.value.verificationUri"
-            target="_blank"
-            rel="noopener"
-          >{{ regrant.data.value.verificationUri }}</a>
+          <LinkActions :url="regrant.data.value.verificationUri" />
         </div>
         <div class="flex gap-2">
           <Button variant="outline" :disabled="regrant.isPending.value" @click="regrant.mutate()">
