@@ -50,6 +50,8 @@ import nomnomzbot.composeapp.generated.resources.attention_shared_ban_twitch_ban
 import nomnomzbot.composeapp.generated.resources.attention_shared_ban_twitch_ban_failed_no_detail_message
 import nomnomzbot.composeapp.generated.resources.attention_heat_timeout_failed_message
 import nomnomzbot.composeapp.generated.resources.attention_heat_timeout_failed_title
+import nomnomzbot.composeapp.generated.resources.attention_obs_not_connected_message
+import nomnomzbot.composeapp.generated.resources.attention_obs_not_connected_title
 import nomnomzbot.composeapp.generated.resources.attention_owner_action_failed_message
 import nomnomzbot.composeapp.generated.resources.attention_owner_action_failed_title
 import nomnomzbot.composeapp.generated.resources.attention_report_message
@@ -145,6 +147,7 @@ fun attentionTitleOf(item: ActionRequiredItem, now: Instant = Clock.System.now()
         "attention_audio_source_missing_title" -> AttentionText(Res.string.attention_audio_source_missing_title)
         "attention_audio_source_missing_live_title" -> AttentionText(Res.string.attention_audio_source_missing_live_title)
         "attention_tts_source_missing_title" -> AttentionText(Res.string.attention_tts_source_missing_title)
+        "attention_obs_not_connected_title" -> AttentionText(Res.string.attention_obs_not_connected_title)
         "attention_widget_build_failed_title" ->
             AttentionText(Res.string.attention_widget_build_failed_title, listOf(literal(item.param("widgetName"))))
         "attention_webhook_disabled_title" ->
@@ -259,6 +262,8 @@ fun attentionMessageOf(item: ActionRequiredItem): AttentionText? =
         "attention_audio_source_missing_message" -> AttentionText(Res.string.attention_audio_source_missing_message)
         "attention_audio_source_missing_live_message" -> AttentionText(Res.string.attention_audio_source_missing_live_message)
         "attention_tts_source_missing_message" -> AttentionText(Res.string.attention_tts_source_missing_message)
+        "attention_obs_not_connected_message" ->
+            AttentionText(Res.string.attention_obs_not_connected_message, listOf(literal(item.param("count"))))
         "attention_widget_build_failed_message" ->
             AttentionText(Res.string.attention_widget_build_failed_message, listOf(literal(item.param("version"))))
         "attention_widget_build_failed_nothing_live_message" ->
