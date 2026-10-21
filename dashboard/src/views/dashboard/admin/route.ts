@@ -304,5 +304,7 @@ export const dashboardAdminPlatformDefaultsRoute = {
     loadPage(
       () => import('./AdminPlatformDefaultsView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
+      // The action rows read their plain names from the permissions page's words.
+      (locale) => import(`../settings/permissions/i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;
