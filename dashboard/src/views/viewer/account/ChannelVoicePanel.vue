@@ -85,7 +85,7 @@ function use(voice: TtsVoice): void {
       <p v-if="voiceId === null" class="text-sm text-muted-foreground" data-channel-voice>
         {{ $t('viewer.account.voice.channelVoice') }}
       </p>
-      <RowGroup>
+      <RowGroup class="max-h-96 overflow-y-auto">
         <SummaryRow
           v-for="voice in voices"
           :key="voice.id"
