@@ -57,11 +57,16 @@ useReadableRedirect();
 <template>
   <!-- The one tooltip provider and toast host of the frame; pages never mount their own. -->
   <TooltipProvider :delay-duration="300">
-    <!-- C1: the window never scrolls. Only a panel body scrolls, so every box here clips. -->
-    <div class="flex h-svh overflow-hidden bg-background text-foreground">
+    <!-- C1: from the tablet width up the window never scrolls; only a panel body does, so every box here clips.
+         Below it the page is one document scroll (owner rule 2026-10-21): the frame header and the page header stay
+         on top, the action footer and the bottom bar stay at the bottom, and no panel scrolls inside itself. -->
+    <div
+      data-slot="frame"
+      class="flex h-svh overflow-hidden bg-background text-foreground max-md:h-auto max-md:min-h-svh max-md:overflow-visible"
+    >
       <template v-if="!suspension">
         <DashboardSidebar v-if="wide && !railWanted" />
-        <NavRail v-else-if="medium" />
+        <NavRail v-else-if="medium" class="max-md:sticky max-md:top-0" />
       </template>
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
         <ViewAsBanner />
@@ -69,7 +74,7 @@ useReadableRedirect();
         <header
           v-if="!wide && !suspension"
           data-slot="frame-header"
-          class="flex h-12 flex-none items-center gap-2 border-b border-border px-3"
+          class="flex h-12 flex-none items-center gap-2 border-b border-border px-3 max-md:sticky max-md:top-0 max-md:z-30 max-md:bg-background"
         >
           <div class="w-48 min-w-0">
             <ChannelSwitch compact />
@@ -78,7 +83,10 @@ useReadableRedirect();
             <ProfileMenu icon />
           </div>
         </header>
-        <main class="flex min-h-0 flex-1 flex-col overflow-hidden">
+        <!-- Below the tablet width the page header (a page's own <header>) sticks under the frame header. -->
+        <main
+          class="flex min-h-0 flex-1 flex-col overflow-hidden max-md:overflow-visible max-md:[&>*>header]:sticky max-md:[&>*>header]:top-12 max-md:[&>*>header]:z-20 max-md:[&>*>header]:bg-background max-md:[&>header]:sticky max-md:[&>header]:top-12 max-md:[&>header]:z-20 max-md:[&>header]:bg-background"
+        >
           <ChannelSuspended
             v-if="suspension && current"
             :name="current.displayName"
@@ -90,7 +98,11 @@ useReadableRedirect();
           <ChannelNoAccess v-else-if="denied && channelName" :name="channelName" />
           <RouterView v-else />
         </main>
-        <BottomBar v-if="!medium && !suspension" />
+        <div class="flex-none max-md:sticky max-md:bottom-0 max-md:z-30">
+          <!-- The one action footer slot: a page's PageActionFooter moves here below the tablet width. -->
+          <div data-slot="frame-action-footer" />
+          <BottomBar v-if="!medium && !suspension" />
+        </div>
       </div>
       <!-- The one profile dialog of the frame; every UserName opens it. -->
       <ProfileDialog v-if="channelId" :key="channelId" />

@@ -162,6 +162,14 @@ describe('the dashboard frame by window width', () => {
     expect(shown).not.toContain('bottom');
   });
 
+  it('offers one action footer slot directly above the bottom bar on a phone', () => {
+    const wrapper = mountLayout(390);
+    const slots = wrapper.findAll('[data-slot=frame-action-footer]');
+
+    expect(slots).toHaveLength(1);
+    expect(slots[0]?.element.nextElementSibling?.getAttribute('data-stub')).toBe('bottom');
+  });
+
   it('shows the bottom bar under 600 px, with the channel switch in the header', () => {
     const shown = frames(mountLayout(400));
 
