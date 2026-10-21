@@ -423,7 +423,7 @@ onUnmounted(() => {
       </section>
 
       <section class="grid" :style="gridStyle">
-        <div v-for="p in placed" :key="p.card.key" class="card block" :data-block="p.card.key" :style="cellStyle(p)">
+        <div v-for="p in placed" :key="p.card.key" class="card block" :class="{ sparse: p.card.rows.length <= 3, bare: p.card.rows.length === 0 }" :data-block="p.card.key" :style="cellStyle(p)">
           <img v-if="p.watermark && avatarUrl" class="watermark" :src="avatarUrl" crossorigin="anonymous" alt="" />
           <div class="label">{{ label('block.' + p.card.key) }}</div>
           <div v-if="p.card.big" class="big">{{ p.card.big }}<small v-if="p.card.unit">{{ p.card.unit }}</small></div>
@@ -472,7 +472,7 @@ header { display: flex; align-items: flex-end; justify-content: space-between; }
 .brand { display: flex; align-items: center; gap: 24px; }
 .logo { width: 110px; height: 110px; flex: none; transform: skewX(-1deg); }
 h1 { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1; color: var(--color-100); margin: 0; }
-.sub { margin-top: 10px; font-size: 22px; color: var(--mute); font-weight: 500; }
+.sub { margin-top: 10px; font-size: 26px; color: var(--mute); font-weight: 500; }
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; min-height: 0; }
 .block { position: relative; }
@@ -489,7 +489,7 @@ h1 { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1; co
   min-height: 0;
   overflow: hidden;
 }
-.label { font-size: 15px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--mute); margin-bottom: 10px; }
+.label { font-size: 17px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--mute); margin-bottom: 10px; }
 .kpi .num { font-size: 60px; font-weight: 900; line-height: 1; font-variant-numeric: tabular-nums; }
 .kpi.lead { border-color: color-mix(in srgb, var(--accent) 60%, transparent); box-shadow: 0 0 28px color-mix(in srgb, var(--accent) 30%, transparent); }
 .kpi.lead .label { color: var(--accent); }
@@ -506,5 +506,10 @@ h1 { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1; co
 .scroll { flex: 1; min-height: 0; overflow: hidden; }
 .scroll.fit { flex: 0 1 auto; }
 .hype { margin-top: 12px; font-size: 19px; font-weight: 500; color: var(--mute); }
-.thanks { max-width: 620px; text-align: right; font-size: 24px; font-weight: 600; color: #fff; }
+.thanks { max-width: 760px; text-align: right; font-size: 26px; font-weight: 600; color: #fff; }
+/* A card with three rows or fewer would sit mostly empty at the list size, so its type grows to fill it. */
+.sparse .big { font-size: 64px; }
+.sparse .row { font-size: 28px; padding: 10px 14px; }
+.sparse .sect { font-size: 17px; }
+.bare .big { font-size: 112px; margin-bottom: 0; }
 </style>
