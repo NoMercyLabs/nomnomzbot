@@ -391,4 +391,17 @@ public sealed class PermitBuiltinsTests
         capability.Value.Should().Be("Granted channel:title:write to Someone.");
         revoked.Value.Should().Be("Revoked all permits from Someone.");
     }
+
+    [Fact]
+    public void Permit_and_unpermit_are_always_on_system_commands_whose_settings_stay_the_channels()
+    {
+        Harness h = Build();
+        IBuiltinCommand[] commands = [h.Permit, h.Unpermit];
+
+        foreach (IBuiltinCommand command in commands)
+        {
+            command.IsAlwaysOn.Should().BeTrue();
+            command.IsReserved.Should().BeFalse();
+        }
+    }
 }

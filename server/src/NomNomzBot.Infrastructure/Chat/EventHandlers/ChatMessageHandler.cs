@@ -271,19 +271,23 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         IBuiltinCommand? builtin = _builtins.Get(commandName);
         bool isReserved = builtin is { IsReserved: true };
 
+        // A system command (!permit, !unpermit) is always on and also wins over a same-named channel command,
+        // but it keeps the channel's own cooldown and floor.
+        bool isAlwaysOn = builtin is { IsAlwaysOn: true };
+
         // ResolveAuthoredCommand already evaluated EVERY command's own trigger model (including the
         // Default/StartsWith case), so its result is authoritative — a plain dictionary lookup by
         // parsed name here would bypass Exact/Contains/Regex/Custom-prefix rejections for a same-named
         // command whose match actually failed (e.g. an Exact-mode "!hi" command must NOT also answer to
         // "!hi there" just because "hi" is a key in the map).
-        CachedCommand? command = isReserved ? null : resolvedCommand;
-        if (isReserved || command is null)
+        CachedCommand? command = isAlwaysOn ? null : resolvedCommand;
+        if (isAlwaysOn || command is null)
         {
             // Fall back to built-in catalog (code-defined commands like !uptime).
             if (builtin is null)
                 return;
 
-            if (!isReserved && IsBuiltinDisabled(ctx, commandName))
+            if (!isAlwaysOn && IsBuiltinDisabled(ctx, commandName))
                 return;
 
             // The channel's own floor and cooldown for this built-in (dashboard → Commands → built-in),

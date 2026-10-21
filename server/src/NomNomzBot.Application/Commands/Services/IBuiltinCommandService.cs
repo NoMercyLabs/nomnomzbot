@@ -96,6 +96,7 @@ public sealed record BuiltinSettingsUpdate(
 /// <param name="ReplyGroup">The reply group the built-in speaks with (e.g. <c>unlurk</c> → <c>lurk</c>).</param>
 /// <param name="SpeakWithTts">Whether the reply is also read out by TTS.</param>
 /// <param name="IsReserved">A data-rights command: always on, settings locked.</param>
+/// <param name="IsAlwaysOn">A system command: always on with no off switch (every reserved one is too).</param>
 /// <param name="CooldownSecondsOverride">The channel's own global cooldown; null = the default applies.</param>
 /// <param name="UserCooldownSecondsOverride">The channel's own per-user cooldown; null = the default applies.</param>
 /// <param name="MinPermissionLevelOverride">The channel's own floor (rung name); null = the default applies.</param>
@@ -110,6 +111,7 @@ public sealed record BuiltinCommandDto(
     string ReplyGroup,
     bool SpeakWithTts,
     bool IsReserved,
+    bool IsAlwaysOn,
     int? CooldownSecondsOverride,
     int? UserCooldownSecondsOverride,
     string? MinPermissionLevelOverride,

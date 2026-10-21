@@ -38,6 +38,13 @@ public interface IBuiltinCommand
     bool IsReserved => false;
 
     /// <summary>
+    /// A system command that is always on: no channel can turn it off and no channel command can shadow it,
+    /// but unlike a reserved one its cooldown, floor and replies stay the channel's. Every reserved built-in is
+    /// always on.
+    /// </summary>
+    bool IsAlwaysOn => IsReserved;
+
+    /// <summary>
     /// Whether this caller may use the command at all, for builtins that refuse inside
     /// <see cref="ExecuteAsync"/> on a grant rather than the level floor. The <c>!commands</c> / <c>!help</c>
     /// listing asks this so it shows only what the caller can really run. Defaults to true.

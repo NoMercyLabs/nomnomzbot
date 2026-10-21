@@ -185,6 +185,7 @@ public sealed class HelpBuiltinTests
                         k,
                         false,
                         false,
+                        false,
                         null,
                         null,
                         null,

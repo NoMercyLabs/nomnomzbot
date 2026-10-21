@@ -322,6 +322,7 @@ public sealed class ViewerSelfActivityServiceTests
             "group",
             false,
             false,
+            false,
             cooldownOverride,
             null,
             null,

@@ -253,6 +253,7 @@ public sealed class PermitBuiltin : IBuiltinCommand
     }
 
     public string BuiltinKey => "permit";
+    public bool IsAlwaysOn => true;
     public int DefaultCooldownSeconds => 0;
     public int DefaultMinPermissionLevel => 10; // Moderator on the unified ladder; the real gate is permit:issue below.
 
@@ -494,6 +495,7 @@ public sealed class UnpermitBuiltin : IBuiltinCommand
     }
 
     public string BuiltinKey => "unpermit";
+    public bool IsAlwaysOn => true;
     public int DefaultCooldownSeconds => 0;
     public int DefaultMinPermissionLevel => 10; // Moderator on the unified ladder; the real gate is permit:issue below.
 

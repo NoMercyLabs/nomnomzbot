@@ -54,8 +54,14 @@ public sealed class BuiltinCommandServiceTests
     private const string ModOnlyKey = "whisper"; // catalogue floor = Moderator (10)
     private const string SongRequestKey = "sr"; // one of DefaultCommandsSeeder's keys
 
-    private static IBuiltinCommand FakeBuiltin(string key, bool reserved = false, int floor = 0) =>
-        new FakeBuiltinCommand(key, reserved, floor);
+    private const string SystemKey = "permit"; // always on, settings still the channel's
+
+    private static IBuiltinCommand FakeBuiltin(
+        string key,
+        bool reserved = false,
+        int floor = 0,
+        bool alwaysOn = false
+    ) => new FakeBuiltinCommand(key, reserved, floor, alwaysOn);
 
     private static (
         BuiltinCommandService Sut,
@@ -71,6 +77,7 @@ public sealed class BuiltinCommandServiceTests
             FakeBuiltin(ModOnlyKey, floor: 10),
             FakeBuiltin(SongRequestKey),
             FakeBuiltin(ReservedKey, reserved: true),
+            FakeBuiltin(SystemKey, floor: 10, alwaysOn: true),
         ];
         IBuiltinCommandCatalog catalog = Substitute.For<IBuiltinCommandCatalog>();
         foreach (IBuiltinCommand command in all)
@@ -427,12 +434,69 @@ public sealed class BuiltinCommandServiceTests
             .Be(1, "the seeder still adds the rows the channel is missing");
     }
 
+    // ─── Always-on system commands (S-SYSTEM-COMMANDS-APART) ─────────────────────
+
+    [Fact]
+    public async Task SetEnabled_off_on_an_always_on_system_command_fails_and_persists_nothing()
+    {
+        (BuiltinCommandService sut, CommandsTestDbContext db, _) = Build();
+
+        Result result = await sut.SetEnabledAsync(Channel.ToString(), SystemKey, false);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await db.ChannelBuiltinCommands.AnyAsync(c => c.BuiltinKey == SystemKey))
+            .Should()
+            .BeFalse();
+    }
+
+    [Fact]
+    public async Task ListAsync_shows_an_always_on_command_as_on_and_marked_even_over_a_stale_off_row()
+    {
+        (BuiltinCommandService sut, CommandsTestDbContext db, _) = Build();
+        db.ChannelBuiltinCommands.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                BuiltinKey = SystemKey,
+                IsEnabled = false,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        IReadOnlyList<BuiltinCommandDto> listed = (await sut.ListAsync(Channel.ToString())).Value;
+
+        BuiltinCommandDto system = listed.Single(d => d.BuiltinKey == SystemKey);
+        system.IsEnabled.Should().BeTrue();
+        system.IsAlwaysOn.Should().BeTrue();
+        system.IsReserved.Should().BeFalse();
+        listed.Single(d => d.BuiltinKey == OrdinaryKey).IsAlwaysOn.Should().BeFalse();
+        listed.Single(d => d.BuiltinKey == ReservedKey).IsAlwaysOn.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task UpdateSettings_still_saves_the_cooldown_of_an_always_on_command()
+    {
+        (BuiltinCommandService sut, CommandsTestDbContext db, _) = Build();
+
+        Result<BuiltinCommandDto> result = await sut.UpdateSettingsAsync(
+            Channel.ToString(),
+            SystemKey,
+            new(CooldownSeconds: 30, UserCooldownSeconds: null, MinPermissionLevel: null)
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.CooldownSecondsOverride.Should().Be(30);
+        (await RowAsync(db, SystemKey)).OverridesJson.Should().Be("""{"cooldownSeconds":30}""");
+    }
+
     private sealed class FakeBuiltinCommand : IBuiltinCommand
     {
-        public FakeBuiltinCommand(string builtinKey, bool reserved, int floor)
+        public FakeBuiltinCommand(string builtinKey, bool reserved, int floor, bool alwaysOn)
         {
             BuiltinKey = builtinKey;
             IsReserved = reserved;
+            IsAlwaysOn = alwaysOn || reserved;
             DefaultMinPermissionLevel = floor;
         }
 
@@ -440,6 +504,7 @@ public sealed class BuiltinCommandServiceTests
         public int DefaultCooldownSeconds => 5;
         public int DefaultMinPermissionLevel { get; }
         public bool IsReserved { get; }
+        public bool IsAlwaysOn { get; }
 
         public Task<Result<string>> ExecuteAsync(
             BuiltinCommandContext context,
