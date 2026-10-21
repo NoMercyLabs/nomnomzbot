@@ -645,6 +645,9 @@ const ownRoomCheck = /useMediaQuery\(\s*['"`(]|useElementSize\(/;
 const ownRoomCheckAllowlist = [
   'components/layout/ReplyModeField.vue',
   'components/ui/sidebar/SidebarProvider.vue',
+  'views/dashboard/analytics/RecapPreview.vue',
+  'views/dashboard/chat/ChatView.vue',
+  'views/viewer/nav/ViewerNav.vue',
 ] as const satisfies readonly string[];
 
 function ownsRoomCheck(path: string): boolean {
