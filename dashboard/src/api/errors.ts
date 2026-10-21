@@ -442,6 +442,7 @@ export const apiOperations = {
   'viewer channel': 'viewer',
   'viewer summary': 'viewer',
   'viewer queue': 'viewer',
+  'watched channels': 'viewer',
   'pronoun catalog': 'viewer',
   'my pronouns': 'viewer',
   'set my pronouns': 'viewer',

@@ -1,0 +1,17 @@
+{
+  "viewer": {
+    "channels": {
+      "title": "My channels",
+      "live": "Live now",
+      "lastSeen": "Last seen {date}",
+      "open": "Open",
+      "managed": "Channels you manage",
+      "error": "Your channels did not load.",
+      "retry": "Try again",
+      "empty": {
+        "title": "You have not watched a channel here yet",
+        "description": "Use Find a channel at the top to open any channel."
+      }
+    }
+  }
+}

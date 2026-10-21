@@ -103,6 +103,28 @@ export function useViewerQueue(
   );
 }
 
+export type WatchedChannel = components['schemas']['WatchedChannel'];
+
+export const watchedChannelsKey: KeyParts = ['viewer', 'watched-channels'];
+
+// The channels where the signed-in person has viewer activity, newest first. Never their own channel.
+export function useWatchedChannels(): UseQueryReturnType<WatchedChannel[], Error> {
+  return useQuery({
+    queryKey: watchedChannelsKey,
+    queryFn: async (): Promise<WatchedChannel[]> => {
+      const { data, error, response } = await client.GET('/api/v{version}/me/watched-channels', {
+        params: { path: { version } },
+      });
+
+      if (error !== undefined)
+        throw failed('watched channels', response.status, error);
+
+      return data?.data ?? [];
+    },
+    retry: false,
+  });
+}
+
 export type PublicProfile = components['schemas']['PublicProfile'];
 
 export const publicProfileKey = (channelId: string | null, userId: string | null): KeyParts => [

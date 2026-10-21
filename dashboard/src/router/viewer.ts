@@ -13,6 +13,7 @@ import type { RouteRecordRaw } from 'vue-router';
 import { merge } from '@/lib/array';
 import { viewerChatRoute, viewerExternalChatRoute } from '@/views/dashboard/chat/route';
 import { viewerAccountRoute } from '@/views/viewer/account/route';
+import { viewerChannelsRoute } from '@/views/viewer/channels/route';
 import { viewerMeRoute } from '@/views/viewer/me/route';
 import { viewerComingSoonRoutes } from '@/views/viewer/nav/route';
 
@@ -23,7 +24,13 @@ export const viewerRoutes: RouteRecordRaw = {
   meta: { requiresAuth: true },
   children: Array.from(
     merge(
-      [viewerMeRoute, viewerAccountRoute, viewerChatRoute, viewerExternalChatRoute],
+      [
+        viewerChannelsRoute,
+        viewerMeRoute,
+        viewerAccountRoute,
+        viewerChatRoute,
+        viewerExternalChatRoute,
+      ],
       viewerComingSoonRoutes,
     ),
   ),

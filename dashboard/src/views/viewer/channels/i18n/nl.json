@@ -1,0 +1,17 @@
+{
+  "viewer": {
+    "channels": {
+      "title": "Mijn kanalen",
+      "live": "Nu live",
+      "lastSeen": "Laatst gezien {date}",
+      "open": "Openen",
+      "managed": "Kanalen die je beheert",
+      "error": "Je kanalen zijn niet geladen.",
+      "retry": "Opnieuw proberen",
+      "empty": {
+        "title": "Je hebt hier nog geen kanaal bekeken",
+        "description": "Gebruik Kanaal zoeken bovenaan om een kanaal te openen."
+      }
+    }
+  }
+}
