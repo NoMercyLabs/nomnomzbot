@@ -400,5 +400,7 @@ public sealed record MusicQueueItem(
     string Code = "",
     // True for the one request already handed to the provider's own queue. Removing it cannot stop the
     // provider playing it; it is skipped when it starts instead.
-    bool InFlight = false
+    bool InFlight = false,
+    // True for a YouTube request while no Music Player page is open in OBS: it waits for that page.
+    bool WaitsForMusicPlayer = false
 );

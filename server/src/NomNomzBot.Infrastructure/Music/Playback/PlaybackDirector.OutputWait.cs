@@ -21,6 +21,9 @@ public sealed partial class PlaybackDirector
     /// </summary>
     private OutputWait? _outputWait;
 
+    /// <summary>Why the director is blocked, as a <see cref="PlaybackBlockedReason"/> name; null when it is not.</summary>
+    public string? BlockedReason => PlaybackBlockedReason.Of(State, _outputWait?.Engine);
+
     /// <summary>Starts the quiet wait. The Blocked state and its journal entry were written by the caller.</summary>
     private void BeginOutputWait(PlaybackItem item) =>
         _outputWait = new(

@@ -59,6 +59,11 @@ public sealed class PlaybackDirectorRegistry(
             ? channel.Value.Director.Level
             : PlaybackLevel.Default;
 
+    public string? BlockedReasonOf(Guid channelId) =>
+        _channels.TryGetValue(channelId, out Lazy<ChannelPlayback>? channel)
+            ? channel.Value.Director.BlockedReason
+            : null;
+
     public Task ReportAsync(
         Guid broadcasterId,
         EngineSignal signal,
