@@ -119,7 +119,7 @@ onMounted(() => {
   bottomBar.value = document.querySelector<HTMLElement>('[data-slot=bottom-bar],[data-slot=viewer-nav]');
 });
 
-const { height: bottomBarHeight } = useElementSize(bottomBar, undefined, { box: 'border-box' });
+const { height: bottomBarHeight } = useElementSize(bottomBar, { width: 0, height: 0 }, { box: 'border-box' });
 
 // The viewer frame keeps 6rem of bottom padding for its fixed nav (pb-24) and 8.75rem above the feed (header, main
 // padding, dock header, gap), so the body claims the padding the nav covers; the dashboard frame has 6rem of headers.
