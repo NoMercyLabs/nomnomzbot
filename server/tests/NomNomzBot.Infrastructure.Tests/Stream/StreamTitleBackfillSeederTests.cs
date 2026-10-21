@@ -232,7 +232,14 @@ public sealed class StreamTitleBackfillSeederTests
         await Sut(db, Archives(Vod(Start.AddHours(-20), "Another day")), recaps).SeedAsync();
 
         (await TitleOf(db, "a")).Should().BeNullOrEmpty();
-        await recaps.DidNotReceiveWithAnyArgs().BuildAsync(default, default, default, default);
+        await recaps
+            .DidNotReceive()
+            .BuildAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string?>(),
+                Arg.Any<IReadOnlyCollection<string>?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]

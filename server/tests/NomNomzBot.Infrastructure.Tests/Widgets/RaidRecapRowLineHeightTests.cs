@@ -31,7 +31,7 @@ public sealed class RaidRecapRowLineHeightTests
         const string name = "NomNomzBot.Infrastructure.Content.Widgets.Assets.raid_recap.vue";
         using System.IO.Stream? stream = assembly.GetManifestResourceStream(name);
         stream.Should().NotBeNull($"the embedded asset '{name}' should exist");
-        using StreamReader reader = new(stream!);
+        using StreamReader reader = new(stream);
         return reader.ReadToEnd();
     }
 
