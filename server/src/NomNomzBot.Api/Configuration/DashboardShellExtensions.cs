@@ -8,55 +8,59 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using Microsoft.AspNetCore.StaticFiles;
-
 namespace NomNomzBot.Api.Configuration;
 
 /// <summary>
-/// Serves the compiled Wasm dashboard bundle from the web root: its static files, and the SPA entry document
-/// (<c>index.html</c>) for every address no other endpoint answers (<c>/app</c>, <c>/app/</c>, deep links).
+/// Serves the compiled Vue dashboard from the web root: its static files, and the SPA entry document
+/// (<c>index.html</c>) for every address no other endpoint answers (<c>/app</c>, <c>/setup</c>, deep links).
 /// </summary>
 public static class DashboardShellExtensions
 {
     /// <summary>
-    /// Serves the bundle's files. The explicit <c>.wasm</c> mapping guarantees the MIME type the browser needs to
-    /// instantiate the module. Bundle files with no registered MIME type (the <c>.cvr</c> i18n tables) go out as
-    /// octet-stream instead of a 404, which is safe because the web root holds only the public dashboard bundle.
+    /// The bot's own address spaces. An unknown address under one of them is a missing endpoint, so it answers
+    /// 404 and never the dashboard shell: a client that calls a wrong API route must not receive HTML.
+    /// </summary>
+    private static readonly string[] BotOwnedPrefixes = ["api", "hubs", "health", "editor"];
+
+    /// <summary>
+    /// Serves the bundle's files. A file with no registered MIME type is a 404, not a download: the web root
+    /// holds only the public dashboard bundle and every type it contains is known.
     /// Cache-Control comes from <see cref="StaticAssetCachePolicy"/>.
     /// </summary>
-    public static IApplicationBuilder UseDashboardStaticFiles(this IApplicationBuilder app)
-    {
-        FileExtensionContentTypeProvider contentTypes = new()
-        {
-            Mappings = { [".wasm"] = "application/wasm" },
-        };
-
-        return app.UseStaticFiles(
+    public static IApplicationBuilder UseDashboardStaticFiles(this IApplicationBuilder app) =>
+        app.UseStaticFiles(
             new StaticFileOptions
             {
-                ContentTypeProvider = contentTypes,
-                ServeUnknownFileTypes = true,
-                DefaultContentType = "application/octet-stream",
                 OnPrepareResponse = ctx =>
                 {
                     ctx.Context.Response.Headers.CacheControl = StaticAssetCachePolicy.For(
-                        ctx.File.Name
+                        ctx.Context.Request.Path.Value ?? string.Empty
                     );
                 },
             }
         );
-    }
 
     /// <summary>
     /// The SPA fallback: any route not matched by an API / hub / health endpoint or a static file serves
     /// <c>index.html</c>. It is served here, not by the static files middleware, so it needs its own
     /// <c>Cache-Control</c>: <c>no-store</c> makes every load re-fetch the shell, so a plain reload always lands
-    /// the latest deploy. Returns 404 when no dashboard is bundled (empty web root).
+    /// the latest deploy. A path with a file extension (a missing <c>/assets</c> file) never matches, and an
+    /// unknown address under <see cref="BotOwnedPrefixes"/> answers 404. Returns 404 when no dashboard is
+    /// bundled (empty web root).
     /// </summary>
     public static IEndpointConventionBuilder MapDashboardFallback(
         this IEndpointRouteBuilder endpoints
-    ) =>
-        endpoints.MapFallbackToFile(
+    )
+    {
+        foreach (string prefix in BotOwnedPrefixes)
+        {
+            endpoints
+                .MapFallback($"/{prefix}/{{**rest}}", () => Results.NotFound())
+                .ExcludeFromDescription();
+            endpoints.MapFallback($"/{prefix}", () => Results.NotFound()).ExcludeFromDescription();
+        }
+
+        return endpoints.MapFallbackToFile(
             "index.html",
             new StaticFileOptions
             {
@@ -64,4 +68,5 @@ public static class DashboardShellExtensions
                     ctx.Context.Response.Headers.CacheControl = StaticAssetCachePolicy.EntryPoint,
             }
         );
+    }
 }

@@ -15,12 +15,11 @@
 nomnomzbot-design
 *.md
 
-# Kotlin/Gradle build artifacts (re-built inside Docker)
-app/.gradle
-app/build
-app/composeApp/build
-app/node_modules
-app/**/*.log
+# Dashboard build artifacts (re-built inside Docker)
+dashboard/node_modules
+dashboard/dist
+dashboard/dev-dist
+node_modules
 
 # .NET build artifacts (re-built inside Docker)
 server/bin
@@ -30,7 +29,7 @@ server/.vs
 server/**/*.user
 server/**/*.suo
 
-# Wasm output tracked in git (built from source in wasm-build stage now)
+# Dashboard output (built from source in the dashboard-build stage)
 server/src/NomNomzBot.Api/wwwroot
 
 # Runtime data / local secrets

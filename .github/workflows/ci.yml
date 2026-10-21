@@ -18,29 +18,6 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  # Stoney 2026-10-14: "a deploy for c# code only should be fast". The KMP contract test only runs when the
-  # app or the API contract it guards changed.
-  changes:
-    name: Detect changes
-    runs-on: ubuntu-latest
-    permissions:
-      contents: read
-      pull-requests: read
-    outputs:
-      kmp: ${{ steps.filter.outputs.kmp }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Filter paths
-        id: filter
-        uses: dorny/paths-filter@v3
-        with:
-          filters: |
-            kmp:
-              - 'app/**'
-              - 'server/openapi/**'
-
   test:
     name: Test (backend)
     runs-on: ubuntu-latest
@@ -91,64 +68,49 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
 
-  contract:
-    name: Contract test (frontend)
-    needs: changes
-    if: needs.changes.outputs.kmp == 'true'
+  # The Vue dashboard: type check, lint, unit tests, production build, and the API contract check that
+  # replaces the old KMP contract test (the committed API types must match server/openapi/v1.json).
+  dashboard:
+    name: Dashboard (Vue)
     runs-on: ubuntu-latest
     permissions:
       contents: read
       actions: write
+    defaults:
+      run:
+        working-directory: dashboard
     steps:
       - name: Checkout
         uses: actions/checkout@v4
 
-      # JDK 21 matches the wasm-build stage's eclipse-temurin:21. We only run the JVM target's tests here —
-      # NOT the ~25-minute Wasm/Compose distribution — so the shared-KMP DTO drift guard (ApiContractTest:
-      # Kotlin DTOs vs the committed server/openapi/v1.json) runs in CI cheaply, in parallel with the backend.
-      - name: Set up JDK 21
-        uses: actions/setup-java@v4
+      - name: Set up Node
+        uses: actions/setup-node@v4
         with:
-          distribution: temurin
-          java-version: '21'
-          cache: gradle
+          node-version: '22'
+          cache: npm
+          cache-dependency-path: dashboard/package-lock.json
 
-      - name: Frontend jvmTest (incl. ApiContractTest)
-        working-directory: app
-        # xvfb: the schema-i18n tests resolve real Compose Resources through
-        # getSystemResourceEnvironment(), which reads the screen density off AWT and therefore throws
-        # HeadlessException on a runner with no display. They pass on any dev machine and failed only
-        # here. Giving the job a virtual display keeps the tests proving the REAL resource bundle
-        # rather than weakening them to a headless-safe stub that would stop catching a missing
-        # translation.
-        run: |
-          sudo apt-get update && sudo apt-get install -y --no-install-recommends xvfb
-          chmod +x gradlew
-          set -o pipefail
-          xvfb-run -a ./gradlew :composeApp:jvmTest --no-daemon 2>&1 | tee "$RUNNER_TEMP/jvmtest.log"
+      - name: Install
+        run: npm ci --no-audit --no-fund
 
-      # The job log is only readable in a browser session; annotations also come back through the
-      # REST API, so a Kotlin compile error or a failing test names itself where any client can read it.
-      - name: Surface frontend failures as annotations
-        if: failure()
-        working-directory: app
+      # Regenerates src/api/schema.d.ts from the committed snapshot; any difference means the types were
+      # not regenerated after a contract change (run `npm run gen:api` in dashboard/ and commit it).
+      - name: API types match server/openapi/v1.json
         run: |
-          grep -E '^e: |> Task .* FAILED|^[^ ].* FAILED$|What went wrong' "$RUNNER_TEMP/jvmtest.log" \
-            | head -30 | while IFS= read -r line; do echo "::error::${line}"; done
-          python3 - composeApp/build/test-results/jvmTest <<'EOF'
-          import glob, sys, xml.etree.ElementTree as ET
-          for report in sorted(glob.glob(sys.argv[1] + "/*.xml")):
-              suite = ET.parse(report).getroot()
-              for case in suite.iter("testcase"):
-                  failure = case.find("failure")
-                  if failure is None:
-                      failure = case.find("error")
-                  if failure is None:
-                      continue
-                  message = (failure.get("message") or failure.text or "").strip()
-                  message = " | ".join(line.strip() for line in message.splitlines() if line.strip())[:800]
-                  print(f"::error::{case.get('classname')}.{case.get('name')}: {message}")
-          EOF
+          npm run gen:api
+          git diff --exit-code -- src/api/schema.d.ts
+
+      - name: Type check
+        run: npm run type-check
+
+      - name: Lint
+        run: npm run lint
+
+      - name: Unit tests
+        run: npx vitest run
+
+      - name: Build
+        run: npm run build-only
 
       - name: Stop the run early
         if: failure()
@@ -158,12 +120,11 @@ jobs:
 
   build:
     name: Build & push image
-    needs: [test, contract]
-    # A skipped contract test (no KMP change) still lets the image build.
+    needs: [test, dashboard]
     if: >
       !cancelled() &&
       needs.test.result == 'success' &&
-      (needs.contract.result == 'success' || needs.contract.result == 'skipped')
+      needs.dashboard.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -172,22 +133,6 @@ jobs:
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      # The Compose/Wasm production bundle's binaryen `wasm-opt` optimize pass
-      # (compileProductionExecutableKotlinWasmJsOptimize) is memory-hungry and, now
-      # that the dashboard carries its full page surface, peaks past the runner's
-      # ~16 GB RAM — OOM-killing the runner mid-build. A large swapfile lets the
-      # optimize pass spill to disk instead of dying, keeping the bundle fully
-      # optimized. /mnt is the runner's large scratch SSD, so there's room to spare.
-      - name: Add swap for wasm-opt optimize pass
-        run: |
-          sudo swapoff -a || true
-          sudo rm -f /mnt/swapfile || true
-          sudo fallocate -l 13G /mnt/swapfile
-          sudo chmod 600 /mnt/swapfile
-          sudo mkswap /mnt/swapfile
-          sudo swapon /mnt/swapfile
-          free -h
 
       - name: Set up Docker Buildx
         uses: docker/setup-buildx-action@v3
@@ -221,9 +166,9 @@ jobs:
           # stale one — the deploy job going green is not evidence the box is running that commit.
           build-args: |
             GIT_SHA=${{ github.sha }}
-          # The wasm-build stage only re-runs when app/ changes. The GHA cache alone is capped at 10 GB and
-          # evicted the big Wasm layers, so C#-only commits recompiled Kotlin for 25 minutes; the registry
-          # cache in GHCR is not evicted.
+          # The dashboard-build stage only re-runs when dashboard/ changes. The GHA cache alone is capped at
+          # 10 GB and evicts big layers, so C#-only commits would rebuild the dashboard; the registry cache in
+          # GHCR is not evicted.
           cache-from: |
             type=registry,ref=ghcr.io/${{ env.IMAGE_NAME }}:buildcache
             type=gha

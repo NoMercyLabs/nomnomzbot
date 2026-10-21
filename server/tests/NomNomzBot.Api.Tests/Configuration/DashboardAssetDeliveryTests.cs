@@ -18,15 +18,16 @@ using NomNomzBot.Api.Configuration;
 namespace NomNomzBot.Api.Tests.Configuration;
 
 /// <summary>
-/// S-KMP-FONTS: the first visit to the dashboard moved 46 MB because the bundled fonts went out raw. Runs the
-/// real compression and static-file wiring (the same calls <c>Program.cs</c> makes) over a web root holding a
-/// compressible font and a script, and reads the bytes a browser asking for brotli would receive.
+/// The first visit to the dashboard must not move raw bytes. Runs the real compression and static-file wiring
+/// (the same calls <c>Program.cs</c> makes) over a web root holding a hashed script, a stylesheet, a stable-name
+/// service worker and a font, and reads the bytes a browser asking for brotli would receive.
 /// </summary>
 public sealed class DashboardAssetDeliveryTests : IAsyncLifetime
 {
-    private const string FontPath =
-        "/composeResources/nomnomzbot.composeapp.generated.resources/font/noto_sans_kr.ttf";
-    private const int FontBytes = 400_000;
+    private const string HashedScript = "/assets/index-3KohvHdj.js";
+    private const string HashedStyle = "/assets/index-Dk3f2a1b.css";
+    private const string ServiceWorker = "/sw.js";
+    private const string Font = "/assets/inter-latin-wght-normal-C2S99t-D.woff2";
     private string _webRoot = string.Empty;
     private WebApplication _app = null!;
     private HttpClient _client = null!;
@@ -34,20 +35,17 @@ public sealed class DashboardAssetDeliveryTests : IAsyncLifetime
     public async Task InitializeAsync()
     {
         _webRoot = Path.Combine(Path.GetTempPath(), "nnz-assets-" + Guid.NewGuid().ToString("N"));
-        string fontDir = Path.Combine(
-            _webRoot,
-            "composeResources",
-            "nomnomzbot.composeapp.generated.resources",
-            "font"
-        );
-        Directory.CreateDirectory(fontDir);
-        await File.WriteAllBytesAsync(
-            Path.Combine(fontDir, "noto_sans_kr.ttf"),
-            RepetitiveFontLikeBytes()
-        );
+        Directory.CreateDirectory(Path.Combine(_webRoot, "assets"));
+        string script = string.Concat(Enumerable.Repeat("function boot() { return 1; }\n", 5_000));
+        await File.WriteAllTextAsync(Path.Combine(_webRoot, "assets", "index-3KohvHdj.js"), script);
+        await File.WriteAllTextAsync(Path.Combine(_webRoot, "sw.js"), script);
         await File.WriteAllTextAsync(
-            Path.Combine(_webRoot, "composeApp.js"),
-            string.Concat(Enumerable.Repeat("function boot() { return 1; }\n", 5_000))
+            Path.Combine(_webRoot, "assets", "index-Dk3f2a1b.css"),
+            string.Concat(Enumerable.Repeat(".a { color: red; }\n", 5_000))
+        );
+        await File.WriteAllBytesAsync(
+            Path.Combine(_webRoot, "assets", "inter-latin-wght-normal-C2S99t-D.woff2"),
+            [1, 2, 3, 4]
         );
 
         WebApplicationBuilder builder = WebApplication.CreateBuilder(
@@ -70,9 +68,10 @@ public sealed class DashboardAssetDeliveryTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData(FontPath)]
-    [InlineData("/composeApp.js")]
-    public async Task A_bundled_file_is_sent_brotli_compressed_and_much_smaller(string path)
+    [InlineData(HashedScript)]
+    [InlineData(HashedStyle)]
+    [InlineData(ServiceWorker)]
+    public async Task A_script_or_style_is_sent_brotli_compressed_and_much_smaller(string path)
     {
         HttpResponseMessage response = await GetWithBrotliAsync(path);
 
@@ -88,21 +87,25 @@ public sealed class DashboardAssetDeliveryTests : IAsyncLifetime
     }
 
     [Fact]
-    public async Task The_font_stays_cacheable_for_a_year()
+    public async Task The_hashed_font_stays_cacheable_for_a_year()
     {
-        HttpResponseMessage response = await GetWithBrotliAsync(FontPath);
+        HttpResponseMessage response = await GetWithBrotliAsync(Font);
 
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
         response.Headers.CacheControl!.ToString().Should().Be(StaticAssetCachePolicy.Immutable);
     }
 
     [Fact]
-    public async Task The_entry_script_is_revalidated_by_etag_so_a_repeat_visit_costs_no_bytes()
+    public async Task The_service_worker_is_revalidated_by_etag_so_a_repeat_visit_costs_no_bytes()
     {
-        HttpResponseMessage first = await GetWithBrotliAsync("/composeApp.js");
-        first.Headers.CacheControl!.NoStore.Should().BeFalse("composeApp.js must be cacheable");
+        HttpResponseMessage first = await GetWithBrotliAsync(ServiceWorker);
+        first.Headers.CacheControl!.NoStore.Should().BeFalse("sw.js must be cacheable");
+        first.Headers.CacheControl!.Public.Should().BeTrue();
+        first.Headers.CacheControl!.NoCache.Should().BeTrue("sw.js is revalidated on every load");
+        first.Headers.CacheControl!.MustRevalidate.Should().BeTrue();
         first.Headers.ETag.Should().NotBeNull("the browser revalidates with the ETag");
 
-        HttpRequestMessage again = new(HttpMethod.Get, "/composeApp.js");
+        HttpRequestMessage again = new(HttpMethod.Get, ServiceWorker);
         again.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("br"));
         again.Headers.IfNoneMatch.Add(first.Headers.ETag!);
         HttpResponseMessage second = await _client.SendAsync(again);
@@ -115,13 +118,5 @@ public sealed class DashboardAssetDeliveryTests : IAsyncLifetime
         HttpRequestMessage request = new(HttpMethod.Get, path);
         request.Headers.AcceptEncoding.Add(new StringWithQualityHeaderValue("br"));
         return await _client.SendAsync(request);
-    }
-
-    private static byte[] RepetitiveFontLikeBytes()
-    {
-        byte[] bytes = new byte[FontBytes];
-        for (int i = 0; i < bytes.Length; i++)
-            bytes[i] = (byte)(i % 251);
-        return bytes;
     }
 }

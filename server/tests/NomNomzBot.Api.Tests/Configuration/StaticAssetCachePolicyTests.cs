@@ -16,21 +16,21 @@ namespace NomNomzBot.Api.Tests.Configuration;
 public sealed class StaticAssetCachePolicyTests
 {
     [Theory]
-    [InlineData("index.html")]
-    [InlineData("INDEX.HTML")]
-    public void TheShellDocument_IsNeverStored_SoAReloadRunsTheDeployedBuild(string fileName)
+    [InlineData("/index.html")]
+    [InlineData("/INDEX.HTML")]
+    public void TheShellDocument_IsNeverStored_SoAReloadRunsTheDeployedBuild(string path)
     {
-        StaticAssetCachePolicy.For(fileName).Should().Be(StaticAssetCachePolicy.EntryPoint);
+        StaticAssetCachePolicy.For(path).Should().Be(StaticAssetCachePolicy.EntryPoint);
     }
 
     [Theory]
-    [InlineData("bccfa839aa4b38489c76.wasm")]
-    [InlineData("noto_sans_sc.ttf")]
-    [InlineData("twemoji_color.ttf")]
-    [InlineData("inter.woff2")]
-    public void TheBulkyContentStableAssets_AreImmutableAndEdgeCacheable(string fileName)
+    [InlineData("/assets/index-3KohvHdj.js")]
+    [InlineData("/assets/DashboardLayout-CB_WYf8P.js")]
+    [InlineData("/assets/index-Dk3f2a1b.css")]
+    [InlineData("/assets/inter-latin-wght-normal-C2S99t-D.woff2")]
+    public void TheHashedBuildFiles_AreImmutableAndEdgeCacheable(string path)
     {
-        string policy = StaticAssetCachePolicy.For(fileName);
+        string policy = StaticAssetCachePolicy.For(path);
 
         policy.Should().Be(StaticAssetCachePolicy.Immutable);
         policy.Should().Contain("public", "the CDN must be allowed to serve these from the edge");
@@ -39,13 +39,15 @@ public sealed class StaticAssetCachePolicyTests
     }
 
     [Theory]
-    [InlineData("activity.svg")]
-    [InlineData("strings.cvr")]
-    [InlineData("composeApp.js.map")]
-    [InlineData("composeApp.js")]
-    public void BuildVaryingAssets_StayRevalidatedButBecomeEdgeCacheable(string fileName)
+    [InlineData("/sw.js")]
+    [InlineData("/workbox-5bf5ec49.js")]
+    [InlineData("/manifest.webmanifest")]
+    [InlineData("/icon.svg")]
+    [InlineData("/pwa-192x192.png")]
+    [InlineData("/favicon.ico")]
+    public void FilesUnderAStableName_StayRevalidatedButBecomeEdgeCacheable(string path)
     {
-        string policy = StaticAssetCachePolicy.For(fileName);
+        string policy = StaticAssetCachePolicy.For(path);
 
         policy.Should().Be(StaticAssetCachePolicy.Revalidated);
         policy
@@ -56,14 +58,14 @@ public sealed class StaticAssetCachePolicyTests
     }
 
     [Fact]
-    public void TheEntryPointScriptIsNotTreatedAsAnImmutableAssetByItsExtension()
+    public void TheServiceWorker_IsNotImmutable_SoADeployReachesInstalledBrowsers()
     {
         StaticAssetCachePolicy
-            .For("composeApp.js")
+            .For("/sw.js")
             .Should()
             .NotBe(
                 StaticAssetCachePolicy.Immutable,
-                "a script cached without revalidation pins the browser to an old build"
+                "a service worker cached without revalidation pins every install to an old build"
             );
     }
 }

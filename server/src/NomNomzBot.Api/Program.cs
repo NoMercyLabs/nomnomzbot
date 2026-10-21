@@ -66,7 +66,7 @@ try
     bool binaryDirectoryHasSettings = File.Exists(
         Path.Combine(binaryDirectory, "appsettings.json")
     );
-    // The web root holds the compiled Wasm dashboard and is GITIGNORED, so a fresh clone has no
+    // The web root holds the compiled Vue dashboard and is GITIGNORED, so a fresh clone has no
     // wwwroot at all. StaticWebAssetsLoader constructs a PhysicalFileProvider over it during
     // CreateBuilder and throws DirectoryNotFoundException when it is missing — `dotnet run` on a clean
     // checkout died before a single line of our own startup ran. Creating it empty is exactly the
@@ -741,14 +741,13 @@ try
     {
         app.UseHttpsRedirection();
     }
-    // Serve the compiled Wasm dashboard — the SAME app the desktop client runs — from the web root, so onboarding
-    // is identical in a browser at / (deployment-distribution §5). Single-origin: the served app talks to the
-    // origin (this bot) that served it. Static assets are public and unauthenticated (before auth + rate limiting);
-    // the API / hub / health routes below still match first, and anything unmatched falls through to the SPA entry
-    // (index.html) via MapFallbackToFile at the end. With no dashboard bundled (empty web root) this is a no-op and
-    // the API-only behavior is unchanged. The explicit ".wasm" mapping guarantees the correct MIME so the browser
-    // instantiates the module.
-    // Must run before UseStaticFiles so the wasm/js/css bytes it writes are compressed on the way out.
+    // Serve the compiled Vue dashboard from the web root, so onboarding is identical in a browser at /
+    // (deployment-distribution §5). Single-origin: the served app talks to the origin (this bot) that served it.
+    // Static assets are public and unauthenticated (before auth + rate limiting); the API / hub / health routes
+    // below still match first, and anything unmatched falls through to the SPA entry (index.html) via
+    // MapDashboardFallback at the end. With no dashboard bundled (empty web root) this is a no-op and the
+    // API-only behavior is unchanged.
+    // Must run before UseStaticFiles so the js/css bytes it writes are compressed on the way out.
     app.UseResponseCompression();
 
     app.UseDashboardStaticFiles();
@@ -898,7 +897,7 @@ try
     app.MapGet("/favicon.ico", () => Results.NotFound()).ExcludeFromDescription();
 
     // Landing page (owner report 2026-09-09: the root path forced every anonymous visitor to download and boot
-    // the whole ~40MB Compose/Wasm dashboard bundle just to see marketing copy — "loads in an instant, no
+    // the whole dashboard bundle just to see marketing copy — "loads in an instant, no
     // excuses"). A genuinely separate, instant-loading static page — no Wasm, committed source (not the
     // gitignored wwwroot build output), same pattern as the /editor assets below. Only the EXACT root path is
     // intercepted; every deep dashboard link (and this page's own "Get started", which points at /app) still
@@ -953,7 +952,7 @@ try
     }
 
     // SPA fallback: any route not matched by an API / hub / health endpoint or a static file serves the dashboard's
-    // entry document, so a browser hitting / (or a client-side deep link) loads the Compose/Wasm app shell. Returns
+    // entry document, so a browser hitting / (or a client-side deep link) loads the Vue app shell. Returns
     // 404 when no dashboard is bundled (empty web root), preserving the API-only behavior.
     app.MapDashboardFallback();
 

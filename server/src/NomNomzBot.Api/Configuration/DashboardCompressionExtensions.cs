@@ -13,12 +13,12 @@ using Microsoft.AspNetCore.ResponseCompression;
 namespace NomNomzBot.Api.Configuration;
 
 /// <summary>
-/// Response compression for the dashboard bundle (the Wasm module, its script, and its bundled files).
+/// Response compression for the dashboard bundle (its scripts, styles, icons and manifest).
 /// </summary>
 public static class DashboardCompressionExtensions
 {
     /// <summary>
-    /// Compresses the Wasm dashboard bundle (tens of MB uncompressed) and its JS/CSS/octet-stream siblings —
+    /// Compresses the Vue dashboard bundle (scripts, styles, SVG icons, the web manifest) and its fonts —
     /// nothing else. Scoped to exactly those MIME types (not the default set, which would also compress
     /// application/json) so an authenticated API response is never compressed alongside attacker-influenceable
     /// input — the classic BREACH-attack precondition this deliberately avoids reintroducing for a load-time
@@ -32,11 +32,11 @@ public static class DashboardCompressionExtensions
             options.EnableForHttps = true;
             options.MimeTypes =
             [
-                "application/wasm",
                 "text/javascript",
                 "application/javascript",
                 "text/css",
-                "application/octet-stream",
+                "image/svg+xml",
+                "application/manifest+json",
                 "font/ttf",
                 "font/otf",
                 "font/sfnt",

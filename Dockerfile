@@ -2,55 +2,38 @@
 # Copyright (C) NoMercy Labs. All rights reserved.
 #
 # Multi-stage build — produces a single self-contained image:
-#   wasm-build  : Kotlin Multiplatform + Compose Wasm production bundle
-#   restore     : .NET NuGet restore (separate stage so source changes don't bust the dep layer)
-#   publish     : .NET publish
-#   final       : ASP.NET runtime with Wasm wired into wwwroot
+#   dashboard-build : the Vue dashboard production bundle (Node; the image itself carries no Node)
+#   restore         : .NET NuGet restore (separate stage so source changes don't bust the dep layer)
+#   publish         : .NET publish
+#   final           : ASP.NET runtime with the Vue bundle wired into wwwroot
 
 # ---------------------------------------------------------------------------
-# Stage 0 — Kotlin/Compose Wasm frontend build
+# Stage 0 — Vue dashboard build
 # ---------------------------------------------------------------------------
-FROM eclipse-temurin:21-jdk-jammy AS wasm-build
+FROM node:22-bookworm-slim AS dashboard-build
 
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl \
-    && rm -rf /var/lib/apt/lists/*
+WORKDIR /workspace/dashboard
 
-WORKDIR /workspace
+# Package files first, so a source change does not bust the dependency layer.
+# The npm download cache lives in a BuildKit cache mount and never enters an image layer.
+COPY dashboard/package.json dashboard/package-lock.json ./
+RUN --mount=type=cache,target=/root/.npm \
+    npm ci --no-audit --no-fund
 
-# Copy Gradle wrapper + build files first so changes to Kotlin source don't
-# bust the dependency-resolution layer. Toolchain archives (Node, Yarn,
-# Binaryen/wasm-opt) and downloaded JARs land in ~/.gradle, which is
-# persisted via BuildKit cache mount and never enters the image layer.
-COPY app/gradle/             gradle/
-COPY app/gradlew             gradlew
-COPY app/gradle.properties   gradle.properties
-COPY app/settings.gradle.kts settings.gradle.kts
-COPY app/build.gradle.kts    build.gradle.kts
-COPY app/composeApp/build.gradle.kts composeApp/build.gradle.kts
+# The recap preview imports one widget file from the server tree, by its relative path
+# (dashboard/src/views/dashboard/analytics/RecapPreview.vue), so that folder is copied to the same place.
+COPY server/src/NomNomzBot.Infrastructure/Content/Widgets/Assets/ \
+    /workspace/server/src/NomNomzBot.Infrastructure/Content/Widgets/Assets/
 
-# Pre-warm: resolve Gradle/Kotlin dependencies before copying source so
-# this layer is a cache hit whenever only Kotlin source changes.
-RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
-    --mount=type=cache,target=/root/.konan \
-    chmod +x gradlew \
-    && ./gradlew :composeApp:wasmJsBrowserDistribution --dry-run --no-daemon -q 2>/dev/null || true
+COPY dashboard/ ./
 
-# Copy full source. Re-apply +x after COPY in case the checkout platform
-# (e.g. Windows NTFS) stripped the execute bit — git index has 100755 but
-# Docker copies the on-disk mode, which may differ on Windows hosts.
-COPY app/ .
-RUN chmod +x gradlew
+# Sign-in is a build-time switch (dashboard/src/lib/flags.ts). Off, the public pages show "Coming soon".
+# This image is what dev and self-host users run, so it is built with sign-in open.
+ENV VITE_SIGN_IN_OPEN=true
 
-# wasmJsBrowserDistribution = webpack + resource copy + index.html → dist/wasmJs/productionExecutable/
-# --rerun-tasks is REQUIRED: the persistent /root/.gradle build-cache mount makes Kotlin/Wasm incremental
-# up-to-date checks unreliable across CI builds — without it, a source change (e.g. only ShellScreen.kt)
-# is silently skipped and the bundle ships stale. Forcing a full task re-run guarantees the wasm reflects
-# the checked-out source; the dependency/konan caches still avoid re-downloading, so the cost is one clean
-# compile + webpack pass.
-RUN --mount=type=cache,target=/root/.gradle,sharing=locked \
-    --mount=type=cache,target=/root/.konan \
-    ./gradlew :composeApp:wasmJsBrowserDistribution --no-daemon --rerun-tasks
+# build-only = `vite build` alone. The type check and the lint gate run in CI's dashboard job, not here,
+# so a slow or red check cannot stop an image build that CI has already proven. Output: dist/.
+RUN npm run build-only
 
 # ---------------------------------------------------------------------------
 # Stage 1 — .NET NuGet restore (cached layer; re-runs only on .csproj changes)
@@ -126,10 +109,8 @@ EXPOSE 5000 5001
 
 COPY --from=publish /app/publish .
 
-# Wasm dashboard goes into wwwroot — the API's StaticFiles middleware serves it.
-COPY --from=wasm-build \
-    /workspace/composeApp/build/dist/wasmJs/productionExecutable/ \
-    wwwroot/
+# The Vue dashboard goes into wwwroot — the API's StaticFiles middleware serves it.
+COPY --from=dashboard-build /workspace/dashboard/dist/ wwwroot/
 
 ENV NOMNOMZ_DATA_DIR=/app/data
 RUN mkdir -p /app/data && chown -R app:app /app
