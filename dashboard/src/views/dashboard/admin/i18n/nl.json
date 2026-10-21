@@ -330,6 +330,7 @@
         "loadError": "De spam-standaarden konden niet laden.",
         "forbidden": "Je mag de spam-standaarden niet zien.",
         "invariantsTitle": "Garanties zonder schakelaar",
+        "jumpTo": "Ga naar een onderdeel",
         "settingsTitle": "Standaarden voor nieuwe kanalen",
         "unsaved": "Niet-opgeslagen wijzigingen",
         "trustFields": {

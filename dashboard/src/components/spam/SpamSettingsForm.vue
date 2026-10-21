@@ -19,6 +19,7 @@ import { useI18n } from 'vue-i18n';
 import type { SpamPolicy, SpamSetting, SpamSettings } from '@/api/adminSpamDefaults';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
 import { usePlatformCan } from '@/composables/usePlatformCan';
@@ -149,6 +150,10 @@ const groups = computed<{ group: string; settings: SpamSetting[] }[]>(() => {
     settings: catalog.value.filter((setting) => setting.group === group),
   }));
 });
+
+function jumpTo(group: string): void {
+  document.querySelector(`[data-group="${group}"]`)?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+}
 
 const dirty = computed<boolean>(() => snapshot() !== saved.value);
 
@@ -300,12 +305,30 @@ watch(
 </script>
 
 <template>
+  <nav
+    v-if="groups.length > 1"
+    :aria-label="$t('dashboard.admin.spamDefaults.jumpTo')"
+    class="sticky top-0 z-10 -mx-4 flex gap-2 overflow-x-auto bg-background px-4 py-2 md:hidden"
+  >
+    <Button
+      v-for="section in groups"
+      :key="section.group"
+      type="button"
+      variant="outline"
+      class="shrink-0"
+      :data-jump="section.group"
+      @click="jumpTo(section.group)"
+    >
+      {{ $t(`dashboard.admin.spamDefaults.groups.${section.group}`) }}
+    </Button>
+  </nav>
   <PanelCard
     v-for="section in groups"
     :key="section.group"
     :tier="section.group === groups[0]?.group ? 'lead' : 'default'"
     :title="$t(`dashboard.admin.spamDefaults.groups.${section.group}`)"
     :data-group="section.group"
+    class="scroll-mt-14"
   >
     <div class="divide-y divide-border">
       <template v-for="setting in section.settings" :key="setting.key">

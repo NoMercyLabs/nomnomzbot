@@ -330,6 +330,7 @@
         "loadError": "The spam defaults could not load.",
         "forbidden": "You may not see the spam defaults.",
         "invariantsTitle": "Guarantees with no switch",
+        "jumpTo": "Jump to a section",
         "settingsTitle": "Defaults for new channels",
         "unsaved": "Unsaved changes",
         "trustFields": {

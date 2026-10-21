@@ -221,6 +221,26 @@ describe('SpamDefenseView', () => {
     expect(row('isEnabled').querySelector('[role="switch"]')).toBeNull();
   });
 
+  it('offers a jump button per section that scrolls its section into view', async () => {
+    const scrolled: string[] = [];
+
+    Element.prototype.scrollIntoView = function scrollIntoView(this: Element): void {
+      scrolled.push(this.getAttribute('data-group') ?? '');
+    };
+
+    await open();
+
+    const jumps = [...document.body.querySelectorAll<HTMLButtonElement>('[data-jump]')];
+
+    expect(jumps.map((jump) => jump.dataset.jump)).toEqual(['master', 'trust', 'newcomers']);
+    expect(jumps[2]?.textContent).toContain('New accounts and new followers');
+
+    jumps[2]?.click();
+    await flushPromises();
+
+    expect(scrolled).toEqual(['newcomers']);
+  });
+
   it('is a registered settings route gated by the read key', () => {
     expect(settingsSpamDefenseRoute.path).toBe('settings/spam-defense');
     expect(settingsSpamDefenseRoute.meta.action).toBe('spam:policy:read');
