@@ -23,6 +23,7 @@ import type { ObsBrowserSource } from '@/api/widgets';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
+  DialogClose,
   DialogContent,
   DialogDescription,
   DialogHeader,
@@ -130,7 +131,7 @@ async function copyAddress(): Promise<void> {
     {{ $t(connected ? 'dashboard.overlays.setup.configure' : 'dashboard.overlays.setup.connect') }}
   </Button>
   <Dialog v-model:open="open">
-    <DialogContent data-obs-setup-dialog>
+    <DialogContent data-obs-setup-dialog :show-close-button="false">
       <DialogHeader>
         <DialogTitle>{{ $t('dashboard.overlays.setup.title', { name: title }) }}</DialogTitle>
         <DialogDescription>{{ $t('dashboard.overlays.setup.description') }}</DialogDescription>
@@ -153,7 +154,10 @@ async function copyAddress(): Promise<void> {
           <li>{{ $t('dashboard.overlays.setup.steps.set') }}</li>
         </ol>
       </div>
-      <div class="flex justify-end">
+      <div class="flex justify-end gap-2">
+        <DialogClose as-child>
+          <Button variant="ghost" data-obs-setup-close>{{ $t('common.close') }}</Button>
+        </DialogClose>
         <Button
           :variant="connected ? 'outline' : 'default'"
           data-obs-setup-copy

@@ -14,6 +14,7 @@ import type { JsonValue } from '@/lib/json';
 // over undefined: the step saves without the setting.
 import { computed, ref, useId, watch } from 'vue';
 
+import ChevronDown from '~icons/nnz/chevron-down';
 import Quote from '~icons/nnz/quote';
 
 import TemplateField from '@/components/layout/TemplateField.vue';
@@ -149,6 +150,7 @@ function typed(event: Event): void {
         >
           <Quote aria-hidden="true" />
           {{ $t('dashboard.pipelines.workbench.inspector.earlier.button') }}
+          <ChevronDown aria-hidden="true" />
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="start" class="max-w-80">

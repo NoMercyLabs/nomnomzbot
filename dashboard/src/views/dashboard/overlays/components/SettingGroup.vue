@@ -158,7 +158,7 @@ function shownNumber(value: JsonValue | undefined, seconds: boolean): string {
             <Button
               data-group-toggle
               variant="ghost"
-              size="icon-sm"
+              size="icon"
               :aria-label="$t('dashboard.overlays.detail.settings.open', { name: entry.label })"
               :aria-expanded="opened[entry.key] === true"
             >
