@@ -63,9 +63,9 @@ function day(value: string | null | undefined): string {
       <TableRow class="hover:bg-transparent">
         <TableHead>{{ t('dashboard.admin.users.columns.user') }}</TableHead>
         <TableHead>{{ t('dashboard.admin.users.columns.role') }}</TableHead>
-        <TableHead class="text-right">{{ t('dashboard.admin.users.columns.channels') }}</TableHead>
+        <TableHead class="text-right max-md:hidden">{{ t('dashboard.admin.users.columns.channels') }}</TableHead>
         <TableHead>{{ t('dashboard.admin.users.columns.lastActive') }}</TableHead>
-        <TableHead>{{ t('dashboard.admin.users.columns.created') }}</TableHead>
+        <TableHead class="max-md:hidden">{{ t('dashboard.admin.users.columns.created') }}</TableHead>
       </TableRow>
     </TableHeader>
     <TableBody>
@@ -96,9 +96,9 @@ function day(value: string | null | undefined): string {
         <TableCell>
           <StatusBadge :tone="tone(row.role)" :label="roleLabel(row.role)" />
         </TableCell>
-        <TableCell class="text-right tabular-nums">{{ Number(row.channelCount) }}</TableCell>
+        <TableCell class="text-right tabular-nums max-md:hidden">{{ Number(row.channelCount) }}</TableCell>
         <TableCell class="text-muted-foreground">{{ day(row.lastActive) }}</TableCell>
-        <TableCell class="text-muted-foreground">{{ day(row.createdAt) }}</TableCell>
+        <TableCell class="text-muted-foreground max-md:hidden">{{ day(row.createdAt) }}</TableCell>
       </TableRow>
     </TableBody>
   </Table>
