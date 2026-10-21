@@ -264,14 +264,12 @@ const cards = computed<Card[]>(() => (recap.value ? buildCards(recap.value) : []
 
 // One grid for every block: 12 columns, so any row of 1 to 4 blocks adds up to the full width and every card edge
 // lines up with the top row. Blocks without data are gone. Up to 3 blocks share one row, 4 are 2 over 2, 5 are 3 over 2,
-// 6 are 3 over 3, 7 are 4 over 3, 8 are 4 over 4, and 9 to 12 are three rows (9 are 3/3/3, 12 are 4/4/4). The streamer card
-// (the channel avatar) is one of those cells and is always the first cell of the last row, bottom left (Stoney, 2026-10-20).
-// Eight data blocks exist, so with the streamer card no metric is dropped; the 12-cell cap only guards future blocks.
-interface Placed { card: Card; span: number; tall: boolean }
+// 6 are 3 over 3, 7 are 4 over 3, 8 are 4 over 4, and 9 to 12 are three rows (9 are 3/3/3, 12 are 4/4/4). The channel
+// avatar is a faint watermark inside whichever data card sits bottom left, never a card of its own (Stoney, 2026-10-21).
+interface Placed { card: Card; span: number; tall: boolean; watermark: boolean }
 
 const GRID_COLUMNS = 12;
 const MAX_CARDS = 12;
-const STREAMER_KEY = 'streamer';
 
 function rowSizes(count: number): number[] {
   if (count <= 3) return count ? [count] : [];
@@ -286,21 +284,13 @@ function rowSizes(count: number): number[] {
 function flow(list: Card[], width: number): Placed[] {
   const spans = rowSizes(list.length).flatMap((size) => Array.from({ length: size }, () => width / size));
 
-  return list.map((card, i) => ({ card, span: spans[i] ?? width, tall: false }));
-}
+  const lastRowStart = rowSizes(list.length).slice(0, -1).reduce((sum, size) => sum + size, 0);
 
-// The streamer card goes in front of the last row's cells; with a single row that is the first cell.
-function withStreamer(list: Card[]): Card[] {
-  const shown = list.slice(0, MAX_CARDS - 1);
-  const sizes = rowSizes(shown.length + 1);
-  const lastRowStart = sizes.slice(0, -1).reduce((sum, size) => sum + size, 0);
-  const streamer: Card = { key: STREAMER_KEY, big: '', unit: '', rows: [] };
-
-  return shown.slice(0, lastRowStart).concat(streamer, shown.slice(lastRowStart));
+  return list.map((card, i) => ({ card, span: spans[i] ?? width, tall: false, watermark: i === lastRowStart }));
 }
 
 function place(list: Card[]): Placed[] {
-  return flow(withStreamer(list), GRID_COLUMNS);
+  return flow(list.slice(0, MAX_CARDS), GRID_COLUMNS);
 }
 
 const placed = computed<Placed[]>(() => place(cards.value));
@@ -413,8 +403,8 @@ onUnmounted(() => {
       <header>
         <div class="brand">
           <svg class="logo" viewBox="0 0 130 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M49.9746 104.882C45.1151 108.166 42.6854 109.807 40.6684 109.696C38.9115 109.598 37.2859 108.735 36.2217 107.334C35 105.725 35 102.792 35 96.9276V33.0725C35 27.2077 35 24.2753 36.2217 22.6666C37.2859 21.2653 38.9115 20.4018 40.6684 20.3045C42.6854 20.1929 45.1151 21.8346 49.9747 25.1181L97.2274 57.0456C101.17 59.7098 103.142 61.0419 103.831 62.7154C104.434 64.1789 104.434 65.8212 103.831 67.2847C103.142 68.9583 101.17 70.2904 97.2274 72.9545L49.9746 104.882ZM126 21.0001C128.209 21.0001 130 22.7909 130 25.0001V105C130 107.209 128.209 109 126 109H116.5C114.291 109 112.5 107.209 112.5 105V25.0001C112.5 22.7909 114.291 21.0001 116.5 21.0001H126Z" fill="var(--color-600)" />
-            <path fill-rule="evenodd" clip-rule="evenodd" d="M9.35914 108.676C5.3744 111.369 0 108.514 0 103.705V26.2953C0 21.4863 5.37442 18.6314 9.35916 21.3238L66.6421 60.0285C70.1633 62.4077 70.1633 67.5925 66.6421 69.9716L9.35914 108.676ZM91 21.0001C93.2091 21.0001 95 22.7909 95 25.0001V105C95 107.209 93.2091 109 91 109H81.5C79.2909 109 77.5 107.209 77.5 105V25.0001C77.5 22.7909 79.2909 21.0001 81.5 21.0001H91Z" fill="var(--color-200)" />
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M49.9746 104.882C45.1151 108.166 42.6854 109.807 40.6684 109.696C38.9115 109.598 37.2859 108.735 36.2217 107.334C35 105.725 35 102.792 35 96.9276V33.0725C35 27.2077 35 24.2753 36.2217 22.6666C37.2859 21.2653 38.9115 20.4018 40.6684 20.3045C42.6854 20.1929 45.1151 21.8346 49.9747 25.1181L97.2274 57.0456C101.17 59.7098 103.142 61.0419 103.831 62.7154C104.434 64.1789 104.434 65.8212 103.831 67.2847C103.142 68.9583 101.17 70.2904 97.2274 72.9545L49.9746 104.882ZM126 21.0001C128.209 21.0001 130 22.7909 130 25.0001V105C130 107.209 128.209 109 126 109H116.5C114.291 109 112.5 107.209 112.5 105V25.0001C112.5 22.7909 114.291 21.0001 116.5 21.0001H126Z" style="fill: var(--color-600)" />
+            <path fill-rule="evenodd" clip-rule="evenodd" d="M9.35914 108.676C5.3744 111.369 0 108.514 0 103.705V26.2953C0 21.4863 5.37442 18.6314 9.35916 21.3238L66.6421 60.0285C70.1633 62.4077 70.1633 67.5925 66.6421 69.9716L9.35914 108.676ZM91 21.0001C93.2091 21.0001 95 22.7909 95 25.0001V105C95 107.209 93.2091 109 91 109H81.5C79.2909 109 77.5 107.209 77.5 105V25.0001C77.5 22.7909 79.2909 21.0001 81.5 21.0001H91Z" style="fill: var(--color-200)" />
           </svg>
           <div>
             <h1>{{ label('title') }}</h1>
@@ -433,12 +423,9 @@ onUnmounted(() => {
       </section>
 
       <section class="grid" :style="gridStyle">
-        <div v-for="p in placed" :key="p.card.key" class="card block" :class="{ streamer: p.card.key === STREAMER_KEY }" :data-block="p.card.key" :style="cellStyle(p)">
-          <template v-if="p.card.key === STREAMER_KEY">
-            <img v-if="avatarUrl" class="avatar" :src="avatarUrl" crossorigin="anonymous" alt="" />
-            <div class="who">{{ recap?.channel?.name }}</div>
-          </template>
-          <div v-if="p.card.key !== STREAMER_KEY" class="label">{{ label('block.' + p.card.key) }}</div>
+        <div v-for="p in placed" :key="p.card.key" class="card block" :data-block="p.card.key" :style="cellStyle(p)">
+          <img v-if="p.watermark && avatarUrl" class="watermark" :src="avatarUrl" crossorigin="anonymous" alt="" />
+          <div class="label">{{ label('block.' + p.card.key) }}</div>
           <div v-if="p.card.big" class="big">{{ p.card.big }}<small v-if="p.card.unit">{{ p.card.unit }}</small></div>
           <div v-if="p.card.rows.length" class="scroll" :class="{ fit: p.card.note }">
             <div class="list">
@@ -489,9 +476,8 @@ h1 { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1; co
 .kpis { display: grid; grid-template-columns: repeat(4, 1fr); gap: 16px; }
 .grid { display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 16px; min-height: 0; }
 .block { position: relative; }
-.streamer { align-items: center; justify-content: center; gap: 14px; }
-.avatar { flex: 0 1 auto; min-height: 0; max-width: 100%; aspect-ratio: 1; height: 100%; max-height: 260px; border-radius: 50%; object-fit: cover; border: 3px solid var(--accent); }
-.who { font-size: 28px; font-weight: 800; color: var(--color-100); max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.block > :not(.watermark) { position: relative; }
+.watermark { position: absolute; right: -8%; bottom: -12%; height: 90%; aspect-ratio: 1; border-radius: 50%; object-fit: cover; filter: grayscale(1); opacity: 0.12; pointer-events: none; }
 .card {
   background: linear-gradient(45deg, hsl(from var(--color-300) h s l / 50%), hsl(from var(--color-600) h s l / 50%) 15%, hsl(from var(--color-900) h s l / 75%));
   backdrop-filter: blur(24px);
