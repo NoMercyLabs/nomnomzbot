@@ -42,7 +42,7 @@ defineOptions({ inheritAttrs: false });
 
 const props = withDefaults(
   defineProps<{
-    options: Choice[];
+    options: readonly Choice[];
     placeholder?: string;
     searchable?: boolean;
     searchPlaceholder?: string;
