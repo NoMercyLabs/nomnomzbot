@@ -1576,13 +1576,13 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             new(@event.UserId, @event.UserDisplayName, text, "chat-trigger", Variables: variables),
             ct
         );
-        if (run.IsFailure || !run.Value!.Succeeded)
+        if (run.IsFailure || !run.Value.Succeeded)
             _logger.LogWarning(
                 "Chat trigger {TriggerId} in {Channel} could not run its {Kind} target: {Error}",
                 trigger.Id,
                 @event.BroadcasterId,
                 target.Kind,
-                run.IsFailure ? run.ErrorMessage : run.Value!.Error
+                run.IsFailure ? run.ErrorMessage : run.Value.Error
             );
     }
 

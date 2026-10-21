@@ -115,7 +115,6 @@ internal sealed class DiscordUserOptionProvider
             member.DisplayName,
             $"@{member.Username}",
             member.AvatarUrl,
-            PipelineOptionState.Selectable,
-            null
+            PipelineOptionState.Selectable
         );
 }

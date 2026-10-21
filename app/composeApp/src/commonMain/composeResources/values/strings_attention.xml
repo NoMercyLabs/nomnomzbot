@@ -78,6 +78,10 @@
     <string name="attention_audio_source_missing_message">Add the Audio widget as a browser source in OBS. Until then, sounds and TTS play from another overlay page.</string>
     <string name="attention_audio_source_missing_live_title">The TTS source is missing</string>
     <string name="attention_audio_source_missing_live_message">TTS has nowhere to play. Add the TTS source in OBS.</string>
+    <string name="attention_obs_not_connected_title">OBS is not connected</string>
+    <string name="attention_obs_not_connected_message">%1$s OBS actions failed because OBS is not connected. Connect OBS, then run them again.</string>
+    <string name="attention_tts_source_missing_title">No TTS Caption source is open</string>
+    <string name="attention_tts_source_missing_message">Other overlay pages are open, but the TTS Caption page is not, so spoken messages stay silent. Add the TTS Caption widget as a browser source in OBS.</string>
     <string name="attention_source_unavailable_title">Could not check %1$s</string>
     <string name="attention_source_unavailable_message">This check failed, so some items may be missing here. Reason: %1$s. To fix it, reconnect Twitch on the Integrations page.</string>
     <string name="attention_source_name_unban_requests">unban requests</string>

@@ -426,6 +426,7 @@ interface NnzNowPlayingShapeDto {
   volume: number;
   muted: boolean;
   state: string;
+  blockedReason?: string | null;
 }
 
 /** ad_schedule: the channel's ad schedule, sent on every poll while live (times are UTC, null when none). */

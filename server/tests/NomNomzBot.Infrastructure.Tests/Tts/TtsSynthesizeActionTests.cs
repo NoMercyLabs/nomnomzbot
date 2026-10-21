@@ -261,7 +261,7 @@ public sealed class TtsSynthesizeActionTests
                 ),
                 Arg.Any<CancellationToken>()
             );
-        await overlay.DidNotReceiveWithAnyArgs().PlaySoundAsync(default, default!, default);
+        await overlay.DidNotReceiveWithAnyArgs().PlaySoundAsync(default, default!);
     }
 
     [Fact]
@@ -293,8 +293,8 @@ public sealed class TtsSynthesizeActionTests
         result.Succeeded.Should().BeFalse();
         result.ErrorMessage.Should().Contain("TTS Caption");
         ctx.Variables.ContainsKey("tts.audioUrl").Should().BeFalse();
-        await overlay.DidNotReceiveWithAnyArgs().PlaySoundAsync(default, default!, default);
-        await overlay.DidNotReceiveWithAnyArgs().PlayTtsAsync(default, default!, default);
+        await overlay.DidNotReceiveWithAnyArgs().PlaySoundAsync(default, default!);
+        await overlay.DidNotReceiveWithAnyArgs().PlayTtsAsync(default, default!);
     }
 
     [Fact]
@@ -316,7 +316,7 @@ public sealed class TtsSynthesizeActionTests
         );
 
         result.Succeeded.Should().BeTrue();
-        await overlay.DidNotReceiveWithAnyArgs().PlaySoundAsync(default, default!, default);
+        await overlay.DidNotReceiveWithAnyArgs().PlaySoundAsync(default, default!);
     }
 
     [Fact]
