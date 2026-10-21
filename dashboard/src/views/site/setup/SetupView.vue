@@ -20,7 +20,6 @@ import LanguagePicker from '@/components/layout/LanguagePicker.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
-import { Progress } from '@/components/ui/progress';
 
 import BotAccountStep from './components/BotAccountStep.vue';
 import CredentialsStep from './components/CredentialsStep.vue';
@@ -35,7 +34,6 @@ const steps = computed<SetupStep[]>(() => wizard.data.value?.steps ?? []);
 const total = computed(() => steps.value.length + 1);
 const onFinish = computed(() => index.value >= steps.value.length);
 const step = computed<SetupStep | null>(() => steps.value[index.value] ?? null);
-const percent = computed(() => ((index.value + 1) / total.value) * 100);
 // A required step must be done before Next; an optional one can be skipped.
 const canAdvance = computed(
   () => step.value !== null && (step.value.complete || !step.value.required),
@@ -75,12 +73,9 @@ async function finish(): Promise<void> {
       class="w-full max-w-xl"
     >
       <div class="flex flex-col gap-4">
-        <div class="flex flex-col gap-2">
-          <p class="text-xs text-muted-foreground">
-            {{ $t('site.setup.progress', { current: index + 1, total }) }}
-          </p>
-          <Progress :model-value="percent" :aria-label="$t('site.setup.progressLabel')" />
-        </div>
+        <p class="text-xs text-muted-foreground">
+          {{ $t('site.setup.progress', { current: index + 1, total }) }}
+        </p>
 
         <template v-if="step && !onFinish">
           <CredentialsStep v-if="hasCredentialForm(step.key)" :key="step.key" :step="step" />

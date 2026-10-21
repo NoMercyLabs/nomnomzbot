@@ -6,7 +6,6 @@
       "unreachable": "Deze bot antwoordt niet. Controleer of hij draait en probeer het opnieuw.",
       "retry": "Opnieuw proberen",
       "progress": "Stap {current} van {total}",
-      "progressLabel": "Voortgang van de installatie",
       "back": "Terug",
       "next": "Volgende",
       "skip": "Overslaan",

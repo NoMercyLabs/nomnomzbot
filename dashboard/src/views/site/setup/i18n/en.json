@@ -6,7 +6,6 @@
       "unreachable": "This bot does not answer. Check that it runs, then try again.",
       "retry": "Try again",
       "progress": "Step {current} of {total}",
-      "progressLabel": "Setup progress",
       "back": "Back",
       "next": "Next",
       "skip": "Skip",
