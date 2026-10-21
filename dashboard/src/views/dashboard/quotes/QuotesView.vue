@@ -113,11 +113,14 @@ function loadMore(): void {
               variant="outline"
               size="sm"
               data-quote-random
+              class="max-md:min-w-9!"
+              :aria-label="t('dashboard.quotes.random')"
               :disabled="picking"
               @click="pickRandom"
       >
         <Dices aria-hidden="true" />
-        {{ t("dashboard.quotes.random") }}
+        <!-- Below md the header has room for the icon only; the name stays for screen readers. -->
+        <span class="max-md:sr-only">{{ t("dashboard.quotes.random") }}</span>
       </Button>
       <Button v-if="can('quotes:write')"
               type="button"

@@ -272,6 +272,16 @@ describe('QuotesView', () => {
     expect(rows()).toHaveLength(0);
   });
 
+  // Mobile ledger: the header row was 417 px wide at 390; the Random button is icon-only below md.
+  it('keeps the Random button named for screen readers while its words hide below md', async () => {
+    await open();
+
+    const button = document.querySelector<HTMLElement>('[data-quote-random]')!;
+
+    expect(button.getAttribute('aria-label')).toBe('Random quote');
+    expect(button.querySelector('span')?.className).toContain('max-md:sr-only');
+  });
+
   it('shows a random quote from the server', async () => {
     quotes = [quote(5, 'Pick me', 'Kitte')];
     await open();
