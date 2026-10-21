@@ -219,6 +219,9 @@ services:
   adminer:
     image: adminer:latest
     container_name: nomnomzbot-adminer
+    # Off by default (Stoney, 2026-10-21: "turn them off, not remove them"): `docker compose up -d`
+    # skips it. Start it on demand with `docker compose --profile adminer up -d adminer`.
+    profiles: ["adminer"]
     # Loopback only — the DB GUI grants full database access behind only the Postgres credentials,
     # so it is never exposed on a public interface. Drop this service for a hardened deployment.
     ports:
