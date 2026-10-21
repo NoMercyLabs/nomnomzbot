@@ -16,9 +16,11 @@ import { ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import { i18n } from '@/i18n';
+import { merge } from '@/lib/array';
 
 import MusicView from '../MusicView.vue';
 import en from '../i18n/en.json';
+import overlaysEn from '../../overlays/i18n/en.json';
 
 type Options = { params?: { path?: Record<string, unknown> }; body?: unknown };
 type Call = {
@@ -38,6 +40,7 @@ let answers: Record<string, () => Answer> = {};
 let queue: Record<string, unknown>[] = [];
 let nowPlaying: Record<string, unknown> | null = null;
 let requestsOpen = true;
+let blockedReason: string | null = null;
 let heldActionKeys: string[] = ['music:queue:moderate'];
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
@@ -56,6 +59,7 @@ const track = (position: number, trackName: string, artist: string, requestedBy:
     durationMs: 200000,
     requestedBy,
     cost: 0,
+    waitsForMusicPlayer: false,
   }) as const satisfies Record<string, unknown>;
 
 const playing = (overrides: Record<string, unknown> = {}) =>
@@ -90,6 +94,7 @@ function freshAnswers() {
         nowPlaying,
         queue: queue.map((item) => ({ ...item })),
         requestsOpen,
+        blockedReason,
       }),
     '/music/history': () =>
       ok([
@@ -229,11 +234,13 @@ beforeEach(() => {
 
   nowPlaying = playing();
   requestsOpen = true;
+  blockedReason = null;
   heldActionKeys = ['music:queue:moderate', 'music:config:read'];
   answers = freshAnswers();
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
+  i18n.global.mergeLocaleMessage('en', overlaysEn);
 
   // jsdom has no layout; the seek and volume sliders measure their track with this.
   vi.stubGlobal(
@@ -725,5 +732,64 @@ describe('MusicView', () => {
     expect(closes).toHaveLength(1);
     expect(inHeader).toHaveLength(1);
     expect(sheet?.querySelector('[class*="absolute"][data-slot="sheet-close"]')).toBeNull();
+  });
+});
+
+describe('MusicView waiting requests', () => {
+  const musicPlayer = {
+    key: 'music_player',
+    widget: {
+      id: 'w1',
+      isEnabled: true,
+      isAttached: false,
+      overlayUrl: 'https://example.test/overlay/w1',
+      obsSetup: {
+        width: 1920,
+        height: 1080,
+        controlAudioViaObs: false,
+        shutdownWhenHidden: false,
+      },
+    },
+  } as const;
+
+  beforeEach(() => {
+    heldActionKeys = [...merge(heldActionKeys, ['widget:read'])];
+    answers = { ...freshAnswers(), '/overlays/required': () => ok([musicPlayer]) };
+  });
+
+  it('says a YouTube request waits for the Music Player in OBS and opens its setup dialog from Connect', async () => {
+    queue = [
+      { ...track(1, 'Video', 'Channel', 'ifillz'), waitsForMusicPlayer: true },
+      track(2, 'Opus', 'Eric Prydz', 'DukaSoft'),
+    ];
+
+    await open();
+    // The overlays read waits for the access read, so it lands one round later.
+    await settle();
+
+    const rows = [...panel('Request queue').querySelectorAll<HTMLElement>('[data-queue-item]')];
+
+    expect(rows[0]!.textContent).toContain('Waiting for the Music Player in OBS');
+    expect(rows[1]!.textContent).not.toContain('Waiting for the Music Player in OBS');
+    // The row's buttons sit beside its body, in the same row.
+    expect(buttonIn(rows[1]!.parentElement!, 'Connect')).toBeUndefined();
+    buttonIn(rows[0]!.parentElement!, 'Connect').click();
+    await settle();
+    expect(document.body.querySelector('[role="dialog"]')?.textContent).toContain('Music Player');
+  });
+
+  it('says Spotify has no active device when the server names that reason', async () => {
+    blockedReason = 'noSpotifyDevice';
+    await open();
+
+    expect(panel('Request queue').textContent).toContain(
+      'Spotify has no active device. Open Spotify on a device to play requests.',
+    );
+  });
+
+  it('says nothing about a device while playback is not blocked', async () => {
+    await open();
+
+    expect(panel('Request queue').textContent).not.toContain('Spotify has no active device');
   });
 });

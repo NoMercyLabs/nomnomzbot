@@ -23,6 +23,7 @@ const song = (position: number, requestedBy: string | null): QueueItem => ({
   durationMs: 1000,
   requestedBy,
   cost: 0,
+  waitsForMusicPlayer: false,
 });
 
 describe('requestersIn', () => {

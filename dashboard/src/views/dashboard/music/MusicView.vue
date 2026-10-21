@@ -17,6 +17,7 @@ import Grip from '~icons/nnz/hamburger';
 import IconRules from '~icons/nnz/settings-fader';
 import Trash2 from '~icons/nnz/trash';
 import Ban from '~icons/nnz/do-not-enter';
+import IconWarning from '~icons/nnz/alert-triangle';
 import { computed, ref, useTemplateRef, type ComponentPublicInstance } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -57,6 +58,7 @@ import { usePanelState } from '@/composables/usePanelState';
 
 import { musicMinimums } from './components/boardPanels';
 import HistoryPanel from './components/HistoryPanel.vue';
+import MusicPlayerConnect from './components/MusicPlayerConnect.vue';
 import NowPlayingCard from './components/NowPlayingCard.vue';
 import PlayerButtonPicker from './components/PlayerButtonPicker.vue';
 import PlayerButtons from './components/PlayerButtons.vue';
@@ -102,6 +104,10 @@ const nowPlaying = computed<NonNullable<typeof queueQuery.data.value>['nowPlayin
   () => queueQuery.data.value?.nowPlaying ?? null,
 );
 const rows = computed<QueueItem[]>(() => queueQuery.data.value?.queue ?? []);
+// One primary per group: only the first request waiting for the Music Player gets the filled Connect button.
+const firstWaiting = computed<QueueItem['position'] | undefined>(
+  () => rows.value.find((item) => item.waitsForMusicPlayer)?.position,
+);
 
 // A song dragged by its handle lands where it was dropped (Stoney: "i need to be able to drag mine to the end").
 const queueList = useTemplateRef<HTMLElement>('queueList');
@@ -364,6 +370,15 @@ const span = layout.span;
               }}
             </Button>
           </template>
+          <p
+            v-if="queueQuery.data.value?.blockedReason === 'noSpotifyDevice'"
+            data-queue-blocked
+            role="status"
+            class="mb-3 flex items-center gap-2 text-sm text-muted-foreground"
+          >
+            <IconWarning class="size-5 flex-none" aria-hidden="true" />
+            {{ $t("dashboard.music.queue.noSpotifyDevice") }}
+          </p>
           <div ref="queueList" data-queue-list>
             <SummaryRow
               v-for="item in rows"
@@ -374,8 +389,8 @@ const span = layout.span;
               wrap
               data-queue-item
             >
-              <template v-if="item.requestedBy" #meta>
-                <i18n-t keypath="dashboard.music.queue.by" scope="global">
+              <template v-if="item.requestedBy || item.waitsForMusicPlayer" #meta>
+                <i18n-t v-if="item.requestedBy" keypath="dashboard.music.queue.by" scope="global">
                   <template #name>
                     <UserName
                       :user-id="item.requesterId"
@@ -384,6 +399,13 @@ const span = layout.span;
                     />
                   </template>
                 </i18n-t>
+                <span
+                  v-if="item.waitsForMusicPlayer"
+                  data-queue-waiting
+                  class="block text-foreground"
+                >
+                  {{ $t("dashboard.music.queue.waitingForPlayer") }}
+                </span>
               </template>
               <template #leading>
                 <span
@@ -413,8 +435,13 @@ const span = layout.span;
                   <Music class="size-4" aria-hidden="true" />
                 </span>
               </template>
-              <template v-if="canModerateQueue" #trailing>
+              <template v-if="canModerateQueue || item.waitsForMusicPlayer" #trailing>
+                <MusicPlayerConnect
+                  v-if="item.waitsForMusicPlayer"
+                  :primary="item.position === firstWaiting"
+                />
                 <Button
+                  v-if="canModerateQueue"
                   variant="outline"
                   size="sm"
                   :aria-label="$t('dashboard.music.queue.nextRow', { title: item.trackName })"

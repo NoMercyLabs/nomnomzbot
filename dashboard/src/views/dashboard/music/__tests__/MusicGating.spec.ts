@@ -69,6 +69,7 @@ const song: QueueItem = {
   durationMs: 1000,
   requestedBy: 'Bamo16',
   cost: 0,
+  waitsForMusicPlayer: false,
 };
 
 let mounted: VueWrapper | null = null;

@@ -20,5 +20,7 @@ export const dashboardMusicRoute = {
     loadPage(
       () => import('./MusicView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
+      // The Music Player setup dialog on a waiting queue row speaks with the Overlays page's words.
+      (locale) => import(`../overlays/i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;
