@@ -62161,7 +62161,7 @@ export interface paths {
         };
         /**
          * The option list for one resource-picker kind (`reward`, `widget`, `voice`,
-         *     `sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`, `script`, `music_playlist`, `twitch_reward`, `obs_audio_input`), paged
+         *     `sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`, `script`, `music_playlist`, `twitch_reward`, `obs_audio_input`, `discord_user`), paged
          *     and optionally search-filtered. With `value` set, only the option whose stored value equals it
          *     exactly comes back (search is ignored), so the dashboard can label a saved value that is not on the
          *     first page. A source that is not connected or could not be read comes back with
@@ -89454,6 +89454,8 @@ export interface components {
             speakWithTts: boolean;
             /** @description A data-rights command: always on, settings locked. */
             isReserved: boolean;
+            /** @description A system command: always on with no off switch (every reserved one is too). */
+            isAlwaysOn: boolean;
             /**
              * Format: int32
              * @description The channel's own global cooldown; null = the default applies.
