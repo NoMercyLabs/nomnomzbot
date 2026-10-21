@@ -143,9 +143,18 @@ public sealed class BuiltinEffectiveRoleTests
     public async Task Always_on_system_command_wins_over_a_same_named_channel_command()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        Harness h = Build(db, builtinFloor: 0, authoredFallthroughFloor: 0, alwaysOn: true, channelCopy: true);
+        Harness h = Build(
+            db,
+            builtinFloor: 0,
+            authoredFallthroughFloor: 0,
+            alwaysOn: true,
+            channelCopy: true
+        );
 
-        await h.Sut.HandleAsync(Event($"!{BuiltinKey}", broadcaster: false), CancellationToken.None);
+        await h.Sut.HandleAsync(
+            Event($"!{BuiltinKey}", broadcaster: false),
+            CancellationToken.None
+        );
 
         Assert.Single(h.Probe.Seen);
         Assert.Empty(h.TemplateVariables);
@@ -157,7 +166,10 @@ public sealed class BuiltinEffectiveRoleTests
         AuthDbContext db = AuthTestBuilder.NewContext();
         Harness h = Build(db, builtinFloor: 0, alwaysOn: true, disabled: true);
 
-        await h.Sut.HandleAsync(Event($"!{BuiltinKey}", broadcaster: false), CancellationToken.None);
+        await h.Sut.HandleAsync(
+            Event($"!{BuiltinKey}", broadcaster: false),
+            CancellationToken.None
+        );
 
         Assert.Single(h.Probe.Seen);
     }
@@ -168,7 +180,10 @@ public sealed class BuiltinEffectiveRoleTests
         AuthDbContext db = AuthTestBuilder.NewContext();
         Harness h = Build(db, builtinFloor: 0, authoredFallthroughFloor: 0, channelCopy: true);
 
-        await h.Sut.HandleAsync(Event($"!{BuiltinKey}", broadcaster: false), CancellationToken.None);
+        await h.Sut.HandleAsync(
+            Event($"!{BuiltinKey}", broadcaster: false),
+            CancellationToken.None
+        );
 
         Assert.Empty(h.Probe.Seen);
         Assert.Single(h.TemplateVariables);
