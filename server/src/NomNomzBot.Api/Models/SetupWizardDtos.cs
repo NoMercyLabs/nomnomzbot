@@ -136,13 +136,14 @@ public static class SetupWizard
             ),
             new(
                 "platform_bot",
-                "Authorize the bot account",
-                "Sign in as the Twitch account the bot posts chat from, and approve its chat permissions.",
-                Required: true,
+                "Authorize the bot account (optional)",
+                "Add a separate Twitch account for the bot to post chat from. Skip it and the broadcaster account acts as the bot.",
+                Required: false,
                 Complete: hasPlatformBot,
                 Status: hasPlatformBot ? "connected" : "disconnected",
                 Instructions:
                 [
+                    "Only needed if you want a separate account replying as the bot. Without it, the broadcaster account speaks.",
                     "Log into Twitch as the bot's own account in this browser first.",
                     "Start the authorization, then approve the requested chat scopes.",
                 ],

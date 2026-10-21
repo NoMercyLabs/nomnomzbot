@@ -42,11 +42,20 @@ public sealed class SetupWizardTests
             .Steps.Select(s => s.Key)
             .Should()
             .Equal("twitch_app", "platform_bot", "spotify", "discord", "youtube");
-        wizard
-            .Steps.Where(s => s.Required)
-            .Select(s => s.Key)
-            .Should()
-            .Equal("twitch_app", "platform_bot");
+        wizard.Steps.Where(s => s.Required).Select(s => s.Key).Should().Equal("twitch_app");
+    }
+
+    [Fact]
+    public void Bot_account_step_is_optional_so_the_broadcaster_account_can_act_as_the_bot()
+    {
+        SetupStepDto bot = SetupWizard
+            .Build(false, false, false, false, false, false, false, "https://bot.example")
+            .Steps.Single(s => s.Key == "platform_bot");
+
+        bot.Required.Should().BeFalse();
+        bot.Complete.Should().BeFalse();
+        bot.Status.Should().Be("disconnected");
+        bot.Description.Should().Contain("broadcaster");
     }
 
     [Fact]
