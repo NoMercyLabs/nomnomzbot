@@ -44,6 +44,7 @@ export type ApiOrigin =
   'rewards' |
   'shield' |
   'settings' |
+  'setup' |
   'shoutouts' |
   'stream' |
   'tts' |
@@ -389,6 +390,14 @@ export const apiOperations = {
   'fulfill redemption': 'rewards',
   'refund redemption': 'rewards',
   shield: 'shield',
+  'setup wizard': 'setup',
+  'setup save': 'setup',
+  'setup bot': 'setup',
+  'setup complete': 'setup',
+  'twitch scopes': 'setup',
+  'twitch missing scopes': 'setup',
+  'twitch regrant': 'setup',
+  'eventsub reconcile': 'setup',
   'shoutout suggestions': 'shoutouts',
   'dismiss suggestion': 'shoutouts',
   'set shoutout line': 'shoutouts',

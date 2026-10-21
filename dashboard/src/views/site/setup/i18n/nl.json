@@ -1,0 +1,45 @@
+{
+  "site": {
+    "setup": {
+      "brand": "NomNomzBot instellen",
+      "loading": "De installatiestappen laden…",
+      "unreachable": "Deze bot antwoordt niet. Controleer of hij draait en probeer het opnieuw.",
+      "retry": "Opnieuw proberen",
+      "progress": "Stap {current} van {total}",
+      "progressLabel": "Voortgang van de installatie",
+      "back": "Terug",
+      "next": "Volgende",
+      "skip": "Overslaan",
+      "done": "Klaar",
+      "notSet": "Niet ingesteld",
+      "saveCredentials": "Opslaan",
+      "useShared": "De gedeelde NomNomzBot-app gebruiken",
+      "saveFailed": "De bot kon dit niet opslaan. Controleer de waarden en probeer het opnieuw.",
+      "botAuthorize": "Het botaccount autoriseren",
+      "botWaiting": "Wachten tot je het account op Twitch goedkeurt…",
+      "botConnected": "Verbonden: {name}",
+      "botFailed": "De bot kon de autorisatie niet starten. Probeer het opnieuw.",
+      "finish": {
+        "title": "Installatie afronden",
+        "description": "Controleer het overzicht en rond af. Daarna log je in.",
+        "action": "Installatie afronden",
+        "failed": "De bot kon de installatie niet afronden. Probeer het opnieuw."
+      },
+      "feed": {
+        "title": "Gebeurtenissen",
+        "signInFirst": "Log in nadat je de installatie hebt afgerond. Dan kan deze pagina controleren of Twitch-gebeurtenissen de bot bereiken.",
+        "checking": "De gebeurtenissen controleren…",
+        "unknown": "De gebeurtenissen konden nog niet worden gecontroleerd.",
+        "ok": "Twitch-gebeurtenissen bereiken de bot ({total} actief).",
+        "missingScopes": "Twitch heeft de bot niet alle benodigde rechten gegeven.",
+        "brokenSubscriptions": "{broken} van {total} verbindingen voor gebeurtenissen zijn stuk.",
+        "noSubscriptions": "De bot luistert nog naar geen enkele Twitch-gebeurtenis.",
+        "regrant": "De ontbrekende rechten geven",
+        "regrantCode": "Voer de code {code} in op",
+        "recheck": "Opnieuw controleren",
+        "reconcile": "De verbindingen herstellen",
+        "reconcileFailed": "Het herstellen is mislukt. Probeer het opnieuw."
+      }
+    }
+  }
+}

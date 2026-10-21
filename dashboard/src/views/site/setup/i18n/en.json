@@ -1,0 +1,45 @@
+{
+  "site": {
+    "setup": {
+      "brand": "NomNomzBot setup",
+      "loading": "Loading the setup steps…",
+      "unreachable": "This bot does not answer. Check that it runs, then try again.",
+      "retry": "Try again",
+      "progress": "Step {current} of {total}",
+      "progressLabel": "Setup progress",
+      "back": "Back",
+      "next": "Next",
+      "skip": "Skip",
+      "done": "Done",
+      "notSet": "Not set",
+      "saveCredentials": "Save",
+      "useShared": "Use the shared NomNomzBot app",
+      "saveFailed": "The bot could not save this. Check the values and try again.",
+      "botAuthorize": "Authorize the bot account",
+      "botWaiting": "Waiting for you to approve the account on Twitch…",
+      "botConnected": "Connected: {name}",
+      "botFailed": "The bot could not start the authorization. Try again.",
+      "finish": {
+        "title": "Finish setup",
+        "description": "Check the summary, then finish. You sign in after this.",
+        "action": "Finish setup",
+        "failed": "The bot could not finish setup. Try again."
+      },
+      "feed": {
+        "title": "Event feed",
+        "signInFirst": "Sign in after you finish setup. Then this page can check that Twitch events reach the bot.",
+        "checking": "Checking the event feed…",
+        "unknown": "The event feed could not be checked yet.",
+        "ok": "Twitch events reach the bot ({total} active).",
+        "missingScopes": "Twitch has not given the bot every permission it needs.",
+        "brokenSubscriptions": "{broken} of {total} event connections are broken.",
+        "noSubscriptions": "The bot listens to no Twitch events yet.",
+        "regrant": "Grant the missing permissions",
+        "regrantCode": "Enter the code {code} at",
+        "recheck": "Check again",
+        "reconcile": "Repair the event connections",
+        "reconcileFailed": "The repair did not work. Try again."
+      }
+    }
+  }
+}
