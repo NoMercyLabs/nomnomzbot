@@ -222,8 +222,32 @@ vi.mock('@/composables/useCurrentChannel', () => ({
 let mounted: VueWrapper | null = null;
 let router: Router;
 let pinia: Pinia;
+// The window width the media queries answer for: a desktop by default, a phone in the mobile tests.
+let viewport = 1280;
+
+function stubMatchMedia(): void {
+  window.matchMedia = ((query: string): MediaQueryList => {
+    const min = /min-width:\s*([\d.]+)px/.exec(query);
+    const max = /max-width:\s*([\d.]+)px/.exec(query);
+
+    return {
+      matches: min
+        ? viewport >= Number(min[1])
+        : max !== null && viewport <= Number(max[1]),
+      media: query,
+      onchange: null,
+      addEventListener: (): void => undefined,
+      removeEventListener: (): void => undefined,
+      addListener: (): void => undefined,
+      removeListener: (): void => undefined,
+      dispatchEvent: (): boolean => false,
+    } as MediaQueryList;
+  }) as typeof window.matchMedia;
+}
 
 beforeEach(() => {
+  viewport = 1280;
+  stubMatchMedia();
   localStorage.clear();
   calls.length = 0;
 
@@ -448,8 +472,24 @@ describe('CommandsView list', () => {
     ).toBe('Repeats !shoutout');
 
     expect(document.body.querySelector('[data-system-duplicates]')?.textContent?.trim()).toBe(
-      '2 of 3 channel commands repeat a system command. Delete the copy to keep one.',
+      '2 of 3 channel commands repeat a system command. The system command answers instead.',
     );
+  });
+
+  it('moves every channel copy of a system command out, only after the confirm', async () => {
+    rows = [command('hello'), command('permit'), command('so', { aliases: ['shoutout'] })];
+    await open();
+
+    buttonByText('Move copies to system')!.click();
+    await settle();
+    expect(writes('DELETE')).toHaveLength(0);
+
+    document.body.querySelector<HTMLButtonElement>('[data-confirm-action]')!.click();
+    await settle();
+
+    expect(writes('DELETE').map((write) => write.name).sort()).toEqual(['permit', 'so']);
+    expect(rowNames()).toEqual(['hello']);
+    expect(document.body.querySelector('[data-system-duplicates]')).toBeNull();
   });
 
   it('keeps the A to Z order after the page is opened again', async () => {
@@ -1462,5 +1502,73 @@ describe('CommandsView switches in the All list', () => {
     await open();
 
     expect(rowSwitch('hello')).toBeNull();
+  });
+
+  describe('on a phone', () => {
+    beforeEach(() => {
+      viewport = 390;
+      stubMatchMedia();
+    });
+
+    const rowOf = (name: string): HTMLElement =>
+      rowEls().find((row) => row.dataset.commandName === name)!;
+
+    it('puts the Repeats and Off chips under the name so the switch column stays aligned', async () => {
+      rows = [command('hello'), command('permit', { isEnabled: false })];
+      await open();
+
+      const permit = rowOf('permit');
+      const chips = permit.querySelectorAll(
+        '[data-slot="summary-row-meta"] [data-slot="status-badge"]',
+      );
+
+      expect(chips.length).toBe(2);
+
+      const trailing = permit.parentElement!.querySelector('[data-slot="summary-row-trailing"]')!;
+
+      expect(trailing.children.length).toBe(1);
+      expect(trailing.querySelector('button[role="switch"]')).not.toBeNull();
+      expect(trailing.querySelector('[data-slot="status-badge"]')).toBeNull();
+    });
+
+    it('keeps the chips beside the switch from the tablet width up', async () => {
+      viewport = 1280;
+      stubMatchMedia();
+      rows = [command('permit')];
+      await open();
+
+      expect(rowOf('permit').querySelector('[data-slot="summary-row-meta"]')).toBeNull();
+      expect(rowOf('permit').querySelector('[data-system-duplicate]')).not.toBeNull();
+    });
+
+    it('holds the sort and the search in one control row above the list, leaving only the scope tabs in the bar', async () => {
+      await open();
+
+      const controls = document.body.querySelector('[data-command-controls]')!;
+
+      expect(controls.querySelector('[data-segmented]')).not.toBeNull();
+      expect(controls.querySelector('[data-slot="search-field"] input')).not.toBeNull();
+      expect(document.body.querySelector('[data-slot="page-bar"] [data-segmented]')).toBeNull();
+      expect(document.body.querySelector('[data-slot="page-bar"] [role="tab"]')).not.toBeNull();
+    });
+
+    it('moves New command, the one primary action, into the sticky action footer', async () => {
+      document.body.insertAdjacentHTML('beforeend', '<div data-slot="frame-action-footer"></div>');
+      await open();
+
+      const footer = document.body.querySelector('[data-slot="frame-action-footer"]')!;
+      const button = [...footer.querySelectorAll('button')].find(
+        (item) => item.textContent?.trim() === 'New command',
+      )!;
+
+      // No variant means the filled primary look.
+      expect(button.getAttribute('data-variant') ?? 'default').toBe('default');
+
+      expect(buttonByText('New command', document.body.querySelector('[data-slot="page-actions"]')!)).toBeUndefined();
+
+      button.click();
+      await settle();
+      expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
+    });
   });
 });

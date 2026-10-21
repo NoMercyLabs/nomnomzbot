@@ -24,6 +24,7 @@ import {
 } from '@/api/commands';
 import BackLink from '@/components/layout/BackLink.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
+import PageActionFooter from '@/components/layout/PageActionFooter.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
 import type { PageTab } from '@/components/layout/pageTab';
@@ -32,6 +33,7 @@ import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useScreenFrom } from '@/composables/useLayout';
 import { usePageView } from '@/composables/usePageView';
 import { isTyping } from '@/composables/useShortcut';
 
@@ -46,6 +48,7 @@ const route = useRoute();
 const router = useRouter();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
+const tablet = useScreenFrom('tablet');
 const commands = useCommands(channelId);
 const remove = useDeleteCommand(channelId);
 const builtins = useBuiltins(channelId);
@@ -148,9 +151,8 @@ const creating = ref(false);
     :bar-hidden-on-phone="open"
   >
     <template #actions>
-      <Button v-if="canWrite"
+      <Button v-if="canWrite && tablet"
               type="button"
-              variant="outline"
               size="sm"
               @click="creating = true"
       >
@@ -159,9 +161,10 @@ const creating = ref(false);
       </Button>
     </template>
     <template #bar>
-      <!-- The sort sits over the list it orders. The built-in list keeps the bot's own order: no sort there. -->
+      <!-- The sort sits over the list it orders. The built-in list keeps the bot's own order: no sort there.
+           On a phone the sort joins the search in the list's own control row. -->
       <SegmentedControl
-        v-if="listed"
+        v-if="listed && tablet"
         v-model="sort"
         :label="$t('dashboard.commands.list.sort')"
         :options="sortOptions"
@@ -169,13 +172,21 @@ const creating = ref(false);
       <PageTabs :tabs="tabs" />
     </template>
   </PageHeader>
+  <!-- The page's one primary action: below the tablet width it sits in the frame's sticky action footer. -->
+  <PageActionFooter v-if="canWrite && !tablet && !open">
+    <Button type="button" class="h-9! w-full" @click="creating = true">
+      <Plus aria-hidden="true" />
+      {{ $t("dashboard.commands.new") }}
+    </Button>
+  </PageActionFooter>
   <ListDetail :show-detail="open">
     <template #list>
       <BuiltinList v-if="!listed" :selected="selectedBuiltin" @pick="selectBuiltin" />
       <CommandList
         v-else
         :selected="selected"
-        :sort="sort"
+        v-model:sort="sort"
+        :sort-options="sortOptions"
         @pick="select"
         @create="creating = true"
       />

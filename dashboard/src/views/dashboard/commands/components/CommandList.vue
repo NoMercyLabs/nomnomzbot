@@ -10,7 +10,7 @@
 <script setup lang="ts">
 // The channel's own commands: one row per command that matches the search, in the page's sort. The open
 // command is the `selected` name. The bot's system commands live on their own tab, never in this list; a
-// channel command that repeats one is marked, so the owner can delete the copy.
+// channel command that repeats one is marked, and one confirmed action moves every copy out to system.
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -18,27 +18,34 @@ import {
   triggerWord,
   useBuiltins,
   useCommands,
+  useDeleteCommand,
   useToggleCommand,
   type CommandListItem,
 } from '@/api/commands';
 import { Switch } from '@/components/ui/switch';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import SearchField from '@/components/layout/SearchField.vue';
+import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useCan } from '@/composables/useCan';
+import { useScreenFrom } from '@/composables/useLayout';
 import { usePanelState } from '@/composables/usePanelState';
 
 export type CommandSort = 'uses' | 'name';
 
-// The sort sits in the page control bar; the search sits in the panel header, so the list panel lines up with the detail panel.
-const props = defineProps<{
+// From the tablet width the sort sits in the page control bar and the search in the panel header, so the list
+// panel lines up with the detail panel. On a phone the panel has no header: the sort and the search share one row.
+defineProps<{
   selected: string | null;
-  sort: CommandSort;
+  sortOptions: readonly { value: CommandSort; label: string }[];
 }>();
+
+const sort = defineModel<CommandSort>('sort', { required: true });
 const emit = defineEmits<{
   pick: [name: string];
   create: [];
@@ -51,6 +58,7 @@ const commands = useCommands(channelId);
 const builtins = useBuiltins(channelId);
 const toggleCommand = useToggleCommand(channelId);
 
+const tablet = useScreenFrom('tablet');
 const search = ref('');
 
 const panel = usePanelState(commands, (data: CommandListItem[]): boolean =>
@@ -80,15 +88,31 @@ function systemTwin(row: CommandListItem): string | undefined {
 }
 
 const all = computed<CommandListItem[]>(() => commands.data.value ?? []);
-const duplicates = computed<number>(
-  () => all.value.filter((row): boolean => systemTwin(row) !== undefined).length,
-);
+const copies = computed<CommandListItem[]>(() =>
+  all.value.filter((row): boolean => systemTwin(row) !== undefined));
+const duplicates = computed<number>(() => copies.value.length);
+
+// The system command already answers to the copy's word, so moving a copy to system removes the channel copy.
+const removeCommand = useDeleteCommand(channelId);
+const moveOpen = ref(false);
+const moveNames = computed<string>(() =>
+  copies.value.map((row): string => `!${row.name}`).join(', '));
+
+async function moveCopies(): Promise<void> {
+  const names = copies.value.map((row): string => row.name);
+
+  moveOpen.value = false;
+
+  for (const commandName of names) {
+    await removeCommand.mutateAsync({ commandName });
+  }
+}
 
 const rows = computed<CommandListItem[]>(() =>
   all.value
     .filter((row): boolean => matches(row, needle.value))
     .sort((left: CommandListItem, right: CommandListItem): number =>
-      props.sort === 'name'
+      sort.value === 'name'
         ? left.name.localeCompare(right.name)
         : Number(right.useCount) - Number(left.useCount),
     ));
@@ -120,13 +144,22 @@ function detailOf(row: CommandListItem): string {
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col gap-3">
+    <div v-if="!tablet" data-command-controls class="flex items-center gap-2 px-4">
+      <SearchField
+        v-model="search"
+        class="min-w-0 flex-1"
+        :placeholder="$t('dashboard.commands.list.search')"
+      />
+      <SegmentedControl v-model="sort" :label="$t('dashboard.commands.list.sort')" :options="sortOptions" />
+    </div>
     <PanelCard
       :title="$t('dashboard.commands.list.title')"
+      :headless="!tablet"
       :state="state"
       :error-text="$t('dashboard.commands.list.error')"
       @retry="commands.refetch()"
     >
-      <template #actions>
+      <template v-if="tablet" #actions>
         <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
         <SearchField
           v-model="search"
@@ -145,13 +178,24 @@ function detailOf(row: CommandListItem): string {
         }}</Button>
       </div>
       <template v-else>
-        <p
+        <div
           v-if="duplicates > 0"
-          data-system-duplicates
-          class="px-4 py-2 text-sm text-muted-foreground"
+          class="flex items-center gap-3 px-4 py-2"
         >
-          {{ $t("dashboard.commands.list.duplicates", { count: duplicates, total: all.length }) }}
-        </p>
+          <p data-system-duplicates class="flex-1 text-sm text-muted-foreground">
+            {{ $t("dashboard.commands.list.duplicates", { count: duplicates, total: all.length }) }}
+          </p>
+          <Button
+            v-if="can('commands:write')"
+            type="button"
+            size="sm"
+            variant="outline"
+            :disabled="removeCommand.isPending.value"
+            @click="moveOpen = true"
+          >
+            {{ $t("dashboard.commands.list.moveCopies") }}
+          </Button>
+        </div>
         <p v-if="rows.length === 0" class="p-4 text-center text-sm text-muted-foreground">
           {{ $t("dashboard.commands.list.noMatch") }}
         </p>
@@ -166,7 +210,9 @@ function detailOf(row: CommandListItem): string {
           :data-command-name="row.name"
           @click="emit('pick', row.name)"
         >
-          <template v-if="!row.isEnabled || systemTwin(row)" #end>
+          <!-- From the tablet width the chips sit beside the switch; on a phone they sit under the name, so
+               the switch column keeps one x position on every row. -->
+          <template v-if="tablet && (!row.isEnabled || systemTwin(row))" #end>
             <StatusBadge
               v-if="systemTwin(row)"
               data-system-duplicate
@@ -174,6 +220,17 @@ function detailOf(row: CommandListItem): string {
               :label="$t('dashboard.commands.list.repeats', { name: `!${systemTwin(row)}` })"
             />
             <StatusBadge v-if="!row.isEnabled" tone="off" :label="$t('dashboard.commands.list.off')" />
+          </template>
+          <template v-if="!tablet && (!row.isEnabled || systemTwin(row))" #meta>
+            <span class="flex flex-wrap items-center gap-x-3 gap-y-1">
+              <StatusBadge
+                v-if="systemTwin(row)"
+                data-system-duplicate
+                tone="off"
+                :label="$t('dashboard.commands.list.repeats', { name: `!${systemTwin(row)}` })"
+              />
+              <StatusBadge v-if="!row.isEnabled" tone="off" :label="$t('dashboard.commands.list.off')" />
+            </span>
           </template>
           <template v-if="can('commands:write')" #trailing>
             <Switch
@@ -185,5 +242,12 @@ function detailOf(row: CommandListItem): string {
         </SummaryRow>
       </template>
     </PanelCard>
+    <ConfirmDialog
+      v-model:open="moveOpen"
+      :title="$t('dashboard.commands.list.moveTitle', { count: duplicates })"
+      :description="$t('dashboard.commands.list.moveBody', { names: moveNames })"
+      :action="$t('dashboard.commands.list.moveAction')"
+      @confirm="moveCopies"
+    />
   </div>
 </template>
