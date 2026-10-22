@@ -8,6 +8,13 @@
       "noMatch": "No overlay matches \"{query}\".",
       "back": "Back to the list",
       "new": "New overlay",
+      "delete": {
+        "button": "Delete",
+        "title": "Delete {name}?",
+        "description": "The overlay stops working in every browser source that uses it. This cannot be undone.",
+        "action": "Delete overlay",
+        "nothing": "Nothing else uses this overlay."
+      },
       "create": {
         "title": "New overlay",
         "description": "Name it and pick the language of its code. You write the rest in the editor.",

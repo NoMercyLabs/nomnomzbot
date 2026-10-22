@@ -273,6 +273,62 @@ export function useCreateWidget(
   });
 }
 
+export type WidgetBlastRadius = components['schemas']['BlastRadius'];
+
+// What else uses the overlay, counted by the bot. The confirm shows it before anything is deleted.
+export async function fetchWidgetBlastRadius(
+  channelId: string,
+  widgetId: string,
+): Promise<WidgetBlastRadius> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/widgets/{widgetId}/blast-radius',
+    { params: { path: {
+      version,
+      channelId,
+      widgetId,
+    } } },
+  );
+
+  if (error !== undefined || !data?.data)
+    throw refusal('widget blast radius', error, response.status);
+
+  return data.data;
+}
+
+// The blast radius is read again right before the delete: an overlay whose impact cannot be read is not deleted.
+export function useDeleteWidget(
+  channelId: MaybeRefOrGetter<string | null>,
+  onDeleted?: () => void,
+): UseMutationReturnType<void, Error, string, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation<void, Error, string, undefined>({
+    mutationFn: async (widgetId: string): Promise<void> => {
+      const channel = toValue(channelId) as string;
+
+      await fetchWidgetBlastRadius(channel, widgetId);
+
+      const { error, response } = await client.DELETE(
+        '/api/v{version}/channels/{channelId}/widgets/{widgetId}',
+        { params: { path: {
+          version,
+          channelId: channel,
+          widgetId,
+        } } },
+      );
+
+      if (error !== undefined)
+        throw refusal('delete widget', error, response.status);
+    },
+    // The caller hears "deleted" before the list refreshes: the refreshed list unmounts the overlay's pane, and
+    // the page must drop the id from its address first.
+    onSuccess: (): void => {
+      onDeleted?.();
+      void queries.invalidateQueries({ queryKey: widgetsKey(toValue(channelId)) });
+    },
+  });
+}
+
 export type WidgetTestInput = { widgetId: string; eventType: string };
 
 export type WidgetTestResult = components['schemas']['WidgetTestEventResult'];

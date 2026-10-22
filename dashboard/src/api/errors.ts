@@ -477,6 +477,8 @@ export const apiOperations = {
   'switch widget': 'widgets',
   'save widget settings': 'widgets',
   'create widget': 'widgets',
+  'widget blast radius': 'widgets',
+  'delete widget': 'widgets',
   'personality settings': 'settings',
   'save personality': 'settings',
   'basics settings': 'settings',

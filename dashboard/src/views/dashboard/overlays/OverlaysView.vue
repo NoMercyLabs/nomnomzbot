@@ -197,7 +197,12 @@ function back(): void {
         </PanelCard>
       </template>
       <template #detail>
-        <OverlayDetail v-if="selected && can('widget:read')" :widget="selected" @back="back" />
+        <OverlayDetail
+          v-if="selected && can('widget:read')"
+          :widget="selected"
+          @back="back"
+          @deleted="back"
+        />
         <PanelCard
           v-else
           class="flex-1"

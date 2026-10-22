@@ -15,6 +15,7 @@ import Check from '~icons/nnz/check';
 import Code from '~icons/nnz/code';
 import Copy from '~icons/nnz/file-copy';
 import Play from '~icons/nnz/play';
+import Trash from '~icons/nnz/trash';
 import { useTimeoutFn } from '@vueuse/core';
 import { computed, ref } from 'vue';
 
@@ -22,6 +23,8 @@ import type { JsonObject } from '@/lib/json';
 import { useI18n } from 'vue-i18n';
 
 import {
+  fetchWidgetBlastRadius,
+  useDeleteWidget,
   useSetWidgetEnabled,
   useTestWidgetEvent,
   type Widget,
@@ -29,6 +32,7 @@ import {
 } from '@/api/widgets';
 import BackLink from '@/components/layout/BackLink.vue';
 import CodeEditor from '@/components/layout/CodeEditor.vue';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import DetailPane from '@/components/layout/DetailPane.vue';
 import InlineFlow from '@/components/layout/InlineFlow.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -42,6 +46,7 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useFormattedTime } from '@/composables/useTime';
 import { errorText } from '@/lib/errors';
+import { blastLines } from '@/views/dashboard/scripts/components/blastLines';
 
 import OverlaySettings from './OverlaySettings.vue';
 import { overlayKind, plainEvent, type OverlayKind } from './overlayKind';
@@ -51,12 +56,17 @@ const COPIED_MS = 2000;
 
 const props = defineProps<{ widget: Widget }>();
 
-defineEmits<{ back: [] }>();
+const emit = defineEmits<{ back: []; deleted: [] }>();
 
-const { t } = useI18n();
+function deleted(): void {
+  emit('deleted');
+}
+
+const { t, te } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const setEnabled = useSetWidgetEnabled(channelId);
+const remove = useDeleteWidget(channelId, deleted);
 const editor = useOverlayEditor(() => props.widget);
 
 const kind = computed<OverlayKind>(() => overlayKind(props.widget.eventSubscriptions));
@@ -88,6 +98,43 @@ async function copyAddress(): Promise<void> {
 
 function toggle(isEnabled: boolean): void {
   setEnabled.mutate({ widgetId: props.widget.id, isEnabled });
+}
+
+// Delete reads the blast list first and asks; nothing is deleted before the owner confirms.
+const confirmOpen = ref(false);
+const consequences = ref<string[]>([]);
+const deleteError = ref<string | undefined>(undefined);
+
+async function askDelete(): Promise<void> {
+  deleteError.value = undefined;
+
+  try {
+    const lines = blastLines(
+      await fetchWidgetBlastRadius(channelId.value as string, props.widget.id),
+      t,
+      te,
+    );
+
+    consequences.value = lines.length > 0
+      ? lines
+      : [t('dashboard.overlays.delete.nothing')];
+
+    confirmOpen.value = true;
+  } catch (failure) {
+    deleteError.value = errorText(failure, t);
+  }
+}
+
+// The hook reports "deleted" itself (see useDeleteWidget): by the time a callback here would run, the
+// refreshed list has already unmounted this pane.
+async function confirmDelete(): Promise<void> {
+  try {
+    await remove.mutateAsync(props.widget.id);
+  } catch (failure) {
+    deleteError.value = errorText(failure, t);
+  }
+
+  confirmOpen.value = false;
 }
 
 const runTone = computed<StatusTone>(() =>
@@ -242,6 +289,15 @@ async function sendTest(eventType: string): Promise<void> {
               editor.failure.value
             }}</span>
           </div>
+          <div v-if="can('widget:write')" class="grid justify-items-end gap-1">
+            <Button data-overlay-delete variant="outline" @click="askDelete">
+              <Trash aria-hidden="true" />
+              {{ $t("dashboard.overlays.delete.button") }}
+            </Button>
+            <span v-if="deleteError" role="alert" class="text-sm text-destructive">{{
+              deleteError
+            }}</span>
+          </div>
           <div class="grid justify-items-end gap-1">
             <Button :disabled="!widget.overlayUrl" @click="copyAddress">
               <component :is="copied ? Check : Copy" aria-hidden="true" />
@@ -334,4 +390,14 @@ async function sendTest(eventType: string): Promise<void> {
       @close="editor.close"
     />
   </DetailPane>
+
+  <ConfirmDialog
+    v-model:open="confirmOpen"
+    :title="$t('dashboard.overlays.delete.title', { name: widget.name })"
+    :description="$t('dashboard.overlays.delete.description')"
+    :consequences="consequences"
+    :action="$t('dashboard.overlays.delete.action')"
+    :pending="remove.isPending.value"
+    @confirm="confirmDelete"
+  />
 </template>

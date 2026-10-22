@@ -169,7 +169,8 @@
         "blast_radius_category_pipeline_steps": "pipeline-stappen",
         "blast_radius_category_pipelines": "pipelines",
         "blast_radius_category_commands": "commando's",
-        "blast_radius_category_widgets": "widgets"
+        "blast_radius_category_widgets": "widgets",
+        "blast_radius_category_widget_versions": "opgeslagen versies van deze overlay"
       },
       "delete": {
         "title": "{name} verwijderen?",

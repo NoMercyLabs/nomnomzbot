@@ -22,6 +22,7 @@ import type { Widget } from '@/api/widgets';
 import OverlayRow from '../components/OverlayRow.vue';
 import OverlaysView from '../OverlaysView.vue';
 import en from '../i18n/en.json';
+import scriptsEn from '../../scripts/i18n/en.json';
 
 type Options = {
   params?: { path?: Record<string, unknown>; query?: Record<string, unknown> };
@@ -99,6 +100,24 @@ vi.mock('@/api/client', () => ({
         body: undefined,
       });
 
+      if (path.endsWith('/blast-radius')) {
+        return {
+          data: {
+            data: {
+              categories: [
+                {
+                  categoryKey: 'blast_radius_category_widget_versions',
+                  count: 3,
+                  sample: [],
+                },
+              ],
+              isMinimum: false,
+            },
+          },
+          response: { status: 200, ok: true },
+        };
+      }
+
       if (path.endsWith('/audio-mix'))
         return { data: { data: null }, response: { status: 200, ok: true } };
 
@@ -133,6 +152,17 @@ vi.mock('@/api/client', () => ({
           : row);
 
       return { data: { data: null }, response: { status: 200, ok: true } };
+    },
+    DELETE: async (path: string, options?: Options): Promise<Answer> => {
+      calls.push({
+        method: 'DELETE',
+        path,
+        body: options?.params?.path?.widgetId,
+      });
+
+      widgets = widgets.filter((row) => row.id !== options?.params?.path?.widgetId);
+
+      return { data: undefined, response: { status: 204, ok: true } };
     },
     POST: async (path: string, options?: Options): Promise<Answer> => {
       calls.push({
@@ -173,6 +203,8 @@ beforeEach(() => {
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
+  // The delete confirm words its blast list with the scripts page's shared lines.
+  i18n.global.mergeLocaleMessage('en', scriptsEn);
 
   Object.defineProperty(navigator, 'clipboard', {
     configurable: true,
@@ -544,6 +576,27 @@ describe('OverlaysView', () => {
 
     expect(rowNames()).toContain('Goal bar');
     expect(router.currentRoute.value.query.id).toBe('w9');
+  });
+
+  it('deletes an overlay only after the confirm lists what goes with it, then closes its detail', async () => {
+    await open('/app/overlays?id=w2');
+
+    button('Delete').click();
+    await settle();
+
+    expect(text()).toContain('Delete Feather Alert?');
+    expect(text()).toContain('3 saved versions of this overlay');
+    expect(calls.some((call) => call.method === 'DELETE')).toBe(false);
+
+    button('Delete overlay').click();
+    await settle();
+
+    const deletes = calls.filter((call) => call.method === 'DELETE');
+
+    expect(deletes).toHaveLength(1);
+    expect(deletes[0]).toMatchObject({ body: 'w2' });
+    expect(rowNames()).not.toContain('Feather Alert');
+    expect(router.currentRoute.value.query.id).toBeUndefined();
   });
 
   it('says so when the bot has no overlays', async () => {

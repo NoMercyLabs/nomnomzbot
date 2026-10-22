@@ -8,6 +8,13 @@
       "noMatch": "Geen overlay past bij \"{query}\".",
       "back": "Terug naar de lijst",
       "new": "Nieuwe overlay",
+      "delete": {
+        "button": "Verwijderen",
+        "title": "{name} verwijderen?",
+        "description": "De overlay werkt niet meer in elke browserbron die hem gebruikt. Dit kan niet ongedaan worden gemaakt.",
+        "action": "Overlay verwijderen",
+        "nothing": "Niets anders gebruikt deze overlay."
+      },
       "create": {
         "title": "Nieuwe overlay",
         "description": "Geef hem een naam en kies de taal van de code. De rest schrijf je in de editor.",
