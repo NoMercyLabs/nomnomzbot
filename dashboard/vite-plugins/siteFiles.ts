@@ -43,9 +43,10 @@ function metaTags(origin: string): string {
 }
 
 // What static hosting needs next to the page: the page under its two names (index.html for the root,
-// 404.html for a deep link, which the host serves for any unknown path), the custom domain, no Jekyll and
-// the crawler file.
-export function siteFiles(domain: string): Plugin {
+// 404.html for a deep link, which the host serves for any unknown path), one copy per real page path (the
+// host answers a deep link with status 404 unless a file of that name exists, and a real page must say
+// 200), the custom domain, no Jekyll and the crawler file.
+export function siteFiles(domain: string, pagePaths: readonly string[]): Plugin {
   const origin: string = `https://${domain}`;
 
   return {
@@ -62,6 +63,11 @@ export function siteFiles(domain: string): Plugin {
         delete bundle['site.html'];
         this.emitFile({ type: 'asset', fileName: 'index.html', source: page.source });
         this.emitFile({ type: 'asset', fileName: '404.html', source: page.source });
+
+        for (const path of pagePaths) {
+          this.emitFile({ type: 'asset', fileName: `${path}.html`, source: page.source });
+        }
+
         this.emitFile({ type: 'asset', fileName: 'CNAME', source: `${domain}\n` });
         this.emitFile({ type: 'asset', fileName: '.nojekyll', source: '' });
         this.emitFile({

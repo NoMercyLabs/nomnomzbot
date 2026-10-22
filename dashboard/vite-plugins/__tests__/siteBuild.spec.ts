@@ -13,7 +13,8 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Plugin, UserConfig } from 'vite';
 
-import siteConfig from '../../vite.site.config';
+import { siteOnlyRoutes } from '../../src/router/siteOnly';
+import siteConfig, { siteDomain, sitePages } from '../../vite.site.config';
 import { siteFiles } from '../siteFiles';
 
 type EmittedFile = { fileName: string; source: string };
@@ -48,6 +49,18 @@ describe('the public site build', () => {
     expect(pluginNames).toContain('nnz:site-files');
   });
 
+  // The host answers a path with 404 unless a file of that name exists: every real page needs its own file.
+  it('has a file for every real page of the site router', () => {
+    const built = emittedBy(siteFiles(siteDomain, sitePages), 'page');
+    const files: string[] = built.files.map((file) => file.fileName);
+    const pages: string[] = (siteOnlyRoutes[0]?.children ?? [])
+      .map((child) => child.path)
+      .filter((path) => path !== '');
+
+    expect(pages).toEqual(['login']);
+    expect(pages.every((path) => files.includes(`${path}.html`))).toBe(true);
+  });
+
   it('keeps sign-in closed in the site mode', () => {
     const env: string = readFileSync('./.env.site', 'utf8');
 
@@ -55,12 +68,13 @@ describe('the public site build', () => {
   });
 
   it('serves the page as index.html and 404.html with the domain, the no-Jekyll marker and robots.txt', () => {
-    const { files, bundle } = emittedBy(siteFiles('nomnomz.bot'), '<html>page</html>');
+    const { files, bundle } = emittedBy(siteFiles('nomnomz.bot', ['login']), '<html>page</html>');
     const byName: Map<string, string> = new Map(files.map((file) => [file.fileName, file.source]));
 
     expect(bundle['site.html']).toBeUndefined();
     expect(byName.get('index.html')).toBe('<html>page</html>');
     expect(byName.get('404.html')).toBe('<html>page</html>');
+    expect(byName.get('login.html')).toBe('<html>page</html>');
     expect(byName.get('CNAME')).toBe('nomnomz.bot\n');
     expect(byName.get('.nojekyll')).toBe('');
     expect(byName.get('robots.txt')).toContain('Allow: /');
@@ -70,7 +84,7 @@ describe('the public site build', () => {
     const words = JSON.parse(readFileSync('./src/views/site/home/i18n/en.json', 'utf8')) as {
       site: { home: { title: string; description: string } };
     };
-    const transform = siteFiles('nomnomz.bot').transformIndexHtml as (html: string) => string;
+    const transform = siteFiles('nomnomz.bot', []).transformIndexHtml as (html: string) => string;
     const html: string = transform('<head><!-- site:meta --></head>');
 
     expect(html).toContain(`<title>${words.site.home.title}</title>`);

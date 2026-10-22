@@ -23,8 +23,11 @@ import { siteFiles } from './vite-plugins/siteFiles';
 // worth it, and a worker would keep serving an old page if this domain later moves back to the app.
 export const siteDomain: string = 'nomnomz.bot';
 
+// The router's real pages besides the home page: each gets its own file, so the host answers 200 for it.
+export const sitePages = ['login'] as const;
+
 export default defineConfig({
-  plugins: [vue(), tailwindcss(), designerIcons(), siteFiles(siteDomain)],
+  plugins: [vue(), tailwindcss(), designerIcons(), siteFiles(siteDomain, sitePages)],
   build: {
     outDir: 'dist-site',
     emptyOutDir: true,
