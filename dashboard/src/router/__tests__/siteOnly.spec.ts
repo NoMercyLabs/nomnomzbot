@@ -17,6 +17,8 @@ import { i18n, setLocale } from '@/i18n';
 import { siteOnlyRoutes } from '@/router/siteOnly';
 import { followSiteTitle } from '@/router/siteTitle';
 
+import { sitePages } from '../../../vite.site.config';
+
 const Shell = defineComponent({ components: { RouterView }, template: '<RouterView />' });
 
 const fetched = vi.fn<(input: unknown) => Promise<Response>>(async () => Response.json({}));
@@ -53,6 +55,15 @@ describe('the public site router', () => {
       .filter(Boolean);
 
     expect(names.sort()).toEqual(['home', 'login', 'not-found']);
+  });
+
+  // The static host answers 404 for a path without its own file, so the build config lists every real page.
+  it('lists each of its real pages in the site build config', () => {
+    const pages: string[] = (siteOnlyRoutes[0]?.children ?? [])
+      .map((child) => child.path)
+      .filter((path) => path !== '');
+
+    expect(pages).toEqual([...sitePages]);
   });
 
   it.each(['/app', '/app/u/someone/commands', '/setup'])(

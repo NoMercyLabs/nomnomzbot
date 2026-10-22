@@ -13,7 +13,6 @@ import { readFileSync } from 'node:fs';
 import { describe, expect, it } from 'vitest';
 import type { Plugin, UserConfig } from 'vite';
 
-import { siteOnlyRoutes } from '../../src/router/siteOnly';
 import siteConfig, { siteDomain, sitePages } from '../../vite.site.config';
 import { siteFiles } from '../siteFiles';
 
@@ -50,15 +49,11 @@ describe('the public site build', () => {
   });
 
   // The host answers a path with 404 unless a file of that name exists: every real page needs its own file.
-  it('has a file for every real page of the site router', () => {
+  it('has a file for every page the config lists', () => {
     const built = emittedBy(siteFiles(siteDomain, sitePages), 'page');
     const files: string[] = built.files.map((file) => file.fileName);
-    const pages: string[] = (siteOnlyRoutes[0]?.children ?? [])
-      .map((child) => child.path)
-      .filter((path) => path !== '');
 
-    expect(pages).toEqual(['login']);
-    expect(pages.every((path) => files.includes(`${path}.html`))).toBe(true);
+    expect(sitePages.every((path) => files.includes(`${path}.html`))).toBe(true);
   });
 
   it('keeps sign-in closed in the site mode', () => {
