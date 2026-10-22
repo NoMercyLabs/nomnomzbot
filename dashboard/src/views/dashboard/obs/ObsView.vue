@@ -85,8 +85,7 @@ const view = usePageView(VIEWS, 'view', () =>
 const route = useRoute();
 
 onMounted(async () => {
-  if (route.hash !== '#required-overlays')
-    return;
+  if (route.hash !== '#required-overlays') return;
 
   await nextTick();
   document.getElementById('required-overlays')?.scrollIntoView({ block: 'start' });
