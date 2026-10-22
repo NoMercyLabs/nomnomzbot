@@ -1,0 +1,40 @@
+#!/bin/sh
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+# Blocks a push that would turn the dashboard CI job red. A push that changes dashboard/ must pass the full
+# lint and the type-check first (2026-10-22: two pushes in a row failed CI on lint after only the specs ran).
+# Skip once with NNZ_SKIP_PREPUSH=1 only when CI is the thing being fixed.
+
+[ "$NNZ_SKIP_PREPUSH" = "1" ] && exit 0
+
+zero=0000000000000000000000000000000000000000
+touched=""
+
+while read -r _local_ref local_sha _remote_ref remote_sha; do
+  [ "$local_sha" = "$zero" ] && continue
+  if [ "$remote_sha" = "$zero" ]; then
+    range="$local_sha"
+  else
+    range="$remote_sha..$local_sha"
+  fi
+  if git diff --name-only "$range" 2>/dev/null | grep -q '^dashboard/'; then
+    touched=1
+  fi
+done
+
+[ -z "$touched" ] && exit 0
+
+root=$(git rev-parse --show-toplevel)
+echo "pre-push: dashboard/ changed, running the full lint and the type-check"
+
+npm --prefix "$root/dashboard" run lint || { echo "pre-push: lint failed, push blocked"; exit 1; }
+npm --prefix "$root/dashboard" run type-check || { echo "pre-push: type-check failed, push blocked"; exit 1; }
+
+exit 0
