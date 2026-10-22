@@ -1,0 +1,18 @@
+{
+  "status": "ok",
+  "data": {
+    "isEnabled": true,
+    "preferredProvider": "auto",
+    "maxQueueSize": 50,
+    "maxRequestsPerUser": 5,
+    "allowYouTube": false,
+    "allowSpotify": true,
+    "minTrustLevel": "everyone",
+    "bangerAutoCreate": false,
+    "requestsOpen": true,
+    "maxSongSeconds": 360,
+    "allowExplicit": true,
+    "youTubeMusicCategoryOnly": true
+  },
+  "args": []
+}

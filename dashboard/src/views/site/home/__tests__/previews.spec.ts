@@ -25,11 +25,11 @@ import { sampleChannel } from '../sampleChannel';
 // The text each real page shows once the sample has filled it. It comes from the sample records, so a page that
 // stopped reading them, or a record that stopped matching, fails here.
 const shown = {
-  pipelines: 'Raid welcome',
+  pipelines: 'Raid response',
   moderation: 'Spam defense',
-  widgets: 'Hype train',
+  widgets: 'Goal Bar',
   analytics: 'Peak viewers',
-  commands: 'followage',
+  commands: 'compliment',
   loyalty: 'Chat messages',
   music: 'Paper Lanterns',
   platforms: 'Connected services',
@@ -45,8 +45,14 @@ class Watcher {
 // The group view of a page can show another tab than the hero does.
 const shownInGroup = {
   ...shown,
+  pipelines: 'Big raid welcome',
+  widgets: 'Now Playing',
+  commands: 'welcome',
   analytics: 'Busy days and hours',
   loyalty: 'Hydrate!',
+  moderation: 'Escalation ladder',
+  music: 'good luck on the boss',
+  platforms: 'Your channel\'s own bot',
 } as const satisfies Record<PreviewArea, string>;
 
 const fetched = vi.fn<(input: unknown) => Promise<Response>>(async () => Response.json({}));
@@ -82,6 +88,11 @@ async function open(path: string, shell: boolean): Promise<PreviewApp> {
   return preview;
 }
 
+// A page paints its title before its data answers; a read that failed shows its error line a moment later.
+async function settle(): Promise<void> {
+  await new Promise((resolve) => setTimeout(resolve, 400));
+}
+
 describe('the sample data', () => {
   it('marks itself as sample and names a made-up channel', () => {
     expect(sampleChannel.isSample).toBe(true);
@@ -97,6 +108,16 @@ describe('the sample data', () => {
   });
 });
 
+describe('the feature groups', () => {
+  it.each(previewAreas)('show another real screen for %s than the hero tab shows', (area) => {
+    expect(groupPages[area].path).not.toBe(areaPages[area].path);
+  });
+
+  it('give the commands hero room for the reply, the cooldowns and the action bar', () => {
+    expect(areaPages.commands.height).toBeGreaterThanOrEqual(760);
+  });
+});
+
 describe.each(previewAreas)('the %s preview', (area) => {
   it('mounts the real dashboard page, fills it from the sample, and asks the network for nothing', async () => {
     const { router } = await open(areaPages[area].path, true);
@@ -104,6 +125,9 @@ describe.each(previewAreas)('the %s preview', (area) => {
     await vi.waitFor(() => expect(host!.textContent).toContain(shown[area]), { timeout: 8000 });
 
     // The route is the dashboard's own route for the page, not a copy of it.
+    await settle();
+
+    expect(host!.textContent).not.toMatch(/could not be (loaded|saved)/);
     expect(router.currentRoute.value.matched.length).toBeGreaterThan(1);
     expect(router.currentRoute.value.fullPath).toBe(areaPages[area].path);
     expect(unmatched).toEqual([]);
@@ -117,6 +141,10 @@ describe.each(previewAreas)('the %s preview', (area) => {
       timeout: 8000,
     });
 
+    // A page that fell back to its load-error line is not a real screen of the product.
+    await settle();
+
+    expect(host!.textContent).not.toMatch(/could not be (loaded|saved)/);
     expect(router.currentRoute.value.fullPath).toBe(groupPages[area].path);
     expect(host!.querySelector('[data-sidebar="sidebar"], [data-slot="sidebar"]')).toBeNull();
     expect(unmatched).toEqual([]);

@@ -1,0 +1,146 @@
+{
+  "status": "ok",
+  "data": [
+    {
+      "key": "channel",
+      "descriptionKey": "template.helper.channel",
+      "sample": "crumb_tv"
+    },
+    {
+      "key": "channel.display",
+      "descriptionKey": "template.helper.channel_display",
+      "sample": "crumb_tv"
+    },
+    {
+      "key": "channel.id",
+      "descriptionKey": "template.helper.channel_id",
+      "sample": "1001"
+    },
+    {
+      "key": "streamer",
+      "descriptionKey": "template.helper.streamer",
+      "sample": "crumb_tv"
+    },
+    {
+      "key": "stream.title",
+      "descriptionKey": "template.helper.stream_title",
+      "sample": "Cozy coding night"
+    },
+    {
+      "key": "stream.game",
+      "descriptionKey": "template.helper.stream_game",
+      "sample": "Just Chatting"
+    },
+    {
+      "key": "stream.uptime",
+      "descriptionKey": "template.helper.stream_uptime",
+      "sample": "2h 15m"
+    },
+    {
+      "key": "stream.viewers",
+      "descriptionKey": "template.helper.stream_viewers",
+      "sample": "42"
+    },
+    {
+      "key": "stream.isLive",
+      "descriptionKey": "template.helper.stream_is_live",
+      "sample": "true"
+    },
+    {
+      "key": "stream.startedAt",
+      "descriptionKey": "template.helper.stream_started_at",
+      "sample": "2026-10-06T18:00:00Z"
+    },
+    {
+      "key": "tts.audioconnected",
+      "descriptionKey": "template.helper.tts_audioconnected",
+      "sample": "true"
+    },
+    {
+      "key": "status",
+      "descriptionKey": "template.helper.status",
+      "sample": "live"
+    },
+    {
+      "key": "tense",
+      "descriptionKey": "template.helper.tense",
+      "sample": "is"
+    },
+    {
+      "key": "time",
+      "descriptionKey": "template.helper.time",
+      "sample": "20:15"
+    },
+    {
+      "key": "time.utc",
+      "descriptionKey": "template.helper.time_utc",
+      "sample": "18:15"
+    },
+    {
+      "key": "date",
+      "descriptionKey": "template.helper.date",
+      "sample": "2026-10-06"
+    },
+    {
+      "key": "botname",
+      "descriptionKey": "template.helper.botname",
+      "sample": "NomNomzBot"
+    },
+    {
+      "key": "random.user",
+      "descriptionKey": "template.helper.random_user",
+      "sample": "example_viewer"
+    },
+    {
+      "key": "random.number.<n>",
+      "descriptionKey": "template.helper.random_number",
+      "sample": "7"
+    },
+    {
+      "key": "random.number.<min>.<max>[.<step>]",
+      "descriptionKey": "template.helper.random_number_range",
+      "sample": "42"
+    },
+    {
+      "key": "roll.<name>.<min>.<max>[.<step>]",
+      "descriptionKey": "template.helper.roll",
+      "sample": "13"
+    },
+    {
+      "key": "roll.<name>",
+      "descriptionKey": "template.helper.roll_read",
+      "sample": "13"
+    },
+    {
+      "key": "roll.<name>.complement",
+      "descriptionKey": "template.helper.roll_complement",
+      "sample": "87"
+    },
+    {
+      "key": "random.pick.<a.b.c>",
+      "descriptionKey": "template.helper.random_pick",
+      "sample": "b"
+    },
+    {
+      "key": "count.<key>",
+      "descriptionKey": "template.helper.count",
+      "sample": "12"
+    },
+    {
+      "key": "list.pick.<name>",
+      "descriptionKey": "template.helper.list_pick",
+      "sample": "Pizza"
+    },
+    {
+      "key": "custom.<name>.<field>",
+      "descriptionKey": "template.helper.custom_data",
+      "sample": "Blue"
+    },
+    {
+      "key": "transform.<name>:<text>",
+      "descriptionKey": "template.helper.transform",
+      "sample": "HELLO"
+    }
+  ],
+  "args": []
+}

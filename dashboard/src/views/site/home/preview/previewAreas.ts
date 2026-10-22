@@ -8,7 +8,10 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { raidPipelineId } from './replies/pipelines';
+import { branchingPipelineId, pipelineIdOf, stepIdOf } from './replies/pipelines';
+import { widgetIdOf } from './replies/widgets';
+
+const raidPipelineId = pipelineIdOf('Raid response');
 
 // The product areas the home page shows, each as a real dashboard page. The hero has a tab for every area;
 // each feature group below it shows the same area again, on another view of the page and without the sidebar.
@@ -33,11 +36,14 @@ export type AreaPage = {
 };
 
 export const areaPages = {
-  pipelines: { path: `/app/pipelines/${raidPipelineId}?step=welcome`, height: 640 },
+  pipelines: {
+    path: `/app/pipelines/${raidPipelineId}?step=${stepIdOf('Raid response', 'play_tts')}`,
+    height: 640,
+  },
   moderation: { path: '/app/settings/spam-defense', height: 640 },
-  widgets: { path: '/app/overlays?id=sample-widget-hype', height: 640 },
+  widgets: { path: `/app/overlays?id=${widgetIdOf('Goal Bar')}`, height: 640 },
   analytics: { path: '/app/analytics', height: 640 },
-  commands: { path: '/app/commands?command=hug', height: 640 },
+  commands: { path: '/app/commands?command=hug', height: 780 },
   loyalty: { path: '/app/economy?view=rules', height: 640 },
   music: { path: '/app/music', height: 640 },
   platforms: { path: '/app/settings/integrations', height: 640 },
@@ -51,17 +57,17 @@ export type GroupPage = AreaPage & {
 // The wide preview of a feature group: another view of the same page than the hero shows.
 export const groupPages = {
   pipelines: {
-    path: `/app/pipelines/${raidPipelineId}?step=shout`,
+    path: `/app/pipelines/${branchingPipelineId}?step=big-raid-shoutout`,
     height: 560,
     source: 'pipelines',
   },
   moderation: {
-    path: '/app/settings/spam-defense',
+    path: '/app/settings/escalation',
     height: 560,
-    source: 'settings/spam-defense',
+    source: 'settings/escalation',
   },
   widgets: {
-    path: '/app/overlays?id=sample-widget-nowplaying',
+    path: `/app/overlays?id=${widgetIdOf('Now Playing')}`,
     height: 560,
     source: 'overlays',
   },
@@ -71,7 +77,7 @@ export const groupPages = {
     source: 'analytics',
   },
   commands: {
-    path: '/app/commands?command=uptime',
+    path: '/app/commands?command=luck',
     height: 560,
     source: 'commands',
   },
@@ -81,13 +87,13 @@ export const groupPages = {
     source: 'economy',
   },
   music: {
-    path: '/app/music',
+    path: '/app/tts',
     height: 720,
-    source: 'music',
+    source: 'tts',
   },
   platforms: {
-    path: '/app/settings/integrations',
-    height: 560,
-    source: 'settings/integrations',
+    path: '/app/settings/white-label-bot',
+    height: 380,
+    source: 'settings/white-label-bot',
   },
 } as const satisfies Record<PreviewArea, GroupPage>;

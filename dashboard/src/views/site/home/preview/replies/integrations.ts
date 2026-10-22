@@ -10,106 +10,65 @@
 
 import { sampleChannel } from '../../sampleChannel';
 import type { FakeReply } from '../fakeApi';
-import { channelPath, get, minutesAgo, one } from './shape';
+import integrationsCapture from '../fixtures/integrations.json';
+import integrationsSpotify from '../fixtures/integrations-spotify.json';
+import integrationStatus from '../fixtures/integrations-status.json';
+import { channelPath, fixture, get, minutesAgo } from './shape';
 
-type Provider = {
-  id: string;
-  name: string;
-  category: string;
-  description: string;
-  connected: boolean;
-  scopes?: string[];
-  capabilities?: Record<string, boolean>;
-};
+// A fresh install has only Twitch connected. The sample channel has also linked these providers, which is the
+// part that is sample: the providers, names, categories and scopes are the server's own.
+const linked = {
+  spotify: ['spotify_playback', 'spotify_library'],
+  kick: ['kick_chat'],
+  youtube: ['youtube_readonly'],
+  discord: [],
+} as const satisfies Record<string, readonly string[]>;
 
-const providers: Provider[] = [
-  {
-    id: 'twitch',
-    name: 'Twitch',
-    category: 'platform',
-    description: 'Chat, follows, subscriptions, raids, rewards and moderation.',
-    connected: true,
-  },
-  {
-    id: 'kick',
-    name: 'Kick',
-    category: 'platform',
-    description: 'Chat and channel events from your Kick channel.',
-    connected: true,
-    scopes: ['kick_chat'],
-  },
-  {
-    id: 'youtube',
-    name: 'YouTube',
-    category: 'platform',
-    description: 'Live chat, memberships and Super Chats.',
-    connected: true,
-    scopes: ['youtube_readonly'],
-  },
-  {
-    id: 'spotify',
-    name: 'Spotify',
-    category: 'music',
-    description: 'Song requests and playback control for your queue.',
-    connected: true,
-    scopes: ['spotify_playback', 'spotify_library'],
-    capabilities: {
-      playback: true,
-      library: true,
-      premium: true,
-    },
-  },
-  {
-    id: 'discord',
-    name: 'Discord',
-    category: 'community',
-    description: 'Go-live posts and role sync for your server.',
-    connected: true,
-  },
-  {
-    id: 'obs',
-    name: 'OBS Studio',
-    category: 'streaming',
-    description: 'Scenes, sources and filters from a pipeline step.',
-    connected: false,
-  },
-];
+function isLinked(provider: string): provider is keyof typeof linked {
+  return provider in linked;
+}
 
-const integrations = providers.map((provider) => ({
-  id: provider.id,
-  name: provider.name,
-  category: provider.category,
-  description: provider.description,
-  connected: provider.connected,
-  connectedAs: provider.connected
-    ? sampleChannel.handle
-    : null,
-  oauthUrl: `https://auth.example.test/${provider.id}`,
-  lastSync: provider.connected
-    ? minutesAgo(12)
-    : null,
-}));
+const integrations = fixture(integrationsCapture).data.integrations.map((integration) =>
+  isLinked(integration.id)
+    ? {
+        ...integration,
+        connected: true,
+        connectedAs: sampleChannel.handle,
+        lastSync: minutesAgo(12),
+      }
+    : integration);
 
-const statuses = providers.map((provider) => ({
-  provider: provider.id,
-  connected: provider.connected,
-  accountName: provider.connected
-    ? sampleChannel.handle
-    : null,
-  grantedScopeSets: provider.scopes ?? [],
-  capabilities: provider.capabilities ?? {},
-  needsReauth: false,
-  loginOnly: false,
-  decryptFailed: false,
-  connectionId: `sample-connection-${provider.id}`,
-}));
+const statuses = fixture(integrationStatus).data.map((status) =>
+  isLinked(status.provider)
+    ? {
+        ...status,
+        connected: true,
+        accountName: sampleChannel.handle,
+        grantedScopeSets: [...linked[status.provider]],
+      }
+    : status);
 
 export const integrationReplies: FakeReply[] = [
-  get(`${channelPath}/integrations`, one({ integrations })),
-  get(`${channelPath}/integrations/status`, one(statuses)),
-  get(`${channelPath}/integrations/spotify/credentials`, one({
-    clientId: null,
-    hasClientSecret: false,
-    hasSharedApp: true,
-  })),
+  get(`${channelPath}/integrations`, {
+    status: 'ok',
+    data: { integrations },
+    args: [],
+  }),
+  get(`${channelPath}/integrations/status`, {
+    status: 'ok',
+    data: statuses,
+    args: [],
+  }),
+  get(`${channelPath}/integrations/spotify/credentials`, fixture(integrationsSpotify)),
+  // A channel that has not connected its own bot account speaks through the shared bot.
+  get(`${channelPath}/bot/status`, {
+    status: 'success',
+    data: {
+      connected: true,
+      login: null,
+      displayName: null,
+      profileImageUrl: null,
+      usesSharedBot: true,
+    },
+  }),
 ];

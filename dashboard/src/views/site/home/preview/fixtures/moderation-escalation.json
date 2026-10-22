@@ -1,0 +1,39 @@
+{
+  "status": "success",
+  "data": {
+    "isEnabled": true,
+    "ladder": [
+      { "atOffense": 1, "action": "warn", "timeoutSeconds": null },
+      { "atOffense": 2, "action": "timeout", "timeoutSeconds": 60 },
+      { "atOffense": 3, "action": "timeout", "timeoutSeconds": 600 },
+      { "atOffense": 4, "action": "timeout", "timeoutSeconds": 3600 },
+      { "atOffense": 5, "action": "timeout", "timeoutSeconds": 86400 },
+      { "atOffense": 6, "action": "ban", "timeoutSeconds": null }
+    ],
+    "offenseWindowHours": 168,
+    "countAutoModViolations": false,
+    "defaultTimeoutSeconds": 600,
+    "defaults": {
+      "isEnabled": false,
+      "ladder": [
+        { "atOffense": 1, "action": "warn", "timeoutSeconds": null },
+        { "atOffense": 2, "action": "timeout", "timeoutSeconds": 60 },
+        { "atOffense": 3, "action": "timeout", "timeoutSeconds": 600 },
+        { "atOffense": 4, "action": "timeout", "timeoutSeconds": 3600 },
+        { "atOffense": 5, "action": "timeout", "timeoutSeconds": 86400 },
+        { "atOffense": 6, "action": "ban", "timeoutSeconds": null }
+      ],
+      "offenseWindowHours": 168,
+      "countAutoModViolations": false,
+      "defaultTimeoutSeconds": 600
+    },
+    "limits": {
+      "minOffenseWindowHours": 1,
+      "maxOffenseWindowHours": 8760,
+      "minTimeoutSeconds": 1,
+      "maxTimeoutSeconds": 1209600,
+      "minLadderSteps": 1,
+      "maxLadderSteps": 50
+    }
+  }
+}

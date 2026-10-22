@@ -1,0 +1,62 @@
+{
+  "status": "ok",
+  "data": [
+    {
+      "id": "01M5H0KNEMESARW1QGCAN34DGE",
+      "source": "ChatMessage",
+      "isEnabled": false,
+      "rate": 1,
+      "configSchemaVersion": 1
+    },
+    {
+      "id": "01M5H0KNF5E8BAGNSHRW81BMGT",
+      "source": "Cheer",
+      "isEnabled": false,
+      "rate": 1,
+      "configSchemaVersion": 1
+    },
+    {
+      "id": "01M5H0KNF5FWEVD7GXEA8W8G1B",
+      "source": "Follow",
+      "isEnabled": false,
+      "rate": 100,
+      "configSchemaVersion": 1
+    },
+    {
+      "id": "01M5H0KNF5FRAAQDXZ1QJ8NNP3",
+      "source": "GiftSubscription",
+      "isEnabled": false,
+      "rate": 200,
+      "configSchemaVersion": 1
+    },
+    {
+      "id": "01M5H0KNF6FQK95TX42243609B",
+      "source": "Raid",
+      "isEnabled": false,
+      "rate": 500,
+      "configSchemaVersion": 1
+    },
+    {
+      "id": "01M5H0KNF5FP4TC5SGA39BY7RR",
+      "source": "Subscription",
+      "isEnabled": false,
+      "rate": 200,
+      "configSchemaVersion": 1
+    },
+    {
+      "id": "01M5H0KNF6FJ3S53DFADY8GZ4P",
+      "source": "Supporter",
+      "isEnabled": false,
+      "rate": 250,
+      "configSchemaVersion": 1
+    },
+    {
+      "id": "01M5H0KNF5EZZ9D7X78Z5KCAAV",
+      "source": "WatchTime",
+      "isEnabled": false,
+      "rate": 10,
+      "configSchemaVersion": 1
+    }
+  ],
+  "args": []
+}

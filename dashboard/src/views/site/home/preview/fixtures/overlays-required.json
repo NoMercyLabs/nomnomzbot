@@ -1,0 +1,223 @@
+{
+  "status": "ok",
+  "data": [
+    {
+      "key": "tts_caption",
+      "widget": {
+        "id": "01M5H0KGSDEQV9HTJ377BEBCPB",
+        "name": "TTS Caption",
+        "description": "Spoken messages (TTS) play from this browser source — keep \"Control audio via OBS\" ON. Shows a speaking indicator with a live caption — animated voice bars, the speaker's name, optional voice label, top or bottom placement — hidden while nothing speaks.",
+        "framework": "vue",
+        "source": "first_party",
+        "isEnabled": true,
+        "overlayUrl": "https://nomnomz.example/overlay?widgetId=sample&token=sample",
+        "activeVersionId": "01M5H0KGW1FZYTFC7W874XC61R",
+        "galleryItemId": "01M5H0EZ9KEEV9F07Z87FM4X6P",
+        "settings": {
+          "showText": true,
+          "voiceLabel": false,
+          "position": "bottom",
+          "accentColor": "#9146ff"
+        },
+        "eventSubscriptions": [
+          "tts_speak"
+        ],
+        "createdAt": {
+          "$ago": 1
+        },
+        "updatedAt": {
+          "$ago": 1
+        },
+        "galleryUpdateAvailable": false,
+        "isAttached": false,
+        "isCustomized": false,
+        "obsSetup": {
+          "width": 1920,
+          "height": 1080,
+          "controlAudioViaObs": true,
+          "shutdownWhenHidden": false
+        }
+      }
+    },
+    {
+      "key": "audio",
+      "widget": {
+        "id": "01M5H0KHFCE3TRYXMVXCAYB2DS",
+        "name": "Bot Audio",
+        "description": "Sound clips and redemption sounds come out of this one browser source; spoken messages (TTS) play only from the TTS Caption source. Add it once, size it 1x1, and leave it — keep \"Control audio via OBS\" ON or the stream will not hear it. Renders nothing; the optional indicator is only for confirming the source is alive during setup. Music plays from the Music Player widget.",
+        "framework": "vue",
+        "source": "first_party",
+        "isEnabled": true,
+        "overlayUrl": "https://nomnomz.example/overlay?widgetId=sample&token=sample",
+        "activeVersionId": "01M5H0KHHKEKZVPCTKMDN87C73",
+        "galleryItemId": "01M5H0EZ9KEEB8BJSP5MJFBM84",
+        "settings": {
+          "showIndicator": false,
+          "accentColor": "#9146ff"
+        },
+        "eventSubscriptions": [
+          "tts_speak"
+        ],
+        "createdAt": {
+          "$ago": 1
+        },
+        "updatedAt": {
+          "$ago": 1
+        },
+        "galleryUpdateAvailable": false,
+        "isAttached": false,
+        "isCustomized": false,
+        "obsSetup": {
+          "width": 1,
+          "height": 1,
+          "controlAudioViaObs": true,
+          "shutdownWhenHidden": false
+        }
+      }
+    },
+    {
+      "key": "music_player",
+      "widget": {
+        "id": "01M5H0KBKKER0R8BE2ECXYBARF",
+        "name": "Music Player",
+        "description": "Spotify and YouTube music plays here, at its own level. Add it once, size it 1x1, and leave it — keep \"Control audio via OBS\" ON or the stream will not hear it. Renders nothing; the optional indicator is only for confirming the source is alive during setup. To hear music at a different level, set the Music source to Monitor and Output in OBS.",
+        "framework": "vue",
+        "source": "first_party",
+        "isEnabled": true,
+        "overlayUrl": "https://nomnomz.example/overlay?widgetId=sample&token=sample",
+        "activeVersionId": "01M5H0KBQYF67RZXWSJW1JRFGX",
+        "galleryItemId": "01M5H0EZ9KFTERQXAM78FF9ZJ9",
+        "settings": {
+          "volume": 100,
+          "muted": false,
+          "showIndicator": false,
+          "accentColor": "#9146ff",
+          "enableAudio": true
+        },
+        "eventSubscriptions": [
+          "now_playing",
+          "youtube.seek",
+          "youtube.volume",
+          "youtube.stop",
+          "youtube.resume",
+          "youtube.pause",
+          "youtube.play"
+        ],
+        "createdAt": {
+          "$ago": 1
+        },
+        "updatedAt": {
+          "$ago": 1
+        },
+        "galleryUpdateAvailable": false,
+        "isAttached": false,
+        "isCustomized": false,
+        "obsSetup": {
+          "width": 1,
+          "height": 1,
+          "controlAudioViaObs": true,
+          "shutdownWhenHidden": false
+        }
+      }
+    },
+    {
+      "key": "alerts",
+      "widget": {
+        "id": "01M5H0KHWRF9BB9NWKAWFQ9F26",
+        "name": "Alerts",
+        "description": "A one-at-a-time queue of animated alert cards for follows, subs, resubs, gift subs, cheers, raids, and supporter events, with per-type amount thresholds and a custom text template.",
+        "framework": "vue",
+        "source": "first_party",
+        "isEnabled": true,
+        "overlayUrl": "https://nomnomz.example/overlay?widgetId=sample&token=sample",
+        "activeVersionId": "01M5H0KHZEFMCRHA7N1Y0Z5HB5",
+        "galleryItemId": "01M5H0EZ7YEA8V0NG9FXETVWS5",
+        "settings": {
+          "events": [
+            "follow",
+            "subscription",
+            "resub",
+            "gift",
+            "cheer",
+            "raid",
+            "supporter.tip",
+            "supporter.membership",
+            "supporter.merch",
+            "supporter.charity"
+          ],
+          "textTemplate": "",
+          "durationMs": 6000,
+          "stickerDurationMs": 6000,
+          "minBits": 0,
+          "minGiftCount": 0,
+          "minAmount": 0,
+          "accentColor": "#9146ff"
+        },
+        "eventSubscriptions": [
+          "follow",
+          "subscription",
+          "resub",
+          "gift",
+          "cheer",
+          "raid",
+          "supporter.tip",
+          "supporter.membership",
+          "supporter.merch",
+          "supporter.charity"
+        ],
+        "createdAt": {
+          "$ago": 1
+        },
+        "updatedAt": {
+          "$ago": 1
+        },
+        "galleryUpdateAvailable": false,
+        "isAttached": false,
+        "isCustomized": false,
+        "obsSetup": {
+          "width": 1920,
+          "height": 1080,
+          "controlAudioViaObs": false,
+          "shutdownWhenHidden": false
+        }
+      }
+    },
+    {
+      "key": "media_share",
+      "widget": {
+        "id": "01M5H0KJSXF4ETG6YXXWDQRG16",
+        "name": "Media Share",
+        "description": "Plays the approved viewer-shared Twitch clips and YouTube videos on stream. The server sends load, play, pause, stop, seek and volume commands and this overlay reports its player state back, so an ended item moves the queue on. Hidden while nothing plays.",
+        "framework": "vue",
+        "source": "first_party",
+        "isEnabled": true,
+        "overlayUrl": "https://nomnomz.example/overlay?widgetId=sample&token=sample",
+        "activeVersionId": "01M5H0KJXHFN196BMSJ36Y8RXQ",
+        "galleryItemId": "01M5H0EZ9KFMPR494CH240HJDN",
+        "settings": {
+          "showTitle": true,
+          "accentColor": "#9146ff"
+        },
+        "eventSubscriptions": [
+          "media_share_command"
+        ],
+        "createdAt": {
+          "$ago": 1
+        },
+        "updatedAt": {
+          "$ago": 1
+        },
+        "galleryUpdateAvailable": false,
+        "isAttached": false,
+        "isCustomized": false,
+        "obsSetup": {
+          "width": 1920,
+          "height": 1080,
+          "controlAudioViaObs": false,
+          "shutdownWhenHidden": false
+        }
+      }
+    }
+  ],
+  "args": []
+}

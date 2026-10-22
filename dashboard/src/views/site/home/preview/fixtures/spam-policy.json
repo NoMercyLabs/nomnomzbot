@@ -1,0 +1,321 @@
+{
+  "status": "ok",
+  "data": {
+    "settings": {
+      "isEnabled": true,
+      "dryRun": true,
+      "trustThresholds": {
+        "establishedDays": 90,
+        "establishedMessages": 300,
+        "establishedDistinctActiveDays": 30,
+        "establishedStrikeFreeDays": 180
+      },
+      "semiTrustedWatchHoursHere": 10,
+      "semiTrustedWatchHoursInstance": 25,
+      "accountAgeGateDays": 0,
+      "followAgeGateDays": 0,
+      "accountGateHoldsForReview": true,
+      "nearDuplicateSimilarity": 0.6,
+      "minimumSkeletonLength": 8,
+      "nonLatinScriptGate": false,
+      "qualifyNoStandingShare": 0.8,
+      "dequalifyNoStandingShare": 0.65,
+      "minimumCohortSize": 5,
+      "windowSeconds": 600,
+      "maxWindowSeconds": 1800,
+      "actionDelaySeconds": 8,
+      "autoReverseOnDequalify": true,
+      "followSpikeFactor": 5,
+      "joinBurstFactor": 4,
+      "lockdownMinutes": 15,
+      "lockdownAutoExtend": true,
+      "lockdownMaxMinutes": 60,
+      "networkSubscribe": true,
+      "networkContribute": false,
+      "requiredCorroborations": 3
+    },
+    "catalogue": [
+      {
+        "key": "IsEnabled",
+        "group": "master",
+        "labelKey": "spam_setting_is_enabled_label",
+        "explanationKey": "spam_setting_is_enabled_explanation",
+        "costKey": "spam_setting_is_enabled_cost",
+        "isToggle": true
+      },
+      {
+        "key": "DryRun",
+        "group": "master",
+        "labelKey": "spam_setting_dry_run_label",
+        "explanationKey": "spam_setting_dry_run_explanation",
+        "costKey": "spam_setting_dry_run_cost",
+        "isToggle": true
+      },
+      {
+        "key": "TrustThresholds",
+        "group": "trust",
+        "labelKey": "spam_setting_trust_thresholds_label",
+        "explanationKey": "spam_setting_trust_thresholds_explanation",
+        "costKey": "spam_setting_trust_thresholds_cost",
+        "isToggle": true
+      },
+      {
+        "key": "SemiTrustedWatchHoursHere",
+        "group": "trust",
+        "labelKey": "spam_setting_semi_trusted_watch_hours_here_label",
+        "explanationKey": "spam_setting_semi_trusted_watch_hours_here_explanation",
+        "costKey": "spam_setting_semi_trusted_watch_hours_here_cost",
+        "minimum": 1,
+        "maximum": 200,
+        "isToggle": false
+      },
+      {
+        "key": "SemiTrustedWatchHoursInstance",
+        "group": "trust",
+        "labelKey": "spam_setting_semi_trusted_watch_hours_instance_label",
+        "explanationKey": "spam_setting_semi_trusted_watch_hours_instance_explanation",
+        "costKey": "spam_setting_semi_trusted_watch_hours_instance_cost",
+        "minimum": 1,
+        "maximum": 500,
+        "isToggle": false
+      },
+      {
+        "key": "AccountAgeGateDays",
+        "group": "newcomers",
+        "labelKey": "spam_setting_account_age_gate_days_label",
+        "explanationKey": "spam_setting_account_age_gate_days_explanation",
+        "costKey": "spam_setting_account_age_gate_days_cost",
+        "minimum": 0,
+        "maximum": 365,
+        "isToggle": false
+      },
+      {
+        "key": "FollowAgeGateDays",
+        "group": "newcomers",
+        "labelKey": "spam_setting_follow_age_gate_days_label",
+        "explanationKey": "spam_setting_follow_age_gate_days_explanation",
+        "costKey": "spam_setting_follow_age_gate_days_cost",
+        "minimum": 0,
+        "maximum": 90,
+        "isToggle": false
+      },
+      {
+        "key": "AccountGateHoldsForReview",
+        "group": "newcomers",
+        "labelKey": "spam_setting_account_gate_holds_for_review_label",
+        "explanationKey": "spam_setting_account_gate_holds_for_review_explanation",
+        "costKey": "spam_setting_account_gate_holds_for_review_cost",
+        "isToggle": true
+      },
+      {
+        "key": "NearDuplicateSimilarity",
+        "group": "content",
+        "labelKey": "spam_setting_near_duplicate_similarity_label",
+        "explanationKey": "spam_setting_near_duplicate_similarity_explanation",
+        "costKey": "spam_setting_near_duplicate_similarity_cost",
+        "minimum": 0,
+        "maximum": 1,
+        "isToggle": false
+      },
+      {
+        "key": "MinimumSkeletonLength",
+        "group": "content",
+        "labelKey": "spam_setting_minimum_skeleton_length_label",
+        "explanationKey": "spam_setting_minimum_skeleton_length_explanation",
+        "costKey": "spam_setting_minimum_skeleton_length_cost",
+        "minimum": 2,
+        "maximum": 50,
+        "isToggle": false
+      },
+      {
+        "key": "NonLatinScriptGate",
+        "group": "content",
+        "labelKey": "spam_setting_non_latin_script_gate_label",
+        "explanationKey": "spam_setting_non_latin_script_gate_explanation",
+        "costKey": "spam_setting_non_latin_script_gate_cost",
+        "isToggle": true
+      },
+      {
+        "key": "QualifyNoStandingShare",
+        "group": "campaign",
+        "labelKey": "spam_setting_qualify_no_standing_share_label",
+        "explanationKey": "spam_setting_qualify_no_standing_share_explanation",
+        "costKey": "spam_setting_qualify_no_standing_share_cost",
+        "minimum": 0.5,
+        "maximum": 1,
+        "isToggle": false
+      },
+      {
+        "key": "DequalifyNoStandingShare",
+        "group": "campaign",
+        "labelKey": "spam_setting_dequalify_no_standing_share_label",
+        "explanationKey": "spam_setting_dequalify_no_standing_share_explanation",
+        "costKey": "spam_setting_dequalify_no_standing_share_cost",
+        "minimum": 0.3,
+        "maximum": 0.95,
+        "isToggle": false
+      },
+      {
+        "key": "MinimumCohortSize",
+        "group": "campaign",
+        "labelKey": "spam_setting_minimum_cohort_size_label",
+        "explanationKey": "spam_setting_minimum_cohort_size_explanation",
+        "costKey": "spam_setting_minimum_cohort_size_cost",
+        "minimum": 2,
+        "maximum": 100,
+        "isToggle": false
+      },
+      {
+        "key": "WindowSeconds",
+        "group": "campaign",
+        "labelKey": "spam_setting_window_seconds_label",
+        "explanationKey": "spam_setting_window_seconds_explanation",
+        "costKey": "spam_setting_window_seconds_cost",
+        "minimum": 30,
+        "maximum": 3600,
+        "isToggle": false
+      },
+      {
+        "key": "MaxWindowSeconds",
+        "group": "campaign",
+        "labelKey": "spam_setting_max_window_seconds_label",
+        "explanationKey": "spam_setting_max_window_seconds_explanation",
+        "costKey": "spam_setting_max_window_seconds_cost",
+        "minimum": 60,
+        "maximum": 7200,
+        "isToggle": false
+      },
+      {
+        "key": "ActionDelaySeconds",
+        "group": "campaign",
+        "labelKey": "spam_setting_action_delay_seconds_label",
+        "explanationKey": "spam_setting_action_delay_seconds_explanation",
+        "costKey": "spam_setting_action_delay_seconds_cost",
+        "minimum": 0,
+        "maximum": 120,
+        "isToggle": false
+      },
+      {
+        "key": "AutoReverseOnDequalify",
+        "group": "campaign",
+        "labelKey": "spam_setting_auto_reverse_on_dequalify_label",
+        "explanationKey": "spam_setting_auto_reverse_on_dequalify_explanation",
+        "costKey": "spam_setting_auto_reverse_on_dequalify_cost",
+        "isToggle": true
+      },
+      {
+        "key": "FollowSpikeFactor",
+        "group": "bursts",
+        "labelKey": "spam_setting_follow_spike_factor_label",
+        "explanationKey": "spam_setting_follow_spike_factor_explanation",
+        "costKey": "spam_setting_follow_spike_factor_cost",
+        "minimum": 1.5,
+        "maximum": 50,
+        "isToggle": false
+      },
+      {
+        "key": "JoinBurstFactor",
+        "group": "bursts",
+        "labelKey": "spam_setting_join_burst_factor_label",
+        "explanationKey": "spam_setting_join_burst_factor_explanation",
+        "costKey": "spam_setting_join_burst_factor_cost",
+        "minimum": 1.5,
+        "maximum": 50,
+        "isToggle": false,
+        "pendingSlice": "S-SPAM-LOCKDOWN-WIRE",
+        "inactiveReasonKey": "spam_setting_join_burst_factor_inactive"
+      },
+      {
+        "key": "LockdownMinutes",
+        "group": "lockdown",
+        "labelKey": "spam_setting_lockdown_minutes_label",
+        "explanationKey": "spam_setting_lockdown_minutes_explanation",
+        "costKey": "spam_setting_lockdown_minutes_cost",
+        "minimum": 1,
+        "maximum": 240,
+        "isToggle": false,
+        "pendingSlice": "S-SPAM-LOCKDOWN-WIRE",
+        "inactiveReasonKey": "spam_setting_lockdown_minutes_inactive"
+      },
+      {
+        "key": "LockdownAutoExtend",
+        "group": "lockdown",
+        "labelKey": "spam_setting_lockdown_auto_extend_label",
+        "explanationKey": "spam_setting_lockdown_auto_extend_explanation",
+        "costKey": "spam_setting_lockdown_auto_extend_cost",
+        "isToggle": true,
+        "pendingSlice": "S-SPAM-LOCKDOWN-WIRE",
+        "inactiveReasonKey": "spam_setting_lockdown_auto_extend_inactive"
+      },
+      {
+        "key": "LockdownMaxMinutes",
+        "group": "lockdown",
+        "labelKey": "spam_setting_lockdown_max_minutes_label",
+        "explanationKey": "spam_setting_lockdown_max_minutes_explanation",
+        "costKey": "spam_setting_lockdown_max_minutes_cost",
+        "minimum": 5,
+        "maximum": 480,
+        "isToggle": false,
+        "pendingSlice": "S-SPAM-LOCKDOWN-WIRE",
+        "inactiveReasonKey": "spam_setting_lockdown_max_minutes_inactive"
+      },
+      {
+        "key": "NetworkSubscribe",
+        "group": "network",
+        "labelKey": "spam_setting_network_subscribe_label",
+        "explanationKey": "spam_setting_network_subscribe_explanation",
+        "costKey": "spam_setting_network_subscribe_cost",
+        "isToggle": true,
+        "pendingSlice": "S-SPAM-NETWORK",
+        "inactiveReasonKey": "spam_setting_network_subscribe_inactive"
+      },
+      {
+        "key": "NetworkContribute",
+        "group": "network",
+        "labelKey": "spam_setting_network_contribute_label",
+        "explanationKey": "spam_setting_network_contribute_explanation",
+        "costKey": "spam_setting_network_contribute_cost",
+        "isToggle": true,
+        "pendingSlice": "S-SPAM-NETWORK",
+        "inactiveReasonKey": "spam_setting_network_contribute_inactive"
+      },
+      {
+        "key": "RequiredCorroborations",
+        "group": "network",
+        "labelKey": "spam_setting_required_corroborations_label",
+        "explanationKey": "spam_setting_required_corroborations_explanation",
+        "costKey": "spam_setting_required_corroborations_cost",
+        "minimum": 1,
+        "maximum": 20,
+        "isToggle": false
+      }
+    ],
+    "invariants": [
+      {
+        "decision": "SD0",
+        "guaranteeKey": "spam_invariant_sd0_guarantee"
+      },
+      {
+        "decision": "SD8",
+        "guaranteeKey": "spam_invariant_sd8_guarantee"
+      },
+      {
+        "decision": "SD9",
+        "guaranteeKey": "spam_invariant_sd9_guarantee"
+      },
+      {
+        "decision": "SD11",
+        "guaranteeKey": "spam_invariant_sd11_guarantee"
+      },
+      {
+        "decision": "SD12",
+        "guaranteeKey": "spam_invariant_sd12_guarantee"
+      }
+    ],
+    "enforcementEligibleAt": {
+      "$ago": 0
+    },
+    "isPinned": false
+  },
+  "args": []
+}

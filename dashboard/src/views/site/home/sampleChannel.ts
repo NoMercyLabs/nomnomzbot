@@ -16,4 +16,7 @@ export const sampleChannel = {
   handle: 'crumb_tv',
   viewers: 1204,
   uptimeMinutes: 134,
+  // How long ago the sample install was set up. A record a fresh install seeds (commands, pipelines, widgets)
+  // is dated from this moment, so the lists read as a few weeks old instead of "just now".
+  installedMinutesAgo: 60 * 24 * 21,
 } as const;

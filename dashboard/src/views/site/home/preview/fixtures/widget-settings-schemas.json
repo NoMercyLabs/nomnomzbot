@@ -1,0 +1,393 @@
+{
+  "Alerts": {
+    "widgetKey": "alerts",
+    "name": "Alerts",
+    "fields": [
+      {
+        "key": "events",
+        "label": {
+          "key": "widget.alerts.events.label"
+        },
+        "type": "multiselect",
+        "group": {
+          "key": "widget.group.content"
+        },
+        "default": [
+          "follow",
+          "subscription",
+          "resub",
+          "gift",
+          "cheer",
+          "raid",
+          "supporter.tip",
+          "supporter.membership",
+          "supporter.merch",
+          "supporter.charity"
+        ],
+        "options": [
+          {
+            "value": "follow",
+            "label": {
+              "key": "widget.option.events.follow"
+            }
+          },
+          {
+            "value": "subscription",
+            "label": {
+              "key": "widget.option.events.subscription"
+            }
+          },
+          {
+            "value": "resub",
+            "label": {
+              "key": "widget.option.events.resub"
+            }
+          },
+          {
+            "value": "gift",
+            "label": {
+              "key": "widget.option.events.gift"
+            }
+          },
+          {
+            "value": "cheer",
+            "label": {
+              "key": "widget.option.events.cheer"
+            }
+          },
+          {
+            "value": "raid",
+            "label": {
+              "key": "widget.option.events.raid"
+            }
+          },
+          {
+            "value": "supporter.tip",
+            "label": {
+              "key": "widget.option.events.supporter.tip"
+            }
+          },
+          {
+            "value": "supporter.membership",
+            "label": {
+              "key": "widget.option.events.supporter.membership"
+            }
+          },
+          {
+            "value": "supporter.merch",
+            "label": {
+              "key": "widget.option.events.supporter.merch"
+            }
+          },
+          {
+            "value": "supporter.charity",
+            "label": {
+              "key": "widget.option.events.supporter.charity"
+            }
+          },
+          {
+            "value": "voice_trigger",
+            "label": {
+              "key": "widget.option.events.voice_trigger"
+            }
+          }
+        ]
+      },
+      {
+        "key": "textTemplate",
+        "label": {
+          "key": "widget.alerts.textTemplate.label"
+        },
+        "type": "text",
+        "group": {
+          "key": "widget.group.content"
+        },
+        "default": "",
+        "help": {
+          "key": "widget.alerts.textTemplate.help"
+        }
+      },
+      {
+        "key": "durationMs",
+        "label": {
+          "key": "widget.alerts.durationMs.label"
+        },
+        "type": "number",
+        "group": {
+          "key": "widget.group.behaviour"
+        },
+        "default": 6000,
+        "min": 0,
+        "step": 100
+      },
+      {
+        "key": "stickerDurationMs",
+        "label": {
+          "key": "widget.alerts.stickerDurationMs.label"
+        },
+        "type": "number",
+        "group": {
+          "key": "widget.group.behaviour"
+        },
+        "default": 6000,
+        "min": 0,
+        "step": 100
+      },
+      {
+        "key": "minBits",
+        "label": {
+          "key": "widget.alerts.minBits.label"
+        },
+        "type": "number",
+        "group": {
+          "key": "widget.group.behaviour"
+        },
+        "default": 0,
+        "min": 0
+      },
+      {
+        "key": "minGiftCount",
+        "label": {
+          "key": "widget.alerts.minGiftCount.label"
+        },
+        "type": "number",
+        "group": {
+          "key": "widget.group.behaviour"
+        },
+        "default": 0,
+        "min": 0
+      },
+      {
+        "key": "minAmount",
+        "label": {
+          "key": "widget.alerts.minAmount.label"
+        },
+        "type": "number",
+        "group": {
+          "key": "widget.group.behaviour"
+        },
+        "default": 0,
+        "min": 0
+      },
+      {
+        "key": "accentColor",
+        "label": {
+          "key": "widget.alerts.accentColor.label"
+        },
+        "type": "color",
+        "group": {
+          "key": "widget.group.appearance"
+        },
+        "default": "#9146ff"
+      }
+    ],
+    "eventSubscriptions": [
+      "follow",
+      "subscription",
+      "resub",
+      "gift",
+      "cheer",
+      "raid",
+      "supporter.tip",
+      "supporter.membership",
+      "supporter.merch",
+      "supporter.charity"
+    ]
+  },
+  "Bot Audio": {
+    "widgetKey": "audio",
+    "name": "Bot Audio",
+    "fields": [
+      {
+        "key": "showIndicator",
+        "label": {
+          "key": "widget.audio.showIndicator.label"
+        },
+        "type": "bool",
+        "group": {
+          "key": "widget.group.content"
+        },
+        "default": false
+      },
+      {
+        "key": "accentColor",
+        "label": {
+          "key": "widget.audio.accentColor.label"
+        },
+        "type": "color",
+        "group": {
+          "key": "widget.group.appearance"
+        },
+        "default": "#9146ff"
+      }
+    ],
+    "eventSubscriptions": [
+      "tts_speak"
+    ]
+  },
+  "Media Share": {
+    "widgetKey": "media_share",
+    "name": "Media Share",
+    "fields": [
+      {
+        "key": "showTitle",
+        "label": {
+          "key": "widget.media_share.showTitle.label"
+        },
+        "type": "bool",
+        "group": {
+          "key": "widget.group.content"
+        },
+        "default": true
+      },
+      {
+        "key": "accentColor",
+        "label": {
+          "key": "widget.media_share.accentColor.label"
+        },
+        "type": "color",
+        "group": {
+          "key": "widget.group.appearance"
+        },
+        "default": "#9146ff"
+      }
+    ],
+    "eventSubscriptions": [
+      "media_share_command"
+    ]
+  },
+  "Music Player": {
+    "widgetKey": "music_player",
+    "name": "Music Player",
+    "fields": [
+      {
+        "key": "volume",
+        "label": {
+          "key": "widget.music_player.volume.label"
+        },
+        "type": "number",
+        "group": {
+          "key": "widget.group.behaviour"
+        },
+        "default": 100,
+        "min": 0,
+        "max": 100,
+        "step": 1
+      },
+      {
+        "key": "muted",
+        "label": {
+          "key": "widget.music_player.muted.label"
+        },
+        "type": "bool",
+        "group": {
+          "key": "widget.group.behaviour"
+        },
+        "default": false
+      },
+      {
+        "key": "showIndicator",
+        "label": {
+          "key": "widget.music_player.showIndicator.label"
+        },
+        "type": "bool",
+        "group": {
+          "key": "widget.group.content"
+        },
+        "default": false
+      },
+      {
+        "key": "enableAudio",
+        "label": {
+          "key": "widget.music_player.enableAudio.label"
+        },
+        "type": "bool",
+        "group": {
+          "key": "widget.group.behaviour"
+        },
+        "default": true
+      },
+      {
+        "key": "accentColor",
+        "label": {
+          "key": "widget.music_player.accentColor.label"
+        },
+        "type": "color",
+        "group": {
+          "key": "widget.group.appearance"
+        },
+        "default": "#9146ff"
+      }
+    ],
+    "eventSubscriptions": [
+      "now_playing"
+    ]
+  },
+  "TTS Caption": {
+    "widgetKey": "tts_caption",
+    "name": "TTS Caption",
+    "fields": [
+      {
+        "key": "showText",
+        "label": {
+          "key": "widget.tts_caption.showText.label"
+        },
+        "type": "bool",
+        "group": {
+          "key": "widget.group.content"
+        },
+        "default": true
+      },
+      {
+        "key": "voiceLabel",
+        "label": {
+          "key": "widget.tts_caption.voiceLabel.label"
+        },
+        "type": "bool",
+        "group": {
+          "key": "widget.group.content"
+        },
+        "default": false
+      },
+      {
+        "key": "position",
+        "label": {
+          "key": "widget.tts_caption.position.label"
+        },
+        "type": "select",
+        "group": {
+          "key": "widget.group.appearance"
+        },
+        "default": "bottom",
+        "options": [
+          {
+            "value": "top",
+            "label": {
+              "key": "widget.tts_caption.position.option.top"
+            }
+          },
+          {
+            "value": "bottom",
+            "label": {
+              "key": "widget.tts_caption.position.option.bottom"
+            }
+          }
+        ]
+      },
+      {
+        "key": "accentColor",
+        "label": {
+          "key": "widget.tts_caption.accentColor.label"
+        },
+        "type": "color",
+        "group": {
+          "key": "widget.group.appearance"
+        },
+        "default": "#9146ff"
+      }
+    ],
+    "eventSubscriptions": [
+      "tts_speak"
+    ]
+  }
+}

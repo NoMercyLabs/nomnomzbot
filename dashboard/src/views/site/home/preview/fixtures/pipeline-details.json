@@ -1,0 +1,356 @@
+[
+  {
+    "pipeline": {
+      "id": "01M5H0K9CSERGB3YG3NPMQJYZD",
+      "channelId": "sample-channel",
+      "name": "Cheer response",
+      "description": "Thanks the viewer in chat with their message quoted, and reads that message aloud in their own voice. Every step is an ordinary block.",
+      "isEnabled": true,
+      "triggerKind": "event",
+      "graph": {
+        "steps": [
+          {
+            "id": "sample-id-1",
+            "parent_step_id": null,
+            "branch": null,
+            "block_kind": null,
+            "block_config": null,
+            "order": 0,
+            "action": {
+              "message": "{user} cheered with {bits} bits. Thank you for the support!{also_said}",
+              "type": "send_message"
+            },
+            "condition": null,
+            "continue_on_error": false,
+            "stop_on_match": false
+          },
+          {
+            "id": "sample-id-2",
+            "parent_step_id": null,
+            "branch": null,
+            "block_kind": null,
+            "block_config": null,
+            "order": 1,
+            "action": {
+              "text": "{message}",
+              "type": "play_tts"
+            },
+            "condition": {
+              "type": "comparison",
+              "operator": "ne",
+              "left": "{message}",
+              "right": "",
+              "negate": false
+            },
+            "continue_on_error": false,
+            "stop_on_match": false
+          }
+        ]
+      },
+      "triggerCount": 0,
+      "createdAt": {
+        "$ago": 1
+      },
+      "updatedAt": {
+        "$ago": 1
+      }
+    },
+    "blastRadius": {
+      "commandCount": 0,
+      "commandNames": [],
+      "chatTriggerCount": 0,
+      "chatTriggerPatterns": [],
+      "timerCount": 0,
+      "timerNames": [],
+      "eventResponseCount": 1,
+      "eventResponseEventTypes": [
+        "channel.cheer"
+      ],
+      "totalReferences": 1
+    }
+  },
+  {
+    "pipeline": {
+      "id": "01M5H0K90KFSZSAH72JCRCRRFN",
+      "channelId": "sample-channel",
+      "name": "Raid committed",
+      "description": "Stops the stream, pauses the music, and confirms the raid in chat once Twitch reports the raid as under way. Every step is an ordinary block.",
+      "isEnabled": true,
+      "triggerKind": "event",
+      "graph": {
+        "steps": [
+          {
+            "id": "sample-id-3",
+            "parent_step_id": null,
+            "branch": null,
+            "block_kind": null,
+            "block_config": null,
+            "order": 0,
+            "action": {
+              "action": "stop",
+              "type": "obs_streaming"
+            },
+            "condition": null,
+            "continue_on_error": true,
+            "stop_on_match": false
+          },
+          {
+            "id": "sample-id-4",
+            "parent_step_id": null,
+            "branch": null,
+            "block_kind": null,
+            "block_config": null,
+            "order": 1,
+            "action": {
+              "type": "music_pause"
+            },
+            "condition": null,
+            "continue_on_error": true,
+            "stop_on_match": false
+          },
+          {
+            "id": "sample-id-5",
+            "parent_step_id": null,
+            "branch": null,
+            "block_kind": null,
+            "block_config": null,
+            "order": 2,
+            "action": {
+              "message": "We have raided out to https://twitch.tv/{user.name}, See you there!",
+              "type": "announce"
+            },
+            "condition": null,
+            "continue_on_error": false,
+            "stop_on_match": false
+          }
+        ]
+      },
+      "triggerCount": 0,
+      "createdAt": {
+        "$ago": 1
+      },
+      "updatedAt": {
+        "$ago": 1
+      }
+    },
+    "blastRadius": {
+      "commandCount": 0,
+      "commandNames": [],
+      "chatTriggerCount": 0,
+      "chatTriggerPatterns": [],
+      "timerCount": 0,
+      "timerNames": [],
+      "eventResponseCount": 1,
+      "eventResponseEventTypes": [
+        "channel.raid.out"
+      ],
+      "totalReferences": 1
+    }
+  },
+  {
+    "pipeline": {
+      "id": "01M5H0K8Q7F5G9TWV11119XCYZ",
+      "channelId": "sample-channel",
+      "name": "Raid out",
+      "description": "Starts a Twitch raid, switches OBS to the ending scene, then says goodbye in chat. Every step is an ordinary block — reorder, retime or remove any of it. Stopping the stream, pausing the music and confirming the raid happen separately once Twitch reports the raid as under way (see \"Raid committed\").",
+      "isEnabled": true,
+      "triggerKind": "command",
+      "graph": {
+        "steps": [
+          {
+            "id": "sample-id-6",
+            "parent_step_id": null,
+            "branch": null,
+            "block_kind": null,
+            "block_config": null,
+            "order": 0,
+            "action": {
+              "target": "{args.1}",
+              "type": "start_raid"
+            },
+            "condition": null,
+            "continue_on_error": false,
+            "stop_on_match": false
+          }
+        ]
+      },
+      "triggerCount": 0,
+      "createdAt": {
+        "$ago": 1
+      },
+      "updatedAt": {
+        "$ago": 1
+      }
+    },
+    "blastRadius": {
+      "commandCount": 1,
+      "commandNames": [
+        "raid"
+      ],
+      "chatTriggerCount": 0,
+      "chatTriggerPatterns": [],
+      "timerCount": 0,
+      "timerNames": [],
+      "eventResponseCount": 0,
+      "eventResponseEventTypes": [],
+      "totalReferences": 1
+    }
+  },
+  {
+    "pipeline": {
+      "id": "01M5H0K981EGCR200S5MTCY6CY",
+      "channelId": "sample-channel",
+      "name": "Raid response",
+      "description": "Welcomes the raiders in chat, says it out loud and shouts out the raider. Every step is an ordinary block.",
+      "isEnabled": true,
+      "triggerKind": "event",
+      "graph": {
+        "steps": [
+          {
+            "id": "sample-id-7",
+            "parent_step_id": null,
+            "branch": null,
+            "block_kind": null,
+            "block_config": null,
+            "order": 0,
+            "action": {
+              "message": "{user} just raided with {viewers} viewers! Welcome raiders!",
+              "type": "send_message"
+            },
+            "condition": null,
+            "continue_on_error": false,
+            "stop_on_match": false
+          },
+          {
+            "id": "sample-id-8",
+            "parent_step_id": null,
+            "branch": null,
+            "block_kind": null,
+            "block_config": null,
+            "order": 1,
+            "action": {
+              "text": "{user} just raided with {viewers} viewers! Welcome raiders!",
+              "type": "play_tts"
+            },
+            "condition": null,
+            "continue_on_error": false,
+            "stop_on_match": false
+          },
+          {
+            "id": "sample-id-9",
+            "parent_step_id": null,
+            "branch": null,
+            "block_kind": null,
+            "block_config": null,
+            "order": 2,
+            "action": {
+              "user_id": "{user.id}",
+              "type": "shoutout"
+            },
+            "condition": null,
+            "continue_on_error": false,
+            "stop_on_match": false
+          }
+        ]
+      },
+      "triggerCount": 0,
+      "createdAt": {
+        "$ago": 1
+      },
+      "updatedAt": {
+        "$ago": 1
+      }
+    },
+    "blastRadius": {
+      "commandCount": 0,
+      "commandNames": [],
+      "chatTriggerCount": 0,
+      "chatTriggerPatterns": [],
+      "timerCount": 0,
+      "timerNames": [],
+      "eventResponseCount": 1,
+      "eventResponseEventTypes": [
+        "channel.raid"
+      ],
+      "totalReferences": 1
+    }
+  },
+  {
+    "pipeline": {
+      "id": "01M5H0K920E2MTKYDPTR33VZJ2",
+      "channelId": "sample-channel",
+      "name": "Raid starting",
+      "description": "Switches to the ending scene and calls the raid out in chat, once Twitch confirms the raid has started. Every step is an ordinary block.",
+      "isEnabled": true,
+      "triggerKind": "event",
+      "graph": {
+        "steps": [
+          {
+            "id": "sample-id-10",
+            "parent_step_id": null,
+            "branch": null,
+            "block_kind": null,
+            "block_config": null,
+            "order": 0,
+            "action": {
+              "type": "show_raid_recap"
+            },
+            "condition": null,
+            "continue_on_error": true,
+            "stop_on_match": false
+          },
+          {
+            "id": "sample-id-11",
+            "parent_step_id": null,
+            "branch": null,
+            "block_kind": null,
+            "block_config": null,
+            "order": 1,
+            "action": {
+              "scene": "Ending",
+              "type": "obs_switch_scene"
+            },
+            "condition": null,
+            "continue_on_error": true,
+            "stop_on_match": false
+          },
+          {
+            "id": "sample-id-12",
+            "parent_step_id": null,
+            "branch": null,
+            "block_kind": null,
+            "block_config": null,
+            "order": 2,
+            "action": {
+              "message": "We're heading out to {user}, thanks for watching!",
+              "type": "send_message"
+            },
+            "condition": null,
+            "continue_on_error": false,
+            "stop_on_match": false
+          }
+        ]
+      },
+      "triggerCount": 0,
+      "createdAt": {
+        "$ago": 1
+      },
+      "updatedAt": {
+        "$ago": 1
+      }
+    },
+    "blastRadius": {
+      "commandCount": 0,
+      "commandNames": [],
+      "chatTriggerCount": 0,
+      "chatTriggerPatterns": [],
+      "timerCount": 0,
+      "timerNames": [],
+      "eventResponseCount": 1,
+      "eventResponseEventTypes": [
+        "channel.raid.start"
+      ],
+      "totalReferences": 1
+    }
+  }
+]

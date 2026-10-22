@@ -1,0 +1,61 @@
+{
+  "data": [
+    {
+      "id": "01M5H0K9CSERGB3YG3NPMQJYZD",
+      "name": "Cheer response",
+      "description": "Thanks the viewer in chat with their message quoted, and reads that message aloud in their own voice. Every step is an ordinary block.",
+      "isEnabled": true,
+      "triggerCount": 0,
+      "updatedAt": {
+        "$ago": 1
+      },
+      "hasPlatformDefault": false
+    },
+    {
+      "id": "01M5H0K90KFSZSAH72JCRCRRFN",
+      "name": "Raid committed",
+      "description": "Stops the stream, pauses the music, and confirms the raid in chat once Twitch reports the raid as under way. Every step is an ordinary block.",
+      "isEnabled": true,
+      "triggerCount": 0,
+      "updatedAt": {
+        "$ago": 1
+      },
+      "hasPlatformDefault": true
+    },
+    {
+      "id": "01M5H0K8Q7F5G9TWV11119XCYZ",
+      "name": "Raid out",
+      "description": "Starts a Twitch raid, switches OBS to the ending scene, then says goodbye in chat. Every step is an ordinary block — reorder, retime or remove any of it. Stopping the stream, pausing the music and confirming the raid happen separately once Twitch reports the raid as under way (see \"Raid committed\").",
+      "isEnabled": true,
+      "triggerCount": 0,
+      "updatedAt": {
+        "$ago": 1
+      },
+      "hasPlatformDefault": true
+    },
+    {
+      "id": "01M5H0K981EGCR200S5MTCY6CY",
+      "name": "Raid response",
+      "description": "Welcomes the raiders in chat, says it out loud and shouts out the raider. Every step is an ordinary block.",
+      "isEnabled": true,
+      "triggerCount": 0,
+      "updatedAt": {
+        "$ago": 1
+      },
+      "hasPlatformDefault": false
+    },
+    {
+      "id": "01M5H0K920E2MTKYDPTR33VZJ2",
+      "name": "Raid starting",
+      "description": "Switches to the ending scene and calls the raid out in chat, once Twitch confirms the raid has started. Every step is an ordinary block.",
+      "isEnabled": true,
+      "triggerCount": 0,
+      "updatedAt": {
+        "$ago": 1
+      },
+      "hasPlatformDefault": true
+    }
+  ],
+  "hasMore": false,
+  "total": 5
+}

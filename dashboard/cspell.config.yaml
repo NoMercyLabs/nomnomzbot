@@ -20,6 +20,8 @@ files:
   - '*.{ts,html}'
 ignorePaths:
   - 'src/components/ui/**'
+  # Answers the server gave a fresh install, kept as data for the home page preview; its words come from the server.
+  - 'src/views/site/home/preview/fixtures/**'
   # Generated from the server's OpenAPI document; its words come from the server.
   - 'src/api/schema.d.ts'
   # Generated from the server's widget SDK emitter (DashboardWidgetSdkTypesTests).

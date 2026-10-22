@@ -1,0 +1,53 @@
+{
+  "status": "ok",
+  "data": {
+    "integrations": [
+      {
+        "id": "twitch",
+        "name": "Twitch",
+        "category": "Platform",
+        "description": "Primary Twitch account — always connected",
+        "connected": true,
+        "connectedAs": "crumb_tv"
+      },
+      {
+        "id": "custom_bot",
+        "name": "Custom Bot",
+        "category": "Platform",
+        "description": "White-label bot — messages appear from your own bot account instead of NomNomzBot",
+        "connected": false,
+        "oauthUrl": "https://nomnomz.example/api/v1/channels/sample-channel/bot/connect"
+      },
+      {
+        "id": "spotify",
+        "name": "Spotify",
+        "category": "Music",
+        "description": "Now playing overlays and song request commands",
+        "connected": false
+      },
+      {
+        "id": "discord",
+        "name": "Discord",
+        "category": "Social",
+        "description": "Cross-post alerts and notifications to Discord",
+        "connected": false,
+        "oauthUrl": "https://nomnomz.example/api/v1/channels/sample-channel/integrations/discord/callback/start"
+      },
+      {
+        "id": "youtube",
+        "name": "YouTube",
+        "category": "Video",
+        "description": "YouTube live stream management and stats",
+        "connected": false
+      },
+      {
+        "id": "obs",
+        "name": "OBS",
+        "category": "Streaming",
+        "description": "Scene switching, sources, and OBS remote control",
+        "connected": false
+      }
+    ]
+  },
+  "args": []
+}

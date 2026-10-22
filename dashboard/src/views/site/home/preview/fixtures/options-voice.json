@@ -1,0 +1,310 @@
+{
+  "status": "ok",
+  "data": {
+    "sourceAvailable": true,
+    "items": [
+      {
+        "value": "mr-IN-AarohiNeural",
+        "label": "Aarohi (IN)",
+        "secondaryText": "mr-IN · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "ar-OM-AbdullahNeural",
+        "label": "Abdullah (OM)",
+        "secondaryText": "ar-OM · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "en-NG-AbeoNeural",
+        "label": "Abeo (NG)",
+        "secondaryText": "en-NG · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "af-ZA-AdriNeural",
+        "label": "Adri (ZA)",
+        "secondaryText": "af-ZA · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "tr-TR-AhmetNeural",
+        "label": "Ahmet (TR)",
+        "secondaryText": "tr-TR · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "kk-KZ-AigulNeural",
+        "label": "Aigul (KZ)",
+        "secondaryText": "kk-KZ · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "cy-GB-AledNeural",
+        "label": "Aled (GB)",
+        "secondaryText": "cy-GB · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "mk-MK-AleksandarNeural",
+        "label": "Aleksandar (MK)",
+        "secondaryText": "mk-MK · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "es-PE-AlexNeural",
+        "label": "Alex (PE)",
+        "secondaryText": "es-PE · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "ar-BH-AliNeural",
+        "label": "Ali (BH)",
+        "secondaryText": "ar-BH · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "ro-RO-AlinaNeural",
+        "label": "Alina (RO)",
+        "secondaryText": "ro-RO · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "es-US-AlonsoNeural",
+        "label": "Alonso (US)",
+        "secondaryText": "es-US · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "es-ES-AlvaroNeural",
+        "label": "Alvaro (ES)",
+        "secondaryText": "es-ES · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "ar-QA-AmalNeural",
+        "label": "Amal (QA)",
+        "secondaryText": "ar-QA · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "de-DE-AmalaNeural",
+        "label": "Amala (DE)",
+        "secondaryText": "de-DE · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "ar-SY-AmanyNeural",
+        "label": "Amany (SY)",
+        "secondaryText": "ar-SY · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "am-ET-AmehaNeural",
+        "label": "Ameha (ET)",
+        "secondaryText": "am-ET · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "ar-DZ-AminaNeural",
+        "label": "Amina (DZ)",
+        "secondaryText": "ar-DZ · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "en-US-AnaNeural",
+        "label": "Ana (US)",
+        "secondaryText": "en-US · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "ta-SG-AnbuNeural",
+        "label": "Anbu (SG)",
+        "secondaryText": "ta-SG · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "es-EC-AndreaNeural",
+        "label": "Andrea (EC)",
+        "secondaryText": "es-EC · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "es-GT-AndresNeural",
+        "label": "Andres (GT)",
+        "secondaryText": "es-GT · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "en-US-AndrewNeural",
+        "label": "Andrew (US)",
+        "secondaryText": "en-US · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "en-US-AndrewMultilingualNeural",
+        "label": "Andrew Multilingual (US)",
+        "secondaryText": "en-US · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "fil-PH-AngeloNeural",
+        "label": "Angelo (PH)",
+        "secondaryText": "fil-PH · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "sq-AL-AnilaNeural",
+        "label": "Anila (AL)",
+        "secondaryText": "sq-AL · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "fr-CA-AntoineNeural",
+        "label": "Antoine (CA)",
+        "secondaryText": "fr-CA · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "cs-CZ-AntoninNeural",
+        "label": "Antonin (CZ)",
+        "secondaryText": "cs-CZ · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "pt-BR-AntonioNeural",
+        "label": "Antonio (BR)",
+        "secondaryText": "pt-BR · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "et-EE-AnuNeural",
+        "label": "Anu (EE)",
+        "secondaryText": "et-EE · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "id-ID-ArdiNeural",
+        "label": "Ardi (ID)",
+        "secondaryText": "id-ID · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "en-US-AriaNeural",
+        "label": "Aria (US)",
+        "secondaryText": "en-US · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "fr-CH-ArianeNeural",
+        "label": "Ariane (CH)",
+        "secondaryText": "fr-CH · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "nl-BE-ArnaudNeural",
+        "label": "Arnaud (BE)",
+        "secondaryText": "nl-BE · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "ur-PK-AsadNeural",
+        "label": "Asad (PK)",
+        "secondaryText": "ur-PK · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "en-KE-AsiliaNeural",
+        "label": "Asilia (KE)",
+        "secondaryText": "en-KE · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "el-GR-AthinaNeural",
+        "label": "Athina (GR)",
+        "secondaryText": "el-GR · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "en-US-AvaNeural",
+        "label": "Ava (US)",
+        "secondaryText": "en-US · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "en-US-AvaMultilingualNeural",
+        "label": "Ava Multilingual (US)",
+        "secondaryText": "en-US · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "he-IL-AvriNeural",
+        "label": "Avri (IL)",
+        "secondaryText": "he-IL · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "ar-OM-AyshaNeural",
+        "label": "Aysha (OM)",
+        "secondaryText": "ar-OM · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "az-AZ-BabekNeural",
+        "label": "Babek (AZ)",
+        "secondaryText": "az-AZ · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "az-AZ-BanuNeural",
+        "label": "Banu (AZ)",
+        "secondaryText": "az-AZ · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "bn-IN-BashkarNeural",
+        "label": "Bashkar (IN)",
+        "secondaryText": "bn-IN · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "ar-IQ-BasselNeural",
+        "label": "Bassel (IQ)",
+        "secondaryText": "ar-IQ · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "mn-MN-BataaNeural",
+        "label": "Bataa (MN)",
+        "secondaryText": "mn-MN · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "es-CU-BelkysNeural",
+        "label": "Belkys (CU)",
+        "secondaryText": "es-CU · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "fil-PH-BlessicaNeural",
+        "label": "Blessica (PH)",
+        "secondaryText": "fil-PH · Female · edge",
+        "state": 0
+      },
+      {
+        "value": "bg-BG-BorislavNeural",
+        "label": "Borislav (BG)",
+        "secondaryText": "bg-BG · Male · edge",
+        "state": 0
+      },
+      {
+        "value": "en-US-BrianNeural",
+        "label": "Brian (US)",
+        "secondaryText": "en-US · Male · edge",
+        "state": 0
+      }
+    ],
+    "totalCount": 322
+  },
+  "args": []
+}

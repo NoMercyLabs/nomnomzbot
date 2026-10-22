@@ -1,0 +1,466 @@
+{
+  "status": "ok",
+  "data": [
+    {
+      "key": "channel",
+      "descriptionKey": "template.helper.channel",
+      "sample": "crumb_tv"
+    },
+    {
+      "key": "channel.display",
+      "descriptionKey": "template.helper.channel_display",
+      "sample": "crumb_tv"
+    },
+    {
+      "key": "channel.id",
+      "descriptionKey": "template.helper.channel_id",
+      "sample": "1001"
+    },
+    {
+      "key": "streamer",
+      "descriptionKey": "template.helper.streamer",
+      "sample": "crumb_tv"
+    },
+    {
+      "key": "stream.title",
+      "descriptionKey": "template.helper.stream_title",
+      "sample": "Cozy coding night"
+    },
+    {
+      "key": "stream.game",
+      "descriptionKey": "template.helper.stream_game",
+      "sample": "Just Chatting"
+    },
+    {
+      "key": "stream.uptime",
+      "descriptionKey": "template.helper.stream_uptime",
+      "sample": "2h 15m"
+    },
+    {
+      "key": "stream.viewers",
+      "descriptionKey": "template.helper.stream_viewers",
+      "sample": "42"
+    },
+    {
+      "key": "stream.isLive",
+      "descriptionKey": "template.helper.stream_is_live",
+      "sample": "true"
+    },
+    {
+      "key": "stream.startedAt",
+      "descriptionKey": "template.helper.stream_started_at",
+      "sample": "2026-10-06T18:00:00Z"
+    },
+    {
+      "key": "tts.audioconnected",
+      "descriptionKey": "template.helper.tts_audioconnected",
+      "sample": "true"
+    },
+    {
+      "key": "status",
+      "descriptionKey": "template.helper.status",
+      "sample": "live"
+    },
+    {
+      "key": "tense",
+      "descriptionKey": "template.helper.tense",
+      "sample": "is"
+    },
+    {
+      "key": "time",
+      "descriptionKey": "template.helper.time",
+      "sample": "20:15"
+    },
+    {
+      "key": "time.utc",
+      "descriptionKey": "template.helper.time_utc",
+      "sample": "18:15"
+    },
+    {
+      "key": "date",
+      "descriptionKey": "template.helper.date",
+      "sample": "2026-10-06"
+    },
+    {
+      "key": "botname",
+      "descriptionKey": "template.helper.botname",
+      "sample": "NomNomzBot"
+    },
+    {
+      "key": "random.user",
+      "descriptionKey": "template.helper.random_user",
+      "sample": "example_viewer"
+    },
+    {
+      "key": "random.number.<n>",
+      "descriptionKey": "template.helper.random_number",
+      "sample": "7"
+    },
+    {
+      "key": "random.number.<min>.<max>[.<step>]",
+      "descriptionKey": "template.helper.random_number_range",
+      "sample": "42"
+    },
+    {
+      "key": "roll.<name>.<min>.<max>[.<step>]",
+      "descriptionKey": "template.helper.roll",
+      "sample": "13"
+    },
+    {
+      "key": "roll.<name>",
+      "descriptionKey": "template.helper.roll_read",
+      "sample": "13"
+    },
+    {
+      "key": "roll.<name>.complement",
+      "descriptionKey": "template.helper.roll_complement",
+      "sample": "87"
+    },
+    {
+      "key": "random.pick.<a.b.c>",
+      "descriptionKey": "template.helper.random_pick",
+      "sample": "b"
+    },
+    {
+      "key": "count.<key>",
+      "descriptionKey": "template.helper.count",
+      "sample": "12"
+    },
+    {
+      "key": "list.pick.<name>",
+      "descriptionKey": "template.helper.list_pick",
+      "sample": "Pizza"
+    },
+    {
+      "key": "custom.<name>.<field>",
+      "descriptionKey": "template.helper.custom_data",
+      "sample": "Blue"
+    },
+    {
+      "key": "transform.<name>:<text>",
+      "descriptionKey": "template.helper.transform",
+      "sample": "HELLO"
+    },
+    {
+      "key": "args",
+      "descriptionKey": "template.helper.args_all",
+      "sample": "hello world"
+    },
+    {
+      "key": "args.<n>",
+      "descriptionKey": "template.helper.args",
+      "sample": "hello"
+    },
+    {
+      "key": "user",
+      "descriptionKey": "template.helper.user",
+      "sample": "crumb_tv"
+    },
+    {
+      "key": "user.name",
+      "descriptionKey": "template.helper.user_name",
+      "sample": "crumb_tv"
+    },
+    {
+      "key": "user.id",
+      "descriptionKey": "template.helper.user_id",
+      "sample": "1001"
+    },
+    {
+      "key": "user.provider",
+      "descriptionKey": "template.helper.user_provider",
+      "sample": "twitch"
+    },
+    {
+      "key": "user.accountAge",
+      "descriptionKey": "template.helper.user_account_age",
+      "sample": "less than a day"
+    },
+    {
+      "key": "user.followAge",
+      "descriptionKey": "template.helper.user_follow_age",
+      "sample": "1 year"
+    },
+    {
+      "key": "user.pronouns",
+      "descriptionKey": "template.helper.user_pronouns",
+      "sample": "they/them"
+    },
+    {
+      "key": "user.messageCount",
+      "descriptionKey": "template.helper.user_message_count",
+      "sample": "250"
+    },
+    {
+      "key": "user.lastmessage",
+      "descriptionKey": "template.helper.user_lastmessage",
+      "sample": "see you tomorrow"
+    },
+    {
+      "key": "user.link",
+      "descriptionKey": "template.helper.user_link",
+      "sample": "twitch.tv/crumb_tv"
+    },
+    {
+      "key": "viewer.messages",
+      "descriptionKey": "template.helper.viewer_messages",
+      "sample": "250"
+    },
+    {
+      "key": "viewer.watchtime",
+      "descriptionKey": "template.helper.viewer_watchtime",
+      "sample": "12h"
+    },
+    {
+      "key": "viewer.firstseen",
+      "descriptionKey": "template.helper.viewer_firstseen",
+      "sample": "2025-03-01"
+    },
+    {
+      "key": "viewer.redemptions",
+      "descriptionKey": "template.helper.viewer_redemptions",
+      "sample": "8"
+    },
+    {
+      "key": "viewer.songrequests",
+      "descriptionKey": "template.helper.viewer_songrequests",
+      "sample": "3"
+    },
+    {
+      "key": "viewer.commands",
+      "descriptionKey": "template.helper.viewer_commands",
+      "sample": "40"
+    },
+    {
+      "key": "viewer.days",
+      "descriptionKey": "template.helper.viewer_days",
+      "sample": "30"
+    },
+    {
+      "key": "viewer.avgperday",
+      "descriptionKey": "template.helper.viewer_avgperday",
+      "sample": "8"
+    },
+    {
+      "key": "viewer.botpercent",
+      "descriptionKey": "template.helper.viewer_botpercent",
+      "sample": "5"
+    },
+    {
+      "key": "viewer.data.<key>",
+      "descriptionKey": "template.helper.viewer_data",
+      "sample": "Blue"
+    },
+    {
+      "key": "target",
+      "descriptionKey": "template.helper.target",
+      "sample": "example_viewer"
+    },
+    {
+      "key": "target.name",
+      "descriptionKey": "template.helper.target_name",
+      "sample": "example_viewer"
+    },
+    {
+      "key": "target.displayname",
+      "descriptionKey": "template.helper.target_displayname",
+      "sample": "Example_Viewer"
+    },
+    {
+      "key": "target.known",
+      "descriptionKey": "template.helper.target_known",
+      "sample": "true"
+    },
+    {
+      "key": "target.id",
+      "descriptionKey": "template.helper.target_id",
+      "sample": "123456789"
+    },
+    {
+      "key": "target.followAge",
+      "descriptionKey": "template.helper.target_follow_age",
+      "sample": "1 year"
+    },
+    {
+      "key": "target.lastmessage",
+      "descriptionKey": "template.helper.target_lastmessage",
+      "sample": "see you tomorrow"
+    },
+    {
+      "key": "target.lastmessage.full",
+      "descriptionKey": "template.helper.target_lastmessage_full",
+      "sample": "example_viewer: see you tomorrow"
+    },
+    {
+      "key": "target.randommessage",
+      "descriptionKey": "template.helper.target_randommessage",
+      "sample": "nice play"
+    },
+    {
+      "key": "target.link",
+      "descriptionKey": "template.helper.target_link",
+      "sample": "https://twitch.tv/example_viewer"
+    },
+    {
+      "key": "target.messages",
+      "descriptionKey": "template.helper.target_messages",
+      "sample": "250"
+    },
+    {
+      "key": "target.watchtime",
+      "descriptionKey": "template.helper.target_watchtime",
+      "sample": "12h"
+    },
+    {
+      "key": "target.firstseen",
+      "descriptionKey": "template.helper.target_firstseen",
+      "sample": "2025-03-01"
+    },
+    {
+      "key": "target.redemptions",
+      "descriptionKey": "template.helper.target_redemptions",
+      "sample": "8"
+    },
+    {
+      "key": "target.songrequests",
+      "descriptionKey": "template.helper.target_songrequests",
+      "sample": "3"
+    },
+    {
+      "key": "target.commands",
+      "descriptionKey": "template.helper.target_commands",
+      "sample": "40"
+    },
+    {
+      "key": "target.days",
+      "descriptionKey": "template.helper.target_days",
+      "sample": "30"
+    },
+    {
+      "key": "target.avgperday",
+      "descriptionKey": "template.helper.target_avgperday",
+      "sample": "8"
+    },
+    {
+      "key": "target.botpercent",
+      "descriptionKey": "template.helper.target_botpercent",
+      "sample": "5"
+    },
+    {
+      "key": "target.data.<key>",
+      "descriptionKey": "template.helper.target_data",
+      "sample": "Blue"
+    },
+    {
+      "key": "name",
+      "descriptionKey": "template.helper.name",
+      "sample": "crumb_tv"
+    },
+    {
+      "key": "link",
+      "descriptionKey": "template.helper.link",
+      "sample": "twitch.tv/crumb_tv"
+    },
+    {
+      "key": "subject",
+      "descriptionKey": "template.helper.subject",
+      "sample": "they"
+    },
+    {
+      "key": "object",
+      "descriptionKey": "template.helper.object",
+      "sample": "them"
+    },
+    {
+      "key": "possessive",
+      "descriptionKey": "template.helper.possessive",
+      "sample": "their"
+    },
+    {
+      "key": "presentTense",
+      "descriptionKey": "template.helper.present_tense",
+      "sample": "are"
+    },
+    {
+      "key": "genderedTerm",
+      "descriptionKey": "template.helper.gendered_term",
+      "sample": "person"
+    },
+    {
+      "key": "user.subject",
+      "descriptionKey": "template.helper.user_subject",
+      "sample": "they"
+    },
+    {
+      "key": "user.object",
+      "descriptionKey": "template.helper.user_object",
+      "sample": "them"
+    },
+    {
+      "key": "user.possessive",
+      "descriptionKey": "template.helper.user_possessive",
+      "sample": "their"
+    },
+    {
+      "key": "user.presentTense",
+      "descriptionKey": "template.helper.user_present_tense",
+      "sample": "are"
+    },
+    {
+      "key": "user.genderedTerm",
+      "descriptionKey": "template.helper.user_gendered_term",
+      "sample": "person"
+    },
+    {
+      "key": "user.tense",
+      "descriptionKey": "template.helper.user_tense",
+      "sample": "are"
+    },
+    {
+      "key": "target.subject",
+      "descriptionKey": "template.helper.target_subject",
+      "sample": "they"
+    },
+    {
+      "key": "target.object",
+      "descriptionKey": "template.helper.target_object",
+      "sample": "them"
+    },
+    {
+      "key": "target.possessive",
+      "descriptionKey": "template.helper.target_possessive",
+      "sample": "their"
+    },
+    {
+      "key": "target.presentTense",
+      "descriptionKey": "template.helper.target_present_tense",
+      "sample": "are"
+    },
+    {
+      "key": "target.genderedTerm",
+      "descriptionKey": "template.helper.target_gendered_term",
+      "sample": "person"
+    },
+    {
+      "key": "target.tense",
+      "descriptionKey": "template.helper.target_tense",
+      "sample": "are"
+    },
+    {
+      "key": "verb:<sing|plur>",
+      "descriptionKey": "template.helper.verb",
+      "sample": "plays"
+    },
+    {
+      "key": "user.verb:<sing|plur>",
+      "descriptionKey": "template.helper.user_verb",
+      "sample": "plays"
+    },
+    {
+      "key": "target.verb:<sing|plur>",
+      "descriptionKey": "template.helper.target_verb",
+      "sample": "plays"
+    }
+  ],
+  "args": []
+}

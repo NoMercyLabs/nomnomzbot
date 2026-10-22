@@ -1,0 +1,19 @@
+{
+  "status": "ok",
+  "data": {
+    "id": "00000000000000000000000000",
+    "broadcasterId": "sample-channel",
+    "currencyName": "points",
+    "currencyNamePlural": "points",
+    "isEnabled": false,
+    "startingBalance": 0,
+    "decimalPlaces": 0,
+    "createdAt": {
+      "$ago": 0
+    },
+    "updatedAt": {
+      "$ago": 0
+    }
+  },
+  "args": []
+}

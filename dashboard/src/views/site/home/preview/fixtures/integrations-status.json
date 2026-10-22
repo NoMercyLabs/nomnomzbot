@@ -1,0 +1,78 @@
+{
+  "status": "ok",
+  "data": [
+    {
+      "provider": "spotify",
+      "connected": false,
+      "grantedScopeSets": [],
+      "capabilities": {},
+      "needsReauth": false,
+      "loginOnly": false,
+      "decryptFailed": false
+    },
+    {
+      "provider": "youtube",
+      "connected": false,
+      "grantedScopeSets": [],
+      "capabilities": {},
+      "needsReauth": false,
+      "loginOnly": false,
+      "decryptFailed": false
+    },
+    {
+      "provider": "kick",
+      "connected": false,
+      "grantedScopeSets": [],
+      "capabilities": {},
+      "needsReauth": false,
+      "loginOnly": false,
+      "decryptFailed": false
+    },
+    {
+      "provider": "kick_bot",
+      "connected": false,
+      "grantedScopeSets": [],
+      "capabilities": {},
+      "needsReauth": false,
+      "loginOnly": false,
+      "decryptFailed": false
+    },
+    {
+      "provider": "patreon",
+      "connected": false,
+      "grantedScopeSets": [],
+      "capabilities": {},
+      "needsReauth": false,
+      "loginOnly": false,
+      "decryptFailed": false
+    },
+    {
+      "provider": "shopify",
+      "connected": false,
+      "grantedScopeSets": [],
+      "capabilities": {},
+      "needsReauth": false,
+      "loginOnly": false,
+      "decryptFailed": false
+    },
+    {
+      "provider": "treatstream",
+      "connected": false,
+      "grantedScopeSets": [],
+      "capabilities": {},
+      "needsReauth": false,
+      "loginOnly": false,
+      "decryptFailed": false
+    },
+    {
+      "provider": "discord",
+      "connected": false,
+      "grantedScopeSets": [],
+      "capabilities": {},
+      "needsReauth": false,
+      "loginOnly": false,
+      "decryptFailed": false
+    }
+  ],
+  "args": []
+}

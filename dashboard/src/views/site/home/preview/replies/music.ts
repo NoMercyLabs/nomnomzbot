@@ -11,7 +11,8 @@
 import { merge } from '@/lib/array';
 
 import type { FakeReply } from '../fakeApi';
-import { channelPath, get, one, minutesAgo } from './shape';
+import musicConfig from '../fixtures/music-config.json';
+import { channelPath, fixture, get, one, minutesAgo } from './shape';
 
 const music = `${channelPath}/music`;
 const minute = 60_000;
@@ -90,24 +91,8 @@ const nowPlaying = {
   state: 'playing',
 };
 
-const config = {
-  isEnabled: true,
-  preferredProvider: 'spotify',
-  maxQueueSize: 30,
-  maxRequestsPerUser: 3,
-  allowYouTube: true,
-  allowSpotify: true,
-  minTrustLevel: 'everyone',
-  bangerPlaylistId: null,
-  bangerPlaylistProvider: null,
-  bangerAutoCreate: false,
-  maxRequestsPerRole: null,
-  requestsOpen: true,
-  maxSongSeconds: 480,
-  allowExplicit: false,
-  perStreamLimit: 10,
-  youTubeMusicCategoryOnly: false,
-};
+// The request settings of a fresh install, as the server sends them: its own defaults.
+const config = fixture(musicConfig);
 
 const buttons = [
   {
@@ -157,8 +142,8 @@ export const musicReplies: FakeReply[] = [
     requestsOpen: true,
     blockedReason: null,
   })),
-  get(`${music}/config`, one(config)),
-  get(`${music}/config/defaults`, one(config)),
+  get(`${music}/config`, config),
+  get(`${music}/config/defaults`, config),
   get(`${music}/blocked-tracks`, one([])),
   get(`${music}/player-buttons`, one(buttons)),
   get(`${music}/history`, one(history)),

@@ -8,128 +8,112 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { FakeReply } from '../fakeApi';
-import { channelPath, get, list, minutesAgo, one } from './shape';
+import { lookup, merge } from '@/lib/array';
 
-type SampleCommand = {
+import type { FakeReply } from '../fakeApi';
+import builtins from '../fixtures/builtins.json';
+import commandPresets from '../fixtures/command-presets.json';
+import commandsCapture from '../fixtures/commands.json';
+import helpersCommand from '../fixtures/helpers-command.json';
+import helpersEvent from '../fixtures/helpers-event.json';
+import helpersTimer from '../fixtures/helpers-timer.json';
+import { channelPath, fixture, get, list, minutesAgo } from './shape';
+
+type CustomCommand = {
   name: string;
-  tier: 'template' | 'pipeline';
+  description: string;
   response: string;
   uses: number;
-  level?: string;
-  cooldown?: number;
-  aliases?: string[];
+  cooldown: number;
 };
 
-// Replies that show template variables, so the list reads as what the bot really fills in.
-const commands: SampleCommand[] = [
+// What a streamer adds on top of a fresh install. A fresh install holds none, so these are sample commands: their
+// names are free (no built-in or preset uses them) and their replies use only helpers the server lists.
+export const sampleCustomCommands = [
   {
-    name: 'uptime',
-    tier: 'template',
-    response: '{channel} has been live for {stream.uptime}.',
-    uses: 311,
-    aliases: ['up'],
-  },
-  {
-    name: 'socials',
-    tier: 'template',
-    response: 'Hey {user.name}, follow on X and Kick: the links are in the panel.',
-    uses: 187,
-  },
-  {
-    name: 'so',
-    tier: 'pipeline',
-    response: '',
-    uses: 96,
-    level: 'moderator',
-  },
-  {
-    name: 'hug',
-    tier: 'template',
-    response: '{user.name} hugs {args.1}. That is hug number {count.hugs}.',
-    uses: 842,
+    name: 'welcome',
+    description: 'Greet a viewer and say what is on.',
+    response: 'Welcome in, {user.name}! {channel} is playing {stream.game}.',
+    uses: 146,
     cooldown: 10,
   },
   {
-    name: 'followage',
-    tier: 'template',
-    response: '{user.name} has followed {channel} for {user.followAge}.',
-    uses: 402,
+    name: 'title',
+    description: 'Say what the stream is about.',
+    response: '{channel} is live: {stream.title}',
+    uses: 88,
+    cooldown: 30,
   },
-];
+  {
+    name: 'luck',
+    description: 'Roll a number for a viewer.',
+    response: '{user.name} rolled {random.number.100} out of 100.',
+    uses: 311,
+    cooldown: 5,
+  },
+] as const satisfies readonly CustomCommand[];
 
-function row(command: SampleCommand, index: number) {
-  return {
-    id: `sample-command-${index}`,
-    name: command.name,
-    tier: command.tier,
-    minPermissionLevel: command.level ?? 'everyone',
-    isEnabled: true,
-    prefixMode: 'default',
-    customPrefix: null,
-    matchMode: 'exact',
-    matchPattern: null,
-    cooldownSeconds: command.cooldown ?? 5,
-    userCooldownSeconds: 0,
-    description: null,
-    aliases: command.aliases ?? [],
-    useCount: command.uses,
-    createdAt: minutesAgo(60 * 24 * (20 + index)),
-    templateResponse: command.response === ''
-      ? null
-      : command.response,
-    templateResponses: null,
-    pipelineId: null,
-    presetKey: null,
-    speakWithTts: false,
-  };
+// The uses of the commands a fresh install seeds are zero; the sample shows a channel that has used them for weeks.
+const sampleUses = {
+  hug: 842,
+  slap: 205,
+  '8ball': 64,
+  ping: 31,
+  rps: 120,
+  compliment: 52,
+  raid: 9,
+} as const satisfies Record<string, number>;
+
+function usesOf(name: string): number {
+  return lookup(sampleUses, name) ?? 0;
 }
 
-const builtins = ['song', 'shoutout', 'quote', 'accountage', 'balance'].map((key) => ({
-  builtinKey: key,
-  name: key,
+const captured = fixture(commandsCapture);
+
+const seeded = captured.data.map((command) => ({
+  ...command,
+  useCount: usesOf(command.name),
+}));
+
+const custom = sampleCustomCommands.map((command, index) => ({
+  id: `sample-command-${index}`,
+  name: command.name,
+  tier: 'template',
+  minPermissionLevel: 'Everyone',
   isEnabled: true,
-  defaultCooldownSeconds: 5,
-  defaultUserCooldownSeconds: 0,
-  defaultMinPermissionLevel: 'everyone',
-  replyGroup: key,
+  prefixMode: 'Default',
+  matchMode: 'StartsWith',
+  cooldownSeconds: command.cooldown,
+  userCooldownSeconds: 0,
+  description: command.description,
+  aliases: [],
+  useCount: command.uses,
+  createdAt: minutesAgo(60 * 24 * (12 - index * 3)),
+  templateResponse: command.response,
+  templateResponses: [],
+  presetKey: null,
   speakWithTts: false,
-  isReserved: false,
-  isAlwaysOn: false,
-  replyOverrideCount: 0,
 }));
 
-const rows = commands.map(row);
+// Which of the server's three helper lists a page asks for.
+const helperLists = {
+  command: helpersCommand,
+  eventResponse: helpersEvent,
+  timer: helpersTimer,
+} as const;
 
-// The variables a reply may use, with the words the dashboard has for each and an example for the sample channel.
-const helperSource = [
-  ['channel', 'channel', 'crumb_tv'],
-  ['channel.display', 'channel_display', 'crumb_tv'],
-  ['streamer', 'streamer', 'crumb_tv'],
-  ['stream.title', 'stream_title', 'Ranked climb, day 9'],
-  ['stream.game', 'stream_game', 'Valorant'],
-  ['stream.uptime', 'stream_uptime', '2h 14m'],
-  ['stream.viewers', 'stream_viewers', '1204'],
-  ['stream.isLive', 'stream_is_live', 'true'],
-  ['user', 'user', 'daisy_plays'],
-  ['user.name', 'user_name', 'daisy_plays'],
-  ['user.id', 'user_id', '1001'],
-  ['user.followAge', 'user_follow_age', '1 year, 2 months'],
-  ['args', 'args_all', 'crumb_tv'],
-  ['args.<n>', 'args', 'crumb_tv'],
-  ['count.<key>', 'count', '42'],
-  ['viewers', 'viewers', '214'],
-] as const satisfies readonly (readonly [string, string, string])[];
+function helpersFor(url: URL) {
+  const context = url.searchParams.get('context') ?? 'command';
 
-const helpers = helperSource.map(([key, words, sample]) => ({
-  key,
-  descriptionKey: `template.helper.${words}`,
-  sample,
-}));
+  return lookup(helperLists, context) ?? helpersCommand;
+}
+
+const allCommands = merge(seeded, custom);
 
 export const commandReplies: FakeReply[] = [
-  get(`${channelPath}/commands`, list(rows)),
-  get(`${channelPath}/builtins`, one(builtins)),
-  get(`${channelPath}/command-presets`, one([])),
-  get('/api/v1/templates/helpers', one(helpers)),
+  get(`${channelPath}/commands`, list(allCommands)),
+  get(`${channelPath}/builtins`, fixture(builtins)),
+  get(`${channelPath}/command-presets`, fixture(commandPresets)),
+  get('/api/v1/templates/helpers', (url) =>
+    helpersFor(url)),
 ];

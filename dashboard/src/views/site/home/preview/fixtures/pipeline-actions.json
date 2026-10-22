@@ -1,0 +1,3279 @@
+{
+  "status": "ok",
+  "data": {
+    "actions": [
+      {
+        "type": "require_tier",
+        "category": {
+          "key": "pipeline.category.billing"
+        },
+        "description": {
+          "key": "pipeline.require_tier.description"
+        },
+        "fields": [
+          {
+            "name": "min_tier",
+            "kind": "enum",
+            "required": true,
+            "repeatable": false,
+            "options": [
+              "free",
+              "base",
+              "pro",
+              "premium"
+            ],
+            "description": {
+              "key": "pipeline.require_tier.min_tier.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "denied_message",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.require_tier.denied_message.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "announce",
+        "category": {
+          "key": "pipeline.category.chat"
+        },
+        "description": {
+          "key": "pipeline.announce.description"
+        },
+        "fields": [
+          {
+            "name": "message",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.announce.message.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          },
+          {
+            "name": "color",
+            "kind": "enum",
+            "required": false,
+            "repeatable": false,
+            "options": [
+              "primary",
+              "purple",
+              "blue",
+              "green",
+              "orange"
+            ],
+            "description": {
+              "key": "pipeline.announce.color.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "send_message",
+        "category": {
+          "key": "pipeline.category.chat"
+        },
+        "description": {
+          "key": "pipeline.send_message.description"
+        },
+        "fields": [
+          {
+            "name": "message",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.send_message.message.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          },
+          {
+            "name": "sender",
+            "kind": "enum",
+            "required": false,
+            "repeatable": false,
+            "options": [
+              "bot",
+              "broadcaster"
+            ],
+            "description": {
+              "key": "pipeline.send_message.sender.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "send_reply",
+        "category": {
+          "key": "pipeline.category.chat"
+        },
+        "description": {
+          "key": "pipeline.send_reply.description"
+        },
+        "fields": [
+          {
+            "name": "message",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.send_reply.message.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "run_code",
+        "category": {
+          "key": "pipeline.category.code"
+        },
+        "description": {
+          "key": "pipeline.run_code.description"
+        },
+        "fields": [
+          {
+            "name": "code_script_id",
+            "kind": "script",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.run_code.code_script_id.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "adjust_counter",
+        "category": {
+          "key": "pipeline.category.counters"
+        },
+        "description": {
+          "key": "pipeline.adjust_counter.description"
+        },
+        "fields": [
+          {
+            "name": "key",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.adjust_counter.key.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "delta",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.adjust_counter.delta.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "set_counter",
+        "category": {
+          "key": "pipeline.category.counters"
+        },
+        "description": {
+          "key": "pipeline.set_counter.description"
+        },
+        "fields": [
+          {
+            "name": "key",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.set_counter.key.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "value",
+            "kind": "number",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.set_counter.value.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "send_discord_notification",
+        "category": {
+          "key": "pipeline.category.discord"
+        },
+        "description": {
+          "key": "pipeline.send_discord_notification.description"
+        },
+        "fields": [
+          {
+            "name": "trigger_type",
+            "kind": "enum",
+            "required": true,
+            "repeatable": false,
+            "options": [
+              "go_live",
+              "new_clip",
+              "schedule",
+              "milestone"
+            ],
+            "description": {
+              "key": "pipeline.send_discord_notification.trigger_type.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "dedupe_key",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.send_discord_notification.dedupe_key.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "check_balance",
+        "category": {
+          "key": "pipeline.category.economy"
+        },
+        "description": {
+          "key": "pipeline.check_balance.description"
+        },
+        "fields": [
+          {
+            "name": "set_var",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.check_balance.set_var.help"
+            },
+            "templated": false,
+            "declaresVariable": true,
+            "declaredVariableDefault": "balance"
+          },
+          {
+            "name": "min",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.check_balance.min.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "deduct_currency",
+        "category": {
+          "key": "pipeline.category.economy"
+        },
+        "description": {
+          "key": "pipeline.deduct_currency.description"
+        },
+        "fields": [
+          {
+            "name": "amount",
+            "kind": "number",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.deduct_currency.amount.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "reason",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.deduct_currency.reason.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "grant_currency",
+        "category": {
+          "key": "pipeline.category.economy"
+        },
+        "description": {
+          "key": "pipeline.grant_currency.description"
+        },
+        "fields": [
+          {
+            "name": "amount",
+            "kind": "number",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.grant_currency.amount.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "reason",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.grant_currency.reason.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "jar_contribute",
+        "category": {
+          "key": "pipeline.category.economy"
+        },
+        "description": {
+          "key": "pipeline.jar_contribute.description"
+        },
+        "fields": [
+          {
+            "name": "jar_id",
+            "kind": "resource_id",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.jar_contribute.jar_id.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "amount",
+            "kind": "number",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.jar_contribute.amount.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "play_game",
+        "category": {
+          "key": "pipeline.category.economy"
+        },
+        "description": {
+          "key": "pipeline.play_game.description"
+        },
+        "fields": [
+          {
+            "name": "game_type",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.play_game.game_type.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "bet",
+            "kind": "number",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.play_game.bet.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "break",
+        "category": {
+          "key": "pipeline.category.flow"
+        },
+        "description": {
+          "key": "pipeline.break.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "continue",
+        "category": {
+          "key": "pipeline.category.flow"
+        },
+        "description": {
+          "key": "pipeline.continue.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "return_value",
+        "category": {
+          "key": "pipeline.category.flow"
+        },
+        "description": {
+          "key": "pipeline.return_value.description"
+        },
+        "fields": [
+          {
+            "name": "value",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.return_value.value.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "run_pipeline",
+        "category": {
+          "key": "pipeline.category.flow"
+        },
+        "description": {
+          "key": "pipeline.run_pipeline.description"
+        },
+        "fields": [
+          {
+            "name": "pipeline",
+            "kind": "resource_id",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.run_pipeline.pipeline.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "mode",
+            "kind": "enum",
+            "required": false,
+            "repeatable": false,
+            "options": [
+              "inline",
+              "detached"
+            ],
+            "description": {
+              "key": "pipeline.run_pipeline.mode.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "args",
+            "kind": "text",
+            "required": false,
+            "repeatable": true,
+            "description": {
+              "key": "pipeline.run_pipeline.args.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          },
+          {
+            "name": "named_args",
+            "kind": "key_value_map",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.run_pipeline.named_args.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          },
+          {
+            "name": "wait",
+            "kind": "boolean",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.run_pipeline.wait.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "schedule_pipeline",
+        "category": {
+          "key": "pipeline.category.flow"
+        },
+        "description": {
+          "key": "pipeline.schedule_pipeline.description"
+        },
+        "fields": [
+          {
+            "name": "pipeline",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.schedule_pipeline.pipeline.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "command",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.schedule_pipeline.command.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "action_type",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.schedule_pipeline.action_type.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "action_params",
+            "kind": "key_value_map",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.schedule_pipeline.action_params.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "delay_seconds",
+            "kind": "number",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.schedule_pipeline.delay_seconds.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "dedupe_key",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.schedule_pipeline.dedupe_key.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "set_variable",
+        "category": {
+          "key": "pipeline.category.flow"
+        },
+        "description": {
+          "key": "pipeline.set_variable.description"
+        },
+        "fields": [
+          {
+            "name": "name",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.set_variable.name.help"
+            },
+            "templated": false,
+            "declaresVariable": true
+          },
+          {
+            "name": "value",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.set_variable.value.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "stop",
+        "category": {
+          "key": "pipeline.category.flow"
+        },
+        "description": {
+          "key": "pipeline.stop.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "wait",
+        "category": {
+          "key": "pipeline.category.flow"
+        },
+        "description": {
+          "key": "pipeline.wait.description"
+        },
+        "fields": [
+          {
+            "name": "milliseconds",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.wait.milliseconds.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          },
+          {
+            "name": "seconds",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.wait.seconds.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "wait_for_event",
+        "category": {
+          "key": "pipeline.category.flow"
+        },
+        "description": {
+          "key": "pipeline.wait_for_event.description"
+        },
+        "fields": [
+          {
+            "name": "event_name",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.wait_for_event.event_name.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          },
+          {
+            "name": "timeout_seconds",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.wait_for_event.timeout_seconds.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "cancel_live_game",
+        "category": {
+          "key": "pipeline.category.games"
+        },
+        "description": {
+          "key": "pipeline.cancel_live_game.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "start_live_game",
+        "category": {
+          "key": "pipeline.category.games"
+        },
+        "description": {
+          "key": "pipeline.start_live_game.description"
+        },
+        "fields": [
+          {
+            "name": "game_type",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.start_live_game.game_type.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "draw_giveaway",
+        "category": {
+          "key": "pipeline.category.giveaways"
+        },
+        "description": {
+          "key": "pipeline.draw_giveaway.description"
+        },
+        "fields": [
+          {
+            "name": "giveaway_id",
+            "kind": "resource_id",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.draw_giveaway.giveaway_id.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "enter_giveaway",
+        "category": {
+          "key": "pipeline.category.giveaways"
+        },
+        "description": {
+          "key": "pipeline.enter_giveaway.description"
+        },
+        "fields": [
+          {
+            "name": "giveaway_id",
+            "kind": "resource_id",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.enter_giveaway.giveaway_id.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "open_giveaway",
+        "category": {
+          "key": "pipeline.category.giveaways"
+        },
+        "description": {
+          "key": "pipeline.open_giveaway.description"
+        },
+        "fields": [
+          {
+            "name": "giveaway_id",
+            "kind": "resource_id",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.open_giveaway.giveaway_id.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "permit",
+        "category": {
+          "key": "pipeline.category.identity"
+        },
+        "description": {
+          "key": "pipeline.permit.description"
+        },
+        "fields": [
+          {
+            "name": "target_variable",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.permit.target_variable.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "role_or_capability",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.permit.role_or_capability.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "duration_minutes",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.permit.duration_minutes.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "set_pronoun",
+        "category": {
+          "key": "pipeline.category.identity"
+        },
+        "description": {
+          "key": "pipeline.set_pronoun.description"
+        },
+        "fields": [
+          {
+            "name": "username",
+            "kind": "twitch_user",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.set_pronoun.username.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "pronoun",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.set_pronoun.pronoun.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "unpermit",
+        "category": {
+          "key": "pipeline.category.identity"
+        },
+        "description": {
+          "key": "pipeline.unpermit.description"
+        },
+        "fields": [
+          {
+            "name": "target_variable",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.unpermit.target_variable.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "role_or_capability",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.unpermit.role_or_capability.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "media_playback",
+        "category": {
+          "key": "pipeline.category.media"
+        },
+        "description": {
+          "key": "pipeline.media_playback.description"
+        },
+        "fields": [
+          {
+            "name": "command",
+            "kind": "enum",
+            "required": true,
+            "repeatable": false,
+            "options": [
+              "play",
+              "pause",
+              "stop",
+              "skip",
+              "seek",
+              "volume",
+              "replay",
+              "play_now"
+            ],
+            "description": {
+              "key": "pipeline.media_playback.command.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "value",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.media_playback.value.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "submit_media",
+        "category": {
+          "key": "pipeline.category.media"
+        },
+        "description": {
+          "key": "pipeline.submit_media.description"
+        },
+        "fields": [
+          {
+            "name": "url",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.submit_media.url.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "ban",
+        "category": {
+          "key": "pipeline.category.moderation"
+        },
+        "description": {
+          "key": "pipeline.ban.description"
+        },
+        "fields": [
+          {
+            "name": "user_id",
+            "kind": "twitch_user",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.ban.user_id.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "reason",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.ban.reason.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "delete_message",
+        "category": {
+          "key": "pipeline.category.moderation"
+        },
+        "description": {
+          "key": "pipeline.delete_message.description"
+        },
+        "fields": [
+          {
+            "name": "message_id",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.delete_message.message_id.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "timeout",
+        "category": {
+          "key": "pipeline.category.moderation"
+        },
+        "description": {
+          "key": "pipeline.timeout.description"
+        },
+        "fields": [
+          {
+            "name": "user_id",
+            "kind": "twitch_user",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.timeout.user_id.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "duration",
+            "kind": "number",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.timeout.duration.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "reason",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.timeout.reason.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "music_add_to_playlist",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_add_to_playlist.description"
+        },
+        "fields": [
+          {
+            "name": "playlistId",
+            "kind": "music_playlist",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.music_add_to_playlist.playlistId.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "provider",
+            "kind": "enum",
+            "required": false,
+            "repeatable": false,
+            "options": [
+              "spotify",
+              "youtube"
+            ],
+            "description": {
+              "key": "pipeline.music_playlist.provider.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "music_cycle_repeat",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_cycle_repeat.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "music_follow_artist",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_follow_artist.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "music_next",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_next.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "music_pause",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_pause.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "music_play",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_play.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "music_play_pause",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_play_pause.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "music_previous",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_previous.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "music_remove_from_playlist",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_remove_from_playlist.description"
+        },
+        "fields": [
+          {
+            "name": "playlistId",
+            "kind": "music_playlist",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.music_remove_from_playlist.playlistId.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "provider",
+            "kind": "enum",
+            "required": false,
+            "repeatable": false,
+            "options": [
+              "spotify",
+              "youtube"
+            ],
+            "description": {
+              "key": "pipeline.music_playlist.provider.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "music_save_track",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_save_track.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "music_seek",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_seek.description"
+        },
+        "fields": [
+          {
+            "name": "positionSeconds",
+            "kind": "number",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.music_seek.positionSeconds.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "music_set_repeat",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_set_repeat.description"
+        },
+        "fields": [
+          {
+            "name": "mode",
+            "kind": "enum",
+            "required": true,
+            "repeatable": false,
+            "options": [
+              "off",
+              "track",
+              "context"
+            ],
+            "description": {
+              "key": "pipeline.music_set_repeat.mode.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "music_set_shuffle",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_set_shuffle.description"
+        },
+        "fields": [
+          {
+            "name": "enabled",
+            "kind": "boolean",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.music_set_shuffle.enabled.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "music_set_volume",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_set_volume.description"
+        },
+        "fields": [
+          {
+            "name": "volume",
+            "kind": "number",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.music_set_volume.volume.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "music_toggle_saved",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_toggle_saved.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "music_toggle_shuffle",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_toggle_shuffle.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "music_transfer_device",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_transfer_device.description"
+        },
+        "fields": [
+          {
+            "name": "deviceId",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.music_transfer_device.deviceId.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "music_unfollow_artist",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_unfollow_artist.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "music_unsave_track",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_unsave_track.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "music_volume_down",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_volume_down.description"
+        },
+        "fields": [
+          {
+            "name": "step",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.music_volume_down.step.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "music_volume_mute",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_volume_mute.description"
+        },
+        "fields": [
+          {
+            "name": "unmuteVolume",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.music_volume_mute.unmuteVolume.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "music_volume_up",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.music_volume_up.description"
+        },
+        "fields": [
+          {
+            "name": "step",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.music_volume_up.step.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "playlist_add",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.playlist_add.description"
+        },
+        "fields": [
+          {
+            "name": "playlist_id",
+            "kind": "music_playlist",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.playlist_add.playlist_id.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "provider",
+            "kind": "enum",
+            "required": false,
+            "repeatable": false,
+            "options": [
+              "spotify",
+              "youtube"
+            ],
+            "description": {
+              "key": "pipeline.music_playlist.provider.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "track_uri",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.playlist_add.track_uri.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          },
+          {
+            "name": "message",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.playlist_add.message.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          },
+          {
+            "name": "already_message",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.playlist_add.already_message.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "play_track_once",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.play_track_once.description"
+        },
+        "fields": [
+          {
+            "name": "track_uri",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.play_track_once.track_uri.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "song_ban",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.song_ban.description"
+        },
+        "fields": [
+          {
+            "name": "reason",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.song_ban.reason.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "song_current",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.song_current.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "song_pause",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.song_pause.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "song_previous",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.song_previous.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "song_queue",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.song_queue.description"
+        },
+        "fields": [
+          {
+            "name": "max",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.song_queue.max.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "song_request",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.song_request.description"
+        },
+        "fields": [
+          {
+            "name": "query",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.song_request.query.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "song_request_favorite",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.song_request_favorite.description"
+        },
+        "fields": [
+          {
+            "name": "user_id",
+            "kind": "twitch_user",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.song_request_favorite.user_id.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "song_resume",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.song_resume.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "song_skip",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.song_skip.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "song_volume",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.song_volume.description"
+        },
+        "fields": [
+          {
+            "name": "volume",
+            "kind": "number",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.song_volume.volume.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "song_wrong",
+        "category": {
+          "key": "pipeline.category.music"
+        },
+        "description": {
+          "key": "pipeline.song_wrong.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "obs_call_vendor",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_call_vendor.description"
+        },
+        "fields": [
+          {
+            "name": "vendor",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_call_vendor.vendor.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "request_type",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_call_vendor.request_type.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "request_data",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_call_vendor.request_data.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "obs_filter",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_filter.description"
+        },
+        "fields": [
+          {
+            "name": "source",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_filter.source.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "filter",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_filter.filter.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "enabled",
+            "kind": "boolean",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_filter.enabled.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "obs_hotkey",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_hotkey.description"
+        },
+        "fields": [
+          {
+            "name": "hotkey_name",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_hotkey.hotkey_name.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "obs_input_mute",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_input_mute.description"
+        },
+        "fields": [
+          {
+            "name": "input",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_input_mute.input.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "muted",
+            "kind": "boolean",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_input_mute.muted.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "toggle",
+            "kind": "boolean",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_input_mute.toggle.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "obs_input_volume",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_input_volume.description"
+        },
+        "fields": [
+          {
+            "name": "input",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_input_volume.input.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "volume_db",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_input_volume.volume_db.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "volume_mul",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_input_volume.volume_mul.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "obs_media",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_media.description"
+        },
+        "fields": [
+          {
+            "name": "input",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_media.input.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "action",
+            "kind": "enum",
+            "required": false,
+            "repeatable": false,
+            "options": [
+              "play",
+              "pause",
+              "stop",
+              "restart",
+              "next",
+              "previous"
+            ],
+            "description": {
+              "key": "pipeline.obs_media.action_verb.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "obs_recording",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_recording.description"
+        },
+        "fields": [
+          {
+            "name": "action",
+            "kind": "enum",
+            "required": false,
+            "repeatable": false,
+            "options": [
+              "start",
+              "stop",
+              "toggle",
+              "pause",
+              "resume",
+              "split"
+            ],
+            "description": {
+              "key": "pipeline.obs_recording.action_verb.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "obs_refresh_browser",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_refresh_browser.description"
+        },
+        "fields": [
+          {
+            "name": "input",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_refresh_browser.input.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "obs_replay_buffer",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_replay_buffer.description"
+        },
+        "fields": [
+          {
+            "name": "action",
+            "kind": "enum",
+            "required": false,
+            "repeatable": false,
+            "options": [
+              "start",
+              "stop",
+              "toggle"
+            ],
+            "description": {
+              "key": "pipeline.obs_replay_buffer.action_verb.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "obs_request",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_request.description"
+        },
+        "fields": [
+          {
+            "name": "request_type",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_request.request_type.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "request_data",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_request.request_data.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "obs_request_batch",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_request_batch.description"
+        },
+        "fields": [
+          {
+            "name": "requests",
+            "kind": "text",
+            "required": true,
+            "repeatable": true,
+            "description": {
+              "key": "pipeline.obs_request_batch.requests.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          },
+          {
+            "name": "execution",
+            "kind": "enum",
+            "required": false,
+            "repeatable": false,
+            "options": [
+              "realtime",
+              "frame",
+              "parallel"
+            ],
+            "description": {
+              "key": "pipeline.obs_request_batch.execution.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "halt_on_failure",
+            "kind": "boolean",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_request_batch.halt_on_failure.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "obs_save_replay",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_save_replay.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "obs_screenshot",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_screenshot.description"
+        },
+        "fields": [
+          {
+            "name": "source",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_screenshot.source.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "format",
+            "kind": "enum",
+            "required": false,
+            "repeatable": false,
+            "options": [
+              "png",
+              "jpg",
+              "jpeg"
+            ],
+            "description": {
+              "key": "pipeline.obs_screenshot.format.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "obs_set_preview_scene",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_set_preview_scene.description"
+        },
+        "fields": [
+          {
+            "name": "scene",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_set_preview_scene.scene.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "obs_set_source",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_set_source.description"
+        },
+        "fields": [
+          {
+            "name": "scene",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_set_source.scene.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "source",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_set_source.source.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "visible",
+            "kind": "boolean",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_set_source.visible.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "obs_streaming",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_streaming.description"
+        },
+        "fields": [
+          {
+            "name": "action",
+            "kind": "enum",
+            "required": false,
+            "repeatable": false,
+            "options": [
+              "start",
+              "stop",
+              "toggle"
+            ],
+            "description": {
+              "key": "pipeline.obs_streaming.action_verb.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "obs_switch_scene",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_switch_scene.description"
+        },
+        "fields": [
+          {
+            "name": "scene",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_switch_scene.scene.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "obs_transition",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_transition.description"
+        },
+        "fields": [
+          {
+            "name": "transition",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_transition.transition.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "studio",
+            "kind": "boolean",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_transition.studio.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "duration_ms",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.obs_transition.duration_ms.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "obs_virtual_cam",
+        "category": {
+          "key": "pipeline.category.obs"
+        },
+        "description": {
+          "key": "pipeline.obs_virtual_cam.description"
+        },
+        "fields": [
+          {
+            "name": "action",
+            "kind": "enum",
+            "required": false,
+            "repeatable": false,
+            "options": [
+              "start",
+              "stop",
+              "toggle"
+            ],
+            "description": {
+              "key": "pipeline.obs_virtual_cam.action_verb.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "pick_from_list",
+        "category": {
+          "key": "pipeline.category.pick_lists"
+        },
+        "description": {
+          "key": "pipeline.pick_from_list.description"
+        },
+        "fields": [
+          {
+            "name": "list",
+            "kind": "pick_list",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.pick_from_list.list.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "variable",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.pick_from_list.variable.help"
+            },
+            "templated": false,
+            "declaresVariable": true,
+            "declaredVariableDefault": "pick"
+          }
+        ]
+      },
+      {
+        "type": "post_quote",
+        "category": {
+          "key": "pipeline.category.quotes"
+        },
+        "description": {
+          "key": "pipeline.post_quote.description"
+        },
+        "fields": [
+          {
+            "name": "number",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.post_quote.number.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "redemption_fulfill",
+        "category": {
+          "key": "pipeline.category.rewards"
+        },
+        "description": {
+          "key": "pipeline.redemption_fulfill.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "redemption_refund",
+        "category": {
+          "key": "pipeline.category.rewards"
+        },
+        "description": {
+          "key": "pipeline.redemption_refund.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "play_sound",
+        "category": {
+          "key": "pipeline.category.sound"
+        },
+        "description": {
+          "key": "pipeline.play_sound.description"
+        },
+        "fields": [
+          {
+            "name": "clip",
+            "kind": "sound_clip",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.play_sound.clip.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "volume",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.play_sound.volume.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "wait_for_finish",
+            "kind": "boolean",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.play_sound.wait_for_finish.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "synced",
+            "kind": "boolean",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.play_sound.synced.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "handle",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.play_sound.handle.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "stop_sound",
+        "category": {
+          "key": "pipeline.category.sound"
+        },
+        "description": {
+          "key": "pipeline.stop_sound.description"
+        },
+        "fields": [
+          {
+            "name": "handle",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.stop_sound.handle.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "all",
+            "kind": "boolean",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.stop_sound.all.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "shoutout",
+        "category": {
+          "key": "pipeline.category.stream"
+        },
+        "description": {
+          "key": "pipeline.shoutout.description"
+        },
+        "fields": [
+          {
+            "name": "user_id",
+            "kind": "twitch_user",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.shoutout.user_id.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "cooldown_minutes",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.shoutout.cooldown_minutes.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "global_cooldown_minutes",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.shoutout.global_cooldown_minutes.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "tts",
+            "kind": "boolean",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.shoutout.tts.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "priority",
+            "kind": "boolean",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.shoutout.priority.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "template",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.shoutout.template.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "start_raid",
+        "category": {
+          "key": "pipeline.category.stream"
+        },
+        "description": {
+          "key": "pipeline.start_raid.description"
+        },
+        "fields": [
+          {
+            "name": "target",
+            "kind": "twitch_user",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.start_raid.target.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "delay_seconds",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.start_raid.delay_seconds.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "raid_window_seconds",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.start_raid.raid_window_seconds.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "wait_until_raid_fires",
+        "category": {
+          "key": "pipeline.category.stream"
+        },
+        "description": {
+          "key": "pipeline.wait_until_raid_fires.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "play_tts",
+        "category": {
+          "key": "pipeline.category.tts"
+        },
+        "description": {
+          "key": "pipeline.play_tts.description"
+        },
+        "fields": [
+          {
+            "name": "text",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.play_tts.text.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          },
+          {
+            "name": "segments",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.play_tts.segments.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          },
+          {
+            "name": "voice",
+            "kind": "voice",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.play_tts.voice.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          },
+          {
+            "name": "as",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.play_tts.as.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          },
+          {
+            "name": "rate",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.play_tts.rate.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "tts_synthesize",
+        "category": {
+          "key": "pipeline.category.tts"
+        },
+        "description": {
+          "key": "pipeline.tts_synthesize.description"
+        },
+        "fields": [
+          {
+            "name": "text",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.tts_synthesize.text.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          },
+          {
+            "name": "voice",
+            "kind": "voice",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.tts_synthesize.voice.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          },
+          {
+            "name": "rate",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.tts_synthesize.rate.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "pitch",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.tts_synthesize.pitch.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "play_on_audio",
+            "kind": "boolean",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.tts_synthesize.play_on_audio.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "adjust_viewer_data",
+        "category": {
+          "key": "pipeline.category.viewer_data"
+        },
+        "description": {
+          "key": "pipeline.adjust_viewer_data.description"
+        },
+        "fields": [
+          {
+            "name": "key",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.adjust_viewer_data.key.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "delta",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.adjust_viewer_data.delta.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "target",
+            "kind": "twitch_user",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.adjust_viewer_data.target.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "clear_viewer_data",
+        "category": {
+          "key": "pipeline.category.viewer_data"
+        },
+        "description": {
+          "key": "pipeline.clear_viewer_data.description"
+        },
+        "fields": [
+          {
+            "name": "key",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.clear_viewer_data.key.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "set_viewer_data",
+        "category": {
+          "key": "pipeline.category.viewer_data"
+        },
+        "description": {
+          "key": "pipeline.set_viewer_data.description"
+        },
+        "fields": [
+          {
+            "name": "key",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.set_viewer_data.key.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "value",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.set_viewer_data.value.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          },
+          {
+            "name": "target",
+            "kind": "twitch_user",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.set_viewer_data.target.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "vts_color_tint",
+        "category": {
+          "key": "pipeline.category.vts"
+        },
+        "description": {
+          "key": "pipeline.vts_color_tint.description"
+        },
+        "fields": [
+          {
+            "name": "r",
+            "kind": "number",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.vts_color_tint.r.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "g",
+            "kind": "number",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.vts_color_tint.g.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "b",
+            "kind": "number",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.vts_color_tint.b.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "a",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.vts_color_tint.a.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "art_mesh_tag",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.vts_color_tint.art_mesh_tag.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "vts_load_model",
+        "category": {
+          "key": "pipeline.category.vts"
+        },
+        "description": {
+          "key": "pipeline.vts_load_model.description"
+        },
+        "fields": [
+          {
+            "name": "model",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.vts_load_model.model.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "vts_move_model",
+        "category": {
+          "key": "pipeline.category.vts"
+        },
+        "description": {
+          "key": "pipeline.vts_move_model.description"
+        },
+        "fields": [
+          {
+            "name": "x",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.vts_move_model.x.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "y",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.vts_move_model.y.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "rotation",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.vts_move_model.rotation.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "size",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.vts_move_model.size.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "time_seconds",
+            "kind": "number",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.vts_move_model.time_seconds.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "relative",
+            "kind": "boolean",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.vts_move_model.relative.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "vts_request",
+        "category": {
+          "key": "pipeline.category.vts"
+        },
+        "description": {
+          "key": "pipeline.vts_request.description"
+        },
+        "fields": [
+          {
+            "name": "request_type",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.vts_request.request_type.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "payload_json",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.vts_request.payload_json.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "vts_set_expression",
+        "category": {
+          "key": "pipeline.category.vts"
+        },
+        "description": {
+          "key": "pipeline.vts_set_expression.description"
+        },
+        "fields": [
+          {
+            "name": "expression",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.vts_set_expression.expression.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "active",
+            "kind": "boolean",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.vts_set_expression.active.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "vts_trigger_hotkey",
+        "category": {
+          "key": "pipeline.category.vts"
+        },
+        "description": {
+          "key": "pipeline.vts_trigger_hotkey.description"
+        },
+        "fields": [
+          {
+            "name": "hotkey",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.vts_trigger_hotkey.hotkey.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "send_webhook",
+        "category": {
+          "key": "pipeline.category.webhooks"
+        },
+        "description": {
+          "key": "pipeline.send_webhook.description"
+        },
+        "fields": [
+          {
+            "name": "endpoint",
+            "kind": "resource_id",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.send_webhook.endpoint.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "event_type",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.send_webhook.event_type.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          }
+        ]
+      },
+      {
+        "type": "show_raid_recap",
+        "category": {
+          "key": "pipeline.category.widgets"
+        },
+        "description": {
+          "key": "pipeline.show_raid_recap.description"
+        },
+        "fields": []
+      },
+      {
+        "type": "widget_event",
+        "category": {
+          "key": "pipeline.category.widgets"
+        },
+        "description": {
+          "key": "pipeline.widget_event.description"
+        },
+        "fields": [
+          {
+            "name": "widget_id",
+            "kind": "widget",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.widget_event.widget_id.help"
+            },
+            "templated": false,
+            "declaresVariable": false
+          },
+          {
+            "name": "event_type",
+            "kind": "text",
+            "required": true,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.widget_event.event_type.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          },
+          {
+            "name": "data",
+            "kind": "text",
+            "required": false,
+            "repeatable": false,
+            "description": {
+              "key": "pipeline.widget_event.data.help"
+            },
+            "templated": true,
+            "declaresVariable": false
+          }
+        ]
+      }
+    ],
+    "conditions": [
+      {
+        "type": "comparison"
+      },
+      {
+        "type": "random"
+      },
+      {
+        "type": "user_role"
+      }
+    ]
+  },
+  "args": []
+}

@@ -1,0 +1,166 @@
+{
+  "data": [
+    {
+      "id": "7FD1NBSVXK9YZSKSWFQMTRQ1BV",
+      "name": "8ball",
+      "tier": "template",
+      "minPermissionLevel": "Everyone",
+      "isEnabled": true,
+      "prefixMode": "Default",
+      "matchMode": "StartsWith",
+      "cooldownSeconds": 0,
+      "userCooldownSeconds": 0,
+      "description": "Ask the magic 8-ball a yes/no question.",
+      "aliases": [],
+      "useCount": 0,
+      "createdAt": {
+        "$ago": 1
+      },
+      "templateResponses": [
+        "🎱 It is certain.",
+        "🎱 Without a doubt.",
+        "🎱 You may rely on it.",
+        "🎱 Ask again later.",
+        "🎱 Cannot predict now.",
+        "🎱 Don't count on it.",
+        "🎱 My reply is no.",
+        "🎱 Outlook not so good."
+      ],
+      "presetKey": "8ball",
+      "speakWithTts": false
+    },
+    {
+      "id": "22NE8NRB169BPBMBQ59TT2B48X",
+      "name": "compliment",
+      "tier": "template",
+      "minPermissionLevel": "Everyone",
+      "isEnabled": true,
+      "prefixMode": "Default",
+      "matchMode": "StartsWith",
+      "cooldownSeconds": 0,
+      "userCooldownSeconds": 0,
+      "description": "Give someone a compliment.",
+      "aliases": [],
+      "useCount": 0,
+      "createdAt": {
+        "$ago": 1
+      },
+      "templateResponses": [
+        "{args}, you're doing amazing today! ✨",
+        "{args} lights up the room! 🌟",
+        "{args} has impeccable taste in streams. 😎",
+        "{args} deserves a round of applause! 👏"
+      ],
+      "presetKey": "compliment",
+      "speakWithTts": false
+    },
+    {
+      "id": "322CBDSK599YH8BCDX9A1PSQK3",
+      "name": "hug",
+      "tier": "template",
+      "minPermissionLevel": "Everyone",
+      "isEnabled": true,
+      "prefixMode": "Default",
+      "matchMode": "StartsWith",
+      "cooldownSeconds": 0,
+      "userCooldownSeconds": 0,
+      "description": "Give someone a hug.",
+      "aliases": [],
+      "useCount": 0,
+      "createdAt": {
+        "$ago": 1
+      },
+      "templateResponse": "{user.name} gives {args} a big warm hug! 🤗",
+      "templateResponses": [],
+      "presetKey": "hug",
+      "speakWithTts": false
+    },
+    {
+      "id": "5G4EBYAE9G8TYR46SZDJ9ACG06",
+      "name": "ping",
+      "tier": "template",
+      "minPermissionLevel": "Everyone",
+      "isEnabled": true,
+      "prefixMode": "Default",
+      "matchMode": "StartsWith",
+      "cooldownSeconds": 0,
+      "userCooldownSeconds": 0,
+      "description": "Check that the bot is alive.",
+      "aliases": [],
+      "useCount": 0,
+      "createdAt": {
+        "$ago": 1
+      },
+      "templateResponse": "🏓 Pong!",
+      "templateResponses": [],
+      "presetKey": "ping",
+      "speakWithTts": false
+    },
+    {
+      "id": "01M5H0K8SJF1VA9N8AQ52P5BGK",
+      "name": "raid",
+      "tier": "pipeline",
+      "minPermissionLevel": "Broadcaster",
+      "isEnabled": true,
+      "prefixMode": "Default",
+      "matchMode": "StartsWith",
+      "cooldownSeconds": 0,
+      "userCooldownSeconds": 0,
+      "description": "Raid another live channel.",
+      "aliases": [],
+      "useCount": 0,
+      "createdAt": {
+        "$ago": 1
+      },
+      "pipelineId": "01M5H0K8Q7F5G9TWV11119XCYZ",
+      "speakWithTts": false
+    },
+    {
+      "id": "5XXHM9TXQ78QHBKWS4DXMT8GAK",
+      "name": "rps",
+      "tier": "template",
+      "minPermissionLevel": "Everyone",
+      "isEnabled": true,
+      "prefixMode": "Default",
+      "matchMode": "StartsWith",
+      "cooldownSeconds": 0,
+      "userCooldownSeconds": 0,
+      "description": "Play rock, paper, scissors against the bot.",
+      "aliases": [],
+      "useCount": 0,
+      "createdAt": {
+        "$ago": 1
+      },
+      "templateResponses": [
+        "🪨 The bot throws Rock!",
+        "📄 The bot throws Paper!",
+        "✂️ The bot throws Scissors!"
+      ],
+      "presetKey": "rps",
+      "speakWithTts": false
+    },
+    {
+      "id": "4B7EVW9NFQ9978B5W2E0E2HAK2",
+      "name": "slap",
+      "tier": "template",
+      "minPermissionLevel": "Everyone",
+      "isEnabled": true,
+      "prefixMode": "Default",
+      "matchMode": "StartsWith",
+      "cooldownSeconds": 0,
+      "userCooldownSeconds": 0,
+      "description": "Slap someone with a trout.",
+      "aliases": [],
+      "useCount": 0,
+      "createdAt": {
+        "$ago": 1
+      },
+      "templateResponse": "{user.name} slaps {args} around a bit with a large trout! 🐟",
+      "templateResponses": [],
+      "presetKey": "slap",
+      "speakWithTts": false
+    }
+  ],
+  "hasMore": false,
+  "total": 7
+}

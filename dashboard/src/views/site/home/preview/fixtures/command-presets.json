@@ -1,0 +1,99 @@
+{
+  "status": "ok",
+  "data": [
+    {
+      "key": "8ball",
+      "tier": "template",
+      "description": "Ask the magic 8-ball a yes/no question.",
+      "templateResponses": [
+        "🎱 It is certain.",
+        "🎱 Without a doubt.",
+        "🎱 You may rely on it.",
+        "🎱 Ask again later.",
+        "🎱 Cannot predict now.",
+        "🎱 Don't count on it.",
+        "🎱 My reply is no.",
+        "🎱 Outlook not so good."
+      ],
+      "minPermissionLevel": "Everyone",
+      "cooldownSeconds": 0,
+      "userCooldownSeconds": 0,
+      "aliases": [],
+      "prefixMode": "Default",
+      "matchMode": "StartsWith"
+    },
+    {
+      "key": "hug",
+      "tier": "template",
+      "description": "Give someone a hug.",
+      "templateResponse": "{user.name} gives {args} a big warm hug! 🤗",
+      "templateResponses": [],
+      "minPermissionLevel": "Everyone",
+      "cooldownSeconds": 0,
+      "userCooldownSeconds": 0,
+      "aliases": [],
+      "prefixMode": "Default",
+      "matchMode": "StartsWith"
+    },
+    {
+      "key": "slap",
+      "tier": "template",
+      "description": "Slap someone with a trout.",
+      "templateResponse": "{user.name} slaps {args} around a bit with a large trout! 🐟",
+      "templateResponses": [],
+      "minPermissionLevel": "Everyone",
+      "cooldownSeconds": 0,
+      "userCooldownSeconds": 0,
+      "aliases": [],
+      "prefixMode": "Default",
+      "matchMode": "StartsWith"
+    },
+    {
+      "key": "ping",
+      "tier": "template",
+      "description": "Check that the bot is alive.",
+      "templateResponse": "🏓 Pong!",
+      "templateResponses": [],
+      "minPermissionLevel": "Everyone",
+      "cooldownSeconds": 0,
+      "userCooldownSeconds": 0,
+      "aliases": [],
+      "prefixMode": "Default",
+      "matchMode": "StartsWith"
+    },
+    {
+      "key": "rps",
+      "tier": "template",
+      "description": "Play rock, paper, scissors against the bot.",
+      "templateResponses": [
+        "🪨 The bot throws Rock!",
+        "📄 The bot throws Paper!",
+        "✂️ The bot throws Scissors!"
+      ],
+      "minPermissionLevel": "Everyone",
+      "cooldownSeconds": 0,
+      "userCooldownSeconds": 0,
+      "aliases": [],
+      "prefixMode": "Default",
+      "matchMode": "StartsWith"
+    },
+    {
+      "key": "compliment",
+      "tier": "template",
+      "description": "Give someone a compliment.",
+      "templateResponses": [
+        "{args}, you're doing amazing today! ✨",
+        "{args} lights up the room! 🌟",
+        "{args} has impeccable taste in streams. 😎",
+        "{args} deserves a round of applause! 👏"
+      ],
+      "minPermissionLevel": "Everyone",
+      "cooldownSeconds": 0,
+      "userCooldownSeconds": 0,
+      "aliases": [],
+      "prefixMode": "Default",
+      "matchMode": "StartsWith"
+    }
+  ],
+  "args": []
+}

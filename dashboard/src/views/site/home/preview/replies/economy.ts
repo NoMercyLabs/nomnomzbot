@@ -9,7 +9,9 @@
 // -----------------------------------------------------------------------------
 
 import type { FakeReply } from '../fakeApi';
-import { channelPath, get, list, minutesAgo, one, sampleChannelId } from './shape';
+import economyConfig from '../fixtures/economy-config.json';
+import economyRules from '../fixtures/economy-earning-rules.json';
+import { channelPath, fixture, get, list, minutesAgo, one, sampleChannelId } from './shape';
 
 const economy = `${channelPath}/economy`;
 const stamp = {
@@ -17,113 +19,56 @@ const stamp = {
   updatedAt: minutesAgo(60 * 24 * 3),
 };
 
+// A fresh install has the currency switched off and called "points". The sample channel switched it on and named
+// it; every other field, and every earning rule with its default rate, is the server's own.
 const config = {
-  id: 'sample-currency',
-  broadcasterId: sampleChannelId,
-  currencyName: 'Crumb',
-  currencyNamePlural: 'Crumbs',
-  iconUrl: null,
-  isEnabled: true,
-  startingBalance: 100,
-  maxBalance: 1_000_000,
-  decimalPlaces: 0,
-  ...stamp,
+  ...fixture(economyConfig),
+  data: {
+    ...fixture(economyConfig).data,
+    currencyName: 'Crumb',
+    currencyNamePlural: 'Crumbs',
+    isEnabled: true,
+  },
 };
 
-type Rule = {
-  source: string;
-  rate: number;
-  window?: number;
-  cap?: number;
-  enabled?: boolean;
+const earning = new Set<string>(['ChatMessage', 'Follow', 'Subscription', 'GiftSubscription', 'Raid']);
+
+const earningRules = {
+  ...fixture(economyRules),
+  data: fixture(economyRules).data.map((rule) => ({
+    ...rule,
+    isEnabled: earning.has(rule.source),
+  })),
 };
-
-const rules: Rule[] = [
-  {
-    source: 'ChatMessage',
-    rate: 2,
-    window: 60,
-    cap: 50,
-  },
-  {
-    source: 'WatchTime',
-    rate: 10,
-    window: 300,
-  },
-  { source: 'Follow', rate: 250 },
-  { source: 'Subscription', rate: 1000 },
-  { source: 'GiftSubscription', rate: 500 },
-  {
-    source: 'Cheer',
-    rate: 1,
-    enabled: false,
-  },
-  { source: 'Raid', rate: 5 },
-];
-
-const earningRules = rules.map((rule, index) => ({
-  id: `sample-rule-${index}`,
-  source: rule.source,
-  isEnabled: rule.enabled ?? true,
-  rate: rule.rate,
-  unitWindowSeconds: rule.window ?? null,
-  perWindowCap: null,
-  perStreamCap: rule.cap ?? null,
-  minRoleLevel: null,
-  configSchemaVersion: 1,
-  bonusConfig: null,
-}));
 
 type Item = {
   name: string;
   about: string;
-  sink: string;
   cost: number;
   cooldown?: number;
   stock?: number;
 };
 
+// Store items are the streamer's own content, so they are sample. A store item runs a pipeline (sink type
+// "pipeline"), the sink the server runs for event responses and commands.
 const items: Item[] = [
   {
     name: 'Hydrate!',
     about: 'The streamer takes a sip of water, on stream.',
-    sink: 'pipeline',
     cost: 150,
     cooldown: 120,
   },
   {
     name: 'Pick the next song',
     about: 'Skips to a song of your choice in the queue.',
-    sink: 'pipeline',
     cost: 400,
     cooldown: 300,
   },
   {
-    name: 'Text to speech line',
-    about: 'Your message, read out loud in the stream.',
-    sink: 'tts',
-    cost: 250,
-    cooldown: 60,
-  },
-  {
-    name: 'Sound clip',
-    about: 'Plays a short clip from the sound board.',
-    sink: 'sound',
-    cost: 200,
-    cooldown: 90,
-  },
-  {
-    name: 'VIP for a month',
-    about: 'A VIP badge for 30 days.',
-    sink: 'role',
-    cost: 25_000,
-    stock: 5,
-  },
-  {
     name: 'Name on the wall',
     about: 'Your name on the end credits of the next stream.',
-    sink: 'pipeline',
     cost: 1500,
+    stock: 5,
   },
 ];
 
@@ -131,11 +76,11 @@ const catalog = items.map((item, index) => ({
   id: `sample-item-${index}`,
   name: item.name,
   description: item.about,
-  sinkType: item.sink,
+  sinkType: 'pipeline',
   cost: item.cost,
   iconUrl: null,
   isEnabled: true,
-  permission: 'everyone',
+  permission: 'Everyone',
   pipelineId: null,
   target: null,
   cooldownSeconds: item.cooldown ?? 0,
@@ -159,18 +104,6 @@ const jars = [
     balance: 64_300,
     iconUrl: null,
     isOpen: true,
-    maxWithdrawalPerChannel: null,
-    ...stamp,
-  },
-  {
-    id: 'sample-jar-1',
-    ownerBroadcasterId: sampleChannelId,
-    name: 'New microphone',
-    description: null,
-    goalAmount: 30_000,
-    balance: 30_000,
-    iconUrl: null,
-    isOpen: false,
     maxWithdrawalPerChannel: null,
     ...stamp,
   },
@@ -204,12 +137,6 @@ const leaderboards = [
     period: 'weekly',
     top: 5,
   },
-  {
-    metric: 'spent',
-    scope: 'channel',
-    period: 'monthly',
-    top: 5,
-  },
 ].map((board, index) => ({
   id: `sample-board-${index}`,
   broadcasterId: sampleChannelId,
@@ -223,8 +150,8 @@ const leaderboards = [
 }));
 
 export const economyReplies: FakeReply[] = [
-  get(`${economy}/config`, one(config)),
-  get(`${economy}/earning-rules`, one(earningRules)),
+  get(`${economy}/config`, config),
+  get(`${economy}/earning-rules`, earningRules),
   get(`${economy}/catalog`, list(catalog)),
   get(`${economy}/jars`, one(jars)),
   get(`${economy}/accounts`, one(accounts)),

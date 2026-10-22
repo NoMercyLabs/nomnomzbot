@@ -1,0 +1,282 @@
+{
+  "data": [
+    {
+      "id": "4GRNTYTPHD9BQVMYZGKJC37S0N",
+      "eventType": "channel.ad_break.begin",
+      "isEnabled": true,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "17YQ6659TY899AJJBD5YP548KF",
+      "eventType": "channel.ad_break.end",
+      "isEnabled": true,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "1V0DMA7TNP8PMA213RMZ2XD15X",
+      "eventType": "channel.ad_break.upcoming",
+      "isEnabled": true,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "74NXG8S2V485M97E1CW4AYH126",
+      "eventType": "channel.ban",
+      "isEnabled": true,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "5JSEYX9FPT8EM9W1W9H7A542N5",
+      "eventType": "channel.channel_points_custom_reward_redemption.add",
+      "isEnabled": false,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "3FDX6YMFQB9S0V8J4SQZZWBNNN",
+      "eventType": "channel.cheer",
+      "isEnabled": true,
+      "responseType": "pipeline",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": false,
+      "speaksInTone": false
+    },
+    {
+      "id": "4YSMATYN828KY8K6F53Y1QHYJK",
+      "eventType": "channel.follow",
+      "isEnabled": true,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "3BBXW88P859SNT5344WGTVTA6F",
+      "eventType": "channel.hype_train.begin",
+      "isEnabled": false,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "7JCWPK2BJV83DSAB9RJF39V929",
+      "eventType": "channel.hype_train.end",
+      "isEnabled": false,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "7SRXEMVX498Z1SRWVGQRZC45WY",
+      "eventType": "channel.moderator.add",
+      "isEnabled": true,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "7V972GM9XJ9MCVP8BRY4XS3RHR",
+      "eventType": "channel.moderator.remove",
+      "isEnabled": true,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "4S3REPXJPV8E28SY7XJ4KFDBTF",
+      "eventType": "channel.poll.begin",
+      "isEnabled": false,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "7M9ZH2KNGG9KB9F8GC90H7ZH29",
+      "eventType": "channel.poll.end",
+      "isEnabled": true,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "1JER6KPJSB9V5SJRG6AZ9KFTWA",
+      "eventType": "channel.prediction.begin",
+      "isEnabled": false,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "7V571KWKSA9398STBDCME3QK66",
+      "eventType": "channel.prediction.end",
+      "isEnabled": false,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "0SFM4E5FR58F7SRP51GYHCVD5S",
+      "eventType": "channel.prediction.lock",
+      "isEnabled": false,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "0QENXJC6RA9S2R6PPA771N7JQW",
+      "eventType": "channel.raid",
+      "isEnabled": true,
+      "responseType": "pipeline",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": false,
+      "speaksInTone": false
+    },
+    {
+      "id": "3QMZ8S6EVT873ASK5MJM4PNGY8",
+      "eventType": "channel.raid.out",
+      "isEnabled": false,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "6DFZ64GJAP9FBTNZG5D5E50DAM",
+      "eventType": "channel.raid.start",
+      "isEnabled": false,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "6X1Y0TW60Z9P9T2N6PMS79NB55",
+      "eventType": "channel.subscribe",
+      "isEnabled": true,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "5NAXEZM73V9S6BHD0VSZ5BS222",
+      "eventType": "channel.subscription.gift",
+      "isEnabled": true,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "0SGTMRN6QT91PTGXMY9CQ3CCX4",
+      "eventType": "channel.subscription.gift.anonymous",
+      "isEnabled": true,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "3QY0C3S6EZ903RF4WTJTMVW12N",
+      "eventType": "channel.subscription.gift.received",
+      "isEnabled": true,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "3DQ48FFQ4W9T2BZN27ZT6VM9GX",
+      "eventType": "channel.subscription.gift.received.anonymous",
+      "isEnabled": true,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    },
+    {
+      "id": "60DT9F366F9FF9SC8MH03AEYAB",
+      "eventType": "channel.subscription.message",
+      "isEnabled": true,
+      "responseType": "chat_message",
+      "updatedAt": {
+        "$ago": 1
+      },
+      "followsPlatformDefault": true,
+      "speaksInTone": true
+    }
+  ],
+  "nextPage": 2,
+  "hasMore": true,
+  "total": 50
+}

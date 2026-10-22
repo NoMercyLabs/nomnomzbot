@@ -18,6 +18,7 @@ import { integrationReplies } from './replies/integrations';
 import { moderationReplies } from './replies/moderation';
 import { musicReplies } from './replies/music';
 import { pipelineReplies } from './replies/pipelines';
+import { ttsReplies } from './replies/tts';
 import { widgetReplies } from './replies/widgets';
 
 // Every answer the fake data layer can give: the sample channel and, per area, the records its real page reads.
@@ -31,5 +32,6 @@ export const sampleReplies = merge(
   analyticsReplies,
   economyReplies,
   musicReplies,
+  ttsReplies,
   integrationReplies,
 );
