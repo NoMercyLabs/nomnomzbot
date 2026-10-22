@@ -527,6 +527,24 @@ public sealed class CodeScriptService(
         CodeScript? script = await LoadAsync(codeScriptId, cancellationToken);
         if (script is null)
             return Result.Failure("Script not found.", "NOT_FOUND");
+
+        // A command that runs this script directly would fail at run time with "Script not found", so the delete
+        // is refused and names the commands to move off it first.
+        List<string> usedBy = await db
+            .Commands.Where(c =>
+                c.BroadcasterId == script.BroadcasterId
+                && c.CodeScriptId == codeScriptId
+                && c.DeletedAt == null
+            )
+            .OrderBy(c => c.Name)
+            .Select(c => c.Name)
+            .ToListAsync(cancellationToken);
+        if (usedBy.Count > 0)
+            return Result.Failure(
+                $"This script is used by the command(s): {string.Join(", ", usedBy)}. Point them at another script or delete them first.",
+                "CODE_SCRIPT_IN_USE"
+            );
+
         db.CodeScripts.Remove(script); // soft-delete via interceptor; versions remain as append-only audit
         await db.SaveChangesAsync(cancellationToken);
         return Result.Success();
