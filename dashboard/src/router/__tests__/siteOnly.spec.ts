@@ -13,8 +13,9 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent } from 'vue';
 import { createMemoryHistory, createRouter, RouterView, type Router } from 'vue-router';
 
-import { i18n } from '@/i18n';
+import { i18n, setLocale } from '@/i18n';
 import { siteOnlyRoutes } from '@/router/siteOnly';
+import { followSiteTitle } from '@/router/siteTitle';
 
 const Shell = defineComponent({ components: { RouterView }, template: '<RouterView />' });
 
@@ -78,6 +79,24 @@ describe('the public site router', () => {
     expect(signIn.length).toBeGreaterThanOrEqual(2);
     expect(signIn.every((button) => button.attributes('disabled') !== undefined)).toBe(true);
     expect(fetched).not.toHaveBeenCalled();
+  });
+
+  it('sets the page title from the home words once they load, and again for the chosen language', async () => {
+    const router: Router = createRouter({ history: createMemoryHistory(), routes: siteOnlyRoutes });
+
+    document.title = 'from the HTML';
+    followSiteTitle(router);
+    await router.push('/');
+    mount(Shell, { global: { plugins: [router, i18n] } });
+    await flushPromises();
+
+    expect(document.title).toBe('NomNomzBot: run your stream, not your admin work');
+
+    await setLocale('nl');
+    await flushPromises();
+
+    expect(document.title).toBe('NomNomzBot: run je stream, niet je administratie');
+    await setLocale('en');
   });
 
   it('shows Coming soon on the login page and makes no request', async () => {

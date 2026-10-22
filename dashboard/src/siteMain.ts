@@ -8,12 +8,13 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { createApp, watchEffect } from 'vue';
+import { createApp } from 'vue';
 
 import './styles/main.css';
 import { applyAccent, defaultAccent } from './lib/accent';
 import { i18n, startLocale } from './i18n';
 import { createSiteRouter } from './router/siteOnly';
+import { followSiteTitle } from './router/siteTitle';
 import SiteApp from './SiteApp.vue';
 
 // The entry of the public site build (site.html). It starts no bot connection: no query client, no
@@ -22,14 +23,12 @@ applyAccent(defaultAccent);
 
 const app = createApp(SiteApp);
 
+const router = createSiteRouter();
+
 app.use(i18n);
-app.use(createSiteRouter());
+app.use(router);
+followSiteTitle(router);
 
 await startLocale();
-
-// The page title follows the chosen language; the first title in the HTML is the English one.
-watchEffect(() => {
-  document.title = i18n.global.t('site.home.title');
-});
 
 app.mount('#app');
