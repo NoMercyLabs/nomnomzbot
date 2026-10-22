@@ -22,6 +22,9 @@ public static class WidgetKeyAliases
     /// <summary>The key of the Music Player widget — the one page that hosts the YouTube and Spotify players.</summary>
     public const string MusicPlayer = "music_player";
 
+    /// <summary>The key of the Media Share widget — the page that plays approved Twitch clips and YouTube videos.</summary>
+    public const string MediaShare = "media_share";
+
     /// <summary>Retired key to canonical key. The Audio widget was first shipped as <c>tts_audio</c>.</summary>
     public static readonly IReadOnlyDictionary<string, string> RetiredToCanonical = new Dictionary<
         string,

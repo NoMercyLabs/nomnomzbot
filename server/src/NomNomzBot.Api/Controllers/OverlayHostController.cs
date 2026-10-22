@@ -149,9 +149,18 @@ public sealed partial class OverlayHostController : ControllerBase
 
     private const string AudioPlayerOrigins = SpotifySdkOrigin + " " + YouTubeOrigin;
 
+    // The Media Share widget embeds an approved Twitch clip from here, and plays YouTube videos like the music page.
+    private const string TwitchClipOrigin = "https://clips.twitch.tv";
+
+    private const string MediaPlayerOrigins = AudioPlayerOrigins + " " + TwitchClipOrigin;
+
     private const string PlayerReferrerPolicy = "strict-origin-when-cross-origin";
 
-    private static string ContentSecurityPolicy(string nonce, bool allowSpotifyPlayback = false) =>
+    private static string ContentSecurityPolicy(
+        string nonce,
+        bool allowSpotifyPlayback = false,
+        bool allowTwitchClips = false
+    ) =>
         "default-src 'none'; "
         + $"script-src 'self' 'nonce-{nonce}'"
         + (allowSpotifyPlayback ? $" {AudioPlayerOrigins}; " : "; ")
@@ -164,7 +173,15 @@ public sealed partial class OverlayHostController : ControllerBase
         + "font-src https: data:; "
         + "connect-src 'self' https: wss: ws:; "
         + "base-uri 'none'; object-src 'none'; "
-        + $"frame-src {(allowSpotifyPlayback ? AudioPlayerOrigins : "'none'")}; form-action 'none'";
+        + $"frame-src {FrameSources(allowSpotifyPlayback, allowTwitchClips)}; form-action 'none'";
+
+    private static string FrameSources(bool allowSpotifyPlayback, bool allowTwitchClips)
+    {
+        if (!allowSpotifyPlayback)
+            return "'none'";
+
+        return allowTwitchClips ? MediaPlayerOrigins : AudioPlayerOrigins;
+    }
 
     /// <summary>The system Audio widget (by its gallery key, never a user setting) always plays the bot's YouTube and
     /// Spotify audio, so it always gets the player CSP. Any other widget opts in with a truthy <c>enableAudio</c>
@@ -176,6 +193,7 @@ public sealed partial class OverlayHostController : ControllerBase
         WidgetKeyAliases.Canonical(entry.GalleryKey)
             is WidgetKeyAliases.Audio
                 or WidgetKeyAliases.MusicPlayer
+                or WidgetKeyAliases.MediaShare
         || (entry.Settings.TryGetValue("enableAudio", out object? value) && value is true);
 
     /// <summary>A framework (vue/react/…) widget: config + runtime + SDK, then the self-mounting bundle into #app.</summary>
@@ -191,7 +209,11 @@ public sealed partial class OverlayHostController : ControllerBase
             : string.Empty;
         string bundleUrl =
             $"/api/v1/overlay/bundle/{entry.WidgetId}?token={Uri.EscapeDataString(token)}&v={entry.ContentHash}";
-        string csp = ContentSecurityPolicy(nonce, WantsSpotifyPlayback(entry));
+        string csp = ContentSecurityPolicy(
+            nonce,
+            WantsSpotifyPlayback(entry),
+            WidgetKeyAliases.Canonical(entry.GalleryKey) is WidgetKeyAliases.MediaShare
+        );
 
         return $$"""
             <!DOCTYPE html>

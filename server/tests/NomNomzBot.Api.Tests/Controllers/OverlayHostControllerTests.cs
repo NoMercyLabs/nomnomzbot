@@ -173,6 +173,40 @@ public sealed class OverlayHostControllerTests
     }
 
     [Fact]
+    public async Task The_media_share_page_may_frame_twitch_clips_and_youtube()
+    {
+        // Stoney, 2026-10-22: no Media Share item played and none could be replayed. The page embeds
+        // https://clips.twitch.tv for a clip and loads the YouTube player for a video, and the strict CSP
+        // (frame-src 'none') blocked both.
+        OverlayHostController sut = WithManifest(
+            VueEntry(new Dictionary<string, object?>(), "media_share")
+        );
+
+        string html = await BodyOf(
+            await sut.Get(WidgetId.ToString(), Token, CancellationToken.None)
+        );
+
+        html.Should()
+            .MatchRegex("frame-src [^;]*https://clips\\.twitch\\.tv")
+            .And.MatchRegex("frame-src [^;]*https://www\\.youtube\\.com")
+            .And.MatchRegex("script-src [^;]*https://www\\.youtube\\.com");
+    }
+
+    [Fact]
+    public async Task A_widget_that_plays_no_media_keeps_frames_blocked()
+    {
+        OverlayHostController sut = WithManifest(
+            VueEntry(new Dictionary<string, object?>(), "alerts")
+        );
+
+        string html = await BodyOf(
+            await sut.Get(WidgetId.ToString(), Token, CancellationToken.None)
+        );
+
+        html.Should().Contain("frame-src 'none'").And.NotContain("clips.twitch.tv");
+    }
+
+    [Fact]
     public async Task The_music_player_page_sends_its_origin_as_the_referrer_so_youtube_embeds_play()
     {
         // qtkitte live, 2026-10-19: the site-wide no-referrer policy made every YouTube embed fail with
