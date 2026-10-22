@@ -141,8 +141,9 @@ export default defineConfig({
   server: {
     port: 5090,
     strictPort: true,
+    host: true,
     // The https tunnel to this dev server, so a phone signs in by redirect.
-    allowedHosts: ['vue.nomnomz.bot'],
+    allowedHosts: ['vue.nomnomz.bot', 'dev.nomnomz.bot'],
     proxy: {
       '/api': { target: api, xfwd: true, configure: sameHostOrigin, bypass: blockWrites },
       '/hubs': { target: api, ws: true, xfwd: true },
