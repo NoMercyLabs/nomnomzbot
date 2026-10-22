@@ -476,6 +476,16 @@ describe('CommandsView list', () => {
     );
   });
 
+  it('stacks the duplicate notice above its button, so a narrow panel never squeezes the words', async () => {
+    rows = [command('hello'), command('permit'), command('so', { aliases: ['shoutout'] })];
+    await open();
+
+    const banner = document.body.querySelector('[data-system-duplicates]')?.parentElement;
+
+    expect(banner?.classList.contains('flex-col')).toBe(true);
+    expect(banner?.querySelector('[data-system-duplicates]')?.classList.contains('flex-1')).toBe(false);
+  });
+
   it('moves every channel copy of a system command out, only after the confirm', async () => {
     rows = [command('hello'), command('permit'), command('so', { aliases: ['shoutout'] })];
     await open();

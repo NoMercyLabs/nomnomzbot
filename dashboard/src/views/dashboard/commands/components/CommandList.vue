@@ -180,9 +180,9 @@ function detailOf(row: CommandListItem): string {
       <template v-else>
         <div
           v-if="duplicates > 0"
-          class="flex items-center gap-3 px-4 py-2"
+          class="flex flex-col items-start gap-2 px-4 py-2"
         >
-          <p data-system-duplicates class="flex-1 text-sm text-muted-foreground">
+          <p data-system-duplicates class="text-sm text-muted-foreground">
             {{ $t("dashboard.commands.list.duplicates", { count: duplicates, total: all.length }) }}
           </p>
           <Button
