@@ -27,7 +27,8 @@ export type PlayerButton = components['schemas']['PlayerButton'];
 export type ActionRunRequest = components['schemas']['ChannelActionRunRequest'];
 export type ActionRunResult = components['schemas']['ChannelActionRunResponse'];
 
-// The server keeps at most this many buttons (PlayerButtonService) and cuts a label at this length.
+// The server keeps at most this many buttons (PlayerButtonService) and refuses a longer label. A label may be
+// empty: the button then shows only its icon.
 export const MAX_PLAYER_BUTTONS = 12;
 export const MAX_BUTTON_LABEL = 24;
 
@@ -45,7 +46,7 @@ export function buttonProblems(button: PlayerButton): ButtonProblems {
   const length = button.label.trim().length;
   const problems: ButtonProblems = {};
 
-  if (length === 0 || length > MAX_BUTTON_LABEL) {
+  if (length > MAX_BUTTON_LABEL) {
     problems.label = 'dashboard.music.now.buttons.editor.problem.label';
   }
 

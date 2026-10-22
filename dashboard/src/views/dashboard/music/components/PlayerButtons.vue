@@ -30,6 +30,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { moveItem } from '@/lib/array';
+import { deckActionFor } from '@/lib/streamDeckActions';
 
 import PlayerButtonPicker from './PlayerButtonPicker.vue';
 import { playerIcon } from './playerIcons';
@@ -86,6 +87,28 @@ const variables = computed(() => ({
   'target.displayname': props.track?.requestedBy ?? '',
 }) as const satisfies ActionVariables);
 
+// What names a button: its label, or the name of its action when the label is empty (an icon-only button).
+function nameOf(button: PlayerButton): string {
+  if (button.label !== '')
+    return button.label;
+
+  const action = deckActionFor(button.actionType, button.icon);
+
+  return action === undefined
+    ? button.actionType
+    : t(`dashboard.music.now.buttons.deck.${action.key}.name`);
+}
+
+// The tooltip: the edit hint for someone who may edit, and the action name on an icon-only button.
+function titleOf(button: PlayerButton): string | undefined {
+  if (button.label === '')
+    return nameOf(button);
+
+  return canEdit.value
+    ? t('dashboard.music.now.buttons.editHint')
+    : undefined;
+}
+
 function press(button: PlayerButton): void {
   run.mutate(
     {
@@ -93,7 +116,7 @@ function press(button: PlayerButton): void {
       parameters: button.parameters,
       variables: variables.value,
     },
-    { onError: () => toast.error(t('dashboard.music.now.buttons.failed', { label: button.label })) },
+    { onError: () => toast.error(t('dashboard.music.now.buttons.failed', { label: nameOf(button) })) },
   );
 }
 
@@ -143,14 +166,15 @@ useSortable(strip, buttons, {
       data-player-button
       :data-draggable="canEdit || undefined"
       variant="outline"
-      size="sm"
+      :size="button.label === '' ? 'icon' : 'sm'"
       :class="canEdit && 'cursor-grab active:cursor-grabbing'"
-      :title="canEdit ? $t('dashboard.music.now.buttons.editHint') : undefined"
+      :aria-label="button.label === '' ? nameOf(button) : undefined"
+      :title="titleOf(button)"
       :disabled="run.isPending.value"
       @click="press(button)"
       @contextmenu="edit($event, index)"
     >
-      <component :is="playerIcon(button.icon)" class="size-5" />
+      <component :is="playerIcon(button.icon)" class="size-5" aria-hidden="true" />
       {{ button.label }}
     </Button>
   </div>

@@ -29,6 +29,11 @@ const held = vi.hoisted(() => ({
   keys: [] as string[],
   get: vi.fn<(path: string) => unknown>(),
   post: vi.fn<(path: string, init: RunInit) => unknown>(),
+  toast: vi.fn<(message: string) => void>(),
+}));
+
+vi.mock('vue-sonner', () => ({
+  toast: { error: held.toast },
 }));
 
 vi.mock('@/api/access', () => ({
@@ -148,6 +153,67 @@ describe('the player buttons under the now playing card', () => {
         'target.displayname': 'DukaSoft',
       },
     });
+  });
+
+  it('shows a button with no label as its icon, named by its action', async () => {
+    held.get.mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 'b3',
+            label: '',
+            icon: 'next',
+            actionType: 'music_next',
+            parameters: {},
+          },
+        ],
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+
+    const view = await open(['music:queue:read']);
+    const button = view.find('[data-player-button]');
+
+    expect(button.text()).toBe('');
+    expect(button.attributes('aria-label')).toBe('Next Song');
+    expect(button.attributes('title')).toBe('Next Song');
+    expect(button.find('svg').exists()).toBe(true);
+  });
+
+  it('keeps the label as the visible text and adds no aria-label when a label is set', async () => {
+    const view = await open(['music:queue:read']);
+    const button = view.find('[data-player-button]');
+
+    expect(button.text()).toBe('Thank them');
+    expect(button.attributes('aria-label')).toBeUndefined();
+  });
+
+  it('names the failed button by its action when it has no label', async () => {
+    held.get.mockResolvedValue({
+      data: {
+        data: [
+          {
+            id: 'b3',
+            label: '',
+            icon: 'next',
+            actionType: 'music_next',
+            parameters: {},
+          },
+        ],
+      },
+      error: undefined,
+      response: { status: 200 },
+    });
+
+    held.post.mockRejectedValue(new Error('down'));
+
+    const view = await open(['music:queue:read']);
+
+    await view.find('[data-player-button]').trigger('click');
+    await flushPromises();
+
+    expect(held.toast).toHaveBeenCalledWith('Next Song did not run.');
   });
 
   it('is hidden without the queue read permission and never asks the API', async () => {

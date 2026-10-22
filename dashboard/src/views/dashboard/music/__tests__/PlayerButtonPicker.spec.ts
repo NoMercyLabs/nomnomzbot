@@ -239,6 +239,17 @@ async function editFirst(): Promise<void> {
   await flushPromises();
 }
 
+async function typeLabel(value: string): Promise<void> {
+  const input = document.querySelector<HTMLInputElement>('[data-button-label]');
+
+  if (!input)
+    throw new Error('no label field');
+
+  input.value = value;
+  input.dispatchEvent(new Event('input', { bubbles: true }));
+  await flushPromises();
+}
+
 function sentBody(): object[] | undefined {
   return held.put.mock.calls[0]?.[1].body;
 }
@@ -336,6 +347,37 @@ describe('the player button picker', () => {
     await submit('Save button');
 
     expect(sentBody()).toEqual([{ ...saved[0], label: 'Thanks!' }, saved[1]]);
+  });
+
+  it('saves a button with no label as an icon-only button and shows no error', async () => {
+    await open(editor);
+    await editFirst();
+    await typeLabel('');
+    await submit('Save button');
+
+    expect(document.querySelector('[data-problem="label"]')).toBeNull();
+    expect(sentBody()).toEqual([{ ...saved[0], label: '' }, saved[1]]);
+  });
+
+  it('refuses a label of 25 characters, says the limit and sends nothing', async () => {
+    await open(editor);
+    await editFirst();
+    await typeLabel('a'.repeat(25));
+    await submit('Save button');
+
+    const problem = document.querySelector('[data-problem="label"]');
+
+    expect(problem?.textContent?.trim()).toBe('Use at most 24 characters.');
+    expect(held.put).not.toHaveBeenCalled();
+  });
+
+  it('says in the label field that the label is optional', async () => {
+    await open(editor);
+    await editFirst();
+
+    const input = document.querySelector<HTMLInputElement>('[data-button-label]');
+
+    expect(input?.placeholder).toBe('Label (optional)');
   });
 
   it('removes a button from the edit dialog', async () => {

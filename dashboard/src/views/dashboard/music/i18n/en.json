@@ -54,11 +54,11 @@
           "editor": {
             "icon": "Icon",
             "label": "Label",
-            "labelPlaceholder": "Label",
+            "labelPlaceholder": "Label (optional)",
             "device": "Device",
             "devicePlaceholder": "Pick a device",
             "problem": {
-              "label": "Use 1 to {max} characters.",
+              "label": "Use at most {max} characters.",
               "icon": "Choose an icon.",
               "action": "Choose an action."
             }

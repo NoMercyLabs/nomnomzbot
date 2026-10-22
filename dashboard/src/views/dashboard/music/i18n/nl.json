@@ -54,11 +54,11 @@
           "editor": {
             "icon": "Pictogram",
             "label": "Label",
-            "labelPlaceholder": "Label",
+            "labelPlaceholder": "Label (optioneel)",
             "device": "Apparaat",
             "devicePlaceholder": "Kies een apparaat",
             "problem": {
-              "label": "Gebruik 1 tot {max} tekens.",
+              "label": "Gebruik hooguit {max} tekens.",
               "icon": "Kies een pictogram.",
               "action": "Kies een actie."
             }

@@ -145,3 +145,13 @@ export const STREAM_DECK_MUSIC_ACTIONS = [
     icon: 'user-remove',
   },
 ] as const satisfies readonly StreamDeckAction[];
+
+// The plugin key a saved button came from: the same bot action and icon, else the first key for that action.
+// Two keys share music_play_pause, so the icon tells them apart. Undefined for an action the plugin has no key for.
+export function deckActionFor(type: string, icon: string): StreamDeckAction | undefined {
+  const sameType = STREAM_DECK_MUSIC_ACTIONS.filter((action) =>
+    action.type === type);
+
+  return sameType.find((action) =>
+    action.icon === icon) ?? sameType[0];
+}
