@@ -132,12 +132,17 @@ describe('every planned page is reachable from its sidebar', () => {
       it('has a route in the right mode for every planned entry, in the mockup order', async () => {
         const router = realRouter();
         const navigation = await openMode(router, mode);
+        // The owner moved People and Music and voice up the sidebar (2026-10-22), so each group is matched to
+        // its mockup group by title and the entries inside a group keep the mockup order.
+        const ledgerPlace = (key: string): number =>
+          planned[mode].findIndex((group) => same(words(`frame.group.${key}`), group.group));
         const shown = navigation.groups.value
           .filter((group) => group.key !== 'back' && !beyondMockup.has(group.key))
           .map((group) => ({
             ...group,
             entries: group.entries.filter((entry) => !pagesBeyondMockup.has(entry.route)),
-          }));
+          }))
+          .sort((a, b) => ledgerPlace(a.key) - ledgerPlace(b.key));
 
         // Group by group: the same number of groups, the same titles, the same entry count.
         expect(shown.map((group) => group.entries.length)).toEqual(

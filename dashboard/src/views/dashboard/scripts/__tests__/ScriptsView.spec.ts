@@ -692,6 +692,18 @@ describe('ScriptsView', () => {
   });
 
   it('stacks the trigger and the timeline as two full-width sections with a divider, and keeps the label readable', async () => {
+    // The event picker, and its label, show only for a script that reads what starts it.
+    detailExtra = {
+      ...detailExtra,
+      currentVersion: {
+        version: 1,
+        declaredCapabilities: [],
+        sourceCode: 'bot.getVar(\'user\')',
+        validationStatus: 'Valid',
+        validationErrors: [],
+      },
+    };
+
     await open('/app/scripts?script=s1');
     byText('button', 'Run test')!.click();
     await settle();

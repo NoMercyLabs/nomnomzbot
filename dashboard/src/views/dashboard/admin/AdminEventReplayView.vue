@@ -262,6 +262,7 @@ async function submit(): Promise<void> {
         >{{ $t("dashboard.admin.eventReplay.preview.action") }}</Button>
         <Button
           data-replay
+          variant="default"
           :disabled="confirmedCount === null || confirmedCount === 0"
           @click="openConfirm"
         >{{ $t("dashboard.admin.eventReplay.replay.action") }}</Button>
