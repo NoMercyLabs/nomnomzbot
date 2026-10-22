@@ -140,6 +140,8 @@ export default defineConfig({
       // The code editor page is an iframe that must share the dashboard's origin (both sides check it).
       '/editor': { target: api, xfwd: true },
       '/health': { target: api, xfwd: true },
+      // OBS browser sources load /overlay on this host; without the proxy they get the dark dashboard page.
+      '/overlay': { target: api, xfwd: true },
     },
   },
   resolve: {
