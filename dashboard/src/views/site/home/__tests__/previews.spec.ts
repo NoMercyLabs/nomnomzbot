@@ -160,10 +160,12 @@ describe('the owner of the sample channel', () => {
     expect(text).not.toContain('{{');
     expect(used.length).toBeGreaterThan(3);
 
-    for (const name of used) {
+    const unknown = used.filter((name) => {
       const base = name.replace(/\.\d+$/, '.<n>').replace(/^count\..+$/, 'count.<key>');
 
-      expect(known, name).toContain(`"${base}"`);
-    }
+      return !known.includes(`"${base}"`);
+    });
+
+    expect(unknown).toEqual([]);
   });
 });
