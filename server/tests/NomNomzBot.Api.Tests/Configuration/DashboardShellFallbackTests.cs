@@ -25,13 +25,18 @@ public sealed class DashboardShellFallbackTests : IAsyncLifetime
 {
     private const string ShellBody = "<!doctype html><title>shell</title>";
     private const string ScriptBody = "// stand-in for the hashed dashboard script";
+    private const string EditorBody = "<!doctype html><title>editor page</title>";
     private string _webRoot = string.Empty;
+    private string _editorRoot = string.Empty;
     private WebApplication _app = null!;
     private HttpClient _client = null!;
 
     public async Task InitializeAsync()
     {
         _webRoot = Path.Combine(Path.GetTempPath(), "nnz-shell-" + Guid.NewGuid().ToString("N"));
+        _editorRoot = Path.Combine(_webRoot + "-editor");
+        Directory.CreateDirectory(_editorRoot);
+        await File.WriteAllTextAsync(Path.Combine(_editorRoot, "index.html"), EditorBody);
         Directory.CreateDirectory(Path.Combine(_webRoot, "assets"));
         await File.WriteAllTextAsync(Path.Combine(_webRoot, "index.html"), ShellBody);
         await File.WriteAllTextAsync(
@@ -44,8 +49,10 @@ public sealed class DashboardShellFallbackTests : IAsyncLifetime
         );
         builder.WebHost.UseTestServer();
         _app = builder.Build();
-        _app.UseDashboardStaticFiles();
+        // Routing first, as WebApplication does in the real app: every endpoint is matched before static files.
         _app.UseRouting();
+        _app.UseDashboardStaticFiles();
+        _app.UseEditorStaticFiles(_editorRoot);
         _app.MapGet("/api/v1/ping", () => "pong");
         _app.MapDashboardFallback();
         await _app.StartAsync();
@@ -57,6 +64,22 @@ public sealed class DashboardShellFallbackTests : IAsyncLifetime
         _client.Dispose();
         await _app.DisposeAsync();
         Directory.Delete(_webRoot, recursive: true);
+        Directory.Delete(_editorRoot, recursive: true);
+    }
+
+    [Theory]
+    [InlineData("/editor/index.html", "must-revalidate, no-cache")]
+    [InlineData("/editor/index.html?v=1.2.3", "public, max-age=31536000, immutable")]
+    public async Task The_editor_page_is_served_from_its_folder_and_never_answered_by_a_fallback(
+        string address,
+        string cacheControl
+    )
+    {
+        HttpResponseMessage response = await _client.GetAsync(address);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        (await response.Content.ReadAsStringAsync()).Should().Be(EditorBody);
+        response.Headers.CacheControl!.ToString().Should().Be(cacheControl);
     }
 
     [Theory]

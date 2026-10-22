@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Extensions.FileProviders;
+
 namespace NomNomzBot.Api.Configuration;
 
 /// <summary>
@@ -20,7 +22,9 @@ public static class DashboardShellExtensions
     /// The bot's own address spaces. An unknown address under one of them is a missing endpoint, so it answers
     /// 404 and never the dashboard shell: a client that calls a wrong API route must not receive HTML.
     /// </summary>
-    private static readonly string[] BotOwnedPrefixes = ["api", "hubs", "health", "editor"];
+    private static readonly string[] BotOwnedPrefixes = ["api", "hubs", "health"];
+
+    private const string EditorPath = "/editor";
 
     /// <summary>
     /// Serves the bundle's files. A file with no registered MIME type is a 404, not a download: the web root
@@ -39,6 +43,50 @@ public static class DashboardShellExtensions
                 },
             }
         );
+
+    /// <summary>
+    /// Serves the code editor page from <paramref name="editorFolder"/> under <c>/editor</c>, then ends the
+    /// request: an unknown address under <c>/editor</c> is a 404, never the dashboard shell. It ends here, not in
+    /// a fallback endpoint, because a matched endpoint (even a fallback) makes the static files middleware pass
+    /// the request on, so an <c>/editor</c> fallback answered 404 for the editor's own files.
+    /// </summary>
+    public static IApplicationBuilder UseEditorStaticFiles(
+        this IApplicationBuilder app,
+        string editorFolder
+    )
+    {
+        if (Directory.Exists(editorFolder))
+        {
+            app.UseStaticFiles(
+                new StaticFileOptions
+                {
+                    FileProvider = new PhysicalFileProvider(editorFolder),
+                    RequestPath = EditorPath,
+                    OnPrepareResponse = ctx =>
+                    {
+                        // The host always requests with ?v=<build version>, so the URL changes on every deploy
+                        // and the bytes behind it never do — safe to cache immutably, and CDN-cacheable for
+                        // SaaS. A request without the marker (someone opening /editor/ by hand) must still
+                        // revalidate.
+                        bool versioned = ctx.Context.Request.Query.ContainsKey("v");
+                        ctx.Context.Response.Headers.CacheControl = versioned
+                            ? "public, max-age=31536000, immutable"
+                            : "no-cache, must-revalidate";
+                    },
+                }
+            );
+        }
+
+        return app.UseWhen(
+            context => context.Request.Path.StartsWithSegments(EditorPath),
+            branch =>
+                branch.Run(context =>
+                {
+                    context.Response.StatusCode = StatusCodes.Status404NotFound;
+                    return Task.CompletedTask;
+                })
+        );
+    }
 
     /// <summary>
     /// The SPA fallback: any route not matched by an API / hub / health endpoint or a static file serves

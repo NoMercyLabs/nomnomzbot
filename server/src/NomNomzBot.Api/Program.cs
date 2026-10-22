@@ -12,7 +12,6 @@ using System.Reflection;
 using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
-using Microsoft.Extensions.FileProviders;
 using Microsoft.IdentityModel.Tokens;
 using NomNomzBot.Api.AutomationStream;
 using NomNomzBot.Api.Configuration;
@@ -756,27 +755,7 @@ try
     // the dashboard hands it a project over postMessage and it runs in an iframe. Served from the project's
     // own Assets folder rather than the web root, because the web root is build output (the Wasm bundle) and
     // is gitignored — these are committed source files, so `dotnet run` serves the file you just edited.
-    string editorAssets = Path.Combine(app.Environment.ContentRootPath, "Assets", "editor");
-    if (Directory.Exists(editorAssets))
-    {
-        app.UseStaticFiles(
-            new StaticFileOptions
-            {
-                FileProvider = new PhysicalFileProvider(editorAssets),
-                RequestPath = "/editor",
-                OnPrepareResponse = ctx =>
-                {
-                    // The host always requests with ?v=<build version>, so the URL changes on every deploy and
-                    // the bytes behind it never do — safe to cache immutably, and CDN-cacheable for SaaS. A
-                    // request without the marker (someone opening /editor/ by hand) must still revalidate.
-                    bool versioned = ctx.Context.Request.Query.ContainsKey("v");
-                    ctx.Context.Response.Headers.CacheControl = versioned
-                        ? "public, max-age=31536000, immutable"
-                        : "no-cache, must-revalidate";
-                },
-            }
-        );
-    }
+    app.UseEditorStaticFiles(Path.Combine(app.Environment.ContentRootPath, "Assets", "editor"));
 
     app.UseCors();
     app.UseRateLimiter();
