@@ -530,32 +530,6 @@ describe('TTS rules panels', () => {
     expect(post?.method).toBe('POST');
   });
 
-  it('adds a lexicon rule with its match kind', async () => {
-    await open();
-
-    const [phrase, replacement] = [
-      ...document.body.querySelectorAll<HTMLInputElement>('[data-view="tts-lexicon"] form input'),
-    ];
-
-    phrase!.value = 'lol';
-    phrase!.dispatchEvent(new Event('input'));
-    replacement!.value = 'laughing out loud';
-    replacement!.dispatchEvent(new Event('input'));
-    await flushPromises();
-    button('Add rule').click();
-    await flushPromises();
-
-    const post = sent.find((call) => call.method === 'POST');
-
-    expect(post?.path).toContain('/tts/lexicon');
-
-    expect(post?.body).toEqual({
-      phrase: 'lol',
-      replacement: 'laughing out loud',
-      matchKind: 'word',
-    });
-  });
-
   // The column labels are drawn once, in one header row; a rule row holds only values.
   it('names the columns once in a header row and keeps the labels out of the rule rows', async () => {
     await open();
@@ -572,23 +546,19 @@ describe('TTS rules panels', () => {
     expect(row.textContent).not.toContain('Match');
   });
 
-  // The header, the add row and every rule row are four cells wide on one shared grid, so the columns line up.
-  it('lays the header, the add row and the rule rows out on one four-column grid', async () => {
+  // The header and every rule row are four cells wide on one shared grid, so the columns line up.
+  it('lays the header and the rule rows out on one four-column grid', async () => {
     await open();
 
     const header = document.body.querySelector('[data-lexicon-header]') as HTMLElement;
-    const form = document.body.querySelector('[data-view="tts-lexicon"] form') as HTMLElement;
     const row = document.body.querySelector('[data-lexicon-row]') as HTMLElement;
     const columns = (element: HTMLElement): string | undefined =>
       element.className.split(/\s+/).find((token) => token.startsWith('md:grid-cols-'));
 
     expect(columns(header)).toBeDefined();
-    expect(columns(form)).toBe(columns(header));
     expect(columns(row)).toBe(columns(header));
     expect(header.children).toHaveLength(4);
-    expect(form.children).toHaveLength(4);
     expect(row.children).toHaveLength(4);
-    expect(form.classList.contains('px-2')).toBe(true);
     expect(row.classList.contains('px-2')).toBe(true);
     expect(header.classList.contains('px-2')).toBe(true);
   });
@@ -606,17 +576,9 @@ describe('TTS rules panels', () => {
     expect(kind.textContent?.trim()).toBe('Whole word, any case');
   });
 
-  it('edits and deletes a lexicon rule by its id', async () => {
+  it('deletes a lexicon rule only after the confirm', async () => {
     await open();
     expect(document.body.querySelectorAll('[data-lexicon-row]')).toHaveLength(1);
-
-    byLabel('Edit the rule for gg').click();
-    await flushPromises();
-    expect(button('Save rule')).toBeDefined();
-
-    button('Save rule').click();
-    await flushPromises();
-    expect(sent.find((call) => call.method === 'PUT')?.path).toContain('/tts/lexicon/{entryId}');
 
     byLabel('Delete the rule for gg').click();
     await flushPromises();

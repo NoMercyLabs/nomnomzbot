@@ -87,18 +87,18 @@ async function open(
 }
 
 describe('TTS shows only what the person may use', () => {
-  it('lists the lexicon without the add form or row actions with tts:config:read alone', async () => {
+  it('lists the lexicon without the add button or row actions with tts:config:read alone', async () => {
     const view = await open(LexiconPanel, ['tts:config:read']);
 
     expect(view.text()).toContain('good game');
-    expect(view.find('form').exists()).toBe(false);
+    expect(view.find('[data-lexicon-add]').exists()).toBe(false);
     expect(view.find('[aria-label^="Edit"]').exists()).toBe(false);
   });
 
-  it('shows the add form and row actions with tts:config:write', async () => {
+  it('shows the add button and row actions with tts:config:write', async () => {
     const view = await open(LexiconPanel, ['tts:config:read', 'tts:config:write']);
 
-    expect(view.find('form').exists()).toBe(true);
+    expect(view.find('[data-lexicon-add]').exists()).toBe(true);
     expect(view.findAll('button[aria-label]').length).toBeGreaterThanOrEqual(2);
   });
 

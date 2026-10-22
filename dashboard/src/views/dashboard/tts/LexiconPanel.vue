@@ -9,18 +9,18 @@
 -->
 <script setup lang="ts">
 // The pronunciation lexicon: when a phrase appears in a message, the bot speaks the replacement instead.
-// The form on top adds a rule, or saves the rule picked with the pencil.
-import { computed, reactive, ref } from 'vue';
+// A dialog adds a rule (the Add rule button) or edits one (the pencil of its row).
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { toast } from 'vue-sonner';
 
+import Add from '~icons/nnz/add';
 import Edit from '~icons/nnz/edit';
 import Trash from '~icons/nnz/trash';
 
 import { useTtsConfig } from '@/api/tts';
 import {
   useDeleteLexiconEntry,
-  useSaveLexiconEntry,
   useTtsDefaults,
   useTtsLexicon,
   type TtsLexiconEntry,
@@ -29,28 +29,15 @@ import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from '@/components/ui/select';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
+import LexiconRuleDialog from './LexiconRuleDialog.vue';
 import PlaySampleButton from './PlaySampleButton.vue';
 
-const matchKinds = ['word', 'exact'] as const;
-// The one column grid of the header, the add row and every rule row: phrase, replacement, match, actions.
+// The one column grid of the header and every rule row: phrase, replacement, match, actions.
 // Under md the cells stack and the header hides.
 const columns = 'md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)_13rem_11rem]';
-const emptyDraft = {
-  phrase: '',
-  replacement: '',
-  matchKind: 'word',
-};
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
@@ -58,12 +45,11 @@ const { can } = useCan();
 const config = useTtsConfig(channelId);
 const defaults = useTtsDefaults(channelId);
 const lexicon = useTtsLexicon(channelId);
-const saveEntry = useSaveLexiconEntry(channelId);
 const removeEntry = useDeleteLexiconEntry(channelId);
 
-const editing = ref<string | null>(null);
+const dialogOpen = ref(false);
+const editing = ref<TtsLexiconEntry | null>(null);
 const pendingRemoval = ref<TtsLexiconEntry | null>(null);
-const draft = reactive({ ...emptyDraft });
 
 const entries = computed(() => lexicon.data.value ?? []);
 
@@ -71,11 +57,8 @@ const entries = computed(() => lexicon.data.value ?? []);
 const heardVoice = computed<string | null>(
   () => config.data.value?.defaultVoiceId || defaults.data.value?.defaultVoiceId || null,
 );
-// The header names the columns of the add row and of the rules; with neither on screen it has nothing to name.
-const showHeader = computed(() => entries.value.length > 0 || can('tts:config:write'));
-const canSave = computed(
-  () => draft.phrase.trim() !== '' && draft.replacement.trim() !== '' && !saveEntry.isPending.value,
-);
+// The header names the columns of the rules; with no rule on screen it has nothing to name.
+const showHeader = computed(() => entries.value.length > 0);
 
 const state = computed<PanelState>(() => {
   if (lexicon.isError.value)
@@ -86,46 +69,15 @@ const state = computed<PanelState>(() => {
     : 'ready';
 });
 
-function reset(): void {
-  editing.value = null;
-  Object.assign(draft, emptyDraft);
-}
-
-function edit(entry: TtsLexiconEntry): void {
-  editing.value = entry.id;
-
-  Object.assign(draft, {
-    phrase: entry.phrase,
-    replacement: entry.replacement,
-    matchKind: entry.matchKind,
-  });
-}
-
-function submit(): void {
-  saveEntry.mutate(
-    {
-      entryId: editing.value,
-      draft: {
-        phrase: draft.phrase.trim(),
-        replacement: draft.replacement.trim(),
-        matchKind: draft.matchKind,
-      },
-    },
-    {
-      onSuccess: reset,
-      onError: () => toast.error(t('dashboard.tts.lexicon.saveFailed')),
-    },
-  );
+function openDialog(entry: TtsLexiconEntry | null): void {
+  editing.value = entry;
+  dialogOpen.value = true;
 }
 
 function remove(entry: TtsLexiconEntry): void {
   removeEntry.mutate(entry.id, {
     onSuccess: () => {
       pendingRemoval.value = null;
-
-      if (editing.value === entry.id) {
-        reset();
-      }
     },
     onError: () => toast.error(t('dashboard.tts.lexicon.deleteFailed')),
   });
@@ -141,6 +93,12 @@ function remove(entry: TtsLexiconEntry): void {
     :error-text="$t('dashboard.tts.lexicon.loadFailed')"
     @retry="lexicon.refetch()"
   >
+    <template v-if="can('tts:config:write')" #actions>
+      <Button data-lexicon-add @click="openDialog(null)">
+        <Add class="size-5" aria-hidden="true" />
+        {{ $t("dashboard.tts.lexicon.add") }}
+      </Button>
+    </template>
     <div
       v-if="showHeader"
       data-lexicon-header
@@ -152,43 +110,6 @@ function remove(entry: TtsLexiconEntry): void {
       <span>{{ $t("dashboard.tts.lexicon.matchKind") }}</span>
       <span />
     </div>
-    <form
-      v-if="can('tts:config:write')"
-      :class="columns"
-      class="grid items-center gap-2 border-b border-border px-2 py-3"
-      @submit.prevent="submit"
-    >
-      <Input
-        v-model="draft.phrase"
-        maxlength="100"
-        :placeholder="$t('dashboard.tts.lexicon.phrase')"
-        :aria-label="$t('dashboard.tts.lexicon.phrase')"
-      />
-      <Input
-        v-model="draft.replacement"
-        maxlength="200"
-        :placeholder="$t('dashboard.tts.lexicon.replacement')"
-        :aria-label="$t('dashboard.tts.lexicon.replacement')"
-      />
-      <Select v-model="draft.matchKind">
-        <SelectTrigger class="w-full" :aria-label="$t('dashboard.tts.lexicon.matchKind')">
-          <SelectValue />
-        </SelectTrigger>
-        <SelectContent position="popper" align="end">
-          <SelectItem v-for="kind in matchKinds" :key="kind" :value="kind">
-            {{ $t(`dashboard.tts.lexicon.kind.${kind}`) }}
-          </SelectItem>
-        </SelectContent>
-      </Select>
-      <div class="flex justify-end gap-2">
-        <Button v-if="editing" type="button" variant="ghost" @click="reset">
-          {{ $t("dashboard.tts.lexicon.cancel") }}
-        </Button>
-        <Button type="submit" :disabled="!canSave">
-          {{ $t(editing ? "dashboard.tts.lexicon.save" : "dashboard.tts.lexicon.add") }}
-        </Button>
-      </div>
-    </form>
     <p v-if="entries.length === 0" class="p-3 text-sm text-muted-foreground">
       {{ $t("dashboard.tts.lexicon.empty") }}
     </p>
@@ -216,7 +137,7 @@ function remove(entry: TtsLexiconEntry): void {
             variant="ghost"
             size="icon"
             :aria-label="$t('dashboard.tts.lexicon.edit', { phrase: entry.phrase })"
-            @click="edit(entry)"
+            @click="openDialog(entry)"
           >
             <Edit class="size-5" />
           </Button>
@@ -233,6 +154,7 @@ function remove(entry: TtsLexiconEntry): void {
       </li>
     </ul>
   </PanelCard>
+  <LexiconRuleDialog v-model:open="dialogOpen" :entry="editing" />
   <ConfirmDialog
     :open="pendingRemoval !== null"
     :title="$t('dashboard.tts.lexicon.confirmTitle')"
