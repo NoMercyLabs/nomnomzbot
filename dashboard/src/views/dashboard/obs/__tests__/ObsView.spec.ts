@@ -512,7 +512,7 @@ describe('ObsView', () => {
 
   // Stoney 2026-10-22: "setup in obs does not redirect to the actual setup"
   it('scrolls the required overlays panel into view when the link carries its anchor', async () => {
-    const scrolled = vi.fn();
+    const scrolled = vi.fn<(options?: ScrollIntoViewOptions) => void>();
 
     Element.prototype.scrollIntoView = scrolled;
     required = [{ key: 'audio', widget: widgets[3] }];
@@ -528,7 +528,7 @@ describe('ObsView', () => {
   });
 
   it('does not scroll when the link has no anchor', async () => {
-    const scrolled = vi.fn();
+    const scrolled = vi.fn<(options?: ScrollIntoViewOptions) => void>();
 
     Element.prototype.scrollIntoView = scrolled;
     await open('overlays');
