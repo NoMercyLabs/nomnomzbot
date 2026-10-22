@@ -212,6 +212,20 @@ public class BundleExportService : IBundleExportService
                 return pulled.ToTyped<System.IO.Stream>();
         }
 
+        // A code command's script always travels with it. A script that is gone (deleted) travels as nothing, so
+        // the command exports without a script and the importer leaves it disabled.
+        foreach (Guid scriptId in commands.Values.Select(c => c.CodeScriptId).OfType<Guid>())
+        {
+            if (codeScripts.ContainsKey(scriptId))
+                continue;
+            CodeScript? boundScript = await _db.CodeScripts.FirstOrDefaultAsync(
+                s => s.BroadcasterId == broadcasterId && s.Id == scriptId && s.DeletedAt == null,
+                ct
+            );
+            if (boundScript is not null)
+                codeScripts[scriptId] = boundScript;
+        }
+
         // ── Map through the allowlist contracts + write the archive ──
         MemoryStream buffer = new();
         using (ZipArchive archive = new(buffer, ZipArchiveMode.Create, leaveOpen: true))
@@ -264,6 +278,11 @@ public class BundleExportService : IBundleExportService
             foreach (Command command in commands.Values)
             {
                 string? pipelineName = PipelineNameOf(command.PipelineId);
+                string? codeScriptName =
+                    command.CodeScriptId is { } boundId
+                    && codeScripts.TryGetValue(boundId, out CodeScript? bound)
+                        ? bound.Name
+                        : null;
                 CommandExport export = new()
                 {
                     Name = command.Name,
@@ -272,13 +291,16 @@ public class BundleExportService : IBundleExportService
                     TemplateResponse = command.TemplateResponse,
                     TemplateResponses = command.TemplateResponses,
                     PipelineName = pipelineName,
+                    CodeScriptName = codeScriptName,
                     CooldownSeconds = command.CooldownSeconds,
                     UserCooldownSeconds = command.UserCooldownSeconds,
                     Description = command.Description,
                     Aliases = command.Aliases,
                     IsEnabled = command.IsEnabled,
                 };
-                IReadOnlyList<string> dependencies = PipelineEdge(pipelineName);
+                List<string> dependencies = [.. PipelineEdge(pipelineName)];
+                if (codeScriptName is not null)
+                    dependencies.Add($"{BundleFormat.CodeScriptType}:{codeScriptName}");
                 manifestItems.Add(
                     await WriteItemAsync(
                         archive,

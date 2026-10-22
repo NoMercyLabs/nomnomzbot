@@ -40,6 +40,9 @@ public sealed record CommandDto(
     public string? PresetKey { get; init; }
 
     public bool SpeakWithTts { get; init; }
+
+    /// <summary>The code script a <c>code</c>-tier command runs directly; null for the other tiers.</summary>
+    public Guid? CodeScriptId { get; init; }
 }
 
 /// <summary>Lightweight command info for list views — includes the response text and pipeline id so the edit
@@ -69,6 +72,9 @@ public sealed record CommandListItem(
     public string? PresetKey { get; init; }
 
     public bool SpeakWithTts { get; init; }
+
+    /// <summary>The code script a <c>code</c>-tier command runs directly; null for the other tiers.</summary>
+    public Guid? CodeScriptId { get; init; }
 }
 
 /// <summary>Request to create a new command.</summary>
@@ -114,6 +120,9 @@ public sealed record CreateCommandDto
     public List<string>? TemplateResponses { get; init; }
 
     public Guid? PipelineId { get; init; }
+
+    /// <summary>The channel's code script a <c>code</c>-tier command runs; required for that tier.</summary>
+    public Guid? CodeScriptId { get; init; }
 
     [Range(0, 86400)]
     public int CooldownSeconds { get; init; }
@@ -169,6 +178,9 @@ public sealed record UpdateCommandDto
     public List<string>? TemplateResponses { get; init; }
 
     public Guid? PipelineId { get; init; }
+
+    /// <summary>The channel's code script a <c>code</c>-tier command runs; null leaves it unchanged.</summary>
+    public Guid? CodeScriptId { get; init; }
 
     [Range(0, 86400)]
     public int? CooldownSeconds { get; init; }

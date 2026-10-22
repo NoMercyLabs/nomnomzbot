@@ -74,6 +74,7 @@ public sealed class BundleParityTypesTests
         Guid ActingChannel,
         BundleExportService Export,
         BundleImportService Import,
+        CommandService Commands,
         PipelineService Pipelines,
         EventResponseService EventResponses,
         RewardService Rewards,
@@ -254,6 +255,7 @@ public sealed class BundleParityTypesTests
             actingChannel,
             export,
             import,
+            commands,
             pipelines,
             eventResponses,
             rewards,
@@ -1012,6 +1014,137 @@ public sealed class BundleParityTypesTests
             .Should()
             .Be(importedScript.Id.ToString());
         importedPipeline.GraphJsonCache.Should().NotContain(scriptId.ToString());
+    }
+
+    /// <summary>A script row with one saved version, written straight to the database so the test needs no esbuild.</summary>
+    private static async Task<CodeScript> SeedScriptRowAsync(
+        MarketplaceTestDbContext db,
+        Guid channel,
+        string name
+    )
+    {
+        CodeScript script = new()
+        {
+            BroadcasterId = channel,
+            Name = name,
+            Description = "Greets chat",
+        };
+        CodeScriptVersion version = new()
+        {
+            CodeScriptId = script.Id,
+            BroadcasterId = channel,
+            Version = 1,
+            SourceCode = "export {};",
+        };
+        script.CurrentVersionId = version.Id;
+        db.CodeScripts.Add(script);
+        db.CodeScriptVersions.Add(version);
+        await db.SaveChangesAsync();
+        return script;
+    }
+
+    [Fact]
+    public async Task A_code_command_exports_its_script_by_name_and_imports_bound_to_the_target_channels_script_disabled()
+    {
+        Harness source = Build(Channel);
+        CodeScript script = await SeedScriptRowAsync(source.Db, Channel, "greeter");
+        CommandDto command = (
+            await source.Commands.CreateAsync(
+                Channel.ToString(),
+                new()
+                {
+                    Name = "greet",
+                    Tier = "code",
+                    CodeScriptId = script.Id,
+                }
+            )
+        ).Value;
+        Result<System.IO.Stream> exported = await source.Export.ExportAsync(
+            Channel,
+            new(
+                [new(BundleFormat.CommandType, command.Id)],
+                new("Code Pack", "1.0.0", null, null, null)
+            )
+        );
+        exported.IsSuccess.Should().BeTrue(exported.ErrorMessage);
+        MemoryStream zip = new();
+        await exported.Value.CopyToAsync(zip);
+        zip.Position = 0;
+
+        Dictionary<string, string> entries = ReadEntries(zip);
+        entries.Keys.Should().Contain(["commands/greet.json", "code-scripts/greeter.json"]);
+        CommandExport exportedCommand = BundleConventions.Deserialize<CommandExport>(
+            entries["commands/greet.json"]
+        )!;
+        exportedCommand.CodeScriptName.Should().Be("greeter");
+        exportedCommand.PipelineName.Should().BeNull();
+        entries.Values.Should().OnlyContain(text => !text.Contains(script.Id.ToString()));
+        BundleManifest manifest = BundleConventions.Deserialize<BundleManifest>(
+            entries["manifest.json"]
+        )!;
+        manifest
+            .Items.Single(i => i.Type == BundleFormat.CommandType)
+            .Dependencies.Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be("code_script:greeter");
+
+        // The target channel already has a script of that name; Skip anchors the command to it.
+        Harness target = Build(OtherChannel);
+        CodeScript targetScript = await SeedScriptRowAsync(target.Db, OtherChannel, "greeter");
+        Result<InstalledBundleDto> installed = await target.Import.ImportAsync(
+            OtherChannel,
+            Actor,
+            zip,
+            ImportConflictPolicy.Skip
+        );
+        installed.IsSuccess.Should().BeTrue(installed.ErrorMessage);
+
+        Command importedCommand = await target.Db.Commands.SingleAsync();
+        importedCommand.Tier.Should().Be("code");
+        importedCommand.CodeScriptId.Should().Be(targetScript.Id);
+        importedCommand.CodeScriptId.Should().NotBe(script.Id);
+        importedCommand.PipelineId.Should().BeNull();
+        importedCommand.IsEnabled.Should().BeFalse(); // D4
+        (await target.Db.Pipelines.CountAsync()).Should().Be(0, "no wrapper pipeline is created");
+    }
+
+    [Fact]
+    public async Task An_older_code_command_export_with_a_pipeline_imports_as_a_pipeline_command()
+    {
+        Harness target = Build(OtherChannel);
+        using MemoryStream zip = BuildZip(
+            (
+                "manifest.json",
+                """
+                {"schemaVersion":1,"metadata":{"name":"Old Pack","version":"1.0.0"},
+                 "items":[
+                  {"type":"pipeline","name":"Old Flow","path":"pipelines/old-flow.json","dependencies":[]},
+                  {"type":"command","name":"oldcode","path":"commands/oldcode.json","dependencies":["pipeline:Old Flow"]}]}
+                """
+            ),
+            (
+                "pipelines/old-flow.json",
+                """{"schemaVersion":1,"name":"Old Flow","triggerKind":"command","isEnabled":true,"graphJson":"{\"nodes\":[{\"id\":\"n1\",\"type\":\"send_message\",\"config\":{\"text\":\"hi\"}}]}"}"""
+            ),
+            (
+                "commands/oldcode.json",
+                """{"schemaVersion":1,"name":"oldcode","tier":"code","pipelineName":"Old Flow","isEnabled":true}"""
+            )
+        );
+
+        Result<InstalledBundleDto> installed = await target.Import.ImportAsync(
+            OtherChannel,
+            Actor,
+            zip,
+            ImportConflictPolicy.Rename
+        );
+        installed.IsSuccess.Should().BeTrue(installed.ErrorMessage);
+
+        Command imported = await target.Db.Commands.SingleAsync();
+        imported.Tier.Should().Be("pipeline");
+        imported.CodeScriptId.Should().BeNull();
+        imported.PipelineId.Should().Be((await target.Db.Pipelines.SingleAsync()).Id);
     }
 
     [Fact]

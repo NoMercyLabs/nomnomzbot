@@ -457,6 +457,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 c.UserCooldownSeconds,
                 c.MinPermissionLevel,
                 c.Tier,
+                c.CodeScriptId,
                 // A command bound to a DISABLED pipeline caches no graph — the chat path's existing
                 // "no executable graph" fallback (falls through to the builtin catalog / does nothing) is
                 // reused rather than adding a second disabled-check on the hot path.
@@ -532,6 +533,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                     UserCooldown = c.UserCooldownSeconds,
                     MinPermissionLevel = c.MinPermissionLevel,
                     Tier = c.Tier,
+                    CodeScriptId = c.CodeScriptId,
                     PipelineGraphJson = pipelineGraphJson,
                     // Carried alongside the graph JSON so the engine dispatches block-kind steps (if/switch/
                     // loop/random_branch/try/detached_step) through its tree walker instead of its flat-only

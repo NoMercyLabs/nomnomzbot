@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.CustomCode.Entities;
 
 namespace NomNomzBot.Infrastructure.Commands.Persistence;
 
@@ -65,6 +66,15 @@ public class CommandConfiguration : IEntityTypeConfiguration<Command>
             .HasForeignKey(e => e.PipelineId)
             .OnDelete(DeleteBehavior.SetNull)
             .IsRequired(false);
+
+        builder
+            .HasOne<CodeScript>()
+            .WithMany()
+            .HasForeignKey(e => e.CodeScriptId)
+            .OnDelete(DeleteBehavior.SetNull)
+            .IsRequired(false);
+
+        builder.HasIndex(e => e.CodeScriptId).HasDatabaseName("IX_Command_CodeScriptId");
 
         builder.HasIndex(e => e.PipelineId).HasDatabaseName("IX_Command_PipelineId");
 

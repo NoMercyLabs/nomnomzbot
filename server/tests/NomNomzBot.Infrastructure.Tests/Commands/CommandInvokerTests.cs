@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -146,7 +147,8 @@ public sealed class CommandInvokerTests
                 templates,
                 chat,
                 catalog,
-                new OutboundSanctionAccessor()
+                new OutboundSanctionAccessor(),
+                Substitute.For<IScriptRunner>()
             ),
             Catalog = catalog,
             Db = db,

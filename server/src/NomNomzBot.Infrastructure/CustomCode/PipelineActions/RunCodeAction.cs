@@ -48,19 +48,14 @@ public sealed class RunCodeAction(IScriptRunner runner) : ICommandAction
         if (!OwnedIdCodec.TryDecode(action.GetString("code_script_id"), out Guid codeScriptId))
             return ActionResult.Failure("run_code requires a valid code_script_id.");
 
-        IReadOnlyList<string> args =
-        [
-            .. ctx.RawMessage.Split((char[]?)null, StringSplitOptions.RemoveEmptyEntries).Skip(1),
-        ];
-        ScriptInvocation invocation = new(
+        ScriptInvocation invocation = ScriptInvocationFactory.Create(
             ctx.ExecutionId,
             ctx.TriggeredByUserId,
             ctx.TriggeredByDisplayName,
-            args,
-            new Dictionary<string, string>(ctx.Variables),
-            string.IsNullOrEmpty(ctx.MessageId)
-                ? null
-                : new ScriptReplyTarget(ctx.MessageId, ctx.TriggeredByChatName)
+            ScriptInvocationFactory.ArgsAfterCommand(ctx.RawMessage),
+            ctx.Variables,
+            ctx.MessageId,
+            ctx.TriggeredByChatName
         );
 
         Result<ScriptRunResult> result = await runner.RunAsync(

@@ -19,6 +19,7 @@ using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -182,7 +183,8 @@ public sealed class AutomationCommandServiceTests
             templates,
             chat,
             catalog,
-            Substitute.For<IOutboundSanctionAccessor>()
+            Substitute.For<IOutboundSanctionAccessor>(),
+            Substitute.For<IScriptRunner>()
         );
         // Records what the service hands the invoker, then lets the real invoker run it.
         ICommandInvoker invoker = Substitute.For<ICommandInvoker>();

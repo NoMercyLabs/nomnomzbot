@@ -144,6 +144,8 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
             e.Ignore(p => p.Steps);
         });
 
+        b.Entity<CodeScript>(e => e.HasKey(s => s.Id));
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -161,6 +163,7 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
         typeof(NomNomzBot.Domain.Platform.Entities.Record),
         typeof(User),
         typeof(Pipeline),
+        typeof(CodeScript),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -430,7 +433,7 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
     public DbSet<ChannelChatterDay> ChannelChatterDays => throw new NotSupportedException();
     public DbSet<FeatureFlag> FeatureFlags => throw new NotSupportedException();
     public DbSet<FeatureFlagOverride> FeatureFlagOverrides => throw new NotSupportedException();
-    public DbSet<CodeScript> CodeScripts => throw new NotSupportedException();
+    public DbSet<CodeScript> CodeScripts => Set<CodeScript>();
     public DbSet<CodeScriptVersion> CodeScriptVersions => throw new NotSupportedException();
     public DbSet<SoundClip> SoundClips => throw new NotSupportedException();
     public DbSet<ChannelAudioMix> ChannelAudioMixes => throw new NotSupportedException();

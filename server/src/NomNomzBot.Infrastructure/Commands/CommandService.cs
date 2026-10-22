@@ -33,6 +33,8 @@ public class CommandService : ICommandService
     private readonly IApplicationDbContext _db;
     private readonly IChannelRegistry _registry;
     private readonly IEventBus _eventBus;
+    private const string CodeTier = "code";
+
     private readonly IResourceQuotaService _quota;
     private readonly ITemplateHelperValidator _templateHelperValidator;
     private readonly ICommandBindingGuard _bindingGuard;
@@ -143,6 +145,15 @@ public class CommandService : ICommandService
         if (pipelineOk.IsFailure)
             return pipelineOk.ToTyped<CommandDto>();
 
+        Result codeScriptOk = await ValidateCodeScriptAsync(
+            broadcaster,
+            request.Tier,
+            request.CodeScriptId,
+            cancellationToken
+        );
+        if (codeScriptOk.IsFailure)
+            return codeScriptOk.ToTyped<CommandDto>();
+
         // A rung the ladder does not know is refused, never coerced. Silently falling back to Everyone
         // would hand a broadcaster-only command to the whole chat on a typo.
         int? minLevel = PermissionLevelNames.ToLevelValue(request.MinPermissionLevel);
@@ -164,7 +175,9 @@ public class CommandService : ICommandService
             MatchPattern = request.MatchPattern,
             TemplateResponse = request.TemplateResponse,
             TemplateResponses = request.TemplateResponses ?? [],
-            PipelineId = request.PipelineId,
+            // A code command holds its script itself; it never also carries a pipeline.
+            PipelineId = request.Tier == CodeTier ? null : request.PipelineId,
+            CodeScriptId = request.Tier == CodeTier ? request.CodeScriptId : null,
             CooldownSeconds = request.CooldownSeconds,
             UserCooldownSeconds = request.UserCooldownSeconds,
             Description = request.Description,
@@ -223,6 +236,23 @@ public class CommandService : ICommandService
         );
         if (helperOk.IsFailure)
             return helperOk.ToTyped<CommandDto>();
+
+        string mergedTier = request.Tier ?? command.Tier;
+        Guid? mergedScript = request.CodeScriptId ?? command.CodeScriptId;
+        // An edit that touches neither the tier nor the script (a rename, a cooldown) leaves a code command not
+        // yet moved to its own script alone; only a change of reaction is held to the script rule.
+        bool changesReaction = request.Tier is not null || request.CodeScriptId is not null;
+        if (changesReaction)
+        {
+            Result codeScriptOk = await ValidateCodeScriptAsync(
+                broadcaster,
+                mergedTier,
+                mergedScript,
+                cancellationToken
+            );
+            if (codeScriptOk.IsFailure)
+                return codeScriptOk.ToTyped<CommandDto>();
+        }
 
         if (request.Name is not null)
         {
@@ -298,6 +328,14 @@ public class CommandService : ICommandService
             if (pipelineOk.IsFailure)
                 return pipelineOk.ToTyped<CommandDto>();
             command.PipelineId = request.PipelineId.Value;
+        }
+        // The tier decides which reaction the row carries: a code command holds its script and no pipeline, any
+        // other tier lets go of the script.
+        if (changesReaction)
+        {
+            command.CodeScriptId = mergedTier == CodeTier ? mergedScript : null;
+            if (mergedTier == CodeTier)
+                command.PipelineId = null;
         }
         if (request.CooldownSeconds.HasValue)
             command.CooldownSeconds = request.CooldownSeconds.Value;
@@ -452,6 +490,7 @@ public class CommandService : ICommandService
             {
                 PresetKey = c.PresetKey,
                 SpeakWithTts = c.SpeakWithTts,
+                CodeScriptId = c.CodeScriptId,
             })
             .ToListAsync(cancellationToken);
 
@@ -645,7 +684,30 @@ public class CommandService : ICommandService
         {
             PresetKey = c.PresetKey,
             SpeakWithTts = c.SpeakWithTts,
+            CodeScriptId = c.CodeScriptId,
         };
+
+    /// <summary>A code command needs a script of its own channel; every other tier has nothing to check.</summary>
+    private async Task<Result> ValidateCodeScriptAsync(
+        Guid broadcaster,
+        string tier,
+        Guid? codeScriptId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (tier != CodeTier)
+            return Result.Success();
+        if (codeScriptId is null || codeScriptId == Guid.Empty)
+            return Errors.ValidationFailed(
+                "A code command needs a code script - pick one of this channel's scripts."
+            );
+
+        return await _db.EnsureCodeScriptInChannelAsync(
+            broadcaster,
+            codeScriptId.Value,
+            cancellationToken
+        );
+    }
 
     /// <summary>The recorded shape of a <see cref="AuditRecordType"/> row — one destructive command-authoring event.</summary>
     private sealed class AuditActionData

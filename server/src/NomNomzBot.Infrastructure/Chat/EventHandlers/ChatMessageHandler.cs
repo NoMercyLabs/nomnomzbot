@@ -24,6 +24,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Common.Picking;
 using NomNomzBot.Application.Community.Services;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Games;
@@ -34,10 +35,12 @@ using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Commands.Events;
 using NomNomzBot.Domain.Commands.ValueObjects;
+using NomNomzBot.Domain.CustomCode.Enums;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.Games;
 using NomNomzBot.Infrastructure.Tts.PipelineActions;
 
@@ -464,10 +467,23 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
 
         try
         {
-            // A "code" command has no field of its own to execute — its reaction IS a single-step run_code
-            // pipeline (custom-code.md §5: no HTTP endpoint runs a script, execution happens only via the
-            // run_code pipeline action), so it dispatches through the exact same bound-pipeline path as a
-            // "pipeline" command.
+            // A "code" command holds its script itself and runs it straight through the script runner; no pipeline
+            // sits between. A code command not yet moved onto a script of its own (no CodeScriptId) still runs
+            // its bound pipeline below.
+            if (command.Tier == "code" && command.CodeScriptId is { } codeScriptId)
+            {
+                await RunCodeScriptAsync(
+                    @event,
+                    ctx,
+                    command,
+                    codeScriptId,
+                    args,
+                    level,
+                    cancellationToken
+                );
+                return;
+            }
+
             bool isPipelineBound = command.Tier is "pipeline" or "code";
 
             // A pipeline-bound command with no executable graph used to fall silently through to the template
@@ -961,6 +977,46 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         {
             _logger.LogWarning(ex, "Denial TTS failed in {Channel}", @event.BroadcasterId);
         }
+    }
+
+    /// <summary>
+    /// Runs the code script a <c>code</c> command holds. The script talks to chat itself (<c>chat.reply</c>), so a
+    /// clean run sends nothing here; a run that does not complete gets the one failure notice.
+    /// </summary>
+    private async Task RunCodeScriptAsync(
+        ChatMessageReceivedEvent @event,
+        ChannelContext ctx,
+        CachedCommand command,
+        Guid codeScriptId,
+        string args,
+        EffectiveLevelLookup level,
+        CancellationToken ct
+    )
+    {
+        Dictionary<string, string> variables = BuildInitialVariables(@event, args);
+        variables["user.role"] = await ResolveEffectiveRoleTokenAsync(level);
+        ScriptInvocation invocation = ScriptInvocationFactory.Create(
+            Guid.NewGuid().ToString("N"),
+            @event.UserId,
+            @event.UserDisplayName,
+            ScriptInvocationFactory.ArgsOf(args),
+            variables,
+            @event.MessageId,
+            ChatMentionName.For(@event.UserDisplayName, @event.UserLogin)
+        );
+
+        bool succeeded;
+        using (IServiceScope scope = _scopeFactory.CreateScope())
+        {
+            IScriptRunner runner = scope.ServiceProvider.GetRequiredService<IScriptRunner>();
+            Result<ScriptRunResult> run = await runner.RunAsync(codeScriptId, invocation, ct);
+            succeeded = run.IsSuccess && run.Value.Outcome == ScriptExecutionOutcome.Success;
+        }
+
+        if (!succeeded)
+            await SendPipelineFailureNoticeAsync(@event, ctx, ct);
+
+        await PublishExecutedAsync(@event, command.Name, succeeded, ct);
     }
 
     /// <summary>

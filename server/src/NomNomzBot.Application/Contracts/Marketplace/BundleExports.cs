@@ -49,6 +49,9 @@ public sealed record CommandExport
     /// <summary>The bundled pipeline this command executes, by manifest item name; null when standalone.</summary>
     public string? PipelineName { get; init; }
 
+    /// <summary>The bundled code script a <c>code</c> command runs, by manifest item name; never an id.</summary>
+    public string? CodeScriptName { get; init; }
+
     public int CooldownSeconds { get; init; }
 
     /// <summary>The per-chatter window, 0 = off.</summary>

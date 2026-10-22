@@ -17,6 +17,7 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Common.Picking;
+using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -25,9 +26,11 @@ using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
+using NomNomzBot.Domain.CustomCode.Enums;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
+using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.Tts.PipelineActions;
 using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
@@ -42,7 +45,8 @@ public sealed class CommandInvoker(
     ITemplateResolver templateResolver,
     IChatProvider chat,
     IBuiltinCommandCatalog builtins,
-    IOutboundSanctionAccessor sanctions
+    IOutboundSanctionAccessor sanctions,
+    IScriptRunner scripts
 ) : ICommandInvoker
 {
     // With no dedicated bot account the streamer's own account speaks (IChannelTwitchBotResolver), so the
@@ -150,6 +154,12 @@ public sealed class CommandInvoker(
                 context,
                 cancellationToken
             ),
+            "code" when command.CodeScriptId is not null => await RunCodeScriptAsync(
+                broadcasterId,
+                command.CodeScriptId.Value,
+                context,
+                cancellationToken
+            ),
             "pipeline" or "code" => await RunBoundPipelineAsync(
                 broadcasterId,
                 command,
@@ -211,7 +221,49 @@ public sealed class CommandInvoker(
         );
     }
 
-    // A "code" command's reaction is a single run_code pipeline, so it takes the same path as a "pipeline" one.
+    // A "code" command holds its script: it runs straight through the runner, with no pipeline in between. Only a
+    // code command not yet moved onto a script of its own (no CodeScriptId) still runs its bound pipeline.
+    private async Task<Result<InvocationOutcome>> RunCodeScriptAsync(
+        Guid broadcasterId,
+        Guid codeScriptId,
+        InvocationContext context,
+        CancellationToken cancellationToken
+    )
+    {
+        Invoker invoker = await ResolveInvokerAsync(broadcasterId, context, cancellationToken);
+        ScriptInvocation invocation = ScriptInvocationFactory.Create(
+            Guid.NewGuid().ToString("N"),
+            invoker.UserId,
+            invoker.DisplayName,
+            ScriptInvocationFactory.ArgsOf(context.Args),
+            BuildVariables(context, invoker),
+            null,
+            invoker.DisplayName
+        );
+
+        Result<ScriptRunResult> run = await scripts.RunAsync(
+            codeScriptId,
+            invocation,
+            cancellationToken
+        );
+        if (run.IsFailure)
+            return Result.Failure<InvocationOutcome>(
+                run.ErrorMessage!,
+                run.ErrorCode!,
+                run.ErrorDetail
+            );
+
+        ScriptRunResult result = run.Value;
+        bool succeeded = result.Outcome == ScriptExecutionOutcome.Success;
+        return Result.Success(
+            new InvocationOutcome(
+                succeeded,
+                succeeded ? result.Output : null,
+                succeeded ? null : result.ErrorMessage ?? result.Outcome.ToString()
+            )
+        );
+    }
+
     private async Task<Result<InvocationOutcome>> RunBoundPipelineAsync(
         Guid broadcasterId,
         Command command,

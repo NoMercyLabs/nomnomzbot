@@ -76,6 +76,12 @@ public class Command : SoftDeletableEntity, ITenantScoped
     [ForeignKey(nameof(PipelineId))]
     public virtual Pipeline? Pipeline { get; set; }
 
+    /// <summary>
+    /// The channel's code script a <c>code</c>-tier command runs directly. Null for the other tiers. No pipeline
+    /// sits between the command and the script.
+    /// </summary>
+    public Guid? CodeScriptId { get; set; }
+
     /// <summary>Minimum community standing level required to invoke this command.</summary>
     public int MinPermissionLevel { get; set; }
 

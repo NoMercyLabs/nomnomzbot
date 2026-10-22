@@ -396,6 +396,9 @@ public class CachedCommand
     /// </summary>
     public Guid? PipelineId { get; init; }
 
+    /// <summary>The code script a <c>code</c>-tier command runs directly (no pipeline in between); null otherwise.</summary>
+    public Guid? CodeScriptId { get; init; }
+
     public string[] Aliases { get; init; } = [];
 
     /// <summary>How the prefix is resolved: Default (channel prefix) | Custom | None.</summary>

@@ -450,10 +450,21 @@ public class BundleImportService : IBundleImportService
                     }
                 }
 
+                // A code command holds its script. An older export (code tier, bound pipeline, no script name) or
+                // one whose script did not travel imports as a pipeline command so it keeps its reaction.
+                Guid? codeScriptId =
+                    export.CodeScriptName is not null
+                    && scriptIdsByName.TryGetValue(export.CodeScriptName, out Guid bundledScript)
+                        ? bundledScript
+                        : null;
+                string importedTier =
+                    export.Tier == "code" && codeScriptId is null ? "pipeline" : export.Tier;
+
                 CreateCommandDto request = new()
                 {
                     Name = name,
-                    Tier = export.Tier,
+                    Tier = importedTier,
+                    CodeScriptId = codeScriptId,
                     // Bundle exports still store the ladder int; the create request takes the name.
                     MinPermissionLevel = PermissionLevelNames.ToName(export.MinPermissionLevel),
                     TemplateResponse = export.TemplateResponse,

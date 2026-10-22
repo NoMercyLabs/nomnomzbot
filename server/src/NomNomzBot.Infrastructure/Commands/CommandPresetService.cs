@@ -180,6 +180,7 @@ public sealed class CommandPresetService(
         command.TemplateResponse = preset.TemplateResponse;
         command.TemplateResponses = [.. preset.TemplateResponses ?? []];
         command.PipelineId = null;
+        command.CodeScriptId = null;
         command.MinPermissionLevel =
             PermissionLevelNames.ToLevelValue(preset.MinPermissionLevel) ?? 0;
         command.CooldownSeconds = preset.CooldownSeconds;
