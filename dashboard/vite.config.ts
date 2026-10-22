@@ -142,6 +142,9 @@ export default defineConfig({
       '/health': { target: api, xfwd: true },
       // OBS browser sources load /overlay on this host; without the proxy they get the dark dashboard page.
       '/overlay': { target: api, xfwd: true },
+      // The other pages the bot serves itself: the OBS control bridge and the voice trigger listener.
+      '/obs-bridge': { target: api, xfwd: true },
+      '/voice-listener': { target: api, xfwd: true },
     },
   },
   resolve: {
