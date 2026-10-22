@@ -90608,6 +90608,11 @@ export interface components {
             /** @description The fun-command preset this command was seeded from; null when the channel wrote it. */
             presetKey?: null | string;
             speakWithTts?: boolean;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            codeScriptId?: null | string;
         };
         /**
          * @description Lightweight command info for list views — includes the response text and pipeline id so the edit
@@ -90647,6 +90652,11 @@ export interface components {
             /** @description The fun-command preset this command was seeded from; null when the channel wrote it. */
             presetKey?: null | string;
             speakWithTts?: boolean;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            codeScriptId?: null | string;
         };
         /**
          * @description One fun-command preset exactly as a reset writes it back — every field a reset restores, so the dashboard
@@ -90889,6 +90899,11 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             pipelineId?: null | string;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            codeScriptId?: null | string;
             /** Format: int32 */
             cooldownSeconds?: number | string;
             /**
@@ -93403,7 +93418,7 @@ export interface components {
          *     string instead of a bare English literal or string parameter, so a schema-authoring call site cannot
          *     accidentally pass raw English text where a translation key belongs. It carries no English or Dutch text —
          *     translations live exclusively in the dashboard's existing i18n home
-         *     (`app/composeApp/src/commonMain/composeResources/values/strings.xml` for `en`, `values-nl/` for
+         *     (`server/i18n/strings/values/strings.xml` for `en`, `values-nl/` for
          *     `nl`), the single place a translator can find and edit every user-facing string in the product. The
          *     dashboard resolves string LocalizedText.Key to display text via `core/i18n` (dots replaced with underscores to
          *     match the Compose Resources string-name convention, e.g. `widget.alerts.events.label` →
@@ -104383,6 +104398,11 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             pipelineId?: null | string;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            codeScriptId?: null | string;
             /** Format: int32 */
             cooldownSeconds?: null | number | string;
             /**

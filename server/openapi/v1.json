@@ -110763,6 +110763,14 @@
           },
           "speakWithTts": {
             "type": "boolean"
+          },
+          "codeScriptId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           }
         },
         "description": "Full command detail for viewing/editing."
@@ -110891,6 +110899,14 @@
           },
           "speakWithTts": {
             "type": "boolean"
+          },
+          "codeScriptId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
           }
         },
         "description": "Lightweight command info for list views — includes the response text and pipeline id so the edit\r\n            form can pre-fill without a separate detail fetch."
@@ -111673,6 +111689,14 @@
             }
           },
           "pipelineId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "codeScriptId": {
             "type": [
               "null",
               "string"
@@ -118676,7 +118700,7 @@
             ]
           }
         },
-        "description": "A typed reference to a backend-authored, user-facing translation KEY (S-SCHEMA-I18N-redesign). Backend schema\r\nauthors (widget settings fields, pipeline action field descriptors) construct one of these per label/help\r\nstring instead of a bare English literal or string parameter, so a schema-authoring call site cannot\r\naccidentally pass raw English text where a translation key belongs. It carries no English or Dutch text —\r\ntranslations live exclusively in the dashboard's existing i18n home\r\n(`app/composeApp/src/commonMain/composeResources/values/strings.xml` for `en`, `values-nl/` for\r\n`nl`), the single place a translator can find and edit every user-facing string in the product. The\r\ndashboard resolves string LocalizedText.Key to display text via `core/i18n` (dots replaced with underscores to\r\nmatch the Compose Resources string-name convention, e.g. `widget.alerts.events.label` →\r\n`widget_alerts_events_label`). A committed key manifest (`server/i18n/schema-i18n-keys.manifest.json`)\r\nplus paired backend/frontend guard tests fail the build if a key is authored here without both a `en` and\r\nan `nl` entry in `strings.xml` — so a missing translation is caught at test time, never shipped as a\r\nsilent English fallback or, worse, an empty label. string? LocalizedText.Text is user-authored content shown as\r\nwritten, never product text."
+        "description": "A typed reference to a backend-authored, user-facing translation KEY (S-SCHEMA-I18N-redesign). Backend schema\r\nauthors (widget settings fields, pipeline action field descriptors) construct one of these per label/help\r\nstring instead of a bare English literal or string parameter, so a schema-authoring call site cannot\r\naccidentally pass raw English text where a translation key belongs. It carries no English or Dutch text —\r\ntranslations live exclusively in the dashboard's existing i18n home\r\n(`server/i18n/strings/values/strings.xml` for `en`, `values-nl/` for\r\n`nl`), the single place a translator can find and edit every user-facing string in the product. The\r\ndashboard resolves string LocalizedText.Key to display text via `core/i18n` (dots replaced with underscores to\r\nmatch the Compose Resources string-name convention, e.g. `widget.alerts.events.label` →\r\n`widget_alerts_events_label`). A committed key manifest (`server/i18n/schema-i18n-keys.manifest.json`)\r\nplus paired backend/frontend guard tests fail the build if a key is authored here without both a `en` and\r\nan `nl` entry in `strings.xml` — so a missing translation is caught at test time, never shipped as a\r\nsilent English fallback or, worse, an empty label. string? LocalizedText.Text is user-authored content shown as\r\nwritten, never product text."
       },
       "LockdownControl": {
         "type": "integer",
@@ -150962,6 +150986,14 @@
             }
           },
           "pipelineId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "codeScriptId": {
             "type": [
               "null",
               "string"
