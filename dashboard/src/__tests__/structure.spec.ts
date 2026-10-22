@@ -303,7 +303,8 @@ describe('folder layout', () => {
 
   // A toast or tooltip works on every page only when the frame mounts its host once; a page that mounts its
   // own stacks a second host, and a page without one shows nothing. The popout window and the viewer
-  // page (no sidebar, no live management connection) are each their own frame.
+  // page (no sidebar, no live management connection) are each their own frame. So is a home page preview:
+  // it is a separate Vue app with its own page tree, and the app around it never sees its tooltips.
   it('mounts the toast host and the tooltip provider once per frame', () => {
     const own = allPaths(src)
       .map((path) => relative(src, path).replace(/\\/g, '/'))
@@ -318,6 +319,7 @@ describe('folder layout', () => {
       'layouts/DashboardLayout.vue',
       'layouts/PopoutLayout.vue',
       'layouts/ViewerLayout.vue',
+      'views/site/home/preview/PreviewRoot.vue',
     ]);
   });
 
@@ -640,13 +642,15 @@ describe('target selects', () => {
 
 // Stoney 2026-10-18: "extract things like these into reusables". "Is there room?" is asked through
 // composables/useLayout.ts (its width table, useScreenFrom, usePhone, useFits), never with a media query or a
-// size measure written in a view. The two files left are a height measure and the generated shadcn sidebar.
+// size measure written in a view. The files left are height measures, the generated shadcn sidebar, and the
+// home page preview frame, which scales a fixed-width window to the width of its own box.
 const ownRoomCheck = /useMediaQuery\(\s*['"`(]|useElementSize\(/;
 const ownRoomCheckAllowlist = [
   'components/layout/ReplyModeField.vue',
   'components/ui/sidebar/SidebarProvider.vue',
   'views/dashboard/analytics/RecapPreview.vue',
   'views/dashboard/chat/ChatView.vue',
+  'views/site/home/preview/PreviewFrame.vue',
   'views/viewer/nav/ViewerNav.vue',
 ] as const satisfies readonly string[];
 
