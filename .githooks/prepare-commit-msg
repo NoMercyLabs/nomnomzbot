@@ -12,6 +12,11 @@
 # staged get swept into the amended commit. Refuse that when the index holds a path the commit did not
 # already touch. `--amend --only [paths]` builds a temporary next-index and is never refused.
 # This hook runs even with --no-verify. Tests: scripts/amend-guard_test.py.
+# Sign-off guard (Stoney, 2026-08-26: every commit uses -s, no exception): add the Signed-off-by trailer
+# when the author did not pass -s, so a forgotten flag cannot ship an unsigned commit.
+signer="$(git config user.name) <$(git config user.email)>"
+git interpret-trailers --in-place --if-exists addIfDifferent --trailer "Signed-off-by: $signer" "$1"
+
 [ "$2" = commit ] && [ "$3" = HEAD ] || exit 0
 case "$GIT_INDEX_FILE" in *next-index-*) exit 0 ;; esac
 
