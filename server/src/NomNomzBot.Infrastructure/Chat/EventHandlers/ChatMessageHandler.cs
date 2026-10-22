@@ -470,7 +470,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             // A "code" command holds its script itself and runs it straight through the script runner; no pipeline
             // sits between. A code command not yet moved onto a script of its own (no CodeScriptId) still runs
             // its bound pipeline below.
-            if (command.Tier == "code" && command.CodeScriptId is { } codeScriptId)
+            if (command is { Tier: "code", CodeScriptId: { } codeScriptId })
             {
                 await RunCodeScriptAsync(
                     @event,
@@ -1010,7 +1010,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         {
             IScriptRunner runner = scope.ServiceProvider.GetRequiredService<IScriptRunner>();
             Result<ScriptRunResult> run = await runner.RunAsync(codeScriptId, invocation, ct);
-            succeeded = run.IsSuccess && run.Value.Outcome == ScriptExecutionOutcome.Success;
+            succeeded = run is { IsSuccess: true, Value.Outcome: ScriptExecutionOutcome.Success };
         }
 
         if (!succeeded)
