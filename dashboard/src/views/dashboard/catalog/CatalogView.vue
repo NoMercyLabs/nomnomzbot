@@ -319,10 +319,9 @@ function confirmDelete(): void {
       <template #bar><PageTabs :tabs="tabs" /></template>
     </PageHeader>
 
-    <div class="min-h-0 flex-1 overflow-y-auto">
-      <div class="grid gap-4 px-6 pt-4 pb-6">
-        <p class="text-sm text-muted-foreground">{{ t('dashboard.catalog.view', { view }) }}</p>
-
+    <!-- Below md the page scrolls as one document; the body box scrolls on its own only from md up. -->
+    <div class="min-h-0 flex-1 md:overflow-y-auto">
+      <div class="grid gap-4 px-6 pt-4 pb-6 max-md:px-4">
         <template v-if="view === 'blocks'">
           <StatStrip>
             <StatTile
@@ -605,7 +604,7 @@ function confirmDelete(): void {
           </PanelCard>
         </template>
 
-        <div v-else-if="view === 'states'" class="grid h-72 grid-cols-2 gap-4 xl:grid-cols-3">
+        <div v-else-if="view === 'states'" class="grid grid-cols-2 gap-4 md:h-72 xl:grid-cols-3 max-md:grid-cols-1">
           <PanelCard :title="t('dashboard.catalog.panel.ready')" tier="lead">
             <RowGroup>
               <SummaryRow
@@ -630,7 +629,7 @@ function confirmDelete(): void {
         </div>
 
         <template v-else>
-          <div class="flex h-80 flex-col">
+          <div class="flex flex-col md:h-80">
             <BoardGrid :panels="boardPanels">
               <BoardCell panel="board" :span="7" :rows="2">
                 <PanelCard :title="t('dashboard.catalog.layout.board')" tier="lead" />
@@ -643,7 +642,7 @@ function confirmDelete(): void {
               </BoardCell>
             </BoardGrid>
           </div>
-          <div class="flex h-80 flex-col">
+          <div class="flex flex-col md:h-80">
             <ListDetail :show-detail="detailOpen">
               <template #list>
                 <PanelCard :title="t('dashboard.catalog.layout.list')">

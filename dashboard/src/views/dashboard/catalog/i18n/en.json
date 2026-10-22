@@ -164,8 +164,7 @@
         "list": "List",
         "detail": "Detail",
         "aside": "Aside"
-      },
-      "view": "Open tab: {view}"
+      }
     }
   }
 }

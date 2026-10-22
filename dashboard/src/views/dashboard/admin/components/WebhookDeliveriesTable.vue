@@ -43,7 +43,7 @@ function duration(value: AdminWebhookDelivery['durationMs']): string {
 </script>
 
 <template>
-  <Table>
+  <Table stacked>
     <TableHeader>
       <TableRow class="hover:bg-transparent">
         <TableHead>{{ $t('dashboard.admin.webhookDeliveries.columns.endpoint') }}</TableHead>
@@ -59,9 +59,9 @@ function duration(value: AdminWebhookDelivery['durationMs']): string {
     </TableHeader>
     <TableBody>
       <TableRow v-for="row in rows" :key="String(row.id)" data-delivery-row>
-        <TableCell class="font-medium">{{ row.endpointName }}</TableCell>
-        <TableCell class="font-mono text-sm">{{ row.eventType }}</TableCell>
-        <TableCell>
+        <TableCell stack="title" class="font-medium">{{ row.endpointName }}</TableCell>
+        <TableCell class="font-mono text-sm" :label="$t('dashboard.admin.webhookDeliveries.columns.event')">{{ row.eventType }}</TableCell>
+        <TableCell :label="$t('dashboard.admin.webhookDeliveries.columns.status')">
           <StatusBadge
             :tone="row.status === 'succeeded'
               ? 'ok'
@@ -69,14 +69,14 @@ function duration(value: AdminWebhookDelivery['durationMs']): string {
             :label="row.status"
           />
         </TableCell>
-        <TableCell class="text-right tabular-nums">{{ row.responseCode ?? $t('dashboard.admin.webhookDeliveries.none') }}</TableCell>
-        <TableCell class="text-right tabular-nums">
+        <TableCell class="text-right tabular-nums" :label="$t('dashboard.admin.webhookDeliveries.columns.code')">{{ row.responseCode ?? $t('dashboard.admin.webhookDeliveries.none') }}</TableCell>
+        <TableCell class="text-right tabular-nums" :label="$t('dashboard.admin.webhookDeliveries.columns.duration')">
           {{ duration(row.durationMs) }}
         </TableCell>
-        <TableCell class="text-right tabular-nums">{{ row.attempt }}</TableCell>
-        <TableCell class="text-muted-foreground"><DateTime :value="row.createdAt" variant="dateTime" /></TableCell>
-        <TableCell class="text-muted-foreground">{{ row.error ?? $t('dashboard.admin.webhookDeliveries.none') }}</TableCell>
-        <TableCell class="text-right">
+        <TableCell class="text-right tabular-nums" :label="$t('dashboard.admin.webhookDeliveries.columns.attempt')">{{ row.attempt }}</TableCell>
+        <TableCell class="text-muted-foreground" :label="$t('dashboard.admin.webhookDeliveries.columns.sent')"><DateTime :value="row.createdAt" variant="dateTime" /></TableCell>
+        <TableCell class="text-muted-foreground" :label="$t('dashboard.admin.webhookDeliveries.columns.error')">{{ row.error ?? $t('dashboard.admin.webhookDeliveries.none') }}</TableCell>
+        <TableCell stack="actions" class="text-right">
           <Button
             v-if="row.endpointCanReplay && can('iam:manage')"
             variant="outline"

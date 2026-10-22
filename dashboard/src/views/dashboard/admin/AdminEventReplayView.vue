@@ -29,6 +29,7 @@ import {
 import DateTime from '@/components/layout/DateTime.vue';
 import OptionSelect from '@/components/layout/OptionSelect.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import PageActionFooter from '@/components/layout/PageActionFooter.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Badge } from '@/components/ui/badge';
@@ -198,14 +199,14 @@ async function submit(): Promise<void> {
       :title="$t('dashboard.admin.eventReplay.scope.title')"
       :description="$t('dashboard.admin.eventReplay.scope.description')"
     >
-      <div class="flex flex-wrap items-end gap-3">
+      <div class="grid grid-cols-1 gap-3 md:flex md:flex-wrap md:items-end">
         <label class="grid gap-1 text-xs text-muted-foreground">
           {{ $t("dashboard.admin.eventReplay.scope.channel") }}
           <OptionSelect
             v-model="broadcasterId"
             data-tenant
             searchable
-            class="w-56"
+            class="w-full rounded-md border border-input bg-transparent shadow-xs md:w-56 dark:bg-input/30"
             :options="tenantChoices"
             :placeholder="$t('dashboard.admin.eventReplay.scope.choose')"
             :search-placeholder="$t('frame.channel.find')"
@@ -217,7 +218,7 @@ async function submit(): Promise<void> {
           <OptionSelect
             v-model="projectionName"
             data-projection
-            class="w-56"
+            class="w-full md:w-56"
             :options="projectionChoices"
             :placeholder="$t('dashboard.admin.eventReplay.scope.choose')"
           />
@@ -227,7 +228,7 @@ async function submit(): Promise<void> {
           <OptionSelect
             v-model="eventType"
             data-event-type
-            class="w-56"
+            class="w-full md:w-56"
             :options="eventTypeChoices"
           />
         </label>
@@ -237,7 +238,7 @@ async function submit(): Promise<void> {
             v-model="from"
             data-from
             type="datetime-local"
-            class="h-9 rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
+            class="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
           />
         </label>
         <label class="grid gap-1 text-xs text-muted-foreground">
@@ -246,12 +247,13 @@ async function submit(): Promise<void> {
             v-model="to"
             data-to
             type="datetime-local"
-            class="h-9 rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
+            class="h-9 w-full rounded-md border border-input bg-transparent px-3 text-sm text-foreground"
           />
         </label>
       </div>
 
-      <div v-if="can('iam:manage')" class="mt-4 flex flex-wrap items-center gap-3">
+      <!-- Below the tablet width the preview and the replay move into the frame's sticky action footer. -->
+      <PageActionFooter v-if="can('iam:manage')" class="md:mt-4 md:gap-3">
         <Button
           variant="outline"
           data-preview
@@ -270,7 +272,7 @@ async function submit(): Promise<void> {
           failure
         }}</span>
         <span v-if="outcome !== null" data-outcome class="text-sm">{{ outcome }}</span>
-      </div>
+      </PageActionFooter>
     </PanelCard>
 
     <PanelCard

@@ -43,7 +43,7 @@ defineProps<{ rows: readonly AdminAuditEntry[] }>();
         <TableCell :label="$t('dashboard.admin.audit.columns.principal')">
           <span class="text-sm">{{ row.principalType }}</span>
         </TableCell>
-        <TableCell class="font-mono text-xs max-md:break-all" :label="$t('dashboard.admin.audit.columns.permission')">{{ row.permission }}</TableCell>
+        <TableCell class="font-mono text-xs max-md:text-sm max-md:break-all" :label="$t('dashboard.admin.audit.columns.permission')">{{ row.permission }}</TableCell>
         <TableCell class="text-sm" :label="$t('dashboard.admin.audit.columns.target')">
           <span v-if="row.targetResource" class="break-all">{{ row.targetResource }}</span>
         </TableCell>

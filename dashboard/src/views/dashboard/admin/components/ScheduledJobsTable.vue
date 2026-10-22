@@ -54,7 +54,7 @@ function stamp(value: string | null | undefined): string {
 </script>
 
 <template>
-  <Table>
+  <Table stacked>
     <TableHeader>
       <TableRow class="hover:bg-transparent">
         <TableHead>{{ $t("dashboard.admin.scheduledJobs.columns.channel") }}</TableHead>
@@ -68,17 +68,17 @@ function stamp(value: string | null | undefined): string {
     </TableHeader>
     <TableBody>
       <TableRow v-for="row in rows" :key="row.id" data-job-row>
-        <TableCell class="font-medium">{{ row.channelDisplayName }}</TableCell>
-        <TableCell :class="{ 'text-muted-foreground': !row.pipelineExists }">
+        <TableCell stack="title" class="font-medium">{{ row.channelDisplayName }}</TableCell>
+        <TableCell :class="{ 'text-muted-foreground': !row.pipelineExists }" :label="$t('dashboard.admin.scheduledJobs.columns.pipeline')">
           {{ row.pipelineName ?? $t("dashboard.admin.scheduledJobs.pipelineGone") }}
         </TableCell>
-        <TableCell>
+        <TableCell :label="$t('dashboard.admin.scheduledJobs.columns.state')">
           <StatusBadge :tone="toneOf(row.displayState)" :label="row.displayState" />
         </TableCell>
-        <TableCell class="text-muted-foreground">{{ stamp(row.dueAt) }}</TableCell>
-        <TableCell class="text-muted-foreground">{{ stamp(row.firedAt) }}</TableCell>
-        <TableCell>{{ row.triggeredByDisplayName }}</TableCell>
-        <TableCell class="text-right">
+        <TableCell class="text-muted-foreground" :label="$t('dashboard.admin.scheduledJobs.columns.due')">{{ stamp(row.dueAt) }}</TableCell>
+        <TableCell class="text-muted-foreground" :label="$t('dashboard.admin.scheduledJobs.columns.fired')">{{ stamp(row.firedAt) }}</TableCell>
+        <TableCell :label="$t('dashboard.admin.scheduledJobs.columns.trigger')">{{ row.triggeredByDisplayName }}</TableCell>
+        <TableCell stack="actions" class="text-right">
           <Button
             v-if="row.canRetry && can('iam:manage')"
             variant="outline"

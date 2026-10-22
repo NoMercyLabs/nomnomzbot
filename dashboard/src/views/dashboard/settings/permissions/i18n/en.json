@@ -28,8 +28,8 @@
         },
         "tabs": {
           "team": "Team",
-          "actions": "Who may do what",
-          "capabilities": "Personal capabilities"
+          "actions": "Actions",
+          "capabilities": "Per person"
         },
         "areas": {
           "title": "Areas",

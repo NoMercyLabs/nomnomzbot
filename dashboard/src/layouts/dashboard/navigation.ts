@@ -81,6 +81,17 @@ export const dashboardNav: readonly NavGroup[] = [
     ],
   },
   {
+    key: 'people',
+    entries: [
+      {
+        route: 'dashboard-people',
+        label: 'people',
+        icon: Users,
+        action: 'community:read',
+      },
+    ],
+  },
+  {
     key: 'live',
     entries: [
       {
@@ -127,6 +138,29 @@ export const dashboardNav: readonly NavGroup[] = [
         label: 'vtubeStudio',
         icon: Smile,
         action: 'vts:config:read',
+      },
+    ],
+  },
+  {
+    key: 'musicVoice',
+    entries: [
+      {
+        route: 'dashboard-music',
+        label: 'music',
+        icon: NoteEighthPair,
+        action: 'music:config:read',
+      },
+      {
+        route: 'dashboard-tts',
+        label: 'tts',
+        icon: WaveForm,
+        action: 'tts:config:read',
+      },
+      {
+        route: 'dashboard-media-share',
+        label: 'mediaShare',
+        icon: Tv,
+        action: 'media:read',
       },
     ],
   },
@@ -191,17 +225,6 @@ export const dashboardNav: readonly NavGroup[] = [
     ],
   },
   {
-    key: 'people',
-    entries: [
-      {
-        route: 'dashboard-people',
-        label: 'people',
-        icon: Users,
-        action: 'community:read',
-      },
-    ],
-  },
-  {
     key: 'loyalty',
     entries: [
       {
@@ -239,29 +262,6 @@ export const dashboardNav: readonly NavGroup[] = [
         label: 'supporters',
         icon: Handshake,
         action: 'supporters:read',
-      },
-    ],
-  },
-  {
-    key: 'musicVoice',
-    entries: [
-      {
-        route: 'dashboard-music',
-        label: 'music',
-        icon: NoteEighthPair,
-        action: 'music:config:read',
-      },
-      {
-        route: 'dashboard-tts',
-        label: 'tts',
-        icon: WaveForm,
-        action: 'tts:config:read',
-      },
-      {
-        route: 'dashboard-media-share',
-        label: 'mediaShare',
-        icon: Tv,
-        action: 'media:read',
       },
     ],
   },

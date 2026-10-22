@@ -99,7 +99,6 @@ async function add(): Promise<void> {
         :key="member.id"
         :data-member="member.username ?? member.userId"
         :title="member.username ?? member.userId"
-        :detail="roleLabel(teamRoleOf(member.role))"
       >
         <template #trailing>
           <OptionSelect

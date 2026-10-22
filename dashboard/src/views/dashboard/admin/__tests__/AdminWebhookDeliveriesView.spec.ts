@@ -204,6 +204,16 @@ describe('AdminWebhookDeliveriesView', () => {
     expect(rows()).toHaveLength(0);
   });
 
+  it('on a phone stacks each attempt as a card titled with the endpoint and the other columns as labeled lines', async () => {
+    await open();
+
+    const labels = [...rows()[0]!.querySelectorAll('[data-cell-label]')].map((label) => label.textContent?.trim());
+
+    expect(rows()[0]!.className).toContain('max-md:flex-col');
+    expect(rows()[0]!.querySelector('[data-stack=title]')!.textContent).toContain('Discord relay');
+    expect(labels).toHaveLength(7);
+  });
+
   it('registers an admin-only route', () => {
     const children = dashboardRoutes.children ?? [];
     const registered = children.find((route) => route.name === 'dashboard-admin-webhook-deliveries');

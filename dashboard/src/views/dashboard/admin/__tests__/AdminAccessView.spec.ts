@@ -478,6 +478,22 @@ describe('AdminAccessView', () => {
     expect(document.body.textContent).not.toMatch(/\bID\b/);
   });
 
+  it('tells principals that share a name apart with their place among them, and leaves a single name alone', async () => {
+    keys.extra = [{
+      ...operator,
+      id: 'p9',
+      userId: 'u9',
+    }];
+
+    await open();
+
+    const names = [...document.body.querySelectorAll('[data-principal-row]')].map(
+      (row) => row.querySelector('[data-principal-ordinal]')?.textContent?.trim() ?? null,
+    );
+
+    expect(names).toEqual(['1 of 2', null, '2 of 2']);
+  });
+
   it('shows two identical role assignments as one chip with a count', async () => {
     const twin = { ...operator.activeAssignments[0], id: 'a9' };
 

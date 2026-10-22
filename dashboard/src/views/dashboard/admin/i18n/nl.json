@@ -993,6 +993,7 @@
           "description": "Medewerkers en servicekoppelingen met platformtoegang. Een wijziging van een andere operator verschijnt vanzelf.",
           "empty": "Er bestaat nog geen principal.",
           "error": "De principals konden niet laden.",
+          "ordinal": "{position} van {total}",
           "employee": "Medewerker",
           "serviceAccount": "Servicekoppeling",
           "inactive": "Inactief",

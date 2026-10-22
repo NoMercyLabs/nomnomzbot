@@ -132,6 +132,9 @@ const settle = async (): Promise<void> => {
 };
 
 async function open(): Promise<void> {
+  // The frame's sticky footer, where a phone-width page moves its page-level actions.
+  document.body.insertAdjacentHTML('beforeend', '<div data-slot="frame-action-footer"></div>');
+
   mounted = mount(AdminEventReplayView, {
     attachTo: document.body,
     global: {
@@ -345,6 +348,22 @@ describe('AdminEventReplayView', () => {
     );
 
     expect(invalidate).toHaveBeenCalledWith({ queryKey: ['admin', 'eventReplay'] });
+  });
+
+  it('on a phone stacks every field full width with one select style and rides Replay as the one primary in the sticky footer', async () => {
+    await open();
+
+    const footer = document.body.querySelector('[data-slot=frame-action-footer]')!;
+
+    expect(footer.querySelector('[data-replay]')).not.toBeNull();
+    expect(footer.querySelector('[data-preview]')!.getAttribute('data-variant')).toBe('outline');
+    expect(footer.querySelector('[data-replay]')!.getAttribute('data-variant')).toBe('default');
+
+    for (const hook of ['[data-tenant]', '[data-projection]', '[data-event-type]', '[data-from]', '[data-to]']) {
+      expect(field(hook).className).toContain('w-full');
+    }
+
+    expect(field('[data-tenant]').className).toContain('border-input');
   });
 
   it('registers an admin-only route', () => {

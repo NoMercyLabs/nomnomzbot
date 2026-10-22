@@ -69,7 +69,7 @@ function remainingPercent(row: AdminTenantErrorBudget): number {
 </script>
 
 <template>
-  <Table>
+  <Table stacked>
     <TableHeader>
       <TableRow class="hover:bg-transparent">
         <TableHead>{{ $t("dashboard.admin.errorBudget.columns.channel") }}</TableHead>
@@ -87,16 +87,16 @@ function remainingPercent(row: AdminTenantErrorBudget): number {
     </TableHeader>
     <TableBody>
       <TableRow v-for="row in rows" :key="row.broadcasterId" data-budget-row>
-        <TableCell class="font-medium">{{ row.channelDisplayName }}</TableCell>
-        <TableCell class="text-right tabular-nums">{{ count(row.attempts) }}</TableCell>
-        <TableCell class="text-right tabular-nums">{{ count(row.errors) }}</TableCell>
-        <TableCell class="text-right tabular-nums">
+        <TableCell stack="title" class="font-medium">{{ row.channelDisplayName }}</TableCell>
+        <TableCell class="text-right tabular-nums" :label="$t('dashboard.admin.errorBudget.columns.attempts')">{{ count(row.attempts) }}</TableCell>
+        <TableCell class="text-right tabular-nums" :label="$t('dashboard.admin.errorBudget.columns.errors')">{{ count(row.errors) }}</TableCell>
+        <TableCell class="text-right tabular-nums" :label="$t('dashboard.admin.errorBudget.columns.rate')">
           <template v-if="rate(row) !== null">{{ rate(row) }}</template>
           <span v-else class="text-muted-foreground">
             {{ $t("dashboard.admin.errorBudget.noAttempts") }}
           </span>
         </TableCell>
-        <TableCell>
+        <TableCell :label="$t('dashboard.admin.errorBudget.columns.budget')">
           <div v-if="remaining(row) !== null" class="flex items-center gap-3">
             <Progress :model-value="remainingPercent(row)" class="w-24" />
             <Badge v-if="isExhausted(row)" variant="destructive" data-exhausted>

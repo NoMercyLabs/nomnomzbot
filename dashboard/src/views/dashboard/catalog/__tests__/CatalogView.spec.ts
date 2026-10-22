@@ -98,6 +98,33 @@ const bar = (label: string): VueWrapper =>
     .findAllComponents(FilterBar)
     .find((found) => found.props('label') === label) as VueWrapper;
 
+describe('CatalogView on a phone', () => {
+  it('shows no developer text about the open tab', async () => {
+    await open();
+
+    expect(mounted!.text()).not.toContain('Open tab');
+  });
+
+  it('keeps the page in one scroll below md: the body box scrolls only from md up', async () => {
+    await open();
+
+    const body = mounted!.element.lastElementChild as HTMLElement;
+
+    expect(body.classList.contains('overflow-y-auto')).toBe(false);
+    expect(body.classList.contains('md:overflow-y-auto')).toBe(true);
+  });
+
+  it('gives the states and layouts views a natural height below md', async () => {
+    await open();
+    await router.push('/app/catalog?view=states');
+    await flushPromises();
+
+    const fixed = mounted!.findAll('div').filter((box) => box.classes().includes('h-72'));
+
+    expect(fixed).toHaveLength(0);
+  });
+});
+
 describe('CatalogView', () => {
   it('keeps the state and since choices after the page is opened again', async () => {
     await open();

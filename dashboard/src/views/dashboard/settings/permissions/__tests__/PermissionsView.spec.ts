@@ -320,9 +320,9 @@ describe('Permissions', () => {
   it('shows each person with the role name, never a number, and locks the broadcaster', async () => {
     await open();
 
-    expect(q('[data-member="modmary"]').textContent).toContain('Moderator');
-    expect(q('[data-member="ownerolly"]').textContent).toContain('Broadcaster');
-    expect(q('[data-member="ownerolly"]').textContent).not.toMatch(/\d/);
+    expect(rowOf('modmary').textContent).toContain('Moderator');
+    expect(rowOf('ownerolly').textContent).toContain('Broadcaster');
+    expect(rowOf('ownerolly').textContent).not.toMatch(/\d/);
     expect(removeOf('ownerolly').hasAttribute('disabled')).toBe(true);
     expect(removeOf('modmary').hasAttribute('disabled')).toBe(false);
   });
@@ -560,8 +560,8 @@ describe('Permissions layout', () => {
 
     expect(texts('[role="tab"]')).toEqual([
       'Team 3',
-      'Who may do what 5',
-      'Personal capabilities 1',
+      'Actions 5',
+      'Per person 1',
     ]);
 
     expect(document.body.querySelector('[data-member="modmary"]')).not.toBeNull();

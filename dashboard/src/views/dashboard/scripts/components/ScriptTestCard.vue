@@ -91,12 +91,12 @@ async function run(): Promise<void> {
       <section
         v-if="can('code:script:author')"
         data-slot="script-test-trigger"
-        class="grid gap-3 border-b pb-4 sm:grid-cols-[6rem_minmax(0,1fr)]"
+        class="grid gap-3 border-b pb-4"
       >
         <h3 class="font-medium">{{ $t('dashboard.scripts.test.trigger') }}</h3>
         <div class="flex flex-wrap items-end gap-x-3 gap-y-2">
           <div v-if="ownEvents.length > 0" class="grid min-w-0 flex-1 gap-2">
-            <Label for="script-test-event">{{ $t('dashboard.scripts.test.event') }}</Label>
+            <Label for="script-test-event" class="leading-snug">{{ $t('dashboard.scripts.test.event') }}</Label>
             <Select v-model="picked">
               <SelectTrigger id="script-test-event" class="w-full">
                 <SelectValue />
@@ -146,7 +146,7 @@ async function run(): Promise<void> {
         <section
           v-if="tester.last.value.timeline.length > 0"
           data-slot="script-test-timeline-section"
-          class="grid gap-3 border-t pt-4 sm:grid-cols-[6rem_minmax(0,1fr)]"
+          class="grid gap-3 border-t pt-4"
         >
           <h3 class="font-medium">{{ $t('dashboard.scripts.test.timeline') }}</h3>
           <ScriptTestTimeline :steps="tester.last.value.timeline" />

@@ -19,8 +19,10 @@ import {
   type AdminPageParams,
 } from '@/api/adminActivity';
 import { ApiError } from '@/api/errors';
+import PageActionFooter from '@/components/layout/PageActionFooter.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import { useScreenFrom } from '@/composables/useLayout';
 import { usePanelState } from '@/composables/usePanelState';
 
 import AdminPager from './components/AdminPager.vue';
@@ -30,6 +32,7 @@ const PAGE_SIZE: number = 25;
 
 const { t } = useI18n();
 
+const tablet = useScreenFrom('tablet');
 const page = ref(1);
 
 const params = computed(() =>
@@ -70,9 +73,13 @@ const listError = computed<string>(() =>
       @retry="health.refetch()"
     >
       <EventSubHealthTable :rows="rows" />
-      <template #footer>
+      <template v-if="tablet" #footer>
         <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
       </template>
     </PanelCard>
+    <!-- On a phone the list takes its full height and the pager rides in the sticky page footer. -->
+    <PageActionFooter v-if="!tablet">
+      <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
+    </PageActionFooter>
   </div>
 </template>

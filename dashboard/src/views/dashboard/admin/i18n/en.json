@@ -993,6 +993,7 @@
           "description": "Employees and service accounts with platform access. A change by another operator appears by itself.",
           "empty": "No principal exists yet.",
           "error": "The principals could not load.",
+          "ordinal": "{position} of {total}",
           "employee": "Employee",
           "serviceAccount": "Service account",
           "inactive": "Inactive",

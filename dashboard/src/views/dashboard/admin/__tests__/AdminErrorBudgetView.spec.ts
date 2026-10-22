@@ -193,6 +193,16 @@ describe('AdminErrorBudgetView', () => {
     expect(calls.length).toBeGreaterThan(before);
   });
 
+  it('on a phone stacks each tenant as a card titled with the channel name and the other columns as labeled lines', async () => {
+    await open();
+
+    const labels = [...rows()[0]!.querySelectorAll('[data-cell-label]')].map((label) => label.textContent?.trim());
+
+    expect(rows()[0]!.className).toContain('max-md:flex-col');
+    expect(rows()[0]!.querySelector('[data-stack=title]')!.textContent).toContain('Broken_Hooks');
+    expect(labels).toHaveLength(4);
+  });
+
   it('registers an admin-only route', () => {
     const children = dashboardRoutes.children ?? [];
     const registered = children.find((route) => route.name === 'dashboard-admin-error-budget');

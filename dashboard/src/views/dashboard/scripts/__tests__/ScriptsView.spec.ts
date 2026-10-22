@@ -691,7 +691,7 @@ describe('ScriptsView', () => {
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   });
 
-  it('puts the trigger and the timeline on one two-column grid, heading beside content, with a divider between them', async () => {
+  it('stacks the trigger and the timeline as two full-width sections with a divider, and keeps the label readable', async () => {
     await open('/app/scripts?script=s1');
     byText('button', 'Run test')!.click();
     await settle();
@@ -699,11 +699,13 @@ describe('ScriptsView', () => {
     const trigger = document.body.querySelector('[data-slot="script-test-trigger"]');
     const timeline = document.body.querySelector('[data-slot="script-test-timeline-section"]');
 
-    expect(trigger?.className).toContain('sm:grid-cols-[6rem_minmax(0,1fr)]');
-    expect(timeline?.className).toContain('sm:grid-cols-[6rem_minmax(0,1fr)]');
+    expect(trigger?.className).not.toContain('6rem');
+    expect(timeline?.className).not.toContain('6rem');
     expect(trigger?.firstElementChild?.tagName).toBe('H3');
     expect(timeline?.firstElementChild?.tagName).toBe('H3');
     expect(trigger?.className).toContain('border-b');
+    expect(timeline?.className).toContain('border-t');
+    expect(document.body.querySelector('label[for="script-test-event"]')?.className).toContain('leading-snug');
   });
 
   it('lays the test panel out as a trigger section and a result section with the run timeline as numbered rows', async () => {

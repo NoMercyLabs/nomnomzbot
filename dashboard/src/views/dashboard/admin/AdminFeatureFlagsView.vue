@@ -295,7 +295,7 @@ const whenOf = (entry: FeatureFlagOverride): string =>
           <Label for="flag-description">{{ $t('dashboard.admin.featureFlags.fields.description') }}</Label>
           <Input id="flag-description" v-model="draft.description" data-field="description" />
         </div>
-        <div class="flex items-center justify-between gap-3">
+        <div data-touch-target class="flex min-h-9 items-center justify-between gap-3">
           <Label for="flag-global">{{ $t('dashboard.admin.featureFlags.fields.isEnabledGlobally') }}</Label>
           <Switch id="flag-global" v-model="draft.isEnabledGlobally" data-field="isEnabledGlobally" />
         </div>
@@ -373,7 +373,7 @@ const whenOf = (entry: FeatureFlagOverride): string =>
             <Label for="override-channel">{{ $t('dashboard.admin.featureFlags.overrideFields.channel') }}</Label>
             <Input id="override-channel" v-model="overrideChannel" data-field="overrideChannel" />
           </div>
-          <div class="flex items-center justify-between gap-3">
+          <div data-touch-target class="flex min-h-9 items-center justify-between gap-3">
             <Label for="override-enabled">{{ $t('dashboard.admin.featureFlags.overrideFields.enabled') }}</Label>
             <Switch id="override-enabled" v-model="overrideEnabled" data-field="overrideEnabled" />
           </div>

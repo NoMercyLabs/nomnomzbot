@@ -111,6 +111,9 @@ const settle = async (): Promise<void> => {
 };
 
 async function open(): Promise<void> {
+  // The frame's sticky footer, where a phone-width page moves its pager.
+  document.body.insertAdjacentHTML('beforeend', '<div data-slot="frame-action-footer"></div>');
+
   mounted = mount(AdminEventSubHealthView, {
     attachTo: document.body,
     global: {
@@ -183,6 +186,17 @@ describe('AdminEventSubHealthView', () => {
     expect(channelRows()[0]!.textContent).toContain('Working');
     expect(channelRows()[0]!.textContent).toContain('1 Twitch subscription');
     expect(channelRows()[0]!.querySelector('[data-tone="ok"]')).not.toBeNull();
+  });
+
+  it('on a phone gives each details toggle a 36px hit area and moves the pager into the sticky footer', async () => {
+    await open();
+
+    expect(byToggle(0)!.className).toContain('min-h-9');
+    expect(byToggle(0)!.className).toContain('min-w-9');
+
+    expect(
+      document.body.querySelector('[data-slot=frame-action-footer]')!.textContent,
+    ).toContain('Page 1 of 1');
   });
 
   it('shows every topic with state, version, error and date behind the details toggle', async () => {

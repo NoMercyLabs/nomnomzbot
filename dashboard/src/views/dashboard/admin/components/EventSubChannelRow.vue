@@ -66,7 +66,7 @@ const needsSignIn = computed(() =>
       <CollapsibleTrigger
         v-if="topics.length > 0"
         data-details-toggle
-        class="group ml-auto flex shrink-0 items-center gap-1 rounded-md px-2 py-1 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
+        class="group ml-auto flex min-h-9 min-w-9 shrink-0 items-center justify-center gap-1 rounded-md px-2 py-1 text-sm text-muted-foreground outline-none hover:text-foreground focus-visible:ring-3 focus-visible:ring-ring/50"
       >
         {{ $t('dashboard.admin.eventsubHealth.details') }}
         <ChevronDown
@@ -77,7 +77,7 @@ const needsSignIn = computed(() =>
     </div>
     <CollapsibleContent>
       <ul class="mt-3 divide-y divide-border rounded-md border border-border">
-        <li class="flex items-center gap-4 px-3 py-2 text-xs text-muted-foreground">
+        <li class="flex items-center gap-4 px-3 py-2 text-xs text-muted-foreground max-md:hidden">
           <span class="min-w-0 flex-1">{{ $t('dashboard.admin.eventsubHealth.columns.topic') }}</span>
           <span class="w-32 shrink-0">{{ $t('dashboard.admin.eventsubHealth.columns.state') }}</span>
           <span class="w-28 shrink-0">{{ $t('dashboard.admin.eventsubHealth.columns.confirmed') }}</span>
@@ -87,16 +87,16 @@ const needsSignIn = computed(() =>
           v-for="topic in topics"
           :key="topic.subscriptionId"
           data-topic-row
-          class="flex items-center gap-4 px-3 py-2 text-sm"
+          class="flex items-center gap-4 px-3 py-2 text-sm max-md:flex-wrap max-md:gap-y-1"
         >
-          <span class="min-w-0 flex-1">{{ humanize(topic.eventType) }}</span>
-          <span class="w-32 shrink-0">
+          <span class="min-w-0 flex-1 max-md:basis-full">{{ humanize(topic.eventType) }}</span>
+          <span class="shrink-0 md:w-32">
             <StatusBadge :tone="isBroken(topic) ? 'bad' : 'ok'" :label="humanize(topic.status)" />
           </span>
-          <span class="w-28 shrink-0 text-muted-foreground">
+          <span class="shrink-0 text-muted-foreground md:w-28">
             <DateTime :value="topic.lastConfirmedAt" variant="date" />
           </span>
-          <span class="w-56 shrink-0 text-muted-foreground">{{ topic.lastError }}</span>
+          <span class="min-w-0 text-muted-foreground max-md:basis-full max-md:empty:hidden md:w-56 md:shrink-0">{{ topic.lastError }}</span>
         </li>
       </ul>
     </CollapsibleContent>

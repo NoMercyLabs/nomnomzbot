@@ -118,6 +118,9 @@ const settle = async (): Promise<void> => {
 };
 
 async function open(): Promise<void> {
+  // The frame's sticky footer, where a phone-width page moves its pager.
+  document.body.insertAdjacentHTML('beforeend', '<div data-slot="frame-action-footer"></div>');
+
   mounted = mount(AdminTenantUsageView, {
     attachTo: document.body,
     global: {
@@ -161,6 +164,14 @@ describe('AdminTenantUsageView', () => {
     expect(rows()[0]!.className).toContain('max-md:flex-col');
     expect(rows()[0]!.querySelector('[data-stack=title]')!.textContent).toContain('Stoney_Eagle');
     expect(labels).toHaveLength(4);
+  });
+
+  it('on a phone moves the pager into the frame sticky footer', async () => {
+    await open();
+
+    const footer = document.body.querySelector('[data-slot=frame-action-footer]')!;
+
+    expect(footer.textContent).toContain('Page 1 of 1');
   });
 
   it('names an unpriced unit instead of reading it as free', async () => {

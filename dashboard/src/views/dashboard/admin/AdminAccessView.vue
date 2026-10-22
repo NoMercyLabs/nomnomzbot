@@ -111,6 +111,31 @@ const reactivate = useReactivateIamPrincipal();
 const endAccess = useEndTenantAccess();
 const impersonate = useAdminImpersonate();
 
+// Principals that share a name get their place among them, so the rows can be told apart.
+const ordinals = computed<Map<string, { position: number; total: number }>>(() => {
+  const totals = new Map<string, number>();
+  const places = new Map<string, { position: number; total: number }>();
+
+  for (const row of visible.value) {
+    totals.set(row.name, (totals.get(row.name) ?? 0) + 1);
+  }
+
+  const seen = new Map<string, number>();
+
+  for (const row of visible.value) {
+    const total = totals.get(row.name) ?? 1;
+    const position = (seen.get(row.name) ?? 0) + 1;
+
+    seen.set(row.name, position);
+
+    if (total > 1) {
+      places.set(row.id, { position, total });
+    }
+  }
+
+  return places;
+});
+
 const principalState = usePanelState(principals, (rows) =>
   rows.length === 0);
 const roleState = usePanelState(roles, (rows) =>
@@ -306,6 +331,11 @@ async function startImpersonation(): Promise<void> {
               :name="row.name"
               class="block truncate text-sm font-medium"
             />
+            <span
+              v-if="ordinals.get(row.id)"
+              data-principal-ordinal
+              class="block text-xs text-muted-foreground"
+            >{{ $t("dashboard.admin.access.principals.ordinal", ordinals.get(row.id)!) }}</span>
             <span class="block text-xs text-muted-foreground">
               {{
                 row.principalType === 0
