@@ -533,6 +533,34 @@ describe('ScriptsView', () => {
     expect(router.currentRoute.value.query.script).toBe('new1');
   });
 
+  it('duplicates a script with the code it runs now and opens the copy', async () => {
+    detailExtra = {
+      ...detailExtra,
+      currentVersion: {
+        version: 2,
+        declaredCapabilities: [],
+        sourceCode: 'nnz.chat.send("hi")',
+        validationStatus: 'Valid',
+        validationErrors: [],
+      },
+    };
+
+    await open('/app/scripts?script=s1');
+    byText('button', 'Duplicate')!.click();
+    await settle();
+
+    const posts = calls.filter((call) => call.method === 'POST');
+
+    expect(posts).toHaveLength(1);
+
+    expect(posts[0]!.body).toMatchObject({
+      name: expect.stringMatching(/ copy$/),
+      sourceCode: 'nnz.chat.send("hi")',
+    });
+
+    expect(router.currentRoute.value.query.script).toBe('new1');
+  });
+
   it('names each power in plain words and keeps a power it has no words for readable', async () => {
     detailExtra = {
       ...detailExtra,

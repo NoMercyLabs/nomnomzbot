@@ -227,6 +227,7 @@ function opened(id: string | null): void {
         :summary="loaded?.find((one: CodeScriptSummary) => one.id === asked)"
         @back="back"
         @deleted="back"
+        @duplicated="opened"
         @ran="ran"
       />
       <PanelCard

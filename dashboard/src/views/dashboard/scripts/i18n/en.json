@@ -119,6 +119,8 @@
         "edit": "Edit code",
         "limits": "Each run stops after 8 s, 64 calls or 64 MB.",
         "delete": "Delete",
+        "duplicate": "Duplicate",
+        "copyName": "{name} copy",
         "back": "Back to the list"
       },
       "test": {

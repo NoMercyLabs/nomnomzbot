@@ -119,6 +119,8 @@
         "edit": "Code bewerken",
         "limits": "Elke run stopt na 8 s, 64 aanroepen of 64 MB.",
         "delete": "Verwijderen",
+        "duplicate": "Dupliceren",
+        "copyName": "{name} kopie",
         "back": "Terug naar de lijst"
       },
       "test": {

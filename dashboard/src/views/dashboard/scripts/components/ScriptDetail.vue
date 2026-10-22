@@ -17,10 +17,12 @@
 import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
+import Copy from '~icons/nnz/file-copy';
 import Trash from '~icons/nnz/trash';
 
 import {
   fetchBlastRadius,
+  useCreateCodeScript,
   useDeleteCodeScript,
   useScriptDetail,
   useSetScriptEnabled,
@@ -53,6 +55,7 @@ import { useScriptEditor } from './useScriptEditor';
 const props = defineProps<{ scriptId: string; summary?: CodeScriptSummary }>();
 const emit = defineEmits<{
   deleted: [];
+  duplicated: [id: string | null];
   back: [];
   ran: [run: Omit<SessionRun, 'id'>];
 }>();
@@ -62,6 +65,7 @@ const { can } = useCan();
 const detail = useScriptDetail(() => props.scriptId);
 const setEnabled = useSetScriptEnabled();
 const remove = useDeleteCodeScript();
+const create = useCreateCodeScript();
 const editor = useScriptEditor(() => props.scriptId);
 const blast: UseQueryReturnType<BlastRadius, Error> = useQuery({
   queryKey: computed(() => ['code-scripts', 'blast', props.scriptId]),
@@ -134,6 +138,28 @@ function toggle(isEnabled: boolean): void {
 const confirmOpen = ref(false);
 const consequences = ref<string[]>([]);
 const deleteError = ref<string | undefined>(undefined);
+
+// The copy holds the code the script runs now. It is a script of its own: it starts switched off and unshared.
+async function copyScript(): Promise<void> {
+  const source = script.value?.currentVersion?.sourceCode;
+
+  if (source === undefined) return;
+
+  deleteError.value = undefined;
+
+  try {
+    emit(
+      'duplicated',
+      await create.mutateAsync({
+        name: t('dashboard.scripts.detail.copyName', { name: script.value?.name ?? '' }),
+        description: script.value?.description,
+        sourceCode: source,
+      }),
+    );
+  } catch (failure) {
+    deleteError.value = errorText(failure, t);
+  }
+}
 
 async function askDelete(): Promise<void> {
   deleteError.value = undefined;
@@ -278,6 +304,17 @@ function confirmDelete(): void {
       <span class="min-w-0 flex-1 text-xs text-muted-foreground">
         {{ $t('dashboard.scripts.detail.limits') }}
       </span>
+      <Button
+        v-if="can('code:script:author')"
+        data-slot="script-duplicate"
+        variant="outline"
+        size="sm"
+        :disabled="create.isPending.value || !script?.currentVersion"
+        @click="copyScript"
+      >
+        <Copy aria-hidden="true" />
+        {{ $t('dashboard.scripts.detail.duplicate') }}
+      </Button>
       <Button
         v-if="can('code:script:author')"
         data-slot="script-delete"
