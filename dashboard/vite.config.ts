@@ -15,19 +15,9 @@ import vue from '@vitejs/plugin-vue';
 import vueDevTools from 'vite-plugin-vue-devtools';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
-import Icons from 'unplugin-icons/vite';
-import { FileSystemIconLoader } from 'unplugin-icons/loaders';
 
+import { designerIcons } from './vite-plugins/designerIcons';
 import { hmrPageHost } from './vite-plugins/hmrPageHost';
-
-// The designer's icon pack (Line style), imported as `~icons/nnz/<name>`. The files carry a baked stroke
-// color; it becomes currentColor so an icon takes the text color like any other glyph.
-const designerIcons = FileSystemIconLoader('./src/assets/icons/line', (svg: string): string =>
-  svg
-    .replace(/\sstyle="[^"]*"/g, '')
-    .replace(/stroke="#11181C"/gi, 'stroke="currentColor"')
-    .replace(/fill="#11181C"/gi, 'fill="currentColor"'),
-);
 
 // The bot the dev server talks to. NNZ_API points it at another bot, such as the live box, for real data:
 // every save then changes that bot.
@@ -80,7 +70,7 @@ export default defineConfig({
     hmrPageHost(),
     vueDevTools(),
     tailwindcss(),
-    Icons({ compiler: 'vue3', customCollections: { nnz: designerIcons } }),
+    designerIcons(),
     VitePWA({
       // The page asks first; a new deploy shows a toast and the user picks the moment to reload.
       registerType: 'prompt',

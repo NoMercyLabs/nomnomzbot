@@ -2,6 +2,7 @@
   "site": {
     "home": {
       "title": "NomNomzBot: run your stream, not your admin work",
+      "description": "An open-source stream bot for Twitch, Kick, YouTube, and X. Moderation, commands, alerts, and overlays in one dashboard. Self-host it for free.",
       "brand": "NomNomzBot",
       "comingSoon": "Coming soon",
       "comingSoonNote": "Sign-in is not open yet. You can self-host your own bot today.",

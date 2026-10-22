@@ -1,0 +1,10 @@
+{
+  "site": {
+    "notFound": {
+      "brand": "NomNomzBot",
+      "title": "This page does not exist",
+      "body": "The link may be old or mistyped. The home page has everything that is open today.",
+      "home": "Back to the home page"
+    }
+  }
+}

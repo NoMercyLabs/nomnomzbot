@@ -1,0 +1,10 @@
+{
+  "site": {
+    "notFound": {
+      "brand": "NomNomzBot",
+      "title": "Deze pagina bestaat niet",
+      "body": "De link is misschien oud of verkeerd getypt. De startpagina laat zien wat er nu open is.",
+      "home": "Terug naar de startpagina"
+    }
+  }
+}

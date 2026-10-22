@@ -10,6 +10,7 @@
 <script setup lang="ts">
 // The /login route. While sign-in is closed (see isSignInOpen) it shows "Coming soon" and never asks the
 // bot for its providers; with the flag on it is the full sign-in page, unchanged.
+import { defineAsyncComponent } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import AppMark from '@/components/layout/AppMark.vue';
@@ -19,8 +20,9 @@ import { Button } from '@/components/ui/button';
 import { isSignInOpen } from '@/lib/flags';
 
 import ComingSoonButton from '../components/ComingSoonButton.vue';
-import LoginView from './LoginView.vue';
 
+// The sign-in code loads only when sign-in is open; a closed build never fetches it.
+const LoginView = defineAsyncComponent(() => import('./LoginView.vue'));
 const open = isSignInOpen();
 const { t } = useI18n();
 </script>
