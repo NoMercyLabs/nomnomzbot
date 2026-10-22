@@ -43,6 +43,7 @@ public class TtsConfigService : ITtsConfigService
     private readonly IPlatformTtsVoiceDefault _platformVoice;
     private readonly ITtsLexiconService _lexicon;
     private readonly ISpokenNameFormatter _spokenNames;
+    private readonly ITtsVoiceSampleStore? _samples;
 
     public TtsConfigService(
         IApplicationDbContext db,
@@ -52,9 +53,11 @@ public class TtsConfigService : ITtsConfigService
         IUserService users,
         IPlatformTtsVoiceDefault platformVoice,
         ITtsLexiconService lexicon,
-        ISpokenNameFormatter spokenNames
+        ISpokenNameFormatter spokenNames,
+        ITtsVoiceSampleStore? samples = null
     )
     {
+        _samples = samples;
         _db = db;
         _ttsService = ttsService;
         _eventBus = eventBus;
@@ -543,27 +546,48 @@ public class TtsConfigService : ITtsConfigService
     {
         try
         {
-            string text = string.IsNullOrWhiteSpace(request.Text)
+            // The voice's own introduction is the same for every channel: it plays from storage once it was made,
+            // and it skips this channel's pronunciation rules so the stored clip suits every channel.
+            bool isIntroduction = string.IsNullOrWhiteSpace(request.Text);
+            if (isIntroduction && _samples is not null)
+            {
+                TtsResult? stored = await _samples.GetAsync(request.VoiceId, cancellationToken);
+                if (stored is not null)
+                    return Result.Success(ToTestResult(stored));
+            }
+
+            string text = isIntroduction
                 ? await ComposeSampleAsync(request.VoiceId, cancellationToken)
-                : request.Text;
+                : request.Text!;
+            string spoken = _spokenNames.ApplyToText(
+                isIntroduction
+                    ? text
+                    : await _lexicon.ApplyAsync(broadcasterId, text, cancellationToken),
+                []
+            );
             TtsResult result = await _ttsService.SynthesizeAsync(
-                _spokenNames.ApplyToText(
-                    await _lexicon.ApplyAsync(broadcasterId, text, cancellationToken),
-                    []
-                ),
+                spoken,
                 request.VoiceId,
                 ct: cancellationToken
             );
-            string base64 = Convert.ToBase64String(result.AudioData);
-            return Result.Success(
-                new TtsTestResultDto(result.VoiceId, result.Provider, result.DurationMs, base64)
-            );
+            if (isIntroduction && _samples is not null)
+                await _samples.SaveAsync(request.VoiceId, result, cancellationToken);
+
+            return Result.Success(ToTestResult(result));
         }
         catch (Exception)
         {
             return Errors.ExternalServiceUnavailable("TTS").ToTyped<TtsTestResultDto>();
         }
     }
+
+    private static TtsTestResultDto ToTestResult(TtsResult result) =>
+        new(
+            result.VoiceId,
+            result.Provider,
+            result.DurationMs,
+            Convert.ToBase64String(result.AudioData)
+        );
 
     // The voice introduces itself by name; a voice missing from the catalogue speaks its id in English.
     private async Task<string> ComposeSampleAsync(

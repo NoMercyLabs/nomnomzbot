@@ -49,6 +49,9 @@ public static class SelfHostDataPaths
     /// <summary>Durable storage for broadcaster-uploaded sound clips (spec P.18).</summary>
     public static string SoundClipsDirectory => Ensure(Path.Combine(BaseDirectory, "sound-clips"));
 
+    /// <summary>The pre-made introduction clip of each TTS voice, so a voice preview plays without a provider call.</summary>
+    public static string TtsSamplesDirectory => Ensure(Path.Combine(BaseDirectory, "tts-samples"));
+
     /// <summary>Durable storage for broadcaster-uploaded media assets (the widget/overlay asset library).</summary>
     public static string AssetsDirectory => Ensure(Path.Combine(BaseDirectory, "assets"));
 

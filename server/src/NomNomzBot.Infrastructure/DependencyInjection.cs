@@ -1368,6 +1368,8 @@ public static class DependencyInjection
         // The platform default voice (A4), read from the catalogue on every resolve. Not an I<X>Service, so it
         // is registered explicitly rather than by AddServicesByConvention.
         services.AddScoped<IPlatformTtsVoiceDefault, PlatformTtsVoiceDefault>();
+        // The pre-made introduction clip of each voice, kept on disk (not an I<X>Service, so registered by hand).
+        services.AddSingleton<ITtsVoiceSampleStore, DiskTtsVoiceSampleStore>();
 
         // Voice catalogue sync (tts.md §7) — pulls each provider's live voice list into the TtsVoice catalogue.
         // Scoped (writes through the scoped DbContext); does not end in "Service", so registered explicitly here.
