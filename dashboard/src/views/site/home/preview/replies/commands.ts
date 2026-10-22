@@ -26,14 +26,14 @@ const commands: SampleCommand[] = [
   {
     name: 'uptime',
     tier: 'template',
-    response: '{{channel.name}} has been live for {{stream.uptime}}.',
+    response: '{channel} has been live for {stream.uptime}.',
     uses: 311,
     aliases: ['up'],
   },
   {
     name: 'socials',
     tier: 'template',
-    response: 'Hey {{user.name}}, follow on X and Kick: the links are in the panel.',
+    response: 'Hey {user.name}, follow on X and Kick: the links are in the panel.',
     uses: 187,
   },
   {
@@ -46,14 +46,14 @@ const commands: SampleCommand[] = [
   {
     name: 'hug',
     tier: 'template',
-    response: '{{user.name}} hugs {{args.1}}. That is hug number {{counter.hugs}}.',
+    response: '{user.name} hugs {args.1}. That is hug number {count.hugs}.',
     uses: 842,
     cooldown: 10,
   },
   {
     name: 'followage',
     tier: 'template',
-    response: '{{user.name}} has followed {{channel.name}} for {{user.followage}}.',
+    response: '{user.name} has followed {channel} for {user.followAge}.',
     uses: 402,
   },
 ];
@@ -114,6 +114,10 @@ const helperSource = [
   ['user', 'user', 'daisy_plays'],
   ['user.name', 'user_name', 'daisy_plays'],
   ['user.id', 'user_id', '1001'],
+  ['user.followAge', 'user_follow_age', '1 year, 2 months'],
+  ['args', 'args_all', 'crumb_tv'],
+  ['args.<n>', 'args', 'crumb_tv'],
+  ['count.<key>', 'count', '42'],
   ['viewers', 'viewers', '214'],
 ] as const satisfies readonly (readonly [string, string, string])[];
 

@@ -148,4 +148,22 @@ describe('the owner of the sample channel', () => {
     expect(keys.size).toBeGreaterThan(80);
     expect(missing).toEqual([]);
   });
+
+  it('writes every template in the sample with single braces, each name one the bot knows', () => {
+    const commands = sampleReplies.find((reply) => reply.path.endsWith('/commands'));
+    const helpers = sampleReplies.find((reply) => reply.path === '/api/v1/templates/helpers');
+    const url = new URL('http://sample.test/');
+    const text = JSON.stringify(commands?.body(url));
+    const known = JSON.stringify(helpers?.body(url));
+    const used = [...text.matchAll(/\{([^{}"]+)\}/g)].map((match) => match[1] as string);
+
+    expect(text).not.toContain('{{');
+    expect(used.length).toBeGreaterThan(3);
+
+    for (const name of used) {
+      const base = name.replace(/\.\d+$/, '.<n>').replace(/^count\..+$/, 'count.<key>');
+
+      expect(known, name).toContain(`"${base}"`);
+    }
+  });
 });
