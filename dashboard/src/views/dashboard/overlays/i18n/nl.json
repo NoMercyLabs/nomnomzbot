@@ -8,6 +8,9 @@
       "noMatch": "Geen overlay past bij \"{query}\".",
       "back": "Terug naar de lijst",
       "new": "Nieuwe overlay",
+      "duplicate": {
+        "button": "Dupliceren"
+      },
       "delete": {
         "button": "Verwijderen",
         "title": "{name} verwijderen?",

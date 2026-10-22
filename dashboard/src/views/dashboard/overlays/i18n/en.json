@@ -8,6 +8,9 @@
       "noMatch": "No overlay matches \"{query}\".",
       "back": "Back to the list",
       "new": "New overlay",
+      "duplicate": {
+        "button": "Duplicate"
+      },
       "delete": {
         "button": "Delete",
         "title": "Delete {name}?",

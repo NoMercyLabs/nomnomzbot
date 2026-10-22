@@ -202,6 +202,7 @@ function back(): void {
           :widget="selected"
           @back="back"
           @deleted="back"
+          @duplicated="open"
         />
         <PanelCard
           v-else

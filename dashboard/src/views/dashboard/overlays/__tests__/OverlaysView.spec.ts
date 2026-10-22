@@ -171,6 +171,16 @@ vi.mock('@/api/client', () => ({
         body: options?.body,
       });
 
+      if (path.endsWith('/widgets/clone')) {
+        const asked = options?.body as { installedWidgetId: string };
+        const source = widgets.find((row) => row.id === asked.installedWidgetId);
+        const copy = widget('w8', `${String(source?.name)} copy`, { framework: source?.framework });
+
+        widgets = [...widgets, copy];
+
+        return { data: { data: copy }, response: { status: 201, ok: true } };
+      }
+
       const body = options?.body as { name: string; framework: string };
       const made = widget('w9', body.name, { framework: body.framework });
 
@@ -576,6 +586,25 @@ describe('OverlaysView', () => {
 
     expect(rowNames()).toContain('Goal bar');
     expect(router.currentRoute.value.query.id).toBe('w9');
+  });
+
+  it('duplicates the open overlay with its code and opens the copy', async () => {
+    await open('/app/overlays?id=w2');
+
+    button('Duplicate').click();
+    await settle();
+
+    const posts = calls.filter((call) => call.method === 'POST');
+
+    expect(posts).toHaveLength(1);
+
+    expect(posts[0]).toMatchObject({
+      path: '/api/v{version}/channels/{channelId}/widgets/clone',
+      body: { installedWidgetId: 'w2' },
+    });
+
+    expect(rowNames()).toContain('Feather Alert copy');
+    expect(router.currentRoute.value.query.id).toBe('w8');
   });
 
   it('deletes an overlay only after the confirm lists what goes with it, then closes its detail', async () => {

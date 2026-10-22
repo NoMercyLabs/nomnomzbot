@@ -273,6 +273,33 @@ export function useCreateWidget(
   });
 }
 
+// A copy of an overlay the channel owns, code included. Resolves to the copy's id so the page can open it.
+export function useDuplicateWidget(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<string | null, Error, string, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation<string | null, Error, string, undefined>({
+    mutationFn: async (widgetId: string): Promise<string | null> => {
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/widgets/clone',
+        {
+          params: { path: { version, channelId: toValue(channelId) as string } },
+          body: { installedWidgetId: widgetId },
+        },
+      );
+
+      if (error !== undefined)
+        throw refusal('duplicate widget', error, response.status);
+
+      return data?.data?.id ?? null;
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({ queryKey: widgetsKey(toValue(channelId)) });
+    },
+  });
+}
+
 export type WidgetBlastRadius = components['schemas']['BlastRadius'];
 
 // What else uses the overlay, counted by the bot. The confirm shows it before anything is deleted.

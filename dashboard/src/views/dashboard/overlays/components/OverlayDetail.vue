@@ -25,6 +25,7 @@ import { useI18n } from 'vue-i18n';
 import {
   fetchWidgetBlastRadius,
   useDeleteWidget,
+  useDuplicateWidget,
   useSetWidgetEnabled,
   useTestWidgetEvent,
   type Widget,
@@ -56,7 +57,11 @@ const COPIED_MS = 2000;
 
 const props = defineProps<{ widget: Widget }>();
 
-const emit = defineEmits<{ back: []; deleted: [] }>();
+const emit = defineEmits<{
+  back: [];
+  deleted: [];
+  duplicated: [id: string | null];
+}>();
 
 function deleted(): void {
   emit('deleted');
@@ -67,6 +72,7 @@ const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const setEnabled = useSetWidgetEnabled(channelId);
 const remove = useDeleteWidget(channelId, deleted);
+const duplicate = useDuplicateWidget(channelId);
 const editor = useOverlayEditor(() => props.widget);
 
 const kind = computed<OverlayKind>(() => overlayKind(props.widget.eventSubscriptions));
@@ -98,6 +104,17 @@ async function copyAddress(): Promise<void> {
 
 function toggle(isEnabled: boolean): void {
   setEnabled.mutate({ widgetId: props.widget.id, isEnabled });
+}
+
+// The copy opens at once, so the person can start changing it. A refused copy says why where Delete says it.
+async function copyOverlay(): Promise<void> {
+  deleteError.value = undefined;
+
+  try {
+    emit('duplicated', await duplicate.mutateAsync(props.widget.id));
+  } catch (failure) {
+    deleteError.value = errorText(failure, t);
+  }
 }
 
 // Delete reads the blast list first and asks; nothing is deleted before the owner confirms.
@@ -290,10 +307,21 @@ async function sendTest(eventType: string): Promise<void> {
             }}</span>
           </div>
           <div v-if="can('widget:write')" class="grid justify-items-end gap-1">
-            <Button data-overlay-delete variant="outline" @click="askDelete">
-              <Trash aria-hidden="true" />
-              {{ $t("dashboard.overlays.delete.button") }}
-            </Button>
+            <div class="flex items-center gap-2">
+              <Button
+                data-overlay-duplicate
+                variant="outline"
+                :disabled="duplicate.isPending.value"
+                @click="copyOverlay"
+              >
+                <Copy aria-hidden="true" />
+                {{ $t("dashboard.overlays.duplicate.button") }}
+              </Button>
+              <Button data-overlay-delete variant="outline" @click="askDelete">
+                <Trash aria-hidden="true" />
+                {{ $t("dashboard.overlays.delete.button") }}
+              </Button>
+            </div>
             <span v-if="deleteError" role="alert" class="text-sm text-destructive">{{
               deleteError
             }}</span>
