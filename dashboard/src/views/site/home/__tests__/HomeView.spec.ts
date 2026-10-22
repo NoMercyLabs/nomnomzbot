@@ -176,13 +176,26 @@ describe.each([false, true])('with sign-in open = %s', (open) => {
     vi.unstubAllEnvs();
   });
 
-  it('renders the same page: the hero, the previews and the closed sign-in buttons', async () => {
+  it('renders the same page: the hero and the previews', async () => {
     const { wrapper } = await openRoot();
 
     expect(isSignInOpen()).toBe(open);
     expect(wrapper.find('h1').text()).toBe(words.site.home.hero.title);
     expect(wrapper.find('[data-testid="hero-shot"]').exists()).toBe(true);
     expect(wrapper.findAll('[data-feature-group]')).toHaveLength(previewAreas.length);
-    expect(wrapper.findAll('button[disabled]').length).toBeGreaterThanOrEqual(4);
+  });
+
+  it('shows a link to the sign-in page when sign-in is open and a disabled button when it is closed', async () => {
+    const { wrapper } = await openRoot();
+
+    const links = wrapper
+      .findAll('a')
+      .filter((link) => link.text() === words.site.home.signIn && link.attributes('href') === '/login');
+    const closed = wrapper
+      .findAll('button[disabled]')
+      .filter((button) => button.text() === words.site.home.comingSoon);
+
+    expect(links.length > 0).toBe(open);
+    expect(closed.length > 0).toBe(!open);
   });
 });

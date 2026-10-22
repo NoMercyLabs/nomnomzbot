@@ -4,6 +4,7 @@
       "title": "NomNomzBot: run je stream, niet je administratie",
       "description": "Een open-source streambot voor Twitch, Kick, YouTube en X. Moderatie, commando's, alerts en overlays in één dashboard. Host hem gratis zelf.",
       "brand": "NomNomzBot",
+      "signIn": "Inloggen",
       "comingSoon": "Binnenkort",
       "comingSoonNote": "Inloggen is nog niet open. Je kunt nu al je eigen bot zelf hosten.",
       "github": "GitHub",

@@ -8,9 +8,12 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// Every sign-in action on the home page. Sign-in is closed for now, so each one is the same disabled
-// "Coming soon" button with its note; opening sign-in later changes this one file.
+// Every sign-in action on the home page. While sign-in is closed (see isSignInOpen) each one is the same
+// disabled "Coming soon" button with its note; once it is open each one is a link to the sign-in page.
 import { useI18n } from 'vue-i18n';
+
+import { Button } from '@/components/ui/button';
+import { isSignInOpen } from '@/lib/flags';
 
 import ComingSoonButton from '../components/ComingSoonButton.vue';
 
@@ -23,10 +26,15 @@ defineProps<{
 }>();
 
 const { t } = useI18n();
+const open = isSignInOpen();
 </script>
 
 <template>
+  <Button v-if="open" as-child :variant="variant" :size="size">
+    <RouterLink :to="{ name: 'login' }">{{ t('site.home.signIn') }}</RouterLink>
+  </Button>
   <ComingSoonButton
+    v-else
     :variant="variant"
     :size="size"
     :show-note="showNote"
