@@ -95,10 +95,12 @@ const custom = sampleCustomCommands.map((command, index) => ({
   speakWithTts: false,
 }));
 
-// Which of the server's three helper lists a page asks for.
+// Which of the server's three helper lists a page asks for. The pipeline editor asks with the event that starts
+// the pipeline (a raid, a follow), so it gets the list of event placeholders.
 const helperLists = {
   command: helpersCommand,
   eventResponse: helpersEvent,
+  pipeline: helpersEvent,
   timer: helpersTimer,
 } as const;
 

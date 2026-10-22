@@ -196,4 +196,12 @@ describe('the owner of the sample channel', () => {
 
     expect(unknown).toEqual([]);
   });
+
+  it('gives the pipeline editor the event placeholders, so a raid step may use {viewers}', () => {
+    const helpers = sampleReplies.find((reply) => reply.path === '/api/v1/templates/helpers');
+    const url = new URL('http://sample.test/?context=pipeline');
+    const body = JSON.stringify(helpers?.body(url));
+
+    expect(body).toContain('"viewers"');
+  });
 });
