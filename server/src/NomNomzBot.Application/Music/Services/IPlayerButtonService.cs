@@ -27,8 +27,9 @@ public interface IPlayerButtonService
 
     /// <summary>
     /// Replaces the whole list. Fails with <c>VALIDATION_FAILED</c> when there are more than
-    /// <see cref="PlayerButtonRules.MaxButtons"/> buttons, a label is empty or longer than
-    /// <see cref="PlayerButtonRules.MaxLabelLength"/>, an icon key is not lowercase letters, digits and hyphens,
+    /// <see cref="PlayerButtonRules.MaxButtons"/> buttons, a label is longer than
+    /// <see cref="PlayerButtonRules.MaxLabelLength"/> (an empty label is allowed and stored as empty: the
+    /// button then shows only its icon), an icon key is not lowercase letters, digits and hyphens,
     /// or an action type is empty. Buttons without an id get one.
     /// </summary>
     Task<Result<IReadOnlyList<PlayerButtonDto>>> ReplaceAsync(

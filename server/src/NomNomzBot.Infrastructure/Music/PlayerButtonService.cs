@@ -61,7 +61,7 @@ public sealed partial class PlayerButtonService(IApplicationDbContext db, IEvent
                     Id = string.IsNullOrWhiteSpace(b.Id) ? Guid.NewGuid().ToString("N") : b.Id,
                     Label = b.Label.Trim(),
                     ActionType = b.ActionType.Trim(),
-                    Parameters = b.Parameters ?? [],
+                    Parameters = b.Parameters,
                 }
             ),
         ];
@@ -104,9 +104,8 @@ public sealed partial class PlayerButtonService(IApplicationDbContext db, IEvent
         for (int i = 0; i < buttons.Count; i++)
         {
             PlayerButtonDto button = buttons[i];
-            string label = button.Label?.Trim() ?? string.Empty;
-            if (label.Length is 0 or > PlayerButtonRules.MaxLabelLength)
-                return $"Button {i + 1}: the label must be 1 to {PlayerButtonRules.MaxLabelLength} characters.";
+            if (button.Label.Trim().Length > PlayerButtonRules.MaxLabelLength)
+                return $"Button {i + 1}: the label may be at most {PlayerButtonRules.MaxLabelLength} characters.";
             if (string.IsNullOrEmpty(button.Icon) || !IconKeyPattern().IsMatch(button.Icon))
                 return $"Button {i + 1}: the icon key may only hold lowercase letters, digits and hyphens.";
             if (string.IsNullOrWhiteSpace(button.ActionType))

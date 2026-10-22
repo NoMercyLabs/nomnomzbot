@@ -27,6 +27,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Persistence;
 using NSubstitute;
+using ActionDefinition = NomNomzBot.Domain.Identity.Entities.ActionDefinition;
 
 namespace NomNomzBot.Api.Tests.Controllers;
 
@@ -173,7 +174,77 @@ public sealed class PlayerActionButtonTests : IAsyncLifetime
     }
 
     [Theory]
-    [InlineData("", "heart", "send_message")]
+    [InlineData("")]
+    [InlineData("   ")]
+    public async Task Player_buttons_accept_an_empty_label_and_read_it_back_empty(string label)
+    {
+        HttpResponseMessage put = await SendAsync(
+            Owner,
+            HttpMethod.Put,
+            "music/player-buttons",
+            new[]
+            {
+                new
+                {
+                    id = "",
+                    label,
+                    icon = "heart",
+                    actionType = "music_save_track",
+                    parameters = new { },
+                },
+            }
+        );
+        HttpResponseMessage get = await SendAsync(
+            Owner,
+            HttpMethod.Get,
+            "music/player-buttons",
+            null
+        );
+
+        put.StatusCode.Should().Be(HttpStatusCode.OK);
+        JsonNode button = JsonNode.Parse(await get.Content.ReadAsStringAsync())!["data"]![0]!;
+        button["label"]!.GetValue<string>().Should().BeEmpty();
+        button["icon"]!.GetValue<string>().Should().Be("heart");
+        button["actionType"]!.GetValue<string>().Should().Be("music_save_track");
+    }
+
+    [Fact]
+    public async Task Player_buttons_reject_a_label_over_the_maximum_and_say_so()
+    {
+        HttpResponseMessage put = await SendAsync(
+            Owner,
+            HttpMethod.Put,
+            "music/player-buttons",
+            new[]
+            {
+                new
+                {
+                    id = "",
+                    label = new string('a', PlayerButtonRules.MaxLabelLength + 1),
+                    icon = "heart",
+                    actionType = "send_message",
+                    parameters = new { },
+                },
+            }
+        );
+        HttpResponseMessage get = await SendAsync(
+            Owner,
+            HttpMethod.Get,
+            "music/player-buttons",
+            null
+        );
+
+        put.StatusCode.Should().Be(HttpStatusCode.BadRequest);
+        (await put.Content.ReadAsStringAsync())
+            .Should()
+            .Contain("the label may be at most 24 characters");
+        JsonNode.Parse(await get.Content.ReadAsStringAsync())!["data"]!
+            .AsArray()
+            .Should()
+            .BeEmpty();
+    }
+
+    [Theory]
     [InlineData("Label that is far too long to fit", "heart", "send_message")]
     [InlineData("Ok", "Not An Icon", "send_message")]
     [InlineData("Ok", "heart", " ")]
@@ -339,10 +410,7 @@ public sealed class PlayerActionButtonTests : IAsyncLifetime
         await Task.CompletedTask;
     }
 
-    private static NomNomzBot.Domain.Identity.Entities.ActionDefinition Definition(
-        string key,
-        int level
-    ) =>
+    private static ActionDefinition Definition(string key, int level) =>
         new()
         {
             ActionKey = key,
