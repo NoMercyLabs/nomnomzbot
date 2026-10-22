@@ -801,6 +801,21 @@ describe('CommandsView editor', () => {
     expect(router.currentRoute.value.query.command).toBeUndefined();
   });
 
+  it('duplicates a command as a switched-off copy without its aliases, and opens the copy', async () => {
+    await open('/app/commands?command=hello');
+
+    buttonByText('Duplicate').click();
+    await settle();
+
+    const posts = writes('POST');
+
+    expect(posts).toHaveLength(1);
+    expect(posts[0]!.body).toMatchObject({ name: 'hello-copy', isEnabled: false });
+    expect(posts[0]!.body).not.toHaveProperty('aliases');
+    expect(rowNames()).toContain('hello-copy');
+    expect(router.currentRoute.value.query.command).toBe('hello-copy');
+  });
+
   it('names what still runs a command and opens no confirm, so a delete the bot would refuse is never sent', async () => {
     answers['/blast-radius'] = () =>
       ok({

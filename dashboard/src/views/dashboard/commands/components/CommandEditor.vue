@@ -11,6 +11,7 @@
 // The editor of one custom command. The Enabled switch saves at once; every other field is a draft
 // that Save sends as the changed fields only. A refused save keeps the draft and shows the bot's reason.
 import ChevronDown from '~icons/nnz/chevron-down';
+import Copy from '~icons/nnz/file-copy';
 import RotateLeft from '~icons/nnz/rotate-left';
 import Trash2 from '~icons/nnz/trash';
 import { computed, nextTick, ref, watch } from 'vue';
@@ -19,6 +20,7 @@ import { useI18n } from 'vue-i18n';
 import {
   fetchCommandBlastRadius,
   useCommandPresets,
+  useCreateCommand,
   useCommands,
   useResetCommandToPreset,
   useToggleCommand,
@@ -63,10 +65,15 @@ import { presetChanges } from './presetDiff';
 import TriggerFields from './TriggerFields.vue';
 
 const props = defineProps<{ row: CommandListItem }>();
-const emit = defineEmits<{ remove: [name: string]; close: [] }>();
+const emit = defineEmits<{
+  remove: [name: string];
+  duplicated: [name: string];
+  close: [];
+}>();
 
 const { t, te } = useI18n();
 const { channelId } = useCurrentChannel();
+const create = useCreateCommand(channelId);
 const update = useUpdateCommand(channelId);
 const toggle = useToggleCommand(channelId);
 const commands = useCommands(channelId);
@@ -242,6 +249,41 @@ async function askDelete(): Promise<void> {
   }
 }
 
+// The copy has the saved settings of this command, starts switched off, and takes no aliases: an alias belongs
+// to one command, so the copy would be refused for the same one.
+async function duplicate(): Promise<void> {
+  const copyName = `${props.row.name}-copy`;
+
+  failure.value = null;
+
+  try {
+    await create.mutateAsync({
+      name: copyName,
+      tier: props.row.tier,
+      minPermissionLevel: props.row.minPermissionLevel,
+      prefixMode: props.row.prefixMode,
+      customPrefix: props.row.customPrefix,
+      matchMode: props.row.matchMode,
+      matchPattern: props.row.matchPattern,
+      templateResponse: props.row.templateResponse,
+      templateResponses: props.row.templateResponses,
+      pipelineId: props.row.pipelineId,
+      codeScriptId: props.row.codeScriptId,
+      cooldownSeconds: props.row.cooldownSeconds,
+      userCooldownSeconds: props.row.userCooldownSeconds,
+      description: props.row.description,
+      isEnabled: false,
+      speakWithTts: props.row.speakWithTts,
+    });
+  } catch (error) {
+    failure.value = errorText(error, t);
+
+    return;
+  }
+
+  emit('duplicated', copyName);
+}
+
 function remove(): void {
   confirmOpen.value = false;
   emit('remove', props.row.name);
@@ -386,6 +428,16 @@ function remove(): void {
       >
         <Trash2 aria-hidden="true" />
         {{ $t("dashboard.commands.editor.delete") }}
+      </Button>
+      <Button type="button"
+              variant="outline"
+              size="sm"
+              data-command-duplicate
+              :disabled="create.isPending.value"
+              @click="duplicate"
+      >
+        <Copy aria-hidden="true" />
+        {{ $t("dashboard.commands.editor.duplicate") }}
       </Button>
       <Button
         v-if="row.presetKey"

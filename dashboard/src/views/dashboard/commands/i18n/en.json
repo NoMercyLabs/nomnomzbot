@@ -78,6 +78,7 @@
         "save": "Save changes",
         "discard": "Discard",
         "delete": "Delete",
+        "duplicate": "Duplicate",
         "confirmTitle": "Delete !{name}?",
         "confirmBody": "The command is removed for good. Chat can no longer use it.",
         "confirmAction": "Delete command",

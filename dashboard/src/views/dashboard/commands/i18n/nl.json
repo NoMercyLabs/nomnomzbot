@@ -78,6 +78,7 @@
         "save": "Wijzigingen opslaan",
         "discard": "Weggooien",
         "delete": "Verwijderen",
+        "duplicate": "Dupliceren",
         "confirmTitle": "!{name} verwijderen?",
         "confirmBody": "Het commando wordt voorgoed verwijderd. De chat kan het niet meer gebruiken.",
         "confirmAction": "Commando verwijderen",

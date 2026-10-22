@@ -204,6 +204,7 @@ const creating = ref(false);
           :key="row.name"
           :row="row"
           @remove="removeCommand"
+          @duplicated="select"
           @close="select(undefined)"
         />
       </div>
