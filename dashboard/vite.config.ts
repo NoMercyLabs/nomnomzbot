@@ -16,6 +16,7 @@ import vueDevTools from 'vite-plugin-vue-devtools';
 import tailwindcss from '@tailwindcss/vite';
 import { VitePWA } from 'vite-plugin-pwa';
 
+import { botProxy } from './vite-plugins/botRoots';
 import { designerIcons } from './vite-plugins/designerIcons';
 import { hmrPageHost } from './vite-plugins/hmrPageHost';
 
@@ -52,11 +53,13 @@ const blockWrites: NonNullable<ProxyOptions['bypass']> = (req) => {
   return false;
 };
 
-// The bot's own paths: live data, sign-in, the editor page and the health check. A service worker never
-// answers for them. Workbox copies these matchers into sw.js as text, so each one must carry everything it
-// uses inside its own body (a constant defined out here would not exist there).
+// The bot's own paths (the roots in vite-plugins/botRoots.ts; botRoots.spec.ts keeps the two in step). A
+// service worker never answers for them. Workbox copies these matchers into sw.js as text, so each one must
+// carry everything it uses inside its own body (a constant defined out here would not exist there).
 const isLivePath = ({ url }: { url: URL }): boolean =>
-  /^\/(?:api\/|hubs\/|editor|health)/.test(url.pathname);
+  /^\/(?:api|automation|editor|health|hubs|landing|oauth-relay|obs-bridge|overlay|voice-listener)(?:\/|$)/.test(
+    url.pathname,
+  );
 
 const isEmojiFont = ({ url }: { url: URL }): boolean =>
   url.pathname.startsWith('/assets/noto-color-emoji-');
@@ -134,18 +137,9 @@ export default defineConfig({
     host: true,
     // The https tunnel to this dev server, so a phone signs in by redirect.
     allowedHosts: ['vue.nomnomz.bot', 'dev.nomnomz.bot'],
-    proxy: {
-      '/api': { target: api, xfwd: true, configure: sameHostOrigin, bypass: blockWrites },
-      '/hubs': { target: api, ws: true, xfwd: true },
-      // The code editor page is an iframe that must share the dashboard's origin (both sides check it).
-      '/editor': { target: api, xfwd: true },
-      '/health': { target: api, xfwd: true },
-      // OBS browser sources load /overlay on this host; without the proxy they get the dark dashboard page.
-      '/overlay': { target: api, xfwd: true },
-      // The other pages the bot serves itself: the OBS control bridge and the voice trigger listener.
-      '/obs-bridge': { target: api, xfwd: true },
-      '/voice-listener': { target: api, xfwd: true },
-    },
+    // Every path the bot serves (vite-plugins/botRoots.ts) goes to the bot. The code editor page is an iframe
+    // that must share the dashboard's origin (both sides check it), so /editor is on that list too.
+    proxy: botProxy(api, { api: { configure: sameHostOrigin, bypass: blockWrites } }),
   },
   resolve: {
     alias: {
