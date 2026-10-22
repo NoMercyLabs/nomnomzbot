@@ -1439,6 +1439,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<Guid>("BroadcasterId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("CodeScriptId")
+                        .HasColumnType("uuid");
+
                     b.Property<int>("ConfigSchemaVersion")
                         .HasColumnType("integer");
 
@@ -1542,6 +1545,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("integer");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CodeScriptId")
+                        .HasDatabaseName("IX_Command_CodeScriptId");
 
                     b.HasIndex("PipelineId")
                         .HasDatabaseName("IX_Command_PipelineId");
@@ -12281,6 +12287,11 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasForeignKey("BroadcasterId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.CustomCode.Entities.CodeScript", null)
+                        .WithMany()
+                        .HasForeignKey("CodeScriptId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("NomNomzBot.Domain.Commands.Entities.Pipeline", "Pipeline")
                         .WithMany()

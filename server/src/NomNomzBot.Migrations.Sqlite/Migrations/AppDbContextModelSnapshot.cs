@@ -1491,6 +1491,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<Guid?>("CodeScriptId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
                     b.Property<int>("ConfigSchemaVersion")
                         .HasColumnType("INTEGER");
 
@@ -1594,6 +1598,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("INTEGER");
 
                     b.HasKey("Id");
+
+                    b.HasIndex("CodeScriptId")
+                        .HasDatabaseName("IX_Command_CodeScriptId");
 
                     b.HasIndex("PipelineId")
                         .HasDatabaseName("IX_Command_PipelineId");
@@ -12840,6 +12847,11 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasForeignKey("BroadcasterId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.HasOne("NomNomzBot.Domain.CustomCode.Entities.CodeScript", null)
+                        .WithMany()
+                        .HasForeignKey("CodeScriptId")
+                        .OnDelete(DeleteBehavior.SetNull);
 
                     b.HasOne("NomNomzBot.Domain.Commands.Entities.Pipeline", "Pipeline")
                         .WithMany()
