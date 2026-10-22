@@ -103,6 +103,13 @@ public sealed class StreamFactReader(IApplicationDbContext db, StreamBanFilter b
             .Select(e => new { e.Type, e.Data })
             .ToListAsync(cancellationToken);
 
+        // A raid the owner sent is an outgoing raid. Older imports stored those as incoming, so skip them here.
+        string? ownerId = await db
+            .Channels.AsNoTracking()
+            .Where(c => c.Id == window.ChannelId)
+            .Select(c => c.ExternalChannelId)
+            .FirstOrDefaultAsync(cancellationToken);
+
         List<StreamFact> facts = [];
         foreach (var row in rows)
         {
@@ -111,6 +118,8 @@ public sealed class StreamFactReader(IApplicationDbContext db, StreamBanFilter b
             if (!StreamFact.TryOccurredAt(data, out DateTime at) || at < from || at > to)
                 continue;
             StreamFact fact = new(row.Type, data);
+            if (row.Type == "channel.raid" && ownerId is not null && fact.PersonId() == ownerId)
+                continue;
             if (!banned.HasPlatformId(fact.PersonId()))
                 facts.Add(fact);
         }

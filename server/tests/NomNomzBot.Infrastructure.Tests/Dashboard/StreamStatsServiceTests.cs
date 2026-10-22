@@ -18,6 +18,7 @@ using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Domain.Rewards.Entities;
@@ -579,6 +580,59 @@ public sealed class StreamStatsServiceTests
         stats.Chat!.Messages.Should().Be(0);
         stats.TopChatters.Should().BeEmpty();
         stats.CommandsRun!.Total.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_raid_sent_by_the_channel_owner_is_not_counted_as_a_raid_in()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(
+            new Channel
+            {
+                Id = Broadcaster,
+                OwnerUserId = Guid.NewGuid(),
+                Provider = AuthEnums.Platform.Twitch,
+                ExternalChannelId = "39863651",
+                Name = "stoney_eagle",
+                NameNormalized = "stoney_eagle",
+            }
+        );
+        db.Streams.Add(NewStream("s-self", Started, Ended));
+        DateTimeOffset inside = Started.AddHours(1);
+        db.ChannelEvents.AddRange(
+            Fact(
+                Broadcaster,
+                "channel.raid",
+                inside,
+                new
+                {
+                    fromUserId = "39863651",
+                    fromDisplayName = "Stoney_Eagle",
+                    viewerCount = 11,
+                }
+            ),
+            Fact(
+                Broadcaster,
+                "channel.raid",
+                inside.AddMinutes(1),
+                new
+                {
+                    fromUserId = "80695883",
+                    fromDisplayName = "ApexPixelated",
+                    viewerCount = 15,
+                }
+            )
+        );
+        await db.SaveChangesAsync();
+
+        Result<StreamStatsDto> result = await NewService(db, Ended.AddHours(1))
+            .GetAsync(Broadcaster, "s-self", ["raidsIn"]);
+
+        result.IsSuccess.Should().BeTrue();
+        result
+            .Value.RaidsIn!.Select(r => (r.Name, r.Viewers))
+            .Should()
+            .Equal(("ApexPixelated", 15));
     }
 
     [Fact]
