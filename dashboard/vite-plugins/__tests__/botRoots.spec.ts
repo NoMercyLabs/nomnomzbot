@@ -21,8 +21,8 @@ const viteConfig: string = readFileSync(resolve(process.cwd(), 'vite.config.ts')
 
 const ROUTE_ATTRIBUTE: RegExp = /\[Route\("\/?([^"/[{]+)[^"]*"\)\]/g;
 const MAPPED_PATH: RegExp = /\.Map(?:Get|Post|Put|Delete|Hub<[\w.]+>|Fallback)?\(\s*"\/([^"/{]+)/g;
-// A folder of static files served under a path: RequestPath = "/editor".
-const STATIC_PATH: RegExp = /RequestPath\s*=\s*"\/([^"/{]+)/g;
+// A folder of static files served under a path: RequestPath = "/editor", or the constant that holds it.
+const STATIC_PATH: RegExp = /(?:RequestPath|EditorPath)\s*=\s*"\/([^"/{]+)/g;
 
 function sourceFiles(): string[] {
   return readdirSync(serverSource, { recursive: true, encoding: 'utf8' })
