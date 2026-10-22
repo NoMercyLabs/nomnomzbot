@@ -42,8 +42,8 @@
           "caption": "Een catalogus met eigen overlays, een widgetgalerij en een code-editor voor je eigen widgets."
         },
         "analytics": {
-          "tab": "Analyse",
-          "title": "Analyse en samenvattingen",
+          "tab": "Statistieken",
+          "title": "Statistieken en samenvattingen",
           "text": "Elke stream krijgt zijn eigen cijfers, met dagelijkse trends, topkijkers en een samenvatting die je na de stream kunt delen.",
           "caption": "Cijfers per stream, dagelijkse trends, topkijkers en een samenvatting na elke stream."
         },

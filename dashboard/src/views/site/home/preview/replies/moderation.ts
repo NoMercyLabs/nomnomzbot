@@ -213,6 +213,7 @@ const policy = {
     networkContribute: false,
     requiredCorroborations: 3,
   },
+  // cspell:disable-next-line -- the bot's wire name for the list
   catalogue: descriptors,
   invariants: ['sd0', 'sd8', 'sd9', 'sd11', 'sd12'].map((decision) => ({
     decision: decision.toUpperCase(),
