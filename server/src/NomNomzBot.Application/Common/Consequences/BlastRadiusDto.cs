@@ -79,6 +79,8 @@ public static class BlastRadiusCategoryKeys
     public const string Rewards = "blast_radius_category_rewards";
     public const string Timers = "blast_radius_category_timers";
     public const string ChatTriggers = "blast_radius_category_chat_triggers";
+    public const string CatalogItems = "blast_radius_category_catalog_items";
+    public const string OtherCommandBindings = "blast_radius_category_other_command_bindings";
     public const string PickLists = "blast_radius_category_pick_lists";
     public const string CodeScripts = "blast_radius_category_code_scripts";
     public const string JarMemberships = "blast_radius_category_jar_memberships";

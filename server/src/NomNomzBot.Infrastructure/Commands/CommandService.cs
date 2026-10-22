@@ -13,6 +13,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
@@ -422,6 +423,62 @@ public class CommandService : ICommandService
 
         return Result.Success();
     }
+
+    private const int BlastSampleSize = 5;
+
+    public async Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        string broadcasterId,
+        string commandName,
+        CancellationToken cancellationToken = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<BlastRadiusDto>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
+        string nameNormalized = commandName.ToLowerInvariant();
+        Command? command = await _db.Commands.FirstOrDefaultAsync(
+            c => c.BroadcasterId == broadcaster && c.NameNormalized == nameNormalized,
+            cancellationToken
+        );
+        if (command is null)
+            return Result.Failure<BlastRadiusDto>(
+                $"Command '{commandName}' was not found.",
+                "NOT_FOUND"
+            );
+
+        IReadOnlyList<BindingUsage> usages = await _bindingGuard.FindUsagesAsync(
+            broadcaster,
+            command.Id.ToString(),
+            cancellationToken
+        );
+
+        List<BlastRadiusCategoryDto> categories = usages
+            .GroupBy(usage => CategoryKeyOf(usage.Surface))
+            .Select(group => new BlastRadiusCategoryDto(
+                group.Key,
+                group.Count(),
+                group.Select(usage => usage.Name).Take(BlastSampleSize).ToList()
+            ))
+            .OrderBy(category => category.CategoryKey, StringComparer.Ordinal)
+            .ToList();
+
+        return Result.Success(new BlastRadiusDto(categories, IsMinimum: false));
+    }
+
+    private static string CategoryKeyOf(string surface) =>
+        surface switch
+        {
+            "reward" => BlastRadiusCategoryKeys.Rewards,
+            "timers" => BlastRadiusCategoryKeys.Timers,
+            "event-response" => BlastRadiusCategoryKeys.EventResponses,
+            "chat-trigger" => BlastRadiusCategoryKeys.ChatTriggers,
+            "giveaway" => BlastRadiusCategoryKeys.Giveaways,
+            "catalog-item" => BlastRadiusCategoryKeys.CatalogItems,
+            _ => BlastRadiusCategoryKeys.OtherCommandBindings,
+        };
 
     public async Task<Result<CommandDto>> GetAsync(
         string broadcasterId,

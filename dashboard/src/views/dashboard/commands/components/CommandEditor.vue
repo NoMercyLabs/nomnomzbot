@@ -17,6 +17,7 @@ import { computed, nextTick, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  fetchCommandBlastRadius,
   useCommandPresets,
   useCommands,
   useResetCommandToPreset,
@@ -43,6 +44,7 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { blastLines } from '@/views/dashboard/scripts/components/blastLines';
 import { errorText } from '@/lib/errors';
 
 import CodeScriptPicker from './CodeScriptPicker.vue';
@@ -63,7 +65,7 @@ import TriggerFields from './TriggerFields.vue';
 const props = defineProps<{ row: CommandListItem }>();
 const emit = defineEmits<{ remove: [name: string]; close: [] }>();
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 const { channelId } = useCurrentChannel();
 const update = useUpdateCommand(channelId);
 const toggle = useToggleCommand(channelId);
@@ -216,6 +218,30 @@ async function reset(): Promise<void> {
   }
 }
 
+// The bot refuses to delete a command that a reward, timer, event response or the like still runs. That list is
+// read first: it is shown here, and the confirm opens only when nothing is left to move or remove.
+async function askDelete(): Promise<void> {
+  failure.value = null;
+
+  try {
+    const lines = blastLines(
+      await fetchCommandBlastRadius(channelId.value as string, props.row.name),
+      t,
+      te,
+    );
+
+    if (lines.length > 0) {
+      failure.value = t('dashboard.commands.editor.inUse', { list: lines.join(' · ') });
+
+      return;
+    }
+
+    confirmOpen.value = true;
+  } catch (error) {
+    failure.value = errorText(error, t);
+  }
+}
+
 function remove(): void {
   confirmOpen.value = false;
   emit('remove', props.row.name);
@@ -356,7 +382,7 @@ function remove(): void {
       <Button type="button"
               variant="outline"
               size="sm"
-              @click="confirmOpen = true"
+              @click="askDelete"
       >
         <Trash2 aria-hidden="true" />
         {{ $t("dashboard.commands.editor.delete") }}

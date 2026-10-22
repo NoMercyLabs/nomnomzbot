@@ -24,6 +24,7 @@ import type { components } from './schema';
 import type { KeyParts } from '@/lib/array';
 
 export type CommandListItem = components['schemas']['CommandListItem'];
+export type CommandBlastRadius = components['schemas']['BlastRadius'];
 export type CommandChange = components['schemas']['UpdateCommand'];
 export type NewCommand = components['schemas']['CreateCommand'];
 export type BuiltinCommand = components['schemas']['BuiltinCommand'];
@@ -226,6 +227,26 @@ export function useToggleCommand(
 }
 
 // The row leaves the list at once; a refused delete puts it back and reaches the error inbox.
+// What still runs the command. The bot refuses a delete while anything does, so this is read first.
+export async function fetchCommandBlastRadius(
+  channelId: string,
+  commandName: string,
+): Promise<CommandBlastRadius> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/commands/{commandName}/blast-radius',
+    { params: { path: {
+      version,
+      channelId,
+      commandName,
+    } } },
+  );
+
+  if (error !== undefined || !data?.data)
+    throw refusal('command blast radius', error, response.status);
+
+  return data.data;
+}
+
 export function useDeleteCommand(
   channelId: MaybeRefOrGetter<string | null>,
 ): RowsMutation<{ commandName: string }> {

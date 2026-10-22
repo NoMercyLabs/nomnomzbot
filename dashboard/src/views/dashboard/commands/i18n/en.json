@@ -81,6 +81,7 @@
         "confirmTitle": "Delete !{name}?",
         "confirmBody": "The command is removed for good. Chat can no longer use it.",
         "confirmAction": "Delete command",
+        "inUse": "Still used by {list}. Move or remove these first, then delete the command.",
         "reset": "Reset to preset",
         "resetTitle": "Reset !{name} to its preset?",
         "resetBody": "These settings go back to the preset. Your edits to them are lost.",

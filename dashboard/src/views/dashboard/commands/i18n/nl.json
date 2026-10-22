@@ -81,6 +81,7 @@
         "confirmTitle": "!{name} verwijderen?",
         "confirmBody": "Het commando wordt voorgoed verwijderd. De chat kan het niet meer gebruiken.",
         "confirmAction": "Commando verwijderen",
+        "inUse": "Wordt nog gebruikt door {list}. Verplaats of verwijder die eerst en verwijder daarna het commando.",
         "reset": "Terug naar preset",
         "resetTitle": "!{name} terugzetten naar de preset?",
         "resetBody": "Deze instellingen gaan terug naar de preset. Je eigen wijzigingen eraan gaan verloren.",

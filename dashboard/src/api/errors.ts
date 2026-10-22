@@ -182,6 +182,7 @@ export const apiOperations = {
   'command presets': 'commands',
   'save command': 'commands',
   'delete command': 'commands',
+  'command blast radius': 'commands',
   'create command': 'commands',
   'reset command': 'commands',
   'built-in command': 'commands',

@@ -21,6 +21,7 @@ import { i18n } from '@/i18n';
 import { rungNames } from '@/api/permissions';
 import CommandsView from '../CommandsView.vue';
 import en from '../i18n/en.json';
+import scriptsEn from '../../scripts/i18n/en.json';
 
 type Options = { params?: { path?: Record<string, unknown> }; body?: Record<string, unknown> };
 type Call = {
@@ -150,6 +151,7 @@ function freshAnswers() {
           minPermissionLevelOverride: null,
         },
       ]),
+    '/blast-radius': () => ok({ categories: [], isMinimum: false }),
   } as const satisfies Record<string, () => Answer>;
 }
 
@@ -279,6 +281,8 @@ beforeEach(() => {
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
+  // The delete check words what still runs a command with the scripts page's shared lines.
+  i18n.global.mergeLocaleMessage('en', scriptsEn);
 });
 
 afterEach(() => {
@@ -795,6 +799,36 @@ describe('CommandsView editor', () => {
     expect(rowNames()).not.toContain('hello');
     expect(editor()).toBeNull();
     expect(router.currentRoute.value.query.command).toBeUndefined();
+  });
+
+  it('names what still runs a command and opens no confirm, so a delete the bot would refuse is never sent', async () => {
+    answers['/blast-radius'] = () =>
+      ok({
+        categories: [
+          {
+            categoryKey: 'blast_radius_category_rewards',
+            count: 2,
+            sample: ['Hydrate', 'Stretch'],
+          },
+          {
+            categoryKey: 'blast_radius_category_timers',
+            count: 1,
+            sample: ['Follow reminder'],
+          },
+        ],
+        isMinimum: false,
+      });
+
+    await open('/app/commands?command=hello');
+
+    buttonByText('Delete').click();
+    await settle();
+
+    expect(document.body.textContent).toContain('2 rewards: Hydrate, Stretch');
+    expect(document.body.textContent).toContain('1 timers: Follow reminder');
+    expect(document.body.textContent).toContain('Move or remove these first');
+    expect(document.body.querySelector('[data-confirm-action]')).toBeNull();
+    expect(writes('DELETE')).toHaveLength(0);
   });
 
   it('shows Reset to preset only on a command seeded from a preset', async () => {

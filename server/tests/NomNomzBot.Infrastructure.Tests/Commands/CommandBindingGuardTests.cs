@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
@@ -130,6 +131,76 @@ public sealed class CommandBindingGuardTests
         source.Asked.Should().ContainSingle().Which.Should().Be((Channel, created.Id.ToString()));
         (await db.Commands.CountAsync(c => c.Id == created.Id)).Should().Be(1);
         (await db.Records.CountAsync(r => r.RecordType == "command_action")).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task DeleteBlastRadius_CountsEachSurfaceThatRunsTheCommandAndNamesTheRows()
+    {
+        CommandsTestDbContext db = NewDb();
+        CommandService sut = BuildCommandService(
+            db,
+            new FakeBindingUsageSource(
+                RewardUsage,
+                new("reward", "r-2", "Stretch"),
+                new("timers", "t-1", "Follow reminder"),
+                new("something-new", "x-1", "Mystery")
+            )
+        );
+        CommandDto created = await CreateAsync(sut);
+
+        Result<BlastRadiusDto> result = await sut.GetDeleteBlastRadiusAsync(
+            Channel.ToString(),
+            "hydrate"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.IsMinimum.Should().BeFalse();
+        result
+            .Value.Categories.Select(c => (c.CategoryKey, c.Count))
+            .Should()
+            .BeEquivalentTo([
+                (BlastRadiusCategoryKeys.Rewards, 2),
+                (BlastRadiusCategoryKeys.Timers, 1),
+                (BlastRadiusCategoryKeys.OtherCommandBindings, 1),
+            ]);
+        result
+            .Value.Categories.Single(c => c.CategoryKey == BlastRadiusCategoryKeys.Rewards)
+            .Sample.Should()
+            .BeEquivalentTo("Hydrate", "Stretch");
+        (await db.Commands.CountAsync(c => c.Id == created.Id))
+            .Should()
+            .Be(1, "reading the blast radius deletes nothing");
+    }
+
+    [Fact]
+    public async Task DeleteBlastRadius_WhenNothingBindsTheCommand_IsAnEmptyList()
+    {
+        CommandsTestDbContext db = NewDb();
+        CommandService sut = BuildCommandService(db, new FakeBindingUsageSource());
+        await CreateAsync(sut);
+
+        Result<BlastRadiusDto> result = await sut.GetDeleteBlastRadiusAsync(
+            Channel.ToString(),
+            "hydrate"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Categories.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task DeleteBlastRadius_ForAnUnknownCommand_IsNotFound()
+    {
+        CommandsTestDbContext db = NewDb();
+        CommandService sut = BuildCommandService(db, new FakeBindingUsageSource(RewardUsage));
+
+        Result<BlastRadiusDto> result = await sut.GetDeleteBlastRadiusAsync(
+            Channel.ToString(),
+            "nope"
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
     }
 
     [Fact]

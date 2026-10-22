@@ -16,6 +16,7 @@ using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -158,6 +159,29 @@ public class CommandsController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<CommandDto> { Data = result.Value });
+    }
+
+    /// <summary>
+    /// Everything that still runs the command, counted per surface. A delete is refused while any of it is bound;
+    /// the dashboard reads this first so the confirm names what to move or remove.
+    /// </summary>
+    [RequireAction("commands:write")]
+    [HttpGet("{commandName}/blast-radius")]
+    [ProducesResponseType<StatusResponseDto<BlastRadiusDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetCommandDeleteBlastRadius(
+        string channelId,
+        string commandName,
+        CancellationToken ct
+    )
+    {
+        Result<BlastRadiusDto> result = await _commandService.GetDeleteBlastRadiusAsync(
+            channelId,
+            commandName,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<BlastRadiusDto> { Data = result.Value });
     }
 
     /// <summary>Delete a custom command.</summary>

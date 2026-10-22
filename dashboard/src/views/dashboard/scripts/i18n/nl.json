@@ -172,7 +172,14 @@
         "blast_radius_category_pipelines": "pipelines",
         "blast_radius_category_commands": "commando's",
         "blast_radius_category_widgets": "widgets",
-        "blast_radius_category_widget_versions": "opgeslagen versies van deze overlay"
+        "blast_radius_category_widget_versions": "opgeslagen versies van deze overlay",
+        "blast_radius_category_rewards": "beloningen",
+        "blast_radius_category_timers": "timers",
+        "blast_radius_category_event_responses": "eventreacties",
+        "blast_radius_category_chat_triggers": "chattriggers",
+        "blast_radius_category_giveaways": "weggeefacties",
+        "blast_radius_category_catalog_items": "catalogusitems",
+        "blast_radius_category_other_command_bindings": "andere plekken"
       },
       "delete": {
         "title": "{name} verwijderen?",

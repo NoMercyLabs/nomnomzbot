@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Commands.Dtos;
+using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Application.Commands.Services;
@@ -42,6 +43,17 @@ public interface ICommandService
         string broadcasterId,
         string commandName,
         string? actorId = null,
+        CancellationToken cancellationToken = default
+    );
+
+    /// <summary>
+    /// What still runs this command, counted per surface (rewards, timers, event responses, chat triggers,
+    /// giveaways, catalog items). The delete is refused while any of them is bound, so the dashboard shows
+    /// this list before it asks.
+    /// </summary>
+    Task<Result<BlastRadiusDto>> GetDeleteBlastRadiusAsync(
+        string broadcasterId,
+        string commandName,
         CancellationToken cancellationToken = default
     );
 
