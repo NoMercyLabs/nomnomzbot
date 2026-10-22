@@ -10,11 +10,12 @@
 <script setup lang="ts">
 // Picks one person the bot knows by typing a name. The bot answers with real people; there is no free id field.
 import Cross from '~icons/nnz/cross';
-import { ref } from 'vue';
+import { computed, ref } from 'vue';
 
 import { useViewerSearch, type ViewerOption } from '@/api/community';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Popover, PopoverAnchor, PopoverContent } from '@/components/ui/popover';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 defineProps<{ picked: ViewerOption | null; label: string }>();
@@ -24,6 +25,9 @@ const emit = defineEmits<{ pick: [person: ViewerOption | null] }>();
 const { channelId } = useCurrentChannel();
 const search = ref('');
 const found = useViewerSearch(channelId, search);
+const listOpen = computed<boolean>(
+  () => search.value.trim() !== '' && (found.data.value?.length ?? 0) > 0,
+);
 
 function choose(person: ViewerOption): void {
   search.value = '';
@@ -39,24 +43,28 @@ function choose(person: ViewerOption): void {
         <Cross class="size-5" />
       </Button>
     </div>
-    <template v-else>
-      <Input v-model="search" data-person-search :aria-label="label" :placeholder="$t('dashboard.settings.permissions.person.placeholder')" />
-      <ul
-        v-if="search.trim() !== '' && (found.data.value?.length ?? 0) > 0"
-        class="absolute z-10 mt-1 max-h-56 w-full overflow-auto rounded-md border bg-popover p-1 shadow-md"
+    <!-- The list opens in a portal: the card around this picker clips anything drawn inside it. -->
+    <Popover v-else :open="listOpen">
+      <PopoverAnchor as-child>
+        <Input v-model="search" data-person-search :aria-label="label" :placeholder="$t('dashboard.settings.permissions.person.placeholder')" />
+      </PopoverAnchor>
+      <PopoverContent
+        align="start"
+        class="max-h-56 w-64 gap-0 overflow-auto p-1"
+        @open-auto-focus.prevent
       >
-        <li v-for="person in found.data.value" :key="person.id">
-          <button
-            type="button"
-            data-person-option
-            class="flex w-full flex-col rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
-            @click="choose(person)"
-          >
-            <span>{{ person.label }}</span>
-            <span class="text-xs text-muted-foreground">{{ person.subLabel }}</span>
-          </button>
-        </li>
-      </ul>
-    </template>
+        <button
+          v-for="person in found.data.value"
+          :key="person.id"
+          type="button"
+          data-person-option
+          class="flex w-full flex-col rounded-sm px-2 py-1.5 text-left text-sm hover:bg-accent"
+          @click="choose(person)"
+        >
+          <span>{{ person.label }}</span>
+          <span class="text-xs text-muted-foreground">{{ person.subLabel }}</span>
+        </button>
+      </PopoverContent>
+    </Popover>
   </div>
 </template>

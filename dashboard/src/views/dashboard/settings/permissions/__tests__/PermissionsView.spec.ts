@@ -402,10 +402,11 @@ describe('Permissions', () => {
     const panel = q('[data-panel="person-grants"]');
     const capability: readonly Option[] = selectLabeled(wrapper, 'Capability').props('options');
 
-    expect(capability.map((option) => option.value)).toEqual([
-      'chat.permit-link',
-      'obs:control',
-      'bot:manager:author',
+    // Stoney 2026-10-22: "capabilities need to be organized by type". One section per area, in name order.
+    expect(capability.map((option) => [option.group, option.value])).toEqual([
+      ['Bot manager', 'bot:manager:author'],
+      ['Chat', 'chat.permit-link'],
+      ['OBS', 'obs:control'],
     ]);
 
     expect(panel.querySelector('[data-grant-add]')?.hasAttribute('disabled')).toBe(true);
@@ -415,7 +416,11 @@ describe('Permissions', () => {
       'newb',
     );
 
-    await click(q('[data-panel="person-grants"] [data-person-option]'));
+    // Stoney 2026-10-22: a name typed here showed nothing. The card clips what it holds, so the list opens outside it.
+    expect(panel.querySelector('[data-person-option]')).toBeNull();
+    expect(q('[data-person-option]')).not.toBeNull();
+
+    await click(q('[data-person-option]'));
 
     selectLabeled(wrapper, 'Capability').vm.$emit('update:modelValue', 'chat.permit-link');
     await settle();
@@ -447,7 +452,7 @@ describe('Permissions', () => {
 
   async function pick(wrapper: VueWrapper, permission: string): Promise<void> {
     await type(q<HTMLInputElement>('[data-panel="person-grants"] [data-person-search]'), 'newb');
-    await click(q('[data-panel="person-grants"] [data-person-option]'));
+    await click(q('[data-person-option]'));
     selectLabeled(wrapper, 'Capability').vm.$emit('update:modelValue', permission);
     await settle();
     await click(q('[data-panel="person-grants"] [data-grant-add]'));

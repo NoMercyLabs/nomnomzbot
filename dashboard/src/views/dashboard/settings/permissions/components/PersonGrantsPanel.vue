@@ -32,7 +32,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { errorText } from '@/lib/errors';
 
-import { useActionName } from '../actionArea';
+import { areaOf, useActionName, useAreaLabel } from '../actionArea';
 import { isAllowedGrant } from '../personGrant';
 import OptionSelect, { type Option } from './OptionSelect.vue';
 import PersonPicker from './PersonPicker.vue';
@@ -66,10 +66,18 @@ const nameOf = (key: string): string =>
     ? actionName({ actionKey: key, description: descriptionOf(key) })
     : knownText(key, 'name');
 
+// The capabilities read by type: one section per area, the sections and the names inside them in name order.
+const areaLabel = useAreaLabel();
 const options = computed<Option[]>(() =>
   (matrix.data.value ?? [])
     .filter((row) => row.isGrantableViaPermit)
-    .map((row) => ({ value: row.actionKey, label: nameOf(row.actionKey) })),
+    .map((row) => ({
+      value: row.actionKey,
+      label: nameOf(row.actionKey),
+      group: areaLabel(areaOf(row.actionKey)),
+    }))
+    .sort((left, right) =>
+      left.group.localeCompare(right.group) || left.label.localeCompare(right.label)),
 );
 
 // The picked capability, when it is one that carries a consequence text.

@@ -9,29 +9,39 @@
 -->
 <script setup lang="ts">
 // One closed choice (a role, a rung of the ladder, a capability). The page names every option; no number shows.
+import { computed } from 'vue';
+
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
 
+import { groupOptions } from '../optionGroups';
+
+// An option may name its group (its type); a long list then reads as labeled sections.
 export type Option = {
   value: string;
   label: string;
   disabled?: boolean;
+  group?: string;
 };
 
 defineOptions({ inheritAttrs: false });
 
-defineProps<{
+const props = defineProps<{
   modelValue?: string;
   options: readonly Option[];
   label: string;
   placeholder?: string;
   disabled?: boolean;
 }>();
+
+const groups = computed(() => groupOptions(props.options));
 
 defineEmits<{ 'update:modelValue': [value: string] }>();
 </script>
@@ -46,14 +56,17 @@ defineEmits<{ 'update:modelValue': [value: string] }>();
       <SelectValue :placeholder="placeholder" />
     </SelectTrigger>
     <SelectContent>
-      <SelectItem
-        v-for="option in options"
-        :key="option.value"
-        :value="option.value"
-        :disabled="option.disabled"
-      >
-        {{ option.label }}
-      </SelectItem>
+      <SelectGroup v-for="group in groups" :key="group.label ?? ''">
+        <SelectLabel v-if="group.label !== undefined">{{ group.label }}</SelectLabel>
+        <SelectItem
+          v-for="option in group.options"
+          :key="option.value"
+          :value="option.value"
+          :disabled="option.disabled"
+        >
+          {{ option.label }}
+        </SelectItem>
+      </SelectGroup>
     </SelectContent>
   </Select>
 </template>
