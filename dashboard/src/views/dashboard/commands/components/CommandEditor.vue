@@ -45,7 +45,7 @@ import {
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
-import CodeTierNote from './CodeTierNote.vue';
+import CodeScriptPicker from './CodeScriptPicker.vue';
 import {
   changeOf,
   draftOf,
@@ -116,6 +116,7 @@ const unsaved = computed<string>(() =>
 );
 const valid = computed(() => triggerValid(draft.value));
 const random = computed<boolean>(() => draft.value.kind === 'random');
+const scripted = computed<boolean>(() => draft.value.kind === 'code');
 
 // A switch changes only the kind; an empty side starts from the other one (the text seeds the
 // first reply, the first reply seeds an empty text).
@@ -136,14 +137,14 @@ const replyTypes = computed(
     [
       { value: 'text', label: t('dashboard.commands.editor.typeText') },
       { value: 'random', label: t('dashboard.commands.editor.typeRandomReply') },
+      { value: 'code', label: t('dashboard.commands.editor.typeCode') },
     ] as const satisfies { value: string; label: string }[],
 );
+const kinds = ['text', 'random', 'code'] as const satisfies ReplyKind[];
 const replyType = computed<string>({
   get: () => draft.value.kind,
   set: (type: string): void => {
-    setKind(type === 'random'
-      ? 'random'
-      : 'text');
+    setKind(kinds.find((kind): boolean => kind === type) ?? 'text');
   },
 });
 // The reply lists of the channel's other random-reply commands, to start a list from.
@@ -249,7 +250,6 @@ function remove(): void {
       </Field>
 
       <ReplyModeField
-        v-if="row.tier !== 'code'"
         v-model:mode="draft.mode"
         v-model:pipeline-id="draft.pipelineId"
         v-model:simple-kind="replyType"
@@ -258,7 +258,8 @@ function remove(): void {
       >
         <!-- Text and Random reply share one grid cell; the hidden one still holds its height, so the
              switch between them never moves what sits below. -->
-        <div class="grid *:[grid-area:1/1]">
+        <CodeScriptPicker v-if="scripted" v-model="draft.codeScriptId" />
+        <div v-else class="grid *:[grid-area:1/1]">
           <TemplateField
             v-model="draft.templateResponse"
             context="command"
@@ -280,14 +281,14 @@ function remove(): void {
             </div>
           </Field>
         </div>
-        <!-- Speech belongs to a text reply; a pipeline speaks through its own step. -->
+        <!-- Speech belongs to a text reply; a pipeline or a script speaks through its own step. -->
         <LabeledSwitch
+          v-if="!scripted"
           v-model="draft.speakWithTts"
           :label="$t('dashboard.commands.editor.speak')"
           :help="$t('dashboard.commands.editor.speakHelp')"
         />
       </ReplyModeField>
-      <CodeTierNote v-else />
 
       <Collapsible class="rounded-lg border border-border">
         <CollapsibleTrigger

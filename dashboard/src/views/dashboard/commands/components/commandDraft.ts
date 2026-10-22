@@ -29,10 +29,10 @@ function matchModeOf(raw: string): MatchMode {
   return matchModes.find((mode): boolean => mode === raw) ?? 'StartsWith';
 }
 
-export type ReplyKind = 'text' | 'random';
+export type ReplyKind = 'text' | 'random' | 'code';
 
-// What the editor form holds; a pipeline of '' means none picked. The kind says which of the text and
-// the replies answers. Both stay in the draft, so a look at the other kind never throws one away.
+// What the editor form holds; a pipeline or a script of '' means none picked. The kind says which of the
+// text, the replies and the script answers. All stay in the draft, so a look at another kind never throws one away.
 export interface CommandDraft {
   prefixMode: PrefixMode;
   customPrefix: string;
@@ -43,10 +43,20 @@ export interface CommandDraft {
   templateResponse: string;
   replies: string[];
   pipelineId: string;
+  codeScriptId: string;
   speakWithTts: boolean;
   minPermissionLevel: string;
   cooldownSeconds: number;
   userCooldownSeconds: number;
+}
+
+function kindOf(row: CommandListItem): ReplyKind {
+  if (row.tier === 'code')
+    return 'code';
+
+  return (row.templateResponses ?? []).length > 0
+    ? 'random'
+    : 'text';
 }
 
 // The bot may send the level in any letter case; the form keeps the matching rung of the list.
@@ -66,12 +76,11 @@ export function draftOf(row: CommandListItem): CommandDraft {
     mode: row.tier === 'pipeline'
       ? 'full'
       : 'simple',
-    kind: (row.templateResponses ?? []).length > 0
-      ? 'random'
-      : 'text',
+    kind: kindOf(row),
     templateResponse: row.templateResponse ?? '',
     replies: [...(row.templateResponses ?? [])],
     pipelineId: row.pipelineId ?? '',
+    codeScriptId: row.codeScriptId ?? '',
     speakWithTts: row.speakWithTts ?? false,
     minPermissionLevel: canonicalLevel(row.minPermissionLevel),
     cooldownSeconds: Number(row.cooldownSeconds),
@@ -91,9 +100,10 @@ export function changeOf(draft: CommandDraft, row: CommandListItem): CommandChan
   const saved = draftOf(row);
   const change: CommandChange = {};
 
-  const replyTier = row.tier === 'template' || row.tier === 'pipeline';
-  const simple = replyTier && draft.mode === 'simple';
+  const replyTier = row.tier === 'template' || row.tier === 'pipeline' || row.tier === 'code';
+  const simple = replyTier && draft.mode === 'simple' && draft.kind !== 'code';
   const full = replyTier && draft.mode === 'full' && draft.pipelineId !== '';
+  const code = replyTier && draft.mode === 'simple' && draft.kind === 'code' && draft.codeScriptId !== '';
 
   // The reply text stays on the command when it runs a pipeline; only the tier says which one answers.
   if (simple && draft.kind === 'text' && draft.templateResponse !== saved.templateResponse) {
@@ -109,7 +119,7 @@ export function changeOf(draft: CommandDraft, row: CommandListItem): CommandChan
     change.templateResponses = replies;
   }
 
-  if (simple && row.tier === 'pipeline') {
+  if (simple && row.tier !== 'template') {
     change.tier = 'template';
   }
 
@@ -118,8 +128,14 @@ export function changeOf(draft: CommandDraft, row: CommandListItem): CommandChan
     change.pipelineId = draft.pipelineId;
   }
 
-  // A pipeline speaks through its own steps, so the command-level switch is off while it runs one.
-  const speaks = draft.mode === 'full'
+  // A script runs the command itself: the tier and the script travel, never a pipeline.
+  if (code && (row.tier !== 'code' || draft.codeScriptId !== saved.codeScriptId)) {
+    change.tier = 'code';
+    change.codeScriptId = draft.codeScriptId;
+  }
+
+  // A pipeline or a script speaks through its own steps, so the command-level switch is off while one runs.
+  const speaks = draft.mode === 'full' || draft.kind === 'code'
     ? false
     : draft.speakWithTts;
 
@@ -173,6 +189,7 @@ export function sameDraft(left: CommandDraft, right: CommandDraft): boolean {
     left.templateResponse === right.templateResponse &&
     sameReplies(left.replies, right.replies) &&
     left.pipelineId === right.pipelineId &&
+    left.codeScriptId === right.codeScriptId &&
     left.speakWithTts === right.speakWithTts &&
     left.minPermissionLevel === right.minPermissionLevel &&
     left.cooldownSeconds === right.cooldownSeconds &&

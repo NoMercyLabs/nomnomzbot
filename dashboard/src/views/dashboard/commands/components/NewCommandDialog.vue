@@ -8,7 +8,7 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// A new command: a name and what it does. A code command is not offered: no endpoint attaches a script.
+// A new command: a name and what it does (a reply, a random reply, a pipeline or a code script).
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -32,8 +32,9 @@ import { errorText, fieldErrorLines } from '@/lib/errors';
 import type { MatchMode, PrefixMode } from './commandDraft';
 import RandomReplyList from './RandomReplyList.vue';
 import TriggerFields from './TriggerFields.vue';
+import CodeScriptPicker from './CodeScriptPicker.vue';
 
-type Kind = 'template' | 'random' | 'pipeline';
+type Kind = 'template' | 'random' | 'pipeline' | 'code';
 
 const open = defineModel<boolean>('open', { required: true });
 const emit = defineEmits<{ created: [name: string] }>();
@@ -47,6 +48,7 @@ const kind = ref<Kind>('template');
 const reply = ref('');
 const replies = ref<string[]>(['']);
 const pipelineTarget = ref<PickedTarget | null>(null);
+const codeScriptId = ref('');
 const prefixMode = ref<PrefixMode>('Default');
 const customPrefix = ref('');
 const matchMode = ref<MatchMode>('StartsWith');
@@ -61,6 +63,7 @@ watch(open, (isOpen: boolean): void => {
   reply.value = '';
   replies.value = [''];
   pipelineTarget.value = null;
+  codeScriptId.value = '';
   prefixMode.value = 'Default';
   customPrefix.value = '';
   matchMode.value = 'StartsWith';
@@ -103,6 +106,9 @@ function replyOf(): Partial<NewCommand> {
   if (kind.value === 'pipeline')
     return { tier: 'pipeline', pipelineId: pipelineTarget.value?.id ?? '' };
 
+  if (kind.value === 'code')
+    return { tier: 'code', codeScriptId: codeScriptId.value };
+
   return { tier: 'template', templateResponse: reply.value };
 }
 
@@ -125,6 +131,12 @@ async function submit(): Promise<void> {
 
   if (!triggerOk.value) {
     error.value = t('dashboard.commands.dialog.triggerRequired');
+
+    return;
+  }
+
+  if (kind.value === 'code' && codeScriptId.value === '') {
+    error.value = t('dashboard.commands.dialog.scriptRequired');
 
     return;
   }
@@ -180,6 +192,9 @@ async function submit(): Promise<void> {
           <SelectItem value="pipeline">{{
             $t('dashboard.commands.dialog.typePipeline')
           }}</SelectItem>
+          <SelectItem value="code">{{
+            $t('dashboard.commands.dialog.typeCode')
+          }}</SelectItem>
         </SelectContent>
       </Select>
     </Field>
@@ -191,6 +206,7 @@ async function submit(): Promise<void> {
       :label="$t('dashboard.commands.editor.reply')"
     />
     <RandomReplyList v-else-if="kind === 'random'" v-model="replies" />
+    <CodeScriptPicker v-else-if="kind === 'code'" v-model="codeScriptId" />
     <Field v-else>
       <FieldLabel>{{ $t('dashboard.commands.editor.pipeline') }}</FieldLabel>
       <TargetPicker

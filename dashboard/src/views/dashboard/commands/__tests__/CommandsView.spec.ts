@@ -39,6 +39,7 @@ type Row = Record<string, unknown>;
 const calls: Call[] = [];
 let answers: Record<string, () => Answer> = {};
 let rows: Row[] = [];
+let scripts: Row[] = [];
 let refusePut: string | null = null;
 let refusePost: string | null = null;
 let held: string[] = ['commands:read', 'commands:write'];
@@ -86,7 +87,7 @@ function freshAnswers() {
           isEnabled: true,
         },
       ]),
-    '/code-scripts': () => ok([]),
+    '/code-scripts': () => ok(scripts.map((script) => ({ ...script }))),
     '/templates/helpers': () => ok([]),
     '/builtins': () =>
       ok([
@@ -270,6 +271,7 @@ beforeEach(() => {
     }),
   ];
 
+  scripts = [];
   refusePut = null;
   refusePost = null;
   held = ['commands:read', 'commands:write'];
@@ -300,6 +302,11 @@ async function open(url: string = '/app/commands'): Promise<void> {
       {
         path: '/app/commands',
         name: 'dashboard-commands',
+        component: blank,
+      },
+      {
+        path: '/app/scripts',
+        name: 'dashboard-scripts',
         component: blank,
       },
     ],
@@ -963,7 +970,7 @@ describe('CommandsView editor', () => {
     expect(editor()!.querySelector('[data-reply-pipeline]')).toBeNull();
   });
 
-  it('holds text, random reply and pipeline in one reply control', async () => {
+  it('holds text, random reply, code script and pipeline in one reply control', async () => {
     await open('/app/commands?command=hello');
 
     const controls = editor()!.querySelectorAll('[data-reply-mode] [data-segmented]');
@@ -972,7 +979,7 @@ describe('CommandsView editor', () => {
     );
 
     expect(controls).toHaveLength(1);
-    expect(labels).toEqual(['Text', 'Random reply', 'Pipeline']);
+    expect(labels).toEqual(['Text', 'Random reply', 'Code script', 'Pipeline']);
   });
 
   it('creates a new pipeline from the picker and saves the command with it', async () => {
@@ -1580,5 +1587,235 @@ describe('CommandsView switches in the All list', () => {
       await settle();
       expect(document.body.querySelector('[role="dialog"]')).not.toBeNull();
     });
+  });
+});
+
+describe('CommandsView code script reaction', () => {
+  const script = (id: string, name: string, overrides: Row = {}) =>
+    ({
+      id,
+      name,
+      description: null,
+      isEnabled: true,
+      currentVersion: 1,
+      currentValidationStatus: 'valid',
+      ...overrides,
+    }) as const satisfies Row;
+
+  const pointer = (type: string): PointerEvent =>
+    new PointerEvent(type, {
+      bubbles: true,
+      button: 0,
+      pointerType: 'mouse',
+    });
+
+  // jsdom lacks these three; the select calls them when it opens.
+  function stubPointerApis(): void {
+    Element.prototype.hasPointerCapture = (): boolean => false;
+    Element.prototype.releasePointerCapture = (): void => undefined;
+    Element.prototype.scrollIntoView = (): void => undefined;
+  }
+
+  async function chooseScript(root: ParentNode, name: string): Promise<void> {
+    stubPointerApis();
+    root.querySelector<HTMLElement>('[data-code-script-select]')!.dispatchEvent(pointer('pointerdown'));
+    await settle();
+
+    const option = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].find((el) =>
+      el.textContent?.includes(name),
+    )!;
+
+    option.dispatchEvent(pointer('pointerup'));
+    option.click();
+    await settle();
+  }
+
+  beforeEach(() => {
+    scripts = [
+      script('s1', 'Lucky feather', { description: 'Rolls a lucky feather for the viewer' }),
+      script('s2', 'Dice'),
+    ];
+  });
+
+  it('offers Code script as the fourth reply choice and shows a picker of the channel scripts', async () => {
+    await open('/app/commands?command=hello');
+
+    const labels = [...editor()!.querySelectorAll('[data-reply-mode] [data-segmented] button')].map(
+      (button) => button.textContent?.trim(),
+    );
+
+    expect(labels).toEqual(['Text', 'Random reply', 'Code script', 'Pipeline']);
+    expect(editor()!.querySelector('[data-code-script]')).toBeNull();
+
+    buttonByText('Code script', editor()!).click();
+    await settle();
+
+    expect(editor()!.querySelector('textarea')).toBeNull();
+    expect(editor()!.querySelector('[data-code-script-select]')).not.toBeNull();
+    stubPointerApis();
+    editor()!.querySelector<HTMLElement>('[data-code-script-select]')!.dispatchEvent(pointer('pointerdown'));
+    await settle();
+
+    const options = [...document.body.querySelectorAll('[role="option"]')].map((el) =>
+      el.textContent?.trim(),
+    );
+
+    expect(options).toEqual(['Lucky feather', 'Dice']);
+  });
+
+  it('saves a command switched to Code script as the code tier with the script id and no pipeline id', async () => {
+    rows[0] = command('hello', { pipelineId: 'p1' });
+
+    await open('/app/commands?command=hello');
+    buttonByText('Code script', editor()!).click();
+    await settle();
+    await chooseScript(editor()!, 'Lucky feather');
+    expect(editor()!.textContent).toContain('Rolls a lucky feather for the viewer');
+
+    buttonByText('Save changes').click();
+    await settle();
+
+    expect(writes('PUT')).toHaveLength(1);
+    expect(writes('PUT')[0]!.body).toEqual({ tier: 'code', codeScriptId: 's1' });
+  });
+
+  it('says the channel has no scripts and links to the script page when the list is empty', async () => {
+    scripts = [];
+
+    await open('/app/commands?command=hello');
+    buttonByText('Code script', editor()!).click();
+    await settle();
+
+    const empty = editor()!.querySelector('[data-code-script-empty]')!;
+
+    expect(empty.textContent).toContain('no code scripts yet');
+    expect(editor()!.querySelector('[data-code-script-select]')).toBeNull();
+    expect(empty.querySelector('a')!.getAttribute('href')).toBe('/app/scripts');
+  });
+
+  it('opens an existing code command with its script selected and a link to that script', async () => {
+    rows[2] = command('pipe', {
+      tier: 'code',
+      pipelineId: null,
+      templateResponse: null,
+      codeScriptId: 's2',
+    });
+
+    await open('/app/commands?command=pipe');
+
+    const trigger = editor()!.querySelector<HTMLElement>('[data-code-script-select]')!;
+
+    expect(trigger.textContent).toContain('Dice');
+    expect(editor()!.querySelector('[data-code-script-link]')!.getAttribute('href')).toBe('/app/scripts?script=s2');
+    expect(unsaved()).toBe('');
+  });
+
+  it('sends the new script when a code command is pointed at another script, and no other field', async () => {
+    rows[2] = command('pipe', {
+      tier: 'code',
+      pipelineId: null,
+      templateResponse: null,
+      codeScriptId: 's2',
+    });
+
+    await open('/app/commands?command=pipe');
+    await chooseScript(editor()!, 'Lucky feather');
+    buttonByText('Save changes').click();
+    await settle();
+
+    expect(writes('PUT')[0]!.body).toEqual({ tier: 'code', codeScriptId: 's1' });
+  });
+
+  it('saves a code command switched to Text as the template tier', async () => {
+    rows[2] = command('pipe', {
+      tier: 'code',
+      pipelineId: null,
+      templateResponse: 'Back to text',
+      codeScriptId: 's2',
+    });
+
+    await open('/app/commands?command=pipe');
+    buttonByText('Text', editor()!).click();
+    await settle();
+    buttonByText('Save changes').click();
+    await settle();
+
+    expect(writes('PUT')[0]!.body).toEqual({ tier: 'template' });
+  });
+
+  it('creates a code command from the new command dialog with the chosen script and no pipeline id', async () => {
+    await open();
+    buttonByText('New command').click();
+    await settle();
+
+    const dialog = document.body.querySelector<HTMLElement>('[role="dialog"]')!;
+
+    await type(document.body.querySelector<HTMLInputElement>('[data-new-name]')!, 'feather');
+    stubPointerApis();
+    dialog.querySelector<HTMLElement>('[role="combobox"]')!.dispatchEvent(pointer('pointerdown'));
+    await settle();
+
+    const kind = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].find((el) =>
+      el.textContent?.includes('Runs a code script'),
+    )!;
+
+    kind.dispatchEvent(pointer('pointerup'));
+    kind.click();
+    await settle();
+
+    await chooseScript(dialog, 'Dice');
+    document.body.querySelector<HTMLButtonElement>('[data-form-action]')!.click();
+    await settle();
+
+    expect(writes('POST')).toHaveLength(1);
+
+    expect(writes('POST')[0]!.body).toMatchObject({
+      name: 'feather',
+      tier: 'code',
+      codeScriptId: 's2',
+    });
+
+    expect(writes('POST')[0]!.body).not.toHaveProperty('pipelineId');
+  });
+
+  it('keeps the new command dialog open and asks for a script when none is chosen', async () => {
+    await open();
+    buttonByText('New command').click();
+    await settle();
+
+    const dialog = document.body.querySelector<HTMLElement>('[role="dialog"]')!;
+
+    await type(document.body.querySelector<HTMLInputElement>('[data-new-name]')!, 'feather');
+    stubPointerApis();
+    dialog.querySelector<HTMLElement>('[role="combobox"]')!.dispatchEvent(pointer('pointerdown'));
+    await settle();
+
+    const kind = [...document.body.querySelectorAll<HTMLElement>('[role="option"]')].find((el) =>
+      el.textContent?.includes('Runs a code script'),
+    )!;
+
+    kind.dispatchEvent(pointer('pointerup'));
+    kind.click();
+    await settle();
+    document.body.querySelector<HTMLButtonElement>('[data-form-action]')!.click();
+    await settle();
+
+    expect(writes('POST')).toHaveLength(0);
+    expect(document.body.querySelector('[data-form-error]')?.textContent).toContain('Choose a script');
+  });
+
+  it('names a code command in the list as a Code script', async () => {
+    rows[2] = command('pipe', {
+      tier: 'code',
+      pipelineId: null,
+      templateResponse: null,
+      codeScriptId: 's2',
+    });
+
+    await open('/app/commands?view=custom');
+
+    const row = rowEls().find((el) => el.dataset.commandName === 'pipe')!;
+
+    expect(row.textContent).toContain('Code script · 0 uses');
   });
 });
