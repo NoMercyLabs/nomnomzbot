@@ -22,178 +22,67 @@
         "subtitle": "NomNomzBot moderates chat, answers viewers, and fires alerts the instant they happen. It runs Twitch, Kick, YouTube, and X from one dashboard.",
         "finePrint": "Free, self-hosted, open source (AGPL-3.0). No credit card, no seat limits."
       },
-      "demo": {
-        "label": "A look inside the dashboard",
-        "sample": "Sample channel with invented viewers",
-        "tabs": {
-          "dashboard": "Dashboard",
-          "chat": "Chat",
-          "mod": "Queue",
-          "rules": "Rules",
-          "alerts": "Alerts"
+      "areas": {
+        "pipelines": {
+          "tab": "Pipelines",
+          "title": "Pipelines",
+          "text": "Build a reply once as a flow of steps. Branch on a condition, loop, catch a failure, and test the run before it goes live.",
+          "caption": "Branching flows with conditions, loops, and test runs, using 90+ template variables."
         },
-        "groups": {
-          "home": "Home",
-          "chat": "Chat",
-          "moderation": "Moderation",
-          "stream": "Stream"
+        "moderation": {
+          "tab": "Moderation",
+          "title": "Moderation and spam defense",
+          "text": "Layered spam defense with trust tiers and a dry-run mode. Filters, blocked terms, and an escalation ladder keep the chat clean.",
+          "caption": "Layered spam defense with trust tiers, filters, and a dry-run default."
         },
-        "dashboard": {
-          "title": "Dashboard",
-          "viewers": "Viewers",
-          "followers": "Followers",
-          "chatters": "Chatters today",
-          "uptime": "Uptime",
-          "uptimeValue": "{hours}h {minutes}m"
+        "widgets": {
+          "tab": "Overlays",
+          "title": "Overlays and widgets",
+          "text": "Install first-party overlays as browser sources for OBS. Open the code editor when you want a widget of your own.",
+          "caption": "A first-party overlay catalog, a widget gallery, and a code editor for your own widgets."
         },
-        "chat": {
-          "title": "Chat"
+        "analytics": {
+          "tab": "Analytics",
+          "title": "Analytics and recaps",
+          "text": "Every stream gets its own numbers, with daily trends, top viewers, and a recap you can share when the stream ends.",
+          "caption": "Per-stream stats, daily trends, top viewers, and a recap after each stream."
         },
-        "mod": {
-          "title": "Moderation queue"
+        "commands": {
+          "tab": "Commands",
+          "title": "Chat and commands",
+          "text": "Custom and built-in commands with cooldowns. Put a variable in any reply and the bot fills it in for each viewer.",
+          "caption": "Custom and built-in commands with cooldowns and 90+ template variables in every reply."
         },
-        "rules": {
-          "title": "Moderation rules",
-          "linkFilter": "Link filter",
-          "capsFilter": "Caps filter",
-          "capsDetail": "flags over 60% caps",
-          "bannedPhrases": "Banned phrases",
-          "on": "ON",
-          "off": "OFF",
-          "blockedTitle": "Blocked terms",
-          "blocked1": "free nitro",
-          "blocked2": "discord.gg/",
-          "blocked3": "cheap followers"
+        "loyalty": {
+          "tab": "Loyalty",
+          "title": "Loyalty and economy",
+          "text": "Your own channel currency, wallets, a store, leaderboards, and chat games. Viewers can opt out, and so can you.",
+          "caption": "Channel currency, wallets, a store, leaderboards, and chat games."
         },
-        "alerts": {
-          "title": "Alerts"
+        "music": {
+          "tab": "Music and TTS",
+          "title": "Music and TTS",
+          "text": "Spotify and YouTube song requests with a fair queue, and text-to-speech where each viewer can have a voice of their own.",
+          "caption": "Song requests with a fair queue, and text-to-speech with a voice for each viewer."
+        },
+        "platforms": {
+          "tab": "Connections",
+          "title": "Multi-platform connections",
+          "text": "Connect your platforms and tools once. Every connection shows its status and what it can do, in one place.",
+          "caption": "Every platform and tool connection, with its status, in one place."
         }
       },
-      "chatLines": {
-        "songrequestText": "!songrequest never gonna give you up",
-        "botName": "NomNomzBot",
-        "songrequestReply": "queued, 3rd in line. Now playing: Come Alive, Foals",
-        "raidText": "!raid shoutout on",
-        "socialsText": "!socials",
-        "socialsReply": "follow on X and Kick, the links are in the panel",
-        "uptimeText": "!uptime",
-        "uptimeReply": "live for 2h 14m"
-      },
-      "queue": {
-        "reason1": "reported: posting the same link 6 times",
-        "action1": "Timeout",
-        "reason2": "unban request: the 14-day timeout has ended",
-        "action2": "Approve",
-        "reason3": "reported: off-topic, not against the rules",
-        "action3": "Dismiss"
-      },
-      "alerts": {
-        "raidTitle": "{channel} raided with {count} viewers",
-        "raidDetail": "shoutout posted to chat · overlay played on stream",
-        "subTitle": "{channel} resubscribed on Twitch for month {months}",
-        "subDetail": "overlay played · TTS read the message"
+      "demo": {
+        "label": "A look inside the dashboard",
+        "sampleOf": "Sample data for the made-up channel {channel}."
       },
       "features": {
         "title": "What the dashboard gives you",
-        "sampleNote": "Every preview below uses a made-up sample channel and invented viewers. It shows the real dashboard parts, not a real community.",
-        "chat": {
-          "title": "Chat and commands",
-          "line": "Custom commands, built-in commands, cooldowns, and 90+ template variables in every reply.",
-          "rows": {
-            "request": { "title": "{who}", "detail": "!songrequest never gonna give you up" },
-            "reply": { "title": "NomNomzBot", "detail": "queued, 3rd in line" },
-            "uptime": { "title": "{who}", "detail": "!uptime" },
-            "uptimeReply": { "title": "NomNomzBot", "detail": "live for 2h 14m" }
-          }
-        },
-        "pipelines": {
-          "title": "Pipelines",
-          "line": "Build a reply once as a chain of steps with checks, then reuse it for commands, timers, and events.",
-          "rows": {
-            "trigger": { "title": "A viewer types !shoutout", "detail": "Starts the pipeline" },
-            "check": { "title": "Check: is the viewer a regular?", "detail": "Splits the flow into two lanes" },
-            "chat": { "title": "Send a chat message", "detail": "Thanks for the support!" },
-            "overlay": { "title": "Show the shoutout overlay", "detail": "Plays on stream" }
-          }
-        },
-        "moderation": {
-          "title": "Moderation",
-          "line": "One review queue for reports and unban requests, plus filters, blocked terms, and spam defense.",
-          "rows": {
-            "spam": { "title": "{who}", "detail": "reported: posting the same link 6 times", "status": "Needs action" },
-            "unban": { "title": "{who}", "detail": "unban request: the 14-day timeout has ended", "status": "Waiting" },
-            "offTopic": { "title": "{who}", "detail": "reported: off-topic, not against the rules", "status": "Low priority" }
-          }
-        },
-        "loyalty": {
-          "title": "Loyalty",
-          "line": "Channel currency, a store, leaderboards, channel point rewards, giveaways, and chat games.",
-          "unit": "sample points"
-        },
-        "music": {
-          "title": "Music and TTS",
-          "line": "Spotify and YouTube song requests with a fair queue, and text-to-speech with a voice for each viewer.",
-          "rows": {
-            "now": { "title": "Come Alive, Foals", "detail": "Spotify · playing now", "status": "Playing" },
-            "queued": { "title": "Never Gonna Give You Up", "detail": "requested by {who}", "status": "Queued" },
-            "tts": { "title": "TTS message from {who}", "detail": "Approved by a moderator, ready to play", "status": "Approved" }
-          }
-        },
-        "overlays": {
-          "title": "Overlays and widgets",
-          "line": "Browser sources for OBS, a widget gallery, and a code editor for your own widgets.",
-          "rows": {
-            "alerts": { "title": "Alerts overlay", "detail": "Twitch follows, subs, and raids", "status": "Attached" },
-            "chat": { "title": "Chat overlay", "detail": "Shows chat on stream", "status": "Attached" },
-            "goal": { "title": "Goal bar", "detail": "Installed, not switched on", "status": "Off" }
-          }
-        },
-        "analytics": {
-          "title": "Analytics and recaps",
-          "line": "Stream stats, an activity feed you can replay to your widgets, and a recap after the stream.",
-          "rows": {
-            "viewers": { "title": "Viewers", "detail": "at the peak" },
-            "followers": { "title": "Followers", "detail": "in the sample channel" },
-            "chatters": { "title": "Chatters", "detail": "chatted today" }
-          }
-        },
-        "platforms": {
-          "title": "Multi-platform",
-          "line": "One channel, many platform connections, managed from one dashboard.",
-          "rows": {
-            "twitch": { "title": "Twitch", "detail": "Chat, events, and moderation", "status": "Connected" },
-            "kick": { "title": "Kick", "detail": "Chat and events", "status": "Connected" },
-            "youtube": { "title": "YouTube", "detail": "Chat and events", "status": "Connected" },
-            "x": { "title": "X Live", "detail": "Not connected in this sample", "status": "Off" }
-          }
-        }
+        "sampleNote": "Every preview below uses a made-up sample channel and invented viewers. It shows the real dashboard pages, not a real community.",
+        "source": "Read the source of this page"
       },
       "audience": {
         "line": "Built for the streamer running the show and the mods keeping the chat clean."
-      },
-      "outcomes": {
-        "chat": {
-          "title": "Chat gets answered before you can type",
-          "body": "Build a reply once in the visual pipeline editor. The bot then answers every !command, !songrequest, and !socials on its own, even three at once while you play."
-        },
-        "moderation": {
-          "title": "Moderate without babysitting the chat",
-          "body": "Reports and unban requests land in one queue, each with the message behind it. You approve, dismiss, or act without scrolling back through chat."
-        },
-        "alerts": {
-          "title": "Never miss the moment that matters",
-          "body": "A follow, Twitch sub, or raid fires the alert, plays the overlay, and posts the shoutout the instant it happens. You never have to spot it in chat first."
-        },
-        "platforms": {
-          "title": "Every platform you stream to, one dashboard",
-          "body": "Your commands, mods, and moderation rules work the same on every platform your viewers use. Add a platform without rebuilding anything.",
-          "label": "Platforms",
-          "twitch": "Twitch",
-          "kick": "Kick",
-          "youtube": "YouTube",
-          "x": "X",
-          "answered": "The same pipeline answered !uptime on {platform}"
-        }
       },
       "deploy": {
         "title": "Run it your way",

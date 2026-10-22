@@ -22,178 +22,67 @@
         "subtitle": "NomNomzBot modereert de chat, beantwoordt kijkers en speelt alerts af zodra ze gebeuren. Hij bedient Twitch, Kick, YouTube en X vanuit één dashboard.",
         "finePrint": "Gratis, zelf gehost, open source (AGPL-3.0). Geen creditcard, geen limiet op gebruikers."
       },
-      "demo": {
-        "label": "Een kijkje in het dashboard",
-        "sample": "Voorbeeldkanaal met verzonnen kijkers",
-        "tabs": {
-          "dashboard": "Dashboard",
-          "chat": "Chat",
-          "mod": "Wachtrij",
-          "rules": "Regels",
-          "alerts": "Alerts"
+      "areas": {
+        "pipelines": {
+          "tab": "Pipelines",
+          "title": "Pipelines",
+          "text": "Bouw een reactie één keer als een reeks stappen. Splits op een voorwaarde, herhaal, vang een fout op en test de run voordat hij live gaat.",
+          "caption": "Vertakte flows met voorwaarden, lussen en testruns, met meer dan 90 sjabloonvariabelen."
         },
-        "groups": {
-          "home": "Start",
-          "chat": "Chat",
-          "moderation": "Moderatie",
-          "stream": "Stream"
+        "moderation": {
+          "tab": "Moderatie",
+          "title": "Moderatie en spamverdediging",
+          "text": "Gelaagde spamverdediging met vertrouwensniveaus en een proefmodus. Filters, geblokkeerde termen en een escalatieladder houden de chat schoon.",
+          "caption": "Gelaagde spamverdediging met vertrouwensniveaus, filters en standaard een proefmodus."
         },
-        "dashboard": {
-          "title": "Dashboard",
-          "viewers": "Kijkers",
-          "followers": "Volgers",
-          "chatters": "Chatters vandaag",
-          "uptime": "Live sinds",
-          "uptimeValue": "{hours}u {minutes}m"
+        "widgets": {
+          "tab": "Overlays",
+          "title": "Overlays en widgets",
+          "text": "Installeer overlays van ons als browserbron voor OBS. Open de code-editor als je een eigen widget wilt.",
+          "caption": "Een catalogus met eigen overlays, een widgetgalerij en een code-editor voor je eigen widgets."
         },
-        "chat": {
-          "title": "Chat"
+        "analytics": {
+          "tab": "Analyse",
+          "title": "Analyse en samenvattingen",
+          "text": "Elke stream krijgt zijn eigen cijfers, met dagelijkse trends, topkijkers en een samenvatting die je na de stream kunt delen.",
+          "caption": "Cijfers per stream, dagelijkse trends, topkijkers en een samenvatting na elke stream."
         },
-        "mod": {
-          "title": "Moderatiewachtrij"
+        "commands": {
+          "tab": "Commando's",
+          "title": "Chat en commando's",
+          "text": "Eigen en ingebouwde commando's met cooldowns. Zet een variabele in een antwoord en de bot vult hem per kijker in.",
+          "caption": "Eigen en ingebouwde commando's met cooldowns en meer dan 90 sjabloonvariabelen in elk antwoord."
         },
-        "rules": {
-          "title": "Moderatieregels",
-          "linkFilter": "Linkfilter",
-          "capsFilter": "Hoofdletterfilter",
-          "capsDetail": "markeert boven 60% hoofdletters",
-          "bannedPhrases": "Verboden zinnen",
-          "on": "AAN",
-          "off": "UIT",
-          "blockedTitle": "Geblokkeerde woorden",
-          "blocked1": "free nitro",
-          "blocked2": "discord.gg/",
-          "blocked3": "cheap followers"
+        "loyalty": {
+          "tab": "Loyaliteit",
+          "title": "Loyaliteit en economie",
+          "text": "Je eigen kanaalvaluta, portefeuilles, een winkel, ranglijsten en chatspellen. Kijkers kunnen zich afmelden, jij ook.",
+          "caption": "Kanaalvaluta, portefeuilles, een winkel, ranglijsten en chatspellen."
         },
-        "alerts": {
-          "title": "Alerts"
+        "music": {
+          "tab": "Muziek en TTS",
+          "title": "Muziek en TTS",
+          "text": "Verzoeknummers via Spotify en YouTube met een eerlijke wachtrij, en tekst-naar-spraak waarbij elke kijker een eigen stem kan hebben.",
+          "caption": "Verzoeknummers met een eerlijke wachtrij en tekst-naar-spraak met een stem per kijker."
+        },
+        "platforms": {
+          "tab": "Koppelingen",
+          "title": "Koppelingen met meerdere platforms",
+          "text": "Koppel je platforms en tools één keer. Elke koppeling toont zijn status en wat hij kan, op één plek.",
+          "caption": "Elke platform- en toolkoppeling, met zijn status, op één plek."
         }
       },
-      "chatLines": {
-        "songrequestText": "!songrequest never gonna give you up",
-        "botName": "NomNomzBot",
-        "songrequestReply": "in de wachtrij, 3e. Nu speelt: Come Alive, Foals",
-        "raidText": "!raid shoutout on",
-        "socialsText": "!socials",
-        "socialsReply": "volg op X en Kick, de links staan in het paneel",
-        "uptimeText": "!uptime",
-        "uptimeReply": "al 2u 14m live"
-      },
-      "queue": {
-        "reason1": "gemeld: dezelfde link 6 keer geplaatst",
-        "action1": "Time-out",
-        "reason2": "unbanverzoek: de time-out van 14 dagen is voorbij",
-        "action2": "Goedkeuren",
-        "reason3": "gemeld: off-topic, niet tegen de regels",
-        "action3": "Negeren"
-      },
-      "alerts": {
-        "raidTitle": "{channel} raidde met {count} kijkers",
-        "raidDetail": "shoutout in de chat geplaatst · overlay op de stream afgespeeld",
-        "subTitle": "{channel} is voor maand {months} opnieuw gesubd op Twitch",
-        "subDetail": "overlay afgespeeld · TTS las het bericht voor"
+      "demo": {
+        "label": "Een kijkje in het dashboard",
+        "sampleOf": "Voorbeeldgegevens voor het verzonnen kanaal {channel}."
       },
       "features": {
         "title": "Wat het dashboard je geeft",
-        "sampleNote": "Elk voorbeeld hieronder gebruikt een verzonnen kanaal met verzonnen kijkers. Het toont de echte onderdelen van het dashboard, geen echte community.",
-        "chat": {
-          "title": "Chat en commando's",
-          "line": "Eigen commando's, ingebouwde commando's, cooldowns en ruim 90 sjabloonvariabelen in elk antwoord.",
-          "rows": {
-            "request": { "title": "{who}", "detail": "!songrequest never gonna give you up" },
-            "reply": { "title": "NomNomzBot", "detail": "in de wachtrij, 3e" },
-            "uptime": { "title": "{who}", "detail": "!uptime" },
-            "uptimeReply": { "title": "NomNomzBot", "detail": "al 2u 14m live" }
-          }
-        },
-        "pipelines": {
-          "title": "Pipelines",
-          "line": "Bouw een antwoord één keer als een keten van stappen met controles en gebruik het opnieuw voor commando's, timers en events.",
-          "rows": {
-            "trigger": { "title": "Een kijker typt !shoutout", "detail": "Start de pipeline" },
-            "check": { "title": "Controle: is de kijker een vaste kijker?", "detail": "Splitst de flow in twee paden" },
-            "chat": { "title": "Stuur een chatbericht", "detail": "Bedankt voor de support!" },
-            "overlay": { "title": "Toon de shoutout-overlay", "detail": "Speelt af op de stream" }
-          }
-        },
-        "moderation": {
-          "title": "Moderatie",
-          "line": "Eén wachtrij voor meldingen en unbanverzoeken, plus filters, geblokkeerde woorden en spambescherming.",
-          "rows": {
-            "spam": { "title": "{who}", "detail": "gemeld: dezelfde link 6 keer geplaatst", "status": "Actie nodig" },
-            "unban": { "title": "{who}", "detail": "unbanverzoek: de time-out van 14 dagen is voorbij", "status": "Wacht" },
-            "offTopic": { "title": "{who}", "detail": "gemeld: off-topic, niet tegen de regels", "status": "Lage prioriteit" }
-          }
-        },
-        "loyalty": {
-          "title": "Loyaliteit",
-          "line": "Kanaalmunt, een winkel, ranglijsten, kanaalpuntenbeloningen, giveaways en chatspellen.",
-          "unit": "voorbeeldpunten"
-        },
-        "music": {
-          "title": "Muziek en TTS",
-          "line": "Spotify- en YouTube-verzoeknummers met een eerlijke wachtrij, en tekst-naar-spraak met een stem per kijker.",
-          "rows": {
-            "now": { "title": "Come Alive, Foals", "detail": "Spotify · speelt nu", "status": "Speelt" },
-            "queued": { "title": "Never Gonna Give You Up", "detail": "aangevraagd door {who}", "status": "In de wachtrij" },
-            "tts": { "title": "TTS-bericht van {who}", "detail": "Goedgekeurd door een moderator, klaar om af te spelen", "status": "Goedgekeurd" }
-          }
-        },
-        "overlays": {
-          "title": "Overlays en widgets",
-          "line": "Browserbronnen voor OBS, een widgetgalerij en een code-editor voor je eigen widgets.",
-          "rows": {
-            "alerts": { "title": "Alerts-overlay", "detail": "Volgers, subs en raids", "status": "Gekoppeld" },
-            "chat": { "title": "Chat-overlay", "detail": "Toont de chat op de stream", "status": "Gekoppeld" },
-            "goal": { "title": "Doelbalk", "detail": "Geïnstalleerd, niet aangezet", "status": "Uit" }
-          }
-        },
-        "analytics": {
-          "title": "Statistieken en recaps",
-          "line": "Streamstatistieken, een activiteitenfeed die je kunt terugspelen naar je widgets en een recap na de stream.",
-          "rows": {
-            "viewers": { "title": "Kijkers", "detail": "op het hoogtepunt" },
-            "followers": { "title": "Volgers", "detail": "in het voorbeeldkanaal" },
-            "chatters": { "title": "Chatters", "detail": "vandaag in de chat" }
-          }
-        },
-        "platforms": {
-          "title": "Meerdere platforms",
-          "line": "Eén kanaal, veel platformkoppelingen, beheerd vanuit één dashboard.",
-          "rows": {
-            "twitch": { "title": "Twitch", "detail": "Chat, events en moderatie", "status": "Verbonden" },
-            "kick": { "title": "Kick", "detail": "Chat en events", "status": "Verbonden" },
-            "youtube": { "title": "YouTube", "detail": "Chat en events", "status": "Verbonden" },
-            "x": { "title": "X Live", "detail": "Niet verbonden in dit voorbeeld", "status": "Uit" }
-          }
-        }
+        "sampleNote": "Elk voorbeeld hieronder gebruikt een verzonnen kanaal met verzonnen kijkers. Het toont de echte pagina's van het dashboard, geen echte community.",
+        "source": "Lees de broncode van deze pagina"
       },
       "audience": {
         "line": "Gemaakt voor de streamer die de show runt en de mods die de chat schoon houden."
-      },
-      "outcomes": {
-        "chat": {
-          "title": "De chat krijgt antwoord voordat jij kunt typen",
-          "body": "Bouw een antwoord één keer in de visuele pipeline-editor. Daarna beantwoordt de bot elke !command, !songrequest en !socials zelf, zelfs drie tegelijk terwijl jij speelt."
-        },
-        "moderation": {
-          "title": "Modereer zonder op de chat te passen",
-          "body": "Meldingen en unbanverzoeken komen in één wachtrij, elk met het bericht erachter. Jij keurt goed, negeert of grijpt in zonder terug te scrollen door de chat."
-        },
-        "alerts": {
-          "title": "Mis nooit het moment dat telt",
-          "body": "Een follow, Twitch-sub of raid start de alert, speelt de overlay af en plaatst de shoutout op het moment zelf. Je hoeft het nooit eerst in de chat te zien."
-        },
-        "platforms": {
-          "title": "Elk platform waarop je streamt, één dashboard",
-          "body": "Je commando's, mods en moderatieregels werken hetzelfde op elk platform waar je kijkers zitten. Voeg een platform toe zonder iets opnieuw te bouwen.",
-          "label": "Platforms",
-          "twitch": "Twitch",
-          "kick": "Kick",
-          "youtube": "YouTube",
-          "x": "X",
-          "answered": "Dezelfde pipeline beantwoordde !uptime op {platform}"
-        }
       },
       "deploy": {
         "title": "Draai het op jouw manier",

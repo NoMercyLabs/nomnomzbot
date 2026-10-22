@@ -20,8 +20,7 @@ import DeploySection from './DeploySection.vue';
 import FeatureGroups from './FeatureGroups.vue';
 import HomeHeader from './HomeHeader.vue';
 import HomeSignIn from './HomeSignIn.vue';
-import OutcomeBlocks from './OutcomeBlocks.vue';
-import ShellDemo from './ShellDemo.vue';
+import HeroShot from './HeroShot.vue';
 
 const integrations: string[] = ['spotify', 'discord', 'youtube', 'tts', 'obs'];
 const { t } = useI18n();
@@ -55,14 +54,13 @@ const { t } = useI18n();
             <p class="text-sm text-muted-foreground">{{ t('site.home.hero.finePrint') }}</p>
           </div>
         </div>
-        <ShellDemo />
+        <HeroShot />
       </section>
 
       <div class="flex flex-col gap-12">
         <p class="text-center text-base text-muted-foreground">
           {{ t('site.home.audience.line') }}
         </p>
-        <OutcomeBlocks />
       </div>
       <FeatureGroups />
       <DeploySection />
@@ -73,7 +71,7 @@ const { t } = useI18n();
           <li
             v-for="name in integrations"
             :key="name"
-            class="rounded-[8px] border border-border bg-card px-3 py-1 text-sm font-medium"
+            class="rounded-md border border-border bg-card px-3 py-1 text-sm font-medium"
           >
             {{ t(`site.home.integrations.${name}`) }}
           </li>

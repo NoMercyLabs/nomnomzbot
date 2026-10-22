@@ -9,13 +9,27 @@
 // -----------------------------------------------------------------------------
 
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
-import { afterEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
-import { defineComponent } from 'vue';
+import { defineComponent, h } from 'vue';
 import { RouterView } from 'vue-router';
 
 import { i18n } from '@/i18n';
+import { isSignInOpen } from '@/lib/flags';
 import { siteRoutes } from '@/router/site';
+
+import words from '../i18n/en.json';
+import { areaPages, groupPages, previewAreas, type PreviewArea } from '../preview/previewAreas';
+
+// The real dashboard behind a preview is proved in previews.spec.ts. Here the frame is a plain box that keeps
+// the path it was given, so the page around it can be tested fast.
+vi.mock('../preview/PreviewFrame.vue', () => ({
+  __esModule: true,
+  default: defineComponent({
+    props: { path: { type: String, required: true } },
+    setup: (props) => () => h('div', { 'data-testid': 'preview-frame', 'data-path': props.path }),
+  }),
+}));
 
 const Shell = defineComponent({ components: { RouterView }, template: '<RouterView />' });
 
@@ -83,24 +97,92 @@ describe('the site root', () => {
     expect(wrapper.text()).toContain('Running your own bot stays free and unrestricted, forever');
   });
 
-  it('switches the demo panel when another tab is chosen', async () => {
+  it('switches the dashboard preview in the hero when another tab is chosen', async () => {
     const { wrapper } = await openRoot();
-    const tabs: ReturnType<VueWrapper['findAll']> = wrapper
-      .findAll('[role="tablist"]')[0]!
-      .findAll('[role="tab"]');
-    const shown = (): string => wrapper.find('[role="tabpanel"][data-state="active"]').text();
+    const hero = wrapper.find('[data-testid="hero-shot"]');
+    const tabs = hero.findAll('[role="tab"]');
+    const shownPath = (): string | undefined =>
+      hero.find('[data-testid="preview-frame"]').attributes('data-path');
 
+    expect(tabs).toHaveLength(previewAreas.length);
     expect(tabs[0]!.attributes('aria-selected')).toBe('true');
-    expect(shown()).toContain('Chatters today');
+    expect(shownPath()).toBe(areaPages.pipelines.path);
 
-    const moderation = tabs.find((tab) => tab.text() === 'Queue')!;
+    const moderation = tabs.find((tab) => tab.text() === 'Moderation')!;
 
     await moderation.trigger('mousedown');
     await flushPromises();
 
     expect(moderation.attributes('aria-selected')).toBe('true');
     expect(tabs[0]!.attributes('aria-selected')).toBe('false');
-    expect(shown()).toContain('reported: posting the same link 6 times');
-    expect(shown()).not.toContain('Chatters today');
+    expect(shownPath()).toBe(areaPages.moderation.path);
+    expect(hero.text()).toContain(words.site.home.areas.moderation.caption);
+  });
+});
+
+describe('the network', () => {
+  it('makes no request at all while the page opens, so nothing needs a session', async () => {
+    const fetched = vi.fn<(input: unknown) => Promise<Response>>(async () => Response.json({}));
+
+    vi.stubGlobal('fetch', fetched);
+    await openRoot();
+    vi.unstubAllGlobals();
+
+    expect(fetched).not.toHaveBeenCalled();
+  });
+});
+
+describe('the feature groups', () => {
+  it('give each area a title, a text, one outline link to the page source and a wide preview', async () => {
+    const { wrapper } = await openRoot();
+    const groups = wrapper.findAll('[data-feature-group]');
+
+    expect(groups.map((group) => group.attributes('data-feature-group'))).toEqual([
+      ...previewAreas,
+    ]);
+
+    for (const group of groups) {
+      const area = group.attributes('data-feature-group') as PreviewArea;
+      const copy = words.site.home.areas[area];
+      const actions = group.findAll('a, button');
+
+      expect(group.find('h3').text()).toBe(copy.title);
+      expect(group.text()).toContain(copy.text);
+      expect(group.text()).toContain(copy.caption);
+      expect(actions).toHaveLength(1);
+
+      expect(actions[0]!.attributes('href')).toBe(
+        `${words.site.home.githubUrl}/tree/master/dashboard/src/views/dashboard/${groupPages[area].source}`,
+      );
+
+      expect(group.find('[data-testid="lazy-preview"]').exists()).toBe(true);
+    }
+  });
+
+  it('say once, above the groups, that the channel and the viewers are invented', async () => {
+    const { wrapper } = await openRoot();
+
+    expect(wrapper.text()).toContain(words.site.home.features.sampleNote);
+    expect(wrapper.text()).toContain('crumb_tv');
+  });
+});
+
+describe.each([false, true])('with sign-in open = %s', (open) => {
+  beforeEach(() => {
+    vi.stubEnv('VITE_SIGN_IN_OPEN', String(open));
+  });
+
+  afterEach(() => {
+    vi.unstubAllEnvs();
+  });
+
+  it('renders the same page: the hero, the previews and the closed sign-in buttons', async () => {
+    const { wrapper } = await openRoot();
+
+    expect(isSignInOpen()).toBe(open);
+    expect(wrapper.find('h1').text()).toBe(words.site.home.hero.title);
+    expect(wrapper.find('[data-testid="hero-shot"]').exists()).toBe(true);
+    expect(wrapper.findAll('[data-feature-group]')).toHaveLength(previewAreas.length);
+    expect(wrapper.findAll('button[disabled]').length).toBeGreaterThanOrEqual(4);
   });
 });
