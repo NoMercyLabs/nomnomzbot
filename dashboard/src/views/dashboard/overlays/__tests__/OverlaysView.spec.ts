@@ -134,6 +134,20 @@ vi.mock('@/api/client', () => ({
 
       return { data: { data: null }, response: { status: 200, ok: true } };
     },
+    POST: async (path: string, options?: Options): Promise<Answer> => {
+      calls.push({
+        method: 'POST',
+        path,
+        body: options?.body,
+      });
+
+      const body = options?.body as { name: string; framework: string };
+      const made = widget('w9', body.name, { framework: body.framework });
+
+      widgets = [...widgets, made];
+
+      return { data: { data: made }, response: { status: 201, ok: true } };
+    },
   },
 }));
 
@@ -497,6 +511,39 @@ describe('OverlaysView', () => {
     expect(detail().querySelector('[data-slot="overlay-health"]')!.textContent).toContain(
       'Switched off',
     );
+  });
+
+  it('creates an overlay from the header button, lists it and opens it', async () => {
+    await open();
+
+    button('New overlay').click();
+    await settle();
+
+    const name = document.body.querySelector('#new-overlay-name') as HTMLInputElement;
+
+    button('Create overlay').click();
+    await settle();
+
+    expect(text()).toContain('Give the overlay a name.');
+    expect(calls.some((call) => call.method === 'POST')).toBe(false);
+
+    name.value = 'Goal bar';
+    name.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    button('Create overlay').click();
+    await settle();
+
+    const posts = calls.filter((call) => call.method === 'POST');
+
+    expect(posts).toHaveLength(1);
+
+    expect(posts[0]).toMatchObject({
+      path: '/api/v{version}/channels/{channelId}/widgets',
+      body: { name: 'Goal bar', framework: 'vue' },
+    });
+
+    expect(rowNames()).toContain('Goal bar');
+    expect(router.currentRoute.value.query.id).toBe('w9');
   });
 
   it('says so when the bot has no overlays', async () => {

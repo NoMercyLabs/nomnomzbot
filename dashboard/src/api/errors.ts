@@ -476,6 +476,7 @@ export const apiOperations = {
   'rollback widget': 'widgets',
   'switch widget': 'widgets',
   'save widget settings': 'widgets',
+  'create widget': 'widgets',
   'personality settings': 'settings',
   'save personality': 'settings',
   'basics settings': 'settings',

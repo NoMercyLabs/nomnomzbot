@@ -7,6 +7,21 @@
       "count": "{count} overlays",
       "noMatch": "Geen overlay past bij \"{query}\".",
       "back": "Terug naar de lijst",
+      "new": "Nieuwe overlay",
+      "create": {
+        "title": "Nieuwe overlay",
+        "description": "Geef hem een naam en kies de taal van de code. De rest schrijf je in de editor.",
+        "action": "Overlay maken",
+        "name": "Naam",
+        "namePlaceholder": "Mijn alerts",
+        "nameRequired": "Geef de overlay een naam.",
+        "framework": "Codetaal",
+        "frameworkHelp": "Dit kan niet meer veranderen nadat je de overlay hebt gemaakt.",
+        "frameworks": {
+          "vue": "Vue",
+          "vanilla": "Gewone HTML, CSS en JavaScript"
+        }
+      },
       "audioMix": {
         "open": "Audioniveaus",
         "title": "Muziek- en botaudioniveaus",

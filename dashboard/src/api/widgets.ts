@@ -11,6 +11,7 @@
 import {
   useMutation,
   useQuery,
+  useQueryClient,
   type UseMutationReturnType,
   type UseQueryReturnType,
 } from '@tanstack/vue-query';
@@ -239,6 +240,36 @@ export function useSaveWidgetSettings(
       putWidget(toValue(channelId) as string, widgetId, { settings }, 'save widget settings'),
     apply: (current: Widget[] | undefined, { widgetId, settings }: WidgetSettingsInput): Widget[] =>
       changed(current, widgetId, { settings }),
+  });
+}
+
+export type NewWidget = components['schemas']['CreateWidgetRequest'];
+
+// A new overlay is not shown before the bot accepts it: the name can be taken and the quota can be full.
+// Resolves to the new overlay's id so the page can open it.
+export function useCreateWidget(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<string | null, Error, NewWidget, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation<string | null, Error, NewWidget, undefined>({
+    mutationFn: async (widget: NewWidget): Promise<string | null> => {
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/widgets',
+        {
+          params: { path: { version, channelId: toValue(channelId) as string } },
+          body: widget,
+        },
+      );
+
+      if (error !== undefined)
+        throw refusal('create widget', error, response.status);
+
+      return data?.data?.id ?? null;
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({ queryKey: widgetsKey(toValue(channelId)) });
+    },
   });
 }
 

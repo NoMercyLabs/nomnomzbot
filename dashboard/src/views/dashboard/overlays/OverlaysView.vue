@@ -12,6 +12,7 @@
 // The overlay in view is the id in ?id=, so a link opens it; with no id nothing is open, like every other list page.
 // Tab counts come from the loaded list: the bot has no count endpoint.
 // The audio levels are channel-wide, not one overlay's, so they open from the header in their own drawer.
+import Plus from '~icons/nnz/add';
 import VolumeTwo from '~icons/nnz/volume-two';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -34,6 +35,7 @@ import { keysOf } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
 
 import AudioMixPanel from './components/AudioMixPanel.vue';
+import NewOverlayDialog from './components/NewOverlayDialog.vue';
 import OverlayDetail from './components/OverlayDetail.vue';
 import OverlayRow from './components/OverlayRow.vue';
 
@@ -57,6 +59,7 @@ const widgets = useWidgets(channelId);
 const view = usePageView(TAB_VALUES);
 const search = ref('');
 const audioOpen = ref(false);
+const creating = ref(false);
 
 const required = useRequiredOverlays(channelId);
 
@@ -132,6 +135,13 @@ function pick(widget: Widget): void {
   void router.push({ query: { ...route.query, id: widget.id } });
 }
 
+// A new overlay opens at once, so the person can start on its code.
+function open(id: string | null): void {
+  if (id !== null) {
+    void router.push({ query: { ...route.query, id } });
+  }
+}
+
 function back(): void {
   const { id, ...rest } = route.query;
 
@@ -142,10 +152,14 @@ function back(): void {
 
 <template>
   <PageHeader :title="$t('dashboard.overlays.title')" :crumb="$t('dashboard.overlays.crumb')">
-    <template v-if="can('sounds:read')" #actions>
-      <Button variant="outline" @click="audioOpen = true">
+    <template v-if="can('sounds:read') || can('widget:write')" #actions>
+      <Button v-if="can('sounds:read')" variant="outline" @click="audioOpen = true">
         <VolumeTwo aria-hidden="true" />
         {{ $t("dashboard.overlays.audioMix.open") }}
+      </Button>
+      <Button v-if="can('widget:write')" type="button" @click="creating = true">
+        <Plus aria-hidden="true" />
+        {{ $t("dashboard.overlays.new") }}
       </Button>
     </template>
     <template #bar>
@@ -203,4 +217,5 @@ function back(): void {
       </SidePanel>
     </template>
   </PanelBeside>
+  <NewOverlayDialog v-model:open="creating" @created="open" />
 </template>
