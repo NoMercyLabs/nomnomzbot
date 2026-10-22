@@ -219,3 +219,6 @@ stream ends. Discord's own rules put these steps on the server owner. The bot ca
 | saas *(restricted — see above)* | `https://your-domain` |
 
 The dashboard is the same Vue build in every scenario. Any device on your network can open it.
+
+The public site at `https://nomnomz.bot` is a separate static build served by GitHub Pages, not by
+the bot. See [docs/site-hosting.md](docs/site-hosting.md).
