@@ -32,9 +32,21 @@ describe('groupOptions', () => {
 
   it('gathers the options of one type under one label, groups in the order they first appear', () => {
     const groups = groupOptions([
-      { value: 'chat:read', label: 'Read chat', group: 'Chat' },
-      { value: 'bundles:export', label: 'Export a bundle', group: 'Bundles' },
-      { value: 'chat:send', label: 'Send chat messages', group: 'Chat' },
+      {
+        value: 'chat:read',
+        label: 'Read chat',
+        group: 'Chat',
+      },
+      {
+        value: 'bundles:export',
+        label: 'Export a bundle',
+        group: 'Bundles',
+      },
+      {
+        value: 'chat:send',
+        label: 'Send chat messages',
+        group: 'Chat',
+      },
     ]);
 
     expect(groups.map((group) => group.label)).toEqual(['Chat', 'Bundles']);
