@@ -75,7 +75,7 @@ function giveFocusBack(event: Event): void {
     <DialogContent
       data-slot="profile-dialog"
       :show-close-button="false"
-      class="flex max-h-[90vh] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl"
+      class="flex max-h-[90vh] min-h-0 flex-col gap-0 overflow-hidden p-0 sm:max-w-3xl md:h-[48rem]"
       @close-auto-focus="giveFocusBack"
     >
       <div data-profile-bar class="flex flex-none items-center gap-2 pt-2 pr-2 pl-6">

@@ -960,6 +960,20 @@ describe('the profile dialog', () => {
     ).toBe(true);
   });
 
+  // Owner 2026-10-22: the dialog changed size with every tab (a short Overview, a Chat that fills the window), a big
+  // layout shift. From md up it has one fixed height, and the tab area scrolls inside it.
+  it('from md up keeps one fixed height for every tab and scrolls the tab area inside it', async () => {
+    await openPage();
+    await openUser('u1');
+
+    const dialog = dialogs()[0]!;
+    const area = dialog.querySelector<HTMLElement>('[role="tabpanel"]')!.parentElement!;
+
+    expect(dialog.classList).toContain('md:h-[48rem]');
+    expect(dialog.classList).toContain('max-h-[90vh]');
+    expect(area.classList).toContain('md:overflow-y-auto');
+  });
+
   // The live API leaves a never-asked consent out of the answer; the tab once printed profile.yesNo.undefined.
   it('says in words that a person was never asked to confirm their age', async () => {
     await openPage();
