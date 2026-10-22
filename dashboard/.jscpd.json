@@ -10,6 +10,7 @@
     "**/api/schema.d.ts",
     "**/api/nnz-widget.d.ts",
     "**/components/ui/**",
-    "**/i18n/**"
+    "**/i18n/**",
+    "**/preview/fixtures/**"
   ]
 }
