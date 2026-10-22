@@ -13,8 +13,9 @@
 // the studio tools and the overlay setup each have their own tab, so no view grows into a wall of panels.
 // Dots: green works, orange needs a look (nothing loaded, OBS silent), red failed. The header dot is the worst of them.
 import { useDocumentVisibility } from '@vueuse/core';
-import { computed, useTemplateRef } from 'vue';
+import { computed, nextTick, onMounted, useTemplateRef } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { useRoute } from 'vue-router';
 
 import { useChannelAccess } from '@/api/access';
 import {
@@ -79,6 +80,17 @@ const allTabs = computed<PageTab<ObsTab>[]>(() => [
 const tabs = computed(() => allTabs.value.filter((tab) => access.can(tabKeys[tab.value].read)));
 const view = usePageView(VIEWS, 'view', () =>
   tabs.value.map((tab) => tab.value));
+
+// A link to #required-overlays opens the Overlays tab and scrolls the setup panel into view once it is drawn.
+const route = useRoute();
+
+onMounted(async () => {
+  if (route.hash !== '#required-overlays')
+    return;
+
+  await nextTick();
+  document.getElementById('required-overlays')?.scrollIntoView({ block: 'start' });
+});
 
 // The configuration and the bridge need the configuration key; the status needs only the control key.
 const configChannelId = computed<string | null>(() =>

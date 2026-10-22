@@ -221,7 +221,7 @@ function commitVolume(value: number[]): void {
         <Button
           variant="outline"
           data-action="setup-overlay"
-          @click="router.push({ name: 'dashboard-obs', hash: '#required-overlays' })"
+          @click="router.push({ name: 'dashboard-obs', query: { view: 'overlays' }, hash: '#required-overlays' })"
         >
           {{ $t("dashboard.mediaShare.player.setupOverlay") }}
         </Button>

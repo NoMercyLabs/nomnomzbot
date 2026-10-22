@@ -229,7 +229,7 @@ const pronunciationPanels = computed(
             chevron
             :title="$t('dashboard.tts.settings.overlay.title')"
             :detail="$t('dashboard.tts.settings.overlay.detail')"
-            @click="router.push({ name: 'dashboard-obs', hash: '#required-overlays' })"
+            @click="router.push({ name: 'dashboard-obs', query: { view: 'overlays' }, hash: '#required-overlays' })"
           />
         </RowGroup>
       </PanelCard>

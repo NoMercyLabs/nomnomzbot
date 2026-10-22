@@ -175,7 +175,7 @@ afterEach(() => {
 let queryClient = new QueryClient();
 
 // The page opens on its Live tab; a test names another tab the way the URL does (?view=).
-async function open(view?: 'live' | 'tools' | 'overlays'): Promise<void> {
+async function open(view?: 'live' | 'tools' | 'overlays', hash = ''): Promise<void> {
   queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
   const router = createRouter({
@@ -183,9 +183,9 @@ async function open(view?: 'live' | 'tools' | 'overlays'): Promise<void> {
     routes: [{ path: '/app/obs', component: { template: '<div />' } }],
   });
 
-  await router.push(view
+  await router.push(`${view
     ? `/app/obs?view=${view}`
-    : '/app/obs');
+    : '/app/obs'}${hash}`);
 
   mounted = mount(ObsView, {
     attachTo: document.body,
@@ -508,6 +508,33 @@ describe('ObsView', () => {
     expect(document.querySelector('[data-required-overlays]')).not.toBeNull();
     expect(document.querySelector('[data-output]')).toBeNull();
     expect(document.querySelector('[data-obs-connection]')).not.toBeNull();
+  });
+
+  // Stoney 2026-10-22: "setup in obs does not redirect to the actual setup"
+  it('scrolls the required overlays panel into view when the link carries its anchor', async () => {
+    const scrolled = vi.fn();
+
+    Element.prototype.scrollIntoView = scrolled;
+    required = [{ key: 'audio', widget: widgets[3] }];
+    await open('overlays', '#required-overlays');
+    await flushPromises();
+
+    const toTop = scrolled.mock.calls.flatMap((call, index) =>
+      call[0]?.block === 'start'
+        ? [scrolled.mock.contexts[index]]
+        : []);
+
+    expect(toTop).toEqual([document.getElementById('required-overlays')]);
+  });
+
+  it('does not scroll when the link has no anchor', async () => {
+    const scrolled = vi.fn();
+
+    Element.prototype.scrollIntoView = scrolled;
+    await open('overlays');
+    await flushPromises();
+
+    expect(scrolled.mock.calls.filter((call) => call[0]?.block === 'start')).toEqual([]);
   });
 
   it('shows only the tabs a person may open', async () => {

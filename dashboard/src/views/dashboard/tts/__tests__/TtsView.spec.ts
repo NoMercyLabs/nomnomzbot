@@ -249,6 +249,7 @@ describe('TtsView overview', () => {
 
     expect(router.currentRoute.value.name).toBe('dashboard-obs');
     expect(router.currentRoute.value.hash).toBe('#required-overlays');
+    expect(router.currentRoute.value.query.view).toBe('overlays');
   });
 
   it('reads the spoken history from the server and says so when it is empty', async () => {
