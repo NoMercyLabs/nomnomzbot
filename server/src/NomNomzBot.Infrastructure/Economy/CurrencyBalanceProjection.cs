@@ -23,10 +23,10 @@ namespace NomNomzBot.Infrastructure.Economy;
 /// <see cref="CurrencyAccount.LifetimeEarned"/>, and <see cref="CurrencyAccount.LifetimeSpent"/>.
 ///
 /// The <c>BalanceAfter</c> value on the event is the authoritative running total from the service layer, so
-/// the projection trusts it directly rather than computing deltas. Re-applying an event must change nothing
+/// the projection trusts it directly rather than computing deltas; the lifetime totals are the signed sums of
+/// the wallet's ledger (earned = credits, spent = minus debits), so earned - spent == balance. Re-applying an event must change nothing
 /// (the <see cref="IProjection.ApplyAsync"/> contract): an operator's windowed replay folds events the driver
-/// already folded, and the lifetime totals are per-event deltas that would otherwise count twice. So every
-/// fold is gated on <see cref="CurrencyAccount.LastAppliedStreamPosition"/> — an event at or below the
+/// already folded. So every fold is gated on <see cref="CurrencyAccount.LastAppliedStreamPosition"/> — an event at or below the
 /// wallet's high-water mark is a no-op, and <see cref="ResetAsync"/> zeroes the mark so a rebuild folds all.
 ///
 /// <c>LifetimeEarned</c>/<c>LifetimeSpent</c> are OWNED by this projection, not by
@@ -72,11 +72,12 @@ public sealed class CurrencyBalanceProjection(IApplicationDbContext db) : IProje
         if (accountId is null || balanceAfter is null || amount is null)
             return Result.Success();
 
-        bool isCredit = @event.EventType == "CurrencyCreditedEvent";
-        long delta = amount.Value;
-
         long position = @event.StreamPosition;
 
+        // The lifetime totals are read from the wallet's own ledger, never accumulated from event deltas:
+        // a debit event carries a NEGATIVE amount, and an event the stream gate skips would lose its delta.
+        // The ledger is the source of truth, so the sums are the same whatever order events are folded in,
+        // and re-applying an event changes nothing.
         await db
             .CurrencyAccounts.Where(a =>
                 a.Id == accountId.Value
@@ -91,11 +92,18 @@ public sealed class CurrencyBalanceProjection(IApplicationDbContext db) : IProje
                         .SetProperty(a => a.LastActivityAt, @event.OccurredAt)
                         .SetProperty(
                             a => a.LifetimeEarned,
-                            a => isCredit ? a.LifetimeEarned + delta : a.LifetimeEarned
+                            a =>
+                                db.CurrencyLedgerEntries.IgnoreQueryFilters()
+                                    .Where(e => e.AccountId == a.Id && e.Amount > 0)
+                                    .Sum(e => e.Amount)
                         )
                         .SetProperty(
                             a => a.LifetimeSpent,
-                            a => !isCredit ? a.LifetimeSpent + delta : a.LifetimeSpent
+                            a =>
+                                -db
+                                    .CurrencyLedgerEntries.IgnoreQueryFilters()
+                                    .Where(e => e.AccountId == a.Id && e.Amount < 0)
+                                    .Sum(e => e.Amount)
                         ),
                 cancellationToken
             );

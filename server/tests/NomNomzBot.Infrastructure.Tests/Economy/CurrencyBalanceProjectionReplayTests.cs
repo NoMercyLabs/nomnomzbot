@@ -13,6 +13,7 @@ using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Domain.Economy.Entities;
+using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Infrastructure.Economy;
 using NomNomzBot.Infrastructure.Tests.EventStore;
 
@@ -38,7 +39,7 @@ public sealed class CurrencyBalanceProjectionReplayTests : IDisposable
     [Fact]
     public async Task Re_applying_an_already_folded_event_changes_nothing()
     {
-        await SeedAccountAsync();
+        await SeedAccountAsync(100, -30, 50);
         EventRecord firstCredit = Event(
             "CurrencyCreditedEvent",
             position: 1,
@@ -48,7 +49,7 @@ public sealed class CurrencyBalanceProjectionReplayTests : IDisposable
         EventRecord purchase = Event(
             "CurrencyDebitedEvent",
             position: 2,
-            amount: 30,
+            amount: -30,
             balanceAfter: 70
         );
         EventRecord secondCredit = Event(
@@ -88,7 +89,7 @@ public sealed class CurrencyBalanceProjectionReplayTests : IDisposable
     [Fact]
     public async Task A_reset_clears_the_high_water_mark_so_a_rebuild_folds_the_whole_history_again()
     {
-        await SeedAccountAsync();
+        await SeedAccountAsync(100, -30);
         EventRecord credit = Event(
             "CurrencyCreditedEvent",
             position: 1,
@@ -98,7 +99,7 @@ public sealed class CurrencyBalanceProjectionReplayTests : IDisposable
         EventRecord purchase = Event(
             "CurrencyDebitedEvent",
             position: 2,
-            amount: 30,
+            amount: -30,
             balanceAfter: 70
         );
 
@@ -125,18 +126,39 @@ public sealed class CurrencyBalanceProjectionReplayTests : IDisposable
         wallet.LastAppliedStreamPosition.Should().Be(2);
     }
 
-    private async Task SeedAccountAsync()
+    /// <summary>Opens the wallet and writes its ledger (signed amounts, in position order).</summary>
+    private async Task SeedAccountAsync(params long[] ledgerAmounts)
     {
+        Guid viewer = Guid.Parse("0192b000-0000-7000-8000-0000000000e3");
         await using EventStoreTestDbContext db = _database.NewContext();
         db.CurrencyAccounts.Add(
             new()
             {
                 Id = Account,
                 BroadcasterId = Channel,
-                ViewerUserId = Guid.Parse("0192b000-0000-7000-8000-0000000000e3"),
+                ViewerUserId = viewer,
                 ViewerTwitchUserId = string.Empty,
             }
         );
+        long running = 0;
+        for (int i = 0; i < ledgerAmounts.Length; i++)
+        {
+            running += ledgerAmounts[i];
+            db.CurrencyLedgerEntries.Add(
+                new()
+                {
+                    BroadcasterId = Channel,
+                    TenantPosition = i + 1,
+                    AccountId = Account,
+                    ViewerUserId = viewer,
+                    ViewerTwitchUserId = string.Empty,
+                    Amount = ledgerAmounts[i],
+                    BalanceAfter = running,
+                    EntryType = CurrencyEntryType.AdminAdjust,
+                    CreatedAt = When.AddMinutes(i + 1),
+                }
+            );
+        }
         await db.SaveChangesAsync();
     }
 

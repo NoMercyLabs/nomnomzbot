@@ -15,6 +15,7 @@ using Newtonsoft.Json;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Domain.Economy.Entities;
+using NomNomzBot.Domain.Economy.Enums;
 using NomNomzBot.Infrastructure.Economy;
 using NomNomzBot.Infrastructure.Tests.EventStore;
 
@@ -79,7 +80,7 @@ public sealed class CurrencyBalanceProjectionConcurrencyTests : IDisposable
         MakeEvent("CurrencyCreditedEvent", position, amount, balanceAfter);
 
     private static EventRecord DebitEvent(long position, long amount, long balanceAfter) =>
-        MakeEvent("CurrencyDebitedEvent", position, amount, balanceAfter);
+        MakeEvent("CurrencyDebitedEvent", position, -amount, balanceAfter);
 
     private static EventRecord MakeEvent(
         string eventType,
@@ -118,8 +119,10 @@ public sealed class CurrencyBalanceProjectionConcurrencyTests : IDisposable
         );
     }
 
-    private async Task SeedAccountAsync()
+    /// <summary>Opens the wallet and writes its ledger (signed amounts, in position order).</summary>
+    private async Task SeedAccountAsync(params long[] ledgerAmounts)
     {
+        Guid viewer = Guid.Parse("0192b000-0000-7000-8000-0000000000f3");
         using EventStoreTestDbContext schema = NewContext();
         await schema.Database.EnsureCreatedAsync();
         await schema.Database.ExecuteSqlRawAsync("PRAGMA journal_mode=WAL;");
@@ -128,13 +131,32 @@ public sealed class CurrencyBalanceProjectionConcurrencyTests : IDisposable
             {
                 Id = Account,
                 BroadcasterId = Channel,
-                ViewerUserId = Guid.Parse("0192b000-0000-7000-8000-0000000000f3"),
+                ViewerUserId = viewer,
                 ViewerTwitchUserId = string.Empty,
                 Balance = 0,
                 LifetimeEarned = 0,
                 LifetimeSpent = 0,
             }
         );
+        long running = 0;
+        for (int i = 0; i < ledgerAmounts.Length; i++)
+        {
+            running += ledgerAmounts[i];
+            schema.CurrencyLedgerEntries.Add(
+                new()
+                {
+                    BroadcasterId = Channel,
+                    TenantPosition = i + 1,
+                    AccountId = Account,
+                    ViewerUserId = viewer,
+                    ViewerTwitchUserId = string.Empty,
+                    Amount = ledgerAmounts[i],
+                    BalanceAfter = running,
+                    EntryType = CurrencyEntryType.AdminAdjust,
+                    CreatedAt = new(2026, 8, 23, 0, i + 1, 0, DateTimeKind.Utc),
+                }
+            );
+        }
         await schema.SaveChangesAsync();
     }
 
@@ -148,10 +170,9 @@ public sealed class CurrencyBalanceProjectionConcurrencyTests : IDisposable
     [Fact]
     public async Task Concurrent_folds_of_the_same_credit_count_it_exactly_once()
     {
-        await SeedAccountAsync();
-
         const int concurrency = 12;
         const long creditAmount = 10;
+        await SeedAccountAsync(creditAmount);
 
         // The real race: the projection driver's retry of a fold racing an operator's replay of the same
         // journal event. The driver drains a tenant's stream in order under a lease, so out-of-order folds
@@ -189,10 +210,9 @@ public sealed class CurrencyBalanceProjectionConcurrencyTests : IDisposable
     [Fact]
     public async Task Replaying_the_same_events_does_not_double_count_lifetime_totals()
     {
-        await SeedAccountAsync();
-
         const long creditAmount = 25;
         const long debitAmount = 15;
+        await SeedAccountAsync(creditAmount, -debitAmount);
         EventRecord credit = CreditEvent(1, creditAmount, creditAmount);
         EventRecord debit = DebitEvent(2, debitAmount, creditAmount - debitAmount);
 
@@ -242,9 +262,8 @@ public sealed class CurrencyBalanceProjectionConcurrencyTests : IDisposable
         // moment the projection caught up. This test proves the projection's own fold, applied in isolation
         // exactly once (as it now is, since AppendAsync no longer touches these columns), lands on the true
         // amount rather than 2x it.
-        await SeedAccountAsync();
-
         const long creditAmount = 40;
+        await SeedAccountAsync(creditAmount);
         using EventStoreTestDbContext db = NewContext();
         CurrencyBalanceProjection sut = new(db);
         (await sut.ApplyAsync(CreditEvent(1, creditAmount, creditAmount)))
