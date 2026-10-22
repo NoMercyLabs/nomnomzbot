@@ -132,7 +132,12 @@ function create(): void {
           :label="$t('dashboard.timers.back')"
           @click="select(undefined)"
         />
-        <TimerEditor :key="row.id" :row="row" @remove="removeTimer" />
+        <TimerEditor
+          :key="row.id"
+          :row="row"
+          @remove="removeTimer"
+          @duplicated="select($event ?? undefined)"
+        />
       </div>
       <PanelCard
         v-else

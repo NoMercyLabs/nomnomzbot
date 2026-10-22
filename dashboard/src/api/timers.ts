@@ -88,12 +88,12 @@ export function useTimer(
 // A new timer is not shown before the bot accepts it: the name can be taken and the quota can be full.
 export function useCreateTimer(
   channelId: MaybeRefOrGetter<string | null>,
-): UseMutationReturnType<void, Error, NewTimer, undefined> {
+): UseMutationReturnType<string | null, Error, NewTimer, undefined> {
   const queries = useQueryClient();
 
-  return useMutation<void, Error, NewTimer, undefined>({
-    mutationFn: async (timer: NewTimer): Promise<void> => {
-      const { error, response } = await client.POST(
+  return useMutation<string | null, Error, NewTimer, undefined>({
+    mutationFn: async (timer: NewTimer): Promise<string | null> => {
+      const { data, error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/timers',
         {
           params: { path: { version, channelId: toValue(channelId) as string } },
@@ -103,6 +103,8 @@ export function useCreateTimer(
 
       if (error !== undefined)
         throw refusal('create timer', error, response.status);
+
+      return data?.data?.id ?? null;
     },
     onSuccess: async (): Promise<void> => {
       await queries.invalidateQueries({ queryKey: timersKey(toValue(channelId)) });

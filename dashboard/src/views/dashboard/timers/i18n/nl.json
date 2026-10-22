@@ -94,6 +94,8 @@
         "save": "Wijzigingen opslaan",
         "discard": "Weggooien",
         "delete": "Verwijderen",
+        "duplicate": "Dupliceren",
+        "copyName": "{name} kopie",
         "error": "De timer kon niet laden.",
         "confirmTitle": "{name} verwijderen?",
         "confirmBody": "De timer wordt definitief verwijderd. Hij stopt met plaatsen.",

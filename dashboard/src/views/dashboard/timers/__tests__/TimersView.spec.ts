@@ -116,6 +116,8 @@ function write(method: string, path: string, options?: Options): Answer {
 
   if (method === 'POST' && path.endsWith('/timers')) {
     rows.push(timer('new', options?.body));
+
+    return { data: { data: { id: 'new' } }, response: { status: 201, ok: true } };
   }
 
   return { response: { status: 200, ok: true } };
@@ -323,6 +325,24 @@ describe('Triggers and timers page', () => {
     ]);
 
     expect(rowOf('Discord invite').textContent).not.toContain('Off');
+  });
+
+  it('duplicates a timer as a switched-off copy with the same lines and rhythm, and opens the copy', async () => {
+    await open();
+    await click(rowOf('Discord invite'));
+    await click(buttonByText('Duplicate'));
+
+    expect(writes('POST')).toHaveLength(1);
+
+    expect(writes('POST')[0]!.body).toMatchObject({
+      name: 'Discord invite copy',
+      messages: ['Join us', 'Link in bio'],
+      intervalMinutes: 15,
+      isEnabled: false,
+    });
+
+    expect(rowNames()).toContain('Discord invite copy');
+    expect(field('Name').value).toBe('Discord invite copy');
   });
 
   it('creates a timer from the dialog and selects it', async () => {

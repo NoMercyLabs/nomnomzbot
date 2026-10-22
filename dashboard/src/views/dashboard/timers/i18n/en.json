@@ -94,6 +94,8 @@
         "save": "Save changes",
         "discard": "Discard",
         "delete": "Delete",
+        "duplicate": "Duplicate",
+        "copyName": "{name} copy",
         "error": "The timer could not load.",
         "confirmTitle": "Delete {name}?",
         "confirmBody": "The timer is removed for good. It stops posting.",

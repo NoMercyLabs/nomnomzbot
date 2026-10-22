@@ -10,12 +10,13 @@
 <script setup lang="ts">
 // The editor of one timer. The Enabled switch saves at once; every other field is a draft that Save
 // sends as the changed fields only. A refused save keeps the draft and shows the bot's reason.
+import Copy from '~icons/nnz/file-copy';
 import Trash2 from '~icons/nnz/trash';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useToggleTimer, type Timer as TimerRow } from '@/api/liveOps';
-import { useTimer, useUpdateTimer, type Timer } from '@/api/timers';
+import { useCreateTimer, useTimer, useUpdateTimer, type Timer } from '@/api/timers';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
@@ -40,12 +41,13 @@ import {
 } from './timerDraft';
 
 const props = defineProps<{ row: TimerRow }>();
-const emit = defineEmits<{ remove: [row: TimerRow] }>();
+const emit = defineEmits<{ remove: [row: TimerRow]; duplicated: [id: string | null] }>();
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const timer = useTimer(channelId, () => props.row.id);
 const update = useUpdateTimer(channelId);
+const create = useCreateTimer(channelId);
 const toggle = useToggleTimer(channelId);
 
 const draft = ref<TimerDraft | null>(null);
@@ -124,6 +126,34 @@ async function save(): Promise<void> {
     });
 
     baseline.value = { ...draft.value };
+  } catch (error) {
+    failure.value = errorText(error, t);
+  }
+}
+
+// The copy is saved as the timer is stored, not as the form is edited, and starts switched off so both do not post.
+async function duplicate(): Promise<void> {
+  const saved = timer.data.value;
+
+  if (saved === undefined) return;
+
+  failure.value = null;
+
+  try {
+    emit(
+      'duplicated',
+      await create.mutateAsync({
+        name: t('dashboard.timers.editor.copyName', { name: saved.name }),
+        messages: saved.messages,
+        pipelineId: saved.pipelineId,
+        intervalMinutes: saved.intervalMinutes,
+        minChatActivity: saved.minChatActivity,
+        isEnabled: false,
+        fireOnce: saved.fireOnce,
+        speakWithTts: saved.speakWithTts,
+        target: saved.target,
+      }),
+    );
   } catch (error) {
     failure.value = errorText(error, t);
   }
@@ -259,6 +289,17 @@ function remove(): void {
       <Button type="button" variant="outline" size="sm" @click="confirmOpen = true">
         <Trash2 aria-hidden="true" />
         {{ $t("dashboard.timers.editor.delete") }}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        size="sm"
+        data-timer-duplicate
+        :disabled="create.isPending.value || timer.data.value === undefined"
+        @click="duplicate"
+      >
+        <Copy aria-hidden="true" />
+        {{ $t("dashboard.timers.editor.duplicate") }}
       </Button>
       <span data-unsaved class="mr-auto text-sm text-muted-foreground">{{ unsaved }}</span>
       <Button type="button" variant="outline" size="sm" @click="discard">{{
