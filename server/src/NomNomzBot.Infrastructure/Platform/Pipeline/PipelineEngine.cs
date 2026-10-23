@@ -866,9 +866,8 @@ public sealed class PipelineEngine : IPipelineEngine
         CancellationToken ct
     )
     {
-        if (ctx.SpeakWithTts == false && action.Type == "play_tts")
-            return ActionResult.Success();
-
+        // A play_tts step always runs: it is the instruction to speak, and no reply switch overrides it. The
+        // switch (ctx.SpeakWithTts) only decides whether chat replies are also spoken (AutoSpeakChatReplies).
         ICommandAction? executor = _actions.FirstOrDefault(a =>
             string.Equals(a.ActionType, action.Type, StringComparison.OrdinalIgnoreCase)
         );

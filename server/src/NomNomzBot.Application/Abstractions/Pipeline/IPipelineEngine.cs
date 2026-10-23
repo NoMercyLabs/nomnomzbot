@@ -114,7 +114,8 @@ public class PipelineRequest
     public string RawMessage { get; init; } = "";
     public Dictionary<string, string> InitialVariables { get; init; } = new();
 
-    /// <summary>When set, governs speech for chat replies in a command or timer pipeline.</summary>
+    /// <summary>When true, the chat replies of a command or timer pipeline are also spoken (unless it has its
+    /// own play_tts step). It never stops a play_tts step: that step always speaks.</summary>
     public bool? SpeakWithTts { get; init; }
 
     /// <summary>True only for a dashboard test run: the engine then records a per-step trace into

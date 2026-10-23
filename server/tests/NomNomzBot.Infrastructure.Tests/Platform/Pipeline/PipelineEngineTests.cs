@@ -151,14 +151,18 @@ public class PipelineEngineTests
             );
     }
 
+    // A play_tts step is the instruction to speak. No switch on the command, timer or anything else overrides it
+    // (Stoney, 2026-10-23: kitte's !tts step reported success and said nothing because the command's reply switch
+    // was off). The switch only decides whether chat REPLIES are also spoken.
     [Theory]
-    [InlineData(false, 0)]
-    [InlineData(true, 1)]
-    public async Task Existing_explicit_tts_step_obeys_command_switch(
-        bool speakWithTts,
-        int expectedSpeech
+    [InlineData(false)]
+    [InlineData(true)]
+    [InlineData(null)]
+    public async Task An_explicit_tts_step_always_speaks_whatever_the_reply_switch_says(
+        bool? speakWithTts
     )
     {
+        const int expectedSpeech = 1;
         ICommandAction speech = Substitute.For<ICommandAction>();
         speech.ActionType.Returns("play_tts");
         speech
