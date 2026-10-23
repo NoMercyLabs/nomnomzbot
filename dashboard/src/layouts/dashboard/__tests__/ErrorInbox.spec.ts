@@ -71,6 +71,21 @@ const router = createRouter({
       name: 'dashboard-chat',
       component: page,
     },
+    {
+      path: '/app/u/:channelName/chat',
+      name: 'u:dashboard-chat',
+      component: page,
+    },
+    {
+      path: '/app/settings/webhooks',
+      name: 'dashboard-settings-webhooks',
+      component: page,
+    },
+    {
+      path: '/app/pipelines/:id',
+      name: 'dashboard-pipeline',
+      component: page,
+    },
     { path: '/:rest(.*)', component: page },
   ],
 });
@@ -144,6 +159,23 @@ describe('a failed save in the inbox', () => {
     expect(row.querySelector('[data-save-what]')?.textContent).toBe('Not saved: Remove the star from :raised_hand:');
     expect(row.querySelector('[data-save-where]')?.textContent).toBe('On Chat');
     expect(row.querySelector('a')?.getAttribute('href')).toBe('/app/chat');
+  });
+});
+
+// A page the main sidebar does not list (a channel-prefixed address, a settings page, a pipeline) still gets a plain name.
+describe('the page a failed save names', () => {
+  it.each([
+    ['/app/u/someone/chat', 'On Chat'],
+    ['/app/settings/webhooks', 'On Webhooks'],
+    ['/app/pipelines/p1', 'On Pipelines'],
+  ])('shows a plain name for %s', async (where, words) => {
+    held = [];
+
+    useSaveErrorsStore().report(SAVE_FAILED_TITLE, SAVE_FAILED_MESSAGE, { key: 'star', params: { name: 'a' } }, where);
+
+    await openInbox();
+
+    expect(rows()[0]!.querySelector('[data-save-where]')?.textContent).toBe(words);
   });
 });
 

@@ -25,7 +25,7 @@ import {
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { type SaveError, useSaveErrorsStore } from '@/stores/saveErrors';
 
-import { dashboardNav } from './navigation';
+import { pageLabel } from './pageLabels';
 
 const { t, te, locale } = useI18n();
 const { channelId } = useCurrentChannel();
@@ -35,15 +35,10 @@ const saveErrors = useSaveErrorsStore();
 const open = ref(false);
 const count = computed(() => (items.value?.length ?? 0) + saveErrors.items.length);
 const router = useRouter();
-const navEntries = dashboardNav.flatMap((group) =>
-  group.entries);
-const pageLabels = new Map(navEntries.map((entry) =>
-  [entry.route, entry.label] as const));
 
 // The page a failed save came from, by its sidebar name; a page outside the sidebar keeps its address.
 function pageOf(failed: SaveError): string {
-  const name = router?.resolve(failed.where).name;
-  const label = pageLabels.get(String(name ?? ''));
+  const label = pageLabel(router?.resolve(failed.where).name);
 
   return label
     ? t(`frame.nav.${label}`)
