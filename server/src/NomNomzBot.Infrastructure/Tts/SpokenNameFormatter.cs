@@ -19,6 +19,7 @@ namespace NomNomzBot.Infrastructure.Tts;
 /// Cleans a name for the voice in fixed steps: strip xX decoration, turn separators and symbols into
 /// spaces, decode leetspeak digits and symbols that sit INSIDE a run of letters, then split camelCase and
 /// letter/digit joins. Numeric suffixes stay numbers except a decorative _99 on an already-leet name.
+/// A Korean name is written in Latin letters so an English voice can say it.
 /// </summary>
 public sealed class SpokenNameFormatter : ISpokenNameFormatter
 {
@@ -71,7 +72,7 @@ public sealed class SpokenNameFormatter : ISpokenNameFormatter
             string token = tokens[index];
             if (hasInternalLeet && index == tokens.Count - 1 && IsDecorativeNumber(token))
                 continue;
-            words.AddRange(SplitWords(DecodeLeet(token, hasInternalLeet)));
+            words.AddRange(SplitWords(DecodeLeet(Latinize(token), hasInternalLeet)));
         }
 
         return words.Count == 0 ? name : string.Join(' ', words);
@@ -163,6 +164,17 @@ public sealed class SpokenNameFormatter : ISpokenNameFormatter
     {
         if (tokens.Count > 1 && DecorationToken.IsMatch(tokens[index]))
             tokens.RemoveAt(index);
+    }
+
+    // An English voice cannot read Hangul, so a Korean name is written in Latin letters, capitalized as a name.
+    private static string Latinize(string token)
+    {
+        if (!HangulRomanizer.HasHangul(token))
+            return token;
+
+        string latin = HangulRomanizer.Romanize(token);
+
+        return char.ToUpperInvariant(latin[0]) + latin[1..];
     }
 
     // A leading digit is a number ("1Gamer") unless the rest of the name is already leetspeak and it opens a

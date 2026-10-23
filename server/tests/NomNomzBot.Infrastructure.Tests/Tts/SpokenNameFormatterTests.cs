@@ -65,6 +65,10 @@ public sealed class SpokenNameFormatterTests
     [InlineData("f0xb17", "foxbit")]
     [InlineData("F0xB17", "Fox Bit")]
     [InlineData("Gamer2024", "Gamer 2024")]
+    // Stoney 2026-10-23: an English voice said nothing for the Korean name once its rule was removed.
+    [InlineData("케이라라", "Keirara")]
+    [InlineData("김치", "Gimchi")]
+    [InlineData("한글", "Hangeul")]
     public void Format_GivesTheSpokenForm(string name, string expected) =>
         _sut.Format(name).Should().Be(expected);
 
@@ -112,6 +116,14 @@ public sealed class SpokenNameFormatterTests
         const string text = "play mp3 on ps5 in 4k, gr8 l8r, gamer123 and R2D2 for 5$ at 10:30";
 
         _sut.ApplyToText(text, []).Should().Be(text);
+    }
+
+    [Fact]
+    public void ApplyToText_RomanizesAKoreanKnownName_AndLeavesOtherKoreanTextAlone()
+    {
+        _sut.ApplyToText("Stoney hugs 케이라라 and says 안녕", ["케이라라"])
+            .Should()
+            .Be("Stoney hugs Keirara and says 안녕");
     }
 
     [Fact]
