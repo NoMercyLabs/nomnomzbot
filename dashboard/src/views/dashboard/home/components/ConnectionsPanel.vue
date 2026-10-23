@@ -24,6 +24,7 @@ import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vu
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
+import { useConnectWindow } from '@/composables/useConnectWindow';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { useProviderName } from '@/composables/useProviderName';
@@ -44,6 +45,7 @@ const connectionsQuery = useConnections(channelId);
 const botQuery = useBotStatus(channelId);
 const statsQuery = useHomeStats(channelId);
 const connect = useConnectIntegration(channelId);
+const connectWindow = useConnectWindow(channelId);
 const connectionsState = usePanelState(connectionsQuery);
 
 const allConnections = computed(() => connectionsQuery.data.value ?? []);
@@ -102,7 +104,7 @@ async function open(provider: string): Promise<void> {
   const scopeSetKey = scopeSetOf(provider) as string;
   const url: string = await connect.mutateAsync({ provider, scopeSetKey });
 
-  window.location.assign(url);
+  connectWindow(url);
 }
 
 function connectionTone(connection: IntegrationStatus): 'ok' | 'bad' | 'off' {

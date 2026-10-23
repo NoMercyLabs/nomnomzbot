@@ -22,6 +22,7 @@ import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
+import { useConnectWindow } from '@/composables/useConnectWindow';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
@@ -34,6 +35,7 @@ const { channelId, current } = useCurrentChannel();
 const connectionsQuery = useConnections(channelId);
 const { can } = useCan();
 const connect = useConnectIntegration(channelId);
+const connectWindow = useConnectWindow(channelId);
 const state = usePanelState(connectionsQuery);
 
 function connectionOf(provider: string): IntegrationStatus | undefined {
@@ -51,7 +53,7 @@ const twitchAccount = computed(() => current.value?.displayName);
 async function open(provider: string, scopeSetKey: string): Promise<void> {
   const url: string = await connect.mutateAsync({ provider, scopeSetKey });
 
-  window.location.assign(url);
+  connectWindow(url);
 }
 </script>
 

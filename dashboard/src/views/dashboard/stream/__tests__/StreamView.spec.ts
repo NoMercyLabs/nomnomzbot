@@ -235,6 +235,7 @@ beforeEach(() => {
   saveRefused = false;
   assign.mockClear();
   vi.stubGlobal('location', { ...window.location, assign });
+  vi.stubGlobal('open', vi.fn<typeof window.open>().mockReturnValue(null));
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);

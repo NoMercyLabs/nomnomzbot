@@ -14,7 +14,7 @@ import { toValue, type ComputedRef, type MaybeRefOrGetter } from 'vue';
 import { discordConnectionsKey } from '@/api/discord';
 
 import { installFailure } from './installError';
-import { openInstallPopup, type InstallOutcome } from './installPopup';
+import { openOAuthPopup, type OAuthOutcome } from '@/lib/oauthPopup';
 import { useDiscordInstallUrl } from './installUrl';
 
 interface DiscordInstall {
@@ -30,7 +30,7 @@ export function useDiscordInstall(channelId: MaybeRefOrGetter<string | null>) {
   const url = useDiscordInstallUrl(channelId);
   const queries = useQueryClient();
 
-  function settled(outcome: InstallOutcome): void {
+  function settled(outcome: OAuthOutcome): void {
     installFailure.value = outcome.error;
     void queries.invalidateQueries({ queryKey: discordConnectionsKey(toValue(channelId)) });
   }
@@ -38,7 +38,7 @@ export function useDiscordInstall(channelId: MaybeRefOrGetter<string | null>) {
   function start(event: MouseEvent): void {
     installFailure.value = null;
 
-    if (openInstallPopup(url.value, settled)) {
+    if (openOAuthPopup(url.value, settled)) {
       event.preventDefault();
     }
   }

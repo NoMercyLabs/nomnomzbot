@@ -148,6 +148,27 @@ describe('the Discord page with no server linked', () => {
 
     expect(document.body.querySelector('[data-rule-row]')).toBeNull();
   });
+
+  it('opens the install in a popup when the link is clicked and keeps this tab where it is', async () => {
+    const opener = vi.fn<typeof window.open>().mockReturnValue({ closed: false } as Window);
+
+    vi.stubGlobal('open', opener);
+    held.linked = false;
+    await open();
+
+    const click = new MouseEvent('click', { bubbles: true, cancelable: true });
+
+    document.body.querySelector<HTMLAnchorElement>('[data-add-bot]')!.dispatchEvent(click);
+
+    expect(opener).toHaveBeenCalledWith(
+      expect.stringMatching(/\/integrations\/discord\/callback\/start$/),
+      'nnz-oauth',
+      expect.stringContaining('popup=yes'),
+    );
+
+    expect(click.defaultPrevented).toBe(true);
+    vi.unstubAllGlobals();
+  });
 });
 
 describe('the Discord page with a server linked', () => {

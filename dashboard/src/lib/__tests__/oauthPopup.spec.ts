@@ -10,13 +10,13 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { openInstallPopup, type InstallOutcome } from '../installPopup';
+import { openOAuthPopup, type OAuthOutcome } from '../oauthPopup';
 
 interface FakePopup {
   closed: boolean;
 }
 
-const url = 'https://bot.example.test/api/v1/channels/c1/integrations/discord/callback/start';
+const url = 'https://accounts.spotify.test/authorize?client_id=x';
 
 let popup: FakePopup;
 let opened: ReturnType<typeof vi.spyOn>;
@@ -25,7 +25,7 @@ function relay(data: Record<string, string>, source: FakePopup = popup): void {
   window.dispatchEvent(
     new MessageEvent('message', {
       data: { type: 'oauth_relay', ...data },
-      origin: 'https://bot.example.test',
+      origin: window.location.origin,
       source: source as unknown as MessageEventSource,
     }),
   );
@@ -42,43 +42,46 @@ afterEach(() => {
   opened.mockRestore();
 });
 
-describe('the Discord install popup', () => {
-  it('opens the install address in its own small window', () => {
-    openInstallPopup(url, vi.fn<(outcome: InstallOutcome) => void>());
+describe('the OAuth popup', () => {
+  it('opens the address in its own small window', () => {
+    openOAuthPopup(url, vi.fn<(outcome: OAuthOutcome) => void>());
 
-    expect(opened).toHaveBeenCalledWith(url, 'nnz-discord-install', expect.stringContaining('width='));
+    expect(opened).toHaveBeenCalledWith(url, 'nnz-oauth', expect.stringContaining('width='));
   });
 
   it('reports a blocked popup so the caller can navigate instead', () => {
     opened.mockReturnValue(null);
 
-    expect(openInstallPopup(url, vi.fn<(outcome: InstallOutcome) => void>())).toBe(false);
+    expect(openOAuthPopup(url, vi.fn<(outcome: OAuthOutcome) => void>())).toBe(false);
   });
 
-  it('settles with no error when the relay page says the bot was added', () => {
-    const settled = vi.fn<(outcome: InstallOutcome) => void>();
+  it('settles with no error when the relay page says it connected', () => {
+    const settled = vi.fn<(outcome: OAuthOutcome) => void>();
 
-    openInstallPopup(url, settled);
+    openOAuthPopup(url, settled);
 
     relay({ discord_connected: 'true' });
 
     expect(settled).toHaveBeenCalledExactlyOnceWith({ error: null });
   });
 
-  it('settles with the reason when the relay page reports a failure', () => {
-    const settled = vi.fn<(outcome: InstallOutcome) => void>();
+  it.each([
+    ['discord_error', 'token_exchange_failed'],
+    ['error', 'access_denied'],
+  ])('settles with the reason when the relay page reports %s', (key, reason) => {
+    const settled = vi.fn<(outcome: OAuthOutcome) => void>();
 
-    openInstallPopup(url, settled);
+    openOAuthPopup(url, settled);
 
-    relay({ discord_error: 'token_exchange_failed' });
+    relay({ [key]: reason });
 
-    expect(settled).toHaveBeenCalledExactlyOnceWith({ error: 'token_exchange_failed' });
+    expect(settled).toHaveBeenCalledExactlyOnceWith({ error: reason });
   });
 
   it('ignores a message from any other window', () => {
-    const settled = vi.fn<(outcome: InstallOutcome) => void>();
+    const settled = vi.fn<(outcome: OAuthOutcome) => void>();
 
-    openInstallPopup(url, settled);
+    openOAuthPopup(url, settled);
 
     relay({ discord_error: 'invalid_state' }, { closed: false });
 
@@ -86,9 +89,9 @@ describe('the Discord install popup', () => {
   });
 
   it('settles with no error, once, when the person closes the popup themselves', () => {
-    const settled = vi.fn<(outcome: InstallOutcome) => void>();
+    const settled = vi.fn<(outcome: OAuthOutcome) => void>();
 
-    openInstallPopup(url, settled);
+    openOAuthPopup(url, settled);
 
     popup.closed = true;
     vi.advanceTimersByTime(1500);

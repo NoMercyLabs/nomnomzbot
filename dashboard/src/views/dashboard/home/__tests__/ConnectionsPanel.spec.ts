@@ -116,6 +116,7 @@ beforeEach(() => {
   answers = freshAnswers();
   assign.mockClear();
   vi.stubGlobal('location', { ...window.location, assign });
+  vi.stubGlobal('open', vi.fn<typeof window.open>().mockReturnValue(null));
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -227,6 +228,26 @@ describe('ConnectionsPanel', () => {
     expect(post?.path).toContain('/integrations/{provider}/connect');
     expect(post?.body).toMatchObject({ scopeSetKey: 'kick.chat' });
     expect(assign).toHaveBeenCalledWith('https://id.kick.com/oauth/authorize?x=1');
+  });
+
+  it('runs the Kick connect in a popup and leaves this tab where it is', async () => {
+    const opener = vi.fn<typeof window.open>().mockReturnValue({ closed: false } as Window);
+
+    vi.stubGlobal('open', opener);
+    await open();
+
+    buttonIn(row('kick'), 'Connect').click();
+    await settle();
+    document.body.querySelector<HTMLElement>('[data-flow-act="ok"]')?.click();
+    await settle();
+
+    expect(opener).toHaveBeenCalledWith(
+      'https://id.kick.com/oauth/authorize?x=1',
+      'nnz-oauth',
+      expect.stringContaining('popup=yes'),
+    );
+
+    expect(assign).not.toHaveBeenCalled();
   });
 
   it('offers no Connect button for a service that has no web connect flow', async () => {

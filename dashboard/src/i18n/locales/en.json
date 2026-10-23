@@ -42,6 +42,7 @@
       "list": "Show the keyboard shortcuts",
       "search": "Search this page"
     },
+    "connectFailed": "The connect did not work: {reason}. Try again.",
     "provider": {
       "twitch": "Twitch",
       "twitch_bot": "Twitch bot account",

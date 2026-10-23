@@ -261,6 +261,8 @@ describe('Integrations page', () => {
       assign,
     });
 
+    vi.stubGlobal('open', vi.fn<typeof window.open>().mockReturnValue(null));
+
     await open();
     await click(action('patreon', 'connect'));
 
@@ -290,6 +292,7 @@ describe('Integrations page', () => {
 
   it('asks for the shop name before Shopify connects and sends it', async () => {
     vi.stubGlobal('location', { ...window.location, assign: vi.fn<(url: string) => void>() });
+    vi.stubGlobal('open', vi.fn<typeof window.open>().mockReturnValue(null));
     await open();
 
     expect((action('shopify', 'connect') as HTMLButtonElement).disabled).toBe(true);

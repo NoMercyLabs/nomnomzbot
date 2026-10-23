@@ -138,10 +138,25 @@ public class OAuthRelayController : ControllerBase
                     window.location.origin
                   );
                 } catch (_) {}
-                setTimeout(function () { window.close(); }, failed ? 1500 : 900);
+                // The dashboard must never load in this window: it would refresh the sign-in at the same time as
+                // the window that opened it, and the two refreshes sign the person out. A window the browser
+                // will not close just stays, and says so.
+                var leave = function () {
+                  window.close();
+                  setTimeout(function () {
+                    document.getElementById('detail').textContent = 'You can close this window now.';
+                    link.hidden = true;
+                  }, 400);
+                };
                 var link = document.getElementById('back');
                 link.href = safeBack;
+                link.textContent = 'Close this window';
                 link.hidden = false;
+                link.addEventListener('click', function (event) {
+                  event.preventDefault();
+                  leave();
+                });
+                setTimeout(leave, failed ? 1500 : 900);
               } else {
                 window.location.replace(safeBack);
               }

@@ -42,6 +42,7 @@
       "list": "Toon de sneltoetsen",
       "search": "Zoek op deze pagina"
     },
+    "connectFailed": "Het koppelen is niet gelukt: {reason}. Probeer het opnieuw.",
     "provider": {
       "twitch": "Twitch",
       "twitch_bot": "Twitch-botaccount",

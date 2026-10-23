@@ -38,6 +38,7 @@ import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { Input } from '@/components/ui/input';
 import { useCan } from '@/composables/useCan';
+import { useConnectWindow } from '@/composables/useConnectWindow';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useTime } from '@/composables/useTime';
 import { errorText } from '@/lib/errors';
@@ -53,6 +54,7 @@ const { can } = useCan();
 const integrations = useIntegrations(channelId);
 const statuses = useConnections(channelId);
 const connect = useConnectProvider(channelId);
+const connectWindow = useConnectWindow(channelId);
 const impact = useDisconnectBlastRadius(channelId);
 const disconnect = useDisconnectIntegration(channelId);
 
@@ -166,7 +168,7 @@ async function open(row: ChannelIntegration): Promise<void> {
           : undefined })
       : (row.oauthUrl as string);
 
-    window.location.assign(url);
+    connectWindow(url);
   } catch (failure) {
     error.value = errorText(failure, t);
   }

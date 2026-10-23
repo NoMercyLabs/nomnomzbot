@@ -8,25 +8,30 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-export interface InstallOutcome {
-  // The reason the bot names when the install failed; null when it finished or the person closed the window.
+export interface OAuthOutcome {
+  // The reason the bot names when the connect failed; null when it finished or the person closed the window.
   error: string | null;
 }
 
-interface RelayMessage {
-  type?: string;
-  discord_error?: string;
-}
+type RelayMessage = Record<string, string> & { type?: string };
 
-const popupName = 'nnz-discord-install';
+const popupName = 'nnz-oauth';
 const popupSize = 'popup=yes,width=520,height=760';
 
-// The install runs in its own window, so the dashboard stays where it is. The relay page the bot ends on tells
-// this window what happened and closes itself; closing the window by hand also settles it. Returns false when the
-// browser blocked the popup, so the caller can navigate to the address instead.
-export function openInstallPopup(
+function failureOf(message: RelayMessage): string | null {
+  const key = Object.keys(message).find((name) => name === 'error' || name.endsWith('_error'));
+
+  return key === undefined
+    ? null
+    : message[key] ?? null;
+}
+
+// A connect (Discord, Spotify, YouTube, ...) runs in its own window, so the dashboard stays where it is. The relay
+// page the bot ends on tells this window what happened and closes itself; closing the window by hand also settles it.
+// Returns false when the browser blocked the popup, so the caller can navigate to the address instead.
+export function openOAuthPopup(
   url: string,
-  onSettled: (outcome: InstallOutcome) => void,
+  onSettled: (outcome: OAuthOutcome) => void,
 ): boolean {
   const popup = window.open(url, popupName, popupSize);
 
@@ -34,7 +39,10 @@ export function openInstallPopup(
     return false;
   }
 
-  const origin = new URL(url, window.location.href).origin;
+  const origins = new Set<string>([
+    window.location.origin,
+    new URL(url, window.location.href).origin,
+  ]);
   let timer = 0;
 
   function finish(error: string | null): void {
@@ -44,11 +52,11 @@ export function openInstallPopup(
   }
 
   function onMessage(event: MessageEvent<RelayMessage | undefined>): void {
-    if (event.source !== popup || event.origin !== origin || event.data?.type !== 'oauth_relay') {
+    if (event.source !== popup || !origins.has(event.origin) || event.data?.type !== 'oauth_relay') {
       return;
     }
 
-    finish(event.data.discord_error ?? null);
+    finish(failureOf(event.data));
   }
 
   timer = window.setInterval(() => {
