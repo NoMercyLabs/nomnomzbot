@@ -135,7 +135,7 @@ function connectionLabel(connection: IntegrationStatus): string {
     <div class="flex flex-col gap-4">
       <RowGroup data-connections-group="platforms">
         <div v-for="provider in streamPlatforms" :key="provider" :data-connection="provider">
-          <SummaryRow :title="platformName(provider)" :detail="platformLine(provider)">
+          <SummaryRow truncate :title="platformName(provider)" :detail="platformLine(provider)">
             <template #leading>
               <span
                 aria-hidden="true"
@@ -175,6 +175,7 @@ function connectionLabel(connection: IntegrationStatus): string {
         <RowGroup data-connections-group="services">
           <div data-connection="bot">
             <SummaryRow
+              truncate
               :title="t('dashboard.home.connections.bot')"
               :detail="botQuery.data.value?.displayName ?? undefined"
             >
@@ -196,6 +197,7 @@ function connectionLabel(connection: IntegrationStatus): string {
             :data-connection="connection.provider"
           >
             <SummaryRow
+              truncate
               :title="platformName(connection.provider)"
               :detail="connection.accountName ?? undefined"
             >

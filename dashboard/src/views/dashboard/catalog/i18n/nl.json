@@ -1,0 +1,170 @@
+{
+  "dashboard": {
+    "catalog": {
+      "title": "Catalogus",
+      "crumb": "Ontwikkeling",
+      "meta": "Elke bouwsteen in al zijn standen",
+      "tabs": {
+        "blocks": "Blokken",
+        "states": "Paneelstanden",
+        "layouts": "Indelingen"
+      },
+      "primary": "Wijzigingen opslaan",
+      "outline": "Weggooien",
+      "status": {
+        "ok": "Gekoppeld",
+        "bad": "Mislukt",
+        "live": "Live",
+        "off": "Uit"
+      },
+      "stats": {
+        "messages": "Berichten, ooit",
+        "messagesContext": "dit kanaal",
+        "channels": "Kanalen",
+        "channelsContext": "8 ingesteld",
+        "hidden": "Verborgen door chatwissen",
+        "hiddenContext": "wordt aan gewerkt"
+      },
+      "kv": {
+        "region": "Regio",
+        "regionValue": "Europa",
+        "uptime": "Uptime",
+        "uptimeReason": "Nog niet bijgehouden"
+      },
+      "settings": {
+        "tts": "Uitspreken met TTS",
+        "ttsHelp": "Het antwoord wordt ook voorgelezen in de stream.",
+        "mods": "Moderators uitsluiten",
+        "modsHelp": "Moderators kunnen niet winnen."
+      },
+      "filter": {
+        "state": "Status",
+        "all": "Alles",
+        "on": "Aan",
+        "off": "Uit",
+        "since": "Sinds",
+        "day": "24 uur",
+        "week": "7 dagen",
+        "month": "30 dagen",
+        "quarter": "90 dagen",
+        "year": "Eén jaar"
+      },
+      "search": "Commando's zoeken",
+      "confirm": {
+        "open": "!so verwijderen",
+        "count": "{count} keer bevestigd",
+        "title": "!so verwijderen?",
+        "description": "Dit commando is 333 keer gebruikt. Verwijderen kan niet ongedaan worden gemaakt.",
+        "action": "Commando verwijderen",
+        "chat": "De chat antwoordt meteen niet meer op !so.",
+        "pipeline": "De pipeline blijft in Pipelines staan en werkt elders door.",
+        "history": "Eerder gebruik blijft in de geschiedenis."
+      },
+      "codeEditor": {
+        "open": "De code-editor openen",
+        "none": "Dit kanaal heeft nog geen script om te openen."
+      },
+      "form": {
+        "open": "Nieuw commando",
+        "count": "{count} commando's gemaakt",
+        "title": "Nieuw commando",
+        "description": "Geef het commando een naam. Het antwoord voeg je toe op het volgende scherm.",
+        "action": "Commando maken",
+        "name": "Naam van het commando",
+        "namePlaceholder": "Bijvoorbeeld so",
+        "nameMissing": "Geef het commando een naam.",
+        "nameTaken": "Er bestaat al een commando met de naam so."
+      },
+      "countdown": {
+        "title": "Aftelling",
+        "label": "Volgende advertentie",
+        "restart": "15 s herstarten",
+        "count": "{count} keer op nul gekomen | {count} keer op nul gekomen"
+      },
+      "flow": {
+        "title": "Stroom in de regel",
+        "confirm": {
+          "open": "Wachtrij wissen",
+          "label": "De muziekwachtrij wissen",
+          "ask": "12 nummers wissen?",
+          "yes": "Wissen",
+          "result": "Wachtrij gewist."
+        },
+        "apply": {
+          "open": "Nummer overslaan",
+          "label": "Het huidige nummer overslaan",
+          "result": "Nummer overgeslagen."
+        },
+        "run": {
+          "open": "Geluid testen",
+          "label": "Het testgeluid afspelen",
+          "text": "Het geluid wordt afgespeeld",
+          "result": "Geluid afgespeeld."
+        },
+        "note": {
+          "open": "Spotify openen",
+          "label": "Spotify-pagina",
+          "text": "De Spotify-pagina komt later."
+        }
+      },
+      "panel": {
+        "ready": "Klaar",
+        "readyRow": "Een rij inhoud",
+        "readyDetail": "Het paneel toont hier zijn rijen.",
+        "loading": "Laden",
+        "empty": "Leeg",
+        "emptyText": "Nog geen commando's.",
+        "error": "Fout",
+        "retried": "{count} keer op Opnieuw geklikt",
+        "lead": "Hoofdpaneel",
+        "quiet": "Rustig paneel"
+      },
+      "template": {
+        "title": "Sjabloonveld en hulppaneel (commando)",
+        "label": "Antwoord",
+        "placeholder": "Typ een accolade om een hulpmiddel te kiezen, of kies er een uit de lijst"
+      },
+      "profile": {
+        "title": "Profieldialoog (echte leden)",
+        "hint": "Elke naam is een gebruikersnaam. Klik erop om de ene profieldialoog van het scherm te openen.",
+        "empty": "Er zijn nog geen communityleden opgeslagen voor dit kanaal."
+      },
+      "virtual": {
+        "title": "Virtuele lijst (voorbeeldgegevens)",
+        "add": "Een rij toevoegen",
+        "count": "{count} gemaakte rijen, alleen de zichtbare worden getekend",
+        "row": "Voorbeeldrij {number}",
+        "long": "Deze voorbeeldrij is met opzet langer, zodat hij op een smal scherm omklapt en laat zien dat rijen worden gemeten."
+      },
+      "chart": {
+        "series": {
+          "returning": "Terugkerend",
+          "fresh": "Nieuw"
+        },
+        "line": {
+          "title": "Lijndiagram (voorbeeldgegevens)",
+          "takeaway": "Voorbeeldcijfers: de chatregels stegen in acht dagen van 1.200 naar 3.400."
+        },
+        "area": {
+          "title": "Vlakdiagram (voorbeeldgegevens)",
+          "takeaway": "Voorbeeldcijfers: het vlak onder de lijn toont dezelfde acht dagen als volume."
+        },
+        "bar": {
+          "title": "Staafdiagram (voorbeeldgegevens)",
+          "takeaway": "Voorbeeldcijfers: de gestapelde staven tellen terugkerende en nieuwe chatters per maand op."
+        },
+        "groupedBar": {
+          "title": "Gegroepeerd staafdiagram (voorbeeldgegevens)",
+          "takeaway": "Voorbeeldcijfers: de gegroepeerde staven zetten terugkerende naast nieuwe chatters per maand."
+        }
+      },
+      "layout": {
+        "board": "Bord",
+        "cell": "Cel",
+        "list": "Lijst",
+        "detail": "Detail",
+        "aside": "Zijpaneel"
+      }
+    }
+  }
+}

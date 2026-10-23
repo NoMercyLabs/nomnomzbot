@@ -56,15 +56,18 @@ const openedPages = new Set<WordsLoader>([sharedWords]);
 // The language being switched to. A page that opens mid-switch loads this one, not the one still shown.
 let targetLocale: string = 'en';
 
-// A page without a file for this language yet shows its English words (fallbackLocale).
+// English loads first for every language: a page without a file for this language yet, and a key its file
+// lacks, both show the English words (fallbackLocale) instead of the raw key.
 async function loadWords(loader: WordsLoader, locale: string): Promise<void> {
+  if (locale !== 'en') {
+    await loadWords(loader, 'en');
+  }
+
   try {
     i18n.global.mergeLocaleMessage(locale, (await loader(locale)).default);
   } catch (missing) {
     if (locale === 'en')
       throw missing;
-
-    await loadWords(loader, 'en');
   }
 }
 

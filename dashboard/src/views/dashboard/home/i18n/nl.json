@@ -127,7 +127,12 @@
         "reauth": "Opnieuw inloggen",
         "bot": "Botaccount",
         "botOffline": "Niet in de chat",
-        "error": "Koppelingen konden niet laden."
+        "error": "Koppelingen konden niet laden.",
+        "platformLive": "{account} · Live",
+        "platformOffline": "{account} · Offline",
+        "connect": "Koppelen",
+        "connectLabel": "{platform} koppelen",
+        "connectAsk": "{platform} aan dit kanaal koppelen?"
       },
       "activity": {
         "live": "Nu gebeurd",

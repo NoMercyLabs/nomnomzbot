@@ -8,6 +8,8 @@
         "ok": "Alles is geladen",
         "warn": "Er is iets niet geladen",
         "bad": "Er is iets mislukt",
+        "sourcesMissing": "{count} browserbron is niet geladen in OBS | {count} browserbronnen zijn niet geladen in OBS",
+        "sourcesFailed": "{count} browserbron is bij de laatste keer mislukt | {count} browserbronnen zijn bij de laatste keer mislukt",
         "off": "OBS is niet gekoppeld"
       },
       "connection": {

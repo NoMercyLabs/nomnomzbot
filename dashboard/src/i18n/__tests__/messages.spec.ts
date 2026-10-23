@@ -77,6 +77,26 @@ describe('words files', () => {
     expect(broken).toEqual([]);
   });
 
+  // A key that only English has shows as a raw key (or English words) to a Dutch reader on the home page.
+  it('gives every English key a Dutch text in the file beside it', () => {
+    const missing: string[] = [];
+
+    for (const [file, words] of Object.entries(files)) {
+      if (!file.endsWith('/en.json')) continue;
+
+      const dutch = files[file.replace(/en\.json$/u, 'nl.json')];
+      const have = new Set(messages(dutch ?? {}, '', []).map(([key]) => key));
+
+      for (const [key] of messages(words, '', [])) {
+        if (!have.has(key)) {
+          missing.push(`${file} ${key}`);
+        }
+      }
+    }
+
+    expect(missing).toEqual([]);
+  });
+
   // Owner rule: a Twitch subscriber and a YouTube subscriber are not the same thing, so a word about
   // subscribing names its platform. A key listed here sits beside a platform logo or names one in context.
   it('names the platform in every English text about subscribing', () => {
