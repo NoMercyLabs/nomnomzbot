@@ -211,6 +211,114 @@ public sealed class DiscordGuildDirectoryServiceTests
         result.Value.Should().BeEmpty();
     }
 
+    // Stoney 2026-10-23: the bot must be in the server before anything else on the Discord page works. The flag
+    // is set once at the OAuth callback, so a kicked bot kept saying "installed"; the check asks Discord.
+    [Theory]
+    [InlineData("DISCORD_NOT_FOUND")]
+    [InlineData("DISCORD_UNAUTHORIZED")]
+    public async Task RefreshPresenceAsync_MarksTheBotAbsent_WhenDiscordSaysItIsNotInTheServer(
+        string code
+    )
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        (Guid channel, Guid connectionId) = await SeedAsync(database, guildId: "guild-777");
+        RecordingGateway gateway = new()
+        {
+            NextGuildResult = Result.Failure<DiscordGuildInfoDto>("gone", code),
+        };
+
+        await using DiscordTestDbContext db = database.NewContext();
+        Result<DiscordBotPresenceDto> result = await new DiscordGuildDirectoryService(
+            db,
+            gateway
+        ).RefreshPresenceAsync(channel, connectionId);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().Be(new DiscordBotPresenceDto(connectionId, false));
+        await using DiscordTestDbContext verify = database.NewContext();
+        verify
+            .DiscordGuildConnections.Single(c => c.Id == connectionId)
+            .BotInstalled.Should()
+            .BeFalse();
+    }
+
+    [Fact]
+    public async Task RefreshPresenceAsync_MarksTheBotPresent_WhenTheServerAnswers()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        (Guid channel, Guid connectionId) = await SeedAsync(database, guildId: "guild-777");
+        await using (DiscordTestDbContext prepare = database.NewContext())
+        {
+            prepare.DiscordGuildConnections.Single(c => c.Id == connectionId).BotInstalled = false;
+            await prepare.SaveChangesAsync();
+        }
+
+        RecordingGateway gateway = new()
+        {
+            NextGuildResult = Result.Success(
+                new DiscordGuildInfoDto("guild-777", "The Guild", null, null)
+            ),
+        };
+
+        await using DiscordTestDbContext db = database.NewContext();
+        Result<DiscordBotPresenceDto> result = await new DiscordGuildDirectoryService(
+            db,
+            gateway
+        ).RefreshPresenceAsync(channel, connectionId);
+
+        result.Value.Should().Be(new DiscordBotPresenceDto(connectionId, true));
+        await using DiscordTestDbContext verify = database.NewContext();
+        verify
+            .DiscordGuildConnections.Single(c => c.Id == connectionId)
+            .BotInstalled.Should()
+            .BeTrue();
+    }
+
+    [Fact]
+    public async Task RefreshPresenceAsync_KeepsTheFlag_WhenDiscordFailsForAnotherReason()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        (Guid channel, Guid connectionId) = await SeedAsync(database, guildId: "guild-777");
+        RecordingGateway gateway = new()
+        {
+            NextGuildResult = Result.Failure<DiscordGuildInfoDto>(
+                "no token",
+                "DISCORD_BOT_TOKEN_NOT_CONFIGURED"
+            ),
+        };
+
+        await using DiscordTestDbContext db = database.NewContext();
+        Result<DiscordBotPresenceDto> result = await new DiscordGuildDirectoryService(
+            db,
+            gateway
+        ).RefreshPresenceAsync(channel, connectionId);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("DISCORD_BOT_TOKEN_NOT_CONFIGURED");
+        await using DiscordTestDbContext verify = database.NewContext();
+        verify
+            .DiscordGuildConnections.Single(c => c.Id == connectionId)
+            .BotInstalled.Should()
+            .BeTrue();
+    }
+
+    [Fact]
+    public async Task RefreshPresenceAsync_IsNotFound_ForAnotherTenantsConnection()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        (_, Guid connectionId) = await SeedAsync(database, guildId: "guild-777");
+        RecordingGateway gateway = new();
+
+        await using DiscordTestDbContext db = database.NewContext();
+        Result<DiscordBotPresenceDto> result = await new DiscordGuildDirectoryService(
+            db,
+            gateway
+        ).RefreshPresenceAsync(Guid.CreateVersion7(), connectionId);
+
+        result.IsFailure.Should().BeTrue();
+        gateway.GuildReads.Should().BeEmpty();
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private static async Task<(Guid Channel, Guid ConnectionId)> SeedAsync(

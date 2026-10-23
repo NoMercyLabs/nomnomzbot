@@ -27,6 +27,17 @@ public interface IDiscordGuildDirectoryService
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Asks Discord whether the bot is in the linked server and stores the answer on the connection. A missing
+    /// server (NOT_FOUND) or refused access (UNAUTHORIZED) means the bot is not in it; any other failure is
+    /// returned unchanged and the stored flag stays as it was.
+    /// </summary>
+    Task<Result<DiscordBotPresenceDto>> RefreshPresenceAsync(
+        Guid broadcasterId,
+        Guid connectionId,
+        CancellationToken ct = default
+    );
+
     /// <summary>The guild's live role list, for the notify-role picker.</summary>
     Task<Result<IReadOnlyList<DiscordGuildRoleDto>>> GetGuildRolesAsync(
         Guid broadcasterId,

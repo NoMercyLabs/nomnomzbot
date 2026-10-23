@@ -47,6 +47,47 @@ public sealed class DiscordGuildDirectoryService : IDiscordGuildDirectoryService
         return await _gateway.GetGuildAsync(broadcasterId, guildId, ct);
     }
 
+    public async Task<Result<DiscordBotPresenceDto>> RefreshPresenceAsync(
+        Guid broadcasterId,
+        Guid connectionId,
+        CancellationToken ct = default
+    )
+    {
+        DiscordGuildConnection? connection = await _db.DiscordGuildConnections.FirstOrDefaultAsync(
+            c => c.Id == connectionId && c.BroadcasterId == broadcasterId,
+            ct
+        );
+        if (connection is null)
+            return Errors.NotFound<DiscordBotPresenceDto>(
+                "Discord connection",
+                connectionId.ToString()
+            );
+
+        Result<DiscordGuildInfoDto> guild = await _gateway.GetGuildAsync(
+            broadcasterId,
+            connection.GuildId,
+            ct
+        );
+        bool? present =
+            guild.IsSuccess ? true
+            : guild.ErrorCode is "DISCORD_NOT_FOUND" or "DISCORD_UNAUTHORIZED" ? false
+            : null;
+        if (present is null)
+            return Result.Failure<DiscordBotPresenceDto>(
+                guild.ErrorMessage,
+                guild.ErrorCode,
+                guild.ErrorDetail
+            );
+
+        if (connection.BotInstalled != present.Value)
+        {
+            connection.BotInstalled = present.Value;
+            await _db.SaveChangesAsync(ct);
+        }
+
+        return Result.Success(new DiscordBotPresenceDto(connection.Id, present.Value));
+    }
+
     public async Task<Result<IReadOnlyList<DiscordGuildRoleDto>>> GetGuildRolesAsync(
         Guid broadcasterId,
         Guid connectionId,

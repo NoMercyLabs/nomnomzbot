@@ -202,6 +202,9 @@ public sealed record DiscordOptInButton(
 /// <summary>The linked guild's live profile, proxied from Discord for the dashboard.</summary>
 public sealed record DiscordGuildInfoDto(string Id, string Name, string? Icon, string? Description);
 
+/// <summary>Whether the bot is a member of the linked server right now, as Discord answers.</summary>
+public sealed record DiscordBotPresenceDto(Guid ConnectionId, bool BotInstalled);
+
 /// <summary>A live guild role, for the notify-role picker. <c>Managed</c> roles cannot be self-assigned.
 /// <see cref="Permissions"/> is Discord's decimal permission bitfield as a string (53-bit-safe wire format).</summary>
 public sealed record DiscordGuildRoleDto(

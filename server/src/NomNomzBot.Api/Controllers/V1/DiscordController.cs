@@ -152,6 +152,19 @@ public class DiscordController : BaseController
 
     // ── Guild directory (live pickers — proxied reads, nothing persisted) ────
 
+    /// <summary>
+    /// Ask Discord whether the bot is in the linked server right now and store the answer. The connection page
+    /// calls it when it opens, so a bot that was kicked (or never joined) shows the add-the-bot step first.
+    /// </summary>
+    [RequireAction("discord:connection:read")]
+    [HttpPost("connections/{connectionId:guid}/presence")]
+    [ProducesResponseType<StatusResponseDto<DiscordBotPresenceDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RefreshPresence(
+        Guid channelId,
+        Guid connectionId,
+        CancellationToken ct
+    ) => ResultResponse(await _directory.RefreshPresenceAsync(channelId, connectionId, ct));
+
     /// <summary>Read the linked guild's live profile from Discord.</summary>
     [RequireAction("discord:connection:read")]
     [HttpGet("connections/{connectionId:guid}/guild")]

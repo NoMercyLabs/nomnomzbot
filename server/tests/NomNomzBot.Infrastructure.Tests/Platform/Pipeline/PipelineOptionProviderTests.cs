@@ -1032,6 +1032,15 @@ public sealed class PipelineOptionProviderTests
             CancellationToken ct = default
         ) => throw new InvalidOperationException("Should not be reached — no active connection.");
 
+        public Task<Result<DiscordBotPresenceDto>> RefreshPresenceAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            CancellationToken ct = default
+        ) =>
+            throw new InvalidOperationException(
+                "Should not be reached — presence is not an option source."
+            );
+
         public Task<Result<IReadOnlyList<DiscordAssignableRoleDto>>> GetAssignableGuildRolesAsync(
             Guid broadcasterId,
             Guid connectionId,
@@ -1088,6 +1097,15 @@ public sealed class PipelineOptionProviderTests
             Guid connectionId,
             CancellationToken ct = default
         ) => Task.FromResult(Result.Failure<IReadOnlyList<DiscordGuildChannelDto>>(_message));
+
+        public Task<Result<DiscordBotPresenceDto>> RefreshPresenceAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            CancellationToken ct = default
+        ) =>
+            throw new InvalidOperationException(
+                "Should not be reached — presence is not an option source."
+            );
 
         public Task<Result<IReadOnlyList<DiscordAssignableRoleDto>>> GetAssignableGuildRolesAsync(
             Guid broadcasterId,
@@ -1154,6 +1172,15 @@ public sealed class PipelineOptionProviderTests
             Guid connectionId,
             CancellationToken ct = default
         ) => Task.FromResult(Result.Success(_channels));
+
+        public Task<Result<DiscordBotPresenceDto>> RefreshPresenceAsync(
+            Guid broadcasterId,
+            Guid connectionId,
+            CancellationToken ct = default
+        ) =>
+            throw new InvalidOperationException(
+                "Should not be reached — presence is not an option source."
+            );
 
         public Task<Result<IReadOnlyList<DiscordAssignableRoleDto>>> GetAssignableGuildRolesAsync(
             Guid broadcasterId,
