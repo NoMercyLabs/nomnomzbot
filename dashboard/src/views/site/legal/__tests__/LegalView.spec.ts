@@ -81,6 +81,14 @@ describe('the legal pages', () => {
     expect(view.text()).not.toMatch(/\{\w+\}/);
   });
 
+  // The original needs no note, and the note names no language, so a new translation never makes it wrong.
+  it('show no translation note on the English original', async () => {
+    const text = (await open('privacy')).text();
+
+    expect(text).not.toContain('is a translation');
+    expect(text).not.toContain('Dutch');
+  });
+
   it('say in the Privacy Policy what the bot keeps, why, and how to erase it', async () => {
     const text = (await open('privacy')).text();
 
@@ -106,7 +114,7 @@ describe('the legal pages', () => {
         expect(view.text()).not.toMatch(/\{\w+\}/);
         expect(view.text()).not.toContain('the Netherlands');
         expect(view.text()).toContain('23 okt 2026');
-        expect(view.text()).toContain('Als de Nederlandse en de Engelse tekst verschillen');
+        expect(view.text()).toContain('geldt de Engelse tekst');
       } finally {
         i18n.global.locale.value = 'en';
       }

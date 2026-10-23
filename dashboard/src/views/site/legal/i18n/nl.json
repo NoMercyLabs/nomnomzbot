@@ -4,7 +4,7 @@
       "back": "Terug naar home",
       "law": "Nederland",
       "effective": "Geldig vanaf {effective}",
-      "englishOnly": "Deze tekst is een Nederlandse vertaling. Als de Nederlandse en de Engelse tekst verschillen, geldt de Engelse tekst.",
+      "translation": "Deze tekst is een vertaling. Als hij verschilt van de Engelse tekst, geldt de Engelse tekst.",
       "links": {
         "privacy": "Privacybeleid",
         "terms": "Gebruiksvoorwaarden"

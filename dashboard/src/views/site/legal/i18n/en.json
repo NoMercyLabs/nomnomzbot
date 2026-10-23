@@ -4,7 +4,7 @@
       "back": "Back to home",
       "law": "the Netherlands",
       "effective": "Effective {effective}",
-      "englishOnly": "This text is also available in Dutch. If the two versions differ, the English version applies.",
+      "translation": "This text is a translation. If it differs from the English text, the English text applies.",
       "links": {
         "privacy": "Privacy Policy",
         "terms": "Terms of Service"

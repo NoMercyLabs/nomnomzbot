@@ -77,7 +77,10 @@ const sections = computed<Section[]>(() =>
         <p class="text-sm text-muted-foreground">
           {{ t('site.legal.effective', { effective }) }}
         </p>
-        <p class="text-sm text-muted-foreground">{{ t('site.legal.englishOnly') }}</p>
+        <!-- English is the original; every other language is a translation and says which text wins. -->
+        <p v-if="locale !== 'en'" class="text-sm text-muted-foreground">
+          {{ t('site.legal.translation') }}
+        </p>
       </div>
 
       <section
