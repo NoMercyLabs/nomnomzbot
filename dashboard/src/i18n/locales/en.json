@@ -107,6 +107,19 @@
       "search": "Search commands, pipelines and actions",
       "noMatch": "Nothing matches that search."
     },
+    "readAloud": {
+      "start": "Read aloud",
+      "controls": "Read aloud controls",
+      "play": "Play",
+      "pause": "Pause",
+      "stop": "Stop reading",
+      "prevSection": "Previous section",
+      "nextSection": "Next section",
+      "prevParagraph": "Previous paragraph",
+      "nextParagraph": "Next paragraph",
+      "speed": "Reading speed {rate}",
+      "unavailable": "The voice is not available right now. Try again in a moment."
+    },
     "blast": {
       "line": "{count} {what}: {names}",
       "lineAtLeast": "At least {count} {what}: {names}",

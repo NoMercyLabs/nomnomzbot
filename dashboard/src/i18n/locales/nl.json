@@ -107,6 +107,19 @@
       "search": "Zoek commando's, pipelines en acties",
       "noMatch": "Niets past bij deze zoekopdracht."
     },
+    "readAloud": {
+      "start": "Voorlezen",
+      "controls": "Voorlezen bedienen",
+      "play": "Afspelen",
+      "pause": "Pauzeren",
+      "stop": "Stoppen met lezen",
+      "prevSection": "Vorige sectie",
+      "nextSection": "Volgende sectie",
+      "prevParagraph": "Vorige alinea",
+      "nextParagraph": "Volgende alinea",
+      "speed": "Leessnelheid {rate}",
+      "unavailable": "De stem is nu niet beschikbaar. Probeer het zo meteen opnieuw."
+    },
     "blast": {
       "line": "{count} {what}: {names}",
       "lineAtLeast": "Minstens {count} {what}: {names}",

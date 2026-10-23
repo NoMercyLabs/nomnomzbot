@@ -15,6 +15,7 @@ import { useI18n } from 'vue-i18n';
 
 import AppMark from '@/components/layout/AppMark.vue';
 import LanguagePicker from '@/components/layout/LanguagePicker.vue';
+import ReadAloud from '@/components/layout/ReadAloud.vue';
 import { Button } from '@/components/ui/button';
 import { shortDate } from '@/lib/time';
 import { legalFacts, legalPaths } from './legalFacts';
@@ -64,7 +65,10 @@ const sections = computed<Section[]>(() =>
           {{ t('site.legal.back') }}
         </RouterLink>
       </Button>
-      <LanguagePicker />
+      <div class="flex items-center gap-2">
+        <ReadAloud />
+        <LanguagePicker />
+      </div>
     </header>
 
     <main class="flex flex-col gap-8">

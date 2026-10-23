@@ -21,9 +21,9 @@
             ]
           },
           {
-            "title": "Openbare informatie van Twitch en Discord",
+            "title": "Openbare informatie van de platforms waarmee wij verbinden",
             "p": [
-              "Het meeste dat NomNomzBot verwerkt, is al openbaar op Twitch of Discord: gebruikersnamen, weergavenamen, avatars en chatberichten in een openbaar kanaal.",
+              "Het meeste dat NomNomzBot verwerkt, is al openbaar op het platform waar het vandaan komt (Twitch, Kick, YouTube, X Live of Discord): gebruikersnamen, weergavenamen, avatars en chatberichten in een openbaar kanaal.",
               "Openbaar betekent niet dat er geen regels gelden. Een gebruikersnaam, een gebruikers-ID en een chatbericht wijzen naar een persoon, dus wij behandelen ze als persoonsgegevens. De rechten in dit beleid gelden voor iedereen, ook voor mensen die zich nooit hebben aangemeld.",
               "Wij gebruiken deze informatie alleen om de bot te laten werken in het kanaal waar ze vandaan komt. Wij verkopen haar niet en wij bouwen er geen advertentieprofielen van."
             ]
@@ -35,6 +35,7 @@
             ],
             "list": [
               "Van Twitch: gebruikers-ID, inlognaam, weergavenaam, profielfoto, naamkleur, type uitzender en aanmaakdatum van het account. Chatberichten met hun badges, emotes en tijd. Follows, abonnementen, cadeau-abonnementen, cheers, raids en inwisselingen van kanaalpunten, inclusief de tekst die een kijker intypt. Moderatieacties zoals bans, timeouts en verwijderde berichten. Streamstatus, titel en categorie.",
+              "Van Kick, YouTube en X Live, voor een streamer die ze koppelt: dezelfde soorten openbare gegevens, zoals gebruikers-ID, weergavenaam, avatar, chatberichten, follows, lidmaatschappen en streamstatus.",
               "Van een openbare voornaamwoordendienst: de voornaamwoorden die iemand daar heeft geregistreerd, getoond naast de naam.",
               "Van Discord: voor een server die een streamer koppelt, het server-ID, de naam, de kanalen en de rollen. Voor een lid dat zich aanmeldt voor meldingen, het Discord-gebruikers-ID en het ID van het privékanaal met de bot. De bot gebruikt de API van Discord om berichten te plaatsen, meldingsrollen te beheren en de privéberichten te sturen waar je om vroeg. De bot leest niet wat leden in jouw server schrijven.",
               "Van de streamer: de Twitch-login en de verzegelde tokens waarmee de bot namens het kanaal handelt. Instellingen, commando's, pipelines, overlays, scripts en geüploade bestanden. Koppelingen met andere diensten zoals Spotify, YouTube, OBS of Discord, en hun verzegelde tokens.",
@@ -60,7 +61,7 @@
             ],
             "list": [
               "Andere streamers: als een streamer zich aansluit bij een gedeeld netwerk, gaat beperkte informatie naar de andere leden. Dat zijn livemeldingen in hun Discord-servers en de moderatiesignalen die een streamer kiest te delen. De streamer bepaalt zelf of hij meedoet. De beheerder van een Discord-server bepaalt of berichten worden geaccepteerd.",
-              "Twitch en Discord, de platforms zelf, die ontvangen wat de bot naar hen stuurt.",
+              "De platforms zelf (Twitch, Kick, YouTube, X Live en Discord), die ontvangen wat de bot naar hen stuurt.",
               "Dienstverleners die ons helpen de dienst te draaien: onze hostingpartij en, wanneer een streamer ze gebruikt, Spotify, YouTube en tekst-naar-spraakaanbieders zoals Microsoft (Edge- en Azure-spraak) en ElevenLabs. Een tekst-naar-spraakaanbieder ontvangt de tekst die moet worden uitgesproken."
             ]
           },
@@ -91,13 +92,13 @@
           {
             "title": "Waar gegevens worden opgeslagen",
             "p": [
-              "De gehoste dienst slaat gegevens op een server in Nederland op, binnen de Europese Unie. Twitch, Discord en de hierboven genoemde aanbieders verwerken gegevens op hun eigen systemen, die buiten de Europese Unie kunnen staan, onder hun eigen waarborgen."
+              "De gehoste dienst slaat gegevens op een server in Nederland op, binnen de Europese Unie. De gekoppelde platforms en de hierboven genoemde aanbieders verwerken gegevens op hun eigen systemen, die buiten de Europese Unie kunnen staan, onder hun eigen waarborgen."
             ]
           },
           {
             "title": "Kinderen",
             "p": [
-              "NomNomzBot is niet voor kinderen. Twitch en Discord stellen een minimumleeftijd (13, of hoger waar de wet dat bepaalt) en wij volgen die. Spellen met fun-money vragen een kijker eerst om zijn of haar leeftijd te bevestigen.",
+              "NomNomzBot is niet voor kinderen. Elk platform stelt een minimumleeftijd (13, of hoger waar de wet dat bepaalt) en wij volgen die. Spellen met fun-money vragen een kijker eerst om zijn of haar leeftijd te bevestigen.",
               "Wij bewaren niet bewust gegevens van een kind onder de minimumleeftijd. Meld het ons via {email} en wij wissen ze."
             ]
           },
@@ -134,7 +135,7 @@
           {
             "title": "Wie het mag gebruiken",
             "p": [
-              "Je hebt een Twitch- of Discord-account in goede staat nodig en je moet oud genoeg zijn om dat account te hebben volgens hun regels (13, of hoger waar de wet dat bepaalt). Als je voor een bedrijf of team handelt, bevestig je dat je deze voorwaarden namens dat bedrijf of team mag accepteren.",
+              "Je hebt een account in goede staat nodig bij een platform waarmee de bot werkt (zoals Twitch, Kick, YouTube of Discord) en je moet oud genoeg zijn om dat account te hebben volgens de regels van dat platform (13, of hoger waar de wet dat bepaalt). Als je voor een bedrijf of team handelt, bevestig je dat je deze voorwaarden namens dat bedrijf of team mag accepteren.",
               "Houd je inlog veilig. Wat er via jouw account gebeurt, is jouw verantwoordelijkheid totdat je ons meldt dat het account is overgenomen."
             ]
           },
@@ -161,7 +162,7 @@
           {
             "title": "Twitch, Discord en andere platforms",
             "p": [
-              "NomNomzBot is niet gemaakt door, en is niet verbonden aan, Twitch, Discord, Spotify, YouTube of een ander platform waarmee de bot verbindt. Wij zijn afhankelijk van hun interfaces. Zij kunnen die wijzigen, beperken of stopzetten, en dan kan een functie veranderen of niet meer werken. Daarvoor zijn wij niet verantwoordelijk."
+              "NomNomzBot is niet gemaakt door, en is niet verbonden aan, Twitch, Kick, YouTube, X, Discord, Spotify of een ander platform waarmee de bot verbindt. Wij zijn afhankelijk van hun interfaces. Zij kunnen die wijzigen, beperken of stopzetten, en dan kan een functie veranderen of niet meer werken. Daarvoor zijn wij niet verantwoordelijk."
             ]
           },
           {

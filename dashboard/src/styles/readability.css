@@ -43,3 +43,12 @@ html[data-rd-motion='reduce'] *::after {
   transition-duration: 0.01ms !important;
   scroll-behavior: auto !important;
 }
+
+/* Read aloud (useReadAloud.ts): the block being spoken. An outline, not a border, so the text never shifts
+   while the voice moves from block to block. */
+[data-reading] {
+  outline: 2px solid var(--ring);
+  outline-offset: 4px;
+  border-radius: 0.25rem;
+  background: var(--accent);
+}

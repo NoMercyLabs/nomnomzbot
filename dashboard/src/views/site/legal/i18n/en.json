@@ -21,9 +21,9 @@
             ]
           },
           {
-            "title": "Public information from Twitch and Discord",
+            "title": "Public information from the platforms we connect to",
             "p": [
-              "Most of what NomNomzBot handles is already public on Twitch or Discord: usernames, display names, avatars and chat messages in a public channel.",
+              "Most of what NomNomzBot handles is already public on the platform it comes from (Twitch, Kick, YouTube, X Live or Discord): usernames, display names, avatars and chat messages in a public channel.",
               "Public does not mean free of rules. A username, a user ID and a chat message point to a person, so we treat them as personal data and give the rights in this policy to everyone, including people who never signed up.",
               "We use this information only to run the bot in the channel where it appeared. We do not sell it, and we do not build advertising profiles from it."
             ]
@@ -35,6 +35,7 @@
             ],
             "list": [
               "From Twitch: user ID, login name, display name, profile image, name color, broadcaster type and account creation date. Chat messages with their badges, emotes and time. Follows, subscriptions, gifts, cheers, raids and channel point redemptions, including any text a viewer types. Moderation actions such as bans, timeouts and deleted messages. Stream status, title and category.",
+              "From Kick, YouTube and X Live, for a streamer who connects them: the same kinds of public data, such as user ID, display name, avatar, chat messages, follows, memberships and stream status.",
               "From a public pronoun service: the pronouns a person registered there, shown next to their name.",
               "From Discord: for a server a streamer connects, the server ID, name, channels and roles. For a member who opts in to notifications, their Discord user ID and the ID of their private-message channel with the bot. The bot uses Discord's API to post messages, manage notification roles and send the private messages you asked for. It does not read what members write in your server.",
               "From the streamer: the Twitch sign-in and the sealed tokens that let the bot act for the channel. Settings, commands, pipelines, overlays, scripts and uploaded files. Connections to other services such as Spotify, YouTube, OBS or Discord, and their sealed tokens.",
@@ -60,7 +61,7 @@
             ],
             "list": [
               "Other streamers: if a streamer joins a shared network, limited information goes to the other members. That means live announcements in their Discord servers, and the moderation signals a streamer chooses to share. A streamer decides whether to join. A Discord server's admin decides whether to accept posts.",
-              "Twitch and Discord, which are the platforms themselves and receive what the bot sends to them.",
+              "The platforms themselves (Twitch, Kick, YouTube, X Live and Discord), which receive what the bot sends to them.",
               "Service providers that help us run it: our hosting provider and, when a streamer uses them, Spotify, YouTube and text-to-speech providers such as Microsoft (Edge and Azure speech) and ElevenLabs. A text-to-speech provider receives the text that is to be spoken."
             ]
           },
@@ -91,13 +92,13 @@
           {
             "title": "Where data is stored",
             "p": [
-              "The hosted service stores data on a server in the Netherlands, inside the European Union. Twitch, Discord and the providers named above process data on their own systems, which can be outside the European Union, under their own safeguards."
+              "The hosted service stores data on a server in the Netherlands, inside the European Union. The connected platforms and the providers named above process data on their own systems, which can be outside the European Union, under their own safeguards."
             ]
           },
           {
             "title": "Children",
             "p": [
-              "NomNomzBot is not for children. Twitch and Discord set a minimum age (13, or higher where the law says so) and we follow it. Games that use fun-money ask a viewer to confirm their age first.",
+              "NomNomzBot is not for children. Each platform sets a minimum age (13, or higher where the law says so) and we follow it. Games that use fun-money ask a viewer to confirm their age first.",
               "We do not knowingly keep data of a child below the minimum age. Tell us at {email} and we erase it."
             ]
           },
@@ -134,7 +135,7 @@
           {
             "title": "Who may use it",
             "p": [
-              "You need a Twitch or Discord account in good standing, and you must be old enough to hold it under their rules (13, or higher where the law says so). If you act for a company or a team, you confirm that you may accept these terms for it.",
+              "You need an account in good standing on a platform the bot works with (such as Twitch, Kick, YouTube or Discord), and you must be old enough to hold it under its rules (13, or higher where the law says so). If you act for a company or a team, you confirm that you may accept these terms for it.",
               "Keep your sign-in safe. What happens through your account is your responsibility until you tell us it was taken over."
             ]
           },
@@ -161,7 +162,7 @@
           {
             "title": "Twitch, Discord and other platforms",
             "p": [
-              "NomNomzBot is not made by, and is not affiliated with, Twitch, Discord, Spotify, YouTube or any other platform it connects to. We depend on their interfaces. They can change, limit or stop them, and then a feature can change or stop working. We are not responsible for that."
+              "NomNomzBot is not made by, and is not affiliated with, Twitch, Kick, YouTube, X, Discord, Spotify or any other platform it connects to. We depend on their interfaces. They can change, limit or stop them, and then a feature can change or stop working. We are not responsible for that."
             ]
           },
           {
