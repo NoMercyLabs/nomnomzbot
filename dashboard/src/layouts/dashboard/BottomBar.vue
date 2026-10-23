@@ -71,7 +71,7 @@ const sheetGroups = computed<VisibleGroup[]>(() =>
     <Drawer v-if="sheetEntries.length" v-model:open="more">
       <DrawerTrigger as-child>
         <Button variant="ghost" class="h-auto! min-h-11 min-w-0 flex-1 flex-col gap-1! px-1! py-1.5 text-xs">
-          <MenuDotsHorizontal aria-hidden="true" />
+          <MenuDotsHorizontal class="size-5" aria-hidden="true" />
           <span class="min-w-0 max-w-full text-center leading-tight">{{ t('frame.nav.more') }}</span>
         </Button>
       </DrawerTrigger>

@@ -2524,6 +2524,18 @@ describe('ChatView emote picker', () => {
       expect(rows.every((row) => row.classList.contains('phone:snap-start'))).toBe(true);
     });
 
+    // Stoney 2026-10-23: a folded section is only its header, and with mandatory snapping nothing held a snap
+    // point there, so the list pulled back to an emote row and the folded section could not be scrolled to.
+    it('makes every section a snap point, so a folded section can be scrolled to on a phone', async () => {
+      await open();
+      await openPicker();
+
+      const sections = [...picker()!.querySelectorAll('[data-picker-section]')];
+
+      expect(sections.length).toBeGreaterThan(1);
+      expect(sections.every((section) => section.classList.contains('phone:snap-start'))).toBe(true);
+    });
+
     // Coordinator 2026-10-15: fixed cell size, as the Twitch and Discord pickers have. The list is one header plus
     // a whole number of rows tall, so the first screen ends on a whole row.
     it('gives the cells a fixed size and the list a height of whole rows', async () => {

@@ -425,6 +425,7 @@ function closeTones(isOpen: boolean): void {
             :id="`picker-${section.id}`"
             :key="section.id"
             :data-picker-section="section.id"
+            class="phone:snap-start"
           >
             <h3 class="sticky top-0 z-10 bg-popover">
               <button

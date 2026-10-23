@@ -145,6 +145,26 @@ describe('the bottom bar More menu', () => {
 // Stoney 2026-10-19 Webhooks acceptance at 390: labels were cut on both sides ("asics", "Mor").
 // A flex item keeps its text width unless min-w-0 lets it shrink, so the label can only truncate with an ellipsis when its tab and its span may shrink.
 describe('the bottom bar tabs', () => {
+  // Stoney 2026-10-23: the More tab's icon had no size, so it was smaller than the others and its label sat
+  // higher than the rest of the labels.
+  it('draws every tab icon at one size so the labels share a baseline', async () => {
+    const router = makeRouter();
+
+    await router.push('/dashboard-analytics');
+
+    mounted = mount(BottomBar, {
+      attachTo: document.body,
+      global: { plugins: [router, i18n] },
+    });
+
+    await flushPromises();
+
+    const icons = mounted.findAll('nav > a svg, nav > button svg');
+
+    expect(icons.length).toBeGreaterThan(1);
+    expect(icons.map((icon) => icon.classes().includes('size-5'))).toEqual(icons.map(() => true));
+  });
+
   it('lets every tab and label shrink so a long label ends in an ellipsis instead of spilling', async () => {
     const router = makeRouter();
 
