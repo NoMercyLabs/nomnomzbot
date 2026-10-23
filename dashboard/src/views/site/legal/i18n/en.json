@@ -15,108 +15,80 @@
           {
             "title": "Who we are and what this covers",
             "p": [
-              "NomNomzBot is a chat bot and dashboard for streamers. This policy explains what personal data {company} (\"we\", \"us\") handles when you use the hosted NomNomzBot service, why we handle it, and what rights you have.",
-              "NomNomzBot is open-source software under the AGPL-3.0 license. If a streamer runs their own copy on their own server, that streamer is responsible for that copy, and {company} receives none of its data. This policy covers only the service we host.",
-              "For people who sign in, we decide why and how their account data is used, so we are the controller. For a channel's chat and viewer data, the streamer who runs the channel decides why it is used, so the streamer is the controller and we are the processor acting on the streamer's instructions. A streamer can ask us for a data processing agreement."
+              "NomNomzBot is a chat bot and dashboard for streamers. This policy explains what personal data {company} (\"we\", \"us\") handles when you use the hosted NomNomzBot service, why, and what rights you have.",
+              "NomNomzBot is open-source software. If a streamer runs their own copy on their own server, that streamer is responsible for that copy, and this policy does not cover it.",
+              "For people who sign in, we decide why and how their account data is used. For a channel's chat and viewer data, the streamer who runs the channel decides, and we act on the streamer's instructions."
             ]
           },
           {
-            "title": "Public information from the platforms we connect to",
+            "title": "What we handle",
             "p": [
-              "Most of what NomNomzBot handles is already public on the platform it comes from (Twitch, Kick, YouTube, X Live or Discord): usernames, display names, avatars and chat messages in a public channel.",
-              "Public does not mean free of rules. A username, a user ID and a chat message point to a person, so we treat them as personal data and give the rights in this policy to everyone, including people who never signed up.",
-              "We use this information only to run the bot in the channel where it appeared. We do not sell it, and we do not build advertising profiles from it."
-            ]
-          },
-          {
-            "title": "What we collect",
-            "p": [
-              "We collect the following, by source."
+              "Most of what the bot handles is already public on the platform it comes from, such as Twitch or Discord: names, avatars and chat messages. A name or a message points to a person, so we treat it as personal data and give everyone the rights below, including people who never signed up.",
+              "In general we handle:"
             ],
             "list": [
-              "From Twitch: user ID, login name, display name, profile image, name color, broadcaster type and account creation date. Chat messages with their badges, emotes and time. Follows, subscriptions, gifts, cheers, raids and channel point redemptions, including any text a viewer types. Moderation actions such as bans, timeouts and deleted messages. Stream status, title and category.",
-              "From Kick, YouTube and X Live, for a streamer who connects them: the same kinds of public data, such as user ID, display name, avatar, chat messages, follows, memberships and stream status.",
-              "From a public pronoun service: the pronouns a person registered there, shown next to their name.",
-              "From Discord: for a server a streamer connects, the server ID, name, channels and roles. For a member who opts in to notifications, their Discord user ID and the ID of their private-message channel with the bot. The bot uses Discord's API to post messages, manage notification roles and send the private messages you asked for. It does not read what members write in your server.",
-              "From the streamer: the Twitch sign-in and the sealed tokens that let the bot act for the channel. Settings, commands, pipelines, overlays, scripts and uploaded files. Connections to other services such as Spotify, YouTube, OBS or Discord, and their sealed tokens.",
-              "From using the bot: text-to-speech requests (the text, the voice chosen and the character count), song and media requests, points balances and game results, giveaway entries, quotes, polls, watch time and engagement counts, reports and spam-defense signals about messages, and a record of consent choices such as an age confirmation.",
-              "From a streamer's microphone: if a streamer turns on the voice listener, the speech that the browser's own speech recognition hears is sent to the bot as text and kept for that stream, so the streamer can read a transcript afterwards. Streamers must tell anyone who speaks on their stream.",
-              "Technical data: for signed-in sessions, the IP address (stored encrypted) and the browser type. Security and audit logs of sensitive actions."
+              "Information from the platforms a streamer connects: public profile details, chat messages, and activity such as follows and moderation actions.",
+              "Information from the streamer: sign-in details, settings, content they create in the dashboard, and the connections they set up to other services.",
+              "Information from using the bot: requests, points and game results, and records that keep the service safe.",
+              "Technical information about signed-in sessions, such as the address and browser they come from."
             ]
           },
           {
-            "title": "Why we use it, and our legal basis",
-            "list": [
-              "To run the service you asked for (contract): sign-in, the bot's features and the dashboard.",
-              "To run a channel's bot for viewers who never signed up (legitimate interest): answering commands, moderation, points and text to speech. You can object at any time.",
-              "To keep the service safe (legitimate interest): spam and abuse defense, rate limits, audit logs and security.",
-              "Because you chose it (consent): notification direct messages and optional features you switch on. You can withdraw consent at any time.",
-              "To meet a legal duty (legal obligation): for example, answering a lawful request."
-            ]
-          },
-          {
-            "title": "Who sees it and who receives it",
+            "title": "Why we use it",
             "p": [
-              "A channel's data is visible to that channel's streamer and to the moderators and editors the streamer allows. We do not sell personal data."
+              "We use it only to run the bot and keep it safe, and never to sell it or build advertising profiles. Our legal bases are:"
             ],
             "list": [
-              "Other streamers: if a streamer joins a shared network, limited information goes to the other members. That means live announcements in their Discord servers, and the moderation signals a streamer chooses to share. A streamer decides whether to join. A Discord server's admin decides whether to accept posts.",
-              "The platforms themselves (Twitch, Kick, YouTube, X Live and Discord), which receive what the bot sends to them.",
-              "Service providers that help us run it: our hosting provider and, when a streamer uses them, Spotify, YouTube and text-to-speech providers such as Microsoft (Edge and Azure speech) and ElevenLabs. A text-to-speech provider receives the text that is to be spoken."
+              "To run the service you asked for (contract).",
+              "To run a channel's bot for its viewers, and to keep the service safe from abuse (legitimate interest). You can object at any time.",
+              "For optional features you switch on (consent). You can withdraw it at any time.",
+              "To meet a legal duty."
+            ]
+          },
+          {
+            "title": "Who sees it",
+            "p": [
+              "A channel's data is visible to its streamer and to the people the streamer allows. We do not sell personal data.",
+              "It is also shared with the platforms the bot works with, with other streamers when a streamer chooses to join a shared network, and with the service providers that help us run the service. Those providers only receive what they need."
             ]
           },
           {
             "title": "How long we keep it",
             "p": [
-              "We keep data until it is erased. Chat logs, events, statistics and audit records are not deleted on a timer. Sign-in sessions and tokens expire on their own schedule.",
-              "The way to remove data is an erasure request (see \"Your rights\"). It also covers backups, because the keys that protect a person's stored tokens are destroyed."
+              "We keep data until it is erased, apart from sign-in sessions and tokens, which expire on their own. To have data removed, make an erasure request (see \"Your rights\")."
             ]
           },
           {
             "title": "Your rights",
             "p": [
-              "You have the right to see your data and get a copy in a machine-readable format, to correct it, to have it erased, to object to how it is used, to limit its use, and to withdraw consent. You can complain to your national data protection authority. In the Netherlands that is the Autoriteit Persoonsgegevens.",
-              "How to use them: signed-in people use the data page in the dashboard. In any channel that has the bot, type !mydata for a summary, or !gdpr status, !gdpr export or !gdpr forget (it asks you to confirm). You can also write to {email}. We answer within one month.",
-              "When we erase a person, we irreversibly anonymize their name, ID and message text across the whole deployment, and we destroy the keys that protect their stored tokens, so nothing can be recovered. Totals that no longer point to a person may remain."
+              "You can ask to see your data and get a copy, to correct it, to have it erased, to object to how it is used, to limit its use, and to withdraw consent. You can complain to your national data protection authority. In the Netherlands that is the Autoriteit Persoonsgegevens.",
+              "Signed-in people can use the data page in the dashboard. Anyone can also write to {email}. We answer within one month.",
+              "When we erase a person, we irreversibly anonymize their data, so nothing can be recovered."
             ]
           },
           {
-            "title": "How we protect it",
-            "list": [
-              "Tokens and secrets are sealed with encryption keys that belong to the person they came from. IP addresses are stored encrypted.",
-              "Data travels over encrypted connections.",
-              "Each channel's data is kept apart from other channels. Privileged access across channels is logged.",
-              "If a breach puts people at risk, we tell the supervisory authority within 72 hours and tell affected people when the law requires it."
-            ]
-          },
-          {
-            "title": "Where data is stored",
+            "title": "Security and where data is stored",
             "p": [
-              "The hosted service stores data on a server in the Netherlands, inside the European Union. The connected platforms and the providers named above process data on their own systems, which can be outside the European Union, under their own safeguards."
+              "We protect data with encryption and keep each channel's data apart from other channels. The hosted service stores data in the European Union. The connected platforms and providers process data on their own systems, which can be outside the European Union, under their own safeguards.",
+              "If a breach puts people at risk, we tell the supervisory authority and affected people when the law requires it."
             ]
           },
           {
             "title": "Children",
             "p": [
-              "NomNomzBot is not for children. Each platform sets a minimum age (13, or higher where the law says so) and we follow it. Games that use fun-money ask a viewer to confirm their age first.",
-              "We do not knowingly keep data of a child below the minimum age. Tell us at {email} and we erase it."
+              "NomNomzBot is not for children. Each platform sets a minimum age and we follow it. We do not knowingly keep data of a child below it. Tell us at {email} and we erase it."
             ]
           },
           {
-            "title": "Cookies and similar storage",
+            "title": "Cookies",
             "p": [
-              "We use essential storage only: a sign-in cookie that scripts in your browser cannot read, and your language choice. We use no tracking or advertising cookies and no analytics, so there is no consent banner."
+              "We use essential storage only, to keep you signed in and to remember your language. We use no tracking or advertising cookies and no analytics, so there is no consent banner."
             ]
           },
           {
-            "title": "Changes to this policy",
+            "title": "Changes and contact",
             "p": [
-              "When we change this policy we post the new version here and change the date. For a material change we also say so in the dashboard."
-            ]
-          },
-          {
-            "title": "Contact",
-            "p": [
+              "When we change this policy we post the new version here and change the date.",
               "{company}, {email}. Write to us for any request or question about your data."
             ]
           }

@@ -15,108 +15,80 @@
           {
             "title": "Wie wij zijn en wat dit beleid dekt",
             "p": [
-              "NomNomzBot is een chatbot en dashboard voor streamers. Dit beleid legt uit welke persoonsgegevens {company} (\"wij\", \"ons\") verwerkt wanneer je de gehoste NomNomzBot-dienst gebruikt, waarom wij dat doen en welke rechten je hebt.",
-              "NomNomzBot is open-sourcesoftware onder de AGPL-3.0-licentie. Als een streamer een eigen exemplaar op een eigen server draait, is die streamer verantwoordelijk voor dat exemplaar en ontvangt {company} er geen gegevens van. Dit beleid dekt alleen de dienst die wij hosten.",
-              "Voor mensen die inloggen bepalen wij waarom en hoe hun accountgegevens worden gebruikt, dus wij zijn de verwerkingsverantwoordelijke. Voor de chat- en kijkersgegevens van een kanaal bepaalt de streamer die het kanaal runt waarom ze worden gebruikt, dus de streamer is de verwerkingsverantwoordelijke en wij zijn de verwerker die op instructie van de streamer handelt. Een streamer kan ons om een verwerkersovereenkomst vragen."
+              "NomNomzBot is een chatbot en dashboard voor streamers. Dit beleid legt uit welke persoonsgegevens {company} (\"wij\", \"ons\") verwerkt wanneer je de gehoste NomNomzBot-dienst gebruikt, waarom, en welke rechten je hebt.",
+              "NomNomzBot is open-sourcesoftware. Als een streamer een eigen exemplaar op een eigen server draait, is die streamer daar zelf verantwoordelijk voor en valt dat exemplaar niet onder dit beleid.",
+              "Voor mensen die inloggen bepalen wij waarom en hoe hun accountgegevens worden gebruikt. Voor de chat- en kijkersgegevens van een kanaal bepaalt de streamer die het kanaal beheert dat, en wij handelen op instructie van de streamer."
             ]
           },
           {
-            "title": "Openbare informatie van de platforms waarmee wij verbinden",
+            "title": "Wat wij verwerken",
             "p": [
-              "Het meeste dat NomNomzBot verwerkt, is al openbaar op het platform waar het vandaan komt (Twitch, Kick, YouTube, X Live of Discord): gebruikersnamen, weergavenamen, avatars en chatberichten in een openbaar kanaal.",
-              "Openbaar betekent niet dat er geen regels gelden. Een gebruikersnaam, een gebruikers-ID en een chatbericht wijzen naar een persoon, dus wij behandelen ze als persoonsgegevens. De rechten in dit beleid gelden voor iedereen, ook voor mensen die zich nooit hebben aangemeld.",
-              "Wij gebruiken deze informatie alleen om de bot te laten werken in het kanaal waar ze vandaan komt. Wij verkopen haar niet en wij bouwen er geen advertentieprofielen van."
-            ]
-          },
-          {
-            "title": "Wat wij verzamelen",
-            "p": [
-              "Wij verzamelen het volgende, per bron."
+              "Het meeste wat de bot verwerkt is al openbaar op het platform waar het vandaan komt, zoals Twitch of Discord: namen, avatars en chatberichten. Een naam of een bericht wijst naar een persoon, dus wij behandelen het als persoonsgegevens en geven iedereen de onderstaande rechten, ook mensen die zich nooit hebben aangemeld.",
+              "In het algemeen verwerken wij:"
             ],
             "list": [
-              "Van Twitch: gebruikers-ID, inlognaam, weergavenaam, profielfoto, naamkleur, type uitzender en aanmaakdatum van het account. Chatberichten met hun badges, emotes en tijd. Follows, abonnementen, cadeau-abonnementen, cheers, raids en inwisselingen van kanaalpunten, inclusief de tekst die een kijker intypt. Moderatieacties zoals bans, timeouts en verwijderde berichten. Streamstatus, titel en categorie.",
-              "Van Kick, YouTube en X Live, voor een streamer die ze koppelt: dezelfde soorten openbare gegevens, zoals gebruikers-ID, weergavenaam, avatar, chatberichten, follows, lidmaatschappen en streamstatus.",
-              "Van een openbare voornaamwoordendienst: de voornaamwoorden die iemand daar heeft geregistreerd, getoond naast de naam.",
-              "Van Discord: voor een server die een streamer koppelt, het server-ID, de naam, de kanalen en de rollen. Voor een lid dat zich aanmeldt voor meldingen, het Discord-gebruikers-ID en het ID van het privékanaal met de bot. De bot gebruikt de API van Discord om berichten te plaatsen, meldingsrollen te beheren en de privéberichten te sturen waar je om vroeg. De bot leest niet wat leden in jouw server schrijven.",
-              "Van de streamer: de Twitch-login en de verzegelde tokens waarmee de bot namens het kanaal handelt. Instellingen, commando's, pipelines, overlays, scripts en geüploade bestanden. Koppelingen met andere diensten zoals Spotify, YouTube, OBS of Discord, en hun verzegelde tokens.",
-              "Uit het gebruik van de bot: tekst-naar-spraakverzoeken (de tekst, de gekozen stem en het aantal tekens), nummer- en mediaverzoeken, puntensaldi en spelresultaten, giveaway-inzendingen, quotes, polls, kijktijd en betrokkenheidscijfers, meldingen en spamverdedigingssignalen over berichten, en een vastlegging van toestemmingskeuzes zoals een leeftijdsbevestiging.",
-              "Van de microfoon van een streamer: als een streamer de spraakluisteraar aanzet, wordt de spraak die de eigen spraakherkenning van de browser hoort als tekst naar de bot gestuurd en voor die stream bewaard, zodat de streamer achteraf een transcript kan lezen. Streamers moeten iedereen die op hun stream spreekt hiervan op de hoogte stellen.",
-              "Technische gegevens: voor ingelogde sessies het IP-adres (versleuteld opgeslagen) en het browsertype. Beveiligings- en auditlogs van gevoelige acties."
+              "Informatie van de platforms die een streamer koppelt: openbare profielgegevens, chatberichten en activiteit zoals volgers en moderatieacties.",
+              "Informatie van de streamer: inloggegevens, instellingen, inhoud die de streamer in het dashboard maakt en de koppelingen met andere diensten.",
+              "Informatie uit het gebruik van de bot: verzoeken, punten en spelresultaten, en gegevens die de dienst veilig houden.",
+              "Technische informatie over ingelogde sessies, zoals het adres en de browser waarmee ze verbinden."
             ]
           },
           {
-            "title": "Waarom wij het gebruiken en onze rechtsgrond",
-            "list": [
-              "Om de dienst te leveren waar je om vroeg (overeenkomst): inloggen, de functies van de bot en het dashboard.",
-              "Om de bot van een kanaal te laten werken voor kijkers die zich nooit hebben aangemeld (gerechtvaardigd belang): commando's beantwoorden, moderatie, punten en tekst-naar-spraak. Je kunt op elk moment bezwaar maken.",
-              "Om de dienst veilig te houden (gerechtvaardigd belang): spam- en misbruikverdediging, limieten op aantallen verzoeken, auditlogs en beveiliging.",
-              "Omdat je het zelf koos (toestemming): privéberichten met meldingen en optionele functies die je aanzet. Je kunt je toestemming op elk moment intrekken.",
-              "Om aan een wettelijke plicht te voldoen (wettelijke verplichting): bijvoorbeeld bij het beantwoorden van een rechtmatig verzoek."
-            ]
-          },
-          {
-            "title": "Wie het ziet en wie het ontvangt",
+            "title": "Waarom wij het gebruiken",
             "p": [
-              "De gegevens van een kanaal zijn zichtbaar voor de streamer van dat kanaal en voor de moderators en editors die de streamer toelaat. Wij verkopen geen persoonsgegevens."
+              "Wij gebruiken het alleen om de bot te laten werken en veilig te houden, en nooit om het te verkopen of er advertentieprofielen van te maken. Onze rechtsgronden zijn:"
             ],
             "list": [
-              "Andere streamers: als een streamer zich aansluit bij een gedeeld netwerk, gaat beperkte informatie naar de andere leden. Dat zijn livemeldingen in hun Discord-servers en de moderatiesignalen die een streamer kiest te delen. De streamer bepaalt zelf of hij meedoet. De beheerder van een Discord-server bepaalt of berichten worden geaccepteerd.",
-              "De platforms zelf (Twitch, Kick, YouTube, X Live en Discord), die ontvangen wat de bot naar hen stuurt.",
-              "Dienstverleners die ons helpen de dienst te draaien: onze hostingpartij en, wanneer een streamer ze gebruikt, Spotify, YouTube en tekst-naar-spraakaanbieders zoals Microsoft (Edge- en Azure-spraak) en ElevenLabs. Een tekst-naar-spraakaanbieder ontvangt de tekst die moet worden uitgesproken."
+              "Om de dienst te leveren waarom je vroeg (overeenkomst).",
+              "Om de bot van een kanaal voor de kijkers te laten werken en de dienst te beschermen tegen misbruik (gerechtvaardigd belang). Je kunt op elk moment bezwaar maken.",
+              "Voor optionele functies die je aanzet (toestemming). Je kunt die op elk moment intrekken.",
+              "Om aan een wettelijke plicht te voldoen."
+            ]
+          },
+          {
+            "title": "Wie het ziet",
+            "p": [
+              "De gegevens van een kanaal zijn zichtbaar voor de streamer en voor de mensen die de streamer toestaat. Wij verkopen geen persoonsgegevens.",
+              "Ze worden ook gedeeld met de platforms waarmee de bot werkt, met andere streamers wanneer een streamer zich bij een gedeeld netwerk aansluit, en met de dienstverleners die ons helpen de dienst te draaien. Die dienstverleners krijgen alleen wat ze nodig hebben."
             ]
           },
           {
             "title": "Hoe lang wij het bewaren",
             "p": [
-              "Wij bewaren gegevens tot ze worden gewist. Chatlogs, gebeurtenissen, statistieken en auditgegevens worden niet na een bepaalde tijd verwijderd. Inlogsessies en tokens verlopen volgens hun eigen schema.",
-              "De manier om gegevens te laten verwijderen is een verzoek tot wissing (zie \"Jouw rechten\"). Dat geldt ook voor back-ups, omdat de sleutels die de opgeslagen tokens van een persoon beschermen worden vernietigd."
+              "Wij bewaren gegevens totdat ze worden gewist, behalve inlogsessies en tokens, die vanzelf verlopen. Om gegevens te laten verwijderen, doe je een verzoek tot wissing (zie \"Jouw rechten\")."
             ]
           },
           {
             "title": "Jouw rechten",
             "p": [
-              "Je hebt het recht om je gegevens in te zien en een kopie in een machineleesbaar formaat te krijgen, om ze te laten corrigeren, om ze te laten wissen, om bezwaar te maken tegen het gebruik, om het gebruik te laten beperken en om toestemming in te trekken. Je kunt een klacht indienen bij de toezichthouder voor gegevensbescherming van jouw land. In Nederland is dat de Autoriteit Persoonsgegevens.",
-              "Zo gebruik je ze: ingelogde mensen gebruiken de gegevenspagina in het dashboard. In elk kanaal met de bot typ je !mydata voor een overzicht, of !gdpr status, !gdpr export of !gdpr forget (die vraagt om bevestiging). Je kunt ook mailen naar {email}. Wij antwoorden binnen een maand.",
-              "Wanneer wij een persoon wissen, anonimiseren wij onomkeerbaar zijn of haar naam, ID en berichttekst in de hele installatie, en vernietigen wij de sleutels die de opgeslagen tokens beschermen, zodat niets meer te herstellen is. Totalen die niet meer naar een persoon wijzen kunnen blijven bestaan."
+              "Je kunt vragen om je gegevens in te zien en een kopie te krijgen, om ze te corrigeren, te laten wissen, bezwaar te maken tegen het gebruik, het gebruik te beperken en je toestemming in te trekken. Je kunt een klacht indienen bij je nationale toezichthouder. In Nederland is dat de Autoriteit Persoonsgegevens.",
+              "Ingelogde mensen kunnen de gegevenspagina in het dashboard gebruiken. Iedereen kan ook schrijven naar {email}. Wij antwoorden binnen een maand.",
+              "Als wij een persoon wissen, anonimiseren wij de gegevens onomkeerbaar, zodat niets kan worden hersteld."
             ]
           },
           {
-            "title": "Hoe wij het beschermen",
-            "list": [
-              "Tokens en geheimen worden verzegeld met versleutelingssleutels die horen bij de persoon van wie ze komen. IP-adressen worden versleuteld opgeslagen.",
-              "Gegevens reizen over versleutelde verbindingen.",
-              "De gegevens van elk kanaal worden gescheiden van die van andere kanalen. Bevoorrechte toegang over kanalen heen wordt gelogd.",
-              "Als een datalek mensen in gevaar brengt, melden wij dat binnen 72 uur bij de toezichthouder en informeren wij de getroffen mensen wanneer de wet dat eist."
-            ]
-          },
-          {
-            "title": "Waar gegevens worden opgeslagen",
+            "title": "Beveiliging en waar gegevens staan",
             "p": [
-              "De gehoste dienst slaat gegevens op een server in Nederland op, binnen de Europese Unie. De gekoppelde platforms en de hierboven genoemde aanbieders verwerken gegevens op hun eigen systemen, die buiten de Europese Unie kunnen staan, onder hun eigen waarborgen."
+              "Wij beschermen gegevens met versleuteling en houden de gegevens van elk kanaal gescheiden van andere kanalen. De gehoste dienst slaat gegevens op in de Europese Unie. De gekoppelde platforms en dienstverleners verwerken gegevens op hun eigen systemen, die buiten de Europese Unie kunnen staan, onder hun eigen waarborgen.",
+              "Als een datalek mensen in gevaar brengt, melden wij dat aan de toezichthouder en aan de getroffen mensen wanneer de wet dat vraagt."
             ]
           },
           {
             "title": "Kinderen",
             "p": [
-              "NomNomzBot is niet voor kinderen. Elk platform stelt een minimumleeftijd (13, of hoger waar de wet dat bepaalt) en wij volgen die. Spellen met fun-money vragen een kijker eerst om zijn of haar leeftijd te bevestigen.",
-              "Wij bewaren niet bewust gegevens van een kind onder de minimumleeftijd. Meld het ons via {email} en wij wissen ze."
+              "NomNomzBot is niet voor kinderen. Elk platform stelt een minimumleeftijd en wij volgen die. Wij bewaren niet bewust gegevens van een kind onder die leeftijd. Meld het ons via {email} en wij wissen ze."
             ]
           },
           {
-            "title": "Cookies en vergelijkbare opslag",
+            "title": "Cookies",
             "p": [
-              "Wij gebruiken alleen noodzakelijke opslag: een inlogcookie die scripts in je browser niet kunnen lezen, en je taalkeuze. Wij gebruiken geen tracking- of advertentiecookies en geen meetdiensten, dus er is geen toestemmingsbanner."
+              "Wij gebruiken alleen noodzakelijke opslag, om je ingelogd te houden en je taalkeuze te onthouden. Wij gebruiken geen tracking- of advertentiecookies en geen analyses, dus er is geen toestemmingsbanner."
             ]
           },
           {
-            "title": "Wijzigingen van dit beleid",
+            "title": "Wijzigingen en contact",
             "p": [
-              "Als wij dit beleid wijzigen, plaatsen wij de nieuwe versie hier en passen wij de datum aan. Bij een belangrijke wijziging melden wij dat ook in het dashboard."
-            ]
-          },
-          {
-            "title": "Contact",
-            "p": [
+              "Als wij dit beleid wijzigen, plaatsen wij de nieuwe versie hier en veranderen wij de datum.",
               "{company}, {email}. Schrijf ons voor elk verzoek of elke vraag over je gegevens."
             ]
           }

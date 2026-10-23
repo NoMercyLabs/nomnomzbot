@@ -84,7 +84,7 @@ describe('the legal pages', () => {
   it('say in the Privacy Policy what the bot keeps, why, and how to erase it', async () => {
     const text = (await open('privacy')).text();
 
-    for (const word of ['Twitch', 'Discord', 'microphone', 'legitimate interest', '!gdpr forget', 'erased']) {
+    for (const word of ['Twitch', 'Discord', 'legitimate interest', 'data page', 'erased']) {
       expect(text).toContain(word);
     }
   });
