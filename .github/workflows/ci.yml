@@ -109,8 +109,8 @@ jobs:
       - name: Unit tests
         run: npx vitest run
 
-      - name: Build
-        run: npm run build-only
+      # No production build here: the image build runs the same `npm run build-only` in its Node stage, next to
+      # this job, so a second build would be the same work twice.
 
       - name: Stop the run early
         if: failure()
@@ -118,13 +118,12 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: gh run cancel ${{ github.run_id }} --repo ${{ github.repository }}
 
+  # Builds the image next to the tests, not after them (the tests used to hold it back 13 minutes). It pushes only
+  # the immutable sha tag: nothing runs from that tag but the lite check. The moving tags (branch, latest), which
+  # the deploy pulls, are put on this same image by the publish job once the tests and the dashboard checks pass,
+  # so no work is done twice and an untested build never becomes `latest`.
   build:
     name: Build & push image
-    needs: [test, dashboard]
-    if: >
-      !cancelled() &&
-      needs.test.result == 'success' &&
-      needs.dashboard.result == 'success'
     runs-on: ubuntu-latest
     permissions:
       contents: read
@@ -150,9 +149,7 @@ jobs:
         with:
           images: ghcr.io/${{ env.IMAGE_NAME }}
           tags: |
-            type=ref,event=branch
             type=sha,prefix=sha-,format=short
-            type=raw,value=latest,enable=${{ github.ref == 'refs/heads/master' }}
 
       - name: Build and push
         uses: docker/build-push-action@v6
@@ -175,6 +172,43 @@ jobs:
           cache-to: |
             ${{ github.event_name == 'push' && format('type=registry,ref=ghcr.io/{0}:buildcache,mode=max', env.IMAGE_NAME) || '' }}
             type=gha,mode=max
+
+  # Puts the moving tags on the image the build job already pushed, once the tests and the dashboard checks have
+  # passed. A registry tag copy: no rebuild, a few seconds. The deploy pulls `latest`, so this is its gate.
+  publish:
+    name: Publish image tags
+    needs: [test, dashboard, build]
+    if: >
+      !cancelled() &&
+      needs.test.result == 'success' &&
+      needs.dashboard.result == 'success' &&
+      needs.build.result == 'success' &&
+      github.event_name == 'push'
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to GitHub Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Tag the tested image
+        run: |
+          set -eu
+          short=$(echo "${{ github.sha }}" | cut -c1-7)
+          image="ghcr.io/${{ env.IMAGE_NAME }}"
+          tags="-t ${image}:${{ github.ref_name }}"
+          if [ "${{ github.ref }}" = "refs/heads/master" ]; then
+            tags="${tags} -t ${image}:latest"
+          fi
+          docker buildx imagetools create ${tags} "${image}:sha-${short}"
 
   # Proves the SQLite-only Docker install (docker-compose.lite.yml): boots on the image the build job just
   # pushed, writes a row through the API, restarts the container, and checks the row survived on the volume.
@@ -290,7 +324,7 @@ jobs:
 
   deploy:
     name: Deploy to server
-    needs: build
+    needs: publish
     # DEPLOY_HOST is a private-LAN address (Proxmox) — a GitHub-hosted runner cannot reach it at all
     # ("dial tcp ***:22: i/o timeout"), so this runs on the self-hosted runner living on that same LAN
     # (registered with the nomnomzbot-deploy label). That runner container has no docker socket or
@@ -302,7 +336,7 @@ jobs:
     # repository secrets, and make sure the server can pull from ghcr.io/nomercylabs/nomnomzbot.
     if: >
       !cancelled() &&
-      needs.build.result == 'success' &&
+      needs.publish.result == 'success' &&
       github.ref == 'refs/heads/master' &&
       github.event_name == 'push' &&
       vars.DEPLOY_ENABLED == 'true'
