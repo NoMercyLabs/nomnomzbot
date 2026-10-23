@@ -113,13 +113,19 @@ public sealed class DiscordGuildService : IDiscordGuildService
             await _unitOfWork.ExecuteInTransactionAsync(
                 async token =>
                 {
-                    DiscordGuildConnection? connection =
-                        await _db.DiscordGuildConnections.FirstOrDefaultAsync(
+                    // Soft-deleted rows included: a server that was disconnected keeps its (channel, server) row,
+                    // and adding the bot again brings that row back instead of inserting a second one.
+                    DiscordGuildConnection? connection = await _db
+                        .DiscordGuildConnections.IgnoreQueryFilters()
+                        .FirstOrDefaultAsync(
                             c => c.BroadcasterId == broadcasterId && c.GuildId == oauth.GuildId,
                             token
                         );
 
-                    bool wasActive = connection is not null && IsActive(connection);
+                    bool wasActive =
+                        connection is not null
+                        && connection.DeletedAt is null
+                        && IsActive(connection);
                     DateTime now = _timeProvider.GetUtcNow().UtcDateTime;
 
                     if (connection is null)
@@ -133,6 +139,8 @@ public sealed class DiscordGuildService : IDiscordGuildService
                         _db.DiscordGuildConnections.Add(connection);
                     }
 
+                    connection.DeletedAt = null;
+                    connection.DeletedBy = null;
                     connection.GuildName = oauth.GuildName ?? connection.GuildName;
                     connection.BotInstalled = true;
                     // The OAuth bot-install carries the server admin's approval implicitly (they

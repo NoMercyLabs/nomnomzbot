@@ -126,6 +126,63 @@ public sealed class DiscordGuildServiceTests
         vault.StoredTokens[0].RefreshToken.Should().Be("bot-refresh-token");
     }
 
+    // A server that was disconnected is soft-deleted, and the (channel, server) pair stays unique. Adding the bot
+    // again must bring that row back instead of inserting a second one, which the database refused with a crash.
+    [Fact]
+    public async Task UpsertFromOAuthAsync_AfterDisconnect_RestoresTheSameConnection()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        Guid connectionId = await SeedConnectionAsync(
+            database,
+            channel,
+            serverConsent: "approved",
+            streamerEnabled: true,
+            guildId: "guild-again"
+        );
+        await SeedVaultConnectionAsync(database, channel, "guild-again");
+        RecordingVault vault = new();
+        RecordingEventBus bus = new();
+
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            await NewService(db, vault, bus).DisconnectAsync(channel, connectionId);
+        }
+
+        Result<DiscordGuildConnectionDto> again;
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            again = await NewService(db, vault, bus)
+                .UpsertFromOAuthAsync(
+                    channel,
+                    new(
+                        "guild-again",
+                        "Renamed Server",
+                        "new-access-token",
+                        "new-refresh-token",
+                        Clock.GetUtcNow().UtcDateTime.AddDays(7),
+                        ["bot", "guilds"],
+                        "installer-discord-id"
+                    )
+                );
+        }
+
+        again.IsSuccess.Should().BeTrue(again.ErrorMessage);
+        again.Value.Id.Should().Be(connectionId);
+
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            List<DiscordGuildConnection> rows = await db
+                .DiscordGuildConnections.IgnoreQueryFilters()
+                .Where(c => c.BroadcasterId == channel)
+                .ToListAsync();
+            DiscordGuildConnection stored = rows.Should().ContainSingle().Subject;
+            stored.DeletedAt.Should().BeNull();
+            stored.GuildName.Should().Be("Renamed Server");
+            stored.BotInstalled.Should().BeTrue();
+        }
+    }
+
     [Fact]
     public async Task SetStreamerEnabled_OnApprovedConnection_ReachesBothOptIn_AndPublishesLinked()
     {
