@@ -16,6 +16,17 @@
         "costValue": "{count} punt | {count} punten",
         "edit": "{title} bewerken",
         "editButton": "Bewerken",
+        "delete": {
+          "button": "Verwijderen",
+          "title": "{title} verwijderen?",
+          "description": "De beloning verdwijnt hier en op Twitch. Dit kan niet ongedaan worden gemaakt.",
+          "action": "Beloning verwijderen",
+          "nothing": "Geen kijker heeft deze beloning ingewisseld."
+        },
+        "duplicate": {
+          "button": "Dupliceren",
+          "tail": "kopie"
+        },
         "dialog": {
           "title": "{title} bewerken",
           "description": "Wijzigingen gaan naar Twitch zodra je opslaat.",

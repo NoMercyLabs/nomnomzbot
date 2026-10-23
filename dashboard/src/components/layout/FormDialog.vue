@@ -12,6 +12,7 @@
 // Same frame as ConfirmDialog: header and footer stay, only the body scrolls, at most 90% of the window.
 // The owner puts the fields in the default slot and keeps their values; this dialog only submits.
 // The optional header-action slot sits at the right of the title (for example an on/off switch).
+// The optional footer-start slot holds the actions about the thing itself, apart from the submit.
 // Pressing the primary button, or Enter in a field, emits submit once and leaves the dialog open:
 // the owner closes it (v-model:open) on success, or sets error, so the typed values survive a failure.
 // While pending the primary is disabled and Esc, Cancel and a click outside do not close it.
@@ -158,6 +159,10 @@ function focusFirstField(event: Event): void {
           {{ error }}
         </div>
         <DialogFooter class="flex-none border-t border-border px-6 py-4">
+          <!-- Actions about the thing itself (delete, duplicate) sit apart at the start, away from Save. -->
+          <div v-if="$slots['footer-start']" class="flex items-center gap-2 sm:mr-auto">
+            <slot name="footer-start" />
+          </div>
           <Button
             data-form-cancel
             type="button"

@@ -15,10 +15,19 @@
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { useUpdateReward, type Reward, type RewardChange } from '@/api/rewards';
+import {
+  fetchRewardBlastRadius,
+  useCreateReward,
+  useDeleteReward,
+  useUpdateReward,
+  type Reward,
+  type RewardChange,
+} from '@/api/rewards';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import ReplyModeField from '@/components/layout/ReplyModeField.vue';
 import { noPipelineId, type ReplyMode } from '@/components/layout/replyMode';
+import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ColorPicker } from '@/components/ui/color-picker';
 import TemplateField from '@/components/layout/TemplateField.vue';
@@ -33,6 +42,7 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { boundTarget, targetToWire, type PickedTarget } from '@/lib/bindingTarget';
 import { errorText, fieldErrorLines } from '@/lib/errors';
+import { blastLines } from '@/views/dashboard/scripts/components/blastLines';
 
 type TextKey = 'title' | 'prompt' | 'response' | 'backgroundColor';
 type NumberKey =
@@ -47,10 +57,12 @@ type FlagKey = 'isEnabled' | 'isPaused' | 'isUserInputRequired';
 const props = defineProps<{ reward: Reward }>();
 const open = defineModel<boolean>('open', { required: true });
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const update = useUpdateReward(channelId);
+const create = useCreateReward(channelId);
+const remove = useDeleteReward(channelId);
 
 const limitKeys = [
   'maxPerStream',
@@ -228,6 +240,81 @@ async function submit(): Promise<void> {
 
   open.value = false;
 }
+
+// Delete reads what the reward takes with it first and asks; nothing is deleted before the owner confirms.
+const confirmOpen = ref(false);
+const consequences = ref<string[]>([]);
+
+async function askDelete(): Promise<void> {
+  error.value = undefined;
+
+  try {
+    const lines = blastLines(
+      await fetchRewardBlastRadius(channelId.value as string, props.reward.id),
+      t,
+      te,
+    );
+
+    consequences.value = lines.length > 0
+      ? lines
+      : [t('dashboard.channelPoints.rewards.delete.nothing')];
+
+    confirmOpen.value = true;
+  } catch (failure) {
+    error.value = errorText(failure, t);
+  }
+}
+
+async function confirmDelete(): Promise<void> {
+  try {
+    await remove.mutateAsync(props.reward.id);
+  } catch (failure) {
+    error.value = errorText(failure, t);
+    confirmOpen.value = false;
+
+    return;
+  }
+
+  confirmOpen.value = false;
+  open.value = false;
+}
+
+// The copy has the saved settings of this reward and starts switched off, so it never goes live by surprise.
+// Twitch keeps reward names unique, so the copy gets a " copy" tail inside the title limit.
+async function duplicate(): Promise<void> {
+  const tail = ` ${t('dashboard.channelPoints.rewards.duplicate.tail')}`;
+  const { reward } = props;
+
+  error.value = undefined;
+
+  try {
+    const copyId = await create.mutateAsync({
+      title: `${reward.title.slice(0, TITLE_MAX - tail.length)}${tail}`,
+      cost: reward.cost,
+      prompt: reward.prompt,
+      response: reward.response,
+      isUserInputRequired: reward.isUserInputRequired,
+      backgroundColor: reward.backgroundColor,
+      maxPerStream: reward.maxPerStream,
+      maxPerUserPerStream: reward.maxPerUserPerStream,
+      globalCooldownSeconds: reward.globalCooldownSeconds,
+      timerDurationSeconds: reward.timerDurationSeconds,
+      speaksViaTts: reward.speaksViaTts,
+      pipelineId: reward.pipelineId,
+      target: reward.target,
+    });
+
+    if (copyId !== null) {
+      await update.mutateAsync({ rewardId: copyId, change: { isEnabled: false } });
+    }
+  } catch (failure) {
+    error.value = [errorText(failure, t), ...fieldErrorLines(failure)].join(' ');
+
+    return;
+  }
+
+  open.value = false;
+}
 </script>
 
 <template>
@@ -242,6 +329,28 @@ async function submit(): Promise<void> {
     data-reward-dialog
     @submit="submit"
   >
+    <template v-if="can('reward:manage')" #footer-start>
+      <Button
+        type="button"
+        variant="ghost"
+        class="text-destructive hover:text-destructive"
+        :disabled="update.isPending.value || remove.isPending.value"
+        data-reward-delete
+        @click="askDelete"
+      >
+        {{ $t('dashboard.channelPoints.rewards.delete.button') }}
+      </Button>
+      <Button
+        type="button"
+        variant="outline"
+        :disabled="update.isPending.value || create.isPending.value"
+        data-reward-duplicate
+        @click="duplicate"
+      >
+        {{ $t('dashboard.channelPoints.rewards.duplicate.button') }}
+      </Button>
+    </template>
+
     <template #header-action>
       <div
         v-if="can('reward:manage')"
@@ -416,4 +525,14 @@ async function submit(): Promise<void> {
       </CollapsibleContent>
     </Collapsible>
   </FormDialog>
+
+  <ConfirmDialog
+    v-model:open="confirmOpen"
+    :title="$t('dashboard.channelPoints.rewards.delete.title', { title: reward.title })"
+    :description="$t('dashboard.channelPoints.rewards.delete.description')"
+    :consequences="consequences"
+    :action="$t('dashboard.channelPoints.rewards.delete.action')"
+    :pending="remove.isPending.value"
+    @confirm="confirmDelete"
+  />
 </template>

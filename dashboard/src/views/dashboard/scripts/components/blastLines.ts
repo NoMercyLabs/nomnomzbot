@@ -15,7 +15,7 @@ type Has = (key: string) => boolean;
 
 // A category key is a resource key; a key this page has no words for shows its last part.
 function categoryLabel(key: string, t: Say, te: Has): string {
-  const own = `dashboard.scripts.blast.${key}`;
+  const own = `common.blast.categories.${key}`;
 
   if (te(key))
     return t(key);
@@ -32,8 +32,8 @@ function lineKey(isMinimum: boolean, named: boolean): string {
     : 'count';
 
   return isMinimum
-    ? `dashboard.scripts.delete.${kind}AtLeast`
-    : `dashboard.scripts.delete.${kind}`;
+    ? `common.blast.${kind}AtLeast`
+    : `common.blast.${kind}`;
 }
 
 // What else uses a script, one line per kind. Empty when nothing does.

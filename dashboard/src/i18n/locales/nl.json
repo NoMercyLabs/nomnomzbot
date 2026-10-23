@@ -106,6 +106,29 @@
       "missing": "Dit doel staat niet in dit kanaal.",
       "search": "Zoek commando's, pipelines en acties",
       "noMatch": "Niets past bij deze zoekopdracht."
+    },
+    "blast": {
+      "line": "{count} {what}: {names}",
+      "lineAtLeast": "Minstens {count} {what}: {names}",
+      "count": "{count} {what}",
+      "countAtLeast": "Minstens {count} {what}",
+      "categories": {
+        "blast_radius_category_code_script_versions": "opgeslagen versies van dit script",
+        "blast_radius_category_pipeline_steps": "pipeline-stappen",
+        "blast_radius_category_pipelines": "pipelines",
+        "blast_radius_category_commands": "commando's",
+        "blast_radius_category_widgets": "widgets",
+        "blast_radius_category_widget_versions": "opgeslagen versies van deze overlay",
+        "blast_radius_category_rewards": "beloningen",
+        "blast_radius_category_timers": "timers",
+        "blast_radius_category_event_responses": "eventreacties",
+        "blast_radius_category_chat_triggers": "chattriggers",
+        "blast_radius_category_giveaways": "weggeefacties",
+        "blast_radius_category_catalog_items": "catalogusitems",
+        "blast_radius_category_other_command_bindings": "andere plekken",
+        "blast_radius_category_redemptions": "inwisselingen",
+        "blast_radius_category_redemption_timers": "lopende beloningstimers"
+      }
     }
   },
   "template": {

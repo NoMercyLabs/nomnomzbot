@@ -16,6 +16,17 @@
         "costValue": "{count} point | {count} points",
         "edit": "Edit {title}",
         "editButton": "Edit",
+        "delete": {
+          "button": "Delete",
+          "title": "Delete {title}?",
+          "description": "The reward is removed here and on Twitch. This cannot be undone.",
+          "action": "Delete reward",
+          "nothing": "No viewer has redeemed this reward."
+        },
+        "duplicate": {
+          "button": "Duplicate",
+          "tail": "copy"
+        },
         "dialog": {
           "title": "Edit {title}",
           "description": "Changes go to Twitch when you save.",

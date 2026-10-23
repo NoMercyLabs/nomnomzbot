@@ -67,6 +67,19 @@ function read(path: string): unknown {
   if (path.endsWith('/roles/effective/me'))
     return ok({ heldActionKeys: held });
 
+  if (path.endsWith('/blast-radius')) {
+    return ok({
+      categories: [
+        {
+          categoryKey: 'blast_radius_category_redemptions',
+          count: 3,
+          sample: ['DukaSoft', 'Bamo'],
+        },
+      ],
+      isMinimum: false,
+    });
+  }
+
   if (path.endsWith('/rewards/availability')) {
     return ok({
       channelPointsAvailable,
@@ -102,6 +115,9 @@ function write(method: string, path: string, options?: Options): unknown {
     reward = { ...reward, ...(options?.body as Record<string, unknown>) };
   }
 
+  if (method === 'POST' && path.endsWith('/rewards'))
+    return ok({ id: 'r2' });
+
   return { response: { status: 200 } };
 }
 
@@ -111,6 +127,7 @@ vi.mock('@/api/client', () => ({
     GET: async (path: string) => read(path),
     POST: async (path: string, options?: Options) => write('POST', path, options),
     PATCH: async (path: string, options?: Options) => write('PATCH', path, options),
+    DELETE: async (path: string, options?: Options) => write('DELETE', path, options),
   },
 }));
 
@@ -281,6 +298,67 @@ describe('ChannelPointsView', () => {
       globalCooldownSeconds: 60,
       timerDurationSeconds: 30,
       pipelineId: 'p1',
+    });
+  });
+
+  // Stoney 2026-10-23: every user buildable gets the same tooling - create, duplicate, delete.
+  describe('the tools about the reward itself', () => {
+    const press = async (selector: string): Promise<void> => {
+      (document.body.querySelector(selector) as HTMLButtonElement).click();
+      await flushPromises();
+    };
+
+    it('deletes only after the counted list is shown and the owner confirms', async () => {
+      const view = await open();
+
+      await view.get('[data-reward-edit]').trigger('click');
+      await flushPromises();
+      await press('[data-reward-delete]');
+
+      expect(document.body.textContent).toContain('3 redemptions: DukaSoft, Bamo');
+      expect(calls.some((call) => call.method === 'DELETE')).toBe(false);
+
+      const confirm = [...document.body.querySelectorAll<HTMLButtonElement>('button')].find(
+        (button) => button.textContent?.trim() === 'Delete reward',
+      );
+
+      confirm!.click();
+      await flushPromises();
+
+      expect(calls.filter((call) => call.method === 'DELETE').map((call) => call.path)).toEqual([
+        '/api/v{version}/channels/{channelId}/rewards/{rewardId}',
+      ]);
+
+      expect(document.body.querySelector('[data-reward-dialog]')).toBeNull();
+    });
+
+    it('duplicates the reward with its settings, a copy name, and switched off', async () => {
+      reward = {
+        ...baseReward,
+        prompt: 'Drink up',
+        maxPerStream: 5,
+      };
+
+      const view = await open();
+
+      await view.get('[data-reward-edit]').trigger('click');
+      await flushPromises();
+      await press('[data-reward-duplicate]');
+
+      const created = calls.find((call) => call.method === 'POST');
+      const switchedOff = calls.find((call) => call.method === 'PATCH');
+
+      expect(created?.body).toMatchObject({
+        title: 'Hydrate copy',
+        cost: 500,
+        prompt: 'Drink up',
+        maxPerStream: 5,
+        pipelineId: 'p1',
+      });
+
+      expect(switchedOff?.path).toContain('/rewards/{rewardId}');
+      expect(switchedOff?.body).toEqual({ isEnabled: false });
+      expect(document.body.querySelector('[data-reward-dialog]')).toBeNull();
     });
   });
 

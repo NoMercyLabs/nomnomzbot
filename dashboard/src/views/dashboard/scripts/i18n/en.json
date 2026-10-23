@@ -166,29 +166,10 @@
         "log": "Log",
         "close": "Close"
       },
-      "blast": {
-        "blast_radius_category_code_script_versions": "saved versions of this script",
-        "blast_radius_category_pipeline_steps": "pipeline steps",
-        "blast_radius_category_pipelines": "pipelines",
-        "blast_radius_category_commands": "commands",
-        "blast_radius_category_widgets": "widgets",
-        "blast_radius_category_widget_versions": "saved versions of this overlay",
-        "blast_radius_category_rewards": "rewards",
-        "blast_radius_category_timers": "timers",
-        "blast_radius_category_event_responses": "event responses",
-        "blast_radius_category_chat_triggers": "chat triggers",
-        "blast_radius_category_giveaways": "giveaways",
-        "blast_radius_category_catalog_items": "catalog items",
-        "blast_radius_category_other_command_bindings": "other places"
-      },
       "delete": {
         "title": "Delete {name}?",
         "description": "This cannot be undone.",
         "action": "Delete script",
-        "line": "{count} {what}: {names}",
-        "lineAtLeast": "At least {count} {what}: {names}",
-        "count": "{count} {what}",
-        "countAtLeast": "At least {count} {what}",
         "nothing": "Nothing else uses this script."
       },
       "new": {

@@ -166,29 +166,10 @@
         "log": "Log",
         "close": "Sluiten"
       },
-      "blast": {
-        "blast_radius_category_code_script_versions": "opgeslagen versies van dit script",
-        "blast_radius_category_pipeline_steps": "pipeline-stappen",
-        "blast_radius_category_pipelines": "pipelines",
-        "blast_radius_category_commands": "commando's",
-        "blast_radius_category_widgets": "widgets",
-        "blast_radius_category_widget_versions": "opgeslagen versies van deze overlay",
-        "blast_radius_category_rewards": "beloningen",
-        "blast_radius_category_timers": "timers",
-        "blast_radius_category_event_responses": "eventreacties",
-        "blast_radius_category_chat_triggers": "chattriggers",
-        "blast_radius_category_giveaways": "weggeefacties",
-        "blast_radius_category_catalog_items": "catalogusitems",
-        "blast_radius_category_other_command_bindings": "andere plekken"
-      },
       "delete": {
         "title": "{name} verwijderen?",
         "description": "Dit kan niet ongedaan worden gemaakt.",
         "action": "Script verwijderen",
-        "line": "{count} {what}: {names}",
-        "lineAtLeast": "Minstens {count} {what}: {names}",
-        "count": "{count} {what}",
-        "countAtLeast": "Minstens {count} {what}",
         "nothing": "Niets anders gebruikt dit script."
       },
       "new": {

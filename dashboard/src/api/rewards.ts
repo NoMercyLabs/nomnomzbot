@@ -8,10 +8,10 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { UseMutationReturnType, UseQueryReturnType } from '@tanstack/vue-query';
+import { useMutation, useQueryClient, type UseMutationReturnType, type UseQueryReturnType } from '@tanstack/vue-query';
 import { toValue, type MaybeRefOrGetter } from 'vue';
 
-import { channelOptions, channelQuery, failed } from './channelQuery';
+import { channelOptions, channelQuery, failed, refusal } from './channelQuery';
 import { client } from './client';
 import type { components } from './schema';
 import { useOptimisticSave } from '@/composables/useOptimisticSave';
@@ -164,6 +164,87 @@ export function useUpdateReward(
       return readRewards(id);
     },
     apply: withChange,
+  });
+}
+
+export type NewReward = components['schemas']['CreateRewardRequest'];
+export type RewardBlastRadius = components['schemas']['BlastRadius'];
+
+// A new reward is made on Twitch first, so it is not shown before the bot accepts it.
+// Resolves to the new reward's id.
+export function useCreateReward(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<string | null, Error, NewReward, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation<string | null, Error, NewReward, undefined>({
+    mutationFn: async (reward: NewReward): Promise<string | null> => {
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/rewards',
+        {
+          params: { path: { version, channelId: toValue(channelId) as string } },
+          body: reward,
+        },
+      );
+
+      if (error !== undefined)
+        throw refusal('create reward', error, response.status);
+
+      return data?.data?.id ?? null;
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({ queryKey: rewardsKey(toValue(channelId)) });
+    },
+  });
+}
+
+// What a delete takes with it, counted by the bot: the redemptions and running timers of the reward.
+export async function fetchRewardBlastRadius(
+  channelId: string,
+  rewardId: string,
+): Promise<RewardBlastRadius> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/rewards/{rewardId}/blast-radius',
+    { params: { path: {
+      version,
+      channelId,
+      rewardId,
+    } } },
+  );
+
+  if (error !== undefined || !data?.data)
+    throw refusal('reward blast radius', error, response.status);
+
+  return data.data;
+}
+
+// The blast radius is read again right before the delete: a reward whose impact cannot be read is not deleted.
+export function useDeleteReward(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, string, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation<void, Error, string, undefined>({
+    mutationFn: async (rewardId: string): Promise<void> => {
+      const channel = toValue(channelId) as string;
+
+      await fetchRewardBlastRadius(channel, rewardId);
+
+      const { error, response } = await client.DELETE(
+        '/api/v{version}/channels/{channelId}/rewards/{rewardId}',
+        { params: { path: {
+          version,
+          channelId: channel,
+          rewardId,
+        } } },
+      );
+
+      if (error !== undefined)
+        throw refusal('delete reward', error, response.status);
+    },
+    onSuccess: (): void => {
+      void queries.invalidateQueries({ queryKey: rewardsKey(toValue(channelId)) });
+    },
   });
 }
 
