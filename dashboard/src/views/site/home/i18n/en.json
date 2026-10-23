@@ -117,7 +117,9 @@
         "body": "Self-host it for free, forever. It needs nothing from NoMercy's servers."
       },
       "footer": {
-        "text": "© NomNomzBot. Free, open-source software (AGPL-3.0)."
+        "text": "© NomNomzBot. Free, open-source software (AGPL-3.0).",
+        "privacy": "Privacy Policy",
+        "terms": "Terms of Service"
       }
     }
   }

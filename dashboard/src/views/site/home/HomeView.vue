@@ -16,6 +16,8 @@ import { useI18n } from 'vue-i18n';
 
 import { Button } from '@/components/ui/button';
 
+import { legalPaths } from '@/views/site/legal/legalFacts';
+
 import DeploySection from './DeploySection.vue';
 import FeatureGroups from './FeatureGroups.vue';
 import HomeHeader from './HomeHeader.vue';
@@ -91,6 +93,14 @@ const { t } = useI18n();
       class="flex flex-wrap items-center justify-between gap-2 border-t border-border pt-4 text-sm text-muted-foreground"
     >
       <span>{{ t('site.home.footer.text') }}</span>
+      <nav class="flex flex-wrap gap-4" data-legal-links>
+        <RouterLink class="hover:text-foreground" :to="`/${legalPaths.privacy}`">{{
+          t('site.home.footer.privacy')
+        }}</RouterLink>
+        <RouterLink class="hover:text-foreground" :to="`/${legalPaths.terms}`">{{
+          t('site.home.footer.terms')
+        }}</RouterLink>
+      </nav>
       <a
         class="hover:text-foreground"
         :href="t('site.home.githubUrl')"

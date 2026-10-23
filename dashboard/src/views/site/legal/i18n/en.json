@@ -1,0 +1,220 @@
+{
+  "site": {
+    "legal": {
+      "back": "Back to home",
+      "law": "the Netherlands",
+      "effective": "Effective {effective}",
+      "englishOnly": "This text is also available in Dutch. If the two versions differ, the English version applies.",
+      "links": {
+        "privacy": "Privacy Policy",
+        "terms": "Terms of Service"
+      },
+      "privacy": {
+        "title": "Privacy Policy",
+        "sections": [
+          {
+            "title": "Who we are and what this covers",
+            "p": [
+              "NomNomzBot is a chat bot and dashboard for streamers. This policy explains what personal data {company} (\"we\", \"us\") handles when you use the hosted NomNomzBot service, why we handle it, and what rights you have.",
+              "NomNomzBot is open-source software under the AGPL-3.0 license. If a streamer runs their own copy on their own server, that streamer is responsible for that copy, and {company} receives none of its data. This policy covers only the service we host.",
+              "For people who sign in, we decide why and how their account data is used, so we are the controller. For a channel's chat and viewer data, the streamer who runs the channel decides why it is used, so the streamer is the controller and we are the processor acting on the streamer's instructions. A streamer can ask us for a data processing agreement."
+            ]
+          },
+          {
+            "title": "Public information from Twitch and Discord",
+            "p": [
+              "Most of what NomNomzBot handles is already public on Twitch or Discord: usernames, display names, avatars and chat messages in a public channel.",
+              "Public does not mean free of rules. A username, a user ID and a chat message point to a person, so we treat them as personal data and give the rights in this policy to everyone, including people who never signed up.",
+              "We use this information only to run the bot in the channel where it appeared. We do not sell it, and we do not build advertising profiles from it."
+            ]
+          },
+          {
+            "title": "What we collect",
+            "p": [
+              "We collect the following, by source."
+            ],
+            "list": [
+              "From Twitch: user ID, login name, display name, profile image, name color, broadcaster type and account creation date. Chat messages with their badges, emotes and time. Follows, subscriptions, gifts, cheers, raids and channel point redemptions, including any text a viewer types. Moderation actions such as bans, timeouts and deleted messages. Stream status, title and category.",
+              "From a public pronoun service: the pronouns a person registered there, shown next to their name.",
+              "From Discord: for a server a streamer connects, the server ID, name, channels and roles. For a member who opts in to notifications, their Discord user ID and the ID of their private-message channel with the bot. The bot uses Discord's API to post messages, manage notification roles and send the private messages you asked for. It does not read what members write in your server.",
+              "From the streamer: the Twitch sign-in and the sealed tokens that let the bot act for the channel. Settings, commands, pipelines, overlays, scripts and uploaded files. Connections to other services such as Spotify, YouTube, OBS or Discord, and their sealed tokens.",
+              "From using the bot: text-to-speech requests (the text, the voice chosen and the character count), song and media requests, points balances and game results, giveaway entries, quotes, polls, watch time and engagement counts, reports and spam-defense signals about messages, and a record of consent choices such as an age confirmation.",
+              "From a streamer's microphone: if a streamer turns on the voice listener, the speech that the browser's own speech recognition hears is sent to the bot as text and kept for that stream, so the streamer can read a transcript afterwards. Streamers must tell anyone who speaks on their stream.",
+              "Technical data: for signed-in sessions, the IP address (stored encrypted) and the browser type. Security and audit logs of sensitive actions."
+            ]
+          },
+          {
+            "title": "Why we use it, and our legal basis",
+            "list": [
+              "To run the service you asked for (contract): sign-in, the bot's features and the dashboard.",
+              "To run a channel's bot for viewers who never signed up (legitimate interest): answering commands, moderation, points and text to speech. You can object at any time.",
+              "To keep the service safe (legitimate interest): spam and abuse defense, rate limits, audit logs and security.",
+              "Because you chose it (consent): notification direct messages and optional features you switch on. You can withdraw consent at any time.",
+              "To meet a legal duty (legal obligation): for example, answering a lawful request."
+            ]
+          },
+          {
+            "title": "Who sees it and who receives it",
+            "p": [
+              "A channel's data is visible to that channel's streamer and to the moderators and editors the streamer allows. We do not sell personal data."
+            ],
+            "list": [
+              "Other streamers: if a streamer joins a shared network, limited information goes to the other members. That means live announcements in their Discord servers, and the moderation signals a streamer chooses to share. A streamer decides whether to join. A Discord server's admin decides whether to accept posts.",
+              "Twitch and Discord, which are the platforms themselves and receive what the bot sends to them.",
+              "Service providers that help us run it: our hosting provider and, when a streamer uses them, Spotify, YouTube and text-to-speech providers such as Microsoft (Edge and Azure speech) and ElevenLabs. A text-to-speech provider receives the text that is to be spoken."
+            ]
+          },
+          {
+            "title": "How long we keep it",
+            "p": [
+              "We keep data until it is erased. Chat logs, events, statistics and audit records are not deleted on a timer. Sign-in sessions and tokens expire on their own schedule.",
+              "The way to remove data is an erasure request (see \"Your rights\"). It also covers backups, because the keys that protect a person's stored tokens are destroyed."
+            ]
+          },
+          {
+            "title": "Your rights",
+            "p": [
+              "You have the right to see your data and get a copy in a machine-readable format, to correct it, to have it erased, to object to how it is used, to limit its use, and to withdraw consent. You can complain to your national data protection authority. In the Netherlands that is the Autoriteit Persoonsgegevens.",
+              "How to use them: signed-in people use the data page in the dashboard. In any channel that has the bot, type !mydata for a summary, or !gdpr status, !gdpr export or !gdpr forget (it asks you to confirm). You can also write to {email}. We answer within one month.",
+              "When we erase a person, we irreversibly anonymize their name, ID and message text across the whole deployment, and we destroy the keys that protect their stored tokens, so nothing can be recovered. Totals that no longer point to a person may remain."
+            ]
+          },
+          {
+            "title": "How we protect it",
+            "list": [
+              "Tokens and secrets are sealed with encryption keys that belong to the person they came from. IP addresses are stored encrypted.",
+              "Data travels over encrypted connections.",
+              "Each channel's data is kept apart from other channels. Privileged access across channels is logged.",
+              "If a breach puts people at risk, we tell the supervisory authority within 72 hours and tell affected people when the law requires it."
+            ]
+          },
+          {
+            "title": "Where data is stored",
+            "p": [
+              "The hosted service stores data on a server in the Netherlands, inside the European Union. Twitch, Discord and the providers named above process data on their own systems, which can be outside the European Union, under their own safeguards."
+            ]
+          },
+          {
+            "title": "Children",
+            "p": [
+              "NomNomzBot is not for children. Twitch and Discord set a minimum age (13, or higher where the law says so) and we follow it. Games that use fun-money ask a viewer to confirm their age first.",
+              "We do not knowingly keep data of a child below the minimum age. Tell us at {email} and we erase it."
+            ]
+          },
+          {
+            "title": "Cookies and similar storage",
+            "p": [
+              "We use essential storage only: a sign-in cookie that scripts in your browser cannot read, and your language choice. We use no tracking or advertising cookies and no analytics, so there is no consent banner."
+            ]
+          },
+          {
+            "title": "Changes to this policy",
+            "p": [
+              "When we change this policy we post the new version here and change the date. For a material change we also say so in the dashboard."
+            ]
+          },
+          {
+            "title": "Contact",
+            "p": [
+              "{company}, {email}. Write to us for any request or question about your data."
+            ]
+          }
+        ]
+      },
+      "terms": {
+        "title": "Terms of Service",
+        "sections": [
+          {
+            "title": "About these terms",
+            "p": [
+              "These terms are between you and {company} (\"we\", \"us\") and cover the hosted NomNomzBot service. By signing in or using the bot in a channel you accept them. If you do not accept them, do not use the service.",
+              "NomNomzBot is open-source software under the AGPL-3.0 license. You may run your own copy under that license. These terms do not apply to a copy that someone else runs, and the hosted service for third parties is a service run by {company} only."
+            ]
+          },
+          {
+            "title": "Who may use it",
+            "p": [
+              "You need a Twitch or Discord account in good standing, and you must be old enough to hold it under their rules (13, or higher where the law says so). If you act for a company or a team, you confirm that you may accept these terms for it.",
+              "Keep your sign-in safe. What happens through your account is your responsibility until you tell us it was taken over."
+            ]
+          },
+          {
+            "title": "Your channel is your responsibility",
+            "p": [
+              "A streamer is responsible for how the bot is set up and used in their channel. That includes the commands, overlays, scripts, text-to-speech and notifications they create, and the rules of the channel.",
+              "You must follow the rules of the platforms the bot works with, such as the Twitch Terms of Service, Community Guidelines and Developer Agreement, and Discord's Terms and Community Guidelines. You must follow the law that applies to you, including the rules on recording or transcribing people. If you turn on the voice listener, you must tell the people who speak on your stream.",
+              "For personal data in your channel, you are the controller and we are your processor. The Privacy Policy explains this. You can ask us for a data processing agreement."
+            ]
+          },
+          {
+            "title": "What you may not do",
+            "list": [
+              "Break the law, or the rules of Twitch, Discord or any other connected service.",
+              "Post or play content that sexualizes children. We have zero tolerance for this and we report it.",
+              "Harass, threaten or target people, run mass bans or raids against people for abuse, or use the bot to spam.",
+              "Get around rate limits, limits of a plan, or safety features such as spam defense and opt-in rules.",
+              "Write a script or overlay that attacks others, steals data, mines coins or harms the service.",
+              "Collect other people's personal data from the service for any purpose other than running your own channel.",
+              "Resell the hosted service or give others access to it as your own service."
+            ]
+          },
+          {
+            "title": "Twitch, Discord and other platforms",
+            "p": [
+              "NomNomzBot is not made by, and is not affiliated with, Twitch, Discord, Spotify, YouTube or any other platform it connects to. We depend on their interfaces. They can change, limit or stop them, and then a feature can change or stop working. We are not responsible for that."
+            ]
+          },
+          {
+            "title": "Discord notifications and the shared network",
+            "p": [
+              "Posting a live announcement in a Discord server needs the consent of both sides: the server's admin allows it, and the streamer turns it on. Nothing is posted without both.",
+              "If you join the shared network, your live announcements can appear in the Discord servers of other members who accepted posts. You can leave at any time. A server admin can switch off posts from any streamer at any time. Announcements are limited in how often they post, and they carry only public stream information such as the title, the category and the link.",
+              "A person can opt in to a private message when a streamer goes live, in the dashboard or with the !notify command, and can opt out the same way. Private messages follow the person's own Discord settings."
+            ]
+          },
+          {
+            "title": "Your content",
+            "p": [
+              "You keep the rights to what you create. You give us a license to store, process and display it only as far as needed to run the service for you.",
+              "Chat messages belong to the people who wrote them. The streamer is responsible for how a channel uses them."
+            ]
+          },
+          {
+            "title": "Plans, invites and price",
+            "p": [
+              "Access to the hosted service can need an invite or a plan. If a plan costs money, we show the price and the terms of the plan before you accept it. Running your own copy is always free."
+            ]
+          },
+          {
+            "title": "The service can change",
+            "p": [
+              "We improve the service and sometimes remove or change features. Some features are in beta. We set limits to protect the service, and we try to give notice before a change that breaks something you rely on."
+            ]
+          },
+          {
+            "title": "No warranty and limits of liability",
+            "p": [
+              "We provide the service as it is, without a promise that it is always available or free of errors. We cannot promise that a stream notification, a moderation action or a text-to-speech message always arrives, because it depends on other platforms.",
+              "To the extent the law allows, we are not liable for indirect or lost profits or lost audience, and our total liability for a claim is limited to what you paid us for the service in the twelve months before the claim. This does not limit rights that the law gives you as a consumer, or liability for intent or gross negligence.",
+              "You agree to cover claims by others that come from your content, your scripts or your breach of these terms, as far as the law allows."
+            ]
+          },
+          {
+            "title": "Suspension and ending",
+            "p": [
+              "You can stop at any time and ask us to erase your data. We can suspend or end your access at once, with or without notice, if we believe you break these terms, put others at risk or harm the service. When access ends, your connections are removed and your data is handled as the Privacy Policy says."
+            ]
+          },
+          {
+            "title": "Changes, law and contact",
+            "p": [
+              "We can change these terms. We post the new version here with a new date, and we say so in the dashboard for a material change. Using the service after that means you accept the change.",
+              "These terms are governed by the law of {law}, and the courts there decide disputes, except where mandatory consumer law gives you another court.",
+              "{company}, {email}."
+            ]
+          }
+        ]
+      }
+    }
+  }
+}
