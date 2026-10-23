@@ -92,6 +92,12 @@ public sealed class SpokenNameFormatter : ISpokenNameFormatter
         );
     }
 
+    // A word in message text is leetspeak only when a leet glyph sits INSIDE its letters ("f0xb17", "h3llo").
+    // "mp3", "ps5", "4k" and "gamer123" end or start on the digit, so they stay numbers. The glyph set leaves out
+    // 8 ("gr8", "l8r" are shorthand, not "grb").
+    private const string BareLeetWord =
+        @"(?<bare>(?=[\p{L}0-9]*\p{L}[013457@$]+\p{L})[\p{L}\p{N}@$]+)";
+
     private static Regex BuildTextPattern(IReadOnlyList<string>? names)
     {
         string known = string.Join(
@@ -107,6 +113,7 @@ public sealed class SpokenNameFormatter : ISpokenNameFormatter
         string alternatives = @"@(?<mention>" + NameChars + "+)";
         if (known.Length > 0)
             alternatives += "|" + known;
+        alternatives += "|" + BareLeetWord;
         return new(
             @"(?<!" + NameChars + "|@)(?:" + alternatives + ")(?!" + NameChars + ")",
             RegexOptions.CultureInvariant | RegexOptions.IgnoreCase,

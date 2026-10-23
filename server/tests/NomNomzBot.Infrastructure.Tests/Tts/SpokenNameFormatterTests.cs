@@ -62,6 +62,8 @@ public sealed class SpokenNameFormatterTests
     [InlineData("r1l37", "rilet")]
     [InlineData("@r1l37", "rilet")]
     [InlineData("n1ght5", "nights")]
+    [InlineData("f0xb17", "foxbit")]
+    [InlineData("F0xB17", "Fox Bit")]
     [InlineData("Gamer2024", "Gamer 2024")]
     public void Format_GivesTheSpokenForm(string name, string expected) =>
         _sut.Format(name).Should().Be(expected);
@@ -92,6 +94,24 @@ public sealed class SpokenNameFormatterTests
         _sut.ApplyToText("kani_dev and kani_devs and KANI_DEV", ["kani_dev"])
             .Should()
             .Be("kani dev and kani_devs and KANI DEV");
+    }
+
+    // Stoney 2026-10-23: "f0xb17" spoke its characters once its pronunciation rule was removed. A bare word
+    // with a leet glyph inside its letters is cleaned in message text too, with no name list needed.
+    [Fact]
+    public void ApplyToText_DecodesABareLeetWord_WithoutAKnownName()
+    {
+        _sut.ApplyToText("hey f0xb17 and Sl@yer, h3llo there", [])
+            .Should()
+            .Be("hey foxbit and Slayer, hello there");
+    }
+
+    [Fact]
+    public void ApplyToText_LeavesOrdinaryWordsWithDigitsAlone()
+    {
+        const string text = "play mp3 on ps5 in 4k, gr8 l8r, gamer123 and R2D2 for 5$ at 10:30";
+
+        _sut.ApplyToText(text, []).Should().Be(text);
     }
 
     [Fact]

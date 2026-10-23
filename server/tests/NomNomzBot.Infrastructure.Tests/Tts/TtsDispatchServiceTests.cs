@@ -1453,12 +1453,31 @@ public sealed class TtsDispatchServiceTests
     {
         Harness h = Build();
 
-        await h.Service.RequestSpeakAsync(Speak("kani_dev said gamer123 is a n00b"));
+        await h.Service.RequestSpeakAsync(Speak("kani_dev said gamer123 is a noob"));
 
         await h
             .Tts.Received(1)
             .SynthesizeAsync(
-                "kani_dev said gamer123 is a n00b",
+                "kani_dev said gamer123 is a noob",
+                "default-voice",
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    // Stoney 2026-10-23: "f0xb17" was spoken character by character once its pronunciation rule was removed.
+    [Fact]
+    public async Task RequestSpeakAsync_SpeaksABareLeetWordAsAWord_WithNoNameKnownAndNoRule()
+    {
+        Harness h = Build();
+
+        await h.Service.RequestSpeakAsync(Speak("thanks f0xb17 for the raid"));
+
+        await h
+            .Tts.Received(1)
+            .SynthesizeAsync(
+                "thanks foxbit for the raid",
                 "default-voice",
                 Arg.Any<double?>(),
                 Arg.Any<double?>(),
