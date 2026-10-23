@@ -8,7 +8,7 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// A greyed channel in a picker is one the bot cannot post in. Say so, name them, and say how to fix it in Discord.
+// A picker lists channels the bot cannot post in yet too. Name them, and say how the bot gets access.
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 

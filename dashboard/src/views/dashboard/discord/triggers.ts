@@ -12,11 +12,11 @@
 // for by itself. A rule the bot holds for another trigger still shows, under the name the bot gives it.
 export const discordTriggers = ['go_live'] as const;
 
-const labelled = ['go_live', 'new_clip', 'schedule', 'milestone'];
+const labeled = ['go_live', 'new_clip', 'schedule', 'milestone'];
 
 // A trigger the page has no words for shows as the bot spells it.
 export function triggerLabel(t: (key: string) => string, trigger: string): string {
-  return labelled.includes(trigger)
+  return labeled.includes(trigger)
     ? t(`dashboard.discord.triggers.${trigger}`)
     : trigger;
 }
