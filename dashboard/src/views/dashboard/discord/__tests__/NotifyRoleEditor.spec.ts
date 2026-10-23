@@ -42,6 +42,8 @@ const storedRole = {
   optInCount: 4,
 };
 
+let liveRoleRows: unknown[] = [];
+
 function answer(path: string): unknown {
   if (path.endsWith('/discord/connections'))
     return ok([
@@ -59,6 +61,9 @@ function answer(path: string): unknown {
 
   if (path.endsWith('/connections/{connectionId}/roles'))
     return ok([storedRole]);
+
+  if (path.endsWith('/connections/{connectionId}/live-role'))
+    return ok(liveRoleRows);
 
   return ok([]);
 }
@@ -85,6 +90,15 @@ vi.mock('@/api/client', () => ({
 
       return ok(storedRole);
     },
+    DELETE: async (path: string) => {
+      calls.push({
+        method: 'DELETE',
+        path,
+        body: undefined,
+      });
+
+      return ok(null);
+    },
   },
 }));
 
@@ -101,6 +115,7 @@ let pinia: Pinia;
 
 beforeEach(() => {
   calls.length = 0;
+  liveRoleRows = [];
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -226,6 +241,57 @@ describe('the notify role editor', () => {
       selfAssignEnabled: true,
       dmEnabled: true,
     });
+  });
+
+  it('removes a stored role only after the person confirms', async () => {
+    await editor(storedRole);
+
+    document.body.querySelector<HTMLButtonElement>('[data-remove-role]')!.click();
+    await settle();
+
+    expect(calls).toHaveLength(0);
+
+    expect(document.body.querySelector('[data-remove-confirm]')?.textContent).toContain(
+      'Remove this role?',
+    );
+
+    document.body.querySelector<HTMLButtonElement>('[data-remove-role-yes]')!.click();
+    await settle();
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.method).toBe('DELETE');
+    expect(calls[0]?.path).toContain('/discord/roles/{roleId}');
+  });
+
+  it('offers no remove for a role that does not exist yet', async () => {
+    await editor(null);
+
+    expect(document.body.querySelector('[data-remove-role]')).toBeNull();
+  });
+
+  it('leaves out the Discord role that is already the live role', async () => {
+    liveRoleRows = [
+      {
+        id: 'live1',
+        guildConnectionId: 'conn1',
+        roleId: 'dr9',
+        discordMemberId: '1',
+        enabled: true,
+        isCurrentlyApplied: false,
+      },
+    ];
+
+    await editor(null);
+
+    Element.prototype.hasPointerCapture = (): boolean => false;
+
+    document.body
+      .querySelector<HTMLElement>('[data-field="discord-role"]')
+      ?.dispatchEvent(press('pointerdown'));
+
+    await settle();
+
+    expect(document.body.querySelectorAll('[role="option"]')).toHaveLength(0);
   });
 
   it('posts the opt-in button to the chosen channel', async () => {

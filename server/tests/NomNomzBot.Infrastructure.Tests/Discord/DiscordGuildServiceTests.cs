@@ -328,6 +328,49 @@ public sealed class DiscordGuildServiceTests
             new PipelineStepReferenceScanner(db)
         );
 
+    // The live role goes to the streamer's own Discord account, found through the Twitch account Discord itself has
+    // linked to it: the installer counts as the streamer only when one of their linked Twitch ids is the channel's.
+    [Theory]
+    [InlineData("12345", "installer-discord-id")]
+    [InlineData("99999", null)]
+    public async Task UpsertFromOAuthAsync_RecordsTheInstallerOnlyWhenTheirLinkedTwitchIsTheChannel(
+        string linkedTwitchId,
+        string? expected
+    )
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            Result<DiscordGuildConnectionDto> result = await NewService(
+                    db,
+                    new RecordingVault(),
+                    new RecordingEventBus()
+                )
+                .UpsertFromOAuthAsync(
+                    channel,
+                    new(
+                        "guild-1",
+                        "Cool Server",
+                        "bot-access-token",
+                        "bot-refresh-token",
+                        Clock.GetUtcNow().UtcDateTime.AddDays(7),
+                        ["bot", "guilds"],
+                        "installer-discord-id",
+                        [linkedTwitchId]
+                    )
+                );
+            result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        }
+
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            DiscordGuildConnection stored = await db.DiscordGuildConnections.SingleAsync();
+            stored.ApprovedByDiscordUserId.Should().Be(expected);
+        }
+    }
+
     private static async Task<Guid> SeedChannelAsync(DiscordSqliteTestDatabase database)
     {
         Guid channelId = Guid.CreateVersion7();

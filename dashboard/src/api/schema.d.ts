@@ -31460,6 +31460,7 @@ export interface paths {
                 query?: {
                     code?: string;
                     state?: string;
+                    error?: string;
                 };
                 header?: never;
                 path: {
@@ -91120,7 +91121,7 @@ export interface components {
         };
         CreateDiscordLiveRoleConfigRequest: {
             roleId: string;
-            discordMemberId: string;
+            discordMemberId?: null | string;
             /** @default true */
             enabled: boolean;
         };
@@ -104641,7 +104642,7 @@ export interface components {
         };
         UpdateDiscordLiveRoleConfigRequest: {
             roleId: string;
-            discordMemberId: string;
+            discordMemberId?: null | string;
             enabled: boolean;
         };
         UpdateDiscordNotificationConfigRequest: {

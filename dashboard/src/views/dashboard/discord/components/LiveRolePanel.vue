@@ -17,6 +17,7 @@ import {
   liveRoleDefaultEnabled,
   useDeleteDiscordLiveRole,
   useDiscordLiveRole,
+  useNotifyRoles,
   useSaveDiscordLiveRole,
   type DiscordConnection,
   type DiscordRole,
@@ -36,7 +37,6 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
-import MemberPicker from './MemberPicker.vue';
 import PickerError from './PickerError.vue';
 
 const props = defineProps<{
@@ -56,9 +56,13 @@ const save = useSaveDiscordLiveRole(channelId, connectionId, () =>
   stored.value !== null);
 const remove = useDeleteDiscordLiveRole(channelId, connectionId);
 
+// A role viewers already pick for pings is not also the role worn while live, so it is left out of this list.
+const notifyRoles = useNotifyRoles(channelId, connectionId);
+const pickableRoles = computed<DiscordRole[]>(() =>
+  props.guildRoles.filter((guildRole) =>
+    !(notifyRoles.data.value ?? []).some((picked) => picked.discordRoleId === guildRole.id)));
+
 const roleId = ref<string>('');
-// The member is found by name in the Discord server's member list; nobody types a Discord id.
-const memberId = ref<string>('');
 const enabled = ref<boolean>(liveRoleDefaultEnabled);
 
 // The form follows the stored rule whenever it loads or changes.
@@ -66,7 +70,6 @@ watch(
   stored,
   (rule) => {
     roleId.value = rule?.roleId ?? '';
-    memberId.value = rule?.discordMemberId ?? '';
     enabled.value = rule?.enabled ?? liveRoleDefaultEnabled;
   },
   { immediate: true },
@@ -77,14 +80,14 @@ const applied = computed<boolean>(() => stored.value?.isCurrentlyApplied ?? fals
 const failure = computed<Error | null>(() => save.error.value ?? remove.error.value);
 const busy = computed<boolean>(() => save.isPending.value || remove.isPending.value);
 const canSave = computed<boolean>(
-  () => writable.value && roleId.value !== '' && memberId.value.trim() !== '' && !busy.value,
+  () => writable.value && roleId.value !== '' && !busy.value,
 );
 
-// mutate keeps a refusal in the mutation error, which the panel shows.
+// The role goes to the streamer's own Discord account, which the server knows from the install; mutate keeps a
+// refusal in the mutation error, which the panel shows.
 function saveRule(): void {
   save.mutate({
     roleId: roleId.value,
-    discordMemberId: memberId.value.trim(),
     enabled: enabled.value,
   });
 }
@@ -105,7 +108,7 @@ function removeRule(): void {
           <SelectValue :placeholder="t('dashboard.discord.roles.discordRolePlaceholder')" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem v-for="guildRole in guildRoles" :key="guildRole.id" :value="guildRole.id">
+          <SelectItem v-for="guildRole in pickableRoles" :key="guildRole.id" :value="guildRole.id">
             {{ t('dashboard.discord.editor.roleOption', { name: guildRole.name }) }}
           </SelectItem>
         </SelectContent>
@@ -113,10 +116,9 @@ function removeRule(): void {
       <PickerError :error="pickerError" />
     </Field>
 
-    <Field>
-      <FieldLabel>{{ t('dashboard.discord.liveRole.member') }}</FieldLabel>
-      <MemberPicker v-model="memberId" :disabled="!writable || applied" />
-    </Field>
+    <p data-live-owner class="text-sm text-muted-foreground">
+      {{ t('dashboard.discord.liveRole.owner') }}
+    </p>
 
     <div class="rounded-[8px] border border-border p-1">
       <SettingRow

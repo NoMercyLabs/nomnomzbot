@@ -67,15 +67,26 @@ public sealed class DiscordLiveRoleConfigService : IDiscordLiveRoleConfigService
                 validation.ErrorCode
             );
 
-        bool connectionExists = await _db.DiscordGuildConnections.AnyAsync(
+        DiscordGuildConnection? connection = await _db.DiscordGuildConnections.FirstOrDefaultAsync(
             c => c.Id == connectionId && c.BroadcasterId == broadcasterId,
             ct
         );
-        if (!connectionExists)
+        if (connection is null)
             return Errors.NotFound<DiscordLiveRoleConfigDto>(
                 "Discord connection",
                 connectionId.ToString()
             );
+
+        Result roleFree = await EnsureRoleNotSelfAssignAsync(connectionId, request.RoleId, ct);
+        if (roleFree.IsFailure)
+            return Result.Failure<DiscordLiveRoleConfigDto>(
+                roleFree.ErrorMessage,
+                roleFree.ErrorCode
+            );
+
+        string? memberId = request.DiscordMemberId?.Trim() ?? connection.ApprovedByDiscordUserId;
+        if (string.IsNullOrEmpty(memberId))
+            return NeedsTwitchLink<DiscordLiveRoleConfigDto>();
 
         bool exists = await _db.DiscordLiveRoleConfigs.AnyAsync(
             c => c.BroadcasterId == broadcasterId && c.GuildConnectionId == connectionId,
@@ -93,7 +104,7 @@ public sealed class DiscordLiveRoleConfigService : IDiscordLiveRoleConfigService
             BroadcasterId = broadcasterId,
             GuildConnectionId = connectionId,
             RoleId = request.RoleId.Trim(),
-            DiscordMemberId = request.DiscordMemberId.Trim(),
+            DiscordMemberId = memberId,
             Enabled = request.Enabled,
         };
         _db.DiscordLiveRoleConfigs.Add(row);
@@ -131,7 +142,17 @@ public sealed class DiscordLiveRoleConfigService : IDiscordLiveRoleConfigService
             );
 
         string roleId = request.RoleId.Trim();
-        string memberId = request.DiscordMemberId.Trim();
+        string memberId = request.DiscordMemberId?.Trim() ?? row.DiscordMemberId;
+        if (roleId != row.RoleId)
+        {
+            Result roleFree = await EnsureRoleNotSelfAssignAsync(connectionId, roleId, ct);
+            if (roleFree.IsFailure)
+                return Result.Failure<DiscordLiveRoleConfigDto>(
+                    roleFree.ErrorMessage,
+                    roleFree.ErrorCode
+                );
+        }
+
         bool targetChanged = roleId != row.RoleId || memberId != row.DiscordMemberId;
         if (row.IsCurrentlyApplied && targetChanged)
             return Result.Failure<DiscordLiveRoleConfigDto>(
@@ -192,7 +213,37 @@ public sealed class DiscordLiveRoleConfigService : IDiscordLiveRoleConfigService
             ct
         );
 
-    private static Result Validate(string roleId, string discordMemberId)
+    // One Discord role serves one purpose: a role viewers pick for pings is not also the role worn while live.
+    private async Task<Result> EnsureRoleNotSelfAssignAsync(
+        Guid connectionId,
+        string roleId,
+        CancellationToken ct
+    )
+    {
+        string trimmed = roleId.Trim();
+        bool pickedByViewers = await _db.DiscordNotificationRoles.AnyAsync(
+            r => r.GuildConnectionId == connectionId && r.DiscordRoleId == trimmed,
+            ct
+        );
+
+        return pickedByViewers
+            ? Result.Failure(
+                "Viewers already pick that Discord role for pings. Choose a different role for the live role.",
+                "ROLE_IN_USE_AS_SELF_ASSIGN"
+            )
+            : Result.Success();
+    }
+
+    // Discord has no live-role member to pick: the account Discord links to the streamer's Twitch is used. Only the
+    // installer's own Discord profile can say so, so a bot added without that link has nobody to give the role to.
+    private static Result<T> NeedsTwitchLink<T>() =>
+        Result.Failure<T>(
+            "The bot does not know your Discord account yet. In Discord, open User Settings > Connections and "
+                + "connect your Twitch account, then add the bot to your server again.",
+            "LIVE_ROLE_NEEDS_TWITCH_LINK"
+        );
+
+    private static Result Validate(string roleId, string? discordMemberId)
     {
         if (string.IsNullOrWhiteSpace(roleId) || roleId.Trim().Length > MaxIdLength)
             return Errors.ValidationFailed(
@@ -200,8 +251,11 @@ public sealed class DiscordLiveRoleConfigService : IDiscordLiveRoleConfigService
             );
 
         if (
-            string.IsNullOrWhiteSpace(discordMemberId)
-            || discordMemberId.Trim().Length > MaxIdLength
+            discordMemberId is not null
+            && (
+                string.IsNullOrWhiteSpace(discordMemberId)
+                || discordMemberId.Trim().Length > MaxIdLength
+            )
         )
             return Errors.ValidationFailed(
                 $"A Discord member id of 1 to {MaxIdLength} characters is required."

@@ -47,11 +47,16 @@ import NotifyRoleEditor from './components/NotifyRoleEditor.vue';
 import PostLogPanel from './components/PostLogPanel.vue';
 import RuleEditor from './components/RuleEditor.vue';
 import SetupGuide from './components/SetupGuide.vue';
+import { installErrorKey, readInstallError } from './installError';
 import { discordTriggers, triggerLabel as labelOf } from './triggers';
+import { useDiscordInstall } from './useDiscordInstall';
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
+
+const installError = readInstallError();
+const { url: installUrl, start: startInstall } = useDiscordInstall(channelId);
 
 const connectionsQuery = useDiscordConnections(channelId);
 const connection = computed<DiscordConnection | null>(
@@ -135,6 +140,28 @@ function ruleSummary(rule: DiscordRule | null): string {
     <PageHeader :title="t('dashboard.discord.title')" />
 
     <PageBody>
+      <PanelCard
+        v-if="installError !== null"
+        data-install-error
+        tier="lead"
+        :title="t('dashboard.discord.installError.title')"
+        pad
+      >
+        <div role="alert" class="flex flex-col gap-3">
+          <p class="text-sm">
+            {{ t(installErrorKey(installError)) }}
+          </p>
+          <div v-if="can('discord:connection:write')" class="flex flex-wrap items-center gap-2">
+            <Button as-child>
+              <a data-install-retry :href="installUrl" @click="startInstall">{{ t('dashboard.discord.installError.retry') }}</a>
+            </Button>
+            <Button variant="outline" @click="installError = null">
+              {{ t('dashboard.discord.installError.dismiss') }}
+            </Button>
+          </div>
+        </div>
+      </PanelCard>
+
       <PanelCard
         v-if="can('discord:connection:read')"
         :title="t('dashboard.discord.connection.title')"

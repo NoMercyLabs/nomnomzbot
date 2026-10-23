@@ -209,6 +209,7 @@ export const apiOperations = {
   'discord live role': 'discord',
   'save discord live role': 'discord',
   'delete discord live role': 'discord',
+  'delete discord notify role': 'discord',
   'currency config': 'economy',
   'save currency': 'economy',
   'earning rules': 'economy',

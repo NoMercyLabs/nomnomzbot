@@ -114,7 +114,7 @@ describe('the Discord pickers when the server cannot read Discord', () => {
   it('the rule editor names the reason instead of an empty channel and role list', async () => {
     await open();
 
-    document.body.querySelector<HTMLElement>('[data-edit="stream.online"]')!.click();
+    document.body.querySelector<HTMLElement>('[data-edit="go_live"]')!.click();
     await flushPromises();
 
     const alerts = [...document.body.querySelectorAll('[data-rule-editor] [data-picker-error]')];

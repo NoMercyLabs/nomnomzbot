@@ -14,7 +14,7 @@ import { useI18n } from 'vue-i18n';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 
-import { useDiscordInstallUrl } from '../installUrl';
+import { useDiscordInstall } from '../useDiscordInstall';
 
 const props = defineProps<{ channelId: string }>();
 
@@ -23,7 +23,7 @@ const { can } = useCan();
 
 const abilities = ['posts', 'roles', 'live'] as const;
 
-const startUrl = useDiscordInstallUrl(() => props.channelId);
+const { url: startUrl, start: startInstall } = useDiscordInstall(() => props.channelId);
 </script>
 
 <template>
@@ -39,7 +39,7 @@ const startUrl = useDiscordInstallUrl(() => props.channelId);
     </p>
     <div v-if="can('discord:connection:write')">
       <Button as-child>
-        <a data-add-bot :href="startUrl">{{ t("dashboard.discord.setup.add") }}</a>
+        <a data-add-bot :href="startUrl" @click="startInstall">{{ t("dashboard.discord.setup.add") }}</a>
       </Button>
     </div>
   </div>

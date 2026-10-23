@@ -23,7 +23,7 @@ import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
-import { useDiscordInstallUrl } from '../installUrl';
+import { useDiscordInstall } from '../useDiscordInstall';
 
 const props = defineProps<{ connection: DiscordConnection }>();
 
@@ -32,7 +32,7 @@ const { can } = useCan();
 const { channelId } = useCurrentChannel();
 const setEnabled = useSetStreamerEnabled(channelId, () => props.connection.id);
 const refreshPresence = useRefreshDiscordPresence(channelId, () => props.connection.id);
-const installUrl = useDiscordInstallUrl(channelId);
+const { url: installUrl, start: startInstall } = useDiscordInstall(channelId);
 
 // The stored "bot is in the server" flag can be stale (the bot was kicked, or joined later), so the page asks
 // the bot once when it opens, and again whenever the person presses Check again.
@@ -76,7 +76,7 @@ const label = computed<string>(() => {
       </p>
       <div class="flex flex-wrap items-center gap-2">
         <Button as-child>
-          <a data-add-bot :href="installUrl">{{ t('dashboard.discord.setup.add') }}</a>
+          <a data-add-bot :href="installUrl" @click="startInstall">{{ t('dashboard.discord.setup.add') }}</a>
         </Button>
         <Button
           variant="outline"
@@ -90,7 +90,7 @@ const label = computed<string>(() => {
     </div>
     <div v-else-if="can('discord:connection:write')" class="py-1">
       <Button variant="ghost" size="sm" as-child>
-        <a data-change-server :href="installUrl">{{ t('dashboard.discord.connection.change') }}</a>
+        <a data-change-server :href="installUrl" @click="startInstall">{{ t('dashboard.discord.connection.change') }}</a>
       </Button>
     </div>
     <div data-streamer-enabled>

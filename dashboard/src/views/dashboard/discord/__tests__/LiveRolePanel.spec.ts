@@ -41,7 +41,7 @@ const stored = {
 };
 
 let rows: unknown[] = [];
-let refusePut = false;
+let refusal: string | null = null;
 
 function record(method: string, path: string, options?: Options): unknown {
   calls.push({
@@ -50,85 +50,19 @@ function record(method: string, path: string, options?: Options): unknown {
     body: options?.body,
   });
 
-  if (method === 'PUT' && refusePut)
+  if (method !== 'DELETE' && refusal !== null)
     return {
-      error: { message: 'The live role is applied right now.' },
+      error: { message: refusal },
       response: { status: 400, ok: false },
     };
 
   return ok(stored);
 }
 
-type OptionsQuery = { Search?: string; value?: string };
-type OptionsAsk = { params: { path: { kind: string }; query: OptionsQuery } };
-
-const memberAsks: Array<{
-  kind: string;
-  search?: string;
-  value?: string;
-}> = [];
-let membersReadable = true;
-let memberReadFails = false;
-
-const members = [
-  {
-    value: '5678',
-    label: 'Stoney',
-    secondaryText: '@stoney_eagle',
-    state: 'selectable',
-  },
-  {
-    value: '1234',
-    label: 'Saved Sam',
-    secondaryText: '@sam',
-    state: 'selectable',
-  },
-];
-
-function memberList(options: OptionsAsk): unknown {
-  const { kind } = options.params.path;
-  const { Search: search, value } = options.params.query;
-
-  memberAsks.push({
-    kind,
-    search,
-    value,
-  });
-
-  if (memberReadFails)
-    return {
-      error: { message: 'Unknown picker kind.' },
-      response: { status: 400, ok: false },
-    };
-
-  if (!membersReadable)
-    return ok({
-      sourceAvailable: false,
-      unavailableReason: 'The Discord bot token is not configured on this server.',
-      items: [],
-      totalCount: 0,
-    });
-
-  const items = value === undefined
-    ? members.filter((member) =>
-        search === undefined || member.label.toLowerCase().startsWith(search.toLowerCase()))
-    : members.filter((member) =>
-        member.value === value);
-
-  return ok({
-    sourceAvailable: true,
-    items,
-    totalCount: items.length,
-  });
-}
-
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async (path: string, options: OptionsAsk) =>
-      path.includes('/pipelines/options/')
-        ? memberList(options)
-        : ok(rows),
+    GET: async () => ok(rows),
     PUT: async (path: string, options?: Options) => record('PUT', path, options),
     POST: async (path: string, options?: Options) => record('POST', path, options),
     DELETE: async (path: string, options?: Options) => record('DELETE', path, options),
@@ -148,11 +82,8 @@ let pinia: Pinia;
 
 beforeEach(() => {
   calls.length = 0;
-  memberAsks.length = 0;
-  membersReadable = true;
-  memberReadFails = false;
   rows = [];
-  refusePut = false;
+  refusal = null;
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -240,19 +171,18 @@ const click = async (selector: string): Promise<void> => {
   await settle();
 };
 
-async function pickMember(value: string): Promise<void> {
-  await click('[data-field="live-member"]');
-  await click(`[data-member-option="${value}"]`);
-}
-
 describe('the live role panel', () => {
-  it('creates the rule for the picked member with the default of enabled when none is stored', async () => {
+  it('creates the rule from the role alone, with no member to pick', async () => {
     await panel();
 
-    expect(document.body.querySelector('[data-live-role-panel] input')).toBeNull();
+    // Discord links the streamer's Twitch to their account, so nobody picks a member from a list.
+    expect(document.body.querySelector('[data-field="live-member"]')).toBeNull();
+
+    expect(document.body.querySelector('[data-live-owner]')?.textContent).toContain(
+      'your own Discord account',
+    );
 
     await pickFirst('live-role');
-    await pickMember('5678');
     await click('[data-save-live-role]');
 
     expect(calls).toHaveLength(1);
@@ -261,51 +191,11 @@ describe('the live role panel', () => {
 
     expect(calls[0]?.body).toEqual({
       roleId: 'dr9',
-      discordMemberId: '5678',
       enabled: true,
     });
   });
 
-  it('lists the Discord server members by name from the bot and names the saved member', async () => {
-    rows = [stored];
-    await panel();
-
-    expect(document.body.querySelector('[data-field="live-member"]')?.textContent).toContain('Saved Sam');
-
-    expect(memberAsks.every((ask) =>
-      ask.kind === 'discord_user')).toBe(true);
-
-    expect(memberAsks.length).toBeGreaterThan(0);
-
-    await click('[data-field="live-member"]');
-
-    const labels = [...document.body.querySelectorAll('[data-member-option]')].map((option) =>
-      option.textContent);
-
-    expect(labels.some((label) => label?.includes('Stoney') && label.includes('@stoney_eagle'))).toBe(true);
-    expect(document.body.querySelector('[data-live-role-panel] input:not([role="combobox"])')).toBeNull();
-  });
-
-  it('says why no member can be picked when the bot cannot read Discord', async () => {
-    membersReadable = false;
-    await panel();
-
-    const alert = document.body.querySelector('[data-member-error]');
-
-    expect(alert?.getAttribute('role')).toBe('alert');
-    expect(alert?.textContent).toContain('The Discord bot token is not configured on this server.');
-  });
-
-  it('says the members cannot be read when the member read fails', async () => {
-    memberReadFails = true;
-    await panel();
-
-    expect(document.body.querySelector('[data-member-error]')?.textContent).toContain(
-      'The bot cannot read the members of this Discord server right now.',
-    );
-  });
-
-  it('updates a stored rule with the switch turned off', async () => {
+  it('updates a stored rule with the switch turned off, leaving the member to the server', async () => {
     rows = [stored];
     await panel();
 
@@ -317,31 +207,42 @@ describe('the live role panel', () => {
 
     expect(calls[0]?.body).toEqual({
       roleId: 'dr9',
-      discordMemberId: '1234',
       enabled: false,
     });
   });
 
-  it('locks the role and member while the role is applied', async () => {
+  it('locks the role while the role is applied', async () => {
     rows = [{ ...stored, isCurrentlyApplied: true }];
     await panel();
 
-    const member = document.body.querySelector<HTMLButtonElement>('[data-field="live-member"]');
+    const role = document.body.querySelector<HTMLButtonElement>('[data-field="live-role"]');
 
-    expect(member?.disabled).toBe(true);
+    expect(role?.disabled).toBe(true);
     expect(document.body.querySelector('[data-live-applied]')).not.toBeNull();
     expect(document.body.querySelector('[data-remove-live-role]')).toBeNull();
   });
 
   it('shows the reason the server gives when it refuses the save', async () => {
     rows = [stored];
-    refusePut = true;
+    refusal = 'The live role is applied right now.';
     await panel();
 
     await click('[data-save-live-role]');
 
     expect(document.body.querySelector('[data-live-error]')?.textContent).toContain(
       'The live role is applied right now.',
+    );
+  });
+
+  it('tells a streamer whose Twitch is not linked on Discord what to do', async () => {
+    refusal = 'In Discord, open User Settings > Connections and connect your Twitch account.';
+    await panel();
+
+    await pickFirst('live-role');
+    await click('[data-save-live-role]');
+
+    expect(document.body.querySelector('[data-live-error]')?.textContent).toContain(
+      'User Settings > Connections',
     );
   });
 

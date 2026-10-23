@@ -8,23 +8,15 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-// The triggers a Discord rule can listen to, go-live first. A rule the bot holds for another trigger still shows.
-export const discordTriggers = [
-  'stream.online',
-  'stream.offline',
-  'channel.follow',
-  'channel.subscribe',
-  'channel.subscription.gift',
-  'channel.cheer',
-  'channel.raid',
-  'channel.poll.begin',
-  'channel.prediction.begin',
-] as const;
+// The triggers a Discord rule can be set up for here: the ones the bot names itself (DiscordConfigDefaults) and posts
+// for by itself. A rule the bot holds for another trigger still shows, under the name the bot gives it.
+export const discordTriggers = ['go_live'] as const;
 
-// vue-i18n reads a dot as a path step, so the key spells the trigger with underscores.
-// A trigger the page does not know shows as the bot spells it.
+const labelled = ['go_live', 'new_clip', 'schedule', 'milestone'];
+
+// A trigger the page has no words for shows as the bot spells it.
 export function triggerLabel(t: (key: string) => string, trigger: string): string {
-  return (discordTriggers as readonly string[]).includes(trigger)
-    ? t(`dashboard.discord.triggers.${trigger.replaceAll('.', '_')}`)
+  return labelled.includes(trigger)
+    ? t(`dashboard.discord.triggers.${trigger}`)
     : trigger;
 }

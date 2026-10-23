@@ -10,7 +10,7 @@
 <script setup lang="ts">
 // One notification rule: where the message goes, who it pings, what it says and the embed under it.
 // Edits stay in a draft until Save. Preview renders the rule as stored, so it saves the draft first.
-import { computed, ref } from 'vue';
+import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import Cross from '~icons/nnz/cross';
@@ -41,7 +41,9 @@ import {
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
+import BlockedChannels from './BlockedChannels.vue';
 import PickerError from './PickerError.vue';
+import { defaultChannelFor } from '../ruleDefaults';
 
 type Draft = {
   enabled: boolean;
@@ -70,18 +72,29 @@ const emit = defineEmits<{ saved: [] }>();
 
 const NO_ROLE = 'none';
 
-const { t } = useI18n();
+const { t, te } = useI18n();
 const { channelId } = useCurrentChannel();
 const save = useSaveDiscordRule(channelId, () => props.connectionId);
 const create = useCreateDiscordRule(channelId, () => props.connectionId);
 const preview = useDiscordPreview(channelId);
 
+// A rule not yet saved starts with a ready message for its event, so a first save needs no typing.
+function defaultMessage(): string {
+  const key = `dashboard.discord.defaults.${props.trigger}`;
+
+  return te(key)
+    ? t(key)
+    : '';
+}
+
 function draftOf(rule: DiscordRule | null) {
   return {
     enabled: rule?.enabled ?? true,
-    targetChannelId: rule?.targetChannelId ?? '',
+    targetChannelId: rule?.targetChannelId ?? defaultChannelFor(props.trigger, props.channels),
     pingRoleId: rule?.pingRoleId ?? NO_ROLE,
-    message: rule?.messageTemplate ?? '',
+    message: rule === null
+      ? defaultMessage()
+      : (rule.messageTemplate ?? ''),
     title: rule?.embedConfig?.title ?? '',
     description: rule?.embedConfig?.description ?? '',
     color: rule?.embedConfig?.color ?? '',
@@ -94,6 +107,16 @@ function draftOf(rule: DiscordRule | null) {
 
 const draft = ref<Draft>(draftOf(props.rule));
 const shown = ref<DiscordPreview | null>(null);
+
+// The server's channels arrive after the editor opens; a new rule picks its channel once they do.
+watch(
+  () => props.channels,
+  (channels) => {
+    if (props.rule === null && draft.value.targetChannelId === '') {
+      draft.value.targetChannelId = defaultChannelFor(props.trigger, channels);
+    }
+  },
+);
 
 const failure = computed<Error | null>(
   () => save.error.value ?? create.error.value ?? preview.error.value,
@@ -197,12 +220,12 @@ function removeField(index: number): void {
             v-for="channel in channels"
             :key="channel.id"
             :value="channel.id"
-            :disabled="!channel.canPost"
           >
             {{ t('dashboard.discord.editor.channelOption', { name: channel.name }) }}
           </SelectItem>
         </SelectContent>
       </Select>
+      <BlockedChannels :channels="channels" />
       <PickerError :error="pickerError" />
     </Field>
 

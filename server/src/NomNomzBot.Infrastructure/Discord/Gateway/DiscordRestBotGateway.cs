@@ -88,7 +88,162 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
             BuildAllowedMentions(message.PingRoleId)
         );
 
-        return await PostMessagePayloadAsync(token.Value, targetChannelId, payload, ct);
+        return await PostRepairingAccessAsync(
+            broadcasterId,
+            token.Value,
+            targetChannelId,
+            payload,
+            ct
+        );
+    }
+
+    /// <summary>
+    /// Posts, and when Discord refuses with 403 because a channel overwrite hides or mutes the channel for the
+    /// bot, the bot raises its own access there and posts once more, so the streamer never edits channel
+    /// permissions.
+    /// </summary>
+    private async Task<Result<string>> PostRepairingAccessAsync(
+        Guid broadcasterId,
+        string botToken,
+        string targetChannelId,
+        DiscordMessagePayload payload,
+        CancellationToken ct
+    )
+    {
+        Result<string> posted = await PostMessagePayloadAsync(
+            botToken,
+            targetChannelId,
+            payload,
+            ct
+        );
+        if (posted.IsSuccess || posted.ErrorCode != "DISCORD_UNAUTHORIZED")
+            return posted;
+
+        Result raised = await EnsureChannelAccessAsync(broadcasterId, targetChannelId, ct);
+        if (raised.IsSuccess)
+            return await PostMessagePayloadAsync(botToken, targetChannelId, payload, ct);
+
+        return raised.ErrorCode == "DISCORD_CANNOT_RAISE_PERMISSIONS"
+            ? Result.Failure<string>(raised.ErrorMessage, raised.ErrorCode)
+            : posted;
+    }
+
+    /// <summary>
+    /// Gives the bot what it needs to post in <paramref name="channelId"/>: when the bot's effective View Channel
+    /// or Send Messages is denied there, it adds an allow overwrite for itself (keeping every other bit of any
+    /// overwrite it already has) — the only thing a channel can hide from a bot. A channel the bot can already post
+    /// in is left alone and answers <c>DISCORD_UNAUTHORIZED</c>, so the caller keeps the original failure.
+    /// Discord lets the bot grant only what its Manage Roles permission allows; a refusal answers
+    /// <c>DISCORD_CANNOT_RAISE_PERMISSIONS</c> with the one thing to allow.
+    /// </summary>
+    private async Task<Result> EnsureChannelAccessAsync(
+        Guid broadcasterId,
+        string channelId,
+        CancellationToken ct
+    )
+    {
+        List<string?> guildIds = await _db
+            .IntegrationConnections.IgnoreQueryFilters()
+            .Where(c =>
+                c.BroadcasterId == broadcasterId && c.Provider == Provider && c.DeletedAt == null
+            )
+            .Select(c => c.ProviderAccountId)
+            .ToListAsync(ct);
+
+        foreach (string guildId in guildIds.OfType<string>())
+        {
+            Result<BotRoleContext> context = await ResolveBotRoleContextAsync(
+                broadcasterId,
+                guildId,
+                ct
+            );
+            if (context.IsFailure)
+                return Result.Failure(context.ErrorMessage, context.ErrorCode);
+
+            Result<List<DiscordGuildChannelWire>> channels = await GetAsync<
+                List<DiscordGuildChannelWire>
+            >(broadcasterId, $"guilds/{Uri.EscapeDataString(guildId)}/channels", ct);
+            if (channels.IsFailure)
+                return Result.Failure(channels.ErrorMessage, channels.ErrorCode);
+
+            DiscordGuildChannelWire? channel = channels.Value.FirstOrDefault(c =>
+                c.Id == channelId
+            );
+            if (channel is null)
+                continue;
+
+            (bool canView, bool canSend) = EvaluateChannelPermissions(
+                context.Value,
+                guildId,
+                channel.PermissionOverwrites
+            );
+            if (canView && canSend)
+                return Result.Failure("The bot already has access.", "DISCORD_UNAUTHORIZED");
+
+            return await GrantBotChannelAccessAsync(broadcasterId, context.Value, channel, ct);
+        }
+
+        return Result.Failure("The channel is not in a linked server.", "DISCORD_UNAUTHORIZED");
+    }
+
+    private async Task<Result> GrantBotChannelAccessAsync(
+        Guid broadcasterId,
+        BotRoleContext context,
+        DiscordGuildChannelWire channel,
+        CancellationToken ct
+    )
+    {
+        Result<string> token = await ResolveBotTokenAsync(broadcasterId, ct);
+        if (token.IsFailure)
+            return Result.Failure(token.ErrorMessage, token.ErrorCode);
+
+        DiscordPermissionOverwriteWire? own = channel.PermissionOverwrites?.FirstOrDefault(o =>
+            o.Type == 1 && o.Id == context.BotUserId
+        );
+        ulong allow = (own is null ? 0 : ParsePermissionBits(own.Allow)) | BotChannelNeeds;
+        ulong deny = (own is null ? 0 : ParsePermissionBits(own.Deny)) & ~BotChannelNeeds;
+
+        using HttpRequestMessage request = new(
+            HttpMethod.Put,
+            $"{DiscordApiBase}/channels/{Uri.EscapeDataString(channel.Id)}"
+                + $"/permissions/{Uri.EscapeDataString(context.BotUserId)}"
+        )
+        {
+            Content = JsonContent.Create(
+                new
+                {
+                    allow = allow.ToString(),
+                    deny = deny.ToString(),
+                    type = 1,
+                },
+                options: WireJson
+            ),
+        };
+        request.Headers.TryAddWithoutValidation("Authorization", $"Bot {token.Value}");
+
+        try
+        {
+            using HttpResponseMessage response = await _http.SendAsync(request, ct);
+            if (response.IsSuccessStatusCode)
+            {
+                _logger.LogInformation(
+                    "The Discord bot raised its own access in channel {ChannelId}",
+                    channel.Id
+                );
+                return Result.Success();
+            }
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogError(ex, "Discord channel permission grant failed (transport).");
+            return Result.Failure("Discord request failed.", "DISCORD_TRANSPORT");
+        }
+
+        return Result.Failure(
+            $"The bot could not give itself access to #{channel.Name ?? channel.Id}. Give the bot's role the "
+                + "Manage Roles permission in Server Settings > Roles, then try again.",
+            "DISCORD_CANNOT_RAISE_PERMISSIONS"
+        );
     }
 
     public async Task<Result<string>> OpenDmChannelAsync(
@@ -176,7 +331,13 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
             ]
         );
 
-        return await PostMessagePayloadAsync(token.Value, targetChannelId, payload, ct);
+        return await PostRepairingAccessAsync(
+            broadcasterId,
+            token.Value,
+            targetChannelId,
+            payload,
+            ct
+        );
     }
 
     public async Task<Result> AddMemberRoleAsync(
@@ -434,6 +595,10 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
 
     /// <summary>Discord's Send Messages permission bit (1 &lt;&lt; 11).</summary>
     private const ulong SendMessagesPermission = 0x800;
+
+    /// <summary>What the bot needs in a channel to post a notification: View Channel, Send Messages, Embed Links
+    /// (0x4000) and Read Message History (0x10000).</summary>
+    private const ulong BotChannelNeeds = 0x400 | 0x800 | 0x4000 | 0x10000;
 
     public async Task<Result> ValidateRoleAssignableAsync(
         Guid broadcasterId,

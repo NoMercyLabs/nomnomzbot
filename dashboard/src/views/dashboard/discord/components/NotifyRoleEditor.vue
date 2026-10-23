@@ -16,6 +16,8 @@ import { useI18n } from 'vue-i18n';
 
 import {
   useCreateNotifyRole,
+  useDeleteNotifyRole,
+  useDiscordLiveRole,
   usePostRoleButton,
   useSaveNotifyRole,
   type DiscordChannel,
@@ -36,6 +38,7 @@ import {
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
+import BlockedChannels from './BlockedChannels.vue';
 import PickerError from './PickerError.vue';
 
 const props = defineProps<{
@@ -53,6 +56,13 @@ const { channelId } = useCurrentChannel();
 const create = useCreateNotifyRole(channelId, () => props.connectionId);
 const save = useSaveNotifyRole(channelId, () => props.connectionId);
 const postButton = usePostRoleButton(channelId, () => props.connectionId);
+const remove = useDeleteNotifyRole(channelId, () => props.connectionId);
+const liveRole = useDiscordLiveRole(channelId, () => props.connectionId);
+
+// The role worn while live is not also a role viewers pick, so it is left out of this list.
+const pickableRoles = computed<DiscordRole[]>(() =>
+  props.guildRoles.filter((guildRole) => guildRole.id !== liveRole.data.value?.roleId));
+const confirmingRemove = ref<boolean>(false);
 
 const discordRoleId = ref<string>(props.role?.discordRoleId ?? '');
 const roleName = ref<string>(props.role?.roleName ?? '');
@@ -61,9 +71,11 @@ const dmEnabled = ref<boolean>(props.role?.dmEnabled ?? false);
 const buttonChannelId = ref<string>(props.role?.buttonChannelId ?? '');
 
 const failure = computed<Error | null>(
-  () => create.error.value ?? save.error.value ?? postButton.error.value,
+  () => create.error.value ?? save.error.value ?? postButton.error.value ?? remove.error.value,
 );
-const busy = computed<boolean>(() => create.isPending.value || save.isPending.value);
+const busy = computed<boolean>(
+  () => create.isPending.value || save.isPending.value || remove.isPending.value,
+);
 const canSave = computed<boolean>(() => discordRoleId.value !== '' && !busy.value);
 const canPost = computed<boolean>(
   () => props.role !== null && buttonChannelId.value !== '' && !postButton.isPending.value,
@@ -100,6 +112,13 @@ async function saveRole(): Promise<void> {
   emit('saved');
 }
 
+async function removeRole(): Promise<void> {
+  if (props.role !== null) {
+    await remove.mutateAsync(props.role.id);
+    emit('saved');
+  }
+}
+
 async function postRoleButton(): Promise<void> {
   if (props.role !== null) {
     await postButton.mutateAsync({ roleId: props.role.id, buttonChannelId: buttonChannelId.value });
@@ -120,7 +139,7 @@ async function postRoleButton(): Promise<void> {
           <SelectValue :placeholder="t('dashboard.discord.roles.discordRolePlaceholder')" />
         </SelectTrigger>
         <SelectContent>
-          <SelectItem v-for="guildRole in guildRoles" :key="guildRole.id" :value="guildRole.id">
+          <SelectItem v-for="guildRole in pickableRoles" :key="guildRole.id" :value="guildRole.id">
             {{ t('dashboard.discord.editor.roleOption', { name: guildRole.name }) }}
           </SelectItem>
         </SelectContent>
@@ -160,7 +179,6 @@ async function postRoleButton(): Promise<void> {
               v-for="channel in channels"
               :key="channel.id"
               :value="channel.id"
-              :disabled="!channel.canPost"
             >
               {{ t('dashboard.discord.editor.channelOption', { name: channel.name }) }}
             </SelectItem>
@@ -176,6 +194,7 @@ async function postRoleButton(): Promise<void> {
           {{ t('dashboard.discord.roles.postButton') }}
         </Button>
       </div>
+      <BlockedChannels :channels="channels" />
       <PickerError :error="pickerError" />
     </Field>
 
@@ -183,7 +202,36 @@ async function postRoleButton(): Promise<void> {
       {{ errorText(failure, t) }}
     </p>
 
-    <div class="flex items-center justify-end gap-2">
+    <div v-if="role !== null && confirmingRemove" class="flex flex-col gap-2" data-remove-confirm>
+      <p class="text-sm text-muted-foreground">
+        {{ t('dashboard.discord.roles.removeConfirm') }}
+      </p>
+      <div class="flex items-center justify-end gap-2">
+        <Button type="button" variant="ghost" :disabled="busy" @click="confirmingRemove = false">
+          {{ t('dashboard.discord.roles.keep') }}
+        </Button>
+        <Button type="button"
+                variant="destructive"
+                :disabled="busy"
+                data-remove-role-yes
+                @click="removeRole"
+        >
+          {{ t('dashboard.discord.roles.removeNow') }}
+        </Button>
+      </div>
+    </div>
+
+    <div v-else class="flex items-center justify-end gap-2">
+      <Button
+        v-if="role !== null"
+        type="button"
+        variant="ghost"
+        :disabled="busy"
+        data-remove-role
+        @click="confirmingRemove = true"
+      >
+        {{ t('dashboard.discord.roles.remove') }}
+      </Button>
       <Button type="submit" :disabled="!canSave" data-save-role>
         {{ t('dashboard.discord.editor.save') }}
       </Button>

@@ -36,7 +36,11 @@ public sealed record DiscordGuildOAuthResult(
     string? RefreshToken,
     DateTime? ExpiresAt,
     IReadOnlyList<string> Scopes,
-    string? InstalledByDiscordUserId
+    string? InstalledByDiscordUserId,
+    // The Twitch account ids linked to the installer's Discord profile. Null when unknown; the installer then
+    // counts as given. An empty list or a list without the channel's Twitch id means the installer is not the
+    // streamer, so their Discord id is not recorded.
+    IReadOnlyList<string>? LinkedTwitchIds = null
 );
 
 // ── Notification config ─────────────────────────────────────────────────────
@@ -80,15 +84,17 @@ public sealed record DiscordLiveRoleConfigDto(
     DateTime UpdatedAt
 );
 
+// DiscordMemberId is optional: left out, the role goes to the Discord account Discord has linked to the
+// streamer's Twitch (recorded when the bot was added). Older clients that name a member keep working.
 public sealed record CreateDiscordLiveRoleConfigRequest(
     string RoleId,
-    string DiscordMemberId,
+    string? DiscordMemberId = null,
     bool Enabled = Domain.Discord.DiscordConfigDefaults.LiveRoleEnabled
 );
 
 public sealed record UpdateDiscordLiveRoleConfigRequest(
     string RoleId,
-    string DiscordMemberId,
+    string? DiscordMemberId,
     bool Enabled
 );
 

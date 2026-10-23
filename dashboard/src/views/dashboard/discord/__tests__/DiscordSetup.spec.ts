@@ -40,7 +40,7 @@ const posts = [
   {
     id: 'p1',
     notificationConfigId: 'rule1',
-    triggerType: 'stream.online',
+    triggerType: 'go_live',
     dedupeKey: 'k1',
     streamId: null,
     postedMessageId: 'm1',
@@ -51,7 +51,7 @@ const posts = [
   {
     id: 'p2',
     notificationConfigId: 'rule1',
-    triggerType: 'channel.raid',
+    triggerType: 'new_clip',
     dedupeKey: 'k2',
     streamId: null,
     postedMessageId: null,
@@ -174,7 +174,7 @@ describe('the Discord page with a server linked', () => {
     expect(rows).toHaveLength(2);
     expect(rows[0]?.textContent).toContain('Stream goes live');
     expect(rows[0]?.textContent).toContain('Posted');
-    expect(rows[1]?.textContent).toContain('Incoming raid');
+    expect(rows[1]?.textContent).toContain('New clip');
     expect(rows[1]?.textContent).toContain('Missing Access');
   });
 });

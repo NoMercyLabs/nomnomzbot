@@ -44,7 +44,7 @@ const connection = {
 const goLive = {
   id: 'rule1',
   guildConnectionId: 'conn1',
-  triggerType: 'stream.online',
+  triggerType: 'go_live',
   enabled: true,
   targetChannelId: 'ch1',
   pingRoleId: null,
@@ -168,10 +168,10 @@ describe('the Discord page', () => {
       'Linked and ready',
     );
 
-    expect(rows).toHaveLength(9);
+    // Only the trigger the bot posts for by itself is offered, under the name the server saves it with.
+    expect(rows).toHaveLength(1);
     expect(rows[0]?.textContent).toContain('Stream goes live');
     expect(rows[0]?.textContent).toContain('On');
-    expect(rows[1]?.textContent).toContain('Not set up');
   });
 });
 
@@ -180,7 +180,7 @@ describe('the rule editor', () => {
     mounted = mount(RuleEditor, {
       attachTo: document.body,
       props: {
-        trigger: 'stream.online',
+        trigger: 'go_live',
         rule: goLive as never,
         connectionId: 'conn1',
         pickerError: null,
@@ -244,5 +244,51 @@ describe('the rule editor', () => {
     expect(document.body.querySelector('[data-preview-content]')?.textContent).toContain(
       'SampleStreamer is live',
     );
+  });
+});
+
+describe('a new rule on the rule editor', () => {
+  it('starts on the fitting channel with a ready message, so one press of save is enough', async () => {
+    mounted = mount(RuleEditor, {
+      attachTo: document.body,
+      props: {
+        trigger: 'go_live',
+        rule: null,
+        connectionId: 'conn1',
+        pickerError: null,
+        channels: [
+          {
+            id: 'g',
+            name: 'general',
+            type: 0,
+            position: 0,
+            canPost: true,
+          },
+          {
+            id: 'ls',
+            name: 'live-streams',
+            type: 0,
+            position: 1,
+            canPost: true,
+          },
+        ],
+        roles: [],
+      },
+      global: { plugins: plugins() },
+    });
+
+    await settle();
+
+    document.body.querySelector<HTMLButtonElement>('[data-save-rule]')!.click();
+    await settle();
+
+    expect(calls).toHaveLength(1);
+    expect(calls[0]?.method).toBe('POST');
+
+    expect(calls[0]?.body).toMatchObject({
+      enabled: true,
+      targetChannelId: 'ls',
+      messageTemplate: '{channel.name} is live! {stream.title} ({stream.game})',
+    });
   });
 });

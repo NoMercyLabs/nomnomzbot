@@ -34,7 +34,12 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Tags("Integration OAuth")]
 public class DiscordOAuthController : BaseController
 {
-    private const string DiscordScopes = "bot guilds";
+    // identify + connections: who is installing, and which Twitch account Discord has linked to them.
+    private const string DiscordScopes = "bot guilds identify connections";
+
+    // What the bot asks for when it joins: View Channel 0x400, Send Messages 0x800, Embed Links 0x4000, Read Message
+    // History 0x10000 and Manage Roles 0x10000000 (live role, and giving itself access to a channel that hides it).
+    private const ulong BotPermissions = 0x400 | 0x800 | 0x4000 | 0x10000 | 0x10000000;
 
     private readonly ISystemCredentialsProvider _credentials;
     private readonly IConfiguration _config;
@@ -111,6 +116,7 @@ public class DiscordOAuthController : BaseController
             // GUILD_INSTALL). Without it, an app that also offers user-install fails Discord's authorize with
             // "installation type not supported for this application." (The app must also enable Guild Install.)
             + "&integration_type=0"
+            + $"&permissions={BotPermissions}"
             + $"&state={Uri.EscapeDataString(state)}";
 
         return Redirect(authUrl);
@@ -124,8 +130,9 @@ public class DiscordOAuthController : BaseController
     [HttpGet("integrations/discord/callback")]
     [AllowAnonymous]
     public async Task<IActionResult> HandleDiscordCallback(
-        [FromQuery] string code,
+        [FromQuery] string? code,
         [FromQuery] string? state,
+        [FromQuery] string? error,
         CancellationToken ct
     )
     {
@@ -135,10 +142,17 @@ public class DiscordOAuthController : BaseController
         string? channelId = flowState?.ChannelId;
         string? loopbackRedirect = flowState?.RedirectUri;
         if (string.IsNullOrEmpty(channelId))
-            return BadRequestResponse("Invalid or expired OAuth state.");
+            return FailureResult(loopbackRedirect, "invalid_state");
 
         if (!Guid.TryParse(channelId, out Guid tenantId))
-            return BadRequestResponse("Invalid channel_id in OAuth state.");
+            return FailureResult(loopbackRedirect, "invalid_state");
+
+        // Pressing Cancel on Discord's page sends back error=access_denied and no code.
+        if (!string.IsNullOrEmpty(error) || string.IsNullOrEmpty(code))
+            return FailureResult(
+                loopbackRedirect,
+                error == "access_denied" ? "access_denied" : "authorization_failed"
+            );
 
         // The provider opens the sealed secret; the stored text itself is ciphertext Discord would refuse.
         SystemAppCredentials? app = await _credentials.GetAsync("discord", ct);
@@ -146,11 +160,7 @@ public class DiscordOAuthController : BaseController
         string? clientSecret = app?.ClientSecret;
 
         if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
-            return FailureResult(
-                loopbackRedirect,
-                "credentials_unconfigured",
-                () => BadRequestResponse("Discord client credentials are not configured.")
-            );
+            return FailureResult(loopbackRedirect, "credentials_unconfigured");
 
         // The token exchange's redirect_uri must match, byte for byte, the one sent at /start. Discord redirects
         // back through the same proxy/tunnel, so the same shared resolver yields the same public origin here.
@@ -182,11 +192,7 @@ public class DiscordOAuthController : BaseController
         catch (Exception ex)
         {
             _logger.LogError(ex, "Failed to exchange Discord authorization code");
-            return FailureResult(
-                loopbackRedirect,
-                "token_endpoint_unreachable",
-                () => InternalServerErrorResponse("Failed to contact Discord token endpoint.")
-            );
+            return FailureResult(loopbackRedirect, "token_endpoint_unreachable");
         }
 
         if (!response.IsSuccessStatusCode)
@@ -197,11 +203,7 @@ public class DiscordOAuthController : BaseController
                 response.StatusCode,
                 errorBody
             );
-            return FailureResult(
-                loopbackRedirect,
-                "token_exchange_failed",
-                () => InternalServerErrorResponse("Discord token exchange failed.")
-            );
+            return FailureResult(loopbackRedirect, "token_exchange_failed");
         }
 
         using JsonDocument tokenDoc = JsonDocument.Parse(
@@ -213,11 +215,7 @@ public class DiscordOAuthController : BaseController
             ? atProp.GetString()
             : null;
         if (string.IsNullOrEmpty(accessToken))
-            return FailureResult(
-                loopbackRedirect,
-                "no_access_token",
-                () => BadRequestResponse("Discord did not return an access token.")
-            );
+            return FailureResult(loopbackRedirect, "no_access_token");
 
         string? refreshToken = root.TryGetProperty("refresh_token", out JsonElement rtProp)
             ? rtProp.GetString()
@@ -237,14 +235,15 @@ public class DiscordOAuthController : BaseController
                 : null;
 
         if (string.IsNullOrEmpty(guildId))
-            return FailureResult(
-                loopbackRedirect,
-                "no_guild",
-                () =>
-                    BadRequestResponse(
-                        "Discord did not return a guild — the bot was not installed."
-                    )
-            );
+            return FailureResult(loopbackRedirect, "no_guild");
+
+        // Discord itself knows which Twitch account is linked to the installer's profile; reading that link lets
+        // the live role go to the streamer's own account without anyone picking themselves from a list.
+        (string? installerId, List<string> linkedTwitchIds) = await ReadInstallerLinksAsync(
+            client,
+            accessToken,
+            ct
+        );
 
         // Parse the token response into the spec's DiscordGuildOAuthResult and hand ALL persistence to the
         // guild service: it vaults the bot token (no plaintext) and records the both-opt-in guild link.
@@ -255,7 +254,8 @@ public class DiscordOAuthController : BaseController
             refreshToken,
             _timeProvider.GetUtcNow().UtcDateTime.AddSeconds(expiresIn),
             DiscordScopes.Split(' '),
-            InstalledByDiscordUserId: null
+            installerId,
+            linkedTwitchIds
         );
 
         Result<DiscordGuildConnectionDto> upsert = await _discord.UpsertFromOAuthAsync(
@@ -270,11 +270,7 @@ public class DiscordOAuthController : BaseController
                 channelId,
                 upsert.ErrorMessage
             );
-            return FailureResult(
-                loopbackRedirect,
-                "guild_link_failed",
-                () => InternalServerErrorResponse("Failed to record the Discord guild link.")
-            );
+            return FailureResult(loopbackRedirect, "guild_link_failed");
         }
 
         _logger.LogInformation(
@@ -292,22 +288,92 @@ public class DiscordOAuthController : BaseController
         // postMessages the opener and closes; full-page it falls back to the app root, where the Integrations
         // screen re-reads connection status. The previous "/(dashboard)/..." target embedded a frontend
         // route-GROUP folder literal that the hash-routed Wasm app cannot match, so it rendered a black screen.
-        return Redirect($"{baseUrl}/oauth-relay?discord_connected=true");
+        return Redirect(
+            $"{baseUrl}/oauth-relay?discord_connected=true&return={Uri.EscapeDataString(DiscordPagePath)}"
+        );
+    }
+
+    private const string DiscordPagePath = "/app/settings/discord";
+
+    /// <summary>
+    /// The installer's Discord user id and the Twitch account ids linked to their profile
+    /// (<c>users/@me</c> and <c>users/@me/connections</c>, scopes <c>identify</c> + <c>connections</c>). Best
+    /// effort: Discord refusing either read leaves the id null / the list empty, and the bot is still added.
+    /// </summary>
+    private async Task<(string? InstallerId, List<string> LinkedTwitchIds)> ReadInstallerLinksAsync(
+        HttpClient client,
+        string accessToken,
+        CancellationToken ct
+    )
+    {
+        string? installerId = null;
+        List<string> linkedTwitchIds = [];
+        try
+        {
+            using HttpRequestMessage userRequest = new(
+                HttpMethod.Get,
+                "https://discord.com/api/v10/users/@me"
+            );
+            userRequest.Headers.Authorization = new("Bearer", accessToken);
+            using HttpResponseMessage userResponse = await client.SendAsync(userRequest, ct);
+            if (userResponse.IsSuccessStatusCode)
+            {
+                using JsonDocument user = JsonDocument.Parse(
+                    await userResponse.Content.ReadAsStreamAsync(ct)
+                );
+                installerId = user.RootElement.TryGetProperty("id", out JsonElement id)
+                    ? id.GetString()
+                    : null;
+            }
+
+            using HttpRequestMessage linksRequest = new(
+                HttpMethod.Get,
+                "https://discord.com/api/v10/users/@me/connections"
+            );
+            linksRequest.Headers.Authorization = new("Bearer", accessToken);
+            using HttpResponseMessage linksResponse = await client.SendAsync(linksRequest, ct);
+            if (linksResponse.IsSuccessStatusCode)
+            {
+                using JsonDocument links = JsonDocument.Parse(
+                    await linksResponse.Content.ReadAsStreamAsync(ct)
+                );
+                foreach (JsonElement link in links.RootElement.EnumerateArray())
+                    if (
+                        link.TryGetProperty("type", out JsonElement type)
+                        && type.GetString() == "twitch"
+                        && link.TryGetProperty("id", out JsonElement linkId)
+                        && linkId.GetString() is { Length: > 0 } twitchId
+                    )
+                        linkedTwitchIds.Add(twitchId);
+            }
+        }
+        catch (Exception ex) when (ex is HttpRequestException or JsonException)
+        {
+            _logger.LogWarning(ex, "Could not read the Discord installer's linked accounts");
+        }
+
+        return (installerId, linkedTwitchIds);
     }
 
     /// <summary>
     /// Routes a callback failure: when a desktop loopback <c>redirect_uri</c> was supplied (already vetted by
     /// <see cref="ClientRedirectPolicy"/> at start), bounce there with <c>?error=&lt;reason&gt;</c> so the
-    /// loopback listener completes (failure path); otherwise return the supplied web/API error response.
+    /// loopback listener completes (failure path); otherwise (the browser) land on the dashboard's Discord page with
+    /// <c>?discord_error=&lt;reason&gt;</c>, which says in words what went wrong and what to do. This callback is
+    /// a full-page visit, so a JSON error body would be shown to the person as raw text.
     /// </summary>
-    private IActionResult FailureResult(
-        string? loopbackRedirect,
-        string reason,
-        Func<IActionResult> webResponse
-    ) =>
-        string.IsNullOrWhiteSpace(loopbackRedirect)
-            ? webResponse()
-            : Redirect(AppendQuery(loopbackRedirect, $"error={Uri.EscapeDataString(reason)}"));
+    private IActionResult FailureResult(string? loopbackRedirect, string reason)
+    {
+        string encoded = Uri.EscapeDataString(reason);
+        if (!string.IsNullOrWhiteSpace(loopbackRedirect))
+            return Redirect(AppendQuery(loopbackRedirect, $"error={encoded}"));
+
+        // Through the relay: a popup tells the dashboard and closes; with no opener the relay continues to the
+        // Discord page, which says in words what went wrong.
+        string baseUrl = Request.ResolvePublicOrigin(_config);
+        string back = Uri.EscapeDataString($"{DiscordPagePath}?discord_error={encoded}");
+        return Redirect($"{baseUrl}/oauth-relay?discord_error={encoded}&return={back}");
+    }
 
     /// <summary>Appends <paramref name="query"/> to <paramref name="url"/>, choosing <c>?</c> or <c>&amp;</c>.</summary>
     private static string AppendQuery(string url, string query) =>

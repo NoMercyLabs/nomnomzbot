@@ -14,6 +14,21 @@
         "enabled": "Op deze server posten",
         "enabledHelp": "Zet uit om alle Discord-berichten van dit kanaal te pauzeren."
       },
+      "installError": {
+        "title": "De bot is niet aan je server toegevoegd",
+        "retry": "Opnieuw proberen",
+        "dismiss": "Sluiten",
+        "token_exchange_failed": "Discord weigerde de aanmelding van de bot. De meest voorkomende oorzaak is een verkeerd Discord client secret. Controleer het client-ID en het client secret in Admin > Providers en probeer het opnieuw.",
+        "token_endpoint_unreachable": "De bot kon Discord niet bereiken. Controleer de internetverbinding van de server en probeer het opnieuw.",
+        "credentials_unconfigured": "De Discord-app is nog niet ingesteld. Een beheerder vult eerst het client-ID en het client secret in bij Admin > Providers.",
+        "access_denied": "Je hebt op de pagina van Discord op annuleren gedrukt, dus er is niets toegevoegd. Druk op Opnieuw proberen als je de bot wilt toevoegen.",
+        "authorization_failed": "Discord heeft het verzoek niet goedgekeurd. Druk op Opnieuw proberen en accepteer de rechten op de pagina van Discord.",
+        "invalid_state": "Deze aanmeldlink is verlopen of al gebruikt. Begin opnieuw met Opnieuw proberen en rond het in één keer af.",
+        "no_access_token": "Discord antwoordde zonder aanmeldtoken. Probeer het opnieuw. Blijft het gebeuren, controleer dan de Discord-app in het ontwikkelaarsportaal.",
+        "no_guild": "Discord gaf niet aan welke server je koos. Probeer het opnieuw en kies een server op de pagina van Discord.",
+        "guild_link_failed": "Discord heeft de bot goedgekeurd, maar het opslaan van de koppeling met je server is mislukt. Probeer het opnieuw. Blijft het mislukken, laat dan een beheerder het logboek van de bot bekijken.",
+        "unknown": "De Discord-installatie is niet afgerond. Probeer het opnieuw. Blijft het mislukken, vertel het dan aan een beheerder."
+      },
       "setup": {
         "posts": {
           "title": "Plaatst een bericht in een Discord-kanaal",
@@ -52,16 +67,14 @@
         "edit": "Bewerken",
         "setUp": "Instellen"
       },
+      "defaults": {
+        "go_live": "{'{'}channel.name{'}'} is live! {'{'}stream.title{'}'} ({'{'}stream.game{'}'})"
+      },
       "triggers": {
-        "stream_online": "Stream gaat live",
-        "stream_offline": "Stream stopt",
-        "channel_follow": "Nieuwe volger",
-        "channel_subscribe": "Nieuwe abonnee",
-        "channel_subscription_gift": "Gegeven abonnement",
-        "channel_cheer": "Cheer of bits",
-        "channel_raid": "Binnenkomende raid",
-        "channel_poll_begin": "Poll begint",
-        "channel_prediction_begin": "Voorspelling begint"
+        "go_live": "Stream gaat live",
+        "new_clip": "Nieuwe clip",
+        "schedule": "Schemawijziging",
+        "milestone": "Mijlpaal"
       },
       "roles": {
         "title": "Zelf te kiezen rollen",
@@ -80,27 +93,28 @@
         "dm": "Stuur een privébericht",
         "dmHelp": "Stuur leden een bericht als ze de rol nemen of verlaten.",
         "buttonChannel": "Kanaal voor de knop",
-        "postButton": "Knop plaatsen"
+        "postButton": "Knop plaatsen",
+        "remove": "Rol verwijderen",
+        "removeConfirm": "Deze rol verwijderen? Hij verdwijnt van de aanmeldknop en niemand kan hem nog kiezen.",
+        "removeNow": "Verwijderen",
+        "keep": "Behouden"
       },
       "liveRole": {
         "title": "Liverol",
-        "subtitle": "Geef één lid een Discord-rol zolang je live bent.",
+        "subtitle": "Geef jezelf een Discord-rol zolang je live bent.",
         "error": "De liverol kon niet laden.",
         "role": "Rol",
-        "member": "Lid",
-        "memberPlaceholder": "Kies een lid",
-        "memberFind": "Zoek een lid op naam",
-        "memberNoMatch": "Geen lid heeft die naam.",
-        "memberUnavailable": "De bot kan de leden van deze Discord-server nu niet lezen.",
+        "owner": "De rol gaat naar je eigen Discord-account, dat aan je Twitch gekoppeld is. Je kiest niemand.",
         "enabled": "Geef de rol tijdens de live",
         "enabledHelp": "Zet uit om de regel te bewaren zonder hem toe te passen.",
         "applied": "Nu toegepast",
-        "appliedHelp": "De rol staat nu op het lid. Wijzig de rol of het lid na afloop van de stream.",
+        "appliedHelp": "De rol staat nu op jou. Wijzig de rol na afloop van de stream.",
         "remove": "Regel verwijderen"
       },
       "editor": {
         "description": "Kies waar het bericht heen gaat, wie het pingt en wat er staat.",
         "pickerError": "De bot kon de kanalen en rollen van je Discord-server niet lezen.",
+        "blockedChannels": "De bot kan nog niet posten in {names}. Hij geeft zichzelf toegang zodra dat nodig is. Lukt dat niet, sta dan Kanaal bekijken en Berichten sturen toe voor de rol van de bot bij de rechten van dat kanaal in Discord.",
         "pickerNoBotToken": "De Discord-bot is nog niet ingesteld op deze botserver. Wie de botserver beheert, moet de Discord-bottoken toevoegen.",
         "pickerNotConnected": "De Discord-bot is niet verbonden met je Discord-server. Voeg de bot eerst toe aan je server.",
         "enabled": "Stuur deze melding",

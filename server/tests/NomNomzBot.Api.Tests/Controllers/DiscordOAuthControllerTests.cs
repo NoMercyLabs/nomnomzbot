@@ -67,6 +67,10 @@ public sealed class DiscordOAuthControllerTests
         redirect.Url.Should().StartWith("https://discord.com/api/oauth2/authorize");
         redirect.Url.Should().Contain("state=");
 
+        // The bot asks for what it needs to post and repair its own channel access: View Channel, Send Messages,
+        // Embed Links, Read History (0x4c00 + 0x10000) and Manage Roles (0x10000000) = 268,520,448.
+        redirect.Url.Should().Contain("&permissions=268520448");
+
         // The loopback redirect was carried server-side in the issued Discord flow state (never in the query).
         await state
             .Received(1)
@@ -91,7 +95,7 @@ public sealed class DiscordOAuthControllerTests
             new(ChannelId, RedirectUri: null)
         );
 
-        await controller.HandleDiscordCallback("the-code", "nonce", default);
+        await controller.HandleDiscordCallback("the-code", "nonce", null, default);
 
         Dictionary<string, string> form = handler
             .SentForm!.Split('&')
@@ -102,6 +106,120 @@ public sealed class DiscordOAuthControllerTests
         form["client_secret"].Should().Be(OpenedSecret);
         form["code"].Should().Be("the-code");
         form["grant_type"].Should().Be("authorization_code");
+    }
+
+    // The live role goes to the streamer's own Discord account. Discord itself knows which Twitch account is linked
+    // to a profile, so the install reads that link instead of asking the streamer to pick themselves from a list.
+    [Fact]
+    public async Task Callback_ReadsTheInstallersDiscordIdAndTheirLinkedTwitchAccounts()
+    {
+        StubHandler handler = new()
+        {
+            ConnectionsJson = """[{"type":"youtube","id":"yt-1"},{"type":"twitch","id":"12345"}]""",
+        };
+        (DiscordOAuthController controller, FakeDiscordGuildService discord, _) = Build(
+            handler,
+            new(ChannelId, RedirectUri: null)
+        );
+
+        await controller.HandleDiscordCallback("the-code", "nonce", null, default);
+
+        DiscordGuildOAuthResult recorded = discord.UpsertCalls.Should().ContainSingle().Subject;
+        recorded.InstalledByDiscordUserId.Should().Be("installer-1");
+        recorded.LinkedTwitchIds.Should().Equal("12345");
+    }
+
+    [Fact]
+    public async Task Callback_WhenDiscordWithholdsTheLinks_StillAddsTheBotAndRecordsNoLinkedTwitch()
+    {
+        StubHandler handler = new() { ConnectionsStatus = HttpStatusCode.Forbidden };
+        (DiscordOAuthController controller, FakeDiscordGuildService discord, _) = Build(
+            handler,
+            new(ChannelId, RedirectUri: null)
+        );
+
+        IActionResult result = await controller.HandleDiscordCallback(
+            "the-code",
+            "nonce",
+            null,
+            default
+        );
+
+        result.Should().BeOfType<RedirectResult>();
+        discord.UpsertCalls.Should().ContainSingle().Which.LinkedTwitchIds.Should().BeEmpty();
+    }
+
+    // ─── callback: a failure in the browser lands on the dashboard with a reason, never as raw JSON ───
+
+    // A failure goes through the relay page, so a popup tells the dashboard and closes; with no opener the relay
+    // carries the person on to the Discord page, which says in words what went wrong.
+    private static string Failed(string reason) =>
+        $"https://api.example.test/oauth-relay?discord_error={reason}"
+        + $"&return=%2Fapp%2Fsettings%2Fdiscord%3Fdiscord_error%3D{reason}";
+
+    [Theory]
+    [InlineData(HttpStatusCode.Unauthorized, "token_exchange_failed")]
+    [InlineData(HttpStatusCode.BadRequest, "token_exchange_failed")]
+    public async Task Callback_Web_TokenExchangeFails_RedirectsToTheDiscordPageWithTheReason(
+        HttpStatusCode status,
+        string reason
+    )
+    {
+        (DiscordOAuthController controller, FakeDiscordGuildService discord, _) = Build(
+            new() { TokenStatus = status },
+            new(ChannelId, RedirectUri: null)
+        );
+
+        IActionResult result = await controller.HandleDiscordCallback("c", "nonce", null, default);
+
+        result.Should().BeOfType<RedirectResult>().Which.Url.Should().Be(Failed(reason));
+        discord.UpsertCalls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Callback_Web_ExpiredState_RedirectsToTheDiscordPageWithTheReason()
+    {
+        (DiscordOAuthController controller, _, _) = Build(consumeState: null);
+
+        IActionResult result = await controller.HandleDiscordCallback("c", "gone", null, default);
+
+        result.Should().BeOfType<RedirectResult>().Which.Url.Should().Be(Failed("invalid_state"));
+    }
+
+    // Pressing Cancel on Discord's page sends back error=access_denied and no code at all.
+    [Fact]
+    public async Task Callback_Web_PersonCancelsOnDiscord_RedirectsWithAccessDenied()
+    {
+        (DiscordOAuthController controller, FakeDiscordGuildService discord, _) = Build(
+            consumeState: new(ChannelId, RedirectUri: null)
+        );
+
+        IActionResult result = await controller.HandleDiscordCallback(
+            null,
+            "nonce",
+            "access_denied",
+            default
+        );
+
+        result.Should().BeOfType<RedirectResult>().Which.Url.Should().Be(Failed("access_denied"));
+        discord.UpsertCalls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Callback_Web_LinkingTheServerFails_RedirectsWithGuildLinkFailed()
+    {
+        (DiscordOAuthController controller, FakeDiscordGuildService discord, _) = Build(
+            consumeState: new(ChannelId, RedirectUri: null)
+        );
+        discord.FailUpsert = true;
+
+        IActionResult result = await controller.HandleDiscordCallback("c", "nonce", null, default);
+
+        result
+            .Should()
+            .BeOfType<RedirectResult>()
+            .Which.Url.Should()
+            .Be(Failed("guild_link_failed"));
     }
 
     // ─── callback: loopback completion (success / failure) + web fallback ───────
@@ -118,7 +236,12 @@ public sealed class DiscordOAuthControllerTests
             new(ChannelId, Loopback)
         );
 
-        IActionResult result = await controller.HandleDiscordCallback("the-code", "nonce", default);
+        IActionResult result = await controller.HandleDiscordCallback(
+            "the-code",
+            "nonce",
+            null,
+            default
+        );
 
         RedirectResult redirect = result.Should().BeOfType<RedirectResult>().Subject;
         redirect.Url.Should().Be($"{Loopback}?discord_connected=true");
@@ -136,7 +259,12 @@ public sealed class DiscordOAuthControllerTests
             new(ChannelId, Loopback)
         );
 
-        IActionResult result = await controller.HandleDiscordCallback("bad-code", "nonce", default);
+        IActionResult result = await controller.HandleDiscordCallback(
+            "bad-code",
+            "nonce",
+            null,
+            default
+        );
 
         RedirectResult redirect = result.Should().BeOfType<RedirectResult>().Subject;
         redirect.Url.Should().Be($"{Loopback}?error=token_exchange_failed");
@@ -157,7 +285,12 @@ public sealed class DiscordOAuthControllerTests
             new(ChannelId, RedirectUri: null)
         );
 
-        IActionResult result = await controller.HandleDiscordCallback("the-code", "nonce", default);
+        IActionResult result = await controller.HandleDiscordCallback(
+            "the-code",
+            "nonce",
+            null,
+            default
+        );
 
         // The web fallback must land on the /oauth-relay seam (popup postMessage + close, or full-page
         // fallback to the app root) — NOT a hand-rolled frontend deep link. The old target embedded the
@@ -167,6 +300,7 @@ public sealed class DiscordOAuthControllerTests
         RedirectResult redirect = result.Should().BeOfType<RedirectResult>().Subject;
         redirect.Url.Should().StartWith("https://api.example.test/oauth-relay");
         redirect.Url.Should().Contain("discord_connected=true");
+        redirect.Url.Should().EndWith("&return=%2Fapp%2Fsettings%2Fdiscord");
         redirect.Url.Should().NotContain("(dashboard)");
         redirect.Url.Should().NotContain("127.0.0.1");
     }
@@ -228,6 +362,11 @@ public sealed class DiscordOAuthControllerTests
             """{"access_token":"bot-token","expires_in":604800,"guild":{"id":"99","name":"Cool Guild"}}""";
         public HttpStatusCode TokenStatus { get; init; } = HttpStatusCode.OK;
 
+        /// <summary>The installer's Discord profile and the accounts linked to it, as Discord answers them.</summary>
+        public string UserJson { get; init; } = """{"id":"installer-1"}""";
+        public string ConnectionsJson { get; init; } = "[]";
+        public HttpStatusCode ConnectionsStatus { get; init; } = HttpStatusCode.OK;
+
         /// <summary>The form the bot posted to the token endpoint, so a test can assert what Discord was sent.</summary>
         public string? SentForm { get; private set; }
 
@@ -236,6 +375,19 @@ public sealed class DiscordOAuthControllerTests
             CancellationToken cancellationToken
         )
         {
+            string path = request.RequestUri!.AbsolutePath;
+            if (path.EndsWith("/users/@me/connections"))
+                return new HttpResponseMessage(ConnectionsStatus)
+                {
+                    Content = new StringContent(ConnectionsJson, Encoding.UTF8, "application/json"),
+                };
+
+            if (path.EndsWith("/users/@me"))
+                return new HttpResponseMessage(HttpStatusCode.OK)
+                {
+                    Content = new StringContent(UserJson, Encoding.UTF8, "application/json"),
+                };
+
             SentForm = request.Content is null
                 ? null
                 : await request.Content.ReadAsStringAsync(cancellationToken);
@@ -260,6 +412,8 @@ public sealed class DiscordOAuthControllerTests
     {
         public List<DiscordGuildOAuthResult> UpsertCalls { get; } = [];
 
+        public bool FailUpsert { get; set; }
+
         public Task<Result<DiscordGuildConnectionDto>> UpsertFromOAuthAsync(
             Guid broadcasterId,
             DiscordGuildOAuthResult oauth,
@@ -267,6 +421,11 @@ public sealed class DiscordOAuthControllerTests
         )
         {
             UpsertCalls.Add(oauth);
+            if (FailUpsert)
+                return Task.FromResult(
+                    Result.Failure<DiscordGuildConnectionDto>("boom", "INTERNAL_ERROR")
+                );
+
             return Task.FromResult(
                 Result.Success(
                     new DiscordGuildConnectionDto(

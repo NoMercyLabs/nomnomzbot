@@ -37048,6 +37048,13 @@
             }
           },
           {
+            "name": "error",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
             "name": "version",
             "in": "path",
             "required": true,
@@ -111998,8 +112005,7 @@
       },
       "CreateDiscordLiveRoleConfigRequest": {
         "required": [
-          "roleId",
-          "discordMemberId"
+          "roleId"
         ],
         "type": "object",
         "properties": {
@@ -112007,7 +112013,10 @@
             "type": "string"
           },
           "discordMemberId": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "enabled": {
             "type": "boolean",
@@ -151342,7 +151351,6 @@
       "UpdateDiscordLiveRoleConfigRequest": {
         "required": [
           "roleId",
-          "discordMemberId",
           "enabled"
         ],
         "type": "object",
@@ -151351,7 +151359,10 @@
             "type": "string"
           },
           "discordMemberId": {
-            "type": "string"
+            "type": [
+              "null",
+              "string"
+            ]
           },
           "enabled": {
             "type": "boolean"

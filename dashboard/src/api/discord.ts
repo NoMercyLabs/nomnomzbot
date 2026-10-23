@@ -472,6 +472,36 @@ export function useSaveNotifyRole(
   });
 }
 
+export function useDeleteNotifyRole(
+  channelId: MaybeRefOrGetter<string | null>,
+  connectionId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, string, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (roleId: string): Promise<void> => {
+      const { error, response } = await client.DELETE(
+        '/api/v{version}/channels/{channelId}/discord/roles/{roleId}',
+        {
+          params: { path: {
+            version,
+            channelId: toValue(channelId) as string,
+            roleId,
+          } },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('delete discord notify role', response.status, error);
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({
+        queryKey: notifyRolesKey(toValue(channelId), toValue(connectionId)),
+      });
+    },
+  });
+}
+
 export type RoleButtonPost = { roleId: string; buttonChannelId: string };
 
 export function usePostRoleButton(

@@ -14,6 +14,21 @@
         "enabled": "Post to this server",
         "enabledHelp": "Turn it off to pause every Discord message from this channel."
       },
+      "installError": {
+        "title": "The bot was not added to your server",
+        "retry": "Try again",
+        "dismiss": "Dismiss",
+        "token_exchange_failed": "Discord refused the bot's sign-in. The most common cause is a wrong Discord client secret. Check the client ID and client secret in Admin > Providers, then try again.",
+        "token_endpoint_unreachable": "The bot could not reach Discord. Check the server's internet connection, then try again.",
+        "credentials_unconfigured": "The Discord app is not set up yet. An admin enters the client ID and client secret in Admin > Providers first.",
+        "access_denied": "You pressed cancel on Discord's page, so nothing was added. Press Try again when you want to add the bot.",
+        "authorization_failed": "Discord did not approve the request. Press Try again and accept the permissions on Discord's page.",
+        "invalid_state": "This sign-in link expired or was already used. Start again with Try again, and finish it in one go.",
+        "no_access_token": "Discord answered without a sign-in token. Try again. If it keeps happening, check the Discord app in the developer portal.",
+        "no_guild": "Discord did not say which server you chose. Try again and pick a server on Discord's page.",
+        "guild_link_failed": "Discord approved the bot, but saving the link to your server failed. Try again. If it keeps failing, tell an admin to check the bot's log.",
+        "unknown": "The Discord install did not finish. Try again. If it keeps failing, tell an admin."
+      },
       "setup": {
         "posts": {
           "title": "Posts a message in a Discord channel",
@@ -52,16 +67,14 @@
         "edit": "Edit",
         "setUp": "Set up"
       },
+      "defaults": {
+        "go_live": "{'{'}channel.name{'}'} is live! {'{'}stream.title{'}'} ({'{'}stream.game{'}'})"
+      },
       "triggers": {
-        "stream_online": "Stream goes live",
-        "stream_offline": "Stream ends",
-        "channel_follow": "New follower",
-        "channel_subscribe": "New Twitch subscriber",
-        "channel_subscription_gift": "Gifted Twitch sub",
-        "channel_cheer": "Cheer or bits",
-        "channel_raid": "Incoming raid",
-        "channel_poll_begin": "Poll starts",
-        "channel_prediction_begin": "Prediction starts"
+        "go_live": "Stream goes live",
+        "new_clip": "New clip",
+        "schedule": "Schedule update",
+        "milestone": "Milestone"
       },
       "roles": {
         "title": "Self-assign roles",
@@ -80,27 +93,28 @@
         "dm": "Send a direct message",
         "dmHelp": "Message members when they take or leave the role.",
         "buttonChannel": "Button channel",
-        "postButton": "Post button"
+        "postButton": "Post button",
+        "remove": "Remove role",
+        "removeConfirm": "Remove this role? It disappears from the opt-in button and nobody can pick it anymore.",
+        "removeNow": "Remove",
+        "keep": "Keep"
       },
       "liveRole": {
         "title": "Live role",
-        "subtitle": "Give one member a Discord role while you are live.",
+        "subtitle": "Give yourself a Discord role while you are live.",
         "error": "The live role could not load.",
         "role": "Role",
-        "member": "Member",
-        "memberPlaceholder": "Pick a member",
-        "memberFind": "Find a member by name",
-        "memberNoMatch": "No member has that name.",
-        "memberUnavailable": "The bot cannot read the members of this Discord server right now.",
+        "owner": "The role goes to your own Discord account, the one linked to your Twitch. You do not pick anyone.",
         "enabled": "Give the role while live",
         "enabledHelp": "Turn it off to keep the rule without applying it.",
         "applied": "Applied right now",
-        "appliedHelp": "The role is on the member now. Change the role or member after the stream ends.",
+        "appliedHelp": "The role is on you now. Change the role after the stream ends.",
         "remove": "Remove rule"
       },
       "editor": {
         "description": "Pick where the message goes, who it pings and what it says.",
         "pickerError": "The bot could not read the channels and roles of your Discord server.",
+        "blockedChannels": "The bot cannot post in {names} yet. It gives itself access the first time it needs to. If it cannot, allow View Channel and Send Messages for the bot's role in that channel's Permissions in Discord.",
         "pickerNoBotToken": "The Discord bot is not set up on this bot server yet. The person who runs the bot server must add the Discord bot token.",
         "pickerNotConnected": "The Discord bot is not connected to your Discord server. Add the bot to your server first.",
         "enabled": "Send this notification",

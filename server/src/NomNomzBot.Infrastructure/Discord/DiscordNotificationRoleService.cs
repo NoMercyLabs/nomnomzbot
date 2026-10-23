@@ -101,6 +101,17 @@ public sealed class DiscordNotificationRoleService : IDiscordNotificationRoleSer
                 connectionId.ToString()
             );
 
+        // One Discord role serves one purpose: the role the streamer wears while live is not also a pick-a-role.
+        bool isLiveRole = await _db.DiscordLiveRoleConfigs.AnyAsync(
+            c => c.GuildConnectionId == connectionId && c.RoleId == request.DiscordRoleId.Trim(),
+            ct
+        );
+        if (isLiveRole)
+            return Result.Failure<DiscordNotificationRoleDto>(
+                "That Discord role is already the role you get while live. Pick another role for viewers.",
+                "ROLE_IN_USE_AS_LIVE_ROLE"
+            );
+
         bool exists = await _db.DiscordNotificationRoles.AnyAsync(
             r => r.GuildConnectionId == connectionId && r.DiscordRoleId == request.DiscordRoleId,
             ct
@@ -261,7 +272,7 @@ public sealed class DiscordNotificationRoleService : IDiscordNotificationRoleSer
         // Push the role into the guild (best-effort — the opt-in is recorded regardless).
         Result roleAdded = await _gateway.AddMemberRoleAsync(
             broadcasterId,
-            role.GuildConnection?.GuildId ?? await GuildIdAsync(role.GuildConnectionId, ct),
+            await GuildIdAsync(role.GuildConnectionId, ct),
             discordMemberId,
             role.DiscordRoleId,
             ct
@@ -308,7 +319,7 @@ public sealed class DiscordNotificationRoleService : IDiscordNotificationRoleSer
 
         Result roleRemoved = await _gateway.RemoveMemberRoleAsync(
             broadcasterId,
-            role.GuildConnection?.GuildId ?? await GuildIdAsync(role.GuildConnectionId, ct),
+            await GuildIdAsync(role.GuildConnectionId, ct),
             discordMemberId,
             role.DiscordRoleId,
             ct

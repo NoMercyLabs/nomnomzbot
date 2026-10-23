@@ -103,9 +103,20 @@ public sealed class DiscordGuildService : IDiscordGuildService
                 "VALIDATION_FAILED"
             );
 
+        string? twitchChannelId = await _db
+            .Channels.Where(c => c.Id == broadcasterId)
+            .Select(c => c.TwitchChannelId)
+            .FirstOrDefaultAsync(ct);
         bool channelExists = await _db.Channels.AnyAsync(c => c.Id == broadcasterId, ct);
         if (!channelExists)
             return Errors.ChannelNotFound<DiscordGuildConnectionDto>(broadcasterId.ToString());
+
+        // The installer's Discord id is kept only when Discord's own Twitch link says they are the streamer.
+        string? streamerDiscordUserId =
+            oauth.LinkedTwitchIds is null
+            || (twitchChannelId is not null && oauth.LinkedTwitchIds.Contains(twitchChannelId))
+                ? oauth.InstalledByDiscordUserId
+                : null;
 
         // Retriable unit (Npgsql's retrying strategy rejects a bare Begin/Commit); the guild-linked event
         // publishes after the commit, so a retried attempt cannot announce a link twice.
@@ -147,7 +158,7 @@ public sealed class DiscordGuildService : IDiscordGuildService
                     // authorized the install).
                     connection.ServerConsentStatus = Approved;
                     connection.ApprovedByDiscordUserId =
-                        oauth.InstalledByDiscordUserId ?? connection.ApprovedByDiscordUserId;
+                        streamerDiscordUserId ?? connection.ApprovedByDiscordUserId;
                     connection.ApprovedAt ??= now;
 
                     await _unitOfWork.SaveChangesAsync(token);

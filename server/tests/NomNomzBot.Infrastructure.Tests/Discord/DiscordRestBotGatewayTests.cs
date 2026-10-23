@@ -611,6 +611,102 @@ public sealed class DiscordRestBotGatewayTests
         open.UnavailableReasonCode.Should().BeNull();
     }
 
+    // The bot raises its own access: a post refused because a channel overwrite hides or mutes the channel
+    // makes the bot add an allow overwrite for itself on that channel, then post again.
+    [Fact]
+    public async Task PostMessageAsync_ChannelBlocksTheBot_TheBotGrantsItselfAccessAndPostsAgain()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        await SeedDiscordConnectionAsync(database);
+
+        // 0x10000c00 = View Channel + Send Messages + Manage Roles at guild level; "live" denies Send Messages
+        // (0x800) to the bot's role and already holds an unrelated member overwrite for the bot (allow 0x20).
+        SequencedHandler handler = new(
+            JsonResponse("""{"code":50013}""", HttpStatusCode.Forbidden),
+            JsonResponse("""{"id":"bot-id-1"}"""),
+            JsonResponse("""{"roles":["bot-role"]}"""),
+            JsonResponse(
+                """[{"id":"guild1","name":"@everyone","color":0,"position":0,"managed":false,"permissions":"0"},{"id":"bot-role","name":"Bot","color":0,"position":3,"managed":false,"permissions":"268438528"}]"""
+            ),
+            JsonResponse(
+                """[{"id":"live","name":"live-streams","type":0,"position":0,"permission_overwrites":[{"id":"bot-role","type":0,"allow":"0","deny":"2048"},{"id":"bot-id-1","type":1,"allow":"32","deny":"0"}]}]"""
+            ),
+            new(HttpStatusCode.NoContent),
+            JsonResponse("""{"id":"7777"}""")
+        );
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(
+            handler,
+            db,
+            CredentialsWithBotToken(PlatformBotToken)
+        );
+
+        Result<string> result = await gateway.PostMessageAsync(
+            Channel,
+            "live",
+            new("Stream is live!", Embed: null, PingRoleId: null)
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Should().Be("7777");
+        handler
+            .Sent.Select(s => s.Line)
+            .Should()
+            .Equal(
+                "POST /api/v10/channels/live/messages",
+                "GET /api/v10/users/@me",
+                "GET /api/v10/guilds/guild1/members/bot-id-1",
+                "GET /api/v10/guilds/guild1/roles",
+                "GET /api/v10/guilds/guild1/channels",
+                "PUT /api/v10/channels/live/permissions/bot-id-1",
+                "POST /api/v10/channels/live/messages"
+            );
+
+        // The grant keeps the member overwrite's existing allow (0x20) and adds View (0x400) + Send (0x800)
+        // + Embed Links (0x4000) + Read History (0x10000); it denies nothing.
+        string grant = handler.Sent[5].Body;
+        grant.Should().Contain("\"type\":1");
+        grant.Should().Contain("\"allow\":\"" + (0x20 | 0x400 | 0x800 | 0x4000 | 0x10000) + "\"");
+        grant.Should().Contain("\"deny\":\"0\"");
+    }
+
+    [Fact]
+    public async Task PostMessageAsync_BotCannotRaiseItsOwnAccess_SaysSoInsteadOfBlamingTheToken()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        await SeedDiscordConnectionAsync(database);
+
+        // Same blocked channel, but Discord refuses the grant (the bot lacks Manage Roles there).
+        SequencedHandler handler = new(
+            JsonResponse("""{"code":50013}""", HttpStatusCode.Forbidden),
+            JsonResponse("""{"id":"bot-id-1"}"""),
+            JsonResponse("""{"roles":["bot-role"]}"""),
+            JsonResponse(
+                """[{"id":"guild1","name":"@everyone","color":0,"position":0,"managed":false,"permissions":"0"},{"id":"bot-role","name":"Bot","color":0,"position":3,"managed":false,"permissions":"3072"}]"""
+            ),
+            JsonResponse(
+                """[{"id":"live","name":"live-streams","type":0,"position":0,"permission_overwrites":[{"id":"bot-role","type":0,"allow":"0","deny":"2048"}]}]"""
+            ),
+            JsonResponse("""{"code":50013}""", HttpStatusCode.Forbidden)
+        );
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(
+            handler,
+            db,
+            CredentialsWithBotToken(PlatformBotToken)
+        );
+
+        Result<string> result = await gateway.PostMessageAsync(
+            Channel,
+            "live",
+            new("Stream is live!", Embed: null, PingRoleId: null)
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("DISCORD_CANNOT_RAISE_PERMISSIONS");
+        result.ErrorMessage.Should().Contain("live-streams").And.Contain("Manage Roles");
+    }
+
     [Fact]
     public async Task GetAssignableGuildRolesAsync_DiscordUnreachable_FailsDistinctly_NotAnEmptyList()
     {
@@ -641,11 +737,10 @@ public sealed class DiscordRestBotGatewayTests
         result.ErrorCode.Should().Be("DISCORD_UNAUTHORIZED");
     }
 
-    private static HttpResponseMessage JsonResponse(string json) =>
-        new(HttpStatusCode.OK)
-        {
-            Content = new StringContent(json, Encoding.UTF8, "application/json"),
-        };
+    private static HttpResponseMessage JsonResponse(
+        string json,
+        HttpStatusCode status = HttpStatusCode.OK
+    ) => new(status) { Content = new StringContent(json, Encoding.UTF8, "application/json") };
 
     [Fact]
     public async Task GetGuildAsync_IssuesGetToGuildEndpoint_AndMapsEveryField()
@@ -883,15 +978,22 @@ public sealed class DiscordRestBotGatewayTests
         private int _index;
         public int Calls { get; private set; }
 
-        protected override Task<HttpResponseMessage> SendAsync(
+        /// <summary>Every request in order as "METHOD path", with the JSON body when there is one.</summary>
+        public List<(string Line, string Body)> Sent { get; } = [];
+
+        protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
         )
         {
+            string body = request.Content is null
+                ? string.Empty
+                : await request.Content.ReadAsStringAsync(cancellationToken);
+            Sent.Add(($"{request.Method} {request.RequestUri!.AbsolutePath}", body));
             Calls++;
             HttpResponseMessage response = responses[Math.Min(_index, responses.Length - 1)];
             _index++;
-            return Task.FromResult(response);
+            return response;
         }
     }
 }
