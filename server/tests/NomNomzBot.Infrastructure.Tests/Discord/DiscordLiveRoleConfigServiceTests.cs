@@ -110,6 +110,50 @@ public sealed class DiscordLiveRoleConfigServiceTests
         created.Value.DiscordMemberId.Should().Be("someone-else");
     }
 
+    // A removed rule keeps its row (soft delete) and the unique index still counts it: setting the rule up again
+    // used to crash with a duplicate key. It brings the same row back instead.
+    [Fact]
+    public async Task CreateAsync_AfterTheRuleWasRemoved_BringsTheSameRowBack()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        (Guid channel, Guid connection) = await SeedLinkAsync(database, "streamer-discord-id");
+
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            await NewService(db).CreateAsync(channel, connection, new("role-1"));
+            await NewService(db).DeleteAsync(channel, connection);
+        }
+
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            DiscordLiveRoleConfig removed = await db
+                .DiscordLiveRoleConfigs.IgnoreQueryFilters()
+                .SingleAsync();
+            removed
+                .DeletedAt.Should()
+                .NotBeNull("the premise: a removed rule leaves its row behind");
+        }
+
+        Result<DiscordLiveRoleConfigDto> again;
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            again = await NewService(db).CreateAsync(channel, connection, new("role-2"));
+        }
+
+        again.IsSuccess.Should().BeTrue(again.ErrorMessage);
+
+        await using (DiscordTestDbContext db = database.NewContext())
+        {
+            DiscordLiveRoleConfig stored = await db
+                .DiscordLiveRoleConfigs.IgnoreQueryFilters()
+                .SingleAsync();
+            stored.DeletedAt.Should().BeNull();
+            stored.RoleId.Should().Be("role-2");
+            stored.DiscordMemberId.Should().Be("streamer-discord-id");
+            stored.IsCurrentlyApplied.Should().BeFalse();
+        }
+    }
+
     // One Discord role serves one purpose: the role the streamer wears while live is never also a role viewers pick
     // for pings, so the same role cannot show up twice on the page.
     [Fact]

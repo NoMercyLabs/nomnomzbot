@@ -88,26 +88,37 @@ public sealed class DiscordLiveRoleConfigService : IDiscordLiveRoleConfigService
         if (string.IsNullOrEmpty(memberId))
             return NeedsTwitchLink<DiscordLiveRoleConfigDto>();
 
-        bool exists = await _db.DiscordLiveRoleConfigs.AnyAsync(
-            c => c.BroadcasterId == broadcasterId && c.GuildConnectionId == connectionId,
-            ct
-        );
-        if (exists)
+        // Soft-deleted rows included: a removed rule keeps its (channel, server) row, and the unique index still
+        // counts it, so setting the rule up again brings that row back instead of inserting a second one.
+        DiscordLiveRoleConfig? row = await _db
+            .DiscordLiveRoleConfigs.IgnoreQueryFilters()
+            .FirstOrDefaultAsync(
+                c => c.BroadcasterId == broadcasterId && c.GuildConnectionId == connectionId,
+                ct
+            );
+        if (row is { DeletedAt: null })
             return Result.Failure<DiscordLiveRoleConfigDto>(
                 "A live-role rule already exists for this connection.",
                 "ALREADY_EXISTS"
             );
 
-        DiscordLiveRoleConfig row = new()
+        if (row is null)
         {
-            Id = Guid.CreateVersion7(),
-            BroadcasterId = broadcasterId,
-            GuildConnectionId = connectionId,
-            RoleId = request.RoleId.Trim(),
-            DiscordMemberId = memberId,
-            Enabled = request.Enabled,
-        };
-        _db.DiscordLiveRoleConfigs.Add(row);
+            row = new()
+            {
+                Id = Guid.CreateVersion7(),
+                BroadcasterId = broadcasterId,
+                GuildConnectionId = connectionId,
+            };
+            _db.DiscordLiveRoleConfigs.Add(row);
+        }
+
+        row.DeletedAt = null;
+        row.DeletedBy = null;
+        row.IsCurrentlyApplied = false;
+        row.RoleId = request.RoleId.Trim();
+        row.DiscordMemberId = memberId;
+        row.Enabled = request.Enabled;
         await _unitOfWork.SaveChangesAsync(ct);
         await DiscordConfigChangePublisher.PublishAsync(
             _eventBus,
