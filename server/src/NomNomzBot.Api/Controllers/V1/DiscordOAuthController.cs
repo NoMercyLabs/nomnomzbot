@@ -12,10 +12,9 @@ using System.Text.Json;
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
-using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Extensions;
-using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 
@@ -37,7 +36,7 @@ public class DiscordOAuthController : BaseController
 {
     private const string DiscordScopes = "bot guilds";
 
-    private readonly IApplicationDbContext _db;
+    private readonly ISystemCredentialsProvider _credentials;
     private readonly IConfiguration _config;
     private readonly IHttpClientFactory _httpClientFactory;
     private readonly ILogger<DiscordOAuthController> _logger;
@@ -46,7 +45,7 @@ public class DiscordOAuthController : BaseController
     private readonly IDiscordGuildService _discord;
 
     public DiscordOAuthController(
-        IApplicationDbContext db,
+        ISystemCredentialsProvider credentials,
         IConfiguration config,
         IHttpClientFactory httpClientFactory,
         ILogger<DiscordOAuthController> logger,
@@ -55,7 +54,7 @@ public class DiscordOAuthController : BaseController
         IDiscordGuildService discord
     )
     {
-        _db = db;
+        _credentials = credentials;
         _config = config;
         _httpClientFactory = httpClientFactory;
         _logger = logger;
@@ -83,7 +82,7 @@ public class DiscordOAuthController : BaseController
         if (!ClientRedirectPolicy.IsAllowed(redirect_uri))
             return BadRequestResponse("Disallowed redirect_uri.");
 
-        string? clientId = await GetConfigValueAsync("discord.client_id", ct);
+        string? clientId = await _credentials.GetClientIdAsync("discord", ct);
         if (string.IsNullOrEmpty(clientId))
             // Same distinguishable code as the generic vaulted flow's ChannelCredentialsResolver
             // (PROVIDER_NOT_CONFIGURED) so the dashboard can route to the BYOC onboarding dialog here too,
@@ -141,8 +140,10 @@ public class DiscordOAuthController : BaseController
         if (!Guid.TryParse(channelId, out Guid tenantId))
             return BadRequestResponse("Invalid channel_id in OAuth state.");
 
-        string? clientId = await GetConfigValueAsync("discord.client_id", ct);
-        string? clientSecret = await GetConfigSecureValueAsync("discord.client_secret", ct);
+        // The provider opens the sealed secret; the stored text itself is ciphertext Discord would refuse.
+        SystemAppCredentials? app = await _credentials.GetAsync("discord", ct);
+        string? clientId = app?.ClientId;
+        string? clientSecret = app?.ClientSecret;
 
         if (string.IsNullOrEmpty(clientId) || string.IsNullOrEmpty(clientSecret))
             return FailureResult(
@@ -311,47 +312,4 @@ public class DiscordOAuthController : BaseController
     /// <summary>Appends <paramref name="query"/> to <paramref name="url"/>, choosing <c>?</c> or <c>&amp;</c>.</summary>
     private static string AppendQuery(string url, string query) =>
         url + (url.Contains('?') ? '&' : '?') + query;
-
-    /// <summary>Read a plain-text Configuration value (platform-scoped) from the database, falling back to config/env.</summary>
-    private async Task<string?> GetConfigValueAsync(string key, CancellationToken ct)
-    {
-        string? dbValue = await _db
-            .Configurations.Where(c => c.BroadcasterId == null && c.Key == key)
-            .Select(c => c.Value)
-            .FirstOrDefaultAsync(ct);
-
-        if (!string.IsNullOrEmpty(dbValue))
-            return dbValue;
-
-        return _config[ToPascalConfigKey(key)]
-            ?? Environment.GetEnvironmentVariable(ToPascalEnvKey(key));
-    }
-
-    /// <summary>Read a secure (encrypted) Configuration value (platform-scoped) from the database, falling back to config/env.</summary>
-    private async Task<string?> GetConfigSecureValueAsync(string key, CancellationToken ct)
-    {
-        string? dbValue = await _db
-            .Configurations.Where(c => c.BroadcasterId == null && c.Key == key)
-            .Select(c => c.SecureValue)
-            .FirstOrDefaultAsync(ct);
-
-        if (!string.IsNullOrEmpty(dbValue))
-            return dbValue;
-
-        return _config[ToPascalConfigKey(key)]
-            ?? Environment.GetEnvironmentVariable(ToPascalEnvKey(key));
-    }
-
-    /// <summary>Convert "discord.client_id" → "Discord:ClientId" for IConfiguration.</summary>
-    private static string ToPascalConfigKey(string key) =>
-        string.Join(":", key.Split('.').Select(ToPascalCase));
-
-    /// <summary>Convert "discord.client_id" → "Discord__ClientId" for environment variables.</summary>
-    private static string ToPascalEnvKey(string key) =>
-        string.Join("__", key.Split('.').Select(ToPascalCase));
-
-    private static string ToPascalCase(string segment) =>
-        string.Concat(
-            segment.Split('_').Select(w => w.Length > 0 ? char.ToUpper(w[0]) + w[1..] : w)
-        );
 }

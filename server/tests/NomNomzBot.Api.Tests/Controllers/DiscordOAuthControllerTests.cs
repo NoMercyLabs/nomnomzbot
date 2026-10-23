@@ -16,6 +16,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Common.Consequences;
+using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NSubstitute;
@@ -36,6 +37,7 @@ public sealed class DiscordOAuthControllerTests
 {
     private const string ChannelId = "0192a000-0000-7000-8000-00000000d1c0";
     private const string Loopback = "http://127.0.0.1:53127/callback";
+    private const string OpenedSecret = "opened-discord-secret";
 
     // ─── start: the open-redirect boundary ─────────────────────────────────────
 
@@ -74,6 +76,32 @@ public sealed class DiscordOAuthControllerTests
                 ),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    // ─── callback: the app credentials sent to Discord ─────────────────────────
+
+    // The admin screen seals the client secret; sending the stored (sealed) text made Discord answer
+    // invalid_client for every secret a person could paste.
+    [Fact]
+    public async Task Callback_SendsTheOpenedClientSecretAndTheClientIdToDiscord()
+    {
+        StubHandler handler = new();
+        (DiscordOAuthController controller, _, _) = Build(
+            handler,
+            new(ChannelId, RedirectUri: null)
+        );
+
+        await controller.HandleDiscordCallback("the-code", "nonce", default);
+
+        Dictionary<string, string> form = handler
+            .SentForm!.Split('&')
+            .Select(pair => pair.Split('='))
+            .ToDictionary(pair => pair[0], pair => Uri.UnescapeDataString(pair[1]));
+
+        form["client_id"].Should().Be("discord-client");
+        form["client_secret"].Should().Be(OpenedSecret);
+        form["code"].Should().Be("the-code");
+        form["grant_type"].Should().Be("authorization_code");
     }
 
     // ─── callback: loopback completion (success / failure) + web fallback ───────
@@ -151,24 +179,14 @@ public sealed class DiscordOAuthControllerTests
         IDiscordOAuthStateService State
     ) Build(StubHandler? handler = null, DiscordOAuthFlowState? consumeState = null)
     {
-        ApiTestDbContext db = ApiTestDbContext.New();
-        db.Configurations.Add(
-            new()
-            {
-                BroadcasterId = null,
-                Key = "discord.client_id",
-                Value = "discord-client",
-            }
-        );
-        db.Configurations.Add(
-            new()
-            {
-                BroadcasterId = null,
-                Key = "discord.client_secret",
-                SecureValue = "discord-secret",
-            }
-        );
-        db.SaveChanges();
+        // The stored secret is sealed; the provider opens it. The controller must send the opened value.
+        ISystemCredentialsProvider credentials = Substitute.For<ISystemCredentialsProvider>();
+        credentials
+            .GetClientIdAsync("discord", Arg.Any<CancellationToken>())
+            .Returns("discord-client");
+        credentials
+            .GetAsync("discord", Arg.Any<CancellationToken>())
+            .Returns(new SystemAppCredentials("discord-client", OpenedSecret));
 
         IConfiguration config = new ConfigurationBuilder()
             .AddInMemoryCollection(
@@ -189,7 +207,7 @@ public sealed class DiscordOAuthControllerTests
         FakeDiscordGuildService discord = new();
 
         DiscordOAuthController controller = new(
-            db,
+            credentials,
             config,
             new SingleClientFactory(handler ?? new StubHandler()),
             NullLogger<DiscordOAuthController>.Instance,
@@ -210,16 +228,23 @@ public sealed class DiscordOAuthControllerTests
             """{"access_token":"bot-token","expires_in":604800,"guild":{"id":"99","name":"Cool Guild"}}""";
         public HttpStatusCode TokenStatus { get; init; } = HttpStatusCode.OK;
 
-        protected override Task<HttpResponseMessage> SendAsync(
+        /// <summary>The form the bot posted to the token endpoint, so a test can assert what Discord was sent.</summary>
+        public string? SentForm { get; private set; }
+
+        protected override async Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
-        ) =>
-            Task.FromResult(
-                new HttpResponseMessage(TokenStatus)
-                {
-                    Content = new StringContent(TokenJson, Encoding.UTF8, "application/json"),
-                }
-            );
+        )
+        {
+            SentForm = request.Content is null
+                ? null
+                : await request.Content.ReadAsStringAsync(cancellationToken);
+
+            return new HttpResponseMessage(TokenStatus)
+            {
+                Content = new StringContent(TokenJson, Encoding.UTF8, "application/json"),
+            };
+        }
     }
 
     private sealed class SingleClientFactory(HttpMessageHandler handler) : IHttpClientFactory

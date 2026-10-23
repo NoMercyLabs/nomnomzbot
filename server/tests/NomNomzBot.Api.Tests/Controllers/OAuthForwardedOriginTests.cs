@@ -297,16 +297,10 @@ public sealed class OAuthForwardedOriginTests
         IDiscordOAuthStateService State
     ) BuildDiscord()
     {
-        ApiTestDbContext db = ApiTestDbContext.New();
-        db.Configurations.Add(
-            new()
-            {
-                BroadcasterId = null,
-                Key = "discord.client_id",
-                Value = "discord-client",
-            }
-        );
-        db.SaveChanges();
+        ISystemCredentialsProvider credentials = Substitute.For<ISystemCredentialsProvider>();
+        credentials
+            .GetClientIdAsync("discord", Arg.Any<CancellationToken>())
+            .Returns("discord-client");
 
         IDiscordOAuthStateService state = Substitute.For<IDiscordOAuthStateService>();
         state
@@ -314,7 +308,7 @@ public sealed class OAuthForwardedOriginTests
             .Returns("nonce");
 
         DiscordOAuthController controller = new(
-            db,
+            credentials,
             LoopbackConfig(),
             new SingleClientFactory(new OkHandler()),
             NullLogger<DiscordOAuthController>.Instance,
