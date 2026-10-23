@@ -271,6 +271,36 @@ export function useSetStreamerEnabled(
   });
 }
 
+// Asks the bot whether it is in the linked server right now; the answer updates the stored flag, so the
+// connection is read again afterwards.
+export function useRefreshDiscordPresence(
+  channelId: MaybeRefOrGetter<string | null>,
+  connectionId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, void, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (): Promise<void> => {
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/discord/connections/{connectionId}/presence',
+        {
+          params: { path: {
+            version,
+            channelId: toValue(channelId) as string,
+            connectionId: toValue(connectionId) as string,
+          } },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('refresh discord presence', response.status, error);
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({ queryKey: discordConnectionsKey(toValue(channelId)) });
+    },
+  });
+}
+
 export function useCreateDiscordRule(
   channelId: MaybeRefOrGetter<string | null>,
   connectionId: MaybeRefOrGetter<string | null>,

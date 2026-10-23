@@ -9,12 +9,12 @@
 -->
 <script setup lang="ts">
 // No server is linked yet: say what the bot does in Discord, then give the one action that starts the install.
-import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { activeBot } from '@/api/activeBot';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
+
+import { useDiscordInstallUrl } from '../installUrl';
 
 const props = defineProps<{ channelId: string }>();
 
@@ -23,10 +23,7 @@ const { can } = useCan();
 
 const abilities = ['posts', 'roles', 'live'] as const;
 
-// The start route answers with a redirect to Discord's own page, so it is a plain link, not a request.
-const startUrl = computed<string>(
-  () => `${activeBot.value}/api/v1/channels/${props.channelId}/integrations/discord/callback/start`,
-);
+const startUrl = useDiscordInstallUrl(() => props.channelId);
 </script>
 
 <template>

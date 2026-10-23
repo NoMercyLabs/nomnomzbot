@@ -58,6 +58,8 @@ const connection = computed<DiscordConnection | null>(
   () => connectionsQuery.data.value?.[0] ?? null,
 );
 const connectionId = computed<string | null>(() => connection.value?.id ?? null);
+// Notifications are set up only once the bot is in the server; until then the page leads with adding it.
+const botIn = computed<boolean>(() => connection.value?.botInstalled === true);
 
 const rulesQuery = useDiscordRules(channelId, connectionId);
 const channelsQuery = useDiscordChannels(channelId, connectionId);
@@ -147,7 +149,7 @@ function ruleSummary(rule: DiscordRule | null): string {
       </PanelCard>
 
       <PanelCard
-        v-if="connection && can('discord:config:read')"
+        v-if="botIn && can('discord:config:read')"
         tier="lead"
         :title="t('dashboard.discord.rules.title')"
         :description="t('dashboard.discord.rules.subtitle')"
@@ -179,7 +181,7 @@ function ruleSummary(rule: DiscordRule | null): string {
       </PanelCard>
 
       <PanelCard
-        v-if="connection && can('discord:role:read')"
+        v-if="botIn && can('discord:role:read')"
         :title="t('dashboard.discord.roles.title')"
         :description="t('dashboard.discord.roles.subtitle')"
         :state="notifyRolesState"
@@ -221,7 +223,7 @@ function ruleSummary(rule: DiscordRule | null): string {
       </PanelCard>
 
       <PanelCard
-        v-if="connection && can('discord:config:read')"
+        v-if="connection && botIn && can('discord:config:read')"
         :title="t('dashboard.discord.liveRole.title')"
         :description="t('dashboard.discord.liveRole.subtitle')"
         pad

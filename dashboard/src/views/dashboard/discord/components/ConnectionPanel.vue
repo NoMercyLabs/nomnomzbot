@@ -9,17 +9,21 @@
 -->
 <script setup lang="ts">
 // The linked server: its name, whether the bot may post there, and the streamer's own on/off for it.
-import { computed } from 'vue';
+import { computed, onMounted } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  useRefreshDiscordPresence,
   useSetStreamerEnabled,
   type DiscordConnection,
 } from '@/api/discord';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
+import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+
+import { useDiscordInstallUrl } from '../installUrl';
 
 const props = defineProps<{ connection: DiscordConnection }>();
 
@@ -27,6 +31,16 @@ const { t } = useI18n();
 const { can } = useCan();
 const { channelId } = useCurrentChannel();
 const setEnabled = useSetStreamerEnabled(channelId, () => props.connection.id);
+const refreshPresence = useRefreshDiscordPresence(channelId, () => props.connection.id);
+const installUrl = useDiscordInstallUrl(channelId);
+
+// The stored "bot is in the server" flag can be stale (the bot was kicked, or joined later), so the page asks
+// the bot once when it opens, and again whenever the person presses Check again.
+onMounted(() => {
+  if (can('discord:connection:read')) {
+    refreshPresence.mutate();
+  }
+});
 
 const tone = computed<StatusTone>(() => {
   if (!props.connection.isLinkActive)
@@ -53,6 +67,32 @@ const label = computed<string>(() => {
       {{ connection.guildName ?? connection.guildId }}
     </p>
     <StatusBadge :tone="tone" :label="label" />
+    <div
+      v-if="!connection.botInstalled && can('discord:connection:write')"
+      class="flex flex-col gap-3 py-3"
+    >
+      <p class="text-sm text-muted-foreground">
+        {{ t('dashboard.discord.connection.botMissingHelp') }}
+      </p>
+      <div class="flex flex-wrap items-center gap-2">
+        <Button as-child>
+          <a data-add-bot :href="installUrl">{{ t('dashboard.discord.setup.add') }}</a>
+        </Button>
+        <Button
+          variant="outline"
+          data-check-again
+          :disabled="refreshPresence.isPending.value"
+          @click="refreshPresence.mutate()"
+        >
+          {{ t('dashboard.discord.connection.checkAgain') }}
+        </Button>
+      </div>
+    </div>
+    <div v-else-if="can('discord:connection:write')" class="py-1">
+      <Button variant="ghost" size="sm" as-child>
+        <a data-change-server :href="installUrl">{{ t('dashboard.discord.connection.change') }}</a>
+      </Button>
+    </div>
     <div data-streamer-enabled>
       <SettingRow
         :model-value="connection.streamerEnabled"
