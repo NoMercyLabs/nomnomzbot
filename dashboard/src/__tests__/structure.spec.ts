@@ -1032,3 +1032,30 @@ describe('viewer pages', () => {
     expect(offenders).toEqual([]);
   });
 });
+
+// Stoney 2026-10-23: kitte switched to his profile and saw her own scripts. 120 paths of the API name no channel
+// (scripts, giveaways, quotes, assets, audio mix, data sources...), so the bot resolves the channel from the call,
+// and only the client sends the channel being managed. A call that bypasses the client with its own fetch would
+// bring the bug back for that path. These files do and name no channel on purpose.
+const bypassesClientAllowlist = new Set<string>([
+  'api/client.ts',
+  'api/auth.ts',
+  'api/system.ts',
+  'composables/useReadAloud.ts',
+]);
+
+describe('calls to the bot', () => {
+  it('go through the client, which names the channel being managed, except the files on the list', () => {
+    const offenders = allPaths(src)
+      .filter((path) => /\.(ts|vue)$/.test(path) && !/__tests__|\.spec\.ts$|schema\.d\.ts$/.test(path))
+      .map((path) => relative(src, path).replace(/\\/g, '/'))
+      .filter((path) => !bypassesClientAllowlist.has(path))
+      .filter((path) => {
+        const text = readFileSync(join(src, path), 'utf8');
+
+        return /(?<![.\w])fetch\(\s*[`'"][^`'"]*\/api\/v/.test(text);
+      });
+
+    expect(offenders).toEqual([]);
+  });
+});

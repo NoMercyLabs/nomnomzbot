@@ -12,6 +12,7 @@ import createClient from 'openapi-fetch';
 import type { paths } from './schema';
 
 import { activeBot } from './activeBot';
+import { activeChannelId, channelHeader } from './activeChannel';
 import { viewAs, viewAsHeader } from './viewAs';
 
 import { servedOrigin } from '@/lib/botAddress';
@@ -39,6 +40,21 @@ client.use({
       credentials: request.credentials,
       signal: request.signal,
     });
+  },
+});
+
+// Every call names the channel being managed, so a list with no channel in its path answers for that channel and
+// not for the caller's own. A header a call set itself stays.
+client.use({
+  onRequest({ request }) {
+    const channelId = activeChannelId.value;
+
+    if (channelId === null || request.headers.has(channelHeader))
+      return request;
+
+    request.headers.set(channelHeader, channelId);
+
+    return request;
   },
 });
 

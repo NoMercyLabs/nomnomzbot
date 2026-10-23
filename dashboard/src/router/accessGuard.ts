@@ -37,7 +37,7 @@ function namedChannel(to: RouteLocationNormalized): string | undefined {
 
 // The channel the target page is for: the one named in the address, else the one being managed.
 // Null when the channel is not set up in this bot, so no access can be read for it.
-async function targetChannelId(to: RouteLocationNormalized): Promise<string | null> {
+export async function targetChannelId(to: RouteLocationNormalized): Promise<string | null> {
   const [mine, moderated] = await Promise.all([
     ensureQuery(myChannelsQuery),
     ensureQuery(moderatedChannelsQuery),

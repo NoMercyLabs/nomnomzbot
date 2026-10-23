@@ -11,6 +11,7 @@
 import { createRouter, createWebHistory } from 'vue-router';
 
 import { accessGuard } from './accessGuard';
+import { channelScopeGuard } from './channelScope';
 import { channelPrefixGuard, ownChannelGuard, platformPathGuard } from './channelRoutes';
 import { dashboardChannelRoutes, dashboardRoutes } from './dashboard';
 import { setupGuard, signInGuard } from './guard';
@@ -30,6 +31,7 @@ router.beforeEach(setupGuard);
 router.beforeEach(signInGuard);
 router.beforeEach(ownChannelGuard);
 router.beforeEach(rungGuard());
+router.beforeEach(channelScopeGuard);
 router.beforeEach(accessGuard(router));
 
 export default router;
