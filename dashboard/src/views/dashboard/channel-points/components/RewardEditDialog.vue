@@ -332,8 +332,7 @@ async function duplicate(): Promise<void> {
     <template v-if="can('reward:manage')" #footer-start>
       <Button
         type="button"
-        variant="ghost"
-        class="text-destructive hover:text-destructive"
+        variant="outline"
         :disabled="update.isPending.value || remove.isPending.value"
         data-reward-delete
         @click="askDelete"
