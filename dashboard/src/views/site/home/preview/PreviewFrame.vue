@@ -12,7 +12,9 @@
 // by the fake data layer, and is drawn at desktop width and scaled down to fit. On a phone it is not scaled:
 // the page shows its own phone layout at the phone's width. Nothing inside can be clicked or focused.
 import { useElementSize } from '@vueuse/core';
-import { computed, onBeforeUnmount, onMounted, useTemplateRef, watch } from 'vue';
+import { computed, onBeforeUnmount, onMounted, ref, useTemplateRef, watch } from 'vue';
+
+import { Skeleton } from '@/components/ui/skeleton';
 
 import { startFakeApi } from './fakeApi';
 import { createPreviewApp, type PreviewApp } from './previewApp';
@@ -49,6 +51,8 @@ const innerWidth = computed(() =>
     : width.value);
 const outerHeight = computed(() => Math.round(props.height * scale.value));
 
+const ready = ref(false);
+
 let preview: PreviewApp | null = null;
 let stopFake: (() => void) | null = null;
 
@@ -67,6 +71,11 @@ onMounted(() => {
   // A phone has no room for the sidebar next to the page, and the page has its own phone navigation.
   preview = createPreviewApp(pathToOpen(), props.shell && !isPhone());
   preview.app.mount(host.value as HTMLElement);
+
+  // Ready once the first page has loaded; a failed first load still lifts the placeholder, never holds it.
+  void preview.router.isReady().finally(() => {
+    ready.value = true;
+  });
 });
 
 watch(
@@ -102,5 +111,7 @@ onBeforeUnmount(() => {
         transform: `scale(${scale})`,
       }"
     />
+    <!-- The page is a chunk fetched on demand (slow on a dev server): an empty window would read as broken. -->
+    <Skeleton v-if="!ready" data-preview-loading class="absolute inset-0 size-full rounded-none" />
   </div>
 </template>
