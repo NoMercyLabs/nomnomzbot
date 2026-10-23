@@ -39,6 +39,21 @@ async function open(path: string): Promise<{ router: Router; wrapper: VueWrapper
   return { router, wrapper };
 }
 
+// jsdom has no layout: every tab is 100 wide, the strip 200 wide, and a tab sits 300 further along per place.
+function stubLayout(): void {
+  const places = new Map<string, number>([['Run the stream', 1], ['History 12', 2]]);
+
+  Object.defineProperty(HTMLElement.prototype, 'offsetLeft', {
+    configurable: true,
+    get(this: HTMLElement): number {
+      return (places.get(this.textContent?.trim() ?? '') ?? 0) * 300;
+    },
+  });
+
+  Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, get: () => 100 });
+  Object.defineProperty(HTMLElement.prototype, 'clientWidth', { configurable: true, get: () => 200 });
+}
+
 function selectedLabel(wrapper: VueWrapper): string | undefined {
   return wrapper
     .findAll('[role="tab"]')
@@ -112,24 +127,19 @@ describe('the page tabs', () => {
   });
 
   // At 390 px the last tab sat past the edge; opening it by link left the active tab out of sight.
-  it('scrolls the active tab into view on open and when the tab changes', async () => {
-    const shown: string[] = [];
+  it('moves the strip to the active tab on open and when the tab changes', async () => {
+    stubLayout();
 
-    Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
-      configurable: true,
-      value(this: HTMLElement): void {
-        shown.push(this.textContent?.trim() ?? '');
-      },
-    });
+    const { router, wrapper } = await open('/?view=history');
+    const strip = wrapper.get('[data-slot="tabs"]').element;
 
-    const { router } = await open('/?view=history');
-
-    expect(shown.at(-1)).toBe('History 12');
+    // History sits at 600 in a 200 wide strip, 100 wide itself: centered, the strip starts at 550.
+    expect(strip.scrollLeft).toBe(550);
 
     await router.push('/?view=run');
     await flushPromises();
 
-    expect(shown.at(-1)).toBe('Run the stream');
+    expect(strip.scrollLeft).toBe(250);
   });
 
   // The trigger underline sits 5 px below the strip; inside a sideways scroller it made the strip scroll 4 px vertically.
@@ -141,18 +151,21 @@ describe('the page tabs', () => {
     expect(strip.classes()).toContain('overflow-y-hidden');
   });
 
-  it('centers the open tab in the strip, so neighbors show on both sides and none is cut mid-word', async () => {
-    const calls: ScrollIntoViewOptions[] = [];
+  // The home page mounts previews before they are seen; scrollIntoView on their tab strip scrolled the whole page.
+  it('never scrolls the page, only its own strip', async () => {
+    stubLayout();
+
+    let pageScrolls = 0;
 
     Object.defineProperty(HTMLElement.prototype, 'scrollIntoView', {
       configurable: true,
-      value(this: HTMLElement, options: ScrollIntoViewOptions): void {
-        calls.push(options);
+      value(): void {
+        pageScrolls += 1;
       },
     });
 
     await open('/?view=history');
 
-    expect(calls.at(-1)).toEqual({ block: 'nearest', inline: 'center' });
+    expect(pageScrolls).toBe(0);
   });
 });

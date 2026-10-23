@@ -32,10 +32,13 @@ watch(
     await nextTick();
     const element = strip.value?.$el as HTMLElement | undefined;
 
-    element?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]')?.scrollIntoView?.({
-      block: 'nearest',
-      inline: 'center',
-    });
+    const tab = element?.querySelector<HTMLElement>('[role="tab"][aria-selected="true"]');
+
+    // Only the strip moves. scrollIntoView would also scroll the page to a strip that is off screen, such as
+    // a preview on the home page that mounts before it is seen.
+    if (element && tab) {
+      element.scrollLeft = tab.offsetLeft - (element.clientWidth - tab.offsetWidth) / 2;
+    }
   },
   { immediate: true, flush: 'post' },
 );
