@@ -66,6 +66,16 @@ const providers = [
     supported: false,
     apiKeySource: null,
   },
+  {
+    provider: 'discord',
+    clientId: 'discord-app-id',
+    clientIdSource: 'environment',
+    secretSource: 'environment',
+    appDecisionRecorded: false,
+    supported: true,
+    apiKeySource: null,
+    botTokenSource: 'unset',
+  },
 ];
 
 // The signed-in admin holds every platform key, so every action button shows.
@@ -169,7 +179,7 @@ describe('AdminProvidersView', () => {
   it('lists every provider as one row with its stored client id and sources, and no open input', async () => {
     await open();
 
-    expect(document.body.querySelectorAll('[data-provider]')).toHaveLength(3);
+    expect(document.body.querySelectorAll('[data-provider]')).toHaveLength(4);
     expect(document.body.querySelectorAll('input')).toHaveLength(0);
     expect(one('[data-provider="twitch"]').textContent).toContain('abc123client');
     expect(one('[data-provider="twitch"]').textContent).toContain('Secret: Stored');
@@ -216,6 +226,33 @@ describe('AdminProvidersView', () => {
     await click('[data-form-action]');
 
     expect(puts[0]?.body).toEqual({ clientId: 'yt-client', apiKey: 'yt-key' });
+  });
+
+  // Stoney 2026-10-23: the Discord channel picker said the bot was not set up; the token had no place to go.
+  it('takes the Discord bot token as a write-only field and sends only that', async () => {
+    await open();
+
+    expect(one('[data-provider="discord"]').textContent).toContain('Bot token: Not set');
+
+    await click('[data-provider="discord"] [data-action="edit-credentials"]');
+
+    const token = one<HTMLInputElement>('input[name="botToken"]');
+
+    expect(token.type).toBe('password');
+    expect(token.value).toBe('');
+
+    await type('input[name="botToken"]', 'discord-bot-token');
+    await click('[data-form-action]');
+
+    expect(puts[0]?.params).toMatchObject({ path: { provider: 'discord' } });
+    expect(puts[0]?.body).toEqual({ botToken: 'discord-bot-token' });
+  });
+
+  it('shows no bot token field for a provider that has none', async () => {
+    await open();
+    await click('[data-provider="twitch"] [data-action="edit-credentials"]');
+
+    expect(document.body.querySelector('input[name="botToken"]')).toBeNull();
   });
 
   it('clears stored credentials only after a confirm dialog', async () => {

@@ -96301,6 +96301,11 @@ export interface components {
              *     provider, which has no API key. The key itself is never carried.
              */
             apiKeySource?: null | string;
+            /**
+             * @description Which source supplies the Discord bot's own token (stored, environment or unset); null for every other
+             *     provider, which has no bot token. The token itself is never carried.
+             */
+            botTokenSource?: null | string;
         };
         PublicBadge: {
             setId: string;
@@ -96898,11 +96903,14 @@ export interface components {
          *     leaves the id alone, which is the common case. A BLANK field means "leave it", never "clear it" — clearing
          *     is `DELETE`, so a half-filled form can never silently wipe a working credential.
          *     ApiKey is the YouTube Data API key and is accepted for the youtube provider only.
+         *     BotToken is the Discord bot's own token (Developer Portal, Bot tab) and is accepted for the
+         *     discord provider only.
          */
         SaveProviderCredentialRequest: {
             clientId?: null | string;
             clientSecret?: null | string;
             apiKey?: null | string;
+            botToken?: null | string;
         };
         /** @description Both switches are explicit on every save — no partial policy writes (opt-in, default-deny). */
         SaveSharedBanSettingsRequest: {

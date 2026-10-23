@@ -1230,10 +1230,12 @@
         "clientIdLabel": "Client-ID: {source}",
         "secretLabel": "Secret: {source}",
         "apiKeyLabel": "API-sleutel: {source}",
+        "botTokenLabel": "Bottoken: {source}",
         "fields": {
           "clientId": "Client-ID",
           "clientSecret": "Nieuw client-secret",
-          "apiKey": "Nieuwe API-sleutel"
+          "apiKey": "Nieuwe API-sleutel",
+          "botToken": "Nieuw bottoken"
         },
         "secretHint": "Alleen schrijven. De opgeslagen waarde wordt nooit getoond.",
         "save": "Opslaan",

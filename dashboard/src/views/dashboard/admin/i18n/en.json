@@ -1230,10 +1230,12 @@
         "clientIdLabel": "Client ID: {source}",
         "secretLabel": "Secret: {source}",
         "apiKeyLabel": "API key: {source}",
+        "botTokenLabel": "Bot token: {source}",
         "fields": {
           "clientId": "Client ID",
           "clientSecret": "New client secret",
-          "apiKey": "New API key"
+          "apiKey": "New API key",
+          "botToken": "New bot token"
         },
         "secretHint": "Write only. The stored value is never shown.",
         "save": "Save",

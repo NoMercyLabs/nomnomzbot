@@ -466,4 +466,123 @@ public sealed class ProviderCredentialServiceTests
 
         Row((await service.ListAsync()).Value, "twitch").ApiKeySource.Should().BeNull();
     }
+
+    // Stoney 2026-10-23: the Discord bot token had no place in the product, only an environment variable on the
+    // server, so a notification channel could not be picked. The operator console takes it, sealed like a secret.
+    private const string FakeBotToken = "bot-token-abc.def.ghi";
+
+    [Fact]
+    public async Task A_saved_discord_bot_token_is_sealed_under_its_own_AAD_and_opens_to_the_token()
+    {
+        (ProviderCredentialService service, SeedTestDbContext db) = Build();
+
+        await service.SaveAsync("discord", new(null, null, BotToken: FakeBotToken));
+
+        Domain.Platform.Entities.Configuration row = db.Configurations.Single(c =>
+            c.BroadcasterId == null && c.Key == "discord.bot_token"
+        );
+        row.SecureValue.Should().NotBeNullOrEmpty();
+        row.SecureValue.Should().NotBe(FakeBotToken);
+        row.Value.Should().BeNull();
+
+        TokenProtectionContext aad = SystemCredentialsProvider.ContextFor("discord.bot_token");
+        aad.Should().Be(new TokenProtectionContext("system", "discord", "bot_token"));
+        (await new ReversibleProtector().TryUnprotectAsync(row.SecureValue!, aad))
+            .Should()
+            .Be(FakeBotToken);
+    }
+
+    [Fact]
+    public async Task The_bot_token_never_appears_in_the_save_or_list_response()
+    {
+        (ProviderCredentialService service, _) = Build(
+            new() { ["Discord:BotToken"] = "env-bot-token" }
+        );
+
+        Result<ProviderCredentialDto> saved = await service.SaveAsync(
+            "discord",
+            new(null, null, BotToken: FakeBotToken)
+        );
+        IReadOnlyList<ProviderCredentialDto> listed = (await service.ListAsync()).Value;
+
+        string serialized =
+            System.Text.Json.JsonSerializer.Serialize(saved.Value)
+            + System.Text.Json.JsonSerializer.Serialize(listed);
+        serialized.Should().NotContain(FakeBotToken);
+        serialized.Should().NotContain("env-bot-token");
+    }
+
+    [Fact]
+    public async Task The_bot_token_source_reads_unset_then_environment_then_stored()
+    {
+        (ProviderCredentialService unsetService, _) = Build();
+        Row((await unsetService.ListAsync()).Value, "discord")
+            .BotTokenSource.Should()
+            .Be(CredentialSource.Unset);
+
+        (ProviderCredentialService envService, _) = Build(
+            new() { ["Discord:BotToken"] = "env-bot-token" }
+        );
+        Row((await envService.ListAsync()).Value, "discord")
+            .BotTokenSource.Should()
+            .Be(CredentialSource.Environment);
+
+        Result<ProviderCredentialDto> saved = await envService.SaveAsync(
+            "discord",
+            new(null, null, BotToken: FakeBotToken)
+        );
+        saved.Value.BotTokenSource.Should().Be(CredentialSource.Stored);
+    }
+
+    [Fact]
+    public async Task A_bot_token_alone_is_a_valid_save_and_leaves_the_oauth_credentials_alone()
+    {
+        (ProviderCredentialService service, SeedTestDbContext db) = Build();
+        await service.SaveAsync("discord", new("keep-id", "keep-secret"));
+
+        Result<ProviderCredentialDto> result = await service.SaveAsync(
+            "discord",
+            new(null, null, BotToken: FakeBotToken)
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ClientId.Should().Be("keep-id");
+        result.Value.SecretSource.Should().Be(CredentialSource.Stored);
+        db.Configurations.Count(c => c.Key.StartsWith("discord.")).Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Clearing_discord_removes_the_stored_bot_token_too()
+    {
+        (ProviderCredentialService service, SeedTestDbContext db) = Build();
+        await service.SaveAsync("discord", new("id", "secret", BotToken: FakeBotToken));
+
+        Result<ProviderCredentialDto> cleared = await service.ClearAsync("discord");
+
+        cleared.Value.BotTokenSource.Should().Be(CredentialSource.Unset);
+        db.Configurations.Any(c => c.Key == "discord.bot_token").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task A_bot_token_for_a_provider_that_has_none_is_refused_and_stores_nothing()
+    {
+        (ProviderCredentialService service, SeedTestDbContext db) = Build();
+
+        Result<ProviderCredentialDto> result = await service.SaveAsync(
+            "twitch",
+            new("id", null, BotToken: FakeBotToken)
+        );
+
+        result.IsFailure.Should().BeTrue();
+        db.Configurations.Any(c => c.Key == "twitch.bot_token").Should().BeFalse();
+        db.Configurations.Any(c => c.Key == "twitch.client_id").Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task Providers_without_a_bot_token_report_no_bot_token_source()
+    {
+        (ProviderCredentialService service, _) = Build();
+
+        Row((await service.ListAsync()).Value, "twitch").BotTokenSource.Should().BeNull();
+    }
 }

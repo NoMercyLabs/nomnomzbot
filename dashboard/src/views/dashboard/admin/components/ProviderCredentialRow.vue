@@ -61,6 +61,10 @@ const detail = computed<string>(() => {
     parts.push(copy('apiKeyLabel', { source: sourceOf(credential.apiKeySource) }));
   }
 
+  if (credential.botTokenSource) {
+    parts.push(copy('botTokenLabel', { source: sourceOf(credential.botTokenSource) }));
+  }
+
   parts.push(credential.appDecisionRecorded
     ? copy('decisionRecorded')
     : copy('decisionMissing'));
@@ -94,6 +98,14 @@ const fields = computed<CredentialField[]>(() => {
     });
   }
 
+  if (props.credential.provider === 'discord') {
+    list.push({
+      name: 'botToken',
+      label: copy('fields.botToken'),
+      secret: true,
+    });
+  }
+
   return list;
 });
 
@@ -111,6 +123,10 @@ function bodyOf(values: Record<string, string>): SaveProviderCredentialRequest {
 
   if ((values.apiKey ?? '') !== '') {
     request.apiKey = values.apiKey;
+  }
+
+  if ((values.botToken ?? '') !== '') {
+    request.botToken = values.botToken;
   }
 
   return request;

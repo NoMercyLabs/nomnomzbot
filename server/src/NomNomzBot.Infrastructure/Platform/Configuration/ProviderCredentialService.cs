@@ -35,6 +35,8 @@ public sealed class ProviderCredentialService : IProviderCredentialService
     private readonly ITokenProtector _protector;
     private const string YouTubeProvider = "youtube";
     private const string YouTubeApiKeyRow = "youtube.api_key";
+    private const string DiscordProvider = "discord";
+    private const string DiscordBotTokenRow = "discord.bot_token";
 
     private readonly ISystemCredentialsProvider _credentials;
 
@@ -95,13 +97,20 @@ public sealed class ProviderCredentialService : IProviderCredentialService
                 "VALIDATION_FAILED"
             );
 
+        if (!string.IsNullOrWhiteSpace(request.BotToken) && normalized != DiscordProvider)
+            return Result.Failure<ProviderCredentialDto>(
+                "Only the discord provider takes a bot token.",
+                "VALIDATION_FAILED"
+            );
+
         if (
             string.IsNullOrWhiteSpace(request.ClientId)
             && string.IsNullOrWhiteSpace(request.ClientSecret)
             && string.IsNullOrWhiteSpace(request.ApiKey)
+            && string.IsNullOrWhiteSpace(request.BotToken)
         )
             return Result.Failure<ProviderCredentialDto>(
-                "Nothing to save — supply a client id, a client secret, an API key, or a combination.",
+                "Nothing to save — supply a client id, a client secret, an API key, a bot token, or a combination.",
                 "VALIDATION_FAILED"
             );
 
@@ -129,6 +138,14 @@ public sealed class ProviderCredentialService : IProviderCredentialService
                 cancellationToken
             );
 
+        if (!string.IsNullOrWhiteSpace(request.BotToken))
+            await UpsertAsync(
+                DiscordBotTokenRow,
+                request.BotToken.Trim(),
+                secure: true,
+                cancellationToken
+            );
+
         await _db.SaveChangesAsync(cancellationToken);
         return Result.Success(await DescribeAsync(normalized, cancellationToken));
     }
@@ -145,6 +162,8 @@ public sealed class ProviderCredentialService : IProviderCredentialService
         List<string> keys = [$"{normalized}.client_id", $"{normalized}.client_secret"];
         if (normalized == YouTubeProvider)
             keys.Add(YouTubeApiKeyRow);
+        if (normalized == DiscordProvider)
+            keys.Add(DiscordBotTokenRow);
 
         List<Domain.Platform.Entities.Configuration> stored = await _db
             .Configurations.Where(c => c.BroadcasterId == null && keys.Contains(c.Key))
@@ -182,6 +201,13 @@ public sealed class ProviderCredentialService : IProviderCredentialService
                 _configuration["YouTube:ApiKey"]
             );
 
+        string? botTokenSource = null;
+        if (provider == DiscordProvider)
+            botTokenSource = SourceOf(
+                await ReadStoredAsync(DiscordBotTokenRow, cancellationToken),
+                _configuration["Discord:BotToken"]
+            );
+
         return new(
             Provider: provider,
             // The RESOLVED id — what the OAuth flows will actually send — not merely the stored one, so the
@@ -194,7 +220,8 @@ public sealed class ProviderCredentialService : IProviderCredentialService
                 cancellationToken
             ),
             Supported: true,
-            ApiKeySource: apiKeySource
+            ApiKeySource: apiKeySource,
+            BotTokenSource: botTokenSource
         );
     }
 

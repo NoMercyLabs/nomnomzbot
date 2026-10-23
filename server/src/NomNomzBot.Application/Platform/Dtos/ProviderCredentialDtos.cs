@@ -45,6 +45,10 @@ public static class CredentialSource
 /// Which source supplies the YouTube Data API key (stored, environment or unset); null for every other
 /// provider, which has no API key. The key itself is never carried.
 /// </param>
+/// <param name="BotTokenSource">
+/// Which source supplies the Discord bot's own token (stored, environment or unset); null for every other
+/// provider, which has no bot token. The token itself is never carried.
+/// </param>
 public sealed record ProviderCredentialDto(
     string Provider,
     string? ClientId,
@@ -52,17 +56,21 @@ public sealed record ProviderCredentialDto(
     string SecretSource,
     bool AppDecisionRecorded,
     bool Supported,
-    string? ApiKeySource = null
+    string? ApiKeySource = null,
+    string? BotTokenSource = null
 );
 
 /// <summary>
 /// A credential write. Both fields optional and independent: sending only a secret rotates the secret and
 /// leaves the id alone, which is the common case. A BLANK field means "leave it", never "clear it" — clearing
 /// is <c>DELETE</c>, so a half-filled form can never silently wipe a working credential.
-/// <para><c>ApiKey</c> is the YouTube Data API key and is accepted for the <c>youtube</c> provider only.</para>
+/// <para><c>ApiKey</c> is the YouTube Data API key and is accepted for the <c>youtube</c> provider only.
+/// <c>BotToken</c> is the Discord bot's own token (Developer Portal, Bot tab) and is accepted for the
+/// <c>discord</c> provider only.</para>
 /// </summary>
 public sealed record SaveProviderCredentialRequest(
     string? ClientId,
     string? ClientSecret,
-    string? ApiKey = null
+    string? ApiKey = null,
+    string? BotToken = null
 );

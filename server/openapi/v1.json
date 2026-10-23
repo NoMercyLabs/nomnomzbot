@@ -127624,6 +127624,13 @@
               "string"
             ],
             "description": "Which source supplies the YouTube Data API key (stored, environment or unset); null for every other\r\nprovider, which has no API key. The key itself is never carried."
+          },
+          "botTokenSource": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "Which source supplies the Discord bot's own token (stored, environment or unset); null for every other\r\nprovider, which has no bot token. The token itself is never carried."
           }
         },
         "description": "One provider's app-credential state for the operator console.\r\n\r\nThe secret is never in here, in any form. It is sealed under an AAD tied to its provider and\r\nfield, and there is no read path that unseals it for display — only string ProviderCredentialDto.SecretSource, which says\r\nwhether one exists and which source would win. The client id IS carried: it is a public identifier that\r\nappears in every OAuth URL the viewer's own browser sees, and hiding it would only stop the operator\r\nchecking the one value most likely to be wrong."
@@ -129301,9 +129308,15 @@
               "null",
               "string"
             ]
+          },
+          "botToken": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
-        "description": "A credential write. Both fields optional and independent: sending only a secret rotates the secret and\r\nleaves the id alone, which is the common case. A BLANK field means \"leave it\", never \"clear it\" — clearing\r\nis `DELETE`, so a half-filled form can never silently wipe a working credential.\r\nApiKey is the YouTube Data API key and is accepted for the youtube provider only."
+        "description": "A credential write. Both fields optional and independent: sending only a secret rotates the secret and\r\nleaves the id alone, which is the common case. A BLANK field means \"leave it\", never \"clear it\" — clearing\r\nis `DELETE`, so a half-filled form can never silently wipe a working credential.\r\nApiKey is the YouTube Data API key and is accepted for the youtube provider only.\r\nBotToken is the Discord bot's own token (Developer Portal, Bot tab) and is accepted for the\r\ndiscord provider only."
       },
       "SaveSharedBanSettingsRequest": {
         "required": [
