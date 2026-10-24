@@ -111,7 +111,14 @@ public class OAuthRelayController : ControllerBase
             <p id="detail">You can close this window.</p>
             <a class="back" id="back" href="/" hidden>Back to the dashboard</a>
           </main>
-          <script>
+          <script src="/oauth-relay.js"></script>
+        </body>
+        </html>
+        """;
+
+    // A file of its own: the site's Content-Security-Policy allows scripts from this site only, so an inline
+    // script on the page never ran and the window neither reported back nor closed.
+    private const string Script = """
             (function () {
               var params = Object.fromEntries(new URLSearchParams(window.location.search));
               var failed = Object.keys(params).some(function (key) {
@@ -171,12 +178,13 @@ public class OAuthRelayController : ControllerBase
                 window.location.replace(safeBack);
               }
             })();
-          </script>
-        </body>
-        </html>
         """;
 
     /// <summary>Serve the relay page that posts the OAuth callback params to the opener window and auto-closes.</summary>
     [HttpGet]
     public IActionResult Get() => Content(Html, "text/html");
+
+    /// <summary>Serve the relay page's script.</summary>
+    [HttpGet("/oauth-relay.js")]
+    public IActionResult GetScript() => Content(Script, "text/javascript");
 }
