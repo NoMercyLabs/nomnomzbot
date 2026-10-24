@@ -118,7 +118,17 @@ public class OAuthRelayController : ControllerBase
                 return key === 'error' || /_error$/.test(key);
               });
               var back = params['return'];
-              var safeBack = back && back.charAt(0) === '/' && back.charAt(1) !== '/' ? back : '/';
+              // The connect starts from the page's full address, so a same-site address is accepted too and
+              // reduced to its path; any other site falls back to the dashboard root.
+              var safeBack = '/';
+              if (back) {
+                try {
+                  var target = new URL(back, window.location.origin);
+                  if (target.origin === window.location.origin) {
+                    safeBack = target.pathname + target.search + target.hash;
+                  }
+                } catch (_) {}
+              }
 
               if (failed) {
                 document.getElementById('state').style.setProperty('--tone', 'var(--destructive)');

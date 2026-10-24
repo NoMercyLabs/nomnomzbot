@@ -15,6 +15,8 @@ import { loadPage } from '@/i18n';
 export const homeRoute = {
   path: '',
   name: 'home',
+  // A visitor who is already signed in goes straight to the dashboard instead of the sign-in pitch.
+  meta: { guestOnly: true },
   component: () =>
     loadPage(
       () => import('./HomeView.vue'),
