@@ -83,6 +83,15 @@ vi.mock('@/api/client', () => ({
 
       return reply(null);
     },
+    DELETE: async (path: string, init?: { params?: { path?: unknown } }): Promise<unknown> => {
+      sent.push({
+        method: 'DELETE',
+        path,
+        body: init?.params?.path,
+      });
+
+      return reply(null);
+    },
   },
 }));
 
@@ -117,6 +126,12 @@ afterEach(() => {
   mounted = null;
   document.body.innerHTML = '';
 });
+
+const settle = async (): Promise<void> => {
+  await flushPromises();
+  await new Promise((done) => setTimeout(done, 0));
+  await flushPromises();
+};
 
 type Page = typeof SupporterSourcesView | typeof SupportersView;
 
@@ -193,6 +208,26 @@ describe('supporter sources list', () => {
     expect(known?.textContent?.trim()).toBe(en.dashboard.supporters.sources.manage);
     expect(fresh?.getAttribute('data-variant')).toBe('outline');
     expect(known?.getAttribute('data-variant')).toBe('outline');
+  });
+
+  it('removes a stored source after the confirm, and offers Remove on no source that is not set up', async () => {
+    await open();
+
+    expect(document.body.querySelector('[data-source-remove="patreon"]')).toBeNull();
+
+    document.body.querySelector<HTMLElement>('[data-source-remove="kofi"]')?.click();
+    await settle();
+
+    expect(sent.filter((call) => call.method === 'DELETE')).toHaveLength(0);
+
+    document.querySelector<HTMLElement>('[data-confirm-action]')?.click();
+    await settle();
+
+    const removed = sent.filter((call) => call.method === 'DELETE');
+
+    expect(removed).toHaveLength(1);
+    expect(removed[0]?.path).toBe('/api/v{version}/supporters/connections/{sourceKey}');
+    expect(removed[0]?.body).toMatchObject({ sourceKey: 'kofi' });
   });
 
   it('shows no setup button to a person who cannot write the connections', async () => {

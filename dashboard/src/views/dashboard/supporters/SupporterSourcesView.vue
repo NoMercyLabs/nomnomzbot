@@ -16,10 +16,12 @@ import { useI18n } from 'vue-i18n';
 
 import {
   supporterSources,
+  useDeleteSupporterConnection,
   useSupporterConnections,
   type SupporterConnection,
   type SupporterSourceKey,
 } from '@/api/supporters';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -49,6 +51,27 @@ const { channelId } = useCurrentChannel();
 const connections = useSupporterConnections(channelId);
 
 const editing = ref<SupporterSourceKey | null>(null);
+const remove = useDeleteSupporterConnection(channelId);
+const removing = ref<SupporterSourceKey | null>(null);
+const removeOpen = computed<boolean>({
+  get: () => removing.value !== null,
+  set: (value: boolean) => {
+    if (!value) {
+      removing.value = null;
+    }
+  },
+});
+
+function confirmRemove(): void {
+  if (removing.value === null) return;
+
+  remove.mutate(removing.value, {
+    onSettled: (): void => {
+      removing.value = null;
+    },
+  });
+}
+
 const state = usePanelState(connections, () => false);
 const canEdit = computed<boolean>(() => can('supporters:config:write'));
 
@@ -116,10 +139,27 @@ function detailOf(key: SupporterSourceKey, stored: SupporterConnection | undefin
                   : t("dashboard.supporters.sources.manage")
               }}
             </Button>
+            <Button
+              v-if="row.stored !== undefined"
+              variant="destructive"
+              size="sm"
+              :data-source-remove="row.key"
+              @click="removing = row.key"
+            >
+              {{ t("dashboard.supporters.sources.remove") }}
+            </Button>
           </template>
         </SummaryRow>
       </RowGroup>
     </PanelCard>
     <SupporterSourceDialog v-if="canEdit" v-model:source="editing" />
+    <ConfirmDialog
+      v-model:open="removeOpen"
+      :title="t('dashboard.supporters.sources.removeTitle', { name: removing ? t(`dashboard.supporters.connections.sources.${removing}`) : '' })"
+      :description="t('dashboard.supporters.sources.removeDescription')"
+      :action="t('dashboard.supporters.sources.removeAction')"
+      :pending="remove.isPending.value"
+      @confirm="confirmRemove"
+    />
   </PageBody>
 </template>

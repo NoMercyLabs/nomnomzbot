@@ -45,7 +45,6 @@ export const crudBaseline: Record<string, readonly string[]> = {
     'POST /federation/peers/{peerId}/keys',
     'DELETE /federation/peers/{peerId}/keys/{keyId}',
   ],
-  'giveaways/code-pools': ['DELETE /giveaways/code-pools/{poolId}'],
   'live-ops/raids': ['DELETE /channels/{channelId}/live-ops/raids'],
   'marketplace/publisher-token': [
     'PUT /channels/{channelId}/marketplace/publisher-token',
@@ -108,7 +107,6 @@ export const crudBaseline: Record<string, readonly string[]> = {
   ],
   'platform/iam/principals': ['POST /platform/iam/principals'],
   'spam-defense/lockdown': ['POST /channels/{channelId}/spam-defense/lockdown'],
-  'supporters/connections': ['DELETE /supporters/connections/{sourceKey}'],
   'system/ipc/keys': ['POST /system/ipc/keys', 'DELETE /system/ipc/keys/{keyId}'],
   'system/setup/credentials/kick': ['PUT /system/setup/credentials/kick'],
   'users/profile': ['PUT /users/{userId}/profile'],

@@ -16,14 +16,17 @@ import { computed, ref, type Component } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  fetchCodePoolBlastRadius,
   fetchGiveawayBlastRadius,
   useCodePools,
+  useDeleteCodePool,
   useDeleteGiveaway,
   useGiveawayAction,
   useGiveawayEntries,
   useGiveawayWinners,
   useGiveaways,
   useRedrawWinner,
+  type CodePool,
   type Giveaway,
   type GiveawayAction,
   type GiveawayBlastRadius,
@@ -128,6 +131,37 @@ async function askDelete(item: Giveaway): Promise<void> {
   } catch (failure) {
     deleteError.value = errorText(failure, t);
   }
+}
+
+const removePool = useDeleteCodePool(channelId);
+const poolConfirmOpen = ref(false);
+const deletingPool = ref<CodePool | null>(null);
+const poolConsequences = ref<string[]>([]);
+
+// The counted impact is read first; a pool whose impact cannot be read is not deleted.
+async function askDeletePool(pool: CodePool): Promise<void> {
+  deleteError.value = undefined;
+
+  try {
+    poolConsequences.value = blastLines(await fetchCodePoolBlastRadius(pool.id));
+    deletingPool.value = pool;
+    poolConfirmOpen.value = true;
+  } catch (failure) {
+    deleteError.value = errorText(failure, t);
+  }
+}
+
+function confirmDeletePool(): void {
+  if (!deletingPool.value) return;
+
+  removePool.mutate(deletingPool.value.id, {
+    onSettled: (): void => {
+      poolConfirmOpen.value = false;
+    },
+    onError: (failure: Error): void => {
+      deleteError.value = errorText(failure, t);
+    },
+  });
 }
 
 function confirmDelete(): void {
@@ -345,6 +379,15 @@ function variantOf(item: Giveaway, action: GiveawayAction): 'default' | 'outline
               total: n(Number(pool.total)),
             })
           }}</span>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            :data-pool-delete="pool.id"
+            @click="askDeletePool(pool)"
+          >
+            {{ t("dashboard.giveaways.pools.delete") }}
+          </Button>
         </li>
       </ul>
       <template #actions>
@@ -371,5 +414,14 @@ function variantOf(item: Giveaway, action: GiveawayAction): 'default' | 'outline
     :action="t('dashboard.giveaways.delete.action')"
     :pending="remove.isPending.value"
     @confirm="confirmDelete"
+  />
+  <ConfirmDialog
+    v-model:open="poolConfirmOpen"
+    :title="t('dashboard.giveaways.pools.deleteTitle', { name: deletingPool?.name ?? '' })"
+    :description="t('dashboard.giveaways.pools.deleteDescription')"
+    :consequences="poolConsequences"
+    :action="t('dashboard.giveaways.pools.deleteAction')"
+    :pending="removePool.isPending.value"
+    @confirm="confirmDeletePool"
   />
 </template>

@@ -101,6 +101,27 @@ export function useSupporterConnections(
   return channelQuery(channelId, supporterConnectionsKey, readSupporterConnections);
 }
 
+// Removes one source's connection with its stored secret; the source can be set up again later.
+export function useDeleteSupporterConnection(
+  channelId: MaybeRefOrGetter<string | null>,
+) {
+  const queries = useQueryClient();
+
+  return useMutation<void, Error, SupporterSourceKey>({
+    mutationFn: async (sourceKey: SupporterSourceKey): Promise<void> => {
+      const { error, response } = await client.DELETE(
+        '/api/v{version}/supporters/connections/{sourceKey}',
+        { params: { path: { version, sourceKey } } },
+      );
+
+      if (error !== undefined)
+        throw refusal('supporter connection', error, response.status);
+    },
+    onSuccess: () =>
+      queries.invalidateQueries({ queryKey: supporterConnectionsKey(toValue(channelId)) }),
+  });
+}
+
 // The secret goes to the bot and is never read back: a connection only says whether one is stored.
 export function useSaveSupporterConnection(
   channelId: MaybeRefOrGetter<string | null>,

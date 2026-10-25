@@ -112,6 +112,10 @@
         "error": "The code pools could not be loaded.",
         "counts": "{available} of {total} available",
         "new": "New pool",
+        "delete": "Delete",
+        "deleteTitle": "Delete the pool {name}?",
+        "deleteDescription": "The pool and its unused codes are removed. A pool that backs an active giveaway cannot be deleted.",
+        "deleteAction": "Delete pool",
         "dialog": {
           "title": "New code pool",
           "description": "A pool holds the codes winners receive. The codes stay secret: this page only shows counts.",

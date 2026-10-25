@@ -83,6 +83,10 @@
         "error": "De supporterbronnen konden niet worden geladen.",
         "setUp": "Instellen",
         "manage": "Beheren",
+        "remove": "Verwijderen",
+        "removeTitle": "{name} verwijderen?",
+        "removeDescription": "Het bewaarde geheim wordt gewist en de bot luistert niet meer naar deze dienst. Al vastgelegde giften blijven staan. Je kunt het opnieuw instellen.",
+        "removeAction": "Koppeling verwijderen",
         "lastEvent": "Laatste gebeurtenis {time}",
         "noEvents": "Nog geen gebeurtenissen",
         "state": {

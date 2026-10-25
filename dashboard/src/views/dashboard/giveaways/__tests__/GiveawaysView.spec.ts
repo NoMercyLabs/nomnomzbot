@@ -69,6 +69,16 @@ vi.mock('@/api/client', () => ({
         '/api/v{version}/giveaways/code-pools': pools,
         '/api/v{version}/channels/{channelId}/pipelines': [],
         '/api/v{version}/channels/{channelId}/commands': [{ id: 'c1', name: 'hello' }],
+        '/api/v{version}/giveaways/code-pools/{poolId}/blast-radius': {
+          categories: [
+            {
+              categoryKey: 'giveaways',
+              count: 2,
+              sample: [],
+            },
+          ],
+          isMinimum: false,
+        },
         '/api/v{version}/giveaways/{id}/blast-radius': {
           categories: [
             {
@@ -525,6 +535,36 @@ describe('GiveawaysView', () => {
 
     expect(posts).toEqual(['DELETE /api/v{version}/giveaways/{id}']);
     expect(rows()).toHaveLength(0);
+  });
+
+  it('shows what a pool delete would affect, then deletes that pool', async () => {
+    pools = [
+      {
+        id: 'p1',
+        name: 'Steam keys',
+        total: 10,
+        available: 7,
+        assigned: 3,
+      },
+    ];
+
+    await open();
+
+    document.querySelector<HTMLElement>('[data-pool-delete]')?.click();
+    await settle();
+
+    expect(document.body.textContent).toContain('Steam keys');
+    expect(document.body.textContent).toContain('2');
+    expect(posts).toEqual([]);
+
+    const confirm = Array.from(document.querySelectorAll('button')).find(
+      (button) => button.textContent?.trim() === en.dashboard.giveaways.pools.deleteAction,
+    );
+
+    confirm?.click();
+    await settle();
+
+    expect(posts).toEqual(['DELETE /api/v{version}/giveaways/code-pools/{poolId}']);
   });
 });
 

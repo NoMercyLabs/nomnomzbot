@@ -405,6 +405,41 @@ export function useDeleteGiveaway(channelId: MaybeRefOrGetter<string | null>) {
   });
 }
 
+export async function fetchCodePoolBlastRadius(poolId: string): Promise<GiveawayBlastRadius> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/giveaways/code-pools/{poolId}/blast-radius',
+    {
+      params: { path: { version, poolId } },
+    },
+  );
+
+  if (error !== undefined || !data?.data)
+    throw failed('code pool blast radius', response.status, error);
+
+  return data.data;
+}
+
+// The blast radius is read again right before the delete: a pool whose impact cannot be read is not deleted.
+export function useDeleteCodePool(channelId: MaybeRefOrGetter<string | null>) {
+  const queries = useQueryClient();
+
+  return useMutation<void, Error, string>({
+    mutationFn: async (poolId: string): Promise<void> => {
+      await fetchCodePoolBlastRadius(poolId);
+      const { error, response } = await client.DELETE(
+        '/api/v{version}/giveaways/code-pools/{poolId}',
+        {
+          params: { path: { version, poolId } },
+        },
+      );
+
+      if (error !== undefined)
+        throw failed('delete code pool', response.status, error);
+    },
+    onSuccess: () => queries.invalidateQueries({ queryKey: giveawaysKey(toValue(channelId)) }),
+  });
+}
+
 // The winners of one giveaway, redraws included.
 export function useGiveawayWinners(
   channelId: MaybeRefOrGetter<string | null>,

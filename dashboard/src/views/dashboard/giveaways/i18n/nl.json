@@ -112,6 +112,10 @@
         "error": "De codepools konden niet worden geladen.",
         "counts": "{available} van {total} beschikbaar",
         "new": "Nieuwe pool",
+        "delete": "Verwijderen",
+        "deleteTitle": "De pool {name} verwijderen?",
+        "deleteDescription": "De pool en de ongebruikte codes worden verwijderd. Een pool achter een lopende weggeefactie kan niet worden verwijderd.",
+        "deleteAction": "Pool verwijderen",
         "dialog": {
           "title": "Nieuwe codepool",
           "description": "Een pool bevat de codes die winnaars krijgen. De codes blijven geheim: deze pagina toont alleen aantallen.",

@@ -83,6 +83,10 @@
         "error": "The supporter sources could not be loaded.",
         "setUp": "Set up",
         "manage": "Manage",
+        "remove": "Remove",
+        "removeTitle": "Remove {name}?",
+        "removeDescription": "The stored secret is deleted and the bot stops listening to this service. Tips already recorded stay. You can set it up again.",
+        "removeAction": "Remove connection",
         "lastEvent": "Last event {time}",
         "noEvents": "No events yet",
         "state": {

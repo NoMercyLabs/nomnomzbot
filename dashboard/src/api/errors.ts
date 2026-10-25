@@ -275,6 +275,8 @@ export const apiOperations = {
   'save giveaway': 'liveOps',
   'delete giveaway': 'liveOps',
   'giveaway blast radius': 'liveOps',
+  'code pool blast radius': 'liveOps',
+  'delete code pool': 'liveOps',
   quotes: 'liveOps',
   'random quote': 'liveOps',
   'save quote': 'liveOps',
