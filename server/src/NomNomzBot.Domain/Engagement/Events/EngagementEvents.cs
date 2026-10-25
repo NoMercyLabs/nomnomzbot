@@ -27,6 +27,9 @@ public sealed class FirstTimeChatterDetectedEvent : DomainEventBase
 
     /// <summary>The viewer's display name, as shown in chat.</summary>
     public required string ViewerDisplayName { get; init; }
+
+    /// <summary>The viewer's login (lowercase, no spaces), or null when the chat line carried none.</summary>
+    public string? ViewerLogin { get; init; }
 }
 
 /// <summary>A viewer's first message this stream, having chatted here before (engagement.md D1). Trigger
@@ -41,6 +44,9 @@ public sealed class ReturningChatterDetectedEvent : DomainEventBase
 
     /// <summary>The viewer's display name, as shown in chat.</summary>
     public required string ViewerDisplayName { get; init; }
+
+    /// <summary>The viewer's login (lowercase, no spaces), or null when the chat line carried none.</summary>
+    public string? ViewerLogin { get; init; }
 
     /// <summary>How many days ago the viewer last chatted.</summary>
     public required int DaysSinceLastSeen { get; init; }

@@ -42,6 +42,7 @@ public sealed class AdBreakBeganAlertHandler
     protected override Dictionary<string, string> BuildVariables(AdBreakBeganEvent e) =>
         new(StringComparer.OrdinalIgnoreCase)
         {
+            // An automatic ad break has no requester: the keys read as none instead of printing their braces.
             ["user"] = e.RequesterDisplayName ?? string.Empty,
             ["user.id"] = e.RequesterUserId ?? string.Empty,
             ["ad.duration"] = HumanDuration(e.DurationSeconds),

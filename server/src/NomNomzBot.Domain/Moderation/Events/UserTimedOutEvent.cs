@@ -25,6 +25,9 @@ public sealed class UserTimedOutEvent : DomainEventBase, IProviderScopedEvent
     /// <summary>The timed-out viewer's display name, as shown in chat.</summary>
     public required string TargetDisplayName { get; init; }
 
+    /// <summary>The timed-out viewer's login (lowercase, no spaces), or null when the source gave none.</summary>
+    public string? TargetLogin { get; init; }
+
     /// <summary>The id of the moderator who set the timeout (a number as text on Twitch).</summary>
     public required string ModeratorUserId { get; init; }
 

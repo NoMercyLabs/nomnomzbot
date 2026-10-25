@@ -36,6 +36,7 @@ public sealed class ChannelBanTranslator(IEventBus bus, TimeProvider clock)
         JsonElement payload = notification.Event;
         string targetUserId = payload.GetRequiredString("user_id");
         string targetDisplayName = payload.GetRequiredString("user_name");
+        string? targetLogin = payload.GetString("user_login");
         string moderatorUserId = payload.GetRequiredString("moderator_user_id");
         string? moderatorDisplayName = payload.GetString("moderator_user_name");
         string? reason = payload.GetString("reason");
@@ -48,6 +49,7 @@ public sealed class ChannelBanTranslator(IEventBus bus, TimeProvider clock)
                 OccurredAt = Clock.GetUtcNow(),
                 TargetUserId = targetUserId,
                 TargetDisplayName = targetDisplayName,
+                TargetLogin = targetLogin,
                 ModeratorUserId = moderatorUserId,
                 ModeratorDisplayName = moderatorDisplayName,
                 Reason = reason,
@@ -67,6 +69,7 @@ public sealed class ChannelBanTranslator(IEventBus bus, TimeProvider clock)
             OccurredAt = Clock.GetUtcNow(),
             TargetUserId = targetUserId,
             TargetDisplayName = targetDisplayName,
+            TargetLogin = targetLogin,
             ModeratorUserId = moderatorUserId,
             ModeratorDisplayName = moderatorDisplayName,
             DurationSeconds = durationSeconds,
@@ -98,6 +101,7 @@ public sealed class ChannelUnbanTranslator(IEventBus bus, TimeProvider clock)
             OccurredAt = Clock.GetUtcNow(),
             TargetUserId = payload.GetRequiredString("user_id"),
             TargetDisplayName = payload.GetString("user_name"),
+            TargetLogin = payload.GetString("user_login"),
             ModeratorUserId = payload.GetRequiredString("moderator_user_id"),
             ModeratorDisplayName = payload.GetString("moderator_user_name"),
         };

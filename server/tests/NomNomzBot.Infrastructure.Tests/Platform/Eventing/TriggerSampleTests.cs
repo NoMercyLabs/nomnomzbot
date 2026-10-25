@@ -27,7 +27,7 @@ public sealed class TriggerSampleTests
 {
     private static readonly DateTimeOffset Now = new(2026, 10, 3, 12, 0, 0, TimeSpan.Zero);
 
-    private static List<TriggerSample> AllSamples()
+    internal static List<TriggerSample> AllSamples()
     {
         IConfiguration configuration = new ConfigurationBuilder()
             .AddInMemoryCollection(
@@ -92,8 +92,9 @@ public sealed class TriggerSampleTests
         follow.Variables["user"].Should().Be(follow.UserDisplayName);
         follow.Variables["user.id"].Should().Be(follow.UserId);
         follow.Variables["followed_at"].Should().Be(Now.ToString("O"));
-        // The live trigger aliases target to the user; the sample goes through the same path.
-        follow.Variables["target"].Should().Be(follow.UserDisplayName);
+        // The live trigger aliases target to the user (a target is a login); the sample goes through the same path.
+        follow.Variables["target"].Should().Be(follow.Variables["user.name"]);
+        follow.Variables["target.displayname"].Should().Be(follow.UserDisplayName);
     }
 
     [Fact]

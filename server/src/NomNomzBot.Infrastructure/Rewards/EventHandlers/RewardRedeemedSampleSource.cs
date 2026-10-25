@@ -31,6 +31,7 @@ public sealed class RewardRedeemedSampleSource : ITriggerSampleSource
             RedemptionId = "sample-redemption-id",
             UserId = "100000042",
             UserDisplayName = "SampleViewer",
+            UserLogin = "sampleviewer",
             Cost = 500,
             UserInput = "Drink some water",
             OccurredAt = now,

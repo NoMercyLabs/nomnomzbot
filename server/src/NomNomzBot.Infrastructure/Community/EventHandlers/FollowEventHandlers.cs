@@ -35,12 +35,11 @@ public sealed class FollowEventHandler
 
     protected override string? GetUserDisplayName(FollowEvent e) => e.UserDisplayName;
 
+    protected override string? GetUserLogin(FollowEvent e) => e.UserLogin;
+
     protected override Dictionary<string, string> BuildVariables(FollowEvent e) =>
         new(StringComparer.OrdinalIgnoreCase)
         {
-            ["user"] = e.UserDisplayName,
-            ["user.id"] = e.UserId,
-            ["user.name"] = e.UserLogin,
             ["followed_at"] = e.FollowedAt.ToString("O"),
             ["provider"] = e.Provider,
         };

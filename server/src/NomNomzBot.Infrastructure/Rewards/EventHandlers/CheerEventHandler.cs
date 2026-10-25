@@ -36,12 +36,13 @@ public sealed class CheerEventHandler
     protected override string? GetUserDisplayName(CheerEvent e) =>
         e.IsAnonymous ? "Anonymous" : e.UserDisplayName;
 
+    protected override string? GetUserLogin(CheerEvent e) => e.IsAnonymous ? null : e.UserLogin;
+
     protected override Dictionary<string, string> BuildVariables(CheerEvent e)
     {
         string message = CheermoteText.Strip(e.Message);
         return new(StringComparer.OrdinalIgnoreCase)
         {
-            ["user"] = e.IsAnonymous ? "Anonymous" : e.UserDisplayName,
             ["user.id"] = e.IsAnonymous ? string.Empty : e.UserId,
             ["bits"] = e.Bits.ToString(),
             ["message"] = message,
@@ -56,6 +57,7 @@ public sealed class CheerEventHandler
         {
             UserId = "100000002",
             UserDisplayName = "BitBaron",
+            UserLogin = "bitbaron",
             Bits = 500,
             Message = "Cheer500 keep it up!",
             IsAnonymous = false,

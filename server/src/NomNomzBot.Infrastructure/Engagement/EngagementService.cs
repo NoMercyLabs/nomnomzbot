@@ -94,6 +94,7 @@ public sealed class EngagementService : IEngagementService
                     ViewerUserId = signal.ViewerUserId,
                     ViewerExternalUserId = signal.ViewerExternalUserId,
                     ViewerDisplayName = signal.DisplayName,
+                    ViewerLogin = signal.Login,
                     OccurredAt = signal.At,
                 };
                 publish = pubCt => _eventBus.PublishAsync(evt, pubCt);
@@ -130,6 +131,7 @@ public sealed class EngagementService : IEngagementService
                     ViewerUserId = signal.ViewerUserId,
                     ViewerExternalUserId = signal.ViewerExternalUserId,
                     ViewerDisplayName = signal.DisplayName,
+                    ViewerLogin = signal.Login,
                     DaysSinceLastSeen = daysSinceLastSeen,
                     OccurredAt = signal.At,
                 };

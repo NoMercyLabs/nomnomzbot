@@ -39,14 +39,10 @@ public sealed class OutgoingRaidAlertHandler
 
     protected override string? GetUserDisplayName(OutgoingRaidEvent e) => e.ToDisplayName;
 
+    protected override string? GetUserLogin(OutgoingRaidEvent e) => e.ToLogin;
+
     protected override Dictionary<string, string> BuildVariables(OutgoingRaidEvent e) =>
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["user"] = e.ToDisplayName,
-            ["user.id"] = e.ToUserId,
-            ["user.name"] = e.ToLogin,
-            ["viewers"] = e.ViewerCount.ToString(),
-        };
+        new(StringComparer.OrdinalIgnoreCase) { ["viewers"] = e.ViewerCount.ToString() };
 
     protected override OutgoingRaidEvent SampleEvent(DateTimeOffset now) =>
         new()

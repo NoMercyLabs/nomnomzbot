@@ -40,13 +40,10 @@ public sealed class FirstTimeChatterTriggerSource
     protected override string? GetUserDisplayName(FirstTimeChatterDetectedEvent e) =>
         e.ViewerDisplayName;
 
+    protected override string? GetUserLogin(FirstTimeChatterDetectedEvent e) => e.ViewerLogin;
+
     protected override Dictionary<string, string> BuildVariables(FirstTimeChatterDetectedEvent e) =>
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["user"] = e.ViewerDisplayName,
-            ["user.id"] = e.ViewerExternalUserId,
-            ["viewer.name"] = e.ViewerDisplayName,
-        };
+        new(StringComparer.OrdinalIgnoreCase) { ["viewer.name"] = e.ViewerDisplayName };
 
     protected override FirstTimeChatterDetectedEvent SampleEvent(DateTimeOffset now) =>
         new()
@@ -54,6 +51,7 @@ public sealed class FirstTimeChatterTriggerSource
             ViewerUserId = Guid.Parse("00000000-0000-0000-0000-0000000a0001"),
             ViewerExternalUserId = "100000004",
             ViewerDisplayName = "NightOwl",
+            ViewerLogin = "nightowl",
         };
 
     public Task HandleAsync(FirstTimeChatterDetectedEvent @event, CancellationToken ct = default) =>
@@ -82,11 +80,11 @@ public sealed class ReturningChatterTriggerSource
     protected override string? GetUserDisplayName(ReturningChatterDetectedEvent e) =>
         e.ViewerDisplayName;
 
+    protected override string? GetUserLogin(ReturningChatterDetectedEvent e) => e.ViewerLogin;
+
     protected override Dictionary<string, string> BuildVariables(ReturningChatterDetectedEvent e) =>
         new(StringComparer.OrdinalIgnoreCase)
         {
-            ["user"] = e.ViewerDisplayName,
-            ["user.id"] = e.ViewerExternalUserId,
             ["viewer.name"] = e.ViewerDisplayName,
             ["engagement.daysSinceLastSeen"] = e.DaysSinceLastSeen.ToString(),
         };
@@ -97,6 +95,7 @@ public sealed class ReturningChatterTriggerSource
             ViewerUserId = Guid.Parse("00000000-0000-0000-0000-0000000a0002"),
             ViewerExternalUserId = "100000005",
             ViewerDisplayName = "CozyCarl",
+            ViewerLogin = "cozycarl",
             DaysSinceLastSeen = 21,
         };
 
@@ -131,11 +130,11 @@ public sealed class ModiversaryTriggerSource
 
     protected override string? GetUserDisplayName(ModiversaryReachedEvent e) => e.ViewerDisplayName;
 
+    protected override string? GetUserLogin(ModiversaryReachedEvent e) => e.ViewerLogin;
+
     protected override Dictionary<string, string> BuildVariables(ModiversaryReachedEvent e) =>
         new(StringComparer.OrdinalIgnoreCase)
         {
-            ["user"] = e.ViewerDisplayName,
-            ["user.id"] = e.ViewerExternalUserId,
             ["viewer.name"] = e.ViewerDisplayName,
             ["engagement.months"] = e.Months.ToString(),
             ["engagement.years"] = FormatYears(e.Months),

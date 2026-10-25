@@ -98,7 +98,8 @@ public sealed class EngagementChatActivityHandler(
                 @event.UserId,
                 @event.UserDisplayName,
                 sessionId,
-                @event.OccurredAt.UtcDateTime
+                @event.OccurredAt.UtcDateTime,
+                @event.UserLogin
             ),
             cancellationToken
         );

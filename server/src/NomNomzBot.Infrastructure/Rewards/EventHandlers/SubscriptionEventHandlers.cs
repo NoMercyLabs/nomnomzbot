@@ -50,11 +50,11 @@ public sealed class NewSubscriptionEventHandler
 
     protected override string? GetUserDisplayName(NewSubscriptionEvent e) => e.UserDisplayName;
 
+    protected override string? GetUserLogin(NewSubscriptionEvent e) => e.UserLogin;
+
     protected override Dictionary<string, string> BuildVariables(NewSubscriptionEvent e) =>
         new(StringComparer.OrdinalIgnoreCase)
         {
-            ["user"] = e.UserDisplayName,
-            ["user.id"] = e.UserId,
             ["tier"] = TwitchSubTier.ToLabel(e.Tier),
             ["provider"] = e.Provider,
         };
@@ -68,6 +68,7 @@ public sealed class NewSubscriptionEventHandler
         {
             UserId = "100000003",
             UserDisplayName = "SubSally",
+            UserLogin = "subsally",
             Tier = "1000",
             IsGift = false,
         };
@@ -99,13 +100,13 @@ public sealed class GiftSubscriptionReceivedEventHandler
     protected override string? GetUserDisplayName(GiftSubscriptionReceivedEvent e) =>
         e.RecipientDisplayName;
 
+    protected override string? GetUserLogin(GiftSubscriptionReceivedEvent e) => e.RecipientLogin;
+
     protected override Dictionary<string, string> BuildVariables(GiftSubscriptionReceivedEvent e) =>
         new(StringComparer.OrdinalIgnoreCase)
         {
-            ["user"] = e.RecipientDisplayName,
-            ["user.id"] = e.RecipientUserId,
             ["gifter"] = e.IsAnonymous ? "Anonymous" : e.GifterDisplayName,
-            ["gifter.id"] = e.GifterUserId,
+            ["gifter.id"] = e.IsAnonymous ? string.Empty : e.GifterUserId,
             ["tier"] = TwitchSubTier.ToLabel(e.Tier),
             ["anonymous"] = e.IsAnonymous ? "true" : "false",
             ["provider"] = e.Provider,
@@ -118,6 +119,7 @@ public sealed class GiftSubscriptionReceivedEventHandler
         {
             RecipientUserId = "100000010",
             RecipientDisplayName = "LuckyLuna",
+            RecipientLogin = "luckyluna",
             GifterUserId = "100000011",
             GifterDisplayName = "GenerousGus",
             IsAnonymous = false,
@@ -146,11 +148,11 @@ public sealed class ResubscriptionEventHandler
 
     protected override string? GetUserDisplayName(ResubscriptionEvent e) => e.UserDisplayName;
 
+    protected override string? GetUserLogin(ResubscriptionEvent e) => e.UserLogin;
+
     protected override Dictionary<string, string> BuildVariables(ResubscriptionEvent e) =>
         new(StringComparer.OrdinalIgnoreCase)
         {
-            ["user"] = e.UserDisplayName,
-            ["user.id"] = e.UserId,
             ["tier"] = TwitchSubTier.ToLabel(e.Tier),
             ["months"] = e.CumulativeMonths.ToString(),
             ["streak"] = e.StreakMonths.ToString(),
@@ -164,6 +166,7 @@ public sealed class ResubscriptionEventHandler
         {
             UserId = "100000003",
             UserDisplayName = "SubSally",
+            UserLogin = "subsally",
             Tier = "2000",
             CumulativeMonths = 14,
             StreakMonths = 9,
@@ -198,10 +201,12 @@ public sealed class GiftSubscriptionEventHandler
     protected override string? GetUserDisplayName(GiftSubscriptionEvent e) =>
         e.IsAnonymous ? "Anonymous" : e.GifterDisplayName;
 
+    protected override string? GetUserLogin(GiftSubscriptionEvent e) =>
+        e.IsAnonymous ? null : e.GifterLogin;
+
     protected override Dictionary<string, string> BuildVariables(GiftSubscriptionEvent e) =>
         new(StringComparer.OrdinalIgnoreCase)
         {
-            ["user"] = e.IsAnonymous ? "Anonymous" : e.GifterDisplayName,
             ["user.id"] = e.IsAnonymous ? string.Empty : e.GifterUserId,
             ["tier"] = TwitchSubTier.ToLabel(e.Tier),
             ["count"] = e.GiftCount.ToString(),
@@ -214,6 +219,7 @@ public sealed class GiftSubscriptionEventHandler
         {
             GifterUserId = "100000011",
             GifterDisplayName = "GenerousGus",
+            GifterLogin = "generousgus",
             Tier = "1000",
             GiftCount = 2,
             IsAnonymous = false,

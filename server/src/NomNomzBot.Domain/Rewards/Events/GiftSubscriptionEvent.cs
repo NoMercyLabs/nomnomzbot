@@ -28,6 +28,9 @@ public sealed class GiftSubscriptionEvent : DomainEventBase, IProviderScopedEven
     /// <summary>The gifter's display name, as shown in chat. Empty when the gift is anonymous.</summary>
     public required string GifterDisplayName { get; init; }
 
+    /// <summary>The gifter's login (lowercase, no spaces), or null when the gift is anonymous or the source gave none.</summary>
+    public string? GifterLogin { get; init; }
+
     /// <summary>"1000", "2000", or "3000"</summary>
     public required string Tier { get; init; }
 

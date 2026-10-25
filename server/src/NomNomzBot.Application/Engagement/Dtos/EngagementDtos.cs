@@ -20,7 +20,8 @@ public sealed record EngagementSignal(
     string ViewerExternalUserId,
     string DisplayName,
     string CurrentStreamSessionId,
-    DateTime At
+    DateTime At,
+    string? Login = null
 );
 
 /// <summary>The per-channel engagement configuration (engagement.md §5).</summary>

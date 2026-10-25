@@ -42,6 +42,7 @@ public sealed class ChannelPointsRewardRedemptionAddTranslator(IEventBus bus, Ti
             RedemptionId = payload.GetRequiredString("id"),
             UserId = payload.GetRequiredString("user_id"),
             UserDisplayName = payload.GetRequiredString("user_name"),
+            UserLogin = payload.GetString("user_login"),
             UserInput = userInput.Length == 0 ? null : userInput,
             RewardId = reward?.GetRequiredString("id") ?? string.Empty,
             RewardTitle = reward?.GetRequiredString("title") ?? string.Empty,

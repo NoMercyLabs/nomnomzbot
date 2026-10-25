@@ -62,15 +62,13 @@ public sealed class WatchStreakHandler
 
     protected override string? GetUserDisplayName(WatchStreakReceivedEvent e) => e.UserDisplayName;
 
+    protected override string? GetUserLogin(WatchStreakReceivedEvent e) => e.UserLogin;
+
     protected override Dictionary<string, string> BuildVariables(WatchStreakReceivedEvent e)
     {
         int record = _previousMax.TryGetValue(e, out StrongBox<int>? box) ? box.Value : 0;
         return new(StringComparer.OrdinalIgnoreCase)
         {
-            ["user"] = e.UserDisplayName,
-            ["user.id"] = e.UserId,
-            ["user.login"] = e.UserLogin,
-            ["user.name"] = e.UserDisplayName,
             ["viewer.name"] = e.UserDisplayName,
             ["engagement.streak"] = e.StreakMonths.ToString(),
             ["streak.months"] = e.StreakMonths.ToString(),

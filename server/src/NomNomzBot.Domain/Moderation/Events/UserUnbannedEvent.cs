@@ -21,6 +21,9 @@ public sealed class UserUnbannedEvent : DomainEventBase
     /// <summary>The unbanned viewer's display name (<c>user_name</c>); null on non-Twitch ingests.</summary>
     public string? TargetDisplayName { get; init; }
 
+    /// <summary>The unbanned viewer's login (lowercase, no spaces), or null when the source gave none.</summary>
+    public string? TargetLogin { get; init; }
+
     /// <summary>The id of the moderator who lifted the ban (a number as text on Twitch).</summary>
     public required string ModeratorUserId { get; init; }
 

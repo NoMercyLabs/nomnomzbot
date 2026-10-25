@@ -28,6 +28,9 @@ public sealed class NewSubscriptionEvent : DomainEventBase, IProviderScopedEvent
     /// <summary>The subscriber's display name, as shown in chat.</summary>
     public required string UserDisplayName { get; init; }
 
+    /// <summary>The subscriber's login (lowercase, no spaces), or null when the source gave none.</summary>
+    public string? UserLogin { get; init; }
+
     /// <summary>"1000", "2000", or "3000"</summary>
     public required string Tier { get; init; }
 

@@ -32,6 +32,9 @@ public sealed class RewardRedeemedEvent : DomainEventBase
     /// <summary>The viewer's display name, as shown in chat.</summary>
     public required string UserDisplayName { get; init; }
 
+    /// <summary>The viewer's login (lowercase, no spaces), or null when the source gave none.</summary>
+    public string? UserLogin { get; init; }
+
     /// <summary>The channel points the viewer paid.</summary>
     public required int Cost { get; init; }
 

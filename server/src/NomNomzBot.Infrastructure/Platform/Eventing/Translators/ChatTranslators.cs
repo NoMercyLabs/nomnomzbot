@@ -398,6 +398,7 @@ public sealed class ChannelChatNotificationTranslator(IEventBus bus, TimeProvide
                     OccurredAt = Clock.GetUtcNow(),
                     RecipientUserId = gift.GetRequiredString("recipient_user_id"),
                     RecipientDisplayName = gift.GetRequiredString("recipient_user_name"),
+                    RecipientLogin = gift.GetString("recipient_user_login"),
                     GifterUserId = notice.IsAnonymous ? string.Empty : notice.ChatterUserId,
                     GifterDisplayName = notice.IsAnonymous
                         ? string.Empty

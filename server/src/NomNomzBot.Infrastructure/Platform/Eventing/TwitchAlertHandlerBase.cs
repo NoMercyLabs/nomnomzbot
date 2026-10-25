@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Domain.Platform;
@@ -56,7 +57,32 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
 
     protected abstract string? GetUserId(TEvent @event);
     protected abstract string? GetUserDisplayName(TEvent @event);
+
+    /// <summary>
+    /// The login of the viewer the event is about (lowercase, no spaces), or null when the event has none.
+    /// Never derived from the display name: a display name in another script lowercases to a wrong login.
+    /// </summary>
+    protected virtual string? GetUserLogin(TEvent @event) => null;
+
+    /// <summary>
+    /// The event's own keys. The viewer identity (<c>user</c>, <c>user.name</c>, <c>user.id</c>) and the
+    /// <c>target</c> copy of it are added by the base from <see cref="GetUserId"/>, <see cref="GetUserLogin"/>
+    /// and <see cref="GetUserDisplayName"/>, so an override only adds what is specific to the event.
+    /// </summary>
     protected abstract Dictionary<string, string> BuildVariables(TEvent @event);
+
+    /// <summary>Everything a template can use for one event: the event's own keys plus the viewer identity.</summary>
+    private Dictionary<string, string> ComposeVariables(TEvent @event)
+    {
+        Dictionary<string, string> variables = BuildVariables(@event);
+        TemplateSubject.SeedUser(
+            variables,
+            GetUserId(@event),
+            GetUserLogin(@event),
+            GetUserDisplayName(@event)
+        );
+        return variables;
+    }
 
     /// <summary>A realistic instance of the event, for a test run.</summary>
     protected abstract TEvent SampleEvent(DateTimeOffset now);
@@ -166,7 +192,7 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
             ResponseKeyFor(@event),
             GetUserId(@event),
             GetUserDisplayName(@event),
-            SeedTargetAlias(BuildVariables(@event))
+            SeedTargetAlias(ComposeVariables(@event))
         );
 
     /// <summary>Everything the executor needs for one event — built once, so live and replay never drift.</summary>
@@ -189,24 +215,7 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
     /// </summary>
     private static Dictionary<string, string> SeedTargetAlias(Dictionary<string, string> variables)
     {
-        if (!variables.ContainsKey("target") && variables.TryGetValue("user", out string? user))
-            variables["target"] = user;
-        if (
-            !variables.ContainsKey("target.id")
-            && variables.TryGetValue("user.id", out string? userId)
-        )
-            variables["target.id"] = userId;
-        if (
-            !variables.ContainsKey("target.name")
-            && variables.TryGetValue("user.name", out string? userName)
-        )
-            variables["target.name"] = userName;
-        if (
-            !variables.ContainsKey("target.link")
-            && variables.TryGetValue("user.link", out string? userLink)
-        )
-            variables["target.link"] = userLink;
-
+        TemplateSubject.SeedTargetFromUser(variables);
         return variables;
     }
 
@@ -231,7 +240,7 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
             if (await db.ChannelEvents.AnyAsync(e => e.Id == eventId, ct))
                 return;
 
-            Dictionary<string, string> variables = BuildVariables(@event);
+            Dictionary<string, string> variables = ComposeVariables(@event);
 
             // GetUserId returns the Twitch string id; ChannelEvent.UserId is the internal Users.Id Guid FK,
             // so resolve it (null when the event has no user or the user is not yet persisted).

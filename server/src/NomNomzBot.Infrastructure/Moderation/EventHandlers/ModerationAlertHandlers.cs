@@ -51,11 +51,11 @@ public sealed class UserBannedAlertHandler
 
     protected override string? GetUserDisplayName(UserBannedEvent e) => e.TargetDisplayName;
 
+    protected override string? GetUserLogin(UserBannedEvent e) => e.TargetLogin;
+
     protected override Dictionary<string, string> BuildVariables(UserBannedEvent e) =>
         new(StringComparer.OrdinalIgnoreCase)
         {
-            ["user"] = e.TargetDisplayName,
-            ["user.id"] = e.TargetUserId,
             ["moderator"] = e.ModeratorDisplayName ?? e.ModeratorUserId,
             ["reason"] = e.Reason ?? string.Empty,
             ["duration"] = "permanent",
@@ -66,6 +66,7 @@ public sealed class UserBannedAlertHandler
         {
             TargetUserId = "100000008",
             TargetDisplayName = "SpamBot42",
+            TargetLogin = "spambot42",
             ModeratorUserId = "100000007",
             ModeratorDisplayName = "ModMaya",
             Reason = "Posting spam links",
@@ -99,11 +100,11 @@ public sealed class UserTimedOutAlertHandler
 
     protected override string? GetUserDisplayName(UserTimedOutEvent e) => e.TargetDisplayName;
 
+    protected override string? GetUserLogin(UserTimedOutEvent e) => e.TargetLogin;
+
     protected override Dictionary<string, string> BuildVariables(UserTimedOutEvent e) =>
         new(StringComparer.OrdinalIgnoreCase)
         {
-            ["user"] = e.TargetDisplayName,
-            ["user.id"] = e.TargetUserId,
             ["moderator"] = e.ModeratorDisplayName ?? e.ModeratorUserId,
             ["reason"] = e.Reason ?? string.Empty,
             ["duration"] = HumanDuration(e.DurationSeconds),
@@ -114,6 +115,7 @@ public sealed class UserTimedOutAlertHandler
         {
             TargetUserId = "100000009",
             TargetDisplayName = "HeatedHarry",
+            TargetLogin = "heatedharry",
             ModeratorUserId = "100000007",
             ModeratorDisplayName = "ModMaya",
             DurationSeconds = 600,
@@ -148,11 +150,11 @@ public sealed class UserUnbannedAlertHandler
 
     protected override string? GetUserDisplayName(UserUnbannedEvent e) => e.TargetDisplayName;
 
+    protected override string? GetUserLogin(UserUnbannedEvent e) => e.TargetLogin;
+
     protected override Dictionary<string, string> BuildVariables(UserUnbannedEvent e) =>
         new(StringComparer.OrdinalIgnoreCase)
         {
-            ["user"] = e.TargetDisplayName ?? e.TargetUserId,
-            ["user.id"] = e.TargetUserId,
             ["moderator"] = e.ModeratorDisplayName ?? e.ModeratorUserId,
         };
 
@@ -161,6 +163,7 @@ public sealed class UserUnbannedAlertHandler
         {
             TargetUserId = "100000008",
             TargetDisplayName = "SpamBot42",
+            TargetLogin = "spambot42",
             ModeratorUserId = "100000007",
             ModeratorDisplayName = "ModMaya",
         };
@@ -187,12 +190,10 @@ public sealed class ModeratorAddedAlertHandler
 
     protected override string? GetUserDisplayName(ModeratorAddedEvent e) => e.UserDisplayName;
 
+    protected override string? GetUserLogin(ModeratorAddedEvent e) => e.UserLogin;
+
     protected override Dictionary<string, string> BuildVariables(ModeratorAddedEvent e) =>
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["user"] = e.UserDisplayName,
-            ["user.id"] = e.UserId,
-        };
+        new(StringComparer.OrdinalIgnoreCase);
 
     protected override ModeratorAddedEvent SampleEvent(DateTimeOffset now) =>
         new()
@@ -224,12 +225,10 @@ public sealed class ModeratorRemovedAlertHandler
 
     protected override string? GetUserDisplayName(ModeratorRemovedEvent e) => e.UserDisplayName;
 
+    protected override string? GetUserLogin(ModeratorRemovedEvent e) => e.UserLogin;
+
     protected override Dictionary<string, string> BuildVariables(ModeratorRemovedEvent e) =>
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["user"] = e.UserDisplayName,
-            ["user.id"] = e.UserId,
-        };
+        new(StringComparer.OrdinalIgnoreCase);
 
     protected override ModeratorRemovedEvent SampleEvent(DateTimeOffset now) =>
         new()

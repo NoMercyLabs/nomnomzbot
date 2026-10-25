@@ -29,6 +29,9 @@ public sealed class CheerEvent : DomainEventBase, IProviderScopedEvent
     /// <summary>The viewer's display name, as shown in chat. Empty when the cheer is anonymous.</summary>
     public required string UserDisplayName { get; init; }
 
+    /// <summary>The cheering viewer's login (lowercase, no spaces), or null when the cheer is anonymous or the source gave none.</summary>
+    public string? UserLogin { get; init; }
+
     /// <summary>How many Bits (or the equivalent amount on another platform) were cheered.</summary>
     public required int Bits { get; init; }
 

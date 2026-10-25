@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
@@ -327,17 +328,24 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
     }
 
     /// <summary>The variables a redemption hands its reward pipeline or event response.</summary>
-    internal static Dictionary<string, string> BuildVariables(RewardRedeemedEvent @event) =>
-        new(StringComparer.OrdinalIgnoreCase)
+    internal static Dictionary<string, string> BuildVariables(RewardRedeemedEvent @event)
+    {
+        Dictionary<string, string> variables = new(StringComparer.OrdinalIgnoreCase)
         {
-            ["user"] = @event.UserDisplayName,
-            ["user.id"] = @event.UserId,
             ["reward"] = @event.RewardTitle,
             ["reward.id"] = @event.RewardId,
             ["redemption.id"] = @event.RedemptionId,
             ["cost"] = @event.Cost.ToString(),
             ["input"] = @event.UserInput ?? string.Empty,
         };
+        TemplateSubject.SeedUser(
+            variables,
+            @event.UserId,
+            @event.UserLogin,
+            @event.UserDisplayName
+        );
+        return variables;
+    }
 
     private static string BuildResponsePipeline(string message)
     {

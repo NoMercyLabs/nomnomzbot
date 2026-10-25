@@ -25,6 +25,9 @@ public sealed class UserBannedEvent : DomainEventBase, IProviderScopedEvent
     /// <summary>The banned viewer's display name, as shown in chat.</summary>
     public required string TargetDisplayName { get; init; }
 
+    /// <summary>The banned viewer's login (lowercase, no spaces), or null when the source gave none.</summary>
+    public string? TargetLogin { get; init; }
+
     /// <summary>The id of the moderator who banned the viewer (a number as text on Twitch).</summary>
     public required string ModeratorUserId { get; init; }
 

@@ -30,6 +30,9 @@ public sealed class GiftSubscriptionReceivedEvent : DomainEventBase, IProviderSc
     /// <summary>The recipient's display name, as shown in chat.</summary>
     public required string RecipientDisplayName { get; init; }
 
+    /// <summary>The recipient's login (lowercase, no spaces), or null when the source gave none.</summary>
+    public string? RecipientLogin { get; init; }
+
     /// <summary>The gifter's id — empty when <see cref="IsAnonymous"/>.</summary>
     public required string GifterUserId { get; init; }
 

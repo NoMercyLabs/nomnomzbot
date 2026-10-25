@@ -89,6 +89,7 @@ public sealed class CommandRewardTimerSampleTests
             .BeEquivalentTo(
                 "user",
                 "user.id",
+                "user.name",
                 "reward",
                 "reward.id",
                 "redemption.id",
@@ -122,6 +123,7 @@ public sealed class CommandRewardTimerSampleTests
             RedemptionId = "d1",
             UserId = "u1",
             UserDisplayName = "Viewer",
+            UserLogin = "viewer",
             Cost = 250,
             UserInput = null,
         };
@@ -133,6 +135,7 @@ public sealed class CommandRewardTimerSampleTests
                 new Dictionary<string, string>
                 {
                     ["user"] = "Viewer",
+                    ["user.name"] = "viewer",
                     ["user.id"] = "u1",
                     ["reward"] = "Title",
                     ["reward.id"] = "r1",

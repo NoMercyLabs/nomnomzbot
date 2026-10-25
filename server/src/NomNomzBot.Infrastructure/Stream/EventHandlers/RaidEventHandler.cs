@@ -29,14 +29,10 @@ public sealed class RaidEventHandler : TwitchAlertHandlerBase<RaidEvent>, IEvent
 
     protected override string? GetUserDisplayName(RaidEvent e) => e.FromDisplayName;
 
+    protected override string? GetUserLogin(RaidEvent e) => e.FromLogin;
+
     protected override Dictionary<string, string> BuildVariables(RaidEvent e) =>
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["user"] = e.FromDisplayName,
-            ["user.id"] = e.FromUserId,
-            ["user.name"] = e.FromLogin,
-            ["viewers"] = e.ViewerCount.ToString(),
-        };
+        new(StringComparer.OrdinalIgnoreCase) { ["viewers"] = e.ViewerCount.ToString() };
 
     protected override RaidEvent SampleEvent(DateTimeOffset now) =>
         new()
