@@ -133,6 +133,16 @@ public sealed class WatchStreakTriggerSource
             ["user.id"] = e.ViewerExternalUserId,
             ["viewer.name"] = e.ViewerDisplayName,
             ["engagement.streak"] = e.StreakCount.ToString(),
+            // This key also serves Twitch's own watch-streak notification (WatchStreakHandler), so a saved
+            // message written with those placeholders must not reach chat with its braces. The bot's own count
+            // has no points, custom message or record to report: they read as none.
+            ["user.name"] = e.ViewerDisplayName,
+            ["streak.months"] = e.StreakCount.ToString(),
+            ["streak.points"] = "0",
+            ["streak.message"] = string.Empty,
+            ["streak.record"] = "0",
+            ["record"] = "0",
+            ["streak.state"] = "standard",
         };
 
     protected override WatchStreakMilestoneEvent SampleEvent(DateTimeOffset now) =>
