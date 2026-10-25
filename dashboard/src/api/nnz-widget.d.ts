@@ -1344,7 +1344,7 @@ interface NnzActionParams {
     dedupe_key?: string;
   };
   'send_discord_notification': {
-    trigger_type: 'go_live' | 'new_clip' | 'schedule' | 'milestone';
+    trigger_type: 'go_live' | 'follow' | 'subscription' | 'gift_subscription' | 'cheer' | 'raid' | 'stream_end';
     dedupe_key?: string;
   };
   'send_message': {

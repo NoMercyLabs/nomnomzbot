@@ -41,6 +41,8 @@ public sealed class OpenApiGetResponseTypesTests
         // Pages, files, streams and text feeds.
         ["/automation/pair/device/approve"] = "text/html approval page",
         ["/oauth-relay"] = "text/html relay page that posts the OAuth result to the opener window",
+        ["/oauth-relay.js"] =
+            "text/javascript: the relay page's script, served apart from the page",
         ["/channels/{channelId}/live-ops/schedule/icalendar"] = "text/calendar feed (RFC 5545)",
         ["/channels/{channelId}/live-ops/schedule/icalendar/subscribe"] =
             "text/calendar feed (RFC 5545)",
