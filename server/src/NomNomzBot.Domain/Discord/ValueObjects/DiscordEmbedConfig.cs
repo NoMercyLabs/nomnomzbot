@@ -23,7 +23,15 @@ public sealed record DiscordEmbedConfig(
     string? ThumbnailUrl,
     string? ImageUrl,
     string? FooterText,
-    IReadOnlyList<DiscordEmbedConfigField>? Fields
+    IReadOnlyList<DiscordEmbedConfigField>? Fields,
+    string? TitleUrl = null,
+    string? AuthorName = null,
+    string? AuthorIconUrl = null,
+    string? AuthorUrl = null,
+    string? FooterIconUrl = null,
+    bool ShowTimestamp = false,
+    string? ButtonLabel = null,
+    string? ButtonUrl = null
 );
 
 /// <summary>One name/value field of a Discord embed (schema P.10).</summary>

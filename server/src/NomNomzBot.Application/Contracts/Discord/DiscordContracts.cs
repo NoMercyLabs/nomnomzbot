@@ -116,7 +116,15 @@ public sealed record DiscordEmbedDto(
     string? ThumbnailUrl,
     string? ImageUrl,
     string? FooterText,
-    IReadOnlyList<DiscordEmbedFieldDto>? Fields
+    IReadOnlyList<DiscordEmbedFieldDto>? Fields,
+    string? TitleUrl = null,
+    string? AuthorName = null,
+    string? AuthorIconUrl = null,
+    string? AuthorUrl = null,
+    string? FooterIconUrl = null,
+    bool ShowTimestamp = false,
+    string? ButtonLabel = null,
+    string? ButtonUrl = null
 );
 
 public sealed record DiscordEmbedFieldDto(string Name, string Value, bool Inline);
@@ -204,7 +212,8 @@ public sealed record DiscordDispatchLogDto(
 public sealed record DiscordOutboundMessage(
     string Content,
     DiscordEmbedDto? Embed,
-    string? PingRoleId
+    string? PingRoleId,
+    DateTimeOffset? SentAt = null
 );
 
 public sealed record DiscordOptInButton(

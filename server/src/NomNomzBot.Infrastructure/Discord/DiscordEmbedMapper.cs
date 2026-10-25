@@ -38,7 +38,15 @@ internal static class DiscordEmbedMapper
                             f.Value,
                             f.Inline
                         )),
-                    ]
+                    ],
+                dto.TitleUrl,
+                dto.AuthorName,
+                dto.AuthorIconUrl,
+                dto.AuthorUrl,
+                dto.FooterIconUrl,
+                dto.ShowTimestamp,
+                dto.ButtonLabel,
+                dto.ButtonUrl
             );
 
     public static DiscordEmbedDto? ToDto(DiscordEmbedConfig? config) =>
@@ -60,7 +68,15 @@ internal static class DiscordEmbedMapper
                             f.Value,
                             f.Inline
                         )),
-                    ]
+                    ],
+                config.TitleUrl,
+                config.AuthorName,
+                config.AuthorIconUrl,
+                config.AuthorUrl,
+                config.FooterIconUrl,
+                config.ShowTimestamp,
+                config.ButtonLabel,
+                config.ButtonUrl
             );
 
     /// <summary>Renders every embed string field through <see cref="Application.Abstractions.Templating.ITemplateResolver"/>
@@ -84,14 +100,26 @@ internal static class DiscordEmbedMapper
                 fields.Add(new(await render(f.Name), await render(f.Value), f.Inline));
         }
 
-        return new(title, description, embed.Color, thumbnailUrl, imageUrl, footerText, fields);
+        return new(
+            title,
+            description,
+            embed.Color,
+            thumbnailUrl,
+            imageUrl,
+            footerText,
+            fields,
+            await RenderLinkAsync(embed.TitleUrl, render),
+            await RenderTextAsync(embed.AuthorName, render),
+            await RenderLinkAsync(embed.AuthorIconUrl, render),
+            await RenderLinkAsync(embed.AuthorUrl, render),
+            await RenderLinkAsync(embed.FooterIconUrl, render),
+            embed.ShowTimestamp,
+            await RenderTextAsync(embed.ButtonLabel, render),
+            await RenderLinkAsync(embed.ButtonUrl, render)
+        );
     }
 
-    /// <summary>
-    /// Renders a link or picture field. A field that renders to nothing becomes null so it leaves the
-    /// payload: Discord refuses an embed whose picture or link address is empty.
-    /// </summary>
-    private static async Task<string?> RenderLinkAsync(
+    private static async Task<string?> RenderTextAsync(
         string? template,
         Func<string, Task<string>> render
     )
@@ -101,5 +129,25 @@ internal static class DiscordEmbedMapper
 
         string rendered = (await render(template)).Trim();
         return rendered.Length == 0 ? null : rendered;
+    }
+
+    /// <summary>
+    /// Renders a link or picture field. A field that renders to nothing, or to anything but a web address,
+    /// becomes null so it leaves the payload: Discord refuses an embed whose picture or link address is
+    /// empty or is not an http or https address.
+    /// </summary>
+    private static async Task<string?> RenderLinkAsync(
+        string? template,
+        Func<string, Task<string>> render
+    )
+    {
+        string? rendered = await RenderTextAsync(template, render);
+
+        return
+            rendered is not null
+            && Uri.TryCreate(rendered, UriKind.Absolute, out Uri? uri)
+            && uri.Scheme is "http" or "https"
+            ? rendered
+            : null;
     }
 }

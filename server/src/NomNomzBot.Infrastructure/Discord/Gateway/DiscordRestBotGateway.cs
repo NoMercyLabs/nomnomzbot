@@ -48,6 +48,12 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
     internal const string DiscordApiBase = "https://discord.com/api/v10";
     private const string Provider = "discord";
 
+    // Discord message component types and the link button style.
+    private const int ActionRowType = 1;
+    private const int ButtonType = 2;
+    private const int LinkButtonStyle = 5;
+    private const int MaxButtonLabelLength = 80;
+
     private static readonly JsonSerializerOptions WireJson = new(JsonSerializerDefaults.Web)
     {
         DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
@@ -84,8 +90,9 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
 
         DiscordMessagePayload payload = new(
             BuildContent(message.Content, message.PingRoleId),
-            message.Embed is null ? null : [ToWireEmbed(message.Embed)],
-            BuildAllowedMentions(message.PingRoleId)
+            message.Embed is null ? null : [ToWireEmbed(message.Embed, message.SentAt)],
+            BuildAllowedMentions(message.PingRoleId),
+            LinkButtonRow(message.Embed)
         );
 
         return await PostRepairingAccessAsync(
@@ -1146,14 +1153,16 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
             ? new([], [])
             : new DiscordAllowedMentions([], [pingRoleId]);
 
-    private static DiscordEmbedPayload ToWireEmbed(DiscordEmbedDto embed) =>
+    private static DiscordEmbedPayload ToWireEmbed(DiscordEmbedDto embed, DateTimeOffset? sentAt) =>
         new(
             embed.Title,
             embed.Description,
             ParseColor(embed.Color),
             embed.ThumbnailUrl is null ? null : new DiscordEmbedMedia(embed.ThumbnailUrl),
             embed.ImageUrl is null ? null : new DiscordEmbedMedia(embed.ImageUrl),
-            embed.FooterText is null ? null : new DiscordEmbedFooter(embed.FooterText),
+            embed.FooterText is null
+                ? null
+                : new DiscordEmbedFooter(embed.FooterText, embed.FooterIconUrl),
             embed.Fields is null
                 ? null
                 :
@@ -1163,8 +1172,51 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
                         f.Value,
                         f.Inline
                     )),
-                ]
+                ],
+            embed.TitleUrl,
+            string.IsNullOrWhiteSpace(embed.AuthorName)
+                ? null
+                : new DiscordEmbedAuthor(embed.AuthorName, embed.AuthorUrl, embed.AuthorIconUrl),
+            embed.ShowTimestamp ? TimestampOf(sentAt) : null
         );
+
+    /// <summary>Discord reads the embed time as ISO 8601.</summary>
+    private static string TimestampOf(DateTimeOffset? sentAt) =>
+        (sentAt ?? DateTimeOffset.UtcNow).UtcDateTime.ToString(
+            "yyyy-MM-dd'T'HH:mm:ss.fff'Z'",
+            System.Globalization.CultureInfo.InvariantCulture
+        );
+
+    /// <summary>
+    /// The embed's link button: one action row holding one link button (type 2, style 5, which opens the
+    /// address and has no custom id). Discord refuses a button with no label or no address, so a half-set
+    /// button sends no row, and a label over 80 characters is cut to the limit.
+    /// </summary>
+    private static IReadOnlyList<DiscordComponent>? LinkButtonRow(DiscordEmbedDto? embed)
+    {
+        if (
+            embed is null
+            || string.IsNullOrWhiteSpace(embed.ButtonLabel)
+            || string.IsNullOrWhiteSpace(embed.ButtonUrl)
+        )
+            return null;
+
+        string label =
+            embed.ButtonLabel.Length > MaxButtonLabelLength
+                ? embed.ButtonLabel[..MaxButtonLabelLength]
+                : embed.ButtonLabel;
+
+        return
+        [
+            new(
+                ActionRowType,
+                Components:
+                [
+                    new(ButtonType, Style: LinkButtonStyle, Label: label, Url: embed.ButtonUrl),
+                ]
+            ),
+        ];
+    }
 
     /// <summary>Parses a <c>#rrggbb</c> / <c>rrggbb</c> hex color into Discord's integer color, else null.</summary>
     private static int? ParseColor(string? color)
@@ -1203,7 +1255,8 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
             IReadOnlyList<DiscordComponent>? Components = null,
         [property: JsonPropertyName("style")] int? Style = null,
         [property: JsonPropertyName("label")] string? Label = null,
-        [property: JsonPropertyName("custom_id")] string? CustomId = null
+        [property: JsonPropertyName("custom_id")] string? CustomId = null,
+        [property: JsonPropertyName("url")] string? Url = null
     );
 
     private sealed record DiscordEmbedPayload(
@@ -1213,12 +1266,24 @@ public sealed class DiscordRestBotGateway : IDiscordBotGateway
         [property: JsonPropertyName("thumbnail")] DiscordEmbedMedia? Thumbnail,
         [property: JsonPropertyName("image")] DiscordEmbedMedia? Image,
         [property: JsonPropertyName("footer")] DiscordEmbedFooter? Footer,
-        [property: JsonPropertyName("fields")] IReadOnlyList<DiscordEmbedFieldPayload>? Fields
+        [property: JsonPropertyName("fields")] IReadOnlyList<DiscordEmbedFieldPayload>? Fields,
+        [property: JsonPropertyName("url")] string? Url = null,
+        [property: JsonPropertyName("author")] DiscordEmbedAuthor? Author = null,
+        [property: JsonPropertyName("timestamp")] string? Timestamp = null
     );
 
     private sealed record DiscordEmbedMedia([property: JsonPropertyName("url")] string Url);
 
-    private sealed record DiscordEmbedFooter([property: JsonPropertyName("text")] string Text);
+    private sealed record DiscordEmbedFooter(
+        [property: JsonPropertyName("text")] string Text,
+        [property: JsonPropertyName("icon_url")] string? IconUrl = null
+    );
+
+    private sealed record DiscordEmbedAuthor(
+        [property: JsonPropertyName("name")] string Name,
+        [property: JsonPropertyName("url")] string? Url,
+        [property: JsonPropertyName("icon_url")] string? IconUrl
+    );
 
     private sealed record DiscordEmbedFieldPayload(
         [property: JsonPropertyName("name")] string Name,

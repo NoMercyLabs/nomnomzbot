@@ -91998,6 +91998,15 @@ export interface components {
             imageUrl?: null | string;
             footerText?: null | string;
             fields?: null | components["schemas"]["DiscordEmbedField"][];
+            titleUrl?: null | string;
+            authorName?: null | string;
+            authorIconUrl?: null | string;
+            authorUrl?: null | string;
+            footerIconUrl?: null | string;
+            /** @default false */
+            showTimestamp: boolean;
+            buttonLabel?: null | string;
+            buttonUrl?: null | string;
         };
         DiscordEmbedField: {
             name: string;

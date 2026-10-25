@@ -893,6 +893,138 @@ public sealed class DiscordRestBotGatewayTests
         result.ErrorCode.Should().Be("DISCORD_NOT_FOUND");
     }
 
+    // ─── Embed author, title link, timestamp, footer icon and link button ─────
+
+    private static async Task<System.Text.Json.JsonDocument> PostedBodyAsync(
+        DiscordOutboundMessage message
+    )
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        await SeedDiscordConnectionAsync(database);
+        CapturingHandler handler = new(
+            new(HttpStatusCode.OK)
+            {
+                Content = new StringContent("""{"id":"1"}""", Encoding.UTF8, "application/json"),
+            }
+        );
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordRestBotGateway gateway = NewGateway(
+            handler,
+            db,
+            CredentialsWithBotToken(PlatformBotToken)
+        );
+
+        Result<string> result = await gateway.PostMessageAsync(Channel, "999000111", message);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        return System.Text.Json.JsonDocument.Parse(handler.Body);
+    }
+
+    [Fact]
+    public async Task PostMessageAsync_SendsAuthorTitleLinkTimestampFooterIconAndLinkButton()
+    {
+        DateTimeOffset sentAt = new(2026, 6, 22, 20, 0, 5, TimeSpan.Zero);
+        DiscordEmbedDto embed = new(
+            "blame the lag",
+            null,
+            "#9146FF",
+            null,
+            "https://img.example/preview.jpg",
+            "NomNomzBot",
+            null,
+            TitleUrl: "https://www.twitch.tv/stoney",
+            AuthorName: "Stoney is now live on Twitch!",
+            AuthorIconUrl: "https://img.example/avatar.png",
+            AuthorUrl: "https://www.twitch.tv/stoney",
+            FooterIconUrl: "https://img.example/bot.png",
+            ShowTimestamp: true,
+            ButtonLabel: "Watch Stream",
+            ButtonUrl: "https://www.twitch.tv/stoney"
+        );
+
+        using System.Text.Json.JsonDocument body = await PostedBodyAsync(
+            new("Stoney is live", embed, null, sentAt)
+        );
+
+        System.Text.Json.JsonElement wire = body.RootElement.GetProperty("embeds")[0];
+        wire.GetProperty("url").GetString().Should().Be("https://www.twitch.tv/stoney");
+        wire.GetProperty("author")
+            .GetProperty("name")
+            .GetString()
+            .Should()
+            .Be("Stoney is now live on Twitch!");
+        wire.GetProperty("author")
+            .GetProperty("icon_url")
+            .GetString()
+            .Should()
+            .Be("https://img.example/avatar.png");
+        wire.GetProperty("author")
+            .GetProperty("url")
+            .GetString()
+            .Should()
+            .Be("https://www.twitch.tv/stoney");
+        wire.GetProperty("timestamp").GetString().Should().Be("2026-06-22T20:00:05.000Z");
+        wire.GetProperty("footer").GetProperty("text").GetString().Should().Be("NomNomzBot");
+        wire.GetProperty("footer")
+            .GetProperty("icon_url")
+            .GetString()
+            .Should()
+            .Be("https://img.example/bot.png");
+        wire.GetProperty("image")
+            .GetProperty("url")
+            .GetString()
+            .Should()
+            .Be("https://img.example/preview.jpg");
+
+        System.Text.Json.JsonElement row = body.RootElement.GetProperty("components")[0];
+        row.GetProperty("type").GetInt32().Should().Be(1);
+        System.Text.Json.JsonElement button = row.GetProperty("components")[0];
+        button.GetProperty("type").GetInt32().Should().Be(2);
+        button.GetProperty("style").GetInt32().Should().Be(5);
+        button.GetProperty("label").GetString().Should().Be("Watch Stream");
+        button.GetProperty("url").GetString().Should().Be("https://www.twitch.tv/stoney");
+        button
+            .TryGetProperty("custom_id", out _)
+            .Should()
+            .BeFalse("a link button has no custom id");
+    }
+
+    [Fact]
+    public async Task PostMessageAsync_AnOldEmbed_PostsAsBefore_WithNoNewParts()
+    {
+        DiscordEmbedDto embed = new("Live", "now", null, null, null, "foot", null);
+
+        using System.Text.Json.JsonDocument body = await PostedBodyAsync(new("hi", embed, null));
+
+        System.Text.Json.JsonElement wire = body.RootElement.GetProperty("embeds")[0];
+        wire.GetProperty("title").GetString().Should().Be("Live");
+        wire.TryGetProperty("author", out _).Should().BeFalse();
+        wire.TryGetProperty("url", out _).Should().BeFalse();
+        wire.TryGetProperty("timestamp", out _).Should().BeFalse();
+        wire.GetProperty("footer").TryGetProperty("icon_url", out _).Should().BeFalse();
+        body.RootElement.TryGetProperty("components", out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task PostMessageAsync_AButtonWithoutALabelOrLink_SendsNoComponents()
+    {
+        DiscordEmbedDto embed = new(
+            "Live",
+            null,
+            null,
+            null,
+            null,
+            null,
+            null,
+            ButtonLabel: "Watch Stream",
+            ButtonUrl: null
+        );
+
+        using System.Text.Json.JsonDocument body = await PostedBodyAsync(new("hi", embed, null));
+
+        body.RootElement.TryGetProperty("components", out _).Should().BeFalse();
+    }
+
     // ─── Helpers ─────────────────────────────────────────────────────────────
 
     private static DiscordRestBotGateway NewGateway(

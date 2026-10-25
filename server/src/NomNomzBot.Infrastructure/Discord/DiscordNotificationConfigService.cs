@@ -376,6 +376,15 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
         yield return embed.Title;
         yield return embed.Description;
         yield return embed.FooterText;
+        yield return embed.ThumbnailUrl;
+        yield return embed.ImageUrl;
+        yield return embed.TitleUrl;
+        yield return embed.AuthorName;
+        yield return embed.AuthorIconUrl;
+        yield return embed.AuthorUrl;
+        yield return embed.FooterIconUrl;
+        yield return embed.ButtonLabel;
+        yield return embed.ButtonUrl;
         if (embed.Fields is null)
             yield break;
         foreach (DiscordEmbedFieldDto field in embed.Fields)

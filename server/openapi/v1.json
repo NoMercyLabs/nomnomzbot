@@ -114331,6 +114331,52 @@
             "items": {
               "$ref": "#/components/schemas/DiscordEmbedField"
             }
+          },
+          "titleUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "authorName": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "authorIconUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "authorUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "footerIconUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "showTimestamp": {
+            "type": "boolean",
+            "default": false
+          },
+          "buttonLabel": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "buttonUrl": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
         "description": "The `[VC:JSON]` embed shape — mirrors the Domain `DiscordEmbedConfig` on the wire."

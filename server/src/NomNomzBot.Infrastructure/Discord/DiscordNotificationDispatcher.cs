@@ -190,7 +190,7 @@ public sealed class DiscordNotificationDispatcher : IDiscordNotificationDispatch
         Result<string> posted = await _gateway.PostMessageAsync(
             request.BroadcasterId,
             config.TargetChannelId,
-            new(content, renderedEmbed, pingRoleId),
+            new(content, renderedEmbed, pingRoleId, new DateTimeOffset(now, TimeSpan.Zero)),
             ct
         );
 
@@ -304,7 +304,12 @@ public sealed class DiscordNotificationDispatcher : IDiscordNotificationDispatch
             Result<string> sent = await _gateway.PostMessageAsync(
                 request.BroadcasterId,
                 dmChannelId,
-                new(content, renderedEmbed, PingRoleId: null),
+                new(
+                    content,
+                    renderedEmbed,
+                    PingRoleId: null,
+                    new DateTimeOffset(now, TimeSpan.Zero)
+                ),
                 ct
             );
             if (sent.IsSuccess)
