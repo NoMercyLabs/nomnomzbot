@@ -35,9 +35,9 @@ const beyondMockup: ReadonlySet<string> = new Set([]);
 // Single pages the owner asked for that the mockup ledger does not list (all polls and predictions, 2026-10-15;
 // the viewer chat, 2026-10-16; the quotes, 2026-10-18).
 const pagesBeyondMockup: ReadonlySet<string> = new Set([
+  'dashboard-pick-lists',
   'dashboard-polls',
-  'dashboard-quotes',
-  // Discord, 2026-10-15; moved into the settings 2026-10-20.
+  'dashboard-quotes',  // Discord, 2026-10-15; moved into the settings 2026-10-20.
   'dashboard-settings-discord',
   'dashboard-settings-escalation',
   'dashboard-settings-spam-defense',

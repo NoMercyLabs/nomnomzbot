@@ -1,0 +1,41 @@
+{
+  "dashboard": {
+    "picklists": {
+      "title": "Pick lists",
+      "listTitle": "Pick lists",
+      "entries": "{count} entry | {count} entries",
+      "empty": "No pick lists yet.",
+      "noMatch": "No pick list matches your search.",
+      "error": "The pick lists could not be loaded.",
+      "search": "Search the pick lists",
+      "new": "New pick list",
+      "more": "Show more pick lists",
+      "edit": "Edit {name}",
+      "delete": {
+        "title": "Delete {name}?",
+        "description": "This removes the list and all of its entries for good.",
+        "nothing": "No pipeline step uses this list.",
+        "action": "Delete pick list"
+      },
+      "dialog": {
+        "newTitle": "New pick list",
+        "editTitle": "Edit {name}",
+        "description": "A list a reply can draw one random entry from.",
+        "name": "Name",
+        "nameHelp": "A reply uses it as the helper name. Renaming a list breaks replies that use the old name.",
+        "descriptionLabel": "Description",
+        "items": "Entries",
+        "itemsHelp": "One entry per line. Up to {items} entries.",
+        "create": "Add pick list",
+        "save": "Save pick list",
+        "problem": {
+          "nameRequired": "Type a name.",
+          "nameTooLong": "The name may have at most {name} characters.",
+          "descriptionTooLong": "The description may have at most {description} characters.",
+          "tooManyItems": "A list may hold at most {items} entries.",
+          "itemTooLong": "An entry may have at most {item} characters."
+        }
+      }
+    }
+  }
+}

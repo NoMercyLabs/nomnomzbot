@@ -114,6 +114,8 @@ export const ownerActionKeys = [
   'obs:control',
   'obs:control:broadcast',
   'obs:scene:read',
+  'picklists:delete',
+  'picklists:write',
   'pipelines:read',
   'pipelines:write',
   'quotes:delete',

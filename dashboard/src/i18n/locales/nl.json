@@ -742,7 +742,7 @@
       "commands": "Commando's",
       "triggersTimers": "Triggers en timers",
       "voiceTriggers": "Spraaktriggers",
-      "eventResponses": "Reacties op events",
+      "pickLists": "Keuzelijsten",      "eventResponses": "Reacties op events",
       "pipelines": "Pipelines",
       "overlays": "Overlays",
       "scripts": "Scripts",

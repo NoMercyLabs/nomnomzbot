@@ -1,0 +1,41 @@
+{
+  "dashboard": {
+    "picklists": {
+      "title": "Keuzelijsten",
+      "listTitle": "Keuzelijsten",
+      "entries": "{count} item | {count} items",
+      "empty": "Nog geen keuzelijsten.",
+      "noMatch": "Geen keuzelijst past bij je zoekopdracht.",
+      "error": "De keuzelijsten konden niet worden geladen.",
+      "search": "Zoek in de keuzelijsten",
+      "new": "Nieuwe keuzelijst",
+      "more": "Meer keuzelijsten tonen",
+      "edit": "{name} bewerken",
+      "delete": {
+        "title": "{name} verwijderen?",
+        "description": "Dit verwijdert de lijst en al haar items voorgoed.",
+        "nothing": "Geen pipelinestap gebruikt deze lijst.",
+        "action": "Keuzelijst verwijderen"
+      },
+      "dialog": {
+        "newTitle": "Nieuwe keuzelijst",
+        "editTitle": "{name} bewerken",
+        "description": "Een lijst waaruit een antwoord één willekeurig item kan kiezen.",
+        "name": "Naam",
+        "nameHelp": "Een antwoord gebruikt dit als helpernaam. Een lijst hernoemen breekt antwoorden die de oude naam gebruiken.",
+        "descriptionLabel": "Beschrijving",
+        "items": "Items",
+        "itemsHelp": "Eén item per regel. Maximaal {items} items.",
+        "create": "Keuzelijst toevoegen",
+        "save": "Keuzelijst opslaan",
+        "problem": {
+          "nameRequired": "Typ een naam.",
+          "nameTooLong": "De naam mag maximaal {name} tekens hebben.",
+          "descriptionTooLong": "De beschrijving mag maximaal {description} tekens hebben.",
+          "tooManyItems": "Een lijst mag maximaal {items} items bevatten.",
+          "itemTooLong": "Een item mag maximaal {item} tekens hebben."
+        }
+      }
+    }
+  }
+}

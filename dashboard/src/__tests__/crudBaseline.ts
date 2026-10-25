@@ -67,6 +67,7 @@ export const crudBaseline: Record<string, readonly string[]> = {
   'moderation/automod': ['POST /channels/{channelId}/moderation/automod'],
   'moderation/automod/twitch': ['PUT /channels/{channelId}/moderation/automod/twitch'],
   'moderation/bans': ['DELETE /channels/{channelId}/moderation/bans/{userId}'],
+  'sound-clips': ['POST /sound-clips', 'PUT /sound-clips/{id}', 'DELETE /sound-clips/{id}'],
   'moderation/blocked-terms': [
     'POST /channels/{channelId}/moderation/blocked-terms',
     'DELETE /channels/{channelId}/moderation/blocked-terms/{term}',
@@ -110,13 +111,11 @@ export const crudBaseline: Record<string, readonly string[]> = {
   'music/shuffle': ['PATCH /channels/{channelId}/music/shuffle'],
   'music/volume': ['PUT /channels/{channelId}/music/volume'],
   permits: ['DELETE /channels/{channelId}/permits/{userId}'],
-  picklists: ['POST /picklists', 'PUT /picklists/{id}', 'DELETE /picklists/{id}'],
   'platform/content/audio-assets': [
     'POST /platform/content/audio-assets',
     'DELETE /platform/content/audio-assets/{id}',
   ],
   'platform/iam/principals': ['POST /platform/iam/principals'],
-  'sound-clips': ['POST /sound-clips', 'PUT /sound-clips/{id}', 'DELETE /sound-clips/{id}'],
   'spam-defense/lockdown': ['POST /channels/{channelId}/spam-defense/lockdown'],
   'stream/game': ['PATCH /channels/{channelId}/stream/game'],
   'stream/tags': ['PATCH /channels/{channelId}/stream/tags'],

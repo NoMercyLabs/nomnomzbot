@@ -27,10 +27,10 @@ import MovieClap from '~icons/nnz/movie-clap';
 import NoteEighthPair from '~icons/nnz/note-eighth-pair';
 import PictureInPicture from '~icons/nnz/picture-in-picture';
 import Books from '~icons/nnz/books';
+import BulletList from '~icons/nnz/bullet-list';
 import Quotes from '~icons/nnz/quotes';
 import Settings from '~icons/nnz/settings';
-import Smile from '~icons/nnz/smile';
-import SplitBranch from '~icons/nnz/split-branch';
+import Smile from '~icons/nnz/smile';import SplitBranch from '~icons/nnz/split-branch';
 import Terminal from '~icons/nnz/terminal';
 import Timer from '~icons/nnz/timer';
 import Tv from '~icons/nnz/tv';
@@ -185,6 +185,12 @@ export const dashboardNav: readonly NavGroup[] = [
         label: 'voiceTriggers',
         icon: Mic,
         action: 'voicetriggers:read',
+      },
+      {
+        route: 'dashboard-pick-lists',
+        label: 'pickLists',
+        icon: BulletList,
+        action: 'picklists:read',
       },
       {
         route: 'dashboard-event-responses',
