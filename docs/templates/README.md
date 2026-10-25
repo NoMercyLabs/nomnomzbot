@@ -25,24 +25,33 @@ Every example below uses the same people:
 
 ## Names and links
 
+One rule for every name: a key without a suffix is the name as people read it. A `.name` key is the login: lowercase, no spaces, safe in a link.
+
 `{user}`
-The login name of the person who triggered it.
-Works in: commands, event responses, pipelines, webhooks.
+The display name of the person who triggered it, as the platform shows it.
+Works in: commands, event responses, pipelines, webhooks, Discord posts.
 ```
 Thanks for the command, {user}!
-Thanks for the command, stoney_eagle!
+Thanks for the command, Stoney_Eagle!
+```
+
+`{user.name}`
+The login of the same person: lowercase, no spaces.
+```
+twitch.tv/{user.name}
+twitch.tv/stoney_eagle
 ```
 
 `{name}`
-The name to show: the @mentioned person if there is one, otherwise the person who typed.
+The display name to show: the @mentioned person if there is one, otherwise the person who typed.
 Works in: commands, event responses, pipelines, webhooks.
 ```
 !hug @Chris  →  {user} gives {name} a big hug.
-stoney_eagle gives Chris a big hug.
+Stoney_Eagle gives Chris a big hug.
 ```
 
 `{target}` and `{target.name}`
-The login name of the @mentioned person.
+The login of the @mentioned person.
 Works in: commands, event responses, pipelines, webhooks.
 ```
 Go follow {target}!
@@ -50,7 +59,7 @@ Go follow chris!
 ```
 
 `{target.displayname}`
-The @mentioned person's display name. If the bot does not know them, it shows the text as typed.
+The @mentioned person's display name, as the platform shows it. If the bot does not know them, it shows the text as typed.
 ```
 Everyone say hi to {target.displayname}.
 Everyone say hi to Chris.
