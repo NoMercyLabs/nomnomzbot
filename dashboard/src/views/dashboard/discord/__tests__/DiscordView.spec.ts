@@ -347,6 +347,18 @@ describe('a new rule on the rule editor', () => {
     ['cheer', '{user.name} cheered {bits} bits in {channel.display}! {message}'],
     ['raid', '{user.name} raided {channel.display} with {viewers} viewers!'],
     ['stream_end', '{channel.name} is offline. The stream ran for {duration}.'],
+    [
+      'resubscription',
+      '{user.name} renewed their support of {channel.display} ({tier}) for {months} months in total! {message}',
+    ],
+    [
+      'poll_end',
+      'The poll is over: {poll.title} The winner is {poll.winner} with {poll.winner.votes} votes.',
+    ],
+    [
+      'prediction_resolved',
+      'The prediction is resolved: {prediction.title} The winning outcome is {prediction.winner}.',
+    ],
   ])('starts a %s rule with its own ready message', async (trigger, message) => {
     mounted = mount(RuleEditor, {
       attachTo: document.body,

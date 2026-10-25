@@ -74,7 +74,10 @@
         "gift_subscription": "{'{'}user.name{'}'} gaf {'{'}count{'}'} abonnement(en) weg in {'{'}channel.display{'}'} ({'{'}tier{'}'})!",
         "cheer": "{'{'}user.name{'}'} gaf {'{'}bits{'}'} bits in {'{'}channel.display{'}'}! {'{'}message{'}'}",
         "raid": "{'{'}user.name{'}'} heeft {'{'}channel.display{'}'} geraid met {'{'}viewers{'}'} kijkers!",
-        "stream_end": "{'{'}channel.name{'}'} is offline. De stream duurde {'{'}duration{'}'}."
+        "stream_end": "{'{'}channel.name{'}'} is offline. De stream duurde {'{'}duration{'}'}.",
+        "resubscription": "{'{'}user.name{'}'} steunt {'{'}channel.display{'}'} opnieuw ({'{'}tier{'}'}), nu {'{'}months{'}'} maanden in totaal! {'{'}message{'}'}",
+        "poll_end": "De poll is afgelopen: {'{'}poll.title{'}'} De winnaar is {'{'}poll.winner{'}'} met {'{'}poll.winner.votes{'}'} stemmen.",
+        "prediction_resolved": "De voorspelling is beslist: {'{'}prediction.title{'}'} De winnende uitkomst is {'{'}prediction.winner{'}'}."
       },
       "triggers": {
         "go_live": "Stream gaat live",
@@ -84,6 +87,9 @@
         "cheer": "Cheer",
         "raid": "Binnenkomende raid",
         "stream_end": "Stream eindigt",
+        "resubscription": "Verlengd abonnement (Twitch, Kick, YouTube)",
+        "poll_end": "Poll eindigt",
+        "prediction_resolved": "Voorspelling beslist",
         "new_clip": "Nieuwe clip",
         "schedule": "Schemawijziging",
         "milestone": "Mijlpaal"

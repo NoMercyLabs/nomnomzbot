@@ -59,6 +59,27 @@ public static class DiscordConfigDefaults
             "dashboard.discord.triggers.stream_end",
             ["broadcaster", "duration", "channel.name"]
         ),
+        new(
+            "resubscription",
+            "dashboard.discord.triggers.resubscription",
+            ["user.name", "tier", "months", "streak", "message", "channel.display"]
+        ),
+        new(
+            "poll_end",
+            "dashboard.discord.triggers.poll_end",
+            ["poll.title", "poll.winner", "poll.winner.votes", "poll.results", "channel.display"]
+        ),
+        new(
+            "prediction_resolved",
+            "dashboard.discord.triggers.prediction_resolved",
+            [
+                "prediction.title",
+                "prediction.winner",
+                "prediction.winner.points",
+                "prediction.winner.users",
+                "channel.display",
+            ]
+        ),
     ];
 
     /// <summary>The events a notification rule can post for. The rule editor and the pipeline step offer only these.</summary>

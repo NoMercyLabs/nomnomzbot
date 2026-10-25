@@ -74,7 +74,10 @@
         "gift_subscription": "{'{'}user.name{'}'} gifted {'{'}count{'}'} memberships in {'{'}channel.display{'}'} ({'{'}tier{'}'})!",
         "cheer": "{'{'}user.name{'}'} cheered {'{'}bits{'}'} bits in {'{'}channel.display{'}'}! {'{'}message{'}'}",
         "raid": "{'{'}user.name{'}'} raided {'{'}channel.display{'}'} with {'{'}viewers{'}'} viewers!",
-        "stream_end": "{'{'}channel.name{'}'} is offline. The stream ran for {'{'}duration{'}'}."
+        "stream_end": "{'{'}channel.name{'}'} is offline. The stream ran for {'{'}duration{'}'}.",
+        "resubscription": "{'{'}user.name{'}'} renewed their support of {'{'}channel.display{'}'} ({'{'}tier{'}'}) for {'{'}months{'}'} months in total! {'{'}message{'}'}",
+        "poll_end": "The poll is over: {'{'}poll.title{'}'} The winner is {'{'}poll.winner{'}'} with {'{'}poll.winner.votes{'}'} votes.",
+        "prediction_resolved": "The prediction is resolved: {'{'}prediction.title{'}'} The winning outcome is {'{'}prediction.winner{'}'}."
       },
       "triggers": {
         "go_live": "Stream goes live",
@@ -84,6 +87,9 @@
         "cheer": "Cheer",
         "raid": "Incoming raid",
         "stream_end": "Stream ends",
+        "resubscription": "Renewed subscription (Twitch, Kick, YouTube)",
+        "poll_end": "Poll ends",
+        "prediction_resolved": "Prediction resolved",
         "new_clip": "New clip",
         "schedule": "Schedule update",
         "milestone": "Milestone"

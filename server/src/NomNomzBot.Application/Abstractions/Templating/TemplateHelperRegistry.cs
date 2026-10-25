@@ -205,7 +205,7 @@ public static class TemplateHelperRegistry
             // Polls (channel.poll.begin and channel.poll.end)
             Literal(
                 "poll.title",
-                EventSourceOnlyContexts,
+                EventSourceAndDiscordContexts,
                 "template.helper.poll_title",
                 eventScoped: true
             ),
@@ -217,13 +217,13 @@ public static class TemplateHelperRegistry
             ),
             Literal(
                 "poll.winner",
-                EventSourceOnlyContexts,
+                EventSourceAndDiscordContexts,
                 "template.helper.poll_winner",
                 eventScoped: true
             ),
             Literal(
                 "poll.winner.votes",
-                EventSourceOnlyContexts,
+                EventSourceAndDiscordContexts,
                 "template.helper.poll_winner_votes",
                 eventScoped: true
             ),
@@ -235,7 +235,7 @@ public static class TemplateHelperRegistry
             ),
             Literal(
                 "poll.results",
-                EventSourceOnlyContexts,
+                EventSourceAndDiscordContexts,
                 "template.helper.poll_results",
                 eventScoped: true
             ),
@@ -266,7 +266,7 @@ public static class TemplateHelperRegistry
             ),
             Literal(
                 "prediction.title",
-                EventSourceOnlyContexts,
+                EventSourceAndDiscordContexts,
                 "template.helper.prediction_title",
                 eventScoped: true
             ),
@@ -296,19 +296,19 @@ public static class TemplateHelperRegistry
             ),
             Literal(
                 "prediction.winner",
-                EventSourceOnlyContexts,
+                EventSourceAndDiscordContexts,
                 "template.helper.prediction_winner",
                 eventScoped: true
             ),
             Literal(
                 "prediction.winner.points",
-                EventSourceOnlyContexts,
+                EventSourceAndDiscordContexts,
                 "template.helper.prediction_winner_points",
                 eventScoped: true
             ),
             Literal(
                 "prediction.winner.users",
-                EventSourceOnlyContexts,
+                EventSourceAndDiscordContexts,
                 "template.helper.prediction_winner_users",
                 eventScoped: true
             ),
@@ -350,8 +350,18 @@ public static class TemplateHelperRegistry
                 "template.helper.tier",
                 eventScoped: true
             ),
-            Literal("months", EventSourceOnlyContexts, "template.helper.months", eventScoped: true),
-            Literal("streak", EventSourceOnlyContexts, "template.helper.streak", eventScoped: true),
+            Literal(
+                "months",
+                EventSourceAndDiscordContexts,
+                "template.helper.months",
+                eventScoped: true
+            ),
+            Literal(
+                "streak",
+                EventSourceAndDiscordContexts,
+                "template.helper.streak",
+                eventScoped: true
+            ),
             Literal(
                 "message",
                 EventSourceAndDiscordContexts,
