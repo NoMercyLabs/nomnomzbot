@@ -361,6 +361,7 @@ public sealed class KickWebhookIngest : IKickWebhookIngest
                     OccurredAt = offlineAt,
                     BroadcasterDisplayName = payload.Broadcaster.Username ?? string.Empty,
                     StreamDuration = StreamRunTime.Between(_registry, tenant.Id, offlineAt),
+                    StreamStartedAt = StreamRunTime.StartOf(_registry, tenant.Id),
                 },
                 ct
             );

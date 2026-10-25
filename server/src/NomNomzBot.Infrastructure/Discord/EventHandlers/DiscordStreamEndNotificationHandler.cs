@@ -16,9 +16,9 @@ using NomNomzBot.Domain.Stream.Events;
 namespace NomNomzBot.Infrastructure.Discord.EventHandlers;
 
 /// <summary>
-/// The <c>stream_end</c> Discord trigger: posts the channel's rule when the stream goes offline. The offline
-/// signal carries no start time, so the key is the minute it arrived: a repeated signal dedupes, a later
-/// stream posts again.
+/// The <c>stream_end</c> Discord trigger: posts the channel's rule when the stream goes offline. The key is
+/// the stream's go-live instant when the offline signal carries it, so a repeated signal dedupes and a later
+/// stream posts again. When the go-live instant is unknown the key falls back to the minute of arrival.
 /// </summary>
 public sealed class DiscordStreamEndNotificationHandler
     : DiscordTriggerNotificationHandler<ChannelOfflineEvent>
@@ -34,8 +34,12 @@ public sealed class DiscordStreamEndNotificationHandler
 
     protected override string Trigger => "stream_end";
 
+    // The stream's own go-live instant names it, so a repeated offline signal dedupes whenever it arrives.
+    // Without that instant the minute of arrival is the best available identity.
     protected override string DedupeKeyOf(ChannelOfflineEvent @event) =>
-        $"{Trigger}:{@event.Provider}:{@event.OccurredAt.UtcDateTime:yyyyMMddHHmm}";
+        @event.StreamStartedAt is { } startedAt
+            ? $"{Trigger}:{@event.Provider}:{startedAt.UtcDateTime:O}"
+            : $"{Trigger}:{@event.Provider}:{@event.OccurredAt.UtcDateTime:yyyyMMddHHmm}";
 
     protected override Dictionary<string, string> TemplateDataOf(ChannelOfflineEvent @event) =>
         new()

@@ -162,6 +162,7 @@ public sealed class StreamOfflineTranslator(
             OccurredAt = offlineAt,
             BroadcasterDisplayName = payload.GetRequiredString("broadcaster_user_name"),
             StreamDuration = StreamRunTime.Between(registry, notification.BroadcasterId, offlineAt),
+            StreamStartedAt = StreamRunTime.StartOf(registry, notification.BroadcasterId),
         };
 
         return PublishAsync(offline, ct);

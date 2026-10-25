@@ -30,4 +30,10 @@ public sealed class ChannelOfflineEvent : DomainEventBase, IProviderScopedEvent
     /// time is unknown, for example when the stream started while the bot was down and no live check has run yet.
     /// </summary>
     public required TimeSpan StreamDuration { get; init; }
+
+    /// <summary>
+    /// When the stream that just ended went live: the stream's own identity, the same instant the matching
+    /// <see cref="ChannelOnlineEvent.StartedAt"/> carried. Null when the go-live time is unknown.
+    /// </summary>
+    public DateTimeOffset? StreamStartedAt { get; init; }
 }

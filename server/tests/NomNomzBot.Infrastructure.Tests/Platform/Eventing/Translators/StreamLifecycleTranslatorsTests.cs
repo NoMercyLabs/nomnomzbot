@@ -348,11 +348,14 @@ public sealed class StreamLifecycleTranslatorsTests
 
         await translator.TranslateAsync(Notification(tenant, "stream.offline", OfflinePayload));
 
-        bus.EventsOf<ChannelOfflineEvent>()
+        ChannelOfflineEvent offline = bus.EventsOf<ChannelOfflineEvent>()
             .Should()
             .ContainSingle()
-            .Subject.StreamDuration.Should()
-            .Be(TimeSpan.FromHours(2));
+            .Subject;
+        offline.StreamDuration.Should().Be(TimeSpan.FromHours(2));
+        offline
+            .StreamStartedAt.Should()
+            .Be(new DateTimeOffset(2026, 6, 20, 12, 0, 0, TimeSpan.Zero));
     }
 
     private static (ChannelContext Ctx, IChannelRegistry Registry) LiveContext(

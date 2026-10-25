@@ -102,14 +102,20 @@ public sealed class DiscordEventNotificationHandlerTests
             ViewerCount = 120,
         };
 
-    private static ChannelOfflineEvent Offline(Guid broadcaster, TimeSpan duration) =>
+    private static ChannelOfflineEvent Offline(
+        Guid broadcaster,
+        TimeSpan duration,
+        DateTimeOffset? startedAt = null,
+        DateTimeOffset? occurredAt = null
+    ) =>
         new()
         {
             BroadcasterId = broadcaster,
-            OccurredAt = At,
+            OccurredAt = occurredAt ?? At,
             Provider = "twitch",
             BroadcasterDisplayName = "Stoney",
             StreamDuration = duration,
+            StreamStartedAt = startedAt,
         };
 
     private static async Task<DiscordTriggerHandlerHarness> RuleAsync(
@@ -350,6 +356,47 @@ public sealed class DiscordEventNotificationHandlerTests
         await harness.RaiseAsync(StreamEnd, Offline(harness.BroadcasterId, new(1, 0, 0)));
 
         harness.Gateway.Posts.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task StreamEnd_SameStreamReportedOfflineInDifferentMinutes_PostsOnce()
+    {
+        using DiscordTriggerHandlerHarness harness = await RuleAsync("stream_end", "bye");
+        DateTimeOffset startedAt = At.AddHours(-2);
+
+        await harness.RaiseAsync(
+            StreamEnd,
+            Offline(harness.BroadcasterId, new(2, 0, 0), startedAt, At.AddSeconds(50))
+        );
+        await harness.RaiseAsync(
+            StreamEnd,
+            Offline(harness.BroadcasterId, new(2, 0, 0), startedAt, At.AddSeconds(70))
+        );
+
+        harness.Gateway.Posts.Should().ContainSingle();
+        List<DiscordNotificationDispatch> rows = await harness.DispatchesAsync();
+        rows.Select(row => row.Status).Should().Equal("sent", "skipped_dupe");
+        rows[0].DedupeKey.Should().Be($"stream_end:twitch:{startedAt.UtcDateTime:O}");
+        rows[1]
+            .DedupeKey.Should()
+            .StartWith(rows[0].DedupeKey, "the repeat is logged under the same stream key");
+    }
+
+    [Fact]
+    public async Task StreamEnd_TwoDifferentStreams_PostTwice()
+    {
+        using DiscordTriggerHandlerHarness harness = await RuleAsync("stream_end", "bye");
+
+        await harness.RaiseAsync(
+            StreamEnd,
+            Offline(harness.BroadcasterId, new(1, 0, 0), At.AddHours(-9), At.AddHours(-8))
+        );
+        await harness.RaiseAsync(
+            StreamEnd,
+            Offline(harness.BroadcasterId, new(1, 0, 0), At.AddHours(-2), At.AddHours(-1))
+        );
+
+        harness.Gateway.Posts.Should().HaveCount(2);
     }
 
     // ── no rule, no post ─────────────────────────────────────────────────────

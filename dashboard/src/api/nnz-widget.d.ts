@@ -60,6 +60,8 @@ interface NnzChannelOffline {
   broadcasterDisplayName: string;
   /** How long the stream ran, from the moment the channel went live to this offline signal. Neither Twitch nor Kick sends a duration, so it is computed from the channel's recorded go-live time. It is zero when that time is unknown, for example when the stream started while the bot was down and no live check has run yet. */
   streamDuration: string;
+  /** When the stream that just ended went live: the stream's own identity, the same instant the matching StartedAt carried. Null when the go-live time is unknown. */
+  streamStartedAt?: string | null;
 }
 
 /** Published when a channel's stream goes online (EventSub stream.online). */

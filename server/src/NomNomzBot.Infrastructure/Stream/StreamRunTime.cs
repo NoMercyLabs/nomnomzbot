@@ -20,6 +20,16 @@ namespace NomNomzBot.Infrastructure.Stream;
 internal static class StreamRunTime
 {
     /// <summary>
+    /// The channel's recorded go-live moment: <c>WentLiveAt</c>, or <c>LastStreamStartedAt</c> when the status
+    /// poll already saw the stream end. Null when neither is known. It names the stream that is ending.
+    /// </summary>
+    public static DateTimeOffset? StartOf(IChannelRegistry registry, Guid broadcasterId)
+    {
+        ChannelContext? ctx = registry.Get(broadcasterId);
+        return ctx?.WentLiveAt ?? ctx?.LastStreamStartedAt;
+    }
+
+    /// <summary>
     /// Time from the channel's recorded go-live moment to <paramref name="offlineAt"/>. The moment is
     /// <c>WentLiveAt</c>, or <c>LastStreamStartedAt</c> when the status poll already saw the stream end.
     /// Zero when the go-live moment is unknown (channel not in the registry, or no anchor yet) or lies in the future.
@@ -30,8 +40,7 @@ internal static class StreamRunTime
         DateTimeOffset offlineAt
     )
     {
-        ChannelContext? ctx = registry.Get(broadcasterId);
-        DateTimeOffset? wentLiveAt = ctx?.WentLiveAt ?? ctx?.LastStreamStartedAt;
+        DateTimeOffset? wentLiveAt = StartOf(registry, broadcasterId);
         if (wentLiveAt is null)
             return TimeSpan.Zero;
 
