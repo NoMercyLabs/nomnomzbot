@@ -54,7 +54,9 @@ import { dashboardPipelineRoute, dashboardPipelinesRoute } from '@/views/dashboa
 import { dashboardMediaShareRoute } from '@/views/dashboard/media-share/route';
 import { dashboardGiveawaysRoute } from '@/views/dashboard/giveaways/route';
 import { dashboardPickListsRoute } from '@/views/dashboard/picklists/route';
-import { dashboardQuotesRoute } from '@/views/dashboard/quotes/route';import { dashboardPollsRoute } from '@/views/dashboard/polls/route';
+import { dashboardQuotesRoute } from '@/views/dashboard/quotes/route';
+import { dashboardSoundsRoute } from '@/views/dashboard/sounds/route';
+import { dashboardPollsRoute } from '@/views/dashboard/polls/route';
 import { dashboardScriptsRoute } from '@/views/dashboard/scripts/route';
 import { dashboardSettingsRoutes } from '@/views/dashboard/settings/route';
 import { dashboardEconomyRoute } from '@/views/dashboard/economy/route';
@@ -88,7 +90,9 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardVtsRoute,
   dashboardPollsRoute,
   dashboardVoiceTriggersRoute,
-  dashboardPickListsRoute,  dashboardGiveawaysRoute,
+  dashboardPickListsRoute,
+  dashboardSoundsRoute,
+  dashboardGiveawaysRoute,
   dashboardQuotesRoute,
   dashboardPipelinesRoute,
   dashboardPipelineRoute,

@@ -1,0 +1,51 @@
+{
+  "dashboard": {
+    "sounds": {
+      "title": "Sounds",
+      "listTitle": "Sound clips",
+      "empty": "No sound clips yet.",
+      "error": "The sound clips could not be loaded.",
+      "new": "New sound clip",
+      "more": "Show more sound clips",
+      "trigger": "chat word {word}",
+      "volume": "volume {volume}",
+      "seconds": "{seconds} s",
+      "enabled": "Play {name}",
+      "edit": "Edit {name}",
+      "delete": {
+        "title": "Delete {name}?",
+        "description": "This removes the clip and its audio file for good.",
+        "nothing": "No command, pipeline or reward plays this clip.",
+        "action": "Delete sound clip"
+      },
+      "dialog": {
+        "newTitle": "New sound clip",
+        "newDescription": "Upload an audio file. Set the chat word, cooldown and who may play it with Edit.",
+        "editTitle": "Edit {name}",
+        "editDescription": "The audio file and the short name stay as uploaded.",
+        "file": "Audio file",
+        "fileHelp": "An audio file of at most 10 MB.",
+        "name": "Short name",
+        "nameHelp": "Commands and pipelines find the clip by this name. It cannot change later.",
+        "displayName": "Display name",
+        "volume": "Volume (0 to {max})",
+        "cooldown": "Cooldown in seconds",
+        "cooldownHelp": "How long the clip waits before chat can play it again. 0 means no wait.",
+        "permission": "Who may play it",
+        "trigger": "Chat word",
+        "triggerHelp": "A word with no spaces and no prefix. Chat plays the clip by typing it. Leave empty for none.",
+        "create": "Add sound clip",
+        "save": "Save sound clip",
+        "problem": {
+          "fileRequired": "Choose an audio file.",
+          "nameRequired": "Type a short name.",
+          "displayNameRequired": "Type a display name.",
+          "volumeRange": "The volume is a whole number from 0 to {max}.",
+          "cooldownNegative": "The cooldown is a whole number of seconds, 0 or more.",
+          "triggerTooLong": "The chat word may have at most {trigger} characters.",
+          "triggerHasSpace": "The chat word cannot contain spaces."
+        }
+      }
+    }
+  }
+}

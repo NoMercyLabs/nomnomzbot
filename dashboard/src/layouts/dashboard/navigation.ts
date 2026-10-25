@@ -30,7 +30,9 @@ import Books from '~icons/nnz/books';
 import BulletList from '~icons/nnz/bullet-list';
 import Quotes from '~icons/nnz/quotes';
 import Settings from '~icons/nnz/settings';
-import Smile from '~icons/nnz/smile';import SplitBranch from '~icons/nnz/split-branch';
+import Smile from '~icons/nnz/smile';
+import Speaker from '~icons/nnz/speaker';
+import SplitBranch from '~icons/nnz/split-branch';
 import Terminal from '~icons/nnz/terminal';
 import Timer from '~icons/nnz/timer';
 import Tv from '~icons/nnz/tv';
@@ -161,6 +163,12 @@ export const dashboardNav: readonly NavGroup[] = [
         label: 'mediaShare',
         icon: Tv,
         action: 'media:read',
+      },
+      {
+        route: 'dashboard-sounds',
+        label: 'sounds',
+        icon: Speaker,
+        action: 'sounds:read',
       },
     ],
   },

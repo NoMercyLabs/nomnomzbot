@@ -1,0 +1,51 @@
+{
+  "dashboard": {
+    "sounds": {
+      "title": "Geluiden",
+      "listTitle": "Geluidsclips",
+      "empty": "Nog geen geluidsclips.",
+      "error": "De geluidsclips konden niet worden geladen.",
+      "new": "Nieuwe geluidsclip",
+      "more": "Meer geluidsclips tonen",
+      "trigger": "chatwoord {word}",
+      "volume": "volume {volume}",
+      "seconds": "{seconds} s",
+      "enabled": "{name} afspelen",
+      "edit": "{name} bewerken",
+      "delete": {
+        "title": "{name} verwijderen?",
+        "description": "Dit verwijdert de clip en het geluidsbestand voorgoed.",
+        "nothing": "Geen commando, pipeline of beloning speelt deze clip af.",
+        "action": "Geluidsclip verwijderen"
+      },
+      "dialog": {
+        "newTitle": "Nieuwe geluidsclip",
+        "newDescription": "Upload een geluidsbestand. Stel het chatwoord, de wachttijd en wie het mag afspelen in met Bewerken.",
+        "editTitle": "{name} bewerken",
+        "editDescription": "Het geluidsbestand en de korte naam blijven zoals geüpload.",
+        "file": "Geluidsbestand",
+        "fileHelp": "Een geluidsbestand van maximaal 10 MB.",
+        "name": "Korte naam",
+        "nameHelp": "Commando's en pipelines vinden de clip met deze naam. Hij kan later niet meer veranderen.",
+        "displayName": "Weergavenaam",
+        "volume": "Volume (0 tot {max})",
+        "cooldown": "Wachttijd in seconden",
+        "cooldownHelp": "Hoe lang de clip wacht voordat de chat hem opnieuw kan afspelen. 0 betekent geen wachttijd.",
+        "permission": "Wie mag afspelen",
+        "trigger": "Chatwoord",
+        "triggerHelp": "Een woord zonder spaties en zonder voorvoegsel. De chat speelt de clip af door het te typen. Laat leeg voor geen.",
+        "create": "Geluidsclip toevoegen",
+        "save": "Geluidsclip opslaan",
+        "problem": {
+          "fileRequired": "Kies een geluidsbestand.",
+          "nameRequired": "Typ een korte naam.",
+          "displayNameRequired": "Typ een weergavenaam.",
+          "volumeRange": "Het volume is een heel getal van 0 tot {max}.",
+          "cooldownNegative": "De wachttijd is een heel aantal seconden, 0 of meer.",
+          "triggerTooLong": "Het chatwoord mag maximaal {trigger} tekens hebben.",
+          "triggerHasSpace": "Het chatwoord mag geen spaties bevatten."
+        }
+      }
+    }
+  }
+}
