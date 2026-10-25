@@ -14,6 +14,8 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
+using NomNomzBot.Domain.Discord;
+using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Domain.Discord.ValueObjects;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -302,6 +304,96 @@ public sealed class DiscordEmbedModelTests
         posted.AuthorName.Should().Be("Stoney_Eagle");
         posted.AuthorIconUrl.Should().BeNull();
         posted.ButtonUrl.Should().BeNull("the channel has no web address on this platform");
+    }
+
+    [Fact]
+    public async Task AGoLiveRuleMadeWithNoMessage_StartsWithTheReadyMessageAndEmbed()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid channel = await DiscordTestHarness.SeedChannelAsync(database);
+        Guid connection = await DiscordTestHarness.SeedActiveConnectionAsync(database, channel);
+
+        await using DiscordTestDbContext db = database.NewContext();
+        Result<DiscordNotificationConfigDto> created = await NewService(db)
+            .CreateConfigAsync(
+                channel,
+                connection,
+                new("go_live", "chan-1", null, null, null, null, null, true)
+            );
+
+        created.IsSuccess.Should().BeTrue(created.ErrorMessage);
+        DiscordNotificationConfig stored = await db.DiscordNotificationConfigs.SingleAsync();
+        stored.MessageTemplate.Should().Be(DiscordConfigDefaults.GoLiveMessage);
+        stored.EmbedConfig.Should().BeEquivalentTo(DiscordConfigDefaults.GoLiveEmbed);
+        stored.EmbedConfig!.AuthorName.Should().Be("{channel.name} is now live on Twitch!");
+        stored.EmbedConfig.ImageUrl.Should().Be("{stream.thumbnail}");
+        stored.EmbedConfig.ShowTimestamp.Should().BeTrue();
+        stored.EmbedConfig.ButtonLabel.Should().Be("Watch Stream");
+        stored.EmbedConfig.ButtonUrl.Should().Be("{channel.url}");
+    }
+
+    [Fact]
+    public async Task AGoLiveRuleWithItsOwnMessage_IsStoredAsSent_AndOtherTriggersGetNoDefault()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid channel = await DiscordTestHarness.SeedChannelAsync(database);
+        Guid connection = await DiscordTestHarness.SeedActiveConnectionAsync(database, channel);
+
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordNotificationConfigService service = NewService(db);
+        await service.CreateConfigAsync(
+            channel,
+            connection,
+            new("go_live", "chan-1", null, "mine", null, null, null, true)
+        );
+        await service.CreateConfigAsync(
+            channel,
+            connection,
+            new("follow", "chan-1", null, null, null, null, null, true)
+        );
+
+        List<DiscordNotificationConfig> rows = await db
+            .DiscordNotificationConfigs.OrderBy(c => c.TriggerType)
+            .ToListAsync();
+        rows.Single(c => c.TriggerType == "follow").MessageTemplate.Should().BeNull();
+        rows.Single(c => c.TriggerType == "follow").EmbedConfig.Should().BeNull();
+        rows.Single(c => c.TriggerType == "go_live").MessageTemplate.Should().Be("mine");
+        rows.Single(c => c.TriggerType == "go_live").EmbedConfig.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task TheReadyGoLiveRule_PostsTheStreamersLinkAvatarPreviewAndButton()
+    {
+        using DiscordTriggerHandlerHarness harness =
+            await DiscordTriggerHandlerHarness.WithRuleAsync(
+                "go_live",
+                DiscordConfigDefaults.GoLiveMessage,
+                DiscordConfigDefaults.GoLiveEmbed
+            );
+        await harness.ShapeChannelAsync(
+            AuthEnums.Platform.Twitch,
+            "Stoney_Eagle",
+            "https://cdn.example/avatar.png"
+        );
+
+        await harness.RaiseAsync(GoLive, LiveEvent(harness.BroadcasterId));
+
+        (string ChannelId, DiscordOutboundMessage Message) post = harness.Gateway.Posts.Single();
+        post.Message.Content.Should()
+            .Be(
+                "Stoney_Eagle is live on Twitch streaming Just Chatting, blame the lag. Come hang out: https://www.twitch.tv/stoney_eagle"
+            );
+        DiscordEmbedDto embed = post.Message.Embed!;
+        embed.AuthorName.Should().Be("Stoney_Eagle is now live on Twitch!");
+        embed.AuthorIconUrl.Should().Be("https://cdn.example/avatar.png");
+        embed.Title.Should().Be("blame the lag");
+        embed.TitleUrl.Should().Be("https://www.twitch.tv/stoney_eagle");
+        embed
+            .ImageUrl.Should()
+            .Be(
+                $"https://static-cdn.jtvnw.net/previews-ttv/live_user_stoney_eagle-1280x720.jpg?t={WentLive.ToUnixTimeSeconds()}"
+            );
+        embed.ButtonUrl.Should().Be("https://www.twitch.tv/stoney_eagle");
     }
 
     private static ChannelOnlineEvent LiveEvent(Guid broadcaster) =>

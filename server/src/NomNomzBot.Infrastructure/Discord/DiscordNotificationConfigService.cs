@@ -15,6 +15,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Domain.Discord;
 using NomNomzBot.Domain.Discord.Entities;
+using NomNomzBot.Domain.Discord.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Discord;
@@ -137,6 +138,12 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
                 "ALREADY_EXISTS"
             );
 
+        // A go-live rule made with no message starts with the ready go-live message, and the ready embed
+        // when it brings none. A rule that brings its own message is stored as sent.
+        bool readyGoLive =
+            request.TriggerType == "go_live" && string.IsNullOrWhiteSpace(request.MessageTemplate);
+        DiscordEmbedConfig? embed = DiscordEmbedMapper.ToDomain(request.EmbedConfig);
+
         DiscordNotificationConfig config = new()
         {
             Id = Guid.CreateVersion7(),
@@ -146,8 +153,10 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
             Enabled = request.Enabled,
             TargetChannelId = request.TargetChannelId.Trim(),
             PingRoleId = request.PingRoleId,
-            MessageTemplate = request.MessageTemplate,
-            EmbedConfig = DiscordEmbedMapper.ToDomain(request.EmbedConfig),
+            MessageTemplate = readyGoLive
+                ? DiscordConfigDefaults.GoLiveMessage
+                : request.MessageTemplate,
+            EmbedConfig = readyGoLive ? embed ?? DiscordConfigDefaults.GoLiveEmbed : embed,
             MilestoneType = request.MilestoneType,
             MilestoneThreshold = request.MilestoneThreshold,
             ConfigSchemaVersion = CurrentEmbedConfigVersion,
