@@ -54,6 +54,28 @@ public sealed class DiscordNotificationTriggerListTests
     }
 
     [Fact]
+    public void EveryPlaceholderTheServerFills_CanBeSavedInAMessage()
+    {
+        ITemplateHelperValidator validator = DiscordTemplateTestSupport.CreateValidator();
+
+        List<string> rejected =
+        [
+            .. DiscordConfigDefaults
+                .NotificationTriggerCatalog.SelectMany(trigger =>
+                    trigger.Placeholders.Select(placeholder => (trigger.Name, placeholder))
+                )
+                .Where(pair =>
+                    validator
+                        .Validate("{" + pair.placeholder + "}", TemplateHelperContext.Discord)
+                        .IsFailure
+                )
+                .Select(pair => $"{pair.Name}:{pair.placeholder}"),
+        ];
+
+        rejected.Should().BeEmpty();
+    }
+
+    [Fact]
     public void GetTriggers_NeverOffersATriggerNoHandlerFires()
     {
         Result<IReadOnlyList<DiscordNotificationTriggerDto>> result = Build().GetTriggers();

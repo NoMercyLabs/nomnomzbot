@@ -84,6 +84,15 @@ public static class TemplateHelperRegistry
         TemplateHelperContext.Pipeline,
     ];
 
+    /// <summary>Event values a Discord trigger handler also seeds (<c>DiscordTriggerNotificationHandler</c>):
+    /// the same meaning as on the EventSub trigger, so one entry per key covers both.</summary>
+    private static readonly TemplateHelperContext[] EventSourceAndDiscordContexts =
+    [
+        TemplateHelperContext.EventResponse,
+        TemplateHelperContext.Pipeline,
+        TemplateHelperContext.Discord,
+    ];
+
     /// <summary>Bare stream-identity keys ("broadcaster"/"title"/"game") shared verbatim by the Discord
     /// go-live seed aliases AND <c>ChannelOnlineHandler</c>/<c>ChannelOfflineHandler</c>'s
     /// <c>stream.online</c>/<c>stream.offline</c> triggers — same meaning (the channel now going live),
@@ -335,12 +344,17 @@ public static class TemplateHelperRegistry
                 eventScoped: true
             ),
             // ── Subscriptions / gifts / cheers (channel.subscribe, .subscription.message/.gift, .cheer) ──
-            Literal("tier", EventSourceOnlyContexts, "template.helper.tier", eventScoped: true),
+            Literal(
+                "tier",
+                EventSourceAndDiscordContexts,
+                "template.helper.tier",
+                eventScoped: true
+            ),
             Literal("months", EventSourceOnlyContexts, "template.helper.months", eventScoped: true),
             Literal("streak", EventSourceOnlyContexts, "template.helper.streak", eventScoped: true),
             Literal(
                 "message",
-                EventSourceOnlyContexts,
+                EventSourceAndDiscordContexts,
                 "template.helper.message",
                 eventScoped: true
             ),
@@ -352,7 +366,7 @@ public static class TemplateHelperRegistry
             ),
             Literal(
                 "count",
-                EventSourceOnlyContexts,
+                EventSourceAndDiscordContexts,
                 "template.helper.event_count",
                 eventScoped: true
             ),
@@ -362,7 +376,12 @@ public static class TemplateHelperRegistry
                 "template.helper.anonymous",
                 eventScoped: true
             ),
-            Literal("bits", EventSourceOnlyContexts, "template.helper.bits", eventScoped: true),
+            Literal(
+                "bits",
+                EventSourceAndDiscordContexts,
+                "template.helper.bits",
+                eventScoped: true
+            ),
             // ── Gift recipients (channel.subscription.gift.received) ─────────
             Literal("gifter", EventSourceOnlyContexts, "template.helper.gifter", eventScoped: true),
             Literal(
@@ -374,7 +393,7 @@ public static class TemplateHelperRegistry
             // ── Raids (channel.raid, channel.raid.out) ──────────────────────
             Literal(
                 "viewers",
-                EventSourceOnlyContexts,
+                EventSourceAndDiscordContexts,
                 "template.helper.viewers",
                 eventScoped: true
             ),
@@ -404,7 +423,7 @@ public static class TemplateHelperRegistry
             Literal("reason", EventSourceOnlyContexts, "template.helper.reason", eventScoped: true),
             Literal(
                 "duration",
-                EventSourceOnlyContexts,
+                EventSourceAndDiscordContexts,
                 "template.helper.event_duration",
                 eventScoped: true
             ),

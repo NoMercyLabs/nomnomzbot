@@ -37,6 +37,28 @@ public static class DiscordConfigDefaults
             "dashboard.discord.triggers.go_live",
             ["broadcaster", "channel.name", "title", "game"]
         ),
+        new("follow", "dashboard.discord.triggers.follow", ["user.name", "channel.display"]),
+        new(
+            "subscription",
+            "dashboard.discord.triggers.subscription",
+            ["user.name", "tier", "channel.display"]
+        ),
+        new(
+            "gift_subscription",
+            "dashboard.discord.triggers.gift_subscription",
+            ["user.name", "count", "tier", "channel.display"]
+        ),
+        new(
+            "cheer",
+            "dashboard.discord.triggers.cheer",
+            ["user.name", "bits", "message", "channel.display"]
+        ),
+        new("raid", "dashboard.discord.triggers.raid", ["user.name", "viewers", "channel.display"]),
+        new(
+            "stream_end",
+            "dashboard.discord.triggers.stream_end",
+            ["broadcaster", "duration", "channel.name"]
+        ),
     ];
 
     /// <summary>The events a notification rule can post for. The rule editor and the pipeline step offer only these.</summary>
