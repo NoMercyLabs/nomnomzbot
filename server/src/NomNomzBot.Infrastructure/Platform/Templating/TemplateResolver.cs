@@ -624,9 +624,12 @@ public sealed partial class TemplateResolver : ITemplateResolver
         // rendered the placeholder literally, because the resolver leaves unknown variables as-is.
         if (needsBareName)
         {
+            // The name shown is a display name: the target's, falling back to the typed text; the user's.
             string? mirroredName = hasTargetContext
-                ? vars.GetValueOrDefault("target.name") ?? vars.GetValueOrDefault("target")
-                : vars.GetValueOrDefault("user.name");
+                ? vars.GetValueOrDefault("target.displayname")
+                    ?? vars.GetValueOrDefault("target.name")
+                    ?? vars.GetValueOrDefault("target")
+                : vars.GetValueOrDefault("user") ?? vars.GetValueOrDefault("user.name");
             if (!string.IsNullOrEmpty(mirroredName))
                 vars.TryAdd("name", mirroredName);
         }
@@ -972,12 +975,13 @@ public sealed partial class TemplateResolver : ITemplateResolver
         {
             vars.TryAdd("target.id", string.Empty);
             vars.TryAdd("target.name", targetName);
+            vars.TryAdd("target.displayname", targetName);
             return;
         }
 
         TwitchUser found = lookup.Value[0];
         vars.TryAdd("target.id", found.Id);
-        vars.TryAdd("target.name", found.DisplayName);
+        vars.TryAdd("target.name", found.Login);
         vars.TryAdd("target.displayname", found.DisplayName);
     }
 

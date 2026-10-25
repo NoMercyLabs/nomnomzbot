@@ -32,5 +32,5 @@ public sealed class DiscordFollowNotificationHandler
         $"{Trigger}:{@event.Provider}:{@event.UserId}:{@event.FollowedAt.UtcDateTime:O}";
 
     protected override Dictionary<string, string> TemplateDataOf(FollowEvent @event) =>
-        new() { ["user.name"] = @event.UserDisplayName };
+        ViewerData(@event.UserId, @event.UserLogin, @event.UserDisplayName);
 }

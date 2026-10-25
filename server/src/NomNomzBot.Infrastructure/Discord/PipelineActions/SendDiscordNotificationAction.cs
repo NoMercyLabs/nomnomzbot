@@ -74,7 +74,6 @@ public sealed class SendDiscordNotificationAction : ICommandAction
             StringComparer.OrdinalIgnoreCase
         )
         {
-            ["user.name"] = ctx.TriggeredByDisplayName,
             ["raw.message"] = ctx.RawMessage,
         };
 

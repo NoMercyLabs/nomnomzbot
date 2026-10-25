@@ -203,7 +203,7 @@ public sealed class ShoutoutActionTests
         List<string> filled =
         [
             .. pool.Select(l =>
-                l.Replace("{target.name}", "numerictarget")
+                l.Replace("{target.displayname}", "numerictarget")
                     .Replace("{target.link}", "twitch.tv/numerictarget")
                     .Replace("{target.game}", "something awesome")
             ),
@@ -226,7 +226,7 @@ public sealed class ShoutoutActionTests
                     BuiltinResponseSlots.Shoutout.Announcement
                 )
                 .Select(l =>
-                    l.Replace("{target.name}", "numerictarget")
+                    l.Replace("{target.displayname}", "numerictarget")
                         .Replace("{target.game}", "something awesome")
                 ),
         ];

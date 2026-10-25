@@ -49,10 +49,7 @@ public sealed class DiscordFollowNotificationHandlerTests
     public async Task Follow_PostsTheRule_ToItsDiscordChannel_WithThePlaceholdersFilled()
     {
         using DiscordTriggerHandlerHarness harness =
-            await DiscordTriggerHandlerHarness.WithRuleAsync(
-                "follow",
-                "{user.name} just followed!"
-            );
+            await DiscordTriggerHandlerHarness.WithRuleAsync("follow", "{user} just followed!");
 
         await harness.RaiseAsync(Handler, Follow(harness.BroadcasterId));
 
@@ -69,10 +66,7 @@ public sealed class DiscordFollowNotificationHandlerTests
     public async Task Follow_DeliveredTwice_PostsOnce()
     {
         using DiscordTriggerHandlerHarness harness =
-            await DiscordTriggerHandlerHarness.WithRuleAsync(
-                "follow",
-                "{user.name} just followed!"
-            );
+            await DiscordTriggerHandlerHarness.WithRuleAsync("follow", "{user} just followed!");
 
         await harness.RaiseAsync(Handler, Follow(harness.BroadcasterId));
         await harness.RaiseAsync(Handler, Follow(harness.BroadcasterId));
@@ -105,6 +99,6 @@ public sealed class DiscordFollowNotificationHandlerTests
             );
 
         trigger.LabelKey.Should().Be("dashboard.discord.triggers.follow");
-        trigger.Placeholders.Should().Equal("user.name", "channel.display");
+        trigger.Placeholders.Should().Equal("user", "channel.display");
     }
 }

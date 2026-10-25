@@ -61,8 +61,8 @@ public sealed class ShoutoutAction : ICommandAction
     private const string RaidEventName = "channel.raid";
     private const string FallbackGame = "something awesome";
     private const string DefaultTemplate =
-        "Go check out {target.name}! Follow the channel to catch the next stream.";
-    private const string QueuedFallback = "Shoutout for {target.name} is queued.";
+        "Go check out {target.displayname}! Follow the channel to catch the next stream.";
+    private const string QueuedFallback = "Shoutout for {target.displayname} is queued.";
 
     // The old bot's failure texts. A graph sends the failure to chat through {last.error}, so the text is
     // what a viewer reads. Fixed, not a tone slot: a failure has no target, so no personality is resolved.
@@ -343,7 +343,8 @@ public sealed class ShoutoutAction : ICommandAction
             {
                 ["target"] = target.Login,
                 ["target.id"] = target.Id,
-                ["target.name"] = target.DisplayName,
+                ["target.name"] = target.Login,
+                ["target.displayname"] = target.DisplayName,
             };
             string text = await _composer.ComposeAsync(
                 new()
@@ -423,7 +424,8 @@ public sealed class ShoutoutAction : ICommandAction
         {
             ["target"] = target.Login,
             ["target.id"] = target.Id,
-            ["target.name"] = target.DisplayName,
+            ["target.name"] = target.Login,
+            ["target.displayname"] = target.DisplayName,
             ["target.link"] = $"twitch.tv/{target.Login}",
             ["target.game"] = state.Game,
             ["target.title"] = state.Title,

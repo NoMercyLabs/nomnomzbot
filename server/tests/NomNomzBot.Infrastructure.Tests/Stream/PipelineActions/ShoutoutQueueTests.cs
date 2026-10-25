@@ -74,7 +74,7 @@ public sealed class ShoutoutQueueTests
         );
 
     // Steps pin this template so the queue tests assert one exact line, not a random pick from the tone pool.
-    private const string Template = "Go check out {target.name}!";
+    private const string Template = "Go check out {target.displayname}!";
 
     private static string Line(string id) => $"Go check out Name{id}!";
 

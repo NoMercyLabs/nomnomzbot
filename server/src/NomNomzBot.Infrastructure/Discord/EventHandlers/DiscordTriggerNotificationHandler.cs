@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Application.Contracts.Security;
@@ -55,6 +56,21 @@ public abstract class DiscordTriggerNotificationHandler<TEvent> : IEventHandler<
 
     /// <summary>The placeholder values for this event. The names must match the trigger's catalog entry.</summary>
     protected abstract Dictionary<string, string> TemplateDataOf(TEvent @event);
+
+    /// <summary>
+    /// A new template data bag holding the viewer the event is about: <c>user</c> the shown name,
+    /// <c>user.name</c> the login, <c>user.id</c> the platform id. Same rule as every other trigger.
+    /// </summary>
+    protected static Dictionary<string, string> ViewerData(
+        string? id,
+        string? login,
+        string? displayName
+    )
+    {
+        Dictionary<string, string> data = [];
+        TemplateSubject.SeedUser(data, id, login, displayName);
+        return data;
+    }
 
     /// <summary>True when the event must not post, for example a gifted sub that the gift trigger announces.</summary>
     protected virtual bool IsSkipped(TEvent @event) => false;

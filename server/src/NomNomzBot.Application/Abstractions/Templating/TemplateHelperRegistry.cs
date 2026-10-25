@@ -607,13 +607,21 @@ public static class TemplateHelperRegistry
             Literal("args", CommandArgContexts, "template.helper.args_all"),
             Prefixed("args.<n>", "args.", CommandArgContexts, "template.helper.args"),
             // ── Triggering user (command + event response — no bare trigger user on a timer) ──
-            Literal("user", TriggerContexts, "template.helper.user"),
+            Literal(
+                "user",
+                [.. TriggerContexts, TemplateHelperContext.Discord],
+                "template.helper.user"
+            ),
             Literal(
                 "user.name",
                 [.. TriggerContexts, TemplateHelperContext.Discord],
                 "template.helper.user_name"
             ),
-            Literal("user.id", TriggerContexts, "template.helper.user_id"),
+            Literal(
+                "user.id",
+                [.. TriggerContexts, TemplateHelperContext.Discord],
+                "template.helper.user_id"
+            ),
             Literal("user.provider", TriggerContexts, "template.helper.user_provider"),
             Literal("user.accountAge", TriggerContexts, "template.helper.user_account_age"),
             Literal("user.followAge", TriggerContexts, "template.helper.user_follow_age"),

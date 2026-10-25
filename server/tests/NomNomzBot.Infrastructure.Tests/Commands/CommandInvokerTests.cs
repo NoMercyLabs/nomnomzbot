@@ -561,7 +561,8 @@ public sealed class CommandInvokerTests
             .SendMessageAsync(Channel, "resolved:hug {user}", Arg.Any<CancellationToken>());
         IDictionary<string, string> seed =
             (IDictionary<string, string>)h.Templates.ReceivedCalls().Single().GetArguments()[1]!;
-        seed["user.name"].Should().Be("NomNomzBotLive");
+        seed["user"].Should().Be("NomNomzBotLive");
+        seed["user.name"].Should().Be("nomnomzbotlive");
         seed["user.role"].Should().Be("broadcaster");
         seed["target"].Should().Be("kitte");
         seed["trigger.source"].Should().Be("reward");

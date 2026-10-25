@@ -66,7 +66,7 @@ public sealed class ToneTemplateCatalogIntegrityTests
         );
 
         lines.Should().HaveCount(9);
-        lines.Should().OnlyContain(l => l.Contains("{target.name}"));
+        lines.Should().OnlyContain(l => l.Contains("{target.displayname}"));
         foreach (string legacy in new[] { "{game}", "{displayname}", "{tense}", "{presentTense}" })
             lines.Should().NotContain(l => l.Contains(legacy));
     }
@@ -92,7 +92,7 @@ public sealed class ToneTemplateCatalogIntegrityTests
                 failures.Add($"{tone}: only {lines.Count} line(s)");
             foreach (string line in lines)
             {
-                if (!line.Contains("{target.name}"))
+                if (!line.Contains("{target.displayname}"))
                     failures.Add($"{tone}: no name: {line}");
                 if (!line.Contains("follow", StringComparison.OrdinalIgnoreCase))
                     failures.Add($"{tone}: no follow call: {line}");

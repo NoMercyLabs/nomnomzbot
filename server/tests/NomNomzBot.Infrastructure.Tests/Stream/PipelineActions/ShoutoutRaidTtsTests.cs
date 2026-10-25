@@ -33,7 +33,8 @@ public sealed class ShoutoutRaidTtsTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-00000000b301");
     private const string RaiderId = "777001";
-    private const string RaiderTemplate = "Raid hero {target.name}, go follow {target.link}!";
+    private const string RaiderTemplate =
+        "Raid hero {target.displayname}, go follow {target.link}!";
 
     private sealed class Rig
     {

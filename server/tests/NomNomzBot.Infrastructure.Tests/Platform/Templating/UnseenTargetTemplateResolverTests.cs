@@ -111,7 +111,7 @@ public sealed class UnseenTargetTemplateResolverTests
         resolved
             .Should()
             .Be(
-                "999|Newbie|Newbie|false",
+                "999|newbie|Newbie|false",
                 "a first-time viewer is a real person, and a command that names them must be able to"
             );
     }

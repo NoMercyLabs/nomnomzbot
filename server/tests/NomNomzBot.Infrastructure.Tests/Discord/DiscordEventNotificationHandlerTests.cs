@@ -146,7 +146,7 @@ public sealed class DiscordEventNotificationHandlerTests
     {
         using DiscordTriggerHandlerHarness harness = await RuleAsync(
             "subscription",
-            "{user.name} subscribed ({tier})"
+            "{user} subscribed ({tier})"
         );
 
         await harness.RaiseAsync(Subscription, Sub(harness.BroadcasterId));
@@ -192,7 +192,7 @@ public sealed class DiscordEventNotificationHandlerTests
     {
         using DiscordTriggerHandlerHarness harness = await RuleAsync(
             "gift_subscription",
-            "{user.name} gifted {count} ({tier})"
+            "{user} gifted {count} ({tier})"
         );
 
         await harness.RaiseAsync(Gift, GiftBatch(harness.BroadcasterId));
@@ -210,7 +210,7 @@ public sealed class DiscordEventNotificationHandlerTests
     {
         using DiscordTriggerHandlerHarness harness = await RuleAsync(
             "gift_subscription",
-            "{user.name} gifted {count}"
+            "{user} gifted {count}"
         );
 
         await harness.RaiseAsync(Gift, GiftBatch(harness.BroadcasterId, anonymous: true));
@@ -236,7 +236,7 @@ public sealed class DiscordEventNotificationHandlerTests
     {
         using DiscordTriggerHandlerHarness harness = await RuleAsync(
             "cheer",
-            "{user.name}: {bits} bits - {message}"
+            "{user}: {bits} bits - {message}"
         );
 
         await harness.RaiseAsync(Cheer, CheerOf(harness.BroadcasterId));
@@ -252,7 +252,7 @@ public sealed class DiscordEventNotificationHandlerTests
     [Fact]
     public async Task Cheer_FromAnAnonymousViewer_NamesNoOne()
     {
-        using DiscordTriggerHandlerHarness harness = await RuleAsync("cheer", "{user.name} {bits}");
+        using DiscordTriggerHandlerHarness harness = await RuleAsync("cheer", "{user} {bits}");
 
         await harness.RaiseAsync(Cheer, CheerOf(harness.BroadcasterId, anonymous: true));
 
@@ -277,7 +277,7 @@ public sealed class DiscordEventNotificationHandlerTests
     {
         using DiscordTriggerHandlerHarness harness = await RuleAsync(
             "raid",
-            "{user.name} raided with {viewers}"
+            "{user} raided with {viewers}"
         );
 
         await harness.RaiseAsync(Raid, RaidOf(harness.BroadcasterId));
@@ -419,10 +419,10 @@ public sealed class DiscordEventNotificationHandlerTests
     // ── catalog ──────────────────────────────────────────────────────────────
 
     [Theory]
-    [InlineData("subscription", "user.name", "tier", "channel.display")]
-    [InlineData("gift_subscription", "user.name", "count", "tier", "channel.display")]
-    [InlineData("cheer", "user.name", "bits", "message", "channel.display")]
-    [InlineData("raid", "user.name", "viewers", "channel.display")]
+    [InlineData("subscription", "user", "tier", "channel.display")]
+    [InlineData("gift_subscription", "user", "count", "tier", "channel.display")]
+    [InlineData("cheer", "user", "bits", "message", "channel.display")]
+    [InlineData("raid", "user", "viewers", "channel.display")]
     [InlineData("stream_end", "broadcaster", "duration", "channel.name")]
     public void EachTrigger_IsInTheCatalog_WithItsLabelAndPlaceholders(
         string name,

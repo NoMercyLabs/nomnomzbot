@@ -102,7 +102,7 @@ public sealed class TemplateSampleRendererTests
         samples["user.id"].Should().Be("777002");
         samples["user.provider"].Should().Be("twitch");
         samples["user.link"].Should().Be("twitch.tv/moss_mod");
-        samples["name"].Should().Be("moss_mod");
+        samples["name"].Should().Be("Moss_Mod");
     }
 
     [Fact]

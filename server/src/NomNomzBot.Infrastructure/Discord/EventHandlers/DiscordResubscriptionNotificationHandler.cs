@@ -35,13 +35,17 @@ public sealed class DiscordResubscriptionNotificationHandler
     protected override string DedupeKeyOf(ResubscriptionEvent @event) =>
         $"{Trigger}:{@event.Provider}:{@event.UserId}:{@event.OccurredAt.UtcDateTime:O}:{@event.CumulativeMonths}";
 
-    protected override Dictionary<string, string> TemplateDataOf(ResubscriptionEvent @event) =>
-        new()
-        {
-            ["user.name"] = @event.UserDisplayName,
-            ["tier"] = DiscordTierLabel.Of(@event.Tier),
-            ["months"] = @event.CumulativeMonths.ToString(),
-            ["streak"] = @event.StreakMonths.ToString(),
-            ["message"] = @event.Message ?? string.Empty,
-        };
+    protected override Dictionary<string, string> TemplateDataOf(ResubscriptionEvent @event)
+    {
+        Dictionary<string, string> data = ViewerData(
+            @event.UserId,
+            @event.UserLogin,
+            @event.UserDisplayName
+        );
+        data["tier"] = DiscordTierLabel.Of(@event.Tier);
+        data["months"] = @event.CumulativeMonths.ToString();
+        data["streak"] = @event.StreakMonths.ToString();
+        data["message"] = @event.Message ?? string.Empty;
+        return data;
+    }
 }

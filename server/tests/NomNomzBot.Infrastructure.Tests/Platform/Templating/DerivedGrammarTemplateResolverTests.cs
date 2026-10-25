@@ -242,7 +242,7 @@ public sealed class DerivedGrammarTemplateResolverTests
         );
 
         userOnly.Should().Be("Shoutout to alice!");
-        knownTarget.Should().Be("Shoutout to dave!", "the bare {name} mirrors the @mention target");
+        knownTarget.Should().Be("Shoutout to Dave!", "the bare {name} mirrors the @mention target");
         unknownTarget
             .Should()
             .Be(
@@ -260,7 +260,7 @@ public sealed class DerivedGrammarTemplateResolverTests
             Channel
         );
 
-        resolved.Should().Be("Shoutout to dave! They are great — follow their channel.");
+        resolved.Should().Be("Shoutout to Dave! They are great — follow their channel.");
     }
 
     // ── {verb:singular|plural} ───────────────────────────────────────────────

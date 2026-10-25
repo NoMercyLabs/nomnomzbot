@@ -258,7 +258,7 @@ public sealed class DiscordPollPredictionResubHandlerTests
         using DiscordTriggerHandlerHarness harness =
             await DiscordTriggerHandlerHarness.WithRuleAsync(
                 "resubscription",
-                "{user.name} resubbed ({tier}) for {months} months, streak {streak}: {message}"
+                "{user} resubbed ({tier}) for {months} months, streak {streak}: {message}"
             );
 
         await harness.RaiseAsync(Resub, ResubOf(harness.BroadcasterId));
@@ -318,15 +318,7 @@ public sealed class DiscordPollPredictionResubHandlerTests
     // ── catalog ──────────────────────────────────────────────────────────────
 
     [Theory]
-    [InlineData(
-        "resubscription",
-        "user.name",
-        "tier",
-        "months",
-        "streak",
-        "message",
-        "channel.display"
-    )]
+    [InlineData("resubscription", "user", "tier", "months", "streak", "message", "channel.display")]
     [InlineData(
         "poll_end",
         "poll.title",

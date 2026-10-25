@@ -33,11 +33,14 @@ public sealed class DiscordCheerNotificationHandler : DiscordTriggerNotification
     protected override string DedupeKeyOf(CheerEvent @event) =>
         $"{Trigger}:{@event.Provider}:{@event.UserId}:{@event.OccurredAt.UtcDateTime:O}:{@event.Bits}";
 
-    protected override Dictionary<string, string> TemplateDataOf(CheerEvent @event) =>
-        new()
-        {
-            ["user.name"] = @event.IsAnonymous ? "Anonymous" : @event.UserDisplayName,
-            ["bits"] = @event.Bits.ToString(),
-            ["message"] = @event.Message,
-        };
+    protected override Dictionary<string, string> TemplateDataOf(CheerEvent @event)
+    {
+        // An anonymous cheer has no login or id to show: the key holds the placeholder name only.
+        Dictionary<string, string> data = @event.IsAnonymous
+            ? new() { ["user"] = "Anonymous" }
+            : ViewerData(@event.UserId, @event.UserLogin, @event.UserDisplayName);
+        data["bits"] = @event.Bits.ToString();
+        data["message"] = @event.Message;
+        return data;
+    }
 }

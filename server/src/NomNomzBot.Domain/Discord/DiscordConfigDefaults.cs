@@ -75,23 +75,23 @@ public static class DiscordConfigDefaults
                 "stream.thumbnail",
             ]
         ),
-        new("follow", "dashboard.discord.triggers.follow", ["user.name", "channel.display"]),
+        new("follow", "dashboard.discord.triggers.follow", ["user", "channel.display"]),
         new(
             "subscription",
             "dashboard.discord.triggers.subscription",
-            ["user.name", "tier", "channel.display"]
+            ["user", "tier", "channel.display"]
         ),
         new(
             "gift_subscription",
             "dashboard.discord.triggers.gift_subscription",
-            ["user.name", "count", "tier", "channel.display"]
+            ["user", "count", "tier", "channel.display"]
         ),
         new(
             "cheer",
             "dashboard.discord.triggers.cheer",
-            ["user.name", "bits", "message", "channel.display"]
+            ["user", "bits", "message", "channel.display"]
         ),
-        new("raid", "dashboard.discord.triggers.raid", ["user.name", "viewers", "channel.display"]),
+        new("raid", "dashboard.discord.triggers.raid", ["user", "viewers", "channel.display"]),
         new(
             "stream_end",
             "dashboard.discord.triggers.stream_end",
@@ -100,7 +100,7 @@ public static class DiscordConfigDefaults
         new(
             "resubscription",
             "dashboard.discord.triggers.resubscription",
-            ["user.name", "tier", "months", "streak", "message", "channel.display"]
+            ["user", "tier", "months", "streak", "message", "channel.display"]
         ),
         new(
             "poll_end",

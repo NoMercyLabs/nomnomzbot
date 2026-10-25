@@ -30,10 +30,14 @@ public sealed class DiscordRaidNotificationHandler : DiscordTriggerNotificationH
     protected override string DedupeKeyOf(RaidEvent @event) =>
         $"{Trigger}:{@event.FromUserId}:{@event.OccurredAt.UtcDateTime:O}";
 
-    protected override Dictionary<string, string> TemplateDataOf(RaidEvent @event) =>
-        new()
-        {
-            ["user.name"] = @event.FromDisplayName,
-            ["viewers"] = @event.ViewerCount.ToString(),
-        };
+    protected override Dictionary<string, string> TemplateDataOf(RaidEvent @event)
+    {
+        Dictionary<string, string> data = ViewerData(
+            @event.FromUserId,
+            @event.FromLogin,
+            @event.FromDisplayName
+        );
+        data["viewers"] = @event.ViewerCount.ToString();
+        return data;
+    }
 }

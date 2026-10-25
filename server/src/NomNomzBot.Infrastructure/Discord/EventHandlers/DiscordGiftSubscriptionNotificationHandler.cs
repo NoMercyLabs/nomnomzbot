@@ -34,11 +34,13 @@ public sealed class DiscordGiftSubscriptionNotificationHandler
     protected override string DedupeKeyOf(GiftSubscriptionEvent @event) =>
         $"{Trigger}:{@event.Provider}:{@event.GifterUserId}:{@event.OccurredAt.UtcDateTime:O}:{@event.GiftCount}";
 
-    protected override Dictionary<string, string> TemplateDataOf(GiftSubscriptionEvent @event) =>
-        new()
-        {
-            ["user.name"] = @event.IsAnonymous ? "Anonymous" : @event.GifterDisplayName,
-            ["count"] = @event.GiftCount.ToString(),
-            ["tier"] = DiscordTierLabel.Of(@event.Tier),
-        };
+    protected override Dictionary<string, string> TemplateDataOf(GiftSubscriptionEvent @event)
+    {
+        Dictionary<string, string> data = @event.IsAnonymous
+            ? new() { ["user"] = "Anonymous" }
+            : ViewerData(@event.GifterUserId, @event.GifterLogin, @event.GifterDisplayName);
+        data["count"] = @event.GiftCount.ToString();
+        data["tier"] = DiscordTierLabel.Of(@event.Tier);
+        return data;
+    }
 }

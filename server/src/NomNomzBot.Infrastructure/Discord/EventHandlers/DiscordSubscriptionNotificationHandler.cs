@@ -36,10 +36,14 @@ public sealed class DiscordSubscriptionNotificationHandler
     protected override string DedupeKeyOf(NewSubscriptionEvent @event) =>
         $"{Trigger}:{@event.Provider}:{@event.UserId}:{@event.OccurredAt.UtcDateTime:O}";
 
-    protected override Dictionary<string, string> TemplateDataOf(NewSubscriptionEvent @event) =>
-        new()
-        {
-            ["user.name"] = @event.UserDisplayName,
-            ["tier"] = DiscordTierLabel.Of(@event.Tier),
-        };
+    protected override Dictionary<string, string> TemplateDataOf(NewSubscriptionEvent @event)
+    {
+        Dictionary<string, string> data = ViewerData(
+            @event.UserId,
+            @event.UserLogin,
+            @event.UserDisplayName
+        );
+        data["tier"] = DiscordTierLabel.Of(@event.Tier);
+        return data;
+    }
 }

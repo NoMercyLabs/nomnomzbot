@@ -191,7 +191,8 @@ public sealed class CommandInvoker(
             BroadcasterId = broadcasterId,
             TriggeringUserId = invoker.UserId,
             TriggeringUserDisplayName = invoker.DisplayName,
-            TriggeringUserLogin = invoker.DisplayName.ToLowerInvariant(),
+            // The login the caller supplied; a built-in that has none keeps the lowercased display name it always got.
+            TriggeringUserLogin = invoker.Login ?? invoker.DisplayName.ToLowerInvariant(),
             RoleLevel = ChatRole.Parse(invoker.Role).ToLevelValue(),
             Args = context.Args,
             CancellationToken = cancellationToken,
@@ -445,7 +446,8 @@ public sealed class CommandInvoker(
             return new Invoker(
                 context.UserId,
                 context.DisplayName ?? context.UserId,
-                ChatRole.ToToken(ChatRole.Parse(context.EffectiveRole))
+                ChatRole.ToToken(ChatRole.Parse(context.EffectiveRole)),
+                context.Variables?.GetValueOrDefault("user.name")
             );
 
         return await ResolveBotAsync(broadcasterId, cancellationToken);
@@ -460,7 +462,8 @@ public sealed class CommandInvoker(
         return new Invoker(
             bot?.TwitchUserId ?? broadcasterId.ToString(),
             bot?.Username ?? FallbackBotName,
-            ChatRole.ToToken(PermissionLevel.Broadcaster)
+            ChatRole.ToToken(PermissionLevel.Broadcaster),
+            bot?.Username.ToLowerInvariant()
         );
     }
 
@@ -476,13 +479,12 @@ public sealed class CommandInvoker(
             foreach (KeyValuePair<string, string> supplied in context.Variables)
                 variables[supplied.Key] = supplied.Value;
 
-        variables["user"] = invoker.DisplayName;
-        variables["user.id"] = invoker.UserId;
-        variables["user.name"] = invoker.DisplayName;
+        // The identity the caller supplied (an event's viewer, a chat line's sender) wins; the invoker fills only what is absent.
+        TemplateSubject.SeedUser(variables, invoker.UserId, invoker.Login, invoker.DisplayName);
         variables["user.role"] = invoker.Role;
         variables["trigger.source"] = context.TriggerSource;
         return variables;
     }
 
-    private sealed record Invoker(string UserId, string DisplayName, string Role);
+    private sealed record Invoker(string UserId, string DisplayName, string Role, string? Login);
 }
