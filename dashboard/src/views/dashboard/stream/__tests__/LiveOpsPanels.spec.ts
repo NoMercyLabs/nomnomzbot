@@ -112,6 +112,7 @@ vi.mock('@/api/client', () => ({
     POST: async (path: string, options?: Options) => answer('POST', path, options),
     PUT: async (path: string, options?: Options) => answer('PUT', path, options),
     PATCH: async (path: string, options?: Options) => answer('PATCH', path, options),
+    DELETE: async (path: string, options?: Options) => answer('DELETE', path, options),
   },
 }));
 
@@ -208,6 +209,25 @@ describe('the schedule panel', () => {
     expect(patch?.path).toBe('/api/v{version}/channels/{channelId}/live-ops/schedule/segment/{segmentId}');
     expect(patch?.pathParams).toMatchObject({ channelId: 'c1', segmentId: 'seg1' });
     expect(patch?.body).toEqual({ isCanceled: true });
+  });
+
+  it('deletes a segment only after the confirm, with a DELETE that names the segment, then reads again', async () => {
+    await show(SchedulePanel);
+    const readsBefore = calls.filter((call) => call.method === 'GET').length;
+
+    await press('[data-segment-delete]');
+
+    expect(sent('DELETE')).toHaveLength(0);
+    expect(document.body.textContent).toContain('Delete');
+
+    await press('[data-confirm-action]');
+
+    const removed = sent('DELETE')[0];
+
+    expect(sent('DELETE')).toHaveLength(1);
+    expect(removed?.path).toBe('/api/v{version}/channels/{channelId}/live-ops/schedule/segment/{segmentId}');
+    expect(removed?.pathParams).toMatchObject({ channelId: 'c1', segmentId: 'seg1' });
+    expect(calls.filter((call) => call.method === 'GET').length).toBeGreaterThan(readsBefore);
   });
 
   it('offers Save vacation only after the vacation changed, and sends the window, then reads again', async () => {
@@ -347,6 +367,7 @@ describe('what the person may change', () => {
     expect(document.body.querySelector('[data-segment-add]')).toBeNull();
     expect(document.body.querySelector('[data-segment-edit]')).toBeNull();
     expect(document.body.querySelector('[data-segment-cancel]')).toBeNull();
+    expect(document.body.querySelector('[data-segment-delete]')).toBeNull();
   });
 
   it('shows the raid rules with no Save, Add or Remove button without the raids write key', async () => {

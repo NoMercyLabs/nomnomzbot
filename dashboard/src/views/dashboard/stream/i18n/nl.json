@@ -117,7 +117,12 @@
         "untitled": "Stream zonder titel",
         "edit": "Aanpassen",
         "cancel": "Annuleren",
-        "restore": "Herstellen"
+        "restore": "Herstellen",
+        "delete": "Verwijderen",
+        "deleteTitle": "{name} verwijderen?",
+        "deleteDescription": "Het onderdeel verdwijnt uit je Twitch-schema. Annuleren bewaart het en slaat maar één stream over.",
+        "deleteSeries": "Elke week van dit terugkerende onderdeel wordt verwijderd.",
+        "deleteAction": "Onderdeel verwijderen"
       },
       "raids": {
         "title": "Raidregels",

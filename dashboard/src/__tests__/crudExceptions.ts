@@ -21,6 +21,18 @@ export const crudExceptions = {
     'PUT /channels/{channelId}/rewards/{rewardId}':
       'Full-replace twin of the PATCH route the dashboard calls for the same edit.',
   },
+  'stream/title': {
+    'PATCH /channels/{channelId}/stream/title':
+      'One-field twin of the PUT /stream route (api/stream.ts useSaveStreamInfo) that saves title, category and tags together.',
+  },
+  'stream/game': {
+    'PATCH /channels/{channelId}/stream/game':
+      'One-field twin of the PUT /stream route (api/stream.ts useSaveStreamInfo) that saves title, category and tags together.',
+  },
+  'stream/tags': {
+    'PATCH /channels/{channelId}/stream/tags':
+      'One-field twin of the PUT /stream route (api/stream.ts useSaveStreamInfo) that saves title, category and tags together.',
+  },
   'chat/settings': {
     'PATCH /channels/{channelId}/chat/settings':
       'Partial-update twin of the PUT route the dashboard calls for the same edit.',

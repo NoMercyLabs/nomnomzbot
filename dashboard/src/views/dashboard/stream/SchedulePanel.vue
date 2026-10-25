@@ -14,6 +14,7 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  useDeleteSegment,
   useSaveScheduleSettings,
   useSchedule,
   useUpdateSegment,
@@ -21,6 +22,7 @@ import {
   type ScheduleSegment,
   type ScheduleSettings,
 } from '@/api/schedule';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
@@ -102,6 +104,30 @@ function addSegment(): void {
 function editSegment(segment: ScheduleSegment): void {
   editing.value = segment;
   dialogOpen.value = true;
+}
+
+const removeSegment = useDeleteSegment(channelId);
+const deleting = ref<ScheduleSegment | null>(null);
+const deleteOpen = computed<boolean>({
+  get: () => deleting.value !== null,
+  set: (value: boolean) => {
+    if (!value) {
+      deleting.value = null;
+    }
+  },
+});
+
+const segmentName = (segment: ScheduleSegment): string =>
+  segment.title || segment.category?.name || t('dashboard.stream.schedule.untitled');
+
+function confirmDelete(): void {
+  if (!deleting.value) return;
+
+  removeSegment.mutate(deleting.value.id, {
+    onSettled: (): void => {
+      deleting.value = null;
+    },
+  });
 }
 
 function toggleCanceled(segment: ScheduleSegment): void {
@@ -206,6 +232,16 @@ function toggleCanceled(segment: ScheduleSegment): void {
               >
                 {{ isCanceled(segment) ? t('dashboard.stream.schedule.restore') : t('dashboard.stream.schedule.cancel') }}
               </Button>
+              <Button
+                v-if="canEdit"
+                variant="destructive"
+                size="sm"
+                data-segment-delete
+                class="max-md:h-9!"
+                @click="deleting = segment"
+              >
+                {{ t('dashboard.stream.schedule.delete') }}
+              </Button>
             </div>
           </div>
         </RowGroup>
@@ -213,4 +249,13 @@ function toggleCanceled(segment: ScheduleSegment): void {
     </div>
   </PanelCard>
   <SegmentDialog v-if="canEdit" v-model:open="dialogOpen" :segment="editing" />
+  <ConfirmDialog
+    v-model:open="deleteOpen"
+    :title="t('dashboard.stream.schedule.deleteTitle', { name: deleting ? segmentName(deleting) : '' })"
+    :description="t('dashboard.stream.schedule.deleteDescription')"
+    :consequences="deleting?.isRecurring ? [t('dashboard.stream.schedule.deleteSeries')] : []"
+    :action="t('dashboard.stream.schedule.deleteAction')"
+    :pending="removeSegment.isPending.value"
+    @confirm="confirmDelete"
+  />
 </template>

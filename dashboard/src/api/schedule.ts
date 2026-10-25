@@ -155,6 +155,27 @@ export function useUpdateSegment(
   });
 }
 
+// Removes one segment from the Twitch schedule for good; a weekly segment goes with its whole series.
+export function useDeleteSegment(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, string, undefined> {
+  return useScheduleMutation(channelId, async (id: string, segmentId: string) => {
+    const { error, response } = await client.DELETE(
+      '/api/v{version}/channels/{channelId}/live-ops/schedule/segment/{segmentId}',
+      {
+        params: { path: {
+          version,
+          channelId: id,
+          segmentId,
+        } },
+      },
+    );
+
+    if (error !== undefined)
+      throw failed('schedule-segment', response.status, error);
+  });
+}
+
 async function readRaidRules(channelId: string): Promise<RaidRules | null> {
   const { data, error, response } = await client.GET(
     '/api/v{version}/channels/{channelId}/live-ops/raids/scoring-rules',

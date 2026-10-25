@@ -117,7 +117,12 @@
         "untitled": "Untitled stream",
         "edit": "Edit",
         "cancel": "Cancel",
-        "restore": "Restore"
+        "restore": "Restore",
+        "delete": "Delete",
+        "deleteTitle": "Delete {name}?",
+        "deleteDescription": "The segment is removed from your Twitch schedule. Cancel keeps it and only skips one stream.",
+        "deleteSeries": "Every week of this repeating segment is removed.",
+        "deleteAction": "Delete segment"
       },
       "raids": {
         "title": "Raid rules",
