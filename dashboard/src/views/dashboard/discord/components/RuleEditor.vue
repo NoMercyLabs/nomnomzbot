@@ -42,8 +42,9 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
 import BlockedChannels from './BlockedChannels.vue';
+import EmbedPreview from './EmbedPreview.vue';
 import PickerError from './PickerError.vue';
-import { defaultChannelFor } from '../ruleDefaults';
+import { defaultChannelFor, readyGoLiveEmbed } from '../ruleDefaults';
 
 type Draft = {
   enabled: boolean;
@@ -57,6 +58,14 @@ type Draft = {
   imageUrl: string;
   footerText: string;
   fields: DiscordEmbedField[];
+  titleUrl: string;
+  authorName: string;
+  authorIconUrl: string;
+  authorUrl: string;
+  footerIconUrl: string;
+  showTimestamp: boolean;
+  buttonLabel: string;
+  buttonUrl: string;
 };
 
 const props = defineProps<{
@@ -88,7 +97,22 @@ function defaultMessage(): string {
     : '';
 }
 
+// A new go-live rule also starts with the ready embed. A saved rule keeps exactly what it stores.
+function defaultEmbed(): DiscordEmbed | null {
+  return props.trigger === 'go_live'
+    ? readyGoLiveEmbed({
+        author: t('dashboard.discord.defaults.goLiveAuthor'),
+        game: t('dashboard.discord.defaults.goLiveGame'),
+        button: t('dashboard.discord.defaults.goLiveButton'),
+      })
+    : null;
+}
+
 function draftOf(rule: DiscordRule | null) {
+  const embed = rule === null
+    ? defaultEmbed()
+    : rule.embedConfig;
+
   return {
     enabled: rule?.enabled ?? true,
     targetChannelId: rule?.targetChannelId ?? defaultChannelFor(props.trigger, props.channels),
@@ -96,13 +120,21 @@ function draftOf(rule: DiscordRule | null) {
     message: rule === null
       ? defaultMessage()
       : (rule.messageTemplate ?? ''),
-    title: rule?.embedConfig?.title ?? '',
-    description: rule?.embedConfig?.description ?? '',
-    color: rule?.embedConfig?.color ?? '',
-    thumbnailUrl: rule?.embedConfig?.thumbnailUrl ?? '',
-    imageUrl: rule?.embedConfig?.imageUrl ?? '',
-    footerText: rule?.embedConfig?.footerText ?? '',
-    fields: (rule?.embedConfig?.fields ?? []).map((field) => ({ ...field })),
+    title: embed?.title ?? '',
+    description: embed?.description ?? '',
+    color: embed?.color ?? '',
+    thumbnailUrl: embed?.thumbnailUrl ?? '',
+    imageUrl: embed?.imageUrl ?? '',
+    footerText: embed?.footerText ?? '',
+    fields: (embed?.fields ?? []).map((field) => ({ ...field })),
+    titleUrl: embed?.titleUrl ?? '',
+    authorName: embed?.authorName ?? '',
+    authorIconUrl: embed?.authorIconUrl ?? '',
+    authorUrl: embed?.authorUrl ?? '',
+    footerIconUrl: embed?.footerIconUrl ?? '',
+    showTimestamp: embed?.showTimestamp ?? false,
+    buttonLabel: embed?.buttonLabel ?? '',
+    buttonUrl: embed?.buttonUrl ?? '',
   } as const satisfies Draft;
 }
 
@@ -144,9 +176,19 @@ function embedOf(edits: Draft): DiscordEmbed | null {
     imageUrl: blankToNull(edits.imageUrl),
     footerText: blankToNull(edits.footerText),
     fields: edits.fields.filter((field) => field.name.trim() !== ''),
+    titleUrl: blankToNull(edits.titleUrl),
+    authorName: blankToNull(edits.authorName),
+    authorIconUrl: blankToNull(edits.authorIconUrl),
+    authorUrl: blankToNull(edits.authorUrl),
+    footerIconUrl: blankToNull(edits.footerIconUrl),
+    showTimestamp: edits.showTimestamp,
+    buttonLabel: blankToNull(edits.buttonLabel),
+    buttonUrl: blankToNull(edits.buttonUrl),
   };
   const empty = Object.values(embed).every((value) =>
-    value === null || (Array.isArray(value) && value.length === 0));
+    value === null ||
+    value === false ||
+    (Array.isArray(value) && value.length === 0));
 
   return empty
     ? null
@@ -279,6 +321,14 @@ function removeField(index: number): void {
         :panel="false"
       />
       <TemplateField
+        v-model="draft.titleUrl"
+        :label="t('dashboard.discord.editor.embedTitleUrl')"
+        context="discord"
+        data-field="embed-title-url"
+        :rows="1"
+        :panel="false"
+      />
+      <TemplateField
         v-model="draft.description"
         :label="t('dashboard.discord.editor.embedDescription')"
         context="discord"
@@ -290,6 +340,31 @@ function removeField(index: number): void {
         <FieldLabel>{{ t('dashboard.discord.editor.embedColor') }}</FieldLabel>
         <Input v-model="draft.color" data-field="embed-color" placeholder="#9146FF" />
       </Field>
+      <TemplateField
+        v-model="draft.authorName"
+        :label="t('dashboard.discord.editor.embedAuthorName')"
+        context="discord"
+        data-field="embed-author-name"
+        :rows="1"
+        :maxlength="256"
+        :panel="false"
+      />
+      <TemplateField
+        v-model="draft.authorIconUrl"
+        :label="t('dashboard.discord.editor.embedAuthorIcon')"
+        context="discord"
+        data-field="embed-author-icon"
+        :rows="1"
+        :panel="false"
+      />
+      <TemplateField
+        v-model="draft.authorUrl"
+        :label="t('dashboard.discord.editor.embedAuthorUrl')"
+        context="discord"
+        data-field="embed-author-url"
+        :rows="1"
+        :panel="false"
+      />
       <TemplateField
         v-model="draft.thumbnailUrl"
         :label="t('dashboard.discord.editor.embedThumbnail')"
@@ -313,6 +388,36 @@ function removeField(index: number): void {
         data-field="embed-footer"
         :rows="1"
         :maxlength="2048"
+        :panel="false"
+      />
+      <TemplateField
+        v-model="draft.footerIconUrl"
+        :label="t('dashboard.discord.editor.embedFooterIcon')"
+        context="discord"
+        data-field="embed-footer-icon"
+        :rows="1"
+        :panel="false"
+      />
+      <SettingRow
+        v-model="draft.showTimestamp"
+        :title="t('dashboard.discord.editor.embedTimestamp')"
+        :description="t('dashboard.discord.editor.embedTimestampHelp')"
+      />
+      <TemplateField
+        v-model="draft.buttonLabel"
+        :label="t('dashboard.discord.editor.buttonLabel')"
+        context="discord"
+        data-field="embed-button-label"
+        :rows="1"
+        :maxlength="80"
+        :panel="false"
+      />
+      <TemplateField
+        v-model="draft.buttonUrl"
+        :label="t('dashboard.discord.editor.buttonUrl')"
+        context="discord"
+        data-field="embed-button-url"
+        :rows="1"
         :panel="false"
       />
 
@@ -370,21 +475,7 @@ function removeField(index: number): void {
       <p data-preview-content class="wrap-break-word">
         {{ shown.renderedContent }}
       </p>
-      <div
-        v-if="shown.renderedEmbed"
-        data-preview-embed
-        class="border-l-4 border-primary pl-3"
-      >
-        <p v-if="shown.renderedEmbed.title" class="font-medium">
-          {{ shown.renderedEmbed.title }}
-        </p>
-        <p v-if="shown.renderedEmbed.description">
-          {{ shown.renderedEmbed.description }}
-        </p>
-        <p v-if="shown.renderedEmbed.footerText" class="text-xs text-muted-foreground">
-          {{ shown.renderedEmbed.footerText }}
-        </p>
-      </div>
+      <EmbedPreview v-if="shown.renderedEmbed" :embed="shown.renderedEmbed" />
     </section>
 
     <p v-if="failure" role="alert" data-rule-error class="text-sm text-destructive">

@@ -82,6 +82,9 @@ const offeredTriggers = [
   },
 ];
 
+// What the preview endpoint answers for the embed; a test sets it to the rendered embed it wants shown.
+let previewEmbed: unknown = null;
+
 function answer(path: string): unknown {
   if (path.endsWith('/discord/triggers'))
     return ok(offeredTriggers);
@@ -95,7 +98,7 @@ function answer(path: string): unknown {
   if (path.endsWith('/preview'))
     return ok({
       renderedContent: 'SampleStreamer is live',
-      renderedEmbed: null,
+      renderedEmbed: previewEmbed,
       pingRoleMention: null,
     });
 
@@ -151,6 +154,7 @@ let pinia: Pinia;
 
 beforeEach(() => {
   calls.length = 0;
+  previewEmbed = null;
   pinia = createPinia();
   setActivePinia(pinia);
   i18n.global.mergeLocaleMessage('en', en);
@@ -211,13 +215,13 @@ describe('the Discord page', () => {
 });
 
 describe('the rule editor', () => {
-  async function editor(): Promise<void> {
+  async function editor(rule: unknown = goLive): Promise<void> {
     mounted = mount(RuleEditor, {
       attachTo: document.body,
       props: {
         trigger: 'go_live',
         placeholders: [],
-        rule: goLive as never,
+        rule: rule as never,
         connectionId: 'conn1',
         pickerError: null,
         channels: [
@@ -240,7 +244,20 @@ describe('the rule editor', () => {
   it('suggests placeholders in every embed text field, not only the message', async () => {
     await editor();
 
-    for (const field of ['embed-title', 'embed-description', 'embed-thumbnail', 'embed-image', 'embed-footer']) {
+    for (const field of [
+      'embed-title',
+      'embed-description',
+      'embed-thumbnail',
+      'embed-image',
+      'embed-footer',
+      'embed-title-url',
+      'embed-author-name',
+      'embed-author-icon',
+      'embed-author-url',
+      'embed-footer-icon',
+      'embed-button-label',
+      'embed-button-url',
+    ]) {
       expect(
         `${field}: ${document.body.querySelector(`[data-field="${field}"]`)?.getAttribute('aria-autocomplete')}`,
       ).toBe(`${field}: list`);
@@ -291,6 +308,126 @@ describe('the rule editor', () => {
       'SampleStreamer is live',
     );
   });
+
+  async function type(field: string, value: string): Promise<void> {
+    const input = document.body.querySelector<HTMLTextAreaElement>(`[data-field="${field}"]`);
+
+    input!.value = value;
+    input!.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+  }
+
+  it('saves the author, links, footer icon, time flag and button with the rule shape the API expects', async () => {
+    await editor();
+
+    await type('embed-title-url', '{channel.url}');
+    await type('embed-author-name', '{channel.name} is now live on Twitch!');
+    await type('embed-author-icon', '{channel.avatar}');
+    await type('embed-author-url', '{channel.url}');
+    await type('embed-footer-icon', '{channel.avatar}');
+    await type('embed-button-label', 'Watch Stream');
+    await type('embed-button-url', '{channel.url}');
+    // The first switch is the rule's on/off; the second is the embed's time.
+    document.body.querySelectorAll<HTMLButtonElement>('[role="switch"]')[1]?.click();
+    await settle();
+    document.body.querySelector<HTMLButtonElement>('[data-save-rule]')!.click();
+    await settle();
+
+    expect(calls).toHaveLength(1);
+
+    expect(calls[0]?.body).toMatchObject({
+      embedConfig: {
+        title: 'Live now',
+        titleUrl: '{channel.url}',
+        authorName: '{channel.name} is now live on Twitch!',
+        authorIconUrl: '{channel.avatar}',
+        authorUrl: '{channel.url}',
+        footerIconUrl: '{channel.avatar}',
+        showTimestamp: true,
+        buttonLabel: 'Watch Stream',
+        buttonUrl: '{channel.url}',
+      },
+    });
+  });
+
+  it('saves no embed at all when every part is empty, even with the time switch left off', async () => {
+    await editor({ ...goLive, embedConfig: null });
+
+    document.body.querySelector<HTMLButtonElement>('[data-save-rule]')!.click();
+    await settle();
+
+    expect(calls[0]?.body).toMatchObject({ embedConfig: null });
+  });
+
+  it('shows the rendered author, linked title, fields, image, footer, time and button in the preview', async () => {
+    previewEmbed = {
+      title: 'blame the lag',
+      titleUrl: 'https://www.twitch.tv/stoney',
+      description: null,
+      color: '#ff0000',
+      imageUrl: 'https://img.example/preview.jpg',
+      authorName: 'Stoney is now live on Twitch!',
+      authorIconUrl: 'https://img.example/avatar.png',
+      authorUrl: 'https://www.twitch.tv/stoney',
+      footerText: 'NomNomzBot',
+      showTimestamp: true,
+      buttonLabel: 'Watch Stream',
+      buttonUrl: 'https://www.twitch.tv/stoney',
+      fields: [
+        {
+          name: 'Game',
+          value: 'Just Chatting',
+          inline: true,
+        },
+      ],
+    };
+
+    await editor();
+
+    document.body.querySelector<HTMLButtonElement>('[data-preview-button]')!.click();
+    await settle();
+
+    const card = document.body.querySelector<HTMLElement>('[data-preview-embed]');
+
+    expect(card?.style.getPropertyValue('--embed-color')).toBe('#ff0000');
+
+    expect(card?.querySelector('[data-preview-author]')?.textContent).toContain(
+      'Stoney is now live',
+    );
+
+    expect(card?.querySelector('[data-preview-title] a')?.getAttribute('href')).toBe(
+      'https://www.twitch.tv/stoney',
+    );
+
+    expect(card?.querySelector('[data-preview-field]')?.textContent).toContain('Just Chatting');
+
+    expect(card?.querySelector('[data-preview-image]')?.getAttribute('src')).toBe(
+      'https://img.example/preview.jpg',
+    );
+
+    expect(card?.querySelector('[data-preview-footer]')?.textContent).toContain('NomNomzBot');
+
+    expect(card?.querySelector('[data-preview-timestamp]')?.textContent).toContain(
+      'Sent just now',
+    );
+
+    expect(card?.querySelector('[data-preview-button-link]')?.textContent).toContain(
+      'Watch Stream',
+    );
+  });
+
+  it('draws no color stripe variable when the embed color is not a hex color', async () => {
+    previewEmbed = { title: 'x', color: 'red' };
+    await editor();
+
+    document.body.querySelector<HTMLButtonElement>('[data-preview-button]')!.click();
+    await settle();
+
+    const card = document.body.querySelector<HTMLElement>('[data-preview-embed]');
+
+    expect(card).not.toBeNull();
+    expect(card?.style.getPropertyValue('--embed-color')).toBe('');
+  });
 });
 
 describe('a new rule on the rule editor', () => {
@@ -337,6 +474,23 @@ describe('a new rule on the rule editor', () => {
       targetChannelId: 'ls',
       messageTemplate:
         '{channel.name} is live on Twitch streaming {game}, {title}. Come hang out: {channel.url}',
+      embedConfig: {
+        title: '{title}',
+        titleUrl: '{channel.url}',
+        authorName: '{channel.name} is now live on Twitch!',
+        authorIconUrl: '{channel.avatar}',
+        imageUrl: '{stream.thumbnail}',
+        fields: [
+          {
+            name: 'Game',
+            value: '{game}',
+            inline: true,
+          },
+        ],
+        showTimestamp: true,
+        buttonLabel: 'Watch Stream',
+        buttonUrl: '{channel.url}',
+      },
     });
   });
 
@@ -387,7 +541,11 @@ describe('a new rule on the rule editor', () => {
     document.body.querySelector<HTMLButtonElement>('[data-save-rule]')!.click();
     await settle();
 
-    expect(calls[0]?.body).toMatchObject({ triggerType: trigger, messageTemplate: message });
+    expect(calls[0]?.body).toMatchObject({
+      triggerType: trigger,
+      messageTemplate: message,
+      embedConfig: null,
+    });
   });
 
   it('lists the placeholders the bot fills for the trigger', async () => {

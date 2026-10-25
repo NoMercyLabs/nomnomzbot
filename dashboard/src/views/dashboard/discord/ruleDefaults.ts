@@ -8,7 +8,37 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import type { DiscordChannel } from '@/api/discord';
+import type { DiscordChannel, DiscordEmbed } from '@/api/discord';
+
+type ReadyWords = {
+  author: string;
+  game: string;
+  button: string;
+};
+
+// The embed a new go-live rule starts with: the author line with the streamer's picture, the stream title
+// linking to the channel, the game, the live preview picture, the send time and a Watch Stream button. The
+// placeholders are the bot's own; only the visible words come from the translations.
+export function readyGoLiveEmbed(words: ReadyWords): DiscordEmbed {
+  return {
+    title: '{title}',
+    titleUrl: '{channel.url}',
+    authorName: words.author,
+    authorIconUrl: '{channel.avatar}',
+    imageUrl: '{stream.thumbnail}',
+    color: '#9146FF',
+    fields: [
+      {
+        name: words.game,
+        value: '{game}',
+        inline: true,
+      },
+    ],
+    showTimestamp: true,
+    buttonLabel: words.button,
+    buttonUrl: '{channel.url}',
+  };
+}
 
 // Discord channel types a notification can go to: 0 is text, 5 is announcement.
 const textTypes = new Set<string | number>([0, 5]);
