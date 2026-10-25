@@ -10,7 +10,8 @@
     "pwa-assets.config.*",
     "eslint.config.*",
     "eslint-rules/**/*",
-    "vite-plugins/**/*"
+    "vite-plugins/**/*",
+    "scripts/**/*.d.mts"
   ],
   "compilerOptions": {
     // Most tools use transpilation instead of Node.js's native type-stripping.

@@ -36,6 +36,93 @@ editor, Economy balances, the music player buttons, Request rules, TTS Keys).
 - **S-DISCORD-LIVE-PRESENCE** — Stoney, 2026-10-23, verbatim: "discord already knows who is live via its own twitch linking system so we should use that just like streamcord". The live role now goes to the streamer's own Discord account, found through the Twitch account Discord links to it at install. Streamcord goes further: it reads Discord presence, so every member who streams gets the role. That needs a Discord gateway connection with the presence intent, which the bot does not have. Done when: members with a Twitch link who go live get the role by themselves, and the role leaves them when they stop.
 - **S-NOTIFY-COMMAND** — Stoney, 2026-10-23, verbatim: "users can opt in to getting a dm from the discord bot via the user facing dashboard or via a !notify command with multiple sub arguments to configure it". Replaces and widens S-PINGDISCORD. Done when: a viewer picks streamers to get a DM for from the user dashboard, and `!notify` (with sub-arguments, for example on, off, list, add, remove) changes the same settings; both read and write one store.
 - **S-CRUD-COMPLETE** — Stoney, 2026-10-23: "editing, removing, adding something should be possible on anything. there are many pages that miss abilites to change names, be deleted or be added and all nessesary edit options MUST be available". Rule for every page: each thing a person sees as a row, card or setting can be added, renamed or edited, and removed (with the counted confirmation for one-way actions), unless the data comes from a platform that owns it (then the page says so and links there). Found: the Discord page has no add-server, rename or remove for its linked server (a disconnected server also could not be added again). Done when: (1) an audit script lists every page's entities with the create, edit, rename and delete actions each has, from the OpenAPI snapshot (which entities have POST, PUT or PATCH, DELETE endpoints) against the dashboard calls (which of those the UI uses), counted N of M; (2) every gap is a row in this plan with its page, entity and missing action; (3) each gap closes as one slice with a test that performs the action and checks the stored result; (4) a guard test fails when an entity has an endpoint but no UI action, unless the entity is on a named exception list with its reason.
+  - Steps 1 and 4 built 2026-10-25: `node dashboard/scripts/crud-audit.mjs [--gaps]` and `dashboard/src/__tests__/crudCoverage.spec.ts` (exceptions in `crudExceptions.ts`, grandfathered gaps in `crudBaseline.ts`, which only shrinks: close a gap, delete its row there and here). Count: the dashboard calls 177 of 265 create/edit/delete endpoints (170 entities). 3 uncalled endpoints are exceptions (a sign-in code exchange, and two twin verbs of an edit the dashboard already makes), 85 are the rows below. The "page" is the sidebar area the entity belongs to, inferred from its API area, not from a route.
+  - Gap rows (page | entity | missing action | endpoint):
+  - Admin | admin/impersonation | missing remove | DELETE /admin/impersonation/{accessGrantId}
+  - Admin | admin/support-contact | missing edit | PUT /admin/support-contact
+  - Media assets | assets | missing add | POST /assets
+  - Media assets | assets | missing remove | DELETE /assets/{id}
+  - Admin > Platform bot | auth/twitch/bot | missing remove | DELETE /auth/twitch/bot
+  - Bundles | bundles/installed | missing remove | DELETE /channels/{channelId}/bundles/installed/{id}
+  - Channel settings | channels | missing add | POST /channels
+  - Channel settings | channels | missing edit | PUT /channels/{channelId}
+  - Stream > Polls | chat-polls | missing add | POST /channels/{channelId}/chat-polls
+  - Code scripts | code-scripts/versions | missing add | POST /code-scripts/{id}/versions
+  - Community | community/trust | missing edit | PUT /channels/{channelId}/community/{userId}/trust
+  - Admin > Data requests | compliance/erasure | missing add | POST /compliance/erasure
+  - Discord | discord/configs | missing remove | DELETE /channels/{channelId}/discord/configs/{configId}
+  - Discord | discord/connections | missing remove | DELETE /channels/{channelId}/discord/connections/{connectionId}
+  - Discord | discord/connections/server-consent | missing remove | DELETE /channels/{channelId}/discord/connections/{connectionId}/server-consent
+  - Economy | economy/games/consent | missing add | POST /channels/{channelId}/economy/games/consent
+  - Economy | economy/games/consent | missing remove | DELETE /channels/{channelId}/economy/games/consent/{viewerUserId}
+  - Economy | economy/jars/memberships | missing remove | DELETE /channels/{channelId}/economy/jars/memberships/{membershipId}
+  - Security > Outbound hosts | egress-allowlist | missing add | POST /channels/{channelId}/egress-allowlist
+  - Security > Outbound hosts | egress-allowlist | missing remove | DELETE /channels/{channelId}/egress-allowlist/{allowlistId}
+  - Security > Outbound hosts | egress-allowlist/enabled | missing edit | PUT /channels/{channelId}/egress-allowlist/{allowlistId}/enabled
+  - Settings > Twitch health | eventsub/subscriptions | missing add | POST /channels/{channelId}/eventsub/subscriptions
+  - Settings > Twitch health | eventsub/subscriptions | missing remove | DELETE /channels/{channelId}/eventsub/subscriptions/{id}
+  - Admin > Federation | federation/peers | missing add | POST /federation/peers
+  - Admin > Federation | federation/peers/keys | missing add | POST /federation/peers/{peerId}/keys
+  - Admin > Federation | federation/peers/keys | missing remove | DELETE /federation/peers/{peerId}/keys/{keyId}
+  - Giveaways | giveaways/code-pools | missing remove | DELETE /giveaways/code-pools/{poolId}
+  - Stream > Live ops | live-ops/raids | missing remove | DELETE /channels/{channelId}/live-ops/raids
+  - Stream > Live ops | live-ops/schedule/segment | missing remove | DELETE /channels/{channelId}/live-ops/schedule/segment/{segmentId}
+  - Marketplace | marketplace/publisher-token | missing edit | PUT /channels/{channelId}/marketplace/publisher-token
+  - Marketplace | marketplace/publisher-token | missing remove | DELETE /channels/{channelId}/marketplace/publisher-token
+  - Moderation | moderation/actions/mass-ban/opt-ins | missing edit | PUT /channels/{channelId}/moderation/actions/mass-ban/opt-ins/{broadcasterLogin}
+  - Moderation | moderation/actions/mass-ban/opt-ins | missing remove | DELETE /channels/{channelId}/moderation/actions/mass-ban/opt-ins/{broadcasterLogin}
+  - Moderation | moderation/auto-shoutout | missing edit | PUT /channels/{channelId}/moderation/auto-shoutout
+  - Moderation | moderation/automod | missing add | POST /channels/{channelId}/moderation/automod
+  - Moderation | moderation/automod/twitch | missing edit | PUT /channels/{channelId}/moderation/automod/twitch
+  - Moderation | moderation/bans | missing remove | DELETE /channels/{channelId}/moderation/bans/{userId}
+  - Moderation | moderation/blocked-terms | missing add | POST /channels/{channelId}/moderation/blocked-terms
+  - Moderation | moderation/blocked-terms | missing remove | DELETE /channels/{channelId}/moderation/blocked-terms/{term}
+  - Moderation | moderation/blocked-terms/all-moderated | missing add | POST /channels/{channelId}/moderation/blocked-terms/all-moderated
+  - Moderation | moderation/blocked-terms/all-moderated | missing remove | DELETE /channels/{channelId}/moderation/blocked-terms/all-moderated/{term}
+  - Moderation | moderation/chat-filters | missing add | POST /channels/{channelId}/moderation/chat-filters
+  - Moderation | moderation/chat-filters | missing edit | PUT /channels/{channelId}/moderation/chat-filters/{filterId}
+  - Moderation | moderation/chat-filters | missing remove | DELETE /channels/{channelId}/moderation/chat-filters/{filterId}
+  - Moderation | moderation/mass-ban-opt-in | missing edit | PUT /channels/{channelId}/moderation/mass-ban-opt-in
+  - Moderation | moderation/moderators | missing add | POST /channels/{channelId}/moderation/moderators
+  - Moderation | moderation/moderators | missing remove | DELETE /channels/{channelId}/moderation/moderators/{userId}
+  - Moderation | moderation/nuke | missing add | POST /channels/{channelId}/moderation/nuke
+  - Moderation | moderation/reports | missing add | POST /channels/{channelId}/moderation/reports
+  - Moderation | moderation/reports | missing edit | PATCH /channels/{channelId}/moderation/reports/{reportId}
+  - Moderation | moderation/rules | missing add | POST /channels/{channelId}/moderation/rules
+  - Moderation | moderation/rules | missing edit | PUT /channels/{channelId}/moderation/rules/{ruleId}
+  - Moderation | moderation/rules | missing remove | DELETE /channels/{channelId}/moderation/rules/{ruleId}
+  - Moderation | moderation/shared-bans | missing edit | PUT /channels/{channelId}/moderation/shared-bans
+  - Moderation | moderation/shared-bans/trusted | missing add | POST /channels/{channelId}/moderation/shared-bans/trusted
+  - Moderation | moderation/shared-bans/trusted | missing remove | DELETE /channels/{channelId}/moderation/shared-bans/trusted/{trustedChannelId}
+  - Moderation | moderation/shoutout-template | missing edit | PUT /channels/{channelId}/moderation/shoutout-template
+  - Moderation | moderation/suspicious | missing add | POST /channels/{channelId}/moderation/suspicious
+  - Moderation | moderation/suspicious | missing remove | DELETE /channels/{channelId}/moderation/suspicious/{userId}
+  - Music | music/queue | missing add | POST /channels/{channelId}/music/queue
+  - Music | music/repeat | missing edit | PATCH /channels/{channelId}/music/repeat
+  - Music | music/shuffle | missing edit | PATCH /channels/{channelId}/music/shuffle
+  - Music | music/volume | missing edit | PUT /channels/{channelId}/music/volume
+  - Moderation > Permits | permits | missing remove | DELETE /channels/{channelId}/permits/{userId}
+  - Pick lists | picklists | missing add | POST /picklists
+  - Pick lists | picklists | missing edit | PUT /picklists/{id}
+  - Pick lists | picklists | missing remove | DELETE /picklists/{id}
+  - Admin > Platform | platform/content/audio-assets | missing add | POST /platform/content/audio-assets
+  - Admin > Platform | platform/content/audio-assets | missing remove | DELETE /platform/content/audio-assets/{id}
+  - Admin > Platform | platform/iam/principals | missing add | POST /platform/iam/principals
+  - Sound clips | sound-clips | missing add | POST /sound-clips
+  - Sound clips | sound-clips | missing edit | PUT /sound-clips/{id}
+  - Sound clips | sound-clips | missing remove | DELETE /sound-clips/{id}
+  - Moderation > Spam defense | spam-defense/lockdown | missing add | POST /channels/{channelId}/spam-defense/lockdown
+  - Stream > Stream info | stream/game | missing edit | PATCH /channels/{channelId}/stream/game
+  - Stream > Stream info | stream/tags | missing edit | PATCH /channels/{channelId}/stream/tags
+  - Stream > Stream info | stream/title | missing edit | PATCH /channels/{channelId}/stream/title
+  - Supporters | supporters/connections | missing remove | DELETE /supporters/connections/{sourceKey}
+  - Admin > System | system/ipc/keys | missing add | POST /system/ipc/keys
+  - Admin > System | system/ipc/keys | missing remove | DELETE /system/ipc/keys/{keyId}
+  - Admin > System | system/setup/credentials/kick | missing edit | PUT /system/setup/credentials/kick
+  - Viewer account | users/profile | missing edit | PUT /users/{userId}/profile
+  - Viewer data | viewers/data | missing edit | PUT /viewers/{viewerId}/data/{key}
+  - Viewer data | viewers/data | missing remove | DELETE /viewers/{viewerId}/data/{key}
+  - Widgets > Gallery | widget-gallery | missing add | POST /widget-gallery
 - **S-PROD-ENV** — Stoney, 2026-10-23, after kitte's stream lost its TTS overlay when the dev server on his PC went down: "we need to have a dev environment and a prod environment". Found: `API_BASE_URL=https://dev.nomnomz.bot` on the box, so every overlay link a streamer copies points at the dev address, which rides a tunnel to the Vite dev server on his PC (a single point of failure); `docker-compose.yml` has fixed `container_name: nomnomzbot-*` and fixed host ports (caddy `API_HTTP_PORT`, postgres, redis, adminer), so a second stack cannot run beside it yet. His decisions (AskUserQuestion, 2026-10-23): production runs on the same box as a separate stack; a change reaches production only when he approves a release (master deploys to dev only); kitte and aaoa are testers (Stoney, 2026-10-23: "kitte and aaoa ARE testers"), so they stay on dev with him; production starts empty and nobody moves to it until he says (my first question wrongly offered them as the first production users). Domain table in PRODUCT-ALIGNMENT.md: dev = `dev.nomnomz.bot`, production = `api.nomnomz.bot` (the legal pages already use `nomnomz.bot`). Done when: (1) the compose file takes a stack name (container names, volumes, network and host ports come from it), so `nomnomzbot-prod` runs beside `nomnomzbot` with its own Postgres, Redis, data volume and encryption key, and publishes no host port (the tunnel container joins its network), keeping the 5080/5090 rule; (2) `API_BASE_URL` of each stack is its own address, so prod overlay links never name dev; (3) CI deploys master to dev only, and a release (tag or manual run behind a GitHub environment approval) deploys the same image to prod with the blue/green switchover; (4) the dev address no longer depends on the dev server on his PC: the tunnel points at the box, and the Vite server gets its own name (`vue.nomnomz.bot`, already in its allowed hosts); (5) each environment has its own Twitch app, Discord app and Spotify/YouTube redirect, set in that stack's Admin > Providers; (6) production is proven with a fresh test channel (sign-in, overlay link, TTS plays), and a read-only copy of a channel from dev (counted N of M rows) is ready for the day he moves someone; (7) a health check page per environment shows the commit it runs, and an alert fires when prod is unreachable. Only Stoney can do: the tunnel change, creating the prod Twitch/Discord apps, and saying when anyone switches to production.
 - **S-SHOUTOUT-AS-BOT** — Stoney, 2026-10-23, with a screenshot of kitte's chat where the shoutout announcement was posted by QTkittE: "we only do shoutouts from the bot account right?" Found: `TwitchChatApi.SendShoutoutAsync` and `SendAnnouncementAsync` send `moderator_id` = the broadcaster, with the broadcaster's token, so the announcement shows the streamer's name (the class comment says acting as the bot identity "is a future enhancement"). The rule (bot-speaks-in-one-voice, moderation-runs-as-operator: autonomous bot actions stay the bot) says the bot account. Done when: an automatic or command shoutout and its announcement are sent as the channel's bot account (the bot token, `moderator_id` = the bot), the bot is made moderator (or the card says so) with the scopes `moderator:manage:shoutouts` and `moderator:manage:announcements`, a streamer without a bot account falls back to their own account with the card saying so, and a test shows the sender id on both calls.
 - **S-OBS-LIVE-FULL-HEIGHT** — Stoney on the OBS Live tab (bento grid uses only the top two thirds; Sources and Audio mixer scroll inside fixed boxes): "span the page". Done when: the grid fills the viewport height and panels show all rows when the space is there. Checked by lane C2's acceptance (S-OBS-BENTO).
