@@ -269,40 +269,78 @@ function removeField(index: number): void {
       <legend class="px-1 text-sm font-medium">
         {{ t('dashboard.discord.editor.embed') }}
       </legend>
-      <Field>
-        <FieldLabel>{{ t('dashboard.discord.editor.embedTitle') }}</FieldLabel>
-        <Input v-model="draft.title" data-field="embed-title" />
-      </Field>
-      <Field>
-        <FieldLabel>{{ t('dashboard.discord.editor.embedDescription') }}</FieldLabel>
-        <Input v-model="draft.description" data-field="embed-description" />
-      </Field>
+      <TemplateField
+        v-model="draft.title"
+        :label="t('dashboard.discord.editor.embedTitle')"
+        context="discord"
+        data-field="embed-title"
+        :rows="1"
+        :maxlength="256"
+        :panel="false"
+      />
+      <TemplateField
+        v-model="draft.description"
+        :label="t('dashboard.discord.editor.embedDescription')"
+        context="discord"
+        data-field="embed-description"
+        :rows="3"
+        :maxlength="4096"
+      />
       <Field>
         <FieldLabel>{{ t('dashboard.discord.editor.embedColor') }}</FieldLabel>
         <Input v-model="draft.color" data-field="embed-color" placeholder="#9146FF" />
       </Field>
-      <Field>
-        <FieldLabel>{{ t('dashboard.discord.editor.embedThumbnail') }}</FieldLabel>
-        <Input v-model="draft.thumbnailUrl" data-field="embed-thumbnail" />
-      </Field>
-      <Field>
-        <FieldLabel>{{ t('dashboard.discord.editor.embedImage') }}</FieldLabel>
-        <Input v-model="draft.imageUrl" data-field="embed-image" />
-      </Field>
-      <Field>
-        <FieldLabel>{{ t('dashboard.discord.editor.embedFooter') }}</FieldLabel>
-        <Input v-model="draft.footerText" data-field="embed-footer" />
-      </Field>
+      <TemplateField
+        v-model="draft.thumbnailUrl"
+        :label="t('dashboard.discord.editor.embedThumbnail')"
+        context="discord"
+        data-field="embed-thumbnail"
+        :rows="1"
+        :panel="false"
+      />
+      <TemplateField
+        v-model="draft.imageUrl"
+        :label="t('dashboard.discord.editor.embedImage')"
+        context="discord"
+        data-field="embed-image"
+        :rows="1"
+        :panel="false"
+      />
+      <TemplateField
+        v-model="draft.footerText"
+        :label="t('dashboard.discord.editor.embedFooter')"
+        context="discord"
+        data-field="embed-footer"
+        :rows="1"
+        :maxlength="2048"
+        :panel="false"
+      />
 
       <ul class="flex flex-col gap-2">
         <li
           v-for="(field, index) in draft.fields"
           :key="index"
           data-embed-field
-          class="flex items-center gap-2"
+          class="flex items-start gap-2"
         >
-          <Input v-model="field.name" :aria-label="t('dashboard.discord.editor.fieldName')" />
-          <Input v-model="field.value" :aria-label="t('dashboard.discord.editor.fieldValue')" />
+          <TemplateField
+            v-model="field.name"
+            class="flex-1"
+            :label="t('dashboard.discord.editor.fieldName')"
+            context="discord"
+            :rows="1"
+            :maxlength="256"
+            :panel="false"
+          />
+          <TemplateField
+            v-model="field.value"
+            class="flex-1"
+            :label="t('dashboard.discord.editor.fieldValue')"
+            context="discord"
+            :rows="1"
+            :maxlength="1024"
+            :panel="false"
+          />
           <Button
             type="button"
             variant="ghost"

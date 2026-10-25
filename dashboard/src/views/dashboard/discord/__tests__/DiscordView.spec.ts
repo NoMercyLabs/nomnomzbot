@@ -237,10 +237,21 @@ describe('the rule editor', () => {
     await settle();
   }
 
+  it('suggests placeholders in every embed text field, not only the message', async () => {
+    await editor();
+
+    for (const field of ['embed-title', 'embed-description', 'embed-thumbnail', 'embed-image', 'embed-footer']) {
+      expect(
+        document.body.querySelector(`[data-field="${field}"]`)?.getAttribute('aria-autocomplete'),
+        field,
+      ).toBe('list');
+    }
+  });
+
   it('saves the edited embed title with the rule shape the API expects', async () => {
     await editor();
 
-    const title = document.body.querySelector<HTMLInputElement>('[data-field="embed-title"]');
+    const title = document.body.querySelector<HTMLTextAreaElement>('[data-field="embed-title"]');
 
     title!.value = 'We are live';
     title!.dispatchEvent(new Event('input', { bubbles: true }));
