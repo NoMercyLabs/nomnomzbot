@@ -214,7 +214,7 @@
     <string name="builtin_reply_massban_request_description">The channel is live, so a moderator's mass ban waits. The bot asks the streamer, a lead moderator or an editor to allow or decline it.</string>
     <string name="builtin_reply_massban_completed_label">Completed</string>
     <string name="builtin_reply_massban_completed_description">The approved mass ban has finished.</string>
-    <string name="builtin_reply_var_target_name">The shouted-out channel name</string>
+    <string name="builtin_reply_var_target_displayname">The shouted-out channel name</string>
     <string name="builtin_reply_var_target_link">Link to the shouted-out channel</string>
     <string name="builtin_reply_var_target_game">The game they last played</string>
     <string name="builtin_reply_var_stats_user">The viewer's name</string>

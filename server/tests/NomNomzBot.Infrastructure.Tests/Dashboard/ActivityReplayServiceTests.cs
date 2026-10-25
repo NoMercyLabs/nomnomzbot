@@ -435,11 +435,7 @@ public sealed class ActivityReplayServiceTests
             ChannelPointsEarned = 450,
         };
         Journal(h.Db, streak, BombAt.AddMinutes(10));
-        Respond(
-            h.Db,
-            "engagement.watch_streak",
-            "{user.name} is on a {streak.months} stream streak!"
-        );
+        Respond(h.Db, "engagement.watch_streak", "{user} is on a {streak.months} stream streak!");
         await h.Db.SaveChangesAsync();
         int journalRows = await h.Db.EventJournals.CountAsync();
 

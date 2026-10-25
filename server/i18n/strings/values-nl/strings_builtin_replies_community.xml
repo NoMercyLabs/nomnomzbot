@@ -214,7 +214,7 @@
     <string name="builtin_reply_massban_request_description">Het kanaal is live, dus de massaban van een moderator wacht. De bot vraagt de streamer, een hoofdmoderator of een editor om toe te staan of af te wijzen.</string>
     <string name="builtin_reply_massban_completed_label">Afgerond</string>
     <string name="builtin_reply_massban_completed_description">De goedgekeurde massaban is klaar.</string>
-    <string name="builtin_reply_var_target_name">De naam van het kanaal in de shoutout</string>
+    <string name="builtin_reply_var_target_displayname">De naam van het kanaal in de shoutout</string>
     <string name="builtin_reply_var_target_link">Link naar het kanaal in de shoutout</string>
     <string name="builtin_reply_var_target_game">De game die ze het laatst speelden</string>
     <string name="builtin_reply_var_stats_user">De naam van de kijker</string>
