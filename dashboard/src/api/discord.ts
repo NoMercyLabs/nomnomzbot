@@ -233,6 +233,110 @@ export function useSaveDiscordRule(
   });
 }
 
+export type DiscordBlastRadius = components['schemas']['BlastRadius'];
+
+// What stops working when the linked server is disconnected: the counted places, read before the confirm.
+export async function fetchDiscordBlastRadius(
+  channelId: string,
+  connectionId: string,
+): Promise<DiscordBlastRadius> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/discord/connections/{connectionId}/blast-radius',
+    { params: { path: {
+      version,
+      channelId,
+      connectionId,
+    } } },
+  );
+
+  if (error !== undefined || !data?.data)
+    throw failed('discord disconnect blast radius', response.status, error);
+
+  return data.data;
+}
+
+// The blast radius is read again right before the disconnect: a server whose impact cannot be read stays linked.
+export function useDisconnectDiscord(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, string, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (connectionId: string): Promise<void> => {
+      await fetchDiscordBlastRadius(toValue(channelId) as string, connectionId);
+
+      const { error, response } = await client.DELETE(
+        '/api/v{version}/channels/{channelId}/discord/connections/{connectionId}',
+        { params: { path: {
+          version,
+          channelId: toValue(channelId) as string,
+          connectionId,
+        } } },
+      );
+
+      if (error !== undefined)
+        throw failed('disconnect discord server', response.status, error);
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({ queryKey: discordConnectionsKey(toValue(channelId)) });
+    },
+  });
+}
+
+// The server's own approval is withdrawn; posting halts until the server approves again.
+export function useRevokeDiscordServerConsent(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, string, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (connectionId: string): Promise<void> => {
+      const { error, response } = await client.DELETE(
+        '/api/v{version}/channels/{channelId}/discord/connections/{connectionId}/server-consent',
+        { params: { path: {
+          version,
+          channelId: toValue(channelId) as string,
+          connectionId,
+        } } },
+      );
+
+      if (error !== undefined)
+        throw failed('withdraw discord server approval', response.status, error);
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({ queryKey: discordConnectionsKey(toValue(channelId)) });
+    },
+  });
+}
+
+export function useDeleteDiscordRule(
+  channelId: MaybeRefOrGetter<string | null>,
+  connectionId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<void, Error, string, undefined> {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (configId: string): Promise<void> => {
+      const { error, response } = await client.DELETE(
+        '/api/v{version}/channels/{channelId}/discord/configs/{configId}',
+        { params: { path: {
+          version,
+          channelId: toValue(channelId) as string,
+          configId,
+        } } },
+      );
+
+      if (error !== undefined)
+        throw failed('delete discord rule', response.status, error);
+    },
+    onSuccess: async (): Promise<void> => {
+      await queries.invalidateQueries({
+        queryKey: discordRulesKey(toValue(channelId), toValue(connectionId)),
+      });
+    },
+  });
+}
+
 export type DiscordPost = components['schemas']['DiscordDispatchLog'];
 
 const recentPosts = 10;

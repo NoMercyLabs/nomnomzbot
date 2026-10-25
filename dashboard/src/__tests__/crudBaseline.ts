@@ -24,11 +24,6 @@ export const crudBaseline: Record<string, readonly string[]> = {
   'code-scripts/versions': ['POST /code-scripts/{id}/versions'],
   'community/trust': ['PUT /channels/{channelId}/community/{userId}/trust'],
   'compliance/erasure': ['POST /compliance/erasure'],
-  'discord/configs': ['DELETE /channels/{channelId}/discord/configs/{configId}'],
-  'discord/connections': ['DELETE /channels/{channelId}/discord/connections/{connectionId}'],
-  'discord/connections/server-consent': [
-    'DELETE /channels/{channelId}/discord/connections/{connectionId}/server-consent',
-  ],
   'economy/games/consent': [
     'POST /channels/{channelId}/economy/games/consent',
     'DELETE /channels/{channelId}/economy/games/consent/{viewerUserId}',

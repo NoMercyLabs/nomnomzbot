@@ -12,7 +12,16 @@
         "consentPending": "Wacht op goedkeuring van de serverbeheerder",
         "ready": "Gekoppeld en klaar",
         "enabled": "Op deze server posten",
-        "enabledHelp": "Zet uit om alle Discord-berichten van dit kanaal te pauzeren."
+        "enabledHelp": "Zet uit om alle Discord-berichten van dit kanaal te pauzeren.",
+        "disconnect": "Server loskoppelen",
+        "disconnectTitle": "{name} loskoppelen?",
+        "disconnectDescription": "De bot stopt met posten op deze server. Je kunt later opnieuw een server koppelen.",
+        "disconnectNothing": "Geen regel, rol of live-rol-instelling gebruikt deze server.",
+        "disconnectAction": "Loskoppelen",
+        "withdraw": "Goedkeuring intrekken",
+        "withdrawTitle": "De goedkeuring van de server intrekken?",
+        "withdrawDescription": "Posten op deze server stopt tot de serverbeheerder opnieuw goedkeurt. Er wordt niets verwijderd.",
+        "withdrawAction": "Goedkeuring intrekken"
       },
       "installError": {
         "title": "De bot is niet aan je server toegevoegd",
@@ -65,7 +74,11 @@
         "on": "Aan",
         "off": "Uit",
         "edit": "Bewerken",
-        "setUp": "Instellen"
+        "setUp": "Instellen",
+        "remove": "Verwijderen",
+        "removeTitle": "De regel {name} verwijderen?",
+        "removeDescription": "De bot stopt met het posten van deze gebeurtenis op Discord. Al verstuurde berichten blijven in Discord staan.",
+        "removeAction": "Regel verwijderen"
       },
       "defaults": {
         "goLiveAuthor": "{'{'}channel.name{'}'} is nu live op Twitch!",

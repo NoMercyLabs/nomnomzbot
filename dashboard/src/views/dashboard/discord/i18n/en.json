@@ -12,7 +12,16 @@
         "consentPending": "Waiting for the server admin to approve",
         "ready": "Linked and ready",
         "enabled": "Post to this server",
-        "enabledHelp": "Turn it off to pause every Discord message from this channel."
+        "enabledHelp": "Turn it off to pause every Discord message from this channel.",
+        "disconnect": "Disconnect server",
+        "disconnectTitle": "Disconnect {name}?",
+        "disconnectDescription": "The bot stops posting to this server. You can link a server again later.",
+        "disconnectNothing": "No rule, role or live-role setting uses this server yet.",
+        "disconnectAction": "Disconnect",
+        "withdraw": "Withdraw approval",
+        "withdrawTitle": "Withdraw the server's approval?",
+        "withdrawDescription": "Posting to this server halts until the server admin approves again. Nothing is deleted.",
+        "withdrawAction": "Withdraw approval"
       },
       "installError": {
         "title": "The bot was not added to your server",
@@ -65,7 +74,11 @@
         "on": "On",
         "off": "Off",
         "edit": "Edit",
-        "setUp": "Set up"
+        "setUp": "Set up",
+        "remove": "Remove",
+        "removeTitle": "Remove the {name} rule?",
+        "removeDescription": "The bot stops posting this event to Discord. Messages already sent stay in Discord.",
+        "removeAction": "Remove rule"
       },
       "defaults": {
         "goLiveAuthor": "{'{'}channel.name{'}'} is now live on Twitch!",

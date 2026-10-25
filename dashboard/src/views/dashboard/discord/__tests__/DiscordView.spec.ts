@@ -92,6 +92,25 @@ function answer(path: string): unknown {
   if (path.endsWith('/discord/connections'))
     return ok([connection]);
 
+  if (path.endsWith('/blast-radius')) {
+    calls.push({
+      method: 'GET',
+      path,
+      body: undefined,
+    });
+
+    return ok({
+      categories: [
+        {
+          categoryKey: 'rules',
+          count: 1,
+          sample: ['Stream goes live'],
+        },
+      ],
+      isMinimum: false,
+    });
+  }
+
   if (path.endsWith('/configs'))
     return ok([goLive]);
 
@@ -128,6 +147,15 @@ vi.mock('@/api/client', () => ({
       });
 
       return ok(goLive);
+    },
+    DELETE: async (path: string, options?: Options) => {
+      calls.push({
+        method: 'DELETE',
+        path: `${path}|${JSON.stringify(options?.params?.path ?? {})}`,
+        body: undefined,
+      });
+
+      return ok({});
     },
     POST: async (path: string, options?: Options) => {
       calls.push({
@@ -211,6 +239,66 @@ describe('the Discord page', () => {
 
     expect(document.body.querySelector('[data-edit="new_clip"]')).toBeNull();
     expect(document.body.querySelector('[data-edit="milestone"]')).toBeNull();
+  });
+});
+
+describe('removing things on the Discord page', () => {
+  const confirm = async (): Promise<void> => {
+    await settle();
+    document.querySelector<HTMLElement>('[data-confirm-action]')?.click();
+    await settle();
+  };
+
+  it('removes a stored rule after the confirm, and offers no remove on a trigger with no rule', async () => {
+    mounted = mount(DiscordView, { attachTo: document.body, global: { plugins: plugins() } });
+    await settle();
+
+    expect(document.body.querySelector('[data-remove="follow"]')).toBeNull();
+
+    document.body.querySelector<HTMLElement>('[data-remove="go_live"]')?.click();
+    await confirm();
+
+    const deleted = calls.filter((call) => call.method === 'DELETE');
+
+    expect(deleted).toHaveLength(1);
+    expect(deleted[0]?.path).toContain('/discord/configs/{configId}');
+    expect(deleted[0]?.path).toContain('"configId":"rule1"');
+  });
+
+  it('shows what stops working before it disconnects the server, then disconnects it', async () => {
+    mounted = mount(DiscordView, { attachTo: document.body, global: { plugins: plugins() } });
+    await settle();
+
+    document.body.querySelector<HTMLElement>('[data-disconnect]')?.click();
+    await settle();
+
+    expect(document.body.textContent).toContain('Disconnect Stoney Guild?');
+    expect(document.body.textContent).toContain('Stream goes live');
+    expect(calls.some((call) => call.method === 'DELETE')).toBe(false);
+
+    await confirm();
+
+    const deleted = calls.filter((call) => call.method === 'DELETE');
+
+    expect(deleted).toHaveLength(1);
+    expect(deleted[0]?.path).toContain('/discord/connections/{connectionId}|');
+    expect(deleted[0]?.path).toContain('"connectionId":"conn1"');
+    // The impact was read twice: once for the dialog, once right before the delete.
+    expect(calls.filter((call) => call.path.endsWith('/blast-radius'))).toHaveLength(2);
+  });
+
+  it('withdraws the server approval after the confirm', async () => {
+    mounted = mount(DiscordView, { attachTo: document.body, global: { plugins: plugins() } });
+    await settle();
+
+    document.body.querySelector<HTMLElement>('[data-withdraw]')?.click();
+    await confirm();
+
+    const deleted = calls.filter((call) => call.method === 'DELETE');
+
+    expect(deleted).toHaveLength(1);
+    expect(deleted[0]?.path).toContain('/server-consent|');
+    expect(deleted[0]?.path).toContain('"connectionId":"conn1"');
   });
 });
 

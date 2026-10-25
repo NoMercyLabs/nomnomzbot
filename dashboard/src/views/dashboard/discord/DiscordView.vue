@@ -13,6 +13,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import {
+  useDeleteDiscordRule,
   useDiscordChannels,
   useDiscordConnections,
   useDiscordRoles,
@@ -24,6 +25,7 @@ import {
   type DiscordRule,
   type DiscordTrigger,
 } from '@/api/discord';
+import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -41,6 +43,7 @@ import {
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { merge } from '@/lib/array';
+import { errorText } from '@/lib/errors';
 import { usePanelState } from '@/composables/usePanelState';
 
 import ConnectionPanel from './components/ConnectionPanel.vue';
@@ -129,6 +132,33 @@ function triggerLabel(trigger: string): string {
   return labelOf(t, trigger, offered.value);
 }
 
+const removeRule = useDeleteDiscordRule(channelId, connectionId);
+const removing = ref<DiscordRule | null>(null);
+const removeOpen = computed<boolean>({
+  get: () => removing.value !== null,
+  set: (value: boolean) => {
+    if (!value) {
+      removing.value = null;
+    }
+  },
+});
+const removeError = ref<string | undefined>(undefined);
+
+function confirmRemove(): void {
+  if (!removing.value) return;
+
+  removeError.value = undefined;
+
+  removeRule.mutate(removing.value.id, {
+    onSettled: (): void => {
+      removing.value = null;
+    },
+    onError: (failure: Error): void => {
+      removeError.value = errorText(failure, t);
+    },
+  });
+}
+
 function ruleSummary(rule: DiscordRule | null): string {
   if (rule === null)
     return t('dashboard.discord.rules.notSetUp');
@@ -205,10 +235,22 @@ function ruleSummary(rule: DiscordRule | null): string {
                       : t("dashboard.discord.rules.setUp")
                   }}
                 </Button>
+                <Button
+                  v-if="can('discord:config:write') && ruleOf(trigger)"
+                  variant="destructive"
+                  size="sm"
+                  :data-remove="trigger"
+                  @click="removing = ruleOf(trigger)"
+                >
+                  {{ t("dashboard.discord.rules.remove") }}
+                </Button>
               </template>
             </SummaryRow>
           </li>
         </ul>
+        <p v-if="removeError" role="alert" class="px-4 pb-3 text-sm text-destructive">
+          {{ removeError }}
+        </p>
       </PanelCard>
 
       <PanelCard
@@ -271,6 +313,15 @@ function ruleSummary(rule: DiscordRule | null): string {
         :connection-id="connectionId"
       />
     </PageBody>
+
+    <ConfirmDialog
+      v-model:open="removeOpen"
+      :title="t('dashboard.discord.rules.removeTitle', { name: removing ? triggerLabel(removing.triggerType) : '' })"
+      :description="t('dashboard.discord.rules.removeDescription')"
+      :action="t('dashboard.discord.rules.removeAction')"
+      :pending="removeRule.isPending.value"
+      @confirm="confirmRemove"
+    />
 
     <Sheet v-model:open="roleOpen">
       <SheetContent
