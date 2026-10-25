@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Music;
@@ -132,6 +133,56 @@ public sealed class MusicServiceSkipThroughDirectorTests
         bus.Published.OfType<SongSkippedEvent>()
             .Should()
             .ContainSingle(e => e.TrackName == "Song s1");
+    }
+
+    [Fact]
+    public async Task Retracting_the_request_that_plays_right_now_skips_it_at_once_and_says_so()
+    {
+        (
+            MusicService sut,
+            RecordingHttpHandler handler,
+            _,
+            RecordingEventBus bus,
+            FakeEngine spotify
+        ) = await PlayingAsync("s1", "s2");
+        string channel = SpotifyChannel.ToString();
+        // The state seen live: the request is still in the fair queue while the provider already plays it.
+        (await RequestAsync(sut, handler, "s1", "viewer-wrong"))
+            .IsSuccess.Should()
+            .BeTrue();
+        int playing = (await sut.GetQueueAsync(channel))
+            .Queue.Select((item, index) => (item, index))
+            .Single(entry => entry.item.TrackName == "Song s1")
+            .index;
+
+        RequestRetraction result = await sut.RetractRequestAsync(channel, playing);
+
+        result.Should().Be(RequestRetraction.RemovedAndSkippedNow);
+        spotify.Calls.Select(c => c.Name).Should().Contain("Skip");
+        (await sut.GetQueueAsync(channel)).Queue.Should().NotContain(i => i.TrackName == "Song s1");
+        bus.Published.OfType<SongSkippedEvent>()
+            .Should()
+            .ContainSingle(e => e.TrackName == "Song s1");
+    }
+
+    [Fact]
+    public async Task Retracting_a_request_that_is_not_playing_skips_nothing_now()
+    {
+        (MusicService sut, _, _, RecordingEventBus bus, FakeEngine spotify) = await PlayingAsync(
+            "s1",
+            "s2"
+        );
+        string channel = SpotifyChannel.ToString();
+        int waiting = (await sut.GetQueueAsync(channel))
+            .Queue.Select((item, index) => (item, index))
+            .Single(entry => entry.item.TrackName == "Song s2")
+            .index;
+
+        RequestRetraction result = await sut.RetractRequestAsync(channel, waiting);
+
+        result.Should().NotBe(RequestRetraction.RemovedAndSkippedNow);
+        spotify.Calls.Select(c => c.Name).Should().NotContain("Skip");
+        bus.Published.OfType<SongSkippedEvent>().Should().BeEmpty();
     }
 
     [Theory]

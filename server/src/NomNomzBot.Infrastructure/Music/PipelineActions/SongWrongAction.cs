@@ -168,12 +168,16 @@ public sealed class SongWrongAction : ICommandAction
             return ActionResult.Failure("failed to remove the request from the queue");
 
         await RemoveNewestHistoryAsync(ctx, item.TrackName, item.Artist);
-        await SendAsync(
-            ctx,
-            retraction == RequestRetraction.RemovedWillSkip
-                ? $"@{ctx.TriggeredByChatName} Will skip {item.TrackName} by {item.Artist} when it starts."
-                : $"@{ctx.TriggeredByChatName} Removed {item.TrackName} by {item.Artist} from the queue."
-        );
+        string removedText = retraction switch
+        {
+            RequestRetraction.RemovedAndSkippedNow =>
+                $"@{ctx.TriggeredByChatName} Skipped {item.TrackName} by {item.Artist}.",
+            RequestRetraction.RemovedWillSkip =>
+                $"@{ctx.TriggeredByChatName} Will skip {item.TrackName} by {item.Artist} when it starts.",
+            _ =>
+                $"@{ctx.TriggeredByChatName} Removed {item.TrackName} by {item.Artist} from the queue.",
+        };
+        await SendAsync(ctx, removedText);
         return ActionResult.Success($"removed: {item.TrackName}");
     }
 
@@ -240,12 +244,20 @@ public sealed class SongWrongAction : ICommandAction
         await RemoveNewestHistoryAsync(ctx, item.TrackName, item.Artist);
         variables["track.name"] = item.TrackName;
         variables["track.artist"] = item.Artist;
-        await SendSlotAsync(
-            ctx,
-            BuiltinResponseSlots.Skip.Removed,
-            "@{user} Removed your request: {track.name} by {track.artist}",
-            variables
-        );
+        if (retraction == RequestRetraction.RemovedAndSkippedNow)
+            await SendSlotAsync(
+                ctx,
+                BuiltinResponseSlots.Skip.SkippedOwn,
+                "@{user} Skipped your song: {track.name} by {track.artist}",
+                variables
+            );
+        else
+            await SendSlotAsync(
+                ctx,
+                BuiltinResponseSlots.Skip.Removed,
+                "@{user} Removed your request: {track.name} by {track.artist}",
+                variables
+            );
         return ActionResult.Success($"removed: {item.TrackName}");
     }
 

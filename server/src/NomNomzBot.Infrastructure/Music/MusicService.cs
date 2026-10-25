@@ -1940,6 +1940,7 @@ public sealed class MusicService : IMusicService
                 : null;
         bool removed = queue is not null && queue.RemoveAt(position);
         bool willSkip = false;
+        bool skipNow = false;
 
         if (removed)
         {
@@ -1962,14 +1963,21 @@ public sealed class MusicService : IMusicService
             // queued by hand are never touched.
             if (removedEntry is not null)
             {
-                willSkip = await IsHeldByProviderAsync(
-                    broadcasterId,
-                    removedEntry,
-                    wasInFlight,
-                    cancellationToken
-                );
-                if (willSkip)
-                    _queueStore.ArmRetraction(broadcasterId, removedEntry.TrackUri);
+                // A song the provider already started never fires the "when it starts" marker: the in-flight
+                // pointer lags the real playback, so the live now-playing read decides, and a playing track
+                // is skipped at once.
+                skipNow = await IsPlayingNowAsync(broadcasterId, removedEntry, cancellationToken);
+                if (!skipNow)
+                {
+                    willSkip = await IsHeldByProviderAsync(
+                        broadcasterId,
+                        removedEntry,
+                        wasInFlight,
+                        cancellationToken
+                    );
+                    if (willSkip)
+                        _queueStore.ArmRetraction(broadcasterId, removedEntry.TrackUri);
+                }
             }
 
             await SyncPersistedQueueAsync(broadcasterId, queue!, cancellationToken);
@@ -1984,7 +1992,39 @@ public sealed class MusicService : IMusicService
         if (!removed)
             return RequestRetraction.NotRemoved;
 
+        if (skipNow)
+        {
+            Result skipped = await SkipAsync(
+                broadcasterId,
+                string.Empty,
+                cancellationToken: cancellationToken
+            );
+            if (skipped.IsSuccess)
+                return RequestRetraction.RemovedAndSkippedNow;
+
+            // The player refused: the song keeps playing, so say so the honest way and arm nothing.
+            _logger.LogWarning(
+                "Retracted request {TrackUri} is playing for {BroadcasterId} but the skip failed: {Error}",
+                removedEntry?.TrackUri,
+                broadcasterId,
+                skipped.ErrorMessage
+            );
+            return RequestRetraction.Removed;
+        }
+
         return willSkip ? RequestRetraction.RemovedWillSkip : RequestRetraction.Removed;
+    }
+
+    /// <summary>Whether the provider is playing <paramref name="entry"/> right now, read live (never a stale guess).</summary>
+    private async Task<bool> IsPlayingNowAsync(
+        string broadcasterId,
+        SongRequestEntry entry,
+        CancellationToken cancellationToken
+    )
+    {
+        NowPlaying? current = await GetNowPlayingAsync(broadcasterId, cancellationToken);
+        return current is { IsPlaying: true, TrackUri: not null }
+            && IsSameTrack(current.TrackUri, entry.TrackUri);
     }
 
     /// <summary>

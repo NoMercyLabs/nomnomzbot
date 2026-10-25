@@ -28,4 +28,10 @@ public enum RequestRetraction
     /// the moment it starts; every other song in the provider's queue is left alone.
     /// </summary>
     RemovedWillSkip,
+
+    /// <summary>
+    /// Dropped from the fair queue, and the provider is playing it right now, so a marker would never fire:
+    /// the player was told to skip it at once.
+    /// </summary>
+    RemovedAndSkippedNow,
 }
