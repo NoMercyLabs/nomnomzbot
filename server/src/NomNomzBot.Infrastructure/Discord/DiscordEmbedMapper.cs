@@ -73,6 +73,8 @@ internal static class DiscordEmbedMapper
         string? title = embed.Title is null ? null : await render(embed.Title);
         string? description = embed.Description is null ? null : await render(embed.Description);
         string? footerText = embed.FooterText is null ? null : await render(embed.FooterText);
+        string? thumbnailUrl = await RenderLinkAsync(embed.ThumbnailUrl, render);
+        string? imageUrl = await RenderLinkAsync(embed.ImageUrl, render);
 
         List<DiscordEmbedFieldDto>? fields = null;
         if (embed.Fields is not null)
@@ -82,14 +84,22 @@ internal static class DiscordEmbedMapper
                 fields.Add(new(await render(f.Name), await render(f.Value), f.Inline));
         }
 
-        return new(
-            title,
-            description,
-            embed.Color,
-            embed.ThumbnailUrl,
-            embed.ImageUrl,
-            footerText,
-            fields
-        );
+        return new(title, description, embed.Color, thumbnailUrl, imageUrl, footerText, fields);
+    }
+
+    /// <summary>
+    /// Renders a link or picture field. A field that renders to nothing becomes null so it leaves the
+    /// payload: Discord refuses an embed whose picture or link address is empty.
+    /// </summary>
+    private static async Task<string?> RenderLinkAsync(
+        string? template,
+        Func<string, Task<string>> render
+    )
+    {
+        if (string.IsNullOrWhiteSpace(template))
+            return null;
+
+        string rendered = (await render(template)).Trim();
+        return rendered.Length == 0 ? null : rendered;
     }
 }

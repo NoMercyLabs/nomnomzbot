@@ -35,7 +35,15 @@ public static class DiscordConfigDefaults
         new(
             "go_live",
             "dashboard.discord.triggers.go_live",
-            ["broadcaster", "channel.name", "title", "game"]
+            [
+                "broadcaster",
+                "channel.name",
+                "title",
+                "game",
+                "channel.url",
+                "channel.avatar",
+                "stream.thumbnail",
+            ]
         ),
         new("follow", "dashboard.discord.triggers.follow", ["user.name", "channel.display"]),
         new(

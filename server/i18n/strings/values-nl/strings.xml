@@ -5359,6 +5359,11 @@
     <string name="template_helper_channel">De inlognaam van het kanaal</string>
     <string name="template_helper_channel_display">De weergavenaam van het kanaal</string>
     <string name="template_helper_channel_id">Het platform-ID van het kanaal</string>
+    <string name="template_helper_channel_url">De link naar het kanaal op zijn platform (Discord seed-alias)</string>
+    <string name="template_helper_stream_url">De link naar de livestream op zijn platform (Discord seed-alias)</string>
+    <string name="template_helper_channel_login">De inlognaam van het kanaal in links (Discord seed-alias)</string>
+    <string name="template_helper_channel_avatar">De link naar de profielfoto van de streamer (Discord seed-alias)</string>
+    <string name="template_helper_stream_thumbnail">De link naar de voorbeeldafbeelding van de livestream, leeg als het platform er geen heeft (Discord seed-alias)</string>
     <string name="template_helper_channel_name">De weergavenaam van het kanaal (Discord seed-alias)</string>
     <string name="template_helper_channel_title">De huidige titel van de stream (Discord seed-alias)</string>
     <string name="template_helper_channel_game">De huidige game/categorie van de stream (Discord seed-alias)</string>

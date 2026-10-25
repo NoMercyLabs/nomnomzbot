@@ -50,7 +50,17 @@ public sealed class DiscordNotificationTriggerListTests
             trigger.Name == "go_live"
         );
         goLive.LabelKey.Should().Be("dashboard.discord.triggers.go_live");
-        goLive.Placeholders.Should().Equal("broadcaster", "channel.name", "title", "game");
+        goLive
+            .Placeholders.Should()
+            .Equal(
+                "broadcaster",
+                "channel.name",
+                "title",
+                "game",
+                "channel.url",
+                "channel.avatar",
+                "stream.thumbnail"
+            );
     }
 
     [Fact]

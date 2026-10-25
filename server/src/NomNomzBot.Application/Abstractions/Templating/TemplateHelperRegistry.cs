@@ -710,6 +710,11 @@ public static class TemplateHelperRegistry
             Literal("channel.name", DiscordOnly, "template.helper.channel_name"),
             Literal("channel.title", DiscordOnly, "template.helper.channel_title"),
             Literal("channel.game", DiscordOnly, "template.helper.channel_game"),
+            Literal("channel.url", DiscordOnly, "template.helper.channel_url"),
+            Literal("stream.url", DiscordOnly, "template.helper.stream_url"),
+            Literal("channel.login", DiscordOnly, "template.helper.channel_login"),
+            Literal("channel.avatar", DiscordOnly, "template.helper.channel_avatar"),
+            Literal("stream.thumbnail", DiscordOnly, "template.helper.stream_thumbnail"),
             Literal("raw.message", DiscordOnly, "template.helper.raw_message"),
             // ── Playlist-add (!banger) seed aliases — Pipeline only, S-OWN17 ──
             Literal("playlist_id", PlaylistAddOnly, "template.helper.playlist_id"),

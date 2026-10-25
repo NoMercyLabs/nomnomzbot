@@ -335,7 +335,8 @@ describe('a new rule on the rule editor', () => {
     expect(calls[0]?.body).toMatchObject({
       enabled: true,
       targetChannelId: 'ls',
-      messageTemplate: '{channel.name} is live! {stream.title} ({stream.game})',
+      messageTemplate:
+        '{channel.name} is live on Twitch streaming {game}, {title}. Come hang out: {channel.url}',
     });
   });
 

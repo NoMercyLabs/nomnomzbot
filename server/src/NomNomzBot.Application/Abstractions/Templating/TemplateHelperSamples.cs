@@ -178,6 +178,12 @@ public static class TemplateHelperSamples
         ["channel.name"] = "example_channel",
         ["channel.title"] = "Cozy coding night",
         ["channel.game"] = "Just Chatting",
+        ["channel.url"] = "https://www.twitch.tv/example_channel",
+        ["stream.url"] = "https://www.twitch.tv/example_channel",
+        ["channel.login"] = "example_channel",
+        ["channel.avatar"] = "https://static-cdn.jtvnw.net/jtv_user_pictures/example_channel.png",
+        ["stream.thumbnail"] =
+            "https://static-cdn.jtvnw.net/previews-ttv/live_user_example_channel-1280x720.jpg",
         ["raw.message"] = "!hello world",
         ["playlist_id"] = "37i9dQZF1DX",
         ["track_name"] = "Blinding Lights",

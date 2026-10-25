@@ -159,6 +159,16 @@ public sealed class DiscordNotificationDispatcher : IDiscordNotificationDispatch
             request.TemplateData,
             StringComparer.OrdinalIgnoreCase
         );
+        // The channel link placeholders fill in for every trigger; a value the handler sent wins.
+        Dictionary<string, string> links = await DiscordChannelLinks.LoadAsync(
+            _db,
+            request.BroadcasterId,
+            request.LiveSince ?? now,
+            ct
+        );
+        foreach (KeyValuePair<string, string> link in links)
+            seedVariables.TryAdd(link.Key, link.Value);
+
         string content = await _templateResolver.ResolveAsync(
             config.MessageTemplate ?? string.Empty,
             seedVariables,

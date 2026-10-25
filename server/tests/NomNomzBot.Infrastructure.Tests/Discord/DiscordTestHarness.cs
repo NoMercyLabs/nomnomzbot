@@ -140,6 +140,15 @@ internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
             b.Ignore(c => c.Events);
         });
 
+        // The channel owner's row, read for the streamer's profile picture link.
+        modelBuilder.Entity<User>(b =>
+        {
+            b.HasKey(u => u.Id);
+            b.Ignore(u => u.Pronoun);
+            b.Ignore(u => u.AltPronoun);
+            b.Ignore(u => u.Channel);
+        });
+
         // Minimal integration-vault mapping (the [VC:JSON] Scopes list is ignored — not exercised here).
         modelBuilder.Entity<IntegrationConnection>(b =>
         {
@@ -179,6 +188,7 @@ internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
         typeof(IntegrationConnection),
         typeof(IntegrationToken),
         typeof(Channel),
+        typeof(User),
     ];
 
     /// <summary>Every <see cref="IApplicationDbContext"/> entity NOT in the Discord slice — derived by reflection.</summary>
@@ -195,7 +205,7 @@ internal sealed class DiscordTestDbContext : DbContext, IApplicationDbContext
     ];
 
     // ── Unused IApplicationDbContext surface — never reached by these tests ──
-    public DbSet<User> Users => throw new NotSupportedException();
+    public DbSet<User> Users => Set<User>();
     public DbSet<UserIdentity> UserIdentities => throw new NotSupportedException();
     public DbSet<ConsentRecord> ConsentRecords => throw new NotSupportedException();
     public DbSet<ErasureRequest> ErasureRequests => throw new NotSupportedException();
@@ -604,7 +614,8 @@ internal static class DiscordTestHarness
         string template,
         string targetChannel,
         Guid? pingRoleId = null,
-        string triggerType = "go_live"
+        string triggerType = "go_live",
+        NomNomzBot.Domain.Discord.ValueObjects.DiscordEmbedConfig? embed = null
     )
     {
         Guid configId = Guid.CreateVersion7();
@@ -620,6 +631,7 @@ internal static class DiscordTestHarness
                 TargetChannelId = targetChannel,
                 MessageTemplate = template,
                 PingRoleId = pingRoleId,
+                EmbedConfig = embed,
                 ConfigSchemaVersion = 1,
             }
         );

@@ -526,6 +526,12 @@ Chris's favorite is Never Gonna Give You Up by Rick Astley, requested 9 times.
 Stoney_Eagle is live: Chill building night (Minecraft)
 ```
 
+Link names, filled for every Discord post: `{channel.url}` and `{stream.url}` (the channel page on Twitch or Kick), `{channel.login}`, `{channel.avatar}` (the streamer's profile picture) and `{stream.thumbnail}` (the live preview picture, Twitch only; empty on other platforms, and an embed picture field that renders empty is left out of the post).
+```
+{channel.name} is live on Twitch streaming {game}, {title}. Come hang out: {channel.url}
+Stoney_Eagle is live on Twitch streaming Minecraft, Chill building night. Come hang out: https://www.twitch.tv/stoney_eagle
+```
+
 ---
 
 ## Known gaps

@@ -12,6 +12,8 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Domain.Discord.Entities;
+using NomNomzBot.Domain.Discord.ValueObjects;
+using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
@@ -46,7 +48,8 @@ internal sealed class DiscordTriggerHandlerHarness : IDisposable
     /// <summary>A channel with an active Discord link and ONE rule for <paramref name="trigger"/>.</summary>
     public static async Task<DiscordTriggerHandlerHarness> WithRuleAsync(
         string trigger,
-        string template
+        string template,
+        DiscordEmbedConfig? embed = null
     )
     {
         DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
@@ -58,7 +61,8 @@ internal sealed class DiscordTriggerHandlerHarness : IDisposable
             connectionId,
             template,
             DiscordChannel,
-            triggerType: trigger
+            triggerType: trigger,
+            embed: embed
         );
         return new(database, channel);
     }
@@ -70,6 +74,27 @@ internal sealed class DiscordTriggerHandlerHarness : IDisposable
         Guid channel = await DiscordTestHarness.SeedChannelAsync(database);
         await DiscordTestHarness.SeedActiveConnectionAsync(database, channel);
         return new(database, channel);
+    }
+
+    /// <summary>Puts the channel on a platform under a login, and gives its owner a profile picture.</summary>
+    public async Task ShapeChannelAsync(string provider, string login, string? profileImageUrl)
+    {
+        await using DiscordTestDbContext db = _database.NewContext();
+        Channel channel = await db.Channels.SingleAsync(c => c.Id == BroadcasterId);
+        channel.Provider = provider;
+        channel.Name = login;
+        channel.NameNormalized = login.ToLowerInvariant();
+        db.Users.Add(
+            new()
+            {
+                Id = channel.OwnerUserId,
+                Username = login,
+                UsernameNormalized = login.ToLowerInvariant(),
+                DisplayName = login,
+                ProfileImageUrl = profileImageUrl,
+            }
+        );
+        await db.SaveChangesAsync();
     }
 
     /// <summary>Hands the event to a handler built over the real dispatcher.</summary>

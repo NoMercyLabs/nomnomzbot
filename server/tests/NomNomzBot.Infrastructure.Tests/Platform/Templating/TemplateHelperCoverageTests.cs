@@ -91,6 +91,11 @@ public sealed partial class TemplateHelperCoverageTests
         "channel.name",
         "channel.title",
         "channel.game",
+        "channel.url",
+        "stream.url",
+        "channel.login",
+        "channel.avatar",
+        "stream.thumbnail",
         "title",
         "game",
         "raw.message", // Discord-only seed aliases — supplied by DiscordGoLiveNotificationHandler /

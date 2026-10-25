@@ -176,7 +176,8 @@ public sealed record DiscordDispatchRequest(
     string TriggerType,
     string DedupeKey,
     Guid? StreamId,
-    IReadOnlyDictionary<string, string> TemplateData
+    IReadOnlyDictionary<string, string> TemplateData,
+    DateTimeOffset? LiveSince = null
 );
 
 public sealed record DiscordDispatchOutcomeDto(

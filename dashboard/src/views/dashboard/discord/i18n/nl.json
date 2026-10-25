@@ -68,7 +68,7 @@
         "setUp": "Instellen"
       },
       "defaults": {
-        "go_live": "{'{'}channel.name{'}'} is live! {'{'}stream.title{'}'} ({'{'}stream.game{'}'})",
+        "go_live": "{'{'}channel.name{'}'} is nu live op Twitch met {'{'}game{'}'}, {'{'}title{'}'}. Kom gezellig kijken: {'{'}channel.url{'}'}",
         "follow": "{'{'}user.name{'}'} volgt {'{'}channel.display{'}'} nu!",
         "subscription": "{'{'}user.name{'}'} heeft zich geabonneerd op {'{'}channel.display{'}'} ({'{'}tier{'}'})!",
         "gift_subscription": "{'{'}user.name{'}'} gaf {'{'}count{'}'} abonnement(en) weg in {'{'}channel.display{'}'} ({'{'}tier{'}'})!",

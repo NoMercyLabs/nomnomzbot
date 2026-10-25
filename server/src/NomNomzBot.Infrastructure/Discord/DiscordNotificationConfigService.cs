@@ -400,7 +400,13 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
             ["channel.name"] = "SampleStreamer",
             ["channel.title"] = "Sample stream title",
             ["channel.game"] = "Just Chatting",
-            ["channel.url"] = "https://twitch.tv/SampleStreamer",
+            ["channel.url"] = "https://www.twitch.tv/SampleStreamer",
+            ["stream.url"] = "https://www.twitch.tv/SampleStreamer",
+            ["channel.login"] = "samplestreamer",
+            ["channel.avatar"] =
+                "https://static-cdn.jtvnw.net/jtv_user_pictures/samplestreamer.png",
+            ["stream.thumbnail"] =
+                "https://static-cdn.jtvnw.net/previews-ttv/live_user_samplestreamer-1280x720.jpg",
             ["trigger.type"] = triggerType,
         };
 
