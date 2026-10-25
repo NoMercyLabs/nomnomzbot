@@ -78,6 +78,16 @@ const pronouns = computed<string | null>(() => {
     ? t('profile.facts.setByChannel', { value: text })
     : text;
 });
+// The bot treats an account under a week old as new (ChatSafetyMeter), so a moderator sees the same flag.
+const NEW_ACCOUNT_DAYS = 7;
+const newAccount = computed<boolean>(() => {
+  const created = props.profile?.identity.accountCreatedAtUtc;
+
+  if (!created)
+    return false;
+
+  return Date.now() - new Date(created).getTime() < NEW_ACCOUNT_DAYS * 86_400_000;
+});
 const standing = computed(() => twitchStanding(props.profile));
 const regular = computed(() => isRegular(props.profile));
 
@@ -173,9 +183,13 @@ const stats = computed<Stat[]>(() => {
           >{{ pronouns }}</span>
         </div>
         <div
-          v-if="roles.length > 0 || standing || regular"
+          v-if="roles.length > 0 || standing || regular || newAccount"
           class="flex flex-wrap items-center gap-1.5"
         >
+          <!-- The one flag worth a moderator's eye: the account is under a week old. -->
+          <Badge v-if="newAccount" data-profile-new-account variant="destructive">
+            {{ $t("profile.newAccount") }}
+          </Badge>
           <!-- The account status leads, then the roles (owner 2026-10-14). The Twitch logo and each role's own
                Twitch badge keep their colors, so where a badge comes from reads first. -->
           <Badge

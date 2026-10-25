@@ -15,6 +15,7 @@ using NomNomzBot.Application.Community.Dtos;
 using NomNomzBot.Application.Community.Services;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
@@ -27,6 +28,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.SpamDefense;
+using NomNomzBot.Infrastructure.Identity.Jobs;
 
 namespace NomNomzBot.Infrastructure.Community;
 
@@ -44,7 +46,8 @@ public sealed class ViewerProfileService(
     ITtsConfigService tts,
     IFollowStateService follows,
     ISpamDefenseService spam,
-    IRaidHistoryReader raidHistory
+    IRaidHistoryReader raidHistory,
+    ITwitchUsersApi twitchUsers
 ) : IViewerProfileService
 {
     private const int RecentQuotesPageSize = 10;
@@ -55,6 +58,8 @@ public sealed class ViewerProfileService(
         CancellationToken ct = default
     )
     {
+        await ReadTwitchProfileIfMissingAsync(userId, ct);
+
         User? user = await db
             .Users.Include(u => u.Pronoun)
             .Include(u => u.AltPronoun)
@@ -150,6 +155,34 @@ public sealed class ViewerProfileService(
                 totalQuoteCount
             )
         );
+    }
+
+    // A chatter's row is bare until the background worker reaches it (every 2 minutes). A moderator who opens a
+    // brand-new account must see its age at once, so a row with no account date is read from Twitch now. Any
+    // failure leaves the row as it was: the profile still answers.
+    private async Task ReadTwitchProfileIfMissingAsync(Guid userId, CancellationToken ct)
+    {
+        try
+        {
+            User? row = await db.Users.FirstOrDefaultAsync(u => u.Id == userId, ct);
+            if (row is not { AccountCreatedAt: null, TwitchUserId: { Length: > 0 } twitchUserId })
+                return;
+
+            Result<IReadOnlyList<TwitchUser>> lookup = await twitchUsers.GetUsersByIdsAsync(
+                [twitchUserId],
+                ct
+            );
+            TwitchUser? found = lookup.IsSuccess ? lookup.Value.FirstOrDefault() : null;
+            if (found is null)
+                return;
+
+            UserProfileHydrationService.ApplyProfile(row, found);
+            await db.SaveChangesAsync(ct);
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            // The stored profile is shown as it is.
+        }
     }
 
     private async Task<ViewerIdentityDto> BuildIdentityAsync(

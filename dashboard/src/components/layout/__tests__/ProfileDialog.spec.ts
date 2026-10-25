@@ -1716,6 +1716,30 @@ describe('the profile header', () => {
     );
   });
 
+  it('does not flag an old account as new', async () => {
+    await openPage();
+    await openUser('u1');
+
+    expect(header().querySelector('[data-profile-new-account]')).toBeNull();
+  });
+
+  it('flags an account under a week old as new', async () => {
+    const ada = profiles.g1 as { identity: { accountCreatedAtUtc: string } };
+
+    ada.identity.accountCreatedAtUtc = new Date(Date.now() - 6 * 3_600_000).toISOString();
+
+    await openPage();
+    await openUser('u1');
+
+    expect(header().querySelector('[data-profile-new-account]')?.textContent?.trim()).toBe(
+      'New account',
+    );
+
+    expect(header().querySelector('[data-profile-age="account"] dd')?.textContent?.trim()).toBe(
+      '6 hours ago',
+    );
+  });
+
   // Mockup profile.css .who-badges: a role is a quiet muted badge with its icon, never an accent tint.
   it('shows each role as a muted badge with its icon', async () => {
     people.u1!.isVip = true;

@@ -14,6 +14,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Community.Dtos;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Quotes.Dtos;
 using NomNomzBot.Application.Quotes.Services;
@@ -51,9 +52,14 @@ public sealed class ViewerProfileServiceTests
         IPermitService Permits,
         IQuoteService Quotes,
         ITtsConfigService Tts
-    ) Build(IFollowStateService? follows = null, ISpamDefenseService? spam = null)
+    ) Build(
+        IFollowStateService? follows = null,
+        ISpamDefenseService? spam = null,
+        ITwitchUsersApi? users = null
+    )
     {
         spam ??= Substitute.For<ISpamDefenseService>();
+        users ??= Substitute.For<ITwitchUsersApi>();
         if (follows is null)
         {
             follows = Substitute.For<IFollowStateService>();
@@ -103,7 +109,8 @@ public sealed class ViewerProfileServiceTests
             tts,
             follows,
             spam,
-            new RaidHistoryReader(db)
+            new RaidHistoryReader(db),
+            users
         );
         return (sut, db, analytics, permits, quotes, tts);
     }
@@ -178,6 +185,66 @@ public sealed class ViewerProfileServiceTests
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result.Value.Raids.TimesRaidedThisChannel.Should().Be(3);
         result.Value.Raids.TimesThisChannelRaidedThem.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task GetProfileAsync_ReadsTheTwitchProfileOnTheSpot_ForAChatterNotYetHydrated()
+    {
+        DateTimeOffset created = DateTimeOffset.UtcNow.AddHours(-6);
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByIdsAsync(
+                Arg.Is<IReadOnlyList<string>>(ids => ids.SequenceEqual(new[] { "subject-twitch" })),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success<IReadOnlyList<TwitchUser>>([
+                    new(
+                        "subject-twitch",
+                        "subject",
+                        "Subject",
+                        "",
+                        "",
+                        "hello there",
+                        "https://img/subject.png",
+                        "",
+                        0,
+                        created
+                    ),
+                ])
+            );
+        (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build(
+            users: users
+        );
+        await SeedSubjectAsync(db);
+
+        Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Identity.AccountCreatedAtUtc.Should().Be(created.UtcDateTime);
+        result.Value.Identity.ProfileImageUrl.Should().Be("https://img/subject.png");
+        result.Value.Identity.Description.Should().Be("hello there");
+        User stored = await db.Users.AsNoTracking().SingleAsync(u => u.Id == Subject);
+        stored.AccountCreatedAt.Should().Be(created.UtcDateTime);
+    }
+
+    [Fact]
+    public async Task GetProfileAsync_StillAnswers_WhenTwitchDoesNotAnswerTheProfileRead()
+    {
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Errors.NotFound<IReadOnlyList<TwitchUser>>("Twitch user", "subject-twitch"));
+        (ViewerProfileService sut, ViewerProfileServiceTestDbContext db, _, _, _, _) = Build(
+            users: users
+        );
+        await SeedSubjectAsync(db);
+
+        Result<ViewerProfileSummaryDto> result = await sut.GetProfileAsync(Broadcaster, Subject);
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.Identity.AccountCreatedAtUtc.Should().BeNull();
+        result.Value.Identity.Username.Should().Be("subject");
     }
 
     [Fact]
