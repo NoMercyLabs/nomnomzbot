@@ -242,9 +242,8 @@ describe('the rule editor', () => {
 
     for (const field of ['embed-title', 'embed-description', 'embed-thumbnail', 'embed-image', 'embed-footer']) {
       expect(
-        document.body.querySelector(`[data-field="${field}"]`)?.getAttribute('aria-autocomplete'),
-        field,
-      ).toBe('list');
+        `${field}: ${document.body.querySelector(`[data-field="${field}"]`)?.getAttribute('aria-autocomplete')}`,
+      ).toBe(`${field}: list`);
     }
   });
 

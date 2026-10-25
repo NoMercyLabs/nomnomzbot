@@ -244,7 +244,7 @@ describe('SoundsView', () => {
     expect(uploaded?.get('Name')).toBe('boom');
     expect(uploaded?.get('DisplayName')).toBe('Boom');
     expect(uploaded?.get('DefaultVolume')).toBe('60');
-    expect((uploaded?.get('File') as File).name).toBe('boom.mp3');
+    expect(uploaded?.get('File')).toMatchObject({ name: 'boom.mp3' });
     expect(rows()).toHaveLength(1);
   });
 
