@@ -179,7 +179,7 @@ public sealed class EngagementServiceTests
     }
 
     [Fact]
-    public async Task ConsecutiveStreams_RaiseStreak_MilestoneFires_MissedStreamResetsToOne()
+    public async Task ConsecutiveStreams_RaiseStreak_BotNeverAnnouncesIt_MissedStreamResetsToOne()
     {
         Harness h = Build();
         SeedConfig(h.Db, streak: true, milestones: [3]);
@@ -194,11 +194,8 @@ public sealed class EngagementServiceTests
 
         ViewerEngagementState afterThree = await h.Db.ViewerEngagementStates.SingleAsync();
         afterThree.ConsecutiveStreams.Should().Be(3);
-        h.Bus.Published.OfType<WatchStreakMilestoneEvent>()
-            .Should()
-            .ContainSingle()
-            .Which.StreakCount.Should()
-            .Be(3);
+        // A watch streak message is the viewer's own act, dispatched by Twitch; the bot's count never posts one.
+        h.Bus.Published.Should().BeEmpty();
 
         // Now a stream the viewer misses (s4 exists but they don't chat), then s5 where they return.
         SeedStream(h.Db, "s4", h.Clock.GetUtcNow().AddDays(4));

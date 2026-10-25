@@ -105,60 +105,6 @@ public sealed class ReturningChatterTriggerSource
 }
 
 /// <summary>
-/// Fires the bound response for a watch-streak milestone (engagement.md §4, trigger kind
-/// <c>engagement.watch_streak</c>). Exposes <c>{engagement.streak}</c>.
-/// </summary>
-public sealed class WatchStreakTriggerSource
-    : TwitchAlertHandlerBase<WatchStreakMilestoneEvent>,
-        IEventHandler<WatchStreakMilestoneEvent>
-{
-    protected override string EventTypeKey => "engagement.watch_streak";
-
-    public WatchStreakTriggerSource(
-        IServiceScopeFactory s,
-        IPipelineEngine p,
-        ILogger<WatchStreakTriggerSource> l
-    )
-        : base(s, p, l) { }
-
-    protected override string? GetUserId(WatchStreakMilestoneEvent e) => e.ViewerExternalUserId;
-
-    protected override string? GetUserDisplayName(WatchStreakMilestoneEvent e) =>
-        e.ViewerDisplayName;
-
-    protected override Dictionary<string, string> BuildVariables(WatchStreakMilestoneEvent e) =>
-        new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["user"] = e.ViewerDisplayName,
-            ["user.id"] = e.ViewerExternalUserId,
-            ["viewer.name"] = e.ViewerDisplayName,
-            ["engagement.streak"] = e.StreakCount.ToString(),
-            // This key also serves Twitch's own watch-streak notification (WatchStreakHandler), so a saved
-            // message written with those placeholders must not reach chat with its braces. The bot's own count
-            // has no points, custom message or record to report: they read as none.
-            ["user.name"] = e.ViewerDisplayName,
-            ["streak.months"] = e.StreakCount.ToString(),
-            ["streak.points"] = "0",
-            ["streak.message"] = string.Empty,
-            ["streak.record"] = "0",
-            ["record"] = "0",
-            ["streak.state"] = "standard",
-        };
-
-    protected override WatchStreakMilestoneEvent SampleEvent(DateTimeOffset now) =>
-        new()
-        {
-            ViewerUserId = Guid.Parse("00000000-0000-0000-0000-0000000a0003"),
-            ViewerExternalUserId = "100000006",
-            ViewerDisplayName = "StreakySam",
-            StreakCount = 10,
-        };
-
-    public Task HandleAsync(WatchStreakMilestoneEvent @event, CancellationToken ct = default) =>
-        HandleCoreAsync(@event, ct);
-}
-
-/// <summary>
 /// Fires the bound response for a moderator's anniversary of moderating this channel (trigger kind
 /// <c>engagement.modiversary</c>). Exposes <c>{engagement.months}</c> and <c>{engagement.years}</c>.
 ///

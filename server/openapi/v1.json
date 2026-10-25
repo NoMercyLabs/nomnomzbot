@@ -131007,6 +131007,13 @@
             ],
             "description": "When this channel last shouted them out, from our own records, or null when never.",
             "format": "date-time"
+          },
+          "profileImageUrl": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The chatter's Twitch profile picture (Get Users), or null when Twitch gave none."
           }
         },
         "description": "One chatter of the current stream the streamer may want to shout out."

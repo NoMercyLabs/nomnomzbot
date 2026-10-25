@@ -46,23 +46,6 @@ public sealed class ReturningChatterDetectedEvent : DomainEventBase
     public required int DaysSinceLastSeen { get; init; }
 }
 
-/// <summary>A viewer hit a configured consecutive-stream milestone (engagement.md D1). Trigger kind
-/// <c>engagement.watch_streak</c>.</summary>
-public sealed class WatchStreakMilestoneEvent : DomainEventBase
-{
-    /// <summary>The id of the viewer in this system.</summary>
-    public required Guid ViewerUserId { get; init; }
-
-    /// <summary>The viewer's user id on the platform, a number as text.</summary>
-    public required string ViewerExternalUserId { get; init; }
-
-    /// <summary>The viewer's display name, as shown in chat.</summary>
-    public required string ViewerDisplayName { get; init; }
-
-    /// <summary>The number of streams in the viewer's streak.</summary>
-    public required int StreakCount { get; init; }
-}
-
 /// <summary>
 /// A moderator reached an anniversary of moderating THIS channel, as announced by Twitch. Trigger kind
 /// <c>engagement.modiversary</c>.

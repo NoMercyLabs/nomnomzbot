@@ -97597,6 +97597,8 @@ export interface components {
              * @description When this channel last shouted them out, from our own records, or null when never.
              */
             lastShoutoutAt?: null | string;
+            /** @description The chatter's Twitch profile picture (Get Users), or null when Twitch gave none. */
+            profileImageUrl?: null | string;
         };
         ShoutoutTemplate: {
             template?: null | string;

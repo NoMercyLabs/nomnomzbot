@@ -20,6 +20,7 @@ namespace NomNomzBot.Application.Moderation.Dtos;
 /// <param name="LastCategory">The category of their channel on Twitch now (Get Channel Information), or null when none is set.</param>
 /// <param name="StreamsLast30Days">How many archived streams they published in the last 30 days (Get Videos, type archive).</param>
 /// <param name="LastShoutoutAt">When this channel last shouted them out, from our own records, or null when never.</param>
+/// <param name="ProfileImageUrl">The chatter's Twitch profile picture (Get Users), or null when Twitch gave none.</param>
 public sealed record ShoutoutSuggestionDto(
     string TwitchUserId,
     string Login,
@@ -27,5 +28,6 @@ public sealed record ShoutoutSuggestionDto(
     string? Color,
     string? LastCategory,
     int StreamsLast30Days,
-    DateTimeOffset? LastShoutoutAt
+    DateTimeOffset? LastShoutoutAt,
+    string? ProfileImageUrl = null
 );

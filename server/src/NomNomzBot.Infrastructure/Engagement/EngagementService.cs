@@ -118,44 +118,22 @@ public sealed class EngagementService : IEngagementService
             state.LastSeenStreamSessionId = signal.CurrentStreamSessionId;
             state.LastChatAt = signal.At;
 
-            bool milestone =
-                config.WatchStreakEnabled
-                && IsMilestone(state.ConsecutiveStreams, config.StreakMilestonesJson);
-
-            // One greeting per viewer per stream — the streak milestone takes precedence over the plain
-            // returning greeting when both would fire, and both share the one greet-claim.
-            if (
-                (config.ReturningChatterEnabled || milestone)
-                && TryClaimGreet(broadcasterId, config)
-            )
+            // The streak count above is kept for the profile, but the bot never announces a streak by
+            // itself: a watch streak message is the viewer's own act, dispatched by Twitch
+            // (WatchStreakHandler). Only the plain returning greeting is the bot's.
+            if (config.ReturningChatterEnabled && TryClaimGreet(broadcasterId, config))
             {
                 state.LastGreetedStreamSessionId = signal.CurrentStreamSessionId;
-                if (milestone)
+                ReturningChatterDetectedEvent evt = new()
                 {
-                    WatchStreakMilestoneEvent evt = new()
-                    {
-                        BroadcasterId = broadcasterId,
-                        ViewerUserId = signal.ViewerUserId,
-                        ViewerExternalUserId = signal.ViewerExternalUserId,
-                        ViewerDisplayName = signal.DisplayName,
-                        StreakCount = state.ConsecutiveStreams,
-                        OccurredAt = signal.At,
-                    };
-                    publish = pubCt => _eventBus.PublishAsync(evt, pubCt);
-                }
-                else
-                {
-                    ReturningChatterDetectedEvent evt = new()
-                    {
-                        BroadcasterId = broadcasterId,
-                        ViewerUserId = signal.ViewerUserId,
-                        ViewerExternalUserId = signal.ViewerExternalUserId,
-                        ViewerDisplayName = signal.DisplayName,
-                        DaysSinceLastSeen = daysSinceLastSeen,
-                        OccurredAt = signal.At,
-                    };
-                    publish = pubCt => _eventBus.PublishAsync(evt, pubCt);
-                }
+                    BroadcasterId = broadcasterId,
+                    ViewerUserId = signal.ViewerUserId,
+                    ViewerExternalUserId = signal.ViewerExternalUserId,
+                    ViewerDisplayName = signal.DisplayName,
+                    DaysSinceLastSeen = daysSinceLastSeen,
+                    OccurredAt = signal.At,
+                };
+                publish = pubCt => _eventBus.PublishAsync(evt, pubCt);
             }
         }
 
@@ -281,13 +259,6 @@ public sealed class EngagementService : IEngagementService
     }
 
     private sealed record StreamOrder(string Id, DateTimeOffset? StartedAt);
-
-    private static bool IsMilestone(int streak, string? milestonesJson)
-    {
-        int[] milestones = DeserializeMilestones(milestonesJson);
-        // Empty list = every stream is a milestone (engagement.md §1).
-        return milestones.Length == 0 || milestones.Contains(streak);
-    }
 
     private static int[] DeserializeMilestones(string? json)
     {

@@ -29,6 +29,7 @@ public sealed class ShoutoutSuggestionService(
     IApplicationDbContext db,
     ITwitchVideosApi videos,
     ITwitchChannelsApi channels,
+    ITwitchUsersApi users,
     ShoutoutSuggestionState state,
     TimeProvider clock
 ) : IShoutoutSuggestionService
@@ -95,7 +96,8 @@ public sealed class ShoutoutSuggestionService(
                 colors.GetValueOrDefault(id),
                 infos.Value[id].Category,
                 streams[id],
-                shoutouts.TryGetValue(id, out DateTimeOffset at) ? at : null
+                shoutouts.TryGetValue(id, out DateTimeOffset at) ? at : null,
+                infos.Value[id].ProfileImageUrl
             ))
             .ToList();
         return Result.Success<IReadOnlyList<ShoutoutSuggestionDto>>(suggestions);
@@ -298,12 +300,24 @@ public sealed class ShoutoutSuggestionService(
                 fetched.ErrorCode
             );
 
+        // The picture is a nicety: when Twitch does not answer the lookup the row shows initials, not an error.
+        Dictionary<string, string> pictures = [];
+        Result<IReadOnlyList<TwitchUser>> found = await users.GetUsersByIdsAsync(
+            missing,
+            cancellationToken
+        );
+        if (found.IsSuccess)
+            foreach (TwitchUser user in found.Value)
+                if (!string.IsNullOrEmpty(user.ProfileImageUrl))
+                    pictures[user.Id] = user.ProfileImageUrl;
+
         foreach (TwitchChannelInformation info in fetched.Value)
         {
             CachedChannelInfo entry = new(
                 info.BroadcasterLogin,
                 info.BroadcasterName,
-                string.IsNullOrEmpty(info.GameName) ? null : info.GameName
+                string.IsNullOrEmpty(info.GameName) ? null : info.GameName,
+                pictures.GetValueOrDefault(info.BroadcasterId)
             );
             infos[info.BroadcasterId] = entry;
             state.SetChannelInfo(info.BroadcasterId, entry, now);

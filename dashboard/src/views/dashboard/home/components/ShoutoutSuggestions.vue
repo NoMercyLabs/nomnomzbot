@@ -22,7 +22,7 @@ import {
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import UserName from '@/components/layout/UserName.vue';
-import { Avatar, AvatarFallback } from '@/components/ui/avatar';
+import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar';
 import { Button } from '@/components/ui/button';
 
 const props = defineProps<{ channelId: string | null }>();
@@ -37,8 +37,9 @@ const sent = ref<Set<string>>(new Set());
 const refused = ref<Set<string>>(new Set());
 
 const suggestions = computed<ShoutoutSuggestion[]>(() => suggestionsQuery.data.value ?? []);
-const waiting = computed(() =>
-  suggestions.value.filter((entry) => !sent.value.has(entry.twitchUserId)).length);
+const waiting = computed(
+  () => suggestions.value.filter((entry) => !sent.value.has(entry.twitchUserId)).length,
+);
 
 function detailOf(entry: ShoutoutSuggestion): string {
   if (sent.value.has(entry.twitchUserId))
@@ -69,7 +70,7 @@ async function send(entry: ShoutoutSuggestion): Promise<void> {
 <template>
   <section v-if="suggestions.length > 0" data-shoutout-suggestions class="border-t border-border">
     <h3 data-suggestions-header class="px-3 pt-1 text-xs font-medium text-muted-foreground">
-      {{ t('dashboard.home.shoutouts.title', { count: waiting }) }}
+      {{ t("dashboard.home.shoutouts.title", { count: waiting }) }}
     </h3>
     <RowGroup>
       <div
@@ -80,6 +81,11 @@ async function send(entry: ShoutoutSuggestion): Promise<void> {
         <SummaryRow :title="entry.displayName" :detail="detailOf(entry)">
           <template #leading>
             <Avatar class="size-8">
+              <AvatarImage
+                v-if="entry.profileImageUrl"
+                :src="entry.profileImageUrl"
+                :alt="entry.displayName"
+              />
               <AvatarFallback
                 data-chat-color
                 class="font-medium"
@@ -104,7 +110,7 @@ async function send(entry: ShoutoutSuggestion): Promise<void> {
               :disabled="shoutout.isPending.value"
               @click="send(entry)"
             >
-              {{ t('dashboard.home.shoutouts.send') }}
+              {{ t("dashboard.home.shoutouts.send") }}
             </Button>
             <Button
               variant="ghost"
@@ -112,7 +118,7 @@ async function send(entry: ShoutoutSuggestion): Promise<void> {
               :disabled="dismiss.isPending.value"
               @click="dismiss.mutate(entry.twitchUserId)"
             >
-              {{ t('dashboard.home.shoutouts.later') }}
+              {{ t("dashboard.home.shoutouts.later") }}
             </Button>
           </template>
         </SummaryRow>

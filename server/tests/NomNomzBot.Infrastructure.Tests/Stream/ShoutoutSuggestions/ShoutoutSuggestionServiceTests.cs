@@ -39,6 +39,7 @@ public sealed class ShoutoutSuggestionServiceTests : IDisposable
     private readonly FakeTimeProvider _clock = new(DateTimeOffset.Parse("2026-10-13T20:00:00Z"));
     private readonly ITwitchVideosApi _videos = Substitute.For<ITwitchVideosApi>();
     private readonly ITwitchChannelsApi _channels = Substitute.For<ITwitchChannelsApi>();
+    private readonly ITwitchUsersApi _users = Substitute.For<ITwitchUsersApi>();
     private readonly IChannelRegistry _registry = Substitute.For<IChannelRegistry>();
     private readonly ShoutoutSuggestionState _state = new();
     private readonly ChannelContext _context;
@@ -93,7 +94,17 @@ public sealed class ShoutoutSuggestionServiceTests : IDisposable
                 return Result.Success(infos);
             });
 
-        _service = new(_registry, _db, _videos, _channels, _state, _clock);
+        _users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                IReadOnlyList<TwitchUser> users = call.ArgAt<IReadOnlyList<string>>(0)
+                    .Select(id => User(id))
+                    .ToList();
+                return Result.Success(users);
+            });
+
+        _service = new(_registry, _db, _videos, _channels, _users, _state, _clock);
     }
 
     public void Dispose()
@@ -121,6 +132,20 @@ public sealed class ShoutoutSuggestionServiceTests : IDisposable
             Type: "archive",
             Duration: "1h",
             MutedSegments: null
+        );
+
+    private static TwitchUser User(string id) =>
+        new(
+            Id: id,
+            Login: "login" + id,
+            DisplayName: "Name" + id,
+            Type: "",
+            BroadcasterType: "",
+            Description: "",
+            ProfileImageUrl: $"https://static-cdn.jtvnw.net/profile/{id}.png",
+            OfflineImageUrl: "",
+            ViewCount: 0,
+            CreatedAt: DateTimeOffset.Parse("2020-01-01T00:00:00Z")
         );
 
     private static TwitchChannelInformation Info(string id) =>
@@ -190,6 +215,7 @@ public sealed class ShoutoutSuggestionServiceTests : IDisposable
         top.Color.Should().Be("#FF8800");
         top.LastCategory.Should().Be("Game 12");
         top.LastShoutoutAt.Should().Be(new DateTimeOffset(shoutedBefore, TimeSpan.Zero));
+        top.ProfileImageUrl.Should().Be("https://static-cdn.jtvnw.net/profile/12.png");
         list[1].Color.Should().BeNull("no chat line with a color is on record for them");
         list[1].LastShoutoutAt.Should().BeNull("we never shouted them out");
     }

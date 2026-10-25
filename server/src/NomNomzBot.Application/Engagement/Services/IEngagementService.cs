@@ -26,8 +26,8 @@ public interface IEngagementService
     /// (D1/D3/D4):
     /// <list type="bullet">
     ///   <item>no prior row → <c>FirstTimeChatterDetectedEvent</c></item>
-    ///   <item>prior row, new stream → <c>ReturningChatterDetectedEvent</c> (+ streak update; a milestone
-    ///   also fires <c>WatchStreakMilestoneEvent</c>)</item>
+    ///   <item>prior row, new stream → <c>ReturningChatterDetectedEvent</c> (+ a quiet streak
+    ///   count; the bot never announces a watch streak, Twitch dispatches that when the viewer shares it)</item>
     ///   <item>same stream / on the greet cooldown → state update only, no event</item>
     /// </list>
     /// Fast return when the matching trigger is disabled in <c>EngagementConfig</c>.

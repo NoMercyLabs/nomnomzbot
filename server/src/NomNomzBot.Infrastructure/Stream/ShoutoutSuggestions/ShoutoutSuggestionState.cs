@@ -74,4 +74,9 @@ public sealed class ShoutoutSuggestionState
 }
 
 /// <summary>What Get Channel Information said about one chatter's channel.</summary>
-public sealed record CachedChannelInfo(string Login, string DisplayName, string? Category);
+public sealed record CachedChannelInfo(
+    string Login,
+    string DisplayName,
+    string? Category,
+    string? ProfileImageUrl = null
+);

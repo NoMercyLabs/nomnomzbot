@@ -25,9 +25,9 @@ namespace NomNomzBot.Infrastructure.Rewards.EventHandlers;
 /// Handles Twitch's native watch-streak chat notification (EventSub <c>channel.chat.notification</c>,
 /// translated by <c>ChatTranslators</c>). Upserts the WatchStreak entity and executes the
 /// event_response:engagement.watch_streak pipeline — the SAME key the preset catalog and dashboard
-/// expose, so a streamer's configured response actually reaches this real Twitch event (the parallel
-/// <c>engagement.watch_streak</c> handler in Engagement/EventHandlers listens for a bot-computed
-/// milestone event that nothing in this codebase ever publishes — dead on its own).
+/// expose, so a streamer's configured response actually reaches this real Twitch event. It is the only
+/// source of that response: a watch streak is the viewer's own act, dispatched by Twitch, never counted
+/// and announced by the bot itself.
 /// Variables exposed: user, user.id, user.login, user.name, viewer.name, engagement.streak (the preset's
 /// names) and streak.months, streak.points, streak.message, plus the old bot's record split:
 /// streak.record (the highest PREVIOUS streak, 0 when none; also exposed as record) and streak.state
