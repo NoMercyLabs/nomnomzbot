@@ -61,6 +61,7 @@ type Draft = {
 
 const props = defineProps<{
   trigger: string;
+  placeholders: string[];
   rule: DiscordRule | null;
   connectionId: string;
   channels: DiscordChannel[];
@@ -116,6 +117,10 @@ watch(
       draft.value.targetChannelId = defaultChannelFor(props.trigger, channels);
     }
   },
+);
+
+const placeholderList = computed<string>(() =>
+  props.placeholders.map((name) => `{${name}}`).join(', '),
 );
 
 const failure = computed<Error | null>(
@@ -251,8 +256,14 @@ function removeField(index: number): void {
       v-model="draft.message"
       :label="t('dashboard.discord.editor.message')"
       context="discord"
-      :event-type="trigger"
     />
+    <p
+      v-if="placeholders.length > 0"
+      class="text-xs text-muted-foreground"
+      data-field="placeholders"
+    >
+      {{ t('dashboard.discord.editor.placeholders', { list: placeholderList }) }}
+    </p>
 
     <fieldset class="flex flex-col gap-3 rounded-[8px] border border-border p-3">
       <legend class="px-1 text-sm font-medium">

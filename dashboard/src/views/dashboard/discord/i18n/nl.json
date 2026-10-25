@@ -68,10 +68,22 @@
         "setUp": "Instellen"
       },
       "defaults": {
-        "go_live": "{'{'}channel.name{'}'} is live! {'{'}stream.title{'}'} ({'{'}stream.game{'}'})"
+        "go_live": "{'{'}channel.name{'}'} is live! {'{'}stream.title{'}'} ({'{'}stream.game{'}'})",
+        "follow": "{'{'}user.name{'}'} volgt {'{'}channel.display{'}'} nu!",
+        "subscription": "{'{'}user.name{'}'} heeft zich geabonneerd op {'{'}channel.display{'}'} ({'{'}tier{'}'})!",
+        "gift_subscription": "{'{'}user.name{'}'} gaf {'{'}count{'}'} abonnement(en) weg in {'{'}channel.display{'}'} ({'{'}tier{'}'})!",
+        "cheer": "{'{'}user.name{'}'} gaf {'{'}bits{'}'} bits in {'{'}channel.display{'}'}! {'{'}message{'}'}",
+        "raid": "{'{'}user.name{'}'} heeft {'{'}channel.display{'}'} geraid met {'{'}viewers{'}'} kijkers!",
+        "stream_end": "{'{'}channel.name{'}'} is offline. De stream duurde {'{'}duration{'}'}."
       },
       "triggers": {
         "go_live": "Stream gaat live",
+        "follow": "Nieuwe volger",
+        "subscription": "Nieuwe abonnee (Twitch, Kick, YouTube)",
+        "gift_subscription": "Weggegeven abonnementen (Twitch, Kick, YouTube)",
+        "cheer": "Cheer",
+        "raid": "Binnenkomende raid",
+        "stream_end": "Stream eindigt",
         "new_clip": "Nieuwe clip",
         "schedule": "Schemawijziging",
         "milestone": "Mijlpaal"
@@ -123,6 +135,7 @@
         "channelOption": "# {name}",
         "roleOption": "{'@'}{name}",
         "channelPlaceholder": "Kies een kanaal",
+        "placeholders": "Dit bericht kan gebruiken: {list}",
         "role": "Ping-rol",
         "noRole": "Geen ping",
         "message": "Bericht",

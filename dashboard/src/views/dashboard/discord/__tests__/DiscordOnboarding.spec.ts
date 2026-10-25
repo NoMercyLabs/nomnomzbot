@@ -45,6 +45,18 @@ vi.mock('@/api/client', () => ({
     GET: async (path: string) => {
       held.calls.push({ method: 'GET', path });
 
+      if (path.endsWith('/discord/triggers'))
+        return {
+          data: { data: [
+            {
+              name: 'go_live',
+              labelKey: 'dashboard.discord.triggers.go_live',
+              placeholders: [],
+            },
+          ] },
+          response: { status: 200 },
+        };
+
       if (path.endsWith('/discord/connections'))
         return {
           data: { data: [{

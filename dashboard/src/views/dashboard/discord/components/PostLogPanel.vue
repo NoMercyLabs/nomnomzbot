@@ -12,7 +12,12 @@
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import { useDiscordDispatchLog, type DiscordPost } from '@/api/discord';
+import {
+  useDiscordDispatchLog,
+  useDiscordTriggers,
+  type DiscordPost,
+  type DiscordTrigger,
+} from '@/api/discord';
 import DateTime from '@/components/layout/DateTime.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
@@ -29,6 +34,8 @@ const query = useDiscordDispatchLog(channelId, () => props.connectionId);
 const state = usePanelState(query, (rows: DiscordPost[]): boolean =>
   rows.length === 0);
 const rows = computed<DiscordPost[]>(() => query.data.value ?? []);
+const triggersQuery = useDiscordTriggers(channelId);
+const offered = computed<DiscordTrigger[]>(() => triggersQuery.data.value ?? []);
 
 const known = ['sent', 'failed', 'skipped', 'skipped_dupe'];
 
@@ -55,7 +62,7 @@ function detail(post: DiscordPost): string {
   >
     <ul>
       <li v-for="post in rows" :key="post.id" data-post-row>
-        <SummaryRow :title="triggerLabel(t, post.triggerType)" :detail="detail(post)">
+        <SummaryRow :title="triggerLabel(t, post.triggerType, offered)" :detail="detail(post)">
           <template #trailing>
             <DateTime :value="post.dispatchedAt" variant="relative" class="text-sm text-muted-foreground" />
           </template>

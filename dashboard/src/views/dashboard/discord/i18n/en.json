@@ -68,10 +68,22 @@
         "setUp": "Set up"
       },
       "defaults": {
-        "go_live": "{'{'}channel.name{'}'} is live! {'{'}stream.title{'}'} ({'{'}stream.game{'}'})"
+        "go_live": "{'{'}channel.name{'}'} is live! {'{'}stream.title{'}'} ({'{'}stream.game{'}'})",
+        "follow": "{'{'}user.name{'}'} just followed {'{'}channel.display{'}'}!",
+        "subscription": "{'{'}user.name{'}'} just joined {'{'}channel.display{'}'} as a supporter ({'{'}tier{'}'})!",
+        "gift_subscription": "{'{'}user.name{'}'} gifted {'{'}count{'}'} memberships in {'{'}channel.display{'}'} ({'{'}tier{'}'})!",
+        "cheer": "{'{'}user.name{'}'} cheered {'{'}bits{'}'} bits in {'{'}channel.display{'}'}! {'{'}message{'}'}",
+        "raid": "{'{'}user.name{'}'} raided {'{'}channel.display{'}'} with {'{'}viewers{'}'} viewers!",
+        "stream_end": "{'{'}channel.name{'}'} is offline. The stream ran for {'{'}duration{'}'}."
       },
       "triggers": {
         "go_live": "Stream goes live",
+        "follow": "New follower",
+        "subscription": "New subscriber (Twitch, Kick, YouTube)",
+        "gift_subscription": "Gifted subs (Twitch, Kick, YouTube)",
+        "cheer": "Cheer",
+        "raid": "Incoming raid",
+        "stream_end": "Stream ends",
         "new_clip": "New clip",
         "schedule": "Schedule update",
         "milestone": "Milestone"
@@ -123,6 +135,7 @@
         "channelOption": "# {name}",
         "roleOption": "{'@'}{name}",
         "channelPlaceholder": "Pick a channel",
+        "placeholders": "This message can use: {list}",
         "role": "Ping role",
         "noRole": "No ping",
         "message": "Message",

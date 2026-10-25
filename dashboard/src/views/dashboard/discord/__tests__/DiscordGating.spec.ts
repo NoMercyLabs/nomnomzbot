@@ -57,6 +57,13 @@ vi.mock('@/api/client', () => ({
       const byPath: Record<string, unknown[]> = {
         '/api/v{version}/channels/{channelId}/discord/connections': [connection],
         '/api/v{version}/channels/{channelId}/discord/connections/{connectionId}/roles': [role],
+        '/api/v{version}/channels/{channelId}/discord/triggers': [
+          {
+            name: 'go_live',
+            labelKey: 'dashboard.discord.triggers.go_live',
+            placeholders: [],
+          },
+        ],
       };
 
       return {

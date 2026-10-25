@@ -33,8 +33,34 @@ export type DiscordEmbedField = components['schemas']['DiscordEmbedField'];
 export type DiscordPreview = components['schemas']['DiscordNotificationPreview'];
 export type DiscordChannel = components['schemas']['DiscordPostableChannel'];
 export type DiscordRole = components['schemas']['DiscordGuildRole'];
+export type DiscordTrigger = components['schemas']['DiscordNotificationTrigger'];
 
 const version = '1';
+
+export const discordTriggersKey = (channelId: string | null): KeyParts => [
+  'channels',
+  channelId,
+  'discord-triggers',
+];
+
+// The events the bot posts to Discord for. The bot lists them, so a trigger it cannot fire is never offered.
+export function useDiscordTriggers(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<DiscordTrigger[], Error> {
+  return channelQuery(channelId, discordTriggersKey, readDiscordTriggers);
+}
+
+async function readDiscordTriggers(id: string): Promise<DiscordTrigger[]> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/discord/triggers',
+    { params: { path: { version, channelId: id } } },
+  );
+
+  if (error !== undefined)
+    throw failed('discord triggers', response.status, error);
+
+  return data?.data ?? [];
+}
 
 export const discordConnectionsKey = (channelId: string | null): KeyParts => [
   'channels',

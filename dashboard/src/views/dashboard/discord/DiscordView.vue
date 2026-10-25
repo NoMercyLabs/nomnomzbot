@@ -17,10 +17,12 @@ import {
   useDiscordConnections,
   useDiscordRoles,
   useDiscordRules,
+  useDiscordTriggers,
   useNotifyRoles,
   type NotifyRole,
   type DiscordConnection,
   type DiscordRule,
+  type DiscordTrigger,
 } from '@/api/discord';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -48,7 +50,7 @@ import PostLogPanel from './components/PostLogPanel.vue';
 import RuleEditor from './components/RuleEditor.vue';
 import SetupGuide from './components/SetupGuide.vue';
 import { installErrorKey, readInstallError } from './installError';
-import { discordTriggers, triggerLabel as labelOf } from './triggers';
+import { triggerLabel as labelOf, triggerPlaceholders } from './triggers';
 import { useDiscordInstall } from './useDiscordInstall';
 
 const { t } = useI18n();
@@ -67,6 +69,8 @@ const connectionId = computed<string | null>(() => connection.value?.id ?? null)
 const botIn = computed<boolean>(() => connection.value?.botInstalled === true);
 
 const rulesQuery = useDiscordRules(channelId, connectionId);
+const triggersQuery = useDiscordTriggers(channelId);
+const offered = computed<DiscordTrigger[]>(() => triggersQuery.data.value ?? []);
 const channelsQuery = useDiscordChannels(channelId, connectionId);
 const rolesQuery = useDiscordRoles(channelId, connectionId);
 const notifyRolesQuery = useNotifyRoles(channelId, connectionId);
@@ -107,9 +111,9 @@ const open = computed<boolean>({
   },
 });
 
-// A rule row per known trigger, then the rules the bot holds for any other trigger.
+// A rule row per trigger the bot posts for, then the rules the bot holds for any other trigger.
 const triggers = computed(() => {
-  const known: string[] = [...discordTriggers];
+  const known = offered.value.map((trigger) => trigger.name);
   const extra = rules.value
     .map((rule) => rule.triggerType)
     .filter((trigger) => !known.includes(trigger));
@@ -122,7 +126,7 @@ function ruleOf(trigger: string): DiscordRule | null {
 }
 
 function triggerLabel(trigger: string): string {
-  return labelOf(t, trigger);
+  return labelOf(t, trigger, offered.value);
 }
 
 function ruleSummary(rule: DiscordRule | null): string {
@@ -328,6 +332,7 @@ function ruleSummary(rule: DiscordRule | null): string {
           <RuleEditor
             :key="editing"
             :trigger="editing"
+            :placeholders="triggerPlaceholders(editing, offered)"
             :rule="ruleOf(editing)"
             :connection-id="connectionId"
             :channels="channelsQuery.data.value ?? []"

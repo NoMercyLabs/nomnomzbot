@@ -14,7 +14,7 @@ import type { DiscordChannel } from '@/api/discord';
 const textTypes = new Set<string | number>([0, 5]);
 
 const liveNames = /live|stream|announce|notif/i;
-const alertNames = /follow|sub|raid|alert|activity|stream|announce|notif/i;
+const alertNames = /follow|sub|gift|cheer|bits|raid|alert|activity|stream|announce|notif/i;
 const generalNames = /general|chat|main/i;
 
 // A person new to the page should not have to hunt for a channel: the rule starts on the channel whose name fits

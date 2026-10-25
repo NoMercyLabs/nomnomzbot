@@ -63,7 +63,29 @@ const goLive = {
   milestoneThreshold: null,
 };
 
+// What the bot says it can post for. The page lists these and nothing it holds a copy of.
+const offeredTriggers = [
+  {
+    name: 'go_live',
+    labelKey: 'dashboard.discord.triggers.go_live',
+    placeholders: ['broadcaster', 'channel.name', 'title', 'game'],
+  },
+  {
+    name: 'follow',
+    labelKey: 'dashboard.discord.triggers.follow',
+    placeholders: ['user.name', 'channel.display'],
+  },
+  {
+    name: 'raid',
+    labelKey: 'dashboard.discord.triggers.raid',
+    placeholders: ['user.name', 'viewers', 'channel.display'],
+  },
+];
+
 function answer(path: string): unknown {
+  if (path.endsWith('/discord/triggers'))
+    return ok(offeredTriggers);
+
   if (path.endsWith('/discord/connections'))
     return ok([connection]);
 
@@ -168,10 +190,23 @@ describe('the Discord page', () => {
       'Linked and ready',
     );
 
-    // Only the trigger the bot posts for by itself is offered, under the name the server saves it with.
-    expect(rows).toHaveLength(1);
+    // One row per trigger the bot lists, in its order. Go-live carries the stored rule's state.
+    const edits = rows.map((row) => row.querySelector('[data-edit]')?.getAttribute('data-edit'));
+
+    expect(edits).toEqual(['go_live', 'follow', 'raid']);
     expect(rows[0]?.textContent).toContain('Stream goes live');
     expect(rows[0]?.textContent).toContain('On');
+    expect(rows[1]?.textContent).toContain('New follower');
+    expect(rows[1]?.textContent).toContain('Not set up');
+    expect(rows[2]?.textContent).toContain('Incoming raid');
+  });
+
+  it('does not offer a trigger the bot did not list, such as new clip', async () => {
+    mounted = mount(DiscordView, { attachTo: document.body, global: { plugins: plugins() } });
+    await settle();
+
+    expect(document.body.querySelector('[data-edit="new_clip"]')).toBeNull();
+    expect(document.body.querySelector('[data-edit="milestone"]')).toBeNull();
   });
 });
 
@@ -181,6 +216,7 @@ describe('the rule editor', () => {
       attachTo: document.body,
       props: {
         trigger: 'go_live',
+        placeholders: [],
         rule: goLive as never,
         connectionId: 'conn1',
         pickerError: null,
@@ -253,6 +289,7 @@ describe('a new rule on the rule editor', () => {
       attachTo: document.body,
       props: {
         trigger: 'go_live',
+        placeholders: [],
         rule: null,
         connectionId: 'conn1',
         pickerError: null,
@@ -290,5 +327,65 @@ describe('a new rule on the rule editor', () => {
       targetChannelId: 'ls',
       messageTemplate: '{channel.name} is live! {stream.title} ({stream.game})',
     });
+  });
+
+  it.each([
+    ['follow', '{user.name} just followed {channel.display}!'],
+    ['subscription', '{user.name} just joined {channel.display} as a supporter ({tier})!'],
+    ['gift_subscription', '{user.name} gifted {count} memberships in {channel.display} ({tier})!'],
+    ['cheer', '{user.name} cheered {bits} bits in {channel.display}! {message}'],
+    ['raid', '{user.name} raided {channel.display} with {viewers} viewers!'],
+    ['stream_end', '{channel.name} is offline. The stream ran for {duration}.'],
+  ])('starts a %s rule with its own ready message', async (trigger, message) => {
+    mounted = mount(RuleEditor, {
+      attachTo: document.body,
+      props: {
+        trigger,
+        placeholders: ['user.name', 'channel.display'],
+        rule: null,
+        connectionId: 'conn1',
+        pickerError: null,
+        channels: [
+          {
+            id: 'a',
+            name: 'alerts',
+            type: 0,
+            position: 0,
+            canPost: true,
+          },
+        ],
+        roles: [],
+      },
+      global: { plugins: plugins() },
+    });
+
+    await settle();
+
+    document.body.querySelector<HTMLButtonElement>('[data-save-rule]')!.click();
+    await settle();
+
+    expect(calls[0]?.body).toMatchObject({ triggerType: trigger, messageTemplate: message });
+  });
+
+  it('lists the placeholders the bot fills for the trigger', async () => {
+    mounted = mount(RuleEditor, {
+      attachTo: document.body,
+      props: {
+        trigger: 'raid',
+        placeholders: ['user.name', 'viewers', 'channel.display'],
+        rule: null,
+        connectionId: 'conn1',
+        pickerError: null,
+        channels: [],
+        roles: [],
+      },
+      global: { plugins: plugins() },
+    });
+
+    await settle();
+
+    expect(document.body.querySelector('[data-field="placeholders"]')?.textContent).toContain(
+      '{user.name}, {viewers}, {channel.display}',
+    );
   });
 });

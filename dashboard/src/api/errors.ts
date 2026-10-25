@@ -196,6 +196,7 @@ export const apiOperations = {
   'discord channels': 'discord',
   'discord roles': 'discord',
   'discord rules': 'discord',
+  'discord triggers': 'discord',
   'save discord rule': 'discord',
   'create discord rule': 'discord',
   'discord preview': 'discord',
