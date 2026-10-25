@@ -32,8 +32,12 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
     /// <summary>The current EmbedConfig shape version. Only a breaking reshape raises it + adds an upcast step.</summary>
     private const int CurrentEmbedConfigVersion = DiscordConfigDefaults.EmbedConfigVersion;
 
+    // A rule saved before a trigger lost its offer must keep saving, so the unfired names stay accepted.
     private static readonly IReadOnlyList<string> AllowedTriggers =
-        DiscordConfigDefaults.NotificationTriggers;
+    [
+        .. DiscordConfigDefaults.NotificationTriggers,
+        .. DiscordConfigDefaults.UnfiredTriggers,
+    ];
 
     private readonly IApplicationDbContext _db;
     private readonly IUnitOfWork _unitOfWork;
@@ -54,6 +58,21 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
         _unitOfWork = unitOfWork;
         _templateResolver = templateResolver;
         _templateHelperValidator = templateHelperValidator;
+    }
+
+    public Result<IReadOnlyList<DiscordNotificationTriggerDto>> GetTriggers()
+    {
+        IReadOnlyList<DiscordNotificationTriggerDto> triggers =
+        [
+            .. DiscordConfigDefaults.NotificationTriggerCatalog.Select(
+                trigger => new DiscordNotificationTriggerDto(
+                    trigger.Name,
+                    trigger.LabelKey,
+                    trigger.Placeholders
+                )
+            ),
+        ];
+        return Result.Success(triggers);
     }
 
     public async Task<Result<IReadOnlyList<DiscordNotificationConfigDto>>> GetConfigsAsync(

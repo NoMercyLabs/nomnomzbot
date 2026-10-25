@@ -26,10 +26,31 @@ public static class DiscordConfigDefaults
     /// <summary>The current shape version of the stored embed JSON. Only a breaking reshape raises it.</summary>
     public const int EmbedConfigVersion = 1;
 
+    /// <summary>
+    /// Every event the server fires a Discord post for, with its label and the placeholders its handler
+    /// fills. Add a trigger here in the same change as its event handler, never before.
+    /// </summary>
+    public static readonly IReadOnlyList<DiscordNotificationTrigger> NotificationTriggerCatalog =
+    [
+        new(
+            "go_live",
+            "dashboard.discord.triggers.go_live",
+            ["broadcaster", "channel.name", "title", "game"]
+        ),
+    ];
+
     /// <summary>The events a notification rule can post for. The rule editor and the pipeline step offer only these.</summary>
     public static readonly IReadOnlyList<string> NotificationTriggers =
     [
-        "go_live",
+        .. NotificationTriggerCatalog.Select(trigger => trigger.Name),
+    ];
+
+    /// <summary>
+    /// Triggers older rules may already hold that no event handler raises yet. A saved rule keeps
+    /// validating, but these are never offered for a new rule.
+    /// </summary>
+    public static readonly IReadOnlyList<string> UnfiredTriggers =
+    [
         "new_clip",
         "schedule",
         "milestone",

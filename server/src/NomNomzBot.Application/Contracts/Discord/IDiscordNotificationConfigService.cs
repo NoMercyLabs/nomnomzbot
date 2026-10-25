@@ -19,6 +19,9 @@ namespace NomNomzBot.Application.Contracts.Discord;
 /// </summary>
 public interface IDiscordNotificationConfigService
 {
+    /// <summary>The events the server fires a Discord post for, with each one's placeholders.</summary>
+    Result<IReadOnlyList<DiscordNotificationTriggerDto>> GetTriggers();
+
     /// <summary>All rules for one guild connection, tenant-scoped. Read-only.</summary>
     Task<Result<IReadOnlyList<DiscordNotificationConfigDto>>> GetConfigsAsync(
         Guid broadcasterId,

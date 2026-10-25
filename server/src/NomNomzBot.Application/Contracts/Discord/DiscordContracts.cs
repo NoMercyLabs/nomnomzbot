@@ -160,6 +160,15 @@ public sealed record UpdateDiscordNotificationRoleRequest(
 
 public sealed record DiscordMemberOptInRequest(string DiscordMemberId, string Source);
 
+// ── Triggers ────────────────────────────────────────────────────────────────
+
+/// <summary>One event the server can post to Discord for, and the placeholders its message may use.</summary>
+public sealed record DiscordNotificationTriggerDto(
+    string Name,
+    string LabelKey,
+    IReadOnlyList<string> Placeholders
+);
+
 // ── Dispatch ────────────────────────────────────────────────────────────────
 
 public sealed record DiscordDispatchRequest(

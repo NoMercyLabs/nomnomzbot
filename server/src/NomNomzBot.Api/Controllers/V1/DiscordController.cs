@@ -234,6 +234,14 @@ public class DiscordController : BaseController
 
     // ── Notification configs ──────────────────────────────────────────────────
 
+    /// <summary>List the events the server can post to Discord for, with each one's message placeholders.</summary>
+    [RequireAction("discord:config:read")]
+    [HttpGet("triggers")]
+    [ProducesResponseType<StatusResponseDto<IReadOnlyList<DiscordNotificationTriggerDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public IActionResult GetTriggers(Guid channelId) => ResultResponse(_configs.GetTriggers());
+
     /// <summary>List the notification rules configured on a guild connection.</summary>
     [RequireAction("discord:config:read")]
     [HttpGet("connections/{connectionId:guid}/configs")]
