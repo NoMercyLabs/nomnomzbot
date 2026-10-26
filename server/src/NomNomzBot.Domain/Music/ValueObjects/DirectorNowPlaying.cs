@@ -66,7 +66,7 @@ public sealed record DirectorNowPlaying(
             durationMs,
             progressMs,
             isPlaying,
-            item?.RequestedBy ?? requestedBy,
+            string.IsNullOrEmpty(item?.RequestedBy) ? requestedBy : item.RequestedBy,
             level.Volume,
             level.Muted,
             state.Kind

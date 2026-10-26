@@ -260,6 +260,36 @@ public sealed class MusicStatePollingServiceTests
             .Be("viewer1");
     }
 
+    /// <summary>
+    /// The requester can be learned a poll after the track started (the request is matched once the provider
+    /// reports its uri). The overlay must then get the name, not keep "nobody" until the next track.
+    /// </summary>
+    [Fact]
+    public async Task A_requester_learned_mid_track_publishes_again()
+    {
+        (
+            MusicStatePollingService sut,
+            RecordingEventBus bus,
+            FakeMusicService music,
+            FakeTimeProvider clock,
+            RecordingInputSink _
+        ) = Build([ChannelA]);
+        music.SetResponse(ChannelA, NowPlayingState("Song A", isPlaying: true, progressMs: 1_000));
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        clock.Advance(TimeSpan.FromSeconds(5));
+        music.SetResponse(
+            ChannelA,
+            NowPlayingState("Song A", isPlaying: true, progressMs: 6_000, requestedBy: "MoehDev")
+        );
+        await sut.PollAllChannelsOnceAsync(CancellationToken.None);
+
+        bus.Published.OfType<PlaybackStateChangedEvent>()
+            .Select(e => e.RequestedBy)
+            .Should()
+            .Equal(null, "MoehDev");
+    }
+
     /// <summary>The negative half: the streamer's own track carries no requester at all — null, not "".</summary>
     [Fact]
     public async Task A_track_nobody_requested_publishes_no_requester()

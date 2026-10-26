@@ -527,7 +527,8 @@ public sealed class MusicStatePollingService : BackgroundService
                 nowPlaying.CanSeek,
                 nowPlaying.CanPause,
                 nowPlaying.CanResume,
-                nowPlaying.TrackUri
+                nowPlaying.TrackUri,
+                nowPlaying.RequestedBy
             );
 
         bool changed =
@@ -603,6 +604,11 @@ public sealed class MusicStatePollingService : BackgroundService
         if (previous.IsPlaying != next.IsPlaying)
             return true;
 
+        // The requester is matched once the provider reports the track's uri, which can be a poll after the
+        // track started: without this the overlay keeps "nobody" for the whole song.
+        if (previous.RequestedBy != next.RequestedBy)
+            return true;
+
         // A volume change (streamer's phone, hardware knob, another app) is otherwise invisible to every
         // push-driven consumer — nothing about track/play-state/seek reflects it — so it needs its own
         // explicit check rather than falling out of the checks above.
@@ -674,7 +680,8 @@ public sealed class MusicStatePollingService : BackgroundService
         bool CanSeek,
         bool CanPause,
         bool CanResume,
-        string? TrackUri
+        string? TrackUri,
+        string? RequestedBy = null
     );
 
     /// <summary>Per-channel failure backoff state, kept in memory only.</summary>

@@ -155,4 +155,33 @@ public sealed class DirectorNowPlayingTests
         empty.Volume.Should().Be(40);
         empty.Muted.Should().BeTrue();
     }
+
+    // The overlay showed no "requested by" while the dashboard named the viewer: an item holding an empty
+    // requester must not hide the requester the provider report names.
+    [Fact]
+    public void An_item_without_a_requester_keeps_the_reported_requester()
+    {
+        const string uri = "spotify:track:shape";
+        DirectorNowPlaying? shape = DirectorNowPlaying.Build(
+            PlaybackState.Playing(
+                EngineKind.Spotify,
+                ItemOf(EngineKind.Spotify, uri) with
+                {
+                    RequestedBy = string.Empty,
+                }
+            ),
+            Level,
+            "spotify",
+            uri,
+            "Shape of You",
+            "Ed Sheeran",
+            null,
+            233_000,
+            10_000,
+            true,
+            "MoehDev"
+        );
+
+        shape!.RequestedBy.Should().Be("MoehDev");
+    }
 }
