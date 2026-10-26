@@ -1,0 +1,79 @@
+{
+  "dashboard": {
+    "settings": {
+      "chatFilters": {
+        "crumb": "Moderatie",
+        "explain": "Een chatfilter controleert elk bericht op een patroon, een lijst geblokkeerde termen of een linkbeleid. Past een bericht, dan doet de bot de actie die jij kiest.",
+        "listTitle": "Jouw filters",
+        "empty": "Nog geen chatfilters.",
+        "loadError": "De chatfilters konden niet worden geladen.",
+        "new": "Nieuw filter",
+        "edit": "Bewerken",
+        "remove": "Verwijderen",
+        "save": "Filter opslaan",
+        "cancel": "Annuleren",
+        "saved": "Chatfilter opgeslagen.",
+        "saveError": "Het chatfilter kon niet worden opgeslagen: {reason}",
+        "deleteError": "Het filter {name} kon niet worden verwijderd.",
+        "testError": "De test kon niet draaien.",
+        "newTitle": "Nieuw chatfilter",
+        "editTitle": "{name} bewerken",
+        "matches": "{count} treffers",
+        "removeTitle": "{name} verwijderen?",
+        "removeDescription": "Het filter stopt meteen met de chat controleren. Het aantal treffers gaat verloren.",
+        "removeAction": "Filter verwijderen",
+        "types": {
+          "Regex": "Patroon (regex)",
+          "Blocklist": "Geblokkeerde termen",
+          "LinkPolicy": "Links"
+        },
+        "actions": {
+          "Delete": "Het bericht verwijderen",
+          "Timeout": "De persoon een time-out geven",
+          "Hold": "Vasthouden voor controle",
+          "Flag": "Markeren voor controle",
+          "Escalate": "Een stap omhoog op de escalatieladder"
+        },
+        "roles": {
+          "Subscriber": "Twitch-abonnees en hoger",
+          "Vip": "VIP's en hoger",
+          "Artist": "Artiesten en hoger",
+          "Moderator": "Moderators en hoger",
+          "LeadModerator": "Hoofdmoderators en hoger",
+          "Editor": "Editors en hoger",
+          "Broadcaster": "Alleen de broadcaster"
+        },
+        "fields": {
+          "name": "Naam",
+          "type": "Wat het controleert",
+          "pattern": "Patroon",
+          "terms": "Geblokkeerde termen, één per regel",
+          "allowedDomains": "Toegestane domeinen, één per regel",
+          "bareDomains": "Ook links zonder https vangen",
+          "bareDomainsHelp": "Ziet tekst als example.com/x als een link.",
+          "action": "Als een bericht past",
+          "timeout": "Duur van de time-out, in seconden",
+          "timeoutHelp": "Hoe lang de persoon niet kan chatten.",
+          "exempt": "Nooit filteren",
+          "caseSensitive": "Hoofd- en kleine letters apart behandelen",
+          "enabled": "Filter staat aan"
+        },
+        "problems": {
+          "name": "Geef het filter een naam.",
+          "pattern": "Vul een patroon in.",
+          "terms": "Voeg minstens één term toe.",
+          "timeout": "Gebruik een duur van minstens 1 seconde."
+        },
+        "test": {
+          "title": "Probeer het",
+          "description": "Controleer een bericht tegen dit filter voordat je opslaat. Er wordt niets opgeslagen of verstuurd.",
+          "sample": "Een voorbeeld-chatbericht",
+          "run": "Bericht proberen",
+          "match": "Dit bericht zou passen.",
+          "noMatch": "Dit bericht zou niet passen.",
+          "compileError": "Het patroon is niet geldig: {reason}"
+        }
+      }
+    }
+  }
+}

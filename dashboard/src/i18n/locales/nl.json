@@ -851,6 +851,7 @@
         "escalation": "Escalatie",
         "spamDefense": "Spamverdediging",
         "shoutouts": "Shoutouts",
+        "chatFilters": "Chatfilters",
         "automod": "AutoMod-filters",
         "blockedTerms": "Geblokkeerde termen",
         "resourceLimits": "Gebruikslimieten",

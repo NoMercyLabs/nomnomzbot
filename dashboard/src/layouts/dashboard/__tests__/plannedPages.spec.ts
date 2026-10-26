@@ -42,6 +42,7 @@ const pagesBeyondMockup: ReadonlySet<string> = new Set([
   // Discord, 2026-10-15; moved into the settings 2026-10-20.
   'dashboard-settings-discord',
   'dashboard-settings-automod',
+  'dashboard-settings-chat-filters',
   'dashboard-settings-shoutouts',
   'dashboard-settings-blocked-terms',
   'dashboard-settings-escalation',

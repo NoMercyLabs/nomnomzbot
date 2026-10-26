@@ -19,6 +19,7 @@ import { settingsAutomodRoute } from './automod/route';
 import { settingsBillingRoute } from './billing/route';
 import { settingsBlockedTermsRoute } from './blocked-terms/route';
 import { settingsChannelManagementRoute } from './channel-management/route';
+import { settingsChatFiltersRoute } from './chat-filters/route';
 import { settingsEventJournalRoute } from './event-journal/route';
 import { settingsFeaturesRoute } from './features/route';
 import { settingsFederationRoute } from './federation/route';
@@ -116,6 +117,7 @@ export const dashboardSettingsRoutes: RouteRecordRaw[] = [
   settingsSpamDefenseRoute,
   settingsShoutoutsRoute,
   settingsAutomodRoute,
+  settingsChatFiltersRoute,
   settingsBlockedTermsRoute,
   settingsEventJournalRoute,
   settingsYourDataRoute,

@@ -1,0 +1,79 @@
+{
+  "dashboard": {
+    "settings": {
+      "chatFilters": {
+        "crumb": "Moderation",
+        "explain": "A chat filter checks every message against a pattern, a list of blocked terms or a link policy. When a message matches, the bot takes the action you pick.",
+        "listTitle": "Your filters",
+        "empty": "No chat filters yet.",
+        "loadError": "The chat filters could not be loaded.",
+        "new": "New filter",
+        "edit": "Edit",
+        "remove": "Remove",
+        "save": "Save filter",
+        "cancel": "Cancel",
+        "saved": "Chat filter saved.",
+        "saveError": "The chat filter could not be saved: {reason}",
+        "deleteError": "The filter {name} could not be removed.",
+        "testError": "The test could not run.",
+        "newTitle": "New chat filter",
+        "editTitle": "Edit {name}",
+        "matches": "{count} matches",
+        "removeTitle": "Remove {name}?",
+        "removeDescription": "The filter stops checking chat at once. Its match count is lost.",
+        "removeAction": "Remove filter",
+        "types": {
+          "Regex": "Pattern (regex)",
+          "Blocklist": "Blocked terms",
+          "LinkPolicy": "Links"
+        },
+        "actions": {
+          "Delete": "Delete the message",
+          "Timeout": "Time the person out",
+          "Hold": "Hold for review",
+          "Flag": "Flag for review",
+          "Escalate": "Step up the escalation ladder"
+        },
+        "roles": {
+          "Subscriber": "Twitch subscribers and above",
+          "Vip": "VIPs and above",
+          "Artist": "Artists and above",
+          "Moderator": "Moderators and above",
+          "LeadModerator": "Lead moderators and above",
+          "Editor": "Editors and above",
+          "Broadcaster": "Only the broadcaster"
+        },
+        "fields": {
+          "name": "Name",
+          "type": "What it checks",
+          "pattern": "Pattern",
+          "terms": "Blocked terms, one per line",
+          "allowedDomains": "Allowed domains, one per line",
+          "bareDomains": "Also catch links without https",
+          "bareDomainsHelp": "Treats text like example.com/x as a link.",
+          "action": "When a message matches",
+          "timeout": "Timeout length, in seconds",
+          "timeoutHelp": "How long the person cannot chat.",
+          "exempt": "Never filter",
+          "caseSensitive": "Match upper and lower case apart",
+          "enabled": "Filter is on"
+        },
+        "problems": {
+          "name": "Give the filter a name.",
+          "pattern": "Enter a pattern.",
+          "terms": "Add at least one term.",
+          "timeout": "Use a length of at least 1 second."
+        },
+        "test": {
+          "title": "Try it",
+          "description": "Check a message against this filter before you save it. Nothing is saved or sent.",
+          "sample": "A sample chat message",
+          "run": "Try message",
+          "match": "This message would match.",
+          "noMatch": "This message would not match.",
+          "compileError": "The pattern is not valid: {reason}"
+        }
+      }
+    }
+  }
+}
