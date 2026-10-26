@@ -89,6 +89,8 @@ export const ownerActionKeys = [
   'media:read',
   'media:write',
   'moderation:automod:read',
+  'moderation:automod:twitch:manage',
+  'moderation:automod:twitch:read',
   'moderation:automod:write',
   'moderation:ban',
   'moderation:blocklist:write',

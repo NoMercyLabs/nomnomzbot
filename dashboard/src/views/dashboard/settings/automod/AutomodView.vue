@@ -29,6 +29,7 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
+import TwitchAutomodPanel from './TwitchAutomodPanel.vue';
 import {
   CAPS_RANGE,
   EMOTES_RANGE,
@@ -215,5 +216,6 @@ function submit(): void {
         </PanelCard>
       </div>
     </ReadOnlyScope>
+    <TwitchAutomodPanel v-if="can('moderation:automod:twitch:read')" />
   </PageBody>
 </template>

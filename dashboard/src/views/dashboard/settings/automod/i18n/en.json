@@ -10,6 +10,31 @@
         "loadError": "AutoMod could not be loaded.",
         "oneLine": "One entry per line.",
         "outOfRange": "Use a number from {min} to {max}.",
+        "twitch": {
+          "title": "Twitch AutoMod",
+          "description": "Twitch's own filter holds back messages that look hateful or crude, and your moderators approve or deny them. Twitch keeps these levels.",
+          "loadError": "The Twitch AutoMod levels could not be loaded.",
+          "save": "Save Twitch levels",
+          "saved": "Twitch AutoMod saved.",
+          "saveError": "Twitch AutoMod could not be saved: {reason}",
+          "levels": {
+            "0": "Off",
+            "1": "Level 1, lightest",
+            "2": "Level 2",
+            "3": "Level 3",
+            "4": "Level 4, strictest"
+          },
+          "categories": {
+            "aggression": "Aggression",
+            "bullying": "Bullying",
+            "disability": "Disability",
+            "misogyny": "Misogyny",
+            "raceEthnicityOrReligion": "Race, ethnicity or religion",
+            "sexBasedTerms": "Sex-based terms",
+            "sexualitySexOrGender": "Sexuality, sex or gender",
+            "swearing": "Swearing"
+          }
+        },
         "links": {
           "title": "Links",
           "description": "Deletes a message that holds a link. A link on the allowed list passes.",

@@ -16,6 +16,8 @@ import { computed } from 'vue';
 
 import { i18n } from '@/i18n';
 
+import OptionSelect from '@/components/layout/OptionSelect.vue';
+
 import AutomodView from '../AutomodView.vue';
 import en from '../i18n/en.json';
 
@@ -28,8 +30,22 @@ type Answer = {
 const http = vi.hoisted(() => ({
   GET: vi.fn<(path: string, init: unknown) => Promise<Answer>>(),
   POST: vi.fn<(path: string, init: { body: Record<string, unknown> }) => Promise<Answer>>(),
+  PUT: vi.fn<(path: string, init: { body: Record<string, unknown> }) => Promise<Answer>>(),
   use: (): undefined => undefined,
 }));
+
+const twitchPath = '/api/v{version}/channels/{channelId}/moderation/automod/twitch';
+
+const twitchLevels = {
+  aggression: 1,
+  bullying: 2,
+  disability: 0,
+  misogyny: 3,
+  raceEthnicityOrReligion: 4,
+  sexBasedTerms: 1,
+  sexualitySexOrGender: 2,
+  swearing: 0,
+} as const satisfies Record<string, number>;
 
 const access = vi.hoisted(() => ({ write: true }));
 
@@ -74,7 +90,18 @@ async function open(): Promise<VueWrapper> {
 beforeEach(() => {
   i18n.global.mergeLocaleMessage('en', en);
   access.write = true;
-  http.GET.mockResolvedValue({ data: { data: stored }, response: { ok: true, status: 200 } });
+
+  http.GET.mockImplementation(async (path) => ({
+    data: { data: path === twitchPath
+      ? { overallLevel: null, ...twitchLevels }
+      : stored },
+    response: { ok: true, status: 200 },
+  }));
+
+  http.PUT.mockImplementation(async (_path, init) => ({
+    data: { data: { overallLevel: null, ...init.body } },
+    response: { ok: true, status: 200 },
+  }));
 
   http.POST.mockImplementation(async (_path, init) => ({
     data: { data: init.body },
@@ -132,6 +159,41 @@ describe('AutomodView', () => {
 
     expect(page.get('[data-action="save"]').attributes('disabled')).toBeDefined();
     expect(http.POST).not.toHaveBeenCalled();
+  });
+
+  it('shows the level Twitch holds for each of the eight categories', async () => {
+    const page = await open();
+
+    const shown = page
+      .findAll('[data-category]')
+      .map((row) => [row.attributes('data-category'), row.text()]);
+
+    expect(shown).toHaveLength(8);
+
+    expect(shown.find(([category]) => category === 'raceEthnicityOrReligion')?.[1]).toContain(
+      'Level 4, strictest',
+    );
+
+    expect(shown.find(([category]) => category === 'swearing')?.[1]).toContain('Off');
+  });
+
+  it('keeps Save Twitch levels off until a level changes and sends all eight categories', async () => {
+    const page = await open();
+
+    expect(page.get('[data-action="save-twitch"]').attributes('disabled')).toBeDefined();
+
+    const row = page.get('[data-category="swearing"]');
+
+    row.findComponent(OptionSelect).vm.$emit('update:modelValue', '3');
+    await flushPromises();
+    await page.get('[data-action="save-twitch"]').trigger('click');
+    await flushPromises();
+
+    expect(http.PUT).toHaveBeenCalledWith(twitchPath, expect.objectContaining({
+      body: { ...twitchLevels, swearing: 3 },
+    }));
+
+    expect(page.get('[data-action="save-twitch"]').attributes('disabled')).toBeDefined();
   });
 
   it('is read-only without the write action', async () => {

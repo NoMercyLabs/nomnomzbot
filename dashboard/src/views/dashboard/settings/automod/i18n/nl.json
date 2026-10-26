@@ -10,6 +10,31 @@
         "loadError": "AutoMod kon niet worden geladen.",
         "oneLine": "Eén item per regel.",
         "outOfRange": "Gebruik een getal van {min} tot {max}.",
+        "twitch": {
+          "title": "Twitch AutoMod",
+          "description": "Het eigen filter van Twitch houdt berichten tegen die hatelijk of grof lijken, en je moderators keuren ze goed of af. Twitch bewaart deze niveaus.",
+          "loadError": "De Twitch AutoMod-niveaus konden niet worden geladen.",
+          "save": "Twitch-niveaus opslaan",
+          "saved": "Twitch AutoMod opgeslagen.",
+          "saveError": "Twitch AutoMod kon niet worden opgeslagen: {reason}",
+          "levels": {
+            "0": "Uit",
+            "1": "Niveau 1, mildst",
+            "2": "Niveau 2",
+            "3": "Niveau 3",
+            "4": "Niveau 4, strengst"
+          },
+          "categories": {
+            "aggression": "Agressie",
+            "bullying": "Pesten",
+            "disability": "Handicap",
+            "misogyny": "Vrouwenhaat",
+            "raceEthnicityOrReligion": "Ras, afkomst of geloof",
+            "sexBasedTerms": "Seksgerelateerde woorden",
+            "sexualitySexOrGender": "Seksualiteit, sekse of gender",
+            "swearing": "Vloeken"
+          }
+        },
         "links": {
           "title": "Links",
           "description": "Verwijdert een bericht met een link. Een link op de toegestane lijst mag wel.",

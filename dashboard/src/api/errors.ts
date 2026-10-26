@@ -358,6 +358,8 @@ export const apiOperations = {
   'spam defense policy': 'moderation',
   'save spam defense policy': 'moderation',
   automod: 'moderation',
+  'twitch automod': 'moderation',
+  'save twitch automod': 'moderation',
   'save automod': 'moderation',
   'auto shoutout': 'shoutouts',
   'save auto shoutout': 'shoutouts',
