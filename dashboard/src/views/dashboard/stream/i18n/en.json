@@ -138,7 +138,7 @@
         "confirmAction": "Start raid",
         "started": "The raid to {name} is counting down.",
         "startError": "The raid to {name} could not start.",
-        "cancelled": "The raid is cancelled.",
+        "canceled": "The raid is canceled.",
         "cancelError": "There is no raid to cancel."
       },
       "raids": {

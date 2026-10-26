@@ -74,7 +74,7 @@ function confirmRaid(): void {
 
 function stop(): void {
   cancel.mutate(undefined, {
-    onSuccess: () => toast.success(t('dashboard.stream.raidNow.cancelled')),
+    onSuccess: () => toast.success(t('dashboard.stream.raidNow.canceled')),
     onError: () => toast.error(t('dashboard.stream.raidNow.cancelError')),
   });
 }

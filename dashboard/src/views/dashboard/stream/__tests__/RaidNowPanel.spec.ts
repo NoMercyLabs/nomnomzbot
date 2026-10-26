@@ -186,7 +186,7 @@ describe('RaidNowPanel', () => {
     await flushPromises();
 
     expect(calls).toEqual([{ method: 'DELETE', path: raidsPath }]);
-    expect(toasts.success).toHaveBeenCalledWith('The raid is cancelled.');
+    expect(toasts.success).toHaveBeenCalledWith('The raid is canceled.');
   });
 
   it('tells the streamer when there is no raid to cancel', async () => {

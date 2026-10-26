@@ -17,7 +17,7 @@ import { failed } from './errors';
 const version = '1';
 
 // Sends the channel's viewers to another channel at the end of the stream. Twitch starts the raid after a short
-// countdown, so it can still be cancelled until then.
+// countdown, so it can still be canceled until then.
 export function useStartRaid(channelId: MaybeRefOrGetter<string | null>) {
   return useMutation({
     mutationFn: async (targetTwitchBroadcasterId: string): Promise<void> => {

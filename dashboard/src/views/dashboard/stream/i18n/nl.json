@@ -138,7 +138,7 @@
         "confirmAction": "Raid starten",
         "started": "De raid naar {name} telt af.",
         "startError": "De raid naar {name} kon niet starten.",
-        "cancelled": "De raid is geannuleerd.",
+        "canceled": "De raid is geannuleerd.",
         "cancelError": "Er is geen raid om te annuleren."
       },
       "raids": {
