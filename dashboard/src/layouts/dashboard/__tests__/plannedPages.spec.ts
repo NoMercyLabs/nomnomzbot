@@ -41,6 +41,7 @@ const pagesBeyondMockup: ReadonlySet<string> = new Set([
   'dashboard-sounds',
   // Discord, 2026-10-15; moved into the settings 2026-10-20.
   'dashboard-settings-discord',
+  'dashboard-settings-blocked-terms',
   'dashboard-settings-escalation',
   'dashboard-settings-spam-defense',
   'dashboard-settings-trust-policy',

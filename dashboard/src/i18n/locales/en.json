@@ -827,6 +827,7 @@
         "trustPolicy": "Trust policy",
         "escalation": "Escalation",
         "spamDefense": "Spam defense",
+        "blockedTerms": "Blocked terms",
         "resourceLimits": "Resource limits",
         "billing": "Billing",
         "yourData": "Your data",

@@ -827,6 +827,7 @@
         "trustPolicy": "Vertrouwensbeleid",
         "escalation": "Escalatie",
         "spamDefense": "Spamverdediging",
+        "blockedTerms": "Geblokkeerde termen",
         "resourceLimits": "Gebruikslimieten",
         "billing": "Facturatie",
         "yourData": "Jouw gegevens",

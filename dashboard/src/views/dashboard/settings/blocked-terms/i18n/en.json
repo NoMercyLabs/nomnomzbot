@@ -1,0 +1,20 @@
+{
+  "dashboard": {
+    "settings": {
+      "blockedTerms": {
+        "crumb": "Moderation",
+        "explain": "Words and phrases Twitch holds back from your chat. Twitch keeps this list, so what you see here is what Twitch enforces.",
+        "addTitle": "Block a word or phrase",
+        "termLabel": "Word or phrase to block",
+        "termPlaceholder": "A word or phrase",
+        "add": "Block",
+        "listTitle": "Blocked now",
+        "empty": "Nothing is blocked yet.",
+        "remove": "Unblock",
+        "loadError": "The blocked terms could not be loaded.",
+        "addError": "The term could not be blocked: {reason}",
+        "removeError": "The term could not be unblocked: {reason}"
+      }
+    }
+  }
+}

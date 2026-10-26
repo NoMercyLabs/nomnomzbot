@@ -1,0 +1,20 @@
+{
+  "dashboard": {
+    "settings": {
+      "blockedTerms": {
+        "crumb": "Moderatie",
+        "explain": "Woorden en zinnen die Twitch uit je chat houdt. Twitch bewaart deze lijst, dus wat je hier ziet is wat Twitch afdwingt.",
+        "addTitle": "Blokkeer een woord of zin",
+        "termLabel": "Woord of zin om te blokkeren",
+        "termPlaceholder": "Een woord of zin",
+        "add": "Blokkeer",
+        "listTitle": "Nu geblokkeerd",
+        "empty": "Er is nog niets geblokkeerd.",
+        "remove": "Deblokkeer",
+        "loadError": "De geblokkeerde termen konden niet worden geladen.",
+        "addError": "De term kon niet worden geblokkeerd: {reason}",
+        "removeError": "De term kon niet worden gedeblokkeerd: {reason}"
+      }
+    }
+  }
+}
