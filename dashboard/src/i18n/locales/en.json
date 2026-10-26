@@ -854,6 +854,7 @@
         "chatFilters": "Chat filters",
         "automod": "AutoMod filters",
         "blockedTerms": "Blocked terms",
+        "banned": "Banned people",
         "resourceLimits": "Resource limits",
         "billing": "Billing",
         "yourData": "Your data",

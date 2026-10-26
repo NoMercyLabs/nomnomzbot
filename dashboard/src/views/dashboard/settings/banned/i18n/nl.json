@@ -1,0 +1,16 @@
+{
+  "dashboard": {
+    "settings": {
+      "banned": {
+        "crumb": "Moderatie",
+        "explain": "Iedereen die in je kanaal is verbannen, zoals Twitch de lijst bewaart. Unban laat de persoon weer chatten. Opnieuw verbannen maakt het ongedaan.",
+        "listTitle": "Verbannen mensen",
+        "empty": "Niemand is verbannen in je kanaal.",
+        "loadError": "De verbannen mensen konden niet worden geladen.",
+        "by": "Verbannen door {name} {when}",
+        "unban": "Unban",
+        "error": "{name} kon niet worden geunbanned."
+      }
+    }
+  }
+}

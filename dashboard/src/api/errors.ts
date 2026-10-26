@@ -365,6 +365,8 @@ export const apiOperations = {
   'save auto shoutout': 'shoutouts',
   'shoutout template': 'shoutouts',
   'save shoutout template': 'shoutouts',
+  bans: 'moderation',
+  'unban from list': 'moderation',
   'chat filters': 'moderation',
   'save chat filter': 'moderation',
   'delete chat filter': 'moderation',

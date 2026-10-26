@@ -1,0 +1,16 @@
+{
+  "dashboard": {
+    "settings": {
+      "banned": {
+        "crumb": "Moderation",
+        "explain": "Everyone banned in your channel, as Twitch holds the list. Unban lets the person chat again. Banning them again undoes it.",
+        "listTitle": "Banned people",
+        "empty": "Nobody is banned in your channel.",
+        "loadError": "The banned people could not be loaded.",
+        "by": "Banned by {name} {when}",
+        "unban": "Unban",
+        "error": "{name} could not be unbanned."
+      }
+    }
+  }
+}

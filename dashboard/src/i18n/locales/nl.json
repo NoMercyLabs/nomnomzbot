@@ -854,6 +854,7 @@
         "chatFilters": "Chatfilters",
         "automod": "AutoMod-filters",
         "blockedTerms": "Geblokkeerde termen",
+        "banned": "Verbannen mensen",
         "resourceLimits": "Gebruikslimieten",
         "billing": "Facturatie",
         "yourData": "Jouw gegevens",
