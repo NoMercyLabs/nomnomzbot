@@ -66,30 +66,50 @@ export function useChatFilters(
   return channelQuery(channelId, chatFiltersKey, readFilters);
 }
 
+// Every write ends the same way: the list is read again, so the page shows what the bot now holds.
+function useRefreshFilters(channelId: MaybeRefOrGetter<string | null>): () => Promise<void> {
+  const queries = useQueryClient();
+
+  return () => queries.invalidateQueries({ queryKey: chatFiltersKey(toValue(channelId)) });
+}
+
+const onePath = '/api/v{version}/channels/{channelId}/moderation/chat-filters/{filterId}';
+
+async function putFilter(
+  channelId: string,
+  filterId: string,
+  body: components['schemas']['UpdateChatFilterRequest'],
+): Promise<void> {
+  const { error, response } = await client.PUT(onePath, {
+    params: { path: {
+      version,
+      channelId,
+      filterId,
+    } },
+    body,
+  });
+
+  if (error !== undefined)
+    throw refusal('save chat filter', error, response.status);
+}
+
 export type SaveChatFilter = { existing: ChatFilter | null; request: ChatFilterRequest };
 
 export function useSaveChatFilter(channelId: MaybeRefOrGetter<string | null>) {
-  const queries = useQueryClient();
-
   return useMutation({
     mutationFn: async ({ existing, request }: SaveChatFilter): Promise<void> => {
-      const path = { version, channelId: toValue(channelId) as string };
-      const { error, response } = existing
-        ? await client.PUT(
-            '/api/v{version}/channels/{channelId}/moderation/chat-filters/{filterId}',
-            { params: { path: { ...path, filterId: existing.id } }, body: request },
-          )
-        : await client.POST('/api/v{version}/channels/{channelId}/moderation/chat-filters', {
-            params: { path },
-            body: request,
-          });
+      if (existing)
+        return putFilter(toValue(channelId) as string, existing.id, request);
+
+      const { error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/moderation/chat-filters',
+        { params: { path: { version, channelId: toValue(channelId) as string } }, body: request },
+      );
 
       if (error !== undefined)
         throw refusal('save chat filter', error, response.status);
     },
-    onSuccess: async (): Promise<void> => {
-      await queries.invalidateQueries({ queryKey: chatFiltersKey(toValue(channelId)) });
-    },
+    onSuccess: useRefreshFilters(channelId),
   });
 }
 
@@ -97,57 +117,28 @@ export function useSaveChatFilter(channelId: MaybeRefOrGetter<string | null>) {
 export type ToggleChatFilter = { filter: ChatFilter; isEnabled: boolean };
 
 export function useToggleChatFilter(channelId: MaybeRefOrGetter<string | null>) {
-  const queries = useQueryClient();
-
   return useMutation({
-    mutationFn: async ({ filter, isEnabled }: ToggleChatFilter): Promise<void> => {
-      const { error, response } = await client.PUT(
-        '/api/v{version}/channels/{channelId}/moderation/chat-filters/{filterId}',
-        {
-          params: {
-            path: {
-              version,
-              channelId: toValue(channelId) as string,
-              filterId: filter.id,
-            },
-          },
-          body: { isEnabled },
-        },
-      );
-
-      if (error !== undefined)
-        throw refusal('save chat filter', error, response.status);
-    },
-    onSuccess: async (): Promise<void> => {
-      await queries.invalidateQueries({ queryKey: chatFiltersKey(toValue(channelId)) });
-    },
+    mutationFn: ({ filter, isEnabled }: ToggleChatFilter): Promise<void> =>
+      putFilter(toValue(channelId) as string, filter.id, { isEnabled }),
+    onSuccess: useRefreshFilters(channelId),
   });
 }
 
 export function useDeleteChatFilter(channelId: MaybeRefOrGetter<string | null>) {
-  const queries = useQueryClient();
-
   return useMutation({
     mutationFn: async (filter: ChatFilter): Promise<void> => {
-      const { error, response } = await client.DELETE(
-        '/api/v{version}/channels/{channelId}/moderation/chat-filters/{filterId}',
-        {
-          params: {
-            path: {
-              version,
-              channelId: toValue(channelId) as string,
-              filterId: filter.id,
-            },
-          },
-        },
-      );
+      const { error, response } = await client.DELETE(onePath, {
+        params: { path: {
+          version,
+          channelId: toValue(channelId) as string,
+          filterId: filter.id,
+        } },
+      });
 
       if (error !== undefined)
         throw failed('delete chat filter', response.status, error);
     },
-    onSuccess: async (): Promise<void> => {
-      await queries.invalidateQueries({ queryKey: chatFiltersKey(toValue(channelId)) });
-    },
+    onSuccess: useRefreshFilters(channelId),
   });
 }
 

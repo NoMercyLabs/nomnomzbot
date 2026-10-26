@@ -8,18 +8,13 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-  type UseQueryReturnType,
-} from '@tanstack/vue-query';
-import { computed, toValue, type MaybeRefOrGetter } from 'vue';
+import { useMutation, useQueryClient, type UseQueryReturnType } from '@tanstack/vue-query';
+import { toValue, type MaybeRefOrGetter } from 'vue';
 
 import type { KeyParts } from '@/lib/array';
 
+import { channelQuery, failed } from './channelQuery';
 import { client } from './client';
-import { failed } from './errors';
 import type { components } from './schema';
 
 // Twitch's own AutoMod: eight categories, each held at a level from 0 (off) to 4 (strictest). Twitch keeps the
@@ -65,11 +60,7 @@ async function fetchLevels(channelId: string): Promise<TwitchAutomodSettings> {
 export function useTwitchAutomod(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<TwitchAutomodSettings, Error> {
-  return useQuery({
-    queryKey: computed(() => twitchAutomodKey(toValue(channelId))),
-    queryFn: () => fetchLevels(toValue(channelId) as string),
-    enabled: computed(() => toValue(channelId) !== null),
-  });
+  return channelQuery(channelId, twitchAutomodKey, fetchLevels);
 }
 
 // Twitch takes the eight categories without an overall level, so a save sends all eight.

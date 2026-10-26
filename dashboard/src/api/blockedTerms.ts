@@ -10,17 +10,16 @@
 
 import {
   useMutation,
-  useQuery,
   useQueryClient,
   type QueryClient,
   type UseQueryReturnType,
 } from '@tanstack/vue-query';
-import { computed, toValue, type MaybeRefOrGetter } from 'vue';
+import { toValue, type MaybeRefOrGetter } from 'vue';
 
 import type { KeyParts } from '@/lib/array';
 
+import { channelQuery, failed } from './channelQuery';
 import { client } from './client';
-import { failed } from './errors';
 
 // The channel's blocked terms: Twitch holds the list, so every read is live and every write answers with the new list.
 export const blockedTermsKey = (channelId: string | null): KeyParts => [
@@ -46,11 +45,7 @@ async function fetchBlockedTerms(channelId: string): Promise<string[]> {
 export function useBlockedTerms(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<string[], Error> {
-  return useQuery({
-    queryKey: computed(() => blockedTermsKey(toValue(channelId))),
-    queryFn: () => fetchBlockedTerms(toValue(channelId) as string),
-    enabled: computed(() => toValue(channelId) !== null),
-  });
+  return channelQuery(channelId, blockedTermsKey, fetchBlockedTerms);
 }
 
 // A write answers with Twitch's new list, so the cache takes it as is.

@@ -8,18 +8,13 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import {
-  useMutation,
-  useQuery,
-  useQueryClient,
-  type UseQueryReturnType,
-} from '@tanstack/vue-query';
-import { computed, toValue, type MaybeRefOrGetter } from 'vue';
+import { useMutation, useQueryClient, type UseQueryReturnType } from '@tanstack/vue-query';
+import { toValue, type MaybeRefOrGetter } from 'vue';
 
 import type { KeyParts } from '@/lib/array';
 
+import { channelQuery, failed } from './channelQuery';
 import { client } from './client';
-import { failed } from './errors';
 import type { components } from './schema';
 
 // The channel's four built-in AutoMod filters: links, capital letters, banned phrases and emote spam. The save
@@ -49,11 +44,7 @@ async function fetchAutomod(channelId: string): Promise<AutomodConfig> {
 export function useAutomod(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<AutomodConfig, Error> {
-  return useQuery({
-    queryKey: computed(() => automodKey(toValue(channelId))),
-    queryFn: () => fetchAutomod(toValue(channelId) as string),
-    enabled: computed(() => toValue(channelId) !== null),
-  });
+  return channelQuery(channelId, automodKey, fetchAutomod);
 }
 
 export function useSaveAutomod(channelId: MaybeRefOrGetter<string | null>) {
