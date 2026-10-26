@@ -50,7 +50,7 @@ describe('the row edit and delete actions', () => {
   });
 
   it('emits edit or delete, and the click never reaches the row that holds them', async () => {
-    const rowClicks = vi.fn();
+    const rowClicks = vi.fn<() => void>();
     const Row = defineComponent({
       setup: () => () => h('div', { onClick: rowClicks }, h(RowEditDelete, {
         editLabel: 'Edit',
