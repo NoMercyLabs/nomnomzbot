@@ -165,7 +165,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
             },
             random: {
                 int: function (min, max) { return nnz.math.randomInt(min, max); },
-                pick: function (items) { return items[Math.floor(Math.random() * items.length)]; },
+                pick: function (items) { if (missing(items) || !(items.length > 0)) { throw new Error('nnz.random.pick needs a list with at least one item'); } return items[Math.floor(Math.random() * items.length)]; },
                 shuffle: function (items) { var a = items.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var tmp = a[i]; a[i] = a[j]; a[j] = tmp; } return a; },
                 uuid: function () { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; var val = c === 'x' ? r : (r & 0x3 | 0x8); return val.toString(16); }); }
             },

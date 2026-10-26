@@ -681,8 +681,10 @@ internal static class SdkRuntimeSurface
             "  /** A random whole number from min to max, both included. The ends can be in either order. Returns NaN when there is no whole number between them, for example int(1.2, 1.8). */"
         );
         sb.AppendLine("  int(min: number, max: number): number;");
-        sb.AppendLine("  /** A random item, or undefined when the list is empty. */");
-        sb.AppendLine("  pick<T>(items: readonly T[]): T | undefined;");
+        sb.AppendLine(
+            "  /** A random item of the list. An empty list stops the script with an error. */"
+        );
+        sb.AppendLine("  pick<T>(items: readonly T[]): T;");
         sb.AppendLine("  /** A shuffled copy of the list. The original list stays as it is. */");
         sb.AppendLine("  shuffle<T>(items: readonly T[]): T[];");
         sb.AppendLine("  /** A random version 4 UUID. */");

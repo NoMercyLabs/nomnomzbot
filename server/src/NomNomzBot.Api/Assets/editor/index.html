@@ -41,6 +41,10 @@
                 <span class="sr-only" data-i18n="problems">Problems</span>
                 <span class="activity-badge" id="activityProblemBadge" hidden></span>
             </button>
+            <button type="button" class="activity-item" data-view="sdk" data-i18n-title="sdkTooltip" title="SDK reference (Ctrl+Shift+K)">
+                <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 4.5c-2 0-2.5 1-2.5 2.5v2.5c0 1.5-1 2.5-2 2.5 1 0 2 1 2 2.5V17c0 1.5.5 2.5 2.5 2.5"/><path d="M16 4.5c2 0 2.5 1 2.5 2.5v2.5c0 1.5 1 2.5 2 2.5-1 0-2 1-2 2.5V17c0 1.5-.5 2.5-2.5 2.5"/></svg>
+                <span class="sr-only" data-i18n="sdk">SDK reference</span>
+            </button>
             <button type="button" class="activity-item" data-view="run" data-i18n-title="runAndTestTooltip" title="Run &amp; test (Ctrl+Shift+D)">
                 <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M7 4.5v15l12-7.5z"/></svg>
                 <span class="sr-only" data-i18n="runAndTest">Run &amp; test</span>
@@ -80,6 +84,17 @@
                     <h2 class="section-label" data-i18n="problems">Problems</h2>
                 </div>
                 <ul class="problem-list" id="problemsSidebar"></ul>
+            </section>
+
+            <section class="view" data-view="sdk" hidden>
+                <div class="view-head">
+                    <h2 class="section-label" data-i18n="sdk">SDK reference</h2>
+                </div>
+                <div class="view-body">
+                    <input type="search" class="field" id="sdkFilter" data-i18n-placeholder="sdkFilter" placeholder="Filter calls" data-i18n-aria="sdkFilter" aria-label="Filter calls">
+                    <p class="view-hint" data-i18n="sdkHint">Click a call to put it in your code.</p>
+                    <div class="sdk-tree" id="sdkTree"></div>
+                </div>
             </section>
 
             <section class="view" data-view="run" hidden>

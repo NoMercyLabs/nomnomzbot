@@ -21,6 +21,7 @@ import { createEventTabs } from './event-data-tabs.js';
 import { editedSample, joinSampleFiles, splitSampleFiles } from './event-sample-files.js';
 import { initPreview } from './preview.js';
 import { createVueScriptModels, isHiddenScriptResource } from './vue-script-model.js';
+import { buildSdkReference, filterSdkReference, insertTextFor } from './sdk-reference.js';
 
 const HOST_MESSAGE = Object.freeze({
     open: 'nnz:editor:open',
@@ -120,6 +121,8 @@ const dom = {
     sidebarSplitter: document.getElementById('sidebarSplitter'),
     searchInput: document.getElementById('searchInput'),
     searchResults: document.getElementById('searchResults'),
+    sdkFilter: document.getElementById('sdkFilter'),
+    sdkTree: document.getElementById('sdkTree'),
     problemsSidebar: document.getElementById('problemsSidebar'),
     activityProblemBadge: document.getElementById('activityProblemBadge'),
     runTest: document.getElementById('runTest'),
@@ -147,6 +150,7 @@ const dom = {
 };
 
 const state = {
+    sdkReference: [],
     files: new Map(),
     entry: '',
     active: '',
@@ -198,6 +202,11 @@ const DEFAULT_LABELS = Object.freeze({
     history: 'History',
     historyTooltip: 'History (Ctrl+Shift+H)',
     bundle: 'Bundle',
+    sdk: 'SDK reference',
+    sdkTooltip: 'SDK reference (Ctrl+Shift+K)',
+    sdkFilter: 'Filter calls',
+    sdkHint: 'Click a call to put it in your code.',
+    sdkEmpty: 'The SDK list is not available. Reopen this file to try again.',
     newFile: 'New file',
     searchInFiles: 'Search in files',
     runInSandbox: 'Run in sandbox',
@@ -1066,6 +1075,69 @@ function showView(name) {
     }
     if (name === 'search') dom.searchInput.focus();
     if (name === 'problems') renderProblemsSidebar();
+    if (name === 'sdk') {
+        renderSdkReference();
+        dom.sdkFilter.focus();
+    }
+}
+
+// The SDK view: every global, namespace and call the editor type-checks against (sdk-reference.js).
+function renderSdkReference() {
+    const tree = filterSdkReference(state.sdkReference, dom.sdkFilter.value);
+    if (tree.length === 0) {
+        const empty = document.createElement('p');
+        empty.className = 'view-hint';
+        empty.textContent = state.sdkReference.length === 0 ? t('sdkEmpty') : t('noMatches');
+        dom.sdkTree.replaceChildren(empty);
+        return;
+    }
+    // A filter opens every branch so each hit is in view; without one only the roots start open.
+    const filtering = dom.sdkFilter.value.trim().length > 0;
+    dom.sdkTree.replaceChildren(...tree.map((node) => sdkNode(node, filtering, true)));
+}
+
+function sdkNode(node, filtering, root) {
+    if (node.kind !== 'namespace') return sdkCall(node);
+    const group = document.createElement('details');
+    group.className = 'sdk-group';
+    group.open = filtering || root;
+    const summary = document.createElement('summary');
+    summary.className = 'sdk-summary';
+    summary.textContent = node.path;
+    if (node.doc) summary.title = node.doc;
+    group.append(summary, ...node.children.map((child) => sdkNode(child, filtering, false)));
+    return group;
+}
+
+function sdkCall(node) {
+    const button = document.createElement('button');
+    button.type = 'button';
+    button.className = 'sdk-call';
+    button.title = node.signatures.join('\n');
+    button.addEventListener('click', () => insertSdkCall(node));
+    const name = document.createElement('code');
+    name.className = 'sdk-signature';
+    name.textContent = node.signatures[0];
+    button.append(name);
+    if (node.doc) {
+        const doc = document.createElement('span');
+        doc.className = 'sdk-doc';
+        doc.textContent = node.doc;
+        button.append(doc);
+    }
+    return button;
+}
+
+// Replaces the selection with the call; a call's cursor lands between its parentheses.
+function insertSdkCall(node) {
+    const editor = state.editor;
+    if (!editor) return;
+    const text = insertTextFor(node);
+    const selection = editor.getSelection();
+    editor.executeEdits('nnz-sdk', [{ range: selection, text, forceMoveMarkers: true }]);
+    const end = editor.getPosition();
+    if (node.kind === 'method') editor.setPosition({ lineNumber: end.lineNumber, column: end.column - 1 });
+    editor.focus();
 }
 
 function renderProblemsSidebar() {
@@ -1169,6 +1241,8 @@ const THEMES = Object.freeze([
     { id: 'nnz-monokai', labelId: 'themeMonokai' },
 ]);
 
+// The theme a viewer gets until they pick one.
+const DEFAULT_THEME = 'nnz-atom-one-dark';
 const THEME_STORAGE_KEY = 'nnz.editor.theme';
 const WRAP_STORAGE_KEY = 'nnz.editor.wrap';
 const MINIMAP_STORAGE_KEY = 'nnz.editor.minimap';
@@ -1332,9 +1406,9 @@ function applyTheme(id) {
 
 function storedTheme() {
     try {
-        return localStorage.getItem(THEME_STORAGE_KEY) ?? 'vs-dark';
+        return localStorage.getItem(THEME_STORAGE_KEY) ?? DEFAULT_THEME;
     } catch {
-        return 'vs-dark';
+        return DEFAULT_THEME;
     }
 }
 
@@ -1362,6 +1436,7 @@ const VIEW_LABEL = Object.freeze({
     explorer: 'explorer',
     search: 'search',
     problems: 'problems',
+    sdk: 'sdk',
     run: 'runAndTest',
     history: 'history',
     bundle: 'bundle',
@@ -1383,6 +1458,7 @@ function commands() {
             'explorer',
             'search',
             'problems',
+            'sdk',
             'run',
             // Only offered once the host actually wired an EditorHistory — matches the hidden activity item.
             ...(dom.historyActivityItem.hidden ? [] : ['history']),
@@ -1906,6 +1982,7 @@ async function open(payload) {
     setPreviewCollapsed(state.preview.mode === 'note');
 
     dom.sdkTypesNotice.hidden = !payload.sdkTypesUnavailable;
+    state.sdkReference = buildSdkReference(payload.sdkTypes ?? '');
 
     const monaco = await loadMonaco();
     state.monaco = monaco;
@@ -2004,6 +2081,7 @@ function wireChrome() {
         button.addEventListener('click', () => showView(button.dataset.view));
     }
     dom.searchInput.addEventListener('input', () => runSearch(dom.searchInput.value));
+    dom.sdkFilter.addEventListener('input', renderSdkReference);
 
     dom.toastUndo.addEventListener('click', () => {
         const undo = toastUndoAction;
@@ -2077,6 +2155,9 @@ function wireChrome() {
         } else if (meta && event.shiftKey && event.key.toLowerCase() === 'm') {
             event.preventDefault();
             showView('problems');
+        } else if (meta && event.shiftKey && event.key.toLowerCase() === 'k') {
+            event.preventDefault();
+            showView('sdk');
         } else if (meta && event.shiftKey && event.key.toLowerCase() === 'd') {
             event.preventDefault();
             showView('run');
