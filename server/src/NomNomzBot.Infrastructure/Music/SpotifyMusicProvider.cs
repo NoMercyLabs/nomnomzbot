@@ -395,23 +395,22 @@ public sealed class SpotifyMusicProvider
             );
             return ([], MusicProviderFailureReason.Unavailable);
         }
-        if (response.StatusCode is HttpStatusCode.Unauthorized or HttpStatusCode.Forbidden)
+        if (response.StatusCode == HttpStatusCode.Unauthorized)
         {
-            _logger.LogWarning(
-                "Spotify search failed for {BroadcasterId}: {Status}",
-                broadcasterId,
-                response.StatusCode
-            );
+            _logger.LogWarning("Spotify search failed for {BroadcasterId}: 401", broadcasterId);
             return ([], MusicProviderFailureReason.NotConnected);
         }
         if (response.StatusCode == HttpStatusCode.TooManyRequests)
             return ([], MusicProviderFailureReason.RateLimited);
         if (!response.IsSuccessStatusCode)
         {
+            // A 403 is Spotify refusing this call while the token itself works (a link still queues), so it is
+            // never "reconnect". Spotify's own reason is logged so the refusal can be named.
             _logger.LogWarning(
-                "Spotify search failed for {BroadcasterId}: {Status}",
+                "Spotify search failed for {BroadcasterId}: {Status} {Body}",
                 broadcasterId,
-                response.StatusCode
+                response.StatusCode,
+                await response.Content.ReadAsStringAsync(cancellationToken)
             );
             return ([], MusicProviderFailureReason.Unavailable);
         }

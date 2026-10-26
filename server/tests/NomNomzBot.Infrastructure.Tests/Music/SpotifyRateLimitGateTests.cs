@@ -77,6 +77,28 @@ public sealed class SpotifyRateLimitGateTests
         until.Should().BeCloseTo(Now + TimeSpan.FromSeconds(120), TimeSpan.FromSeconds(2));
     }
 
+    /// <summary>
+    /// Live 2026-10-26: Spotify answered 403 to a text search while the same token queued a link fine, and
+    /// chat said "the music connection needs a reconnect". A 403 is a refusal, not a dead token.
+    /// </summary>
+    [Fact]
+    public async Task A_refused_search_is_not_reported_as_a_dead_connection()
+    {
+        (
+            MusicProviderManageApi _,
+            SpotifyMusicProvider spotify,
+            SpotifyRateLimitCooldowns _,
+            RecordingHttpHandler handler
+        ) = Build();
+        handler.RespondWhen(_ => true, HttpStatusCode.Forbidden, new Dictionary<string, string>());
+
+        (IReadOnlyList<TrackInfo> tracks, MusicProviderFailureReason failure) =
+            await spotify.SearchAsync(ChannelId, "because i got high");
+
+        tracks.Should().BeEmpty();
+        failure.Should().Be(MusicProviderFailureReason.Unavailable);
+    }
+
     [Fact]
     public async Task A_search_during_the_cooldown_reports_rate_limited_and_sends_nothing()
     {
