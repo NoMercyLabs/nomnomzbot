@@ -50,6 +50,7 @@ export const settingsNav: readonly NavGroup[] = [
       { ...navEntry('dashboard-settings-bot-basics', 'settingsPages.botBasics', SettingsFader), bottom: true },
       navEntry('dashboard-settings-bot-personality', 'settingsPages.botPersonality', ChatLove),
       navEntry('dashboard-settings-engagement-triggers', 'settingsPages.engagementTriggers', Sparkles),
+      navEntry('dashboard-settings-shoutouts', 'settingsPages.shoutouts', ChatLove),
       navEntry('dashboard-settings-white-label-bot', 'settingsPages.whiteLabelBot', ChatBot),
       navEntry('dashboard-settings-features', 'settingsPages.features', ToggleOn),
     ],

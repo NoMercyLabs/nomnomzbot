@@ -39,8 +39,10 @@ const calls: Call[] = [];
 let optIns: Body[] = [];
 let held: string[] = [];
 let accepts = false;
+let massBanAccepts = false;
 
 const networkPath = '/api/v{version}/channels/{channelId}/moderation/network-block-opt-in';
+const massBanPath = '/api/v{version}/channels/{channelId}/moderation/mass-ban-opt-in';
 
 const ok = (data: unknown): Answer => ({ data: { data }, response: { status: 200, ok: true } });
 
@@ -63,6 +65,9 @@ vi.mock('@/api/client', () => ({
       if (path === networkPath)
         return ok({ accepts });
 
+      if (path === massBanPath)
+        return ok({ accepts: massBanAccepts });
+
       return path === accessPath
         ? ok({ heldActionKeys: held })
         : ok(optIns);
@@ -77,6 +82,12 @@ vi.mock('@/api/client', () => ({
 
       if (path === networkPath) {
         accepts = (options.body as { accepts: boolean }).accepts;
+
+        return { response: { status: 204, ok: true } };
+      }
+
+      if (path === massBanPath) {
+        massBanAccepts = (options.body as { accepts: boolean }).accepts;
 
         return { response: { status: 204, ok: true } };
       }
@@ -104,6 +115,7 @@ let mounted: VueWrapper | null = null;
 beforeEach(() => {
   calls.length = 0;
   accepts = false;
+  massBanAccepts = false;
   held = ['federation:optin:read', 'federation:optin:write', 'federation:optin:delete'];
 
   optIns = [
@@ -342,6 +354,37 @@ describe('Network block opt-in card', () => {
 
     expect(card().querySelector('button[role="switch"]')).toBeNull();
     expect(card().querySelector('[data-slot="enabled-state"]')?.getAttribute('data-state')).toBe('off');
+  });
+});
+
+describe('Moderator mass ban opt-in card', () => {
+  const card = (): HTMLElement => q('[data-view="mass-ban-opt-in"]');
+  const cardSwitch = (): HTMLButtonElement => card().querySelector('button[role="switch"]') as HTMLButtonElement;
+  const massBanPuts = (): Call[] => calls.filter((call) => call.method === 'PUT' && call.path === massBanPath);
+
+  it('shows the stored answer with no write until the switch moves', async () => {
+    held = [...held, 'moderation:massban:optout'];
+    massBanAccepts = true;
+    await open();
+
+    expect(cardSwitch().getAttribute('data-state')).toBe('checked');
+    expect(massBanPuts()).toEqual([]);
+  });
+
+  it('puts the new answer for this channel and shows what the bot stored after the refetch', async () => {
+    held = [...held, 'moderation:massban:optout'];
+    await open();
+    await click(cardSwitch());
+
+    expect(massBanPuts().map((call) => call.body)).toEqual([{ accepts: true }]);
+    expect(massBanPuts()[0]?.params).toEqual({ path: { version: '1', channelId: 'c1' } });
+    expect(cardSwitch().getAttribute('data-state')).toBe('checked');
+  });
+
+  it('gives a person without the broadcaster key a read-only state and no switch', async () => {
+    await open();
+
+    expect(card().querySelector('button[role="switch"]')).toBeNull();
   });
 });
 

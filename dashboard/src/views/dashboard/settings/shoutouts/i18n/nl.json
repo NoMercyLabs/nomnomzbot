@@ -1,0 +1,26 @@
+{
+  "dashboard": {
+    "settings": {
+      "shoutouts": {
+        "crumb": "Betrokkenheid",
+        "saved": "Shoutout-bericht opgeslagen.",
+        "auto": {
+          "title": "Automatische shoutouts",
+          "description": "De bot kan een bekende streamer voor je shoutouten.",
+          "label": "Een bekende streamer automatisch shoutouten",
+          "help": "Bij hun eerste chatbericht van een stream, zodra de stream 10 minuten oud is. Standaard uit.",
+          "loadError": "De keuze voor automatische shoutouts kon niet worden geladen."
+        },
+        "message": {
+          "title": "Shoutout-bericht",
+          "description": "Wat de bot in de chat aankondigt bij elke shoutout. Laat het leeg voor het ingebouwde bericht.",
+          "label": "Bericht",
+          "placeholder": "Ga {'{'}target.displayname{'}'} volgen!",
+          "save": "Opslaan",
+          "useDefault": "Standaard gebruiken",
+          "loadError": "Het shoutout-bericht kon niet worden geladen."
+        }
+      }
+    }
+  }
+}

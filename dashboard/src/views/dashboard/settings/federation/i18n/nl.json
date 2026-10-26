@@ -32,6 +32,14 @@
           "description": "Deze keuzes noemen één bot-installatie in plaats van alle vertrouwde.",
           "disable": "Zet deze keuze uit"
         },
+        "massBan": {
+          "title": "Massabans van moderators",
+          "description": "Een moderator kan een lijst accounts bannen in elk kanaal dat hij modereert. Hier bepaal je of dat ook jouw kanaal bereikt.",
+          "loadFailed": "De keuze voor massabans kon niet worden geladen.",
+          "label": "Massabans van moderators accepteren",
+          "hint": "Staat dit aan, dan bant een massaban van een van je moderators die accounts ook in dit kanaal. Alleen jij kunt dit veranderen.",
+          "switch": "Accepteren"
+        },
         "networkBlock": {
           "title": "Netwerkblokkades",
           "description": "Een netwerkblokkade van een beheerder kan een bekende lastpost op elk kanaal van dit netwerk bannen. Het staat uit tot je het hier aanzet.",

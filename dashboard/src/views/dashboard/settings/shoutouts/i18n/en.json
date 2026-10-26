@@ -1,0 +1,26 @@
+{
+  "dashboard": {
+    "settings": {
+      "shoutouts": {
+        "crumb": "Engagement",
+        "saved": "Shoutout message saved.",
+        "auto": {
+          "title": "Automatic shoutouts",
+          "description": "The bot can shout out a known streamer for you.",
+          "label": "Shout out a known streamer automatically",
+          "help": "On their first chat of a stream, once the stream is 10 minutes old. Off by default.",
+          "loadError": "The automatic shoutout choice could not be loaded."
+        },
+        "message": {
+          "title": "Shoutout message",
+          "description": "What the bot announces in chat for every shoutout. Leave it empty to use the built-in message.",
+          "label": "Message",
+          "placeholder": "Go follow {'{'}target.displayname{'}'}!",
+          "save": "Save",
+          "useDefault": "Use the default",
+          "loadError": "The shoutout message could not be loaded."
+        }
+      }
+    }
+  }
+}

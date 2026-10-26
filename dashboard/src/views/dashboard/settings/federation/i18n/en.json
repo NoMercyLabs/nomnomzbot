@@ -32,6 +32,14 @@
           "description": "These choices name a single bot instance instead of every trusted one.",
           "disable": "Turn this choice off"
         },
+        "massBan": {
+          "title": "Moderator mass bans",
+          "description": "A moderator can ban a list of accounts in every channel they moderate. This decides whether that also reaches your channel.",
+          "loadFailed": "The mass ban choice could not be loaded.",
+          "label": "Accept moderator mass bans",
+          "hint": "When on, a mass ban from one of your moderators also bans its accounts in this channel. Only you can change this.",
+          "switch": "Accept"
+        },
         "networkBlock": {
           "title": "Network blocks",
           "description": "An admin network block can ban a known bad actor on every channel of this network. It is off until you turn it on here.",

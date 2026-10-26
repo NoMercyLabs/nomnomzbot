@@ -54,7 +54,6 @@ export const crudBaseline: Record<string, readonly string[]> = {
     'PUT /channels/{channelId}/moderation/actions/mass-ban/opt-ins/{broadcasterLogin}',
     'DELETE /channels/{channelId}/moderation/actions/mass-ban/opt-ins/{broadcasterLogin}',
   ],
-  'moderation/auto-shoutout': ['PUT /channels/{channelId}/moderation/auto-shoutout'],
   'moderation/automod/twitch': ['PUT /channels/{channelId}/moderation/automod/twitch'],
   'moderation/bans': ['DELETE /channels/{channelId}/moderation/bans/{userId}'],
   'moderation/blocked-terms/all-moderated': [
@@ -66,7 +65,6 @@ export const crudBaseline: Record<string, readonly string[]> = {
     'PUT /channels/{channelId}/moderation/chat-filters/{filterId}',
     'DELETE /channels/{channelId}/moderation/chat-filters/{filterId}',
   ],
-  'moderation/mass-ban-opt-in': ['PUT /channels/{channelId}/moderation/mass-ban-opt-in'],
   'moderation/nuke': ['POST /channels/{channelId}/moderation/nuke'],
   'moderation/reports': [
     'POST /channels/{channelId}/moderation/reports',
@@ -82,7 +80,6 @@ export const crudBaseline: Record<string, readonly string[]> = {
     'POST /channels/{channelId}/moderation/shared-bans/trusted',
     'DELETE /channels/{channelId}/moderation/shared-bans/trusted/{trustedChannelId}',
   ],
-  'moderation/shoutout-template': ['PUT /channels/{channelId}/moderation/shoutout-template'],
   'music/queue': ['POST /channels/{channelId}/music/queue'],
   'music/repeat': ['PATCH /channels/{channelId}/music/repeat'],
   'music/shuffle': ['PATCH /channels/{channelId}/music/shuffle'],

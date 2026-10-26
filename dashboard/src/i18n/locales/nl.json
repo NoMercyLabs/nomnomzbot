@@ -850,6 +850,7 @@
         "trustPolicy": "Vertrouwensbeleid",
         "escalation": "Escalatie",
         "spamDefense": "Spamverdediging",
+        "shoutouts": "Shoutouts",
         "automod": "AutoMod-filters",
         "blockedTerms": "Geblokkeerde termen",
         "resourceLimits": "Gebruikslimieten",
