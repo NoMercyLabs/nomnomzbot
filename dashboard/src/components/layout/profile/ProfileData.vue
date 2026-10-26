@@ -12,12 +12,17 @@
 // uses for them, their command use, the quotes about them and any free-form data the channel saved.
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
+import { toast } from 'vue-sonner';
 
-import { teamRoles } from '@/api/permissions';
+import { useChannelAccess } from '@/api/access';
+import { useRevokePermit } from '@/api/permits';
+import { teamRoleOf, teamRoles } from '@/api/permissions';
 import type { PersonProfile } from '@/api/people';
 import KeyValueList from '@/components/layout/KeyValueList.vue';
 import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import ProfileShoutoutLine from '@/components/layout/profile/ProfileShoutoutLine.vue';
+import { Button } from '@/components/ui/button';
+import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { shortDate } from '@/lib/time';
 
 type Quote = PersonProfile['recentQuotes'][number];
@@ -81,6 +86,33 @@ function permitText(permit: Permit): string {
 
 const permits = computed<Permit[]>(() => props.profile.permits.activePermits);
 
+// A revoked permit can be issued again, so the button has no confirm.
+const { channelId } = useCurrentChannel();
+const revoke = useRevokePermit(channelId);
+const access = useChannelAccess(channelId);
+const canIssue = computed<boolean>(() => access.can('permit:issue'));
+
+// The bot matches a permit by the role's name or the action's key.
+function grantOf(permit: Permit): string {
+  return permit.grantType === ROLE_GRANT
+    ? teamRoleOf(permit.grantedRole ?? 0)
+    : (permit.capabilityActionKey ?? '');
+}
+
+function revokeOne(permit: Permit): void {
+  revoke.mutate(
+    {
+      userId: permit.userId,
+      grants: grantOf(permit),
+      twitchUserId: props.twitchUserId,
+    },
+    {
+      onSuccess: () => toast.success(t('profile.data.permitRevoked', { name: props.name })),
+      onError: () => toast.error(t('profile.data.permitRevokeFailed', { name: props.name })),
+    },
+  );
+}
+
 const lines = computed<KeyValueItem[]>(() => [
   { label: t('profile.data.ttsVoice'), value: props.profile.overrides.ttsVoice?.voiceId },
 ]);
@@ -117,11 +149,23 @@ const moreQuotes = computed<number>(
           {{ $t("profile.data.noPermits") }}
         </p>
         <ul v-else data-profile-permits class="grid gap-1 text-sm">
-          <li v-for="permit in permits" :key="permit.id" class="grid">
-            <span>{{ permitText(permit) }}</span>
-            <span v-if="permit.reason" class="text-xs text-muted-foreground">{{
-              permit.reason
-            }}</span>
+          <li v-for="permit in permits" :key="permit.id" class="flex items-center gap-2">
+            <span class="grid min-w-0 flex-1">
+              <span>{{ permitText(permit) }}</span>
+              <span v-if="permit.reason" class="text-xs text-muted-foreground">{{
+                permit.reason
+              }}</span>
+            </span>
+            <Button
+              v-if="canIssue"
+              variant="outline"
+              size="sm"
+              :data-permit-revoke="permit.id"
+              :disabled="revoke.isPending.value"
+              @click="revokeOne(permit)"
+            >
+              {{ $t("profile.data.permitRevoke") }}
+            </Button>
           </li>
         </ul>
       </section>

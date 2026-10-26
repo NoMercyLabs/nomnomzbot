@@ -395,7 +395,7 @@ export function useDeleteNote(
 }
 
 // A moderation action changes the person's record, profile and place in every list.
-function personChanged(queries: QueryClient, channelId: string, userId: string): void {
+export function personChanged(queries: QueryClient, channelId: string, userId: string): void {
   void queries.invalidateQueries({ queryKey: memberKey(channelId, userId) });
   void queries.invalidateQueries({ queryKey: viewerProfilesKey(channelId) });
   void queries.invalidateQueries({ queryKey: communityListsKey(channelId) });

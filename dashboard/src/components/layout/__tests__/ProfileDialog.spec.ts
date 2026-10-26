@@ -487,6 +487,7 @@ const channelEmotes = [
 ];
 
 type Options = { params?: Record<string, unknown>; body?: unknown };
+type PermitRow = { capabilityActionKey?: string; grantedRole: number | null };
 
 function record(path: string, options: Options | undefined): void {
   calls.push({
@@ -673,6 +674,20 @@ vi.mock('@/api/client', () => ({
     }),
     DELETE: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
       record(path, options);
+
+      if (path.endsWith('/permits/{userId}')) {
+        const query = options?.params?.query as Record<string, unknown> | undefined;
+        const grants = String(query?.actionKeyOrRole);
+        const permits = profiles.g1!.permits as { activePermits: PermitRow[] };
+        const roles = ['Moderator', 'LeadModerator'];
+        const left = permits.activePermits.filter(
+          (permit) => (permit.capabilityActionKey ?? roles[Number(permit.grantedRole)]) !== grants,
+        );
+
+        profiles.g1 = { ...profiles.g1, permits: { ...permits, activePermits: left } };
+
+        return { response: { ok: true, status: 204 } };
+      }
 
       if (path.endsWith('/shoutout-overrides/{targetTwitchUserId}')) {
         profiles.g1 = {
@@ -1104,6 +1119,89 @@ describe('the profile dialog', () => {
       'Lead moderator role, until Oct 20, 2026Raid night',
       'May use moderation:timeout',
     ]);
+  });
+
+  describe('revoking a permit', () => {
+    const grant = {
+      userId: 'g1',
+      grantedByUserId: 'g9',
+      revokedAt: null,
+      createdAt: '2026-10-01T10:00:00Z',
+      reason: null,
+      expiresAt: null,
+    };
+
+    function twoPermits(): void {
+      profiles.g1!.permits = {
+        ageConsentGranted: null,
+        ageConsentConfirmedUtc: null,
+        activePermits: [
+          {
+            ...grant,
+            id: 'p1',
+            grantType: 0,
+            grantedRole: 1,
+          },
+          {
+            ...grant,
+            id: 'p2',
+            grantType: 1,
+            grantedRole: null,
+            capabilityActionKey: 'moderation:timeout',
+          },
+        ],
+      };
+    }
+
+    function revokes(): Call[] {
+      return calls.filter((c) => c.path.endsWith('/permits/{userId}'));
+    }
+
+    it('revokes one permit by the role name or action key and shows the shorter list', async () => {
+      twoPermits();
+      held = [...held, 'permit:issue'];
+
+      await openPage();
+      await openUser('u1');
+      await openTab('Data');
+
+      button('[data-permit-revoke="p2"]').click();
+      await settle();
+
+      expect(revokes().map((c) => c.params)).toEqual([
+        { path: {
+          version: '1',
+          channelId: 'c1',
+          userId: 'g1',
+        }, query: { actionKeyOrRole: 'moderation:timeout' } },
+      ]);
+
+      const lines = Array.from(document.body.querySelectorAll('[data-profile-permits] li')).map(
+        (line) => line.textContent?.trim(),
+      );
+
+      expect(lines).toEqual(['Lead moderator roleRevoke']);
+
+      button('[data-permit-revoke="p1"]').click();
+      await settle();
+
+      const sent = revokes().map((c) => c.params?.query as { actionKeyOrRole: string });
+
+      expect(sent.map((query) => query.actionKeyOrRole)).toEqual([
+        'moderation:timeout',
+        'LeadModerator',
+      ]);
+    });
+
+    it('offers no revoke button without the permit right', async () => {
+      twoPermits();
+
+      await openPage();
+      await openUser('u1');
+      await openTab('Data');
+
+      expect(document.body.querySelector('[data-permit-revoke]')).toBeNull();
+    });
   });
 
   it('lists the ban history of a banned person on the Moderation tab', async () => {
