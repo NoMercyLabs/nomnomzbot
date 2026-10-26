@@ -183,7 +183,7 @@ public sealed class OfflineRewardSwitchTests
 
         await h
             .Twitch.DidNotReceiveWithAnyArgs()
-            .UpdateCustomRewardAsync(default, default!, default!, default);
+            .UpdateCustomRewardAsync(default, default!, default!);
         (await RowAsync(h, "tw-hand")).DisabledForOffline.Should().BeFalse();
         (await RowAsync(h, "tw-foreign")).IsEnabled.Should().BeTrue();
         (await RowAsync(h, "tw-foreign")).DisabledForOffline.Should().BeFalse();
@@ -225,7 +225,7 @@ public sealed class OfflineRewardSwitchTests
 
         await h
             .Twitch.DidNotReceiveWithAnyArgs()
-            .UpdateCustomRewardAsync(default, default!, default!, default);
+            .UpdateCustomRewardAsync(default, default!, default!);
         Reward row = await RowAsync(h, "tw-a");
         row.IsEnabled.Should().BeTrue();
         row.DisabledForOffline.Should().BeFalse();
@@ -337,10 +337,10 @@ public sealed class OfflineRewardSwitchTests
 
         await stillOff
             .Twitch.DidNotReceiveWithAnyArgs()
-            .UpdateCustomRewardAsync(default, default!, default!, default);
+            .UpdateCustomRewardAsync(default, default!, default!);
         await live
             .Twitch.DidNotReceiveWithAnyArgs()
-            .UpdateCustomRewardAsync(default, default!, default!, default);
+            .UpdateCustomRewardAsync(default, default!, default!);
         (await RowAsync(stillOff, "tw-marked")).DisabledForOffline.Should().BeTrue();
     }
 

@@ -110,6 +110,12 @@ public class MessageNormalizerTests
     [InlineData("(づ｡◕‿‿◕｡)づ")]
     [InlineData("ヽ(♥‿♥)ノ")]
     [InlineData("★彡 gg 彡★")]
+    [InlineData("(✖╭╮✖)")]
+    [InlineData("( ͡° ͜ʖ ͡°)")]
+    [InlineData("(ノ°∀°)ノ⌒･*:.｡. .｡.:*･゜ﾟ･*☆")]
+    [InlineData("(⊙_☉)")]
+    [InlineData("(￣▽￣)ノ")]
+    [InlineData("ᕦ(ò_óˇ)ᕤ")]
     public void KaomojiFromTheSameKeyboard_IsNeverFlaggedAsAbuse(string kaomoji)
     {
         NormalizedMessage result = MessageNormalizer.Normalize(kaomoji);

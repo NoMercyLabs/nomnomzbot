@@ -312,10 +312,30 @@ public static class MessageNormalizer
             if (IsEmojiVariationSelector(text, i) || IsEmojiTagCharacter(text, i))
                 continue;
 
+            if (!isFormat && !MarkSitsOnLetter(text, i))
+                continue;
+
             return true;
         }
 
         return false;
+    }
+
+    /// <summary>
+    /// True when the combining mark at <paramref name="index"/> is drawn on a letter or digit. Zalgo hides a
+    /// word under marks stacked on its letters; a kaomoji such as <c>( ͡° ͜ʖ ͡°)</c> draws its marks on spaces
+    /// and punctuation, which hides nothing.
+    /// </summary>
+    private static bool MarkSitsOnLetter(string text, int index)
+    {
+        int baseIndex = index - 1;
+        while (
+            baseIndex >= 0
+            && CharUnicodeInfo.GetUnicodeCategory(text[baseIndex]) == UnicodeCategory.NonSpacingMark
+        )
+            baseIndex--;
+
+        return baseIndex >= 0 && char.IsLetterOrDigit(text[baseIndex]);
     }
 
     /// <summary>

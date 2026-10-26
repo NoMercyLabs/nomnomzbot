@@ -22,8 +22,6 @@ namespace NomNomzBot.Infrastructure.Chat;
 public static class OfflineCommandGate
 {
     public static bool Blocks(ChannelContext channel, ChatMessageReceivedEvent chat) =>
-        !channel.KeepActiveWhileOffline
-        && !channel.IsLive
-        && !chat.IsBroadcaster
-        && !chat.IsModerator;
+        channel is { KeepActiveWhileOffline: false, IsLive: false }
+        && chat is { IsBroadcaster: false, IsModerator: false };
 }
