@@ -124,6 +124,23 @@
         "deleteSeries": "Elke week van dit terugkerende onderdeel wordt verwijderd.",
         "deleteAction": "Onderdeel verwijderen"
       },
+      "raidNow": {
+        "title": "Een kanaal raiden",
+        "description": "Stuur je kijkers naar een ander kanaal. Twitch telt af voordat de raid begint, en tot dan kun je annuleren.",
+        "channelLabel": "Kanaal om te raiden",
+        "channelPlaceholder": "Kanaalnaam",
+        "raid": "Raiden",
+        "cancel": "Raid annuleren",
+        "notFound": "Twitch heeft geen kanaal met de naam \"{login}\".",
+        "lookupError": "Twitch kon niet worden gevraagd. Probeer het opnieuw.",
+        "confirmTitle": "{name} raiden?",
+        "confirmDescription": "Je kijkers gaan naar dit kanaal als de afteltijd om is, en je stream eindigt voor hen. Raid annuleren stopt het tot dan.",
+        "confirmAction": "Raid starten",
+        "started": "De raid naar {name} telt af.",
+        "startError": "De raid naar {name} kon niet starten.",
+        "cancelled": "De raid is geannuleerd.",
+        "cancelError": "Er is geen raid om te annuleren."
+      },
       "raids": {
         "title": "Raidregels",
         "description": "Hoe de bot kanalen rangschikt om te raiden. Jouw regels, alleen voor dit kanaal.",

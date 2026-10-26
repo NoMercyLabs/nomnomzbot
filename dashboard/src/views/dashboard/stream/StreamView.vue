@@ -30,6 +30,7 @@ import CommercialPanel from './CommercialPanel.vue';
 import GoLiveChecklist from './GoLiveChecklist.vue';
 import { formatDuration } from './formatDuration';
 import PlatformRows from './PlatformRows.vue';
+import RaidNowPanel from './RaidNowPanel.vue';
 import RaidRulesPanel from './RaidRulesPanel.vue';
 import SchedulePanel from './SchedulePanel.vue';
 import StreamInfoPanel from './StreamInfoPanel.vue';
@@ -114,7 +115,7 @@ const panels = computed(() => [
   </PageHeader>
 
   <div v-if="shown === 'schedule'" data-page-body class="min-h-0 flex-1 overflow-y-auto p-4"><SchedulePanel /></div>
-  <div v-else-if="shown === 'raids'" data-page-body class="min-h-0 flex-1 overflow-y-auto p-4"><RaidRulesPanel /></div>
+  <div v-else-if="shown === 'raids'" data-page-body class="min-h-0 flex-1 overflow-y-auto p-4"><RaidNowPanel /><RaidRulesPanel /></div>
   <div v-else-if="shown === 'ads'" data-page-body class="min-h-0 flex-1 overflow-y-auto p-4"><CommercialPanel /></div>
   <BoardGrid v-else-if="shown === 'overview'" :panels="panels" :rows="2">
     <BoardCell v-if="can('stream:read')" panel="info" :span="8" :rows="2"><StreamInfoPanel /></BoardCell>

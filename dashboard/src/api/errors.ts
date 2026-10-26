@@ -366,6 +366,8 @@ export const apiOperations = {
   'shoutout template': 'shoutouts',
   'save shoutout template': 'shoutouts',
   'revoke permit': 'people',
+  'start raid': 'liveOps',
+  'cancel raid': 'liveOps',
   bans: 'moderation',
   'unban from list': 'moderation',
   'chat filters': 'moderation',

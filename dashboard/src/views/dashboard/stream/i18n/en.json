@@ -124,6 +124,23 @@
         "deleteSeries": "Every week of this repeating segment is removed.",
         "deleteAction": "Delete segment"
       },
+      "raidNow": {
+        "title": "Raid a channel",
+        "description": "Send your viewers to another channel. Twitch counts down before the raid begins, and you can cancel until then.",
+        "channelLabel": "Channel to raid",
+        "channelPlaceholder": "Channel name",
+        "raid": "Raid",
+        "cancel": "Cancel raid",
+        "notFound": "Twitch has no channel named \"{login}\".",
+        "lookupError": "Twitch could not be asked. Try again.",
+        "confirmTitle": "Raid {name}?",
+        "confirmDescription": "Your viewers go to this channel when the countdown ends, and your stream ends for them. Cancel raid stops it until then.",
+        "confirmAction": "Start raid",
+        "started": "The raid to {name} is counting down.",
+        "startError": "The raid to {name} could not start.",
+        "cancelled": "The raid is cancelled.",
+        "cancelError": "There is no raid to cancel."
+      },
       "raids": {
         "title": "Raid rules",
         "description": "How the bot ranks channels to raid. Your rules, only for this channel.",

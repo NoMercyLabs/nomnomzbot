@@ -22,7 +22,6 @@ export const crudBaseline: Record<string, readonly string[]> = {
   channels: ['POST /channels', 'PUT /channels/{channelId}'],
   'chat-polls': ['POST /channels/{channelId}/chat-polls'],
   'code-scripts/versions': ['POST /code-scripts/{id}/versions'],
-  'community/trust': ['PUT /channels/{channelId}/community/{userId}/trust'],
   'compliance/erasure': ['POST /compliance/erasure'],
   'economy/games/consent': [
     'POST /channels/{channelId}/economy/games/consent',
@@ -40,7 +39,6 @@ export const crudBaseline: Record<string, readonly string[]> = {
     'POST /federation/peers/{peerId}/keys',
     'DELETE /federation/peers/{peerId}/keys/{keyId}',
   ],
-  'live-ops/raids': ['DELETE /channels/{channelId}/live-ops/raids'],
   'marketplace/publisher-token': [
     'PUT /channels/{channelId}/marketplace/publisher-token',
     'DELETE /channels/{channelId}/marketplace/publisher-token',

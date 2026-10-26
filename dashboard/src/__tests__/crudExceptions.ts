@@ -33,6 +33,12 @@ export const crudExceptions = {
     'PATCH /channels/{channelId}/stream/tags':
       'One-field twin of the PUT /stream route (api/stream.ts useSaveStreamInfo) that saves title, category and tags together.',
   },
+  'community/trust': {
+    'PUT /channels/{channelId}/community/{userId}/trust':
+      'Writes a free-text label under the trust:{userId} key that only the community detail reads back; ' +
+      'nothing enforces it (grep of server/src finds no other reader). Real trust is the trust policy page, ' +
+      'so an editor here would show a setting that does nothing.',
+  },
   'chat/settings': {
     'PATCH /channels/{channelId}/chat/settings':
       'Partial-update twin of the PUT route the dashboard calls for the same edit.',
