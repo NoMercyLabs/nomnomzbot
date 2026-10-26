@@ -237,10 +237,7 @@ public static class DependencyInjection
         // IEventBus is the JournalingEventBusDecorator over the concrete EventBus: every publish is captured to
         // the event store journal and post-commit hooks fire before delegation to live handlers (event-store §7).
         services.AddSingleton<EventLogger>();
-        services.AddSingleton<
-            Application.Contracts.Twitch.IChannelOnboardingGate,
-            ChannelOnboardingGate
-        >();
+        services.AddSingleton<IChannelOnboardingGate, ChannelOnboardingGate>();
         services.AddSingleton<EventBus>();
         services.AddSingleton<IEventBus>(sp => new EventStore.JournalingEventBusDecorator(
             sp.GetRequiredService<EventBus>(),
@@ -1161,9 +1158,9 @@ public static class DependencyInjection
         services.AddScoped<IBindingUsageSource, Rewards.RewardBindingUsageSource>();
         services.AddScoped<IBindingUsageSource, Giveaways.GiveawayBindingUsageSource>();
         services.AddScoped<IBindingUsageSource, Economy.CatalogItemBindingUsageSource>();
-        services.AddScoped<IBindingUsageSource, Commands.TimerBindingUsageSource>();
-        services.AddScoped<IBindingUsageSource, Commands.ChatTriggerBindingUsageSource>();
-        services.AddScoped<IBindingUsageSource, Commands.ScheduledTaskBindingUsageSource>();
+        services.AddScoped<IBindingUsageSource, TimerBindingUsageSource>();
+        services.AddScoped<IBindingUsageSource, ChatTriggerBindingUsageSource>();
+        services.AddScoped<IBindingUsageSource, ScheduledTaskBindingUsageSource>();
 
         // Identity / tenant — HttpContext accessor + UnitOfWork are framework/infra, kept explicit.
         // The I<X>Service impls (ICurrentTenantService, IChannelAccessService, ICurrentUserService,
@@ -1309,6 +1306,8 @@ public static class DependencyInjection
         // Legacy parity (S068c): !bansong (mod+, blocks the playing track) and !whisper (mod+, DMs
         // a viewer) — both reuse existing domain capability (IBlockedTrackService, IPlatformDirectMessageSender).
         services.AddScoped<IBuiltinCommand, Commands.Builtins.BanSongBuiltin>();
+        // !wrongsong on every channel: runs the song_wrong action as the viewer who typed it.
+        services.AddScoped<IBuiltinCommand, Commands.Builtins.WrongSongBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.CloseQueueBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.OpenQueueBuiltin>();
         services.AddScoped<IBuiltinCommand, Commands.Builtins.ClearSongsBuiltin>();

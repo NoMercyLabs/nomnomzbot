@@ -406,6 +406,10 @@
           "description": "Someone asks what !whisper does.",
           "label": "Help for !whisper"
         },
+        "linewrongsong": {
+          "description": "Someone asks what !wrongsong does.",
+          "label": "Help for !wrongsong"
+        },
         "nodescription": {
           "description": "Someone asks for help with a command that has no description.",
           "label": "No help text"

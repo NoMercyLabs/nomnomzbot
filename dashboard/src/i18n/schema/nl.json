@@ -406,6 +406,10 @@
           "description": "Iemand vraagt wat !whisper doet.",
           "label": "Uitleg over !whisper"
         },
+        "linewrongsong": {
+          "description": "Iemand vraagt wat !wrongsong doet.",
+          "label": "Uitleg over !wrongsong"
+        },
         "nodescription": {
           "description": "Iemand vraagt om hulp bij een commando zonder beschrijving.",
           "label": "Geen uitleg"

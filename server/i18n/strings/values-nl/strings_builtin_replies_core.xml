@@ -76,6 +76,8 @@
     <string name="builtin_reply_help_lineresume_description">Iemand vraagt wat !resume doet.</string>
     <string name="builtin_reply_help_linewhisper_label">Uitleg over !whisper</string>
     <string name="builtin_reply_help_linewhisper_description">Iemand vraagt wat !whisper doet.</string>
+    <string name="builtin_reply_help_linewrongsong_label">Uitleg over !wrongsong</string>
+    <string name="builtin_reply_help_linewrongsong_description">Iemand vraagt wat !wrongsong doet.</string>
     <string name="builtin_reply_lurk_lurking_label">Nu aan het lurken</string>
     <string name="builtin_reply_lurk_lurking_description">Een kijker zegt dat ze gaan lurken.</string>
     <string name="builtin_reply_lurk_notlurking_label">Terug van lurken</string>

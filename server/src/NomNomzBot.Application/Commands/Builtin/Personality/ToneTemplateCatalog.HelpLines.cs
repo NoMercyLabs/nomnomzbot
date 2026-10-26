@@ -47,6 +47,7 @@ public static partial class ToneTemplateCatalog
             ("voice", "languages | get <lang> | set <voice> | current — Manage your TTS voice."),
             ("volume", "[0-100] — (Mod) Gets or sets the music volume."),
             ("whisper", "<text> — Whispers your message dramatically."),
+            ("wrongsong", "[code | number] — Takes back your own song request."),
         ];
 
     private static void AddHelpLineSlots(Dictionary<(string, string), SlotEntry> catalog)

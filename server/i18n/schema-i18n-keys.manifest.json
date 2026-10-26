@@ -188,6 +188,8 @@
     "builtin.reply.help.linevolume.label",
     "builtin.reply.help.linewhisper.description",
     "builtin.reply.help.linewhisper.label",
+    "builtin.reply.help.linewrongsong.description",
+    "builtin.reply.help.linewrongsong.label",
     "builtin.reply.help.nodescription.description",
     "builtin.reply.help.nodescription.label",
     "builtin.reply.help.unknown.description",
