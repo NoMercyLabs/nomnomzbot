@@ -23,6 +23,27 @@ internal static class PollAlertMapper
 {
     public static IReadOnlyList<PollChoiceDto> MapChoices(IReadOnlyList<PollChoice> choices) =>
         [.. choices.Select(c => new PollChoiceDto(c.Id, c.Title, c.Votes, c.ChannelPointsVotes))];
+
+    public static PollBeganAlertDto Began(PollBeganEvent @event) =>
+        new(
+            @event.PollId,
+            @event.Title,
+            MapChoices(@event.Choices),
+            @event.DurationSeconds,
+            @event.EndsAt
+        );
+
+    public static PollProgressAlertDto Progress(PollProgressEvent @event) =>
+        new(@event.PollId, @event.Title, MapChoices(@event.Choices), @event.EndsAt);
+
+    public static PollEndedAlertDto Ended(PollEndedEvent @event) =>
+        new(
+            @event.PollId,
+            @event.Title,
+            @event.Status,
+            MapChoices(@event.Choices),
+            @event.WinningChoiceId
+        );
 }
 
 /// <summary>Broadcasts a poll opening (<c>channel.poll.begin</c>) to dashboard clients AND, identically, to
@@ -55,13 +76,7 @@ public sealed class PollBeganBroadcastHandler : IEventHandler<PollBeganEvent>
         if (@event.BroadcasterId == Guid.Empty)
             return;
 
-        PollBeganAlertDto dto = new(
-            @event.PollId,
-            @event.Title,
-            PollAlertMapper.MapChoices(@event.Choices),
-            @event.DurationSeconds,
-            @event.EndsAt
-        );
+        PollBeganAlertDto dto = PollAlertMapper.Began(@event);
 
         await _notifier.NotifyChannelAsync(@event.BroadcasterId.ToString(), "poll_begin", dto, ct);
 
@@ -110,12 +125,7 @@ public sealed class PollProgressBroadcastHandler : IEventHandler<PollProgressEve
         if (@event.BroadcasterId == Guid.Empty)
             return;
 
-        PollProgressAlertDto dto = new(
-            @event.PollId,
-            @event.Title,
-            PollAlertMapper.MapChoices(@event.Choices),
-            @event.EndsAt
-        );
+        PollProgressAlertDto dto = PollAlertMapper.Progress(@event);
 
         await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
@@ -169,13 +179,7 @@ public sealed class PollEndedBroadcastHandler : IEventHandler<PollEndedEvent>
         if (@event.BroadcasterId == Guid.Empty)
             return;
 
-        PollEndedAlertDto dto = new(
-            @event.PollId,
-            @event.Title,
-            @event.Status,
-            PollAlertMapper.MapChoices(@event.Choices),
-            @event.WinningChoiceId
-        );
+        PollEndedAlertDto dto = PollAlertMapper.Ended(@event);
 
         await _notifier.NotifyChannelAsync(@event.BroadcasterId.ToString(), "poll_end", dto, ct);
 

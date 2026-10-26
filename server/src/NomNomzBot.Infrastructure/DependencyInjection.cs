@@ -548,8 +548,12 @@ public static class DependencyInjection
             Application.Widgets.Services.IWidgetSeedProvider,
             Widgets.LuckyFeatherSeedProvider
         >();
+        services.AddScoped<
+            Application.Widgets.Services.IWidgetSeedProvider,
+            Widgets.RecentFollowersSeedProvider
+        >();
         // One seed provider class serves both live-game overlays; each registration is keyed by its widget natural key.
-        foreach (string gameWidgetKey in new[] { "raffle", "heist", "crash" })
+        foreach (string gameWidgetKey in new[] { "raffle", "heist", "crash", "drop_game" })
             services.AddScoped<Application.Widgets.Services.IWidgetSeedProvider>(
                 sp => new Games.LiveGameSeedProvider(
                     gameWidgetKey,

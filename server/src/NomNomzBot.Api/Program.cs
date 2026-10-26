@@ -205,6 +205,20 @@ try
         sp => sp.GetRequiredService<OverlayPresenceRegistry>()
     );
     builder.Services.AddSingleton<IOverlayConnectionThrottle, OverlayConnectionThrottle>();
+    // Join-time state for the widgets whose render shape lives in the Api (the hub's chat DTO).
+    builder.Services.AddScoped<
+        NomNomzBot.Application.Widgets.Services.IWidgetSeedProvider,
+        ChatBoxSeedProvider
+    >();
+    builder.Services.AddScoped<
+        NomNomzBot.Application.Widgets.Services.IWidgetSeedProvider,
+        MediaShareSeedProvider
+    >();
+    builder.Services.AddSingleton<PollPredictionStateStore>();
+    builder.Services.AddScoped<
+        NomNomzBot.Application.Widgets.Services.IWidgetSeedProvider,
+        PollPredictionSeedProvider
+    >();
 
     // Hub notifiers
     builder.Services.AddScoped<IDashboardNotifier, DashboardNotifier>();

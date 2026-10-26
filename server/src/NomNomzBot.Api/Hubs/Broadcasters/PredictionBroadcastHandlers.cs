@@ -33,6 +33,30 @@ internal static class PredictionAlertMapper
                 o.Color
             )),
         ];
+
+    public static PredictionBeganAlertDto Began(PredictionBeganEvent @event) =>
+        new(
+            @event.PredictionId,
+            @event.Title,
+            MapOutcomes(@event.Outcomes),
+            @event.WindowSeconds,
+            @event.LocksAt
+        );
+
+    public static PredictionProgressAlertDto Progress(PredictionProgressEvent @event) =>
+        new(@event.PredictionId, @event.Title, MapOutcomes(@event.Outcomes), @event.LocksAt);
+
+    public static PredictionLockedAlertDto Locked(PredictionLockedEvent @event) =>
+        new(@event.PredictionId, @event.Title, MapOutcomes(@event.Outcomes));
+
+    public static PredictionEndedAlertDto Ended(PredictionEndedEvent @event) =>
+        new(
+            @event.PredictionId,
+            @event.Title,
+            @event.Status,
+            MapOutcomes(@event.Outcomes),
+            @event.WinningOutcomeId
+        );
 }
 
 /// <summary>Broadcasts a prediction opening (<c>channel.prediction.begin</c>) to dashboard clients AND,
@@ -65,13 +89,7 @@ public sealed class PredictionBeganBroadcastHandler : IEventHandler<PredictionBe
         if (@event.BroadcasterId == Guid.Empty)
             return;
 
-        PredictionBeganAlertDto dto = new(
-            @event.PredictionId,
-            @event.Title,
-            PredictionAlertMapper.MapOutcomes(@event.Outcomes),
-            @event.WindowSeconds,
-            @event.LocksAt
-        );
+        PredictionBeganAlertDto dto = PredictionAlertMapper.Began(@event);
 
         await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
@@ -125,12 +143,7 @@ public sealed class PredictionProgressBroadcastHandler : IEventHandler<Predictio
         if (@event.BroadcasterId == Guid.Empty)
             return;
 
-        PredictionProgressAlertDto dto = new(
-            @event.PredictionId,
-            @event.Title,
-            PredictionAlertMapper.MapOutcomes(@event.Outcomes),
-            @event.LocksAt
-        );
+        PredictionProgressAlertDto dto = PredictionAlertMapper.Progress(@event);
 
         await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
@@ -184,11 +197,7 @@ public sealed class PredictionLockedBroadcastHandler : IEventHandler<PredictionL
         if (@event.BroadcasterId == Guid.Empty)
             return;
 
-        PredictionLockedAlertDto dto = new(
-            @event.PredictionId,
-            @event.Title,
-            PredictionAlertMapper.MapOutcomes(@event.Outcomes)
-        );
+        PredictionLockedAlertDto dto = PredictionAlertMapper.Locked(@event);
 
         await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
@@ -242,13 +251,7 @@ public sealed class PredictionEndedBroadcastHandler : IEventHandler<PredictionEn
         if (@event.BroadcasterId == Guid.Empty)
             return;
 
-        PredictionEndedAlertDto dto = new(
-            @event.PredictionId,
-            @event.Title,
-            @event.Status,
-            PredictionAlertMapper.MapOutcomes(@event.Outcomes),
-            @event.WinningOutcomeId
-        );
+        PredictionEndedAlertDto dto = PredictionAlertMapper.Ended(@event);
 
         await _notifier.NotifyChannelAsync(
             @event.BroadcasterId.ToString(),
