@@ -14,6 +14,7 @@ using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Infrastructure.Platform.Templating;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -50,7 +51,12 @@ public sealed class TemplatesControllerTests
         ICurrentTenantService tenant = Substitute.For<ICurrentTenantService>();
         tenant.BroadcasterId.Returns(Channel);
 
-        return new TemplatesController(renderer, user, tenant);
+        return new TemplatesController(
+            renderer,
+            TemplateHelperRegistryAggregate.LegacyOnly,
+            user,
+            tenant
+        );
     }
 
     /// <summary>

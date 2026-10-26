@@ -48,9 +48,24 @@ public sealed record TemplateHelperEntry(
     /// <summary>A plain, realistic example value for this helper, shown in the variable picker.</summary>
     public string Sample { get; init; } = string.Empty;
 
-    /// <summary>True when <paramref name="placeholderKey"/> (already trimmed, no braces) matches this entry.</summary>
+    /// <summary>Older keys that resolve to this entry (catalog section 2, rule 5). An alias is never removed.</summary>
+    public IReadOnlyList<string> Aliases { get; init; } = [];
+
+    /// <summary>The provider's fetch group: entries with the same source share one fetch per render. Null: no fetch.</summary>
+    public string? Source { get; init; }
+
+    /// <summary>How fresh the value is. The as-built rows keep the default: they fetch on each render.</summary>
+    public TemplateHelperFreshness Freshness { get; init; } = TemplateHelperFreshness.Live;
+
+    /// <summary>Whose data the helper reads.</summary>
+    public TemplateHelperScope Scope { get; init; } = TemplateHelperScope.Channel;
+
+    /// <summary>True when <paramref name="placeholderKey"/> (already trimmed, no braces) matches this entry or one of its aliases.</summary>
     public bool Matches(string placeholderKey)
     {
+        if (Aliases.Contains(placeholderKey, StringComparer.OrdinalIgnoreCase))
+            return true;
+
         if (Prefix is not null)
             return placeholderKey.Length > Prefix.Length
                 && placeholderKey.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase);

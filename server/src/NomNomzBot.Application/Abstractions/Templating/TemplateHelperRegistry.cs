@@ -123,16 +123,22 @@ public static class TemplateHelperRegistry
     public static IReadOnlyList<TemplateHelperEntry> ForContext(
         TemplateHelperContext context,
         string eventType
+    ) => ForEvent(ForContext(context), eventType);
+
+    /// <summary>
+    /// Narrows <paramref name="entries"/> to what one EventSub event seeds: an <see cref="TemplateHelperEntry.EventScoped"/>
+    /// entry stays only when the event's preset lists it. An unknown event type throws <see cref="ArgumentException"/>.
+    /// </summary>
+    public static IReadOnlyList<TemplateHelperEntry> ForEvent(
+        IEnumerable<TemplateHelperEntry> entries,
+        string eventType
     )
     {
         EventResponsePresetDto preset =
             EventResponsePresetCatalog.Presets.FirstOrDefault(p => p.EventType == eventType)
             ?? throw new ArgumentException($"Unknown event type '{eventType}'.", nameof(eventType));
 
-        return
-        [
-            .. ForContext(context).Where(e => !e.EventScoped || preset.Variables.Any(e.Matches)),
-        ];
+        return [.. entries.Where(e => !e.EventScoped || preset.Variables.Any(e.Matches))];
     }
 
     private static TemplateHelperEntry Literal(

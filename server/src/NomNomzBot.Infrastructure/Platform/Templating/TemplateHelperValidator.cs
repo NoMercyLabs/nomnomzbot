@@ -8,25 +8,26 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Text.RegularExpressions;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Infrastructure.Platform.Templating.Parsing;
+using NomNomzBot.Infrastructure.Platform.Templating.Rendering;
 
 namespace NomNomzBot.Infrastructure.Platform.Templating;
 
 /// <summary>
-/// Save-time implementation of <see cref="ITemplateHelperValidator"/> (S042) — extracts every
-/// <c>{{helper}}</c> placeholder from the template with the SAME pattern <see cref="TemplateResolver"/>
-/// uses to find them, then checks each against <see cref="TemplateHelperRegistry"/> for the given
+/// Save-time implementation of <see cref="ITemplateHelperValidator"/> (S042) — parses the template with the
+/// SAME <see cref="TemplateParser"/> <see cref="TemplateResolver"/> uses, takes every innermost token, then
+/// checks each against the injected <see cref="ITemplateHelperRegistry"/> for the given
 /// context. A key valid in another context (e.g. <c>args.1</c> saved on an event response) or unknown
 /// entirely (a typo) is rejected by name, with the nearest valid key suggested when one is close.
 /// </summary>
-public sealed partial class TemplateHelperValidator : ITemplateHelperValidator
+public sealed class TemplateHelperValidator(ITemplateHelperRegistry registry)
+    : ITemplateHelperValidator
 {
-    // Mirrors TemplateResolver's own VariablePattern exactly — a single-brace placeholder with no nested
-    // braces (the same shape TemplateResolver.ExtractPlaceholders scans for).
-    [GeneratedRegex(@"\{([^{}]+)\}")]
-    private static partial Regex PlaceholderPattern();
+    /// <summary>A validator that knows the as-built helpers only (no provider).</summary>
+    public TemplateHelperValidator()
+        : this(TemplateHelperRegistryAggregate.LegacyOnly) { }
 
     public Result Validate(string? template, TemplateHelperContext context) =>
         Validate(template, context, []);
@@ -40,19 +41,28 @@ public sealed partial class TemplateHelperValidator : ITemplateHelperValidator
         if (string.IsNullOrEmpty(template))
             return Result.Success();
 
-        IReadOnlyList<TemplateHelperEntry> validForContext = TemplateHelperRegistry.ForContext(
-            context
-        );
+        IReadOnlyList<TemplateHelperEntry> validForContext = registry.ForContext(context);
 
+        // The innermost tokens: the ones the resolver knows before it renders (same as the resolver's fetch).
         List<string> unknownKeys = [];
-        foreach (Match match in PlaceholderPattern().Matches(template))
+        foreach (
+            PlaceholderNode node in TemplateTree.StaticPlaceholders(TemplateParser.Parse(template))
+        )
         {
-            string key = match.Groups[1].Value.Trim();
+            RenderedToken token = RenderedToken.FromStatic(node);
+            string key = token.Content.Trim();
             if (key.Length == 0)
                 continue;
 
+            // A provider's helper is valid by its key alone; its arguments are its own business.
+            string helperKey = token.Key.Trim();
+            bool providerHelper =
+                registry.ProviderFor(helperKey) is not null
+                && validForContext.Any(entry => entry.Matches(helperKey));
+
             bool valid =
-                extraKeys.Contains(key, StringComparer.OrdinalIgnoreCase)
+                providerHelper
+                || extraKeys.Contains(key, StringComparer.OrdinalIgnoreCase)
                 || validForContext.Any(entry => entry.Matches(key));
             if (!valid && !unknownKeys.Contains(key, StringComparer.OrdinalIgnoreCase))
                 unknownKeys.Add(key);

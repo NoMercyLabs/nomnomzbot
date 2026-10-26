@@ -280,7 +280,11 @@ public sealed partial class TemplateHelperCoverageTests
 
     private static HashSet<string> ExtractResolverLiterals()
     {
-        string source = File.ReadAllText(ResolveResolverSourcePath());
+        string source = string.Concat(
+            ResolverSourceRelativePaths.Select(relative =>
+                File.ReadAllText(ResolveSourcePath(relative))
+            )
+        );
         HashSet<string> literals = new(StringComparer.Ordinal);
 
         foreach (Match m in TryAddPattern().Matches(source))
@@ -326,10 +330,15 @@ public sealed partial class TemplateHelperCoverageTests
         return literals;
     }
 
-    private static string ResolveResolverSourcePath()
+    // The thin resolver dispatches; the as-built helper keys live in LegacyTemplateHelpers. Both are scanned.
+    private static readonly string[] ResolverSourceRelativePaths =
+    [
+        "server/src/NomNomzBot.Infrastructure/Platform/Templating/TemplateResolver.cs",
+        "server/src/NomNomzBot.Infrastructure/Platform/Templating/Helpers/Legacy/LegacyTemplateHelpers.cs",
+    ];
+
+    private static string ResolveSourcePath(string relative)
     {
-        const string relative =
-            "server/src/NomNomzBot.Infrastructure/Platform/Templating/TemplateResolver.cs";
         DirectoryInfo? dir = new(AppContext.BaseDirectory);
         while (dir is not null)
         {
