@@ -38,4 +38,39 @@ public sealed class LifecycleEventResponseDefaultsTests
         row.Message.Should().BeNull();
         row.SpeakWithTts.Should().BeFalse();
     }
+
+    [Fact]
+    public async Task A_fresh_seed_ships_the_stream_start_wish_on_without_a_message()
+    {
+        await using SeedTestDbContext db = SeedTestDbContext.New();
+
+        await new PlatformEventResponseDefaultsSeeder(db).SeedAsync();
+
+        PlatformEventResponseDefault row = await db.PlatformEventResponseDefaults.SingleAsync(d =>
+            d.EventType == "stream.online"
+        );
+        row.IsEnabled.Should().BeTrue();
+        row.Message.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task An_untouched_stream_start_row_is_turned_on_and_an_admin_edited_one_is_left_alone()
+    {
+        await using SeedTestDbContext db = SeedTestDbContext.New();
+        db.PlatformEventResponseDefaults.Add(new() { EventType = "stream.online" });
+        await db.SaveChangesAsync();
+
+        await new PlatformEventResponseDefaultsSeeder(db).SeedAsync();
+        PlatformEventResponseDefault row = await db.PlatformEventResponseDefaults.SingleAsync(d =>
+            d.EventType == "stream.online"
+        );
+        row.IsEnabled.Should().BeTrue();
+
+        row.IsEnabled = false;
+        row.UpdatedByUserId = Guid.NewGuid();
+        await db.SaveChangesAsync();
+        await new PlatformEventResponseDefaultsSeeder(db).SeedAsync();
+
+        row.IsEnabled.Should().BeFalse("an admin turned it off on purpose");
+    }
 }

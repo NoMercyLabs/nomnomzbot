@@ -36,7 +36,8 @@ public sealed partial class EventResponseToneCatalogTests
     {
         EventResponseToneCatalog
             .EventTypes.Should()
-            .HaveCount(17)
+            .HaveCount(18)
+            .And.Contain("stream.online")
             .And.Contain("channel.poll.end")
             .And.Contain("channel.ban")
             .And.Contain("channel.unban")
@@ -135,9 +136,9 @@ public sealed partial class EventResponseToneCatalogTests
     [Fact]
     public void An_event_outside_the_catalogue_has_no_lines_and_nothing_to_pick()
     {
-        EventResponseToneCatalog.Get(PersonalityTone.Sassy, "stream.online").Should().BeEmpty();
-        EventResponseToneCatalog.Pick(PersonalityTone.Sassy, "stream.online").Should().BeNull();
-        EventResponseToneCatalog.FirstInformative("stream.online").Should().BeNull();
+        EventResponseToneCatalog.Get(PersonalityTone.Sassy, "stream.offline").Should().BeEmpty();
+        EventResponseToneCatalog.Pick(PersonalityTone.Sassy, "stream.offline").Should().BeNull();
+        EventResponseToneCatalog.FirstInformative("stream.offline").Should().BeNull();
     }
 
     [Fact]

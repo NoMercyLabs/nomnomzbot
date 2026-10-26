@@ -476,6 +476,7 @@ public sealed class EventResponseToneTests
                         "channel.ad_break.upcoming",
                         "channel.ad_break.begin",
                         "channel.ad_break.end",
+                        "stream.online",
                     ])
                     .ToList()
             );

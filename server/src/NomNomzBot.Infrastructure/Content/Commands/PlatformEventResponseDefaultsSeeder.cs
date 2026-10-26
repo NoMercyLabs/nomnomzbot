@@ -70,6 +70,14 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
         "channel.ad_break.end",
     };
 
+    /// <summary>The going-live wish to the streamer; the tone catalogue speaks it.</summary>
+    internal static readonly IReadOnlySet<string> StreamStartLines = new HashSet<string>(
+        StringComparer.Ordinal
+    )
+    {
+        "stream.online",
+    };
+
     /// <summary>The types that also speak their line through TTS by default: the old bot spoke a gifted-sub recipient's line, like the sub line.</summary>
     internal static readonly IReadOnlySet<string> SpokenByDefault = new HashSet<string>(
         StringComparer.Ordinal
@@ -80,7 +88,11 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
 
     /// <summary>The types that ship ON: the legacy alerts, the poll result, the moderation notices and the ad breaks, which the old bot also announced.</summary>
     internal static readonly HashSet<string> EnabledByDefault = new(
-        LegacyMessages.Keys.Append("channel.poll.end").Concat(ModerationLines).Concat(AdBreakLines),
+        LegacyMessages
+            .Keys.Append("channel.poll.end")
+            .Concat(ModerationLines)
+            .Concat(AdBreakLines)
+            .Concat(StreamStartLines),
         StringComparer.Ordinal
     );
 
@@ -100,8 +112,11 @@ public sealed class PlatformEventResponseDefaultsSeeder(IApplicationDbContext db
                 row.Message = null;
 
             if (
-                (ModerationLines.Contains(row.EventType) || AdBreakLines.Contains(row.EventType))
-                && row is { IsEnabled: false, Message: null, UpdatedByUserId: null }
+                (
+                    ModerationLines.Contains(row.EventType)
+                    || AdBreakLines.Contains(row.EventType)
+                    || StreamStartLines.Contains(row.EventType)
+                ) && row is { IsEnabled: false, Message: null, UpdatedByUserId: null }
             )
                 row.IsEnabled = true;
 

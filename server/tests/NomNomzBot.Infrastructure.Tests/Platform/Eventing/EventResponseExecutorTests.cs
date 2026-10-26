@@ -348,8 +348,8 @@ public sealed class EventResponseExecutorTests
             IPipelineEngine engine,
             _
         ) = Build();
-        // stream.online has no tone lines, so a blank own row has nothing to pick (a follow would speak its tone).
-        await SeedResponseAsync(db, "stream.online", "chat_message", message: "   ");
+        // stream.offline has no tone lines, so a blank own row has nothing to pick (a follow would speak its tone).
+        await SeedResponseAsync(db, "stream.offline", "chat_message", message: "   ");
         await SeedResponseAsync(
             db,
             "channel.cheer",
@@ -357,7 +357,7 @@ public sealed class EventResponseExecutorTests
             pipelineId: Guid.CreateVersion7() // no such Pipeline row
         );
 
-        await executor.ExecuteAsync(Tenant, "stream.online", null, null, []);
+        await executor.ExecuteAsync(Tenant, "stream.offline", null, null, []);
         await executor.ExecuteAsync(Tenant, "channel.cheer", null, null, []);
 
         await chat.DidNotReceiveWithAnyArgs()

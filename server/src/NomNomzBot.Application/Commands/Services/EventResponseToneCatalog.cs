@@ -608,6 +608,44 @@ public static class EventResponseToneCatalog
             chill: ["ads are done. thanks for waiting.", "we're back. thanks for hanging on."]
         );
 
+        // The stream just went live: the bot wishes the streamer a good stream. Only {broadcaster} is used, so
+        // a line never shows an empty title or game.
+        Add(
+            catalog,
+            "stream.online",
+            informative:
+            [
+                "{broadcaster} is live! Have a great stream!",
+                "We are live! Have a good stream, {broadcaster}.",
+                "{broadcaster} just went live. Wishing you a great stream!",
+            ],
+            friendly:
+            [
+                "{broadcaster} is live! Have the best stream, we are right here with you!",
+                "Good luck today, {broadcaster}! Have fun and enjoy the stream!",
+                "And we are live! Have an awesome stream, {broadcaster}. Chat has your back!",
+            ],
+            sassy:
+            [
+                "{broadcaster} is live. Try not to break anything this time. Have a good stream.",
+                "Oh look, {broadcaster} remembered to press Go Live. Have a great stream, I guess.",
+                "{broadcaster} is live. I will be watching. Closely. Have fun.",
+                "We are live. Good luck, {broadcaster}. You will need it.",
+            ],
+            hype:
+            [
+                "{broadcaster} IS LIVE! LET'S HAVE AN AMAZING STREAM!",
+                "WE ARE LIVE! GOOD LUCK {broadcaster}, LET'S GOOO!",
+                "IT'S STREAM TIME! HAVE THE BEST STREAM, {broadcaster}!",
+            ],
+            chill:
+            [
+                "{broadcaster} is live. have a good stream.",
+                "we're live. enjoy the stream, {broadcaster}.",
+                "stream's up. have a nice one, {broadcaster}.",
+            ]
+        );
+
         // The warning before the next ad, said once at about 3 minutes. {ad.when} reads "in ~3 minutes" and
         // {ad.seconds} is the break length in seconds.
         Add(
