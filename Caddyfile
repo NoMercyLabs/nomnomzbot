@@ -21,6 +21,21 @@
 # it never has to touch this file or reload Caddy: starting the idle colour and stopping the old
 # one is enough, because Caddy's own health poller notices both transitions on its own.
 
+# The public bot (deploy/channels, stable tag) has its own blue/green pair and its own data; it joins this network
+# under its container names. Only one hosted stack talks to Twitch for real channels, so nightly and beta are
+# image tags for self-hosters, not extra hosted bots. TLS ends at the Cloudflare tunnel, so the site is plain http.
+http://nomnomz.bot, http://www.nomnomz.bot {
+	reverse_proxy nnz-stable-api-blue:5000 nnz-stable-api-green:5000 {
+		lb_policy first
+		health_uri /health/ready
+		health_interval 5s
+		health_timeout 3s
+		health_status 200
+		lb_try_duration 10s
+		lb_try_interval 250ms
+	}
+}
+
 :80 {
 	reverse_proxy api-blue:5000 api-green:5000 {
 		lb_policy first

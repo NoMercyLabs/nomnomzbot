@@ -1,0 +1,132 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+
+# Release channels. A release never builds: it copies a tag that CI already tested onto the next channel.
+#
+#   nightly  every night       latest (green master)  -> nightly
+#   beta     every Monday      nightly                -> beta
+#   stable   the Run button    beta                   -> stable
+#
+# Self-hosters pick a channel by image tag (ghcr.io/nomercylabs/nomnomzbot:stable|beta|nightly). Each run also
+# writes a GitHub release with the notes since the last one of that channel. Use "Run workflow" for any channel.
+name: Release
+
+on:
+  schedule:
+    - cron: '0 3 * * *'   # nightly
+    - cron: '0 4 * * 1'   # beta, Monday
+  workflow_dispatch:
+    inputs:
+      channel:
+        description: Channel to release
+        type: choice
+        options: [stable, beta, nightly]
+        default: stable
+
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+  packages: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Pick the channel
+        id: ch
+        run: |
+          set -eu
+          channel="${{ inputs.channel }}"
+          if [ -z "$channel" ]; then
+            if [ "${{ github.event.schedule }}" = "0 4 * * 1" ]; then channel=beta; else channel=nightly; fi
+          fi
+          case "$channel" in
+            nightly) from=latest ;;
+            beta) from=nightly ;;
+            stable) from=beta ;;
+          esac
+          echo "channel=$channel" >> "$GITHUB_OUTPUT"
+          echo "from=$from" >> "$GITHUB_OUTPUT"
+
+      - uses: docker/setup-buildx-action@v3
+
+      - uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Find the commit behind the source tag
+        id: src
+        run: |
+          set -eu
+          image="ghcr.io/${{ github.repository }}"
+          image="${image,,}"
+          src="${image}:${{ steps.ch.outputs.from }}"
+          sha=$(docker buildx imagetools inspect "$src" --format '{{json .Image}}' \
+            | jq -r '(if has("config") then . else (to_entries[0].value) end).config.Labels["org.opencontainers.image.revision"]')
+          [ -n "$sha" ] && [ "$sha" != "null" ] || { echo "no revision label on $src" >&2; exit 1; }
+          echo "image=$image" >> "$GITHUB_OUTPUT"
+          echo "sha=$sha" >> "$GITHUB_OUTPUT"
+          echo "${{ steps.ch.outputs.from }} is $sha"
+
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Skip when nothing changed
+        id: same
+        run: |
+          set -eu
+          last=$(git tag --list "${{ steps.ch.outputs.channel }}-*" --sort=-creatordate | head -1)
+          if [ -n "$last" ] && [ "$(git rev-list -n1 "$last")" = "${{ steps.src.outputs.sha }}" ]; then
+            echo "skip=true" >> "$GITHUB_OUTPUT"
+            echo "${{ steps.ch.outputs.channel }} already has ${{ steps.src.outputs.sha }} ($last)"
+          else
+            echo "skip=false" >> "$GITHUB_OUTPUT"
+            echo "last=$last" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Tag the image
+        if: steps.same.outputs.skip == 'false'
+        id: tag
+        run: |
+          set -eu
+          ch="${{ steps.ch.outputs.channel }}"
+          version="${ch}-$(date -u +%Y.%m.%d)-${GITHUB_RUN_NUMBER}"
+          image="${{ steps.src.outputs.image }}"
+          docker buildx imagetools create -t "${image}:${ch}" -t "${image}:${version}" \
+            "${image}:${{ steps.ch.outputs.from }}"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Write the GitHub release
+        if: steps.same.outputs.skip == 'false'
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          ch="${{ steps.ch.outputs.channel }}"
+          version="${{ steps.tag.outputs.version }}"
+          sha="${{ steps.src.outputs.sha }}"
+          last="${{ steps.same.outputs.last }}"
+          range="$sha"
+          [ -n "$last" ] && range="${last}..${sha}"
+          {
+            echo "Image: \`ghcr.io/nomercylabs/nomnomzbot:${ch}\` (also \`:${version}\`)"
+            echo
+            echo "## Changes"
+            git log --no-merges --format='- %s (%h)' "$range" | head -200
+          } > notes.md
+          flag="--prerelease"
+          [ "$ch" = "stable" ] && flag="--latest"
+          gh release create "$version" --target "$sha" --title "$version" --notes-file notes.md $flag
