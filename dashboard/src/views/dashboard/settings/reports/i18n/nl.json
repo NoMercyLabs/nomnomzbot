@@ -1,0 +1,32 @@
+{
+  "dashboard": {
+    "settings": {
+      "reports": {
+        "crumb": "Moderatie",
+        "explain": "Meldingen die kijkers over een chatter indienden. Wijs een melding af die geen actie vraagt. Zet er een door die een moderator moet bekijken.",
+        "listTitle": "Meldingen van kijkers",
+        "statusLabel": "Toon meldingen die",
+        "status": {
+          "open": "Open",
+          "escalated": "Doorgezet",
+          "dismissed": "Afgewezen"
+        },
+        "empty": {
+          "open": "Geen open meldingen. Niemand vroeg om hulp.",
+          "escalated": "Geen doorgezette meldingen.",
+          "dismissed": "Geen afgewezen meldingen."
+        },
+        "loadError": "De meldingen konden niet worden geladen.",
+        "filed": "Ingediend door {name} {when}",
+        "someone": "een kijker",
+        "dismiss": "Afwijzen",
+        "escalate": "Doorzetten",
+        "done": {
+          "dismiss": "De melding over {name} is afgewezen.",
+          "escalate": "De melding over {name} is doorgezet."
+        },
+        "error": "De melding over {name} kon niet worden aangepast."
+      }
+    }
+  }
+}

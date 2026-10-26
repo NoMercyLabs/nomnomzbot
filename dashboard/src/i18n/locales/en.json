@@ -858,6 +858,7 @@
         "automod": "AutoMod filters",
         "blockedTerms": "Blocked terms",
         "banned": "Banned people",
+        "reports": "Viewer reports",
         "resourceLimits": "Resource limits",
         "billing": "Billing",
         "yourData": "Your data",

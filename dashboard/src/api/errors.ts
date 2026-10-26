@@ -368,6 +368,8 @@ export const apiOperations = {
   'shoutout template': 'shoutouts',
   'save shoutout template': 'shoutouts',
   'revoke permit': 'people',
+  reports: 'moderation',
+  'resolve report': 'moderation',
   'start raid': 'liveOps',
   'cancel raid': 'liveOps',
   bans: 'moderation',

@@ -51,10 +51,7 @@ export const crudBaseline: Record<string, readonly string[]> = {
     'DELETE /channels/{channelId}/moderation/blocked-terms/all-moderated/{term}',
   ],
   'moderation/nuke': ['POST /channels/{channelId}/moderation/nuke'],
-  'moderation/reports': [
-    'POST /channels/{channelId}/moderation/reports',
-    'PATCH /channels/{channelId}/moderation/reports/{reportId}',
-  ],
+  'moderation/reports': ['POST /channels/{channelId}/moderation/reports'],
   'moderation/rules': [
     'POST /channels/{channelId}/moderation/rules',
     'PUT /channels/{channelId}/moderation/rules/{ruleId}',

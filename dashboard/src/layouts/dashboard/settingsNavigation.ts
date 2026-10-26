@@ -83,6 +83,7 @@ export const settingsNav: readonly NavGroup[] = [
       navEntry('dashboard-settings-chat-filters', 'settingsPages.chatFilters', ShieldAlert),
       navEntry('dashboard-settings-blocked-terms', 'settingsPages.blockedTerms', ShieldAlert),
       navEntry('dashboard-settings-banned', 'settingsPages.banned', Locked),
+      navEntry('dashboard-settings-reports', 'settingsPages.reports', AlertTriangle),
       navEntry('dashboard-settings-event-journal', 'settingsPages.eventJournal', PaperScroll),
     ],
   },

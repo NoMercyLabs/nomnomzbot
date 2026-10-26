@@ -18,6 +18,7 @@ import { settingsCustomEventFeedsRoute } from './custom-event-feeds/route';
 import { settingsAutomodRoute } from './automod/route';
 import { settingsBillingRoute } from './billing/route';
 import { settingsBannedRoute } from './banned/route';
+import { settingsReportsRoute } from './reports/route';
 import { settingsBlockedTermsRoute } from './blocked-terms/route';
 import { settingsChannelManagementRoute } from './channel-management/route';
 import { settingsChatFiltersRoute } from './chat-filters/route';
@@ -121,6 +122,7 @@ export const dashboardSettingsRoutes: RouteRecordRaw[] = [
   settingsChatFiltersRoute,
   settingsBlockedTermsRoute,
   settingsBannedRoute,
+  settingsReportsRoute,
   settingsEventJournalRoute,
   settingsYourDataRoute,
   settingsFederationRoute,

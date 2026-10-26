@@ -108,6 +108,8 @@ export const ownerActionKeys = [
   'moderation:note:write',
   'moderation:queue:read',
   'moderation:queue:resolve',
+  'moderation:report:read',
+  'moderation:report:triage',
   'moderation:shieldmode:read',
   'moderation:shoutout',
   'moderation:suspicioususer:write',

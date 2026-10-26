@@ -1,0 +1,32 @@
+{
+  "dashboard": {
+    "settings": {
+      "reports": {
+        "crumb": "Moderation",
+        "explain": "Reports that viewers filed about a chatter. Dismiss a report that needs no action. Escalate one that a moderator should look into.",
+        "listTitle": "Viewer reports",
+        "statusLabel": "Show reports that are",
+        "status": {
+          "open": "Open",
+          "escalated": "Escalated",
+          "dismissed": "Dismissed"
+        },
+        "empty": {
+          "open": "No open reports. Nobody has asked for help.",
+          "escalated": "No escalated reports.",
+          "dismissed": "No dismissed reports."
+        },
+        "loadError": "The reports could not be loaded.",
+        "filed": "Filed by {name} {when}",
+        "someone": "a viewer",
+        "dismiss": "Dismiss",
+        "escalate": "Escalate",
+        "done": {
+          "dismiss": "The report about {name} is dismissed.",
+          "escalate": "The report about {name} is escalated."
+        },
+        "error": "The report about {name} could not be changed."
+      }
+    }
+  }
+}
