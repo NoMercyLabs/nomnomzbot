@@ -33,8 +33,8 @@ namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 /// Auto-moderation handler that runs on every incoming chat message.
 ///
 /// Supported rule types (stored in Record.Data JSON via ModerationService):
-///   - "caps"           — timeout if caps percentage exceeds threshold
-///   - "links"          — timeout/ban if message contains a URL
+///   - "caps"           — timeout if caps percentage exceeds threshold ("caps_filter" is the AutoMod page's name for it)
+///   - "links"          — timeout/ban if message contains a URL ("link_filter" is the AutoMod page's name for it)
 ///   - "banned_phrases" — timeout/ban if message contains a banned phrase
 ///
 /// Rules are loaded from the DB per-channel and cached for 5 minutes to avoid hot-path DB hits.
@@ -96,8 +96,8 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
 
             bool triggered = rule.Type switch
             {
-                "caps" => CheckCaps(message, rule),
-                "links" => CheckLinks(message, rule),
+                "caps" or "caps_filter" => CheckCaps(message, rule),
+                "links" or "link_filter" => CheckLinks(message, rule),
                 "banned_phrases" => CheckBannedPhrases(message, rule),
                 "emote_spam" => CheckEmoteSpam(@event.Fragments, rule),
                 _ => false,
@@ -145,10 +145,11 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
         int upper = message.Count(char.IsUpper);
         double ratio = (double)upper / letters;
 
+        // The AutoMod page saves the threshold as a percent (70); a rule written by hand may hold the ratio (0.7).
         double threshold =
             rule.Settings.TryGetValue("threshold", out object? t)
             && t is JsonElement { ValueKind: JsonValueKind.Number } te
-                ? te.GetDouble()
+                ? AsRatio(te.GetDouble())
                 : 0.7; // Default: 70% caps
 
         int minLength =
@@ -159,6 +160,8 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
 
         return message.Length >= minLength && ratio >= threshold;
     }
+
+    private static double AsRatio(double threshold) => threshold > 1 ? threshold / 100 : threshold;
 
     /// <summary>
     /// Any link trips the rule, unless every link in the message is on the rule's allow-list.
@@ -176,7 +179,12 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
         if (links.Count == 0)
             return false;
 
-        HashSet<string> allowed = ReadStringSet(rule, "allowed_domains");
+        // "whitelist" is the key the AutoMod page saves; "allowed_domains" is the key a hand-written rule uses.
+        HashSet<string> allowed =
+        [
+            .. ReadStringSet(rule, "allowed_domains"),
+            .. ReadStringSet(rule, "whitelist"),
+        ];
         if (allowed.Count == 0)
             return true;
 
@@ -273,16 +281,19 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
         ];
     }
 
+    private static int? ReadInt(AutoModRule rule, string key) =>
+        rule.Settings.TryGetValue(key, out object? raw)
+        && raw is JsonElement { ValueKind: JsonValueKind.Number } element
+            ? element.GetInt32()
+            : null;
+
     private static bool CheckEmoteSpam(
         IReadOnlyList<Domain.Chat.ValueObjects.ChatMessageFragment> fragments,
         AutoModRule rule
     )
     {
-        int maxEmotes =
-            rule.Settings.TryGetValue("max_emotes", out object? maxObj)
-            && maxObj is JsonElement { ValueKind: JsonValueKind.Number } maxElem
-                ? maxElem.GetInt32()
-                : 10; // Default: 10 emotes max
+        // "maxEmotes" is the key the AutoMod page saves; "max_emotes" is the key a hand-written rule uses.
+        int maxEmotes = ReadInt(rule, "maxEmotes") ?? ReadInt(rule, "max_emotes") ?? 10; // Default: 10 emotes max
 
         int emoteCount = fragments.Count(f =>
             f.Type.Equals("emote", StringComparison.OrdinalIgnoreCase)
