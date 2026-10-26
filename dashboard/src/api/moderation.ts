@@ -10,6 +10,7 @@
 
 import {
   useInfiniteQuery,
+  useMutation,
   useQuery,
   useQueryClient,
   type InfiniteData,
@@ -209,6 +210,35 @@ export function useSetStanding(
         reason,
         updatedAt: new Date().toISOString(),
       } as const satisfies ModerationStanding;
+    },
+  });
+}
+
+// Twitch's own suspicious-user flag, not the bot standing above: watch a chatter, hold their messages, or clear it.
+export const SUSPICIOUS_STATUSES = ['active_monitoring', 'restricted'] as const satisfies string[];
+export type SuspiciousStatusKind = (typeof SUSPICIOUS_STATUSES)[number];
+export type SuspiciousStatus = components['schemas']['SuspiciousStatus'];
+
+// A status sets the flag; null clears it. Twitch answers with the flag it now holds.
+export type SuspiciousChange = { userId: string; status: SuspiciousStatusKind | null };
+
+export function useSuspiciousChange(channelId: MaybeRefOrGetter<string | null>) {
+  return useMutation({
+    mutationFn: async ({ userId, status }: SuspiciousChange): Promise<SuspiciousStatus | null> => {
+      const path = { version, channelId: toValue(channelId) as string };
+      const { data, error, response } = status === null
+        ? await client.DELETE('/api/v{version}/channels/{channelId}/moderation/suspicious/{userId}', {
+            params: { path: { ...path, userId } },
+          })
+        : await client.POST('/api/v{version}/channels/{channelId}/moderation/suspicious', {
+            params: { path },
+            body: { targetUserId: userId, status },
+          });
+
+      if (error !== undefined)
+        throw failed('suspicious status', response.status, error);
+
+      return data?.data ?? null;
     },
   });
 }

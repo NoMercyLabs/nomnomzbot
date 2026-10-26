@@ -589,6 +589,29 @@
       "lastWarning": "Laatste waarschuwing",
       "warningSeen": "Waarschuwing gelezen op"
     },
+    "suspicious": {
+      "title": "Twitch-vlag voor verdachte gebruikers",
+      "explain": "Twitch kan een chatter extra in de gaten houden of hun berichten vasthouden tot een moderator ze bekijkt. Twitch zegt niet welke vlag iemand nu heeft, dus dit toont alleen wat Twitch antwoordde na je laatste wijziging.",
+      "none": "Twitch heeft geen vlag op deze persoon.",
+      "status": {
+        "active_monitoring": "Twitch let extra op deze persoon.",
+        "restricted": "Hun berichten worden vastgehouden voor controle."
+      },
+      "set": {
+        "active_monitoring": "Extra opletten",
+        "restricted": "Berichten vasthouden"
+      },
+      "clear": "Vlag wissen",
+      "done": "Twitch heeft de vlag van {name} aangepast.",
+      "failed": "Twitch heeft de vlag van {name} niet aangepast."
+    },
+    "moderator": {
+      "make": "Moderator maken",
+      "remove": "Moderator weghalen",
+      "made": "{name} is nu moderator.",
+      "removed": "{name} is geen moderator meer.",
+      "failed": "Twitch heeft de moderatorrol van {name} niet aangepast."
+    },
     "vip": {
       "make": "VIP maken",
       "remove": "VIP weghalen",

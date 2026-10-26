@@ -589,6 +589,29 @@
       "lastWarning": "Last warning",
       "warningSeen": "Warning read on"
     },
+    "suspicious": {
+      "title": "Twitch suspicious-user flag",
+      "explain": "Twitch can watch a chatter closely or hold their messages for a moderator to review. Twitch does not say which flag a person has now, so this shows only what Twitch answered after your last change.",
+      "none": "Twitch holds no flag on this person.",
+      "status": {
+        "active_monitoring": "Watched closely by Twitch.",
+        "restricted": "Their messages are held for review."
+      },
+      "set": {
+        "active_monitoring": "Watch closely",
+        "restricted": "Hold messages"
+      },
+      "clear": "Clear flag",
+      "done": "Twitch updated the flag for {name}.",
+      "failed": "Twitch did not change the flag for {name}."
+    },
+    "moderator": {
+      "make": "Make moderator",
+      "remove": "Remove moderator",
+      "made": "{name} is now a moderator.",
+      "removed": "{name} is no longer a moderator.",
+      "failed": "Twitch did not change the moderator role for {name}."
+    },
     "vip": {
       "make": "Make VIP",
       "remove": "Remove VIP",

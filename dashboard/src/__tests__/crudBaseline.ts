@@ -68,10 +68,6 @@ export const crudBaseline: Record<string, readonly string[]> = {
     'DELETE /channels/{channelId}/moderation/chat-filters/{filterId}',
   ],
   'moderation/mass-ban-opt-in': ['PUT /channels/{channelId}/moderation/mass-ban-opt-in'],
-  'moderation/moderators': [
-    'POST /channels/{channelId}/moderation/moderators',
-    'DELETE /channels/{channelId}/moderation/moderators/{userId}',
-  ],
   'moderation/nuke': ['POST /channels/{channelId}/moderation/nuke'],
   'moderation/reports': [
     'POST /channels/{channelId}/moderation/reports',
@@ -88,10 +84,6 @@ export const crudBaseline: Record<string, readonly string[]> = {
     'DELETE /channels/{channelId}/moderation/shared-bans/trusted/{trustedChannelId}',
   ],
   'moderation/shoutout-template': ['PUT /channels/{channelId}/moderation/shoutout-template'],
-  'moderation/suspicious': [
-    'POST /channels/{channelId}/moderation/suspicious',
-    'DELETE /channels/{channelId}/moderation/suspicious/{userId}',
-  ],
   'music/queue': ['POST /channels/{channelId}/music/queue'],
   'music/repeat': ['PATCH /channels/{channelId}/music/repeat'],
   'music/shuffle': ['PATCH /channels/{channelId}/music/shuffle'],

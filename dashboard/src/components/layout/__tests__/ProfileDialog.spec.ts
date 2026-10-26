@@ -592,6 +592,22 @@ vi.mock('@/api/client', () => ({
     POST: vi.fn<(path: string, options?: Options) => Promise<unknown>>(async (path, options) => {
       record(path, options);
 
+      if (path.endsWith('/moderation/suspicious')) {
+        const change = options?.body as { targetUserId: string; status: string };
+
+        return {
+          data: {
+            data: {
+              userId: change.targetUserId,
+              status: change.status,
+              types: [],
+              updatedAt: '2026-10-26T10:00:00Z',
+            },
+          },
+          response: { ok: true },
+        };
+      }
+
       if (path.endsWith('/vip')) {
         if (vipWrite) {
           await vipWrite;
@@ -684,6 +700,20 @@ vi.mock('@/api/client', () => ({
         personVoices[userIdOf(options)] = undefined;
 
         return { response: { ok: true, status: 200 } };
+      }
+
+      if (path.includes('/moderation/suspicious')) {
+        return {
+          data: {
+            data: {
+              userId: userIdOf(options),
+              status: 'none',
+              types: [],
+              updatedAt: '2026-10-26T10:00:00Z',
+            },
+          },
+          response: { ok: true },
+        };
       }
 
       if (path.endsWith('/standing')) {
@@ -1360,6 +1390,90 @@ describe('the profile dialog', () => {
 
     expect(document.body.querySelector('[data-profile-warn]')).toBeNull();
     expect(button('[data-profile-ban]').disabled).toBe(false);
+  });
+
+  it('holds a chatter\'s messages through Twitch and shows the flag Twitch answered with', async () => {
+    await openPage();
+    await openUser('u1');
+    await openTab('Moderation');
+
+    button('[data-suspicious-set="restricted"]').click();
+    await settle();
+
+    expect(
+      calls.filter((c) => c.path.endsWith('/moderation/suspicious')).map((c) => c.body),
+    ).toEqual([{ targetUserId: 'u1', status: 'restricted' }]);
+
+    expect(document.body.querySelector('[data-suspicious-status]')?.textContent).toContain(
+      'held for review',
+    );
+  });
+
+  it('clears the flag by Twitch id and says Twitch holds none', async () => {
+    await openPage();
+    await openUser('u1');
+    await openTab('Moderation');
+
+    button('[data-suspicious-clear]').click();
+    await settle();
+
+    expect(
+      calls
+        .filter((c) => c.path.endsWith('/moderation/suspicious/{userId}'))
+        .map((c) => userIdOf({ params: c.params })),
+    ).toEqual(['u1']);
+
+    expect(document.body.querySelector('[data-suspicious-status]')?.textContent).toContain(
+      'holds no flag',
+    );
+  });
+
+  it('hides the suspicious flag from a caller without the right to write it', async () => {
+    held = MODERATOR_KEYS.filter((key: string) => key !== 'moderation:suspicioususer:write');
+    await openPage();
+    await openUser('u1');
+    await openTab('Moderation');
+
+    expect(document.body.querySelector('[data-profile-suspicious]')).toBeNull();
+  });
+
+  it('offers no moderator button to a moderator, who may not assign roles', async () => {
+    await openPage();
+    await openUser('u1');
+
+    expect(document.body.querySelector('[data-profile-moderator]')).toBeNull();
+  });
+
+  it('makes a viewer a moderator through Twitch with their Twitch id', async () => {
+    held = [...MODERATOR_KEYS, 'moderation:moderator:write'];
+    (profiles.g1 as { identity: { managementRole: string | null } }).identity.managementRole = null;
+    await openPage();
+    await openUser('u1');
+    expect(button('[data-profile-moderator]').textContent).toContain('Make moderator');
+
+    button('[data-profile-moderator]').click();
+    await settle();
+
+    expect(
+      calls.filter((c) => c.path.endsWith('/moderation/moderators')).map((c) => c.body),
+    ).toEqual([{ targetTwitchUserId: 'u1' }]);
+  });
+
+  it('removes a moderator through Twitch by their Twitch id', async () => {
+    held = [...MODERATOR_KEYS, 'moderation:moderator:write'];
+    people.u1!.isModerator = true;
+    await openPage();
+    await openUser('u1');
+    expect(button('[data-profile-moderator]').textContent).toContain('Remove moderator');
+
+    button('[data-profile-moderator]').click();
+    await settle();
+
+    expect(
+      calls
+        .filter((c) => c.path.endsWith('/moderation/moderators/{userId}'))
+        .map((c) => userIdOf({ params: c.params })),
+    ).toEqual(['u1']);
   });
 
   // Owner 2026-10-15: "ban timeout and warn are mod actions so why is one of them a link button?"

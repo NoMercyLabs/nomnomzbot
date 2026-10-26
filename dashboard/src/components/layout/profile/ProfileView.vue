@@ -22,6 +22,7 @@ import { useCurrentUser } from '@/api/auth';
 import {
   useBanMember,
   useCommunityMember,
+  useModeratorChange,
   useVipChange,
   type CommunityMember,
 } from '@/api/community';
@@ -38,6 +39,7 @@ import ProfileNotes from '@/components/layout/profile/ProfileNotes.vue';
 import ProfileOverview from '@/components/layout/profile/ProfileOverview.vue';
 import ProfilePoints from '@/components/layout/profile/ProfilePoints.vue';
 import ProfileStanding from '@/components/layout/profile/ProfileStanding.vue';
+import ProfileSuspicious from '@/components/layout/profile/ProfileSuspicious.vue';
 import ProfileVoice from '@/components/layout/profile/ProfileVoice.vue';
 import ProfileWarn from '@/components/layout/profile/ProfileWarn.vue';
 import {
@@ -147,10 +149,17 @@ const access = useChannelAccess(channelId);
 const canBan = computed(() => access.can('moderation:ban'));
 const canUnban = computed(() => access.can('moderation:unban'));
 const canVip = computed(() => access.can('moderation:vip'));
+const canModerator = computed(() => access.can('moderation:moderator:write'));
 const canShoutout = computed(() => access.can('moderation:shoutout'));
 const canWarn = computed(() => access.can('moderation:warn'));
 const hasActions = computed(
-  () => canShoutout.value || canVip.value || canWarn.value || canBan.value || canUnban.value,
+  () =>
+    canShoutout.value ||
+    canVip.value ||
+    canModerator.value ||
+    canWarn.value ||
+    canBan.value ||
+    canUnban.value,
 );
 
 // Twitch answers per person; null means Twitch could not be asked, so the view says unknown instead of guessing.
@@ -231,6 +240,27 @@ watch(
 
 function dateText(value: string): string {
   return shortDate(value, locale.value);
+}
+
+const moderatorChange = useModeratorChange(channelId);
+const isModerator = computed<boolean>(() => roles.value.includes('moderator'));
+const moderatorLabel = computed<string>(() =>
+  isModerator.value
+    ? t('profile.moderator.remove')
+    : t('profile.moderator.make'));
+
+function toggleModerator(): void {
+  const moderator = !isModerator.value;
+
+  moderatorChange.mutate(
+    { userId: props.userId, moderator },
+    {
+      onSuccess: () => toast.success(t(moderator
+        ? 'profile.moderator.made'
+        : 'profile.moderator.removed', { name: title.value })),
+      onError: () => toast.error(t('profile.moderator.failed', { name: title.value })),
+    },
+  );
 }
 
 function toggleVip(): void {
@@ -348,6 +378,7 @@ async function banNow(): Promise<void> {
               <h3 class="text-sm font-semibold">{{ $t("profile.moderation.counts") }}</h3>
               <KeyValueList :items="actions" />
             </section>
+            <ProfileSuspicious v-if="!isOwner" :user-id="userId" :name="title" />
             <section data-profile-bans class="grid gap-3">
               <h3 class="text-sm font-semibold">{{ $t("profile.moderation.title") }}</h3>
               <p v-if="person.banHistory.length === 0" class="text-sm text-muted-foreground">
@@ -449,6 +480,16 @@ async function banNow(): Promise<void> {
         @click="toggleVip"
       >
         {{ vipLabel }}
+      </Button>
+      <Button
+        v-if="canModerator"
+        data-profile-moderator
+        type="button"
+        variant="outline"
+        :disabled="moderatorChange.isPending.value"
+        @click="toggleModerator"
+      >
+        {{ moderatorLabel }}
       </Button>
       <ProfileWarn v-model:open="warnOpen" :user-id="userId" :name="title" />
 

@@ -194,6 +194,32 @@ export function useVipChange(
   });
 }
 
+export type ModeratorChange = { userId: string; moderator: boolean };
+
+// Grant or revoke Twitch moderator. Twitch holds the roster, so the member is read again once Twitch has answered.
+export function useModeratorChange(channelId: MaybeRefOrGetter<string | null>) {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async ({ userId, moderator }: ModeratorChange): Promise<void> => {
+      const path = { version, channelId: toValue(channelId) as string };
+      const { error, response } = moderator
+        ? await client.POST('/api/v{version}/channels/{channelId}/moderation/moderators', {
+            params: { path },
+            body: { targetTwitchUserId: userId },
+          })
+        : await client.DELETE('/api/v{version}/channels/{channelId}/moderation/moderators/{userId}', {
+            params: { path: { ...path, userId } },
+          });
+
+      if (error)
+        throw problemError('moderator change', response.status, error);
+    },
+    onSuccess: (_: void, { userId }: ModeratorChange) =>
+      queries.invalidateQueries({ queryKey: memberKey(toValue(channelId), userId) }),
+  });
+}
+
 export type BanInput = { userId: string; reason: string };
 
 export function useBanMember(
