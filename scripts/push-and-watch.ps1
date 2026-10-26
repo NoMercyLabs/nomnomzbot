@@ -105,7 +105,8 @@ try {
     [string]$runId = $null
     [int]$runWaitSeconds = 180
     foreach ($attempt in 1..($runWaitSeconds / 15)) {
-        [string]$json = gh run list --limit 20 --json databaseId,headSha  # no space: PowerShell would parse `a, b` as an array and pass two args
+        # Only the CI workflow gates a push; the Pages run for the same SHA finishes first and once passed as the verdict.
+        [string]$json = gh run list --workflow CI --limit 20 --json databaseId,headSha  # no space: PowerShell would parse `a, b` as an array and pass two args
         if ($json) {
             $match = ($json | ConvertFrom-Json) | Where-Object { $_.headSha -eq $sha } | Select-Object -First 1
             if ($match) { $runId = [string]$match.databaseId; break }
