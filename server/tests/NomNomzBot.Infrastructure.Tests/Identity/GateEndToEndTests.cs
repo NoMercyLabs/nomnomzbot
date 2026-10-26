@@ -106,6 +106,39 @@ public sealed class GateEndToEndTests
         return new(gate1, gate2, db);
     }
 
+    [Fact]
+    public async Task An_editor_and_a_second_broadcaster_manage_rewards_but_a_moderator_does_not()
+    {
+        Fixture f = await BuildAsync();
+        // A second person the bot labelled Broadcaster on someone else's channel resolves as Editor.
+        Guid secondBroadcaster = Guid.Parse("0192a000-0000-7000-8000-0000000000e6");
+        f.Db.ChannelMemberships.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                UserId = secondBroadcaster,
+                ManagementRole = ManagementRole.Broadcaster,
+                LevelValue = ManagementRole.Broadcaster.ToLevel(),
+                Source = MembershipSource.BotGrant,
+                GrantedAt = Now,
+            }
+        );
+        await f.Db.SaveChangesAsync();
+
+        (await f.Gate2.AuthorizeActionAsync(secondBroadcaster, Channel, "reward:manage"))
+            .Value.Should()
+            .BeTrue("Twitch lets an editor manage channel point rewards");
+        (await f.Gate2.AuthorizeActionAsync(Editor, Channel, "reward:manage"))
+            .Value.Should()
+            .BeTrue();
+        (await f.Gate2.AuthorizeActionAsync(Moderator, Channel, "reward:manage"))
+            .Value.Should()
+            .BeFalse();
+        (await f.Gate2.AuthorizeActionAsync(Editor, Channel, "reward:sync"))
+            .Value.Should()
+            .BeFalse();
+    }
+
     [Theory]
     [InlineData("channel:ccl:write")]
     [InlineData("webhooks:inbound:write")]

@@ -480,10 +480,10 @@ public sealed class ActionDefinitionSeeder : ISeeder
         M("federation:optin:write", LeadModerator);
         M("federation:optin:delete", LeadModerator);
 
-        // Rewards — reading the reward list defaults to Moderator, floor Vip (non-destructive). Managing /
-        // syncing rewards is Twitch-mutating and owner-level, so it stays at Broadcaster.
+        // Rewards — reading the reward list defaults to Moderator, floor Vip (non-destructive). Managing rewards
+        // is Editor, as on Twitch, where a channel editor manages channel point rewards. Syncing stays owner-level.
         MFloor("reward:read", Mod, Vip);
-        M("reward:manage", Broadcaster);
+        M("reward:manage", Editor);
         M("reward:sync", Broadcaster);
         M("reward:redemption:read", Mod);
         M("reward:redemption:fulfill", Mod);
