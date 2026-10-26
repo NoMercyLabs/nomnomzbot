@@ -55,7 +55,6 @@ export const crudBaseline: Record<string, readonly string[]> = {
     'DELETE /channels/{channelId}/moderation/actions/mass-ban/opt-ins/{broadcasterLogin}',
   ],
   'moderation/auto-shoutout': ['PUT /channels/{channelId}/moderation/auto-shoutout'],
-  'moderation/automod': ['POST /channels/{channelId}/moderation/automod'],
   'moderation/automod/twitch': ['PUT /channels/{channelId}/moderation/automod/twitch'],
   'moderation/bans': ['DELETE /channels/{channelId}/moderation/bans/{userId}'],
   'moderation/blocked-terms/all-moderated': [

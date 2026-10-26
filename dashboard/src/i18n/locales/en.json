@@ -850,6 +850,7 @@
         "trustPolicy": "Trust policy",
         "escalation": "Escalation",
         "spamDefense": "Spam defense",
+        "automod": "AutoMod filters",
         "blockedTerms": "Blocked terms",
         "resourceLimits": "Resource limits",
         "billing": "Billing",

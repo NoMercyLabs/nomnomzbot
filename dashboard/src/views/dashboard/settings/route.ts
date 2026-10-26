@@ -15,6 +15,7 @@ import { supporterSourcesComponent } from '@/views/dashboard/supporters/route';
 
 import { settingsApiDevicesRoute } from './api-devices/route';
 import { settingsCustomEventFeedsRoute } from './custom-event-feeds/route';
+import { settingsAutomodRoute } from './automod/route';
 import { settingsBillingRoute } from './billing/route';
 import { settingsBlockedTermsRoute } from './blocked-terms/route';
 import { settingsChannelManagementRoute } from './channel-management/route';
@@ -112,6 +113,7 @@ export const dashboardSettingsRoutes: RouteRecordRaw[] = [
   settingsTrustPolicyRoute,
   settingsEscalationRoute,
   settingsSpamDefenseRoute,
+  settingsAutomodRoute,
   settingsBlockedTermsRoute,
   settingsEventJournalRoute,
   settingsYourDataRoute,

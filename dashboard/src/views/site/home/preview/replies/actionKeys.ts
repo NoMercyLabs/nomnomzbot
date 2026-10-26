@@ -88,6 +88,8 @@ export const ownerActionKeys = [
   'media:moderate',
   'media:read',
   'media:write',
+  'moderation:automod:read',
+  'moderation:automod:write',
   'moderation:ban',
   'moderation:blocklist:write',
   'moderation:chat:settings:read',

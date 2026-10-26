@@ -1,0 +1,42 @@
+{
+  "dashboard": {
+    "settings": {
+      "automod": {
+        "crumb": "Moderation",
+        "explain": "Four filters that read every chat message. A message a filter catches is deleted. Moderators and you are never filtered.",
+        "save": "Save",
+        "saved": "AutoMod saved.",
+        "saveError": "AutoMod could not be saved: {reason}",
+        "loadError": "AutoMod could not be loaded.",
+        "oneLine": "One entry per line.",
+        "outOfRange": "Use a number from {min} to {max}.",
+        "links": {
+          "title": "Links",
+          "description": "Deletes a message that holds a link. A link on the allowed list passes.",
+          "enabled": "Delete links",
+          "allowed": "Allowed domains"
+        },
+        "caps": {
+          "title": "Capital letters",
+          "description": "Deletes a message that is mostly capital letters.",
+          "enabled": "Delete shouting",
+          "threshold": "Capital letters, percent",
+          "thresholdHelp": "A message with this share of capitals or more is deleted."
+        },
+        "phrases": {
+          "title": "Banned phrases",
+          "description": "Deletes a message that holds one of these phrases, in any letter case.",
+          "enabled": "Delete banned phrases",
+          "list": "Banned phrases"
+        },
+        "emotes": {
+          "title": "Emote spam",
+          "description": "Deletes a message that holds too many emotes.",
+          "enabled": "Delete emote spam",
+          "max": "Most emotes in a message",
+          "maxHelp": "A message with more emotes than this is deleted."
+        }
+      }
+    }
+  }
+}

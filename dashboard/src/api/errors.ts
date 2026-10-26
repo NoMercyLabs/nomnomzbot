@@ -355,6 +355,8 @@ export const apiOperations = {
   'save escalation policy': 'moderation',
   'spam defense policy': 'moderation',
   'save spam defense policy': 'moderation',
+  automod: 'moderation',
+  'save automod': 'moderation',
   'blocked terms': 'moderation',
   'add blocked term': 'moderation',
   'remove blocked term': 'moderation',

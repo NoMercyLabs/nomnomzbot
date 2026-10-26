@@ -1,0 +1,42 @@
+{
+  "dashboard": {
+    "settings": {
+      "automod": {
+        "crumb": "Moderatie",
+        "explain": "Vier filters die elk chatbericht lezen. Een bericht dat een filter vangt wordt verwijderd. Moderators en jij worden nooit gefilterd.",
+        "save": "Opslaan",
+        "saved": "AutoMod opgeslagen.",
+        "saveError": "AutoMod kon niet worden opgeslagen: {reason}",
+        "loadError": "AutoMod kon niet worden geladen.",
+        "oneLine": "Eén item per regel.",
+        "outOfRange": "Gebruik een getal van {min} tot {max}.",
+        "links": {
+          "title": "Links",
+          "description": "Verwijdert een bericht met een link. Een link op de toegestane lijst mag wel.",
+          "enabled": "Links verwijderen",
+          "allowed": "Toegestane domeinen"
+        },
+        "caps": {
+          "title": "Hoofdletters",
+          "description": "Verwijdert een bericht dat vooral uit hoofdletters bestaat.",
+          "enabled": "Schreeuwen verwijderen",
+          "threshold": "Hoofdletters, procent",
+          "thresholdHelp": "Een bericht met dit aandeel hoofdletters of meer wordt verwijderd."
+        },
+        "phrases": {
+          "title": "Verboden zinnen",
+          "description": "Verwijdert een bericht met een van deze zinnen, in elke letterstand.",
+          "enabled": "Verboden zinnen verwijderen",
+          "list": "Verboden zinnen"
+        },
+        "emotes": {
+          "title": "Emote-spam",
+          "description": "Verwijdert een bericht met te veel emotes.",
+          "enabled": "Emote-spam verwijderen",
+          "max": "Meeste emotes in een bericht",
+          "maxHelp": "Een bericht met meer emotes dan dit wordt verwijderd."
+        }
+      }
+    }
+  }
+}

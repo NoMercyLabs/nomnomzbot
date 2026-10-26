@@ -850,6 +850,7 @@
         "trustPolicy": "Vertrouwensbeleid",
         "escalation": "Escalatie",
         "spamDefense": "Spamverdediging",
+        "automod": "AutoMod-filters",
         "blockedTerms": "Geblokkeerde termen",
         "resourceLimits": "Gebruikslimieten",
         "billing": "Facturatie",
