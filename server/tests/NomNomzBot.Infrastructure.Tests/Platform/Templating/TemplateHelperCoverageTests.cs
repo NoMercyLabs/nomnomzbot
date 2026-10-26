@@ -190,6 +190,7 @@ public sealed partial class TemplateHelperCoverageTests
         "list.pick.", // ExpandListPicksAsync pre-pass: template.Contains("{list.pick.", ...) + its own regex
         "custom.", // ExpandCustomDataAsync pre-pass: template.Contains("{custom.", ...) + its own regex
         "transform.", // ApplyTransforms: its own TransformPattern regex, run after main substitution
+        "date:", // DateExpressionRenderer.ExpandAll: its own {date:…} regex, run before ApplyTransforms
     };
 
     [GeneratedRegex(@"vars\.TryAdd\(""([a-zA-Z][a-zA-Z0-9_.]*)""")]

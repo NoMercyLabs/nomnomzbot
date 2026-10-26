@@ -857,6 +857,83 @@ catalog tables tag the affected tokens with **[duration — accepts the §6.3.1 
   `}}` inside a pattern is escaped `\}\}`. This is the one escaping rule; the named instant presets cover every common
   case so `:raw=` is the explicit escape hatch for bespoke patterns.
 
+#### 6.3.1a Date and time expressions `{date:…}` (as-built, 2026-10-26)
+
+Stoney, 2026-10-26: "i think i have asked for date options in templates before but there is only time and date and the
+formatting options are very lacking. i like ALL possible combinations possible and also have calculations possible with
+many combinations"
+
+The as-built form of the §6.3.1 instant formatter is one expression helper in the style of
+`{transform.<name>:<payload>}`. `{time}`, `{time.utc}` and `{date}` stay as they are.
+
+**Syntax:** `{date:<source>|<step>|<step>|…|<output>}`
+
+- Steps are split on `|` and run left to right. The output step is optional and must be last.
+- Keywords are not case-sensitive. Spaces around a step are ignored.
+- Code: `Infrastructure/Platform/Templating/Dates/` (parser, source reader, calculator, output and span formatters,
+  renderer). NodaTime does the zones and calendar math. Humanizer does relative text, ordinals and unit words.
+
+**Sources**
+
+| Source | Meaning |
+|---|---|
+| `now` | the current moment in the channel time zone (`Users.Timezone`; UTC when unset or unknown) |
+| `utc` | the current moment in UTC |
+| `2026-12-25`, `2026-12-25T20:15`, `2026-12-25 20:15:00` | a date or date-time without an offset, read as channel local time |
+| `2026-12-25T20:15:00Z`, `…+02:00` | an instant, converted to the channel zone |
+| `{variable}` | any variable that holds such a value. The variable is substituted first, then the expression runs. Variables that hold a timestamp today: `{stream.startedAt}` (ISO 8601 with offset), `{followed_at}` (follow event, ISO 8601 UTC), `{viewer.firstseen}` / `{target.firstseen}` (a date). |
+
+**Calculation steps**
+
+| Step | Meaning |
+|---|---|
+| `+1y` `-2mo` `+3w` `-4d` `+5h` `-6m` `+7s` | add or subtract. `y` years, `mo` months, `w` weeks, `d` days, `h` hours, `m` minutes, `s` seconds (`m` is minutes, `mo` is months). Several in one step chain: `+1y-2mo+3d`. |
+| `start:day` `start:week` `start:month` `start:year` | the start of the unit, 00:00. A week starts on Monday (ISO 8601). |
+| `end:day` `end:week` `end:month` `end:year` | the last moment of the unit (shows as 23:59:59). |
+| `next:<weekday>` `prev:<weekday>` | the next or previous weekday, strictly after or before; the time of day stays. English names, 3 letters or more (`fri`, `friday`). |
+| `tz:<IANA zone>` | the same instant in another zone, e.g. `tz:America/New_York`. Windows zone ids are accepted too. |
+| `lang:<language>` | month and day names in another language, e.g. `lang:en`. The default is the channel language (`Channel.Language`), else English. |
+
+Years, months, weeks and days move the wall clock: a day across a clock change keeps the time of day, and Jan 31 + 1 month
+is the last day of February (Feb 29 in a leap year). Hours, minutes and seconds move real elapsed time.
+
+**Output steps**
+
+| Step | Output |
+|---|---|
+| (none) | `yyyy-MM-dd HH:mm` |
+| `format:<pattern>` | any .NET custom pattern (`dddd d MMMM yyyy`, `HH:mm zzz`) or a standard letter (`d` `D` `f` `F` `g` `G` `s` `t` `T` …). `[o]` inside the pattern is the ordinal day. The pattern may hold `:` but not `|`. |
+| `relative` | relative text: `3 days ago`, `2 hours from now` (Dutch: `3 dagen geleden`, `over 2 uur`) |
+| `ordinal` | the ordinal day of the month: `26th` (Dutch: `26e`) |
+| `until[:<unit>]` | the distance from now until the date (a countdown) |
+| `since[:<unit>]` | the distance from the date until now |
+| `diff:<date>[:<unit>]` | the distance to another date; `<date>` takes any source form (also a `{variable}`) |
+
+`<unit>` is `years`, `months`, `weeks`, `days`, `hours`, `minutes`, `seconds` (a whole total: `411 days`), `breakdown`
+(calendar parts: `1 year, 1 month, 16 days`) or `human` (the default: the 2 largest parts, `2 hours, 15 minutes`). The
+order of the two dates does not matter. Calendar totals count on the wall clock; hours, minutes and seconds count real
+time, so the night of a clock change is 23 or 25 hours.
+
+**Invalid expressions:** an unknown step, a bad source, a bad zone or language, a step after the output step, or a bad
+format pattern renders the token exactly as written and logs one warning. It never throws into chat.
+
+**Worked examples** (clock 2026-10-26T14:30:00Z, a Monday; channel zone Europe/Amsterdam; channel language English
+unless noted)
+
+| Template | Renders |
+|---|---|
+| `{date:now\|format:dddd 'the' [o] 'of' MMMM}` | `Monday the 26th of October` |
+| `{date:now\|+1y-2mo\|+3w\|+4d\|+5h-6m+7s\|format:yyyy-MM-dd HH:mm:ss}` | `2027-09-20 20:24:07` |
+| `{date:2026-12-25\|until:days}` / `{date:2026-12-25\|until:breakdown}` | `59 days` / `1 month, 28 days, 8 hours, 30 minutes` |
+| `{date:{followed_at}\|since:breakdown}` with `followed_at` = `2025-09-10T18:00:00Z` | `1 year, 1 month, 15 days, 19 hours, 30 minutes` |
+| `{date:now\|next:friday\|start:day\|tz:America/New_York\|format:ddd HH:mm}` | `Thu 19:00` |
+| Dutch channel: `{date:now\|format:dddd d MMMM yyyy}` · `{date:now\|-3d\|relative}` | `maandag 26 oktober 2026` · `3 dagen geleden` |
+
+Every form is registered in `TemplateHelperRegistry` (prefix `date:`) with help text in `server/i18n/strings`
+(`template_helper_date_expr_*`). The API runs with real culture data (`InvariantGlobalization` false) and ships the
+`en` and `nl` satellite resources, so Dutch names render in production; a host without ICU can set
+`DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1` and gets English names.
+
 #### 6.3.2 Conditional helper (`if.*`) — replaces raw boolean render tokens
 
 Raw booleans rendering the literal strings `"true"`/`"false"` into chat are useless, so **no boolean is a printable

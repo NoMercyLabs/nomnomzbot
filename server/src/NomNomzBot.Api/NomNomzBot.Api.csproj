@@ -30,10 +30,13 @@
     <!-- SQLitePCLRaw needs the e_sqlite3 native present; keep it as a bundled native, not trimmed/inlined. -->
     <PublishTrimmed>false</PublishTrimmed>
     <EnableCompressionInSingleFile>true</EnableCompressionInSingleFile>
-    <!-- Globalization-invariant keeps the binary small and ICU-free; the bot's user-facing i18n is the frontend's,
-         and the backend does no culture-sensitive formatting on the hot path. -->
-    <InvariantGlobalization>true</InvariantGlobalization>
-    <SatelliteResourceLanguages>en</SatelliteResourceLanguages>
+    <!-- Real culture data: chat templates render month and day names in the channel language ({date:…|format:MMMM}
+         gives "oktober" for a Dutch channel). Invariant mode would silently print English for every channel. The
+         aspnet Debian image ships ICU; a self-host Linux box without libicu can still opt out with
+         DOTNET_SYSTEM_GLOBALIZATION_INVARIANT=1 (date names then fall back to English, nothing breaks). -->
+    <InvariantGlobalization>false</InvariantGlobalization>
+    <!-- en + nl: Humanizer's Dutch relative text ("3 dagen geleden") ships as an nl satellite assembly. -->
+    <SatelliteResourceLanguages>en;nl</SatelliteResourceLanguages>
   </PropertyGroup>
 
   <!-- Expose internal helpers (e.g. the dashboard activity actor-name resolver) to the Api test project so their

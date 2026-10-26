@@ -32,6 +32,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.CustomEvents;
+using NomNomzBot.Infrastructure.Platform.Templating.Dates;
 
 namespace NomNomzBot.Infrastructure.Platform.Templating;
 
@@ -97,6 +98,12 @@ public sealed partial class TemplateResolver : ITemplateResolver
                 }
             );
 
+        // No channel here: {date:…} expressions render in UTC with English names.
+        substituted = DateExpressionRenderer.ExpandAll(
+            substituted,
+            DateExpressionContext.For(_timeProvider.GetUtcNow(), null, null),
+            _logger
+        );
         return ApplyTransforms(substituted);
     }
 
@@ -167,6 +174,19 @@ public sealed partial class TemplateResolver : ITemplateResolver
         // {transform.<name>:<text>} / {transform.truncate.<length>:<text>} — resolved last, so any variable
         // placeholder nested inside the transformed text (e.g. {transform.upper:{user.name}}) is already a
         // plain value by the time the transform runs. Depth-bounded loop lets transforms chain/compose.
+        // {date:…} expressions run first, so {transform.upper:{date:now|format:MMMM}} sees the month name.
+        ChannelContext? dateChannel = broadcasterId is not null
+            ? _registry.Get(broadcasterId.Value)
+            : null;
+        substituted = DateExpressionRenderer.ExpandAll(
+            substituted,
+            DateExpressionContext.For(
+                _timeProvider.GetUtcNow(),
+                dateChannel?.Timezone,
+                dateChannel?.Language
+            ),
+            _logger
+        );
         return ApplyTransforms(substituted);
     }
 

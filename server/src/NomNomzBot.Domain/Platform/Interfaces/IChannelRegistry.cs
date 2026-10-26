@@ -135,6 +135,12 @@ public class ChannelContext
     public string? Timezone { get; set; }
 
     /// <summary>
+    /// The channel language (<c>Channel.Language</c>, e.g. <c>nl</c> or <c>en</c>), or null when unset. Read by
+    /// <c>TemplateResolver</c> for month and day names in <c>{date:…}</c> expressions.
+    /// </summary>
+    public string? Language { get; set; }
+
+    /// <summary>
     /// Per-channel built-in reply overrides, one per reply slot (commands-pipelines.md §11): key =
     /// <see cref="BuiltinReplyKey"/> of the reply group and slot, value = the channel's template parsed from
     /// <c>ChannelBuiltinCommand.OverridesJson</c>. Absence = no override (the slot keeps its default). Populated

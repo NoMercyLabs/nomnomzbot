@@ -694,6 +694,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 c.CommandPrefix,
                 c.KeepActiveWhileOffline,
                 c.User.Timezone,
+                c.Language,
             })
             .FirstOrDefaultAsync(ct);
 
@@ -705,6 +706,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
             : settings.CommandPrefix;
         ctx.KeepActiveWhileOffline = settings?.KeepActiveWhileOffline ?? false;
         ctx.Timezone = settings?.Timezone;
+        ctx.Language = settings?.Language;
     }
 
     private void RunEviction(object? state)

@@ -158,6 +158,10 @@ public static class TemplateHelperRegistry
             Sample = TemplateHelperSamples.For(displayKey),
         };
 
+    /// <summary>One form of the <c>{date:…}</c> expression; every form shares the <c>date:</c> prefix.</summary>
+    private static TemplateHelperEntry DateExpression(string displayKey, string descriptionKey) =>
+        Prefixed(displayKey, "date:", AllContexts, descriptionKey);
+
     private static List<TemplateHelperEntry> BuildEntries() =>
         [
             // ── Channel / stream (all contexts) ─────────────────────────────
@@ -553,6 +557,22 @@ public static class TemplateHelperRegistry
             Literal("time", AllContexts, "template.helper.time"),
             Literal("time.utc", AllContexts, "template.helper.time_utc"),
             Literal("date", AllContexts, "template.helper.date"),
+            // ── Date expressions {date:<source>|<step>|…} (all contexts; commands-pipelines.md §
+            // "Date and time expressions"). One entry per form, so the helper list shows each one. ──
+            DateExpression("date:<source>", "template.helper.date_expr_source"),
+            DateExpression("date:<source>|format:<pattern>", "template.helper.date_expr_format"),
+            DateExpression("date:<source>|<+/-amount><unit>", "template.helper.date_expr_offset"),
+            DateExpression("date:<source>|start:<unit>", "template.helper.date_expr_start"),
+            DateExpression("date:<source>|end:<unit>", "template.helper.date_expr_end"),
+            DateExpression("date:<source>|next:<weekday>", "template.helper.date_expr_next"),
+            DateExpression("date:<source>|prev:<weekday>", "template.helper.date_expr_prev"),
+            DateExpression("date:<source>|tz:<zone>", "template.helper.date_expr_tz"),
+            DateExpression("date:<source>|lang:<language>", "template.helper.date_expr_lang"),
+            DateExpression("date:<source>|relative", "template.helper.date_expr_relative"),
+            DateExpression("date:<source>|ordinal", "template.helper.date_expr_ordinal"),
+            DateExpression("date:<source>|until[:<unit>]", "template.helper.date_expr_until"),
+            DateExpression("date:<source>|since[:<unit>]", "template.helper.date_expr_since"),
+            DateExpression("date:<source>|diff:<date>[:<unit>]", "template.helper.date_expr_diff"),
             // ── Bot identity (all contexts) ─────────────────────────────────
             Literal("botname", AllContexts, "template.helper.botname"),
             // ── Random helpers (all contexts) ───────────────────────────────
