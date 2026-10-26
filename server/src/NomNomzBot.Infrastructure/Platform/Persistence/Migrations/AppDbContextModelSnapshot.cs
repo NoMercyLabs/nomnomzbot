@@ -5304,6 +5304,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<bool>("IsOnboarded")
                         .HasColumnType("boolean");
 
+                    b.Property<bool>("KeepActiveWhileOffline")
+                        .HasColumnType("boolean");
+
                     b.Property<string>("Language")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
@@ -10297,6 +10300,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
+
+                    b.Property<bool>("DisabledForOffline")
+                        .HasColumnType("boolean");
 
                     b.Property<int?>("GlobalCooldownSeconds")
                         .HasColumnType("integer");

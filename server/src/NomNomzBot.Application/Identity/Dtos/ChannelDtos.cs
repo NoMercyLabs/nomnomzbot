@@ -104,6 +104,12 @@ public sealed record UpdateChannelSettingsDto
 
     /// <summary>The streamer's IANA timezone (e.g. <c>Europe/Amsterdam</c>). Null leaves it unchanged.</summary>
     public string? Timezone { get; init; }
+
+    /// <summary>
+    /// Whether commands and rewards stay active while the channel is offline (default off: they switch off when
+    /// the stream ends and back on when it starts). Null leaves it unchanged.
+    /// </summary>
+    public bool? KeepActiveWhileOffline { get; init; }
 }
 
 /// <summary>
@@ -116,7 +122,8 @@ public sealed record ChannelBasicsDto(
     string? BotLinePrefix,
     string? Locale,
     bool AutoJoin,
-    string? Timezone
+    string? Timezone,
+    bool KeepActiveWhileOffline = false
 );
 
 /// <summary>Request to create/onboard a new channel.</summary>

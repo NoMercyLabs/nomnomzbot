@@ -42,6 +42,13 @@ public class Reward : SoftDeletableEntity, ITenantScoped, IPlatformSourced, IBin
     public bool IsPaused { get; set; }
 
     /// <summary>
+    /// Set when the bot itself turned this reward off at Twitch because the stream ended (the channel does not
+    /// keep rewards active while offline). Only a row carrying this marker is turned back on at the next
+    /// stream.online, so a reward the streamer disabled by hand stays disabled.
+    /// </summary>
+    public bool DisabledForOffline { get; set; }
+
+    /// <summary>
     /// Twitch's <c>is_user_input_required</c> flag: whether a redemption must carry viewer-typed text
     /// (e.g. a song URL, a TTS message) before Twitch grants it. Kept in step with Helix on every update
     /// so a read of this entity always reflects what Twitch actually enforces — never a stale guess.

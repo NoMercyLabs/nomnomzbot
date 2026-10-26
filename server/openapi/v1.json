@@ -109148,6 +109148,10 @@
               "null",
               "string"
             ]
+          },
+          "keepActiveWhileOffline": {
+            "type": "boolean",
+            "default": false
           }
         },
         "description": "The channel's onboarding \"basics\" — the settable-anywhere command string ChannelBasicsDto.Prefix, the default\r\nstring? ChannelBasicsDto.Locale, the bool ChannelBasicsDto.AutoJoin toggle, and the streamer's string? ChannelBasicsDto.Timezone.\r\nBacks both the Settings \"Bot basics\" card and the onboarding basics step."
@@ -151257,6 +151261,13 @@
               "string"
             ],
             "description": "The streamer's IANA timezone (e.g. `Europe/Amsterdam`). Null leaves it unchanged."
+          },
+          "keepActiveWhileOffline": {
+            "type": [
+              "null",
+              "boolean"
+            ],
+            "description": "Whether commands and rewards stay active while the channel is offline (default off: they switch off when\r\nthe stream ends and back on when it starts). Null leaves it unchanged."
           }
         },
         "description": "Request to update channel settings."

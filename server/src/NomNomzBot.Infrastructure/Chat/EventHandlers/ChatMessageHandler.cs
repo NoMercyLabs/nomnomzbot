@@ -274,6 +274,11 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         IBuiltinCommand? builtin = _builtins.Get(commandName);
         bool isReserved = builtin is { IsReserved: true };
 
+        // Offline switch: with the channel not live and no opt-in to stay active, a viewer's command (built-in
+        // or authored) does nothing. The rights floor stays on, like it does against every channel toggle.
+        if (!isReserved && OfflineCommandGate.Blocks(ctx, @event))
+            return;
+
         // A system command (!permit, !unpermit) is always on and also wins over a same-named channel command,
         // but it keeps the channel's own cooldown and floor.
         bool isAlwaysOn = builtin is { IsAlwaysOn: true };

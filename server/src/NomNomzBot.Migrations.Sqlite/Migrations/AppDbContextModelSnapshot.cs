@@ -5569,6 +5569,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<bool>("IsOnboarded")
                         .HasColumnType("INTEGER");
 
+                    b.Property<bool>("KeepActiveWhileOffline")
+                        .HasColumnType("INTEGER");
+
                     b.Property<string>("Language")
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");
@@ -10781,6 +10784,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<string>("Description")
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
+
+                    b.Property<bool>("DisabledForOffline")
+                        .HasColumnType("INTEGER");
 
                     b.Property<int?>("GlobalCooldownSeconds")
                         .HasColumnType("INTEGER");

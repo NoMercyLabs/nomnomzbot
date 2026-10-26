@@ -107,6 +107,14 @@ public class Channel : SoftDeletableEntity
     [MaxLength(16)]
     public string? BotLinePrefix { get; set; }
 
+    /// <summary>
+    /// Opt-in: when true, chat commands and channel-point rewards stay active while the channel is offline.
+    /// The default (false) switches them off when the stream ends and back on when it starts: a viewer's
+    /// command does nothing while offline (the broadcaster and moderators are exempt), and every reward the
+    /// bot can manage is disabled at Twitch until the next stream.online.
+    /// </summary>
+    public bool KeepActiveWhileOffline { get; set; }
+
     public bool IsOnboarded { get; set; }
 
     public DateTime? BotJoinedAt { get; set; }

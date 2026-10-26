@@ -692,6 +692,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
             {
                 c.Personality,
                 c.CommandPrefix,
+                c.KeepActiveWhileOffline,
                 c.User.Timezone,
             })
             .FirstOrDefaultAsync(ct);
@@ -702,6 +703,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
         ctx.CommandPrefix = string.IsNullOrWhiteSpace(settings?.CommandPrefix)
             ? "!"
             : settings.CommandPrefix;
+        ctx.KeepActiveWhileOffline = settings?.KeepActiveWhileOffline ?? false;
         ctx.Timezone = settings?.Timezone;
     }
 

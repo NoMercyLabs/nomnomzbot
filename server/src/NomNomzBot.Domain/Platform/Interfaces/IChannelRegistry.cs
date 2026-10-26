@@ -119,6 +119,14 @@ public class ChannelContext
     public string CommandPrefix { get; set; } = "!";
 
     /// <summary>
+    /// <c>Channel.KeepActiveWhileOffline</c>: when false (the default), a viewer's chat command does nothing
+    /// while <see cref="IsLive"/> is false. Refresh via <see cref="IChannelRegistry.InvalidateSettingsAsync"/>.
+    /// Stays true (commands answer as before) until the registry has loaded the channel's own setting, so a
+    /// context that is still loading never silences the bot.
+    /// </summary>
+    public bool KeepActiveWhileOffline { get; set; } = true;
+
+    /// <summary>
     /// The channel owner's IANA/Windows timezone id (<c>User.Timezone</c>, set in the setup wizard /
     /// Settings → Bot basics), or null when unset. Read by <c>TemplateResolver</c> to render
     /// <c>{time}</c>/<c>{date}</c> in the streamer's local time instead of UTC; refresh via

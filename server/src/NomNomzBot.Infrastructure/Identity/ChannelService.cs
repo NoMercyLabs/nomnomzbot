@@ -441,6 +441,7 @@ public class ChannelService : IChannelService
                 c.Language,
                 c.Enabled,
                 c.User.Timezone,
+                c.KeepActiveWhileOffline,
             })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -453,7 +454,8 @@ public class ChannelService : IChannelService
                 row.BotLinePrefix,
                 row.Language,
                 row.Enabled,
-                row.Timezone
+                row.Timezone,
+                row.KeepActiveWhileOffline
             )
         );
     }
@@ -489,7 +491,8 @@ public class ChannelService : IChannelService
                 channel.BotLinePrefix,
                 channel.Language,
                 channel.Enabled,
-                channel.User.Timezone
+                channel.User.Timezone,
+                channel.KeepActiveWhileOffline
             )
         );
     }
@@ -552,6 +555,8 @@ public class ChannelService : IChannelService
             autoJoinChangedTo = channel.Enabled = request.AutoJoin.Value;
         if (request.Timezone is not null)
             channel.User.Timezone = request.Timezone.Length == 0 ? null : request.Timezone;
+        if (request.KeepActiveWhileOffline.HasValue)
+            channel.KeepActiveWhileOffline = request.KeepActiveWhileOffline.Value;
 
         await _db.SaveChangesAsync(cancellationToken);
         await _registry.InvalidateSettingsAsync(broadcasterGuid, cancellationToken);
