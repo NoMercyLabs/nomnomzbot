@@ -10,6 +10,7 @@
 <script setup lang="ts">
 // The hint of a form field: a small info icon after the label that shows the hint on hover, on keyboard
 // focus and on click or tap (touch has no hover). Replaces the gray FieldDescription line under a field.
+// The 36px touch target overlaps the row instead of growing it, so a label with a hint lines up with one without.
 import { ref } from 'vue';
 import InfoCircle from '~icons/nnz/info-circle';
 
@@ -28,7 +29,7 @@ const open = ref(false);
         type="button"
         variant="ghost"
         size="icon"
-        class="text-muted-foreground hover:text-foreground size-9! shrink-0 p-0!"
+        class="text-muted-foreground hover:text-foreground size-9! -my-3 shrink-0 p-0!"
         :aria-label="$t('common.fieldInfo')"
         @click.prevent="open = !open"
       >
