@@ -22,6 +22,7 @@ import type { WidgetSettingsField } from '@/api/widgets';
 import MultiChoice from '@/components/layout/MultiChoice.vue';
 import SettingRow from '@/components/layout/SettingRow.vue';
 import { Button } from '@/components/ui/button';
+import { ColorPicker } from '@/components/ui/color-picker';
 import { Input } from '@/components/ui/input';
 import {
   Select,
@@ -37,6 +38,8 @@ import StepPicker from '@/views/dashboard/pipelines/components/StepPicker.vue';
 import SettingGroup from './SettingGroup.vue';
 import {
   clampNumber,
+  cleanColor,
+  defaultOf,
   objectOf,
   parsedJson,
   pickedWords,
@@ -218,20 +221,15 @@ function onNumber(event: Event): void {
         :aria-labelledby="titleId"
         @change="onNumber"
       />
-      <span v-else-if="field.type === 'color'" class="relative min-w-0 flex-1">
-        <span
-          data-swatch
-          class="absolute top-1/2 left-2 size-5 -translate-y-1/2 rounded-xs border border-border"
-          :style="{ backgroundColor: shown }"
-          aria-hidden="true"
-        />
-        <Input
-          class="pl-9 font-mono"
-          :model-value="shown"
-          :aria-labelledby="titleId"
-          @update:model-value="emit('update', String($event))"
-        />
-      </span>
+      <ColorPicker
+        v-else-if="field.type === 'color'"
+        data-swatch
+        class="min-w-0 flex-1 font-mono"
+        :model-value="shown"
+        :label="label"
+        :placeholder="String(defaultOf(field) ?? '')"
+        @update:model-value="emit('update', cleanColor($event))"
+      />
       <StepPicker
         v-else-if="field.type === 'text' && pickerKind"
         :id="titleId + '-picker'"

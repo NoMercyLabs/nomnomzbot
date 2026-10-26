@@ -136,6 +136,16 @@ export function clampNumber(
   return parsed;
 }
 
+// A typed color: a full hex color gets exactly one "#" and capitals ("##0072d4" -> "#0072D4"). Half-typed text
+// stays as typed, so the field never fights the person typing.
+export function cleanColor(typed: string): string {
+  const digits = typed.trim().replace(/^#+/, '');
+
+  return /^[0-9a-f]{6}$/i.test(digits)
+    ? `#${digits.toUpperCase()}`
+    : typed;
+}
+
 // The schema types a catalog default as unknown; it is a JSON value of the field's own type.
 export function defaultOf(field: WidgetSettingsField): JsonValue | undefined {
   return field.default as JsonValue | undefined;
