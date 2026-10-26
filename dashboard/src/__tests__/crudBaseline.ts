@@ -31,11 +31,6 @@ export const crudBaseline: Record<string, readonly string[]> = {
   'economy/jars/memberships': [
     'DELETE /channels/{channelId}/economy/jars/memberships/{membershipId}',
   ],
-  'egress-allowlist': [
-    'POST /channels/{channelId}/egress-allowlist',
-    'DELETE /channels/{channelId}/egress-allowlist/{allowlistId}',
-  ],
-  'egress-allowlist/enabled': ['PUT /channels/{channelId}/egress-allowlist/{allowlistId}/enabled'],
   'eventsub/subscriptions': [
     'POST /channels/{channelId}/eventsub/subscriptions',
     'DELETE /channels/{channelId}/eventsub/subscriptions/{id}',

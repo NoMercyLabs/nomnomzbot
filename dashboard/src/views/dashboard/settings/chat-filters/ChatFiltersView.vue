@@ -33,6 +33,7 @@ import { Switch } from '@/components/ui/switch';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
+import { useTargetOpen } from '@/composables/useTargetOpen';
 
 import ChatFilterEditor from './ChatFilterEditor.vue';
 
@@ -52,14 +53,7 @@ const state = usePanelState(filters, (list: ChatFilter[]) =>
 const editing = ref<ChatFilter | 'new' | null>(null);
 const removing = ref<ChatFilter | null>(null);
 
-const removeOpen = computed<boolean>({
-  get: () => removing.value !== null,
-  set: (value: boolean) => {
-    if (!value) {
-      removing.value = null;
-    }
-  },
-});
+const removeOpen = useTargetOpen(removing);
 
 function detailOf(filter: ChatFilter): string {
   const type = t(`dashboard.settings.chatFilters.types.${filter.filterType}`);

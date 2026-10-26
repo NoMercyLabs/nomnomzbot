@@ -50,6 +50,25 @@
             "done": "I saved it"
           }
         },
+        "allowlist": {
+          "title": "Approved hosts",
+          "description": "An outbound webhook can only post to a host on this list. A host you switch off stays here but is refused.",
+          "empty": "No approved hosts yet. Add the host of your server before you add an outbound webhook.",
+          "loadFailed": "The approved hosts could not be loaded.",
+          "hostLabel": "Host",
+          "hostPlaceholder": "hooks.example.com",
+          "add": "Add host",
+          "off": "Switched off. Webhooks to this host are refused.",
+          "switch": "Allow posts to {host}",
+          "remove": "Remove",
+          "removeTitle": "Remove {host}?",
+          "removeDescription": "Webhooks that post to this host are refused from now on. You can add the host again later.",
+          "removeAction": "Remove host",
+          "nothing": "No webhook uses this host.",
+          "addError": "The host could not be added: {reason}",
+          "switchError": "The host could not be changed: {reason}",
+          "removeError": "The host could not be removed: {reason}"
+        },
         "inbound": {
           "title": "Inbound webhooks",
           "description": "Links an outside provider posts to. Each call can start a pipeline or an event.",

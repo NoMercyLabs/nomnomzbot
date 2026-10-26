@@ -14,7 +14,7 @@ import type { UseQueryReturnType } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
-import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
+import GatedSwitch from '@/components/layout/GatedSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import { usePanelState } from '@/composables/usePanelState';
@@ -62,12 +62,15 @@ async function change(on: boolean): Promise<void> {
           <span class="block text-sm font-medium wrap-break-word">{{ $t(`${scope}.label`) }}</span>
           <span class="block text-sm text-muted-foreground">{{ $t(`${scope}.hint`) }}</span>
         </div>
-        <LabeledSwitch
-          v-model="accepts"
-          :action="action"
-          :label="$t(`${scope}.switch`)"
-          :disabled="pending"
-        />
+        <label data-labeled-switch class="flex w-fit items-center gap-2 text-sm font-medium">
+          {{ $t(`${scope}.switch`) }}
+          <GatedSwitch
+            v-model="accepts"
+            :action="action"
+            :aria-label="$t(`${scope}.switch`)"
+            :disabled="pending"
+          />
+        </label>
       </div>
     </RowGroup>
     <p v-if="failure" role="alert" class="pt-3 text-sm text-destructive">{{ failure }}</p>

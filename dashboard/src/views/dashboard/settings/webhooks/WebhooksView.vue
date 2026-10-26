@@ -50,6 +50,7 @@ import { usePanelState } from '@/composables/usePanelState';
 import { merge } from '@/lib/array';
 import { errorText, fieldErrorLines } from '@/lib/errors';
 
+import EgressAllowlistCard from './components/EgressAllowlistCard.vue';
 import InboundWebhookDialog from './components/InboundWebhookDialog.vue';
 import InboundWebhookRow from './components/InboundWebhookRow.vue';
 import OutboundDeliveriesPanel from './components/OutboundDeliveriesPanel.vue';
@@ -386,6 +387,7 @@ async function confirmDelete(): Promise<void> {
         }}
       </p>
       <p v-if="pageError" role="alert" class="pt-3 text-sm text-destructive">{{ pageError }}</p>
+      <EgressAllowlistCard v-if="can('egress:allowlist:read')" />
     </PageBody>
     <template v-if="can('webhooks:outbound:read')" #panel>
       <OutboundDeliveriesPanel v-model:open="deliveriesOpen" :endpoint="deliveriesFor" />

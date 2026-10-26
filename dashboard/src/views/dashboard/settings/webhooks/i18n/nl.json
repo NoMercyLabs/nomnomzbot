@@ -50,6 +50,25 @@
             "done": "Ik heb het bewaard"
           }
         },
+        "allowlist": {
+          "title": "Goedgekeurde hosts",
+          "description": "Een uitgaande webhook kan alleen naar een host op deze lijst posten. Een host die je uitzet blijft staan, maar wordt geweigerd.",
+          "empty": "Nog geen goedgekeurde hosts. Voeg de host van je server toe voordat je een uitgaande webhook toevoegt.",
+          "loadFailed": "De goedgekeurde hosts konden niet worden geladen.",
+          "hostLabel": "Host",
+          "hostPlaceholder": "hooks.example.com",
+          "add": "Host toevoegen",
+          "off": "Uitgezet. Webhooks naar deze host worden geweigerd.",
+          "switch": "Posts naar {host} toestaan",
+          "remove": "Verwijderen",
+          "removeTitle": "{host} verwijderen?",
+          "removeDescription": "Webhooks die naar deze host posten worden voortaan geweigerd. Je kunt de host later opnieuw toevoegen.",
+          "removeAction": "Host verwijderen",
+          "nothing": "Geen webhook gebruikt deze host.",
+          "addError": "De host kon niet worden toegevoegd: {reason}",
+          "switchError": "De host kon niet worden aangepast: {reason}",
+          "removeError": "De host kon niet worden verwijderd: {reason}"
+        },
         "inbound": {
           "title": "Inkomende webhooks",
           "description": "Links waar een externe dienst naartoe post. Elke aanroep kan een pipeline of event starten.",

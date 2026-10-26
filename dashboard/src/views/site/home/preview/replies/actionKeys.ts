@@ -61,6 +61,8 @@ export const ownerActionKeys = [
   'economy:leaderboards:config:delete',
   'economy:leaderboards:config:read',
   'economy:leaderboards:config:write',
+  'egress:allowlist:read',
+  'egress:allowlist:write',
   'engagement:read',
   'engagement:write',
   'eventresponses:read',
