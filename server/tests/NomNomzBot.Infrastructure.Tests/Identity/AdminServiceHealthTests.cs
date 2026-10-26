@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Reflection;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
@@ -90,5 +91,20 @@ public sealed class AdminServiceHealthTests
         result.Value.Overall.Should().Be("healthy");
         result.Value.Services.Select(s => s.Name).Should().Contain(["api", "database", "bot"]);
         result.Value.Services.Should().OnlyContain(s => s.Status == "healthy");
+    }
+
+    [Fact]
+    public async Task Health_reports_the_informational_version_that_names_the_build()
+    {
+        AdminService sut = Build(HealthStatus.Healthy, botReady: true);
+        string expected = typeof(AdminService)
+            .Assembly.GetCustomAttribute<AssemblyInformationalVersionAttribute>()!
+            .InformationalVersion;
+
+        Result<AdminSystemDto> result = await sut.GetSystemHealthAsync();
+
+        result
+            .Value.BotVersion.Should()
+            .Be(expected, "the update check compares the commit after the '+'");
     }
 }

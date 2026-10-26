@@ -248,7 +248,14 @@ public sealed class AdminService : IAdminService
         Process process = Process.GetCurrentProcess();
         long memoryMb = process.WorkingSet64 / (1024 * 1024);
 
-        string version = Assembly.GetEntryAssembly()?.GetName().Version?.ToString() ?? "0.0.0";
+        // The informational version carries "+<commit>", which names the exact build (the update check needs it).
+        Assembly assembly = typeof(AdminService).Assembly;
+        string version =
+            assembly
+                .GetCustomAttribute<AssemblyInformationalVersionAttribute>()
+                ?.InformationalVersion
+            ?? assembly.GetName().Version?.ToString()
+            ?? "0.0.0";
 
         // REAL probes — the same registered health checks the public /health endpoint runs (per profile:
         // postgres+redis on the durable tier, the lite checks on SQLite), never a canned "healthy" list.
