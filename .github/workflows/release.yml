@@ -127,6 +127,13 @@ jobs:
           {
             echo "Image: \`ghcr.io/nomercylabs/nomnomzbot:${ch}\` (also \`:${version}\`)"
             echo
+            echo "## Update"
+            echo
+            echo "- **Docker, full stack:** set \`API_IMAGE=ghcr.io/nomercylabs/nomnomzbot:${ch}\` in \`.env\`, then run"
+            echo "  \`scripts/switchover.ps1\`. The new version starts next to the old one; no downtime."
+            echo "- **Docker, lite:** \`docker compose -f docker-compose.lite.yml pull && docker compose -f docker-compose.lite.yml up -d\`."
+            echo "- Your data stays in place. Pin \`:${version}\` instead to stay on exactly this release."
+            echo
             echo "## Changes"
             git log --no-merges --format='- %s (%h)' "$range" | head -200
           } > notes.md

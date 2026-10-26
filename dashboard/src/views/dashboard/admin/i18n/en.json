@@ -935,6 +935,16 @@
           "channelsContext": "of {total} registered",
           "users": "Known users"
         },
+        "update": {
+          "title": "Updates",
+          "description": "Checks GitHub every few hours for a newer stable release.",
+          "available": "New version",
+          "changes": "What changed",
+          "how": "The release page lists the update steps for your kind of install.",
+          "current": "This bot runs the newest stable release.",
+          "unknown": "No stable release to compare with yet, or this build has no version to compare.",
+          "failed": "GitHub did not answer the update check."
+        },
         "totals": {
           "title": "Platform totals",
           "description": "Counts for the whole deployment. A new count arrives by itself.",

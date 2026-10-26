@@ -36,6 +36,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
+import UpdateCard from './components/UpdateCard.vue';
 
 const SECONDS_PER_MINUTE: number = 60;
 const SECONDS_PER_HOUR: number = 3600;
@@ -245,6 +246,8 @@ async function submit(): Promise<void> {
           <StatTile :label="$t('dashboard.admin.system.process.cpu')" :value="processor" />
         </StatStrip>
       </PanelCard>
+
+      <UpdateCard v-if="system" :bot-version="system.botVersion" />
 
       <PanelCard
         v-if="system"

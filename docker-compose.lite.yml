@@ -27,7 +27,7 @@ services:
   api:
     # Default: the published image, built and tested by CI. Building it yourself (`--build`, with
     # API_IMAGE=nomnomzbot-api:local in .env) needs a lot of memory for Docker.
-    image: ${API_IMAGE:-ghcr.io/nomercylabs/nomnomzbot:latest}
+    image: ${API_IMAGE:-ghcr.io/nomercylabs/nomnomzbot:stable}
     build:
       context: .
       dockerfile: Dockerfile

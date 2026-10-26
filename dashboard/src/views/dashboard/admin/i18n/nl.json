@@ -935,6 +935,16 @@
           "channelsContext": "van {total} geregistreerd",
           "users": "Bekende gebruikers"
         },
+        "update": {
+          "title": "Updates",
+          "description": "Kijkt om de paar uur op GitHub of er een nieuwere stabiele versie is.",
+          "available": "Nieuwe versie",
+          "changes": "Wat is er veranderd",
+          "how": "De releasepagina noemt de updatestappen voor jouw soort installatie.",
+          "current": "Deze bot draait de nieuwste stabiele versie.",
+          "unknown": "Nog geen stabiele versie om mee te vergelijken, of deze build heeft geen versie om te vergelijken.",
+          "failed": "GitHub gaf geen antwoord op de updatecontrole."
+        },
         "totals": {
           "title": "Totalen van het platform",
           "description": "Aantallen voor de hele installatie. Een nieuw aantal komt vanzelf binnen.",

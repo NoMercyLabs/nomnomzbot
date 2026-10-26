@@ -59,7 +59,7 @@
 # container_name.
 x-api-service: &api-service
   # Build from server/ for self-host. To pull the published image instead of building, set
-  #   API_IMAGE=ghcr.io/nomercylabs/nomnomzbot:latest
+  #   API_IMAGE=ghcr.io/nomercylabs/nomnomzbot:stable   (or :beta, :nightly)
   # in .env and run `docker compose up -d` (no --build needed).
   image: ${API_IMAGE:-nomnomzbot-api:local}
   build:

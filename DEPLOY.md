@@ -108,8 +108,10 @@ image (web dashboard included), starts the stack, waits until the API reports **
 prints your URLs.
 
 - Dashboard/API: `http://localhost:5080` — Adminer: `http://localhost:8082`
-- **Pull instead of build:** set `API_IMAGE=ghcr.io/nomercylabs/nomnomzbot:latest` in `.env`; the
-  script switches to pulling the published image automatically.
+- **Pull instead of build:** set `API_IMAGE=ghcr.io/nomercylabs/nomnomzbot:stable` in `.env`; the
+  script switches to pulling the published image automatically. Pick your release channel by tag:
+  `stable` (the Release button), `beta` (every Monday) or `nightly` (every night). The dashboard's
+  **Admin → System** page tells you when a newer stable release exists.
 - **First bring-up** (or a full reset): re-run the scenario, or `docker compose up -d`. **Logs:**
   `docker compose logs -f api-blue api-green`.
 - **Backup:** the `postgres_data` and `api_data` volumes plus your `.env`.
@@ -130,7 +132,7 @@ whole time, only the API instance behind it changes.
 
 The script works out which colour is currently live from `docker ps` (never take its word for
 it — it always re-derives this), then acquires the new image for the **idle** colour: if
-`API_IMAGE` resolves to a registry ref (e.g. `ghcr.io/nomercylabs/nomnomzbot:latest`, the Proxmox
+`API_IMAGE` resolves to a registry ref (e.g. `ghcr.io/nomercylabs/nomnomzbot:stable`, the Proxmox
 box's setup) it **pulls**; if it resolves to a bare local tag (the default
 `nomnomzbot-api:local` that `docker compose up -d --build` produces, which was never pushed
 anywhere and can't be pulled) it **builds** instead — pass `-Build` to force the build path
