@@ -147,6 +147,8 @@ export const apiOperations = {
   'tenant erase preview': 'admin',
   'tenant erase': 'admin',
   'tenant export': 'admin',
+  'support contact': 'admin',
+  'save support contact': 'admin',
   'analytics summary': 'analytics',
   'analytics daily': 'analytics',
   'analytics chat hours': 'analytics',

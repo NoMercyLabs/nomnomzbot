@@ -15,7 +15,6 @@
 // Print the live picture with: node dashboard/scripts/crud-audit.mjs --gaps
 export const crudBaseline: Record<string, readonly string[]> = {
   'admin/impersonation': ['DELETE /admin/impersonation/{accessGrantId}'],
-  'admin/support-contact': ['PUT /admin/support-contact'],
   assets: ['POST /assets', 'DELETE /assets/{id}'],
   'auth/twitch/bot': ['DELETE /auth/twitch/bot'],
   'bundles/installed': ['DELETE /channels/{channelId}/bundles/installed/{id}'],

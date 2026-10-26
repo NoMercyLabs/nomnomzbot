@@ -26,6 +26,7 @@ import SearchField from '@/components/layout/SearchField.vue';
 import { usePanelState } from '@/composables/usePanelState';
 
 import ChannelsTable from './components/ChannelsTable.vue';
+import SupportContactPanel from './components/SupportContactPanel.vue';
 import TenantActions from './components/TenantActions.vue';
 import TenantLimitsPanel from './components/TenantLimitsPanel.vue';
 import TenantMembersPanel from './components/TenantMembersPanel.vue';
@@ -94,12 +95,14 @@ const facts = computed<KeyValueItem[]>(() => [
       </PanelCard>
     </template>
     <template #detail>
-      <PanelCard
-        v-if="selectedId === null"
-        :title="t('dashboard.admin.tenants.title')"
-        state="empty"
-        :empty-text="t('dashboard.admin.tenants.pick')"
-      />
+      <template v-if="selectedId === null">
+        <PanelCard
+          :title="t('dashboard.admin.tenants.title')"
+          state="empty"
+          :empty-text="t('dashboard.admin.tenants.pick')"
+        />
+        <SupportContactPanel />
+      </template>
       <DetailPane v-else>
         <template #header>
           <h2 class="text-lg font-semibold">{{ tenant?.name }}</h2>

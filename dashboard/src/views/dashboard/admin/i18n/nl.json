@@ -69,6 +69,15 @@
         "restricted": "Kanalen voor derden hosten is een beperkte optie: NomNomzBot als gehoste dienst draaien is voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis.",
         "manage": "Beheer dit kanaal"
       },
+      "supportContact": {
+        "title": "Supportcontact",
+        "description": "De pagina waar mensen van een geschorst kanaal naartoe gaan als ze het platform nodig hebben. Laat leeg voor geen.",
+        "label": "Adres van de supportpagina",
+        "placeholder": "https://example.com/support",
+        "save": "Adres opslaan",
+        "saved": "Het supportcontact is opgeslagen.",
+        "loadFailed": "Het supportcontact kon niet worden geladen."
+      },
       "tenants": {
         "title": "Tenants",
         "pick": "Kies een tenant om te beheren.",

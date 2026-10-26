@@ -69,6 +69,15 @@
         "restricted": "Hosting channels for third parties is a restricted option: running NomNomzBot as a hosted service is reserved to NoMercy Labs. Self-hosting your own bot is always free.",
         "manage": "Manage this channel"
       },
+      "supportContact": {
+        "title": "Support contact",
+        "description": "The page people of a suspended channel are sent to when they need the platform. Leave it empty for none.",
+        "label": "Support page address",
+        "placeholder": "https://example.com/support",
+        "save": "Save address",
+        "saved": "The support contact is saved.",
+        "loadFailed": "The support contact could not be loaded."
+      },
       "tenants": {
         "title": "Tenants",
         "pick": "Pick a tenant to manage it.",

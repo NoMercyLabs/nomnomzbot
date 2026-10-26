@@ -221,3 +221,46 @@ export function useExportTenant() {
     },
   });
 }
+
+export type SupportContact = components['schemas']['SupportContact'];
+
+export const supportContactKey: KeyParts = ['admin', 'support-contact'];
+
+// The page a suspended channel's people use to reach the platform. Null until it is set.
+export function useSupportContact(): UseQueryReturnType<SupportContact, Error> {
+  return useQuery({
+    queryKey: supportContactKey,
+    queryFn: async (): Promise<SupportContact> => {
+      const { data, error, response } = await client.GET('/api/v{version}/admin/support-contact', {
+        params: { path: { version } },
+      });
+
+      if (error !== undefined || !data?.data)
+        throw problemError('support contact', response.status, error);
+
+      return data.data;
+    },
+  });
+}
+
+// An empty address clears the contact; the bot refuses an address that is not an absolute http or https link.
+export function useSaveSupportContact() {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (url: string): Promise<SupportContact> => {
+      const { data, error, response } = await client.PUT('/api/v{version}/admin/support-contact', {
+        params: { path: { version } },
+        body: { url },
+      });
+
+      if (error !== undefined || !data?.data)
+        throw problemError('save support contact', response.status, error);
+
+      return data.data;
+    },
+    onSuccess: (saved: SupportContact) => {
+      queries.setQueryData(supportContactKey, saved);
+    },
+  });
+}
