@@ -340,10 +340,9 @@ describe('VoiceTriggersView header listener', () => {
   it('moves the listener and the new button into the frame footer on a phone', async () => {
     setWidth(phoneWidth);
 
-    const footer = document.createElement('div');
+    // The frame's footer stand-in from vitest.setup.ts.
+    const footer = document.body.querySelector('[data-slot=frame-action-footer]') as HTMLElement;
 
-    footer.dataset.slot = 'frame-action-footer';
-    document.body.append(footer);
     await open();
 
     expect(footer.textContent).toContain('New voice trigger');

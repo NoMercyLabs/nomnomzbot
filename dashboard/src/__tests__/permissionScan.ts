@@ -84,10 +84,13 @@ function directives(node: TemplateNode, names: string[]): TemplateProp[] {
 }
 
 // A LabeledSwitch given a static `action` renders GatedSwitch, which checks that permission itself.
+// A PageCreateButton stays visible but turns off when its `disabled-reason` is set from a permission check.
 function carriesOwnGate(node: TemplateNode): boolean {
   const staticAction = (node.props ?? []).some((prop) => prop.name === 'action' && prop.value?.content);
+  const reasonGated = directives(node, ['bind'])
+    .some((prop) => /^disabled-?[rR]eason$/.test(prop.arg?.content ?? '') && gateExpression.test(prop.exp?.content ?? ''));
 
-  return node.tag === 'LabeledSwitch' && staticAction;
+  return (node.tag === 'LabeledSwitch' && staticAction) || (node.tag === 'PageCreateButton' && reasonGated);
 }
 
 function isGate(node: TemplateNode): boolean {

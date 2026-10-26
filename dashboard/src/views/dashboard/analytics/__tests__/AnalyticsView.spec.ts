@@ -392,10 +392,9 @@ describe('what the person may see', () => {
   it('moves the range into the frame footer on a phone and keeps it in the header on a laptop', async () => {
     setWidth(phoneWidth);
 
-    const footer = document.createElement('div');
+    // The frame's footer stand-in from vitest.setup.ts.
+    const footer = document.body.querySelector('[data-slot=frame-action-footer]') as HTMLElement;
 
-    footer.dataset.slot = 'frame-action-footer';
-    document.body.append(footer);
     await open();
 
     expect(footer.querySelector('[data-segmented]')).not.toBeNull();
