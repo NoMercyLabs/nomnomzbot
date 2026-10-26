@@ -41,6 +41,9 @@ permissions:
 jobs:
   promote:
     runs-on: ubuntu-latest
+    outputs:
+      channel: ${{ steps.ch.outputs.channel }}
+      version: ${{ steps.tag.outputs.version }}
     steps:
       - name: Pick the channel
         id: ch
@@ -130,3 +133,12 @@ jobs:
           flag="--prerelease"
           [ "$ch" = "stable" ] && flag="--latest"
           gh release create "$version" --target "$sha" --title "$version" --notes-file notes.md $flag
+
+  # The hosted server runs stable only, so only a new stable release reaches it.
+  deploy:
+    needs: promote
+    if: needs.promote.outputs.channel == 'stable' && needs.promote.outputs.version != ''
+    uses: ./.github/workflows/deploy.yml
+    with:
+      tag: ${{ needs.promote.outputs.version }}
+    secrets: inherit

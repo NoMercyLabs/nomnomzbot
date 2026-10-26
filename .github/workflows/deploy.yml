@@ -1,0 +1,116 @@
+# -----------------------------------------------------------------------------
+#  Copyright (c) NoMercy Labs.
+#
+#  This file is part of NomNomzBot, free software licensed under the GNU Affero
+#  General Public License v3.0 or later. You may redistribute and/or modify it
+#  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+#
+#  SPDX-License-Identifier: AGPL-3.0-or-later
+# -----------------------------------------------------------------------------
+
+# Deploys one image tag to the hosted server with no gap (blue/green behind Caddy). The hosted server runs stable
+# only: release.yml calls this after a stable release. Run it by hand with an older tag (stable-YYYY.MM.DD-N, see
+# the Releases page) to roll back.
+name: Deploy
+
+on:
+  workflow_call:
+    inputs:
+      tag:
+        type: string
+        required: true
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: Image tag to run (stable, or an older stable-YYYY.MM.DD-N to roll back)
+        type: string
+        required: true
+        default: stable
+
+concurrency:
+  group: deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    name: Deploy to server
+    # DEPLOY_HOST is a private-LAN address (Proxmox), so this runs on the self-hosted runner on that LAN
+    # (label nomnomzbot-deploy). That runner has no docker socket, so it deploys over SSH.
+    runs-on: [self-hosted, nomnomzbot-deploy]
+    if: vars.DEPLOY_ENABLED == 'true'
+    steps:
+      - name: Check the tag
+        env:
+          TAG: ${{ inputs.tag }}
+        run: |
+          case "$TAG" in
+            stable | stable-[0-9]*) ;;
+            *) echo "The hosted server runs stable only; got '$TAG'." >&2; exit 1 ;;
+          esac
+
+      - name: Deploy via SSH
+        uses: appleboy/ssh-action@v1
+        env:
+          TAG: ${{ inputs.tag }}
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          envs: TAG
+          # BLUE/GREEN. There is no `api` service: docker-compose.yml fronts api-blue and api-green with Caddy,
+          # which routes to whichever passes health (scripts/switchover.ps1 is the same procedure).
+          script: |
+            set -e
+            image="ghcr.io/nomercylabs/nomnomzbot:${TAG}"
+            docker pull "$image"
+            cd /opt/nomnomzbot
+            # api-green is profiled so a bare `up -d` cannot start both colours.
+            export COMPOSE_PROFILES=green
+
+            # Ask docker which colour is live, so a re-run after a failed attempt converges.
+            ps_out=$(docker ps --filter name=nomnomzbot-api- --format '{{.Names}}' || true)
+            blue_up=$(echo "$ps_out" | grep -c 'nomnomzbot-api-blue' || true)
+            green_up=$(echo "$ps_out" | grep -c 'nomnomzbot-api-green' || true)
+
+            if [ "$blue_up" -gt 0 ] && [ "$green_up" -gt 0 ]; then
+              echo "Both api-blue and api-green are running: a half-finished switchover."
+              echo "Stop the one Caddy is NOT routing to, then deploy again."
+              exit 1
+            fi
+
+            if [ "$green_up" -gt 0 ]; then live=green; idle=blue; else live=blue; idle=green; fi
+            echo "Live colour: api-$live -> deploying api-$idle with $image"
+
+            API_IMAGE="$image" docker compose up -d --no-deps --pull always "api-$idle"
+            docker compose logs "api-$idle" --tail=20
+
+            # Wait for the NEW colour's own /health/ready, in-container, so a healthy old instance cannot hide
+            # a broken new one.
+            ready=0
+            for i in $(seq 1 30); do
+              code=$(docker exec "nomnomzbot-api-$idle" curl -s -o /dev/null -w '%{http_code}' \
+                http://localhost:5000/health/ready 2>/dev/null || echo "000")
+              if [ "$code" = "200" ]; then
+                echo "api-$idle ready after ${i}0s"
+                ready=1
+                break
+              fi
+              sleep 10
+            done
+
+            if [ "$ready" != "1" ]; then
+              echo "api-$idle never passed /health/ready; api-$live keeps serving, nothing cut over."
+              docker compose logs "api-$idle" --tail=100
+              docker compose stop "api-$idle" || true
+              exit 1
+            fi
+
+            # The app fails /health/ready on SIGTERM, so Caddy stops routing to it at once; -t is the drain window.
+            if [ "$blue_up" -gt 0 ] || [ "$green_up" -gt 0 ]; then
+              docker compose stop -t 35 "api-$live"
+              echo "api-$live stopped (drained)"
+            fi
+            # Pin the tag, so a restart or a plain `up -d` keeps this version instead of a newer master build.
+            sed -i "s|^API_IMAGE=.*|API_IMAGE=${image}|" .env
+            grep -n '^API_IMAGE=' .env
+            docker exec "nomnomzbot-api-$idle" curl -s http://localhost:5000/health/version
