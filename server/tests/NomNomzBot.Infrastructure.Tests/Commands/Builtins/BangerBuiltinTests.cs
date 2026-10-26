@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
@@ -51,7 +52,14 @@ public sealed class BangerBuiltinTests : IDisposable
 
     public void Dispose() => _config.Dispose();
 
-    private BangerBuiltin Sut() => new(_music, _playlists, _config.Service, FakeComposer());
+    private BangerBuiltin Sut() =>
+        new(
+            _music,
+            _playlists,
+            _config.Service,
+            FakeComposer(),
+            NullLogger<BangerBuiltin>.Instance
+        );
 
     private static BuiltinCommandContext Context(string personality = PersonalityTone.Sassy) =>
         new()

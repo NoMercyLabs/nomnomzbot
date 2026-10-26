@@ -109,7 +109,12 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         Result<IReadOnlyList<string>> scopesResult = ResolveScopes(descriptor, scopeSetKey);
         if (scopesResult.IsFailure)
             return scopesResult.WithValue<OAuthStartDto>(null!);
-        IReadOnlyList<string> scopes = scopesResult.Value;
+        IReadOnlyList<string> scopes = await WithHeldScopesAsync(
+            broadcasterId,
+            provider,
+            scopesResult.Value,
+            cancellationToken
+        );
 
         // A shop-scoped provider (Shopify) parameterizes its endpoints with the shop name — required,
         // sanitized (never a full URL: the substitution must not become an SSRF vector).
@@ -504,6 +509,28 @@ public sealed class IntegrationOAuthService : IIntegrationOAuthService
         }
 
         return Result.Success<IReadOnlyList<string>>([.. union]);
+    }
+
+    // The provider grants exactly what the consent screen asks, so a reconnect also asks for every scope
+    // the channel already holds: asking for a new right must never take an old one away.
+    private async Task<IReadOnlyList<string>> WithHeldScopesAsync(
+        Guid broadcasterId,
+        string provider,
+        IReadOnlyList<string> requested,
+        CancellationToken cancellationToken
+    )
+    {
+        Result<IReadOnlyList<IntegrationConnectionDto>> connections =
+            await _vault.ListConnectionsAsync(broadcasterId, cancellationToken);
+        IntegrationConnectionDto? held = connections.IsSuccess
+            ? connections.Value.FirstOrDefault(c =>
+                string.Equals(c.Provider, provider, StringComparison.OrdinalIgnoreCase)
+            )
+            : null;
+        if (held is null)
+            return requested;
+
+        return [.. requested.Union(held.Scopes, StringComparer.Ordinal)];
     }
 
     private static string RedirectUriFor(string publicOrigin, string provider) =>

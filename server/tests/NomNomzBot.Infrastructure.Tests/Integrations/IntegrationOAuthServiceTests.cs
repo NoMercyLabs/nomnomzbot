@@ -290,6 +290,55 @@ public sealed class IntegrationOAuthServiceTests
         scope.Should().Contain("user-read-email");
     }
 
+    /// <summary>
+    /// A reconnect never takes rights away: the provider grants exactly what is asked, so asking only for
+    /// the playlist scopes would silently drop the embedded-audio scopes the channel already holds.
+    /// </summary>
+    [Fact]
+    public async Task StartConnect_Reconnect_KeepsTheScopesTheChannelAlreadyHolds()
+    {
+        (IntegrationOAuthService service, AuthDbContext db, _, _) = Build(new());
+        await SeedChannelSpotifyCredentialsAsync(
+            db,
+            AuthTestBuilder.RealTokenProtector(db, out _),
+            Tenant,
+            "spotify-client",
+            "spotify-secret"
+        );
+        db.IntegrationConnections.Add(
+            new IntegrationConnection
+            {
+                BroadcasterId = Tenant,
+                Provider = AuthEnums.IntegrationProvider.Spotify,
+                ProviderAccountId = "spotify-user",
+                ProviderAccountName = "Streamer",
+                Status = AuthEnums.IntegrationStatus.Connected,
+                Scopes = ["user-read-playback-state", "streaming", "user-read-email"],
+                ConnectedAt = DateTime.UtcNow,
+            }
+        );
+        await db.SaveChangesAsync();
+
+        Result<OAuthStartDto> start = await service.StartConnectAsync(
+            Tenant,
+            AuthEnums.IntegrationProvider.Spotify,
+            "spotify.playback+spotify.library",
+            null,
+            Actor,
+            publicOrigin: "https://bot-dev.nomercy.tv"
+        );
+
+        start.IsSuccess.Should().BeTrue(start.ErrorMessage);
+        string[] requested = ScopesOf(start.Value.AuthorizeUrl);
+        requested.Should().Contain(["playlist-modify-public", "playlist-read-private"]);
+        requested
+            .Should()
+            .Contain(["streaming", "user-read-email"], "a reconnect keeps held rights");
+    }
+
+    private static string[] ScopesOf(string authorizeUrl) =>
+        Uri.UnescapeDataString(authorizeUrl.Split("scope=")[1].Split('&')[0]).Split(' ');
+
     [Fact]
     public async Task StartConnect_CompositeScopeSetKey_WithOneUnknownMember_Fails()
     {

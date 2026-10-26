@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -27,7 +28,8 @@ public sealed class BangerBuiltin(
     IMusicService music,
     IMusicProviderManageApi playlists,
     IMusicConfigService config,
-    IBuiltinResponseComposer composer
+    IBuiltinResponseComposer composer,
+    ILogger<BangerBuiltin> logger
 ) : IBuiltinCommand
 {
     private const string NoPlaylistCode = "NO_PLAYLIST";
@@ -72,7 +74,7 @@ public sealed class BangerBuiltin(
                     [],
                     ct
                 )
-                : await FailedAsync(context, variables, ct);
+                : await FailedAsync(context, "resolve playlist", target, variables, ct);
 
         variables["playlist.name"] = await BangerReplyVariables.PlaylistNameAsync(
             playlists,
@@ -90,7 +92,7 @@ public sealed class BangerBuiltin(
             ct
         );
         if (present.IsFailure)
-            return await FailedAsync(context, variables, ct);
+            return await FailedAsync(context, "read playlist", present, variables, ct);
 
         if (present.Value)
             return await ReplyAsync(
@@ -109,7 +111,7 @@ public sealed class BangerBuiltin(
             ct
         );
         if (added.IsFailure)
-            return await FailedAsync(context, variables, ct);
+            return await FailedAsync(context, "add track", added, variables, ct);
 
         return await ReplyAsync(
             context,
@@ -168,16 +170,27 @@ public sealed class BangerBuiltin(
 
     private Task<Result<string>> FailedAsync(
         BuiltinCommandContext context,
+        string step,
+        Result failure,
         Dictionary<string, string> variables,
         CancellationToken ct
-    ) =>
-        ReplyAsync(
+    )
+    {
+        logger.LogWarning(
+            "!banger could not {Step} for {BroadcasterId}: {Code} {Error}",
+            step,
+            context.BroadcasterId,
+            failure.ErrorCode,
+            failure.ErrorMessage
+        );
+        return ReplyAsync(
             context,
             BuiltinResponseSlots.Banger.Failed,
             "@{user}, {playlist.name} could not be updated with \"{track.name}\" by {track.artist}. Try again in a moment.",
             variables,
             ct
         );
+    }
 
     private async Task<Result<string>> ReplyAsync(
         BuiltinCommandContext context,

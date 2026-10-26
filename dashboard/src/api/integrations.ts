@@ -32,8 +32,9 @@ export type NewSpotifyCredentials = components['schemas']['SetChannelSpotifyCred
 const version = '1';
 
 // The scope set each provider asks for when the streamer connects (server OAuthProviderRegistry).
+// Spotify asks for the playlists too: !banger and the playlist pickers write to them.
 export const connectScopeSets = {
-  spotify: 'spotify.playback',
+  spotify: 'spotify.playback+spotify.library',
   kick: 'kick.chat',
   youtube: 'youtube.manage',
   patreon: 'patreon.supporters',
