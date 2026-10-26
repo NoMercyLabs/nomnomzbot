@@ -13,7 +13,6 @@
 import ChevronDown from '~icons/nnz/chevron-down';
 import Copy from '~icons/nnz/file-copy';
 import RotateLeft from '~icons/nnz/rotate-left';
-import Trash2 from '~icons/nnz/trash';
 import { computed, nextTick, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -29,6 +28,7 @@ import {
   type CommandListItem,
 } from '@/api/commands';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import EditorFooter from '@/components/layout/EditorFooter.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import DetailClose from './DetailClose.vue';
@@ -420,60 +420,47 @@ function remove(): void {
       <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
     </div>
     <template #footer>
-      <!-- Delete sits apart at the far left, away from Save, quiet; its confirm carries the danger. -->
-      <Button type="button"
-              variant="outline"
-              size="sm"
-              @click="askDelete"
+      <EditorFooter
+        v-model:confirm-open="confirmOpen"
+        :delete-label="$t('dashboard.commands.editor.delete')"
+        :discard-label="$t('dashboard.commands.editor.discard')"
+        :save-label="$t('dashboard.commands.editor.save')"
+        :unsaved="unsaved"
+        :can-save="dirtyCount > 0 && valid"
+        :saving="update.isPending.value"
+        :confirm-title="$t('dashboard.commands.editor.confirmTitle', { name: row.name })"
+        :confirm-description="$t('dashboard.commands.editor.confirmBody')"
+        :confirm-action="$t('dashboard.commands.editor.confirmAction')"
+        @ask-delete="askDelete"
+        @confirm-delete="remove"
+        @discard="discard"
+        @save="save"
       >
-        <Trash2 aria-hidden="true" />
-        {{ $t("dashboard.commands.editor.delete") }}
-      </Button>
-      <Button type="button"
-              variant="outline"
-              size="sm"
-              data-command-duplicate
-              :disabled="create.isPending.value"
-              @click="duplicate"
-      >
-        <Copy aria-hidden="true" />
-        {{ $t("dashboard.commands.editor.duplicate") }}
-      </Button>
-      <Button
-        v-if="row.presetKey"
-        type="button"
-        variant="outline"
-        size="sm"
-        :disabled="resetToPreset.isPending.value"
-        @click="resetOpen = true"
-      >
-        <RotateLeft aria-hidden="true" />
-        {{ $t("dashboard.commands.editor.reset") }}
-      </Button>
-      <span data-unsaved class="mr-auto text-sm text-muted-foreground">{{ unsaved }}</span>
-      <Button type="button"
-              variant="outline"
-              size="sm"
-              @click="discard"
-      >{{
-        $t("dashboard.commands.editor.discard")
-      }}</Button>
-      <Button
-        type="button"
-        size="sm"
-        :disabled="dirtyCount === 0 || !valid || update.isPending.value"
-        @click="save"
-      >
-        {{ $t("dashboard.commands.editor.save") }}
-      </Button>
+        <template #extra>
+          <Button type="button"
+                  variant="outline"
+                  size="sm"
+                  data-command-duplicate
+                  :disabled="create.isPending.value"
+                  @click="duplicate"
+          >
+            <Copy aria-hidden="true" />
+            {{ $t("dashboard.commands.editor.duplicate") }}
+          </Button>
+          <Button
+            v-if="row.presetKey"
+            type="button"
+            variant="outline"
+            size="sm"
+            :disabled="resetToPreset.isPending.value"
+            @click="resetOpen = true"
+          >
+            <RotateLeft aria-hidden="true" />
+            {{ $t("dashboard.commands.editor.reset") }}
+          </Button>
+        </template>
+      </EditorFooter>
     </template>
-    <ConfirmDialog
-      v-model:open="confirmOpen"
-      :title="$t('dashboard.commands.editor.confirmTitle', { name: row.name })"
-      :description="$t('dashboard.commands.editor.confirmBody')"
-      :action="$t('dashboard.commands.editor.confirmAction')"
-      @confirm="remove"
-    />
     <ConfirmDialog
       v-model:open="resetOpen"
       :title="$t('dashboard.commands.editor.resetTitle', { name: row.name })"

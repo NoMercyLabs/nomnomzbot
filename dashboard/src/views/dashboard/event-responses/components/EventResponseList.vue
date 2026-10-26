@@ -13,8 +13,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useEventResponses, type EventResponse } from '@/api/eventResponses';
-import PanelCard from '@/components/layout/PanelCard.vue';
-import SearchField from '@/components/layout/SearchField.vue';
+import ListPanel from '@/components/layout/ListPanel.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
@@ -53,21 +52,15 @@ function detailOf(row: EventResponse): string {
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col gap-3">
-    <PanelCard
+    <ListPanel
+      v-model="search"
       :title="$t('dashboard.eventResponses.list.title')"
+      :placeholder="$t('dashboard.eventResponses.list.search')"
       :state="state"
       :empty-text="$t('dashboard.eventResponses.list.empty')"
       :error-text="$t('dashboard.eventResponses.list.error')"
       @retry="responses.refetch()"
     >
-      <template #actions>
-        <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
-        <SearchField
-          v-model="search"
-          class="-mr-2 w-52 rounded-[12px]"
-          :placeholder="$t('dashboard.eventResponses.list.search')"
-        />
-      </template>
       <p v-if="rows.length === 0" class="p-4 text-center text-sm text-muted-foreground">
         {{ $t('dashboard.eventResponses.list.noMatch') }}
       </p>
@@ -90,6 +83,6 @@ function detailOf(row: EventResponse): string {
           <StatusBadge tone="off" :label="$t('dashboard.eventResponses.list.off')" />
         </template>
       </SummaryRow>
-    </PanelCard>
+    </ListPanel>
   </div>
 </template>

@@ -8,7 +8,14 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-import { vi } from 'vitest';
+import { beforeEach, vi } from 'vitest';
+
+// The real frame (DashboardLayout) owns the sticky action footer that a page's actions move into below the
+// tablet width (PageActionFooter, PageCreateButton). A spec that mounts one page has no frame, and jsdom has
+// no media query, so it always lays out as a phone; this stands the frame's footer behind every test.
+beforeEach(() => {
+  document.body.insertAdjacentHTML('beforeend', '<div data-slot="frame-action-footer"></div>');
+});
 
 // jsdom lays nothing out, so it leaves out the browser calls that move the view. Every browser has them;
 // without these a page that scrolls a chosen item into view throws in a test.

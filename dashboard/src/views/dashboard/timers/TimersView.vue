@@ -9,7 +9,6 @@
 -->
 <script setup lang="ts">
 // The Triggers and Timers page: the channel's timers on the left, the open timer on the right.
-import Plus from '~icons/nnz/add';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
@@ -18,11 +17,11 @@ import { useTimers, type Timer } from '@/api/liveOps';
 import { useDeleteTimer } from '@/api/timers';
 import BackLink from '@/components/layout/BackLink.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
+import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
 import type { PageTab } from '@/components/layout/pageTab';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
@@ -104,15 +103,11 @@ function create(): void {
 <template>
   <PageHeader :title="$t('dashboard.timers.title')" :crumb="$t('dashboard.timers.crumb')">
     <template #actions>
-      <Button v-if="canCreate"
-              type="button"
-              variant="outline"
-              size="sm"
-              @click="create"
-      >
-        <Plus aria-hidden="true" />
-        {{ view === 'triggers' ? $t('dashboard.timers.triggers.new') : $t('dashboard.timers.new') }}
-      </Button>
+      <PageCreateButton
+        :label="view === 'triggers' ? $t('dashboard.timers.triggers.new') : $t('dashboard.timers.new')"
+        :disabled-reason="canCreate ? undefined : $t('common.readOnly')"
+        @create="create"
+      />
     </template>
     <template #bar>
       <PageTabs :tabs="tabs" />

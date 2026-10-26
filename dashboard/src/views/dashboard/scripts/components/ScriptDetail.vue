@@ -18,7 +18,6 @@ import { useQuery, type UseQueryReturnType } from '@tanstack/vue-query';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import Copy from '~icons/nnz/file-copy';
-import Trash from '~icons/nnz/trash';
 
 import {
   fetchBlastRadius,
@@ -31,8 +30,8 @@ import {
 } from '@/api/codeScripts';
 import BackLink from '@/components/layout/BackLink.vue';
 import CodeEditor from '@/components/layout/CodeEditor.vue';
-import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import DetailPane from '@/components/layout/DetailPane.vue';
+import EditorFooter from '@/components/layout/EditorFooter.vue';
 import KeyValueList from '@/components/layout/KeyValueList.vue';
 import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -299,32 +298,34 @@ function confirmDelete(): void {
 
     <div data-page-inset
          data-slot="script-footer"
-         class="mt-2 flex flex-none flex-wrap items-center gap-3 border-t pt-4"
+         class="mt-2 flex flex-none border-t pt-4"
     >
-      <span class="min-w-0 flex-1 text-xs text-muted-foreground">
-        {{ $t('dashboard.scripts.detail.limits') }}
-      </span>
-      <Button
-        v-if="can('code:script:author')"
-        data-slot="script-duplicate"
-        variant="outline"
-        size="sm"
-        :disabled="create.isPending.value || !script?.currentVersion"
-        @click="copyScript"
+      <EditorFooter
+        v-model:confirm-open="confirmOpen"
+        :delete-label="can('code:script:author') ? $t('dashboard.scripts.detail.delete') : undefined"
+        :unsaved="$t('dashboard.scripts.detail.limits')"
+        :confirm-title="$t('dashboard.scripts.delete.title', { name: script?.name ?? '' })"
+        :confirm-description="$t('dashboard.scripts.delete.description')"
+        :confirm-action="$t('dashboard.scripts.delete.action')"
+        :consequences="consequences"
+        :deleting="remove.isPending.value"
+        @ask-delete="askDelete"
+        @confirm-delete="confirmDelete"
       >
-        <Copy aria-hidden="true" />
-        {{ $t('dashboard.scripts.detail.duplicate') }}
-      </Button>
-      <Button
-        v-if="can('code:script:author')"
-        data-slot="script-delete"
-        variant="outline"
-        size="sm"
-        @click="askDelete"
-      >
-        <Trash aria-hidden="true" />
-        {{ $t('dashboard.scripts.detail.delete') }}
-      </Button>
+        <template #extra>
+          <Button
+            v-if="can('code:script:author')"
+            data-slot="script-duplicate"
+            variant="outline"
+            size="sm"
+            :disabled="create.isPending.value || !script?.currentVersion"
+            @click="copyScript"
+          >
+            <Copy aria-hidden="true" />
+            {{ $t('dashboard.scripts.detail.duplicate') }}
+          </Button>
+        </template>
+      </EditorFooter>
     </div>
   </DetailPane>
 
@@ -337,15 +338,5 @@ function confirmDelete(): void {
     :sdk-types-unavailable="editor.session.value.sdkTypes === null"
     :save="editor.save"
     @close="editor.close"
-  />
-
-  <ConfirmDialog
-    v-model:open="confirmOpen"
-    :title="$t('dashboard.scripts.delete.title', { name: script?.name ?? '' })"
-    :description="$t('dashboard.scripts.delete.description')"
-    :consequences="consequences"
-    :action="$t('dashboard.scripts.delete.action')"
-    :pending="remove.isPending.value"
-    @confirm="confirmDelete"
   />
 </template>

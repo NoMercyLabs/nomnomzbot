@@ -15,8 +15,7 @@ import { useI18n } from 'vue-i18n';
 
 import { triggerWord, useBuiltins, useToggleBuiltin, type BuiltinCommand } from '@/api/commands';
 import GatedSwitch from '@/components/layout/GatedSwitch.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
-import SearchField from '@/components/layout/SearchField.vue';
+import ListPanel from '@/components/layout/ListPanel.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
@@ -91,21 +90,15 @@ const state = usePanelState(builtins, (data: BuiltinCommand[]): boolean =>
 </script>
 
 <template>
-  <PanelCard
+  <ListPanel
+    v-model="search"
     :title="$t('dashboard.commands.builtin.title')"
+    :placeholder="$t('dashboard.commands.list.search')"
     :state="state"
     :empty-text="$t('dashboard.commands.builtin.empty')"
     :error-text="$t('dashboard.commands.builtin.error')"
     @retry="builtins.refetch()"
   >
-    <template #actions>
-      <!-- Concentric with the panel corner, as in the command list: a 12px radius. -->
-      <SearchField
-        v-model="search"
-        class="-mr-2 w-52 rounded-[12px]"
-        :placeholder="$t('dashboard.commands.list.search')"
-      />
-    </template>
     <p v-if="rows.length === 0" class="p-4 text-center text-sm text-muted-foreground">
       {{ $t("dashboard.commands.list.noMatch") }}
     </p>
@@ -131,5 +124,5 @@ const state = usePanelState(builtins, (data: BuiltinCommand[]): boolean =>
         />
       </template>
     </SummaryRow>
-  </PanelCard>
+  </ListPanel>
 </template>

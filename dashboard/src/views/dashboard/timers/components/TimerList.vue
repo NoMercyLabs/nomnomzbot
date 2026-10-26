@@ -13,9 +13,8 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useTimers, type Timer } from '@/api/liveOps';
-import PanelCard from '@/components/layout/PanelCard.vue';
+import ListPanel from '@/components/layout/ListPanel.vue';
 import type { PanelState } from '@/composables/usePanelState';
-import SearchField from '@/components/layout/SearchField.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
@@ -63,20 +62,14 @@ function detailOf(row: Timer): string {
 
 <template>
   <div class="flex min-h-0 flex-1 flex-col gap-3">
-    <PanelCard
+    <ListPanel
+      v-model="search"
       :title="$t('dashboard.timers.list.title')"
+      :placeholder="$t('dashboard.timers.list.search')"
       :state="state"
       :error-text="$t('dashboard.timers.list.error')"
       @retry="timers.refetch()"
     >
-      <template #actions>
-        <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
-        <SearchField
-          v-model="search"
-          class="-mr-2 w-52 rounded-[12px]"
-          :placeholder="$t('dashboard.timers.list.search')"
-        />
-      </template>
       <div
         v-if="none"
         data-slot="panel-empty"
@@ -106,6 +99,6 @@ function detailOf(row: Timer): string {
           <StatusBadge tone="off" :label="$t('dashboard.timers.list.off')" />
         </template>
       </SummaryRow>
-    </PanelCard>
+    </ListPanel>
   </div>
 </template>

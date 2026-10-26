@@ -8,7 +8,6 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-import Plus from '~icons/nnz/add';
 import { useEventListener, useLocalStorage } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -24,13 +23,12 @@ import {
 } from '@/api/commands';
 import BackLink from '@/components/layout/BackLink.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
-import PageActionFooter from '@/components/layout/PageActionFooter.vue';
+import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
 import type { PageTab } from '@/components/layout/pageTab';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
-import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useScreenFrom } from '@/composables/useLayout';
@@ -151,14 +149,11 @@ const creating = ref(false);
     :bar-hidden-on-phone="open"
   >
     <template #actions>
-      <Button v-if="canWrite && tablet"
-              type="button"
-              size="sm"
-              @click="creating = true"
-      >
-        <Plus aria-hidden="true" />
-        {{ $t("dashboard.commands.new") }}
-      </Button>
+      <PageCreateButton
+        :label="$t('dashboard.commands.new')"
+        :disabled-reason="canWrite ? undefined : $t('common.readOnly')"
+        @create="creating = true"
+      />
     </template>
     <template #bar>
       <!-- The sort sits over the list it orders. The built-in list keeps the bot's own order: no sort there.
@@ -172,13 +167,6 @@ const creating = ref(false);
       <PageTabs :tabs="tabs" />
     </template>
   </PageHeader>
-  <!-- The page's one primary action: below the tablet width it sits in the frame's sticky action footer. -->
-  <PageActionFooter v-if="canWrite && !tablet && !open">
-    <Button type="button" class="h-9! w-full" @click="creating = true">
-      <Plus aria-hidden="true" />
-      {{ $t("dashboard.commands.new") }}
-    </Button>
-  </PageActionFooter>
   <ListDetail :show-detail="open">
     <template #list>
       <BuiltinList v-if="!listed" :selected="selectedBuiltin" @pick="selectBuiltin" />

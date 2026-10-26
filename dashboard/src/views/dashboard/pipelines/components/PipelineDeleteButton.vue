@@ -9,14 +9,12 @@
 -->
 <script setup lang="ts">
 // Delete asks first, and the confirm names everything that starts the pipeline, because all of it stops running it.
-import Trash2 from '~icons/nnz/trash';
 import { toast } from 'vue-sonner';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useDeletePipeline, type Pipeline } from '@/api/pipelines';
-import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
-import { Button } from '@/components/ui/button';
+import EditorFooter from '@/components/layout/EditorFooter.vue';
 import { errorText } from '@/lib/errors';
 
 import type { StartSource } from './stepWords';
@@ -61,24 +59,16 @@ async function remove(): Promise<void> {
 </script>
 
 <template>
-  <Button
+  <EditorFooter
     v-if="canWrite"
-    data-workbench-delete
-    type="button"
-    variant="outline"
-    size="sm"
-    @click="deleting = true"
-  >
-    <Trash2 aria-hidden="true" />
-    {{ $t(`${page}.delete.item`) }}
-  </Button>
-  <ConfirmDialog
-    v-model:open="deleting"
-    :title="$t(`${page}.delete.title`, { name: pipeline.name })"
-    :description="$t(`${page}.delete.description`)"
+    v-model:confirm-open="deleting"
+    :delete-label="$t(`${page}.delete.item`)"
+    :confirm-title="$t(`${page}.delete.title`, { name: pipeline.name })"
+    :confirm-description="$t(`${page}.delete.description`)"
+    :confirm-action="$t(`${page}.delete.action`)"
     :consequences="consequences"
-    :action="$t(`${page}.delete.action`)"
-    :pending="removing.isPending.value"
-    @confirm="remove"
+    :deleting="removing.isPending.value"
+    @ask-delete="deleting = true"
+    @confirm-delete="remove"
   />
 </template>

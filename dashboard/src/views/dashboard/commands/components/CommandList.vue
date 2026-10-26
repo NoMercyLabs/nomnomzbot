@@ -24,7 +24,7 @@ import {
 } from '@/api/commands';
 import { Switch } from '@/components/ui/switch';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
+import ListPanel from '@/components/layout/ListPanel.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import SearchField from '@/components/layout/SearchField.vue';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
@@ -152,21 +152,15 @@ function detailOf(row: CommandListItem): string {
       />
       <SegmentedControl v-model="sort" :label="$t('dashboard.commands.list.sort')" :options="sortOptions" />
     </div>
-    <PanelCard
+    <ListPanel
+      v-model="search"
       :title="$t('dashboard.commands.list.title')"
+      :placeholder="$t('dashboard.commands.list.search')"
       :headless="!tablet"
       :state="state"
       :error-text="$t('dashboard.commands.list.error')"
       @retry="commands.refetch()"
     >
-      <template v-if="tablet" #actions>
-        <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
-        <SearchField
-          v-model="search"
-          class="-mr-2 w-52 rounded-[12px]"
-          :placeholder="$t('dashboard.commands.list.search')"
-        />
-      </template>
       <div
         v-if="none"
         data-slot="panel-empty"
@@ -241,7 +235,7 @@ function detailOf(row: CommandListItem): string {
           </template>
         </SummaryRow>
       </template>
-    </PanelCard>
+    </ListPanel>
     <ConfirmDialog
       v-model:open="moveOpen"
       :title="$t('dashboard.commands.list.moveTitle', { count: duplicates })"

@@ -990,8 +990,8 @@ describe('CommandsView editor', () => {
   it('keeps one strong button: Save leads, and Delete is quiet, never the filled danger look', async () => {
     await open('/app/commands?command=hello');
 
-    expect(buttonByText('Save changes').dataset.variant).toBeUndefined();
-    expect(buttonByText('Delete').dataset.variant).toBe('outline');
+    expect(buttonByText('Save changes').dataset.variant).toBe('default');
+    expect(buttonByText('Delete').dataset.variant).toBe('ghost');
   });
 
   it('tells the streamer a pipeline command with no pipeline answers nothing', async () => {
@@ -1430,12 +1430,13 @@ describe('CommandsView built-in rows', () => {
 });
 
 describe('CommandsView permission gating', () => {
-  it('shows a reader the list only: no New command, no editor, no system tab', async () => {
+  it('shows a reader the list, a New command that stays in place but is off, no editor, no system tab', async () => {
     held = ['commands:read'];
     await open('/app/commands?command=hello');
 
     expect(rowNames()).toContain('hello');
-    expect(buttonByText('New command')).toBeUndefined();
+    expect(buttonByText('New command').disabled).toBe(true);
+    expect(document.body.querySelector('[data-slot="page-create"]')?.getAttribute('tabindex')).toBe('0');
     expect(editor()).toBeNull();
     expect(buttonByText('System commands')).toBeUndefined();
   });

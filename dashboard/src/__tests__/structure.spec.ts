@@ -125,14 +125,19 @@ describe('folder layout', () => {
   // makes a second harm style (a red underlined link) that the frame rules never approved.
   // Exception (734a9eb33, 2026-10-21): the Integrations row Disconnect is a deliberate quiet ghost button
   // with red text, so a loud filled button does not outrank the row's Edit.
+  // Exception (2026-10-26): the editor footer Delete (EditorFooter) is the same quiet ghost with red text, on
+  // the left of every editor, so it never outranks Save; its confirm dialog carries the danger.
   it('marks a harmful button only with the destructive variant, never a red class', () => {
-    const quietDisconnect = 'views/dashboard/settings/integrations/IntegrationsView.vue';
+    const quietDelete: readonly string[] = [
+      'views/dashboard/settings/integrations/IntegrationsView.vue',
+      'components/layout/EditorFooter.vue',
+    ];
     const tinted: string[] = allPaths(src)
       .filter(
         (path) =>
           path.endsWith('.vue') &&
           !relative(src, path).replace(/\\/g, '/').startsWith('components/ui/') &&
-          relative(src, path).replace(/\\/g, '/') !== quietDisconnect,
+          !quietDelete.includes(relative(src, path).replace(/\\/g, '/')),
       )
       .filter((path) =>
         /<Button\b[^>]*\bclass="[^"]*\btext-destructive\b/.test(readFileSync(path, 'utf8')),
@@ -1057,5 +1062,129 @@ describe('calls to the bot', () => {
       });
 
     expect(offenders).toEqual([]);
+  });
+});
+
+// Stoney 2026-10-26: "make sure [create, edit and delete] have a stable spot in the ui ... the same for the
+// search, i want the search to be baked into the list header like pipeline and overlay". A list page puts its
+// search in <ListPanel> (the list head), its create button in <PageCreateButton>, its editor delete in
+// <EditorFooter> and its row edit/delete in <RowEditDelete>. A view never builds those by hand.
+// Phase 1 moved Pipelines, Overlays, Commands, Timers (and chat triggers), Scripts and Event responses.
+// The files below are the PHASE 2 lane (the other 19 list pages of the list layout inventory, plus a few
+// surfaces that only look like a list page); a file leaves its list when it moves, and a file that is clean
+// must leave it (the "keeps no clean file" tests).
+const handSearchInHead = /<template\s+#actions[^>]*>(?:(?!<\/template>)[\s\S])*?<SearchField\b/;
+const handSearchInHeadAllowlist = [
+  // Admin and people lists, and the permissions area list: head searches built by hand (phase 2).
+  'views/dashboard/admin/AdminChannelsView.vue',
+  'views/dashboard/admin/AdminSupportView.vue',
+  'views/dashboard/admin/AdminTenantsView.vue',
+  'views/dashboard/admin/AdminUsersView.vue',
+  'views/dashboard/admin/components/TenantMembersPanel.vue',
+  'views/dashboard/people/PeopleView.vue',
+  'views/dashboard/settings/permissions/components/ActionAreaList.vue',
+] as const satisfies readonly string[];
+
+const rawSearchInput = /<Input\b[^>]*(?:search|query)[^>]*>/i;
+const rawSearchInputAllowlist = [
+  // List pages with a bare search Input above the card (phase 2): picklists, quotes.
+  'views/dashboard/picklists/PickListsView.vue',
+  'views/dashboard/quotes/QuotesView.vue',
+  // Pickers inside a popover or dialog: a search that narrows a choice, not a list page head.
+  'views/dashboard/admin/components/AuditFilterPicker.vue',
+  'views/dashboard/admin/components/SupportPersonPicker.vue',
+  'views/dashboard/obs/components/ObsHotkeysPanel.vue',
+  'views/dashboard/settings/permissions/components/PersonPicker.vue',
+  'views/dashboard/stream/CategoryPicker.vue',
+] as const satisfies readonly string[];
+
+const handDeleteButton = /~icons\/nnz\/(?:trash|delete)/;
+const handDeleteButtonAllowlist = [
+  // List pages not moved yet (phase 2 lane): row-end or card delete icons written by hand.
+  'views/dashboard/economy/components/CatalogPanel.vue',
+  'views/dashboard/economy/components/EarningRules.vue',
+  'views/dashboard/economy/components/LeaderboardsPanel.vue',
+  'views/dashboard/economy/components/SavingsJars.vue',
+  'views/dashboard/giveaways/GiveawaysView.vue',
+  'views/dashboard/picklists/PickListRow.vue',
+  'views/dashboard/quotes/QuoteRow.vue',
+  'views/dashboard/settings/api-devices/components/TokensTable.vue',
+  'views/dashboard/settings/custom-event-feeds/components/EventFeedRow.vue',
+  'views/dashboard/settings/escalation/components/LadderPanel.vue',
+  'views/dashboard/settings/permissions/components/PersonGrantsPanel.vue',
+  'views/dashboard/settings/webhooks/components/InboundWebhookRow.vue',
+  'views/dashboard/settings/webhooks/components/OutboundWebhookRow.vue',
+  'views/dashboard/sounds/SoundClipRow.vue',
+  'views/dashboard/tts/LexiconPanel.vue',
+  'views/dashboard/voice-triggers/components/VoiceTriggerEditor.vue',
+  // Other surfaces with a delete icon that are not a list page's entity delete (phase 2 decides each).
+  'views/dashboard/admin/AdminFeatureFlagsView.vue',
+  'views/dashboard/admin/components/TenantActions.vue',
+  'views/dashboard/media-share/components/MediaShareQueueRow.vue',
+  'views/dashboard/music/MusicView.vue',
+  'views/dashboard/settings/EngagementView.vue',
+  'views/dashboard/settings/federation/components/FederationPeerRow.vue',
+  'views/dashboard/settings/permissions/components/TeamRolesPanel.vue',
+  // Not an entity delete at all: a chat line action, a list item removed inside an editor, a step in a pipeline.
+  'views/dashboard/chat/components/ChatLine.vue',
+  'views/dashboard/overlays/components/StringListEditor.vue',
+  'views/dashboard/pipelines/components/StepInspector.vue',
+] as const satisfies readonly string[];
+
+function viewText(path: string): string {
+  return readFileSync(join(src, path), 'utf8');
+}
+
+function listLayoutOffenders(pattern: RegExp, allow: readonly string[]): string[] {
+  return viewFiles()
+    .filter((path) => pattern.test(viewText(path)))
+    .filter((path) => !allow.includes(path));
+}
+
+function listLayoutStale(pattern: RegExp, allow: readonly string[]): string[] {
+  return allow.filter((path) => !pattern.test(viewText(path)));
+}
+
+describe('list layout', () => {
+  it('spots a search built by hand in a panel head', () => {
+    const drifted = '<PanelCard><template #actions><SearchField v-model="q" /></template></PanelCard>';
+    const clean = '<ListPanel v-model="q" /><template #actions><Button /></template><SearchField />';
+
+    expect(handSearchInHead.test(drifted)).toBe(true);
+    expect(handSearchInHead.test(clean)).toBe(false);
+  });
+
+  it('builds no search in a panel head by hand, except the phase 2 files', () => {
+    expect(listLayoutOffenders(handSearchInHead, handSearchInHeadAllowlist)).toEqual([]);
+  });
+
+  it('keeps no clean file on the head search list', () => {
+    expect(listLayoutStale(handSearchInHead, handSearchInHeadAllowlist)).toEqual([]);
+  });
+
+  it('spots a raw search Input', () => {
+    expect(rawSearchInput.test('<Input v-model="search" :placeholder="p" />')).toBe(true);
+    expect(rawSearchInput.test('<Input v-model="draft.name" data-field="name" />')).toBe(false);
+  });
+
+  it('builds no raw search Input in a view, except the phase 2 files and the picker popovers', () => {
+    expect(listLayoutOffenders(rawSearchInput, rawSearchInputAllowlist)).toEqual([]);
+  });
+
+  it('keeps no clean file on the raw search list', () => {
+    expect(listLayoutStale(rawSearchInput, rawSearchInputAllowlist)).toEqual([]);
+  });
+
+  it('spots a hand-written delete icon', () => {
+    expect(handDeleteButton.test('import Trash from \'~icons/nnz/trash\';')).toBe(true);
+    expect(handDeleteButton.test('import Plus from \'~icons/nnz/add\';')).toBe(false);
+  });
+
+  it('writes no delete button by hand in a view, except the phase 2 files', () => {
+    expect(listLayoutOffenders(handDeleteButton, handDeleteButtonAllowlist)).toEqual([]);
+  });
+
+  it('keeps no clean file on the delete list', () => {
+    expect(listLayoutStale(handDeleteButton, handDeleteButtonAllowlist)).toEqual([]);
   });
 });

@@ -10,16 +10,14 @@
 <script setup lang="ts">
 // The editor of one chat trigger. The Enabled switch saves at once; every other field is a draft that
 // Save sends as the changed fields only. A refused save keeps the draft and shows the bot's reason.
-import Trash2 from '~icons/nnz/trash';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useUpdateChatTrigger, type ChatTrigger } from '@/api/chatTriggers';
-import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import EditorFooter from '@/components/layout/EditorFooter.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import ReplyModeField from '@/components/layout/ReplyModeField.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
-import { Button } from '@/components/ui/button';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -181,35 +179,22 @@ function remove(): void {
       <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
     </div>
     <template #footer>
-      <!-- Delete sits apart at the far left, away from Save, quiet; its confirm carries the danger. -->
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        @click="confirmOpen = true"
-      >
-        <Trash2 aria-hidden="true" />
-        {{ $t('dashboard.timers.editor.delete') }}
-      </Button>
-      <span data-unsaved class="mr-auto text-sm text-muted-foreground">{{ unsaved }}</span>
-      <Button type="button" variant="outline" size="sm" @click="discard">{{
-        $t('dashboard.timers.editor.discard')
-      }}</Button>
-      <Button
-        type="button"
-        size="sm"
-        :disabled="dirtyCount === 0 || update.isPending.value"
-        @click="save"
-      >
-        {{ $t('dashboard.timers.editor.save') }}
-      </Button>
+      <EditorFooter
+        v-model:confirm-open="confirmOpen"
+        :delete-label="$t('dashboard.timers.editor.delete')"
+        :discard-label="$t('dashboard.timers.editor.discard')"
+        :save-label="$t('dashboard.timers.editor.save')"
+        :unsaved="unsaved"
+        :can-save="dirtyCount > 0"
+        :saving="update.isPending.value"
+        :confirm-title="$t('dashboard.timers.triggers.editor.confirmTitle', { name: row.pattern })"
+        :confirm-description="$t('dashboard.timers.triggers.editor.confirmBody')"
+        :confirm-action="$t('dashboard.timers.triggers.editor.confirmAction')"
+        @ask-delete="confirmOpen = true"
+        @confirm-delete="remove"
+        @discard="discard"
+        @save="save"
+      />
     </template>
-    <ConfirmDialog
-      v-model:open="confirmOpen"
-      :title="$t('dashboard.timers.triggers.editor.confirmTitle', { name: row.pattern })"
-      :description="$t('dashboard.timers.triggers.editor.confirmBody')"
-      :action="$t('dashboard.timers.triggers.editor.confirmAction')"
-      @confirm="remove"
-    />
   </PanelCard>
 </template>

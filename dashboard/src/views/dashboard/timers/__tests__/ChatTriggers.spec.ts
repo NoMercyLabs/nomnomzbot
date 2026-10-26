@@ -278,13 +278,13 @@ describe('Chat triggers tab', () => {
 });
 
 describe('Chat triggers permission gating', () => {
-  it('shows a reader the trigger list only: no New trigger, no editor on a picked row', async () => {
+  it('shows a reader the trigger list, a New trigger that is in place but off, no editor on a picked row', async () => {
     held = ['timers:read', 'chattriggers:read'];
     await open();
     await click(rowOf('words a'));
 
     expect(patterns()).toEqual(['words a', 'words b']);
-    expect(buttonByText('New trigger')).toBeUndefined();
+    expect(buttonByText('New trigger').disabled).toBe(true);
     expect(document.body.querySelector('[data-trigger-editor]')).toBeNull();
   });
 

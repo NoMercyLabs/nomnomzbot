@@ -22,12 +22,12 @@ import {
   type EventResponseDetail,
 } from '@/api/eventResponses';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import EditorFooter from '@/components/layout/EditorFooter.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Badge } from '@/components/ui/badge';
-import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 
@@ -191,16 +191,6 @@ async function useDefault(): Promise<void> {
         :model-value="row.isEnabled"
         @update:model-value="toggle"
       />
-      <Button
-        v-if="!row.followsPlatformDefault"
-        type="button"
-        variant="outline"
-        size="sm"
-        :disabled="reset.isPending.value"
-        @click="resetOpen = true"
-      >
-        {{ $t('dashboard.eventResponses.editor.reset') }}
-      </Button>
     </template>
     <div v-if="draft" class="grid gap-5">
       <ReplyModeField
@@ -240,24 +230,20 @@ async function useDefault(): Promise<void> {
       <p v-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
     </div>
     <template #footer>
-      <span data-unsaved class="mr-auto text-sm text-muted-foreground">{{ unsaved }}</span>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        :disabled="dirtyCount === 0 && !picked"
-        @click="discard"
-      >{{
-        $t('dashboard.eventResponses.editor.discard')
-      }}</Button>
-      <Button
-        type="button"
-        size="sm"
-        :disabled="dirtyCount === 0 || update.isPending.value"
-        @click="save"
-      >
-        {{ $t('dashboard.eventResponses.editor.save') }}
-      </Button>
+      <!-- A fixed-set item cannot be deleted: Reset takes the place of Delete at the left. -->
+      <EditorFooter
+        :reset-label="row.followsPlatformDefault ? undefined : $t('dashboard.eventResponses.editor.reset')"
+        :resetting="reset.isPending.value"
+        :discard-label="$t('dashboard.eventResponses.editor.discard')"
+        :save-label="$t('dashboard.eventResponses.editor.save')"
+        :unsaved="unsaved"
+        :can-discard="dirtyCount > 0 || picked"
+        :can-save="dirtyCount > 0"
+        :saving="update.isPending.value"
+        @reset="resetOpen = true"
+        @discard="discard"
+        @save="save"
+      />
     </template>
   </PanelCard>
   <ConfirmDialog

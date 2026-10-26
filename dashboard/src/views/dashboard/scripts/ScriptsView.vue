@@ -14,15 +14,15 @@
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
-import Add from '~icons/nnz/add';
 
 import { useCodeScripts, type CodeScriptSummary } from '@/api/codeScripts';
 import ListDetail from '@/components/layout/ListDetail.vue';
+import ListPanel from '@/components/layout/ListPanel.vue';
+import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
 import type { PageTab } from '@/components/layout/pageTab';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import SearchField from '@/components/layout/SearchField.vue';
 import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { usePageView } from '@/composables/usePageView';
@@ -174,13 +174,19 @@ function opened(id: string | null): void {
     :back-label="$t('dashboard.scripts.backToPipeline')"
   >
     <template #actions>
-      <Button v-if="runs.length > 0" variant="outline" class="xl:hidden" @click="runsOpen = true">
+      <Button v-if="runs.length > 0"
+              variant="outline"
+              size="sm"
+              class="xl:hidden"
+              @click="runsOpen = true"
+      >
         {{ $t('dashboard.scripts.runs.button') }}
       </Button>
-      <Button v-if="can('code:script:author')" variant="outline" @click="newOpen = true">
-        <Add aria-hidden="true" />
-        {{ $t('dashboard.scripts.new.button') }}
-      </Button>
+      <PageCreateButton
+        :label="$t('dashboard.scripts.new.button')"
+        :disabled-reason="can('code:script:author') ? undefined : $t('common.readOnly')"
+        @create="newOpen = true"
+      />
     </template>
     <template #bar>
       <PageTabs :tabs="tabs" />
@@ -193,23 +199,17 @@ function opened(id: string | null): void {
     :aside-label="$t('dashboard.scripts.runs.title')"
   >
     <template #list>
-      <PanelCard
+      <ListPanel
+        v-model="search"
         class="min-h-80 flex-1"
         :title="$t('dashboard.scripts.list.title')"
+        :placeholder="$t('dashboard.scripts.search')"
         :description="count === undefined ? hint : `${count} · ${hint}`"
         :state="panelState"
         :empty-text="emptyText"
         :error-text="listError"
         @retry="scripts.refetch()"
       >
-        <template #actions>
-          <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
-          <SearchField
-            v-model="search"
-            class="-mr-2 w-52 rounded-[12px]"
-            :placeholder="$t('dashboard.scripts.search')"
-          />
-        </template>
         <ScriptRow
           v-for="script in visible"
           :key="script.id"
@@ -217,7 +217,7 @@ function opened(id: string | null): void {
           :selected="script.id === selectedId"
           @pick="pick(script)"
         />
-      </PanelCard>
+      </ListPanel>
     </template>
     <template #detail>
       <ScriptDetail

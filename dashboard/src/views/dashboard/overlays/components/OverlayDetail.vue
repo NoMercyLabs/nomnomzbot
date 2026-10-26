@@ -15,7 +15,6 @@ import Check from '~icons/nnz/check';
 import Code from '~icons/nnz/code';
 import Copy from '~icons/nnz/file-copy';
 import Play from '~icons/nnz/play';
-import Trash from '~icons/nnz/trash';
 import { useTimeoutFn } from '@vueuse/core';
 import { computed, ref } from 'vue';
 
@@ -33,8 +32,8 @@ import {
 } from '@/api/widgets';
 import BackLink from '@/components/layout/BackLink.vue';
 import CodeEditor from '@/components/layout/CodeEditor.vue';
-import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import DetailPane from '@/components/layout/DetailPane.vue';
+import EditorFooter from '@/components/layout/EditorFooter.vue';
 import InlineFlow from '@/components/layout/InlineFlow.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
@@ -306,26 +305,6 @@ async function sendTest(eventType: string): Promise<void> {
               editor.failure.value
             }}</span>
           </div>
-          <div v-if="can('widget:write')" class="grid justify-items-end gap-1">
-            <div class="flex items-center gap-2">
-              <Button
-                data-overlay-duplicate
-                variant="outline"
-                :disabled="duplicate.isPending.value"
-                @click="copyOverlay"
-              >
-                <Copy aria-hidden="true" />
-                {{ $t("dashboard.overlays.duplicate.button") }}
-              </Button>
-              <Button data-overlay-delete variant="outline" @click="askDelete">
-                <Trash aria-hidden="true" />
-                {{ $t("dashboard.overlays.delete.button") }}
-              </Button>
-            </div>
-            <span v-if="deleteError" role="alert" class="text-sm text-destructive">{{
-              deleteError
-            }}</span>
-          </div>
           <div class="grid justify-items-end gap-1">
             <Button :disabled="!widget.overlayUrl" @click="copyAddress">
               <component :is="copied ? Check : Copy" aria-hidden="true" />
@@ -399,6 +378,33 @@ async function sendTest(eventType: string): Promise<void> {
         </PanelCard>
       </div>
     </div>
+    <div v-if="can('widget:write')" data-page-inset class="grid flex-none gap-1 border-t pt-4">
+      <EditorFooter
+        v-model:confirm-open="confirmOpen"
+        :delete-label="$t('dashboard.overlays.delete.button')"
+        :confirm-title="$t('dashboard.overlays.delete.title', { name: widget.name })"
+        :confirm-description="$t('dashboard.overlays.delete.description')"
+        :confirm-action="$t('dashboard.overlays.delete.action')"
+        :consequences="consequences"
+        :deleting="remove.isPending.value"
+        @ask-delete="askDelete"
+        @confirm-delete="confirmDelete"
+      >
+        <template #extra>
+          <Button
+            data-overlay-duplicate
+            variant="outline"
+            size="sm"
+            :disabled="duplicate.isPending.value"
+            @click="copyOverlay"
+          >
+            <Copy aria-hidden="true" />
+            {{ $t("dashboard.overlays.duplicate.button") }}
+          </Button>
+        </template>
+      </EditorFooter>
+      <span v-if="deleteError" role="alert" class="text-sm text-destructive">{{ deleteError }}</span>
+    </div>
     <CodeEditor
       v-if="editor.session.value"
       :title="widget.name"
@@ -418,14 +424,4 @@ async function sendTest(eventType: string): Promise<void> {
       @close="editor.close"
     />
   </DetailPane>
-
-  <ConfirmDialog
-    v-model:open="confirmOpen"
-    :title="$t('dashboard.overlays.delete.title', { name: widget.name })"
-    :description="$t('dashboard.overlays.delete.description')"
-    :consequences="consequences"
-    :action="$t('dashboard.overlays.delete.action')"
-    :pending="remove.isPending.value"
-    @confirm="confirmDelete"
-  />
 </template>

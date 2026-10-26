@@ -423,12 +423,12 @@ describe('Triggers and timers page', () => {
 });
 
 describe('Triggers and timers permission gating', () => {
-  it('shows a timers reader the list only: no New timer, no editor, no Chat triggers tab', async () => {
+  it('shows a timers reader the list, a New timer that is in place but off, no editor, no Chat triggers tab', async () => {
     held = ['timers:read'];
     await open('/app/triggers-timers?timer=t1');
 
     expect(rowNames()).toContain('Follow reminder');
-    expect(buttonByText('New timer')).toBeUndefined();
+    expect(buttonByText('New timer').disabled).toBe(true);
     expect(editor()).toBeNull();
     expect(buttonByText('Chat triggers')).toBeUndefined();
   });

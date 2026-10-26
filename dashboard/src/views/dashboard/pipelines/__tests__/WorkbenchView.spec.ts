@@ -1176,7 +1176,7 @@ describe('the pipeline actions in the bar', () => {
     await open();
     await press('[data-step-id="pause"] button');
     await press('[data-step-remove]');
-    await press('[data-workbench-delete]');
+    await press('[data-editor-delete]');
 
     const dialog = document.body.querySelector<HTMLElement>('[role="alertdialog"]')!;
 
@@ -1200,7 +1200,7 @@ describe('the pipeline actions in the bar', () => {
       'On',
     );
 
-    expect(document.body.querySelector('[data-workbench-delete]')).toBeNull();
+    expect(document.body.querySelector('[data-editor-delete]')).toBeNull();
   });
 });
 

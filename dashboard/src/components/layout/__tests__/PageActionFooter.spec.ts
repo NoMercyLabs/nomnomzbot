@@ -28,6 +28,8 @@ const Frame = defineComponent({
 });
 
 async function mountFrame(width: number): Promise<VueWrapper> {
+  // This spec brings its own frame; the setup file's stand-in would take the teleported content first.
+  document.body.innerHTML = '';
   setWidth(width);
 
   const wrapper = mount(Frame, { attachTo: document.body });

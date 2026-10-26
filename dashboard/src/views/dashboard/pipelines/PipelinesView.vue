@@ -9,17 +9,16 @@
 -->
 <script setup lang="ts">
 // Every pipeline of the channel: a search box and one row per pipeline. A row opens its workbench.
-import Plus from '~icons/nnz/add';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
 import { useChannelAccess } from '@/api/access';
 import { usePipelines, type PipelineListItem } from '@/api/pipelines';
+import ListPanel from '@/components/layout/ListPanel.vue';
+import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
-import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
-import SearchField from '@/components/layout/SearchField.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Badge } from '@/components/ui/badge';
@@ -84,35 +83,24 @@ const creating = ref(false);
 <template>
   <PageHeader :title="$t('dashboard.pipelines.title')" :crumb="$t('dashboard.pipelines.crumb')">
     <template #actions>
-      <Button
-        v-if="canWrite"
+      <PageCreateButton
         data-pipelines-new
-        type="button"
-        variant="outline"
-        size="sm"
-        @click="creating = true"
-      >
-        <Plus aria-hidden="true" />
-        {{ $t("dashboard.pipelines.new") }}
-      </Button>
+        :label="$t('dashboard.pipelines.new')"
+        :disabled-reason="canWrite ? undefined : $t('common.readOnly')"
+        @create="creating = true"
+      />
     </template>
   </PageHeader>
   <div data-page-body class="flex min-h-0 flex-1 flex-col gap-3 p-6 max-md:overflow-y-auto max-md:p-4 max-md:*:shrink-0">
-    <PanelCard
+    <ListPanel
       v-if="access.can('pipelines:read')"
+      v-model="search"
       :title="$t('dashboard.pipelines.list.title')"
+      :placeholder="$t('dashboard.pipelines.list.search')"
       :state="state"
       :error-text="$t('dashboard.pipelines.list.error')"
       @retry="pipelines.refetch()"
     >
-      <template #actions>
-        <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
-        <SearchField
-          v-model="search"
-          class="-mr-2 w-52 rounded-[12px]"
-          :placeholder="$t('dashboard.pipelines.list.search')"
-        />
-      </template>
       <div
         v-if="none"
         data-slot="panel-empty"
@@ -152,7 +140,7 @@ const creating = ref(false);
           </span>
         </template>
       </SummaryRow>
-    </PanelCard>
+    </ListPanel>
   </div>
   <NewPipelineDialog v-if="canWrite" v-model:open="creating" @created="open" />
 </template>

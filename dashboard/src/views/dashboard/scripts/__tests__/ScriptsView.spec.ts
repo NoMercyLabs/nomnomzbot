@@ -1056,7 +1056,7 @@ describe('ScriptsView', () => {
 
     expect(header.textContent).toContain('Edit code');
     expect(header.textContent).not.toContain('Delete');
-    expect(footer.querySelector('[data-slot="script-delete"]')?.getAttribute('data-variant')).toBe('outline');
+    expect(footer.querySelector('[data-editor-delete]')?.getAttribute('data-variant')).toBe('ghost');
     expect(footer.className).toContain('border-t');
   });
 

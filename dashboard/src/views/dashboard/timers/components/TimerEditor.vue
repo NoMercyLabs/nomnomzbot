@@ -11,13 +11,12 @@
 // The editor of one timer. The Enabled switch saves at once; every other field is a draft that Save
 // sends as the changed fields only. A refused save keeps the draft and shows the bot's reason.
 import Copy from '~icons/nnz/file-copy';
-import Trash2 from '~icons/nnz/trash';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useToggleTimer, type Timer as TimerRow } from '@/api/liveOps';
 import { useCreateTimer, useTimer, useUpdateTimer, type Timer } from '@/api/timers';
-import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import EditorFooter from '@/components/layout/EditorFooter.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
@@ -285,41 +284,36 @@ function remove(): void {
       <p v-else-if="failure" role="alert" class="text-sm text-destructive">{{ failure }}</p>
     </div>
     <template #footer>
-      <!-- Delete sits apart at the far left, away from Save, quiet; its confirm carries the danger. -->
-      <Button type="button" variant="outline" size="sm" @click="confirmOpen = true">
-        <Trash2 aria-hidden="true" />
-        {{ $t("dashboard.timers.editor.delete") }}
-      </Button>
-      <Button
-        type="button"
-        variant="outline"
-        size="sm"
-        data-timer-duplicate
-        :disabled="create.isPending.value || timer.data.value === undefined"
-        @click="duplicate"
+      <EditorFooter
+        v-model:confirm-open="confirmOpen"
+        :delete-label="$t('dashboard.timers.editor.delete')"
+        :discard-label="$t('dashboard.timers.editor.discard')"
+        :save-label="$t('dashboard.timers.editor.save')"
+        :unsaved="unsaved"
+        :can-save="dirtyCount > 0 && problem === null"
+        :saving="update.isPending.value"
+        :confirm-title="$t('dashboard.timers.editor.confirmTitle', { name: row.name })"
+        :confirm-description="$t('dashboard.timers.editor.confirmBody')"
+        :confirm-action="$t('dashboard.timers.editor.confirmAction')"
+        @ask-delete="confirmOpen = true"
+        @confirm-delete="remove"
+        @discard="discard"
+        @save="save"
       >
-        <Copy aria-hidden="true" />
-        {{ $t("dashboard.timers.editor.duplicate") }}
-      </Button>
-      <span data-unsaved class="mr-auto text-sm text-muted-foreground">{{ unsaved }}</span>
-      <Button type="button" variant="outline" size="sm" @click="discard">{{
-        $t("dashboard.timers.editor.discard")
-      }}</Button>
-      <Button
-        type="button"
-        size="sm"
-        :disabled="dirtyCount === 0 || problem !== null || update.isPending.value"
-        @click="save"
-      >
-        {{ $t("dashboard.timers.editor.save") }}
-      </Button>
+        <template #extra>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            data-timer-duplicate
+            :disabled="create.isPending.value || timer.data.value === undefined"
+            @click="duplicate"
+          >
+            <Copy aria-hidden="true" />
+            {{ $t("dashboard.timers.editor.duplicate") }}
+          </Button>
+        </template>
+      </EditorFooter>
     </template>
-    <ConfirmDialog
-      v-model:open="confirmOpen"
-      :title="$t('dashboard.timers.editor.confirmTitle', { name: row.name })"
-      :description="$t('dashboard.timers.editor.confirmBody')"
-      :action="$t('dashboard.timers.editor.confirmAction')"
-      @confirm="remove"
-    />
   </PanelCard>
 </template>

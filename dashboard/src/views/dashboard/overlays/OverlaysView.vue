@@ -12,7 +12,6 @@
 // The overlay in view is the id in ?id=, so a link opens it; with no id nothing is open, like every other list page.
 // Tab counts come from the loaded list: the bot has no count endpoint.
 // The audio levels are channel-wide, not one overlay's, so they open from the header in their own drawer.
-import Plus from '~icons/nnz/add';
 import VolumeTwo from '~icons/nnz/volume-two';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -20,11 +19,12 @@ import { useRoute, useRouter } from 'vue-router';
 
 import { useRequiredOverlays, useWidgets, withoutRequired, type Widget } from '@/api/widgets';
 import ListDetail from '@/components/layout/ListDetail.vue';
+import ListPanel from '@/components/layout/ListPanel.vue';
+import PageCreateButton from '@/components/layout/PageCreateButton.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PageTabs from '@/components/layout/PageTabs.vue';
 import type { PageTab } from '@/components/layout/pageTab';
 import PanelCard from '@/components/layout/PanelCard.vue';
-import SearchField from '@/components/layout/SearchField.vue';
 import PanelBeside from '@/components/layout/PanelBeside.vue';
 import SidePanel from '@/components/layout/SidePanel.vue';
 import { Button } from '@/components/ui/button';
@@ -152,15 +152,16 @@ function back(): void {
 
 <template>
   <PageHeader :title="$t('dashboard.overlays.title')" :crumb="$t('dashboard.overlays.crumb')">
-    <template v-if="can('sounds:read') || can('widget:write')" #actions>
-      <Button v-if="can('sounds:read')" variant="outline" @click="audioOpen = true">
+    <template #actions>
+      <Button v-if="can('sounds:read')" variant="outline" size="sm" @click="audioOpen = true">
         <VolumeTwo aria-hidden="true" />
         {{ $t("dashboard.overlays.audioMix.open") }}
       </Button>
-      <Button v-if="can('widget:write')" type="button" @click="creating = true">
-        <Plus aria-hidden="true" />
-        {{ $t("dashboard.overlays.new") }}
-      </Button>
+      <PageCreateButton
+        :label="$t('dashboard.overlays.new')"
+        :disabled-reason="can('widget:write') ? undefined : $t('common.readOnly')"
+        @create="creating = true"
+      />
     </template>
     <template #bar>
       <PageTabs v-if="can('widget:read')" :tabs="tabs" />
@@ -169,24 +170,18 @@ function back(): void {
   <PanelBeside>
     <ListDetail :show-detail="asked !== ''">
       <template #list>
-        <PanelCard
+        <ListPanel
           v-if="can('widget:read')"
+          v-model="search"
           class="min-h-80 flex-1"
           :title="$t('dashboard.overlays.list.title')"
+          :placeholder="$t('dashboard.overlays.search')"
           :description="count === undefined ? hint : `${count} · ${hint}`"
           :state="panelState"
           :empty-text="emptyText"
           :error-text="$t('dashboard.overlays.list.error')"
           @retry="widgets.refetch()"
         >
-          <template #actions>
-            <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
-            <SearchField
-              v-model="search"
-              class="-mr-2 w-52 rounded-[12px]"
-              :placeholder="$t('dashboard.overlays.search')"
-            />
-          </template>
           <OverlayRow
             v-for="widget in visible"
             :key="widget.id"
@@ -194,7 +189,7 @@ function back(): void {
             :selected="widget.id === selectedId"
             @pick="pick(widget)"
           />
-        </PanelCard>
+        </ListPanel>
       </template>
       <template #detail>
         <OverlayDetail

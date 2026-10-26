@@ -163,11 +163,11 @@ describe('the pipelines list', () => {
     expect(router.currentRoute.value.fullPath).toBe('/app/pipelines/p1');
   });
 
-  it('hides New for a role that cannot change pipelines', async () => {
+  it('keeps New in place but off for a role that cannot change pipelines', async () => {
     held.value = ['pipelines:read'];
     await open();
 
-    expect(document.body.querySelector('[data-pipelines-new]')).toBeNull();
+    expect(document.body.querySelector<HTMLButtonElement>('[data-pipelines-new]')?.disabled).toBe(true);
   });
 
   it('makes a pipeline from the typed name and opens its workbench', async () => {

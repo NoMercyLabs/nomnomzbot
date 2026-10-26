@@ -92,23 +92,27 @@ async function open(keys: string[]): Promise<VueWrapper> {
 }
 
 describe('PipelinesView shows only what the person may use', () => {
-  it('shows no list and no New without any key', async () => {
+  function newButton(): HTMLButtonElement | null {
+    return document.body.querySelector<HTMLButtonElement>('[data-pipelines-new]');
+  }
+
+  it('shows no list and a New that is in place but off without any key', async () => {
     const view = await open([]);
 
     expect(view.find('[data-pipeline-row]').exists()).toBe(false);
-    expect(view.find('[data-pipelines-new]').exists()).toBe(false);
+    expect(newButton()?.disabled).toBe(true);
   });
 
-  it('shows the list but no New with pipelines:read alone', async () => {
+  it('shows the list and a New that is in place but off with pipelines:read alone', async () => {
     const view = await open(['pipelines:read']);
 
     expect(view.find('[data-pipeline-row]').exists()).toBe(true);
-    expect(view.find('[data-pipelines-new]').exists()).toBe(false);
+    expect(newButton()?.disabled).toBe(true);
   });
 
-  it('shows New with pipelines:write', async () => {
-    const view = await open(['pipelines:read', 'pipelines:write']);
+  it('turns New on with pipelines:write', async () => {
+    await open(['pipelines:read', 'pipelines:write']);
 
-    expect(view.find('[data-pipelines-new]').exists()).toBe(true);
+    expect(newButton()?.disabled).toBe(false);
   });
 });
