@@ -102,6 +102,10 @@
         "autoJoin": {
           "title": "Automatisch in de chat komen",
           "description": "De bot komt zelf in je chat als hij start."
+        },
+        "keepActiveWhileOffline": {
+          "title": "Commando's en beloningen aan laten als je offline bent",
+          "description": "Uit: als je stream stopt, werken commando's voor kijkers niet meer en gaan je beloningen uit; ze komen terug als je live gaat. Mods en jij kunnen altijd commando's gebruiken."
         }
       },
       "readability": {

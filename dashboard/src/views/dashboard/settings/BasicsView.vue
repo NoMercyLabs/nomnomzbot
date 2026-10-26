@@ -8,7 +8,8 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// The channel basics: command prefix, bot line marker, language, timezone and auto-join. The fields are a
+// The channel basics: command prefix, bot line marker, language, timezone, auto-join and whether commands and
+// rewards stay on while offline. The fields are a
 // draft until Save; the bot echoes what it stored and the draft then matches it again.
 import { computed, reactive, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -43,6 +44,7 @@ type Draft = {
   locale: string;
   timezone: string;
   autoJoin: boolean;
+  keepActiveWhileOffline: boolean;
 };
 
 const prefixPattern = /^\S{1,5}$/;
@@ -60,6 +62,7 @@ const draft = reactive<Draft>({
   locale: '',
   timezone: '',
   autoJoin: false,
+  keepActiveWhileOffline: false,
 });
 
 function fromStored(stored: ChannelBasics) {
@@ -69,6 +72,7 @@ function fromStored(stored: ChannelBasics) {
     locale: stored.locale ?? '',
     timezone: stored.timezone ?? '',
     autoJoin: stored.autoJoin,
+    keepActiveWhileOffline: stored.keepActiveWhileOffline,
   } as const satisfies Draft;
 }
 
@@ -85,6 +89,7 @@ watch(
 const stored = computed(() => fromStored(basics.data.value ?? {
   prefix: '',
   autoJoin: false,
+  keepActiveWhileOffline: false,
 }));
 
 const dirty = computed(() => keysOf(draft).some(
@@ -144,6 +149,7 @@ function submit(): void {
         ? null
         : draft.timezone,
       autoJoin: draft.autoJoin,
+      keepActiveWhileOffline: draft.keepActiveWhileOffline,
     },
     {
       onSuccess: () => toast.success(t('dashboard.settings.basics.saved')),
@@ -238,6 +244,12 @@ function discard(): void {
         :disabled="!can('setup:write')"
         :title="$t('dashboard.settings.basics.autoJoin.title')"
         :description="$t('dashboard.settings.basics.autoJoin.description')"
+      />
+      <SettingRow
+        v-model="draft.keepActiveWhileOffline"
+        :disabled="!can('setup:write')"
+        :title="$t('dashboard.settings.basics.keepActiveWhileOffline.title')"
+        :description="$t('dashboard.settings.basics.keepActiveWhileOffline.description')"
       />
     </RowGroup>
     <template v-if="can('setup:write')" #footer>

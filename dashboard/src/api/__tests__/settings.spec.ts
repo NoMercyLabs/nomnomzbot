@@ -37,6 +37,7 @@ const stored: ChannelBasics = {
   locale: 'en',
   autoJoin: true,
   timezone: 'Europe/Amsterdam',
+  keepActiveWhileOffline: false,
 };
 
 function mount<T>(use: () => T): { queries: QueryClient; hook: T } {

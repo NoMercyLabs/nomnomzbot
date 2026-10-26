@@ -90248,6 +90248,8 @@ export interface components {
             locale?: null | string;
             autoJoin: boolean;
             timezone?: null | string;
+            /** @default false */
+            keepActiveWhileOffline: boolean;
         };
         /**
          * @description The "when chat is busy" grid for a date range. string ChannelChatHoursDto.TimeZone is the zone the cells are bucketed
@@ -104718,6 +104720,11 @@ export interface components {
             autoJoin?: null | boolean;
             /** @description The streamer's IANA timezone (e.g. `Europe/Amsterdam`). Null leaves it unchanged. */
             timezone?: null | string;
+            /**
+             * @description Whether commands and rewards stay active while the channel is offline (default off: they switch off when
+             *     the stream ends and back on when it starts). Null leaves it unchanged.
+             */
+            keepActiveWhileOffline?: null | boolean;
         };
         /** @description The new chat color: a Twitch color name (blue, hot_pink, ...) or a hex value like #9146FF. */
         UpdateChatColor: {

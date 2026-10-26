@@ -102,6 +102,10 @@
         "autoJoin": {
           "title": "Join chat automatically",
           "description": "The bot joins your chat by itself when it starts."
+        },
+        "keepActiveWhileOffline": {
+          "title": "Keep commands and rewards on while offline",
+          "description": "Off: when your stream ends, viewer commands stop and your rewards turn off; they come back when you go live. Mods and you can always use commands."
         }
       },
       "readability": {
