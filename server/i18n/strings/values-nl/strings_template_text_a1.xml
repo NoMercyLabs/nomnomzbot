@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text (Dutch), namespace "text", lane L2a1 (catalog section 7.3).
+-->
+<resources>
+    <string name="template_helper_text_upper">Zet de tekst in HOOFDLETTERS</string>
+    <string name="template_helper_text_lower">Zet de tekst in kleine letters</string>
+    <string name="template_helper_text_title">Zet elk woord met een hoofdletter en de rest in kleine letters</string>
+    <string name="template_helper_text_sentence">Zet de tekst in kleine letters met een hoofdletter aan het begin van elke zin</string>
+    <string name="template_helper_text_capitalize">Zet de eerste letter in een hoofdletter en laat de rest staan</string>
+    <string name="template_helper_text_decapitalize">Zet de eerste letter in een kleine letter en laat de rest staan</string>
+    <string name="template_helper_text_swapcase">Wisselt hoofdletters en kleine letters om, letter voor letter</string>
+    <string name="template_helper_text_spaced">Zet een spatie, of je eigen scheidingsteken, tussen elk teken</string>
+    <string name="template_helper_text_alternating">Wisselt hoofdletter en kleine letter af, beginnend met een hoofdletter</string>
+    <string name="template_helper_text_mocking">Wisselt kleine letter en hoofdletter af, beginnend met een kleine letter</string>
+    <string name="template_helper_text_spongecase">Wisselt kleine letters en hoofdletters af over de letters, zoals de spotmeme</string>
+    <string name="template_helper_text_reverse">Draait de tekst om, teken voor teken</string>
+    <string name="template_helper_text_reverse_words">Draait de volgorde van de woorden om</string>
+    <string name="template_helper_text_trim">Haalt spaties weg aan het begin en het eind</string>
+    <string name="template_helper_text_squish">Haalt randspaties weg en maakt van elke reeks spaties een spatie</string>
+    <string name="template_helper_text_truncate">Kapt de tekst af op een aantal tekens en zet een weglatingsteken als er iets is afgekapt</string>
+    <string name="template_helper_text_cut">Kapt de tekst af op een maximale lengte, inclusief het einde: tekst, max=getal, end=tekst</string>
+    <string name="template_helper_text_cut_words">Houdt de eerste woorden over en zet een weglatingsteken als er iets is afgekapt</string>
+    <string name="template_helper_text_pad_left">Vult het begin van de tekst aan tot een breedte met een teken (standaard een spatie)</string>
+    <string name="template_helper_text_pad_right">Vult het eind van de tekst aan tot een breedte met een teken (standaard een spatie)</string>
+    <string name="template_helper_text_center">Vult beide kanten van de tekst aan tot een breedte met een teken (standaard een spatie)</string>
+    <string name="template_helper_text_repeat">Herhaalt de tekst een aantal keer, met een optioneel scheidingsteken</string>
+    <string name="template_helper_text_replace">Vervangt elke gevonden tekst door een andere tekst</string>
+    <string name="template_helper_text_replace_first">Vervangt alleen de eerste gevonden tekst door een andere tekst</string>
+    <string name="template_helper_text_replace_icase">Vervangt elke gevonden tekst door een andere tekst, zonder op hoofdletters te letten</string>
+    <string name="template_helper_text_remove">Haalt elke gevonden tekst weg</string>
+    <string name="template_helper_text_wrap">Zet een teken voor de tekst en een teken erachter</string>
+    <string name="template_helper_text_quote">Zet de tekst tussen dubbele aanhalingstekens</string>
+    <string name="template_helper_text_paren">Zet de tekst tussen haakjes</string>
+    <string name="template_helper_text_lines_wrap">Breekt de tekst af op een breedte en verbindt de regels met een schuine streep</string>
+    <string name="template_helper_text_words_count">Telt de woorden in de tekst</string>
+    <string name="template_helper_text_chars_count">Telt de tekens in de tekst</string>
+    <string name="template_helper_text_letters_count">Telt alleen de letters in de tekst</string>
+    <string name="template_helper_text_lines_count">Telt de regels in de tekst</string>
+    <string name="template_helper_text_count">Telt hoe vaak een tekst in de tekst voorkomt</string>
+    <string name="template_helper_text_word_first">Het eerste woord van de tekst</string>
+    <string name="template_helper_text_word_last">Het laatste woord van de tekst</string>
+    <string name="template_helper_text_word">Het woord op een plek, geteld vanaf 1</string>
+    <string name="template_helper_text_words_first">De eerste woorden</string>
+    <string name="template_helper_text_words_last">De laatste woorden</string>
+    <string name="template_helper_text_words_from">Alle woorden vanaf een plek tot het eind, geteld vanaf 1</string>
+    <string name="template_helper_text_words_range">De woorden van de ene plek tot de andere, beide inbegrepen</string>
+    <string name="template_helper_text_words_shuffle">De woorden in willekeurige volgorde</string>
+    <string name="template_helper_text_words_sort">De woorden op alfabet</string>
+    <string name="template_helper_text_words_unique">De woorden zonder herhalingen</string>
+    <string name="template_helper_text_word_random">Een willekeurig woord uit de tekst</string>
+    <string name="template_helper_text_word_longest">Het langste woord van de tekst</string>
+    <string name="template_helper_text_chars_shuffle">De tekens in willekeurige volgorde</string>
+</resources>
