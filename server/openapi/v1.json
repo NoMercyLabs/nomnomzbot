@@ -39991,7 +39991,7 @@
         "tags": [
           "EventResponses"
         ],
-        "summary": "Reset the configured response for an event type back to its seeded default (disabled, chat_message,\r\nno message/pipeline). The row is a fixed catalogue entry keyed by event type — this never deletes it.",
+        "summary": "Reset the configured response for an event type back to its seeded default (disabled, chat_message,\r\nno message/pipeline). The row is a fixed catalogue entry keyed by event type — this never deletes it.\r\nA row bound to a pipeline, command or action is refused (400 `CONFIRMATION_REQUIRED`, naming the\r\nbinding that would be lost) unless the request carries `confirm=true`.",
         "parameters": [
           {
             "name": "channelId",
@@ -40007,6 +40007,14 @@
             "required": true,
             "schema": {
               "type": "string"
+            }
+          },
+          {
+            "name": "confirm",
+            "in": "query",
+            "schema": {
+              "type": "boolean",
+              "default": false
             }
           },
           {
@@ -115824,6 +115832,18 @@
             ]
           },
           "actorProvider": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "actorKind": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "actorTokenId": {
             "type": [
               "null",
               "string"

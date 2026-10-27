@@ -38,11 +38,14 @@ public interface IEventResponseService
     /// <summary>
     /// Resets one event-response row back to its seeded default (disabled, chat_message, no message/pipeline).
     /// Never removes the row — rows are a fixed, seeded catalogue keyed by event type
-    /// (S-EVENTRESPONSE-NO-CREATE), not user-created/deletable.
+    /// (S-EVENTRESPONSE-NO-CREATE), not user-created/deletable. A row bound to a pipeline, command or
+    /// action is only reset when <paramref name="confirmed"/> is true; otherwise the call fails with
+    /// <c>CONFIRMATION_REQUIRED</c>, names the binding that would be lost, and changes nothing.
     /// </summary>
     Task<Result> ResetToDefaultAsync(
         string broadcasterId,
         string eventType,
+        bool confirmed = false,
         CancellationToken cancellationToken = default
     );
 }

@@ -35,6 +35,7 @@ public sealed class EventStoreSubscriber : IEventStoreSubscriber
 
     public Task<Result<EventRecord>> CaptureAsync<TEvent>(
         TEvent @event,
+        JournalActor? actor = null,
         CancellationToken cancellationToken = default
     )
         where TEvent : class, IDomainEvent
@@ -54,6 +55,13 @@ public sealed class EventStoreSubscriber : IEventStoreSubscriber
             MetadataJson: "{}",
             OccurredAt: @event.OccurredAt.UtcDateTime
         );
+
+        if (@event is IActorAttributedEvent && actor is not null)
+            request = request with
+            {
+                ActorUserId = actor.UserId,
+                MetadataJson = JournalActorMetadata.ToJson(actor),
+            };
 
         return _journal.AppendAsync(request, cancellationToken);
     }

@@ -13,6 +13,7 @@ using System.Text.Encodings.Web;
 using Microsoft.AspNetCore.Authentication;
 using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.AutomationApi;
 using NomNomzBot.Application.AutomationApi.Dtos;
 using NomNomzBot.Application.AutomationApi.Services;
 using NomNomzBot.Application.Common.Models;
@@ -67,9 +68,9 @@ public sealed class ApiTokenAuthenticationHandler
 
         ClaimsIdentity identity = new(
             [
-                new("automation:token_id", principal.TokenId.ToString()),
-                new("automation:token_name", principal.TokenName),
-                new("automation:broadcaster_id", principal.BroadcasterId.ToString()),
+                new(AutomationClaimTypes.TokenId, principal.TokenId.ToString()),
+                new(AutomationClaimTypes.TokenName, principal.TokenName),
+                new(AutomationClaimTypes.BroadcasterId, principal.BroadcasterId.ToString()),
             ],
             SchemeName
         );
