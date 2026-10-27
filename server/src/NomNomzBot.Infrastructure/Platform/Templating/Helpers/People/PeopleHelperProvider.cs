@@ -23,8 +23,7 @@ internal abstract class PeopleHelperProvider : ITemplateHelperProvider
     private readonly IServiceScopeFactory _scopes;
     private readonly IViewerDirectory _directory;
     private readonly ViewerSide _side;
-    private readonly Dictionary<string, PeopleRow> _exact = new(StringComparer.OrdinalIgnoreCase);
-    private readonly List<(string Prefix, PeopleRow Row)> _prefixes = [];
+    private readonly PeopleRowIndex _index;
 
     protected PeopleHelperProvider(
         IServiceScopeFactory scopes,
@@ -39,19 +38,8 @@ internal abstract class PeopleHelperProvider : ITemplateHelperProvider
         Namespace = ns;
 
         ViewerSides flag = side == ViewerSide.User ? ViewerSides.User : ViewerSides.Target;
-        List<TemplateHelperEntry> entries = [];
-        foreach (PeopleRow row in PeopleGroups.All().SelectMany(g => g.Rows))
-        {
-            if (!row.Sides.HasFlag(flag))
-                continue;
-
-            entries.Add(row.ToEntry(side, ns));
-            if (row.IsPrefix)
-                _prefixes.Add((ns + "." + row.Suffix, row));
-            else
-                _exact.Add(ns + "." + row.Suffix, row);
-        }
-        Entries = entries;
+        _index = new PeopleRowIndex(flag);
+        Entries = [.. _index.Rows.Select(row => row.ToEntry(side, ns))];
     }
 
     public string Namespace { get; }
@@ -89,28 +77,16 @@ internal abstract class PeopleHelperProvider : ITemplateHelperProvider
         if (!scope.Items.TryGetValue(ItemKey, out object? stored) || stored is not ViewerData data)
             return null;
 
-        (PeopleRow? row, string tail) = Find(node.Key);
+        string prefix = Namespace + ".";
+        if (!node.Key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            return null;
+
+        (PeopleRow? row, string tail) = _index.Find(node.Key[prefix.Length..]);
         return row is null
             ? null
             : await row.Render(
                 new PeopleCall(data, node.Arguments, tail, scope, cancellationToken)
             );
-    }
-
-    private (PeopleRow? Row, string Tail) Find(string key)
-    {
-        if (_exact.TryGetValue(key, out PeopleRow? exact))
-            return (exact, string.Empty);
-
-        foreach ((string prefix, PeopleRow row) in _prefixes)
-        {
-            if (
-                key.Length > prefix.Length
-                && key.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
-            )
-                return (row, key[prefix.Length..]);
-        }
-        return (null, string.Empty);
     }
 }
 

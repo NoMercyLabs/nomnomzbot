@@ -8,7 +8,9 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Infrastructure.Platform.Templating.Helpers.People;
 
 namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Arguments;
 
@@ -21,14 +23,27 @@ namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Arguments;
 public sealed class ArgumentTemplateHelpers : ITemplateHelperProvider
 {
     private readonly IReadOnlyList<IArgumentHelperGroup> _groups;
+    private readonly ArgumentUserHelpers? _users;
 
+    /// <summary>The pure rows only: a host with no services (a test of the word rows) uses this one.</summary>
     public ArgumentTemplateHelpers()
-        : this(DiscoverGroups()) { }
+        : this(DiscoverGroups(), null) { }
 
-    internal ArgumentTemplateHelpers(IEnumerable<IArgumentHelperGroup> groups)
+    /// <summary>The dependency-injected provider: the pure rows plus <c>args.&lt;n&gt;.user.*</c>, which reads viewer data.</summary>
+    public ArgumentTemplateHelpers(IServiceScopeFactory scopes, IServiceProvider services)
+        : this(scopes, services.GetService<IViewerDirectory>() ?? new DbViewerDirectory()) { }
+
+    internal ArgumentTemplateHelpers(IServiceScopeFactory scopes, IViewerDirectory directory)
+        : this(DiscoverGroups(), new ArgumentUserHelpers(scopes, directory)) { }
+
+    private ArgumentTemplateHelpers(
+        IEnumerable<IArgumentHelperGroup> groups,
+        ArgumentUserHelpers? users
+    )
     {
         _groups = [.. groups];
-        Entries = [.. _groups.SelectMany(g => g.Entries)];
+        _users = users;
+        Entries = [.. _groups.SelectMany(g => g.Entries).Concat(users?.Entries ?? [])];
     }
 
     public string Namespace => "args";
@@ -39,7 +54,10 @@ public sealed class ArgumentTemplateHelpers : ITemplateHelperProvider
         TemplateRenderScope scope,
         IReadOnlyCollection<HelperNode> nodes,
         CancellationToken cancellationToken
-    ) => ValueTask.CompletedTask;
+    ) =>
+        _users is null
+            ? ValueTask.CompletedTask
+            : _users.PrepareAsync(scope, nodes, cancellationToken);
 
     public ValueTask<string?> RenderAsync(
         TemplateRenderScope scope,
@@ -49,6 +67,9 @@ public sealed class ArgumentTemplateHelpers : ITemplateHelperProvider
     {
         if (!CommandWords.TryRead(scope, out CommandWords? words))
             return ValueTask.FromResult<string?>(null);
+
+        if (_users is not null && ArgumentUserHelpers.Claims(node.Key))
+            return _users.RenderAsync(scope, node, cancellationToken);
 
         foreach (IArgumentHelperGroup group in _groups)
         {
