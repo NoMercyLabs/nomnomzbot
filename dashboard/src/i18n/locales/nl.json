@@ -154,6 +154,8 @@
     "panel": {
       "search": "Zoek helpers",
       "empty": "Geen helper gevonden.",
+      "count": "{count} helper | {count} helpers",
+      "more": "Toon nog {count}",
       "sample": "Wordt {sample}"
     },
     "group": {
@@ -173,7 +175,13 @@
       "obs": "OBS",
       "vts": "VTube Studio",
       "time": "Tijd",
-      "reward": "Beloningen"
+      "reward": "Beloningen",
+      "text": "Tekst",
+      "num": "Getallen",
+      "emote": "Emotes",
+      "platform": "Platform",
+      "bot": "Bot",
+      "fun": "Plezier"
     },
     "helper": {
       "channel": "De inlognaam van het kanaal",

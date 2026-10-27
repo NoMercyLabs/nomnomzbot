@@ -154,6 +154,8 @@
     "panel": {
       "search": "Search helpers",
       "empty": "No helper matches.",
+      "count": "{count} helper | {count} helpers",
+      "more": "Show {count} more",
       "sample": "Becomes {sample}"
     },
     "group": {
@@ -173,7 +175,13 @@
       "obs": "OBS",
       "vts": "VTube Studio",
       "time": "Time",
-      "reward": "Rewards"
+      "reward": "Rewards",
+      "text": "Text",
+      "num": "Numbers",
+      "emote": "Emotes",
+      "platform": "Platform",
+      "bot": "Bot",
+      "fun": "Fun"
     },
     "helper": {
       "channel": "The channel login name",
