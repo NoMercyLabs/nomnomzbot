@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespace "args", lane L2k2 (catalog section 7.16, the args rows).
+  Names follow template_helper_<help id with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_args_count">How many words follow the command</string>
+    <string name="template_helper_args_isEmpty">True when the command has no arguments, false when it has some</string>
+    <string name="template_helper_args_first">The first word after the command, as written</string>
+    <string name="template_helper_args_last">The last word after the command</string>
+    <string name="template_helper_args_rest">Every word after the first one</string>
+    <string name="template_helper_args_all_quoted">All arguments in double quotes</string>
+    <string name="template_helper_args_all_urlEncoded">All arguments made safe for a web address</string>
+    <string name="template_helper_args_from">Every word from the n-th one to the end, for example args.2+</string>
+    <string name="template_helper_args_range">The words from the a-th to the b-th, for example args.2-3</string>
+    <string name="template_helper_args_word">The n-th word, or the default after the colon when the command has fewer words</string>
+    <string name="template_helper_args_clean">The n-th word without a leading @</string>
+    <string name="template_helper_args_upper">The n-th word in UPPERCASE</string>
+    <string name="template_helper_args_length">How many characters the n-th word has</string>
+    <string name="template_helper_args_urlEncoded">The n-th word made safe for a web address</string>
+    <string name="template_helper_args_number">The n-th word when it is a number, else the default after the colon or nothing</string>
+    <string name="template_helper_args_isNumber">True when the n-th word is a number</string>
+    <string name="template_helper_args_isMention">True when the n-th word is an @mention</string>
+    <string name="template_helper_args_mentions">Every @mention in the arguments</string>
+    <string name="template_helper_args_mentions_count">How many @mentions are in the arguments</string>
+    <string name="template_helper_args_numbers">Every word that is a number</string>
+    <string name="template_helper_args_duration">The n-th word read as a time (5m, 1h30m, 90) in seconds</string>
+</resources>
