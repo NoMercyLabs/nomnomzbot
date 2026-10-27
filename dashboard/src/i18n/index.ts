@@ -74,6 +74,10 @@ async function loadWords(loader: WordsLoader, locale: string): Promise<void> {
 export async function setLocale(locale: Locale): Promise<void> {
   targetLocale = locale;
   await Promise.all([...openedPages].map((loader) => loadWords(loader, locale)));
+
+  // A later pick came in while these words loaded: that pick sets the language, this one must not undo it.
+  if (targetLocale !== locale) return;
+
   i18n.global.locale.value = locale;
   chosenLocale.value = locale;
   document.documentElement.lang = locale;

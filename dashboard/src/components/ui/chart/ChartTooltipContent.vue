@@ -2,6 +2,7 @@
 import type { HTMLAttributes } from 'vue'
 import type { ChartConfig } from '.'
 import { computed } from 'vue'
+import { useI18n } from 'vue-i18n'
 import { cn } from '@/lib/utils'
 
 const props = withDefaults(defineProps<{
@@ -24,6 +25,9 @@ const props = withDefaults(defineProps<{
 
 // TODO: currently we use `createElement` and `render` to render the
 // const chartContext = useChart(null)
+
+// The number reads in the language chosen in the app, so it changes with a switch (not the browser's language).
+const { n } = useI18n()
 
 const payload = computed(() => {
   return Object.entries(props.payload).map(([key, value]) => {
@@ -95,7 +99,7 @@ const tooltipLabel = computed(() => {
               </span>
             </div>
             <span v-if="value" class="text-foreground font-mono font-medium tabular-nums">
-              {{ value.toLocaleString() }}
+              {{ n(Number(value)) }}
             </span>
           </div>
         </div>

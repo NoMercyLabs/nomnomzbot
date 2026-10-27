@@ -610,6 +610,32 @@ describe('time formatting', () => {
   });
 });
 
+// Stoney 2026-10-27: "changing language does not live change the language and requires a reload". A number, a
+// currency or a list written in the language of the browser instead of the language chosen in the app never
+// changes on a switch: it follows the i18n locale (useI18n().n / locale.value) or it is wrong.
+const browserLocaleFormat = /Intl\.(NumberFormat|ListFormat|PluralRules|RelativeTimeFormat)\(\s*(undefined\s*[,)]|\))|\.toLocaleString\(\s*\)/;
+
+describe('language of formatted numbers', () => {
+  it('spots a number formatted in the language of the browser', () => {
+    expect(browserLocaleFormat.test('new Intl.NumberFormat(undefined, { style: "currency" })')).toBe(true);
+    expect(browserLocaleFormat.test('{{ value.toLocaleString() }}')).toBe(true);
+    expect(browserLocaleFormat.test('new Intl.NumberFormat(locale.value)')).toBe(false);
+    expect(browserLocaleFormat.test('bits.toLocaleString(locale.value)')).toBe(false);
+  });
+
+  it('formats no number, list or plural without the language of the app', () => {
+    const formatsInBrowserLocale = (path: string): boolean => {
+      const text: string = readFileSync(join(src, path), 'utf8');
+
+      return browserLocaleFormat.test(text);
+    };
+
+    const offenders = timeSourceFiles().filter(formatsInBrowserLocale);
+
+    expect(offenders).toEqual([]);
+  });
+});
+
 // Stoney 2026-10-18: "why can't I select a command directly instead of a pipeline that calls a single command?"
 // What a row runs (a command, an action or a pipeline) is chosen in <TargetPicker>. A view never lists the
 // pipelines in a Select of its own. Only the picker reads the pipeline list into select items.

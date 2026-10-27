@@ -97,4 +97,31 @@ describe('switching the language', () => {
 
     expect(i18n.global.t(titleKey)).toBe('Welcome');
   });
+
+  // Stoney 2026-10-27: "changing language does not live change the language and requires a reload". A pick that
+  // lands while an earlier pick still loads its words ends in the language chosen last, not the one that loads last.
+  it('ends in the language picked last when two picks overlap', async () => {
+    const { i18n, loadPage, setLocale } = await freshI18n();
+
+    await loadPage(
+      async () => page,
+      async (locale: string) => {
+        if (locale === 'nl') {
+          await new Promise((resolve) => setTimeout(resolve, 20));
+        }
+
+        return { default: lookup(pageWords, locale)! };
+      },
+    );
+
+    const slow = setLocale('nl');
+    const last = setLocale('en');
+
+    await Promise.all([slow, last]);
+
+    expect(i18n.global.locale.value).toBe('en');
+    expect(i18n.global.t(titleKey)).toBe('Welcome');
+    expect(document.documentElement.lang).toBe('en');
+    expect(localStorage.getItem('nnz.locale')).toBe('en');
+  });
 });

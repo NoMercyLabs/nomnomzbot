@@ -29,6 +29,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 import { useShowMore } from '@/composables/useShowMore';
 import { useTime } from '@/composables/useTime';
+import { centsAsMoney } from '@/lib/number';
 
 import Diamond from '~icons/nnz/diamond';
 import GiftCard from '~icons/nnz/gift-card';
@@ -45,7 +46,7 @@ import {
   type SubscriptionRow,
 } from './supporterRows';
 
-const { t, n } = useI18n();
+const { t, n, locale } = useI18n();
 const time = useTime();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
@@ -100,9 +101,7 @@ function tipAmount(event: SupporterEvent): string | null {
   if (event.amountMinor === null || event.amountMinor === undefined || !event.currency)
     return null;
 
-  return new Intl.NumberFormat(undefined, { style: 'currency', currency: event.currency }).format(
-    Number(event.amountMinor) / 100,
-  );
+  return centsAsMoney(event.amountMinor, event.currency, locale.value);
 }
 
 function tipDetail(event: SupporterEvent): string {
