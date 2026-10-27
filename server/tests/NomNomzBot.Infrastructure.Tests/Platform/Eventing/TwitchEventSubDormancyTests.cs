@@ -222,6 +222,14 @@ public sealed class TwitchEventSubDormancyTests
         using CancellationTokenSource timeout = new(TimeSpan.FromSeconds(10));
         await standby.WaitUntilActiveAsync(timeout.Token);
         standby.IsActiveInstance.Should().BeTrue();
+        // The instance turns active first and starts its transport right after: wait for the start, not the flag.
+        while (
+            !timeout.IsCancellationRequested
+            && !standbyTransport
+                .ReceivedCalls()
+                .Any(c => c.GetMethodInfo().Name == nameof(IEventSubTransport.StartAsync))
+        )
+            await Task.Delay(20, CancellationToken.None);
         await standbyTransport.Received(1).StartAsync(Arg.Any<CancellationToken>());
 
         await standby.StopAsync(CancellationToken.None);
