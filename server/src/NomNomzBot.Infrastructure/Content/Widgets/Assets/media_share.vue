@@ -32,6 +32,7 @@ interface YouTubePlayerHandle {
   getCurrentTime(): number
   getDuration(): number
   setVolume(volume: number): void
+  unMute(): void
   destroy(): void
 }
 interface YouTubeEvent { data: number, target: YouTubePlayerHandle }
@@ -110,10 +111,16 @@ function loadYouTubeApi(): Promise<void> {
   return ytApiPromise
 }
 
+// A page without a user gesture lets YouTube autoplay only muted; OBS browser sources allow sound, so unmute.
+function makeAudible(player: YouTubePlayerHandle): void {
+  player.setVolume(volume)
+  player.unMute()
+}
+
 function onYouTubeState(e: YouTubeEvent): void {
   const next: PlayerState | undefined = YT_STATE_NAMES[e.data]
   if (!next) return
-  if (next === 'playing') e.target.setVolume(volume)
+  if (next === 'playing') makeAudible(e.target)
   report(next)
 }
 
@@ -141,7 +148,7 @@ async function playYouTube(videoId: string): Promise<void> {
       onReady: (e) => {
         ytPlayer = e.target
         ytStarting = false
-        e.target.setVolume(volume)
+        makeAudible(e.target)
         if (ytPendingId && ytPendingId !== startedWith) e.target.loadVideoById(ytPendingId)
       },
       onStateChange: onYouTubeState,
@@ -153,7 +160,7 @@ async function playYouTube(videoId: string): Promise<void> {
 // A clip iframe has no control API: playing is reported on load, ended by a timer of the clip length.
 function playClip(clip: string): void {
   clipUrl.value = 'https://clips.twitch.tv/embed?clip=' + encodeURIComponent(clip)
-    + '&parent=' + encodeURIComponent(window.location.hostname) + '&autoplay=true'
+    + '&parent=' + encodeURIComponent(window.location.hostname) + '&autoplay=true&muted=false'
   clipStartedAt = Date.now()
   window.clearTimeout(clipEndTimer)
   if (durationSeconds > 0)
