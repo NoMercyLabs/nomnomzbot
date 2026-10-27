@@ -595,6 +595,39 @@ public static partial class ToneTemplateCatalog
             ]
         );
 
+        // ── !sr / noclosematch ({user} {query} {track.name} {track.artist}) ────
+        Add(
+            catalog,
+            BuiltinResponseSlots.SongRequest.Key,
+            BuiltinResponseSlots.SongRequest.NoCloseMatch,
+            variables: ["query", "track.artist", "track.name", "user"],
+            informative:
+            [
+                "Couldn't find \"{query}\". The closest was \"{track.name}\" by {track.artist}, so I didn't add it.",
+                "No match for \"{query}\". Nearest result: \"{track.name}\" by {track.artist}. Nothing was added.",
+            ],
+            friendly:
+            [
+                "Hmm, couldn't find \"{query}\" — the closest was \"{track.name}\" by {track.artist}, so I left it out. Try another spelling?",
+                "No luck with \"{query}\". \"{track.name}\" by {track.artist} was the nearest, but I didn't add it!",
+            ],
+            sassy:
+            [
+                "\"{query}\"? Closest I got was \"{track.name}\" by {track.artist}. Not adding that. You're welcome.",
+                "No \"{query}\" anywhere. \"{track.name}\" by {track.artist} came close, but close is not the song.",
+            ],
+            hype:
+            [
+                "NO MATCH FOR \"{query}\". CLOSEST WAS \"{track.name}\" BY {track.artist}. NOT ADDED. TRY AGAIN.",
+                "MISSED \"{query}\"! NEAREST WAS \"{track.name}\" BY {track.artist}. LEFT IT OUT. GO AGAIN.",
+            ],
+            chill:
+            [
+                "no match for \"{query}\". closest was \"{track.name}\" by {track.artist}, so i skipped it.",
+                "couldn't find \"{query}\". \"{track.name}\" by {track.artist} was nearest. not added.",
+            ]
+        );
+
         // ── !skip / skipped ────────────────────────────────────────────────────
         Add(
             catalog,

@@ -181,6 +181,12 @@ public sealed class MusicServiceConfigAdmissionTests
             HttpStatusCode.OK,
             searchJson
         );
+        // A pasted spotify:track: URI is looked up by id, not searched as text.
+        handler.RespondWhen(
+            r => r.RequestUri!.AbsolutePath.EndsWith("/tracks/q1", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            """{"id":"q1","name":"Song Q","uri":"spotify:track:q1","duration_ms":200000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}"""
+        );
         handler.RespondWhen(
             r =>
                 r.Method == HttpMethod.Post

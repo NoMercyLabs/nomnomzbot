@@ -432,6 +432,8 @@
     "builtin.reply.sr.missingscope.label",
     "builtin.reply.sr.noactivedevice.description",
     "builtin.reply.sr.noactivedevice.label",
+    "builtin.reply.sr.noclosematch.description",
+    "builtin.reply.sr.noclosematch.label",
     "builtin.reply.sr.nooverlayplayer.description",
     "builtin.reply.sr.nooverlayplayer.label",
     "builtin.reply.sr.noproviderbroadcaster.description",

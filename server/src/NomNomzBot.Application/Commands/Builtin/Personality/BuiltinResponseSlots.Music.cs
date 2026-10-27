@@ -60,6 +60,12 @@ public static partial class BuiltinResponseSlots
         public const string NotFound = "notfound";
 
         /// <summary>
+        /// No track is the requested song, but one came close and was NOT queued; <c>{query}</c>/<c>{user}</c>/
+        /// <c>{track.name}</c>/<c>{track.artist}</c> (the closest one) are set.
+        /// </summary>
+        public const string NoCloseMatch = "noclosematch";
+
+        /// <summary>
         /// The track is ALREADY pending in the queue; <c>{track.name}</c>/<c>{track.artist}</c>/<c>{requested.by}</c>/
         /// <c>{user}</c> are set.
         /// </summary>

@@ -91,6 +91,8 @@
     <string name="builtin_reply_sr_trackblocked_description">Het gevraagde nummer staat op de blokkeerlijst.</string>
     <string name="builtin_reply_sr_noactivedevice_label">Er speelt niets</string>
     <string name="builtin_reply_sr_noactivedevice_description">Het nummer kan niet in de wachtrij omdat er op geen enkel apparaat iets speelt.</string>
+    <string name="builtin_reply_sr_noclosematch_label">Alleen een bijna-match</string>
+    <string name="builtin_reply_sr_noclosematch_description">Geen nummer is het gevraagde nummer, maar een ander nummer kwam in de buurt. De bot noemt het en zet het niet in de wachtrij.</string>
     <string name="builtin_reply_sr_nooverlayplayer_label">Audio-overlay dicht</string>
     <string name="builtin_reply_sr_nooverlayplayer_description">Een YouTube-nummer kan niet spelen omdat de audio-overlay niet open staat in OBS.</string>
     <string name="builtin_reply_sr_premiumrequired_label">Premium nodig</string>

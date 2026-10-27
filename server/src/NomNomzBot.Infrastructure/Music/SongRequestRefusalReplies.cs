@@ -50,6 +50,19 @@ internal sealed class SongRequestRefusalReplies(IBuiltinResponseComposer compose
 
         return refusal.ErrorCode switch
         {
+            "NOT_FOUND" when !string.IsNullOrWhiteSpace(data?.TrackName) => ComposeAsync(
+                context,
+                BuiltinResponseSlots.SongRequest.NoCloseMatch,
+                "Couldn't find \"{query}\". The closest was \"{track.name}\" by {track.artist}, so I didn't add it.",
+                new Dictionary<string, string>
+                {
+                    ["user"] = context.UserDisplayName,
+                    ["query"] = query,
+                    ["track.name"] = data.TrackName,
+                    ["track.artist"] = data.Artist ?? string.Empty,
+                },
+                ct
+            ),
             "NOT_FOUND" => ComposeAsync(
                 context,
                 BuiltinResponseSlots.SongRequest.NotFound,

@@ -8,6 +8,7 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using System.Text.RegularExpressions;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -588,7 +589,7 @@ public sealed class MusicService : IMusicService
         // is best-effort metadata enrichment only, so a lookup failure degrades to the synthetic entry
         // rather than refusing an otherwise-valid admission; a resolve failure is still logged so the
         // metadata gap is diagnosable.
-        (TrackInfo? resolvedTrack, MusicProviderFailureReason resolveFailure) =
+        (TrackInfo? resolvedTrack, MusicProviderFailureReason resolveFailure, _) =
             await ResolveOrSearchAsync(
                 provider,
                 tenantId,
@@ -712,14 +713,15 @@ public sealed class MusicService : IMusicService
         int? maxDurationMs = IsOperator(requesterRoleLevel)
             ? null
             : (config?.MaxSongSeconds ?? DefaultMaxSongSeconds) * 1000;
-        (TrackInfo? trackInfo, MusicProviderFailureReason failure) = await ResolveOrSearchAsync(
-            provider,
-            tenantId,
-            query,
-            cancellationToken,
-            maxDurationMs,
-            config?.YouTubeMusicCategoryOnly ?? MusicConfigDefaults.YouTubeMusicCategoryOnly
-        );
+        (TrackInfo? trackInfo, MusicProviderFailureReason failure, TrackInfo? closest) =
+            await ResolveOrSearchAsync(
+                provider,
+                tenantId,
+                query,
+                cancellationToken,
+                maxDurationMs,
+                config?.YouTubeMusicCategoryOnly ?? MusicConfigDefaults.YouTubeMusicCategoryOnly
+            );
         if (failure != MusicProviderFailureReason.None)
         {
             _logger.LogWarning(
@@ -732,7 +734,14 @@ public sealed class MusicService : IMusicService
             return ProviderFailureResult<MusicTrack>(provider, tenantId, failure);
         }
         if (trackInfo is null)
-            return Result.Failure<MusicTrack>($"No tracks found for \"{query}\".", "NOT_FOUND");
+            return closest is null
+                ? Result.Failure<MusicTrack>($"No tracks found for \"{query}\".", "NOT_FOUND")
+                : Result.Failure<MusicTrack>(
+                    $"No track matched \"{query}\"; the closest was \"{closest.TrackName}\" by {closest.Artist}, so nothing was queued.",
+                    "NOT_FOUND",
+                    null,
+                    new MusicRequestRefusal(closest.TrackName, closest.Artist)
+                );
 
         Result enqueued = await EnqueueResolvedAsync(
             tenantId,
@@ -851,7 +860,11 @@ public sealed class MusicService : IMusicService
     /// <summary>Spotify's search ranks a bigger page the way its own app does; the first of ten is picked from.</summary>
     private const int SearchCandidateCount = 10;
 
-    private async Task<(TrackInfo? Track, MusicProviderFailureReason Failure)> ResolveOrSearchAsync(
+    private async Task<(
+        TrackInfo? Track,
+        MusicProviderFailureReason Failure,
+        TrackInfo? Closest
+    )> ResolveOrSearchAsync(
         IMusicProvider provider,
         Guid tenantId,
         string queryOrUri,
@@ -867,11 +880,11 @@ public sealed class MusicService : IMusicService
         (TrackInfo? resolved, MusicProviderFailureReason resolveFailure) =
             await provider.ResolveTrackAsync(tenantId, input, cancellationToken);
         if (resolveFailure != MusicProviderFailureReason.None)
-            return (null, resolveFailure);
+            return (null, resolveFailure, null);
         if (resolved is not null)
             return YouTubeMusicCategory.Admits(musicCategoryOnly, resolved, input)
-                ? (resolved, MusicProviderFailureReason.None)
-                : (null, MusicProviderFailureReason.NotMusic);
+                ? (resolved, MusicProviderFailureReason.None, null)
+                : (null, MusicProviderFailureReason.NotMusic, null);
 
         string searchText = input;
         if (IsWebLink(input))
@@ -879,11 +892,11 @@ public sealed class MusicService : IMusicService
             // A link is never searched as text: its URL finds an unrelated song. One the provider claims
             // but found nothing behind is "not found"; any other is searched by its title, when it has one.
             if (provider.OwnsLink(input))
-                return (null, MusicProviderFailureReason.None);
+                return (null, MusicProviderFailureReason.None, null);
 
             string? title = await _linkTitles.TryGetTitleAsync(input, cancellationToken);
             if (string.IsNullOrWhiteSpace(title))
-                return (null, MusicProviderFailureReason.UnsupportedLink);
+                return (null, MusicProviderFailureReason.UnsupportedLink, null);
             searchText = title;
         }
 
@@ -895,21 +908,85 @@ public sealed class MusicService : IMusicService
                 cancellationToken
             );
         if (searchFailure != MusicProviderFailureReason.None)
-            return (null, searchFailure);
+            return (null, searchFailure, null);
 
-        IReadOnlyList<TrackInfo> admitted =
+        List<TrackInfo> admitted =
         [
             .. hits.Where(hit => YouTubeMusicCategory.Admits(musicCategoryOnly, hit, null)),
         ];
         // Hits the music-category setting filtered out are refused with its rule, never "not found".
         if (hits.Count > 0 && admitted.Count == 0)
-            return (null, MusicProviderFailureReason.NotMusic);
+            return (null, MusicProviderFailureReason.NotMusic, null);
+
+        TrackInfo? picked = SongSearchRanker.Pick(
+            searchText,
+            WithinLength(admitted, maxDurationMs)
+        );
+        if (picked is null && admitted.Count > 0)
+        {
+            // Nothing in the first page is the requested TITLE (the full phrase ranked the artist's other
+            // songs first). Search each half of "title - artist" on its own and judge the pooled hits again.
+            MusicProviderFailureReason partFailure = await AddHitsOfEachPartAsync(
+                provider,
+                tenantId,
+                searchText,
+                admitted,
+                musicCategoryOnly,
+                cancellationToken
+            );
+            if (partFailure != MusicProviderFailureReason.None)
+                return (null, partFailure, null);
+
+            picked = SongSearchRanker.Pick(searchText, WithinLength(admitted, maxDurationMs));
+        }
 
         return (
-            SongSearchRanker.Pick(searchText, WithinLength(admitted, maxDurationMs)),
-            MusicProviderFailureReason.None
+            picked,
+            MusicProviderFailureReason.None,
+            picked is null ? SongSearchRanker.Closest(searchText, admitted) : null
         );
     }
+
+    /// <summary>
+    /// Searches the halves of a "title - artist" / "title by artist" phrase on their own and adds the new
+    /// admitted hits to <paramref name="admitted"/>. A phrase with no separator has no halves and adds nothing.
+    /// </summary>
+    private static async Task<MusicProviderFailureReason> AddHitsOfEachPartAsync(
+        IMusicProvider provider,
+        Guid tenantId,
+        string searchText,
+        List<TrackInfo> admitted,
+        bool musicCategoryOnly,
+        CancellationToken cancellationToken
+    )
+    {
+        string[] parts = SearchPartSeparators.Split(searchText);
+        if (parts.Length < 2)
+            return MusicProviderFailureReason.None;
+
+        foreach (string part in parts)
+        {
+            (IReadOnlyList<TrackInfo> partHits, MusicProviderFailureReason failure) =
+                await provider.SearchAsync(tenantId, part, SearchCandidateCount, cancellationToken);
+            if (failure != MusicProviderFailureReason.None)
+                return failure;
+
+            admitted.AddRange(
+                partHits.Where(hit =>
+                    YouTubeMusicCategory.Admits(musicCategoryOnly, hit, null)
+                    && admitted.TrueForAll(known => known.TrackUri != hit.TrackUri)
+                )
+            );
+        }
+        return MusicProviderFailureReason.None;
+    }
+
+    /// <summary>The words that split a request into its title half and artist half: " - ", " – ", " by ".</summary>
+    private static readonly Regex SearchPartSeparators = new(
+        @"\s+[-–—]\s+|\s+by\s+",
+        RegexOptions.IgnoreCase | RegexOptions.CultureInvariant,
+        TimeSpan.FromMilliseconds(100)
+    );
 
     /// <summary>The hits that fit the length cap; all of them when none does, so the pick is still refused
     /// with the honest "too long" reply rather than reading as "not found".</summary>
