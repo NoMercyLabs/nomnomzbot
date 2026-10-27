@@ -79,6 +79,23 @@ export const widgetReplies: FakeReply[] = [
   }),
   get('/api/v1/widget-gallery', fixture(widgetGallery)),
   get(`${channelPath}/overlays/required`, required),
+  // The sample channel has no OBS control: the overlay rows read this to decide whether to warn.
+  get(`${channelPath}/obs/connection`, {
+    status: 'ok',
+    data: {
+      mode: 'direct',
+      isEnabled: false,
+      lastConnectedAt: null,
+    },
+  }),
+  get(`${channelPath}/obs/bridge/status`, {
+    status: 'ok',
+    data: {
+      instanceCount: 0,
+      hasLeader: false,
+      leaderSince: null,
+    },
+  }),
   get(`${channelPath}/widgets/*/settings-schema`, (url) =>
     schemaFor(url)),
 ];
