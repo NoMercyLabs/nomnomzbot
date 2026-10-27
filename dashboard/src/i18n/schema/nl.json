@@ -2553,7 +2553,7 @@
       "hype_train_total": "Het totaal aan punten van de hype train",
       "input": "De tekstinvoer van de kijker bij de inwisseling, indien aanwezig",
       "link": "Een profiellink - het {'@'}vermelde doel indien aanwezig, anders de gebruiker die het activeerde",
-      "list_pick": "Een willekeurig item uit een benoemde keuzelijst (bijv. {'{'}list.pick.jokes{'}'})",
+      "list_pick": "Een willekeurig item van een keuzelijst",
       "message": "Het bericht bij de gebeurtenis (een resub- of cheerbericht)",
       "moderator": "De weergavenaam van de moderator (valt terug op hun ID)",
       "months": "Cumulatief aantal maanden geabonneerd",

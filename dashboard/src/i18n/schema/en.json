@@ -2553,7 +2553,7 @@
       "hype_train_total": "The total points the hype train collected",
       "input": "The viewer's text input on the redemption, if any",
       "link": "A profile link - the {'@'}mention target if present, otherwise the triggering user",
-      "list_pick": "A random entry from a named pick-list (e.g. {'{'}list.pick.jokes{'}'})",
+      "list_pick": "One random entry of a pick list",
       "message": "The message attached to the event (a resub or cheer message)",
       "moderator": "The moderator's display name (falls back to their ID)",
       "months": "Cumulative months subscribed",
