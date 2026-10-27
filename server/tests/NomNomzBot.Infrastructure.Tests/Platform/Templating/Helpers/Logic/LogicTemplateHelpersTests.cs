@@ -52,8 +52,10 @@ public sealed class LogicTemplateHelpersTests
         foreach (TemplateHelperEntry entry in provider.Entries.Where(e => e.Prefix is null))
             registry.ProviderFor(entry.Key).Should().BeOfType(provider.GetType(), entry.Key);
 
-        registry.ProviderFor("nothing").Should().BeOfType<CharsTemplateHelpers>();
-        registry.ProviderFor("zws").Should().BeOfType<CharsTemplateHelpers>();
+        registry.ProviderFor("chars.nothing").Should().BeOfType<CharsTemplateHelpers>();
+        registry.ProviderFor("chars.zws").Should().BeOfType<CharsTemplateHelpers>();
+        registry.ProviderFor("nothing").Should().BeNull("the short key is retired");
+        registry.ProviderFor("zws").Should().BeNull("the short key is retired");
         registry.ProviderFor("if.stream.live").Should().BeOfType<IfTemplateHelpers>();
         registry.ProviderFor("if.args.2.matches").Should().BeOfType<IfTemplateHelpers>();
     }

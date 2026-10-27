@@ -14,8 +14,8 @@ namespace NomNomzBot.Infrastructure.Platform.Templating;
 
 /// <summary>
 /// The one <see cref="ITemplateHelperRegistry"/>: the static as-built rows of <see cref="TemplateHelperRegistry"/>
-/// plus every scanned <see cref="ITemplateHelperProvider"/>'s rows, with one map from every canonical key and
-/// alias to its entry. Two claims on one key, alias or namespace fail at start-up, never at render time.
+/// plus every scanned <see cref="ITemplateHelperProvider"/>'s rows, with one map from every canonical key
+/// to its entry. Two claims on one key or namespace fail at start-up, never at render time.
 /// </summary>
 public sealed class TemplateHelperRegistryAggregate : ITemplateHelperRegistry
 {
@@ -50,13 +50,10 @@ public sealed class TemplateHelperRegistryAggregate : ITemplateHelperRegistry
 
             foreach (TemplateHelperEntry entry in provider.Entries)
             {
-                foreach (string key in entry.Aliases.Prepend(entry.Key))
-                {
-                    if (!_byKey.TryAdd(key, entry))
-                        throw new InvalidOperationException(
-                            $"The template helper key '{key}' of provider '{provider.Namespace}' is already registered."
-                        );
-                }
+                if (!_byKey.TryAdd(entry.Key, entry))
+                    throw new InvalidOperationException(
+                        $"The template helper key '{entry.Key}' of provider '{provider.Namespace}' is already registered."
+                    );
                 all.Add(entry);
                 _providerOfEntry[entry] = provider;
             }
@@ -85,7 +82,7 @@ public sealed class TemplateHelperRegistryAggregate : ITemplateHelperRegistry
         if (_providerOfEntry.Count == 0)
             return null;
 
-        // An exact key or alias is decided by the row that holds it; a prefix family only by a provider row.
+        // An exact key is decided by the row that holds it; a prefix family only by a provider row.
         if (_byKey.TryGetValue(key, out TemplateHelperEntry? exact))
             return _providerOfEntry.GetValueOrDefault(exact);
 

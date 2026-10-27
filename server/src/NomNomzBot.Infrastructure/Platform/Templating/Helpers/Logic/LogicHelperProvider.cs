@@ -45,8 +45,7 @@ public abstract class LogicHelperProvider : ITemplateHelperProvider
         string sample,
         bool lazy = false,
         string? prefix = null,
-        string? descriptionKey = null,
-        string? alias = null
+        string? descriptionKey = null
     ) =>
         new(
             key,
@@ -56,7 +55,6 @@ public abstract class LogicHelperProvider : ITemplateHelperProvider
         )
         {
             Sample = sample,
-            Aliases = alias is null ? [] : [alias],
             LazyArguments = lazy,
             Freshness = TemplateHelperFreshness.Pure,
             Scope = TemplateHelperScope.Global,

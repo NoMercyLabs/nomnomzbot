@@ -18,8 +18,8 @@ namespace NomNomzBot.Application.Abstractions.Templating;
 /// <see cref="Prefix"/>). <see cref="TemplateResolver"/> and this registry are kept in sync by
 /// <c>TemplateHelperCoverageTests</c> — a helper resolvable there but unregistered here (or vice
 /// versa) fails that guard.
-/// A provider handles a token only when one of its entries holds the key (an exact key, an alias, or a
-/// prefix family); the key's namespace alone never gives a provider the token.
+/// A provider handles a token only when one of its entries holds the key (an exact key or a prefix
+/// family); the key's namespace alone never gives a provider the token.
 /// </summary>
 /// <param name="Key">
 /// The canonical placeholder text as written in a template (without braces). For a prefix family this
@@ -50,9 +50,6 @@ public sealed record TemplateHelperEntry(
     /// <summary>A plain, realistic example value for this helper, shown in the variable picker.</summary>
     public string Sample { get; init; } = string.Empty;
 
-    /// <summary>Older keys that resolve to this entry (catalog section 2, rule 5). An alias is never removed.</summary>
-    public IReadOnlyList<string> Aliases { get; init; } = [];
-
     /// <summary>
     /// True when the helper chooses among its arguments (<c>if</c>, <c>switch</c>, <c>default</c>, <c>chance</c>).
     /// The renderer then passes the raw argument text in <see cref="HelperNode.Arguments"/> and renders none
@@ -70,12 +67,9 @@ public sealed record TemplateHelperEntry(
     /// <summary>Whose data the helper reads.</summary>
     public TemplateHelperScope Scope { get; init; } = TemplateHelperScope.Channel;
 
-    /// <summary>True when <paramref name="placeholderKey"/> (already trimmed, no braces) matches this entry or one of its aliases.</summary>
+    /// <summary>True when <paramref name="placeholderKey"/> (already trimmed, no braces) is this entry's key or a member of its prefix family.</summary>
     public bool Matches(string placeholderKey)
     {
-        if (Aliases.Contains(placeholderKey, StringComparer.OrdinalIgnoreCase))
-            return true;
-
         if (Prefix is not null)
             return placeholderKey.Length > Prefix.Length
                 && placeholderKey.StartsWith(Prefix, StringComparison.OrdinalIgnoreCase);

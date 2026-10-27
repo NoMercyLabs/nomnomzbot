@@ -85,7 +85,7 @@ public sealed class TemplateHelperProviderTests
     }
 
     [Fact]
-    public void The_registry_lists_the_stub_row_for_its_context_and_finds_its_alias()
+    public void The_registry_lists_the_stub_rows_for_their_context_and_finds_each_by_its_own_key()
     {
         using ServiceProvider services = BuildServices();
         ITemplateHelperRegistry registry = services.GetRequiredService<ITemplateHelperRegistry>();
@@ -95,8 +95,9 @@ public sealed class TemplateHelperProviderTests
             .Select(e => e.Key)
             .Should()
             .Contain("stubecho.say");
-        registry.Find("stubecho.speak")!.Key.Should().Be("stubecho.say");
+        registry.Find("stubecho.speak")!.Key.Should().Be("stubecho.speak");
         registry.Find("stubecho.say")!.Source.Should().Be("echo");
+        registry.Find("stubecho.shout").Should().BeNull("a key no row holds does not resolve");
     }
 
     [Fact]
@@ -147,7 +148,14 @@ public sealed class TemplateHelperProviderTests
                 new LocalizedText("template.helper.x")
             )
             {
-                Aliases = ["stubecho.speak"],
+                Source = "echo",
+            },
+            new TemplateHelperEntry(
+                "stubecho.speak",
+                [TemplateHelperContext.Command],
+                new LocalizedText("template.helper.y")
+            )
+            {
                 Source = "echo",
             },
         ];

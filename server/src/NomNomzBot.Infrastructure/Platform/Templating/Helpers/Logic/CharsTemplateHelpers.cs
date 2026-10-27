@@ -13,9 +13,9 @@ using NomNomzBot.Application.Abstractions.Templating;
 namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Logic;
 
 /// <summary>
-/// The characters a template cannot type easily (catalog section 7.5): <c>{nothing}</c>, <c>{newline}</c>,
-/// <c>{space}</c>, <c>{pipe}</c> and <c>{zws}</c> (a zero-width space that stops a mention). Each is a
-/// <c>chars.*</c> row whose alias is the key without a dot, so the short form is what a streamer writes.
+/// The characters a template cannot type easily (catalog section 7.5): <c>{chars.nothing}</c>,
+/// <c>{chars.newline}</c>, <c>{chars.space}</c>, <c>{chars.pipe}</c> and <c>{chars.zws}</c> (a zero-width
+/// space that stops a mention).
 /// </summary>
 public sealed class CharsTemplateHelpers : LogicHelperProvider
 {
@@ -36,7 +36,7 @@ public sealed class CharsTemplateHelpers : LogicHelperProvider
     public override string Namespace => "chars";
 
     public override IReadOnlyList<TemplateHelperEntry> Entries { get; } =
-    [.. Characters.Select(c => Row(KeyPrefix + c.Key, c.Value, alias: c.Key))];
+    [.. Characters.Select(c => Row(KeyPrefix + c.Key, c.Value))];
 
     public override ValueTask<string?> RenderAsync(
         TemplateRenderScope scope,

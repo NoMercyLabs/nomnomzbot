@@ -25,7 +25,7 @@ public interface ITemplateHelperRegistry
     /// <summary>The valid set for one context, narrowed to what one EventSub event seeds (S-OWN16).</summary>
     IReadOnlyList<TemplateHelperEntry> ForContext(TemplateHelperContext context, string eventType);
 
-    /// <summary>The entry a key (canonical, alias, or prefix family member) belongs to, or null.</summary>
+    /// <summary>The entry a key (canonical or prefix family member) belongs to, or null.</summary>
     TemplateHelperEntry? Find(string key);
 
     /// <summary>The provider that owns the key's namespace, or null when the as-built path renders it.</summary>
