@@ -33,6 +33,7 @@ public sealed class ChatHelpersTableTests
             // The trigger message.
             { "{chat.message}", "hello big world" },
             { "{chat.message.length}", "15" },
+            { "{chat.message.noCommand}", "hello big world" },
             { "{chat.message.bits}", "0" },
             // Shared chat (the channel is not in a session).
             { "{chat.isShared}", "false" },

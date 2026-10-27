@@ -37,6 +37,9 @@ public sealed class PeopleHelpersTableTests
             { "{user.stats.lastSeen}", "2026-10-24" },
             { "{user.stats.lastSeen.relative}", "2 days ago" },
             { "{user.stats.bits}", "2,300" },
+            // 1204 real messages against the default steps (10, 100, 500).
+            { "{user.activity.level}", "veteran" },
+            { "{target.activity.level}", "veteran" },
             { "{target.stats.lastSeen}", "2026-10-25" },
             { "{target.stats.bits}", "0" },
             // Follow record.

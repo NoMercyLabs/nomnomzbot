@@ -18,6 +18,7 @@
     <string name="template_helper_chat_me">The text as an action line on Twitch (/me), plain text elsewhere: /me dances</string>
     <string name="template_helper_chat_message">The chat message that triggered this: hello big world</string>
     <string name="template_helper_chat_message_length">How many characters the trigger message has: 15</string>
+    <string name="template_helper_chat_message_noCommand">The trigger message without its command word (the first word, when it starts with the channel's command prefix): hello big world</string>
     <string name="template_helper_chat_message_bits">How many bits came with the trigger message: 0</string>
     <string name="template_helper_chat_isShared">true while the channel is in a shared chat session, false when not</string>
     <string name="template_helper_chat_shared_channels">The other channels in the shared chat session, separated by commas: OtherStreamer</string>

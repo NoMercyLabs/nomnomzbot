@@ -37,7 +37,8 @@ public sealed class ComposingTemplateHelpersTests
         "random.chatter.notMe",
         "random.chatter.mention",
         "set",
-        "include.command",
+        "include.cmd",
+        "include.builtin",
         "include.list",
     ];
 
@@ -67,8 +68,16 @@ public sealed class ComposingTemplateHelpersTests
         registry.ProviderFor("random.chatter.notMe").Should().BeOfType<ChatterTemplateHelpers>();
         registry.ProviderFor("set").Should().BeOfType<VariableTemplateHelpers>();
         registry.ProviderFor("var.anything").Should().BeOfType<VariableTemplateHelpers>();
-        registry.ProviderFor("include.command").Should().BeOfType<IncludeTemplateHelpers>();
-        registry.ProviderFor("command.hug").Should().BeOfType<IncludeTemplateHelpers>();
+        registry.ProviderFor("include.cmd").Should().BeOfType<IncludeTemplateHelpers>();
+        registry.ProviderFor("include.builtin").Should().BeOfType<IncludeTemplateHelpers>();
+        registry
+            .ProviderFor("command.hug")
+            .Should()
+            .BeNull("{command.*} is the running command, not an include");
+        registry
+            .ProviderFor("include.command")
+            .Should()
+            .BeNull("the retired key is migrated, not aliased");
         registry.ProviderFor("include.list").Should().BeOfType<IncludeTemplateHelpers>();
         OwnedKeys.Should().OnlyContain(k => registry.Find(k) != null);
     }

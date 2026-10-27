@@ -64,6 +64,7 @@
     <string name="template_helper_args_user_stats_firstSeen_relative">Hoelang geleden de kijker uit het n-de woord voor het eerst werd gezien</string>
     <string name="template_helper_args_user_stats_lastSeen">De datum waarop de kijker uit het n-de woord voor het laatst werd gezien</string>
     <string name="template_helper_args_user_stats_lastSeen_relative">Hoelang geleden de kijker uit het n-de woord voor het laatst werd gezien</string>
+    <string name="template_helper_args_user_activity_level">Hoe actief de kijker uit het n-de woord in dit kanaal is (new, casual, regular of veteran)</string>
     <string name="template_helper_args_user_stats_bits">De bits die de kijker uit het n-de woord in dit kanaal gaf</string>
     <string name="template_helper_args_user_stats_streak">De huidige aanwezigheidsreeks van de kijker uit het n-de woord</string>
     <string name="template_helper_args_user_stats_streak_best">De beste aanwezigheidsreeks van de kijker uit het n-de woord</string>

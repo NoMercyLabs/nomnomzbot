@@ -22,7 +22,7 @@
     <string name="template_helper_quote_latest">The newest quote of the channel with its number: {quote.latest}</string>
     <string name="template_helper_set">Keeps a value under a name for the rest of this reply and prints nothing. Read it with {name} or {var.name}: {set:name=value}</string>
     <string name="template_helper_var_name">Reads a value that {set:name=value} kept earlier in this reply: {var.name}</string>
-    <string name="template_helper_include_command">Prints the reply of another command of the channel, filled in for the same viewer: {include.command:name}</string>
-    <string name="template_helper_command_name">Short form of include.command. Prints the reply of the command with this name: {command.name}</string>
+    <string name="template_helper_include_cmd">Prints the reply of another command of the channel, filled in for the same viewer: {include.cmd:name}</string>
+    <string name="template_helper_include_builtin">Prints the reply of a built-in command that only reads information any viewer may see, for example uptime: {include.builtin:uptime}</string>
     <string name="template_helper_include_list">Prints one entry of a pick list by its position, counted from 1: {include.list:name|position}</string>
 </resources>

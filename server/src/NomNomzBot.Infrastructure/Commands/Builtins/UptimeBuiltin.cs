@@ -40,6 +40,9 @@ public sealed class UptimeBuiltin : IBuiltinCommand
     public int DefaultCooldownSeconds => 30;
     public int DefaultMinPermissionLevel => 0;
 
+    /// <summary>Read-only for any viewer, so a whisper and <c>{include.builtin:uptime}</c> may run it.</summary>
+    public bool WhisperSafe => true;
+
     public async Task<Result<string>> ExecuteAsync(
         BuiltinCommandContext context,
         CancellationToken ct = default

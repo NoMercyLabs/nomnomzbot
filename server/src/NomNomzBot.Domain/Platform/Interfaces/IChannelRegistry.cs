@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Collections.Concurrent;
+using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Domain.Platform.Interfaces;
@@ -125,6 +126,15 @@ public class ChannelContext
     /// context that is still loading never silences the bot.
     /// </summary>
     public bool KeepActiveWhileOffline { get; set; } = true;
+
+    /// <summary><c>Channel.ViewerCasualFrom</c>: the message count from which a viewer reads as casual.</summary>
+    public int ViewerCasualFrom { get; set; } = ViewerActivitySteps.DefaultCasualFrom;
+
+    /// <summary><c>Channel.ViewerRegularFrom</c>: the message count from which a viewer reads as regular.</summary>
+    public int ViewerRegularFrom { get; set; } = ViewerActivitySteps.DefaultRegularFrom;
+
+    /// <summary><c>Channel.ViewerVeteranFrom</c>: the message count from which a viewer reads as a veteran.</summary>
+    public int ViewerVeteranFrom { get; set; } = ViewerActivitySteps.DefaultVeteranFrom;
 
     /// <summary>
     /// The channel owner's IANA/Windows timezone id (<c>User.Timezone</c>, set in the setup wizard /

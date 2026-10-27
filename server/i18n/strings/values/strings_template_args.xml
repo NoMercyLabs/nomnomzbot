@@ -65,6 +65,7 @@
     <string name="template_helper_args_user_stats_firstSeen_relative">How long ago the viewer typed as the n-th word was first seen</string>
     <string name="template_helper_args_user_stats_lastSeen">The date the viewer typed as the n-th word was last seen</string>
     <string name="template_helper_args_user_stats_lastSeen_relative">How long ago the viewer typed as the n-th word was last seen</string>
+    <string name="template_helper_args_user_activity_level">How active the viewer typed as the n-th word is in this channel (new, casual, regular or veteran)</string>
     <string name="template_helper_args_user_stats_bits">The bits the viewer typed as the n-th word cheered in this channel</string>
     <string name="template_helper_args_user_stats_streak">The current attendance streak of the viewer typed as the n-th word</string>
     <string name="template_helper_args_user_stats_streak_best">The best attendance streak of the viewer typed as the n-th word</string>

@@ -16,34 +16,28 @@ using NomNomzBot.Infrastructure.Platform.Templating.Helpers.Counters;
 namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Include;
 
 /// <summary>
-/// The include rows (catalog section 7.5): <c>include.command:name</c> and its short form <c>command.name</c>
-/// (the reply of another command, see <see cref="CommandInclude"/>) and <c>include.list:name|n</c> (entry n of a
-/// pick list, counted from 1). A command or list that does not exist, a bad number, or a render without a channel
-/// prints the token as written; an n past the end of a list renders empty, as <c>list.item</c> does.
-/// <c>include.builtin</c> is not here: a built-in computes its own reply variables, and which reply slot a
-/// bare key means is a decision for Stoney.
+/// The include rows (catalog section 7.5): <c>include.cmd:name</c> (the reply of another command, see
+/// <see cref="CommandInclude"/>), <c>include.builtin:key</c> (the reply of a read-only built-in, see
+/// <see cref="BuiltinInclude"/>) and <c>include.list:name|n</c> (entry n of a pick list, counted from 1). A command,
+/// built-in or list that does not exist, a bad number, or a render without a channel prints the token as written;
+/// an n past the end of a list renders empty, as <c>list.item</c> does. <c>{command.*}</c> is the running command
+/// (catalog 7.16) and is never an include.
 /// </summary>
 public sealed class IncludeTemplateHelpers(IServiceScopeFactory scopes) : ITemplateHelperProvider
 {
-    private const string ShortPrefix = "command.";
-
     private readonly CommandInclude _commands = new(scopes);
+    private readonly BuiltinInclude _builtins = new(scopes);
 
     public string Namespace => "include";
 
     public IReadOnlyList<TemplateHelperEntry> Entries { get; } =
     [
+        ComposingRows.Row("include.cmd", "ViewerOne sends a hug", TemplateHelperFreshness.Memory),
         ComposingRows.Row(
-            "include.command",
-            "ViewerOne sends a hug",
-            TemplateHelperFreshness.Memory
-        ),
-        ComposingRows.Row(
-            "command.<name>",
-            "ViewerOne sends a hug",
-            TemplateHelperFreshness.Memory,
-            prefix: ShortPrefix,
-            descriptionKey: "template.helper.command.name"
+            "include.builtin",
+            "The stream has been live for 2h 5m.",
+            TemplateHelperFreshness.Live,
+            "builtin"
         ),
         ComposingRows.Row("include.list", "cookies", TemplateHelperFreshness.Live, "pick-list"),
     ];
@@ -60,19 +54,12 @@ public sealed class IncludeTemplateHelpers(IServiceScopeFactory scopes) : ITempl
         CancellationToken cancellationToken
     )
     {
-        if (node.Key.StartsWith(ShortPrefix, StringComparison.OrdinalIgnoreCase))
-            return node.Arguments.Count == 0
-                ? await _commands.RenderAsync(
-                    scope,
-                    node.Key[ShortPrefix.Length..],
-                    cancellationToken
-                )
-                : null;
-
         return node.Key.ToLowerInvariant() switch
         {
-            "include.command" when node.Arguments.Count == 1 && node.Arguments[0].Length > 0 =>
+            "include.cmd" when node.Arguments.Count == 1 && node.Arguments[0].Length > 0 =>
                 await _commands.RenderAsync(scope, node.Arguments[0], cancellationToken),
+            "include.builtin" when node.Arguments.Count == 1 && node.Arguments[0].Length > 0 =>
+                await _builtins.RenderAsync(scope, node.Arguments[0], cancellationToken),
             "include.list" => await ListEntryAsync(scope, node, cancellationToken),
             _ => null,
         };

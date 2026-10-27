@@ -683,9 +683,8 @@ non-empty text that is not `false`, `0` or `no`.
 | `set:<name>=<value>` | `{set:x={user.display}}hi {x}` | hi ViewerOne | render scope (`TemplateRenderScope` variable bag) | L2c |
 | `var.<name>` | `{set:x=5}{var.x}` | 5 | render scope | L2c |
 | `{<name>}` after `set` | `{set:greet=hey}{greet}` | hey | render scope (a set name shadows no registered key; a clash is a save-time error) | L2c |
-| `include.command:<name>` | `{include.command:hug}` | the `!hug` reply rendered for this user | `ChannelContext.Commands` (`CachedCommand`) + `ICommandService` | L2c |
-| `command.<name>` | `{command.hug}` | alias of `include.command:hug` (Stoney's group 16 form) | same | L2c |
-| `include.builtin:<key>` | `{include.builtin:uptime}` | the built-in reply text | `BuiltinResponseComposer.cs` | L2c |
+| `include.cmd:<name>` | `{include.cmd:hug}` | the `!hug` reply rendered for this user (renamed from `include.command` on 2026-10-27; `{command.*}` is the running command, see 7.16) | `ChannelContext.Commands` (`CachedCommand`) + `ITemplateResolver` | L2c |
+| `include.builtin:<key>` | `{include.builtin:uptime}` | the reply of a built-in that only reads and that any viewer may use (`WhisperSafe`, level 0), run as the viewer who triggered the template; any other built-in prints as written | `IBuiltinCommandCatalog` + `IBuiltinCommand.ExecuteAsync` | L2c |
 | `include.list:<name>\|<n>` | `{include.list:snacks\|2}` | cookies | `IPickListService` | L2c |
 | `pick.inline:<a>;<b>;<c>` | `{pick.inline:a;b;c}` | a, b or c (Stoney's "pick list inline"; `;` lets `\|` stay inside items) | `NoImmediateRepeatPicker` | L2c |
 | `literal:<t>` | `{literal:{user}}` | {user} (nothing inside resolves) | pure | L2c |
@@ -857,6 +856,7 @@ row count counts both sides only where both are listed). Sources: `IViewerAnalyt
 | `user.stats.streak` | `{user.stats.streak}` | 5 | `IViewerAnalyticsService.GetStreakAsync` (`CurrentStreak`) | L2e |
 | `user.stats.streak.best` | `{user.stats.streak.best}` | 9 | `WatchStreakDto.MaxStreak` | L2e |
 | `user.stats.streams` | `{user.stats.streams}` | 63 | `GetEngagementSeriesAsync` (days present; not checked as per-stream) | L2e |
+| `user.activity.level` | `{user.activity.level}` | veteran | how active the viewer is in this channel, from the viewer's real message count (`ViewerProfileDto.TotalMessages`) against the channel's own steps: `new` below `ViewerCasualFrom` (default 10), `casual` from there, `regular` from `ViewerRegularFrom` (default 100), `veteran` from `ViewerVeteranFrom` (default 500). The steps are three channel settings on the channel basics read and write (`GET`/`PUT /channels/{id}/settings/basics`); a viewer with no profile has no messages and reads `new`. The sample is ViewerOne with 1204 messages | L2e |
 | `user.stats.bits` | `{user.stats.bits}` | 2,300 | `ViewerProfileDto.TotalBitsCheered` | L2e |
 | `user.stats.redemptions.last` | `{user.stats.redemptions.last}` | Hydrate | redemptions table (`IViewerSelfActivityService`; field: not checked) | L2e |
 | `user.stats.redemptions.lastAt` | `{user.stats.redemptions.lastAt}` | 20 minutes ago | same | L2e |
@@ -900,6 +900,7 @@ row count counts both sides only where both are listed). Sources: `IViewerAnalyt
 | `target.points.rank` | `{target.points.rank}` | 17 | `IEconomyLeaderboardService` | L2e |
 | `target.stats.streak` | `{target.stats.streak}` | 2 | `IViewerAnalyticsService.GetStreakAsync` | L2e |
 | `target.stats.lastSeen` | `{target.stats.lastSeen}` | 2026-10-25 | `ViewerProfileDto.LastSeenAt` | L2e |
+| `target.activity.level` | `{target.activity.level}` | veteran | same level for the @mentioned viewer, with the same channel steps (ViewerTwo also has 1204 messages in the sample data) | L2e |
 | `target.stats.bits` | `{target.stats.bits}` | 0 | `ViewerProfileDto.TotalBitsCheered` | L2e |
 | `target.pronouns` | `{target.pronouns}` | he/him | `IPronounResolutionService` | L2e |
 | `target.color` | `{target.color}` | #FF4500 | `GetUserChatColorAsync` | L2e |
@@ -1172,7 +1173,6 @@ Messages-per-minute needs a rolling window; L2i adds a small in-memory ring per 
 |---|---|---|---|---|
 | `activity.mpm` | `{activity.mpm}` | 18 | rolling 1-minute window (new ring, fed by `ChatMessageHandler.cs`) | L2i |
 | `activity.mpm:<minutes>` | `{activity.mpm:5}` | 16 | same, 5-minute average | L2i |
-| `activity.level` | `{activity.level}` | busy | same (quiet < 5, normal < 15, busy) — thresholds are channel data, neutral defaults | L2i |
 | `activity.messages.stream` | `{activity.messages.stream}` | 2,430 | `ChatMetric.cs` | L2i |
 | `activity.messages.today` | `{activity.messages.today}` | 2,610 | `IChatSearchService` (local day) | L2i |
 | `activity.messages.hour` | `{activity.messages.hour}` | 1,080 | ring / `IChatSearchService` | L2i |
@@ -1257,7 +1257,7 @@ read from the platform adapter (`IChatProvider`), so `chat.fit` uses the deliver
 | `chat.mention.reply` | `{chat.mention.reply}` | (empty on a threaded reply, @ViewerOne otherwise) | send mode seed (`SendReplyAction.cs`) | L2j |
 | `chat.me:<t>` | `{chat.me:dances}` | /me dances (Twitch action line; plain text where unsupported) | `IChatProvider` | L2j |
 | `chat.message` | `{chat.message}` | hello big world (the trigger message) | trigger seed | L2j |
-| `chat.message.noCommand` | `{chat.message.noCommand}` | hello big world | trigger seed minus the command word | L2j |
+| `chat.message.noCommand` | `{chat.message.noCommand}` | hello big world | the `message` seed (the chat line, seeded by `ChatMessageHandler.BuildInitialVariables`) minus its leading command word (a first word that starts with the channel's command prefix); a message without a command word stays whole | L2j |
 | `chat.message.id` | `{chat.message.id}` | msg-1 | trigger seed | L2j |
 | `chat.message.length` | `{chat.message.length}` | 15 | trigger seed | L2j |
 | `chat.message.isAction` | `{if:{chat.message.isAction}\|/me\|}` | (empty) | trigger seed | L2j |
@@ -1529,11 +1529,11 @@ conflict. At most 2 lanes build or test at the same time (machine load cap).
 | L2b | `Helpers/Numbers/` (`num`, `math`, `meter`) | 7.4 | 76 |
 | L2c | `Helpers/Logic/` (`if`, `switch`, `default`, `chance`, `pick`, `set`, `var`, `include`, `random`, `roll`, `quote`) | 7.5 | 61 |
 | L2d | `Helpers/Stream/` (`stream`, `channel`, `clip`) | 7.6 | 92 |
-| L2e | `Helpers/People/` (`user`, `target`, `viewer`) | 7.7 | 92 |
+| L2e | `Helpers/People/` (`user`, `target`, `viewer`) | 7.7 | 94 |
 | L2f | `Helpers/Counters/` (`count`, `list`) | 7.8 | 36 |
 | L2g | `Helpers/Music/` | 7.9 | 51 |
 | L2h | `Helpers/LiveEvents/` (`poll`, `prediction`, `hypetrain`, `goal`, `charity`, `giveaway`) | 7.10 | 85 |
-| L2i | `Helpers/Ads/`, `Helpers/Activity/` (`ad`, `schedule`, `activity`) | 7.11, 7.12 | 53 |
+| L2i | `Helpers/Ads/`, `Helpers/Activity/` (`ad`, `schedule`, `activity`) | 7.11, 7.12 | 52 |
 | L2j | `Helpers/Emotes/`, `Helpers/Chat/` (`emote`, `chat`, `tts`, `link`) | 7.13, 7.14 | 67 |
 | L2k | `Helpers/Platforms/`, `Helpers/Arguments/` (`platform`, `args`, `command`) | 7.15, 7.16 | 61 |
 | L2l | `Helpers/Bot/`, `Helpers/Fun/` | 7.17, 7.18 | 56 |
@@ -1721,14 +1721,14 @@ grep -E '^\| `.*\| L[0-9a-z]+ \|$' .claude/docs/design/spec/template-helpers-cat
 | 7.2 | `date` | 14 |
 | 7.3 | `text` | 108 |
 | 7.4 | `num`, `math`, `meter` | 76 |
-| 7.5 | `if`, `switch`, `default`, `chance`, `pick`, `set`, `var`, `include`, `random`, `roll`, `quote` | 63 |
+| 7.5 | `if`, `switch`, `default`, `chance`, `pick`, `set`, `var`, `include`, `random`, `roll`, `quote` | 62 |
 | 7.6 | `stream`, `channel`, `clip` | 92 |
-| 7.7 | `user`, `target`, `viewer` | 92 |
+| 7.7 | `user`, `target`, `viewer` | 94 |
 | 7.8 | `count`, `list` | 35 |
 | 7.9 | `music` | 51 |
 | 7.10 | `poll`, `prediction`, `hypetrain`, `goal`, `charity`, `giveaway` | 85 |
 | 7.11 | `ad`, `schedule` | 28 |
-| 7.12 | `activity` | 25 |
+| 7.12 | `activity` | 24 |
 | 7.13 | `emote` | 33 |
 | 7.14 | `chat`, `tts`, `link` | 34 |
 | 7.15 | `platform` | 29 |
@@ -1746,4 +1746,14 @@ Cut table (7.20) lists 17 forms that are not counted (6 of them also appear as C
 - **D2 decided:** `num.currency` always takes an explicit currency code; the form without a code stays cut.
 - **D3 decided:** weather uses Open-Meteo behind an interface, on for self-host, off in saas mode (saas mode is a restricted option: hosting for third parties is reserved to NoMercy Labs; self-hosting is always free).
 - **L2d decided:** `stream.game.short` and `text.lines.wrap` keep what the lanes built (`" / "` joiner for wrap).
+
+### Parked helper decisions, answered by Stoney on 2026-10-27
+
+Stoney answered the five parked template-helper questions on 2026-10-27. His answers, as given:
+
+- `activity.level`: "Channel sets levels (Recommended)". Each channel picks its own message-count steps in settings; the bot ships defaults the channel can change. Stoney was asked about it as "how active a viewer is (for example 'regular')", so it is a per-viewer level and not the chat messages-per-minute level. Built as `{user.activity.level}` and `{target.activity.level}` (7.7; `{args.<n>.user.activity.level}` follows from the user rows). The channel settings `ViewerCasualFrom` (default 10), `ViewerRegularFrom` (default 100) and `ViewerVeteranFrom` (default 500) are message counts, read and written with the other channel basics. The level is `new`, `casual`, `regular` or `veteran` from the viewer's real message count in the channel. The chat messages-per-minute level was dropped: `{activity.mpm}` stays.
+- `include.builtin`: "Keep it (Recommended)". Built as `{include.builtin:<key>}` in 7.5.
+- `chat.message.noCommand`: "Keep it (Recommended)". Built as in 7.14.
+- `command.*` against `include.command`: "Both, rename include (Recommended)". `{command.*}` keeps the running-command info (7.16). Including another command is `{include.cmd:name}`. The short form `{command.<name>}` is gone, and a data migration (`RewriteIncludeCommandKey`, both migration sets) rewrites every saved `{include.command:...}` to `{include.cmd:...}`. No alias stays.
+- X Live helpers: "Park until X Live exists (Recommended)". **Parked.** The catalog has no X Live row and no code reads X Live. When X Live is a platform connection (SHORTCOMINGS-EXECUTION-PLAN S031), the `platform.*` rows in 7.15 get their X Live forms in the same slice.
 

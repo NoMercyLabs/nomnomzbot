@@ -102,9 +102,9 @@ public sealed class ComposingHelpersChannelTests
         (await fixture.RenderAsync("{random.chatter}", b)).Should().Be("OtherViewer");
         (await fixture.RenderAsync("{quote.text:12}", b)).Should().Be("other channel");
         (await fixture.RenderAsync("{quote.count}", b)).Should().Be("1");
-        (await fixture.RenderAsync("{command.hug}", b)).Should().Be("other hug");
+        (await fixture.RenderAsync("{include.cmd:hug}", b)).Should().Be("other hug");
         (await fixture.RenderAsync("{include.list:snacks|1}", b)).Should().Be("tea");
-        (await fixture.RenderAsync("{command.loopa}", b)).Should().Be("{command.loopa}");
+        (await fixture.RenderAsync("{include.cmd:loopa}", b)).Should().Be("{include.cmd:loopa}");
     }
 
     [Fact]

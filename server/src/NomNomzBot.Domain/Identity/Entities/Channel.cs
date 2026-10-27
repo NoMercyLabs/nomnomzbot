@@ -115,6 +115,18 @@ public class Channel : SoftDeletableEntity
     /// </summary>
     public bool KeepActiveWhileOffline { get; set; }
 
+    /// <summary>
+    /// The viewer message count (in this channel) from which a viewer reads as <c>casual</c> in
+    /// <c>{user.activity.level}</c>; below it the viewer reads as <c>new</c>. Default 10.
+    /// </summary>
+    public int ViewerCasualFrom { get; set; } = ViewerActivitySteps.DefaultCasualFrom;
+
+    /// <summary>The viewer message count from which a viewer reads as <c>regular</c>. Default 100.</summary>
+    public int ViewerRegularFrom { get; set; } = ViewerActivitySteps.DefaultRegularFrom;
+
+    /// <summary>The viewer message count from which a viewer reads as <c>veteran</c>. Default 500.</summary>
+    public int ViewerVeteranFrom { get; set; } = ViewerActivitySteps.DefaultVeteranFrom;
+
     public bool IsOnboarded { get; set; }
 
     public DateTime? BotJoinedAt { get; set; }

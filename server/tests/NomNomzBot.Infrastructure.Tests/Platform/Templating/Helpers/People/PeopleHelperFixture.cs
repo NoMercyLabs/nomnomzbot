@@ -47,6 +47,7 @@ internal sealed class PeopleHelperFixture : IAsyncDisposable
 
     private readonly ServiceProvider _services;
     private readonly TemplateResolver _resolver;
+    private readonly IChannelRegistry _channelState = Substitute.For<IChannelRegistry>();
 
     public PeopleHelperFixture()
     {
@@ -68,7 +69,7 @@ internal sealed class PeopleHelperFixture : IAsyncDisposable
         Registry = _services.GetRequiredService<ITemplateHelperRegistry>();
         _resolver = new TemplateResolver(
             _services.GetRequiredService<IServiceScopeFactory>(),
-            Substitute.For<IChannelRegistry>(),
+            _channelState,
             NullLogger<TemplateResolver>.Instance,
             new FakeTimeProvider(new DateTimeOffset(2026, 10, 26, 14, 30, 0, TimeSpan.Zero)),
             Registry
@@ -97,6 +98,27 @@ internal sealed class PeopleHelperFixture : IAsyncDisposable
         Guid? broadcasterId,
         Dictionary<string, string>? seeds = null
     ) => _resolver.ResolveAsync(template, seeds ?? Seeds(), broadcasterId);
+
+    /// <summary>Gives <paramref name="broadcasterId"/> a live channel state carrying its own viewer activity steps.</summary>
+    public void UseChannelWithViewerSteps(
+        Guid broadcasterId,
+        int casualFrom,
+        int regularFrom,
+        int veteranFrom
+    ) =>
+        _channelState
+            .Get(broadcasterId)
+            .Returns(
+                new ChannelContext
+                {
+                    BroadcasterId = broadcasterId,
+                    TwitchChannelId = "9001",
+                    ChannelName = "channela",
+                    ViewerCasualFrom = casualFrom,
+                    ViewerRegularFrom = regularFrom,
+                    ViewerVeteranFrom = veteranFrom,
+                }
+            );
 
     public ValueTask DisposeAsync() => _services.DisposeAsync();
 

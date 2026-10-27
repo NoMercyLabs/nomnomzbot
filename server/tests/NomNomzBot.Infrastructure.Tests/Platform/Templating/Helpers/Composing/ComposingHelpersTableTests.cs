@@ -61,21 +61,33 @@ public sealed class ComposingHelpersTableTests
             { "{set:a.b=1}", "{set:a.b=1}" },
             // A seed variable keeps its name: set refuses it.
             { "{set:user=zz}{user}", "{set:user=zz}ViewerOne" },
-            // include.command and command.<name>
-            { "{include.command:hug}", "ViewerOne sends a hug" },
-            { "{command.hug}", "ViewerOne sends a hug" },
-            { "{include.command:HUG}", "ViewerOne sends a hug" },
-            { "say: {command.hug}!", "say: ViewerOne sends a hug!" },
-            { "{include.command:pipelined}", "{include.command:pipelined}" },
-            { "{include.command:nope}", "{include.command:nope}" },
-            { "{command.nope}", "{command.nope}" },
-            { "{include.command:}", "{include.command:}" },
+            // include.cmd. {command.*} is the running-command info, so {command.hug} is never an include.
+            { "{include.cmd:hug}", "ViewerOne sends a hug" },
+            { "{include.cmd:HUG}", "ViewerOne sends a hug" },
+            { "say: {include.cmd:hug}!", "say: ViewerOne sends a hug!" },
+            { "{command.hug}", "{command.hug}" },
+            { "{include.command:hug}", "{include.command:hug}" },
+            { "{include.cmd:pipelined}", "{include.cmd:pipelined}" },
+            { "{include.cmd:nope}", "{include.cmd:nope}" },
+            { "{include.cmd:}", "{include.cmd:}" },
             // A command that includes itself, or two that include each other, stops at the repeat.
-            { "{include.command:selfy}", "{include.command:selfy}" },
-            { "{include.command:loopa}", "a>b>{include.command:loopa}" },
+            { "{include.cmd:selfy}", "{include.cmd:selfy}" },
+            { "{include.cmd:loopa}", "a>b>{include.cmd:loopa}" },
             // A long chain of different commands stops at the depth limit (5 nested includes).
-            { "{include.command:c1}", "1>2>3>4>5>{include.command:c6}" },
-            { "{include.command:c7}", "end" },
+            { "{include.cmd:c1}", "1>2>3>4>5>{include.cmd:c6}" },
+            { "{include.cmd:c7}", "end" },
+            // include.builtin: only a read-only built-in that any viewer may use runs.
+            { "{include.builtin:uptime}", "The stream has been live for 2h 5m." },
+            { "{include.builtin:UPTIME}", "The stream has been live for 2h 5m." },
+            { "up: {include.builtin:uptime}!", "up: The stream has been live for 2h 5m.!" },
+            { "{include.builtin:banhammer}", "{include.builtin:banhammer}" },
+            { "{include.builtin:modonly}", "{include.builtin:modonly}" },
+            { "{include.builtin:failing}", "{include.builtin:failing}" },
+            { "{include.builtin:nope}", "{include.builtin:nope}" },
+            { "{include.builtin:}", "{include.builtin:}" },
+            { "{include.builtin:uptime|x}", "{include.builtin:uptime|x}" },
+            // A built-in whose reply includes itself stops at the depth limit (5 nested includes).
+            { "{include.builtin:loopy}", "loopy:loopy:loopy:loopy:loopy:{include.builtin:loopy}" },
             // include.list
             { "{include.list:snacks|2}", "cookies" },
             { "{include.list:snacks|1}", "chips" },
@@ -105,15 +117,38 @@ public sealed class ComposingHelpersTableTests
     }
 
     [Fact]
+    public async Task An_included_built_in_runs_as_the_viewer_who_triggered_the_template()
+    {
+        await using ComposingHelperFixture fixture = new();
+
+        string rendered = await fixture.RenderAsync(
+            "{include.builtin:whoami}",
+            ComposingHelperFixture.ChannelA,
+            new Dictionary<string, string>
+            {
+                ["user"] = "ViewerOne",
+                ["user.id"] = "1001",
+                ["user.name"] = "viewerone",
+                ["user.provider"] = "twitch",
+            }
+        );
+
+        rendered
+            .Should()
+            .Be("ViewerOne (viewerone) on twitch, prefix !, tone informative, level 0, args []");
+    }
+
+    [Fact]
     public async Task Without_a_channel_the_channel_bound_rows_print_as_written()
     {
         await using ComposingHelperFixture fixture = new();
 
         (await fixture.RenderAsync("{quote:12}", null)).Should().Be("{quote:12}");
         (await fixture.RenderAsync("{quote.count}", null)).Should().Be("{quote.count}");
-        (await fixture.RenderAsync("{include.command:hug}", null))
+        (await fixture.RenderAsync("{include.cmd:hug}", null)).Should().Be("{include.cmd:hug}");
+        (await fixture.RenderAsync("{include.builtin:uptime}", null))
             .Should()
-            .Be("{include.command:hug}");
+            .Be("{include.builtin:uptime}");
         (await fixture.RenderAsync("{include.list:snacks|1}", null))
             .Should()
             .Be("{include.list:snacks|1}");

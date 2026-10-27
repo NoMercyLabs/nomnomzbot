@@ -12,6 +12,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.PickLists.Dtos;
 using NomNomzBot.Application.PickLists.Services;
@@ -70,6 +71,7 @@ internal sealed class ComposingHelperFixture : IAsyncDisposable
         _services = new ServiceCollection()
             .AddSingleton(QuoteServiceFake())
             .AddSingleton(PickListFake())
+            .AddSingleton(BuiltinCatalogFake(CurrentResolver))
             .AddSingleton<ITemplateHelperProvider, ChatterTemplateHelpers>(_ => new(new Random(1)))
             .AddSingleton<ITemplateHelperProvider, QuoteTemplateHelpers>(sp =>
                 new(sp.GetRequiredService<IServiceScopeFactory>())
@@ -92,6 +94,9 @@ internal sealed class ComposingHelperFixture : IAsyncDisposable
     }
 
     public ITemplateHelperRegistry Registry { get; }
+
+    /// <summary>The resolver a built-in re-enters while it runs (it exists once the constructor is done).</summary>
+    private TemplateResolver CurrentResolver() => _resolver;
 
     /// <summary>Renders as the fixture viewer (ViewerOne, id 1001) triggering a command.</summary>
     public Task<string> RenderAsync(string template, Guid? broadcasterId) =>
@@ -180,6 +185,78 @@ internal sealed class ComposingHelperFixture : IAsyncDisposable
         return lists;
     }
 
+    /// <summary>
+    /// Four built-ins: <c>uptime</c> (read-only, any viewer), <c>whoami</c> (read-only, prints the context it
+    /// was run with), <c>loopy</c> (read-only, its reply includes itself) and <c>banhammer</c> (not read-only).
+    /// <c>modonly</c> is read-only but needs a moderator, and <c>failing</c> answers with a failure.
+    /// </summary>
+    private static IBuiltinCommandCatalog BuiltinCatalogFake(Func<TemplateResolver> resolver)
+    {
+        List<IBuiltinCommand> commands =
+        [
+            Builtin("uptime", true, 0, _ => Task.FromResult("The stream has been live for 2h 5m.")),
+            Builtin(
+                "whoami",
+                true,
+                0,
+                context =>
+                    Task.FromResult(
+                        $"{context.TriggeringUserDisplayName} ({context.TriggeringUserLogin}) on {context.TriggeringPlatform}, prefix {context.CommandPrefix}, tone {context.Personality}, level {context.RoleLevel}, args [{context.Args}]"
+                    )
+            ),
+            Builtin(
+                "loopy",
+                true,
+                0,
+                async context =>
+                    "loopy:"
+                    + await resolver()
+                        .ResolveAsync(
+                            "{include.builtin:loopy}",
+                            new Dictionary<string, string> { ["user"] = "ViewerOne" },
+                            context.BroadcasterId
+                        )
+            ),
+            Builtin("banhammer", false, 0, _ => Task.FromResult("banned")),
+            Builtin("modonly", true, 2, _ => Task.FromResult("mods only")),
+            Builtin("failing", true, 0, _ => throw new InvalidOperationException("never runs")),
+        ];
+        IBuiltinCommandCatalog catalog = Substitute.For<IBuiltinCommandCatalog>();
+        catalog
+            .Get(Arg.Any<string>())
+            .Returns(call =>
+                commands.FirstOrDefault(c =>
+                    string.Equals(
+                        c.BuiltinKey,
+                        call.ArgAt<string>(0),
+                        StringComparison.OrdinalIgnoreCase
+                    )
+                )
+            );
+        return catalog;
+    }
+
+    private static IBuiltinCommand Builtin(
+        string key,
+        bool readOnly,
+        int minPermissionLevel,
+        Func<BuiltinCommandContext, Task<string>> reply
+    )
+    {
+        IBuiltinCommand command = Substitute.For<IBuiltinCommand>();
+        command.BuiltinKey.Returns(key);
+        command.WhisperSafe.Returns(readOnly);
+        command.DefaultMinPermissionLevel.Returns(minPermissionLevel);
+        command
+            .ExecuteAsync(Arg.Any<BuiltinCommandContext>(), Arg.Any<CancellationToken>())
+            .Returns(async call =>
+                key == "failing"
+                    ? Result.Failure<string>("refused", "FORBIDDEN")
+                    : Result.Success(await reply(call.Arg<BuiltinCommandContext>()))
+            );
+        return command;
+    }
+
     private static CachedCommand Command(string name, params string[] responses) =>
         new()
         {
@@ -209,15 +286,15 @@ internal sealed class ComposingHelperFixture : IAsyncDisposable
             {
                 Command("hug", "{user} sends a hug"),
                 Command("pipelined"),
-                Command("loopa", "a>{include.command:loopb}"),
-                Command("loopb", "b>{include.command:loopa}"),
-                Command("selfy", "{include.command:selfy}"),
-                Command("c1", "1>{include.command:c2}"),
-                Command("c2", "2>{include.command:c3}"),
-                Command("c3", "3>{include.command:c4}"),
-                Command("c4", "4>{include.command:c5}"),
-                Command("c5", "5>{include.command:c6}"),
-                Command("c6", "6>{include.command:c7}"),
+                Command("loopa", "a>{include.cmd:loopb}"),
+                Command("loopb", "b>{include.cmd:loopa}"),
+                Command("selfy", "{include.cmd:selfy}"),
+                Command("c1", "1>{include.cmd:c2}"),
+                Command("c2", "2>{include.cmd:c3}"),
+                Command("c3", "3>{include.cmd:c4}"),
+                Command("c4", "4>{include.cmd:c5}"),
+                Command("c5", "5>{include.cmd:c6}"),
+                Command("c6", "6>{include.cmd:c7}"),
                 Command("c7", "end"),
             }
         )
