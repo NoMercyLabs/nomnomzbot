@@ -142,6 +142,34 @@ public sealed class TwitchEventSubSessionLifecycleTests
         await h.StopAsync();
     }
 
+    [Fact]
+    public async Task One_topic_is_POSTed_once_when_the_welcome_work_and_an_explicit_subscribe_race()
+    {
+        Harness h = Harness.Build(new ScriptedChannel([Welcome("s1")], holdOpen: true));
+        h.SeedRow("channel.chat.message", "1", "pending");
+        h.Helix.BlockCreates();
+
+        // Both callers read the pending row and reach the Helix POST while Twitch is slow: the welcome work
+        // (re-registering the stored rows) and the reconcile (EnsureSubscribedAsync).
+        Task<Result<EventSubSubscriptionDto>> first = Task.Run(() =>
+            h.Service.SubscribeAsync(h.Tenant, "channel.chat.message")
+        );
+        Task<Result<EventSubSubscriptionDto>> second = Task.Run(() =>
+            h.Service.SubscribeAsync(h.Tenant, "channel.chat.message")
+        );
+        await h.Helix.WaitForCreateAttemptsAsync(2, TimeSpan.FromSeconds(1));
+        h.Helix.ReleaseCreates();
+
+        (await first).IsSuccess.Should().BeTrue();
+        (await second).IsSuccess.Should().BeTrue();
+        h.Helix.Creates.Should().ContainSingle().Which.Should().Be("s1");
+        EventSubSubscription row = await h.Db.EventSubSubscriptions.AsNoTracking().SingleAsync();
+        row.Status.Should().Be("enabled");
+        row.SessionId.Should().Be("s1");
+
+        await h.StopAsync();
+    }
+
     // ── Harness ─────────────────────────────────────────────────────────────
 
     private sealed class Harness
@@ -328,6 +356,15 @@ public sealed class TwitchEventSubSessionLifecycleTests
             TaskCreationOptions.RunContinuationsAsynchronously
         );
         private bool _blocking;
+        private int _attempts;
+
+        /// <summary>Waits until <paramref name="count"/> creates have reached the transport, or the timeout.</summary>
+        public async Task WaitForCreateAttemptsAsync(int count, TimeSpan timeout)
+        {
+            DateTime deadline = DateTime.UtcNow + timeout;
+            while (Volatile.Read(ref _attempts) < count && DateTime.UtcNow < deadline)
+                await Task.Delay(10);
+        }
 
         /// <summary>The session id each create was POSTed onto, in order.</summary>
         public IReadOnlyList<string> Creates => [.. _creates];
@@ -343,6 +380,7 @@ public sealed class TwitchEventSubSessionLifecycleTests
             CancellationToken ct = default
         )
         {
+            Interlocked.Increment(ref _attempts);
             _createStarted.TrySetResult();
             if (_blocking)
                 await _release.Task.WaitAsync(ct);

@@ -87,6 +87,10 @@ public sealed class TwitchEventSubHostedService
     private readonly Lock _welcomeWorkLock = new();
     private readonly CancellationTokenSource _lifetime = new();
 
+    // One gate per (tenant, topic) row, so a topic is never created at Twitch by two callers at once. The map is
+    // bounded by the number of registry rows and each gate is a few dozen bytes.
+    private readonly ConcurrentDictionary<string, SemaphoreSlim> _subscribeGates = new();
+
     // Set once the transport has actually been started (after the readiness gate opened), so the dormancy
     // waiter never double-starts and so it stops re-checking once it has handed off to the receive loop.
     private volatile bool _transportStarted;
@@ -1302,6 +1306,31 @@ public sealed class TwitchEventSubHostedService
         Guid broadcasterId,
         string eventType,
         CancellationToken ct = default
+    )
+    {
+        // Single-flight per (tenant, topic): the post-welcome re-register and an explicit reconcile both reach
+        // here for the same row, and each reads it before either has saved the create. Without the gate both
+        // POST the topic onto the same session. The second caller waits, then re-reads the row the first one
+        // enabled and adopts it instead of POSTing again.
+        SemaphoreSlim gate = _subscribeGates.GetOrAdd(
+            $"{broadcasterId:N}:{eventType}",
+            _ => new SemaphoreSlim(1, 1)
+        );
+        await gate.WaitAsync(ct);
+        try
+        {
+            return await SubscribeCoreAsync(broadcasterId, eventType, ct);
+        }
+        finally
+        {
+            gate.Release();
+        }
+    }
+
+    private async Task<Result<EventSubSubscriptionDto>> SubscribeCoreAsync(
+        Guid broadcasterId,
+        string eventType,
+        CancellationToken ct
     )
     {
         if (!MayOwnSubscriptions)
