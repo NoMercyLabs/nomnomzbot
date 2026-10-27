@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text (Dutch), namespace "music", lane L2g (catalog section 7.9).
+-->
+<resources>
+    <string name="template_helper_music_now">Het nummer dat nu speelt, met de artiest: Song A by Artist A</string>
+    <string name="template_helper_music_now_title">De titel van het nummer dat nu speelt</string>
+    <string name="template_helper_music_now_artist">De artiest van het nummer dat nu speelt</string>
+    <string name="template_helper_music_now_album">Het album van het nummer dat nu speelt</string>
+    <string name="template_helper_music_now_cover">Het adres van de hoes van het nummer dat nu speelt</string>
+    <string name="template_helper_music_now_link">Een link die het nummer opent dat nu speelt</string>
+    <string name="template_helper_music_now_requester">De kijker die het nummer aanvroeg dat nu speelt</string>
+    <string name="template_helper_music_now_requester_mention">De kijker die het nummer aanvroeg dat nu speelt, als vermelding: @ViewerTwo</string>
+    <string name="template_helper_music_now_duration">De lengte van het nummer dat nu speelt: 3:30</string>
+    <string name="template_helper_music_now_progress">Hoever het nummer dat nu speelt is: 1:23</string>
+    <string name="template_helper_music_now_remaining">Hoeveel er nog over is van het nummer dat nu speelt: 2:07</string>
+    <string name="template_helper_music_now_percent">Hoever het nummer dat nu speelt is, in procenten: 40%</string>
+    <string name="template_helper_music_now_bar">Een voortgangsbalk van het nummer dat nu speelt, met de klok; geef een breedte mee voor alleen de balk</string>
+    <string name="template_helper_music_now_isPlaying">Of er muziek speelt, als true of false, voor if en switch</string>
+    <string name="template_helper_music_now_status">De staat van de speler: playing, paused, starting, blocked of idle</string>
+    <string name="template_helper_music_volume">Het muziekvolume in procenten: 60%</string>
+    <string name="template_helper_music_shuffle">Of shuffle aan of uit staat</string>
+    <string name="template_helper_music_repeat">De herhaalstand: off, track of context</string>
+    <string name="template_helper_music_provider">De muziekdienst die het kanaal gebruikt: Spotify</string>
+    <string name="template_helper_music_queue_length">Hoeveel nummers er in de verzoekwachtrij staan</string>
+    <string name="template_helper_music_queue_duration">De totale lengte van de verzoekwachtrij: 17m 20s</string>
+    <string name="template_helper_music_queue_next">Het volgende nummer in de verzoekwachtrij, met de artiest</string>
+    <string name="template_helper_music_queue_next_requester">De kijker die het volgende nummer aanvroeg</string>
+    <string name="template_helper_music_queue_item">Het nummer op een plek in de wachtrij, met de artiest; de plek is het argument</string>
+    <string name="template_helper_music_queue_list">De eerste nummers van de wachtrij als genummerde lijst; het aantal nummers is het argument</string>
+    <string name="template_helper_music_queue_requesters">Hoeveel verschillende kijkers een nummer in de wachtrij hebben</string>
+    <string name="template_helper_music_queue_isEmpty">Of de verzoekwachtrij leeg is, als true of false, voor if en switch</string>
+    <string name="template_helper_music_queue_cost_total">De punten die zijn uitgegeven aan de nummers in de wachtrij</string>
+    <string name="template_helper_music_queue_position">De plek van het volgende nummer van de kijker die het commando typte</string>
+    <string name="template_helper_music_queue_position_ordinal">De plek van het volgende nummer van de kijker als rangtelwoord: 3rd</string>
+    <string name="template_helper_music_queue_wait">Hoe lang het duurt tot het volgende nummer van de kijker begint: 7m 40s</string>
+    <string name="template_helper_music_queue_wait_at">Hoe laat het volgende nummer van de kijker begint, in de tijdzone van het kanaal: about 15:38</string>
+    <string name="template_helper_music_queue_mine_count">Hoeveel nummers van de kijker in de wachtrij staan</string>
+    <string name="template_helper_music_queue_mine_titles">De titels van de nummers van de kijker in de wachtrij</string>
+    <string name="template_helper_music_queue_mine_code">De korte code van het volgende nummer van de kijker, om het te noemen bij !wrongsong</string>
+    <string name="template_helper_music_queue_mine_next">De titel van het volgende nummer van de kijker in de wachtrij</string>
+    <string name="template_helper_music_queue_target_count">Hoeveel nummers van de genoemde kijker in de wachtrij staan</string>
+    <string name="template_helper_music_history_last">Het laatste nummer dat is aangevraagd, met de artiest</string>
+    <string name="template_helper_music_history_list">De titels van de laatst aangevraagde nummers; het aantal nummers is het argument</string>
+    <string name="template_helper_music_history_count_stream">Hoeveel nummers er zijn aangevraagd sinds de stream live ging</string>
+    <string name="template_helper_music_history_topRequester_stream">De kijker met de meeste verzoeken deze stream, met het aantal: ViewerTwo (4)</string>
+    <string name="template_helper_music_history_topArtist_stream">De artiest die deze stream het vaakst is aangevraagd</string>
+    <string name="template_helper_music_user_requests_total">Hoeveel nummers de kijker in dit kanaal heeft aangevraagd, in totaal</string>
+    <string name="template_helper_music_user_requests_stream">Hoeveel nummers de kijker deze stream heeft aangevraagd</string>
+    <string name="template_helper_music_user_lastRequest">De titel van het laatste nummer dat de kijker aanvroeg</string>
+    <string name="template_helper_music_requests_open">Of nummerverzoeken open zijn, als true of false, voor if en switch</string>
+    <string name="template_helper_music_requests_maxPerUser">Hoeveel nummers een kijker tegelijk in de wachtrij mag hebben</string>
+    <string name="template_helper_music_requests_maxDuration">Het langste nummer dat een kijker mag aanvragen: 6:00</string>
+</resources>

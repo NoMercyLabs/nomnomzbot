@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespace "music", lane L2g (catalog section 7.9).
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_music_now">The track that plays now, with its artist: Song A by Artist A</string>
+    <string name="template_helper_music_now_title">The title of the track that plays now</string>
+    <string name="template_helper_music_now_artist">The artist of the track that plays now</string>
+    <string name="template_helper_music_now_album">The album of the track that plays now</string>
+    <string name="template_helper_music_now_cover">The cover image address of the track that plays now</string>
+    <string name="template_helper_music_now_link">A link that opens the track that plays now</string>
+    <string name="template_helper_music_now_requester">The viewer who requested the track that plays now</string>
+    <string name="template_helper_music_now_requester_mention">The viewer who requested the track that plays now, as a mention: @ViewerTwo</string>
+    <string name="template_helper_music_now_duration">The length of the track that plays now: 3:30</string>
+    <string name="template_helper_music_now_progress">How far the track that plays now has come: 1:23</string>
+    <string name="template_helper_music_now_remaining">How much of the track that plays now is left: 2:07</string>
+    <string name="template_helper_music_now_percent">How far the track that plays now has come, in percent: 40%</string>
+    <string name="template_helper_music_now_bar">A progress bar of the track that plays now, with the clock; add a width to get the bare bar</string>
+    <string name="template_helper_music_now_isPlaying">Whether music is playing, as true or false, for if and switch</string>
+    <string name="template_helper_music_now_status">The state of the player: playing, paused, starting, blocked or idle</string>
+    <string name="template_helper_music_volume">The music volume in percent: 60%</string>
+    <string name="template_helper_music_shuffle">Whether shuffle is on or off</string>
+    <string name="template_helper_music_repeat">The repeat mode: off, track or context</string>
+    <string name="template_helper_music_provider">The music service the channel uses: Spotify</string>
+    <string name="template_helper_music_queue_length">How many songs wait in the request queue</string>
+    <string name="template_helper_music_queue_duration">The total length of the request queue: 17m 20s</string>
+    <string name="template_helper_music_queue_next">The next song in the request queue, with its artist</string>
+    <string name="template_helper_music_queue_next_requester">The viewer who requested the next song</string>
+    <string name="template_helper_music_queue_item">The song at a place in the queue, with its artist; the place is the argument</string>
+    <string name="template_helper_music_queue_list">The first songs of the queue as a numbered list; the number of songs is the argument</string>
+    <string name="template_helper_music_queue_requesters">How many different viewers have a song in the queue</string>
+    <string name="template_helper_music_queue_isEmpty">Whether the request queue is empty, as true or false, for if and switch</string>
+    <string name="template_helper_music_queue_cost_total">The points spent on the songs that wait in the queue</string>
+    <string name="template_helper_music_queue_position">The place of the next song of the viewer who typed the command</string>
+    <string name="template_helper_music_queue_position_ordinal">The place of the next song of the viewer as an ordinal: 3rd</string>
+    <string name="template_helper_music_queue_wait">How long until the next song of the viewer starts: 7m 40s</string>
+    <string name="template_helper_music_queue_wait_at">At what time the next song of the viewer starts, in the channel time zone: about 15:38</string>
+    <string name="template_helper_music_queue_mine_count">How many songs of the viewer wait in the queue</string>
+    <string name="template_helper_music_queue_mine_titles">The titles of the songs of the viewer in the queue</string>
+    <string name="template_helper_music_queue_mine_code">The short code of the next song of the viewer, to name it in !wrongsong</string>
+    <string name="template_helper_music_queue_mine_next">The title of the next song of the viewer in the queue</string>
+    <string name="template_helper_music_queue_target_count">How many songs of the mentioned viewer wait in the queue</string>
+    <string name="template_helper_music_history_last">The last song that was requested, with its artist</string>
+    <string name="template_helper_music_history_list">The titles of the last requested songs; the number of songs is the argument</string>
+    <string name="template_helper_music_history_count_stream">How many songs were requested since the stream went live</string>
+    <string name="template_helper_music_history_topRequester_stream">The viewer with the most requests this stream, with the count: ViewerTwo (4)</string>
+    <string name="template_helper_music_history_topArtist_stream">The artist requested most this stream</string>
+    <string name="template_helper_music_user_requests_total">How many songs the viewer has requested in this channel, all time</string>
+    <string name="template_helper_music_user_requests_stream">How many songs the viewer has requested this stream</string>
+    <string name="template_helper_music_user_lastRequest">The title of the last song the viewer requested</string>
+    <string name="template_helper_music_requests_open">Whether song requests are open, as true or false, for if and switch</string>
+    <string name="template_helper_music_requests_maxPerUser">How many songs one viewer may have in the queue</string>
+    <string name="template_helper_music_requests_maxDuration">The longest song a viewer may request: 6:00</string>
+</resources>
