@@ -73,6 +73,18 @@
     />
   </ItemGroup>
 
+  <!-- The English helper help text (strings.xml plus the strings_template_* files), embedded so the generated SDK
+       types can describe each template helper in one line. The dashboard reads the same files, so the text has
+       one home. LogicalName keeps a stable manifest name; the files otherwise fall into the default None glob. -->
+  <ItemGroup>
+    <None Remove="..\..\i18n\strings\values\strings_template_*.xml" />
+    <EmbeddedResource
+      Include="..\..\i18n\strings\values\strings_template_*.xml"
+      LogicalName="NomNomzBot.Infrastructure.I18n.En.%(Filename)%(Extension)"
+      Link="I18n\%(Filename)%(Extension)"
+    />
+  </ItemGroup>
+
   <ItemGroup>
     <PackageReference Include="FuzzySharp" />
     <PackageReference Include="Humanizer" />

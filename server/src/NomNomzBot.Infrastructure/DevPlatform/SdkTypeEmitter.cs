@@ -10,6 +10,7 @@
 
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.DevPlatform;
@@ -17,6 +18,7 @@ using NomNomzBot.Application.DevPlatform.Dtos;
 using NomNomzBot.Application.DevPlatform.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Domain.Platform;
+using NomNomzBot.Infrastructure.Platform.Templating;
 
 namespace NomNomzBot.Infrastructure.DevPlatform;
 
@@ -32,6 +34,7 @@ public sealed class SdkTypeEmitter : ISdkTypeEmitter
     private readonly ITriggerSampleCatalog? _samples;
     private readonly IReadOnlyList<ICommandAction> _actions;
     private readonly IWidgetEventPayloadRegistry? _widgetEvents;
+    private readonly ITemplateHelperRegistry _helpers;
     private readonly ILogger<SdkTypeEmitter>? _logger;
 
     public SdkTypeEmitter(
@@ -39,9 +42,11 @@ public sealed class SdkTypeEmitter : ISdkTypeEmitter
         ITriggerSampleCatalog? samples = null,
         IEnumerable<ICommandAction>? actions = null,
         IWidgetEventPayloadRegistry? widgetEvents = null,
+        ITemplateHelperRegistry? helpers = null,
         ILogger<SdkTypeEmitter>? logger = null
     )
     {
+        _helpers = helpers ?? TemplateHelperRegistryAggregate.LegacyOnly;
         _widgetEvents = widgetEvents;
         _logger = logger;
         _catalog = catalog;
@@ -50,9 +55,14 @@ public sealed class SdkTypeEmitter : ISdkTypeEmitter
     }
 
     public string EmitTypeScript(SdkContext context) =>
-        new TypeScriptDefinitionWriter(context, null, _actions, _logger, _widgetEvents).Build(
-            VisibleFor(context)
-        );
+        new TypeScriptDefinitionWriter(
+            context,
+            null,
+            _actions,
+            _logger,
+            _widgetEvents,
+            helpers: _helpers
+        ).Build(VisibleFor(context));
 
     public string EmitWidgetTypeScript(WidgetSettingsSchema settings) =>
         new TypeScriptDefinitionWriter(
@@ -61,7 +71,8 @@ public sealed class SdkTypeEmitter : ISdkTypeEmitter
             _actions,
             _logger,
             _widgetEvents,
-            settings
+            settings,
+            _helpers
         ).Build(VisibleFor(SdkContext.Widget));
 
     public Result<string> EmitTypeScript(SdkContext context, string triggerKey) =>
@@ -90,7 +101,8 @@ public sealed class SdkTypeEmitter : ISdkTypeEmitter
                 [.. union.OrderBy(key => key, StringComparer.Ordinal)],
                 _actions,
                 _logger,
-                _widgetEvents
+                _widgetEvents,
+                helpers: _helpers
             ).Build(VisibleFor(context))
         );
     }

@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Application.Dashboard.Services;
@@ -39,7 +40,7 @@ public sealed class OverlayControllerStreamStatsTests
             .ResolveBroadcasterIdByOverlayTokenAsync("good-token", Arg.Any<CancellationToken>())
             .Returns(Channel);
         IStreamStatsService stats = Substitute.For<IStreamStatsService>();
-        OverlayController controller = new(widgets, stats)
+        OverlayController controller = new(widgets, stats, Substitute.For<ITemplateResolver>())
         {
             ControllerContext = new() { HttpContext = new DefaultHttpContext() },
         };

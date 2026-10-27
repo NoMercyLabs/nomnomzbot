@@ -10,6 +10,7 @@
 
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Contracts.Analytics;
@@ -49,7 +50,8 @@ public sealed class ScriptHostBridgeFactory(
     IOwnerActionService ownerActions,
     ITwitchUsersApi twitchUsers,
     IMentionTargetResolver mentionTargets,
-    IStreamStatsService streamStats
+    IStreamStatsService streamStats,
+    ITemplateResolver? templates = null
 ) : IScriptHostBridgeFactory
 {
     public IScriptHostBridge Create(
@@ -78,6 +80,7 @@ public sealed class ScriptHostBridgeFactory(
             ownerActions,
             twitchUsers,
             mentionTargets,
-            streamStats
+            streamStats,
+            templates: templates
         );
 }

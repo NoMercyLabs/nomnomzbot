@@ -52,6 +52,7 @@ public sealed class OverlaySdkController : ControllerBase
            data.nowPlaying() / data.queue() / data.storage(key) -> Promise: the channel's current snapshots, read
            with the SDK's own token (header X-Overlay-Token); they reject when the request fails.
            data.streamStats({ stream?, metrics }) -> Promise: the stream window plus the requested metric keys.
+           template.render(template, values?) -> Promise<string>: the template rendered for this channel with any helper.
            spotify.playbackToken() -> Promise<{ token } | { error: "blocked" | "error" }>, never rejects.
            widget.id / widget.name: who this page is. The widget never holds or parses the token. */
         (function () {
@@ -550,6 +551,13 @@ public sealed class OverlaySdkController : ControllerBase
               .catch(function (e) { return { error: e && (e.status === 401 || e.status === 403) ? "blocked" : "error" }; });
           }
 
+          // Renders a template for this channel through the one resolver; rejects on empty or oversized input.
+          function renderTemplate(template, values) {
+            var q = "template-render?template=" + encodeURIComponent(String(template == null ? "" : template));
+            if (values != null) q += "&values=" + encodeURIComponent(JSON.stringify(values));
+            return readData(q).then(function (text) { return text == null ? "" : String(text); });
+          }
+
           var api = {
             on: on,
             off: off,
@@ -568,6 +576,9 @@ public sealed class OverlaySdkController : ControllerBase
             },
             spotify: {
               playbackToken: playbackToken,
+            },
+            template: {
+              render: renderTemplate,
             },
             widget: {
               get id() { return widgetId || ""; },
