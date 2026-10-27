@@ -93,6 +93,9 @@ type Row = {
   id: string;
   icon: Component;
   title: string;
+  // Words before and after the linked name; Vue trims a space at the edge of a tag, so each is its own field.
+  lead: string | null;
+  suffix: string | null;
   userId: string | null;
   username: string | null;
   color: string | null;
@@ -112,20 +115,44 @@ function eventTime(event: ActivityEvent): string {
   return clock.weekdayTime(event.timestamp);
 }
 
+// The row title when the name is not a profile link: lead, name and suffix read as one sentence.
+function plainTitle(
+  lead: string | null,
+  username: string | null,
+  suffix: string | null,
+): string | undefined {
+  // Words around a name that is missing say nothing, so the row falls back to its detail.
+  if (lead !== null && username === null)
+    return undefined;
+
+  const words = [lead, username, suffix].filter(Boolean);
+
+  return words.length === 0
+    ? undefined
+    : words.join(' ');
+}
+
 const rows = computed<Row[]>(() =>
   (activityQuery.data.value ?? []).map((event) => {
     const view = describeActivity(event);
     const detail = say(view.detail);
-    const title = view.title
+    const username = event.username ?? view.actor ?? null;
+    const lead = view.lead
+      ? say(view.lead)
+      : null;
+    const suffix = view.title
       ? say(view.title)
-      : (event.username ?? view.actor ?? undefined);
+      : null;
+    const title = plainTitle(lead, username, suffix);
 
     return {
       id: event.id,
       icon: view.icon,
       title: title ?? detail,
+      lead,
+      suffix,
       userId: event.twitchUserId ?? null,
-      username: event.username ?? view.actor ?? null,
+      username,
       color: event.color ?? null,
       detail: title === undefined
         ? undefined
@@ -157,8 +184,9 @@ const rows = computed<Row[]>(() =>
       <div v-for="row in rows" :key="row.id" data-activity-row>
         <SummaryRow :title="row.title" :detail="row.detail">
           <template v-if="row.userId && row.username" #title>
+            <template v-if="row.lead">{{ row.lead }}{{ ' ' }}</template>
             <UserName :user-id="row.userId" :name="row.username" :color="row.color" />
-            <span v-if="row.title !== row.username"> {{ row.title }}</span>
+            <template v-if="row.suffix">{{ ' ' }}{{ row.suffix }}</template>
           </template>
           <template #leading>
             <component
