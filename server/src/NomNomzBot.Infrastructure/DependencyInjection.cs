@@ -1489,6 +1489,16 @@ public static class DependencyInjection
         >();
         services.AddSingleton<Obs.Bridge.ObsBridgeCommandBook>();
 
+        // Browser-source recovery: the pass (IObsBrowserSourceRecoveryService) is bound scoped by
+        // AddServicesByConvention; the debouncing scheduler is not an I<X>Service and its pending timers
+        // outlive the scoped event handlers that ask for it, so it is a singleton registered here. Its
+        // triggers (WidgetDisconnected / ObsConnectionEstablished / ObsBridgeStateChanged) come from the
+        // IEventHandler<> scan.
+        services.AddSingleton<
+            Application.Obs.Services.IObsBrowserSourceRecoveryScheduler,
+            Obs.Recovery.ObsBrowserSourceRecoveryScheduler
+        >();
+
         // VTube Studio (vtube-studio.md §6): the direct transport holds per-channel VTS sockets and
         // the bridge one rides the OBS relay's leader (one relay carries both — D1) — behind a
         // per-channel Mode router that IS the IVtsTransport. The interactive authorizer is scoped.
