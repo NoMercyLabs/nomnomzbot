@@ -29,6 +29,7 @@ public sealed class MediaShareSeedProvider(
 ) : IWidgetSeedProvider
 {
     private const string CommandEvent = "media_share_command";
+    private const string TwitchClipSource = "twitch_clip";
     private static readonly PaginationParams OnePage = new(1, 1);
 
     public string NaturalKey => "media_share";
@@ -52,6 +53,24 @@ public sealed class MediaShareSeedProvider(
             return [];
 
         MediaPlayerStateDto state = playback.GetState(broadcasterId);
+        if (IsInterruptedClip(item, state))
+        {
+            // A clip iframe cannot seek, so reloading it replays it from the start forever (every OBS scene
+            // switch unloads the source). It already played: finish it, which loads the next item.
+            await playback.ReportStateAsync(
+                broadcasterId,
+                new(
+                    item.Id,
+                    MediaPlayerStates.Ended,
+                    item.DurationSeconds,
+                    item.DurationSeconds,
+                    state.Volume
+                ),
+                cancellationToken
+            );
+            return [];
+        }
+
         DateTimeOffset now = DateTimeOffset.UtcNow;
         List<MediaShareCommandWidgetPayload> commands =
         [
@@ -76,6 +95,11 @@ public sealed class MediaShareSeedProvider(
 
         return [.. commands.Select(c => new WidgetSeedFrame(CommandEvent, c, now))];
     }
+
+    // Started (a position) or unknown to this process (a restart lost its state): either way it began before.
+    private static bool IsInterruptedClip(MediaShareRequestDto item, MediaPlayerStateDto state) =>
+        item.SourceType == TwitchClipSource
+        && (state.RequestId != item.Id || state.PositionSeconds > 0);
 
     private static MediaShareCommandWidgetPayload Command(
         string command,
