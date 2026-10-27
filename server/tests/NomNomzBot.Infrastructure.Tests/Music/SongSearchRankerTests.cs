@@ -65,15 +65,84 @@ public sealed class SongSearchRankerTests
     }
 
     [Fact]
-    public void When_no_hit_shares_a_word_the_provider_order_stands()
+    public void When_no_hit_shares_a_title_word_nothing_is_picked()
+    {
+        SongSearchRanker
+            .Pick("zzzz yyyy", [Hit("first", "Alpha", "One"), Hit("second", "Beta", "Two")])
+            .Should()
+            .BeNull();
+    }
+
+    [Fact]
+    public void A_hit_that_only_shares_the_artist_is_not_the_requested_song()
+    {
+        SongSearchRanker
+            .Pick(
+                "barbie girl cover - alex terrible",
+                [Hit("doom", "Doom Slayer", "Alex Terrible")]
+            )
+            .Should()
+            .BeNull();
+    }
+
+    [Fact]
+    public void The_title_match_wins_over_the_artists_other_song_listed_first()
     {
         TrackInfo pick = Pick(
-            "zzzz yyyy",
-            Hit("first", "Alpha", "One"),
-            Hit("second", "Beta", "Two")
+            "barbie girl cover - alex terrible",
+            Hit("doom", "Doom Slayer", "Alex Terrible"),
+            Hit("barbie", "Barbie Girl (cover)", "Cover Band")
         );
 
-        pick.ProviderTrackId.Should().Be("first");
+        pick.ProviderTrackId.Should().Be("barbie");
+    }
+
+    [Fact]
+    public void A_request_that_is_only_the_artist_takes_that_artists_first_song()
+    {
+        TrackInfo pick = Pick(
+            "oasis",
+            Hit("other", "Some Song", "Someone Else"),
+            Hit("oasis", "Wonderwall", "Oasis")
+        );
+
+        pick.ProviderTrackId.Should().Be("oasis");
+    }
+
+    [Fact]
+    public void A_typo_in_a_long_word_still_matches_the_title()
+    {
+        TrackInfo pick = Pick(
+            "bohemian rapsody",
+            Hit("noise", "Rapid Fire", "Judas Priest"),
+            Hit("song", "Bohemian Rhapsody", "Queen")
+        );
+
+        pick.ProviderTrackId.Should().Be("song");
+    }
+
+    [Fact]
+    public void The_closest_hit_is_the_one_whose_title_carries_most_of_the_request()
+    {
+        TrackInfo? closest = SongSearchRanker.Closest(
+            "barbie girl cover - alex terrible",
+            [
+                Hit("doom", "Doom Slayer", "Alex Terrible"),
+                Hit("doll", "Barbie Doll", "Toy Band"),
+                Hit("world", "Barbie World", "Nicki Minaj"),
+            ]
+        );
+
+        closest!.ProviderTrackId.Should().Be("doll");
+    }
+
+    [Fact]
+    public void Nothing_is_close_when_no_title_shares_a_word()
+    {
+        SongSearchRanker
+            .Closest("barbie girl", [Hit("doom", "Doom Slayer", "Alex Terrible")])
+            .Should()
+            .BeNull();
     }
 
     [Theory]

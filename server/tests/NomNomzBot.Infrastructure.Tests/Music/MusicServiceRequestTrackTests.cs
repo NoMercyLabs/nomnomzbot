@@ -430,6 +430,105 @@ public sealed class MusicServiceRequestTrackTests
         result.Value.Uri.Should().Be("spotify:track:5ZicFGBDAi9J2YCVesboUp");
     }
 
+    [Fact]
+    public async Task A_title_dash_artist_request_queues_the_song_asked_for_not_the_artists_first_hit()
+    {
+        // The live miss of 2026-10-27: "barbie girl cover - Alex Terrible" queued "Doom Slayer" because it is
+        // by the named artist and Spotify listed it first.
+        (MusicService sut, RecordingHttpHandler handler, _) = Build();
+        RespondWithHits(
+            handler,
+            ("doom", "Doom Slayer", "Alex Terrible", "Doom Covers"),
+            ("barbie", "Barbie Girl (cover)", "Cover Band", "Covers")
+        );
+
+        Result<MusicTrack> result = await sut.RequestTrackAsync(
+            ChannelId.ToString(),
+            "barbie girl cover - Alex Terrible",
+            "resident_meeper"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Uri.Should().Be("spotify:track:barbie");
+        (await sut.GetQueueAsync(ChannelId.ToString()))
+            .Queue.Should()
+            .ContainSingle()
+            .Which.TrackName.Should()
+            .Be("Barbie Girl (cover)");
+    }
+
+    [Fact]
+    public async Task A_request_no_hit_matches_queues_nothing_and_names_the_closest_song()
+    {
+        (MusicService sut, RecordingHttpHandler handler, _) = Build();
+        RespondWithHits(
+            handler,
+            ("doom", "Doom Slayer", "Alex Terrible", "Doom Covers"),
+            ("doll", "Barbie Doll", "Toy Band", "Toys")
+        );
+
+        Result<MusicTrack> result = await sut.RequestTrackAsync(
+            ChannelId.ToString(),
+            "barbie girl cover - Alex Terrible",
+            "resident_meeper"
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("NOT_FOUND");
+        MusicRequestRefusal closest = result
+            .ErrorData.Should()
+            .BeOfType<MusicRequestRefusal>()
+            .Subject;
+        closest.TrackName.Should().Be("Barbie Doll");
+        closest.Artist.Should().Be("Toy Band");
+        (await sut.GetQueueAsync(ChannelId.ToString())).Queue.Should().BeEmpty();
+        handler
+            .RequestUrls.Should()
+            .NotContain(url => url.Contains("/me/player/queue", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task A_request_whose_first_page_misses_is_searched_by_each_half_and_then_matches()
+    {
+        (MusicService sut, RecordingHttpHandler handler, _) = Build();
+        const string doomOnly =
+            """{"tracks":{"items":[{"id":"doom","name":"Doom Slayer","uri":"spotify:track:doom","duration_ms":200000,"artists":[{"name":"Alex Terrible"}],"album":{"name":"Doom","images":[]}}]}}""";
+        // The whole phrase and the artist half only ever find the artist's own song; the title half finds the cover.
+        handler.RespondWhen(
+            r => SearchFor(r, "barbie%20girl%20cover"),
+            HttpStatusCode.OK,
+            """{"tracks":{"items":[{"id":"barbie","name":"Barbie Girl (cover)","uri":"spotify:track:barbie","duration_ms":200000,"artists":[{"name":"Cover Band"}],"album":{"name":"Covers","images":[]}}]}}"""
+        );
+        handler.RespondWhen(r => SearchFor(r, "Alex%20Terrible"), HttpStatusCode.OK, doomOnly);
+        handler.RespondWhen(
+            r => SearchFor(r, "barbie%20girl%20cover%20-%20Alex%20Terrible"),
+            HttpStatusCode.OK,
+            doomOnly
+        );
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Post
+                && r.RequestUri!.AbsolutePath.EndsWith(
+                    "/me/player/queue",
+                    StringComparison.Ordinal
+                ),
+            HttpStatusCode.NoContent
+        );
+
+        Result<MusicTrack> result = await sut.RequestTrackAsync(
+            ChannelId.ToString(),
+            "barbie girl cover - Alex Terrible",
+            "resident_meeper"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Uri.Should().Be("spotify:track:barbie");
+    }
+
+    private static bool SearchFor(HttpRequestMessage request, string escapedQuery) =>
+        request.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal)
+        && request.RequestUri.Query.Contains($"q={escapedQuery}&", StringComparison.Ordinal);
+
     private static void RespondWithHits(
         RecordingHttpHandler handler,
         params (string Id, string Name, string Artist, string Album)[] hits

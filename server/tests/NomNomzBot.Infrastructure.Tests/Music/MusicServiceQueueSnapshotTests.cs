@@ -225,26 +225,31 @@ public sealed class MusicServiceQueueSnapshotTests
                 {"tracks":{"items":[{"name":"Song Q","uri":"spotify:track:q{{{n}}}","duration_ms":200000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}]}}
                 """;
 
+        private static string TrackJson(string id) =>
+            $$$"""
+                {"id":"{{{id}}}","name":"Song Q","uri":"spotify:track:{{{id}}}","duration_ms":200000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}
+                """;
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
         )
         {
-            bool isSearch = request.RequestUri!.AbsolutePath.EndsWith(
-                "/search",
-                StringComparison.Ordinal
-            );
+            string path = request.RequestUri!.AbsolutePath;
+            // A pasted spotify:track: URI is looked up by id (the track answers under its own id), not searched.
+            int tracksAt = path.LastIndexOf("/tracks/", StringComparison.Ordinal);
+            string? body =
+                path.EndsWith("/search", StringComparison.Ordinal)
+                    ? SearchJson(Interlocked.Increment(ref _searches))
+                : tracksAt >= 0 ? TrackJson(path[(tracksAt + "/tracks/".Length)..])
+                : null;
 
-            HttpResponseMessage response = isSearch
-                ? new(HttpStatusCode.OK)
+            HttpResponseMessage response = body is null
+                ? new HttpResponseMessage(HttpStatusCode.NoContent)
+                : new(HttpStatusCode.OK)
                 {
-                    Content = new StringContent(
-                        SearchJson(Interlocked.Increment(ref _searches)),
-                        Encoding.UTF8,
-                        "application/json"
-                    ),
-                }
-                : new HttpResponseMessage(HttpStatusCode.NoContent);
+                    Content = new StringContent(body, Encoding.UTF8, "application/json"),
+                };
             return Task.FromResult(response);
         }
     }

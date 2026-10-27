@@ -125,6 +125,42 @@ public sealed class SongRequestActionTests
     }
 
     [Fact]
+    public async Task A_near_miss_tells_the_viewer_what_the_closest_song_was_and_that_it_was_not_added()
+    {
+        (SongRequestAction sut, IMusicService music, IChatProvider chat) = Build(
+            Result.Failure<MusicTrack>(
+                "No track matched.",
+                "NOT_FOUND",
+                null,
+                new MusicRequestRefusal("Doom Slayer", "Alex Terrible")
+            )
+        );
+
+        ActionResult result = await sut.ExecuteAsync(Ctx(), Def("barbie girl cover"));
+
+        result.Succeeded.Should().BeFalse();
+        List<string> pool =
+        [
+            .. ToneTemplateCatalog
+                .Get(
+                    PersonalityTone.Informative,
+                    BuiltinResponseSlots.SongRequest.Key,
+                    BuiltinResponseSlots.SongRequest.NoCloseMatch
+                )
+                .Select(t =>
+                    "@Bamo "
+                    + t.Replace("{query}", "barbie girl cover")
+                        .Replace("{user}", "Bamo")
+                        .Replace("{track.name}", "Doom Slayer")
+                        .Replace("{track.artist}", "Alex Terrible")
+                ),
+        ];
+        string sent = (string)chat.ReceivedCalls().Single().GetArguments()[1]!;
+        pool.Should().NotBeEmpty().And.Contain(sent);
+        sent.Should().Contain("Doom Slayer").And.Contain("Alex Terrible");
+    }
+
+    [Fact]
     public async Task A_blocked_track_carries_its_typed_reason_into_chat()
     {
         (SongRequestAction sut, IMusicService music, IChatProvider chat) = Build(

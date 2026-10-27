@@ -194,22 +194,28 @@ public sealed class MusicServiceBlockedAdmissionTests
             {"tracks":{"items":[{"name":"Song Q","uri":"spotify:track:q1","duration_ms":200000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}]}}
             """;
 
+        private const string TrackJson = """
+            {"id":"q1","name":"Song Q","uri":"spotify:track:q1","duration_ms":200000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}
+            """;
+
         protected override Task<HttpResponseMessage> SendAsync(
             HttpRequestMessage request,
             CancellationToken cancellationToken
         )
         {
-            bool isSearch = request.RequestUri!.AbsolutePath.EndsWith(
-                "/search",
-                StringComparison.Ordinal
-            );
+            string path = request.RequestUri!.AbsolutePath;
+            // A pasted spotify:track: URI is looked up by id, not searched as text.
+            string? body =
+                path.EndsWith("/search", StringComparison.Ordinal) ? SearchJson
+                : path.EndsWith("/tracks/q1", StringComparison.Ordinal) ? TrackJson
+                : null;
 
-            HttpResponseMessage response = isSearch
-                ? new(HttpStatusCode.OK)
+            HttpResponseMessage response = body is null
+                ? new HttpResponseMessage(HttpStatusCode.NoContent)
+                : new(HttpStatusCode.OK)
                 {
-                    Content = new StringContent(SearchJson, Encoding.UTF8, "application/json"),
-                }
-                : new HttpResponseMessage(HttpStatusCode.NoContent);
+                    Content = new StringContent(body, Encoding.UTF8, "application/json"),
+                };
             return Task.FromResult(response);
         }
     }

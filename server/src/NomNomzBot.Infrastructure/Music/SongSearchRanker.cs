@@ -11,6 +11,7 @@
 using System.Globalization;
 using System.Text;
 using NomNomzBot.Domain.Music.Interfaces;
+using NomNomzBot.Infrastructure.Platform.Text;
 
 namespace NomNomzBot.Infrastructure.Music;
 
@@ -71,6 +72,19 @@ internal static class SongSearchRanker
         "hours",
     ];
 
+    /// <summary>A hit is the requested song when this share of the query's title words is in its title.</summary>
+    private const double TitleCoverageNeeded = 2.0 / 3.0;
+
+    /// <summary>
+    /// The same, when every word of the hit's title is also in the query (the query only adds the artist and
+    /// filler around a short title).
+    /// </summary>
+    private const double TitleCoverageNeededWhenTitleIsInQuery = 0.5;
+
+    /// <summary>
+    /// The best hit whose TITLE is the requested song, or null when none is: a hit that only shares the
+    /// artist (the artist's top track) is not the song and is never picked.
+    /// </summary>
     public static TrackInfo? Pick(string query, IReadOnlyList<TrackInfo> hits)
     {
         if (hits.Count == 0)
@@ -83,10 +97,10 @@ internal static class SongSearchRanker
         List<(TrackInfo Hit, int Index)> survivors =
         [
             .. hits.Select((hit, index) => (hit, index))
-                .Where(entry => SharesARealWord(entry.hit, queryWords, compactQuery)),
+                .Where(entry => TitleMatches(entry.hit, queryWords)),
         ];
         if (survivors.Count == 0)
-            return hits[0];
+            return null;
 
         return survivors
             .OrderByDescending(entry => NamesArtist(entry.Hit, queryWords, compactQuery))
@@ -98,13 +112,75 @@ internal static class SongSearchRanker
             .Hit;
     }
 
-    private static bool SharesARealWord(
-        TrackInfo hit,
-        HashSet<string> queryWords,
-        string compactQuery
-    ) =>
-        RealWords(Normalize($"{hit.TrackName} {hit.Artist}")).Overlaps(queryWords)
-        || NamesArtist(hit, queryWords, compactQuery);
+    /// <summary>
+    /// The hit that comes nearest to the request without being it, to name in the "no match" reply; null
+    /// when no hit shares a title word with the query.
+    /// </summary>
+    public static TrackInfo? Closest(string query, IReadOnlyList<TrackInfo> hits)
+    {
+        HashSet<string> queryWords = RealWords(Normalize(query));
+        return hits.Select(
+                (hit, index) => (Hit: hit, Index: index, Coverage: TitleCoverage(hit, queryWords))
+            )
+            .Where(entry => entry.Coverage > 0)
+            .OrderByDescending(entry => entry.Coverage)
+            .ThenBy(entry => entry.Index)
+            .Select(entry => entry.Hit)
+            .FirstOrDefault();
+    }
+
+    private static bool TitleMatches(TrackInfo hit, HashSet<string> queryWords)
+    {
+        double coverage = TitleCoverage(hit, queryWords);
+        if (coverage >= TitleCoverageNeeded)
+            return true;
+        if (coverage < TitleCoverageNeededWhenTitleIsInQuery)
+            return false;
+
+        HashSet<string> titleWords = RealWords(Normalize(hit.TrackName));
+        return titleWords.All(titleWord => queryWords.Any(word => SameWord(word, titleWord)));
+    }
+
+    /// <summary>
+    /// The share of the query's words, with the hit's own artist taken out, that its title carries.
+    /// A query that is only the artist's name asks for any song by them, so it covers fully.
+    /// </summary>
+    private static double TitleCoverage(TrackInfo hit, HashSet<string> queryWords)
+    {
+        string normalizedArtist = Normalize(hit.Artist);
+        string compactArtist = normalizedArtist.Replace(
+            " ",
+            string.Empty,
+            StringComparison.Ordinal
+        );
+        HashSet<string> artistWords = RealWords(normalizedArtist);
+        List<string> titleQueryWords =
+        [
+            .. queryWords.Where(word =>
+                !artistWords.Any(artistWord => SameWord(artistWord, word))
+                && !(compactArtist.Length >= 3 && word == compactArtist)
+            ),
+        ];
+        if (titleQueryWords.Count == 0)
+            return 1;
+
+        HashSet<string> titleWords = RealWords(Normalize(hit.TrackName));
+        int carried = titleQueryWords.Count(word =>
+            titleWords.Any(titleWord => SameWord(word, titleWord))
+        );
+        return (double)carried / titleQueryWords.Count;
+    }
+
+    /// <summary>The same word, allowing one typo in a long word and two in a very long one.</summary>
+    private static bool SameWord(string a, string b)
+    {
+        if (a == b)
+            return true;
+        int shortest = Math.Min(a.Length, b.Length);
+        if (shortest < 5)
+            return false;
+        return EditDistance.Between(a, b) <= (shortest >= 9 ? 2 : 1);
+    }
 
     private static bool NamesArtist(TrackInfo hit, HashSet<string> queryWords, string compactQuery)
     {

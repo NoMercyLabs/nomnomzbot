@@ -160,6 +160,10 @@ public sealed class SrQueueSeedProviderTests
     {
         private const string SongOne =
             """{"tracks":{"items":[{"name":"Song One","uri":"spotify:track:q1","duration_ms":200000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}]}}""";
+        private const string TrackOne =
+            """{"id":"q1","name":"Song One","uri":"spotify:track:q1","duration_ms":200000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}""";
+        private const string TrackTwo =
+            """{"id":"q2","name":"Song Two","uri":"spotify:track:q2","duration_ms":180000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}""";
         private const string SongTwo =
             """{"tracks":{"items":[{"name":"Song Two","uri":"spotify:track:q2","duration_ms":180000,"artists":[{"name":"Artist"}],"album":{"name":"Album","images":[]}}]}}""";
 
@@ -169,10 +173,18 @@ public sealed class SrQueueSeedProviderTests
         )
         {
             Uri uri = request.RequestUri!;
-            if (!uri.AbsolutePath.EndsWith("/search", StringComparison.Ordinal))
+            // A pasted spotify:track: URI is looked up by id, not searched as text.
+            string? json = uri.AbsolutePath switch
+            {
+                string path when path.EndsWith("/tracks/q1", StringComparison.Ordinal) => TrackOne,
+                string path when path.EndsWith("/tracks/q2", StringComparison.Ordinal) => TrackTwo,
+                string path when path.EndsWith("/search", StringComparison.Ordinal) =>
+                    uri.Query.Contains("q2", StringComparison.Ordinal) ? SongTwo : SongOne,
+                _ => null,
+            };
+            if (json is null)
                 return Task.FromResult(new HttpResponseMessage(HttpStatusCode.NoContent));
 
-            string json = uri.Query.Contains("q2", StringComparison.Ordinal) ? SongTwo : SongOne;
             return Task.FromResult(
                 new HttpResponseMessage(HttpStatusCode.OK)
                 {

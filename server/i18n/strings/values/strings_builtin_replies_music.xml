@@ -91,6 +91,8 @@
     <string name="builtin_reply_sr_trackblocked_description">The requested song is on the block list.</string>
     <string name="builtin_reply_sr_noactivedevice_label">Nothing is playing</string>
     <string name="builtin_reply_sr_noactivedevice_description">The song cannot be queued because nothing plays on any device.</string>
+    <string name="builtin_reply_sr_noclosematch_label">Only a near match</string>
+    <string name="builtin_reply_sr_noclosematch_description">No song is the requested one, but a different song came close. The bot names it and does not add it.</string>
     <string name="builtin_reply_sr_nooverlayplayer_label">Audio overlay closed</string>
     <string name="builtin_reply_sr_nooverlayplayer_description">A YouTube song cannot play because the audio overlay is not open in OBS.</string>
     <string name="builtin_reply_sr_premiumrequired_label">Premium needed</string>
