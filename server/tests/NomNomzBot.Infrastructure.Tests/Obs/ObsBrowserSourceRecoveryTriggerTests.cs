@@ -10,6 +10,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
@@ -17,6 +18,7 @@ using NomNomzBot.Application.Obs.Services;
 using NomNomzBot.Domain.Obs.Events;
 using NomNomzBot.Domain.Widgets.Events;
 using NomNomzBot.Infrastructure.Obs.Recovery;
+using NomNomzBot.Infrastructure.Tests.Seeding;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Obs;
@@ -102,7 +104,10 @@ public sealed class ObsBrowserSourceRecoveryTriggerTests
         public required SemaphoreSlim PassRan { get; init; }
     }
 
-    private static SchedulerRig BuildScheduler()
+    private static SchedulerRig BuildScheduler(
+        Result<IReadOnlyList<string>>? passResult = null,
+        ILogger<ObsBrowserSourceRecoveryScheduler>? logger = null
+    )
     {
         List<Guid> passes = [];
         SemaphoreSlim passRan = new(0);
@@ -115,7 +120,7 @@ public sealed class ObsBrowserSourceRecoveryTriggerTests
                 lock (passes)
                     passes.Add(call.ArgAt<Guid>(0));
                 passRan.Release();
-                return Task.FromResult(Result.Success<IReadOnlyList<string>>([]));
+                return Task.FromResult(passResult ?? Result.Success<IReadOnlyList<string>>([]));
             });
 
         ServiceCollection services = new();
@@ -126,7 +131,7 @@ public sealed class ObsBrowserSourceRecoveryTriggerTests
             Scheduler = new(
                 services.BuildServiceProvider().GetRequiredService<IServiceScopeFactory>(),
                 clock,
-                NullLogger<ObsBrowserSourceRecoveryScheduler>.Instance
+                logger ?? NullLogger<ObsBrowserSourceRecoveryScheduler>.Instance
             ),
             Clock = clock,
             Passes = passes,
@@ -168,6 +173,42 @@ public sealed class ObsBrowserSourceRecoveryTriggerTests
         await Task.Delay(100);
 
         rig.Passes.Should().Equal(Channel);
+    }
+
+    [Fact]
+    public async Task A_pass_that_cannot_reach_obs_logs_one_warning_naming_the_channel_and_the_reason()
+    {
+        ListLogger<ObsBrowserSourceRecoveryScheduler> log = new();
+        SchedulerRig rig = BuildScheduler(
+            Result.Failure<IReadOnlyList<string>>("OBS is not connected", "OBS_NOT_CONNECTED"),
+            log
+        );
+
+        rig.Scheduler.Schedule(Channel);
+        rig.Clock.Advance(ObsBrowserSourceRecoveryScheduler.Delay);
+        (await rig.PassRan.WaitAsync(TimeSpan.FromSeconds(5))).Should().BeTrue();
+        await Task.Delay(100);
+
+        log.Entries.Should()
+            .ContainSingle(e =>
+                e.Level == LogLevel.Warning
+                && e.Message.Contains(Channel.ToString())
+                && e.Message.Contains("OBS is not connected")
+            );
+    }
+
+    [Fact]
+    public async Task A_pass_that_reaches_obs_logs_no_warning()
+    {
+        ListLogger<ObsBrowserSourceRecoveryScheduler> log = new();
+        SchedulerRig rig = BuildScheduler(logger: log);
+
+        rig.Scheduler.Schedule(Channel);
+        rig.Clock.Advance(ObsBrowserSourceRecoveryScheduler.Delay);
+        (await rig.PassRan.WaitAsync(TimeSpan.FromSeconds(5))).Should().BeTrue();
+        await Task.Delay(100);
+
+        log.Entries.Should().BeEmpty();
     }
 
     [Fact]

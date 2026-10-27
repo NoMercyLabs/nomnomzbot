@@ -44,6 +44,7 @@ public sealed class CommandInvoker(
     IChannelTwitchBotResolver bots,
     ITemplateResolver templateResolver,
     IChatProvider chat,
+    IReplyDispatcher replies,
     IBuiltinCommandCatalog builtins,
     IOutboundSanctionAccessor sanctions,
     IScriptRunner scripts
@@ -318,20 +319,36 @@ public sealed class CommandInvoker(
             );
 
         Invoker invoker = await ResolveInvokerAsync(broadcasterId, context, cancellationToken);
-        string resolved = await templateResolver.ResolveAsync(
+        ReplyDelivery delivery = command.ReplyDelivery ?? ReplyDelivery.ChatOnly;
+        RenderedReply rendered = await ReplyTemplateRenderer.RenderAsync(
+            templateResolver,
             NoImmediateRepeatPicker.Pick(responses, $"{broadcasterId}:{command.Name}"),
-            ChatMentionName.ForChat(BuildVariables(context, invoker)),
+            BuildVariables(context, invoker),
             broadcasterId,
+            delivery,
             cancellationToken
         );
+        string resolved = rendered.ChatText;
 
-        bool sent = await chat.SendMessageAsync(broadcasterId, resolved, cancellationToken);
-        if (!sent)
+        ReplyOutcome outcome = await replies.DispatchAsync(
+            new ReplyRequest
+            {
+                BroadcasterId = broadcasterId,
+                Text = resolved,
+                OverlayText = rendered.OverlayText,
+                Delivery = delivery,
+                RequestedBy = context.DisplayName,
+            },
+            cancellationToken
+        );
+        if (delivery.SendsToChat && !outcome.SentToChat)
             return Result.Success(
                 new InvocationOutcome(false, null, "The reply could not be sent to chat.")
             );
+        if (!outcome.Succeeded(delivery))
+            return Result.Success(new InvocationOutcome(false, null, "No chat overlay is open."));
 
-        if (command.SpeakWithTts && !string.IsNullOrWhiteSpace(resolved))
+        if (outcome.SentToChat && command.SpeakWithTts && !string.IsNullOrWhiteSpace(resolved))
         {
             // Bot-authored speech: the bot identity is the speaker, never the human who triggered the run.
             Invoker bot = await ResolveBotAsync(broadcasterId, cancellationToken);
@@ -346,7 +363,9 @@ public sealed class CommandInvoker(
             );
         }
 
-        return Result.Success(new InvocationOutcome(true, resolved, null));
+        return Result.Success(
+            new InvocationOutcome(true, resolved.Length > 0 ? resolved : rendered.OverlayText, null)
+        );
     }
 
     private async Task<Result<InvocationOutcome>> ExecutePipelineAsync(

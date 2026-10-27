@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.AutomationApi.Dtos;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
@@ -35,6 +36,7 @@ using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Infrastructure.AutomationApi;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Security;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.AutomationApi;
@@ -182,6 +184,7 @@ public sealed class AutomationCommandServiceTests
             bots,
             templates,
             chat,
+            TestReplyDispatcher.Over(Substitute.For<IInboundOriginChatSender>(), provider: chat),
             catalog,
             Substitute.For<IOutboundSanctionAccessor>(),
             Substitute.For<IScriptRunner>()

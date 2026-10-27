@@ -476,6 +476,7 @@ public class BundleImportService : IBundleImportService
                     UserCooldownSeconds = export.UserCooldownSeconds,
                     Description = export.Description,
                     Aliases = [.. export.Aliases],
+                    ReplyDelivery = export.ReplyDelivery,
                 };
                 Result<CommandDto> createdCommand = await _commands.CreateAsync(
                     channelId,

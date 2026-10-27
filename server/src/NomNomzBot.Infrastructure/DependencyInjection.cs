@@ -1897,6 +1897,13 @@ public static class DependencyInjection
         services.AddScoped<Application.Chat.Services.IInboundOriginModerator>(sp =>
             sp.GetRequiredService<ChatPlatformRouter>()
         );
+        // One delivery point for an authored reply (chat, chat overlay, both, none). The overlay sender is a
+        // no-op fallback; the API host replaces it with the hub-backed ChatOverlayLineSender.
+        services.AddScoped<
+            Application.Chat.Services.IChatOverlayLineSender,
+            Chat.NullChatOverlayLineSender
+        >();
+        services.AddScoped<Application.Chat.Services.IReplyDispatcher, Chat.ReplyDispatcher>();
 
         // Kick transport + token custody (slice 3b-2c): the client is stateless HTTP over api.kick.com
         // (singleton); the token provider resolves the tenant's vaulted Kick connection and refreshes

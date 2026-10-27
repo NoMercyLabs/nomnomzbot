@@ -70,6 +70,7 @@ public static class HubSeamRegistration
             ServiceDescriptor.Scoped<IOverlayRetractionNotifier, OverlayRetractionNotifierAdapter>()
         );
         services.Replace(ServiceDescriptor.Scoped<IOverlayEventFeed, OverlayEventFeedAdapter>());
+        services.Replace(ServiceDescriptor.Scoped<IChatOverlayLineSender, ChatOverlayLineSender>());
         services.Replace(
             ServiceDescriptor.Scoped<
                 IEventResponseOverlayNotifier,

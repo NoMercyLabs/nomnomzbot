@@ -297,6 +297,7 @@ public class BundleExportService : IBundleExportService
                     Description = command.Description,
                     Aliases = command.Aliases,
                     IsEnabled = command.IsEnabled,
+                    ReplyDelivery = command.ReplyDelivery,
                 };
                 List<string> dependencies = [.. PipelineEdge(pipelineName)];
                 if (codeScriptName is not null)

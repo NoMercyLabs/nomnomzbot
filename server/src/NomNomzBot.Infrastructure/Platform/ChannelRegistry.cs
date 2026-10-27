@@ -454,6 +454,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 c.TemplateResponses,
                 c.TemplateResponse,
                 c.SpeakWithTts,
+                c.ReplyDelivery,
                 c.CooldownSeconds,
                 c.UserCooldownSeconds,
                 c.MinPermissionLevel,
@@ -528,6 +529,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                     Name = c.Name,
                     TemplateResponses = NormalizeResponses(c.TemplateResponses, c.TemplateResponse),
                     SpeakWithTts = c.SpeakWithTts,
+                    ReplyDelivery = c.ReplyDelivery,
                     // Two windows, as the command form sets them: the global spam guard always, and a
                     // separate per-chatter window when the per-user switch is on.
                     GlobalCooldown = c.CooldownSeconds,

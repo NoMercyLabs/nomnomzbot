@@ -167,7 +167,7 @@ public sealed class SongRequestCooldownScopeTests
             registry,
             Substitute.For<IServiceScopeFactory>(),
             cooldowns,
-            chat,
+            TestReplyDispatcher.Over(chat),
             Substitute.For<IPipelineEngine>(),
             builtins,
             Substitute.For<ITemplateResolver>(),

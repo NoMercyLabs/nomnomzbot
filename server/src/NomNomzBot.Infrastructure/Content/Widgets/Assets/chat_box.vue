@@ -291,13 +291,21 @@ function paintOf(value: unknown): ChatPaint | null {
   }
 }
 
+// True when the hide-commands / hide-bots filters drop this chat line. The bot's own overlay-only line (the reply
+// of a command set to "overlay only") is the answer a viewer asked for, so neither filter ever applies to it.
+function isFilteredOut(m: Payload): boolean {
+  if (m.messageType === 'overlay_line') return false
+  const text: string = String(m.message || '')
+  if (cfg.hideCommands && (m.isCommand || text.charAt(0) === '!')) return true
+  const login: string = String(m.username || '').toLowerCase()
+  return cfg.hideBots && KNOWN_BOTS.indexOf(login) !== -1
+}
+
 function onChat(data: unknown): void {
   if (!data || typeof data !== 'object') return
   const m: Payload = data as Payload
   const text: string = String(m.message || '')
-  if (cfg.hideCommands && (m.isCommand || text.charAt(0) === '!')) return
-  const login: string = String(m.username || '').toLowerCase()
-  if (cfg.hideBots && KNOWN_BOTS.indexOf(login) !== -1) return
+  if (isFilteredOut(m)) return
 
   const line: ChatLine = {
     id: String(m.id || '') + '-' + (++seq),

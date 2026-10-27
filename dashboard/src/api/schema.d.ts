@@ -91056,6 +91056,7 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             codeScriptId?: null | string;
+            replyDelivery?: null | components["schemas"]["ReplyDelivery"];
         };
         /**
          * @description Lightweight command info for list views — includes the response text and pipeline id so the edit
@@ -91100,6 +91101,7 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             codeScriptId?: null | string;
+            replyDelivery?: null | components["schemas"]["ReplyDelivery"];
         };
         /**
          * @description One fun-command preset exactly as a reset writes it back — every field a reset restores, so the dashboard
@@ -91359,6 +91361,7 @@ export interface components {
             /** @description Whether the command is live on creation (default true). */
             isEnabled?: boolean;
             speakWithTts?: boolean;
+            replyDelivery?: null | components["schemas"]["ReplyDelivery"];
         };
         CreateContentDefinitionRequest: {
             kind: string;
@@ -97086,6 +97089,22 @@ export interface components {
             /** Format: int32 */
             widgetsNotified: number | string;
         };
+        /**
+         * @description How a channel-authored reply is delivered. bool ReplyDelivery.Html makes the overlay line render the authored
+         *     text as sanitized HTML; the platform chat always gets plain text. A missing value everywhere means
+         *     ReplyDelivery ReplyDelivery.ChatOnly, the behavior before this setting existed.
+         */
+        ReplyDelivery: {
+            target?: components["schemas"]["ReplyTarget"];
+            /** @default false */
+            html: boolean;
+        };
+        /**
+         * @description Where an authored reply goes: the platform chat, the chat overlay, both, or nowhere.
+         * @default chat
+         * @enum {unknown}
+         */
+        ReplyTarget: "chat" | "overlay" | "both" | "none";
         RequestErasureRequest: {
             /**
              * Format: ulid
@@ -104941,6 +104960,7 @@ export interface components {
             aliases?: null | string[];
             isEnabled?: null | boolean;
             speakWithTts?: null | boolean;
+            replyDelivery?: null | components["schemas"]["ReplyDelivery"];
         };
         UpdateDiscordLiveRoleConfigRequest: {
             roleId: string;

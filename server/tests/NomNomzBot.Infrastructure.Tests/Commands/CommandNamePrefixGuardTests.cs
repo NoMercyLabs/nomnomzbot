@@ -27,6 +27,7 @@ using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Platform.Templating;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -380,7 +381,7 @@ public sealed class CommandNamePrefixGuardTests
             registry,
             provider.GetRequiredService<IServiceScopeFactory>(),
             Substitute.For<ICooldownManager>(),
-            chat,
+            TestReplyDispatcher.Over(chat),
             engine ?? Substitute.For<IPipelineEngine>(),
             Substitute.For<IBuiltinCommandCatalog>(),
             templates,

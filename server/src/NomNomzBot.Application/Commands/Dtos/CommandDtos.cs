@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.ComponentModel.DataAnnotations;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Application.Commands.Dtos;
@@ -43,6 +44,9 @@ public sealed record CommandDto(
 
     /// <summary>The code script a <c>code</c>-tier command runs directly; null for the other tiers.</summary>
     public Guid? CodeScriptId { get; init; }
+
+    /// <summary>Where the reply goes and whether the overlay line is HTML; null = the platform chat as plain text.</summary>
+    public ReplyDelivery? ReplyDelivery { get; init; }
 }
 
 /// <summary>Lightweight command info for list views — includes the response text and pipeline id so the edit
@@ -75,6 +79,9 @@ public sealed record CommandListItem(
 
     /// <summary>The code script a <c>code</c>-tier command runs directly; null for the other tiers.</summary>
     public Guid? CodeScriptId { get; init; }
+
+    /// <summary>Where the reply goes and whether the overlay line is HTML; null = the platform chat as plain text.</summary>
+    public ReplyDelivery? ReplyDelivery { get; init; }
 }
 
 /// <summary>Request to create a new command.</summary>
@@ -140,6 +147,9 @@ public sealed record CreateCommandDto
     public bool IsEnabled { get; init; } = true;
 
     public bool SpeakWithTts { get; init; }
+
+    /// <summary>Where the reply goes and whether the overlay line is HTML; omitted = the platform chat as plain text.</summary>
+    public ReplyDelivery? ReplyDelivery { get; init; }
 }
 
 /// <summary>Request to update an existing command.</summary>
@@ -196,4 +206,7 @@ public sealed record UpdateCommandDto
     public bool? IsEnabled { get; init; }
 
     public bool? SpeakWithTts { get; init; }
+
+    /// <summary>Where the reply goes and whether the overlay line is HTML; omitted leaves the current setting.</summary>
+    public ReplyDelivery? ReplyDelivery { get; init; }
 }

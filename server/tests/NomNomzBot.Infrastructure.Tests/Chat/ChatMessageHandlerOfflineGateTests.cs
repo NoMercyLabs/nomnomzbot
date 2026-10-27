@@ -167,7 +167,7 @@ public sealed class ChatMessageHandlerOfflineGateTests
             registry,
             Substitute.For<IServiceScopeFactory>(),
             Substitute.For<ICooldownManager>(),
-            chat,
+            TestReplyDispatcher.Over(chat),
             Substitute.For<IPipelineEngine>(),
             builtins,
             Substitute.For<ITemplateResolver>(),

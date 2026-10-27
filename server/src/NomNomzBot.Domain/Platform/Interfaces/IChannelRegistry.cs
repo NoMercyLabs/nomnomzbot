@@ -9,6 +9,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Collections.Concurrent;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
 
@@ -396,6 +397,9 @@ public class CachedCommand
     public required string[] TemplateResponses { get; init; }
 
     public bool SpeakWithTts { get; init; }
+
+    /// <summary>Where a template reply goes; null = the platform chat as plain text (the default).</summary>
+    public ReplyDelivery? ReplyDelivery { get; init; }
 
     public required int GlobalCooldown { get; init; }
     public required int UserCooldown { get; init; }

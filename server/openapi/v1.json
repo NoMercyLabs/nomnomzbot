@@ -111257,6 +111257,17 @@
             ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
+          },
+          "replyDelivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Where the reply goes and whether the overlay line is HTML; null = the platform chat as plain text.",
+                "$ref": "#/components/schemas/ReplyDelivery"
+              }
+            ]
           }
         },
         "description": "Full command detail for viewing/editing."
@@ -111393,6 +111404,17 @@
             ],
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
+          },
+          "replyDelivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Where the reply goes and whether the overlay line is HTML; null = the platform chat as plain text.",
+                "$ref": "#/components/schemas/ReplyDelivery"
+              }
+            ]
           }
         },
         "description": "Lightweight command info for list views — includes the response text and pipeline id so the edit\r\n            form can pre-fill without a separate detail fetch."
@@ -112233,6 +112255,17 @@
           },
           "speakWithTts": {
             "type": "boolean"
+          },
+          "replyDelivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Where the reply goes and whether the overlay line is HTML; omitted = the platform chat as plain text.",
+                "$ref": "#/components/schemas/ReplyDelivery"
+              }
+            ]
           }
         },
         "description": "Request to create a new command."
@@ -129273,6 +129306,29 @@
           }
         },
         "description": "What a replay actually re-performed — every count is real work, and 0 is a valid, truthful\r\n    outcome (e.g. the response is disabled, or every subscribed widget was removed since the alert fired),\r\n    never disguised as a full success. EventsReplayed is 1, or 1 + each named recipient of a gift bomb."
+      },
+      "ReplyDelivery": {
+        "type": "object",
+        "properties": {
+          "target": {
+            "$ref": "#/components/schemas/ReplyTarget"
+          },
+          "html": {
+            "type": "boolean",
+            "default": false
+          }
+        },
+        "description": "How a channel-authored reply is delivered. bool ReplyDelivery.Html makes the overlay line render the authored\r\ntext as sanitized HTML; the platform chat always gets plain text. A missing value everywhere means\r\nReplyDelivery ReplyDelivery.ChatOnly, the behavior before this setting existed."
+      },
+      "ReplyTarget": {
+        "enum": [
+          "chat",
+          "overlay",
+          "both",
+          "none"
+        ],
+        "description": "Where an authored reply goes: the platform chat, the chat overlay, both, or nowhere.",
+        "default": "chat"
       },
       "RequestErasureRequest": {
         "required": [
@@ -151767,6 +151823,17 @@
             "type": [
               "null",
               "boolean"
+            ]
+          },
+          "replyDelivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Where the reply goes and whether the overlay line is HTML; omitted leaves the current setting.",
+                "$ref": "#/components/schemas/ReplyDelivery"
+              }
             ]
           }
         },

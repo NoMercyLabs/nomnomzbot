@@ -368,7 +368,7 @@ public sealed class BuiltinEffectiveRoleTests
             registry,
             provider.GetRequiredService<IServiceScopeFactory>(),
             Substitute.For<ICooldownManager>(),
-            chat,
+            TestReplyDispatcher.Over(chat),
             Substitute.For<IPipelineEngine>(),
             catalog,
             templates,

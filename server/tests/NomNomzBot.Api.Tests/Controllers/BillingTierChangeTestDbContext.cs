@@ -118,7 +118,11 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
         });
         b.ApplySoftDeleteFilter<TierLimit>();
         b.Entity<Subscription>(e => e.HasKey(s => s.Id));
-        b.Entity<Command>(e => e.HasKey(c => c.Id));
+        b.Entity<Command>(e =>
+        {
+            e.HasKey(c => c.Id);
+            e.Ignore(c => c.ReplyDelivery);
+        });
         b.Entity<SoundClip>(e => e.HasKey(c => c.Id));
         b.Entity<Domain.Commands.Entities.Timer>(e => e.HasKey(t => t.Id));
         b.Entity<EventResponse>(e =>

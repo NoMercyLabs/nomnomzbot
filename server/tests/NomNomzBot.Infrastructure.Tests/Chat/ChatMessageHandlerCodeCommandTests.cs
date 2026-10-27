@@ -113,7 +113,7 @@ public sealed class ChatMessageHandlerCodeCommandTests
             registry,
             scopes,
             Substitute.For<ICooldownManager>(),
-            chat,
+            TestReplyDispatcher.Over(chat),
             engine,
             Substitute.For<IBuiltinCommandCatalog>(),
             Substitute.For<ITemplateResolver>(),
