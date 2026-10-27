@@ -418,6 +418,25 @@ describe('OverlaysView', () => {
     expect(wrapper.text()).toContain('Nothing attached');
   });
 
+  it('warns on an enabled overlay with no connection and never on a switched-off one', () => {
+    const enabled = mount(OverlayRow, {
+      props: { widget: widget('w10', 'Emote Wall') as unknown as Widget, selected: false },
+      global: { plugins: [i18n] },
+    });
+
+    expect(enabled.find('[data-obs-setup-warning]').exists()).toBe(true);
+
+    const off = mount(OverlayRow, {
+      props: {
+        widget: widget('w11', 'Old Wall', { isEnabled: false }) as unknown as Widget,
+        selected: false,
+      },
+      global: { plugins: [i18n] },
+    });
+
+    expect(off.find('[data-obs-setup-warning]').exists()).toBe(false);
+  });
+
   it('shows the overlay named in the address, with its kind, origin, events and description', async () => {
     await open('/app/overlays?id=w1');
 
