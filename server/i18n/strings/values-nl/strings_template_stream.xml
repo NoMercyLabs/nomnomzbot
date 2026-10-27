@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text (Dutch), namespaces "stream" and "channel", lane L2d (catalog section 7.6).
+-->
+<resources>
+    <string name="template_helper_stream_uptime_long">Hoe lang de stream live is, in woorden: 2 uur, 15 minuten</string>
+    <string name="template_helper_stream_uptime_clock">Hoe lang de stream live is als klok: 2:15:00</string>
+    <string name="template_helper_stream_uptime_minutes">Hoeveel minuten de stream live is</string>
+    <string name="template_helper_stream_uptime_hours">Hoeveel uur de stream live is, met decimalen</string>
+    <string name="template_helper_stream_uptime_since">Het tijdstip waarop de stream live ging in de tijdzone van het kanaal: live since 13:15</string>
+    <string name="template_helper_stream_startedAt_local">Het tijdstip waarop de stream live ging, in de tijdzone van het kanaal</string>
+    <string name="template_helper_stream_startedAt_relative">Hoe lang geleden de stream live ging: 2 uur geleden</string>
+    <string name="template_helper_stream_status">live of offline</string>
+    <string name="template_helper_stream_id">Het Twitch-id van de lopende stream</string>
+    <string name="template_helper_stream_title_short">De streamtitel ingekort tot een aantal tekens, afgesloten met een beletselteken</string>
+    <string name="template_helper_stream_game_short">De categorienaam, ingekort tot 40 tekens</string>
+    <string name="template_helper_stream_game_link">De Twitch-maplink van de huidige categorie</string>
+    <string name="template_helper_stream_game_boxart">De link naar de boxart van de huidige categorie</string>
+    <string name="template_helper_stream_viewers_compact">Het huidige aantal kijkers, kort: 1.2k</string>
+    <string name="template_helper_stream_viewers_peak">Het hoogste aantal kijkers van deze stream</string>
+    <string name="template_helper_stream_followers_new">Hoeveel mensen er tijdens deze stream volgden</string>
+    <string name="template_helper_stream_followers_newList">De namen van de mensen die tijdens deze stream volgden</string>
+    <string name="template_helper_stream_followers_latest">De laatste persoon die tijdens deze stream volgde</string>
+    <string name="template_helper_stream_subs_new">Hoeveel nieuwe abonnees deze stream heeft</string>
+    <string name="template_helper_stream_subs_resubs">Hoeveel heraanmeldingen deze stream heeft</string>
+    <string name="template_helper_stream_subs_gifted">Hoeveel cadeau-abonnementen deze stream heeft</string>
+    <string name="template_helper_stream_subs_total">Alle abonnementsgebeurtenissen van deze stream</string>
+    <string name="template_helper_stream_subs_topGifter">Wie de meeste abonnementen cadeau gaf in deze stream</string>
+    <string name="template_helper_stream_subs_selfSubs">Hoeveel mensen zich voor zichzelf aanmeldden in deze stream</string>
+    <string name="template_helper_stream_bits_total">Alle bits die in deze stream zijn gegeven</string>
+    <string name="template_helper_stream_bits_top">De grootste gever van deze stream met zijn bits</string>
+    <string name="template_helper_stream_raids_in">Hoeveel raids er in deze stream binnenkwamen</string>
+    <string name="template_helper_stream_raids_lastRaider">Het kanaal van de grootste raid in deze stream</string>
+    <string name="template_helper_stream_raids_lastRaiderViewers">Het aantal kijkers van de grootste raid in deze stream</string>
+    <string name="template_helper_stream_hypetrains">Hoeveel hypetreinen deze stream had</string>
+    <string name="template_helper_stream_hypetrains_topLevel">Het hoogste hypetreinniveau van deze stream</string>
+    <string name="template_helper_stream_redemptions">Hoeveel kanaalpuntenbeloningen er in deze stream zijn ingewisseld</string>
+    <string name="template_helper_stream_songRequesters">Hoeveel mensen er in deze stream een nummer aanvroegen</string>
+    <string name="template_helper_stream_messages">Hoeveel chatberichten deze stream heeft</string>
+    <string name="template_helper_stream_chatters_unique">Hoeveel verschillende mensen er in deze stream chatten</string>
+    <string name="template_helper_stream_commandsRun">Hoeveel commando's er in deze stream liepen</string>
+    <string name="template_helper_stream_topChatter">De chatter met de meeste berichten in deze stream</string>
+    <string name="template_helper_stream_topChatters">De beste chatters van deze stream, zoveel als je vraagt</string>
+    <string name="template_helper_stream_topCommand">Het commando dat het vaakst liep in deze stream, met het aantal</string>
+    <string name="template_helper_stream_last_endedAt">De datum waarop de laatste afgeronde stream eindigde</string>
+    <string name="template_helper_stream_last_since">Hoe lang geleden de laatste afgeronde stream eindigde, in woorden</string>
+    <string name="template_helper_stream_last_relative">Hoe lang geleden de laatste afgeronde stream eindigde, afgerond: 2 dagen geleden</string>
+    <string name="template_helper_stream_last_duration">Hoe lang de laatste afgeronde stream duurde: 4h 10m</string>
+    <string name="template_helper_stream_last_game">De categorie van de laatste afgeronde stream</string>
+    <string name="template_helper_stream_last_title">De titel van de laatste afgeronde stream</string>
+    <string name="template_helper_stream_last_peak">Het hoogste aantal kijkers van de laatste afgeronde stream</string>
+    <string name="template_helper_stream_last_followers">Hoeveel mensen er volgden tijdens de laatste afgeronde stream</string>
+    <string name="template_helper_stream_last_subs">Hoeveel mensen zich aanmeldden tijdens de laatste afgeronde stream</string>
+    <string name="template_helper_stream_last_messages">Hoeveel chatberichten de laatste afgeronde stream had</string>
+    <string name="template_helper_stream_games_history">De laatste categorieen die je streamde, nieuwste eerst, zoveel als je vraagt</string>
+    <string name="template_helper_stream_count">Hoeveel streams het kanaal heeft gedaan</string>
+    <string name="template_helper_stream_count_month">Hoeveel streams het kanaal deze maand startte</string>
+    <string name="template_helper_stream_hours_month">Hoeveel uur het kanaal deze maand streamde</string>
+    <string name="template_helper_stream_number">Het nummer van deze stream: stream #214</string>
+    <string name="template_helper_channel_mention">De kanaalnaam met een @, om het in de chat te noemen</string>
+    <string name="template_helper_channel_followers">Hoeveel volgers het kanaal heeft</string>
+    <string name="template_helper_channel_followers_compact">Hoeveel volgers het kanaal heeft, kort: 1.2k</string>
+    <string name="template_helper_channel_subs">Hoeveel abonnees het kanaal heeft</string>
+    <string name="template_helper_channel_language">De taal van het kanaal</string>
+    <string name="template_helper_channel_timezone">De tijdzone van het kanaal</string>
+    <string name="template_helper_channel_localTime">De tijd nu in de tijdzone van het kanaal</string>
+    <string name="template_helper_channel_personality">De persoonlijkheid die de bot in dit kanaal gebruikt</string>
+    <string name="template_helper_channel_prefix">Het commandovoorvoegsel van het kanaal</string>
+    <string name="template_helper_channel_tags">De tags van het kanaal, als lijst</string>
+    <string name="template_helper_channel_ccls">De inhoudslabels van het kanaal, leeg als er geen zijn</string>
+    <string name="template_helper_channel_isBranded">Of de stream als merkinhoud is gemarkeerd: true of false</string>
+    <string name="template_helper_channel_team">De naam van het kanaalteam</string>
+    <string name="template_helper_channel_editors_count">Hoeveel editors het kanaal heeft</string>
+    <string name="template_helper_channel_mods_count">Hoeveel moderators het kanaal heeft</string>
+    <string name="template_helper_channel_vips_count">Hoeveel vips het kanaal heeft</string>
+    <string name="template_helper_channel_vod_latest">De link naar de laatste afgelopen uitzending</string>
+    <string name="template_helper_channel_vod_latest_title">De titel van de laatste afgelopen uitzending</string>
+    <string name="template_helper_channel_raids_outCount">Hoe vaak het kanaal een bepaald kanaal raidde</string>
+    <string name="template_helper_channel_raids_inCount">Hoe vaak een bepaald kanaal dit kanaal raidde</string>
+    <string name="template_helper_channel_raids_lastOut">Het kanaal dat dit kanaal het laatst raidde</string>
+    <string name="template_helper_channel_raids_lastIn_at">De datum waarop een ander kanaal dit kanaal het laatst raidde</string>
+    <string name="template_helper_channel_age">Hoe oud het kanaalaccount is, in woorden: 6 jaar, 2 maanden</string>
+</resources>
