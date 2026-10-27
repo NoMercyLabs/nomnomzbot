@@ -635,6 +635,165 @@ public class ObsControlService : IObsControlService
         return Result.Success<IReadOnlyList<ObsInputDto>>(inputs);
     }
 
+    public async Task<Result<IReadOnlyList<ObsBrowserSourceDto>>> GetBrowserSourcesAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        Result<ObsResponse> response = await _transport.SendAsync(
+            broadcasterId,
+            Guid.CreateVersion7(),
+            new(
+                "GetInputList",
+                new Dictionary<string, object?> { ["inputKind"] = "browser_source" }
+            ),
+            ct
+        );
+        Result status = ToStatus(response);
+        if (status.IsFailure)
+            return Result.Failure<IReadOnlyList<ObsBrowserSourceDto>>(
+                status.ErrorMessage!,
+                status.ErrorCode!
+            );
+
+        List<string> names = [];
+        if (response.Value.ResponseData?.GetValueOrDefault("inputs") is string inputsJson)
+        {
+            using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(
+                inputsJson
+            );
+            foreach (System.Text.Json.JsonElement item in doc.RootElement.EnumerateArray())
+                if (
+                    item.TryGetProperty("inputName", out System.Text.Json.JsonElement nameEl)
+                    && nameEl.GetString() is { Length: > 0 } name
+                )
+                    names.Add(name);
+        }
+
+        if (names.Count == 0)
+            return Result.Success<IReadOnlyList<ObsBrowserSourceDto>>([]);
+
+        // One settings read (the address, the shut-down-while-hidden flag) and one "is it showing" read per source.
+        // HaltOnFailure off, so one source OBS cannot answer for is skipped instead of hiding the rest.
+        List<ObsRequest> probes = [];
+        foreach (string name in names)
+        {
+            probes.Add(
+                new("GetInputSettings", new Dictionary<string, object?> { ["inputName"] = name })
+            );
+            probes.Add(
+                new("GetSourceActive", new Dictionary<string, object?> { ["sourceName"] = name })
+            );
+        }
+
+        Result<IReadOnlyList<ObsResponse>> batch = await _transport.SendBatchAsync(
+            broadcasterId,
+            Guid.CreateVersion7(),
+            new(probes, HaltOnFailure: false),
+            ct
+        );
+        if (batch.IsFailure)
+            return Result.Failure<IReadOnlyList<ObsBrowserSourceDto>>(
+                batch.ErrorMessage!,
+                batch.ErrorCode!
+            );
+
+        // A failed scene read fails the whole read: without it the bot cannot tell a hidden source from a shown one.
+        Result<HashSet<string>> enabledNames = await ReadEnabledSceneSourceNamesAsync(
+            broadcasterId,
+            ct
+        );
+        if (enabledNames.IsFailure)
+            return Result.Failure<IReadOnlyList<ObsBrowserSourceDto>>(
+                enabledNames.ErrorMessage!,
+                enabledNames.ErrorCode!
+            );
+
+        List<ObsBrowserSourceDto> sources = [];
+        for (int i = 0; i < names.Count; i++)
+        {
+            ObsResponse? settings = batch.Value.ElementAtOrDefault(2 * i);
+            ObsResponse? active = batch.Value.ElementAtOrDefault((2 * i) + 1);
+            if (settings?.Ok != true)
+                continue;
+
+            string? settingsJson =
+                settings.ResponseData?.GetValueOrDefault("inputSettings") as string;
+            if (!TryReadBrowserSettings(settingsJson, out string url, out bool shutdownWhenHidden))
+                continue;
+
+            bool showing = GetBool(active, "videoActive");
+            sources.Add(
+                new(
+                    names[i],
+                    url,
+                    !shutdownWhenHidden || showing,
+                    enabledNames.Value.Contains(names[i])
+                )
+            );
+        }
+        return Result.Success<IReadOnlyList<ObsBrowserSourceDto>>(sources);
+    }
+
+    // The names of the sources that sit, switched on, in at least one scene. A source inside a group is not listed
+    // by GetSceneItemList, so it counts as not shown: the safe side, the bot then leaves it alone.
+    private async Task<Result<HashSet<string>>> ReadEnabledSceneSourceNamesAsync(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        Result<IReadOnlyList<ObsSceneDto>> scenes = await GetScenesAsync(broadcasterId, ct);
+        if (scenes.IsFailure)
+            return Result.Failure<HashSet<string>>(scenes.ErrorMessage!, scenes.ErrorCode!);
+
+        HashSet<string> enabled = [];
+        foreach (ObsSceneDto scene in scenes.Value)
+        {
+            Result<IReadOnlyList<ObsSceneItemDto>> items = await GetSceneItemListAsync(
+                broadcasterId,
+                scene.Name,
+                ct
+            );
+            if (items.IsFailure)
+                return Result.Failure<HashSet<string>>(items.ErrorMessage!, items.ErrorCode!);
+
+            foreach (ObsSceneItemDto item in items.Value)
+                if (item.Enabled)
+                    enabled.Add(item.SourceName);
+        }
+        return Result.Success(enabled);
+    }
+
+    // A browser source's settings hold its address under "url" (a local file source holds none) and whether OBS
+    // unloads the page while it is hidden under "shutdown". A source with no address is not a page the bot can match.
+    private static bool TryReadBrowserSettings(
+        string? settingsJson,
+        out string url,
+        out bool shutdownWhenHidden
+    )
+    {
+        url = "";
+        shutdownWhenHidden = false;
+        if (string.IsNullOrWhiteSpace(settingsJson))
+            return false;
+
+        using System.Text.Json.JsonDocument doc = System.Text.Json.JsonDocument.Parse(settingsJson);
+        System.Text.Json.JsonElement root = doc.RootElement;
+        if (
+            root.ValueKind != System.Text.Json.JsonValueKind.Object
+            || !root.TryGetProperty("url", out System.Text.Json.JsonElement urlEl)
+            || urlEl.ValueKind != System.Text.Json.JsonValueKind.String
+            || string.IsNullOrWhiteSpace(urlEl.GetString())
+        )
+            return false;
+
+        url = urlEl.GetString()!;
+        shutdownWhenHidden =
+            root.TryGetProperty("shutdown", out System.Text.Json.JsonElement shutdownEl)
+            && shutdownEl.ValueKind == System.Text.Json.JsonValueKind.True;
+        return true;
+    }
+
     public async Task<Result<IReadOnlyList<ObsSceneItemDto>>> GetSceneItemListAsync(
         Guid broadcasterId,
         string sceneName,

@@ -83,6 +83,19 @@ public sealed record ObsSceneDto(string Name, bool IsCurrent);
 
 public sealed record ObsInputDto(string Name, string Kind, bool? Muted, double? VolumeDb);
 
+/// <summary>
+/// One OBS browser source (input kind <c>browser_source</c>) with the address it loads. <see cref="IsLoaded"/> is
+/// true when OBS keeps the page running right now: the source is not set to shut down while hidden (so it stays
+/// loaded on every scene), or it is showing in the program output. <see cref="IsEnabledInScene"/> is true when at
+/// least one scene item that holds the source is switched on (its eye is open); a source nobody can see is false.
+/// </summary>
+public sealed record ObsBrowserSourceDto(
+    string Name,
+    string Url,
+    bool IsLoaded,
+    bool IsEnabledInScene
+);
+
 /// <summary>One item (source instance) placed in a scene — the per-scene visibility state
 /// <see cref="ObsInputDto"/> cannot express, since a global input can appear in several scenes with a
 /// different <c>sceneItemEnabled</c> in each.</summary>

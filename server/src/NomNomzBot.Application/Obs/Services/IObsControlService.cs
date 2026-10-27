@@ -190,6 +190,15 @@ public interface IObsControlService
         CancellationToken ct = default
     );
 
+    /// <summary>
+    /// Every browser source in OBS with the address it loads and whether OBS keeps its page running. Lets the bot
+    /// match a source to the widget it shows (the address carries the widget id).
+    /// </summary>
+    Task<Result<IReadOnlyList<ObsBrowserSourceDto>>> GetBrowserSourcesAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    );
+
     /// <summary>The items placed in one scene (per-scene source visibility) — distinct from
     /// <see cref="GetInputsAsync"/>, which only sees global audio/video inputs, not per-scene placement.</summary>
     Task<Result<IReadOnlyList<ObsSceneItemDto>>> GetSceneItemListAsync(
