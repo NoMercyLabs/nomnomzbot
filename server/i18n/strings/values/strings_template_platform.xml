@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespace "platform", lane L2k (catalog section 7.15).
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_platform_user">The platform of the person who typed the command: twitch</string>
+    <string name="template_helper_platform_user_name">The display name of that platform: Twitch</string>
+    <string name="template_helper_platform_user_icon">The icon of that platform: a purple, green or red dot</string>
+    <string name="template_helper_platform_event">The platform the event came from: twitch</string>
+    <string name="template_helper_platform_viewers_total">The viewers on every live platform together: 60</string>
+    <string name="template_helper_platform_viewers_twitch">The viewers on Twitch now: 42. Empty when Twitch is not live</string>
+    <string name="template_helper_platform_viewers_kick">The viewers on Kick now: 10. Empty when Kick is not connected or not live</string>
+    <string name="template_helper_platform_viewers_youtube">The viewers on YouTube now: 8. Empty when YouTube is not connected or not live</string>
+    <string name="template_helper_platform_viewers_breakdown">The viewers per live platform: Twitch 42 · Kick 10 · YouTube 8</string>
+    <string name="template_helper_platform_viewers_share">The share of all viewers on one platform, for example kick: 17%</string>
+    <string name="template_helper_platform_live_list">The platforms that are live now: Twitch, Kick, YouTube</string>
+    <string name="template_helper_platform_live_count">How many platforms are live now: 3</string>
+    <string name="template_helper_platform_isLive">true when the platform is live now, for example youtube: true</string>
+    <string name="template_helper_platform_link_twitch">The link to the Twitch channel: https://twitch.tv/samplechannel</string>
+    <string name="template_helper_platform_link_kick">The link to the Kick channel: https://kick.com/samplechannel</string>
+    <string name="template_helper_platform_link_youtube">The link to the YouTube channel: https://youtube.com/channel/UCsample</string>
+    <string name="template_helper_platform_link_youtube_live">The link to the YouTube stream that is live now: https://youtube.com/watch?v=sample</string>
+    <string name="template_helper_platform_links">The links to every connected channel, without https: twitch.tv/samplechannel · kick.com/samplechannel</string>
+    <string name="template_helper_platform_followers_twitch">The Twitch follower count: 1,234</string>
+    <string name="template_helper_platform_messages_stream">The chat messages on one platform since the stream started, for example kick: 120</string>
+    <string name="template_helper_platform_chatters_stream">The different chatters on one platform since the stream started, for example youtube: 6</string>
+    <string name="template_helper_platform_top">The live platform with the most viewers: Twitch</string>
+    <string name="template_helper_platform_connected">The platforms the streamer connected: Twitch, Kick, YouTube</string>
+    <string name="template_helper_platform_count">How many platforms the streamer connected: 3</string>
+    <string name="template_helper_platform_title">The stream title on one platform, for example youtube: Building a bot</string>
+</resources>
