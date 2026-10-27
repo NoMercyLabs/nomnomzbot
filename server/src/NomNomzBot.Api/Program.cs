@@ -120,6 +120,8 @@ try
     builder.Services.AddMemoryCache();
     builder.Services.AddApplication();
     builder.Services.AddInfrastructure(builder.Configuration);
+    // After Infrastructure: the hub-backed adapters replace its silent stand-ins (locked by HubSeamRegistrationTests).
+    builder.Services.AddHubBackedSeams();
 
     builder.Services.AddDashboardResponseCompression();
 
@@ -198,12 +200,6 @@ try
         NomNomzBot.Application.DevPlatform.Services.IWidgetEventPayloadRegistry,
         NomNomzBot.Api.Hubs.Broadcasters.WidgetEventPayloadRegistry
     >();
-    // One instance: the hub writes attachments, TTS (and any other overlay-only output) reads them to tell
-    // whether a browser source is actually listening instead of reporting silence as success.
-    builder.Services.AddSingleton<OverlayPresenceRegistry>();
-    builder.Services.AddSingleton<NomNomzBot.Application.Widgets.Services.IOverlayPresenceRegistry>(
-        sp => sp.GetRequiredService<OverlayPresenceRegistry>()
-    );
     builder.Services.AddSingleton<IOverlayConnectionThrottle, OverlayConnectionThrottle>();
     // Join-time state for the widgets whose render shape lives in the Api (the hub's chat DTO).
     builder.Services.AddScoped<
@@ -223,43 +219,8 @@ try
     // Hub notifiers
     builder.Services.AddScoped<IDashboardNotifier, DashboardNotifier>();
     builder.Services.AddScoped<IWidgetNotifier, WidgetNotifier>();
-    builder.Services.AddSingleton<
-        NomNomzBot.Application.Chat.Services.IExternalChatPush,
-        ExternalChatPush
-    >();
-    builder.Services.AddScoped<
-        NomNomzBot.Application.Widgets.Services.IRenderedAlertReplayer,
-        NomNomzBot.Api.Hubs.Broadcasters.RenderedAlertReplayer
-    >();
-    builder.Services.AddSingleton<
-        NomNomzBot.Application.Notifications.Services.IActionRequiredChangeNotifier,
-        ActionRequiredChangeNotifier
-    >();
-    builder.Services.AddSingleton<
-        NomNomzBot.Application.Contracts.EventStore.IEventJournalChangeNotifier,
-        EventJournalChangeNotifier
-    >();
-    builder.Services.AddScoped<
-        NomNomzBot.Application.Sound.Services.ISoundClipOverlayNotifier,
-        SoundClipOverlayNotifierAdapter
-    >();
-    builder.Services.AddScoped<
-        NomNomzBot.Application.Widgets.Services.IWidgetEventNotifier,
-        WidgetEventNotifierAdapter
-    >();
-    builder.Services.AddScoped<
-        NomNomzBot.Application.Widgets.Services.IOverlayRetractionNotifier,
-        OverlayRetractionNotifierAdapter
-    >();
-    // The generic overlay event feed — the hub-backed impl the OverlayEventFeedHook fans every event through.
-    builder.Services.AddScoped<
-        NomNomzBot.Application.Overlays.Services.IOverlayEventFeed,
-        OverlayEventFeedAdapter
-    >();
-    builder.Services.AddScoped<
-        NomNomzBot.Application.Commands.Services.IEventResponseOverlayNotifier,
-        EventResponseOverlayNotifierAdapter
-    >();
+    // The hub-backed adapters that replace Infrastructure's silent stand-ins (the overlay, sound, chat-push,
+    // journal, action-required and OBS-bridge seams) are registered in one place: HubSeamRegistration.
 
     // Hub broadcast-layer viewer enrichment (avatar/pronouns/community standing) — the store does the DB read,
     // the enricher cache-gates it so a burst of hub events for the same viewer is one DB read, not N.
@@ -268,16 +229,6 @@ try
 
     // Register event handlers declared in the API layer (e.g. ChatMessageBroadcastHandler)
     builder.Services.AddEventHandlersFromAssembly(typeof(Program).Assembly);
-
-    // OBS bridge push seam (obs-control.md §3.2): the Infrastructure transport pushes to the leader
-    // bridge through this host-side adapter over the relay hub (replacing the standalone fallback).
-    Microsoft.Extensions.DependencyInjection.Extensions.ServiceCollectionDescriptorExtensions.Replace(
-        builder.Services,
-        ServiceDescriptor.Singleton<
-            NomNomzBot.Application.Obs.Services.IObsBridgePusher,
-            ObsBridgePusher
-        >()
-    );
 
     // JWT Auth. The self-host single executable must run on a clean first launch — the operator never edits a
     // config file — so when no strong Jwt:Secret was supplied we generate one and persist it OS-natively
