@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespaces "hypetrain", "goal" and "charity", lane L2h2 (catalog section 7.10).
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_hypetrain_isActive">Whether a Hype Train runs now, as true or false, for if and switch</string>
+    <string name="template_helper_hypetrain_level">The level of the running Hype Train: 3</string>
+    <string name="template_helper_hypetrain_progress">The points earned towards the next level: 1,800</string>
+    <string name="template_helper_hypetrain_goal">The points needed to finish the current level: 3,000</string>
+    <string name="template_helper_hypetrain_percent">How far the train is towards the next level: 60%</string>
+    <string name="template_helper_hypetrain_bar">A bar of how far the train is towards the next level: ██████░░░░ 60%</string>
+    <string name="template_helper_hypetrain_remaining">The points still needed for the next level: 1,200</string>
+    <string name="template_helper_hypetrain_timeLeft">The time left before the train ends: 4m 10s</string>
+    <string name="template_helper_hypetrain_total">The total points of the running train: 5,400</string>
+    <string name="template_helper_hypetrain_topContributor">The name of the biggest contributor to the train: ViewerOne</string>
+    <string name="template_helper_hypetrain_record_level">The highest level the channel ever reached: 5</string>
+    <string name="template_helper_hypetrain_isGolden">Whether the running train is a Golden Kappa train, as true or false, for if and switch</string>
+    <string name="template_helper_hypetrain_isShared">Whether the running train is shared with other channels, as true or false, for if and switch</string>
+    <string name="template_helper_goal_followers_current">The followers counted for the follower goal: 1,234</string>
+    <string name="template_helper_goal_followers_target">The target of the follower goal: 1,500</string>
+    <string name="template_helper_goal_followers_percent">How far the follower goal is: 82%</string>
+    <string name="template_helper_goal_followers_remaining">The followers still needed for the goal: 266</string>
+    <string name="template_helper_goal_followers_bar">A bar of how far the follower goal is: ████████░░ 82%</string>
+    <string name="template_helper_goal_followers_description">The description the streamer gave the follower goal: Road to 1.5k</string>
+    <string name="template_helper_goal_subs_current">The subscriptions counted for the subscription goal: 80</string>
+    <string name="template_helper_goal_subs_target">The target of the subscription goal: 100</string>
+    <string name="template_helper_goal_subs_percent">How far the subscription goal is: 80%</string>
+    <string name="template_helper_goal_subs_remaining">The subscriptions still needed for the goal: 20</string>
+    <string name="template_helper_goal_subs_bar">A bar of how far the subscription goal is: ████████░░ 80%</string>
+    <string name="template_helper_goal_newSubs_current">The new subscriptions counted for the new-subscription goal: 6</string>
+    <string name="template_helper_goal_newSubs_percent">How far the new-subscription goal is: 30%</string>
+    <string name="template_helper_goal_list">Every active goal with its progress: followers 82%, subs 80%</string>
+    <string name="template_helper_charity_name">The name of the charity of the running campaign: Sample Charity</string>
+    <string name="template_helper_charity_raised">The money raised so far, with its currency: €420.00</string>
+    <string name="template_helper_charity_target">The money target of the campaign, with its currency: €1,000.00</string>
+    <string name="template_helper_charity_percent">How far the campaign is towards its target: 42%</string>
+    <string name="template_helper_charity_bar">A bar of how far the campaign is: ████░░░░░░ 42%</string>
+    <string name="template_helper_charity_link">The website of the charity: https://www.samplecharity.org</string>
+    <string name="template_helper_charity_donations_count">How many donations the campaign has: 17</string>
+    <string name="template_helper_charity_donations_latest">The newest donation, with the donor and the amount: ViewerOne (€10.00)</string>
+</resources>

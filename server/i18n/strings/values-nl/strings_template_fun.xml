@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespace "fun", lane L2l (catalog section 7.18).
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_fun_8ball">Eén antwoord uit je eigen keuzelijst met de naam 8ball</string>
+    <string name="template_helper_fun_coin">Gooit een munt op: kop of munt</string>
+    <string name="template_helper_fun_coin_emoji">Gooit een munt op en toont hem met een muntemoji</string>
+    <string name="template_helper_fun_dice">Gooit dobbelstenen en geeft het totaal: een gewone dobbelsteen, een steen met je eigen aantal zijden, of meerdere stenen zoals 2d6</string>
+    <string name="template_helper_fun_dice_detail">Gooit dobbelstenen zoals 2d6 en toont elke worp, daarna het totaal</string>
+    <string name="template_helper_fun_dice_emoji">Toont één dobbelsteenvlak, of zoveel als je vraagt (tot 20)</string>
+    <string name="template_helper_fun_rps">Kiest steen, papier of schaar</string>
+    <string name="template_helper_fun_rps_vs">Speelt steen, papier, schaar tegen jouw keuze en zegt wie won</string>
+    <string name="template_helper_fun_card">Trekt een speelkaart uit een stok van 52</string>
+    <string name="template_helper_fun_slots">Draait een gokkast met drie rollen</string>
+    <string name="template_helper_fun_slots_win">Waar als de laatste draai van de gokkast in dit bericht op alle drie de rollen gelijk was, anders onwaar</string>
+    <string name="template_helper_fun_roulette">Haalt de trekker over: klik, of één keer op de zes knal</string>
+    <string name="template_helper_fun_love">Een liefdescijfer van 0 tot 100 procent voor twee namen, de hele dag gelijk, welke naam er ook eerst staat</string>
+    <string name="template_helper_fun_rate">Geeft een cijfer van 1 tot 10, de hele dag gelijk voor hetzelfde ding</string>
+    <string name="template_helper_fun_percent">Een percentage voor iets, de hele dag gelijk voor dezelfde kijker en hetzelfde ding</string>
+    <string name="template_helper_fun_ship">Mengt twee namen tot een shipnaam</string>
+    <string name="template_helper_fun_meter">Een voortgangsbalk met zijn percentage, hetzelfde als meter</string>
+    <string name="template_helper_fun_random_emoji">Een willekeurige feestemoji uit een vaste, veilige set</string>
+    <string name="template_helper_fun_random_animal">Een willekeurig dier met zijn emoji</string>
+    <string name="template_helper_fun_random_food">Een willekeurig gerecht met zijn emoji</string>
+    <string name="template_helper_fun_random_color_name">Een willekeurige kleurnaam</string>
+    <string name="template_helper_fun_countdown">Telt af vanaf jouw getal tot 1 (tot 20)</string>
+    <string name="template_helper_fun_flip">Gooit een tafel om en zet je tekst op zijn kop</string>
+    <string name="template_helper_fun_unflip">Zet de tafel terug</string>
+    <string name="template_helper_fun_shrug">Een schouderophaal</string>
+    <string name="template_helper_fun_lenny">Een lenny-gezicht</string>
+</resources>

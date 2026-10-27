@@ -1,0 +1,56 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+using NomNomzBot.Application.Abstractions.Templating;
+
+namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Logic;
+
+/// <summary>
+/// The characters a template cannot type easily (catalog section 7.5): <c>{nothing}</c>, <c>{newline}</c>,
+/// <c>{space}</c>, <c>{pipe}</c> and <c>{zws}</c> (a zero-width space that stops a mention). Each is a
+/// <c>chars.*</c> row whose alias is the key without a dot, so the short form is what a streamer writes.
+/// </summary>
+public sealed class CharsTemplateHelpers : LogicHelperProvider
+{
+    private const int ZeroWidthSpace = 0x200B;
+    private const string KeyPrefix = "chars.";
+
+    private static readonly Dictionary<string, string> Characters = new(
+        StringComparer.OrdinalIgnoreCase
+    )
+    {
+        ["nothing"] = "",
+        ["newline"] = "\n",
+        ["space"] = " ",
+        ["pipe"] = "|",
+        ["zws"] = char.ConvertFromUtf32(ZeroWidthSpace),
+    };
+
+    public override string Namespace => "chars";
+
+    public override IReadOnlyList<TemplateHelperEntry> Entries { get; } =
+    [.. Characters.Select(c => Row(KeyPrefix + c.Key, c.Value, alias: c.Key))];
+
+    public override ValueTask<string?> RenderAsync(
+        TemplateRenderScope scope,
+        HelperNode node,
+        CancellationToken cancellationToken
+    )
+    {
+        string name = node.Key.StartsWith(KeyPrefix, StringComparison.OrdinalIgnoreCase)
+            ? node.Key[KeyPrefix.Length..]
+            : node.Key;
+        return Result(
+            node.Arguments.Count == 0 && Characters.TryGetValue(name, out string? text)
+                ? text
+                : null
+        );
+    }
+}

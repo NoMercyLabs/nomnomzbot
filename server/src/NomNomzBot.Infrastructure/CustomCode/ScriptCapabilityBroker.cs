@@ -66,6 +66,8 @@ public sealed class ScriptCapabilityBroker(
         new("stats.viewer", "low", FeatureGate, SideEffecting: false),
         // Any metrics of one stream of this channel, by key (the stream-stats family); read-only.
         new("stats.stream", "low", FeatureGate, SideEffecting: false),
+        // Renders a template through the one resolver for THIS channel (nnz.template.render); text out, no write.
+        new("template.render", "low", FeatureGate, SideEffecting: false),
         // Per-viewer TTS voice assignment (the !voice self-service surface) — set validates against the
         // voice catalogue and stays tenant-scoped; side-effecting low, no Twitch surface.
         new("tts.voice.get", "low", FeatureGate, SideEffecting: false),

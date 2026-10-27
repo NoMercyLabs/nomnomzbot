@@ -1,0 +1,69 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespaces "math", "num" and "meter", lane L2b (catalog section 7.4).
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_math">Calculates an expression: numbers, + - * / % ^, brackets and sqrt, abs, floor, ceil, pow, log</string>
+    <string name="template_helper_math_sqrt">Square root of a number</string>
+    <string name="template_helper_math_abs">Absolute value of a number</string>
+    <string name="template_helper_math_floor">Rounds a number down to a whole number</string>
+    <string name="template_helper_math_ceil">Rounds a number up to a whole number</string>
+    <string name="template_helper_math_pow">First number to the power of the second</string>
+    <string name="template_helper_math_log">Logarithm of a number, with your own base or the natural base</string>
+    <string name="template_helper_math_add">Adds two numbers</string>
+    <string name="template_helper_math_sub">Subtracts the second number from the first</string>
+    <string name="template_helper_math_mul">Multiplies two numbers</string>
+    <string name="template_helper_math_div">Divides the first number by the second (no answer when the second is 0)</string>
+    <string name="template_helper_math_div_int">Divides and drops the fraction</string>
+    <string name="template_helper_math_mod">Remainder of the first number divided by the second</string>
+    <string name="template_helper_math_sum">Adds all the numbers</string>
+    <string name="template_helper_math_avg">Average of the numbers</string>
+    <string name="template_helper_math_median">Middle value of the numbers</string>
+
+    <string name="template_helper_num_min">Smallest of the numbers</string>
+    <string name="template_helper_num_max">Largest of the numbers</string>
+    <string name="template_helper_num_clamp">Keeps a number between a minimum and a maximum</string>
+    <string name="template_helper_num_round">Rounds a number to a number of decimals (default 0), halves away from zero</string>
+    <string name="template_helper_num_truncate">Cuts the decimals off a number</string>
+    <string name="template_helper_num_percent">Part of a whole as a percentage, with optional decimals</string>
+    <string name="template_helper_num_percentOf">A percentage of a number</string>
+    <string name="template_helper_num_ratio">Ratio of two whole numbers in lowest terms</string>
+    <string name="template_helper_num_diff">Difference between two numbers, always positive</string>
+    <string name="template_helper_num_format">Writes a number with group marks in the channel language, with optional decimals</string>
+    <string name="template_helper_num_compact">Short form of a big number: 1.2k, 3.4M, 2.1B</string>
+    <string name="template_helper_num_ordinal">Ordinal of a whole number: 3rd (3e in a Dutch channel)</string>
+    <string name="template_helper_num_ordinal_words">Ordinal of a whole number in words: third</string>
+    <string name="template_helper_num_words">A whole number in words, in the channel language: forty-two</string>
+    <string name="template_helper_num_roman">A whole number from 1 to 3999 as a Roman numeral</string>
+    <string name="template_helper_num_fromRoman">A Roman numeral as a number</string>
+    <string name="template_helper_num_currency">An amount of money with a currency code, for example 5 and USD</string>
+    <string name="template_helper_num_currency_compact">A short money amount with a currency code: $1.5k</string>
+    <string name="template_helper_num_bytes">A size in bytes as KB, MB or GB</string>
+    <string name="template_helper_num_duration">Seconds as a short time: 2h 15m</string>
+    <string name="template_helper_num_duration_long">Seconds as a time in words: 2 hours, 15 minutes</string>
+    <string name="template_helper_num_duration_clock">Seconds as a clock: 1:23</string>
+    <string name="template_helper_num_sign">A number with a plus sign when it is positive</string>
+    <string name="template_helper_num_abs">Absolute value of a number</string>
+    <string name="template_helper_num_parity">The word odd or even, in the channel language</string>
+    <string name="template_helper_num_isEven">True when a whole number is even, false when it is odd</string>
+    <string name="template_helper_num_between">True when a number is inside a range, ends included</string>
+    <string name="template_helper_num_parse">Reads a short number such as 1.2k or 3M as a plain number</string>
+    <string name="template_helper_num_digits">How many digits a whole number has</string>
+    <string name="template_helper_num_digitSum">Sum of the digits of a whole number</string>
+    <string name="template_helper_num_inc">A number plus one</string>
+    <string name="template_helper_num_dec">A number minus one</string>
+    <string name="template_helper_num_hex">A whole number in hexadecimal</string>
+    <string name="template_helper_num_binary">A whole number in binary</string>
+    <string name="template_helper_num_convert">Converts length, weight, volume or temperature between units</string>
+    <string name="template_helper_num_bar">A bar from a value and its maximum</string>
+
+    <string name="template_helper_meter">A progress bar from a percentage, with its number; width and marks are optional</string>
+    <string name="template_helper_meter_plain">A progress bar from a percentage, without the number</string>
+    <string name="template_helper_meter_hearts">Five hearts that show a percentage</string>
+    <string name="template_helper_meter_stars">Stars that show a value out of a maximum</string>
+</resources>

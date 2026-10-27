@@ -1112,6 +1112,8 @@ public static class DependencyInjection
         // Singleton services (stateful / crypto / engine primitives) — kept explicit:
         // these are NOT per-request scoped, so the convention scan excludes their interfaces.
         services.AddSingleton<ICooldownManager, CooldownManager>();
+        // Every ITemplateHelperProvider class (one per template namespace) plus the registry over them.
+        services.AddTemplateHelpers(infrastructure);
         services.AddSingleton<ITemplateResolver, TemplateResolver>();
         services.AddScoped<ITemplateSampleRenderer, TemplateSampleRenderer>();
         services.AddSingleton<IWebhookBodyTemplateRenderer, WebhookBodyTemplateRenderer>();

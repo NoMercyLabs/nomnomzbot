@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text (Dutch), namespaces "poll" and "prediction", lane L2h1 (catalog section 7.10).
+-->
+<resources>
+    <string name="template_helper_poll_question">De vraag van de Twitch-poll die nu loopt; leeg als er geen poll loopt</string>
+    <string name="template_helper_poll_isActive">true zolang er een Twitch-poll loopt, false als er geen is</string>
+    <string name="template_helper_poll_timeLeft">Hoe lang de lopende poll nog duurt: 1m 30s</string>
+    <string name="template_helper_poll_endsAt">Het tijdstip waarop de lopende poll eindigt, in de tijdzone van het kanaal: 15:32</string>
+    <string name="template_helper_poll_options">Alle opties van de lopende poll: chips, cookies</string>
+    <string name="template_helper_poll_options_numbered">Alle opties van de lopende poll met hun nummer: 1. chips 2. cookies</string>
+    <string name="template_helper_poll_results_bars">Elke optie met een balk en zijn deel van de stemmen</string>
+    <string name="template_helper_poll_option">De tekst van een optie, op nummer, bijvoorbeeld 2</string>
+    <string name="template_helper_poll_option_votes">De stemmen op een optie, op nummer, bijvoorbeeld 2</string>
+    <string name="template_helper_poll_option_percent">Het deel van de stemmen op een optie, op nummer, bijvoorbeeld 2</string>
+    <string name="template_helper_poll_leading">De optie met de meeste stemmen; leeg voor de eerste stem</string>
+    <string name="template_helper_poll_leading_votes">De stemmen op de optie die voorstaat</string>
+    <string name="template_helper_poll_leading_percent">Het deel van de stemmen op de optie die voorstaat: 60%</string>
+    <string name="template_helper_poll_votes_total">Het totale aantal stemmen in de lopende poll</string>
+    <string name="template_helper_poll_isTie">true als twee of meer opties evenveel stemmen hebben</string>
+    <string name="template_helper_poll_last_winner">De winnende optie van de laatst afgeronde poll</string>
+    <string name="template_helper_poll_last_question">De vraag van de laatst afgeronde poll</string>
+    <string name="template_helper_prediction_question">De vraag van de Twitch-voorspelling die bezig is; leeg als er geen is</string>
+    <string name="template_helper_prediction_isActive">true zolang er op een voorspelling gewed kan worden, anders false</string>
+    <string name="template_helper_prediction_status_now">De status van de voorspelling die bezig is: open of locked</string>
+    <string name="template_helper_prediction_timeLeft">Hoe lang er nog gewed kan worden: 45s; leeg zodra de voorspelling gesloten is</string>
+    <string name="template_helper_prediction_outcomes_list">Alle uitkomsten van de voorspelling: Yes, No</string>
+    <string name="template_helper_prediction_outcome">De tekst van een uitkomst, op nummer, bijvoorbeeld 2</string>
+    <string name="template_helper_prediction_outcome_points">De kanaalpunten op een uitkomst, op nummer</string>
+    <string name="template_helper_prediction_outcome_percent">Het deel van alle punten op een uitkomst, op nummer</string>
+    <string name="template_helper_prediction_outcome_odds">De uitbetalingsverhouding van een uitkomst, op nummer: 1:4</string>
+    <string name="template_helper_prediction_leading">De uitkomst met de meeste punten; leeg voor de eerste weddenschap</string>
+    <string name="template_helper_prediction_leading_points">De kanaalpunten op de uitkomst die voorstaat: 3.000</string>
+    <string name="template_helper_prediction_leading_percent">Het deel van alle punten op de uitkomst die voorstaat: 75%</string>
+    <string name="template_helper_prediction_points_total">Alle kanaalpunten die op de voorspelling zijn ingezet: 4.000</string>
+    <string name="template_helper_prediction_users_total">Hoeveel mensen op de voorspelling hebben gewed</string>
+    <string name="template_helper_prediction_topPredictor">Wie de meeste punten inzette, met dat bedrag: ViewerOne (1.000)</string>
+    <string name="template_helper_prediction_last_winner">De winnende uitkomst van de laatst afgeronde voorspelling</string>
+</resources>

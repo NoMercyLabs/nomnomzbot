@@ -245,6 +245,10 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("  /** Random value helpers. */");
         sb.AppendLine("  random: NnzRandom;");
         sb.AppendLine(
+            "  /** Renders a template, with any of the template helpers, for this channel. */"
+        );
+        sb.AppendLine("  template: NnzTemplate;");
+        sb.AppendLine(
             "  /** The calls to the bot: chat, music, storage, TTS, rewards and more. Each call needs its grant. */"
         );
         sb.AppendLine("  api: NnzApi;");
@@ -328,6 +332,10 @@ internal static class SdkRuntimeSurface
         );
         sb.AppendLine("  readonly data: NnzOverlayData;");
         sb.AppendLine("  readonly spotify: NnzOverlaySpotify;");
+        sb.AppendLine(
+            "  /** Renders a template, with any of the template helpers, for this channel. */"
+        );
+        sb.AppendLine("  readonly template: NnzOverlayTemplate;");
         sb.AppendLine("  /** Who this page is. */");
         sb.AppendLine("  readonly widget: NnzOverlayWidget;");
         sb.AppendLine("}");
@@ -374,6 +382,18 @@ internal static class SdkRuntimeSurface
         );
         sb.AppendLine(
             "  playbackToken(): Promise<{ token: string } | { error: 'blocked' | 'error' }>;"
+        );
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("interface NnzOverlayTemplate {");
+        sb.AppendLine(
+            "  /** Renders the template for this channel. Write helpers as {name:argument}; the names are in TemplateHelperName."
+        );
+        sb.AppendLine(
+            "   *  values fill the plain names of the template. Rejects when the template is empty or over 4096 characters. */"
+        );
+        sb.AppendLine(
+            "  render(template: string, values?: Record<string, string | number | boolean>): Promise<string>;"
         );
         sb.AppendLine("}");
         sb.AppendLine();
@@ -674,6 +694,18 @@ internal static class SdkRuntimeSurface
             "  /** Turns a value into JSON text. Returns 'null' when the value cannot be serialized. */"
         );
         sb.AppendLine("  stringify(value: unknown): string;");
+        sb.AppendLine("}");
+        sb.AppendLine();
+        sb.AppendLine("interface NnzTemplate {");
+        sb.AppendLine(
+            "  /** Renders the template for this channel. Write helpers as {name:argument}; the names are in TemplateHelperName."
+        );
+        sb.AppendLine(
+            "   *  values fill the plain names of the template. A template that is empty or over 4096 characters gives '' and sets lastError. */"
+        );
+        sb.AppendLine(
+            "  render(template: string, values?: Record<string, string | number | boolean>): string;"
+        );
         sb.AppendLine("}");
         sb.AppendLine();
         sb.AppendLine("interface NnzRandom {");

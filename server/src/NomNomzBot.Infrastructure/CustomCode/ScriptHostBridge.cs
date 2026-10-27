@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
@@ -80,7 +81,8 @@ public sealed partial class ScriptHostBridge(
     ITwitchUsersApi twitchUsers,
     IMentionTargetResolver mentionTargets,
     IStreamStatsService streamStats,
-    long? maxEgressBytes = null
+    long? maxEgressBytes = null,
+    ITemplateResolver? templates = null
 ) : IScriptHostBridge, IScriptWriteValidator
 {
     private const int MaxResponseBytes = 256 * 1024;
@@ -219,6 +221,7 @@ public sealed partial class ScriptHostBridge(
             "reward.update" => UpdateReward,
             "stats.viewer" => GetViewerStats,
             "stats.stream" => GetStreamStats,
+            "template.render" => RenderTemplate,
             "tts.voice.get" => GetTtsVoice,
             "tts.voice.list" => ListTtsVoices,
             "tts.voice.set" => SetTtsVoice,
@@ -940,6 +943,30 @@ public sealed partial class ScriptHostBridge(
     }
 
     // args: [metrics csv, streamId?]. The same answer as the overlay/dashboard stream-stats read.
+    // template.render: the one resolver renders the template for THIS channel. It only reads, so it adds no
+    // write; a refused input leaves the error in last.error and gives the script an empty text.
+    private string? RenderTemplate(
+        string capabilityKey,
+        IReadOnlyList<string> args,
+        CancellationToken ct
+    )
+    {
+        if (templates is null)
+            return Fail(ScriptHostErrorCodes.Refused, "Templates are not available here.", "");
+
+        Result<Dictionary<string, string>> seeds = TemplateRenderInput.Parse(
+            args.Count > 0 ? args[0] : null,
+            args.Count > 1 ? args[1] : null
+        );
+        if (seeds.IsFailure)
+            return Fail(ScriptHostErrorCodes.InvalidArgument, seeds.ErrorMessage!, "");
+
+        return templates
+            .ResolveAsync(args[0], seeds.Value, broadcasterId, ct)
+            .GetAwaiter()
+            .GetResult();
+    }
+
     private string? GetStreamStats(
         string capabilityKey,
         IReadOnlyList<string> args,

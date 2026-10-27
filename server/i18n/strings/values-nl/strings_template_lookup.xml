@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text (Dutch), namespace "lookup", lane L2m (catalog section 7.19).
+-->
+<resources>
+    <string name="template_helper_lookup_twitch">Een feit over elke Twitch-gebruiker, geschreven als {lookup.twitch:login.veld}. Velden: game, title, isLive, viewers, display, avatar, createdAt, uptime, lastGame, url. De velden followers en followage:kanaal werken alleen voor je eigen kanaal. Voorbeeld: Minecraft</string>
+    <string name="template_helper_lookup_game">De link naar de boxart van een Twitch-categorie, geschreven als {lookup.game:naam.boxart}. Voorbeeld: https://static-cdn.jtvnw.net/ttv-boxart/27471-285x380.jpg</string>
+    <string name="template_helper_lookup_game_top">De categorie met de meeste kijkers op Twitch op dit moment: Just Chatting</string>
+    <string name="template_helper_lookup_weather">Het weer in een stad, geschreven als {lookup.weather:stad.veld}. Velden: temp, temp.f, feels, condition, emoji, wind, humidity, tomorrow. Zonder veld staan de stad, de temperatuur en het weertype erin. Uit als de bot in saas-modus draait. Voorbeeld: Amsterdam: 12 °C, lichte regen</string>
+    <string name="template_helper_lookup_time">De lokale tijd in een stad, geschreven als {lookup.time:stad} met de optionele velden date en offset. Uit als de bot in saas-modus draait. Voorbeeld: 23:30</string>
+    <string name="template_helper_lookup_currency">Een bedrag in een andere valuta, geschreven als {lookup.currency:bedrag|van|naar}. Voorbeeld: 10 EUR = 11,62 USD</string>
+    <string name="template_helper_lookup_currency_rate">De wisselkoers tussen twee valuta, geschreven als {lookup.currency.rate:van|naar}. Voorbeeld: 1,162</string>
+    <string name="template_helper_lookup_currency_date">De dag van de laatste wisselkoersen, met een optioneel paar van|naar (standaard EUR|USD): 2026-10-26</string>
+    <string name="template_helper_lookup_translate">Een vertaling, geschreven als {lookup.translate:taal|tekst} (vanuit het Engels) of {lookup.translate:van|naar|tekst}. Voorbeeld: goedemorgen</string>
+    <string name="template_helper_lookup_translate_chat">De tekst van het commando (of het chatbericht) vertaald naar een taal, geschreven als {lookup.translate.chat:taal}. De tekst geldt als geschreven in de taal van het kanaal. Voorbeeld: good morning</string>
+    <string name="template_helper_lookup_twitch_failed">(Twitch-opzoeking niet beschikbaar)</string>
+    <string name="template_helper_lookup_weather_failed">(weer niet beschikbaar)</string>
+    <string name="template_helper_lookup_time_failed">(lokale tijd niet beschikbaar)</string>
+    <string name="template_helper_lookup_currency_failed">(wisselkoers niet beschikbaar)</string>
+    <string name="template_helper_lookup_translate_failed">(vertaling niet beschikbaar)</string>
+</resources>

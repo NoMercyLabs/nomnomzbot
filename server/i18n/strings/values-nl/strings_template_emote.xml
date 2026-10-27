@@ -1,0 +1,40 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text (Dutch), namespace "emote", lane L2j1 (catalog section 7.13).
+-->
+<resources>
+    <string name="template_helper_emote">Een emote op naam als het kanaal hem heeft, anders de reservetekst (of niets): catJAM</string>
+    <string name="template_helper_emote_image">De afbeeldingslink van een emote van het kanaal: https://cdn.7tv.app/emote/catjam01/2x.webp</string>
+    <string name="template_helper_emote_provider">Het netwerk waar een emote vandaan komt: 7TV, BTTV, FFZ of Twitch</string>
+    <string name="template_helper_emote_repeat">Een emote een aantal keer herhaald, van 1 tot 50: catJAM catJAM catJAM</string>
+    <string name="template_helper_emote_wall">Een muur van een emote met rijen en kolommen, rijen gescheiden door een schuine streep: catJAM catJAM / catJAM catJAM</string>
+    <string name="template_helper_emote_cheermote">De cheermote voor een aantal Bits, de grootste trap die past: Cheer100</string>
+    <string name="template_helper_emote_random">Een willekeurige emote uit de Twitch-emotes van het kanaal: sampleHype</string>
+    <string name="template_helper_emote_random_sub">Een willekeurige abonnee-emote van het kanaal: sampleLove</string>
+    <string name="template_helper_emote_random_follower">Een willekeurige volger-emote van het kanaal: sampleWave</string>
+    <string name="template_helper_emote_random_bits">Een willekeurige Bits-emote van het kanaal: sampleBits</string>
+    <string name="template_helper_emote_random_global">Een willekeurige globale Twitch-emote: Kappa</string>
+    <string name="template_helper_emote_random_any">Een willekeurige emote van elk netwerk dat het kanaal gebruikt: catJAM</string>
+    <string name="template_helper_emote_random_7tv">Een willekeurige emote uit de 7TV-set van het kanaal: catJAM</string>
+    <string name="template_helper_emote_random_bttv">Een willekeurige emote uit de BTTV-set van het kanaal: catJAM</string>
+    <string name="template_helper_emote_random_ffz">Een willekeurige emote uit de FFZ-set van het kanaal: monkaS</string>
+    <string name="template_helper_emote_list_channel">Alle Twitch-emotes van het kanaal, met een spatie ertussen: sampleHype sampleLove sampleWave</string>
+    <string name="template_helper_emote_list_7tv">Alle emotes uit de 7TV-set van het kanaal, met een spatie ertussen: catJAM KEKW</string>
+    <string name="template_helper_emote_list_bttv">Alle emotes uit de BTTV-set van het kanaal, met een spatie ertussen: catJAM</string>
+    <string name="template_helper_emote_list_ffz">Alle emotes uit de FFZ-set van het kanaal, met een spatie ertussen: monkaS</string>
+    <string name="template_helper_emote_count_channel">Hoeveel Twitch-emotes het kanaal heeft: 12</string>
+    <string name="template_helper_emote_count_7tv">Hoeveel emotes de 7TV-set van het kanaal heeft: 48</string>
+    <string name="template_helper_emote_count_bttv">Hoeveel emotes de BTTV-set van het kanaal heeft: 20</string>
+    <string name="template_helper_emote_count_ffz">Hoeveel emotes de FFZ-set van het kanaal heeft: 9</string>
+    <string name="template_helper_emote_channel_top">De emote die de chat het meest gebruikte, over de laatste 5.000 chatregels: KEKW</string>
+    <string name="template_helper_emote_channel_top_stream">De emote die de chat deze stream het meest gebruikte, over de laatste 5.000 chatregels: catJAM</string>
+    <string name="template_helper_emote_user_top">De emote die de kijker het meest gebruikte, over de laatste 5.000 chatregels: KEKW</string>
+    <string name="template_helper_emote_user_top_count">Hoe vaak de kijker zijn meest gebruikte emote typte: 212</string>
+    <string name="template_helper_emote_message_count">Hoeveel emotes het bericht bevat, herhalingen meegeteld: 3</string>
+    <string name="template_helper_emote_message_first">De eerste emote in het bericht: KEKW</string>
+    <string name="template_helper_emote_user_favorite">De nieuwste favoriete emote van de kanaaleigenaar: catJAM</string>
+</resources>

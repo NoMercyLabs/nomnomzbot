@@ -106,6 +106,8 @@ public sealed class SchemaDtoStringShapeTests
             nameof(TemplateHelperEntry.Prefix),
             // Sample is an example data value shown beside the helper, never translated prose.
             nameof(TemplateHelperEntry.Sample),
+            // Source is the provider's fetch-group id (one fetch per group per render), never shown to a user.
+            nameof(TemplateHelperEntry.Source),
         },
     };
 

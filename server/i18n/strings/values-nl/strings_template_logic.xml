@@ -1,0 +1,49 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Dutch help text for the logic template helpers, lane L2c1 (catalog section 7.5).
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_if">Toont de eerste tekst als de waarde is ingevuld (niet leeg, false, 0 of no), anders de tweede: {if:waarde|dan|anders}</string>
+    <string name="template_helper_if_not">Toont de eerste tekst als de waarde niet is ingevuld, anders de tweede: {if.not:waarde|dan|anders}</string>
+    <string name="template_helper_if_all">Toont de eerste tekst als beide waarden zijn ingevuld, anders de tweede: {if.all:a|b|dan|anders}</string>
+    <string name="template_helper_if_any">Toont de eerste tekst als minstens één waarde is ingevuld, anders de tweede: {if.any:a|b|dan|anders}</string>
+    <string name="template_helper_if_empty">Toont de eerste tekst als de waarde leeg is, anders de tweede: {if.empty:waarde|dan|anders}</string>
+    <string name="template_helper_if_path">Toont de eerste tekst als een helper zoals stream.live is ingevuld, anders de tweede: {if.stream.live:dan|anders}</string>
+    <string name="template_helper_if_path_equals">Test of een helper precies gelijk is aan een tekst: {if.user.login.equals:tekst:dan|anders}</string>
+    <string name="template_helper_if_path_iequals">Test of een helper gelijk is aan een tekst, hoofdletters tellen niet mee: {if.user.login.iequals:tekst:dan|anders}</string>
+    <string name="template_helper_if_path_contains">Test of een helper een tekst bevat: {if.args.all.contains:tekst:dan|anders}</string>
+    <string name="template_helper_if_path_startswith">Test of een helper met een tekst begint: {if.args.1.startswith:tekst:dan|anders}</string>
+    <string name="template_helper_if_path_endswith">Test of een helper op een tekst eindigt: {if.args.all.endswith:tekst:dan|anders}</string>
+    <string name="template_helper_if_path_matches">Test of een helper past bij een reguliere expressie: {if.args.2.matches:patroon:dan|anders}</string>
+    <string name="template_helper_if_path_gt">Test of een helper een getal is dat groter is dan een getal: {if.count.deaths.gt:10:dan|anders}</string>
+    <string name="template_helper_if_path_lt">Test of een helper een getal is dat kleiner is dan een getal: {if.stream.viewers.lt:10:dan|anders}</string>
+    <string name="template_helper_if_path_gte">Test of een helper een getal is dat groter is dan of gelijk aan een getal: {if.user.months.gte:6:dan|anders}</string>
+    <string name="template_helper_if_path_lte">Test of een helper een getal is dat kleiner is dan of gelijk aan een getal: {if.count.wins.lte:3:dan|anders}</string>
+    <string name="template_helper_default">De waarde, of de terugvaltekst als de waarde leeg is: {default:waarde|terugval}</string>
+    <string name="template_helper_coalesce">De eerste waarde die niet leeg is: {coalesce:a|b|c}</string>
+    <string name="template_helper_switch">Kiest de tekst van het eerste geval dat gelijk is aan de waarde, anders de laatste tekst: {switch:waarde|geval=tekst|geval=tekst|anders}</string>
+    <string name="template_helper_switch_range">Kiest de tekst van de eerste grens die minstens het getal is, anders de laatste tekst: {switch.range:getal|grens=tekst|grens=tekst|anders}</string>
+    <string name="template_helper_chance">Toont de eerste tekst met de opgegeven kans in procenten, anders de tweede: {chance:10|dan|anders}</string>
+    <string name="template_helper_pick">Kiest willekeurig een van de teksten, nooit twee keer dezelfde achter elkaar: {pick:a|b|c}</string>
+    <string name="template_helper_pick_weighted">Kiest willekeurig een tekst, een groter gewicht heeft meer kans: {pick.weighted:1=zeldzaam|9=gewoon}</string>
+    <string name="template_helper_pick_n">Kiest willekeurig een aantal verschillende teksten: {pick.n:2|a|b|c}</string>
+    <string name="template_helper_pick_shuffle">Toont alle teksten in willekeurige volgorde: {pick.shuffle:a|b|c}</string>
+    <string name="template_helper_pick_inline">Kiest één item uit een lijst met puntkomma's, zodat een item een pipe mag bevatten: {pick.inline:a;b;c}</string>
+    <string name="template_helper_random_number_draw">Een willekeurig geheel getal: {random.number:6} is 1 tot 6, {random.number:10|50|10} is 10, 20 tot en met 50</string>
+    <string name="template_helper_random_decimal">Een willekeurig getal met decimalen: {random.decimal:min|max|plaatsen}</string>
+    <string name="template_helper_random_percent">Een willekeurig percentage van 0% tot 100%</string>
+    <string name="template_helper_random_bool">Willekeurig true of false, voor gebruik in {if:...}</string>
+    <string name="template_helper_random_letter">Een willekeurige letter van A tot Z</string>
+    <string name="template_helper_random_color">Een willekeurige kleur als hexcode, zoals #3FA7D6</string>
+    <string name="template_helper_literal">De tekst zoals geschreven, zonder dat iets erin wordt ingevuld: {literal:{user}} toont {user}</string>
+    <string name="template_helper_chars_nothing">Helemaal niets, voor een lege tak die duidelijk leest</string>
+    <string name="template_helper_chars_newline">Een regelafbreking (voor Discord en webhooks; chat toont een spatie)</string>
+    <string name="template_helper_chars_space">Een spatie</string>
+    <string name="template_helper_chars_pipe">Het pipe-teken, dat anders argumenten zou splitsen</string>
+    <string name="template_helper_chars_zws">Een zero-width spatie, die voorkomt dat een vermelding zoals @everyone werkt</string>
+</resources>

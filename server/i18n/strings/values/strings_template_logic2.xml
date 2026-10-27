@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text for the composing helpers, lane L2c2 (catalog section 7.5):
+  random chatter, quotes, set and var, include.
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_random_chatter">A random viewer who has chatted this stream: {random.chatter}</string>
+    <string name="template_helper_random_chatter_notMe">A random chatter this stream, never the viewer who triggered it: {random.chatter.notMe}</string>
+    <string name="template_helper_random_chatter_mention">A random chatter this stream with an @ in front, so they get a mention: {random.chatter.mention}</string>
+    <string name="template_helper_random_quote">A random quote of the channel with its number, author and date: {random.quote}</string>
+    <string name="template_helper_quote">One quote of the channel by its number, for example #12 "text": {quote:12}</string>
+    <string name="template_helper_quote_text">The words of a quote by its number: {quote.text:12}</string>
+    <string name="template_helper_quote_author">Who said a quote, by its number: {quote.author:12}</string>
+    <string name="template_helper_quote_game">The game that was on when a quote was said, by its number: {quote.game:12}</string>
+    <string name="template_helper_quote_date">The day a quote was said, in the channel's time zone: {quote.date:12}</string>
+    <string name="template_helper_quote_count">How many quotes the channel has: {quote.count}</string>
+    <string name="template_helper_quote_latest">The newest quote of the channel with its number: {quote.latest}</string>
+    <string name="template_helper_set">Keeps a value under a name for the rest of this reply and prints nothing. Read it with {name} or {var.name}: {set:name=value}</string>
+    <string name="template_helper_var_name">Reads a value that {set:name=value} kept earlier in this reply: {var.name}</string>
+    <string name="template_helper_include_command">Prints the reply of another command of the channel, filled in for the same viewer: {include.command:name}</string>
+    <string name="template_helper_command_name">Short form of include.command. Prints the reply of the command with this name: {command.name}</string>
+    <string name="template_helper_include_list">Prints one entry of a pick list by its position, counted from 1: {include.list:name|position}</string>
+</resources>

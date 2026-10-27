@@ -1,0 +1,66 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespace "text", lane L2a2 (catalog section 7.3, text.first to text.escape.chat).
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_text_first">The first characters of the text</string>
+    <string name="template_helper_text_last">The last characters of the text</string>
+    <string name="template_helper_text_substring">A part of the text from a position, with a length</string>
+    <string name="template_helper_text_length_fit">The text cut to a length, with no ending mark</string>
+    <string name="template_helper_text_initials">The first letter of every word, in capitals</string>
+    <string name="template_helper_text_lines_first">The first line of the text</string>
+    <string name="template_helper_text_lines_join">The lines of the text joined with a separator</string>
+    <string name="template_helper_text_slug">The text as a web-safe slug, like hello-big-world</string>
+    <string name="template_helper_text_snake">The text in snake_case</string>
+    <string name="template_helper_text_kebab">The text in kebab-case</string>
+    <string name="template_helper_text_camel">The text in camelCase</string>
+    <string name="template_helper_text_pascal">The text in PascalCase</string>
+    <string name="template_helper_text_hashtag">The text as a #Hashtag</string>
+    <string name="template_helper_text_url_encode">The text escaped for use in a link</string>
+    <string name="template_helper_text_url_decode">A link-escaped text turned back to plain text</string>
+    <string name="template_helper_text_query_encode">The text escaped for a link query, with + for spaces</string>
+    <string name="template_helper_text_path_encode">The text escaped for one part of a link path</string>
+    <string name="template_helper_text_base64_encode">The text encoded as base64</string>
+    <string name="template_helper_text_base64_decode">A base64 text turned back to plain text</string>
+    <string name="template_helper_text_html_strip">The text without HTML tags</string>
+    <string name="template_helper_text_links_strip">The text without links</string>
+    <string name="template_helper_text_mentions_strip">The text without @mentions</string>
+    <string name="template_helper_text_digits">Only the digits of the text</string>
+    <string name="template_helper_text_letters">Only the letters of the text</string>
+    <string name="template_helper_text_vowels_remove">The text without vowels</string>
+    <string name="template_helper_text_censor">The text with a word replaced by stars</string>
+    <string name="template_helper_text_mask">The text with all but the last characters replaced by stars</string>
+    <string name="template_helper_text_smallcaps">The text in small capitals</string>
+    <string name="template_helper_text_upsidedown">The text turned upside down</string>
+    <string name="template_helper_text_fullwidth">The text in wide full-width letters</string>
+    <string name="template_helper_text_bold">The text in bold letters</string>
+    <string name="template_helper_text_italic">The text in italic letters</string>
+    <string name="template_helper_text_monospace">The text in monospace letters</string>
+    <string name="template_helper_text_script">The text in script letters</string>
+    <string name="template_helper_text_bubble">The text in circled letters</string>
+    <string name="template_helper_text_squared">The text in squared capital letters</string>
+    <string name="template_helper_text_strike">The text with a line through it</string>
+    <string name="template_helper_text_underline">The text with an underline</string>
+    <string name="template_helper_text_superscript">The text in small raised letters</string>
+    <string name="template_helper_text_plain">Fancy letters turned back to plain letters</string>
+    <string name="template_helper_text_leet">The text in leet speak</string>
+    <string name="template_helper_text_rot13">The text with every letter moved 13 places (ROT13)</string>
+    <string name="template_helper_text_uwu">The text in uwu speak</string>
+    <string name="template_helper_text_clap">The words of the text with a clap between them</string>
+    <string name="template_helper_text_stutter">The text with a stuttered first letter</string>
+    <string name="template_helper_text_yell">The text in capitals with an exclamation mark</string>
+    <string name="template_helper_text_plural">The singular word for one, the plural word for any other number</string>
+    <string name="template_helper_text_plural_count">The number with its singular or plural word</string>
+    <string name="template_helper_text_plural_auto">A word in its plural form, unless the number is one</string>
+    <string name="template_helper_text_singular">A word in its singular form</string>
+    <string name="template_helper_text_article">A word with a or an in front (English only)</string>
+    <string name="template_helper_text_possessive">A name in its possessive form, like James' or Anna's</string>
+    <string name="template_helper_text_join_and">A list of items joined with commas and the word and</string>
+    <string name="template_helper_text_join_or">A list of items joined with commas and the word or</string>
+    <string name="template_helper_text_escape_chat">The text made safe so chat does not run it as a command</string>
+</resources>

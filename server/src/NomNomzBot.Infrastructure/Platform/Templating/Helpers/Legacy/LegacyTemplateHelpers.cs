@@ -1,0 +1,1668 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+using System.Globalization;
+using System.Text.RegularExpressions;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Caching;
+using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Abstractions.Transport;
+using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Commands.Builtin;
+using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Common.Picking;
+using NomNomzBot.Application.Contracts.Analytics;
+using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.PickLists.Services;
+using NomNomzBot.Application.ViewerData.Services;
+using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Chat.Entities;
+using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Domain.Platform.Entities;
+using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.CustomEvents;
+using NomNomzBot.Infrastructure.Platform.Templating.Dates;
+using NomNomzBot.Infrastructure.Platform.Templating.Parsing;
+
+namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Legacy;
+
+/// <summary>
+/// The as-built helpers, moved unchanged out of <see cref="TemplateResolver"/> (catalog section 6, lane L1):
+/// the variable-bag building code with its 90+ built-in variables, the list-pick and custom-data pre-passes,
+/// verb agreement, and the date and transform expressions. Lane L1b splits it into one
+/// <see cref="ITemplateHelperProvider"/> per namespace.
+///
+/// Variable groups:
+///   {user.*}         — triggering user info
+///   {target.*}       — first argument (@ stripped) resolved to a user
+///   {args.*}         — command arguments
+///   {channel.*}      — channel info
+///   {stream.*}       — live stream info
+///   {time.*}         — current time
+///   {random.*}       — random helpers
+///   {botname}        — bot display name
+///   {count.*}        — per-channel named counters (G.4; unset renders 0)
+///   {viewer.data.*}  — per-viewer key/value store for the triggering viewer (G.14; unset renders empty)
+///   {target.data.*}  — per-viewer key/value store for the @mention target
+///   {viewer.*}       — M.1 stat helpers for the triggering viewer (messages, watchtime, firstseen,
+///                      redemptions, songrequests) — {target.*} mirrors for the @mention
+///
+/// Seed variables from the caller always take precedence over auto-resolved values.
+/// DB lookups only happen when the template actually contains those variables (lazy resolution).
+/// </summary>
+public sealed partial class LegacyTemplateHelpers
+{
+    private readonly IServiceScopeFactory _scopeFactory;
+    private readonly IChannelRegistry _registry;
+    private readonly ILogger _logger;
+    private readonly TimeProvider _timeProvider;
+
+    public LegacyTemplateHelpers(
+        IServiceScopeFactory scopeFactory,
+        IChannelRegistry registry,
+        ILogger logger,
+        TimeProvider timeProvider
+    )
+    {
+        _scopeFactory = scopeFactory;
+        _registry = registry;
+        _logger = logger;
+        _timeProvider = timeProvider;
+    }
+
+    /// <summary>
+    /// The pre-passes that run before the main render, as on <c>master</c> before the parser: every
+    /// <c>{list.pick.&lt;name&gt;}</c> first (a picked entry's own placeholders render with everything else),
+    /// then every <c>{custom.&lt;name&gt;.&lt;field&gt;}</c>. Both need a channel.
+    /// </summary>
+    public async Task<string> ExpandPrePassesAsync(
+        string template,
+        Guid? broadcasterId,
+        CancellationToken cancellationToken
+    )
+    {
+        if (broadcasterId is null)
+            return template;
+
+        if (template.Contains("{list.pick.", StringComparison.OrdinalIgnoreCase))
+            template = await ExpandListPicksAsync(template, broadcasterId.Value, cancellationToken);
+
+        if (template.Contains("{custom.", StringComparison.OrdinalIgnoreCase))
+            template = await ExpandCustomDataAsync(
+                template,
+                broadcasterId.Value,
+                cancellationToken
+            );
+
+        return template;
+    }
+
+    /// <summary>
+    /// The merged variable bag: the seeds first (they always win), then every built-in group a key in
+    /// <paramref name="needed"/> asks for. A chat render then names viewers by login when the display name
+    /// would not link (non-Latin names).
+    /// </summary>
+    public async Task<Dictionary<string, string>> BuildVariablesAsync(
+        IDictionary<string, string> seedVariables,
+        HashSet<string> needed,
+        Guid? broadcasterId,
+        CancellationToken cancellationToken
+    )
+    {
+        Dictionary<string, string> vars = new(seedVariables, StringComparer.OrdinalIgnoreCase);
+        await ResolveBuiltInsAsync(vars, needed, broadcasterId, cancellationToken);
+
+        if (ChatMentionName.IsChatRender(vars))
+            ChatMentionName.ApplyToVariables(vars);
+
+        return vars;
+    }
+
+    /// <summary>
+    /// One key from the bag, or a verb-agreement form; null when neither knows it. A pronoun-grammar key whose
+    /// own first letter is uppercase (e.g. {Subject}, {User.Subject}) capitalizes the value.
+    /// </summary>
+    public static string? Lookup(string key, Dictionary<string, string> vars)
+    {
+        if (!vars.TryGetValue(key, out string? val))
+            return ResolveVerbAgreement(key, vars);
+        return IsPronounGrammarKey(key) && key.Length > 0 && char.IsUpper(key[0])
+            ? CapitalizeFirst(val)
+            : val;
+    }
+
+    /// <summary>The clock, zone and language a <c>{date:…}</c> expression renders with (UTC without a channel).</summary>
+    public DateExpressionContext DateContextFor(Guid? broadcasterId)
+    {
+        ChannelContext? dateChannel = broadcasterId is not null
+            ? _registry.Get(broadcasterId.Value)
+            : null;
+        return DateExpressionContext.For(
+            _timeProvider.GetUtcNow(),
+            dateChannel?.Timezone,
+            dateChannel?.Language
+        );
+    }
+
+    /// <summary>
+    /// A <c>{date:…}</c> or <c>{transform.&lt;name&gt;:&lt;text&gt;}</c> token (its content, braces off), rendered;
+    /// null for any other content. A nested placeholder inside is already plain text when this runs.
+    /// </summary>
+    public string? RenderExpression(string content, DateExpressionContext dateContext)
+    {
+        if (content.StartsWith("date:", StringComparison.OrdinalIgnoreCase))
+        {
+            string token = "{" + content + "}";
+            string expanded = DateExpressionRenderer.ExpandAll(token, dateContext, _logger);
+            return expanded == token ? null : expanded;
+        }
+
+        Match transform = TransformPattern().Match(content);
+        return transform.Success ? ApplyTransform(transform) : null;
+    }
+
+    /// <summary>
+    /// Resolves the value-carrying verb-agreement form <c>{verb:sings|sing}</c> (also
+    /// <c>{user.verb:…}</c>/<c>{target.verb:…}</c>): picks the singular form when the relevant side's
+    /// grammatical number is singular (presentTense "is"), else the plural form — so
+    /// "{Subject} {verb:plays|play} games" agrees for he/she AND they. Returns null for non-verb keys.
+    /// </summary>
+    private static string? ResolveVerbAgreement(string key, Dictionary<string, string> vars)
+    {
+        string side;
+        string payload;
+        if (key.StartsWith("verb:", StringComparison.OrdinalIgnoreCase))
+        {
+            side = string.Empty;
+            payload = key["verb:".Length..];
+        }
+        else if (key.StartsWith("user.verb:", StringComparison.OrdinalIgnoreCase))
+        {
+            side = "user.";
+            payload = key["user.verb:".Length..];
+        }
+        else if (key.StartsWith("target.verb:", StringComparison.OrdinalIgnoreCase))
+        {
+            side = "target.";
+            payload = key["target.verb:".Length..];
+        }
+        else
+        {
+            return null;
+        }
+
+        string[] forms = payload.Split('|', 2);
+        if (forms.Length != 2)
+            return null; // malformed — leave the raw token so the author sees the mistake
+
+        bool singular = string.Equals(
+            vars.GetValueOrDefault($"{side}presenttense"),
+            "is",
+            StringComparison.OrdinalIgnoreCase
+        );
+        return singular ? forms[0] : forms[1];
+    }
+
+    /// <summary>
+    /// Replaces every <c>{list.pick.&lt;name&gt;}</c> placeholder with a uniformly random entry from that broadcaster's
+    /// named pick-list (via <see cref="IPickListService.PickRandomAsync"/>). Runs before the main pass so the
+    /// picked entry's own placeholders resolve with everything else; a missing/empty list yields an empty string.
+    /// Depth-bounded so an entry that references another list (or itself) can never loop forever.
+    /// </summary>
+    private async Task<string> ExpandListPicksAsync(
+        string template,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        const int maxDepth = 5;
+        string current = template;
+
+        for (int depth = 0; depth < maxDepth; depth++)
+        {
+            IReadOnlyList<TemplateNode> nodes = TemplateParser.Parse(current);
+            if (!TemplateTree.StaticPlaceholders(nodes).Any(IsListPick))
+                return current;
+
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IPickListService pickLists =
+                scope.ServiceProvider.GetRequiredService<IPickListService>();
+
+            current = await TemplateTree.RewriteAsync(
+                nodes,
+                async node =>
+                {
+                    if (!IsListPick(node))
+                        return null;
+                    string name = node.StaticContent["list.pick.".Length..].Trim();
+                    Result<string> pick = await pickLists.PickRandomAsync(broadcasterId, name, ct);
+                    // A missing/empty list (or any failure) resolves to an empty string — never throws.
+                    return pick.IsSuccess ? pick.Value : string.Empty;
+                }
+            );
+        }
+
+        return current;
+    }
+
+    private static bool IsListPick(PlaceholderNode node) =>
+        node.StaticContent.Length > "list.pick.".Length
+        && node.StaticContent.StartsWith("list.pick.", StringComparison.OrdinalIgnoreCase);
+
+    /// <summary>
+    /// Replaces every <c>{custom.&lt;name&gt;.&lt;field&gt;}</c> placeholder with the latest ingested value of that field
+    /// from the broadcaster's named custom-data source — read from the D4 latest-value cache
+    /// (<c>customdata:{broadcasterId}:{name}</c>) written by <see cref="CustomDataIngestService"/>. A missing
+    /// source, a missing field, or any read failure resolves to an empty string; never throws, never leaves the
+    /// raw token. Runs before the main pass so surrounding text and other placeholders resolve normally.
+    /// </summary>
+    private async Task<string> ExpandCustomDataAsync(
+        string template,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        IReadOnlyList<TemplateNode> nodes = TemplateParser.Parse(template);
+        if (
+            !TemplateTree
+                .StaticPlaceholders(nodes)
+                .Any(node => CustomDataPattern().IsMatch(node.StaticContent))
+        )
+            return template;
+
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        ICacheService cache = scope.ServiceProvider.GetRequiredService<ICacheService>();
+
+        // One cache read per distinct source referenced, reused across its fields within this template.
+        Dictionary<string, CustomDataLatestValue?> bySource = new(StringComparer.OrdinalIgnoreCase);
+
+        return await TemplateTree.RewriteAsync(
+            nodes,
+            async node =>
+            {
+                Match match = CustomDataPattern().Match(node.StaticContent);
+                if (!match.Success)
+                    return null;
+                string name = match.Groups[1].Value;
+                string field = match.Groups[2].Value;
+
+                if (!bySource.TryGetValue(name, out CustomDataLatestValue? latest))
+                {
+                    latest = await ReadLatestCustomDataAsync(cache, broadcasterId, name, ct);
+                    bySource[name] = latest;
+                }
+
+                // Missing source OR missing field → empty string (mirrors the pick-list missing-list path).
+                return latest is not null && latest.Fields.TryGetValue(field, out string? value)
+                    ? value
+                    : string.Empty;
+            }
+        );
+    }
+
+    /// <summary>
+    /// Reads the D4 latest-value cache for one source, matching the exact key
+    /// <see cref="CustomDataIngestService"/> writes. Any failure yields null, which expands to an empty string.
+    /// </summary>
+    private async Task<CustomDataLatestValue?> ReadLatestCustomDataAsync(
+        ICacheService cache,
+        Guid broadcasterId,
+        string sourceName,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            string cacheKey = $"customdata:{broadcasterId}:{sourceName}";
+            return await cache.GetAsync<CustomDataLatestValue>(cacheKey, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Failed to read latest custom-data value for source {Source} on tenant {BroadcasterId}",
+                sourceName,
+                broadcasterId
+            );
+            return null;
+        }
+    }
+
+    /// <summary>
+    /// Applies one <c>transform.&lt;name&gt;[.&lt;n&gt;]:&lt;text&gt;</c> via <see cref="TextTransformCatalog.Apply"/>.
+    /// The parser renders inside out, so a nested/chained transform
+    /// (e.g. <c>{transform.upper:{transform.reverse:hi}}</c>) reaches here with its inner token already plain
+    /// text. An unknown transform name (or a bad argument, e.g. a non-numeric truncate length) is a recorded,
+    /// visible failure — logged and rendered as an unmistakable <c>[transform error: …]</c> marker — never a
+    /// silent pass-through of the input.
+    /// </summary>
+    private string ApplyTransform(Match match)
+    {
+        string name = match.Groups[1].Value;
+        string? argument = match.Groups[2].Success ? match.Groups[2].Value : null;
+        string content = match.Groups[3].Value;
+
+        Result<string> result = TextTransformCatalog.Apply(name, content, argument);
+        if (result.IsSuccess)
+            return result.Value;
+
+        _logger.LogError(
+            "Template transform '{Transform}' failed: {Error}",
+            name,
+            result.ErrorMessage
+        );
+        return $"[transform error: {result.ErrorMessage}]";
+    }
+
+    // ─── Built-in resolution ──────────────────────────────────────────────────
+
+    private async Task ResolveBuiltInsAsync(
+        Dictionary<string, string> vars,
+        HashSet<string> needed,
+        Guid? broadcasterId,
+        CancellationToken ct
+    )
+    {
+        ChannelContext? channelCtx = broadcasterId is not null
+            ? _registry.Get(broadcasterId.Value)
+            : null;
+        DateTimeOffset now = _timeProvider.GetUtcNow();
+
+        // {tense}/{user.tense}/{target.tense} and {verb:sing|plur} derive from the underlying grammar
+        // vars (present/past tense, grammatical number) — widen `needed` up front so those resolve.
+        ExpandDerivedGrammarNeeds(needed);
+
+        // ── Time variables (no DB needed) ──────────────────────────────────
+        if (NeedsAny(needed, "time", "time.utc", "date"))
+        {
+            // {time}/{date} render in the channel owner's timezone (Users.Timezone, set in Settings → Bot
+            // basics) when one is configured; an unset or unrecognized zone id falls back to UTC. {time.utc}
+            // is always UTC regardless of the channel's setting.
+            DateTimeOffset local = ResolveChannelLocalTime(now, channelCtx?.Timezone);
+            vars.TryAdd("time", local.ToString("HH:mm:ss"));
+            vars.TryAdd("time.utc", now.UtcDateTime.ToString("HH:mm:ss") + " UTC");
+            vars.TryAdd("date", local.ToString("yyyy-MM-dd"));
+        }
+
+        // ── Stream/channel variables (from ChannelRegistry) ────────────────
+        if (
+            NeedsAny(
+                needed,
+                "stream.title",
+                "stream.game",
+                "stream.uptime",
+                "stream.viewers",
+                "stream.isLive",
+                "stream.startedAt",
+                "channel",
+                "channel.display",
+                "channel.id",
+                "streamer"
+            )
+        )
+        {
+            if (channelCtx is not null)
+            {
+                vars.TryAdd("channel", channelCtx.ChannelName);
+                vars.TryAdd("channel.display", channelCtx.DisplayName ?? channelCtx.ChannelName);
+                // {{channel.id}} is the Twitch channel string id (transport boundary), never the tenant Guid.
+                vars.TryAdd("channel.id", channelCtx.TwitchChannelId);
+                vars.TryAdd("streamer", channelCtx.DisplayName ?? channelCtx.ChannelName);
+                vars.TryAdd("stream.title", channelCtx.CurrentTitle ?? string.Empty);
+                vars.TryAdd("stream.game", channelCtx.CurrentGame ?? string.Empty);
+                vars.TryAdd("stream.isLive", channelCtx.IsLive ? "true" : "false");
+                vars.TryAdd(
+                    "stream.startedAt",
+                    channelCtx.WentLiveAt?.ToString("O") ?? string.Empty
+                );
+
+                if (channelCtx is { IsLive: true, WentLiveAt: not null })
+                {
+                    TimeSpan uptime = now - channelCtx.WentLiveAt.Value;
+                    vars.TryAdd("stream.uptime", FormatUptime(uptime));
+                }
+                else
+                {
+                    vars.TryAdd("stream.uptime", "offline");
+                }
+            }
+            else if (broadcasterId is not null && needed.Contains("channel.id"))
+            {
+                // No live registry context — resolve the Twitch channel string id from the tenant Guid.
+                string? twitchChannelId = await ResolveTwitchChannelIdAsync(
+                    broadcasterId.Value,
+                    ct
+                );
+                if (twitchChannelId is not null)
+                    vars.TryAdd("channel.id", twitchChannelId);
+            }
+        }
+
+        // ── Random numbers (no channel context needed) ────────────────────
+        ResolveRandomNumbers(vars, needed);
+        ResolveRolls(vars, needed);
+
+        // ── Random variables ──────────────────────────────────────────────
+        if (
+            channelCtx is not null
+            && needed.Any(n => n.StartsWith("random.", StringComparison.OrdinalIgnoreCase))
+        )
+        {
+            foreach (
+                string key in needed.Where(n =>
+                    n.StartsWith("random.", StringComparison.OrdinalIgnoreCase)
+                )
+            )
+            {
+                if (vars.ContainsKey(key))
+                    continue;
+
+                if (key.Equals("random.user", StringComparison.OrdinalIgnoreCase))
+                {
+                    List<string> chatters = [.. channelCtx.SessionChatters.Values];
+                    vars[key] =
+                        chatters.Count > 0
+                            ? NoImmediateRepeatPicker.Pick(
+                                chatters,
+                                $"random.user:{channelCtx.BroadcasterId}"
+                            )
+                            : vars.GetValueOrDefault("user", "someone");
+                }
+                else if (key.StartsWith("random.pick.", StringComparison.OrdinalIgnoreCase))
+                {
+                    // random.pick.a.b.c → random pick from ["a", "b", "c"]
+                    string[] parts = key.Split('.');
+                    if (parts.Length > 2)
+                    {
+                        string[] options = parts[2..];
+                        vars[key] = NoImmediateRepeatPicker.Pick(
+                            options,
+                            $"random.pick:{channelCtx.BroadcasterId}:{key}"
+                        );
+                    }
+                }
+            }
+        }
+
+        // ── Bot name (from config / DB) ────────────────────────────────────
+        if (
+            needed.Contains("botname", StringComparer.OrdinalIgnoreCase)
+            && !vars.ContainsKey("botname")
+        )
+        {
+            vars["botname"] = await GetBotNameAsync(ct);
+        }
+
+        // ── Pronoun grammar variables ({subject}/{object}/{possessive}/{presentTense}/{genderedTerm},
+        // {user.*}, {target.*}) — bare vars mirror the @mention target when one is present in context,
+        // else the triggering user; explicit user./target. forms always resolve their own side.
+        bool needsUserGrammar = PronounGrammarSuffixes.Any(s =>
+            needed.Contains(s) || needed.Contains($"user.{s}")
+        );
+        bool hasTargetContext = !string.IsNullOrEmpty(vars.GetValueOrDefault("target"));
+        bool needsTargetGrammar =
+            PronounGrammarSuffixes.Any(s => needed.Contains($"target.{s}"))
+            || (hasTargetContext && PronounGrammarSuffixes.Any(needed.Contains));
+
+        // ── User DB lookups (follow age, account age, pronouns, pronoun grammar) ─
+        if (
+            NeedsAny(
+                needed,
+                "user.followAge",
+                "user.accountAge",
+                "user.pronouns",
+                "user.messageCount"
+            ) || needsUserGrammar
+        )
+        {
+            string? userId = vars.GetValueOrDefault("user.id");
+            if (!string.IsNullOrEmpty(userId) && broadcasterId is not null)
+            {
+                await ResolveUserDbFieldsAsync(
+                    vars,
+                    userId,
+                    broadcasterId.Value,
+                    needed.Contains("user.followAge"),
+                    needed.Contains("user.messageCount"),
+                    ct
+                );
+            }
+        }
+
+        // ── Target DB lookups (id, name, follow age, pronoun grammar) ───────
+        bool needsBareName = needed.Contains("name");
+        if (
+            NeedsAny(
+                needed,
+                "target.id",
+                "target.name",
+                "target.displayname",
+                "target.known",
+                "target.followAge"
+            )
+            || needsTargetGrammar
+            || (hasTargetContext && needsBareName)
+        )
+        {
+            string? targetName = vars.GetValueOrDefault("target");
+            if (!string.IsNullOrEmpty(targetName))
+            {
+                await ResolveTargetAsync(
+                    vars,
+                    targetName,
+                    broadcasterId,
+                    needed.Contains("target.followAge"),
+                    ct
+                );
+            }
+        }
+
+        // {target.displayname}: the stored display name when the user is known, else the typed text.
+        if (needed.Contains("target.displayname"))
+            vars.TryAdd("target.displayname", vars.GetValueOrDefault("target", string.Empty));
+
+        // {target.known}: "true" only when the typed target matches a stored user. No target typed,
+        // an unknown login and a failed lookup all read "false".
+        if (needed.Contains("target.known"))
+            vars.TryAdd("target.known", "false");
+
+        // {tts.audioconnected}: whether a TTS Caption page is open for this channel right now.
+        if (needed.Contains("tts.audioconnected") && broadcasterId is not null)
+            vars.TryAdd(
+                "tts.audioconnected",
+                ResolveAudioSourceConnected(broadcasterId.Value) ? "true" : "false"
+            );
+
+        // Bare grammar vars mirror the target (if present) else the caller; anything still unset (no
+        // user/target resolved, or a resolved one with no pronoun on record) gets the universal
+        // they/them/their/person/are fallback so a pronoun placeholder never renders raw.
+        ApplyPronounGrammarBareAndFallback(vars, needed, hasTargetContext);
+
+        // ── Live-state grammar: {status} = live/offline; {tense} = presentTense while live, pastTense
+        // once offline ("StoneyEagle is live" / "StoneyEagle was live"). Sides mirror the grammar vars.
+        // A shoutout seeds target.isLive: the line is about the TARGET's stream, not the broadcaster's.
+        bool isLive = vars.TryGetValue("target.isLive", out string? targetLive)
+            ? string.Equals(targetLive, "true", StringComparison.OrdinalIgnoreCase)
+            : channelCtx?.IsLive == true;
+        if (needed.Contains("status"))
+            vars.TryAdd("status", isLive ? "live" : "offline");
+        foreach (string side in GrammarSides)
+        {
+            if (!needed.Contains($"{side}tense"))
+                continue;
+            string source = isLive ? $"{side}presenttense" : $"{side}pasttense";
+            string fallback = isLive ? "are" : "were";
+            vars.TryAdd($"{side}tense", vars.GetValueOrDefault(source, fallback));
+        }
+
+        // ── Display name: {name} → the subject's name, mirroring the @mention target when one is present
+        // else the triggering user — the same bare-mirrors-target convention as {link} and the pronoun
+        // grammar vars. A target that has no User row yet (never chatted here) still has a name: the raw
+        // {target} text the caller supplied. Without this, a template written as "Shoutout to {name}!"
+        // rendered the placeholder literally, because the resolver leaves unknown variables as-is.
+        if (needsBareName)
+        {
+            // The name shown is a display name: the target's, falling back to the typed text; the user's.
+            string? mirroredName = hasTargetContext
+                ? vars.GetValueOrDefault("target.displayname")
+                    ?? vars.GetValueOrDefault("target.name")
+                    ?? vars.GetValueOrDefault("target")
+                : vars.GetValueOrDefault("user") ?? vars.GetValueOrDefault("user.name");
+            if (!string.IsNullOrEmpty(mirroredName))
+                vars.TryAdd("name", mirroredName);
+        }
+
+        // ── Profile links: {link}/{user.link}/{target.link} → twitch.tv/<login>. The bare form mirrors
+        // the @mention target when one is present (consistent with the bare grammar vars).
+        if (needed.Contains("user.link") || (needed.Contains("link") && !hasTargetContext))
+        {
+            string? login = vars.GetValueOrDefault("user.name") ?? vars.GetValueOrDefault("user");
+            if (!string.IsNullOrEmpty(login))
+                vars.TryAdd("user.link", $"twitch.tv/{login.ToLowerInvariant()}");
+        }
+        if (needed.Contains("target.link") || (needed.Contains("link") && hasTargetContext))
+        {
+            string? login =
+                vars.GetValueOrDefault("target.name") ?? vars.GetValueOrDefault("target");
+            if (!string.IsNullOrEmpty(login))
+                vars.TryAdd("target.link", $"twitch.tv/{login.ToLowerInvariant()}");
+        }
+        if (needed.Contains("link"))
+        {
+            string mirrorKey = hasTargetContext ? "target.link" : "user.link";
+            if (vars.TryGetValue(mirrorKey, out string? mirroredLink))
+                vars.TryAdd("link", mirroredLink);
+        }
+
+        // ── Last chat message: {user.lastmessage}/{target.lastmessage} (the viewer's most recent
+        // non-command chat line in this channel; unset renders empty) ──────
+        if (
+            broadcasterId is not null
+            && NeedsAny(
+                needed,
+                "user.lastmessage",
+                "target.lastmessage",
+                "target.lastmessage.full",
+                "target.randommessage"
+            )
+        )
+        {
+            await ResolveLastMessagesAsync(vars, needed, broadcasterId.Value, ct);
+        }
+
+        // ── Named counters {count.<key>} ───────────────────────────────────
+        List<string> countKeys =
+        [
+            .. needed.Where(n =>
+                n.StartsWith("count.", StringComparison.OrdinalIgnoreCase)
+                && n.Length > "count.".Length
+                && !vars.ContainsKey(n)
+            ),
+        ];
+        if (countKeys.Count > 0 && broadcasterId is not null)
+        {
+            await ResolveCountersAsync(vars, countKeys, broadcasterId.Value, ct);
+        }
+
+        // ── Per-viewer data + stats ({viewer.data.*}/{target.data.*}/{viewer.*}/{target.*}) ──
+        if (broadcasterId is not null)
+        {
+            await ResolveViewerDataAsync(vars, needed, broadcasterId.Value, ct);
+        }
+    }
+
+    // ─── DB helpers ───────────────────────────────────────────────────────────
+
+    private async Task ResolveUserDbFieldsAsync(
+        Dictionary<string, string> vars,
+        string twitchUserId,
+        Guid broadcasterId,
+        bool needFollowAge,
+        bool needMessageCount,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+            // user.id is the Twitch string id (from the event); look the user up by TwitchUserId, not the Guid PK.
+            User? user = await db
+                .Users.Include(u => u.Pronoun)
+                .Include(u => u.AltPronoun)
+                .FirstOrDefaultAsync(u => u.TwitchUserId == twitchUserId, ct);
+            if (user is null)
+                return;
+
+            if (!vars.ContainsKey("user.accountAge"))
+            {
+                TimeSpan age = _timeProvider.GetUtcNow().UtcDateTime - user.CreatedAt;
+                vars["user.accountAge"] = FormatAge(age);
+            }
+
+            if (!vars.ContainsKey("user.pronouns"))
+            {
+                string? pronounDisplay = UserPronounDisplay.Format(user.Pronoun, user.AltPronoun);
+                if (pronounDisplay is not null)
+                    vars["user.pronouns"] = pronounDisplay;
+            }
+
+            // Grammar helpers key off the primary pronoun only (AltPronoun only drives the display badge).
+            ApplyPronounGrammarVars(vars, "user.", user.Pronoun);
+
+            // Real follow age via Helix Get Channel Followers (moderator:read:followers). "not following" when
+            // the viewer does not follow, "unknown" only when the lookup itself fails — never a fake duration.
+            // Only pay for the Helix call when the template actually asks for {user.followAge}.
+            if (needFollowAge && !vars.ContainsKey("user.followAge"))
+                vars["user.followAge"] = await ResolveFollowAgeAsync(
+                    scope,
+                    broadcasterId,
+                    twitchUserId,
+                    ct
+                );
+
+            // {user.messageCount} aliases the same viewer-analytics aggregate {viewer.messages} reads —
+            // one real per-channel chat-message count, not a second stubbed source of truth.
+            if (needMessageCount && !vars.ContainsKey("user.messageCount"))
+            {
+                IViewerAnalyticsService analytics =
+                    scope.ServiceProvider.GetRequiredService<IViewerAnalyticsService>();
+                Result<ViewerProfileDto> profileResult = await analytics.GetProfileAsync(
+                    broadcasterId,
+                    user.Id,
+                    ct
+                );
+                vars["user.messageCount"] = (
+                    profileResult.IsSuccess ? profileResult.Value.TotalMessages : 0
+                ).ToString();
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to resolve user DB fields for {UserId}", twitchUserId);
+        }
+    }
+
+    // Resolve a viewer's real follow age off the live Twitch follower list, formatted like the other ages.
+    // Every failure mode degrades to a truthful string (never a fabricated duration): "not following" when the
+    // channel has no follow record for them, "unknown" when the Helix call itself could not be made.
+    private async Task<string> ResolveFollowAgeAsync(
+        IServiceScope scope,
+        Guid broadcasterId,
+        string userTwitchId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            ITwitchHelixClient helix =
+                scope.ServiceProvider.GetRequiredService<ITwitchHelixClient>();
+            Result<TwitchChannelFollower?> follower = await helix.Channels.GetChannelFollowerAsync(
+                broadcasterId,
+                userTwitchId,
+                ct
+            );
+            if (follower.IsFailure)
+                return "unknown";
+            if (follower.Value is null)
+                return "not following";
+            return LegacyAgeText.FollowAge(
+                _timeProvider.GetUtcNow().UtcDateTime - follower.Value.FollowedAt.UtcDateTime
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to resolve follow age for {UserId}", userTwitchId);
+            return "unknown";
+        }
+    }
+
+    /// <summary>
+    /// <c>{random.number.N}</c> is 1..N; <c>{random.number.MIN.MAX}</c> and
+    /// <c>{random.number.MIN.MAX.STEP}</c> draw inside the range on the step. The same key twice in one
+    /// render gives one value. A malformed range stays raw so the author sees the mistake.
+    /// </summary>
+    private static void ResolveRandomNumbers(
+        Dictionary<string, string> vars,
+        HashSet<string> needed
+    )
+    {
+        foreach (
+            string key in needed.Where(n =>
+                n.StartsWith("random.number.", StringComparison.OrdinalIgnoreCase)
+            )
+        )
+        {
+            if (vars.ContainsKey(key))
+                continue;
+
+            string[] args = key.Split('.')[2..];
+            bool parsed =
+                args.Length == 1
+                    ? RandomNumberSpec.TryParse(["1", args[0]], out RandomNumberSpec spec)
+                    : RandomNumberSpec.TryParse(args, out spec);
+            if (parsed)
+                vars[key] = spec.Draw().ToString();
+        }
+    }
+
+    /// <summary>
+    /// Named rolls. <c>{roll.NAME.MIN.MAX[.STEP]}</c> draws once and stores the value under NAME for this
+    /// render; <c>{roll.NAME}</c> reads it back and <c>{roll.NAME.complement}</c> gives 100 minus it, in any
+    /// order in the text. A read with no definition, or a malformed range, stays raw. If one name is defined
+    /// twice, the first definition in the text wins.
+    /// </summary>
+    private static void ResolveRolls(Dictionary<string, string> vars, HashSet<string> needed)
+    {
+        const string complement = "complement";
+        List<string[]> rolls =
+        [
+            .. needed
+                .Where(n => n.StartsWith("roll.", StringComparison.OrdinalIgnoreCase))
+                .Select(n => n.Split('.')),
+        ];
+
+        Dictionary<string, int> drawn = new(StringComparer.OrdinalIgnoreCase);
+        foreach (string[] parts in rolls.Where(p => p.Length is 4 or 5))
+        {
+            if (
+                drawn.ContainsKey(parts[1])
+                || !RandomNumberSpec.TryParse(parts[2..], out RandomNumberSpec spec)
+            )
+                continue;
+
+            int value = spec.Draw();
+            drawn[parts[1]] = value;
+            vars[string.Join('.', parts)] = value.ToString();
+        }
+
+        foreach (string[] parts in rolls)
+        {
+            if (!drawn.TryGetValue(parts[1], out int value))
+                continue;
+
+            if (parts.Length == 2)
+                vars[string.Join('.', parts)] = value.ToString();
+            else if (
+                parts.Length == 3
+                && parts[2].Equals(complement, StringComparison.OrdinalIgnoreCase)
+            )
+                vars[string.Join('.', parts)] = (100 - value).ToString();
+        }
+    }
+
+    private bool ResolveAudioSourceConnected(Guid broadcasterId)
+    {
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            return scope
+                .ServiceProvider.GetRequiredService<IOverlayPresenceRegistry>()
+                .IsTtsSourceConnected(broadcasterId);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Failed to read overlay presence for {BroadcasterId}",
+                broadcasterId
+            );
+            return false;
+        }
+    }
+
+    private async Task ResolveTargetAsync(
+        Dictionary<string, string> vars,
+        string targetName,
+        Guid? broadcasterId,
+        bool needFollowAge,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+            // Include Pronoun so {target.*} grammar vars (and a future target pronoun display) resolve —
+            // mirrors the same fix already in place for {user.*} in ResolveUserDbFieldsAsync.
+            string targetLogin = await ResolveTargetLoginAsync(scope, targetName, ct);
+            User? target = await db
+                .Users.Include(u => u.Pronoun)
+                .FirstOrDefaultAsync(u => u.Username == targetLogin, ct);
+
+            if (target is null)
+            {
+                // Never seen HERE is not the same as does not exist. Without asking the platform, a real
+                // account that simply had not spoken in this channel resolved to nothing — identical to a
+                // login someone invented — so every {target.*} placeholder rendered empty for a first-time
+                // viewer, and no command could tell "shout out the newcomer" from "that name is made up".
+                await ResolveUnseenTargetAsync(scope, vars, targetName, ct);
+                return;
+            }
+
+            vars.TryAdd("target.known", "true");
+
+            // {{target.id}} is the Twitch user string id, not the internal Guid PK.
+            vars.TryAdd("target.id", target.TwitchUserId!);
+            vars.TryAdd("target.name", target.Username);
+            if (!string.IsNullOrWhiteSpace(target.DisplayName))
+                vars.TryAdd("target.displayname", target.DisplayName);
+            if (needFollowAge && !vars.ContainsKey("target.followAge"))
+                vars["target.followAge"] =
+                    broadcasterId is not null && !string.IsNullOrEmpty(target.TwitchUserId)
+                        ? await ResolveFollowAgeAsync(
+                            scope,
+                            broadcasterId.Value,
+                            target.TwitchUserId,
+                            ct
+                        )
+                        : "unknown";
+
+            ApplyPronounGrammarVars(vars, "target.", target.Pronoun);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(ex, "Failed to resolve target {TargetName}", targetName);
+        }
+    }
+
+    /// <summary>
+    /// Asks the platform for a target that has no local row, and fills <c>{target.id}</c>/<c>{target.name}</c>
+    /// from the Helix Get Users answer. Nothing is persisted: naming somebody in one chat line must not
+    /// manufacture a viewer record for them. <c>{target.known}</c> stays "false" (it means a stored user).
+    /// A login nobody owns, a failed lookup or a missing client fall back to the typed text with an empty id,
+    /// so the braces never reach chat.
+    /// </summary>
+    private static async Task ResolveUnseenTargetAsync(
+        IServiceScope scope,
+        Dictionary<string, string> vars,
+        string targetName,
+        CancellationToken ct
+    )
+    {
+        ITwitchUsersApi? users = scope.ServiceProvider.GetService<ITwitchUsersApi>();
+        Result<IReadOnlyList<TwitchUser>>? lookup = users is null
+            ? null
+            : await users.GetUsersByLoginsAsync([targetName.ToLowerInvariant()], ct);
+
+        if (lookup is null || lookup.IsFailure || lookup.Value.Count == 0)
+        {
+            vars.TryAdd("target.id", string.Empty);
+            vars.TryAdd("target.name", targetName);
+            vars.TryAdd("target.displayname", targetName);
+            return;
+        }
+
+        TwitchUser found = lookup.Value[0];
+        vars.TryAdd("target.id", found.Id);
+        vars.TryAdd("target.name", found.Login);
+        vars.TryAdd("target.displayname", found.DisplayName);
+    }
+
+    /// <summary>
+    /// Populates the five grammar vars (<c>{prefix}subject/object/possessive/presentTense/genderedTerm</c>)
+    /// from a resolved <see cref="Pronoun"/> row. presentTense derives from <see cref="Pronoun.Singular"/>
+    /// (no stored column). A null pronoun (no row on record) leaves the group unset — the universal
+    /// they/them/their/person/are fallback is applied afterwards in
+    /// <see cref="ApplyPronounGrammarBareAndFallback"/>, never here, so callers never see a partial mix.
+    /// </summary>
+    private static readonly HashSet<string> OpenChoiceSubjects = new(
+        ["any", "other"],
+        StringComparer.OrdinalIgnoreCase
+    );
+
+    private static void ApplyPronounGrammarVars(
+        Dictionary<string, string> vars,
+        string prefix,
+        Pronoun? pronoun
+    )
+    {
+        // "any/all" and "other/ask" name a choice, not words for a sentence ("Any was here"): they take
+        // the same they/them fallback as a viewer with no pronoun on record.
+        if (pronoun is null || OpenChoiceSubjects.Contains(pronoun.Subject))
+            return;
+
+        vars.TryAdd($"{prefix}subject", pronoun.Subject);
+        vars.TryAdd($"{prefix}object", pronoun.Object);
+        vars.TryAdd($"{prefix}possessive", pronoun.Possessive);
+        // The verb agrees with the SUBJECT word that is shown, never with the stored flag: a he/they or
+        // she/they combo (flag false) shows "he"/"she", and "he are" is wrong; only "they" takes the plural.
+        bool singular = !string.Equals(pronoun.Subject, "they", StringComparison.OrdinalIgnoreCase);
+        vars.TryAdd($"{prefix}presenttense", singular ? "is" : "are");
+        vars.TryAdd($"{prefix}pasttense", singular ? "was" : "were");
+        vars.TryAdd($"{prefix}genderedterm", pronoun.GenderedTerm);
+    }
+
+    /// <summary>Referenced counters resolve in one round-trip; unset counters render as 0.</summary>
+    private async Task ResolveCountersAsync(
+        Dictionary<string, string> vars,
+        List<string> countKeys,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            INamedCounterService counters =
+                scope.ServiceProvider.GetRequiredService<INamedCounterService>();
+
+            List<string> bare = [.. countKeys.Select(k => k["count.".Length..])];
+            Result<IReadOnlyDictionary<string, long>> loaded = await counters.LoadKeysAsync(
+                broadcasterId,
+                bare,
+                ct
+            );
+            foreach (string key in countKeys)
+            {
+                string bareKey = key["count.".Length..];
+                long value =
+                    loaded.IsSuccess && loaded.Value.TryGetValue(bareKey, out long found)
+                        ? found
+                        : 0L;
+                vars[key] = value.ToString(CultureInfo.InvariantCulture);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Failed to resolve counters for tenant {BroadcasterId}",
+                broadcasterId
+            );
+        }
+    }
+
+    /// <summary>
+    /// Per-viewer data ({viewer.data.*}/{target.data.*}) and M.1 stat helpers ({viewer.*}/{target.*}) for
+    /// the triggering viewer and the @mention target — one scope, one bulk read per side, referenced keys
+    /// only. Unset data keys render empty; stats for a never-seen viewer render as honest zeros.
+    /// </summary>
+    private async Task ResolveViewerDataAsync(
+        Dictionary<string, string> vars,
+        HashSet<string> needed,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        List<string> viewerDataKeys =
+        [
+            .. needed.Where(n =>
+                n.StartsWith("viewer.data.", StringComparison.OrdinalIgnoreCase)
+                && n.Length > "viewer.data.".Length
+                && !vars.ContainsKey(n)
+            ),
+        ];
+        List<string> targetDataKeys =
+        [
+            .. needed.Where(n =>
+                n.StartsWith("target.data.", StringComparison.OrdinalIgnoreCase)
+                && n.Length > "target.data.".Length
+                && !vars.ContainsKey(n)
+            ),
+        ];
+        bool viewerStats = NeedsAny(
+            needed,
+            "viewer.messages",
+            "viewer.watchtime",
+            "viewer.firstseen",
+            "viewer.redemptions",
+            "viewer.songrequests",
+            "viewer.commands",
+            "viewer.days",
+            "viewer.avgperday",
+            "viewer.botpercent"
+        );
+        bool targetStats = NeedsAny(
+            needed,
+            "target.messages",
+            "target.watchtime",
+            "target.firstseen",
+            "target.redemptions",
+            "target.songrequests",
+            "target.commands",
+            "target.days",
+            "target.avgperday",
+            "target.botpercent"
+        );
+
+        if (viewerDataKeys.Count == 0 && targetDataKeys.Count == 0 && !viewerStats && !targetStats)
+            return;
+
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+            if (viewerDataKeys.Count > 0 || viewerStats)
+            {
+                Guid? viewerId = await ResolveViewerGuidAsync(
+                    db,
+                    vars.GetValueOrDefault("user.id"),
+                    vars.GetValueOrDefault("user.provider"),
+                    ct
+                );
+                await ResolveOneViewerSideAsync(
+                    scope,
+                    vars,
+                    broadcasterId,
+                    viewerId,
+                    "viewer",
+                    viewerDataKeys,
+                    viewerStats,
+                    ct
+                );
+            }
+
+            if (targetDataKeys.Count > 0 || targetStats)
+            {
+                Guid? targetId = await ResolveTargetGuidAsync(
+                    scope,
+                    db,
+                    vars.GetValueOrDefault("target"),
+                    ct
+                );
+                await ResolveOneViewerSideAsync(
+                    scope,
+                    vars,
+                    broadcasterId,
+                    targetId,
+                    "target",
+                    targetDataKeys,
+                    targetStats,
+                    ct
+                );
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Failed to resolve viewer data for tenant {BroadcasterId}",
+                broadcasterId
+            );
+        }
+    }
+
+    private static async Task ResolveOneViewerSideAsync(
+        IServiceScope scope,
+        Dictionary<string, string> vars,
+        Guid broadcasterId,
+        Guid? viewerId,
+        string prefix,
+        List<string> dataKeys,
+        bool wantsStats,
+        CancellationToken ct
+    )
+    {
+        if (dataKeys.Count > 0)
+        {
+            IReadOnlyDictionary<string, string> data = new Dictionary<string, string>();
+            if (viewerId is not null)
+            {
+                IViewerDataService viewerData =
+                    scope.ServiceProvider.GetRequiredService<IViewerDataService>();
+                Result<IReadOnlyDictionary<string, string>> loaded = await viewerData.LoadKeysAsync(
+                    broadcasterId,
+                    viewerId.Value,
+                    [.. dataKeys.Select(k => k[(prefix.Length + ".data.".Length)..])],
+                    ct
+                );
+                if (loaded.IsSuccess)
+                    data = loaded.Value;
+            }
+            foreach (string key in dataKeys)
+            {
+                string bareKey = key[(prefix.Length + ".data.".Length)..];
+                vars[key] = data.TryGetValue(bareKey, out string? value) ? value : string.Empty;
+            }
+        }
+
+        if (wantsStats)
+        {
+            ViewerProfileDto? profile = null;
+            if (viewerId is not null)
+            {
+                IViewerAnalyticsService analytics =
+                    scope.ServiceProvider.GetRequiredService<IViewerAnalyticsService>();
+                Result<ViewerProfileDto> loaded = await analytics.GetProfileAsync(
+                    broadcasterId,
+                    viewerId.Value,
+                    ct
+                );
+                if (loaded.IsSuccess)
+                    profile = loaded.Value;
+            }
+            vars.TryAdd($"{prefix}.messages", (profile?.TotalMessages ?? 0).ToString());
+            vars.TryAdd(
+                $"{prefix}.watchtime",
+                Analytics.WatchTimeFormatter.Format(profile?.TotalWatchSeconds ?? 0)
+            );
+            vars.TryAdd(
+                $"{prefix}.firstseen",
+                profile?.FirstSeenAt?.ToString("yyyy-MM-dd") ?? "unknown"
+            );
+            vars.TryAdd($"{prefix}.redemptions", (profile?.TotalRedemptions ?? 0).ToString());
+            vars.TryAdd($"{prefix}.songrequests", (profile?.TotalSongRequests ?? 0).ToString());
+            long totalMessages = profile?.TotalMessages ?? 0;
+            long totalCommands = profile?.TotalCommandsUsed ?? 0;
+            // Legacy Roast.cs:205-206 / Sus.cs:128-150: whole days since first seen (min 1), 0 when never seen.
+            long days = profile?.FirstSeenAt is { } firstSeen
+                ? Math.Max(1, (long)(DateTime.UtcNow - firstSeen).TotalDays)
+                : 0;
+            vars.TryAdd($"{prefix}.commands", totalCommands.ToString());
+            vars.TryAdd($"{prefix}.days", days.ToString());
+            vars.TryAdd($"{prefix}.avgperday", (days > 0 ? totalMessages / days : 0).ToString());
+            vars.TryAdd(
+                $"{prefix}.botpercent",
+                (totalMessages > 0 ? totalCommands * 100 / totalMessages : 0).ToString()
+            );
+        }
+    }
+
+    /// <summary>
+    /// The triggering viewer's platform user Guid: redemption paths seed the Guid directly; chat paths
+    /// seed the provider's external id, resolved identity-first (provider + external id), then via the
+    /// legacy Twitch-id projection.
+    /// </summary>
+    private static async Task<Guid?> ResolveViewerGuidAsync(
+        IApplicationDbContext db,
+        string? externalUserId,
+        string? provider,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrEmpty(externalUserId))
+            return null;
+        if (Guid.TryParse(externalUserId, out Guid direct))
+            return direct;
+
+        if (!string.IsNullOrEmpty(provider))
+        {
+            Guid viaIdentity = await db
+                .UserIdentities.AsNoTracking()
+                .Where(i => i.Provider == provider && i.ProviderUserId == externalUserId)
+                .Select(i => i.UserId)
+                .FirstOrDefaultAsync(ct);
+            if (viaIdentity != Guid.Empty)
+                return viaIdentity;
+        }
+
+        Guid viaTwitchId = await db
+            .Users.AsNoTracking()
+            .Where(u => u.TwitchUserId == externalUserId)
+            .Select(u => u.Id)
+            .FirstOrDefaultAsync(ct);
+        return viaTwitchId == Guid.Empty ? null : viaTwitchId;
+    }
+
+    /// <summary>
+    /// A viewer types the display name they see in chat, which is not always the login (CJK, accents). The
+    /// shared mention resolver maps a unique display-name match to its login; anything else comes back as
+    /// the typed text. The scope must register the resolver; a missing registration fails loudly.
+    /// </summary>
+    private static async Task<string> ResolveTargetLoginAsync(
+        IServiceScope scope,
+        string targetName,
+        CancellationToken ct
+    )
+    {
+        IMentionTargetResolver resolver =
+            scope.ServiceProvider.GetRequiredService<IMentionTargetResolver>();
+        return await resolver.ResolveLoginAsync(targetName, ct);
+    }
+
+    private static async Task<Guid?> ResolveTargetGuidAsync(
+        IServiceScope scope,
+        IApplicationDbContext db,
+        string? targetName,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrEmpty(targetName))
+            return null;
+        string login = await ResolveTargetLoginAsync(scope, targetName, ct);
+        Guid id = await db
+            .Users.AsNoTracking()
+            .Where(u => u.Username == login)
+            .Select(u => u.Id)
+            .FirstOrDefaultAsync(ct);
+        return id == Guid.Empty ? null : id;
+    }
+
+    private async Task<string?> ResolveTwitchChannelIdAsync(
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            ITwitchIdentityResolver resolver =
+                scope.ServiceProvider.GetRequiredService<ITwitchIdentityResolver>();
+            return await resolver.GetTwitchChannelIdAsync(broadcasterId, ct);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Failed to resolve Twitch channel id for tenant {BroadcasterId}",
+                broadcasterId
+            );
+            return null;
+        }
+    }
+
+    private async Task<string> GetBotNameAsync(CancellationToken ct)
+    {
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+            Service? service = await db
+                .Services.Where(s => s.Name == "twitch_bot" && s.Enabled)
+                .FirstOrDefaultAsync(ct);
+
+            return service?.UserName ?? "NomNomzBot";
+        }
+        catch
+        {
+            return "NomNomzBot";
+        }
+    }
+
+    // ─── Helpers ──────────────────────────────────────────────────────────────
+
+    private static bool NeedsAny(HashSet<string> needed, params string[] keys) =>
+        keys.Any(k => needed.Contains(k));
+
+    // ─── Pronoun grammar variables ──────────────────────────────────────────
+
+    /// <summary>The five grammar variable names, bare form (canonical lowercase; lookups are case-insensitive).</summary>
+    private static readonly string[] PronounGrammarSuffixes =
+    [
+        "subject",
+        "object",
+        "possessive",
+        "presenttense",
+        "pasttense",
+        "genderedterm",
+    ];
+
+    /// <summary>The three grammar sides: bare (mirrors target-if-present else user), explicit user., explicit target.</summary>
+    private static readonly string[] GrammarSides = ["", "user.", "target."];
+
+    /// <summary>The universal fallback for a viewer with no pronoun on record: they/them/their/person/are/were.</summary>
+    private static readonly IReadOnlyDictionary<string, string> PronounGrammarFallback =
+        new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase)
+        {
+            ["subject"] = "they",
+            ["object"] = "them",
+            ["possessive"] = "their",
+            ["presenttense"] = "are",
+            ["pasttense"] = "were",
+            ["genderedterm"] = "person",
+        };
+
+    /// <summary>
+    /// Bare grammar vars ({subject}/{object}/…) mirror the @mention target's pronoun when a target is
+    /// present in context, else the triggering user's. Afterwards, any grammar key — bare or explicit
+    /// user./target. — still unset (no user/target resolved, or a resolved one with no pronoun on
+    /// record) gets the they/them/their/person/are fallback, so a pronoun placeholder never renders raw.
+    /// </summary>
+    private static void ApplyPronounGrammarBareAndFallback(
+        Dictionary<string, string> vars,
+        HashSet<string> needed,
+        bool hasTargetContext
+    )
+    {
+        string bareSource = hasTargetContext ? "target" : "user";
+        foreach (string suffix in PronounGrammarSuffixes)
+        {
+            if (
+                needed.Contains(suffix)
+                && vars.TryGetValue($"{bareSource}.{suffix}", out string? mirrored)
+            )
+                vars.TryAdd(suffix, mirrored);
+        }
+
+        foreach (string suffix in PronounGrammarSuffixes)
+        {
+            string fallback = PronounGrammarFallback[suffix];
+            if (needed.Contains(suffix))
+                vars.TryAdd(suffix, fallback);
+            if (needed.Contains($"user.{suffix}"))
+                vars.TryAdd($"user.{suffix}", fallback);
+            if (needed.Contains($"target.{suffix}"))
+                vars.TryAdd($"target.{suffix}", fallback);
+        }
+    }
+
+    /// <summary>Whether a placeholder key (any casing) names a pronoun-grammar variable — bare or user./target.
+    /// {tense} counts too: it renders a grammar word (is/are/was/were) and honors the same capitalization rule.</summary>
+    private static bool IsPronounGrammarKey(string key)
+    {
+        string lower = key.ToLowerInvariant();
+        return Array.IndexOf(PronounGrammarSuffixes, lower) >= 0
+            || lower is "tense" or "user.tense" or "target.tense"
+            || PronounGrammarSuffixes.Any(s => lower == $"user.{s}" || lower == $"target.{s}");
+    }
+
+    /// <summary>
+    /// Widens the needed-set for derived grammar placeholders: {tense} needs presentTense+pastTense of its
+    /// side; {verb:…} needs presentTense of its side (grammatical-number source). Bare forms widen the bare
+    /// vars, which mirror target-if-present else user like every other bare grammar placeholder.
+    /// </summary>
+    private static void ExpandDerivedGrammarNeeds(HashSet<string> needed)
+    {
+        foreach (string side in GrammarSides)
+        {
+            bool wantsTense = needed.Contains($"{side}tense");
+            bool wantsVerb = needed.Any(n =>
+                n.StartsWith($"{side}verb:", StringComparison.OrdinalIgnoreCase)
+            );
+
+            if (wantsTense || wantsVerb)
+                needed.Add($"{side}presenttense");
+            if (wantsTense)
+                needed.Add($"{side}pasttense");
+        }
+    }
+
+    /// <summary>
+    /// Resolves {user.lastmessage}/{target.lastmessage} — the viewer's most recent surviving non-command
+    /// chat line in this channel (user side keyed by the platform user id, target side by login). A viewer
+    /// with no chat history renders empty, never the raw token.
+    /// </summary>
+    private async Task ResolveLastMessagesAsync(
+        Dictionary<string, string> vars,
+        HashSet<string> needed,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            using IServiceScope scope = _scopeFactory.CreateScope();
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+
+            if (needed.Contains("user.lastmessage") && !vars.ContainsKey("user.lastmessage"))
+            {
+                string? userId = vars.GetValueOrDefault("user.id");
+                string message = string.Empty;
+                if (!string.IsNullOrEmpty(userId))
+                {
+                    message =
+                        await db
+                            .ChatMessages.AsNoTracking()
+                            .Where(m =>
+                                m.BroadcasterId == broadcasterId
+                                && m.UserId == userId
+                                && !m.IsCommand
+                            )
+                            .OrderByDescending(m => m.CreatedAt)
+                            .Select(m => m.Message)
+                            .FirstOrDefaultAsync(ct)
+                        ?? string.Empty;
+                }
+                vars["user.lastmessage"] = message;
+            }
+
+            if (needed.Contains("target.lastmessage") && !vars.ContainsKey("target.lastmessage"))
+            {
+                string? targetLogin = vars.GetValueOrDefault("target");
+                string message = string.Empty;
+                if (!string.IsNullOrEmpty(targetLogin))
+                {
+                    string login = await ResolveTargetLoginAsync(scope, targetLogin, ct);
+                    message =
+                        await db
+                            .ChatMessages.AsNoTracking()
+                            .Where(m =>
+                                m.BroadcasterId == broadcasterId
+                                && m.Username == login
+                                && !m.IsCommand
+                                && m.DeletedAt == null
+                            )
+                            .OrderByDescending(m => m.CreatedAt)
+                            .Select(m => m.Message)
+                            .FirstOrDefaultAsync(ct)
+                        ?? string.Empty;
+                }
+                vars["target.lastmessage"] = CutWithEllipsis(message, LastMessageMaxLength);
+            }
+
+            if (
+                needed.Contains("target.lastmessage.full")
+                && !vars.ContainsKey("target.lastmessage.full")
+            )
+            {
+                // The old !mock read the newest message that is not a command, not deleted, not empty and
+                // not a link, and never cut it (the old !detective cut at 77 and did not skip links).
+                string? targetLogin = vars.GetValueOrDefault("target");
+                string message = string.Empty;
+                if (!string.IsNullOrEmpty(targetLogin))
+                {
+                    string login = await ResolveTargetLoginAsync(scope, targetLogin, ct);
+                    message =
+                        await db
+                            .ChatMessages.AsNoTracking()
+                            .Where(m =>
+                                m.BroadcasterId == broadcasterId
+                                && m.Username == login
+                                && !m.IsCommand
+                                && m.DeletedAt == null
+                                && m.Message.Length > 0
+                                && !m.Message.StartsWith("http://")
+                                && !m.Message.StartsWith("https://")
+                                && !m.Message.StartsWith("www.")
+                            )
+                            .OrderByDescending(m => m.CreatedAt)
+                            .Select(m => m.Message)
+                            .FirstOrDefaultAsync(ct)
+                        ?? string.Empty;
+                }
+                vars["target.lastmessage.full"] = message;
+            }
+
+            if (
+                needed.Contains("target.randommessage") && !vars.ContainsKey("target.randommessage")
+            )
+            {
+                string? targetLogin = vars.GetValueOrDefault("target");
+                string message = string.Empty;
+                if (!string.IsNullOrEmpty(targetLogin))
+                {
+                    string login = await ResolveTargetLoginAsync(scope, targetLogin, ct);
+                    IQueryable<ChatMessage> quotable = db
+                        .ChatMessages.AsNoTracking()
+                        .Where(m =>
+                            m.BroadcasterId == broadcasterId
+                            && m.Username == login
+                            && !m.IsCommand
+                            && m.DeletedAt == null
+                            && m.Message.Length > QuotableMinLength
+                            && !m.Message.StartsWith("http://")
+                            && !m.Message.StartsWith("https://")
+                        );
+                    int count = await quotable.CountAsync(ct);
+                    if (count > 0)
+                    {
+                        message =
+                            await quotable
+                                .OrderBy(m => m.CreatedAt)
+                                .Skip(Random.Shared.Next(count))
+                                .Select(m => m.Message)
+                                .FirstOrDefaultAsync(ct)
+                            ?? string.Empty;
+                    }
+                }
+                vars["target.randommessage"] = CutWithEllipsis(message, QuotedMessageMaxLength);
+            }
+        }
+        catch (Exception ex)
+        {
+            _logger.LogDebug(
+                ex,
+                "Failed to resolve last messages for tenant {BroadcasterId}",
+                broadcasterId
+            );
+            vars.TryAdd("user.lastmessage", string.Empty);
+            vars.TryAdd("target.lastmessage", string.Empty);
+            vars.TryAdd("target.lastmessage.full", string.Empty);
+            vars.TryAdd("target.randommessage", string.Empty);
+        }
+    }
+
+    /// <summary>Longest {target.lastmessage} the old !detective printed (77 chars + "...").</summary>
+    private const int LastMessageMaxLength = 80;
+
+    /// <summary>Longest {target.randommessage} the old !quote printed (197 chars + "...").</summary>
+    private const int QuotedMessageMaxLength = 200;
+
+    /// <summary>The old !quote only picked messages longer than this.</summary>
+    private const int QuotableMinLength = 5;
+
+    private static string CutWithEllipsis(string value, int maxLength) =>
+        value.Length > maxLength ? value[..(maxLength - 3)] + "..." : value;
+
+    private static string CapitalizeFirst(string value) =>
+        string.IsNullOrEmpty(value) ? value : char.ToUpperInvariant(value[0]) + value[1..];
+
+    /// <summary>
+    /// Converts <paramref name="utcNow"/> into <paramref name="timezoneId"/> for the <c>{time}</c>/<c>{date}</c>
+    /// variables. Returns UTC unchanged when the channel has no timezone configured, or when the stored id is
+    /// no longer a recognized IANA/Windows zone (never throws on a stale/bad value).
+    /// </summary>
+    private static DateTimeOffset ResolveChannelLocalTime(DateTimeOffset utcNow, string? timezoneId)
+    {
+        if (string.IsNullOrWhiteSpace(timezoneId))
+            return utcNow;
+
+        try
+        {
+            TimeZoneInfo zone = TimeZoneInfo.FindSystemTimeZoneById(timezoneId);
+            return TimeZoneInfo.ConvertTime(utcNow, zone);
+        }
+        catch (TimeZoneNotFoundException)
+        {
+            return utcNow;
+        }
+        catch (InvalidTimeZoneException)
+        {
+            return utcNow;
+        }
+    }
+
+    private static string FormatUptime(TimeSpan uptime)
+    {
+        if (uptime.TotalHours >= 1)
+            return $"{(int)uptime.TotalHours}h {uptime.Minutes}m";
+        if (uptime.TotalMinutes >= 1)
+            return $"{(int)uptime.TotalMinutes}m {uptime.Seconds}s";
+        return $"{uptime.Seconds}s";
+    }
+
+    private static string FormatAge(TimeSpan age)
+    {
+        int years = (int)(age.TotalDays / 365);
+        int months = (int)((age.TotalDays % 365) / 30);
+        if (years > 0)
+            return months > 0
+                ? $"{years} year{(years == 1 ? "" : "s")}, {months} month{(months == 1 ? "" : "s")}"
+                : $"{years} year{(years == 1 ? "" : "s")}";
+        if (months > 0)
+            return $"{months} month{(months == 1 ? "" : "s")}";
+        int days = (int)age.TotalDays;
+        return days > 0 ? $"{days} day{(days == 1 ? "" : "s")}" : "less than a day";
+    }
+
+    // Both match a whole token content (braces off), as the parser hands it over.
+    [GeneratedRegex(@"^custom\.([A-Za-z0-9_-]+)\.([A-Za-z0-9_-]+)$", RegexOptions.IgnoreCase)]
+    private static partial Regex CustomDataPattern();
+
+    [GeneratedRegex(
+        @"^transform\.([A-Za-z]+)(?:\.([0-9]+))?:(.*)$",
+        RegexOptions.IgnoreCase | RegexOptions.Singleline
+    )]
+    private static partial Regex TransformPattern();
+}
