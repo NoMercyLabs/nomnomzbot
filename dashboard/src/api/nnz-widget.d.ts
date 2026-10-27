@@ -1081,6 +1081,384 @@ interface NnzStreamStatsOptions<K extends NnzStreamMetricKey> {
 }
 
 
+/** Every template helper name, as written in a template: {name} or {name:argument}. */
+type TemplateHelperName =
+  | 'ad.automatic'
+  | 'ad.duration'
+  | 'ad.seconds'
+  | 'ad.when'
+  | 'also_said'
+  | 'anonymous'
+  | 'args'
+  | 'args.<n>'
+  | 'bits'
+  | 'botname'
+  | 'broadcaster'
+  | 'channel'
+  | 'channel.avatar'
+  | 'channel.display'
+  | 'channel.game'
+  | 'channel.id'
+  | 'channel.login'
+  | 'channel.name'
+  | 'channel.title'
+  | 'channel.url'
+  | 'cost'
+  | 'count'
+  | 'count.<key>'
+  | 'custom.<name>.<field>'
+  | 'date'
+  | 'date:<source>'
+  | 'date:<source>|<+/-amount><unit>'
+  | 'date:<source>|diff:<date>[:<unit>]'
+  | 'date:<source>|end:<unit>'
+  | 'date:<source>|format:<pattern>'
+  | 'date:<source>|lang:<language>'
+  | 'date:<source>|next:<weekday>'
+  | 'date:<source>|ordinal'
+  | 'date:<source>|prev:<weekday>'
+  | 'date:<source>|relative'
+  | 'date:<source>|since[:<unit>]'
+  | 'date:<source>|start:<unit>'
+  | 'date:<source>|tz:<zone>'
+  | 'date:<source>|until[:<unit>]'
+  | 'duration'
+  | 'engagement.daysSinceLastSeen'
+  | 'engagement.months'
+  | 'engagement.streak'
+  | 'engagement.years'
+  | 'followed_at'
+  | 'game'
+  | 'genderedTerm'
+  | 'gifter'
+  | 'gifter.id'
+  | 'hype_train.goal'
+  | 'hype_train.id'
+  | 'hype_train.level'
+  | 'hype_train.total'
+  | 'input'
+  | 'link'
+  | 'list.pick.<name>'
+  | 'message'
+  | 'moderator'
+  | 'months'
+  | 'music.favorite.artist'
+  | 'music.favorite.count'
+  | 'music.favorite.outcome'
+  | 'music.favorite.track'
+  | 'name'
+  | 'object'
+  | 'obs.event.<field>'
+  | 'playlist_id'
+  | 'poll.choices'
+  | 'poll.duration'
+  | 'poll.id'
+  | 'poll.results'
+  | 'poll.status'
+  | 'poll.title'
+  | 'poll.winner'
+  | 'poll.winner.percentage'
+  | 'poll.winner.votes'
+  | 'possessive'
+  | 'prediction.id'
+  | 'prediction.outcomes'
+  | 'prediction.status'
+  | 'prediction.title'
+  | 'prediction.total_points'
+  | 'prediction.window'
+  | 'prediction.winner'
+  | 'prediction.winner.points'
+  | 'prediction.winner.users'
+  | 'presentTense'
+  | 'provider'
+  | 'random.number.<min>.<max>[.<step>]'
+  | 'random.number.<n>'
+  | 'random.pick.<a.b.c>'
+  | 'random.user'
+  | 'raw.message'
+  | 'reason'
+  | 'redemption.id'
+  | 'reward'
+  | 'reward.id'
+  | 'roll.<name>'
+  | 'roll.<name>.<min>.<max>[.<step>]'
+  | 'roll.<name>.complement'
+  | 'status'
+  | 'streak'
+  | 'stream.game'
+  | 'stream.isLive'
+  | 'stream.startedAt'
+  | 'stream.thumbnail'
+  | 'stream.title'
+  | 'stream.uptime'
+  | 'stream.url'
+  | 'stream.viewers'
+  | 'streamer'
+  | 'subject'
+  | 'supporter.amount'
+  | 'supporter.currency'
+  | 'supporter.kind'
+  | 'supporter.message'
+  | 'supporter.name'
+  | 'supporter.quantity'
+  | 'supporter.tier'
+  | 'target'
+  | 'target.avgperday'
+  | 'target.botpercent'
+  | 'target.commands'
+  | 'target.data.<key>'
+  | 'target.days'
+  | 'target.displayname'
+  | 'target.firstseen'
+  | 'target.followAge'
+  | 'target.genderedTerm'
+  | 'target.id'
+  | 'target.known'
+  | 'target.lastmessage'
+  | 'target.lastmessage.full'
+  | 'target.link'
+  | 'target.messages'
+  | 'target.name'
+  | 'target.object'
+  | 'target.possessive'
+  | 'target.presentTense'
+  | 'target.randommessage'
+  | 'target.redemptions'
+  | 'target.songrequests'
+  | 'target.subject'
+  | 'target.tense'
+  | 'target.verb:<sing|plur>'
+  | 'target.watchtime'
+  | 'tense'
+  | 'tier'
+  | 'time'
+  | 'time.utc'
+  | 'title'
+  | 'track_name'
+  | 'transform.<name>:<text>'
+  | 'tts.audioconnected'
+  | 'user'
+  | 'user.accountAge'
+  | 'user.followAge'
+  | 'user.genderedTerm'
+  | 'user.id'
+  | 'user.lastmessage'
+  | 'user.link'
+  | 'user.messageCount'
+  | 'user.name'
+  | 'user.object'
+  | 'user.possessive'
+  | 'user.presentTense'
+  | 'user.pronouns'
+  | 'user.provider'
+  | 'user.subject'
+  | 'user.tense'
+  | 'user.verb:<sing|plur>'
+  | 'verb:<sing|plur>'
+  | 'viewer.avgperday'
+  | 'viewer.botpercent'
+  | 'viewer.commands'
+  | 'viewer.data.<key>'
+  | 'viewer.days'
+  | 'viewer.firstseen'
+  | 'viewer.messages'
+  | 'viewer.name'
+  | 'viewer.redemptions'
+  | 'viewer.songrequests'
+  | 'viewer.watchtime'
+  | 'viewers'
+  | 'vts.event.<field>'
+  ;
+
+/** Each template helper name and what it gives, in one line. */
+interface NnzTemplateHelperMap {
+  'ad.automatic': 'For example true';
+  'ad.duration': 'For example 3 minutes';
+  'ad.seconds': 'For example 300';
+  'ad.when': 'For example 5 minutes';
+  'also_said': 'For example Great stream!';
+  'anonymous': 'For example false';
+  'args': 'For example hello world';
+  'args.<n>': 'For example hello';
+  'bits': 'For example 100';
+  'botname': 'For example NomNomzBot';
+  'broadcaster': 'For example Example_Channel';
+  'channel': 'For example example_channel';
+  'channel.avatar': 'For example https://static-cdn.jtvnw.net/jtv_user_pictures/example_channel.png';
+  'channel.display': 'For example Example_Channel';
+  'channel.game': 'For example Just Chatting';
+  'channel.id': 'For example 123456789';
+  'channel.login': 'For example example_channel';
+  'channel.name': 'For example Example_Channel';
+  'channel.title': 'For example Cozy coding night';
+  'channel.url': 'For example https://www.twitch.tv/example_channel';
+  'cost': 'For example 500';
+  'count': 'For example 12';
+  'count.<key>': 'For example 12';
+  'custom.<name>.<field>': 'For example Blue';
+  'date': 'For example 2026-10-06';
+  'date:<source>': 'For example 2026-10-06 20:15';
+  'date:<source>|<+/-amount><unit>': 'For example 2026-10-13 20:15';
+  'date:<source>|diff:<date>[:<unit>]': 'For example 411 days';
+  'date:<source>|end:<unit>': 'For example 2026-10-31 23:59';
+  'date:<source>|format:<pattern>': 'For example Tuesday 6 October 2026';
+  'date:<source>|lang:<language>': 'For example dinsdag 6 oktober 2026';
+  'date:<source>|next:<weekday>': 'For example 2026-10-09 20:15';
+  'date:<source>|ordinal': 'For example 6th';
+  'date:<source>|prev:<weekday>': 'For example 2026-10-02 20:15';
+  'date:<source>|relative': 'For example 3 days ago';
+  'date:<source>|since[:<unit>]': 'For example 1 year, 1 month, 16 days';
+  'date:<source>|start:<unit>': 'For example 2026-10-01 00:00';
+  'date:<source>|tz:<zone>': 'For example 2026-10-06 14:15';
+  'date:<source>|until[:<unit>]': 'For example 59 days';
+  'duration': 'For example 10 minutes';
+  'engagement.daysSinceLastSeen': 'For example 14';
+  'engagement.months': 'For example 18';
+  'engagement.streak': 'For example 5';
+  'engagement.years': 'For example 1';
+  'followed_at': 'For example 2026-10-06T18:30:00Z';
+  'game': 'For example Just Chatting';
+  'genderedTerm': 'For example person';
+  'gifter': 'For example Example_Supporter';
+  'gifter.id': 'For example 987654321';
+  'hype_train.goal': 'For example 8000';
+  'hype_train.id': 'For example 1b0AsbInCHZW2SQFQkCzqN07Ib2';
+  'hype_train.level': 'For example 3';
+  'hype_train.total': 'For example 6400';
+  'input': 'For example Hello chat';
+  'link': 'For example https://twitch.tv/example_viewer';
+  'list.pick.<name>': 'One random entry of a pick list';
+  'message': 'For example Great stream!';
+  'moderator': 'For example Example_Moderator';
+  'months': 'For example 12';
+  'music.favorite.artist': 'For example The Weeknd';
+  'music.favorite.count': 'For example 12';
+  'music.favorite.outcome': 'For example added';
+  'music.favorite.track': 'For example Blinding Lights';
+  'name': 'For example Example_Viewer';
+  'object': 'For example them';
+  'obs.event.<field>': 'For example Scene 1';
+  'playlist_id': 'For example 37i9dQZF1DX';
+  'poll.choices': 'For example Pizza, Pasta';
+  'poll.duration': 'For example 5 minutes';
+  'poll.id': 'For example ed961efd-8a3f-4cf5-a9d0-e616c590cd2a';
+  'poll.results': 'For example Pizza 28, Pasta 22';
+  'poll.status': 'For example completed';
+  'poll.title': 'For example What next?';
+  'poll.winner': 'For example Pizza';
+  'poll.winner.percentage': 'For example 56';
+  'poll.winner.votes': 'For example 28';
+  'possessive': 'For example their';
+  'prediction.id': 'For example 4de1a8b0-c3a0-4ed0-8b6f-7d1f0d1c2a11';
+  'prediction.outcomes': 'For example Yes, No';
+  'prediction.status': 'For example resolved';
+  'prediction.title': 'For example Will we win?';
+  'prediction.total_points': 'For example 5000';
+  'prediction.window': 'For example 120';
+  'prediction.winner': 'For example Yes';
+  'prediction.winner.points': 'For example 3200';
+  'prediction.winner.users': 'For example 41';
+  'presentTense': 'For example are';
+  'provider': 'For example twitch';
+  'random.number.<min>.<max>[.<step>]': 'For example 42';
+  'random.number.<n>': 'For example 7';
+  'random.pick.<a.b.c>': 'For example b';
+  'random.user': 'For example example_viewer';
+  'raw.message': 'For example !hello world';
+  'reason': 'For example Spam';
+  'redemption.id': 'For example e5f6a7b8';
+  'reward': 'For example Hydrate';
+  'reward.id': 'For example a1b2c3d4';
+  'roll.<name>': 'For example 13';
+  'roll.<name>.<min>.<max>[.<step>]': 'For example 13';
+  'roll.<name>.complement': 'For example 87';
+  'status': 'For example live';
+  'streak': 'For example 6';
+  'stream.game': 'For example Just Chatting';
+  'stream.isLive': 'For example true';
+  'stream.startedAt': 'For example 2026-10-06T18:00:00Z';
+  'stream.thumbnail': 'For example https://static-cdn.jtvnw.net/previews-ttv/live_user_example_channel-1280x720.jpg';
+  'stream.title': 'For example Cozy coding night';
+  'stream.uptime': 'For example 2h 15m';
+  'stream.url': 'For example https://www.twitch.tv/example_channel';
+  'stream.viewers': 'For example 42';
+  'streamer': 'For example Example_Channel';
+  'subject': 'For example they';
+  'supporter.amount': 'For example 5.00';
+  'supporter.currency': 'For example EUR';
+  'supporter.kind': 'For example tip';
+  'supporter.message': 'For example Keep it up!';
+  'supporter.name': 'For example Example_Supporter';
+  'supporter.quantity': 'For example 1';
+  'supporter.tier': 'For example Gold';
+  'target': 'For example example_viewer';
+  'target.avgperday': 'For example 8';
+  'target.botpercent': 'For example 5';
+  'target.commands': 'For example 40';
+  'target.data.<key>': 'For example Blue';
+  'target.days': 'For example 30';
+  'target.displayname': 'For example Example_Viewer';
+  'target.firstseen': 'For example 2025-03-01';
+  'target.followAge': 'For example 1 year';
+  'target.genderedTerm': 'For example person';
+  'target.id': 'For example 123456789';
+  'target.known': 'For example true';
+  'target.lastmessage': 'For example see you tomorrow';
+  'target.lastmessage.full': 'For example see you tomorrow';
+  'target.link': 'For example twitch.tv/example_viewer';
+  'target.messages': 'For example 250';
+  'target.name': 'For example example_viewer';
+  'target.object': 'For example them';
+  'target.possessive': 'For example their';
+  'target.presentTense': 'For example are';
+  'target.randommessage': 'For example nice play';
+  'target.redemptions': 'For example 8';
+  'target.songrequests': 'For example 3';
+  'target.subject': 'For example they';
+  'target.tense': 'For example are';
+  'target.verb:<sing|plur>': 'For example plays';
+  'target.watchtime': 'For example 12h';
+  'tense': 'For example is';
+  'tier': 'For example Tier 1';
+  'time': 'For example 20:15';
+  'time.utc': 'For example 18:15';
+  'title': 'For example Cozy coding night';
+  'track_name': 'For example Blinding Lights';
+  'transform.<name>:<text>': 'For example HELLO';
+  'tts.audioconnected': 'For example true';
+  'user': 'For example Example_Viewer';
+  'user.accountAge': 'For example 3 years';
+  'user.followAge': 'For example 1 year';
+  'user.genderedTerm': 'For example person';
+  'user.id': 'For example 123456789';
+  'user.lastmessage': 'For example see you tomorrow';
+  'user.link': 'For example twitch.tv/example_viewer';
+  'user.messageCount': 'For example 250';
+  'user.name': 'For example example_viewer';
+  'user.object': 'For example them';
+  'user.possessive': 'For example their';
+  'user.presentTense': 'For example are';
+  'user.pronouns': 'For example they/them';
+  'user.provider': 'For example twitch';
+  'user.subject': 'For example they';
+  'user.tense': 'For example are';
+  'user.verb:<sing|plur>': 'For example plays';
+  'verb:<sing|plur>': 'For example plays';
+  'viewer.avgperday': 'For example 8';
+  'viewer.botpercent': 'For example 5';
+  'viewer.commands': 'For example 40';
+  'viewer.data.<key>': 'For example Blue';
+  'viewer.days': 'For example 30';
+  'viewer.firstseen': 'For example 2025-03-01';
+  'viewer.messages': 'For example 250';
+  'viewer.name': 'For example Example_Viewer';
+  'viewer.redemptions': 'For example 8';
+  'viewer.songrequests': 'For example 3';
+  'viewer.watchtime': 'For example 12h';
+  'viewers': 'For example 25';
+  'vts.event.<field>': 'For example Model 1';
+}
+
 interface NnzEventMap {
   'chat.message': NnzChatMessageReceived;
   'stream.offline': NnzChannelOffline;
@@ -1667,6 +2045,8 @@ interface NnzOverlaySdk {
   /** Snapshots of the channel's state. The SDK sends the overlay token itself. */
   readonly data: NnzOverlayData;
   readonly spotify: NnzOverlaySpotify;
+  /** Renders a template, with any of the template helpers, for this channel. */
+  readonly template: NnzOverlayTemplate;
   /** Who this page is. */
   readonly widget: NnzOverlayWidget;
 }
@@ -1698,6 +2078,12 @@ interface NnzOverlaySpotify {
   /** A short-lived Spotify token for the Web Playback SDK. Never rejects: 'blocked' means the bot may not play
    *  here (401/403), 'error' means the request failed. Ask again whenever the Spotify player wants a token. */
   playbackToken(): Promise<{ token: string } | { error: 'blocked' | 'error' }>;
+}
+
+interface NnzOverlayTemplate {
+  /** Renders the template for this channel. Write helpers as {name:argument}; the names are in TemplateHelperName.
+   *  values fill the plain names of the template. Rejects when the template is empty or over 4096 characters. */
+  render(template: string, values?: Record<string, string | number | boolean>): Promise<string>;
 }
 
 interface NnzOverlayWidget {

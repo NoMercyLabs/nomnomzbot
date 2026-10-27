@@ -198,6 +198,11 @@
     tell({ kind: "data", what: "spotify.playbackToken", key: null });
     return Promise.resolve({ error: "error" });
   }
+  // The preview has no channel to resolve helpers against, so it reports the call and returns the text unchanged.
+  function renderTemplate(template) {
+    tell({ kind: "data", what: "template.render", key: null });
+    return Promise.resolve(String(template));
+  }
 
   var api = {
     on: on,
@@ -219,6 +224,9 @@
     },
     spotify: {
       playbackToken: playbackToken,
+    },
+    template: {
+      render: renderTemplate,
     },
     widget: {
       get id() { return window.WIDGET_ID || "preview"; },
