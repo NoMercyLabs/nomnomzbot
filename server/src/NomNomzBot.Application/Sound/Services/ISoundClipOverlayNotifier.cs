@@ -27,7 +27,7 @@ public interface ISoundClipOverlayNotifier
         Guid broadcasterId,
         SoundPlaybackDto playback,
         CancellationToken ct = default
-    ) => Task.CompletedTask;
+    );
 
     Task StopSoundAsync(
         Guid broadcasterId,

@@ -365,6 +365,18 @@ public sealed class StorageBudgetAgreementTests
             CancellationToken ct = default
         ) => Task.CompletedTask;
 
+        public List<Guid> TtsClipBroadcasters { get; } = [];
+
+        public Task PlayTtsAsync(
+            Guid broadcasterId,
+            SoundPlaybackDto playback,
+            CancellationToken ct = default
+        )
+        {
+            TtsClipBroadcasters.Add(broadcasterId);
+            return Task.CompletedTask;
+        }
+
         public Task StopSoundAsync(
             Guid broadcasterId,
             string? handle,

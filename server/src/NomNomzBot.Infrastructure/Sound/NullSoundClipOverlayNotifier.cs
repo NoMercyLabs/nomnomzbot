@@ -25,6 +25,12 @@ internal sealed class NullSoundClipOverlayNotifier : ISoundClipOverlayNotifier
         CancellationToken ct = default
     ) => Task.CompletedTask;
 
+    public Task PlayTtsAsync(
+        Guid broadcasterId,
+        SoundPlaybackDto playback,
+        CancellationToken ct = default
+    ) => Task.CompletedTask;
+
     public Task StopSoundAsync(
         Guid broadcasterId,
         string? handle,

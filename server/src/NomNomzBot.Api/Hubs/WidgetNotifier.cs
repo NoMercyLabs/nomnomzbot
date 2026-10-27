@@ -72,7 +72,7 @@ public interface IWidgetNotifier
         string broadcasterId,
         PlaySoundPayload payload,
         CancellationToken ct = default
-    ) => Task.CompletedTask;
+    );
 
     /// <summary>Pushes a TTS queue command to the channel's newest TTS page.</summary>
     Task TtsQueueControlAsync(string broadcasterId, string action, CancellationToken ct = default);
