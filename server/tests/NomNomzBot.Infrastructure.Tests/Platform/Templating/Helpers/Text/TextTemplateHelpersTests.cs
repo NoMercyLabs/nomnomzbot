@@ -39,7 +39,7 @@ public sealed class TextTemplateHelpersTests
         registry
             .All.Where(e => e.Key.StartsWith("text.", StringComparison.Ordinal))
             .Should()
-            .HaveCount(48);
+            .HaveCount(48 + 55);
     }
 
     [Fact]
