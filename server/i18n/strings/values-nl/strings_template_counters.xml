@@ -1,0 +1,26 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text (Dutch), namespace "list", lane L2f (catalog section 7.8, the list.* rows).
+-->
+<resources>
+    <string name="template_helper_list_pick">Een willekeurig item van een keuzelijst</string>
+    <string name="template_helper_list_length">Hoeveel items een keuzelijst heeft</string>
+    <string name="template_helper_list_item">Het item van een keuzelijst op een plek, geteld vanaf 1</string>
+    <string name="template_helper_list_first">Het eerste item van een keuzelijst</string>
+    <string name="template_helper_list_last">Het laatste item van een keuzelijst</string>
+    <string name="template_helper_list_join">Alle items van een keuzelijst, verbonden met een komma of je eigen scheidingsteken</string>
+    <string name="template_helper_list_join_and">Alle items van een keuzelijst als zin: a, b en c</string>
+    <string name="template_helper_list_shuffle">Alle items van een keuzelijst in willekeurige volgorde</string>
+    <string name="template_helper_list_sorted">Alle items van een keuzelijst op alfabet</string>
+    <string name="template_helper_list_contains">Of een keuzelijst een item bevat: true of false</string>
+    <string name="template_helper_list_indexOf">De plek van een item in een keuzelijst, of 0 als het er niet in staat</string>
+    <string name="template_helper_list_random_index">Een willekeurige plek in een keuzelijst</string>
+    <string name="template_helper_list_inline_length">Hoeveel items een losse lijst a;b;c heeft</string>
+    <string name="template_helper_list_inline_item">Het item van een losse lijst a;b;c op een plek</string>
+    <string name="template_helper_list_inline_join">Een losse lijst a;b;c verbonden met je eigen scheidingsteken</string>
+    <string name="template_helper_list_count">Hoeveel keuzelijsten het kanaal heeft</string>
+</resources>
