@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Rewards.Entities;
@@ -22,6 +23,7 @@ namespace NomNomzBot.Infrastructure.Rewards;
 public sealed class OfflineRewardService(
     IApplicationDbContext db,
     ITwitchChannelPointsApi channelPoints,
+    IOutboundSanctionAccessor sanctions,
     ILogger<OfflineRewardService> logger
 ) : IOfflineRewardService
 {
@@ -112,6 +114,10 @@ public sealed class OfflineRewardService(
         CancellationToken cancellationToken
     )
     {
+        // No person is behind a stream edge or the startup check; the channel's saved offline switch is the basis.
+        using IDisposable sanction = sanctions.Begin(
+            OutboundSanction.ChannelConfiguration("offline-switch:rewards")
+        );
         Result<TwitchCustomReward> pushed = await channelPoints.UpdateCustomRewardAsync(
             broadcasterId,
             reward.TwitchRewardId!,

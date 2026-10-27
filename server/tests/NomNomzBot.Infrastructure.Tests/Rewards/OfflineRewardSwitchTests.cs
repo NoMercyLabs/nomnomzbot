@@ -14,12 +14,14 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Stream.Events;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Rewards;
 using NomNomzBot.Infrastructure.Rewards.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -46,7 +48,9 @@ public sealed class OfflineRewardSwitchTests
     private sealed record Harness(
         AuthDbContext Db,
         ITwitchChannelPointsApi Twitch,
-        IServiceScopeFactory Scopes
+        IServiceScopeFactory Scopes,
+        IOfflineRewardService Service,
+        List<OutboundSanction?> SanctionsAtTwitch
     );
 
     private static Harness Build(bool keepActive, bool isLive)
@@ -56,6 +60,8 @@ public sealed class OfflineRewardSwitchTests
         db.Channels.Add(NewChannel(OtherBroadcaster, "streamer2", keepActive: false, isLive));
         db.SaveChanges();
 
+        OutboundSanctionAccessor sanctions = new();
+        List<OutboundSanction?> sanctionsAtTwitch = [];
         ITwitchChannelPointsApi twitch = Substitute.For<ITwitchChannelPointsApi>();
         twitch
             .UpdateCustomRewardAsync(
@@ -64,16 +70,30 @@ public sealed class OfflineRewardSwitchTests
                 Arg.Any<UpdateCustomRewardRequest>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(call => Result.Success(HelixReward(call.ArgAt<string>(1))));
+            .Returns(call =>
+            {
+                sanctionsAtTwitch.Add(sanctions.Current);
+                return Result.Success(HelixReward(call.ArgAt<string>(1)));
+            });
 
+        OfflineRewardService service = new(
+            db,
+            twitch,
+            sanctions,
+            NullLogger<OfflineRewardService>.Instance
+        );
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton<IApplicationDbContext>(db)
             .AddSingleton(twitch)
-            .AddSingleton<IOfflineRewardService>(
-                new OfflineRewardService(db, twitch, NullLogger<OfflineRewardService>.Instance)
-            )
+            .AddSingleton<IOfflineRewardService>(service)
             .BuildServiceProvider();
-        return new(db, twitch, provider.GetRequiredService<IServiceScopeFactory>());
+        return new(
+            db,
+            twitch,
+            provider.GetRequiredService<IServiceScopeFactory>(),
+            service,
+            sanctionsAtTwitch
+        );
     }
 
     private static NomNomzBot.Domain.Identity.Entities.Channel NewChannel(
@@ -153,15 +173,14 @@ public sealed class OfflineRewardSwitchTests
         h.Db.Rewards.AddRange(NewReward("tw-a"), NewReward("tw-hand", isEnabled: false));
         await h.Db.SaveChangesAsync();
 
-        await new OfflineRewardService(
-            h.Db,
-            h.Twitch,
-            NullLogger<OfflineRewardService>.Instance
-        ).ApplyLiveStateAsync(Broadcaster, isLive: false);
+        await h.Service.ApplyLiveStateAsync(Broadcaster, isLive: false);
 
         await h
             .Twitch.Received(1)
             .UpdateCustomRewardAsync(Broadcaster, "tw-a", TurnOff, Arg.Any<CancellationToken>());
+        // Background work has no person behind it; Twitch writes refuse without a recorded basis.
+        h.SanctionsAtTwitch.Should()
+            .Equal(OutboundSanction.ChannelConfiguration("offline-switch:rewards"));
         (await RowAsync(h, "tw-a")).DisabledForOffline.Should().BeTrue();
         (await RowAsync(h, "tw-hand"))
             .DisabledForOffline.Should()
@@ -178,11 +197,9 @@ public sealed class OfflineRewardSwitchTests
         );
         await h.Db.SaveChangesAsync();
 
-        await new OfflineRewardService(
-            h.Db,
-            h.Twitch,
-            NullLogger<OfflineRewardService>.Instance
-        ).ApplyLiveStateAsync(Broadcaster, isLive: true);
+        await h.Service.ApplyLiveStateAsync(Broadcaster, isLive: true);
+        h.SanctionsAtTwitch.Should()
+            .Equal(OutboundSanction.ChannelConfiguration("offline-switch:rewards"));
 
         await h
             .Twitch.Received(1)
