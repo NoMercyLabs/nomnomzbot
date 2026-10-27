@@ -40,4 +40,11 @@ public sealed class TemplateRenderScope
 
     /// <summary>Per-render cache: a provider keeps what <c>PrepareAsync</c> fetched here for <c>RenderAsync</c>.</summary>
     public Dictionary<string, object> Items { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Resolves one key (<c>stream.live</c>, <c>count.deaths</c>) through the same resolver as a token: a seed
+    /// first, then a provider, then the as-built helpers. Null when nothing resolves the key. Set by the
+    /// resolver; null for a scope built by hand.
+    /// </summary>
+    public Func<string, CancellationToken, ValueTask<string?>>? ResolveKeyAsync { get; set; }
 }

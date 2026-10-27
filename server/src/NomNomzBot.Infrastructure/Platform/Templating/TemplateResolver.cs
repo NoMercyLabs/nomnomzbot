@@ -119,19 +119,19 @@ public sealed class TemplateResolver : ITemplateResolver
         await providers.PrepareClaimedAsync(cancellationToken);
 
         DateExpressionContext dateContext = _legacy.DateContextFor(broadcasterId);
-        return await TemplateTreeRenderer.RenderAsync(
-            nodes,
-            async token =>
-            {
-                if (providers.Owns(token))
-                    return await providers.RenderAsync(token, cancellationToken);
-                string key = token.Content.Trim();
-                await FetchLateAsync(key);
-                return LegacyTemplateHelpers.Lookup(key, vars)
-                    ?? _legacy.RenderExpression(token.Content, dateContext);
-            },
-            providers.IsLazy
-        );
+        scope.ResolveKeyAsync = (key, _) =>
+            EvaluateAsync(new RenderedToken(key, null, "{" + key + "}"));
+        return await TemplateTreeRenderer.RenderAsync(nodes, EvaluateAsync, providers.IsLazy);
+
+        async ValueTask<string?> EvaluateAsync(RenderedToken token)
+        {
+            if (providers.Owns(token))
+                return await providers.RenderAsync(token, cancellationToken);
+            string key = token.Content.Trim();
+            await FetchLateAsync(key);
+            return LegacyTemplateHelpers.Lookup(key, vars)
+                ?? _legacy.RenderExpression(token.Content, dateContext);
+        }
 
         // A token inside a lazy argument was not known before the render: fetch its variable when it is asked for.
         async Task FetchLateAsync(string key)
