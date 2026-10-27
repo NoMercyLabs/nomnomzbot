@@ -47,9 +47,28 @@ internal static class RewardPermissionGate
         CancellationToken cancellationToken
     )
     {
+        if (await MeetsPermissionAsync(services, db, reward, redemption, cancellationToken))
+            return false;
+
+        await RefundAsync(services, db, redemption, logger, cancellationToken);
+        return true;
+    }
+
+    /// <summary>
+    /// Whether the viewer meets the reward's permission floor — the check alone, with no refund and no chat
+    /// line. A replay asks this: an old redemption the live gate refused must not run its reward now.
+    /// </summary>
+    public static async Task<bool> MeetsPermissionAsync(
+        IServiceProvider services,
+        IApplicationDbContext db,
+        Reward reward,
+        RewardRedeemedEvent redemption,
+        CancellationToken cancellationToken
+    )
+    {
         int floor = ChatRole.Parse(reward.Permission).ToLevelValue();
         if (floor <= PermissionLevel.Everyone.ToLevelValue())
-            return false;
+            return true;
 
         int viewerLevel = await ResolveViewerLevelAsync(
             services,
@@ -57,11 +76,7 @@ internal static class RewardPermissionGate
             redemption,
             cancellationToken
         );
-        if (viewerLevel >= floor)
-            return false;
-
-        await RefundAsync(services, db, redemption, logger, cancellationToken);
-        return true;
+        return viewerLevel >= floor;
     }
 
     private static async Task<int> ResolveViewerLevelAsync(
