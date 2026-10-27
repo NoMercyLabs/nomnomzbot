@@ -92,9 +92,13 @@ public sealed class SpotifyMusicProviderRefusedReadTests
     [Fact]
     public async Task A_429_read_is_logged_with_its_status()
     {
-        Guid channelId = Guid.NewGuid();
+        // Fixed id and clock: the cooldown warning prints both, and random digits could spell "429" by chance.
+        Guid channelId = Guid.Parse("11111111-2222-3333-5555-666666666666");
         (SpotifyMusicProvider provider, RecordingHttpHandler handler, _, CapturingLogger logger) =
-            Build(channelId, new FakeTimeProvider(DateTimeOffset.UtcNow));
+            Build(
+                channelId,
+                new FakeTimeProvider(new DateTimeOffset(2026, 10, 27, 12, 0, 0, TimeSpan.Zero))
+            );
         handler.RespondWhen(IsPlayerRead, HttpStatusCode.TooManyRequests, "{}");
 
         await provider.GetCurrentTrackAsync(channelId);
