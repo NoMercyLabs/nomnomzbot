@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespace "emote", lane L2j1 (catalog section 7.13).
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_emote">An emote by name when the channel has it, else the fallback text (or nothing): catJAM</string>
+    <string name="template_helper_emote_image">The picture link of an emote of the channel: https://cdn.7tv.app/emote/catjam01/2x.webp</string>
+    <string name="template_helper_emote_provider">The network an emote comes from: 7TV, BTTV, FFZ or Twitch</string>
+    <string name="template_helper_emote_repeat">An emote repeated a number of times, from 1 to 50: catJAM catJAM catJAM</string>
+    <string name="template_helper_emote_wall">A wall of one emote with rows and columns, rows split by a slash: catJAM catJAM / catJAM catJAM</string>
+    <string name="template_helper_emote_cheermote">The cheermote for an amount of Bits, the biggest tier that fits: Cheer100</string>
+    <string name="template_helper_emote_random">A random emote from the channel Twitch emotes: sampleHype</string>
+    <string name="template_helper_emote_random_sub">A random subscriber emote of the channel: sampleLove</string>
+    <string name="template_helper_emote_random_follower">A random follower emote of the channel: sampleWave</string>
+    <string name="template_helper_emote_random_bits">A random Bits tier emote of the channel: sampleBits</string>
+    <string name="template_helper_emote_random_global">A random Twitch global emote: Kappa</string>
+    <string name="template_helper_emote_random_any">A random emote from every network the channel uses: catJAM</string>
+    <string name="template_helper_emote_random_7tv">A random emote from the channel 7TV set: catJAM</string>
+    <string name="template_helper_emote_random_bttv">A random emote from the channel BTTV set: catJAM</string>
+    <string name="template_helper_emote_random_ffz">A random emote from the channel FFZ set: monkaS</string>
+    <string name="template_helper_emote_list_channel">Every Twitch emote of the channel, one space apart: sampleHype sampleLove sampleWave</string>
+    <string name="template_helper_emote_list_7tv">Every emote of the channel 7TV set, one space apart: catJAM KEKW</string>
+    <string name="template_helper_emote_list_bttv">Every emote of the channel BTTV set, one space apart: catJAM</string>
+    <string name="template_helper_emote_list_ffz">Every emote of the channel FFZ set, one space apart: monkaS</string>
+    <string name="template_helper_emote_count_channel">How many Twitch emotes the channel has: 12</string>
+    <string name="template_helper_emote_count_7tv">How many emotes the channel 7TV set has: 48</string>
+    <string name="template_helper_emote_count_bttv">How many emotes the channel BTTV set has: 20</string>
+    <string name="template_helper_emote_count_ffz">How many emotes the channel FFZ set has: 9</string>
+    <string name="template_helper_emote_channel_top">The emote chat used most, over the last 5,000 chat lines: KEKW</string>
+    <string name="template_helper_emote_channel_top_stream">The emote chat used most this stream, over the last 5,000 chat lines: catJAM</string>
+    <string name="template_helper_emote_user_top">The emote the viewer used most, over the last 5,000 chat lines: KEKW</string>
+    <string name="template_helper_emote_user_top_count">How many times the viewer used their top emote: 212</string>
+    <string name="template_helper_emote_message_count">How many emotes the message holds, repeats counted: 3</string>
+    <string name="template_helper_emote_message_first">The first emote in the message: KEKW</string>
+    <string name="template_helper_emote_user_favorite">The newest favorite emote of the channel owner: catJAM</string>
+</resources>
