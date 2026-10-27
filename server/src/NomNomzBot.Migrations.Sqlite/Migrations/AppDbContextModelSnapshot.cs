@@ -5660,6 +5660,15 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("TEXT");
 
+                    b.Property<int>("ViewerCasualFrom")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ViewerRegularFrom")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int>("ViewerVeteranFrom")
+                        .HasColumnType("INTEGER");
+
                     b.HasKey("Id");
 
                     b.HasIndex("NameNormalized")

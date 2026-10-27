@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Identity;
+
 namespace NomNomzBot.Application.Identity.Dtos;
 
 /// <summary>Full channel detail for dashboard views.</summary>
@@ -110,6 +112,19 @@ public sealed record UpdateChannelSettingsDto
     /// the stream ends and back on when it starts). Null leaves it unchanged.
     /// </summary>
     public bool? KeepActiveWhileOffline { get; init; }
+
+    /// <summary>
+    /// The viewer message count from which <c>{user.activity.level}</c> reads <c>casual</c> (default 10). The three
+    /// steps must satisfy 1 &lt;= casual &lt; regular &lt; veteran &lt;= 1,000,000, checked together with the
+    /// stored values. Null leaves it unchanged.
+    /// </summary>
+    public int? ViewerCasualFrom { get; init; }
+
+    /// <summary>The viewer message count from which the level reads <c>regular</c> (default 100). Null leaves it unchanged.</summary>
+    public int? ViewerRegularFrom { get; init; }
+
+    /// <summary>The viewer message count from which the level reads <c>veteran</c> (default 500). Null leaves it unchanged.</summary>
+    public int? ViewerVeteranFrom { get; init; }
 }
 
 /// <summary>
@@ -123,7 +138,10 @@ public sealed record ChannelBasicsDto(
     string? Locale,
     bool AutoJoin,
     string? Timezone,
-    bool KeepActiveWhileOffline = false
+    bool KeepActiveWhileOffline = false,
+    int ViewerCasualFrom = ViewerActivitySteps.DefaultCasualFrom,
+    int ViewerRegularFrom = ViewerActivitySteps.DefaultRegularFrom,
+    int ViewerVeteranFrom = ViewerActivitySteps.DefaultVeteranFrom
 );
 
 /// <summary>Request to create/onboard a new channel.</summary>

@@ -17,6 +17,7 @@
     <string name="template_helper_chat_me">De tekst als actieregel op Twitch (/me), gewone tekst elders: /me danst</string>
     <string name="template_helper_chat_message">Het chatbericht dat dit startte: hallo grote wereld</string>
     <string name="template_helper_chat_message_length">Uit hoeveel tekens het startbericht bestaat: 15</string>
+    <string name="template_helper_chat_message_noCommand">Het startbericht zonder commandowoord (het eerste woord, als het met het commandovoorvoegsel van het kanaal begint): hello big world</string>
     <string name="template_helper_chat_message_bits">Hoeveel bits bij het startbericht zaten: 0</string>
     <string name="template_helper_chat_isShared">true zolang het kanaal in een gedeelde chatsessie zit, anders false</string>
     <string name="template_helper_chat_shared_channels">De andere kanalen in de gedeelde chatsessie, gescheiden door een komma: AnderKanaal</string>

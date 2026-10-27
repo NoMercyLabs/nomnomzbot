@@ -1789,6 +1789,8 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             // Bits carried by THIS message — the TTS bits gate (MinBitsToTts) and any cheer-conditioned
             // flow need the real number; without it every pipeline-dispatched utterance looked like 0 bits.
             ["user.bits"] = @event.Bits.ToString(),
+            // The whole chat line, command word included ({chat.message}, {chat.message.noCommand}).
+            ["message"] = @event.Message,
         };
 
         foreach (KeyValuePair<string, string> pair in BuildArgumentVariables(args))

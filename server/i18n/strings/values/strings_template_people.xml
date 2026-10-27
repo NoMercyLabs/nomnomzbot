@@ -22,6 +22,7 @@
     <string name="template_helper_user_stats_firstSeen_relative">How long ago the viewer was first seen in the channel</string>
     <string name="template_helper_user_stats_lastSeen">The date the viewer was last seen in the channel</string>
     <string name="template_helper_user_stats_lastSeen_relative">How long ago the viewer was last seen in the channel</string>
+    <string name="template_helper_user_activity_level">How active the viewer is in this channel (new, casual, regular or veteran), from the viewer's message count and the channel's own steps</string>
     <string name="template_helper_user_stats_bits">The bits the viewer cheered in this channel</string>
     <string name="template_helper_user_followedAt">The date the viewer started following</string>
     <string name="template_helper_user_followAge_days">How many days the viewer has followed</string>
@@ -46,6 +47,7 @@
     <string name="template_helper_target_isSub">Whether the @mentioned viewer is a subscriber: true or false</string>
     <string name="template_helper_target_isFollower">Whether the @mentioned viewer follows the channel: true or false</string>
     <string name="template_helper_target_stats_lastSeen">The date the @mentioned viewer was last seen in the channel</string>
+    <string name="template_helper_target_activity_level">How active the @mentioned viewer is in this channel (new, casual, regular or veteran), from the viewer's message count and the channel's own steps</string>
     <string name="template_helper_target_stats_bits">The bits the @mentioned viewer cheered in this channel</string>
     <string name="template_helper_target_stats_streak">The current attendance streak of the @mentioned viewer</string>
     <string name="template_helper_target_points">The channel points of the @mentioned viewer</string>

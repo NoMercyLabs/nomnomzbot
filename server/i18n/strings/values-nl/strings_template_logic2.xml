@@ -21,7 +21,7 @@
     <string name="template_helper_quote_latest">De nieuwste quote van het kanaal met nummer: {quote.latest}</string>
     <string name="template_helper_set">Bewaart een waarde onder een naam voor de rest van dit antwoord en toont niets. Lees hem met {naam} of {var.naam}: {set:naam=waarde}</string>
     <string name="template_helper_var_name">Leest een waarde die {set:naam=waarde} eerder in dit antwoord bewaarde: {var.naam}</string>
-    <string name="template_helper_include_command">Toont het antwoord van een ander commando van het kanaal, ingevuld voor dezelfde kijker: {include.command:naam}</string>
-    <string name="template_helper_command_name">Korte vorm van include.command. Toont het antwoord van het commando met deze naam: {command.naam}</string>
+    <string name="template_helper_include_cmd">Toont het antwoord van een ander commando van het kanaal, ingevuld voor dezelfde kijker: {include.cmd:naam}</string>
+    <string name="template_helper_include_builtin">Toont het antwoord van een ingebouwd commando dat alleen informatie leest die elke kijker mag zien, bijvoorbeeld uptime: {include.builtin:uptime}</string>
     <string name="template_helper_include_list">Toont één item van een keuzelijst op positie, geteld vanaf 1: {include.list:naam|positie}</string>
 </resources>

@@ -5396,6 +5396,15 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(100)
                         .HasColumnType("character varying(100)");
 
+                    b.Property<int>("ViewerCasualFrom")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ViewerRegularFrom")
+                        .HasColumnType("integer");
+
+                    b.Property<int>("ViewerVeteranFrom")
+                        .HasColumnType("integer");
+
                     b.HasKey("Id");
 
                     b.HasIndex("NameNormalized")

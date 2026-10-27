@@ -36,15 +36,24 @@ public static class RetiredTemplateKeySql
     private const string EscapedBraceMarker = "@@nnz-escaped-brace@@";
     private static readonly char[] Terminators = ['}', ':'];
 
-    /// <summary>One UPDATE statement per template column.</summary>
+    /// <summary>One UPDATE statement per template column, for the pairs of <see cref="RetiredTemplateKeyMap"/>.</summary>
     public static IReadOnlyList<string> Statements(TemplateSqlDialect dialect) =>
-        [.. TemplateTextColumn.All.Select(column => Statement(column, dialect))];
+        Statements(dialect, RetiredTemplateKeyMap.Pairs);
+
+    /// <summary>One UPDATE statement per template column, for the given old key and new key pairs.</summary>
+    public static IReadOnlyList<string> Statements(
+        TemplateSqlDialect dialect,
+        IReadOnlyList<KeyValuePair<string, string>> pairs
+    ) => [.. TemplateTextColumn.All.Select(column => Statement(column, dialect, pairs))];
 
     /// <summary>The nested REPLACE expression that rewrites <paramref name="textExpression"/>.</summary>
-    public static string RewriteExpression(string textExpression)
+    public static string RewriteExpression(
+        string textExpression,
+        IReadOnlyList<KeyValuePair<string, string>> pairs
+    )
     {
         string expression = Replace(textExpression, EscapedBrace, EscapedBraceMarker);
-        foreach (KeyValuePair<string, string> pair in RetiredTemplateKeyMap.Pairs)
+        foreach (KeyValuePair<string, string> pair in pairs)
         {
             foreach (string oldKey in Spellings(pair.Key))
             {
@@ -60,7 +69,11 @@ public static class RetiredTemplateKeySql
         return Replace(expression, EscapedBraceMarker, EscapedBrace);
     }
 
-    private static string Statement(TemplateTextColumn column, TemplateSqlDialect dialect)
+    private static string Statement(
+        TemplateTextColumn column,
+        TemplateSqlDialect dialect,
+        IReadOnlyList<KeyValuePair<string, string>> pairs
+    )
     {
         string table = $"\"{column.Table}\"";
         string name = $"\"{column.Column}\"";
@@ -68,16 +81,16 @@ public static class RetiredTemplateKeySql
         if (dialect == TemplateSqlDialect.Postgres)
         {
             if (column.Shape == TemplateTextColumnShape.Jsonb)
-                return $"UPDATE {table} SET {name} = ({RewriteExpression(name + "::text")})::jsonb "
-                    + $"WHERE {RewriteExpression(name + "::text")} <> {name}::text;";
+                return $"UPDATE {table} SET {name} = ({RewriteExpression(name + "::text", pairs)})::jsonb "
+                    + $"WHERE {RewriteExpression(name + "::text", pairs)} <> {name}::text;";
 
             if (column.Shape == TemplateTextColumnShape.TextArray)
-                return $"UPDATE {table} SET {name} = ARRAY(SELECT {RewriteExpression("u.x")} "
+                return $"UPDATE {table} SET {name} = ARRAY(SELECT {RewriteExpression("u.x", pairs)} "
                     + $"FROM unnest({name}) WITH ORDINALITY AS u(x, n) ORDER BY u.n) "
-                    + $"WHERE EXISTS (SELECT 1 FROM unnest({name}) AS u(x) WHERE {RewriteExpression("u.x")} <> u.x);";
+                    + $"WHERE EXISTS (SELECT 1 FROM unnest({name}) AS u(x) WHERE {RewriteExpression("u.x", pairs)} <> u.x);";
         }
 
-        string rewritten = RewriteExpression(name);
+        string rewritten = RewriteExpression(name, pairs);
         string lengthGuard =
             dialect == TemplateSqlDialect.Postgres && column.MaxLength is int max
                 ? string.Create(CultureInfo.InvariantCulture, $" AND LENGTH({rewritten}) <= {max}")

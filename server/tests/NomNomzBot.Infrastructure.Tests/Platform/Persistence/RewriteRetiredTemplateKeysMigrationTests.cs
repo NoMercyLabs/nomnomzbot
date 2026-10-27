@@ -46,6 +46,14 @@ public sealed class RewriteRetiredTemplateKeysMigrationTests : IDisposable
     private const string JsonNew =
         "{\"text\":\"{chars.space}hi {chars.pipe:x}\",\"escaped\":\"\\\\{space}\",\"list\":[\"{chars.newline}\"]}";
 
+    // The include rename: an include in two spellings with an argument, next to the running-command key that
+    // stays, an escaped brace and a longer key that only starts like the old one.
+    private const string IncludeSchemaMigrationId = "20261027202710_AddViewerActivitySteps";
+    private const string IncludeOld =
+        "{include.command:hug} {Include.command:wave|x} {command.name} \\{include.command:hug} {include.commandx}";
+    private const string IncludeNew =
+        "{include.cmd:hug} {include.cmd:wave|x} {command.name} \\{include.command:hug} {include.commandx}";
+
     private const string Untouched = "{chars.space} {user} {spaceship} \\{space} plain";
 
     private static readonly Guid OwnerUserId = Guid.Parse("0192b200-0000-7000-8000-0000000000b1");
@@ -265,51 +273,121 @@ public sealed class RewriteRetiredTemplateKeysMigrationTests : IDisposable
     [Fact]
     public async Task The_real_migration_chain_rewrites_a_saved_shoutout_and_keeps_the_rest_of_the_row()
     {
-        await using (AppDbContext seedContext = NewContext())
-        {
-            IMigrator migrator = seedContext.GetInfrastructure().GetRequiredService<IMigrator>();
-            await migrator.MigrateAsync(PreviousMigrationId);
-
-            DateTime now = new(2026, 10, 27, 0, 0, 0, DateTimeKind.Utc);
-            await seedContext.Database.ExecuteSqlInterpolatedAsync(
-                $"""
-                INSERT INTO "Users"
-                    ("Id", "DisplayName", "Username", "UsernameNormalized", "Platform", "Type",
-                     "IsAnonymized", "IsBot", "IsLurking", "IsPlatformPrincipal", "PronounManualOverride",
-                     "CreatedAt", "UpdatedAt")
-                VALUES
-                    ({OwnerUserId}, 'Streamer', 'streamer', 'streamer', 'twitch', 'user',
-                     0, 0, 0, 0, 0, {now}, {now})
-                """
-            );
-            await seedContext.Database.ExecuteSqlInterpolatedAsync(
-                $"""
-                INSERT INTO "Channels"
-                    ("Id", "OwnerUserId", "Name", "NameNormalized", "OverlayToken", "AnnounceOnConnect",
-                     "BillingTierKey", "ContentLabels", "DeploymentMode", "ExternalChannelId",
-                     "IsBrandedContent", "IsLive", "IsOnboarded", "Provider", "Status", "StreamDelay",
-                     "Tags", "ShoutoutTemplate", "CreatedAt", "UpdatedAt")
-                VALUES
-                    ({ChannelId}, {OwnerUserId}, 'streamer', 'streamer', 'tok', 1,
-                     'free', '[]', 'self_host_full', 'ext-1',
-                     0, 0, 1, 'twitch', 'active', 0,
-                     '[]', {PlainOld}, {now}, {now})
-                """
-            );
-        }
+        await SeedShoutoutAtAsync(PreviousMigrationId, PlainOld);
 
         await using (AppDbContext migrateContext = NewContext())
             await migrateContext.Database.MigrateAsync();
 
-        await using AppDbContext assertContext = NewContext();
+        (string shoutout, string name) = await ReadChannelAsync();
+        shoutout.Should().Be(PlainNew);
+        name.Should().Be("streamer", "the rewrite touches template text only");
+    }
+
+    [Fact]
+    public void The_include_map_holds_the_one_renamed_include_key()
+    {
+        RetiredIncludeKeyMap
+            .Pairs.Select(p => $"{p.Key}->{p.Value}")
+            .Should()
+            .Equal("include.command->include.cmd");
+    }
+
+    [Fact]
+    public void Every_template_column_gets_the_include_key_rewritten_and_escaped_text_is_kept()
+    {
+        using SqliteConnection connection = new("Data Source=:memory:");
+        connection.Open();
+        HashSet<string> createdTables = [];
+        // A table can hold several template columns: each column owns its own row id.
+        for (int index = 0; index < TemplateTextColumn.All.Count; index++)
+        {
+            TemplateTextColumn column = TemplateTextColumn.All[index];
+            if (createdTables.Add(column.Table))
+                Execute(
+                    connection,
+                    $"CREATE TABLE \"{column.Table}\" (\"Id\" INTEGER, \"{column.Column}\" TEXT)"
+                );
+            else
+                Execute(
+                    connection,
+                    $"ALTER TABLE \"{column.Table}\" ADD COLUMN \"{column.Column}\" TEXT"
+                );
+            Insert(connection, column, index + 1, IncludeOld);
+        }
+
+        foreach (
+            string statement in RetiredTemplateKeySql.Statements(
+                TemplateSqlDialect.Sqlite,
+                RetiredIncludeKeyMap.Pairs
+            )
+        )
+            Execute(connection, statement);
+
+        for (int index = 0; index < TemplateTextColumn.All.Count; index++)
+        {
+            TemplateTextColumn column = TemplateTextColumn.All[index];
+            Read(connection, column, index + 1)
+                .Should()
+                .Be(IncludeNew, $"{column.Table}.{column.Column}");
+        }
+    }
+
+    [Fact]
+    public async Task The_real_migration_chain_rewrites_a_saved_include_and_keeps_the_running_command_key()
+    {
+        await SeedShoutoutAtAsync(IncludeSchemaMigrationId, IncludeOld);
+
+        await using (AppDbContext migrateContext = NewContext())
+            await migrateContext.Database.MigrateAsync();
+
+        (string shoutout, string name) = await ReadChannelAsync();
+        shoutout.Should().Be(IncludeNew);
+        name.Should().Be("streamer");
+    }
+
+    private async Task SeedShoutoutAtAsync(string migrationId, string shoutoutTemplate)
+    {
+        await using AppDbContext seedContext = NewContext();
+        IMigrator migrator = seedContext.GetInfrastructure().GetRequiredService<IMigrator>();
+        await migrator.MigrateAsync(migrationId);
+
+        DateTime now = new(2026, 10, 27, 0, 0, 0, DateTimeKind.Utc);
+        await seedContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            INSERT INTO "Users"
+                ("Id", "DisplayName", "Username", "UsernameNormalized", "Platform", "Type",
+                 "IsAnonymized", "IsBot", "IsLurking", "IsPlatformPrincipal", "PronounManualOverride",
+                 "CreatedAt", "UpdatedAt")
+            VALUES
+                ({OwnerUserId}, 'Streamer', 'streamer', 'streamer', 'twitch', 'user',
+                 0, 0, 0, 0, 0, {now}, {now})
+            """
+        );
+        await seedContext.Database.ExecuteSqlInterpolatedAsync(
+            $"""
+            INSERT INTO "Channels"
+                ("Id", "OwnerUserId", "Name", "NameNormalized", "OverlayToken", "AnnounceOnConnect",
+                 "BillingTierKey", "ContentLabels", "DeploymentMode", "ExternalChannelId",
+                 "IsBrandedContent", "IsLive", "IsOnboarded", "Provider", "Status", "StreamDelay",
+                 "Tags", "ShoutoutTemplate", "CreatedAt", "UpdatedAt")
+            VALUES
+                ({ChannelId}, {OwnerUserId}, 'streamer', 'streamer', 'tok', 1,
+                 'free', '[]', 'self_host_full', 'ext-1',
+                 0, 0, 1, 'twitch', 'active', 0,
+                 '[]', {shoutoutTemplate}, {now}, {now})
+            """
+        );
+    }
+
+    private async Task<(string Shoutout, string Name)> ReadChannelAsync()
+    {
         await using SqliteConnection connection = new(ConnectionString);
         await connection.OpenAsync();
         await using SqliteCommand command = connection.CreateCommand();
         command.CommandText = "SELECT \"ShoutoutTemplate\", \"Name\" FROM \"Channels\"";
         await using SqliteDataReader reader = await command.ExecuteReaderAsync();
         (await reader.ReadAsync()).Should().BeTrue();
-        reader.GetString(0).Should().Be(PlainNew);
-        reader.GetString(1).Should().Be("streamer", "the rewrite touches template text only");
+        return (reader.GetString(0), reader.GetString(1));
     }
 
     private static void Execute(SqliteConnection connection, string sql)

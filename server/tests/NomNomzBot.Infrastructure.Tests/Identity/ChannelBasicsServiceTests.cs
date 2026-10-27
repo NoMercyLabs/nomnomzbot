@@ -191,6 +191,110 @@ public sealed class ChannelBasicsServiceTests
     }
 
     [Fact]
+    public async Task Get_defaults_the_viewer_activity_steps_to_10_100_and_500()
+    {
+        (ChannelService sut, _, _, _, _) = Build(SeededDb());
+
+        Result<ChannelBasicsDto> result = await sut.GetBasicsAsync(ChannelId.ToString());
+
+        result.Value.ViewerCasualFrom.Should().Be(10);
+        result.Value.ViewerRegularFrom.Should().Be(100);
+        result.Value.ViewerVeteranFrom.Should().Be(500);
+    }
+
+    [Fact]
+    public async Task Update_persists_the_viewer_activity_steps_and_refreshes_the_registry()
+    {
+        AuthDbContext db = SeededDb();
+        (ChannelService sut, IChannelRegistry registry, _, _, _) = Build(db);
+
+        Result<ChannelBasicsDto> result = await sut.UpdateBasicsAsync(
+            ChannelId.ToString(),
+            new()
+            {
+                ViewerCasualFrom = 3,
+                ViewerRegularFrom = 30,
+                ViewerVeteranFrom = 300,
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ViewerCasualFrom.Should().Be(3);
+        result.Value.ViewerRegularFrom.Should().Be(30);
+        result.Value.ViewerVeteranFrom.Should().Be(300);
+        Channel? channel = await db.Channels.FindAsync(ChannelId);
+        channel!.ViewerCasualFrom.Should().Be(3);
+        channel.ViewerRegularFrom.Should().Be(30);
+        channel.ViewerVeteranFrom.Should().Be(300);
+        await registry.Received(1).InvalidateSettingsAsync(ChannelId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task Update_with_one_step_checks_it_against_the_stored_steps_and_keeps_the_rest()
+    {
+        AuthDbContext db = SeededDb();
+        (ChannelService sut, _, _, _, _) = Build(db);
+
+        Result<ChannelBasicsDto> result = await sut.UpdateBasicsAsync(
+            ChannelId.ToString(),
+            new() { ViewerRegularFrom = 250 }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ViewerCasualFrom.Should().Be(10);
+        result.Value.ViewerRegularFrom.Should().Be(250);
+        result.Value.ViewerVeteranFrom.Should().Be(500);
+    }
+
+    [Theory]
+    [InlineData(10, 10, 20)] // casual must be below regular
+    [InlineData(0, 5, 9)] // casual must be at least 1
+    [InlineData(5, 9, 9)] // regular must be below veteran
+    [InlineData(5, 4, 9)] // steps must rise
+    [InlineData(5, 50, 1_000_001)] // veteran may not pass the maximum
+    public async Task Update_with_steps_that_do_not_rise_is_rejected_and_does_not_write(
+        int casual,
+        int regular,
+        int veteran
+    )
+    {
+        AuthDbContext db = SeededDb();
+        (ChannelService sut, IChannelRegistry registry, _, _, _) = Build(db);
+
+        Result<ChannelBasicsDto> result = await sut.UpdateBasicsAsync(
+            ChannelId.ToString(),
+            new()
+            {
+                ViewerCasualFrom = casual,
+                ViewerRegularFrom = regular,
+                ViewerVeteranFrom = veteran,
+            }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+        Channel? channel = await db.Channels.FindAsync(ChannelId);
+        channel!.ViewerCasualFrom.Should().Be(10);
+        channel.ViewerRegularFrom.Should().Be(100);
+        channel.ViewerVeteranFrom.Should().Be(500);
+        await registry.DidNotReceiveWithAnyArgs().InvalidateSettingsAsync(default, default);
+    }
+
+    [Fact]
+    public async Task Update_with_a_new_casual_step_above_the_stored_regular_step_is_rejected()
+    {
+        (ChannelService sut, _, _, _, _) = Build(SeededDb());
+
+        Result<ChannelBasicsDto> result = await sut.UpdateBasicsAsync(
+            ChannelId.ToString(),
+            new() { ViewerCasualFrom = 100 }
+        );
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+    }
+
+    [Fact]
     public async Task Update_with_a_whitespace_prefix_is_rejected_and_does_not_write()
     {
         AuthDbContext db = SeededDb();

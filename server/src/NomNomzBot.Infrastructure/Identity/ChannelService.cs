@@ -418,6 +418,10 @@ public class ChannelService : IChannelService
         if (botLinePrefixError is not null)
             return Result.Failure<ChannelDto>(botLinePrefixError, "VALIDATION_FAILED");
 
+        string? stepsError = ValidateViewerSteps(channel, request);
+        if (stepsError is not null)
+            return Result.Failure<ChannelDto>(stepsError, "VALIDATION_FAILED");
+
         await ApplyAndPersistAsync(broadcasterGuid, channel, request, cancellationToken);
         return Result.Success(ToDto(channel));
     }
@@ -442,6 +446,9 @@ public class ChannelService : IChannelService
                 c.Enabled,
                 c.User.Timezone,
                 c.KeepActiveWhileOffline,
+                c.ViewerCasualFrom,
+                c.ViewerRegularFrom,
+                c.ViewerVeteranFrom,
             })
             .FirstOrDefaultAsync(cancellationToken);
 
@@ -455,7 +462,10 @@ public class ChannelService : IChannelService
                 row.Language,
                 row.Enabled,
                 row.Timezone,
-                row.KeepActiveWhileOffline
+                row.KeepActiveWhileOffline,
+                row.ViewerCasualFrom,
+                row.ViewerRegularFrom,
+                row.ViewerVeteranFrom
             )
         );
     }
@@ -484,6 +494,10 @@ public class ChannelService : IChannelService
         if (botLinePrefixError is not null)
             return Result.Failure<ChannelBasicsDto>(botLinePrefixError, "VALIDATION_FAILED");
 
+        string? stepsError = ValidateViewerSteps(channel, request);
+        if (stepsError is not null)
+            return Result.Failure<ChannelBasicsDto>(stepsError, "VALIDATION_FAILED");
+
         await ApplyAndPersistAsync(broadcasterGuid, channel, request, cancellationToken);
         return Result.Success(
             new ChannelBasicsDto(
@@ -492,9 +506,35 @@ public class ChannelService : IChannelService
                 channel.Language,
                 channel.Enabled,
                 channel.User.Timezone,
-                channel.KeepActiveWhileOffline
+                channel.KeepActiveWhileOffline,
+                channel.ViewerCasualFrom,
+                channel.ViewerRegularFrom,
+                channel.ViewerVeteranFrom
             )
         );
+    }
+
+    /// <summary>
+    /// Validates the viewer activity steps as they will be stored (a value in the request, else the stored one):
+    /// 1 &lt;= casual &lt; regular &lt; veteran &lt;= <see cref="ViewerActivitySteps.MaxStep"/>. Returns an error
+    /// message when invalid, or null when valid.
+    /// </summary>
+    private static string? ValidateViewerSteps(Channel channel, UpdateChannelSettingsDto request)
+    {
+        if (
+            request.ViewerCasualFrom is null
+            && request.ViewerRegularFrom is null
+            && request.ViewerVeteranFrom is null
+        )
+            return null;
+
+        return ViewerActivitySteps.AreValid(
+            request.ViewerCasualFrom ?? channel.ViewerCasualFrom,
+            request.ViewerRegularFrom ?? channel.ViewerRegularFrom,
+            request.ViewerVeteranFrom ?? channel.ViewerVeteranFrom
+        )
+            ? null
+            : $"Viewer activity steps must rise: 1 <= casual < regular < veteran <= {ViewerActivitySteps.MaxStep}.";
     }
 
     /// <summary>
@@ -557,6 +597,12 @@ public class ChannelService : IChannelService
             channel.User.Timezone = request.Timezone.Length == 0 ? null : request.Timezone;
         if (request.KeepActiveWhileOffline.HasValue)
             channel.KeepActiveWhileOffline = request.KeepActiveWhileOffline.Value;
+        if (request.ViewerCasualFrom.HasValue)
+            channel.ViewerCasualFrom = request.ViewerCasualFrom.Value;
+        if (request.ViewerRegularFrom.HasValue)
+            channel.ViewerRegularFrom = request.ViewerRegularFrom.Value;
+        if (request.ViewerVeteranFrom.HasValue)
+            channel.ViewerVeteranFrom = request.ViewerVeteranFrom.Value;
 
         await _db.SaveChangesAsync(cancellationToken);
         await _registry.InvalidateSettingsAsync(broadcasterGuid, cancellationToken);

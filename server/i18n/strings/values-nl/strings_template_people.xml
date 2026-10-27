@@ -21,6 +21,7 @@
     <string name="template_helper_user_stats_firstSeen_relative">Hoelang geleden de kijker voor het eerst in het kanaal werd gezien</string>
     <string name="template_helper_user_stats_lastSeen">De datum waarop de kijker voor het laatst in het kanaal werd gezien</string>
     <string name="template_helper_user_stats_lastSeen_relative">Hoelang geleden de kijker voor het laatst in het kanaal werd gezien</string>
+    <string name="template_helper_user_activity_level">Hoe actief de kijker in dit kanaal is (new, casual, regular of veteran), uit het aantal berichten van de kijker en de eigen stappen van het kanaal</string>
     <string name="template_helper_user_stats_bits">De bits die de kijker in dit kanaal gaf</string>
     <string name="template_helper_user_followedAt">De datum waarop de kijker ging volgen</string>
     <string name="template_helper_user_followAge_days">Hoeveel dagen de kijker al volgt</string>
@@ -45,6 +46,7 @@
     <string name="template_helper_target_isSub">Of de genoemde kijker abonnee is: true of false</string>
     <string name="template_helper_target_isFollower">Of de genoemde kijker het kanaal volgt: true of false</string>
     <string name="template_helper_target_stats_lastSeen">De datum waarop de genoemde kijker voor het laatst in het kanaal werd gezien</string>
+    <string name="template_helper_target_activity_level">Hoe actief de genoemde kijker in dit kanaal is (new, casual, regular of veteran), uit het aantal berichten van de kijker en de eigen stappen van het kanaal</string>
     <string name="template_helper_target_stats_bits">De bits die de genoemde kijker in dit kanaal gaf</string>
     <string name="template_helper_target_stats_streak">De huidige aanwezigheidsreeks van de genoemde kijker</string>
     <string name="template_helper_target_points">De kanaalpunten van de genoemde kijker</string>

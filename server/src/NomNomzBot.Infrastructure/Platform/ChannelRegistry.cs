@@ -18,6 +18,7 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
+using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands.Builtins;
@@ -693,6 +694,9 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 c.Personality,
                 c.CommandPrefix,
                 c.KeepActiveWhileOffline,
+                c.ViewerCasualFrom,
+                c.ViewerRegularFrom,
+                c.ViewerVeteranFrom,
                 c.User.Timezone,
                 c.Language,
             })
@@ -705,6 +709,11 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
             ? "!"
             : settings.CommandPrefix;
         ctx.KeepActiveWhileOffline = settings?.KeepActiveWhileOffline ?? false;
+        ctx.ViewerCasualFrom = settings?.ViewerCasualFrom ?? ViewerActivitySteps.DefaultCasualFrom;
+        ctx.ViewerRegularFrom =
+            settings?.ViewerRegularFrom ?? ViewerActivitySteps.DefaultRegularFrom;
+        ctx.ViewerVeteranFrom =
+            settings?.ViewerVeteranFrom ?? ViewerActivitySteps.DefaultVeteranFrom;
         ctx.Timezone = settings?.Timezone;
         ctx.Language = settings?.Language;
     }

@@ -8,6 +8,10 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Contracts.Analytics;
+using NomNomzBot.Domain.Identity;
+using NomNomzBot.Domain.Platform.Interfaces;
+
 namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.People;
 
 /// <summary>
@@ -113,6 +117,13 @@ internal sealed class PeopleProfileHelpers()
             )
         ),
         PeopleRow.Live(
+            "activity.level",
+            ViewerSides.Both,
+            "veteran",
+            "profile",
+            PeopleRow.Map(d => d.ProfileAsync(), (p, call) => ActivityLevel(p, call))
+        ),
+        PeopleRow.Live(
             "stats.bits",
             ViewerSides.Both,
             "2,300",
@@ -127,6 +138,21 @@ internal sealed class PeopleProfileHelpers()
         }
     )
 {
+    /// <summary>
+    /// The level of the person from the real message count in this channel against the channel's own steps
+    /// (defaults when the render has no channel context). A person with no profile has sent no messages: <c>new</c>.
+    /// </summary>
+    private static string ActivityLevel(ViewerProfileDto? profile, PeopleCall call)
+    {
+        ChannelContext? channel = call.Scope.Channel;
+        return ViewerActivitySteps.Level(
+            profile?.TotalMessages ?? 0,
+            channel?.ViewerCasualFrom ?? ViewerActivitySteps.DefaultCasualFrom,
+            channel?.ViewerRegularFrom ?? ViewerActivitySteps.DefaultRegularFrom,
+            channel?.ViewerVeteranFrom ?? ViewerActivitySteps.DefaultVeteranFrom
+        );
+    }
+
     private static string TierName(string? tier) =>
         PeopleText.TierNumber(tier) is { Length: > 0 } number ? "Tier " + number : string.Empty;
 }
