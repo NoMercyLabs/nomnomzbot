@@ -49,11 +49,18 @@ export type ActivityRowView = {
   icon: Component;
   // The person named in the data, for when the server sent no username.
   actor: string | null;
+  // Words that come before the actor's name: "You raided" + name.
+  lead: ActivityRowText | null;
+  // Words that come after the actor's name: name + "raided you".
   title: ActivityRowText | null;
   detail: ActivityRowText;
 };
 
-type Describe = (data: ActivityData) => { title?: ActivityRowText; detail: ActivityRowText } | null;
+type Describe = (data: ActivityData) => {
+  lead?: ActivityRowText;
+  title?: ActivityRowText;
+  detail: ActivityRowText;
+} | null;
 type ActivityKind = {
   icon: Component;
   label: string;
@@ -76,6 +83,9 @@ const ACTOR_KEYS = [
   'actorDisplay',
   'user',
 ] as const;
+
+// Where an outgoing raid row stores the channel that is being raided.
+const RAID_TARGET_KEYS = ['user', 'targetDisplayName', 'toDisplayName'] as const;
 
 // A shoutout row leads with who was shouted out; the action stays the small line.
 const shoutout =
@@ -164,23 +174,40 @@ const KINDS: Record<string, ActivityKind> = {
 
       return count === null
         ? null
-        : { detail: detail('raidedWith', { count }) };
+        : { title: detail('raidedYou'), detail: detail('viewerCount', { count }) };
     },
   },
+  // The outgoing rows store the TARGET under `user`; this channel is the raider, so the row says so.
   'channel.raid.out': {
     icon: PaperPlaneSend,
     label: 'channel_raid_out',
     describe: (data: ActivityData) => {
-      const name = pickText(data, 'user', 'targetDisplayName', 'toDisplayName');
+      const name = pickText(data, ...RAID_TARGET_KEYS);
       const count = pickCount(data, 'viewerCount', 'viewers');
 
       if (name === null || count === null)
         return null;
 
-      return { title: detail('raidedTarget', { name }), detail: detail('wentAlong', { count }) };
+      return { lead: detail('youRaided'), detail: detail('wentAlong', { count }) };
     },
   },
-  'channel.raid.start': { icon: PaperPlaneSend, label: 'channel_raid_start' },
+  'channel.raid.start': {
+    icon: PaperPlaneSend,
+    label: 'channel_raid_start',
+    describe: (data: ActivityData) => {
+      const name = pickText(data, ...RAID_TARGET_KEYS);
+      const count = pickCount(data, 'viewerCount', 'viewers');
+
+      if (name === null || count === null)
+        return null;
+
+      return {
+        lead: detail('raidTo'),
+        title: detail('raidStarting'),
+        detail: detail('viewerCount', { count }),
+      };
+    },
+  },
   'channel.channel_points_custom_reward_redemption.add': {
     icon: Ticket,
     label: 'channel_redemption',
@@ -261,6 +288,7 @@ export function describeActivity(event: ActivityEvent) {
   return {
     icon: kind.icon,
     actor: pickText(data, ...ACTOR_KEYS),
+    lead: described?.lead ?? null,
     title: described?.title ?? null,
     detail: described?.detail ?? { key: TYPE + kind.label },
   } as const satisfies ActivityRowView;

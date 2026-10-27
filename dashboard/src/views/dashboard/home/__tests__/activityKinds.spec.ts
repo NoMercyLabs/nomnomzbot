@@ -73,13 +73,12 @@ describe('describeActivity', () => {
     expect(detailOf(plain).key).toBe('dashboard.home.activity.detail.subEnded');
   });
 
-  it('names the raid target as the title and the party size as the detail on an outgoing raid', () => {
+  it('leads an outgoing raid with "You raided" before the target and puts the party size in the detail', () => {
     const row = describeActivity(event('channel.raid.out', { user: 'JeroenLabs', viewers: '16' }));
 
-    expect(row.title).toEqual({
-      key: 'dashboard.home.activity.detail.raidedTarget',
-      params: { name: 'JeroenLabs' },
-    });
+    expect(row.lead).toEqual({ key: 'dashboard.home.activity.detail.youRaided' });
+    expect(row.actor).toBe('JeroenLabs');
+    expect(row.title).toBeNull();
 
     expect(detailOf(row)).toEqual({
       key: 'dashboard.home.activity.detail.wentAlong',
@@ -87,14 +86,35 @@ describe('describeActivity', () => {
     });
   });
 
-  it('reads the viewer count of an incoming raid from both writer shapes', () => {
+  it('reads a starting raid as "Raid to <target> starting" with the party size', () => {
+    const row = describeActivity(event('channel.raid.start', { user: 'JeroenLabs', viewers: '16' }));
+
+    expect(row.lead).toEqual({ key: 'dashboard.home.activity.detail.raidTo' });
+    expect(row.title).toEqual({ key: 'dashboard.home.activity.detail.raidStarting' });
+    expect(row.actor).toBe('JeroenLabs');
+
+    expect(detailOf(row)).toEqual({
+      key: 'dashboard.home.activity.detail.viewerCount',
+      params: { count: 16 },
+    });
+  });
+
+  it('reads an incoming raid as "<raider> raided you" with the viewer count from both writer shapes', () => {
     const projection = describeActivity(
       event('channel.raid', { fromDisplayName: 'CptTree', viewerCount: 6 }),
     );
     const handler = describeActivity(event('channel.raid', { user: 'CptTree', viewers: '6' }));
 
-    expect(detailOf(projection).params).toEqual({ count: 6 });
-    expect(detailOf(handler).params).toEqual({ count: 6 });
+    for (const row of [projection, handler]) {
+      expect(row.lead).toBeNull();
+      expect(row.actor).toBe('CptTree');
+      expect(row.title).toEqual({ key: 'dashboard.home.activity.detail.raidedYou' });
+
+      expect(detailOf(row)).toEqual({
+        key: 'dashboard.home.activity.detail.viewerCount',
+        params: { count: 6 },
+      });
+    }
   });
 
   it('reads bits, gift counts and months from the data', () => {
