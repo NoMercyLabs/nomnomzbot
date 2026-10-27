@@ -16,9 +16,10 @@ namespace NomNomzBot.Domain.Platform.Events;
 /// client just refetches <see cref="Domain"/>'s query, which is cheap and future-proof. One event/hub-push pair
 /// covers every config page instead of a bespoke event per domain; runtime/high-frequency state (queue position,
 /// now-playing, chat, redemptions, permission changes, reward lifecycle, ...) already has its own dedicated event
-/// and does NOT go through this one.
+/// and does NOT go through this one. It is an <see cref="IActorAttributedEvent"/>: the event store stamps the
+/// acting principal (person, API key or system) on its journal row, so "who changed this" has an answer.
 /// </summary>
-public sealed class ChannelConfigChangedEvent : DomainEventBase
+public sealed class ChannelConfigChangedEvent : DomainEventBase, IActorAttributedEvent
 {
     /// <summary>
     /// The dashboard config page this mutation belongs to — a closed catalogue matching the frontend's config

@@ -257,6 +257,7 @@ public class EventResponseService : IEventResponseService
     public async Task<Result> ResetToDefaultAsync(
         string broadcasterId,
         string eventType,
+        bool confirmed = false,
         CancellationToken cancellationToken = default
     )
     {
@@ -270,6 +271,18 @@ public class EventResponseService : IEventResponseService
 
         if (entity is null)
             return Result.Failure($"EventResponse for '{eventType}' was not found.", "NOT_FOUND");
+
+        // A reset wipes the binding. On 2026-10-17 a batch of resets cleared the follow response's pipeline
+        // and broke follow TTS live, so a bound response is only reset when the caller says it is intended.
+        BindingTarget? bound = entity.GetBindingTarget();
+        if (bound is not null && !confirmed)
+        {
+            string lost = await DescribeBindingAsync(bound, broadcaster, cancellationToken);
+            return Result.Failure(
+                $"Resetting '{eventType}' would clear its {lost}. Send confirm=true to reset it anyway.",
+                "CONFIRMATION_REQUIRED"
+            );
+        }
 
         // Honest reset (S-EVENTRESPONSE-NO-CREATE): this row is a permanent catalogue entry, never a
         // user-created/deletable one, so this operation never removes it — it puts the row back to the
@@ -299,6 +312,40 @@ public class EventResponseService : IEventResponseService
         );
 
         return Result.Success();
+    }
+
+    private async Task<string> DescribeBindingAsync(
+        BindingTarget bound,
+        Guid broadcaster,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(bound.Id, out Guid targetId))
+            return bound.Kind == BindingTargetKind.Action
+                ? $"action '{bound.ActionType}'"
+                : $"{bound.Kind.ToString().ToLowerInvariant()} binding";
+
+        string? name = bound.Kind switch
+        {
+            BindingTargetKind.Pipeline => await _db
+                .Pipelines.AsNoTracking()
+                .Where(p => p.BroadcasterId == broadcaster && p.Id == targetId)
+                .Select(p => p.Name)
+                .FirstOrDefaultAsync(ct),
+            BindingTargetKind.Command => await _db
+                .Commands.AsNoTracking()
+                .Where(c => c.BroadcasterId == broadcaster && c.Id == targetId)
+                .Select(c => c.Name)
+                .FirstOrDefaultAsync(ct),
+            _ => null,
+        };
+
+        return bound.Kind switch
+        {
+            BindingTargetKind.Pipeline => $"pipeline '{name ?? targetId.ToString()}'",
+            BindingTargetKind.Command => $"command '!{name ?? targetId.ToString()}'",
+            _ => $"{bound.Kind.ToString().ToLowerInvariant()} binding",
+        };
     }
 
     private async Task<Dictionary<string, PlatformEventResponseDefault>> PlatformDefaultsForAsync(

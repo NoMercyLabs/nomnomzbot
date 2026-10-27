@@ -2055,6 +2055,12 @@ public static class DependencyInjection
             Application.Contracts.EventStore.IEventStoreSubscriber,
             EventStore.EventStoreSubscriber
         >();
+        // The acting principal of a change (person, API key or system). Singleton: it only reads the request
+        // claims and the ambient sanction, and the singleton event bus decorator reads it on the publishing flow.
+        services.AddSingleton<
+            Application.Contracts.EventStore.IJournalActorAccessor,
+            EventStore.JournalActorAccessor
+        >();
         services.AddScoped<
             Application.Contracts.EventStore.IProjectionRunner,
             EventStore.ProjectionRunner

@@ -184,6 +184,8 @@ public class EventResponsesController : BaseController
     /// <summary>
     /// Reset the configured response for an event type back to its seeded default (disabled, chat_message,
     /// no message/pipeline). The row is a fixed catalogue entry keyed by event type — this never deletes it.
+    /// A row bound to a pipeline, command or action is refused (400 <c>CONFIRMATION_REQUIRED</c>, naming the
+    /// binding that would be lost) unless the request carries <c>confirm=true</c>.
     /// </summary>
     [RequireAction("eventresponses:write")]
     [NotDestructive(
@@ -194,10 +196,16 @@ public class EventResponsesController : BaseController
     public async Task<IActionResult> ResetEventResponse(
         string channelId,
         string eventType,
-        CancellationToken ct
+        CancellationToken ct,
+        [FromQuery] bool confirm = false
     )
     {
-        Result result = await _eventResponseService.ResetToDefaultAsync(channelId, eventType, ct);
+        Result result = await _eventResponseService.ResetToDefaultAsync(
+            channelId,
+            eventType,
+            confirm,
+            ct
+        );
         if (result.IsFailure)
             return ResultResponse(result);
         return NoContent();

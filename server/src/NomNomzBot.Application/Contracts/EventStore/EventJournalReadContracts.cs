@@ -23,9 +23,16 @@ public sealed record EventJournalEntryDto(
     DateTime RecordedAt,
     Guid? ActorUserId,
     string? ActorExternalUserId,
-    string? ActorProvider
+    string? ActorProvider,
+    string? ActorKind,
+    string? ActorTokenId
 )
 {
+    /// <summary>
+    /// <c>ActorKind</c> is <c>person</c> / <c>api_key</c> / <c>system</c> for a config change and null for a
+    /// row that records no actor (a platform fact, or a change journaled before actors were recorded).
+    /// <c>ActorTokenId</c> names the API key (never its secret) when a key made the change.
+    /// </summary>
     public static EventJournalEntryDto From(EventRecord record) =>
         new(
             record.EventId,
@@ -36,7 +43,9 @@ public sealed record EventJournalEntryDto(
             record.RecordedAt,
             record.ActorUserId,
             record.ActorExternalUserId,
-            record.ActorProvider
+            record.ActorProvider,
+            JournalActorMetadata.ReadKind(record.MetadataJson),
+            JournalActorMetadata.ReadTokenId(record.MetadataJson)
         );
 }
 

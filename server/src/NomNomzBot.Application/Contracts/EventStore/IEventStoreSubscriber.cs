@@ -22,6 +22,7 @@ public interface IEventStoreSubscriber
 {
     Task<Result<EventRecord>> CaptureAsync<TEvent>(
         TEvent @event,
+        JournalActor? actor = null,
         CancellationToken cancellationToken = default
     )
         where TEvent : class, IDomainEvent;

@@ -51,22 +51,31 @@ public sealed class JournalingEventBusDecorator : IEventBus
     )
         where TEvent : class, IDomainEvent
     {
-        await CaptureAndFireHooksAsync(@event, cancellationToken);
+        await CaptureAndFireHooksAsync(@event, ReadActor(@event), cancellationToken);
         await _inner.PublishAsync(@event, cancellationToken);
     }
 
     public void PublishFireAndForget<TEvent>(TEvent @event)
         where TEvent : class, IDomainEvent
     {
+        // The actor is read here, on the publishing flow, before the work moves to another task.
+        JournalActor? actor = ReadActor(@event);
         _ = Task.Run(async () =>
         {
-            await CaptureAndFireHooksAsync(@event, CancellationToken.None);
+            await CaptureAndFireHooksAsync(@event, actor, CancellationToken.None);
         });
         _inner.PublishFireAndForget(@event);
     }
 
+    private JournalActor? ReadActor<TEvent>(TEvent @event)
+        where TEvent : class, IDomainEvent =>
+        @event is IActorAttributedEvent
+            ? _serviceProvider.GetService<IJournalActorAccessor>()?.Current
+            : null;
+
     private async Task CaptureAndFireHooksAsync<TEvent>(
         TEvent @event,
+        JournalActor? actor,
         CancellationToken cancellationToken
     )
         where TEvent : class, IDomainEvent
@@ -80,7 +89,11 @@ public sealed class JournalingEventBusDecorator : IEventBus
         {
             IEventStoreSubscriber subscriber =
                 scope.ServiceProvider.GetRequiredService<IEventStoreSubscriber>();
-            Result<EventRecord> capture = await subscriber.CaptureAsync(@event, cancellationToken);
+            Result<EventRecord> capture = await subscriber.CaptureAsync(
+                @event,
+                actor,
+                cancellationToken
+            );
             if (capture.IsFailure)
             {
                 _logger.LogError(
