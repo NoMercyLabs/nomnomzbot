@@ -17,6 +17,7 @@ using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Infrastructure.Stream;
 
@@ -355,6 +356,7 @@ public sealed class BotLifecycleService : BackgroundService
             await BootstrapLiveStatusAsync(
                 scope.ServiceProvider.GetRequiredService<IApplicationDbContext>(),
                 scope.ServiceProvider.GetRequiredService<ITwitchStreamsApi>(),
+                scope.ServiceProvider.GetRequiredService<IOfflineRewardService>(),
                 channel.Id,
                 ct
             );
@@ -429,6 +431,7 @@ public sealed class BotLifecycleService : BackgroundService
     private async Task BootstrapLiveStatusAsync(
         IApplicationDbContext db,
         ITwitchStreamsApi streams,
+        IOfflineRewardService offlineRewards,
         Guid broadcasterId,
         CancellationToken ct
     )
@@ -469,6 +472,10 @@ public sealed class BotLifecycleService : BackgroundService
 
             if (channel.IsLive != wasLive || result.IsSuccess || closedRows)
                 await db.SaveChangesAsync(ct);
+
+            // No stream edge fires for a state the bot started into, so this confirmed read applies the
+            // offline switch for rewards itself.
+            await offlineRewards.ApplyLiveStateAsync(broadcasterId, channel.IsLive, ct);
 
             _logger.LogInformation(
                 "BotLifecycleService: Bootstrapped live status for channel {BroadcasterId}: IsLive={IsLive}",

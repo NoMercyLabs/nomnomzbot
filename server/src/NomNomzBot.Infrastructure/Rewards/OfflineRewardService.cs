@@ -94,6 +94,15 @@ public sealed class OfflineRewardService(
             await EnableMarkedAsync(broadcasterId, cancellationToken);
     }
 
+    public Task ApplyLiveStateAsync(
+        Guid broadcasterId,
+        bool isLive,
+        CancellationToken cancellationToken = default
+    ) =>
+        isLive
+            ? EnableMarkedAsync(broadcasterId, cancellationToken)
+            : DisableForOfflineAsync(broadcasterId, cancellationToken);
+
     // A refusal (a reward another app created, a revoked scope, Helix down) is logged and skipped: the row
     // keeps its old state, so the next edge retries it, and one bad reward never stops the rest.
     private async Task<bool> TrySetEnabledAtTwitchAsync(

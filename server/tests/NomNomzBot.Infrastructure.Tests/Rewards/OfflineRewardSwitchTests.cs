@@ -144,6 +144,67 @@ public sealed class OfflineRewardSwitchTests
     private static async Task<Reward> RowAsync(Harness h, string twitchId) =>
         await h.Db.Rewards.AsNoTracking().SingleAsync(r => r.TwitchRewardId == twitchId);
 
+    // The startup read of the live state at Twitch: a channel already offline when the bot starts (or when
+    // this switch first shipped) never sees a stream.offline edge, so the read itself applies the switch.
+    [Fact]
+    public async Task A_startup_read_that_finds_the_channel_offline_turns_its_rewards_off()
+    {
+        Harness h = Build(keepActive: false, isLive: false);
+        h.Db.Rewards.AddRange(NewReward("tw-a"), NewReward("tw-hand", isEnabled: false));
+        await h.Db.SaveChangesAsync();
+
+        await new OfflineRewardService(
+            h.Db,
+            h.Twitch,
+            NullLogger<OfflineRewardService>.Instance
+        ).ApplyLiveStateAsync(Broadcaster, isLive: false);
+
+        await h
+            .Twitch.Received(1)
+            .UpdateCustomRewardAsync(Broadcaster, "tw-a", TurnOff, Arg.Any<CancellationToken>());
+        (await RowAsync(h, "tw-a")).DisabledForOffline.Should().BeTrue();
+        (await RowAsync(h, "tw-hand"))
+            .DisabledForOffline.Should()
+            .BeFalse("a reward the streamer turned off by hand is not the bot's to turn back on");
+    }
+
+    [Fact]
+    public async Task A_startup_read_that_finds_the_channel_live_turns_the_marked_rewards_back_on()
+    {
+        Harness h = Build(keepActive: false, isLive: true);
+        h.Db.Rewards.AddRange(
+            NewReward("tw-marked", isEnabled: false, disabledForOffline: true),
+            NewReward("tw-on")
+        );
+        await h.Db.SaveChangesAsync();
+
+        await new OfflineRewardService(
+            h.Db,
+            h.Twitch,
+            NullLogger<OfflineRewardService>.Instance
+        ).ApplyLiveStateAsync(Broadcaster, isLive: true);
+
+        await h
+            .Twitch.Received(1)
+            .UpdateCustomRewardAsync(
+                Broadcaster,
+                "tw-marked",
+                TurnOn,
+                Arg.Any<CancellationToken>()
+            );
+        await h
+            .Twitch.DidNotReceive()
+            .UpdateCustomRewardAsync(
+                Broadcaster,
+                "tw-on",
+                Arg.Any<UpdateCustomRewardRequest>(),
+                Arg.Any<CancellationToken>()
+            );
+        Reward marked = await RowAsync(h, "tw-marked");
+        marked.IsEnabled.Should().BeTrue();
+        marked.DisabledForOffline.Should().BeFalse();
+    }
+
     [Fact]
     public async Task Going_offline_disables_each_manageable_enabled_reward_at_twitch_and_marks_the_row()
     {

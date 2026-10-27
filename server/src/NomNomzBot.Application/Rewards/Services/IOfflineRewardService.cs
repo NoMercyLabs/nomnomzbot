@@ -39,4 +39,14 @@ public interface IOfflineRewardService
         Guid broadcasterId,
         CancellationToken cancellationToken = default
     );
+
+    /// <summary>
+    /// A confirmed read of the live state at Twitch (the startup check): offline turns the rewards off, live turns
+    /// the marked rewards back on. Covers a channel whose stream edge the bot never saw.
+    /// </summary>
+    Task ApplyLiveStateAsync(
+        Guid broadcasterId,
+        bool isLive,
+        CancellationToken cancellationToken = default
+    );
 }
