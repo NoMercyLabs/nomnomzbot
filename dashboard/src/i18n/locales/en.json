@@ -94,6 +94,18 @@
       "create": "Create a new pipeline",
       "newName": "New pipeline"
     },
+    "replyDelivery": {
+      "label": "Send the reply to",
+      "hint": "The chat overlay shows the reply as a bot line with \"requested by\" and the viewer's name. If no chat overlay is open, the bot repairs the browser source.",
+      "target": {
+        "chat": "Twitch chat",
+        "overlay": "Chat overlay",
+        "both": "Both",
+        "none": "Nowhere"
+      },
+      "html": "HTML",
+      "htmlHelp": "The overlay line renders HTML. The bot removes unsafe markup first. It applies when the reply goes to the chat overlay."
+    },
     "targetPicker": {
       "label": "Runs",
       "placeholder": "Choose a command or pipeline",

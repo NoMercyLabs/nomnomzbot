@@ -748,6 +748,40 @@ describe('room checks', () => {
   });
 });
 
+// Stoney 2026-10-27: "i want it to not reply in chat but directly output this to the chat overlay with html
+// support". Where a simple reply goes (Twitch chat, chat overlay, both, nowhere) and its HTML switch are chosen
+// in components/layout/ReplyDeliveryField.vue only. An editor places that field; it never spells the targets
+// or builds a select or a segmented control of its own for them.
+const ownReplyTarget = /\bReplyTarget\b|\breplyTargets\b|['"]overlay['"]\s*,\s*['"]both['"]|<(Select|SegmentedControl|ToggleGroup)\b[^>]*(reply-?target|replyDelivery)/i;
+
+function ownsReplyTarget(path: string): boolean {
+  const text: string = readFileSync(join(src, path), 'utf8');
+
+  return ownReplyTarget.test(text);
+}
+
+describe('reply delivery', () => {
+  it('spots a hand-written reply target list and a hand-written target select', () => {
+    expect(ownReplyTarget.test('const targets = [\'chat\', \'overlay\', \'both\', \'none\'];')).toBe(true);
+    expect(ownReplyTarget.test('<Select v-model="draft.replyTarget">')).toBe(true);
+    expect(ownReplyTarget.test('<SegmentedControl v-model="draft.replyDelivery.target" />')).toBe(true);
+    expect(ownReplyTarget.test('<ReplyDeliveryField v-model="draft.replyDelivery" />')).toBe(false);
+  });
+
+  it('writes no reply target choice in a view; an editor places ReplyDeliveryField', () => {
+    const offenders = viewFiles().filter(ownsReplyTarget);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('keeps ReplyDeliveryField as the one place that builds it', () => {
+    const field: string = readFileSync(join(src, 'components/layout/ReplyDeliveryField.vue'), 'utf8');
+
+    expect(field).toContain('<SegmentedControl');
+    expect(field).toContain('replyTargets');
+  });
+});
+
 // Stoney 2026-10-18: "things like these are also used everywhere... i expect you to make tools like this for
 // repeatables". A role ladder, a platform list, a provider list or a trust list is spelled once, in
 // api/vocabulary.ts (or the ladder in api/permissions.ts). A view imports it; a list of three or more of its

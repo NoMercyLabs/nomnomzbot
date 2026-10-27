@@ -667,6 +667,57 @@ describe('CommandsView editor', () => {
     expect(writes('PUT')[0]!.body).toEqual({ speakWithTts: true });
   });
 
+  // Stoney 2026-10-27: "i added a command named !train and i want it to not reply in chat but directly output
+  // this to the chat overlay with html support".
+  it('shows Twitch chat for a command that has no reply delivery', async () => {
+    await open('/app/commands?command=hello');
+
+    const chosen = editor()!.querySelector('[data-reply-delivery] [data-state="on"]');
+
+    expect(chosen?.textContent?.trim()).toBe('Twitch chat');
+    expect(unsaved()).toBe('');
+  });
+
+  it('saves the exact reply delivery when the reply goes to the Chat overlay as HTML', async () => {
+    await open('/app/commands?command=hello');
+
+    buttonByText('Chat overlay', editor()!).click();
+    await settle();
+    switchOf('HTML').click();
+    await settle();
+    buttonByText('Save changes').click();
+    await settle();
+
+    expect(writes('PUT')[0]!.body).toEqual({ replyDelivery: { target: 'overlay', html: true } });
+  });
+
+  it('shows the saved delivery of a command and saves null when it goes back to Twitch chat', async () => {
+    rows[0] = command('hello', { replyDelivery: { target: 'both', html: false } });
+
+    await open('/app/commands?command=hello');
+
+    const chosen = editor()!.querySelector('[data-reply-delivery] [data-state="on"]');
+
+    expect(chosen?.textContent?.trim()).toBe('Both');
+
+    buttonByText('Twitch chat', editor()!).click();
+    await settle();
+    buttonByText('Save changes').click();
+    await settle();
+
+    expect(writes('PUT')[0]!.body).toEqual({ replyDelivery: null });
+  });
+
+  it('hides the reply delivery while a pipeline answers, because the pipeline has its own reply step', async () => {
+    rows[0] = command('hello', { pipelineId: 'p1' });
+
+    await open('/app/commands?command=hello');
+    buttonByText('Pipeline', editor()!).click();
+    await settle();
+
+    expect(editor()!.querySelector('[data-reply-delivery]')).toBeNull();
+  });
+
   it('switches a text command to Random reply in place: a reply count and an Edit replies button, the text seeds the first reply', async () => {
     await open('/app/commands?command=hello');
     const panel = (): HTMLElement | null =>
@@ -1022,7 +1073,7 @@ describe('CommandsView editor', () => {
   it('holds text, random reply, code script and pipeline in one reply control', async () => {
     await open('/app/commands?command=hello');
 
-    const controls = editor()!.querySelectorAll('[data-reply-mode] [data-segmented]');
+    const controls = editor()!.querySelectorAll('[data-reply-mode] > [data-segmented]');
     const labels = [...controls[0]!.querySelectorAll('button')].map((button) =>
       button.textContent?.trim(),
     );
@@ -1690,7 +1741,7 @@ describe('CommandsView code script reaction', () => {
   it('offers Code script as the fourth reply choice and shows a picker of the channel scripts', async () => {
     await open('/app/commands?command=hello');
 
-    const labels = [...editor()!.querySelectorAll('[data-reply-mode] [data-segmented] button')].map(
+    const labels = [...editor()!.querySelectorAll('[data-reply-mode] > [data-segmented] button')].map(
       (button) => button.textContent?.trim(),
     );
 

@@ -32,6 +32,7 @@ import EditorFooter from '@/components/layout/EditorFooter.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import DetailClose from './DetailClose.vue';
+import ReplyDeliveryField from '@/components/layout/ReplyDeliveryField.vue';
 import ReplyModeField from '@/components/layout/ReplyModeField.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Button } from '@/components/ui/button';
@@ -349,6 +350,8 @@ function remove(): void {
             </div>
           </Field>
         </div>
+        <!-- Where the reply goes belongs to a text reply; a pipeline or a script sends through its own step. -->
+        <ReplyDeliveryField v-if="!scripted" v-model="draft.replyDelivery" />
         <!-- Speech belongs to a text reply; a pipeline or a script speaks through its own step. -->
         <LabeledSwitch
           v-if="!scripted"

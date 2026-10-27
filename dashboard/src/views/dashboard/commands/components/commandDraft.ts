@@ -10,7 +10,13 @@
 
 import type { CommandChange, CommandListItem } from '@/api/commands';
 
-import type { ReplyMode } from '@/components/layout/replyMode';
+import {
+  deliveryOf,
+  deliveryToSave,
+  sameDelivery,
+  type ReplyDelivery,
+  type ReplyMode,
+} from '@/components/layout/replyMode';
 
 import { rungNames } from '@/api/permissions';
 
@@ -45,6 +51,7 @@ export interface CommandDraft {
   pipelineId: string;
   codeScriptId: string;
   speakWithTts: boolean;
+  replyDelivery: ReplyDelivery;
   minPermissionLevel: string;
   cooldownSeconds: number;
   userCooldownSeconds: number;
@@ -82,6 +89,7 @@ export function draftOf(row: CommandListItem): CommandDraft {
     pipelineId: row.pipelineId ?? '',
     codeScriptId: row.codeScriptId ?? '',
     speakWithTts: row.speakWithTts ?? false,
+    replyDelivery: deliveryOf(row.replyDelivery),
     minPermissionLevel: canonicalLevel(row.minPermissionLevel),
     cooldownSeconds: Number(row.cooldownSeconds),
     userCooldownSeconds: Number(row.userCooldownSeconds),
@@ -143,6 +151,11 @@ export function changeOf(draft: CommandDraft, row: CommandListItem): CommandChan
     change.speakWithTts = speaks;
   }
 
+  // Going back to plain Twitch chat travels as null, which clears the setting on the bot.
+  if (!sameDelivery(draft.replyDelivery, saved.replyDelivery)) {
+    change.replyDelivery = deliveryToSave(draft.replyDelivery);
+  }
+
   if (draft.prefixMode !== saved.prefixMode) {
     change.prefixMode = draft.prefixMode;
   }
@@ -191,6 +204,7 @@ export function sameDraft(left: CommandDraft, right: CommandDraft): boolean {
     left.pipelineId === right.pipelineId &&
     left.codeScriptId === right.codeScriptId &&
     left.speakWithTts === right.speakWithTts &&
+    sameDelivery(left.replyDelivery, right.replyDelivery) &&
     left.minPermissionLevel === right.minPermissionLevel &&
     left.cooldownSeconds === right.cooldownSeconds &&
     left.userCooldownSeconds === right.userCooldownSeconds

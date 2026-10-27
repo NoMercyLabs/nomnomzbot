@@ -94,6 +94,18 @@
       "create": "Nieuwe pipeline maken",
       "newName": "Nieuwe pipeline"
     },
+    "replyDelivery": {
+      "label": "Stuur het antwoord naar",
+      "hint": "De chat-overlay toont het antwoord als botregel met \"gevraagd door\" en de naam van de kijker. Is er geen chat-overlay open, dan herstelt de bot de browserbron.",
+      "target": {
+        "chat": "Twitch-chat",
+        "overlay": "Chat-overlay",
+        "both": "Beide",
+        "none": "Nergens"
+      },
+      "html": "HTML",
+      "htmlHelp": "De overlayregel toont HTML. De bot haalt eerst onveilige opmaak weg. Dit werkt als het antwoord naar de chat-overlay gaat."
+    },
     "targetPicker": {
       "label": "Voert uit",
       "placeholder": "Kies een commando of pipeline",
