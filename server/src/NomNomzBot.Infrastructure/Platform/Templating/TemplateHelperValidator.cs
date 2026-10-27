@@ -49,7 +49,7 @@ public sealed class TemplateHelperValidator(ITemplateHelperRegistry registry)
             PlaceholderNode node in TemplateTree.StaticPlaceholders(TemplateParser.Parse(template))
         )
         {
-            RenderedToken token = RenderedToken.FromStatic(node);
+            RenderedToken token = RenderedToken.FromStatic(node, _ => false);
             string key = token.Content.Trim();
             if (key.Length == 0)
                 continue;

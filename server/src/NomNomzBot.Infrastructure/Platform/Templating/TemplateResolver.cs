@@ -89,8 +89,7 @@ public sealed class TemplateResolver : ITemplateResolver
 
         template = await _legacy.ExpandPrePassesAsync(template, broadcasterId, cancellationToken);
         IReadOnlyList<TemplateNode> nodes = TemplateParser.Parse(template);
-        List<PlaceholderNode> innermost = [.. TemplateTree.StaticPlaceholders(nodes)];
-        if (innermost.Count == 0)
+        if (!nodes.OfType<PlaceholderNode>().Any())
             return TemplateTreeRenderer.Render(nodes, _ => null);
 
         Dictionary<string, string> seeds = new(seedVariables, StringComparer.OrdinalIgnoreCase);
@@ -104,9 +103,9 @@ public sealed class TemplateResolver : ITemplateResolver
         ProviderDispatch providers = new(_helpers, scope, seeds);
 
         HashSet<string> needed = new(StringComparer.OrdinalIgnoreCase);
-        foreach (PlaceholderNode node in innermost)
+        foreach (PlaceholderNode node in TemplateTree.StaticPlaceholders(nodes, providers.IsLazy))
         {
-            RenderedToken token = RenderedToken.FromStatic(node);
+            RenderedToken token = RenderedToken.FromStatic(node, providers.IsLazy);
             if (!providers.Claim(token))
                 needed.Add(token.Content.Trim());
         }
@@ -126,10 +125,29 @@ public sealed class TemplateResolver : ITemplateResolver
             {
                 if (providers.Owns(token))
                     return await providers.RenderAsync(token, cancellationToken);
-                return LegacyTemplateHelpers.Lookup(token.Content.Trim(), vars)
+                string key = token.Content.Trim();
+                await FetchLateAsync(key);
+                return LegacyTemplateHelpers.Lookup(key, vars)
                     ?? _legacy.RenderExpression(token.Content, dateContext);
-            }
+            },
+            providers.IsLazy
         );
+
+        // A token inside a lazy argument was not known before the render: fetch its variable when it is asked for.
+        async Task FetchLateAsync(string key)
+        {
+            if (vars.ContainsKey(key) || !needed.Add(key))
+                return;
+
+            Dictionary<string, string> late = await _legacy.BuildVariablesAsync(
+                seedVariables,
+                [key],
+                broadcasterId,
+                cancellationToken
+            );
+            foreach (KeyValuePair<string, string> pair in late)
+                vars.TryAdd(pair.Key, pair.Value);
+        }
     }
 
     private static string? FindVariable(IDictionary<string, string> variables, string key)

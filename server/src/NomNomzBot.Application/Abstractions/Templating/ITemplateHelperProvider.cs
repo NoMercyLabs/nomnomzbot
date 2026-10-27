@@ -14,6 +14,11 @@ namespace NomNomzBot.Application.Abstractions.Templating;
 /// Owns one template namespace (<c>music</c>, <c>text</c>, …): its registry rows and how they render.
 /// A provider is a class; one reflection scan registers every provider, so a new namespace adds a class
 /// and edits no shared file. Providers are singletons: one that needs scoped services creates a scope.
+/// A provider claims only its own keys: it handles a token when its <see cref="Entries"/> hold the key (an
+/// exact key, an alias, or a prefix family). Every other key of the same namespace keeps resolving through the
+/// as-built helpers, so one provider per namespace is the rule but the namespace never decides ownership.
+/// An entry marked <see cref="TemplateHelperEntry.LazyArguments"/> receives raw arguments and renders the
+/// chosen ones itself with <see cref="HelperNode.RenderArgumentAsync"/>.
 /// </summary>
 public interface ITemplateHelperProvider
 {

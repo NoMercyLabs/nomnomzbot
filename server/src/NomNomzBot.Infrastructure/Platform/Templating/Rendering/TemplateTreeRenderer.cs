@@ -21,11 +21,17 @@ namespace NomNomzBot.Infrastructure.Platform.Templating.Rendering;
 /// </summary>
 public static class TemplateTreeRenderer
 {
+    /// <summary>
+    /// Renders the tree inside out. A token whose key <paramref name="isLazy"/> accepts keeps its arguments
+    /// as written and gets <see cref="RenderedToken.RenderArgument"/> to render one on demand.
+    /// </summary>
     public static async ValueTask<string> RenderAsync(
         IReadOnlyList<TemplateNode> nodes,
-        Func<RenderedToken, ValueTask<string?>> evaluate
+        Func<RenderedToken, ValueTask<string?>> evaluate,
+        Func<string, bool>? isLazy = null
     )
     {
+        isLazy ??= _ => false;
         StringBuilder builder = new();
         foreach (TemplateNode node in nodes)
         {
@@ -35,18 +41,38 @@ public static class TemplateTreeRenderer
                 continue;
             }
 
-            RenderedToken token = placeholder.IsStatic
-                ? RenderedToken.FromStatic(placeholder)
-                : new RenderedToken(
-                    await RenderAsync(placeholder.Key, evaluate),
-                    placeholder.Arguments is null
-                        ? null
-                        : await RenderArgumentsAsync(placeholder.Arguments, evaluate),
-                    placeholder.Raw
-                );
+            RenderedToken token = await TokenOfAsync(placeholder, evaluate, isLazy);
             builder.Append(await evaluate(token) ?? AsWritten(placeholder, token));
         }
         return builder.ToString();
+    }
+
+    private static async ValueTask<RenderedToken> TokenOfAsync(
+        PlaceholderNode placeholder,
+        Func<RenderedToken, ValueTask<string?>> evaluate,
+        Func<string, bool> isLazy
+    )
+    {
+        if (placeholder.IsStatic)
+            return RenderedToken.FromStatic(placeholder, isLazy);
+
+        string key = await RenderAsync(placeholder.Key, evaluate, isLazy);
+        if (placeholder.Arguments is null)
+            return new RenderedToken(key, null, placeholder.Raw);
+
+        if (!isLazy(key.Trim()))
+            return new RenderedToken(
+                key,
+                await RenderArgumentsAsync(placeholder.Arguments, evaluate, isLazy),
+                placeholder.Raw
+            );
+
+        IReadOnlyList<IReadOnlyList<TemplateNode>> arguments = placeholder.Arguments;
+        return new RenderedToken(key, RenderedToken.RawArguments(arguments), placeholder.Raw)
+        {
+            RenderArgument = async (index, _) =>
+                await RenderAsync(arguments[index], evaluate, isLazy),
+        };
     }
 
     public static string Render(
@@ -64,7 +90,7 @@ public static class TemplateTreeRenderer
             }
 
             RenderedToken token = placeholder.IsStatic
-                ? RenderedToken.FromStatic(placeholder)
+                ? RenderedToken.FromStatic(placeholder, _ => false)
                 : new RenderedToken(
                     Render(placeholder.Key, evaluate),
                     placeholder.Arguments?.Select(a => Render(a, evaluate)).ToList(),
@@ -77,12 +103,13 @@ public static class TemplateTreeRenderer
 
     private static async ValueTask<List<string>> RenderArgumentsAsync(
         IReadOnlyList<IReadOnlyList<TemplateNode>> arguments,
-        Func<RenderedToken, ValueTask<string?>> evaluate
+        Func<RenderedToken, ValueTask<string?>> evaluate,
+        Func<string, bool> isLazy
     )
     {
         List<string> rendered = [];
         foreach (IReadOnlyList<TemplateNode> argument in arguments)
-            rendered.Add(await RenderAsync(argument, evaluate));
+            rendered.Add(await RenderAsync(argument, evaluate, isLazy));
         return rendered;
     }
 

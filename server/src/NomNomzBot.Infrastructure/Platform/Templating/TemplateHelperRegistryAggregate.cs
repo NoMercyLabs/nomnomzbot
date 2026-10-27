@@ -30,6 +30,9 @@ public sealed class TemplateHelperRegistryAggregate : ITemplateHelperRegistry
         StringComparer.OrdinalIgnoreCase
     );
 
+    private readonly Dictionary<TemplateHelperEntry, ITemplateHelperProvider> _providerOfEntry =
+        new(ReferenceEqualityComparer.Instance);
+
     public TemplateHelperRegistryAggregate(IEnumerable<ITemplateHelperProvider> providers)
     {
         List<TemplateHelperEntry> all = [.. TemplateHelperRegistry.All];
@@ -55,6 +58,7 @@ public sealed class TemplateHelperRegistryAggregate : ITemplateHelperRegistry
                         );
                 }
                 all.Add(entry);
+                _providerOfEntry[entry] = provider;
             }
         }
 
@@ -76,12 +80,16 @@ public sealed class TemplateHelperRegistryAggregate : ITemplateHelperRegistry
             ? entry
             : All.FirstOrDefault(e => e.Matches(key));
 
-    public ITemplateHelperProvider? ProviderFor(string key) =>
-        _byNamespace.Count > 0
-        && _byNamespace.TryGetValue(
-            HelperNode.NamespaceOf(key),
-            out ITemplateHelperProvider? provider
-        )
-            ? provider
-            : null;
+    public ITemplateHelperProvider? ProviderFor(string key)
+    {
+        if (_providerOfEntry.Count == 0)
+            return null;
+
+        // An exact key or alias is decided by the row that holds it; a prefix family only by a provider row.
+        if (_byKey.TryGetValue(key, out TemplateHelperEntry? exact))
+            return _providerOfEntry.GetValueOrDefault(exact);
+
+        TemplateHelperEntry? family = _providerOfEntry.Keys.FirstOrDefault(e => e.Matches(key));
+        return family is null ? null : _providerOfEntry[family];
+    }
 }

@@ -15,8 +15,15 @@ namespace NomNomzBot.Infrastructure.Platform.Templating.Parsing;
 /// <summary>Walks a parsed template: finds its innermost tokens, and writes it back with some tokens replaced.</summary>
 public static class TemplateTree
 {
-    /// <summary>Every token with no token inside it, anywhere in the tree (in a key, an argument, or on top).</summary>
-    public static IEnumerable<PlaceholderNode> StaticPlaceholders(IReadOnlyList<TemplateNode> nodes)
+    /// <summary>
+    /// Every token with no token inside it, anywhere in the tree (in a key, an argument, or on top). The
+    /// arguments of a token whose static key <paramref name="isLazy"/> accepts are not searched: they resolve
+    /// only if the helper asks for them.
+    /// </summary>
+    public static IEnumerable<PlaceholderNode> StaticPlaceholders(
+        IReadOnlyList<TemplateNode> nodes,
+        Func<string, bool>? isLazy = null
+    )
     {
         foreach (PlaceholderNode node in nodes.OfType<PlaceholderNode>())
         {
@@ -26,13 +33,23 @@ public static class TemplateTree
                 continue;
             }
 
-            foreach (PlaceholderNode inner in StaticPlaceholders(node.Key))
+            foreach (PlaceholderNode inner in StaticPlaceholders(node.Key, isLazy))
                 yield return inner;
+
+            if (HasLazyArguments(node, isLazy))
+                continue;
+
             foreach (IReadOnlyList<TemplateNode> argument in node.Arguments ?? [])
-            foreach (PlaceholderNode inner in StaticPlaceholders(argument))
+            foreach (PlaceholderNode inner in StaticPlaceholders(argument, isLazy))
                 yield return inner;
         }
     }
+
+    private static bool HasLazyArguments(PlaceholderNode node, Func<string, bool>? isLazy) =>
+        isLazy is not null
+        && node.Arguments is not null
+        && node.Key.All(n => n is TextNode)
+        && isLazy(PlaceholderNode.TextOf(node.Key).Trim());
 
     /// <summary>
     /// Writes the template back as source text, with each innermost token for which

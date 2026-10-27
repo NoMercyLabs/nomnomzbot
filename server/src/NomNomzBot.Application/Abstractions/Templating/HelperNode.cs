@@ -13,10 +13,17 @@ namespace NomNomzBot.Application.Abstractions.Templating;
 /// <summary>
 /// One helper call as a provider sees it: the key and the arguments, each already rendered (inside out)
 /// and trimmed. <see cref="Raw"/> is the token as written, which the resolver prints when the provider
-/// returns null.
+/// returns null. For a lazy entry (<see cref="TemplateHelperEntry.LazyArguments"/>) the arguments are the
+/// raw argument text instead, and <see cref="RenderArgumentAsync"/> renders one on demand.
 /// </summary>
 public sealed record HelperNode(string Key, IReadOnlyList<string> Arguments, string Raw)
 {
+    /// <summary>
+    /// Renders argument <c>i</c> (nested tokens included) with the resolver's own evaluator; set only for a
+    /// lazy entry, null otherwise. An argument that is never asked for never resolves.
+    /// </summary>
+    public Func<int, CancellationToken, ValueTask<string>>? RenderArgumentAsync { get; init; }
+
     /// <summary>The key text before the first <c>.</c>: <c>music</c> for <c>music.queue.position</c>.</summary>
     public string Namespace => NamespaceOf(Key);
 

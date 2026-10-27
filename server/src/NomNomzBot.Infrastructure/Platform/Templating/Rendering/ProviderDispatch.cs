@@ -28,6 +28,9 @@ public sealed class ProviderDispatch(
     private readonly Dictionary<(ITemplateHelperProvider, string?), List<HelperNode>> _claimed = [];
     private readonly HashSet<string> _claimedRaw = new(StringComparer.Ordinal);
 
+    /// <summary>True when the entry that holds this key takes lazy arguments.</summary>
+    public bool IsLazy(string key) => helpers.Find(key)?.LazyArguments ?? false;
+
     /// <summary>True when a provider renders this token (no seed has its key).</summary>
     public bool Owns(RenderedToken token) =>
         !seeds.ContainsKey(token.Content.Trim()) && ProviderOf(token) is not null;
