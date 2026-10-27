@@ -144,7 +144,7 @@ public sealed class ChatMessageHandlerPassiveClipTests
             registry,
             provider.GetRequiredService<IServiceScopeFactory>(),
             Substitute.For<ICooldownManager>(),
-            NoopChatSender(),
+            TestReplyDispatcher.Over(NoopChatSender()),
             Substitute.For<IPipelineEngine>(),
             builtins,
             Substitute.For<ITemplateResolver>(),

@@ -50,6 +50,7 @@ public sealed class HubSeamRegistrationTests
         (typeof(IEventJournalChangeNotifier), typeof(EventJournalChangeNotifier)),
         (typeof(IOverlayPresenceRegistry), typeof(OverlayPresenceRegistry)),
         (typeof(IObsBridgePusher), typeof(ObsBridgePusher)),
+        (typeof(IChatOverlayLineSender), typeof(ChatOverlayLineSender)),
     ];
 
     [Fact]

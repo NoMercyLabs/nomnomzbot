@@ -72,6 +72,7 @@ internal sealed class ImportTestDbContext : DbContext, IApplicationDbContext
             e.HasKey(c => c.Id);
             e.Ignore(c => c.Pipeline);
             e.Ignore(c => c.Channel);
+            e.Ignore(c => c.ReplyDelivery);
             e.Property(c => c.Aliases)
                 .HasConversion(
                     JsonValueConverter.Converter<List<string>>(),

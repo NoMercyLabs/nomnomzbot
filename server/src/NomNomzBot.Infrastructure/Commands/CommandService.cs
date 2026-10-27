@@ -185,6 +185,7 @@ public class CommandService : ICommandService
             Aliases = request.Aliases ?? [],
             IsEnabled = request.IsEnabled,
             SpeakWithTts = request.SpeakWithTts,
+            ReplyDelivery = request.ReplyDelivery,
         };
 
         _db.Commands.Add(command);
@@ -363,6 +364,8 @@ public class CommandService : ICommandService
         }
         if (request.SpeakWithTts.HasValue)
             command.SpeakWithTts = request.SpeakWithTts.Value;
+        if (request.ReplyDelivery is not null)
+            command.ReplyDelivery = request.ReplyDelivery;
 
         await _db.SaveChangesAsync(cancellationToken);
         await _registry.InvalidateCommandsAsync(broadcaster, cancellationToken);
@@ -548,6 +551,7 @@ public class CommandService : ICommandService
                 PresetKey = c.PresetKey,
                 SpeakWithTts = c.SpeakWithTts,
                 CodeScriptId = c.CodeScriptId,
+                ReplyDelivery = c.ReplyDelivery,
             })
             .ToListAsync(cancellationToken);
 
@@ -742,6 +746,7 @@ public class CommandService : ICommandService
             PresetKey = c.PresetKey,
             SpeakWithTts = c.SpeakWithTts,
             CodeScriptId = c.CodeScriptId,
+            ReplyDelivery = c.ReplyDelivery,
         };
 
     /// <summary>A code command needs a script of its own channel; every other tier has nothing to check.</summary>

@@ -200,7 +200,7 @@ public sealed class ChatMessageHandlerDenialTtsTests
             registry,
             provider.GetRequiredService<IServiceScopeFactory>(),
             new CooldownManager(TimeProvider.System),
-            chat,
+            TestReplyDispatcher.Over(chat),
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IBuiltinCommandCatalog>(),
             Substitute.For<ITemplateResolver>(),

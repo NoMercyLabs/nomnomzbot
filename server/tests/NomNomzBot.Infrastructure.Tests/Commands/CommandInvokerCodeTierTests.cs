@@ -11,6 +11,7 @@
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -24,6 +25,7 @@ using NomNomzBot.Domain.CustomCode.Enums;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.AutomationApi;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands;
@@ -89,6 +91,7 @@ public sealed class CommandInvokerCodeTierTests
             Substitute.For<IChannelTwitchBotResolver>(),
             Substitute.For<ITemplateResolver>(),
             chat,
+            TestReplyDispatcher.Over(Substitute.For<IInboundOriginChatSender>(), provider: chat),
             catalog,
             new OutboundSanctionAccessor(),
             runner

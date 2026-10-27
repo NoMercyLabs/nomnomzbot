@@ -11,6 +11,7 @@
 using System.Collections.Concurrent;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Obs.Services;
 
 namespace NomNomzBot.Infrastructure.Obs.Recovery;
@@ -76,7 +77,16 @@ public sealed class ObsBrowserSourceRecoveryScheduler : IObsBrowserSourceRecover
             await using AsyncServiceScope scope = _scopeFactory.CreateAsyncScope();
             IObsBrowserSourceRecoveryService recovery =
                 scope.ServiceProvider.GetRequiredService<IObsBrowserSourceRecoveryService>();
-            await recovery.RecoverAsync(broadcasterId, CancellationToken.None);
+            Result<IReadOnlyList<string>> pass = await recovery.RecoverAsync(
+                broadcasterId,
+                CancellationToken.None
+            );
+            if (pass.IsFailure)
+                _logger.LogWarning(
+                    "OBS browser source recovery could not run for channel {ChannelId}: {Error}. A widget that has no connection stays dead until OBS reloads it or the source is refreshed by hand.",
+                    broadcasterId,
+                    pass.ErrorMessage
+                );
         }
         catch (Exception ex)
         {

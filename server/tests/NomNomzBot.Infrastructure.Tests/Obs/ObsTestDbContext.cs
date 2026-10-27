@@ -134,6 +134,7 @@ internal sealed class ObsTestDbContext : DbContext, IApplicationDbContext
             e.HasKey(c => c.Id);
             e.Ignore(c => c.Pipeline);
             e.Ignore(c => c.Channel);
+            e.Ignore(c => c.ReplyDelivery);
         });
         b.Entity<NomNomzBot.Domain.Obs.Entities.ObsConnection>(e =>
         {

@@ -130,6 +130,7 @@ public sealed class IdentityRekeyBehaviorTests
 
             b.Entity<Command>().HasKey(e => e.Id);
             b.Entity<Command>().Ignore(e => e.TemplateResponses).Ignore(e => e.Aliases);
+            b.Entity<Command>().Ignore(e => e.ReplyDelivery);
             b.Entity<Command>().Ignore(e => e.Channel);
 
             // The unit under test: the production composing tenant + soft-delete global query filter.

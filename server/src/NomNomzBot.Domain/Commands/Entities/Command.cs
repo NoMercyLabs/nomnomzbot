@@ -11,6 +11,7 @@
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
 using NomNomzBot.Domain.Billing;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform;
 
@@ -93,6 +94,13 @@ public class Command : SoftDeletableEntity, ITenantScoped
 
     /// <summary>Whether a template reply is also sent through the TTS pipeline.</summary>
     public bool SpeakWithTts { get; set; }
+
+    /// <summary>
+    /// Where a template reply goes (chat, chat overlay, both, nowhere) and whether the overlay line is HTML.
+    /// Stored in the <c>ReplyDeliveryJson</c> column; null = the platform chat as plain text, so every row
+    /// written before this setting existed behaves exactly as it did.
+    /// </summary>
+    public ReplyDelivery? ReplyDelivery { get; set; }
 
     /// <summary>True for built-in platform commands; false for broadcaster-authored ones.</summary>
     public bool IsPlatform { get; set; }

@@ -102,7 +102,7 @@ public sealed class ChatTriggerDirectBindingTests
             registry,
             provider.GetRequiredService<IServiceScopeFactory>(),
             new CooldownManager(TimeProvider.System),
-            chat,
+            TestReplyDispatcher.Over(chat),
             pipeline,
             builtins,
             Substitute.For<ITemplateResolver>(),

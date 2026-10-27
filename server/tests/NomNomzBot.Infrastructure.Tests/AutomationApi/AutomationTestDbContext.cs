@@ -16,6 +16,7 @@ using NomNomzBot.Domain.Analytics.Entities;
 using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomEvents.Entities;
 using NomNomzBot.Domain.Discord.Entities;
@@ -140,6 +141,11 @@ internal sealed class AutomationTestDbContext : DbContext, IApplicationDbContext
             e.HasKey(c => c.Id);
             e.Ignore(c => c.Pipeline);
             e.Ignore(c => c.Channel);
+            e.Property(c => c.ReplyDelivery)
+                .HasConversion(
+                    v => v == null ? null : ReplyDeliveryJson.Serialize(v),
+                    v => ReplyDeliveryJson.Deserialize(v)
+                );
         });
 
         foreach (Type entity in UnmappedEntities)

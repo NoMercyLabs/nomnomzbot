@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Commands.ValueObjects;
+
 namespace NomNomzBot.Application.Contracts.Marketplace;
 
 // The versioned per-type export contracts (marketplace.md D1). Each is a strict ALLOWLIST of portable
@@ -59,6 +61,9 @@ public sealed record CommandExport
     public string? Description { get; init; }
     public IReadOnlyList<string> Aliases { get; init; } = [];
     public bool IsEnabled { get; init; } = true;
+
+    /// <summary>Where the reply goes and whether the overlay line is HTML; absent in older exports = chat only.</summary>
+    public ReplyDelivery? ReplyDelivery { get; init; }
 }
 
 /// <summary>

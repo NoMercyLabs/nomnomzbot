@@ -496,6 +496,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         // GraphJsonCache/IsEnabled) runs cleanly through this harness too.
         b.Entity<NomNomzBot.Domain.Commands.Entities.Command>().HasKey(e => e.Id);
         b.Entity<NomNomzBot.Domain.Commands.Entities.Command>().Ignore(e => e.Channel);
+        // ReplyDelivery is a JSON-converted record in the real model; this harness has no converter for it.
+        b.Entity<NomNomzBot.Domain.Commands.Entities.Command>().Ignore(e => e.ReplyDelivery);
 
         // Reward is scalar-only (no jsonb-of-complex-type column), so it materializes on InMemory. Mapped
         // (navs ignored) so the reward-sync tests can prove the Twitch read path through this harness.

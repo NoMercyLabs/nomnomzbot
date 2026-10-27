@@ -88,7 +88,7 @@ public sealed class ChatMessageHandlerFirstChatTests
             registry,
             scopes,
             Substitute.For<ICooldownManager>(),
-            Substitute.For<IInboundOriginChatSender>(),
+            TestReplyDispatcher.Over(Substitute.For<IInboundOriginChatSender>()),
             Substitute.For<IPipelineEngine>(),
             Substitute.For<IBuiltinCommandCatalog>(),
             Substitute.For<ITemplateResolver>(),

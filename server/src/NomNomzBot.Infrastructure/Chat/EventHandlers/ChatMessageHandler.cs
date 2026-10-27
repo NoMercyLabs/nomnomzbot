@@ -62,7 +62,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     private readonly IChannelRegistry _registry;
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ICooldownManager _cooldowns;
-    private readonly IInboundOriginChatSender _chat;
+    private readonly IReplyDispatcher _replies;
     private readonly IPipelineEngine _pipeline;
     private readonly IBuiltinCommandCatalog _builtins;
     private readonly ITemplateResolver _templateResolver;
@@ -81,7 +81,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         IChannelRegistry registry,
         IServiceScopeFactory scopeFactory,
         ICooldownManager cooldowns,
-        IInboundOriginChatSender chat,
+        IReplyDispatcher replies,
         IPipelineEngine pipeline,
         IBuiltinCommandCatalog builtins,
         ITemplateResolver templateResolver,
@@ -96,7 +96,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         _registry = registry;
         _scopeFactory = scopeFactory;
         _cooldowns = cooldowns;
-        _chat = chat;
+        _replies = replies;
         _pipeline = pipeline;
         _builtins = builtins;
         _templateResolver = templateResolver;
@@ -631,33 +631,57 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 // Only a reply that shows the role pays for the resolver; any other reply keeps the badge path.
                 if (response.Contains("user.role", StringComparison.Ordinal))
                     variables["user.role"] = await ResolveEffectiveRoleTokenAsync(level);
-                string resolved = await _templateResolver.ResolveAsync(
+                // The command says where its reply goes (chat, the chat overlay, both or neither); a command
+                // that sets nothing answers in chat as it always did.
+                ReplyDelivery delivery = command.ReplyDelivery ?? ReplyDelivery.ChatOnly;
+                RenderedReply rendered = await ReplyTemplateRenderer.RenderAsync(
+                    _templateResolver,
                     response,
-                    ChatMentionName.ForChat(variables),
+                    variables,
                     @event.BroadcasterId,
+                    delivery,
                     cancellationToken
                 );
 
-                // IChatProvider takes the tenant Guid and resolves it to the Twitch channel string id
-                // internally (the invariant boundary lives in HelixChatProvider). Before this, the bool
-                // was discarded and success hardcoded, so a template response that never reached chat
-                // (transport rejection) still recorded as a successful CommandExecutedEvent — the same
-                // defect class S008 fixed for pipelines and S008c fixed for builtins.
-                bool templateSent = await SendResponseAsync(@event, resolved, cancellationToken);
-                if (!templateSent)
+                // The outcome carries the REAL delivery result — a failed chat send, or an overlay nobody has
+                // open, is never reported as delivered (the defect class S008 fixed for pipelines and S008c
+                // for builtins). A missing overlay gets no chat fallback: the dispatcher hands it to the OBS
+                // browser source recovery instead.
+                ReplyOutcome outcome = await _replies.DispatchAsync(
+                    new ReplyRequest
+                    {
+                        BroadcasterId = @event.BroadcasterId,
+                        Text = rendered.ChatText,
+                        OverlayText = rendered.OverlayText,
+                        Delivery = delivery,
+                        Origin = OriginOf(@event, threaded: true),
+                        RequestedBy = @event.UserDisplayName,
+                    },
+                    cancellationToken
+                );
+                if (delivery.SendsToChat && !outcome.SentToChat)
                     await SendBuiltinFailureNoticeAsync(@event, ctx, cancellationToken);
-                else if (command.SpeakWithTts && !string.IsNullOrWhiteSpace(resolved))
+                else if (
+                    outcome.SentToChat
+                    && command.SpeakWithTts
+                    && !string.IsNullOrWhiteSpace(rendered.ChatText)
+                )
                     await ReplyTtsPipeline.QueueAsync(
                         _pipeline,
                         @event.BroadcasterId,
                         @event.UserId,
                         @event.UserDisplayName,
                         @event.Provider,
-                        resolved,
+                        rendered.ChatText,
                         cancellationToken
                     );
 
-                await PublishExecutedAsync(@event, command.Name, templateSent, cancellationToken);
+                await PublishExecutedAsync(
+                    @event,
+                    command.Name,
+                    outcome.Succeeded(delivery),
+                    cancellationToken
+                );
             }
         }
         catch (Exception ex)
@@ -836,38 +860,30 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         CancellationToken ct
     )
     {
-        if (string.IsNullOrEmpty(@event.MessageId))
-            return (
-                await _chat.SendMessageAsync(@event.BroadcasterId, @event.Provider, text, ct)
-            ).IsSuccess;
-
-        if (
-            (
-                await _chat.SendReplyAsync(
-                    @event.BroadcasterId,
-                    @event.Provider,
-                    @event.MessageId,
-                    text,
-                    ct
-                )
-            ).IsSuccess
-        )
-            return true;
-
-        ReplyOrMentionPlan fallback = ReplyOrMentionComposer.Compose(
-            null,
-            ChatMentionName.For(@event.UserDisplayName, @event.UserLogin),
-            text
+        ReplyOutcome outcome = await _replies.DispatchAsync(
+            new ReplyRequest
+            {
+                BroadcasterId = @event.BroadcasterId,
+                Text = text,
+                Delivery = ReplyDelivery.ChatOnly,
+                Origin = OriginOf(@event, threaded: true),
+            },
+            ct
         );
-        return (
-            await _chat.SendMessageAsync(
-                @event.BroadcasterId,
-                @event.Provider,
-                fallback.Message,
-                ct
-            )
-        ).IsSuccess;
+        return outcome.SentToChat;
     }
+
+    /// <summary>
+    /// Where a reply to <paramref name="event"/> goes. <paramref name="threaded"/> false drops the message id,
+    /// so the chat leg sends a plain message on the same platform instead of a native reply.
+    /// </summary>
+    private static ReplyOrigin OriginOf(ChatMessageReceivedEvent @event, bool threaded) =>
+        new(
+            @event.Provider,
+            threaded ? @event.MessageId : string.Empty,
+            @event.UserDisplayName,
+            @event.UserLogin
+        );
 
     /// <summary>
     /// The single notice sent to the invoker when a gate silently blocked their command before —
@@ -1617,7 +1633,16 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             ct
         );
         if (!string.IsNullOrWhiteSpace(resolved))
-            await _chat.SendMessageAsync(@event.BroadcasterId, @event.Provider, resolved, ct);
+            await _replies.DispatchAsync(
+                new ReplyRequest
+                {
+                    BroadcasterId = @event.BroadcasterId,
+                    Text = resolved,
+                    Delivery = ReplyDelivery.ChatOnly,
+                    Origin = OriginOf(@event, threaded: false),
+                },
+                ct
+            );
     }
 
     private async Task RunChatTriggerTargetAsync(

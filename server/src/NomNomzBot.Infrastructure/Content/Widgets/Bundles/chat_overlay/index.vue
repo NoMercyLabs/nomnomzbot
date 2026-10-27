@@ -93,6 +93,8 @@ function positive(v: unknown): number | null {
 // when it knows for certain, but the raw '!' prefix is the reliable fallback for any command the
 // server didn't tag (a viewer's own unrecognized "!whatever" still reads as a command visually).
 function isCommandMessage(m: NnzDashboardChatMessageDto): boolean {
+  // The bot's own overlay-only line is the answer to a command, never the command itself, so hideCommands keeps it.
+  if (m.messageType === 'overlay_line') return false
   if (m.isCommand === true) return true
   const text: string = String(m.message || '').trim()
   return text.charAt(0) === '!'

@@ -134,7 +134,7 @@ public sealed class SoundTriggerMatchingTests
             registry,
             provider.GetRequiredService<IServiceScopeFactory>(),
             new CooldownManager(TimeProvider.System),
-            chat,
+            TestReplyDispatcher.Over(chat),
             Substitute.For<IPipelineEngine>(),
             builtins,
             Substitute.For<ITemplateResolver>(),

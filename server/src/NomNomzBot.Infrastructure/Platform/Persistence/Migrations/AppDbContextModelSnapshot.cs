@@ -1512,6 +1512,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
 
+                    b.Property<string>("ReplyDelivery")
+                        .HasColumnType("text")
+                        .HasColumnName("ReplyDeliveryJson");
+
                     b.Property<bool>("SpeakWithTts")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("boolean")

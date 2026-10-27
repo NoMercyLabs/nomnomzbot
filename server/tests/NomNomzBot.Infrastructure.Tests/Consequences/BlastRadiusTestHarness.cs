@@ -137,6 +137,7 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
             b.HasKey(c => c.Id);
             b.Ignore(c => c.Aliases);
             b.Ignore(c => c.TemplateResponses);
+            b.Ignore(c => c.ReplyDelivery);
             b.Ignore(c => c.Pipeline);
             b.Ignore(c => c.Channel);
         });

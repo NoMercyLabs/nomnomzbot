@@ -12,6 +12,7 @@ using System.Text.Json;
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
@@ -19,6 +20,7 @@ using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Obs.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Entities;
@@ -27,6 +29,7 @@ using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Tests.AutomationApi;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NSubstitute;
 using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
@@ -54,6 +57,8 @@ public sealed class CommandInvokerTests
         public required IChatProvider Chat { get; init; }
         public required ITemplateResolver Templates { get; init; }
         public required IBuiltinCommandCatalog Catalog { get; init; }
+        public required RecordingChatOverlayLineSender Overlay { get; init; }
+        public required IObsBrowserSourceRecoveryScheduler Recovery { get; init; }
     }
 
     private static Guid AddCommand(
@@ -63,7 +68,8 @@ public sealed class CommandInvokerTests
         bool tts = false,
         Guid? pipelineId = null,
         Guid? channel = null,
-        bool enabled = true
+        bool enabled = true,
+        ReplyDelivery? delivery = null
     )
     {
         Guid id = Guid.NewGuid();
@@ -77,6 +83,7 @@ public sealed class CommandInvokerTests
                 Tier = tier,
                 TemplateResponses = responses?.ToList(),
                 SpeakWithTts = tts,
+                ReplyDelivery = delivery,
                 PipelineId = pipelineId,
                 IsEnabled = enabled,
                 CooldownSeconds = 60,
@@ -137,8 +144,14 @@ public sealed class CommandInvokerTests
         IBuiltinCommandCatalog catalog = Substitute.For<IBuiltinCommandCatalog>();
         catalog.Get(Arg.Any<string>()).Returns((IBuiltinCommand?)null);
 
+        RecordingChatOverlayLineSender overlay = new();
+        IObsBrowserSourceRecoveryScheduler recovery =
+            Substitute.For<IObsBrowserSourceRecoveryScheduler>();
+
         return new Harness
         {
+            Overlay = overlay,
+            Recovery = recovery,
             Invoker = new CommandInvoker(
                 db,
                 engine,
@@ -146,6 +159,13 @@ public sealed class CommandInvokerTests
                 bots,
                 templates,
                 chat,
+                TestReplyDispatcher.Over(
+                    Substitute.For<IInboundOriginChatSender>(),
+                    overlay,
+                    chat,
+                    recovery,
+                    bots
+                ),
                 catalog,
                 new OutboundSanctionAccessor(),
                 Substitute.For<IScriptRunner>()
@@ -604,6 +624,60 @@ public sealed class CommandInvokerTests
 
         result.Value.Succeeded.Should().BeFalse();
         result.Value.Error.Should().NotBeNullOrEmpty();
+        await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
+    }
+
+    [Fact]
+    public async Task Overlay_only_template_command_puts_the_line_on_the_overlay_attributed_and_sends_nothing_to_chat()
+    {
+        Harness h = Build();
+        Guid id = AddCommand(
+            h,
+            "template",
+            ["<marquee>CHOO CHOO</marquee>"],
+            delivery: new ReplyDelivery(ReplyTarget.Overlay, Html: true)
+        );
+
+        Result<InvocationOutcome> result = await h.Invoker.InvokeAsync(
+            Channel,
+            new BindingTarget(BindingTargetKind.Command, id.ToString()),
+            new InvocationContext("u-1", "Viewer One", "", "reward", "viewer")
+        );
+
+        result.Value.Succeeded.Should().BeTrue();
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        ChatOverlayLine line = h.Overlay.Lines.Should().ContainSingle().Subject;
+        line.BroadcasterId.Should().Be(Channel);
+        line.BotUserId.Should().Be("bot-9");
+        line.BotDisplayName.Should().Be("NomNomzBotLive");
+        line.IsHtml.Should().BeTrue();
+        line.Text.Should()
+            .Be("resolved:<marquee>CHOO CHOO</marquee><br><small>requested by Viewer One</small>");
+    }
+
+    [Fact]
+    public async Task Overlay_only_template_command_with_no_overlay_open_fails_loudly_without_a_chat_fallback()
+    {
+        Harness h = Build();
+        h.Overlay.Result = ChatOverlayDelivery.NoChatOverlayOpen;
+        Guid id = AddCommand(
+            h,
+            "template",
+            ["hi"],
+            tts: true,
+            delivery: new ReplyDelivery(ReplyTarget.Overlay)
+        );
+
+        Result<InvocationOutcome> result = await h.Invoker.InvokeAsync(
+            Channel,
+            new BindingTarget(BindingTargetKind.Command, id.ToString()),
+            new InvocationContext(null, null, "", "reward")
+        );
+
+        result.Value.Succeeded.Should().BeFalse();
+        result.Value.Error.Should().Be("No chat overlay is open.");
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        h.Recovery.Received(1).Schedule(Channel);
         await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
     }
 
