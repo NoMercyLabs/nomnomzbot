@@ -9,13 +9,21 @@
 // -----------------------------------------------------------------------------
 
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
-import { afterEach, beforeEach, describe, expect, it } from 'vitest';
+import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { ref } from 'vue';
 
 import type { ObsBrowserSource } from '@/api/widgets';
 import { i18n } from '@/i18n';
 
 import en from '../i18n/en.json';
 import ObsSetupAction from '../components/ObsSetupAction.vue';
+
+// Whether the bot controls OBS and so reloads a stranded source itself; each test sets it.
+const botRepairs = ref<boolean>(false);
+
+vi.mock('@/composables/useObsRepairsWidgets', () => ({
+  useObsRepairsWidgets: () => botRepairs,
+}));
 
 const SECRET = 'SECRET123';
 const ADDRESS = `https://bot.example/overlay?token=${SECRET}`;
@@ -37,6 +45,7 @@ let mounted: VueWrapper | null = null;
 
 beforeEach(() => {
   written.length = 0;
+  botRepairs.value = false;
   i18n.global.mergeLocaleMessage('en', en);
 
   Object.defineProperty(navigator, 'clipboard', {
@@ -55,7 +64,12 @@ afterEach(() => {
   document.body.innerHTML = '';
 });
 
-function show(setup: ObsBrowserSource | null, connected: boolean, primary = false): void {
+function show(
+  setup: ObsBrowserSource | null,
+  connected: boolean,
+  primary = false,
+  expected = false,
+): void {
   mounted = mount(ObsSetupAction, {
     attachTo: document.body,
     props: {
@@ -63,6 +77,7 @@ function show(setup: ObsBrowserSource | null, connected: boolean, primary = fals
       setup,
       connected,
       primary,
+      expected,
       resolveAddress: async () => ADDRESS,
     },
     global: { plugins: [i18n] },
@@ -118,6 +133,31 @@ describe('ObsSetupAction', () => {
 
     expect(fact('size')).toContain('1 x 1, it draws nothing');
     expect(fact('audio')).toContain(en.dashboard.overlays.setup.audio.on);
+  });
+
+  it('warns loudly when an overlay that is switched on has no connection and the bot cannot repair it', () => {
+    show(FULL, false, false, true);
+    const warning = document.querySelector('[data-obs-setup-warning]');
+
+    expect(warning?.getAttribute('role')).toBe('alert');
+    expect(warning?.textContent).toContain(en.dashboard.overlays.setup.stranded);
+    expect(warning?.getAttribute('title')).toBe(en.dashboard.overlays.setup.strandedHint);
+  });
+
+  it('stays quiet when the bot controls OBS and reloads the source itself', () => {
+    botRepairs.value = true;
+    show(FULL, false, false, true);
+
+    expect(document.querySelector('[data-obs-setup-warning]')).toBeNull();
+  });
+
+  it('stays quiet for a connected overlay and for one that is not expected in OBS', () => {
+    show(FULL, true, false, true);
+    expect(document.querySelector('[data-obs-setup-warning]')).toBeNull();
+    mounted?.unmount();
+
+    show(FULL, false, false, false);
+    expect(document.querySelector('[data-obs-setup-warning]')).toBeNull();
   });
 
   it('shows the live status in the dialog', async () => {

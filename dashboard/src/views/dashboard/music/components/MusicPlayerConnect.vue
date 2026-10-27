@@ -38,6 +38,7 @@ const player = computed<RequiredOverlay | undefined>(() =>
     :title="t('dashboard.music.queue.musicPlayer')"
     :setup="player.widget.obsSetup"
     :connected="player.widget.isAttached"
+    :expected="player.widget.isEnabled"
     :primary="primary"
     :resolve-address="async () => player?.widget.overlayUrl"
   />

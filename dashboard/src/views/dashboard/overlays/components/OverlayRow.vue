@@ -75,6 +75,7 @@ const dotState = computed<HealthDot>(() => overlayHealth(props.widget));
           :title="widget.name"
           :setup="widget.obsSetup"
           :connected="widget.isAttached"
+          :expected="widget.isEnabled"
           :disabled="!widget.overlayUrl"
           :resolve-address="async () => widget.overlayUrl"
         />

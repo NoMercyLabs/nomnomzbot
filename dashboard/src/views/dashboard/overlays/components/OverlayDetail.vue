@@ -38,6 +38,7 @@ import InlineFlow from '@/components/layout/InlineFlow.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vue';
+import { useObsRepairsWidgets } from '@/composables/useObsRepairsWidgets';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -179,6 +180,7 @@ interface HealthLine {
   title: string;
   note: string;
 }
+const repairs = useObsRepairsWidgets();
 const attachLine = computed(() => {
   const base: string = 'dashboard.overlays.detail.health';
 
@@ -196,8 +198,11 @@ const attachLine = computed(() => {
       note: t(`${base}.attachedNote`),
     } as const satisfies HealthLine;
 
+  // The bot reloads a stranded source itself while it controls OBS; without that, the line turns red.
   return {
-    tone: 'off',
+    tone: repairs.value
+      ? 'off'
+      : 'bad',
     title: t(`${base}.detached`),
     note: t(`${base}.detachedNote`),
   } as const satisfies HealthLine;

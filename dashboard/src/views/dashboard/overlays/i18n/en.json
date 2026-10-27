@@ -90,6 +90,8 @@
         "description": "Add this overlay to OBS once, as a browser source.",
         "loaded": "Loaded in OBS",
         "notLoaded": "Not loaded in OBS",
+        "stranded": "Not connected to the bot",
+        "strandedHint": "This overlay is open in OBS but cannot reach the bot, so nothing shows on stream. Refresh the browser source in OBS, or switch on the OBS connection and the bot refreshes it for you.",
         "size": {
           "label": "Width and height",
           "full": "{width} x {height}, full screen",

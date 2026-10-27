@@ -20,6 +20,7 @@ import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import type { ObsBrowserSource } from '@/api/widgets';
+import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import {
   Dialog,
@@ -29,6 +30,7 @@ import {
   DialogHeader,
   DialogTitle,
 } from '@/components/ui/dialog';
+import { useObsRepairsWidgets } from '@/composables/useObsRepairsWidgets';
 
 const COPIED_MS = 2000;
 const FULL_WIDTH = 1920;
@@ -41,16 +43,23 @@ const props = withDefaults(
     connected: boolean;
     primary?: boolean;
     disabled?: boolean;
+    expected?: boolean;
     resolveAddress: () => Promise<string | null | undefined>;
   }>(),
   {
     setup: null,
     primary: false,
     disabled: false,
+    expected: false,
   },
 );
 
 const { t } = useI18n();
+
+// An overlay that is switched on and expected in OBS, but has no live connection to the bot, shows nothing on stream.
+// When the bot controls OBS it reloads that source by itself, so the warning is only for the setups where it cannot.
+const repairs = useObsRepairsWidgets();
+const stranded = computed<boolean>(() => props.expected && !props.connected && !repairs.value);
 
 const open = ref<boolean>(false);
 const copied = ref<boolean>(false);
@@ -122,6 +131,15 @@ async function copyAddress(): Promise<void> {
 </script>
 
 <template>
+  <span
+    v-if="stranded"
+    role="alert"
+    data-obs-setup-warning
+    class="font-medium text-destructive"
+    :title="$t('dashboard.overlays.setup.strandedHint')"
+  >
+    <StatusBadge tone="bad" :label="$t('dashboard.overlays.setup.stranded')" />
+  </span>
   <Button
     :variant="primary && !connected ? 'default' : 'outline'"
     :disabled="disabled"

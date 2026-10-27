@@ -90,6 +90,8 @@
         "description": "Voeg deze overlay één keer toe aan OBS, als browserbron.",
         "loaded": "Geladen in OBS",
         "notLoaded": "Niet geladen in OBS",
+        "stranded": "Niet verbonden met de bot",
+        "strandedHint": "Deze overlay staat open in OBS maar bereikt de bot niet, dus er verschijnt niets in de stream. Ververs de browserbron in OBS, of zet de OBS-verbinding aan, dan ververst de bot hem voor je.",
         "size": {
           "label": "Breedte en hoogte",
           "full": "{width} x {height}, volledig scherm",

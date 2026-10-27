@@ -115,6 +115,7 @@ async function bridgeAddress(): Promise<string | null | undefined> {
             :title="$t(`dashboard.obs.required.surfaces.${overlay.key}.name`)"
             :setup="overlay.widget.obsSetup"
             :connected="overlay.widget.isAttached"
+            :expected="overlay.widget.isEnabled"
             :primary="overlay.key === nextKey"
             :resolve-address="async () => overlay.widget.overlayUrl"
           />

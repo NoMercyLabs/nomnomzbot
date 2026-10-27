@@ -9,7 +9,8 @@
 // -----------------------------------------------------------------------------
 
 import { mount } from '@vue/test-utils';
-import { describe, expect, it } from 'vitest';
+import { describe, expect, it, vi } from 'vitest';
+import { ref } from 'vue';
 import BellRing from '~icons/nnz/bell-ring';
 import ChatMessages from '~icons/nnz/chat-messages';
 import NoteEighthPair from '~icons/nnz/note-eighth-pair';
@@ -21,6 +22,11 @@ import { i18n } from '@/i18n';
 import OverlayRow from '../components/OverlayRow.vue';
 import { overlayKind } from '../components/overlayKind';
 import en from '../i18n/en.json';
+
+// The row's setup button asks whether the bot controls OBS; that read needs a channel and a query client.
+vi.mock('@/composables/useObsRepairsWidgets', () => ({
+  useObsRepairsWidgets: () => ref<boolean>(false),
+}));
 
 describe('overlay icon', () => {
   it('comes from the events the overlay listens to', () => {
