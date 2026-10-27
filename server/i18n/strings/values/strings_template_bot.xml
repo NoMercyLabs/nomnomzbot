@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespace "bot", lane L2l1 (catalog section 7.17).
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_bot_name">The name of the bot in chat: SampleBot</string>
+    <string name="template_helper_bot_mention">The bot name as a mention: @SampleBot</string>
+    <string name="template_helper_bot_version">The version of the running bot: 1.42.0</string>
+    <string name="template_helper_bot_license">The licence of the bot source code: AGPL-3.0-or-later</string>
+    <string name="template_helper_bot_sourceCode">The address of the bot source code: https://github.com/NoMercyLabs/nomnomzbot</string>
+    <string name="template_helper_bot_isMod">true when the bot can moderate this chat, false when it cannot. Empty when this is not known yet</string>
+    <string name="template_helper_bot_uptime">How long the bot has been running, short: 3d 4h</string>
+    <string name="template_helper_bot_uptime_long">How long the bot has been running, in words: 3 days, 4 hours</string>
+    <string name="template_helper_bot_startedAt">When the bot started, in the channel time zone: 2026-10-23 12:30</string>
+    <string name="template_helper_bot_lastRestart_relative">How long ago the bot started: 3 days ago</string>
+    <string name="template_helper_bot_channel_loadedAgo">How long ago the bot loaded this channel: 2h 20m</string>
+    <string name="template_helper_bot_commands_list">Every command that is on in this channel, as typed in chat: !hug !lurk !so !uptime !sr</string>
+    <string name="template_helper_bot_commands_list_custom">The custom commands of this channel: !hug !lurk</string>
+    <string name="template_helper_bot_commands_list_builtin">The built-in commands that are on in this channel: !so !uptime !sr</string>
+    <string name="template_helper_bot_commands_list_forUser">The commands the person who typed the command may run: !hug !lurk !sr</string>
+    <string name="template_helper_bot_commands_count">How many commands are on in this channel: 5</string>
+    <string name="template_helper_bot_prefix">The character that starts a command in this channel: !</string>
+    <string name="template_helper_bot_personality">The personality of the bot in this channel: Informative</string>
+    <string name="template_helper_bot_language">The language code of this channel: en</string>
+    <string name="template_helper_bot_dashboard">The link to the dashboard of this channel. Empty when no public address is set up</string>
+    <string name="template_helper_bot_timers_count">How many timers of this channel are on: 5</string>
+</resources>
