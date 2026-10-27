@@ -12,10 +12,12 @@ using System.Reflection;
 using System.Text;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.DevPlatform;
 using NomNomzBot.Application.DevPlatform.Services;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Domain.Platform;
+using NomNomzBot.Infrastructure.Platform.Templating;
 
 namespace NomNomzBot.Infrastructure.DevPlatform;
 
@@ -38,6 +40,7 @@ internal sealed class TypeScriptDefinitionWriter
     private readonly ILogger? _logger;
     private readonly IWidgetEventPayloadRegistry? _widgetEvents;
     private readonly WidgetSettingsSchema? _widgetSettings;
+    private readonly ITemplateHelperRegistry _helpers;
 
     public TypeScriptDefinitionWriter(
         SdkContext context,
@@ -45,9 +48,11 @@ internal sealed class TypeScriptDefinitionWriter
         IReadOnlyList<ICommandAction>? actions = null,
         ILogger? logger = null,
         IWidgetEventPayloadRegistry? widgetEvents = null,
-        WidgetSettingsSchema? widgetSettings = null
+        WidgetSettingsSchema? widgetSettings = null,
+        ITemplateHelperRegistry? helpers = null
     )
     {
+        _helpers = helpers ?? TemplateHelperRegistryAggregate.LegacyOnly;
         _widgetSettings = context == SdkContext.Widget ? widgetSettings : null;
         _widgetEvents = context == SdkContext.Widget ? widgetEvents : null;
         _logger = logger;
@@ -130,6 +135,9 @@ internal sealed class TypeScriptDefinitionWriter
 
         // Both contexts read stream metrics (widget data.streamStats, script api.stats.stream).
         sb.AppendLine(StreamMetricTypeScript.Write());
+
+        // Both contexts render templates, so both get the registry's helper names and one-line descriptions.
+        sb.AppendLine(TemplateHelperTypeScript.Write(_helpers));
 
         // A script has no event bus, so only the widget page gets the event map.
         if (_context == SdkContext.Widget)

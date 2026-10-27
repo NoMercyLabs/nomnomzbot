@@ -1,0 +1,50 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text for the logic helpers, lane L2c1 (catalog section 7.5):
+  if, default, coalesce, switch, chance, pick, random, literal and the character keys.
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_if">Shows the first text when the value is set (not empty, false, 0 or no), else the second: {if:value|then|else}</string>
+    <string name="template_helper_if_not">Shows the first text when the value is not set, else the second: {if.not:value|then|else}</string>
+    <string name="template_helper_if_all">Shows the first text when both values are set, else the second: {if.all:a|b|then|else}</string>
+    <string name="template_helper_if_any">Shows the first text when at least one value is set, else the second: {if.any:a|b|then|else}</string>
+    <string name="template_helper_if_empty">Shows the first text when the value is empty, else the second: {if.empty:value|then|else}</string>
+    <string name="template_helper_if_path">Shows the first text when a helper such as stream.live is set, else the second: {if.stream.live:then|else}</string>
+    <string name="template_helper_if_path_equals">Tests that a helper equals a text, exactly: {if.user.login.equals:text:then|else}</string>
+    <string name="template_helper_if_path_iequals">Tests that a helper equals a text, ignoring upper and lower case: {if.user.login.iequals:text:then|else}</string>
+    <string name="template_helper_if_path_contains">Tests that a helper contains a text: {if.args.all.contains:text:then|else}</string>
+    <string name="template_helper_if_path_startswith">Tests that a helper starts with a text: {if.args.1.startswith:text:then|else}</string>
+    <string name="template_helper_if_path_endswith">Tests that a helper ends with a text: {if.args.all.endswith:text:then|else}</string>
+    <string name="template_helper_if_path_matches">Tests that a helper matches a regular expression: {if.args.2.matches:pattern:then|else}</string>
+    <string name="template_helper_if_path_gt">Tests that a helper is a number greater than a number: {if.count.deaths.gt:10:then|else}</string>
+    <string name="template_helper_if_path_lt">Tests that a helper is a number less than a number: {if.stream.viewers.lt:10:then|else}</string>
+    <string name="template_helper_if_path_gte">Tests that a helper is a number greater than or equal to a number: {if.user.months.gte:6:then|else}</string>
+    <string name="template_helper_if_path_lte">Tests that a helper is a number less than or equal to a number: {if.count.wins.lte:3:then|else}</string>
+    <string name="template_helper_default">The value, or the fallback when the value is empty: {default:value|fallback}</string>
+    <string name="template_helper_coalesce">The first value that is not empty: {coalesce:a|b|c}</string>
+    <string name="template_helper_switch">Picks the text of the first case that equals the value, else the last text: {switch:value|case=text|case=text|else}</string>
+    <string name="template_helper_switch_range">Picks the text of the first limit that is at least the number, else the last text: {switch.range:number|limit=text|limit=text|else}</string>
+    <string name="template_helper_chance">Shows the first text with the given chance in percent, else the second: {chance:10|then|else}</string>
+    <string name="template_helper_pick">Picks one of the texts at random, never the same twice in a row: {pick:a|b|c}</string>
+    <string name="template_helper_pick_weighted">Picks one text at random, a bigger weight is more likely: {pick.weighted:1=rare|9=common}</string>
+    <string name="template_helper_pick_n">Picks a number of different texts at random: {pick.n:2|a|b|c}</string>
+    <string name="template_helper_pick_shuffle">Lists all texts in a random order: {pick.shuffle:a|b|c}</string>
+    <string name="template_helper_pick_inline">Picks one item of a list written with semicolons, so an item may hold a pipe: {pick.inline:a;b;c}</string>
+    <string name="template_helper_random_number_draw">A random whole number: {random.number:6} is 1 to 6, {random.number:10|50|10} is 10, 20 up to 50</string>
+    <string name="template_helper_random_decimal">A random number with decimals: {random.decimal:min|max|places}</string>
+    <string name="template_helper_random_percent">A random percent from 0% to 100%</string>
+    <string name="template_helper_random_bool">Randomly true or false, for use inside {if:...}</string>
+    <string name="template_helper_random_letter">A random letter from A to Z</string>
+    <string name="template_helper_random_color">A random color as a hex code, such as #3FA7D6</string>
+    <string name="template_helper_literal">The text as written, with nothing inside it resolved: {literal:{user}} shows {user}</string>
+    <string name="template_helper_chars_nothing">Nothing at all, for an empty branch that reads clearly</string>
+    <string name="template_helper_chars_newline">A line break (for Discord and webhooks; chat shows a space)</string>
+    <string name="template_helper_chars_space">A space</string>
+    <string name="template_helper_chars_pipe">The pipe character, which would otherwise split arguments</string>
+    <string name="template_helper_chars_zws">A zero-width space, which stops a mention such as @everyone from working</string>
+</resources>

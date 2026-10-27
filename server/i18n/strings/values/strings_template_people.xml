@@ -1,0 +1,62 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespaces "user" and "target", lane L2e (catalog section 7.7).
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_user_display">The display name of the viewer who triggered this</string>
+    <string name="template_helper_user_login">The login name of the viewer who triggered this</string>
+    <string name="template_helper_user_mention">The viewer who triggered this, as an @mention</string>
+    <string name="template_helper_user_platform">The platform the viewer is on, in lower case</string>
+    <string name="template_helper_user_platform_name">The platform the viewer is on, as a name</string>
+    <string name="template_helper_user_isFollower">Whether the viewer follows the channel: true or false</string>
+    <string name="template_helper_user_isSub">Whether the viewer is a subscriber: true or false</string>
+    <string name="template_helper_user_subTier">The subscription tier of the viewer as a number</string>
+    <string name="template_helper_user_subTier_name">The subscription tier of the viewer as a name</string>
+    <string name="template_helper_user_stats_watchTime_hours">The watch time of the viewer in hours</string>
+    <string name="template_helper_user_stats_watchTime_long">The watch time of the viewer in words</string>
+    <string name="template_helper_user_stats_firstSeen_relative">How long ago the viewer was first seen in the channel</string>
+    <string name="template_helper_user_stats_lastSeen">The date the viewer was last seen in the channel</string>
+    <string name="template_helper_user_stats_lastSeen_relative">How long ago the viewer was last seen in the channel</string>
+    <string name="template_helper_user_stats_bits">The bits the viewer cheered in this channel</string>
+    <string name="template_helper_user_followedAt">The date the viewer started following</string>
+    <string name="template_helper_user_followAge_days">How many days the viewer has followed</string>
+    <string name="template_helper_user_stats_streak">The current attendance streak of the viewer, in streams</string>
+    <string name="template_helper_user_stats_streak_best">The best attendance streak of the viewer, in streams</string>
+    <string name="template_helper_user_points">The channel points of the viewer, with a thousands separator</string>
+    <string name="template_helper_user_points_raw">The channel points of the viewer as a plain number</string>
+    <string name="template_helper_user_points_name">The name of the points currency of the channel</string>
+    <string name="template_helper_user_points_rank">The place of the viewer on the channel points ranking</string>
+    <string name="template_helper_user_points_rank_ordinal">The place of the viewer on the points ranking as an ordinal: 4th</string>
+    <string name="template_helper_user_points_nextRank_gap">How many points the viewer needs to pass the next place</string>
+    <string name="template_helper_user_points_nextRank_name">The viewer one place above on the points ranking</string>
+    <string name="template_helper_user_color">The chat color of the viewer</string>
+    <string name="template_helper_user_avatar">The link to the profile picture of the viewer</string>
+    <string name="template_helper_user_bio">The profile description of the viewer</string>
+    <string name="template_helper_user_createdAt">The date the account of the viewer was created</string>
+    <string name="template_helper_user_accountAge_days">How many days old the account of the viewer is</string>
+    <string name="template_helper_user_data">A value stored for the viewer, with an optional default after a colon</string>
+    <string name="template_helper_user_quotes_count">How many quotes the viewer said</string>
+    <string name="template_helper_target_mention">The @mentioned viewer, as an @mention</string>
+    <string name="template_helper_target_shoutoutLink">The link to the channel of the @mentioned viewer</string>
+    <string name="template_helper_target_isSub">Whether the @mentioned viewer is a subscriber: true or false</string>
+    <string name="template_helper_target_isFollower">Whether the @mentioned viewer follows the channel: true or false</string>
+    <string name="template_helper_target_stats_lastSeen">The date the @mentioned viewer was last seen in the channel</string>
+    <string name="template_helper_target_stats_bits">The bits the @mentioned viewer cheered in this channel</string>
+    <string name="template_helper_target_stats_streak">The current attendance streak of the @mentioned viewer</string>
+    <string name="template_helper_target_points">The channel points of the @mentioned viewer</string>
+    <string name="template_helper_target_points_rank">The place of the @mentioned viewer on the channel points ranking</string>
+    <string name="template_helper_target_color">The chat color of the @mentioned viewer</string>
+    <string name="template_helper_target_avatar">The link to the profile picture of the @mentioned viewer</string>
+    <string name="template_helper_target_bio">The profile description of the @mentioned viewer</string>
+    <string name="template_helper_target_createdAt">The date the account of the @mentioned viewer was created</string>
+    <string name="template_helper_target_accountAge">How old the account of the @mentioned viewer is, in years and months</string>
+    <string name="template_helper_target_isLive">Whether the @mentioned viewer is live now: true or false</string>
+    <string name="template_helper_target_viewers">How many viewers the @mentioned channel has now</string>
+    <string name="template_helper_target_game">The category the @mentioned channel set</string>
+    <string name="template_helper_target_title">The stream title the @mentioned channel set</string>
+</resources>

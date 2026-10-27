@@ -1,0 +1,73 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespace "args", lane L2k2 (catalog section 7.16, the args rows).
+  Names follow template_helper_<help id with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_args_count">How many words follow the command</string>
+    <string name="template_helper_args_isEmpty">True when the command has no arguments, false when it has some</string>
+    <string name="template_helper_args_first">The first word after the command, as written</string>
+    <string name="template_helper_args_last">The last word after the command</string>
+    <string name="template_helper_args_rest">Every word after the first one</string>
+    <string name="template_helper_args_all_quoted">All arguments in double quotes</string>
+    <string name="template_helper_args_all_urlEncoded">All arguments made safe for a web address</string>
+    <string name="template_helper_args_from">Every word from the n-th one to the end, for example args.2+</string>
+    <string name="template_helper_args_range">The words from the a-th to the b-th, for example args.2-3</string>
+    <string name="template_helper_args_word">The n-th word, or the default after the colon when the command has fewer words</string>
+    <string name="template_helper_args_clean">The n-th word without a leading @</string>
+    <string name="template_helper_args_upper">The n-th word in UPPERCASE</string>
+    <string name="template_helper_args_length">How many characters the n-th word has</string>
+    <string name="template_helper_args_urlEncoded">The n-th word made safe for a web address</string>
+    <string name="template_helper_args_number">The n-th word when it is a number, else the default after the colon or nothing</string>
+    <string name="template_helper_args_isNumber">True when the n-th word is a number</string>
+    <string name="template_helper_args_isMention">True when the n-th word is an @mention</string>
+    <string name="template_helper_args_mentions">Every @mention in the arguments</string>
+    <string name="template_helper_args_mentions_count">How many @mentions are in the arguments</string>
+    <string name="template_helper_args_numbers">Every word that is a number</string>
+    <string name="template_helper_args_duration">The n-th word read as a time (5m, 1h30m, 90) in seconds</string>
+    <!-- args.<n>.user.<key>: the n-th word read as a viewer, then any viewer key. -->
+    <string name="template_helper_args_user_display">The display name of the viewer typed as the n-th word</string>
+    <string name="template_helper_args_user_login">The login name of the viewer typed as the n-th word</string>
+    <string name="template_helper_args_user_mention">The viewer typed as the n-th word, as an @mention</string>
+    <string name="template_helper_args_user_platform">The platform of the viewer typed as the n-th word, in lower case</string>
+    <string name="template_helper_args_user_platform_name">The platform of the viewer typed as the n-th word, as a name</string>
+    <string name="template_helper_args_user_shoutoutLink">The link to the channel of the viewer typed as the n-th word</string>
+    <string name="template_helper_args_user_isFollower">Whether the viewer typed as the n-th word follows the channel: true or false</string>
+    <string name="template_helper_args_user_isSub">Whether the viewer typed as the n-th word is a subscriber: true or false</string>
+    <string name="template_helper_args_user_isLive">Whether the viewer typed as the n-th word is live now: true or false</string>
+    <string name="template_helper_args_user_subTier">The subscription tier of the viewer typed as the n-th word, as a number</string>
+    <string name="template_helper_args_user_subTier_name">The subscription tier of the viewer typed as the n-th word, as a name</string>
+    <string name="template_helper_args_user_viewers">How many viewers the channel of the n-th word has now</string>
+    <string name="template_helper_args_user_game">The category the channel of the n-th word set</string>
+    <string name="template_helper_args_user_title">The stream title the channel of the n-th word set</string>
+    <string name="template_helper_args_user_color">The chat color of the viewer typed as the n-th word</string>
+    <string name="template_helper_args_user_avatar">The link to the profile picture of the viewer typed as the n-th word</string>
+    <string name="template_helper_args_user_bio">The profile description of the viewer typed as the n-th word</string>
+    <string name="template_helper_args_user_createdAt">The date the account of the viewer typed as the n-th word was created</string>
+    <string name="template_helper_args_user_accountAge">How old the account of the viewer typed as the n-th word is, in years and months</string>
+    <string name="template_helper_args_user_accountAge_days">How many days old the account of the viewer typed as the n-th word is</string>
+    <string name="template_helper_args_user_followedAt">The date the viewer typed as the n-th word started following</string>
+    <string name="template_helper_args_user_followAge">How long the viewer typed as the n-th word has followed, in words</string>
+    <string name="template_helper_args_user_followAge_days">How many days the viewer typed as the n-th word has followed</string>
+    <string name="template_helper_args_user_points">The channel points of the viewer typed as the n-th word, with a thousands separator</string>
+    <string name="template_helper_args_user_points_raw">The channel points of the viewer typed as the n-th word, as a plain number</string>
+    <string name="template_helper_args_user_points_name">The name of the channel points currency</string>
+    <string name="template_helper_args_user_points_rank">The place of the viewer typed as the n-th word on the channel points ranking</string>
+    <string name="template_helper_args_user_points_rank_ordinal">The ranking place of the viewer typed as the n-th word as an ordinal: 4th</string>
+    <string name="template_helper_args_user_points_nextRank_gap">How many points the viewer typed as the n-th word needs to pass the next place</string>
+    <string name="template_helper_args_user_points_nextRank_name">The viewer one place above the viewer typed as the n-th word</string>
+    <string name="template_helper_args_user_stats_watchTime_hours">The watch time of the viewer typed as the n-th word, in hours</string>
+    <string name="template_helper_args_user_stats_watchTime_long">The watch time of the viewer typed as the n-th word, in words</string>
+    <string name="template_helper_args_user_stats_firstSeen_relative">How long ago the viewer typed as the n-th word was first seen</string>
+    <string name="template_helper_args_user_stats_lastSeen">The date the viewer typed as the n-th word was last seen</string>
+    <string name="template_helper_args_user_stats_lastSeen_relative">How long ago the viewer typed as the n-th word was last seen</string>
+    <string name="template_helper_args_user_stats_bits">The bits the viewer typed as the n-th word cheered in this channel</string>
+    <string name="template_helper_args_user_stats_streak">The current attendance streak of the viewer typed as the n-th word</string>
+    <string name="template_helper_args_user_stats_streak_best">The best attendance streak of the viewer typed as the n-th word</string>
+    <string name="template_helper_args_user_data">A value stored for the viewer typed as the n-th word, with an optional default after a colon</string>
+    <string name="template_helper_args_user_quotes_count">How many quotes the viewer typed as the n-th word has said</string>
+</resources>

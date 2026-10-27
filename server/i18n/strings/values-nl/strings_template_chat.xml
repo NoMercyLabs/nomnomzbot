@@ -1,0 +1,36 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text (Dutch), namespaces "chat", "tts" and "link", lane L2j2 (catalog section 7.14).
+-->
+<resources>
+    <string name="template_helper_chat_limit">Het maximale aantal tekens van een chatregel op het platform dat hem bezorgt: 500</string>
+    <string name="template_helper_chat_fit">De tekst ingekort tot een chatregel, eindigend op een beletselteken of op je eigen eindtekst: korte tekst</string>
+    <string name="template_helper_chat_fit_words">De tekst ingekort tot een chatregel, bij het laatste hele woord: korte tekst</string>
+    <string name="template_helper_chat_mention">Een naam met een @ ervoor zodat de chat hem tagt: @KijkerTwee</string>
+    <string name="template_helper_chat_mention_off">Een naam zonder @, zodat niemand wordt getagd: KijkerTwee</string>
+    <string name="template_helper_chat_mention_soft">Een naam met een onzichtbare spatie erin, zodat hij zichtbaar is maar niet tagt: KijkerTwee</string>
+    <string name="template_helper_chat_mention_user">De kijker die dit startte, met een @ ervoor: @KijkerEen</string>
+    <string name="template_helper_chat_me">De tekst als actieregel op Twitch (/me), gewone tekst elders: /me danst</string>
+    <string name="template_helper_chat_message">Het chatbericht dat dit startte: hallo grote wereld</string>
+    <string name="template_helper_chat_message_length">Uit hoeveel tekens het startbericht bestaat: 15</string>
+    <string name="template_helper_chat_message_bits">Hoeveel bits bij het startbericht zaten: 0</string>
+    <string name="template_helper_chat_isShared">true zolang het kanaal in een gedeelde chatsessie zit, anders false</string>
+    <string name="template_helper_chat_shared_channels">De andere kanalen in de gedeelde chatsessie, gescheiden door een komma: AnderKanaal</string>
+    <string name="template_helper_chat_settings_slow">De wachttijd van de langzame modus, of off: 3s</string>
+    <string name="template_helper_chat_settings_followersOnly">Hoe lang een kijker moet volgen voor hij mag chatten (on als elke volger mag chatten), of off: 10m</string>
+    <string name="template_helper_chat_settings_subOnly">true zolang alleen-abonnees-chat aan staat, anders false</string>
+    <string name="template_helper_chat_settings_emoteOnly">true zolang alleen-emotes-chat aan staat, anders false</string>
+    <string name="template_helper_chat_pinned">De tekst van het vastgezette chatbericht, leeg als er niets vastgezet is: Welkom op de stream</string>
+    <string name="template_helper_tts_plain">Tekst klaargemaakt om voor te lezen: geen links, geen @, geen emotes van het kanaal, sierletters omgezet naar gewone letters: hoi KijkerTwee hoi</string>
+    <string name="template_helper_tts_plain_keepEmotes">Tekst klaargemaakt om voor te lezen, met de emotenamen erin: hoi KEKW</string>
+    <string name="template_helper_tts_numbers">Hele getallen in de tekst als woorden, in de taal van het kanaal: ik heb drie katten</string>
+    <string name="template_helper_tts_lexicon">De tekst met de uitspraaklijst van het kanaal toegepast: good game</string>
+    <string name="template_helper_link_x">Een link die X opent met de tekst klaar om te plaatsen: https://x.com/intent/post?text=Live%20now</string>
+    <string name="template_helper_link_bluesky">Een link die Bluesky opent met de tekst klaar om te plaatsen: https://bsky.app/intent/compose?text=Live%20now</string>
+    <string name="template_helper_link_threads">Een link die Threads opent met de tekst klaar om te plaatsen: https://www.threads.net/intent/post?text=Live%20now</string>
+    <string name="template_helper_link_mastodon">Een link die een Mastodon-server (eerste argument) opent met de tekst klaar om te plaatsen: https://mastodon.social/share?text=Live%20now</string>
+</resources>

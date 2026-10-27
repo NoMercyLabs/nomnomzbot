@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text (Dutch), namespaces "user" and "target", lane L2e (catalog section 7.7).
+-->
+<resources>
+    <string name="template_helper_user_display">De weergavenaam van de kijker die dit startte</string>
+    <string name="template_helper_user_login">De inlognaam van de kijker die dit startte</string>
+    <string name="template_helper_user_mention">De kijker die dit startte, als @vermelding</string>
+    <string name="template_helper_user_platform">Het platform van de kijker, in kleine letters</string>
+    <string name="template_helper_user_platform_name">Het platform van de kijker, als naam</string>
+    <string name="template_helper_user_isFollower">Of de kijker het kanaal volgt: true of false</string>
+    <string name="template_helper_user_isSub">Of de kijker abonnee is: true of false</string>
+    <string name="template_helper_user_subTier">Het abonnementsniveau van de kijker als getal</string>
+    <string name="template_helper_user_subTier_name">Het abonnementsniveau van de kijker als naam</string>
+    <string name="template_helper_user_stats_watchTime_hours">De kijktijd van de kijker in uren</string>
+    <string name="template_helper_user_stats_watchTime_long">De kijktijd van de kijker in woorden</string>
+    <string name="template_helper_user_stats_firstSeen_relative">Hoelang geleden de kijker voor het eerst in het kanaal werd gezien</string>
+    <string name="template_helper_user_stats_lastSeen">De datum waarop de kijker voor het laatst in het kanaal werd gezien</string>
+    <string name="template_helper_user_stats_lastSeen_relative">Hoelang geleden de kijker voor het laatst in het kanaal werd gezien</string>
+    <string name="template_helper_user_stats_bits">De bits die de kijker in dit kanaal gaf</string>
+    <string name="template_helper_user_followedAt">De datum waarop de kijker ging volgen</string>
+    <string name="template_helper_user_followAge_days">Hoeveel dagen de kijker al volgt</string>
+    <string name="template_helper_user_stats_streak">De huidige aanwezigheidsreeks van de kijker, in streams</string>
+    <string name="template_helper_user_stats_streak_best">De beste aanwezigheidsreeks van de kijker, in streams</string>
+    <string name="template_helper_user_points">De kanaalpunten van de kijker, met duizendtalscheiding</string>
+    <string name="template_helper_user_points_raw">De kanaalpunten van de kijker als gewoon getal</string>
+    <string name="template_helper_user_points_name">De naam van de puntenmunt van het kanaal</string>
+    <string name="template_helper_user_points_rank">De plek van de kijker op de puntenranglijst</string>
+    <string name="template_helper_user_points_rank_ordinal">De plek van de kijker op de puntenranglijst als rangtelwoord: 4e</string>
+    <string name="template_helper_user_points_nextRank_gap">Hoeveel punten de kijker nodig heeft om de volgende plek te passeren</string>
+    <string name="template_helper_user_points_nextRank_name">De kijker een plek hoger op de puntenranglijst</string>
+    <string name="template_helper_user_color">De chatkleur van de kijker</string>
+    <string name="template_helper_user_avatar">De link naar de profielfoto van de kijker</string>
+    <string name="template_helper_user_bio">De profielbeschrijving van de kijker</string>
+    <string name="template_helper_user_createdAt">De datum waarop het account van de kijker is gemaakt</string>
+    <string name="template_helper_user_accountAge_days">Hoeveel dagen oud het account van de kijker is</string>
+    <string name="template_helper_user_data">Een waarde die voor de kijker is opgeslagen, met een optionele standaardwaarde na een dubbele punt</string>
+    <string name="template_helper_user_quotes_count">Hoeveel quotes de kijker heeft gezegd</string>
+    <string name="template_helper_target_mention">De genoemde kijker, als @vermelding</string>
+    <string name="template_helper_target_shoutoutLink">De link naar het kanaal van de genoemde kijker</string>
+    <string name="template_helper_target_isSub">Of de genoemde kijker abonnee is: true of false</string>
+    <string name="template_helper_target_isFollower">Of de genoemde kijker het kanaal volgt: true of false</string>
+    <string name="template_helper_target_stats_lastSeen">De datum waarop de genoemde kijker voor het laatst in het kanaal werd gezien</string>
+    <string name="template_helper_target_stats_bits">De bits die de genoemde kijker in dit kanaal gaf</string>
+    <string name="template_helper_target_stats_streak">De huidige aanwezigheidsreeks van de genoemde kijker</string>
+    <string name="template_helper_target_points">De kanaalpunten van de genoemde kijker</string>
+    <string name="template_helper_target_points_rank">De plek van de genoemde kijker op de puntenranglijst</string>
+    <string name="template_helper_target_color">De chatkleur van de genoemde kijker</string>
+    <string name="template_helper_target_avatar">De link naar de profielfoto van de genoemde kijker</string>
+    <string name="template_helper_target_bio">De profielbeschrijving van de genoemde kijker</string>
+    <string name="template_helper_target_createdAt">De datum waarop het account van de genoemde kijker is gemaakt</string>
+    <string name="template_helper_target_accountAge">Hoe oud het account van de genoemde kijker is, in jaren en maanden</string>
+    <string name="template_helper_target_isLive">Of de genoemde kijker nu live is: true of false</string>
+    <string name="template_helper_target_viewers">Hoeveel kijkers het genoemde kanaal nu heeft</string>
+    <string name="template_helper_target_game">De categorie die het genoemde kanaal heeft gekozen</string>
+    <string name="template_helper_target_title">De streamtitel die het genoemde kanaal heeft gekozen</string>
+</resources>

@@ -1,0 +1,35 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text (Dutch), namespace "platform", lane L2k (catalog section 7.15).
+-->
+<resources>
+    <string name="template_helper_platform_user">Het platform van wie het commando typte: twitch</string>
+    <string name="template_helper_platform_user_name">De weergavenaam van dat platform: Twitch</string>
+    <string name="template_helper_platform_user_icon">Het icoon van dat platform: een paarse, groene of rode stip</string>
+    <string name="template_helper_platform_event">Het platform waar de gebeurtenis vandaan kwam: twitch</string>
+    <string name="template_helper_platform_viewers_total">De kijkers op alle live platforms samen: 60</string>
+    <string name="template_helper_platform_viewers_twitch">De kijkers op Twitch nu: 42. Leeg als Twitch niet live is</string>
+    <string name="template_helper_platform_viewers_kick">De kijkers op Kick nu: 10. Leeg als Kick niet gekoppeld of niet live is</string>
+    <string name="template_helper_platform_viewers_youtube">De kijkers op YouTube nu: 8. Leeg als YouTube niet gekoppeld of niet live is</string>
+    <string name="template_helper_platform_viewers_breakdown">De kijkers per live platform: Twitch 42 · Kick 10 · YouTube 8</string>
+    <string name="template_helper_platform_viewers_share">Het aandeel van alle kijkers op één platform, bijvoorbeeld kick: 17%</string>
+    <string name="template_helper_platform_live_list">De platforms die nu live zijn: Twitch, Kick, YouTube</string>
+    <string name="template_helper_platform_live_count">Hoeveel platforms nu live zijn: 3</string>
+    <string name="template_helper_platform_isLive">true als het platform nu live is, bijvoorbeeld youtube: true</string>
+    <string name="template_helper_platform_link_twitch">De link naar het Twitch-kanaal: https://twitch.tv/samplechannel</string>
+    <string name="template_helper_platform_link_kick">De link naar het Kick-kanaal: https://kick.com/samplechannel</string>
+    <string name="template_helper_platform_link_youtube">De link naar het YouTube-kanaal: https://youtube.com/channel/UCsample</string>
+    <string name="template_helper_platform_link_youtube_live">De link naar de YouTube-stream die nu live is: https://youtube.com/watch?v=sample</string>
+    <string name="template_helper_platform_links">De links naar elk gekoppeld kanaal, zonder https: twitch.tv/samplechannel · kick.com/samplechannel</string>
+    <string name="template_helper_platform_followers_twitch">Het aantal Twitch-volgers: 1,234</string>
+    <string name="template_helper_platform_messages_stream">De chatberichten op één platform sinds de stream begon, bijvoorbeeld kick: 120</string>
+    <string name="template_helper_platform_chatters_stream">De verschillende chatters op één platform sinds de stream begon, bijvoorbeeld youtube: 6</string>
+    <string name="template_helper_platform_top">Het live platform met de meeste kijkers: Twitch</string>
+    <string name="template_helper_platform_connected">De platforms die de streamer heeft gekoppeld: Twitch, Kick, YouTube</string>
+    <string name="template_helper_platform_count">Hoeveel platforms de streamer heeft gekoppeld: 3</string>
+    <string name="template_helper_platform_title">De streamtitel op één platform, bijvoorbeeld youtube: Building a bot</string>
+</resources>

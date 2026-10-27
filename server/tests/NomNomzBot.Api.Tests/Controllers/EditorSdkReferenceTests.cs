@@ -11,7 +11,11 @@
 using System.Text.Json;
 using FluentAssertions;
 using Jint;
+using Microsoft.Extensions.DependencyInjection;
+using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.DevPlatform;
 using NomNomzBot.Infrastructure.DevPlatform;
+using NomNomzBot.Infrastructure.Platform.Templating;
 
 namespace NomNomzBot.Api.Tests.Controllers;
 
@@ -95,7 +99,7 @@ public sealed class EditorSdkReferenceTests
         result
             .Should()
             .StartWith(
-                """[["bot","console","nnz"],["units","time","math","str","json","random","api"],["nnz.api.user.get","nnz.api.user.lookup"]]"""
+                """[["bot","console","nnz"],["units","time","math","str","json","random","template","api"],["nnz.api.user.get","nnz.api.user.lookup"]]"""
             );
     }
 
@@ -139,5 +143,87 @@ public sealed class EditorSdkReferenceTests
         );
 
         result.Should().Be("""[1,1,["nnz.random.pick"],"nnz.random.pick()","bot.args"]""");
+    }
+
+    private const string HelperTypes = """
+        type TemplateHelperName =
+          | 'chat.me'
+          | 'text.lower'
+          | 'text.upper'
+          | 'user'
+          ;
+
+        interface NnzTemplateHelperMap {
+          'chat.me': 'Sends the text as an action';
+          'text.lower': 'Makes the text lowercase';
+          'text.upper': 'Makes the text UPPERCASE';
+          'user': 'The viewer\'s display name';
+        }
+        """;
+
+    [Fact]
+    public void The_helpers_are_one_root_grouped_by_namespace_with_their_description()
+    {
+        string result = Run(
+            HelperTypes,
+            """
+            (function () {
+                const root = r.buildSdkReference(DTS).find((n) => n.name === 'template helpers');
+                return JSON.stringify([
+                    root.children.map((g) => g.name),
+                    root.children.find((g) => g.name === 'text').children.map((h) => [h.path, h.doc]),
+                    root.children.find((g) => g.name === 'general').children[0].doc,
+                ]);
+            })()
+            """
+        );
+
+        result
+            .Should()
+            .Be(
+                """[["chat","general","text"],[["text.lower","Makes the text lowercase"],["text.upper","Makes the text UPPERCASE"]],"The viewer's display name"]"""
+            );
+    }
+
+    [Fact]
+    public void A_filter_finds_a_helper_by_its_name_or_its_description_and_a_click_inserts_its_braces()
+    {
+        string result = Run(
+            HelperTypes,
+            """
+            (function () {
+                const byName = r.filterSdkReference(r.buildSdkReference(DTS), 'upper');
+                const byDoc = r.filterSdkReference(r.buildSdkReference(DTS), 'lowercase');
+                const leaf = byName[0].children[0].children[0];
+                return JSON.stringify([leaf.path, byDoc[0].children[0].children[0].path, r.insertTextFor(leaf)]);
+            })()
+            """
+        );
+
+        result.Should().Be("""["text.upper","text.lower","{text.upper}"]""");
+    }
+
+    [Fact]
+    public void The_generated_script_types_list_every_registry_row_as_a_helper()
+    {
+        using ServiceProvider services = new ServiceCollection()
+            .AddTemplateHelpers(typeof(TemplateResolver).Assembly)
+            .BuildServiceProvider();
+        ITemplateHelperRegistry registry = services.GetRequiredService<ITemplateHelperRegistry>();
+        string dts = new SdkTypeEmitter(new EventCatalog(), helpers: registry).EmitTypeScript(
+            SdkContext.Script
+        );
+
+        string count = Run(
+            dts,
+            """
+            (function () {
+                const root = r.buildSdkReference(DTS).find((n) => n.name === 'template helpers');
+                return root.children.reduce((sum, g) => sum + g.children.length, 0);
+            })()
+            """
+        );
+
+        count.Should().Be(registry.All.Count.ToString());
     }
 }

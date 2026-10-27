@@ -235,7 +235,7 @@ public sealed partial class OverlaySdkSurfaceDriftTests
         Dictionary<string, List<string>> runtime = RuntimeNestedMembers(ServedSdk());
         Dictionary<string, List<string>> declared = DeclaredNestedMembers(WidgetDts());
 
-        runtime.Keys.Should().BeEquivalentTo("actions", "data", "spotify", "widget");
+        runtime.Keys.Should().BeEquivalentTo("actions", "data", "spotify", "template", "widget");
         declared.Keys.Should().BeEquivalentTo(runtime.Keys);
         foreach (string key in runtime.Keys)
             declared[key]

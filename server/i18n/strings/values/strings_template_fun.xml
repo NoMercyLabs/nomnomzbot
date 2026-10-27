@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespace "fun", lane L2l (catalog section 7.18).
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_fun_8ball">One answer from your own pick list named 8ball</string>
+    <string name="template_helper_fun_coin">Flips a coin: heads or tails</string>
+    <string name="template_helper_fun_coin_emoji">Flips a coin and shows it with a coin emoji</string>
+    <string name="template_helper_fun_dice">Rolls dice and gives the total: a six-sided die, a die with your own number of sides, or several dice like 2d6</string>
+    <string name="template_helper_fun_dice_detail">Rolls dice like 2d6 and shows every roll, then the total</string>
+    <string name="template_helper_fun_dice_emoji">Shows one die face, or as many as you ask for (up to 20)</string>
+    <string name="template_helper_fun_rps">Picks rock, paper or scissors</string>
+    <string name="template_helper_fun_rps_vs">Plays rock, paper, scissors against your choice and says who won</string>
+    <string name="template_helper_fun_card">Draws a playing card from a deck of 52</string>
+    <string name="template_helper_fun_slots">Spins a slot machine with three reels</string>
+    <string name="template_helper_fun_slots_win">True when the last slot machine spin in this message matched on all three reels, otherwise false</string>
+    <string name="template_helper_fun_roulette">Pulls the trigger: click, or bang one time in six</string>
+    <string name="template_helper_fun_love">A love score from 0 to 100 percent for two names, the same all day whichever name comes first</string>
+    <string name="template_helper_fun_rate">Rates something from 1 to 10, the same all day for the same thing</string>
+    <string name="template_helper_fun_percent">A percentage for something, the same all day for the same viewer and thing</string>
+    <string name="template_helper_fun_ship">Blends two names into a ship name</string>
+    <string name="template_helper_fun_meter">A progress bar with its percent, the same as meter</string>
+    <string name="template_helper_fun_random_emoji">A random party emoji from a fixed, safe set</string>
+    <string name="template_helper_fun_random_animal">A random animal with its emoji</string>
+    <string name="template_helper_fun_random_food">A random food with its emoji</string>
+    <string name="template_helper_fun_random_color_name">A random color name</string>
+    <string name="template_helper_fun_countdown">Counts down from your number to 1 (up to 20)</string>
+    <string name="template_helper_fun_flip">Flips a table and turns your text upside down</string>
+    <string name="template_helper_fun_unflip">Puts the table back</string>
+    <string name="template_helper_fun_shrug">A shrug</string>
+    <string name="template_helper_fun_lenny">A lenny face</string>
+</resources>

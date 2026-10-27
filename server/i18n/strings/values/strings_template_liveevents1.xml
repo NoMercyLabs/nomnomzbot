@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespaces "poll" and "prediction", lane L2h1 (catalog section 7.10).
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_poll_question">The question of the Twitch poll that is running now; empty when no poll is running</string>
+    <string name="template_helper_poll_isActive">true while a Twitch poll is running, false when none is</string>
+    <string name="template_helper_poll_timeLeft">How long the running poll has left: 1m 30s</string>
+    <string name="template_helper_poll_endsAt">The time the running poll ends, in the channel time zone: 15:32</string>
+    <string name="template_helper_poll_options">All options of the running poll: chips, cookies</string>
+    <string name="template_helper_poll_options_numbered">All options of the running poll with their numbers: 1. chips 2. cookies</string>
+    <string name="template_helper_poll_results_bars">Each option with a bar and its share of the votes</string>
+    <string name="template_helper_poll_option">The text of one option, by its number, for example 2</string>
+    <string name="template_helper_poll_option_votes">The votes of one option, by its number, for example 2</string>
+    <string name="template_helper_poll_option_percent">The share of the votes of one option, by its number, for example 2</string>
+    <string name="template_helper_poll_leading">The option with the most votes; empty before the first vote</string>
+    <string name="template_helper_poll_leading_votes">The votes of the leading option</string>
+    <string name="template_helper_poll_leading_percent">The share of the votes of the leading option: 60%</string>
+    <string name="template_helper_poll_votes_total">The total number of votes in the running poll</string>
+    <string name="template_helper_poll_isTie">true when two or more options share the most votes</string>
+    <string name="template_helper_poll_last_winner">The winning option of the last poll that finished</string>
+    <string name="template_helper_poll_last_question">The question of the last poll that finished</string>
+    <string name="template_helper_prediction_question">The question of the Twitch prediction that is in progress; empty when none is</string>
+    <string name="template_helper_prediction_isActive">true while bets are open on a prediction, false otherwise</string>
+    <string name="template_helper_prediction_status_now">The status of the prediction in progress: open or locked</string>
+    <string name="template_helper_prediction_timeLeft">How long bets stay open: 45s; empty once the prediction is locked</string>
+    <string name="template_helper_prediction_outcomes_list">All outcomes of the prediction: Yes, No</string>
+    <string name="template_helper_prediction_outcome">The text of one outcome, by its number, for example 2</string>
+    <string name="template_helper_prediction_outcome_points">The channel points on one outcome, by its number</string>
+    <string name="template_helper_prediction_outcome_percent">The share of all points on one outcome, by its number</string>
+    <string name="template_helper_prediction_outcome_odds">The payout ratio of one outcome, by its number: 1:4</string>
+    <string name="template_helper_prediction_leading">The outcome with the most points; empty before the first bet</string>
+    <string name="template_helper_prediction_leading_points">The channel points on the leading outcome: 3,000</string>
+    <string name="template_helper_prediction_leading_percent">The share of all points on the leading outcome: 75%</string>
+    <string name="template_helper_prediction_points_total">All channel points bet on the prediction: 4,000</string>
+    <string name="template_helper_prediction_users_total">How many people bet on the prediction</string>
+    <string name="template_helper_prediction_topPredictor">The person who bet the most points, with that amount: ViewerOne (1,000)</string>
+    <string name="template_helper_prediction_last_winner">The winning outcome of the last prediction that finished</string>
+</resources>

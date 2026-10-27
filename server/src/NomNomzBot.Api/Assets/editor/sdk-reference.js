@@ -125,12 +125,70 @@ function buildNode(blocks, path, name, typeName, doc, seen) {
     return node;
 }
 
-/** The SDK as a tree: one root per global, namespaces nested, each call with its signatures and doc. */
+const HELPER_MAP_OPEN = /^interface\s+NnzTemplateHelperMap\s*\{$/;
+const HELPER_ROW = /^'((?:[^'\\]|\\.)+)':\s*'((?:[^'\\]|\\.)*)';$/;
+const unescapeLiteral = (text) => text.replace(/\\(.)/g, '$1');
+
+// The helper names live in one quoted-key block (NnzTemplateHelperMap): name to a one-line description.
+function parseHelperRows(dts) {
+    const rows = [];
+    let inMap = false;
+    for (const raw of String(dts ?? '').split('\n')) {
+        const line = raw.trim();
+        if (!inMap) {
+            inMap = HELPER_MAP_OPEN.test(line);
+            continue;
+        }
+        if (line === '}') break;
+        const row = HELPER_ROW.exec(line);
+        if (row) rows.push({ key: unescapeLiteral(row[1]), doc: unescapeLiteral(row[2]) });
+    }
+    return rows;
+}
+
+// The group of a helper is the text before its first dot; a name with no dot is a general helper.
+function helperGroup(key) {
+    const dot = key.indexOf('.');
+    return dot > 0 ? key.slice(0, dot) : 'general';
+}
+
+const HELPERS_ROOT = 'template helpers';
+
+/** The template helpers as one root: a branch per namespace, a leaf per helper that inserts `{name}`. */
+function buildHelperRoot(rows) {
+    const groups = new Map();
+    for (const row of rows) {
+        const group = helperGroup(row.key);
+        if (!groups.has(group)) groups.set(group, []);
+        groups.get(group).push(row);
+    }
+    const children = [...groups.keys()].sort().map((group) => ({
+        name: group,
+        path: `${HELPERS_ROOT}.${group}`,
+        kind: 'namespace',
+        doc: '',
+        children: groups.get(group).map((row) => ({
+            name: row.key,
+            path: row.key,
+            kind: 'helper',
+            doc: row.doc,
+            signatures: [`{${row.key}}`],
+        })),
+    }));
+    return { name: HELPERS_ROOT, path: HELPERS_ROOT, kind: 'namespace', doc: 'Names to write inside a template, as {name} or {name:argument}.', children };
+}
+
+/**
+ * The SDK as a tree: one root per global, namespaces nested, each call with its signatures and doc, then one
+ * Template helpers root (grouped by namespace) when the declarations carry the helper map.
+ */
 export function buildSdkReference(dts) {
     const { blocks, globals } = parseDeclarations(dts);
-    return globals
+    const roots = globals
         .filter((global) => blocks.has(global.type))
         .map((global) => buildNode(blocks, global.name, global.name, global.type, global.doc, new Set()));
+    const helpers = parseHelperRows(dts);
+    return helpers.length > 0 ? [...roots, buildHelperRoot(helpers)] : roots;
 }
 
 /** The calls whose path, signature or doc holds every word of the filter, with their namespaces kept. */
@@ -149,7 +207,8 @@ export function filterSdkReference(tree, filter) {
     return tree.map(walk).filter(Boolean);
 }
 
-/** The text a click puts in the editor: a call gets its parentheses, a value only its path. */
+/** The text a click puts in the editor: a call gets its parentheses, a helper its braces, a value only its path. */
 export function insertTextFor(node) {
+    if (node.kind === 'helper') return `{${node.path}}`;
     return node.kind === 'method' ? `${node.path}()` : node.path;
 }

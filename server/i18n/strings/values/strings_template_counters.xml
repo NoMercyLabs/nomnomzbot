@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespace "list", lane L2f (catalog section 7.8, the list.* rows).
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_list_pick">One random entry of a pick list</string>
+    <string name="template_helper_list_length">How many entries a pick list has</string>
+    <string name="template_helper_list_item">The entry of a pick list at a position, counting from 1</string>
+    <string name="template_helper_list_first">The first entry of a pick list</string>
+    <string name="template_helper_list_last">The last entry of a pick list</string>
+    <string name="template_helper_list_join">All entries of a pick list, joined with a comma or your own separator</string>
+    <string name="template_helper_list_join_and">All entries of a pick list as a sentence: a, b and c</string>
+    <string name="template_helper_list_shuffle">All entries of a pick list in a random order</string>
+    <string name="template_helper_list_sorted">All entries of a pick list in alphabetical order</string>
+    <string name="template_helper_list_contains">Whether a pick list holds an entry: true or false</string>
+    <string name="template_helper_list_indexOf">The position of an entry in a pick list, or 0 when it is not there</string>
+    <string name="template_helper_list_random_index">A random position inside a pick list</string>
+    <string name="template_helper_list_inline_length">How many entries an inline list a;b;c has</string>
+    <string name="template_helper_list_inline_item">The entry of an inline list a;b;c at a position</string>
+    <string name="template_helper_list_inline_join">An inline list a;b;c joined with your own separator</string>
+    <string name="template_helper_list_count">How many pick lists the channel has</string>
+</resources>

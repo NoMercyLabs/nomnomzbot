@@ -229,6 +229,8 @@ public sealed class SdkTypeEmitterTests
                   json: NnzJson;
                   /** Random value helpers. */
                   random: NnzRandom;
+                  /** Renders a template, with any of the template helpers, for this channel. */
+                  template: NnzTemplate;
                   /** The calls to the bot: chat, music, storage, TTS, rewards and more. Each call needs its grant. */
                   api: NnzApi;
                 };

@@ -1,0 +1,88 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespaces "stream" and "channel", lane L2d (catalog section 7.6).
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_stream_uptime_long">How long the stream has been live, in words: 2 hours, 15 minutes</string>
+    <string name="template_helper_stream_uptime_clock">How long the stream has been live as a clock: 2:15:00</string>
+    <string name="template_helper_stream_uptime_minutes">How many minutes the stream has been live</string>
+    <string name="template_helper_stream_uptime_hours">How many hours the stream has been live, with decimals</string>
+    <string name="template_helper_stream_uptime_since">The time the stream went live in the channel time zone: live since 13:15</string>
+    <string name="template_helper_stream_startedAt_local">The time the stream went live, in the channel time zone</string>
+    <string name="template_helper_stream_startedAt_relative">How long ago the stream went live: 2 hours ago</string>
+    <string name="template_helper_stream_status">live or offline</string>
+    <string name="template_helper_stream_id">The Twitch id of the running stream</string>
+    <string name="template_helper_stream_title_short">The stream title cut to a number of characters, closed with an ellipsis</string>
+    <string name="template_helper_stream_game_short">The category name, cut to 40 characters</string>
+    <string name="template_helper_stream_game_link">The Twitch directory link of the current category</string>
+    <string name="template_helper_stream_game_boxart">The box art picture link of the current category</string>
+    <string name="template_helper_stream_viewers_compact">The current viewer count, short: 1.2k</string>
+    <string name="template_helper_stream_viewers_peak">The highest viewer count of this stream</string>
+    <string name="template_helper_stream_followers_new">How many people followed during this stream</string>
+    <string name="template_helper_stream_followers_newList">The names of the people who followed during this stream</string>
+    <string name="template_helper_stream_followers_latest">The latest person who followed during this stream</string>
+    <string name="template_helper_stream_subs_new">How many new subscribers this stream has</string>
+    <string name="template_helper_stream_subs_resubs">How many resubscriptions this stream has</string>
+    <string name="template_helper_stream_subs_gifted">How many gifted subscriptions this stream has</string>
+    <string name="template_helper_stream_subs_total">All subscription events of this stream</string>
+    <string name="template_helper_stream_subs_topGifter">Who gifted the most subscriptions this stream</string>
+    <string name="template_helper_stream_subs_selfSubs">How many people subscribed for themselves this stream</string>
+    <string name="template_helper_stream_bits_total">All bits cheered this stream</string>
+    <string name="template_helper_stream_bits_top">The top cheerer of this stream with the bits they gave</string>
+    <string name="template_helper_stream_raids_in">How many raids came in this stream</string>
+    <string name="template_helper_stream_raids_lastRaider">The channel of the biggest raid this stream</string>
+    <string name="template_helper_stream_raids_lastRaiderViewers">The viewer count of the biggest raid this stream</string>
+    <string name="template_helper_stream_hypetrains">How many hype trains this stream had</string>
+    <string name="template_helper_stream_hypetrains_topLevel">The highest hype train level of this stream</string>
+    <string name="template_helper_stream_redemptions">How many channel point rewards were redeemed this stream</string>
+    <string name="template_helper_stream_songRequesters">How many people requested a song this stream</string>
+    <string name="template_helper_stream_messages">How many chat messages this stream has</string>
+    <string name="template_helper_stream_chatters_unique">How many different people chatted this stream</string>
+    <string name="template_helper_stream_commandsRun">How many commands ran this stream</string>
+    <string name="template_helper_stream_topChatter">The chatter with the most messages this stream</string>
+    <string name="template_helper_stream_topChatters">The top chatters of this stream, as many as you ask for</string>
+    <string name="template_helper_stream_topCommand">The command that ran most this stream, with its count</string>
+    <string name="template_helper_stream_last_endedAt">The date the last finished stream ended</string>
+    <string name="template_helper_stream_last_since">How long ago the last finished stream ended, in words</string>
+    <string name="template_helper_stream_last_relative">How long ago the last finished stream ended, rounded: 2 days ago</string>
+    <string name="template_helper_stream_last_duration">How long the last finished stream lasted: 4h 10m</string>
+    <string name="template_helper_stream_last_game">The category of the last finished stream</string>
+    <string name="template_helper_stream_last_title">The title of the last finished stream</string>
+    <string name="template_helper_stream_last_peak">The highest viewer count of the last finished stream</string>
+    <string name="template_helper_stream_last_followers">How many people followed during the last finished stream</string>
+    <string name="template_helper_stream_last_subs">How many people subscribed during the last finished stream</string>
+    <string name="template_helper_stream_last_messages">How many chat messages the last finished stream had</string>
+    <string name="template_helper_stream_games_history">The latest categories you streamed, newest first, as many as you ask for</string>
+    <string name="template_helper_stream_count">How many streams the channel has done</string>
+    <string name="template_helper_stream_count_month">How many streams the channel started this month</string>
+    <string name="template_helper_stream_hours_month">How many hours the channel streamed this month</string>
+    <string name="template_helper_stream_number">The number of this stream: stream #214</string>
+    <string name="template_helper_channel_mention">The channel name with an @, to mention it in chat</string>
+    <string name="template_helper_channel_followers">How many followers the channel has</string>
+    <string name="template_helper_channel_followers_compact">How many followers the channel has, short: 1.2k</string>
+    <string name="template_helper_channel_subs">How many subscribers the channel has</string>
+    <string name="template_helper_channel_language">The language of the channel</string>
+    <string name="template_helper_channel_timezone">The time zone of the channel</string>
+    <string name="template_helper_channel_localTime">The time now in the channel time zone</string>
+    <string name="template_helper_channel_personality">The personality the bot uses in this channel</string>
+    <string name="template_helper_channel_prefix">The command prefix of the channel</string>
+    <string name="template_helper_channel_tags">The tags of the channel, as a list</string>
+    <string name="template_helper_channel_ccls">The content labels of the channel, empty when it has none</string>
+    <string name="template_helper_channel_isBranded">Whether the stream is marked as branded content: true or false</string>
+    <string name="template_helper_channel_team">The name of the channel team</string>
+    <string name="template_helper_channel_editors_count">How many editors the channel has</string>
+    <string name="template_helper_channel_mods_count">How many moderators the channel has</string>
+    <string name="template_helper_channel_vips_count">How many VIPs the channel has</string>
+    <string name="template_helper_channel_vod_latest">The link to the latest past broadcast</string>
+    <string name="template_helper_channel_vod_latest_title">The title of the latest past broadcast</string>
+    <string name="template_helper_channel_raids_outCount">How many times the channel raided a given channel</string>
+    <string name="template_helper_channel_raids_inCount">How many times a given channel raided this channel</string>
+    <string name="template_helper_channel_raids_lastOut">The channel this channel raided last</string>
+    <string name="template_helper_channel_raids_lastIn_at">The date another channel raided this channel last</string>
+    <string name="template_helper_channel_age">How old the channel account is, in words: 6 years, 2 months</string>
+</resources>

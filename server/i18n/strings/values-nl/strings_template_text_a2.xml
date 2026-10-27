@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text (Dutch), namespace "text", lane L2a2 (catalog section 7.3).
+-->
+<resources>
+    <string name="template_helper_text_first">De eerste tekens van de tekst</string>
+    <string name="template_helper_text_last">De laatste tekens van de tekst</string>
+    <string name="template_helper_text_substring">Een deel van de tekst vanaf een positie, met een lengte</string>
+    <string name="template_helper_text_length_fit">De tekst afgekapt op een lengte, zonder eindteken</string>
+    <string name="template_helper_text_initials">De eerste letter van elk woord, in hoofdletters</string>
+    <string name="template_helper_text_lines_first">De eerste regel van de tekst</string>
+    <string name="template_helper_text_lines_join">De regels van de tekst aan elkaar met een scheidingsteken</string>
+    <string name="template_helper_text_slug">De tekst als webveilige slug, zoals hello-big-world</string>
+    <string name="template_helper_text_snake">De tekst in snake_case</string>
+    <string name="template_helper_text_kebab">De tekst in kebab-case</string>
+    <string name="template_helper_text_camel">De tekst in camelCase</string>
+    <string name="template_helper_text_pascal">De tekst in PascalCase</string>
+    <string name="template_helper_text_hashtag">De tekst als #Hashtag</string>
+    <string name="template_helper_text_url_encode">De tekst veilig gemaakt voor gebruik in een link</string>
+    <string name="template_helper_text_url_decode">Een link-veilige tekst terug naar gewone tekst</string>
+    <string name="template_helper_text_query_encode">De tekst veilig gemaakt voor een link-query, met + voor spaties</string>
+    <string name="template_helper_text_path_encode">De tekst veilig gemaakt voor een deel van een linkpad</string>
+    <string name="template_helper_text_base64_encode">De tekst als base64</string>
+    <string name="template_helper_text_base64_decode">Een base64-tekst terug naar gewone tekst</string>
+    <string name="template_helper_text_html_strip">De tekst zonder HTML-tags</string>
+    <string name="template_helper_text_links_strip">De tekst zonder links</string>
+    <string name="template_helper_text_mentions_strip">De tekst zonder @vermeldingen</string>
+    <string name="template_helper_text_digits">Alleen de cijfers van de tekst</string>
+    <string name="template_helper_text_letters">Alleen de letters van de tekst</string>
+    <string name="template_helper_text_vowels_remove">De tekst zonder klinkers</string>
+    <string name="template_helper_text_censor">De tekst met een woord vervangen door sterretjes</string>
+    <string name="template_helper_text_mask">De tekst met alles behalve de laatste tekens vervangen door sterretjes</string>
+    <string name="template_helper_text_smallcaps">De tekst in kleine hoofdletters</string>
+    <string name="template_helper_text_upsidedown">De tekst ondersteboven</string>
+    <string name="template_helper_text_fullwidth">De tekst in brede full-width letters</string>
+    <string name="template_helper_text_bold">De tekst in vette letters</string>
+    <string name="template_helper_text_italic">De tekst in cursieve letters</string>
+    <string name="template_helper_text_monospace">De tekst in monospace-letters</string>
+    <string name="template_helper_text_script">De tekst in schrijfletters</string>
+    <string name="template_helper_text_bubble">De tekst in omcirkelde letters</string>
+    <string name="template_helper_text_squared">De tekst in hoofdletters in een vierkantje</string>
+    <string name="template_helper_text_strike">De tekst met een streep erdoor</string>
+    <string name="template_helper_text_underline">De tekst met een streep eronder</string>
+    <string name="template_helper_text_superscript">De tekst in kleine verhoogde letters</string>
+    <string name="template_helper_text_plain">Sierletters terug naar gewone letters</string>
+    <string name="template_helper_text_leet">De tekst in leet-taal</string>
+    <string name="template_helper_text_rot13">De tekst met elke letter 13 plaatsen verschoven (ROT13)</string>
+    <string name="template_helper_text_uwu">De tekst in uwu-taal</string>
+    <string name="template_helper_text_clap">De woorden van de tekst met een klap ertussen</string>
+    <string name="template_helper_text_stutter">De tekst met een gestotterde eerste letter</string>
+    <string name="template_helper_text_yell">De tekst in hoofdletters met een uitroepteken</string>
+    <string name="template_helper_text_plural">Het enkelvoud bij één, het meervoud bij elk ander getal</string>
+    <string name="template_helper_text_plural_count">Het getal met zijn enkelvoud of meervoud</string>
+    <string name="template_helper_text_plural_auto">Een woord in het meervoud, tenzij het getal één is</string>
+    <string name="template_helper_text_singular">Een woord in het enkelvoud</string>
+    <string name="template_helper_text_article">Een woord met a of an ervoor (alleen Engels)</string>
+    <string name="template_helper_text_possessive">Een naam in de bezitsvorm, zoals James' of Anna's</string>
+    <string name="template_helper_text_join_and">Een lijst met komma's en het woord en tussen de items</string>
+    <string name="template_helper_text_join_or">Een lijst met komma's en het woord of tussen de items</string>
+    <string name="template_helper_text_escape_chat">De tekst veilig gemaakt zodat chat hem niet als commando uitvoert</string>
+</resources>

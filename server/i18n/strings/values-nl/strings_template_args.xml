@@ -1,0 +1,72 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text (Dutch), namespace "args", lane L2k2 (catalog section 7.16).
+-->
+<resources>
+    <string name="template_helper_args_count">Hoeveel woorden er na het commando staan</string>
+    <string name="template_helper_args_isEmpty">Waar als het commando geen argumenten heeft, onwaar als het er wel heeft</string>
+    <string name="template_helper_args_first">Het eerste woord na het commando, zoals het getypt is</string>
+    <string name="template_helper_args_last">Het laatste woord na het commando</string>
+    <string name="template_helper_args_rest">Alle woorden na het eerste</string>
+    <string name="template_helper_args_all_quoted">Alle argumenten tussen dubbele aanhalingstekens</string>
+    <string name="template_helper_args_all_urlEncoded">Alle argumenten geschikt gemaakt voor een webadres</string>
+    <string name="template_helper_args_from">Alle woorden vanaf het n-de tot het einde, bijvoorbeeld args.2+</string>
+    <string name="template_helper_args_range">De woorden van het a-de tot het b-de, bijvoorbeeld args.2-3</string>
+    <string name="template_helper_args_word">Het n-de woord, of de standaardwaarde na de dubbele punt als er minder woorden zijn</string>
+    <string name="template_helper_args_clean">Het n-de woord zonder @ ervoor</string>
+    <string name="template_helper_args_upper">Het n-de woord in HOOFDLETTERS</string>
+    <string name="template_helper_args_length">Uit hoeveel tekens het n-de woord bestaat</string>
+    <string name="template_helper_args_urlEncoded">Het n-de woord geschikt gemaakt voor een webadres</string>
+    <string name="template_helper_args_number">Het n-de woord als het een getal is, anders de standaardwaarde na de dubbele punt of niets</string>
+    <string name="template_helper_args_isNumber">Waar als het n-de woord een getal is</string>
+    <string name="template_helper_args_isMention">Waar als het n-de woord een @vermelding is</string>
+    <string name="template_helper_args_mentions">Alle @vermeldingen in de argumenten</string>
+    <string name="template_helper_args_mentions_count">Hoeveel @vermeldingen er in de argumenten staan</string>
+    <string name="template_helper_args_numbers">Alle woorden die een getal zijn</string>
+    <string name="template_helper_args_duration">Het n-de woord gelezen als tijd (5m, 1h30m, 90) in seconden</string>
+    <!-- args.<n>.user.<key>: het n-de woord gelezen als kijker, daarna elke kijkersleutel. -->
+    <string name="template_helper_args_user_display">De weergavenaam van de kijker die als n-de woord is getypt</string>
+    <string name="template_helper_args_user_login">De inlognaam van de kijker die als n-de woord is getypt</string>
+    <string name="template_helper_args_user_mention">De kijker die als n-de woord is getypt, als @vermelding</string>
+    <string name="template_helper_args_user_platform">Het platform van de kijker uit het n-de woord, in kleine letters</string>
+    <string name="template_helper_args_user_platform_name">Het platform van de kijker uit het n-de woord, als naam</string>
+    <string name="template_helper_args_user_shoutoutLink">De link naar het kanaal van de kijker uit het n-de woord</string>
+    <string name="template_helper_args_user_isFollower">Of de kijker uit het n-de woord het kanaal volgt: true of false</string>
+    <string name="template_helper_args_user_isSub">Of de kijker uit het n-de woord abonnee is: true of false</string>
+    <string name="template_helper_args_user_isLive">Of de kijker uit het n-de woord nu live is: true of false</string>
+    <string name="template_helper_args_user_subTier">Het abonnementsniveau van de kijker uit het n-de woord als getal</string>
+    <string name="template_helper_args_user_subTier_name">Het abonnementsniveau van de kijker uit het n-de woord als naam</string>
+    <string name="template_helper_args_user_viewers">Hoeveel kijkers het kanaal uit het n-de woord nu heeft</string>
+    <string name="template_helper_args_user_game">De categorie die het kanaal uit het n-de woord heeft gekozen</string>
+    <string name="template_helper_args_user_title">De streamtitel die het kanaal uit het n-de woord heeft gekozen</string>
+    <string name="template_helper_args_user_color">De chatkleur van de kijker uit het n-de woord</string>
+    <string name="template_helper_args_user_avatar">De link naar de profielfoto van de kijker uit het n-de woord</string>
+    <string name="template_helper_args_user_bio">De profielbeschrijving van de kijker uit het n-de woord</string>
+    <string name="template_helper_args_user_createdAt">De datum waarop het account van de kijker uit het n-de woord is gemaakt</string>
+    <string name="template_helper_args_user_accountAge">Hoe oud het account van de kijker uit het n-de woord is, in jaren en maanden</string>
+    <string name="template_helper_args_user_accountAge_days">Hoeveel dagen oud het account van de kijker uit het n-de woord is</string>
+    <string name="template_helper_args_user_followedAt">De datum waarop de kijker uit het n-de woord ging volgen</string>
+    <string name="template_helper_args_user_followAge">Hoelang de kijker uit het n-de woord al volgt, in woorden</string>
+    <string name="template_helper_args_user_followAge_days">Hoeveel dagen de kijker uit het n-de woord al volgt</string>
+    <string name="template_helper_args_user_points">De kanaalpunten van de kijker uit het n-de woord, met duizendtalscheiding</string>
+    <string name="template_helper_args_user_points_raw">De kanaalpunten van de kijker uit het n-de woord als gewoon getal</string>
+    <string name="template_helper_args_user_points_name">De naam van de puntenmunt van het kanaal</string>
+    <string name="template_helper_args_user_points_rank">De plek van de kijker uit het n-de woord op de puntenranglijst</string>
+    <string name="template_helper_args_user_points_rank_ordinal">De plek van de kijker uit het n-de woord op de ranglijst als rangtelwoord: 4e</string>
+    <string name="template_helper_args_user_points_nextRank_gap">Hoeveel punten de kijker uit het n-de woord nodig heeft om de volgende plek te passeren</string>
+    <string name="template_helper_args_user_points_nextRank_name">De kijker een plek boven de kijker uit het n-de woord</string>
+    <string name="template_helper_args_user_stats_watchTime_hours">De kijktijd van de kijker uit het n-de woord in uren</string>
+    <string name="template_helper_args_user_stats_watchTime_long">De kijktijd van de kijker uit het n-de woord in woorden</string>
+    <string name="template_helper_args_user_stats_firstSeen_relative">Hoelang geleden de kijker uit het n-de woord voor het eerst werd gezien</string>
+    <string name="template_helper_args_user_stats_lastSeen">De datum waarop de kijker uit het n-de woord voor het laatst werd gezien</string>
+    <string name="template_helper_args_user_stats_lastSeen_relative">Hoelang geleden de kijker uit het n-de woord voor het laatst werd gezien</string>
+    <string name="template_helper_args_user_stats_bits">De bits die de kijker uit het n-de woord in dit kanaal gaf</string>
+    <string name="template_helper_args_user_stats_streak">De huidige aanwezigheidsreeks van de kijker uit het n-de woord</string>
+    <string name="template_helper_args_user_stats_streak_best">De beste aanwezigheidsreeks van de kijker uit het n-de woord</string>
+    <string name="template_helper_args_user_data">Een opgeslagen waarde van de kijker uit het n-de woord, met een optionele standaardwaarde na een dubbele punt</string>
+    <string name="template_helper_args_user_quotes_count">Hoeveel quotes de kijker uit het n-de woord heeft gezegd</string>
+</resources>

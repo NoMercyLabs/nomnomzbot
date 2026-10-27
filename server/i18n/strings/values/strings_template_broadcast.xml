@@ -1,0 +1,60 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespaces "ad", "schedule" and "activity", lane L2i (catalog sections 7.11 and 7.12).
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_ad_next_in">How long until the next ad break, rounded to the minute: 12m</string>
+    <string name="template_helper_ad_next_in_long">How long until the next ad break in words: 12 minutes</string>
+    <string name="template_helper_ad_next_at">The clock time of the next ad break in the channel time zone: 15:42</string>
+    <string name="template_helper_ad_next_seconds">How many seconds until the next ad break: 720</string>
+    <string name="template_helper_ad_next_duration">How long the next ad break lasts: 1m 30s</string>
+    <string name="template_helper_ad_last_ago">How long ago the last ad break ran: 48m</string>
+    <string name="template_helper_ad_last_at">The clock time of the last ad break in the channel time zone: 14:42</string>
+    <string name="template_helper_ad_snoozes_left">How many ad snoozes are left: 2</string>
+    <string name="template_helper_ad_snoozes_refreshIn">How long until the ad snoozes are refilled: 34m</string>
+    <string name="template_helper_ad_prerollFree">How much pre-roll free time is left: 20m</string>
+    <string name="template_helper_ad_isScheduled">true while an ad break is planned, false when none is</string>
+
+    <string name="template_helper_schedule_next_at">The day and start time of the next scheduled stream: Friday 20:00</string>
+    <string name="template_helper_schedule_next_date">The day and date of the next scheduled stream: Friday 30 October</string>
+    <string name="template_helper_schedule_next_in">How long until the next scheduled stream: 4 days</string>
+    <string name="template_helper_schedule_next_relative">How long until the next scheduled stream, as a phrase: in 4 days</string>
+    <string name="template_helper_schedule_next_full">The next scheduled stream in one line: next stream in 4 days, Friday 20:00</string>
+    <string name="template_helper_schedule_next_title">The title of the next scheduled stream</string>
+    <string name="template_helper_schedule_next_game">The category of the next scheduled stream</string>
+    <string name="template_helper_schedule_next_duration">How long the next scheduled stream lasts: 3h</string>
+    <string name="template_helper_schedule_next_isRecurring">true when the next scheduled stream repeats every week, false when it is a one-off</string>
+    <string name="template_helper_schedule_next_viewerTime">The day and start time of the next scheduled stream in another time zone, for example schedule.next.viewerTime:America/New_York: Fri 15:00</string>
+    <string name="template_helper_schedule_list">The next scheduled streams with their start times, for example schedule.list:3: Fri 20:00 Bot night · Sun 14:00 Chill</string>
+    <string name="template_helper_schedule_week">The days this week (Monday to Sunday) with a scheduled stream: Fri, Sun</string>
+    <string name="template_helper_schedule_today">The scheduled streams of today with their start times; empty when there is none: 21:00 Quick one</string>
+    <string name="template_helper_schedule_vacation">The schedule break that is planned or running; empty when there is none: Fri 6 Nov - Sun 15 Nov</string>
+    <string name="template_helper_schedule_vacation_until">The day the schedule break ends; empty when there is no break: Sunday 15 November</string>
+    <string name="template_helper_schedule_link">The link to the channel schedule page</string>
+    <string name="template_helper_schedule_ical">The link to the channel schedule as a calendar file (iCalendar)</string>
+
+    <string name="template_helper_activity_mpm">Chat messages per minute over the last minute; activity.mpm:5 averages the last 5 minutes (1 to 60): 18</string>
+    <string name="template_helper_activity_messages_stream">Chat messages in this stream: 2,430</string>
+    <string name="template_helper_activity_messages_today">Chat messages today (channel day): 2,610</string>
+    <string name="template_helper_activity_messages_hour">Chat messages in the last hour: 1,080</string>
+    <string name="template_helper_activity_chatters_unique">Different people who have chatted since the bot joined: 33</string>
+    <string name="template_helper_activity_chatters_now">People connected to chat right now: 51</string>
+    <string name="template_helper_activity_chatters_active">Different people who chatted in the last minutes, for example activity.chatters.active:10 (1 to 60): 12</string>
+    <string name="template_helper_activity_chatters_lurkers">People connected to chat who have not chatted: 18</string>
+    <string name="template_helper_activity_top_today">The person who chatted most today</string>
+    <string name="template_helper_activity_top_today_count">How many messages the top chatter of today sent: 140</string>
+    <string name="template_helper_activity_top_stream">The person who chatted most this stream, with the count: ViewerOne (140)</string>
+    <string name="template_helper_activity_top_list">The top chatters of this stream with their counts, for example activity.top.list:3 (1 to 25): ViewerOne 140, ViewerTwo 96</string>
+    <string name="template_helper_activity_top_hour">The person who chatted most in the last hour</string>
+    <string name="template_helper_activity_random_recent">A random person who chatted in the last minutes, for example activity.random.recent:5 (1 to 60)</string>
+    <string name="template_helper_activity_last_chatter">The last person who chatted, other than the person who triggered this</string>
+    <string name="template_helper_activity_last_message_ago">How long ago the last chat activity was: 4s</string>
+    <string name="template_helper_activity_busiestHour">The busiest hour of the day in chat over the last 90 days, in the channel time zone: 21:00</string>
+    <string name="template_helper_activity_busiestDay">The busiest day of the week in chat over the last 90 days: Friday</string>
+    <string name="template_helper_activity_commands_stream">Commands run since the bot joined: 88</string>
+</resources>

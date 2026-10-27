@@ -1,0 +1,45 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Dutch template helper help text, namespaces "hypetrain", "goal" and "charity", lane L2h2 (catalog section 7.10).
+-->
+<resources>
+    <string name="template_helper_hypetrain_isActive">Of er nu een Hype Train rijdt, als true of false, voor if en switch</string>
+    <string name="template_helper_hypetrain_level">Het level van de lopende Hype Train: 3</string>
+    <string name="template_helper_hypetrain_progress">De punten die zijn verdiend richting het volgende level: 1,800</string>
+    <string name="template_helper_hypetrain_goal">De punten die nodig zijn om het huidige level te halen: 3,000</string>
+    <string name="template_helper_hypetrain_percent">Hoe ver de trein is richting het volgende level: 60%</string>
+    <string name="template_helper_hypetrain_bar">Een balk van hoe ver de trein is richting het volgende level: ██████░░░░ 60%</string>
+    <string name="template_helper_hypetrain_remaining">De punten die nog nodig zijn voor het volgende level: 1,200</string>
+    <string name="template_helper_hypetrain_timeLeft">De tijd die over is voordat de trein stopt: 4m 10s</string>
+    <string name="template_helper_hypetrain_total">Het totaal aantal punten van de lopende trein: 5,400</string>
+    <string name="template_helper_hypetrain_topContributor">De naam van de grootste bijdrager aan de trein: ViewerOne</string>
+    <string name="template_helper_hypetrain_record_level">Het hoogste level dat het kanaal ooit haalde: 5</string>
+    <string name="template_helper_hypetrain_isGolden">Of de lopende trein een Golden Kappa-trein is, als true of false, voor if en switch</string>
+    <string name="template_helper_hypetrain_isShared">Of de lopende trein met andere kanalen wordt gedeeld, als true of false, voor if en switch</string>
+    <string name="template_helper_goal_followers_current">De volgers die meetellen voor het volgersdoel: 1,234</string>
+    <string name="template_helper_goal_followers_target">Het streefgetal van het volgersdoel: 1,500</string>
+    <string name="template_helper_goal_followers_percent">Hoe ver het volgersdoel is: 82%</string>
+    <string name="template_helper_goal_followers_remaining">De volgers die nog nodig zijn voor het doel: 266</string>
+    <string name="template_helper_goal_followers_bar">Een balk van hoe ver het volgersdoel is: ████████░░ 82%</string>
+    <string name="template_helper_goal_followers_description">De omschrijving die de streamer aan het volgersdoel gaf: Road to 1.5k</string>
+    <string name="template_helper_goal_subs_current">De abonnementen die meetellen voor het abonnementsdoel: 80</string>
+    <string name="template_helper_goal_subs_target">Het streefgetal van het abonnementsdoel: 100</string>
+    <string name="template_helper_goal_subs_percent">Hoe ver het abonnementsdoel is: 80%</string>
+    <string name="template_helper_goal_subs_remaining">De abonnementen die nog nodig zijn voor het doel: 20</string>
+    <string name="template_helper_goal_subs_bar">Een balk van hoe ver het abonnementsdoel is: ████████░░ 80%</string>
+    <string name="template_helper_goal_newSubs_current">De nieuwe abonnementen die meetellen voor het doel voor nieuwe abonnementen: 6</string>
+    <string name="template_helper_goal_newSubs_percent">Hoe ver het doel voor nieuwe abonnementen is: 30%</string>
+    <string name="template_helper_goal_list">Alle lopende doelen met hun voortgang: followers 82%, subs 80%</string>
+    <string name="template_helper_charity_name">De naam van het goede doel van de lopende actie: Sample Charity</string>
+    <string name="template_helper_charity_raised">Het tot nu toe opgehaalde geld, met valuta: €420.00</string>
+    <string name="template_helper_charity_target">Het streefbedrag van de actie, met valuta: €1,000.00</string>
+    <string name="template_helper_charity_percent">Hoe ver de actie is richting het streefbedrag: 42%</string>
+    <string name="template_helper_charity_bar">Een balk van hoe ver de actie is: ████░░░░░░ 42%</string>
+    <string name="template_helper_charity_link">De website van het goede doel: https://www.samplecharity.org</string>
+    <string name="template_helper_charity_donations_count">Hoeveel donaties de actie heeft: 17</string>
+    <string name="template_helper_charity_donations_latest">De nieuwste donatie, met de gever en het bedrag: ViewerOne (€10.00)</string>
+</resources>

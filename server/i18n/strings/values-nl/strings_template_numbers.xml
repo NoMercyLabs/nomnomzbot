@@ -1,0 +1,68 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Dutch template helper help text, namespaces "math", "num" and "meter", lane L2b (catalog section 7.4).
+-->
+<resources>
+    <string name="template_helper_math">Rekent een som uit: getallen, + - * / % ^, haakjes en sqrt, abs, floor, ceil, pow, log</string>
+    <string name="template_helper_math_sqrt">Wortel van een getal</string>
+    <string name="template_helper_math_abs">Absolute waarde van een getal</string>
+    <string name="template_helper_math_floor">Rondt een getal naar beneden af op een geheel getal</string>
+    <string name="template_helper_math_ceil">Rondt een getal naar boven af op een geheel getal</string>
+    <string name="template_helper_math_pow">Eerste getal tot de macht van het tweede</string>
+    <string name="template_helper_math_log">Logaritme van een getal, met eigen grondtal of het natuurlijke grondtal</string>
+    <string name="template_helper_math_add">Telt twee getallen op</string>
+    <string name="template_helper_math_sub">Trekt het tweede getal van het eerste af</string>
+    <string name="template_helper_math_mul">Vermenigvuldigt twee getallen</string>
+    <string name="template_helper_math_div">Deelt het eerste getal door het tweede (geen antwoord als het tweede 0 is)</string>
+    <string name="template_helper_math_div_int">Deelt en laat het breukdeel weg</string>
+    <string name="template_helper_math_mod">Rest van het eerste getal gedeeld door het tweede</string>
+    <string name="template_helper_math_sum">Telt alle getallen op</string>
+    <string name="template_helper_math_avg">Gemiddelde van de getallen</string>
+    <string name="template_helper_math_median">Middelste waarde van de getallen</string>
+
+    <string name="template_helper_num_min">Kleinste van de getallen</string>
+    <string name="template_helper_num_max">Grootste van de getallen</string>
+    <string name="template_helper_num_clamp">Houdt een getal tussen een minimum en een maximum</string>
+    <string name="template_helper_num_round">Rondt een getal af op een aantal decimalen (standaard 0), een helft gaat van nul af omhoog</string>
+    <string name="template_helper_num_truncate">Knipt de decimalen van een getal af</string>
+    <string name="template_helper_num_percent">Deel van een geheel als percentage, met optionele decimalen</string>
+    <string name="template_helper_num_percentOf">Een percentage van een getal</string>
+    <string name="template_helper_num_ratio">Verhouding van twee gehele getallen in de kleinste termen</string>
+    <string name="template_helper_num_diff">Verschil tussen twee getallen, altijd positief</string>
+    <string name="template_helper_num_format">Schrijft een getal met scheidingstekens in de taal van het kanaal, met optionele decimalen</string>
+    <string name="template_helper_num_compact">Korte vorm van een groot getal: 1.2k, 3.4M, 2.1B</string>
+    <string name="template_helper_num_ordinal">Rangtelwoord van een geheel getal: 3e in een Nederlands kanaal (3rd in het Engels)</string>
+    <string name="template_helper_num_ordinal_words">Rangtelwoord van een geheel getal in woorden: derde</string>
+    <string name="template_helper_num_words">Een geheel getal in woorden, in de taal van het kanaal: tweeënveertig</string>
+    <string name="template_helper_num_roman">Een geheel getal van 1 tot 3999 als Romeins cijfer</string>
+    <string name="template_helper_num_fromRoman">Een Romeins cijfer als getal</string>
+    <string name="template_helper_num_currency">Een geldbedrag met een valutacode, bijvoorbeeld 5 en USD</string>
+    <string name="template_helper_num_currency_compact">Een kort geldbedrag met een valutacode: $1.5k</string>
+    <string name="template_helper_num_bytes">Een grootte in bytes als KB, MB of GB</string>
+    <string name="template_helper_num_duration">Seconden als korte tijd: 2h 15m</string>
+    <string name="template_helper_num_duration_long">Seconden als tijd in woorden: 2 uur, 15 minuten</string>
+    <string name="template_helper_num_duration_clock">Seconden als klok: 1:23</string>
+    <string name="template_helper_num_sign">Een getal met een plusteken als het positief is</string>
+    <string name="template_helper_num_abs">Absolute waarde van een getal</string>
+    <string name="template_helper_num_parity">Het woord even of oneven, in de taal van het kanaal</string>
+    <string name="template_helper_num_isEven">Waar als een geheel getal even is, onwaar als het oneven is</string>
+    <string name="template_helper_num_between">Waar als een getal binnen een bereik valt, grenzen inbegrepen</string>
+    <string name="template_helper_num_parse">Leest een kort getal zoals 1.2k of 3M als gewoon getal</string>
+    <string name="template_helper_num_digits">Hoeveel cijfers een geheel getal heeft</string>
+    <string name="template_helper_num_digitSum">Som van de cijfers van een geheel getal</string>
+    <string name="template_helper_num_inc">Een getal plus één</string>
+    <string name="template_helper_num_dec">Een getal min één</string>
+    <string name="template_helper_num_hex">Een geheel getal hexadecimaal</string>
+    <string name="template_helper_num_binary">Een geheel getal binair</string>
+    <string name="template_helper_num_convert">Rekent lengte, gewicht, inhoud of temperatuur om tussen eenheden</string>
+    <string name="template_helper_num_bar">Een balk uit een waarde en het maximum</string>
+
+    <string name="template_helper_meter">Een voortgangsbalk uit een percentage, met het getal; breedte en tekens zijn optioneel</string>
+    <string name="template_helper_meter_plain">Een voortgangsbalk uit een percentage, zonder het getal</string>
+    <string name="template_helper_meter_hearts">Vijf hartjes die een percentage tonen</string>
+    <string name="template_helper_meter_stars">Sterren die een waarde van een maximum tonen</string>
+</resources>

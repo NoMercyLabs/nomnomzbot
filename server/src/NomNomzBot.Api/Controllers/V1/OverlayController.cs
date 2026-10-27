@@ -12,6 +12,7 @@ using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Application.Dashboard.Services;
@@ -40,8 +41,15 @@ public class OverlayController : BaseController
     private readonly IWidgetService _widgetService;
     private readonly IStreamStatsService _streamStats;
 
-    public OverlayController(IWidgetService widgetService, IStreamStatsService streamStats)
+    private readonly ITemplateResolver _templates;
+
+    public OverlayController(
+        IWidgetService widgetService,
+        IStreamStatsService streamStats,
+        ITemplateResolver templates
+    )
     {
+        _templates = templates;
         _widgetService = widgetService;
         _streamStats = streamStats;
     }
@@ -138,6 +146,39 @@ public class OverlayController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<string?> { Data = result.Value });
+    }
+
+    /// <summary>
+    /// Renders a template for the token's channel through the one resolver, for the SDK's
+    /// <c>template.render</c>. One route for every helper. <paramref name="values"/> is a JSON object of text,
+    /// number and boolean values that seed the render. It only reads and speaks nothing.
+    /// </summary>
+    [HttpGet("template-render")]
+    [ProducesResponseType<StatusResponseDto<string>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> RenderTemplate(
+        [FromQuery] string? template,
+        [FromQuery] string? values,
+        [FromQuery] string? token,
+        CancellationToken ct
+    )
+    {
+        token = ResolveToken(token);
+        if (string.IsNullOrWhiteSpace(token))
+            return BadRequestResponse("An overlay token is required.");
+
+        Result<Dictionary<string, string>> seeds = TemplateRenderInput.Parse(template, values);
+        if (seeds.IsFailure)
+            return BadRequestResponse(seeds.ErrorMessage!);
+
+        Guid? broadcasterId = await _widgetService.ResolveBroadcasterIdByOverlayTokenAsync(
+            token,
+            ct
+        );
+        if (broadcasterId is null)
+            return NotFoundResponse("No channel found for the provided overlay token.");
+
+        string text = await _templates.ResolveAsync(template!, seeds.Value, broadcasterId, ct);
+        return Ok(new StatusResponseDto<string> { Data = text });
     }
 
     /// <summary>

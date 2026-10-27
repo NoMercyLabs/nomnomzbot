@@ -1,0 +1,37 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespaces "chat", "tts" and "link", lane L2j2 (catalog section 7.14).
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_chat_limit">The most characters one chat line may hold on the platform that delivers it: 500</string>
+    <string name="template_helper_chat_fit">The text cut to fit one chat line, ending in an ellipsis or in your own end text: short text</string>
+    <string name="template_helper_chat_fit_words">The text cut to fit one chat line, at the last whole word: short text</string>
+    <string name="template_helper_chat_mention">A name with an @ in front so chat pings it: @ViewerTwo</string>
+    <string name="template_helper_chat_mention_off">A name without the @, so nobody is pinged: ViewerTwo</string>
+    <string name="template_helper_chat_mention_soft">A name with an invisible space inside it, so it shows but does not ping: ViewerTwo</string>
+    <string name="template_helper_chat_mention_user">The viewer who triggered this, with an @ in front: @ViewerOne</string>
+    <string name="template_helper_chat_me">The text as an action line on Twitch (/me), plain text elsewhere: /me dances</string>
+    <string name="template_helper_chat_message">The chat message that triggered this: hello big world</string>
+    <string name="template_helper_chat_message_length">How many characters the trigger message has: 15</string>
+    <string name="template_helper_chat_message_bits">How many bits came with the trigger message: 0</string>
+    <string name="template_helper_chat_isShared">true while the channel is in a shared chat session, false when not</string>
+    <string name="template_helper_chat_shared_channels">The other channels in the shared chat session, separated by commas: OtherStreamer</string>
+    <string name="template_helper_chat_settings_slow">The slow mode wait time, or off: 3s</string>
+    <string name="template_helper_chat_settings_followersOnly">How long a viewer must follow before chatting (on when any follower may chat), or off: 10m</string>
+    <string name="template_helper_chat_settings_subOnly">true while subscribers-only chat is on, false when not</string>
+    <string name="template_helper_chat_settings_emoteOnly">true while emote-only chat is on, false when not</string>
+    <string name="template_helper_chat_pinned">The text of the pinned chat message, empty when nothing is pinned: Welcome to the stream</string>
+    <string name="template_helper_tts_plain">Text made ready to be spoken: no links, no @, no emotes of the channel, fancy letters turned to plain ones: hi ViewerTwo hi</string>
+    <string name="template_helper_tts_plain_keepEmotes">Text made ready to be spoken, with the emote names kept: hi KEKW</string>
+    <string name="template_helper_tts_numbers">Whole numbers in the text written as words, in the channel language: I have three cats</string>
+    <string name="template_helper_tts_lexicon">The text with the channel pronunciation list applied: good game</string>
+    <string name="template_helper_link_x">A link that opens X with the text ready to post: https://x.com/intent/post?text=Live%20now</string>
+    <string name="template_helper_link_bluesky">A link that opens Bluesky with the text ready to post: https://bsky.app/intent/compose?text=Live%20now</string>
+    <string name="template_helper_link_threads">A link that opens Threads with the text ready to post: https://www.threads.net/intent/post?text=Live%20now</string>
+    <string name="template_helper_link_mastodon">A link that opens a Mastodon server (first argument) with the text ready to post: https://mastodon.social/share?text=Live%20now</string>
+</resources>

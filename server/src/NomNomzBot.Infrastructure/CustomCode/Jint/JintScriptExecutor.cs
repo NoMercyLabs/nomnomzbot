@@ -169,6 +169,9 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 shuffle: function (items) { var a = items.slice(); for (var i = a.length - 1; i > 0; i--) { var j = Math.floor(Math.random() * (i + 1)); var tmp = a[i]; a[i] = a[j]; a[j] = tmp; } return a; },
                 uuid: function () { return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function (c) { var r = Math.random() * 16 | 0; var val = c === 'x' ? r : (r & 0x3 | 0x8); return val.toString(16); }); }
             },
+            template: {
+                render: function (template, values) { return bot.call('template.render', need('nnz.template.render', 'a template', template), missing(values) ? '{}' : JSON.stringify(values)); }
+            },
             api: {
                 actions: {
                     invoke: function (actionType, params, variables) {
@@ -325,6 +328,11 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
     [GeneratedRegex("""nnz\.api\.([a-zA-Z]+)\.([a-zA-Z]+)""")]
     private static partial Regex ApiCallPattern();
 
+    // `nnz.template.render(...)` sits beside the batteries, not under nnz.api, but it is one host call, so the
+    // save-time scan declares its capability the same way.
+    [GeneratedRegex("""nnz\.template\.render\b""")]
+    private static partial Regex TemplateRenderPattern();
+
     // `nnz.api.actions.invoke('<type>', ...)` is granted per action type (`actions.invoke:<type>`), so the type
     // must be a string literal the save-time scan can read. Group 2 is the literal type; absent means computed.
     [GeneratedRegex(
@@ -378,6 +386,8 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                 )
             )
                 keys.Add(capability);
+        if (TemplateRenderPattern().IsMatch(sourceCode))
+            keys.Add("template.render");
         foreach (Match match in ActionInvokePattern().Matches(sourceCode))
             if (match.Groups[2].Success)
                 keys.Add($"actions.invoke:{match.Groups[2].Value}");

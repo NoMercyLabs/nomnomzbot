@@ -30,6 +30,7 @@ namespace NomNomzBot.Api.Controllers.V1;
 [Tags("Templates")]
 public sealed class TemplatesController(
     ITemplateSampleRenderer sampleRenderer,
+    ITemplateHelperRegistry helperRegistry,
     ICurrentUserService currentUser,
     ICurrentTenantService currentTenant
 ) : BaseController
@@ -73,8 +74,8 @@ public sealed class TemplatesController(
             );
 
         IReadOnlyList<TemplateHelperEntry> entries = eventType is null
-            ? TemplateHelperRegistry.ForContext(parsed)
-            : TemplateHelperRegistry.ForContext(parsed, eventType);
+            ? helperRegistry.ForContext(parsed)
+            : helperRegistry.ForContext(parsed, eventType);
 
         // The examples show the signed-in user and the current channel, not a made-up pair. Without a
         // resolved user or tenant the neutral registry samples stand.

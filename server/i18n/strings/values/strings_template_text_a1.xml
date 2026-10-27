@@ -1,0 +1,59 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespace "text", lane L2a1 (catalog section 7.3, text.upper to text.chars.shuffle).
+  Names follow template_helper_<key with dots as underscores>.
+-->
+<resources>
+    <string name="template_helper_text_upper">Makes the text UPPERCASE</string>
+    <string name="template_helper_text_lower">Makes the text lowercase</string>
+    <string name="template_helper_text_title">Capitalizes every word and lowercases the rest</string>
+    <string name="template_helper_text_sentence">Lowercases the text and capitalizes the start of each sentence</string>
+    <string name="template_helper_text_capitalize">Capitalizes the first letter and keeps the rest as written</string>
+    <string name="template_helper_text_decapitalize">Lowercases the first letter and keeps the rest as written</string>
+    <string name="template_helper_text_swapcase">Swaps upper and lower case letter by letter</string>
+    <string name="template_helper_text_spaced">Puts a space, or your own separator, between every character</string>
+    <string name="template_helper_text_alternating">Alternates upper and lower case, starting with upper</string>
+    <string name="template_helper_text_mocking">Alternates lower and upper case, starting with lower</string>
+    <string name="template_helper_text_spongecase">Alternates lower and upper case across the letters, like a mocking meme</string>
+    <string name="template_helper_text_reverse">Reverses the text character by character</string>
+    <string name="template_helper_text_reverse_words">Reverses the order of the words</string>
+    <string name="template_helper_text_trim">Removes spaces from the start and the end</string>
+    <string name="template_helper_text_squish">Trims the text and turns every run of spaces into one space</string>
+    <string name="template_helper_text_truncate">Cuts the text to a number of characters and adds an ellipsis when it cut</string>
+    <string name="template_helper_text_cut">Cuts the text to a maximum length, the ending included: text, max=number, end=text</string>
+    <string name="template_helper_text_cut_words">Keeps the first number of words and adds an ellipsis when it cut</string>
+    <string name="template_helper_text_pad_left">Pads the start of the text to a width with a character (a space by default)</string>
+    <string name="template_helper_text_pad_right">Pads the end of the text to a width with a character (a space by default)</string>
+    <string name="template_helper_text_center">Pads both sides of the text to a width with a character (a space by default)</string>
+    <string name="template_helper_text_repeat">Repeats the text a number of times, with an optional separator</string>
+    <string name="template_helper_text_replace">Replaces every match of a text with another text</string>
+    <string name="template_helper_text_replace_first">Replaces only the first match of a text with another text</string>
+    <string name="template_helper_text_replace_icase">Replaces every match of a text with another text, ignoring case</string>
+    <string name="template_helper_text_remove">Removes every match of a text</string>
+    <string name="template_helper_text_wrap">Puts a left mark before the text and a right mark after it</string>
+    <string name="template_helper_text_quote">Puts the text between double quotes</string>
+    <string name="template_helper_text_paren">Puts the text between parentheses</string>
+    <string name="template_helper_text_lines_wrap">Wraps the text at a width and joins the lines with a slash</string>
+    <string name="template_helper_text_words_count">Counts the words in the text</string>
+    <string name="template_helper_text_chars_count">Counts the characters in the text</string>
+    <string name="template_helper_text_letters_count">Counts only the letters in the text</string>
+    <string name="template_helper_text_lines_count">Counts the lines in the text</string>
+    <string name="template_helper_text_count">Counts how many times a text appears in the text</string>
+    <string name="template_helper_text_word_first">The first word of the text</string>
+    <string name="template_helper_text_word_last">The last word of the text</string>
+    <string name="template_helper_text_word">The word at a position, counting from 1</string>
+    <string name="template_helper_text_words_first">The first number of words</string>
+    <string name="template_helper_text_words_last">The last number of words</string>
+    <string name="template_helper_text_words_from">All words from a position to the end, counting from 1</string>
+    <string name="template_helper_text_words_range">The words from one position to another, both included</string>
+    <string name="template_helper_text_words_shuffle">The words in a random order</string>
+    <string name="template_helper_text_words_sort">The words in alphabetical order</string>
+    <string name="template_helper_text_words_unique">The words with repeated words removed</string>
+    <string name="template_helper_text_word_random">One random word of the text</string>
+    <string name="template_helper_text_word_longest">The longest word of the text</string>
+    <string name="template_helper_text_chars_shuffle">The characters in a random order</string>
+</resources>

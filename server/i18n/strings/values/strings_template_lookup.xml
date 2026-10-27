@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Copyright (c) NoMercy Labs.
+  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  SPDX-License-Identifier: AGPL-3.0-or-later
+
+  Template helper help text, namespace "lookup", lane L2m (catalog section 7.19).
+  Names follow template_helper_<key with dots as underscores>.
+  The *_failed strings are the fallback texts the server prints when a source is slow or down;
+  LookupFallbacks holds the same sentences and a test keeps the two equal.
+-->
+<resources>
+    <string name="template_helper_lookup_twitch">A fact about any Twitch user, written {lookup.twitch:login.field}. Fields: game, title, isLive, viewers, display, avatar, createdAt, uptime, lastGame, url. The fields followers and followage:channel work for your own channel only. Example: Minecraft</string>
+    <string name="template_helper_lookup_game">The box art link of a Twitch category, written {lookup.game:name.boxart}. Example: https://static-cdn.jtvnw.net/ttv-boxart/27471-285x380.jpg</string>
+    <string name="template_helper_lookup_game_top">The most watched Twitch category right now: Just Chatting</string>
+    <string name="template_helper_lookup_weather">The weather in a city, written {lookup.weather:city.field}. Fields: temp, temp.f, feels, condition, emoji, wind, humidity, tomorrow. Without a field it prints the city, the temperature and the condition. Off when the bot runs in saas mode. Example: Amsterdam: 12 °C, light rain</string>
+    <string name="template_helper_lookup_time">The local time in a city, written {lookup.time:city} with the optional fields date and offset. Off when the bot runs in saas mode. Example: 23:30</string>
+    <string name="template_helper_lookup_currency">An amount in another currency, written {lookup.currency:amount|from|to}. Example: 10 EUR = 11.62 USD</string>
+    <string name="template_helper_lookup_currency_rate">The exchange rate between two currencies, written {lookup.currency.rate:from|to}. Example: 1.162</string>
+    <string name="template_helper_lookup_currency_date">The day of the latest exchange rates, with an optional from|to pair (EUR|USD by default): 2026-10-26</string>
+    <string name="template_helper_lookup_translate">A translation, written {lookup.translate:language|text} (from English) or {lookup.translate:from|to|text}. Example: goedemorgen</string>
+    <string name="template_helper_lookup_translate_chat">The text of the command (or the chat message) translated into a language, written {lookup.translate.chat:language}. The text is taken to be in the channel language. Example: good morning</string>
+    <string name="template_helper_lookup_twitch_failed">(Twitch lookup unavailable)</string>
+    <string name="template_helper_lookup_weather_failed">(weather unavailable)</string>
+    <string name="template_helper_lookup_time_failed">(local time unavailable)</string>
+    <string name="template_helper_lookup_currency_failed">(exchange rate unavailable)</string>
+    <string name="template_helper_lookup_translate_failed">(translation unavailable)</string>
+</resources>

@@ -1,0 +1,50 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot, free software licensed under the GNU Affero
+//  General Public License v3.0 or later. You may redistribute and/or modify it
+//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//
+//  SPDX-License-Identifier: AGPL-3.0-or-later
+// -----------------------------------------------------------------------------
+
+using NomNomzBot.Domain.Platform.Interfaces;
+
+namespace NomNomzBot.Application.Abstractions.Templating;
+
+/// <summary>
+/// Everything one render knows, handed to every provider: the channel, the caller's seed variables, the
+/// clock, a bag for <c>{set:…}</c> values and a per-render cache that <c>PrepareAsync</c> fills.
+/// </summary>
+public sealed class TemplateRenderScope
+{
+    public required Guid? BroadcasterId { get; init; }
+
+    /// <summary>The live channel state, or null when the render has no channel.</summary>
+    public required ChannelContext? Channel { get; init; }
+
+    /// <summary>The caller's seed variables (case-insensitive). A seed always wins over a provider.</summary>
+    public required IReadOnlyDictionary<string, string> Variables { get; init; }
+
+    /// <summary>The render's clock reading (UTC).</summary>
+    public required DateTimeOffset Now { get; init; }
+
+    /// <summary>The channel's IANA zone, or null for UTC.</summary>
+    public string? Timezone => Channel?.Timezone;
+
+    /// <summary>The channel's language, or null for English.</summary>
+    public string? Language => Channel?.Language;
+
+    /// <summary>Values written by <c>{set:…}</c> during this render.</summary>
+    public Dictionary<string, string> SetVariables { get; } = new(StringComparer.OrdinalIgnoreCase);
+
+    /// <summary>Per-render cache: a provider keeps what <c>PrepareAsync</c> fetched here for <c>RenderAsync</c>.</summary>
+    public Dictionary<string, object> Items { get; } = new(StringComparer.Ordinal);
+
+    /// <summary>
+    /// Resolves one key (<c>stream.live</c>, <c>count.deaths</c>) through the same resolver as a token: a seed
+    /// first, then a provider, then the as-built helpers. Null when nothing resolves the key. Set by the
+    /// resolver; null for a scope built by hand.
+    /// </summary>
+    public Func<string, CancellationToken, ValueTask<string?>>? ResolveKeyAsync { get; set; }
+}
