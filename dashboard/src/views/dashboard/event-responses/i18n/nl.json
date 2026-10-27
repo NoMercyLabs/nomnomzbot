@@ -67,6 +67,11 @@
         "resetTitle": "Terug naar de standaard van het platform?",
         "resetDescription": "De bot plaatst weer de standaardregels van het platform voor dit event.",
         "resetLoses": "Je eigen regel verdwijnt: {line}",
+        "resetLosesBinding": {
+          "pipeline": "De pipeline die dit event draait wordt losgekoppeld.",
+          "command": "Het commando dat dit event draait wordt losgekoppeld.",
+          "action": "De actie die dit event draait wordt losgekoppeld: {action}"
+        },
         "error": "Het event kon niet laden."
       }
     }

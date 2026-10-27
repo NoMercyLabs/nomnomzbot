@@ -150,7 +150,9 @@ export function useUpdateEventResponse(
   });
 }
 
-// Drops the channel's own text and makes the event follow the platform default again.
+// Drops the channel's own text and makes the event follow the platform default again. It always sends
+// confirm: the server refuses to unbind a pipeline, command or action unless the caller says it is meant,
+// and every caller of this hook asks the person in a dialog first.
 export function useResetEventResponse(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseMutationReturnType<void, Error, string, undefined> {
@@ -160,11 +162,16 @@ export function useResetEventResponse(
     mutationFn: async (eventType: string): Promise<void> => {
       const { error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/event-responses/{eventType}/reset',
-        { params: { path: {
-          version,
-          channelId: toValue(channelId) as string,
-          eventType,
-        } } },
+        {
+          params: {
+            path: {
+              version,
+              channelId: toValue(channelId) as string,
+              eventType,
+            },
+            query: { confirm: true },
+          },
+        },
       );
 
       if (error !== undefined)

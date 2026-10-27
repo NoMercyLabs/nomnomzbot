@@ -21,6 +21,10 @@
           "hidden": "{count} bot activity entries hidden on this page",
           "clear": "Clear filters",
           "repeat": "{count} times",
+          "actor": {
+            "api_key": "API key",
+            "system": "Bot"
+          },
           "page": "Page {page} of {pages}",
           "previous": "Previous",
           "next": "Next",

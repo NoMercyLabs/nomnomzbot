@@ -22,6 +22,7 @@ import FilterBar from '@/components/layout/FilterBar.vue';
 import type { FilterOption } from '@/components/layout/filterOption';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import UserName from '@/components/layout/UserName.vue';
+import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -242,6 +243,15 @@ function clear(): void {
               :name="actorOf(row)?.name ?? ''"
               :color="actorOf(row)?.color"
             />
+            <!-- No person on the row: an API key or the bot itself made the change. Old rows record none. -->
+            <Badge
+              v-else-if="row.actorKind === 'api_key' || row.actorKind === 'system'"
+              variant="secondary"
+              class="mr-2"
+              data-actor-kind
+            >
+              {{ $t(`dashboard.settings.eventJournal.list.actor.${row.actorKind}`) }}
+            </Badge>
             <span data-what>{{ what(row) }}</span>
             <span v-if="count > 1" data-repeat class="ml-2 font-normal text-muted-foreground tabular-nums">{{ $t('dashboard.settings.eventJournal.list.repeat', { count: $n(count) }) }}</span>
           </TableCell>

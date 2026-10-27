@@ -474,6 +474,24 @@ describe('Event journal list', () => {
     expect(document.body.querySelector('[data-who-note]')).toBeNull();
   });
 
+  it('names an API key or the bot as the actor of a change that has no person, and names none on an old row', async () => {
+    window.localStorage.clear();
+
+    listed.items = [
+      { ...bot('k3', 'FollowEvent', '2026-10-01T09:20:00Z'), actorKind: 'api_key' },
+      { ...bot('k2', 'RaidEvent', '2026-10-01T09:10:00Z'), actorKind: 'system' },
+      bot('k1', 'SubscribeEvent', '2026-10-01T09:00:00Z'),
+    ];
+
+    await open();
+
+    const badges = [...document.body.querySelectorAll('[data-actor-kind]')].map(
+      (badge) => badge.textContent?.trim(),
+    );
+
+    expect(badges).toEqual(['API key', 'Bot']);
+  });
+
   it('shows only what happened in the channel by default, says how much bot activity it hid, and shows it with the switch', async () => {
     window.localStorage.clear();
 

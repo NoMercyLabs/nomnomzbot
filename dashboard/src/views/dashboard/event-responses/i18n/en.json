@@ -67,6 +67,11 @@
         "resetTitle": "Reset to the platform default?",
         "resetDescription": "The bot goes back to the platform default lines for this event.",
         "resetLoses": "Your own line goes: {line}",
+        "resetLosesBinding": {
+          "pipeline": "The pipeline this event runs is unbound.",
+          "command": "The command this event runs is unbound.",
+          "action": "The action this event runs is unbound: {action}"
+        },
         "error": "The event could not load."
       }
     }

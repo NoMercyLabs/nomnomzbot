@@ -33994,10 +33994,14 @@ export interface paths {
         /**
          * Reset the configured response for an event type back to its seeded default (disabled, chat_message,
          *     no message/pipeline). The row is a fixed catalogue entry keyed by event type — this never deletes it.
+         *     A row bound to a pipeline, command or action is refused (400 `CONFIRMATION_REQUIRED`, naming the
+         *     binding that would be lost) unless the request carries `confirm=true`.
          */
         post: {
             parameters: {
-                query?: never;
+                query?: {
+                    confirm?: boolean;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -92565,6 +92569,8 @@ export interface components {
             actorUserId?: null | string;
             actorExternalUserId?: null | string;
             actorProvider?: null | string;
+            actorKind?: null | string;
+            actorTokenId?: null | string;
         };
         /**
          * @description The outcome of an import: how many lines the file held, how many events were newly appended, how many were

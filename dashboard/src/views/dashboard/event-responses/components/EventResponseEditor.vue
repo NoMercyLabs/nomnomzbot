@@ -29,6 +29,7 @@ import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Badge } from '@/components/ui/badge';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { boundTarget } from '@/lib/bindingTarget';
 import { errorText } from '@/lib/errors';
 
 import ReplyModeField from '@/components/layout/ReplyModeField.vue';
@@ -116,10 +117,18 @@ const variables = computed<string>(() => {
 const resetOpen = ref(false);
 const resetLoses = computed<string[]>(() => {
   const own = response.data.value?.message ?? '';
+  const bound = boundTarget(response.data.value?.target, response.data.value?.pipelineId);
+  const lines: string[] = [];
 
-  return own === ''
-    ? []
-    : [t('dashboard.eventResponses.editor.resetLoses', { line: own })];
+  if (own !== '') {
+    lines.push(t('dashboard.eventResponses.editor.resetLoses', { line: own }));
+  }
+
+  if (bound !== null) {
+    lines.push(t(`dashboard.eventResponses.editor.resetLosesBinding.${bound.kind}`, { action: bound.actionType ?? '' }));
+  }
+
+  return lines;
 });
 
 async function run(work: () => Promise<void>): Promise<void> {

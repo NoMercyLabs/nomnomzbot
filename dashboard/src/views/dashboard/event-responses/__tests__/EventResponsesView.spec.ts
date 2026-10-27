@@ -23,13 +23,14 @@ import en from '../i18n/en.json';
 import EventResponsesView from '../EventResponsesView.vue';
 
 type Options = {
-  params?: { path?: Record<string, unknown> };
+  params?: { path?: Record<string, unknown>; query?: Record<string, unknown> };
   body?: Record<string, unknown>;
 };
 type Call = {
   method: string;
   path: string;
   eventType: unknown;
+  query: Record<string, unknown> | undefined;
   body: Record<string, unknown> | undefined;
 };
 type Answer = {
@@ -95,6 +96,7 @@ function write(method: string, path: string, options?: Options): Answer {
     method,
     path,
     eventType,
+    query: options?.params?.query,
     body: options?.body,
   });
 
@@ -382,6 +384,27 @@ describe('Event responses page', () => {
     ]);
 
     expect(messageBox().value).toBe('Default hello');
+  });
+
+  it('sends confirm with the reset the person confirmed, and says which binding the reset unbinds', async () => {
+    rows = [response('channel.follow', {
+      responseType: 'pipeline',
+      pipelineId: 'p-follow',
+      target: {
+        kind: 1,
+        id: 'p-follow',
+      },
+    })];
+
+    await open();
+    await click(rowOf('channel.follow'));
+    await click(buttonByText('Reset to default'));
+
+    expect(document.body.textContent).toContain('The pipeline this event runs is unbound.');
+
+    await click(document.body.querySelector<HTMLButtonElement>('[data-confirm-action]')!);
+
+    expect(writes('POST').map((call) => call.query)).toEqual([{ confirm: true }]);
   });
 
   it('shows no control that cannot work', async () => {
