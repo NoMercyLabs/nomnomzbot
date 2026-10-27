@@ -10,7 +10,30 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { splitLinks } from '../text';
+import { splitLinks, splitMatches } from '../text';
+
+describe('splitMatches', () => {
+  it('splits a text around every case-insensitive hit of the query', () => {
+    expect(splitMatches('User.Name user', 'user')).toEqual([
+      { text: 'User', match: true },
+      { text: '.Name ', match: false },
+      { text: 'user', match: true },
+    ]);
+  });
+
+  it('returns the whole text unmarked for an empty query or no hit', () => {
+    expect(splitMatches('abc', '')).toEqual([{ text: 'abc', match: false }]);
+    expect(splitMatches('abc', 'x')).toEqual([{ text: 'abc', match: false }]);
+  });
+
+  it('treats regex characters in the query as plain text', () => {
+    expect(splitMatches('a.<n>', '.<')).toEqual([
+      { text: 'a', match: false },
+      { text: '.<', match: true },
+      { text: 'n>', match: false },
+    ]);
+  });
+});
 
 describe('splitLinks', () => {
   it('keeps the text before a link and leaves a trailing period out of the link', () => {

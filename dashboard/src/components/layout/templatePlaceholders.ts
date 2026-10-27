@@ -86,12 +86,14 @@ export function helperGroup(key: string): string {
 export function groupHelpers(
   helpers: readonly TemplateHelper[],
 ): Array<{ group: string; helpers: TemplateHelper[] }> {
-  const groups = new Map();
+  const groups = new Map<string, TemplateHelper[]>();
 
   for (const helper of helpers) {
     const group = helperGroup(helper.key);
+    const grouped = groups.get(group) ?? [];
 
-    groups.set(group, [...(groups.get(group) ?? []), helper]);
+    grouped.push(helper);
+    groups.set(group, grouped);
   }
 
   return [...groups].map(([group, grouped]) => ({
@@ -99,3 +101,28 @@ export function groupHelpers(
     helpers: grouped,
   }));
 }
+
+// The panel search: a hit in the key comes first (key start before key anywhere), then a hit in the
+// description or the sample. An empty query keeps every helper in the order the bot sent.
+export function searchHelpers(
+  helpers: readonly TemplateHelper[],
+  query: string,
+  describe: (helper: TemplateHelper) => string,
+): readonly TemplateHelper[] {
+  const needle = query.toLowerCase();
+
+  if (needle === '')
+    return helpers;
+
+  const byKey = filterHelpers(helpers, needle);
+  const inText = helpers.filter((helper) => {
+    const words = `${describe(helper)} ${helper.sample}`.toLowerCase();
+
+    return !helper.key.toLowerCase().includes(needle) && words.includes(needle);
+  });
+
+  return merge(byKey, inText);
+}
+
+// A group shows this many rows before its "show more" button.
+export const groupRowLimit = 60;

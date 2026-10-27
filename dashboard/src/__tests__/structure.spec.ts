@@ -645,6 +645,40 @@ describe('target selects', () => {
   });
 });
 
+// Stoney 2026-10-27: "1000+ but they have to be useful and nicely organized". The list of template helpers is
+// <HelperPanel> (grouped, collapsible, searchable, bounded). A place that lists helpers mounts it (TemplateField
+// does, and CatalogView mounts it directly); no view groups, searches or lists the helper rows itself.
+const ownHelperList = /groupHelpers\(|searchHelpers\(|data-helper-row/;
+const ownHelperListAllowlist = [
+  'components/layout/HelperPanel.vue',
+  'components/layout/templatePlaceholders.ts',
+] as const satisfies readonly string[];
+
+function ownsHelperList(path: string): boolean {
+  const text: string = readFileSync(join(src, path), 'utf8');
+
+  return ownHelperList.test(text);
+}
+
+describe('template helper lists', () => {
+  it('spots a hand-written helper list', () => {
+    expect(ownHelperList.test('<button v-for="h in hs" :data-helper-row="h.key">')).toBe(true);
+    expect(ownHelperList.test('const groups = groupHelpers(rows);')).toBe(true);
+  });
+
+  it('builds no helper list outside HelperPanel', () => {
+    const offenders = timeSourceFiles()
+      .filter((path) => ownsHelperList(path))
+      .filter((path) => oneOf(ownHelperListAllowlist, path) === undefined);
+
+    expect(offenders).toEqual([]);
+  });
+
+  it('keeps HelperPanel as the one place that builds it', () => {
+    expect(ownsHelperList('components/layout/HelperPanel.vue')).toBe(true);
+  });
+});
+
 // Stoney 2026-10-18: "extract things like these into reusables". "Is there room?" is asked through
 // composables/useLayout.ts (its width table, useScreenFrom, usePhone, useFits), never with a media query or a
 // size measure written in a view. The files left are height measures, the generated shadcn sidebar, and the

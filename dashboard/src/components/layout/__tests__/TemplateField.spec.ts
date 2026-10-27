@@ -265,9 +265,19 @@ describe('the template field', () => {
   });
 });
 
+// The panel keeps every group collapsed; a press on each header opens them all.
+async function openGroups(): Promise<void> {
+  for (const trigger of document.body.querySelectorAll<HTMLElement>('[data-helper-group-trigger]')) {
+    trigger.click();
+  }
+
+  await flushPromises();
+}
+
 describe('the helper panel', () => {
   it('lists every helper with its description and sample', async () => {
     await host('', true);
+    await openGroups();
 
     const row = document.body.querySelector('[data-helper-row="user.name"]') as HTMLElement;
 
@@ -282,6 +292,7 @@ describe('the helper panel', () => {
     await type(area, 'ab cd', 2);
 
     area.blur();
+    await openGroups();
 
     (document.body.querySelector('[data-helper-row="user"]') as HTMLElement).click();
     await flushPromises();
@@ -311,6 +322,7 @@ describe('the helper panel', () => {
 
     (document.body.querySelector('[data-helper-toggle]') as HTMLElement).click();
     await flushPromises();
+    await openGroups();
 
     const rows: string[] = [...document.body.querySelectorAll('[data-template-panel] [data-helper-row]')]
       .map((row) => row.getAttribute('data-helper-row') ?? '');
@@ -330,6 +342,7 @@ describe('the helper panel', () => {
     area.setSelectionRange(0, 2);
 
     area.dispatchEvent(new Event('select', { bubbles: true }));
+    await openGroups();
 
     (document.body.querySelector('[data-helper-row="channel"]') as HTMLElement).click();
     await flushPromises();

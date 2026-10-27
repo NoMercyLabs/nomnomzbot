@@ -92,6 +92,43 @@ export function splitLinks(line: string): LinkPart[] {
   return parts;
 }
 
+// A piece of a text: a hit of the query, or the text around it.
+export type MatchPart = {
+  text: string;
+  match: boolean;
+};
+
+// A text split around every case-insensitive hit of a query, in order, so a view can mark the hits.
+export function splitMatches(text: string, query: string): MatchPart[] {
+  const needle = query.toLowerCase();
+  const lower = text.toLowerCase();
+  const parts: MatchPart[] = [];
+
+  if (needle === '')
+    return [{ text, match: false }];
+
+  let from = 0;
+  let hit = lower.indexOf(needle);
+
+  while (hit !== -1) {
+    if (hit > from) {
+      parts.push({ text: text.slice(from, hit), match: false });
+    }
+
+    parts.push({ text: text.slice(hit, hit + needle.length), match: true });
+    from = hit + needle.length;
+    hit = lower.indexOf(needle, from);
+  }
+
+  if (from < text.length) {
+    parts.push({ text: text.slice(from), match: false });
+  }
+
+  return parts.length > 0
+    ? parts
+    : [{ text, match: false }];
+}
+
 // Two letters for an avatar without a picture: "Stoney_Eagle" -> "ST".
 export function initials(name: string): string {
   return name
