@@ -129,8 +129,10 @@ public sealed class TemplateResolver : ITemplateResolver
                 return await providers.RenderAsync(token, cancellationToken);
             string key = token.Content.Trim();
             await FetchLateAsync(key);
+            // A name written by {set:name=value} reads last: it shadows no registered key and no seed.
             return LegacyTemplateHelpers.Lookup(key, vars)
-                ?? _legacy.RenderExpression(token.Content, dateContext);
+                ?? _legacy.RenderExpression(token.Content, dateContext)
+                ?? scope.SetVariables.GetValueOrDefault(key);
         }
 
         // A token inside a lazy argument was not known before the render: fetch its variable when it is asked for.
