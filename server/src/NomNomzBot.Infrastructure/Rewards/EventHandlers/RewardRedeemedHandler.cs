@@ -22,9 +22,11 @@ using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
+using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Domain.Rewards.Events;
+using NomNomzBot.Infrastructure.Platform.Eventing;
 
 namespace NomNomzBot.Infrastructure.Rewards.EventHandlers;
 
@@ -35,8 +37,15 @@ namespace NomNomzBot.Infrastructure.Rewards.EventHandlers;
 /// that is used directly. With no reward-specific behavior, the generic
 /// <c>channel.channel_points_custom_reward_redemption.add</c> event response
 /// runs through the shared executor.
+///
+/// It is also the presentation half for a dashboard replay (<see cref="IEventResponsePresenter"/>): a replay runs
+/// the same reward behavior again — the bound pipeline or target, the spoken input, the generic response — but
+/// not the parts that belong to the one real redemption: the permission refund, the countdown timer, and the
+/// after-processed event.
 /// </summary>
-public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
+public sealed class RewardRedeemedHandler
+    : IEventHandler<RewardRedeemedEvent>,
+        IEventResponsePresenter
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly IPipelineEngine _pipeline;
@@ -56,14 +65,30 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
         _logger = logger;
     }
 
+    public Type EventType => typeof(RewardRedeemedEvent);
+
     public async Task HandleAsync(
         RewardRedeemedEvent @event,
         CancellationToken cancellationToken = default
+    ) => await RunAsync(@event, replay: false, cancellationToken);
+
+    public async Task<EventResponseOutcome> ReplayAsync(
+        IDomainEvent @event,
+        CancellationToken ct
+    ) =>
+        @event is RewardRedeemedEvent redemption
+            ? await RunAsync(redemption, replay: true, ct)
+            : EventResponseOutcome.None;
+
+    private async Task<EventResponseOutcome> RunAsync(
+        RewardRedeemedEvent @event,
+        bool replay,
+        CancellationToken cancellationToken
     )
     {
         Guid broadcasterId = @event.BroadcasterId;
         if (broadcasterId == Guid.Empty)
-            return;
+            return EventResponseOutcome.None;
 
         using IServiceScope scope = _scopeFactory.CreateScope();
         IApplicationDbContext db =
@@ -88,27 +113,39 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
                 @event.RewardId,
                 broadcasterId
             );
-            return;
+            return EventResponseOutcome.None;
         }
 
         // A viewer below the reward's permission is refunded and told so; nothing of the reward runs
-        // (legacy parity: no timer, no pipeline, no generic response).
+        // (legacy parity: no timer, no pipeline, no generic response). A replay makes the same call but
+        // never refunds: the redemption is long settled, and a refused one must stay refused.
         if (
             reward is not null
-            && await RewardPermissionGate.TryRefuseAsync(
-                scope.ServiceProvider,
-                db,
-                reward,
-                @event,
-                _logger,
-                cancellationToken
+            && (
+                replay
+                    ? !await RewardPermissionGate.MeetsPermissionAsync(
+                        scope.ServiceProvider,
+                        db,
+                        reward,
+                        @event,
+                        cancellationToken
+                    )
+                    : await RewardPermissionGate.TryRefuseAsync(
+                        scope.ServiceProvider,
+                        db,
+                        reward,
+                        @event,
+                        _logger,
+                        cancellationToken
+                    )
             )
         )
-            return;
+            return EventResponseOutcome.None;
 
         // A time-limited reward starts its countdown the moment it's redeemed (idempotent per
-        // redemption — an EventSub redelivery returns the existing timer). Orthogonal to the response.
-        if (reward?.TimerDurationSeconds is { } timerSeconds and > 0)
+        // redemption — an EventSub redelivery returns the existing timer). Orthogonal to the response, and
+        // not part of a replay: the one real redemption owns its timer.
+        if (!replay && reward?.TimerDurationSeconds is { } timerSeconds and > 0)
         {
             IRedemptionTimerService timers =
                 scope.ServiceProvider.GetRequiredService<IRedemptionTimerService>();
@@ -131,8 +168,18 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
         }
 
         // A reward that speaks reads the viewer's text aloud in their own voice. Orthogonal to the response.
+        EventResponseOutcome outcome = EventResponseOutcome.None;
         if (reward is { SpeaksViaTts: true } && !string.IsNullOrWhiteSpace(@event.UserInput))
-            await SpeakRedemptionTextAsync(scope, db, broadcasterId, @event, cancellationToken);
+        {
+            bool spoken = await SpeakRedemptionTextAsync(
+                scope,
+                db,
+                broadcasterId,
+                @event,
+                cancellationToken
+            );
+            outcome = new(0, spoken ? 1 : 0, 0);
+        }
 
         // A reward bound straight to a command or an action runs it through the one invoker: no wrapper pipeline.
         // A pipeline target (or none) keeps the path below unchanged.
@@ -141,15 +188,16 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
             { Kind: BindingTargetKind.Command or BindingTargetKind.Action } target
         )
         {
-            await RunDirectTargetAsync(
+            bool targetRan = await RunDirectTargetAsync(
                 scope,
                 broadcasterId,
                 target,
                 @event,
                 variables,
+                replay,
                 cancellationToken
             );
-            return;
+            return outcome.Plus(RewardReplayTally.FromDirectRun(targetRan));
         }
 
         string? pipelineJson = reward?.PipelineJson;
@@ -196,19 +244,16 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
         // No reward-specific behavior → the generic redemption event response (the row the
         // event-responses page edits), through the shared executor like every other trigger source.
         if (string.IsNullOrWhiteSpace(pipelineJson))
-        {
-            IEventResponseExecutor executor =
-                scope.ServiceProvider.GetRequiredService<IEventResponseExecutor>();
-            await executor.ExecuteAsync(
-                broadcasterId,
-                RewardRedeemedSampleSource.ResponseKey,
-                @event.UserId,
-                @event.UserDisplayName,
-                variables,
-                cancellationToken
+            return outcome.Plus(
+                await RunGenericResponseAsync(
+                    scope,
+                    broadcasterId,
+                    @event,
+                    variables,
+                    replay,
+                    cancellationToken
+                )
             );
-            return;
-        }
 
         _logger.LogDebug(
             "Executing pipeline for reward {RewardId} in channel {Channel}",
@@ -216,21 +261,54 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
             broadcasterId
         );
 
-        await ExecutePipelineAsync(
+        // A replay hands the run no activity-row id: the utterance a replayed play_tts queues must not be
+        // captured under the original redemption a second time.
+        PipelineExecutionResult? run = await ExecutePipelineAsync(
             broadcasterId,
             pipelineId,
             pipelineJson,
-            @event.UserId,
-            @event.UserDisplayName,
-            @event.RedemptionId,
-            @event.RewardId,
-            @event.EventId.ToString(),
+            @event,
+            replay ? null : @event.EventId.ToString(),
             variables,
+            replay,
             cancellationToken
         );
+        return run is null ? outcome : outcome.Plus(RewardReplayTally.FromPipeline(run));
     }
 
-    private async Task SpeakRedemptionTextAsync(
+    private static async Task<EventResponseOutcome> RunGenericResponseAsync(
+        IServiceScope scope,
+        Guid broadcasterId,
+        RewardRedeemedEvent @event,
+        Dictionary<string, string> variables,
+        bool replay,
+        CancellationToken ct
+    )
+    {
+        IEventResponseExecutor executor =
+            scope.ServiceProvider.GetRequiredService<IEventResponseExecutor>();
+        if (replay)
+            return await executor.ReplayAsync(
+                broadcasterId,
+                RewardRedeemedSampleSource.ResponseKey,
+                @event.UserId,
+                @event.UserDisplayName,
+                variables,
+                ct
+            );
+
+        await executor.ExecuteAsync(
+            broadcasterId,
+            RewardRedeemedSampleSource.ResponseKey,
+            @event.UserId,
+            @event.UserDisplayName,
+            variables,
+            ct
+        );
+        return EventResponseOutcome.None;
+    }
+
+    private async Task<bool> SpeakRedemptionTextAsync(
         IServiceScope scope,
         IApplicationDbContext db,
         Guid broadcasterId,
@@ -240,7 +318,7 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
     {
         ITtsDispatchService? tts = scope.ServiceProvider.GetService<ITtsDispatchService>();
         if (tts is null)
-            return;
+            return false;
 
         Guid viewerUserId = await db
             .Users.Where(u => u.TwitchUserId == @event.UserId)
@@ -274,14 +352,18 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
                 broadcasterId,
                 spoken.ErrorMessage
             );
+
+        return spoken.IsSuccess;
     }
 
-    private async Task RunDirectTargetAsync(
+    /// <summary>Runs the bound command or action; true when it succeeded.</summary>
+    private async Task<bool> RunDirectTargetAsync(
         IServiceScope scope,
         Guid broadcasterId,
         BindingTarget target,
         RewardRedeemedEvent @event,
         Dictionary<string, string> variables,
+        bool replay,
         CancellationToken ct
     )
     {
@@ -317,14 +399,17 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
             _logger.LogError(ex, "Failed to run reward target in channel {Channel}", broadcasterId);
         }
 
-        await PublishAfterProcessedAsync(
-            broadcasterId,
-            @event.RewardId,
-            @event.RedemptionId,
-            succeeded,
-            Stopwatch.GetElapsedTime(startedAt),
-            ct
-        );
+        if (!replay)
+            await PublishAfterProcessedAsync(
+                broadcasterId,
+                @event.RewardId,
+                @event.RedemptionId,
+                succeeded,
+                Stopwatch.GetElapsedTime(startedAt),
+                ct
+            );
+
+        return succeeded;
     }
 
     /// <summary>The variables a redemption hands its reward pipeline or event response.</summary>
@@ -355,25 +440,26 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
             + "\",\"target\":\"channel\"}}]}";
     }
 
-    private async Task ExecutePipelineAsync(
+    /// <summary>Runs the reward's pipeline; null when the run threw. A live run reports the result on the bus,
+    /// a replay does not.</summary>
+    private async Task<PipelineExecutionResult?> ExecutePipelineAsync(
         Guid broadcasterId,
         Guid? pipelineId,
         string pipelineJson,
-        string userId,
-        string displayName,
-        string redemptionId,
-        string rewardId,
-        string channelEventId,
+        RewardRedeemedEvent redemption,
+        string? channelEventId,
         Dictionary<string, string> variables,
+        bool replay,
         CancellationToken ct
     )
     {
+        PipelineExecutionResult? result = null;
         bool succeeded = false;
         TimeSpan duration;
         long startedAt = Stopwatch.GetTimestamp();
         try
         {
-            PipelineExecutionResult result = await _pipeline.ExecuteAsync(
+            result = await _pipeline.ExecuteAsync(
                 new()
                 {
                     BroadcasterId = broadcasterId,
@@ -382,10 +468,10 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
                     // through its tree walker instead of its flat-only JSON fallback.
                     PipelineId = pipelineId,
                     PipelineJson = pipelineJson,
-                    TriggeredByUserId = userId,
-                    TriggeredByDisplayName = displayName,
-                    RedemptionId = redemptionId,
-                    RewardId = rewardId,
+                    TriggeredByUserId = redemption.UserId,
+                    TriggeredByDisplayName = redemption.UserDisplayName,
+                    RedemptionId = redemption.RedemptionId,
+                    RewardId = redemption.RewardId,
                     // The redemption's own activity-feed row id — a reward's pipeline can include play_tts,
                     // and that utterance's dispatched event needs this to correlate its Replay capture back
                     // to the redemption (S-REPLAY-TTS-PIPELINE-CORRELATION).
@@ -408,14 +494,17 @@ public sealed class RewardRedeemedHandler : IEventHandler<RewardRedeemedEvent>
             );
         }
 
-        await PublishAfterProcessedAsync(
-            broadcasterId,
-            rewardId,
-            redemptionId,
-            succeeded,
-            duration,
-            ct
-        );
+        if (!replay)
+            await PublishAfterProcessedAsync(
+                broadcasterId,
+                redemption.RewardId,
+                redemption.RedemptionId,
+                succeeded,
+                duration,
+                ct
+            );
+
+        return result;
     }
 
     private async Task PublishAfterProcessedAsync(
