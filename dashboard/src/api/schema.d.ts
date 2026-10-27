@@ -90354,6 +90354,21 @@ export interface components {
             timezone?: null | string;
             /** @default false */
             keepActiveWhileOffline: boolean;
+            /**
+             * Format: int32
+             * @default 10
+             */
+            viewerCasualFrom: number | string;
+            /**
+             * Format: int32
+             * @default 100
+             */
+            viewerRegularFrom: number | string;
+            /**
+             * Format: int32
+             * @default 500
+             */
+            viewerVeteranFrom: number | string;
         };
         /**
          * @description The "when chat is busy" grid for a date range. string ChannelChatHoursDto.TimeZone is the zone the cells are bucketed
@@ -104831,6 +104846,23 @@ export interface components {
              *     the stream ends and back on when it starts). Null leaves it unchanged.
              */
             keepActiveWhileOffline?: null | boolean;
+            /**
+             * Format: int32
+             * @description The viewer message count from which `{user.activity.level}` reads `casual` (default 10). The three
+             *     steps must satisfy 1 &lt;= casual &lt; regular &lt; veteran &lt;= 1,000,000, checked together with the
+             *     stored values. Null leaves it unchanged.
+             */
+            viewerCasualFrom?: null | number | string;
+            /**
+             * Format: int32
+             * @description The viewer message count from which the level reads `regular` (default 100). Null leaves it unchanged.
+             */
+            viewerRegularFrom?: null | number | string;
+            /**
+             * Format: int32
+             * @description The viewer message count from which the level reads `veteran` (default 500). Null leaves it unchanged.
+             */
+            viewerVeteranFrom?: null | number | string;
         };
         /** @description The new chat color: a Twitch color name (blue, hot_pink, ...) or a hex value like #9146FF. */
         UpdateChatColor: {

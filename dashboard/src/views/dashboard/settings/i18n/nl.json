@@ -106,6 +106,24 @@
         "keepActiveWhileOffline": {
           "title": "Commando's en beloningen aan laten als je offline bent",
           "description": "Uit: als je stream stopt, werken commando's voor kijkers niet meer en gaan je beloningen uit; ze komen terug als je live gaat. Mods en jij kunnen altijd commando's gebruiken."
+        },
+        "activity": {
+          "title": "Activiteitsniveaus van kijkers",
+          "description": "Het aantal chatberichten dat een kijker nodig heeft voordat de bot hem casual, regular of veteran noemt. Onder de eerste stap is een kijker nieuw.",
+          "casual": {
+            "title": "Casual vanaf",
+            "description": "Berichten voordat een kijker niet meer als nieuw geldt."
+          },
+          "regular": {
+            "title": "Regular vanaf",
+            "description": "Berichten voordat een casual kijker als regular geldt."
+          },
+          "veteran": {
+            "title": "Veteran vanaf",
+            "description": "Berichten voordat een regular kijker als veteran geldt."
+          },
+          "rangeError": "Gebruik een geheel getal van 1 tot 1.000.000.",
+          "orderError": "Elke stap moet hoger zijn dan de stap ervoor."
         }
       },
       "readability": {

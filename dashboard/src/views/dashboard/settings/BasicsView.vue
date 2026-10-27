@@ -45,10 +45,50 @@ type Draft = {
   timezone: string;
   autoJoin: boolean;
   keepActiveWhileOffline: boolean;
+  viewerCasualFrom: string;
+  viewerRegularFrom: string;
+  viewerVeteranFrom: string;
 };
 
 const prefixPattern = /^\S{1,5}$/;
 const linePattern = /^.{0,4}$/u;
+const stepPattern = /^\d{1,7}$/;
+const stepCeiling = 1_000_000;
+
+// The three activity steps in the order the server checks them: each must be higher than the one before.
+const steps = [
+  'viewerCasualFrom',
+  'viewerRegularFrom',
+  'viewerVeteranFrom',
+] as const;
+
+type StepKey = (typeof steps)[number];
+
+const stepRows = [
+  {
+    key: 'viewerCasualFrom',
+    before: null,
+    title: 'dashboard.settings.basics.activity.casual.title',
+    description: 'dashboard.settings.basics.activity.casual.description',
+  },
+  {
+    key: 'viewerRegularFrom',
+    before: 'viewerCasualFrom',
+    title: 'dashboard.settings.basics.activity.regular.title',
+    description: 'dashboard.settings.basics.activity.regular.description',
+  },
+  {
+    key: 'viewerVeteranFrom',
+    before: 'viewerRegularFrom',
+    title: 'dashboard.settings.basics.activity.veteran.title',
+    description: 'dashboard.settings.basics.activity.veteran.description',
+  },
+] as const satisfies readonly {
+  key: StepKey;
+  before: StepKey | null;
+  title: string;
+  description: string;
+}[];
 
 const { t } = useI18n();
 const { channelId } = useCurrentChannel();
@@ -63,6 +103,9 @@ const draft = reactive<Draft>({
   timezone: '',
   autoJoin: false,
   keepActiveWhileOffline: false,
+  viewerCasualFrom: '',
+  viewerRegularFrom: '',
+  viewerVeteranFrom: '',
 });
 
 function fromStored(stored: ChannelBasics) {
@@ -73,6 +116,9 @@ function fromStored(stored: ChannelBasics) {
     timezone: stored.timezone ?? '',
     autoJoin: stored.autoJoin,
     keepActiveWhileOffline: stored.keepActiveWhileOffline,
+    viewerCasualFrom: String(stored.viewerCasualFrom),
+    viewerRegularFrom: String(stored.viewerRegularFrom),
+    viewerVeteranFrom: String(stored.viewerVeteranFrom),
   } as const satisfies Draft;
 }
 
@@ -90,6 +136,9 @@ const stored = computed(() => fromStored(basics.data.value ?? {
   prefix: '',
   autoJoin: false,
   keepActiveWhileOffline: false,
+  viewerCasualFrom: 10,
+  viewerRegularFrom: 100,
+  viewerVeteranFrom: 500,
 }));
 
 const dirty = computed(() => keysOf(draft).some(
@@ -97,8 +146,36 @@ const dirty = computed(() => keysOf(draft).some(
 ));
 const prefixValid = computed(() => prefixPattern.test(draft.prefix));
 const lineValid = computed(() => linePattern.test(draft.botLinePrefix));
+
+// A step is a whole number from 1 to the ceiling; the order rule is checked on the numbers together.
+const stepsAreNumbers = computed(() => steps.every((key) => inRange(draft[key])));
+const stepsAreOrdered = computed(
+  () => Number(draft.viewerCasualFrom) < Number(draft.viewerRegularFrom) &&
+    Number(draft.viewerRegularFrom) < Number(draft.viewerVeteranFrom),
+);
+const stepsValid = computed(() => stepsAreNumbers.value && stepsAreOrdered.value);
+
+function inRange(text: string): boolean {
+  return stepPattern.test(text) && Number(text) >= 1 && Number(text) <= stepCeiling;
+}
+
+// The message sits on the step that breaks the rule: out of range, or not higher than the step before it.
+function stepError(key: StepKey, before: StepKey | null): string | null {
+  if (!inRange(draft[key]))
+    return t('dashboard.settings.basics.activity.rangeError');
+
+  if (before !== null && inRange(draft[before]) && Number(draft[key]) <= Number(draft[before]))
+    return t('dashboard.settings.basics.activity.orderError');
+
+  return null;
+}
+
 const canSave = computed(
-  () => dirty.value && prefixValid.value && lineValid.value && !save.isPending.value,
+  () => dirty.value &&
+    prefixValid.value &&
+    lineValid.value &&
+    stepsValid.value &&
+    !save.isPending.value,
 );
 
 const state = computed<PanelState>(() => {
@@ -150,6 +227,9 @@ function submit(): void {
         : draft.timezone,
       autoJoin: draft.autoJoin,
       keepActiveWhileOffline: draft.keepActiveWhileOffline,
+      viewerCasualFrom: Number(draft.viewerCasualFrom),
+      viewerRegularFrom: Number(draft.viewerRegularFrom),
+      viewerVeteranFrom: Number(draft.viewerVeteranFrom),
     },
     {
       onSuccess: () => toast.success(t('dashboard.settings.basics.saved')),
@@ -252,6 +332,39 @@ function discard(): void {
         :description="$t('dashboard.settings.basics.keepActiveWhileOffline.description')"
       />
     </RowGroup>
+    <section class="mt-4 flex flex-col gap-2" aria-labelledby="activity-levels-title">
+      <div class="px-1">
+        <h3 id="activity-levels-title" class="text-sm font-medium">
+          {{ $t('dashboard.settings.basics.activity.title') }}
+        </h3>
+        <p class="text-sm text-muted-foreground">
+          {{ $t('dashboard.settings.basics.activity.description') }}
+        </p>
+      </div>
+      <RowGroup>
+        <ReadabilityRow
+          v-for="row in stepRows"
+          :key="row.key"
+          :title="$t(row.title)"
+          :description="$t(row.description)"
+        >
+          <div class="flex flex-col items-end gap-1">
+            <Input
+              v-model="draft[row.key]"
+              class="w-28"
+              inputmode="numeric"
+              maxlength="7"
+              :aria-label="$t(row.title)"
+              :disabled="!can('setup:write')"
+              :aria-invalid="stepError(row.key, row.before) !== null"
+            />
+            <p v-if="stepError(row.key, row.before)" role="alert" class="text-xs text-destructive">
+              {{ stepError(row.key, row.before) }}
+            </p>
+          </div>
+        </ReadabilityRow>
+      </RowGroup>
+    </section>
     <template v-if="can('setup:write')" #footer>
       <div class="flex w-full items-center justify-end gap-2">
         <Button variant="ghost" size="sm" :disabled="!dirty || save.isPending.value" @click="discard">

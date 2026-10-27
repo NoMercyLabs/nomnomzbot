@@ -44,6 +44,10 @@ const stored = {
   locale: 'en',
   autoJoin: false,
   timezone: 'Europe/Amsterdam',
+  keepActiveWhileOffline: false,
+  viewerCasualFrom: 10,
+  viewerRegularFrom: 100,
+  viewerVeteranFrom: 500,
 };
 
 let mounted: VueWrapper | null = null;
@@ -66,6 +70,9 @@ const saveButton = (): HTMLButtonElement =>
   ) as HTMLButtonElement;
 const prefixInput = (): HTMLInputElement =>
   document.body.querySelector<HTMLInputElement>('input[aria-label="Command prefix"]') as HTMLInputElement;
+
+const stepInput = (label: string): HTMLInputElement =>
+  document.body.querySelector<HTMLInputElement>(`input[aria-label="${label}"]`) as HTMLInputElement;
 
 async function type(input: HTMLInputElement, value: string): Promise<void> {
   input.value = value;
@@ -146,9 +153,65 @@ describe('Basics settings', () => {
       locale: 'en',
       timezone: 'Europe/Amsterdam',
       autoJoin: false,
+      keepActiveWhileOffline: false,
+      viewerCasualFrom: 10,
+      viewerRegularFrom: 100,
+      viewerVeteranFrom: 500,
     });
 
     expect(saveButton().disabled).toBe(true);
+  });
+
+  it('shows the three stored activity steps', async () => {
+    await open();
+
+    expect(stepInput('Casual from').value).toBe('10');
+    expect(stepInput('Regular from').value).toBe('100');
+    expect(stepInput('Veteran from').value).toBe('500');
+  });
+
+  it('saves an edited activity step as numbers next to the other steps', async () => {
+    http.PUT.mockResolvedValue({
+      data: { data: { ...stored, viewerRegularFrom: 250 } },
+      response: { ok: true, status: 200 },
+    });
+
+    await open();
+    await type(stepInput('Regular from'), '250');
+
+    expect(saveButton().disabled).toBe(false);
+
+    saveButton().click();
+    await flushPromises();
+
+    const [, init] = http.PUT.mock.calls[0] as [string, { body: Record<string, unknown> }];
+
+    expect(init.body.viewerCasualFrom).toBe(10);
+    expect(init.body.viewerRegularFrom).toBe(250);
+    expect(init.body.viewerVeteranFrom).toBe(500);
+    expect(saveButton().disabled).toBe(true);
+  });
+
+  it('blocks Save and says why when casual reaches regular', async () => {
+    await open();
+    await type(stepInput('Casual from'), '100');
+
+    expect(saveButton().disabled).toBe(true);
+    expect(document.body.textContent).toContain('Each step must be higher than the one before it.');
+    expect(http.PUT).not.toHaveBeenCalled();
+  });
+
+  it('blocks Save for an empty step and for a veteran step above one million', async () => {
+    await open();
+    await type(stepInput('Casual from'), '');
+
+    expect(saveButton().disabled).toBe(true);
+
+    await type(stepInput('Casual from'), '10');
+    await type(stepInput('Veteran from'), '1000001');
+
+    expect(saveButton().disabled).toBe(true);
+    expect(document.body.textContent).toContain('Use a whole number from 1 to 1,000,000.');
   });
 
   it('refuses a prefix with a space and never sends it', async () => {

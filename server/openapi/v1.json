@@ -109271,6 +109271,33 @@
           "keepActiveWhileOffline": {
             "type": "boolean",
             "default": false
+          },
+          "viewerCasualFrom": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32",
+            "default": 10
+          },
+          "viewerRegularFrom": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32",
+            "default": 100
+          },
+          "viewerVeteranFrom": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32",
+            "default": 500
           }
         },
         "description": "The channel's onboarding \"basics\" — the settable-anywhere command string ChannelBasicsDto.Prefix, the default\r\nstring? ChannelBasicsDto.Locale, the bool ChannelBasicsDto.AutoJoin toggle, and the streamer's string? ChannelBasicsDto.Timezone.\r\nBacks both the Settings \"Bot basics\" card and the onboarding basics step."
@@ -151399,6 +151426,36 @@
               "boolean"
             ],
             "description": "Whether commands and rewards stay active while the channel is offline (default off: they switch off when\r\nthe stream ends and back on when it starts). Null leaves it unchanged."
+          },
+          "viewerCasualFrom": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The viewer message count from which `{user.activity.level}` reads `casual` (default 10). The three\r\nsteps must satisfy 1 &lt;= casual &lt; regular &lt; veteran &lt;= 1,000,000, checked together with the\r\nstored values. Null leaves it unchanged.",
+            "format": "int32"
+          },
+          "viewerRegularFrom": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The viewer message count from which the level reads `regular` (default 100). Null leaves it unchanged.",
+            "format": "int32"
+          },
+          "viewerVeteranFrom": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "The viewer message count from which the level reads `veteran` (default 500). Null leaves it unchanged.",
+            "format": "int32"
           }
         },
         "description": "Request to update channel settings."

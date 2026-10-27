@@ -106,6 +106,24 @@
         "keepActiveWhileOffline": {
           "title": "Keep commands and rewards on while offline",
           "description": "Off: when your stream ends, viewer commands stop and your rewards turn off; they come back when you go live. Mods and you can always use commands."
+        },
+        "activity": {
+          "title": "Viewer activity levels",
+          "description": "Chat messages a viewer needs before the bot calls them casual, regular or veteran. Below the first step a viewer reads as new.",
+          "casual": {
+            "title": "Casual from",
+            "description": "Messages before a viewer stops reading as new."
+          },
+          "regular": {
+            "title": "Regular from",
+            "description": "Messages before a casual viewer reads as regular."
+          },
+          "veteran": {
+            "title": "Veteran from",
+            "description": "Messages before a regular viewer reads as veteran."
+          },
+          "rangeError": "Use a whole number from 1 to 1,000,000.",
+          "orderError": "Each step must be higher than the one before it."
         }
       },
       "readability": {

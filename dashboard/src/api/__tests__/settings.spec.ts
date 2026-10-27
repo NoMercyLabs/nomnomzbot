@@ -38,6 +38,9 @@ const stored: ChannelBasics = {
   autoJoin: true,
   timezone: 'Europe/Amsterdam',
   keepActiveWhileOffline: false,
+  viewerCasualFrom: 10,
+  viewerRegularFrom: 100,
+  viewerVeteranFrom: 500,
 };
 
 function mount<T>(use: () => T): { queries: QueryClient; hook: T } {
