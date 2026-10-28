@@ -16,6 +16,7 @@ using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Assets.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Infrastructure.Assets.Media;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -43,7 +44,9 @@ public sealed class AssetsControllerServingTests
         return (controller, service);
     }
 
-    private static void ServeReturns(IChannelAssetService service, string mimeType, byte[] bytes) =>
+    private static void ServeReturns(IChannelAssetService service, byte[] bytes)
+    {
+        string mimeType = MediaSniffer.Sniff(bytes, bytes.Length)!;
         service
             .OpenForServingAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(
@@ -51,11 +54,12 @@ public sealed class AssetsControllerServingTests
                     new(
                         new MemoryStream(bytes),
                         mimeType,
-                        mimeType.StartsWith("image/") ? "image" : "audio",
+                        MediaSniffer.KindOf(mimeType),
                         bytes.Length
                     )
                 )
             );
+    }
 
     [Fact]
     public void Serve_route_is_anonymous_so_obs_browser_sources_need_no_jwt()
@@ -71,7 +75,7 @@ public sealed class AssetsControllerServingTests
     public async Task Png_serves_with_the_sniffed_type_immutable_cache_and_nosniff()
     {
         (AssetsController controller, IChannelAssetService service) = Build();
-        ServeReturns(service, "image/png", [0x89, 0x50, 0x4E, 0x47]);
+        ServeReturns(service, [0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A]);
 
         IActionResult result = await controller.ServeFile(Channel, "boot-screen", default);
 
@@ -93,7 +97,6 @@ public sealed class AssetsControllerServingTests
         (AssetsController controller, IChannelAssetService service) = Build();
         ServeReturns(
             service,
-            "image/svg+xml",
             System.Text.Encoding.UTF8.GetBytes("<svg><script>alert(1)</script></svg>")
         );
 
