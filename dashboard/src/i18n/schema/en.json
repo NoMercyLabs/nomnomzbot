@@ -2322,6 +2322,24 @@
     "song_wrong": {
       "description": "Remove the requester's most recent queued song"
     },
+    "stage_effect": {
+      "color": {
+        "help": "The main color as a hex value such as #ff8800. Leave blank to use the Stage widget's accent color."
+      },
+      "description": "Play a one-off effect on the Stage overlay: run across the screen, confetti, shake or flash",
+      "duration_ms": {
+        "help": "How long the effect runs, in milliseconds. Leave blank to use the effect's own length. The most is 30000."
+      },
+      "intensity": {
+        "help": "How big and fast the effect is, from 1 to 10. Leave blank to use the Stage widget's default intensity."
+      },
+      "preset": {
+        "help": "Which effect to play."
+      },
+      "text": {
+        "help": "The words or emoji to show. Only the run-across effect uses it. Template variables work here."
+      }
+    },
     "start_live_game": {
       "description": "Start a live interactive game for viewers",
       "game_type": {
@@ -2968,6 +2986,10 @@
         "description": "The upcoming song-request queue as a compact list with position, title, and optional requester and duration. It is fed by sr_queue snapshot events and hidden while the queue is empty.",
         "name": "SR Queue"
       },
+      "stage": {
+        "description": "A transparent full-screen layer for one-off effects a command or pipeline triggers: a text or emoji running across the screen, confetti, a shake, a flash. Draws nothing while idle.",
+        "name": "Stage"
+      },
       "sub_train": {
         "description": "A hype counter that spikes on rapid subs and gift subs and cools down on its own. It shows the count of subs still inside a rolling window (a gift of N counts as N) and is hidden when the train stops.",
         "name": "Sub Train"
@@ -3265,6 +3287,14 @@
       },
       "showRequester": {
         "label": "Show requester"
+      }
+    },
+    "stage": {
+      "accentColor": {
+        "label": "Accent color"
+      },
+      "intensity": {
+        "label": "Default intensity"
       }
     },
     "sub_train": {

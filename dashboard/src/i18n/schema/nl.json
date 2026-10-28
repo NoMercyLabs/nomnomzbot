@@ -2322,6 +2322,24 @@
     "song_wrong": {
       "description": "Verwijder het meest recent aangevraagde nummer van de aanvrager"
     },
+    "stage_effect": {
+      "color": {
+        "help": "De hoofdkleur als hexwaarde, bijvoorbeeld #ff8800. Laat leeg voor de accentkleur van de Stage-widget."
+      },
+      "description": "Speel een eenmalig effect af op de Stage-overlay: over het scherm rennen, confetti, schudden of flitsen",
+      "duration_ms": {
+        "help": "Hoe lang het effect duurt, in milliseconden. Laat leeg voor de eigen lengte van het effect. Maximaal 30000."
+      },
+      "intensity": {
+        "help": "Hoe groot en snel het effect is, van 1 tot 10. Laat leeg voor de standaardintensiteit van de Stage-widget."
+      },
+      "preset": {
+        "help": "Welk effect wordt afgespeeld."
+      },
+      "text": {
+        "help": "De woorden of emoji die getoond worden. Alleen het effect over het scherm rennen gebruikt dit. Sjabloonvariabelen werken hier."
+      }
+    },
     "start_live_game": {
       "description": "Start een live interactief spel voor kijkers",
       "game_type": {
@@ -2968,6 +2986,10 @@
         "description": "De komende wachtrij met verzoeknummers als compacte lijst met positie, titel en optioneel aanvrager en duur. Gevoed door sr_queue-momentopnames en verborgen zolang de wachtrij leeg is.",
         "name": "Verzoeknummers-wachtrij"
       },
+      "stage": {
+        "description": "Een transparante laag over het hele scherm voor eenmalige effecten die een commando of pipeline start: tekst of emoji die over het scherm rent, confetti, schudden, een flits. Tekent niets zolang er niets gebeurt.",
+        "name": "Stage"
+      },
       "sub_train": {
         "description": "Een hypeteller die piekt bij snelle subs en gifted subs en vanzelf afkoelt. Het toont het aantal subs binnen een lopend tijdvenster (een gift van N telt als N) en is verborgen als de trein stopt.",
         "name": "Subtrein"
@@ -3265,6 +3287,14 @@
       },
       "showRequester": {
         "label": "Aanvrager tonen"
+      }
+    },
+    "stage": {
+      "accentColor": {
+        "label": "Accentkleur"
+      },
+      "intensity": {
+        "label": "Standaardintensiteit"
       }
     },
     "sub_train": {
