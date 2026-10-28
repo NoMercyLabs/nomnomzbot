@@ -838,6 +838,15 @@
    "source": "Stoney 2026-10-28: \"handrolling methods is not representing the real code that is being executed, it gives a false perception of what the code does and therefore are not tests that can be trusted...\" and \"this means that MANY others are also handrolling code instead of using the actual code that runs\" ({user.accountAge} read the bot row date and no test caught it). Memory: feedback-tests-call-real-code.md"
   },
   {
+   "id": "no-overcorrection",
+   "paths": [],
+   "brief": [
+    "CORRECTION|[Cc]orrection from Stoney"
+   ],
+   "text": "Do the size of change Stoney's words ask for, nothing bigger. Name the smallest change that meets his words and do only that; when the size is unclear, take the smaller reading. \"Reduce\" lowers a number (no new starts, running work finishes), never stops or kills. \"Split up\" is the next level of structure, never maximum fragmentation.",
+   "source": "Stoney 2026-10-28: \"when will you learn to not overcorrect when i say something? did i ask you to stop them or did i ask you to reduce the count\" (Arc stopped three managers when asked to reduce the agent count; the same day the helper pages were split into 15 sub-sections, \"this is an overcorrection\"). Memory: feedback-no-overcorrection.md"
+  },
+  {
    "id": "docs-english-only",
    "paths": [
     "**/CLAUDE.md",
