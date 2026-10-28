@@ -33,7 +33,7 @@ public sealed class PlaylistBuiltin(
     private const string YouTubePlaylistUrl = "https://www.youtube.com/playlist?list=";
 
     public string BuiltinKey => "playlist";
-    public int DefaultCooldownSeconds => 10;
+    public int DefaultCooldownSeconds => 60;
     public int DefaultMinPermissionLevel => 0;
 
     public async Task<Result<string>> ExecuteAsync(

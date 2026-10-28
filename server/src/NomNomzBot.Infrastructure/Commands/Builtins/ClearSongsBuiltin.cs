@@ -29,7 +29,7 @@ public sealed class ClearSongsBuiltin(
 ) : IBuiltinCommand
 {
     public string BuiltinKey => BuiltinResponseSlots.ClearSongs.Key;
-    public int DefaultCooldownSeconds => 5;
+    public int DefaultCooldownSeconds => 60;
 
     // Checked in ExecuteAsync through the gate, so a non-mod chatter who holds the grant passes.
     public int DefaultMinPermissionLevel => 0;

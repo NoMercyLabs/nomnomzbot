@@ -16,6 +16,7 @@ using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Infrastructure.Commands.Builtins;
+using NomNomzBot.Infrastructure.Platform.RateLimiting;
 using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NSubstitute;
 
@@ -50,7 +51,7 @@ public sealed class MusicCommandListingTests
         List<IBuiltinCommand> impls =
         [
             new VolumeBuiltin(music, composer, gate),
-            new SkipBuiltin(music, composer, gate),
+            new SkipBuiltin(music, composer, gate, new CooldownManager(TimeProvider.System)),
             new BanSongBuiltin(music, Substitute.For<IBlockedTrackService>(), composer, gate),
         ];
 

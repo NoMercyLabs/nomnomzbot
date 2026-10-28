@@ -28,7 +28,7 @@ public sealed class WrongSongBuiltin(IEnumerable<ICommandAction> actions) : IBui
 
     public string BuiltinKey => "wrongsong";
     public int DefaultCooldownSeconds => 0;
-    public int DefaultUserCooldownSeconds => 5;
+    public int DefaultUserCooldownSeconds => 12;
 
     // Everyone: the action itself only ever removes the caller's own request.
     public int DefaultMinPermissionLevel => 0;

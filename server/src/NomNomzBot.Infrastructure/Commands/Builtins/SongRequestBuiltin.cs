@@ -44,7 +44,7 @@ public sealed class SongRequestBuiltin : IBuiltinCommand
 
     public string BuiltinKey => BuiltinResponseSlots.SongRequest.Key;
     public int DefaultCooldownSeconds => 0;
-    public int DefaultUserCooldownSeconds => 5;
+    public int DefaultUserCooldownSeconds => 12;
     public int DefaultMinPermissionLevel => 0;
 
     public async Task<Result<string>> ExecuteAsync(

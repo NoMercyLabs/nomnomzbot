@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
+using NomNomzBot.Infrastructure.Platform.RateLimiting;
 using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NSubstitute;
 
@@ -84,7 +85,12 @@ public sealed class MusicCommandParityTests
     }
 
     private static SkipBuiltin Skip(IMusicService music, bool holdsGrant = false) =>
-        new(music, TestBuiltinComposer.Create(), MusicGateTestKit.Gate(holdsGrant));
+        new(
+            music,
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(holdsGrant),
+            new CooldownManager(TimeProvider.System)
+        );
 
     private static VolumeBuiltin Volume(IMusicService music) =>
         new(music, TestBuiltinComposer.Create(), MusicGateTestKit.Gate(true));

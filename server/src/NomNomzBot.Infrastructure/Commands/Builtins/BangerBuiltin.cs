@@ -37,7 +37,7 @@ public sealed class BangerBuiltin(
     private const string DefaultPlaylistName = "Bangers";
 
     public string BuiltinKey => "banger";
-    public int DefaultCooldownSeconds => 5;
+    public int DefaultCooldownSeconds => 30;
     public int DefaultMinPermissionLevel => 0;
 
     public async Task<Result<string>> ExecuteAsync(

@@ -34,7 +34,7 @@ public sealed class DiscordInviteBuiltin(
 ) : IBuiltinCommand
 {
     public string BuiltinKey => "discord";
-    public int DefaultCooldownSeconds => 30;
+    public int DefaultCooldownSeconds => 60;
     public int DefaultMinPermissionLevel => 0;
 
     public async Task<Result<string>> ExecuteAsync(

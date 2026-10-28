@@ -31,7 +31,7 @@ public sealed class LeaderboardBuiltin(
 ) : IBuiltinCommand
 {
     public string BuiltinKey => BuiltinResponseSlots.Leaderboard.Key;
-    public int DefaultCooldownSeconds => 10;
+    public int DefaultCooldownSeconds => 90;
     public int DefaultMinPermissionLevel => 0;
 
     private const int TopN = 5;
@@ -46,10 +46,9 @@ public sealed class LeaderboardBuiltin(
             ct
         );
 
-        LeaderboardConfigDto? config =
-            configs.IsSuccess && configs.Value.Count > 0
-                ? configs.Value.FirstOrDefault(c => c.IsPublic) ?? configs.Value[0]
-                : null;
+        LeaderboardConfigDto? config = configs is { IsSuccess: true, Value.Count: > 0 }
+            ? configs.Value.FirstOrDefault(c => c.IsPublic) ?? configs.Value[0]
+            : null;
 
         if (config is null)
         {

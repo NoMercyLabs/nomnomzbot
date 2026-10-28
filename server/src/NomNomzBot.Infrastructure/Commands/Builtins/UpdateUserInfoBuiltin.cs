@@ -57,7 +57,7 @@ public sealed class UpdateUserInfoBuiltin : IBuiltinCommand
 
     public string BuiltinKey => "update";
     public int DefaultCooldownSeconds => 0;
-    public int DefaultUserCooldownSeconds => 60;
+    public int DefaultUserCooldownSeconds => 12;
     public int DefaultMinPermissionLevel => 0;
 
     public async Task<Result<string>> ExecuteAsync(

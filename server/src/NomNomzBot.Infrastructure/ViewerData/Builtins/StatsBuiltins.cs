@@ -61,7 +61,7 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
 
     public abstract string BuiltinKey { get; }
     public int DefaultCooldownSeconds => 0;
-    public int DefaultUserCooldownSeconds => 10;
+    public int DefaultUserCooldownSeconds => 12;
     public int DefaultMinPermissionLevel => 0; // Everyone — it reads public channel standing.
 
     public async Task<Result<string>> ExecuteAsync(

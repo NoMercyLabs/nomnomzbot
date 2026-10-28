@@ -25,7 +25,7 @@ public sealed class PauseBuiltin(
 ) : IBuiltinCommand
 {
     public string BuiltinKey => BuiltinResponseSlots.Pause.Key;
-    public int DefaultCooldownSeconds => 5;
+    public int DefaultCooldownSeconds => 30;
 
     // Everyone may TYPE !pause: the moderator-or-grant check runs inside ExecuteAsync (MusicModerationGate),
     // so a non-mod chatter holding the grant is not stopped at the door by the role-ladder floor.
@@ -54,7 +54,7 @@ public sealed class ResumeBuiltin(
 ) : IBuiltinCommand
 {
     public string BuiltinKey => BuiltinResponseSlots.Resume.Key;
-    public int DefaultCooldownSeconds => 5;
+    public int DefaultCooldownSeconds => 30;
 
     // Same door policy as !pause — see PauseBuiltin.DefaultMinPermissionLevel.
     public int DefaultMinPermissionLevel => 0;

@@ -77,7 +77,7 @@ public sealed class VoiceBuiltin : IBuiltinCommand
 
     public string BuiltinKey => "voice";
     public int DefaultCooldownSeconds => 0;
-    public int DefaultUserCooldownSeconds => 5;
+    public int DefaultUserCooldownSeconds => 12;
 
     // Everyone may run it; the real gate (TTS enabled + viewer self-service allowed) is enforced in the service.
     public int DefaultMinPermissionLevel => 0;

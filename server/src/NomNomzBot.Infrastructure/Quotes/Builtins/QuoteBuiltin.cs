@@ -69,7 +69,7 @@ public sealed class QuoteBuiltin : IBuiltinCommand
     }
 
     public string BuiltinKey => "quote";
-    public int DefaultCooldownSeconds => 5;
+    public int DefaultCooldownSeconds => 45;
 
     // Read is Everyone; the mutating sub-commands self-gate on the quotes:write / quotes:delete capability.
     public int DefaultMinPermissionLevel => 0;

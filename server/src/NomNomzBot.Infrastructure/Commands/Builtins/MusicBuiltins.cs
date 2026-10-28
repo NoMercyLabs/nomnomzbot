@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.RateLimiting;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -27,11 +28,17 @@ namespace NomNomzBot.Infrastructure.Commands.Builtins;
 public sealed class SkipBuiltin(
     IMusicService music,
     IBuiltinResponseComposer composer,
-    MusicModerationGate gate
+    MusicModerationGate gate,
+    ICooldownManager cooldowns
 ) : IBuiltinCommand
 {
     public string BuiltinKey => BuiltinResponseSlots.Skip.Key;
-    public int DefaultCooldownSeconds => 5;
+    public int DefaultCooldownSeconds => 0;
+    public int DefaultUserCooldownSeconds => 12;
+
+    // One moderator skip per channel per window, so two moderators cannot skip two songs at once.
+    private const string ModeratorWindowKey = "skip:moderator";
+    private static readonly TimeSpan ModeratorWindow = TimeSpan.FromSeconds(30);
 
     // Everyone may TYPE !skip — the mod+ floor for the no-argument (skip-current) branch is enforced
     // inside ExecuteAsync, because the N-argument branch must stay open to plain viewers (self-service
@@ -63,6 +70,18 @@ public sealed class SkipBuiltin(
         // Moderator badge OR the music:queue:moderate grant — the same Gate-2 action the dashboard's
         // POST /music/skip requires, so one grant works in both places (MusicModerationGate).
         bool moderates = await gate.IsAllowedAsync(context, ct);
+        string channelKey = context.BroadcasterId.ToString();
+        if (moderates && cooldowns.IsOnCooldown(channelKey, ModeratorWindowKey, false))
+            return Result.Success(
+                await composer.ComposeAsync(
+                    context,
+                    BuiltinResponseSlots.SystemReplies.Key,
+                    BuiltinResponseSlots.SystemReplies.Cooldown,
+                    "That command is still on cooldown.",
+                    ct: ct
+                )
+            );
+
         if (!moderates)
         {
             // Like the old bot: anyone may type !skip, but a viewer skips only the song they requested.
@@ -79,6 +98,9 @@ public sealed class SkipBuiltin(
         );
         if (!skipped.IsSuccess)
             return Result.Success(await SkipFailureReplyAsync(context, skipped, ct));
+
+        if (moderates)
+            cooldowns.SetCooldown(channelKey, ModeratorWindowKey, ModeratorWindow);
 
         string message = moderates
             ? await composer.ComposeAsync(
@@ -314,7 +336,7 @@ public sealed class QueueBuiltin(IMusicService music, IBuiltinResponseComposer c
     public string BuiltinKey => BuiltinResponseSlots.Queue.Key;
     public bool WhisperSafe => true;
     public int DefaultCooldownSeconds => 0;
-    public int DefaultUserCooldownSeconds => 10;
+    public int DefaultUserCooldownSeconds => 12;
     public int DefaultMinPermissionLevel => 0;
 
     public async Task<Result<string>> ExecuteAsync(
@@ -480,7 +502,7 @@ public sealed class VolumeBuiltin(
 ) : IBuiltinCommand
 {
     public string BuiltinKey => "volume";
-    public int DefaultCooldownSeconds => 5;
+    public int DefaultCooldownSeconds => 30;
 
     // Everyone may TYPE !volume: the moderator-or-music:queue:moderate-grant check runs inside
     // ExecuteAsync (MusicModerationGate), so a non-mod chatter holding the grant is not stopped at the
@@ -601,7 +623,7 @@ public sealed class CurrentSongBuiltin(IMusicService music, IBuiltinResponseComp
 {
     public string BuiltinKey => BuiltinResponseSlots.Song.Key;
     public bool WhisperSafe => true;
-    public int DefaultCooldownSeconds => 10;
+    public int DefaultCooldownSeconds => 30;
     public int DefaultMinPermissionLevel => 0;
 
     public async Task<Result<string>> ExecuteAsync(

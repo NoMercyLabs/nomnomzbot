@@ -28,7 +28,7 @@ public abstract class QueueRequestsBuiltin(
 ) : IBuiltinCommand
 {
     public abstract string BuiltinKey { get; }
-    public int DefaultCooldownSeconds => 5;
+    public int DefaultCooldownSeconds => 60;
 
     // Checked in ExecuteAsync through the gate, so a non-mod chatter who holds the grant passes.
     public int DefaultMinPermissionLevel => 0;

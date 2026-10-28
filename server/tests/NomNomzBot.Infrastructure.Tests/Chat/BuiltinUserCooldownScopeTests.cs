@@ -19,6 +19,7 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -33,6 +34,7 @@ using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Quotes.Builtins;
 using NomNomzBot.Infrastructure.Tests.Commands;
 using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
+using NomNomzBot.Infrastructure.Tests.Music;
 using NomNomzBot.Infrastructure.Tts.Builtins;
 using NomNomzBot.Infrastructure.ViewerData.Builtins;
 using NSubstitute;
@@ -46,6 +48,9 @@ namespace NomNomzBot.Infrastructure.Tests.Chat;
 public sealed class BuiltinUserCooldownScopeTests
 {
     private static readonly Guid Broadcaster = Guid.Parse("0198a000-0000-7000-8000-00000000d004");
+
+    // The one per-person window every built-in uses (Stoney, 2026-10-28).
+    private const int PerPerson = 12;
 
     [Fact]
     public async Task Two_chatters_can_lurk_back_to_back_and_both_are_answered_and_flagged()
@@ -83,18 +88,18 @@ public sealed class BuiltinUserCooldownScopeTests
     // The 0/0 rows pace themselves elsewhere (the game config, the media service, the data-subject rights floor).
     private static readonly Dictionary<Type, (int Global, int User)> CallerBuiltins = new()
     {
-        [typeof(LurkBuiltin)] = (0, 30),
-        [typeof(UnlurkBuiltin)] = (0, 30),
-        [typeof(AccountAgeBuiltin)] = (0, 30),
-        [typeof(FollowAgeBuiltin)] = (0, 30),
-        [typeof(UpdateUserInfoBuiltin)] = (0, 60),
-        [typeof(StatsBuiltin)] = (0, 10),
-        [typeof(ProfileBuiltin)] = (0, 10),
-        [typeof(VoiceBuiltin)] = (0, 5),
-        [typeof(WhisperBuiltin)] = (0, 3),
-        [typeof(QueueBuiltin)] = (0, 10),
-        [typeof(SongRequestBuiltin)] = (0, 5),
-        [typeof(WrongSongBuiltin)] = (0, 5),
+        [typeof(LurkBuiltin)] = (0, PerPerson),
+        [typeof(UnlurkBuiltin)] = (0, PerPerson),
+        [typeof(AccountAgeBuiltin)] = (0, PerPerson),
+        [typeof(FollowAgeBuiltin)] = (0, PerPerson),
+        [typeof(UpdateUserInfoBuiltin)] = (0, PerPerson),
+        [typeof(StatsBuiltin)] = (0, PerPerson),
+        [typeof(ProfileBuiltin)] = (0, PerPerson),
+        [typeof(VoiceBuiltin)] = (0, PerPerson),
+        [typeof(WhisperBuiltin)] = (0, PerPerson),
+        [typeof(QueueBuiltin)] = (0, PerPerson),
+        [typeof(SongRequestBuiltin)] = (0, PerPerson),
+        [typeof(WrongSongBuiltin)] = (0, PerPerson),
         [typeof(CoinflipBuiltin)] = (0, 0),
         [typeof(DiceBuiltin)] = (0, 0),
         [typeof(SlotsBuiltin)] = (0, 0),
@@ -104,38 +109,41 @@ public sealed class BuiltinUserCooldownScopeTests
         [typeof(GdprBuiltin)] = (0, 0),
     };
 
-    // Built-ins that give every chatter the same answer or change channel state: a shared window is right.
-    private static readonly HashSet<Type> SharedBuiltins =
-    [
-        typeof(SkipBuiltin),
-        typeof(CurrentSongBuiltin),
-        typeof(PlaylistBuiltin),
-        typeof(BangerBuiltin),
-        typeof(BanSongBuiltin),
-        typeof(ClearSongsBuiltin),
-        typeof(VolumeBuiltin),
-        typeof(PauseBuiltin),
-        typeof(ResumeBuiltin),
-        typeof(CloseQueueBuiltin),
-        typeof(OpenQueueBuiltin),
-        typeof(UptimeBuiltin),
-        typeof(DiscordInviteBuiltin),
-        typeof(HelpBuiltin),
-        typeof(CommandsBuiltin),
-        typeof(LeaderboardBuiltin),
-        typeof(QuoteBuiltin),
-        typeof(PermitBuiltin),
-        typeof(UnpermitBuiltin),
-        typeof(WhitelistBuiltin),
-        typeof(UnwhitelistBuiltin),
-        typeof(AllowBuiltin),
-        typeof(DisallowBuiltin),
-    ];
-
-    [Fact]
-    public void Every_shipped_builtin_is_classified_and_every_caller_builtin_has_no_channel_wide_window()
+    // Shared answers every chatter hears: a global window sized by how spammy or distracting the reply is.
+    private static readonly Dictionary<Type, (int Global, int User)> SharedChatBuiltins = new()
     {
-        List<Type> shipped =
+        [typeof(UptimeBuiltin)] = (30, 0),
+        [typeof(CurrentSongBuiltin)] = (30, 0),
+        [typeof(BangerBuiltin)] = (30, 0),
+        [typeof(QuoteBuiltin)] = (45, 0),
+        [typeof(DiscordInviteBuiltin)] = (60, 0),
+        [typeof(PlaylistBuiltin)] = (60, 0),
+        [typeof(HelpBuiltin)] = (60, 0),
+        [typeof(LeaderboardBuiltin)] = (90, 0),
+        [typeof(CommandsBuiltin)] = (120, 0),
+        [typeof(PauseBuiltin)] = (30, 0),
+        [typeof(ResumeBuiltin)] = (30, 0),
+        [typeof(VolumeBuiltin)] = (30, 0),
+        [typeof(BanSongBuiltin)] = (30, 0),
+        [typeof(CloseQueueBuiltin)] = (60, 0),
+        [typeof(OpenQueueBuiltin)] = (60, 0),
+        [typeof(ClearSongsBuiltin)] = (60, 0),
+    };
+
+    // Moderation tools keep today's values: a cooldown would block a moderator in a hurry.
+    // !skip holds its moderator window inside the builtin; the catalogue value is the per-person one.
+    private static readonly Dictionary<Type, (int Global, int User)> OtherSharedBuiltins = new()
+    {
+        [typeof(SkipBuiltin)] = (0, PerPerson),
+        [typeof(PermitBuiltin)] = (0, 0),
+        [typeof(UnpermitBuiltin)] = (0, 0),
+        [typeof(WhitelistBuiltin)] = (0, 0),
+        [typeof(UnwhitelistBuiltin)] = (0, 0),
+        [typeof(AllowBuiltin)] = (3, 0),
+        [typeof(DisallowBuiltin)] = (3, 0),
+    };
+
+    private static List<Type> ShippedBuiltins() =>
         [
             .. typeof(LurkBuiltin)
                 .Assembly.GetTypes()
@@ -143,19 +151,194 @@ public sealed class BuiltinUserCooldownScopeTests
                 .Where(t => typeof(IBuiltinCommand).IsAssignableFrom(t)),
         ];
 
-        shipped
-            .Where(t => !CallerBuiltins.ContainsKey(t) && !SharedBuiltins.Contains(t))
+    private static IBuiltinCommand Uninitialized(Type type) =>
+        (IBuiltinCommand)
+            System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(type);
+
+    [Fact]
+    public void Every_shipped_builtin_is_classified_and_carries_its_policy_cooldowns()
+    {
+        ShippedBuiltins()
+            .Where(t =>
+                !CallerBuiltins.ContainsKey(t)
+                && !SharedChatBuiltins.ContainsKey(t)
+                && !OtherSharedBuiltins.ContainsKey(t)
+            )
             .Should()
             .BeEmpty("a new built-in must be declared caller-specific or shared in this table");
 
-        foreach ((Type type, (int Global, int User) expected) in CallerBuiltins)
+        foreach (
+            (Type type, (int Global, int User) expected) in CallerBuiltins
+                .Concat(SharedChatBuiltins)
+                .Concat(OtherSharedBuiltins)
+        )
         {
-            IBuiltinCommand instance = (IBuiltinCommand)
-                System.Runtime.CompilerServices.RuntimeHelpers.GetUninitializedObject(type);
+            IBuiltinCommand instance = Uninitialized(type);
             (instance.DefaultCooldownSeconds, instance.DefaultUserCooldownSeconds)
                 .Should()
-                .Be(expected, $"{type.Name} answers about the caller");
+                .Be(expected, $"{type.Name} follows the cooldown policy");
         }
+    }
+
+    [Fact]
+    public void Every_per_person_cooldown_is_twelve_seconds_and_no_other_value_is_used()
+    {
+        Dictionary<string, int> perPerson = ShippedBuiltins()
+            .Select(Uninitialized)
+            .Where(b => b.DefaultUserCooldownSeconds > 0)
+            .ToDictionary(b => b.BuiltinKey, b => b.DefaultUserCooldownSeconds);
+
+        perPerson.Should().NotBeEmpty();
+        perPerson.Values.Should().OnlyContain(seconds => seconds == PerPerson);
+    }
+
+    [Fact]
+    public void Every_shared_chat_answer_has_a_global_cooldown_from_30_to_500_seconds()
+    {
+        foreach (Type type in SharedChatBuiltins.Keys)
+            Uninitialized(type)
+                .DefaultCooldownSeconds.Should()
+                .BeInRange(30, 500, $"{type.Name} answers the whole channel");
+    }
+
+    [Fact]
+    public async Task A_moderators_bare_skip_twice_in_a_row_is_held_the_second_time()
+    {
+        IMusicService music = SkippingMusic();
+        List<string> sent = [];
+        await using CommandsTestDbContext db = NewDbWithViewers();
+        ChatMessageHandler sut = BuildSkip(db, sent, music);
+
+        await sut.HandleAsync(SkipMessage("mod-1", moderator: true), CancellationToken.None);
+        await sut.HandleAsync(SkipMessage("mod-1", moderator: true), CancellationToken.None);
+
+        await music
+            .Received(1)
+            .SkipAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        sent.Should().HaveCount(2);
+        sent[1].Should().Contain("cooldown");
+    }
+
+    [Fact]
+    public async Task A_second_moderator_is_held_while_the_first_moderators_skip_window_is_open()
+    {
+        IMusicService music = SkippingMusic();
+        List<string> sent = [];
+        await using CommandsTestDbContext db = NewDbWithViewers();
+        ChatMessageHandler sut = BuildSkip(db, sent, music);
+
+        await sut.HandleAsync(SkipMessage("mod-1", moderator: true), CancellationToken.None);
+        await sut.HandleAsync(SkipMessage("mod-2", moderator: true), CancellationToken.None);
+
+        await music
+            .Received(1)
+            .SkipAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        sent.Should().HaveCount(2);
+        sent[1].Should().Contain("cooldown");
+    }
+
+    [Fact]
+    public async Task A_viewers_own_skip_is_answered_while_the_moderator_window_is_open()
+    {
+        IMusicService music = SkippingMusic();
+        music
+            .GetNowPlayingAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new NowPlaying(
+                    "Song",
+                    "Artist",
+                    null,
+                    null,
+                    1000,
+                    0,
+                    true,
+                    50,
+                    "viewer-1",
+                    "spotify"
+                )
+            );
+        List<string> sent = [];
+        await using CommandsTestDbContext db = NewDbWithViewers();
+        ChatMessageHandler sut = BuildSkip(db, sent, music);
+
+        await sut.HandleAsync(SkipMessage("mod-1", moderator: true), CancellationToken.None);
+        await sut.HandleAsync(SkipMessage("viewer-1", moderator: false), CancellationToken.None);
+
+        await music
+            .Received(2)
+            .SkipAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        sent.Should().HaveCount(2);
+        sent[1].Should().NotContain("cooldown");
+    }
+
+    [Fact]
+    public async Task A_viewers_skip_never_opens_the_moderator_window_and_the_viewer_is_held_on_their_own_clock()
+    {
+        IMusicService music = SkippingMusic();
+        music
+            .GetNowPlayingAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(
+                new NowPlaying(
+                    "Song",
+                    "Artist",
+                    null,
+                    null,
+                    1000,
+                    0,
+                    true,
+                    50,
+                    "viewer-1",
+                    "spotify"
+                )
+            );
+        List<string> sent = [];
+        await using CommandsTestDbContext db = NewDbWithViewers();
+        ChatMessageHandler sut = BuildSkip(db, sent, music);
+
+        await sut.HandleAsync(SkipMessage("viewer-1", moderator: false), CancellationToken.None);
+        await sut.HandleAsync(SkipMessage("viewer-1", moderator: false), CancellationToken.None);
+        await sut.HandleAsync(SkipMessage("mod-1", moderator: true), CancellationToken.None);
+
+        await music
+            .Received(2)
+            .SkipAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        sent.Should().HaveCount(3);
+        sent[1].Should().Contain("cooldown");
+        sent[2].Should().NotContain("cooldown");
+    }
+
+    private static IMusicService SkippingMusic()
+    {
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .SkipAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        return music;
     }
 
     private static CommandsTestDbContext NewDbWithViewers(params string[] logins)
@@ -174,6 +357,22 @@ public sealed class BuiltinUserCooldownScopeTests
             );
         db.SaveChanges();
         return db;
+    }
+
+    private static ChatMessageHandler BuildSkip(
+        CommandsTestDbContext db,
+        List<string> sent,
+        IMusicService music
+    )
+    {
+        CooldownManager cooldowns = new(TimeProvider.System);
+        SkipBuiltin skip = new(
+            music,
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(holdsGrant: false),
+            cooldowns
+        );
+        return BuildWith(db, sent, skip, cooldowns);
     }
 
     private static ChatMessageHandler Build(CommandsTestDbContext db, List<string> sent)
@@ -206,7 +405,16 @@ public sealed class BuiltinUserCooldownScopeTests
             BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
             TestBuiltinComposer.Create()
         );
+        return BuildWith(db, sent, lurk, new CooldownManager(TimeProvider.System));
+    }
 
+    private static ChatMessageHandler BuildWith(
+        CommandsTestDbContext db,
+        List<string> sent,
+        IBuiltinCommand builtin,
+        CooldownManager cooldowns
+    )
+    {
         ChannelContext ctx = new()
         {
             BroadcasterId = Broadcaster,
@@ -216,7 +424,7 @@ public sealed class BuiltinUserCooldownScopeTests
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
         registry.Get(Broadcaster).Returns(ctx);
         IBuiltinCommandCatalog builtins = Substitute.For<IBuiltinCommandCatalog>();
-        builtins.Get("lurk").Returns(lurk);
+        builtins.Get(builtin.BuiltinKey).Returns(builtin);
 
         IInboundOriginChatSender chat = Substitute.For<IInboundOriginChatSender>();
         chat.SendReplyAsync(
@@ -246,7 +454,7 @@ public sealed class BuiltinUserCooldownScopeTests
         return new(
             registry,
             Substitute.For<IServiceScopeFactory>(),
-            new CooldownManager(TimeProvider.System),
+            cooldowns,
             TestReplyDispatcher.Over(chat),
             Substitute.For<IPipelineEngine>(),
             builtins,
@@ -261,6 +469,12 @@ public sealed class BuiltinUserCooldownScopeTests
     }
 
     private static ChatMessageReceivedEvent Message(string login) =>
+        ChatLine(login, "!lurk", moderator: false);
+
+    private static ChatMessageReceivedEvent SkipMessage(string login, bool moderator) =>
+        ChatLine(login, "!skip", moderator);
+
+    private static ChatMessageReceivedEvent ChatLine(string login, string text, bool moderator) =>
         new()
         {
             BroadcasterId = Broadcaster,
@@ -269,12 +483,12 @@ public sealed class BuiltinUserCooldownScopeTests
             UserId = $"tw-{login}",
             UserDisplayName = login,
             UserLogin = login,
-            Message = "!lurk",
+            Message = text,
             Fragments = [],
             Badges = [],
             IsSubscriber = false,
             IsVip = false,
-            IsModerator = false,
+            IsModerator = moderator,
             IsBroadcaster = false,
         };
 }

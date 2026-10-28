@@ -31,7 +31,7 @@ public sealed class BanSongBuiltin(
 ) : IBuiltinCommand
 {
     public string BuiltinKey => "bansong";
-    public int DefaultCooldownSeconds => 5;
+    public int DefaultCooldownSeconds => 30;
 
     // Banning a track is a moderation action: a moderator badge or the music:queue:moderate grant (the
     // dashboard's ban-track action) passes. Checked in ExecuteAsync (MusicModerationGate), so the door

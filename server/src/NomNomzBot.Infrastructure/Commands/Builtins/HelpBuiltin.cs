@@ -43,7 +43,7 @@ public sealed class HelpBuiltin : IBuiltinCommand
     }
 
     public string BuiltinKey => "help";
-    public int DefaultCooldownSeconds => 15;
+    public int DefaultCooldownSeconds => 60;
     public int DefaultMinPermissionLevel => 0;
 
     public async Task<Result<string>> ExecuteAsync(

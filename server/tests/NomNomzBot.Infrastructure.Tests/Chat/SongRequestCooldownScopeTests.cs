@@ -46,7 +46,7 @@ public sealed class SongRequestCooldownScopeTests
             Substitute.For<IEventBus>()
         );
 
-        (sr.DefaultCooldownSeconds, sr.DefaultUserCooldownSeconds).Should().Be((0, 5));
+        (sr.DefaultCooldownSeconds, sr.DefaultUserCooldownSeconds).Should().Be((0, 12));
     }
 
     [Fact]
@@ -61,8 +61,8 @@ public sealed class SongRequestCooldownScopeTests
         cooldowns
             .Received(1)
             .SetCooldown(Arg.Any<string>(), "sr", TimeSpan.FromSeconds(30), "tw-viewer-1");
-        cooldowns.DidNotReceive().SetCooldown(Arg.Any<string>(), "sr", Arg.Any<TimeSpan>(), null);
-        cooldowns.DidNotReceive().IsOnCooldown(Arg.Any<string>(), "sr", Arg.Any<bool>(), null);
+        cooldowns.DidNotReceive().SetCooldown(Arg.Any<string>(), "sr", Arg.Any<TimeSpan>());
+        cooldowns.DidNotReceive().IsOnCooldown(Arg.Any<string>(), "sr", Arg.Any<bool>());
     }
 
     [Fact]
@@ -73,7 +73,7 @@ public sealed class SongRequestCooldownScopeTests
 
         await sut.HandleAsync(Message("viewer-1"), CancellationToken.None);
 
-        cooldowns.Received(1).SetCooldown(Arg.Any<string>(), "sr", TimeSpan.FromSeconds(30), null);
+        cooldowns.Received(1).SetCooldown(Arg.Any<string>(), "sr", TimeSpan.FromSeconds(30));
         cooldowns
             .DidNotReceive()
             .SetCooldown(Arg.Any<string>(), "sr", Arg.Any<TimeSpan>(), "tw-viewer-1");
@@ -87,7 +87,7 @@ public sealed class SongRequestCooldownScopeTests
 
         await sut.HandleAsync(Message("viewer-1"), CancellationToken.None);
 
-        cooldowns.Received(1).SetCooldown(Arg.Any<string>(), "sr", TimeSpan.FromSeconds(30), null);
+        cooldowns.Received(1).SetCooldown(Arg.Any<string>(), "sr", TimeSpan.FromSeconds(30));
         cooldowns
             .Received(1)
             .SetCooldown(Arg.Any<string>(), "sr", TimeSpan.FromSeconds(10), "tw-viewer-1");
@@ -101,7 +101,7 @@ public sealed class SongRequestCooldownScopeTests
 
         await sut.HandleAsync(Message("viewer-1"), CancellationToken.None);
 
-        cooldowns.DidNotReceiveWithAnyArgs().SetCooldown(default!, default!, default, default);
+        cooldowns.DidNotReceiveWithAnyArgs().SetCooldown(default!, default!, default);
     }
 
     [Fact]
@@ -125,7 +125,7 @@ public sealed class SongRequestCooldownScopeTests
 
         await sut.HandleAsync(Message("viewer-1"), CancellationToken.None);
 
-        cooldowns.DidNotReceiveWithAnyArgs().SetCooldown(default!, default!, default, default);
+        cooldowns.DidNotReceiveWithAnyArgs().SetCooldown(default!, default!, default);
     }
 
     private static ChatMessageHandler Build(

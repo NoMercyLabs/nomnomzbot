@@ -51,7 +51,7 @@ public sealed class CommandsBuiltin : IBuiltinCommand
     }
 
     public string BuiltinKey => "commands";
-    public int DefaultCooldownSeconds => 15;
+    public int DefaultCooldownSeconds => 120;
     public int DefaultMinPermissionLevel => 0;
 
     public async Task<Result<string>> ExecuteAsync(

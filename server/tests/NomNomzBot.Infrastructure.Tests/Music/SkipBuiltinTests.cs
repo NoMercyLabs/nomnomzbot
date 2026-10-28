@@ -17,6 +17,7 @@ using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
+using NomNomzBot.Infrastructure.Platform.RateLimiting;
 using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NSubstitute;
 
@@ -80,7 +81,8 @@ public sealed class SkipBuiltinTests
         SkipBuiltin sut = new(
             music,
             TestBuiltinComposer.Create(),
-            MusicGateTestKit.Gate(holdsGrant: false)
+            MusicGateTestKit.Gate(holdsGrant: false),
+            new CooldownManager(TimeProvider.System)
         );
 
         Result<string> result = await sut.ExecuteAsync(Ctx("2", ViewerLevel));
@@ -108,7 +110,8 @@ public sealed class SkipBuiltinTests
         SkipBuiltin sut = new(
             music,
             TestBuiltinComposer.Create(),
-            MusicGateTestKit.Gate(holdsGrant: false)
+            MusicGateTestKit.Gate(holdsGrant: false),
+            new CooldownManager(TimeProvider.System)
         );
 
         Result<string> result = await sut.ExecuteAsync(Ctx("2", ViewerLevel));
@@ -134,7 +137,8 @@ public sealed class SkipBuiltinTests
         SkipBuiltin sut = new(
             music,
             TestBuiltinComposer.Create(),
-            MusicGateTestKit.Gate(holdsGrant: true, out IRoleResolver roles)
+            MusicGateTestKit.Gate(holdsGrant: true, out IRoleResolver roles),
+            new CooldownManager(TimeProvider.System)
         );
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ViewerLevel));
@@ -182,7 +186,8 @@ public sealed class SkipBuiltinTests
         SkipBuiltin sut = new(
             music,
             TestBuiltinComposer.Create(),
-            MusicGateTestKit.Gate(holdsGrant: false)
+            MusicGateTestKit.Gate(holdsGrant: false),
+            new CooldownManager(TimeProvider.System)
         );
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ViewerLevel));
@@ -234,7 +239,8 @@ public sealed class SkipBuiltinTests
         SkipBuiltin sut = new(
             music,
             TestBuiltinComposer.Create(),
-            MusicGateTestKit.Gate(holdsGrant: false)
+            MusicGateTestKit.Gate(holdsGrant: false),
+            new CooldownManager(TimeProvider.System)
         );
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
@@ -264,7 +270,8 @@ public sealed class SkipBuiltinTests
         SkipBuiltin sut = new(
             music,
             TestBuiltinComposer.Create(),
-            MusicGateTestKit.Gate(holdsGrant: false)
+            MusicGateTestKit.Gate(holdsGrant: false),
+            new CooldownManager(TimeProvider.System)
         );
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
@@ -293,7 +300,8 @@ public sealed class SkipBuiltinTests
         SkipBuiltin sut = new(
             music,
             TestBuiltinComposer.Create(),
-            MusicGateTestKit.Gate(holdsGrant: false)
+            MusicGateTestKit.Gate(holdsGrant: false),
+            new CooldownManager(TimeProvider.System)
         );
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
@@ -330,7 +338,8 @@ public sealed class SkipBuiltinTests
         SkipBuiltin sut = new(
             music,
             TestBuiltinComposer.Create(),
-            MusicGateTestKit.Gate(holdsGrant: false)
+            MusicGateTestKit.Gate(holdsGrant: false),
+            new CooldownManager(TimeProvider.System)
         );
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
@@ -356,7 +365,8 @@ public sealed class SkipBuiltinTests
         SkipBuiltin sut = new(
             music,
             TestBuiltinComposer.Create(),
-            MusicGateTestKit.Gate(holdsGrant: false)
+            MusicGateTestKit.Gate(holdsGrant: false),
+            new CooldownManager(TimeProvider.System)
         );
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
@@ -385,7 +395,8 @@ public sealed class SkipBuiltinTests
         SkipBuiltin sut = new(
             music,
             TestBuiltinComposer.Create(),
-            MusicGateTestKit.Gate(holdsGrant: false)
+            MusicGateTestKit.Gate(holdsGrant: false),
+            new CooldownManager(TimeProvider.System)
         );
 
         Result<string> result = await sut.ExecuteAsync(Ctx("1", ViewerLevel));
@@ -408,7 +419,8 @@ public sealed class SkipBuiltinTests
         SkipBuiltin sut = new(
             music,
             TestBuiltinComposer.Create(),
-            MusicGateTestKit.Gate(holdsGrant: false, out IRoleResolver roles)
+            MusicGateTestKit.Gate(holdsGrant: false, out IRoleResolver roles),
+            new CooldownManager(TimeProvider.System)
         );
 
         await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
@@ -473,7 +485,8 @@ public sealed class SkipBuiltinTests
         SkipBuiltin sut = new(
             music,
             TestBuiltinComposer.Create(),
-            MusicGateTestKit.Gate(holdsGrant: false)
+            MusicGateTestKit.Gate(holdsGrant: false),
+            new CooldownManager(TimeProvider.System)
         );
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
@@ -497,7 +510,8 @@ public sealed class SkipBuiltinTests
         SkipBuiltin sut = new(
             music,
             TestBuiltinComposer.Create(),
-            MusicGateTestKit.Gate(holdsGrant: false)
+            MusicGateTestKit.Gate(holdsGrant: false),
+            new CooldownManager(TimeProvider.System)
         );
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ViewerLevel));
