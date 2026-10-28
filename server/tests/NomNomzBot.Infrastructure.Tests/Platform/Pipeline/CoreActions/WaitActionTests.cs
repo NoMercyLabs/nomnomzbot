@@ -11,37 +11,12 @@
 
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Infrastructure.Platform.Pipeline.CoreActions;
-using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Pipeline.CoreActions;
 
 public class WaitActionTests
 {
-    // Plain {{key}} substitution from the seeded variables — mirrors real ITemplateResolver semantics
-    // closely enough to prove wait's own duration-resolution logic without a DB-backed resolver.
-    private static ITemplateResolver EchoResolver()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(ci =>
-            {
-                string template = (string)ci[0];
-                IDictionary<string, string> vars = (IDictionary<string, string>)ci[1];
-                foreach (KeyValuePair<string, string> kv in vars)
-                    template = template.Replace("{{" + kv.Key + "}}", kv.Value);
-                return Task.FromResult(template);
-            });
-        return resolver;
-    }
-
     private static PipelineExecutionContext BuildCtx(CancellationToken ct = default) =>
         new()
         {
@@ -62,7 +37,7 @@ public class WaitActionTests
     [Fact]
     public async Task ExecuteAsync_ZeroDelay_ReturnsImmediately()
     {
-        WaitAction action = new(EchoResolver());
+        WaitAction action = new(TestTemplateResolver.Create());
         PipelineExecutionContext ctx = BuildCtx();
         ActionDefinition def = BuildAction("""{"type":"wait","milliseconds":0}""");
 
@@ -73,7 +48,7 @@ public class WaitActionTests
     [Fact]
     public async Task ExecuteAsync_SmallDelay_Succeeds()
     {
-        WaitAction action = new(EchoResolver());
+        WaitAction action = new(TestTemplateResolver.Create());
         PipelineExecutionContext ctx = BuildCtx();
         ActionDefinition def = BuildAction("""{"type":"wait","milliseconds":50}""");
 
@@ -84,7 +59,7 @@ public class WaitActionTests
     [Fact]
     public async Task ExecuteAsync_SecondsParam_Converts()
     {
-        WaitAction action = new(EchoResolver());
+        WaitAction action = new(TestTemplateResolver.Create());
         PipelineExecutionContext ctx = BuildCtx();
         ActionDefinition def = BuildAction("""{"type":"wait","seconds":0}"""); // 0 = no delay
 
@@ -95,7 +70,7 @@ public class WaitActionTests
     [Fact]
     public async Task ExecuteAsync_ExceedsMax_ClampsTo30Seconds()
     {
-        WaitAction action = new(EchoResolver());
+        WaitAction action = new(TestTemplateResolver.Create());
         using CancellationTokenSource cts = new(TimeSpan.FromMilliseconds(100));
         PipelineExecutionContext ctx = BuildCtx(cts.Token);
         ActionDefinition def = BuildAction("""{"type":"wait","milliseconds":60000}"""); // 60s → clamped to 30s
@@ -108,7 +83,7 @@ public class WaitActionTests
     [Fact]
     public async Task ExecuteAsync_Cancelled_ThrowsOperationCancelled()
     {
-        WaitAction action = new(EchoResolver());
+        WaitAction action = new(TestTemplateResolver.Create());
         using CancellationTokenSource cts = new();
         cts.Cancel();
         PipelineExecutionContext ctx = BuildCtx(cts.Token);
@@ -121,7 +96,7 @@ public class WaitActionTests
     [Fact]
     public void ActionType_IsWait()
     {
-        WaitAction action = new(EchoResolver());
+        WaitAction action = new(TestTemplateResolver.Create());
         action.ActionType.Should().Be("wait");
     }
 }

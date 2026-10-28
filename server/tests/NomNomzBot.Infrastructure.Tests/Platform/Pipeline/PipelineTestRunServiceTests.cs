@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json;
-using System.Text.RegularExpressions;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Auth;
@@ -78,21 +77,8 @@ public sealed class PipelineTestRunServiceTests
         IChatProvider chat = Substitute.For<IChatProvider>();
         ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
 
-        // A resolver that performs simple {var}/{{var}} interpolation from the pipeline variables, so captured chat
-        // text and real conditions see the same values production would — but nothing external is involved.
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(ci =>
-                Task.FromResult(
-                    Interpolate(ci.ArgAt<string>(0), ci.ArgAt<IDictionary<string, string>>(1))
-                )
-            );
+        // The real resolver: captured chat text and real conditions see the values production would.
+        ITemplateResolver resolver = TestTemplateResolver.Create();
 
         IPipelineModerationService moderation = Substitute.For<IPipelineModerationService>();
         ICommandAction[] actions =
@@ -128,13 +114,6 @@ public sealed class PipelineTestRunServiceTests
             tts
         );
     }
-
-    private static string Interpolate(string template, IDictionary<string, string> vars) =>
-        Regex.Replace(
-            template,
-            @"\{\{?([a-zA-Z0-9_.]+)\}?\}",
-            m => vars.TryGetValue(m.Groups[1].Value, out string? v) ? v : m.Value
-        );
 
     private static async Task SeedPipelineAsync(
         PipelineTestRunDbContext db,
