@@ -228,6 +228,33 @@ public sealed class UserProfileHydrationService : BackgroundService
     }
 
     /// <summary>
+    /// The provider's account date (Twitch <c>created_at</c>) of <paramref name="user"/>: the stored
+    /// <see cref="User.AccountCreatedAt"/>, or fetched from Helix and kept when it was never stored. Null when the
+    /// person has no Twitch id or Twitch does not answer. Never the bot's own row date.
+    /// </summary>
+    internal static async Task<DateTime?> AccountCreatedAtAsync(
+        User user,
+        ITwitchUsersApi users,
+        IApplicationDbContext db,
+        CancellationToken ct
+    )
+    {
+        if (user.AccountCreatedAt is not null || string.IsNullOrEmpty(user.TwitchUserId))
+            return user.AccountCreatedAt;
+
+        Result<IReadOnlyList<TwitchUser>> found = await users.GetUsersByIdsAsync(
+            [user.TwitchUserId],
+            ct
+        );
+        if (found.IsFailure || found.Value.FirstOrDefault() is not { } twitchUser)
+            return null;
+
+        if (ApplyProfile(user, twitchUser))
+            await db.SaveChangesAsync(ct);
+        return user.AccountCreatedAt;
+    }
+
+    /// <summary>
     /// Writes a Helix <see cref="TwitchUser"/> onto its <see cref="User"/> row. Names, images and the bio fill only
     /// when Twitch returned them; broadcaster and staff type always follow Twitch, so "" clears a lost status.
     /// <see cref="User.AccountCreatedAt"/> is set once (immutable). Returns true when any field changed, so the

@@ -825,6 +825,19 @@
    "source": "Stoney 2026-10-28 (translated from Dutch): \"You did not use the documentation skill for the README, did you? Huh?\" (Arc wrote the nomnomzbot-docs README without Atlas after using it for the bot README.) Memory: feedback-every-readme-through-atlas.md"
   },
   {
+   "id": "tests-call-real-code",
+   "paths": [
+    "server/tests/**/*.cs",
+    "dashboard/**/*.spec.ts",
+    "dashboard/**/*.test.ts"
+   ],
+   "brief": [
+    "[Tt]est"
+   ],
+   "text": "A test calls the production entry point that really runs (resolver, service, controller, action), inline in the test body. No private helper that re-implements, wraps or paraphrases product logic, and no copied formula, mapping or parser in the test. Fakes stand in only for the outside world (Twitch, the clock, the network), never for the code under test.",
+   "source": "Stoney 2026-10-28: \"handrolling methods is not representing the real code that is being executed, it gives a false perception of what the code does and therefore are not tests that can be trusted...\" and \"this means that MANY others are also handrolling code instead of using the actual code that runs\" ({user.accountAge} read the bot row date and no test caught it). Memory: feedback-tests-call-real-code.md"
+  },
+  {
    "id": "docs-english-only",
    "paths": [
     "**/CLAUDE.md",

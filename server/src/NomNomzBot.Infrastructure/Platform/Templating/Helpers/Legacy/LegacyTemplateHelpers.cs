@@ -33,6 +33,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.CustomEvents;
+using NomNomzBot.Infrastructure.Identity.Jobs;
 using NomNomzBot.Infrastructure.Platform.Templating.Dates;
 using NomNomzBot.Infrastructure.Platform.Templating.Parsing;
 
@@ -708,10 +709,17 @@ public sealed partial class LegacyTemplateHelpers
             if (user is null)
                 return;
 
+            // The account age is the provider's account date, never the bot's own row date (User.CreatedAt).
             if (!vars.ContainsKey("user.accountAge"))
             {
-                TimeSpan age = _timeProvider.GetUtcNow().UtcDateTime - user.CreatedAt;
-                vars["user.accountAge"] = FormatAge(age);
+                DateTime? accountCreatedAt = scope.ServiceProvider.GetService<ITwitchUsersApi>()
+                    is { } users
+                    ? await UserProfileHydrationService.AccountCreatedAtAsync(user, users, db, ct)
+                    : user.AccountCreatedAt;
+                if (accountCreatedAt is { } created)
+                    vars["user.accountAge"] = FormatAge(
+                        _timeProvider.GetUtcNow().UtcDateTime - created
+                    );
             }
 
             if (!vars.ContainsKey("user.pronouns"))
