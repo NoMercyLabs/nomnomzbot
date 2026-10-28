@@ -113,6 +113,7 @@ public sealed class ReadAloudControllerTests
 
         CorsPolicy policy = options.GetPolicy(ReadAloudCors.PolicyName)!;
         policy.Origins.Should().Contain("https://docs.nomnomz.bot");
+        policy.Origins.Should().Contain("https://docs-dev.nomnomz.bot");
         policy.SupportsCredentials.Should().BeFalse();
         policy.Methods.Should().BeEquivalentTo("GET", "POST");
     }

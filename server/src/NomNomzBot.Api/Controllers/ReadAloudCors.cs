@@ -16,13 +16,17 @@ namespace NomNomzBot.Api.Controllers;
 /// <summary>
 /// The CORS policy of the public Read Aloud route. It lists the sites that may call the route from a browser and
 /// never sends credentials, so it widens nothing else: the default policy of the API stays as it is. The sites
-/// come from <c>ReadAloud:Origins</c>; without that setting the official docs site is allowed.
+/// come from <c>ReadAloud:Origins</c>; without that setting the official docs site and its dev copy are allowed.
 /// </summary>
 public static class ReadAloudCors
 {
     public const string PolicyName = "PublicReadAloud";
 
-    private static readonly string[] DefaultOrigins = ["https://docs.nomnomz.bot"];
+    private static readonly string[] DefaultOrigins =
+    [
+        "https://docs.nomnomz.bot",
+        "https://docs-dev.nomnomz.bot",
+    ];
 
     public static void Configure(CorsOptions options, IConfiguration configuration) =>
         options.AddPolicy(
