@@ -35,18 +35,16 @@ namespace NomNomzBot.Api.Tests.Hubs;
 /// </summary>
 public sealed class WidgetTestSamplesCompletenessTests
 {
-    private static readonly JsonSerializerOptions Json = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
-    private static string Shape(string eventType) =>
-        JsonSerializer.Serialize(WidgetTestSamples.For(eventType, DateTimeOffset.UnixEpoch), Json);
-
     [Fact]
     public void Every_event_type_declared_by_a_first_party_widget_has_a_real_sample()
     {
-        string fallbackShape = Shape("__no_widget_declares_this_event_type__");
+        string fallbackShape = JsonSerializer.Serialize(
+            WidgetTestSamples.For(
+                "__no_widget_declares_this_event_type__",
+                DateTimeOffset.UnixEpoch
+            ),
+            OverlayWireJson.Options
+        );
 
         List<string> declared = FirstPartyWidgetCatalogue
             .All.SelectMany(widget => widget.DefaultEventSubscriptions)
@@ -55,7 +53,12 @@ public sealed class WidgetTestSamplesCompletenessTests
         declared.Should().NotBeEmpty();
 
         List<string> stillFallingBackToTheGenericDefault = declared
-            .Where(eventType => Shape(eventType) == fallbackShape)
+            .Where(eventType =>
+                JsonSerializer.Serialize(
+                    WidgetTestSamples.For(eventType, DateTimeOffset.UnixEpoch),
+                    OverlayWireJson.Options
+                ) == fallbackShape
+            )
             .ToList();
 
         stillFallingBackToTheGenericDefault
@@ -140,7 +143,7 @@ public sealed class WidgetTestSamplesCompletenessTests
         // the exact defect reported (song-request card button rendered nothing).
         JsonElement payload = JsonSerializer.SerializeToElement(
             WidgetTestSamples.For("ChatMessageEnriched", DateTimeOffset.UnixEpoch),
-            Json
+            OverlayWireJson.Options
         );
 
         payload.GetProperty("title").GetString().Should().NotBeNullOrEmpty();

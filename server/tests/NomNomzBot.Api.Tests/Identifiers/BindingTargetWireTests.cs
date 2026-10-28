@@ -11,11 +11,12 @@
 
 using System.Text;
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using FluentAssertions;
+using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.SignalR;
 using Microsoft.AspNetCore.SignalR.Protocol;
 using Microsoft.Extensions.Options;
+using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Domain.Commands.Enums;
@@ -33,17 +34,6 @@ public sealed class BindingTargetWireTests
 {
     private static readonly Guid PipelineId = Guid.Parse("019f7867-37e7-7f46-9639-eea73b9c5bca");
     private static readonly Guid CommandId = Guid.Parse("0192a000-0000-7000-8000-00000000b7c1");
-
-    /// <summary>The MVC body options, with the owned-id converters Program.cs adds.</summary>
-    private static JsonSerializerOptions RestOptions()
-    {
-        JsonSerializerOptions options = new(JsonSerializerDefaults.Web)
-        {
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        };
-        OwnedIdJson.AddConverters(options);
-        return options;
-    }
 
     private static EventResponseDto RaidRow(BindingTarget target) =>
         new(
@@ -65,9 +55,13 @@ public sealed class BindingTargetWireTests
     [Fact]
     public void The_pipeline_a_row_runs_goes_out_in_the_same_ulid_form_as_the_pipeline_list()
     {
+        JsonSerializerOptions options = new JsonOptions()
+            .UseApiJsonConventions()
+            .JsonSerializerOptions;
+
         string json = JsonSerializer.Serialize(
             RaidRow(new(BindingTargetKind.Pipeline, PipelineId.ToString())),
-            RestOptions()
+            options
         );
 
         using JsonDocument doc = JsonDocument.Parse(json);
@@ -79,7 +73,9 @@ public sealed class BindingTargetWireTests
     [Fact]
     public void A_command_target_goes_out_as_a_ulid_and_an_action_target_keeps_its_type_and_params()
     {
-        JsonSerializerOptions options = RestOptions();
+        JsonSerializerOptions options = new JsonOptions()
+            .UseApiJsonConventions()
+            .JsonSerializerOptions;
         Dictionary<string, JsonElement> settings = new()
         {
             ["message"] = JsonDocument.Parse("\"hi\"").RootElement,
@@ -101,11 +97,14 @@ public sealed class BindingTargetWireTests
     [Fact]
     public void A_ulid_picked_from_a_list_comes_in_as_the_guid_the_binder_parses()
     {
+        JsonSerializerOptions options = new JsonOptions()
+            .UseApiJsonConventions()
+            .JsonSerializerOptions;
         string body = $$$"""{"target":{"kind":1,"id":"{{{GuidUlidCodec.Encode(PipelineId)}}}"}}""";
 
         UpdateEventResponseDto? request = JsonSerializer.Deserialize<UpdateEventResponseDto>(
             body,
-            RestOptions()
+            options
         );
 
         request!
@@ -119,11 +118,14 @@ public sealed class BindingTargetWireTests
     [InlineData(0, "song_request")]
     public void A_raw_guid_an_empty_clear_and_a_built_in_key_come_in_unchanged(int kind, string id)
     {
+        JsonSerializerOptions options = new JsonOptions()
+            .UseApiJsonConventions()
+            .JsonSerializerOptions;
         string body = $$$"""{"target":{"kind":{{{kind}}},"id":"{{{id}}}"}}""";
 
         UpdateEventResponseDto? request = JsonSerializer.Deserialize<UpdateEventResponseDto>(
             body,
-            RestOptions()
+            options
         );
 
         request!.Target.Should().Be(new BindingTarget((BindingTargetKind)kind, id));

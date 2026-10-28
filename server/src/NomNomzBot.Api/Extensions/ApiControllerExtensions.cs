@@ -9,8 +9,6 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.RateLimiting;
@@ -40,13 +38,7 @@ public static class ApiControllerExtensions
                 // Gate-2 pass -> the sanction the Helix transport demands for any outbound write.
                 options.Filters.Add<OutboundSanctionFilter>();
             })
-            .AddJsonOptions(o =>
-            {
-                o.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-                o.JsonSerializerOptions.DefaultIgnoreCondition =
-                    JsonIgnoreCondition.WhenWritingNull;
-                OwnedIdJson.AddConverters(o.JsonSerializerOptions);
-            });
+            .AddJsonOptions(o => o.UseApiJsonConventions());
 
         // The built-in {x:guid} inline constraint would 404 a 26-char ULID before model binding.
         services.Configure<RouteOptions>(options =>

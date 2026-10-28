@@ -103,10 +103,7 @@ public sealed class WidgetTrackSavedHandlerTests
     {
         if (data is null)
             return false;
-        JsonElement json = JsonSerializer.SerializeToElement(
-            data,
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
-        );
+        JsonElement json = JsonSerializer.SerializeToElement(data, OverlayWireJson.Options);
         return json.GetProperty("trackUri").GetString() == "spotify:track:abc123"
             && json.GetProperty("track").GetString() == "Song A"
             && json.GetProperty("artist").GetString() == "Artist A"

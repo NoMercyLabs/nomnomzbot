@@ -81,10 +81,7 @@ public sealed class MediaPlayerStateBroadcastHandlerTests
 
     private static bool Matches(object? data, Guid requestId)
     {
-        JsonElement json = JsonSerializer.SerializeToElement(
-            data,
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
-        );
+        JsonElement json = JsonSerializer.SerializeToElement(data, OverlayWireJson.Options);
         return json.GetProperty("state").GetString() == "playing"
             && json.GetProperty("requestId").GetGuid() == requestId
             && json.GetProperty("title").GetString() == "Never Gonna"

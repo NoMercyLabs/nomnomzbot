@@ -9,8 +9,6 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using System.Text.Json;
-using System.Text.Json.Serialization;
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Auth;
@@ -186,22 +184,6 @@ public sealed class CodeScriptServiceProjectTests
         db.CodeScriptVersions.Count(v => v.CodeScriptId == scriptId).Should().Be(1);
     }
 
-    private static JsonElement ErrorsOf(Result<CodeScriptVersionDto> failed)
-    {
-        failed
-            .ErrorData.Should()
-            .NotBeNull("a rejected save carries every problem, not only a message");
-        string json = JsonSerializer.Serialize(
-            failed.ErrorData,
-            new JsonSerializerOptions
-            {
-                PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-                DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-            }
-        );
-        return JsonDocument.Parse(json).RootElement.GetProperty("errors");
-    }
-
     [Fact]
     public async Task SaveProject_SyntaxErrorInTheEntry_CarriesItsFileLineAndColumn()
     {
@@ -219,13 +201,18 @@ public sealed class CodeScriptServiceProjectTests
         );
 
         saved.ErrorCode.Should().Be("VALIDATION_FAILED");
-        JsonElement errors = ErrorsOf(saved);
-        errors.GetArrayLength().Should().Be(1);
-        errors[0].GetProperty("file").GetString().Should().Be("index.ts");
-        errors[0].GetProperty("line").GetInt32().Should().Be(3);
-        errors[0].GetProperty("column").GetInt32().Should().Be(9);
-        errors[0].GetProperty("message").GetString().Should().NotBeNullOrWhiteSpace();
-        errors[0].GetProperty("code").GetString().Should().NotBeNullOrWhiteSpace();
+        IReadOnlyList<ProjectBuildError> errors = saved
+            .ErrorData.Should()
+            .BeOfType<ProjectBuildFailure>(
+                "a rejected save carries every problem, not only a message"
+            )
+            .Which.Errors;
+        errors.Should().ContainSingle();
+        errors[0].File.Should().Be("index.ts");
+        errors[0].Line.Should().Be(3);
+        errors[0].Column.Should().Be(9);
+        errors[0].Message.Should().NotBeNullOrWhiteSpace();
+        errors[0].Code.Should().NotBeNullOrWhiteSpace();
     }
 
     [Fact]
@@ -246,11 +233,16 @@ public sealed class CodeScriptServiceProjectTests
         );
 
         saved.ErrorCode.Should().Be("VALIDATION_FAILED");
-        JsonElement errors = ErrorsOf(saved);
-        errors.GetArrayLength().Should().Be(1);
-        errors[0].GetProperty("file").GetString().Should().Be("index.ts");
-        errors[0].GetProperty("line").GetInt32().Should().Be(2);
-        errors[0].GetProperty("column").GetInt32().Should().Be(3);
+        IReadOnlyList<ProjectBuildError> errors = saved
+            .ErrorData.Should()
+            .BeOfType<ProjectBuildFailure>(
+                "a rejected save carries every problem, not only a message"
+            )
+            .Which.Errors;
+        errors.Should().ContainSingle();
+        errors[0].File.Should().Be("index.ts");
+        errors[0].Line.Should().Be(2);
+        errors[0].Column.Should().Be(3);
         db.CodeScriptVersions.Count(v => v.CodeScriptId == scriptId).Should().Be(1);
     }
 
@@ -272,10 +264,15 @@ public sealed class CodeScriptServiceProjectTests
         );
 
         saved.ErrorCode.Should().Be("VALIDATION_FAILED");
-        JsonElement errors = ErrorsOf(saved);
-        errors.GetArrayLength().Should().Be(1);
-        errors[0].GetProperty("file").GetString().Should().Be("lib.ts");
-        errors[0].GetProperty("line").GetInt32().Should().Be(2);
+        IReadOnlyList<ProjectBuildError> errors = saved
+            .ErrorData.Should()
+            .BeOfType<ProjectBuildFailure>(
+                "a rejected save carries every problem, not only a message"
+            )
+            .Which.Errors;
+        errors.Should().ContainSingle();
+        errors[0].File.Should().Be("lib.ts");
+        errors[0].Line.Should().Be(2);
     }
 
     [Fact]
