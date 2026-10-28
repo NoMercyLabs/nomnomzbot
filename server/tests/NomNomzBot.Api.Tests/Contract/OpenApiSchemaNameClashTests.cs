@@ -9,27 +9,73 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using System.Collections;
-using System.Reflection;
+using System.Text.Json;
 using FluentAssertions;
-using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Builder;
+using Microsoft.AspNetCore.TestHost;
+using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Api.Controllers;
+using NomNomzBot.Api.Extensions;
+using NomNomzBot.Api.OpenApi;
 
 namespace NomNomzBot.Api.Tests.Contract;
 
 /// <summary>
-/// Microsoft.AspNetCore.OpenApi names a schema by the short type name. Two different C# types that reach
-/// the document under one name collapse into one schema, so a client reads the wrong shape. The committed
-/// snapshot cannot show such a clash (it already holds the merged schema), so this test walks the controller
-/// surface by reflection: action return types, <c>[ProducesResponseType]</c> types and parameters, then
-/// every public property, generic argument and collection element below them.
+/// Microsoft.AspNetCore.OpenApi names a schema by the id the schema-id callback returns. Two different C#
+/// types that reach the document under one id collapse into one schema, so a client reads the wrong shape.
+/// The committed snapshot cannot show such a clash (it already holds the merged schema), so this test builds
+/// the real OpenAPI document over the real controllers and records every type the generator names, through
+/// <see cref="DtoSchemaIdName.Create"/>, the callback the deployed API registers.
 /// </summary>
 public sealed class OpenApiSchemaNameClashTests
 {
     [Fact]
-    public void No_two_types_reaching_the_OpenAPI_document_share_a_schema_name()
+    public async Task No_two_types_reaching_the_OpenAPI_document_share_a_schema_name()
     {
-        Dictionary<string, HashSet<Type>> byName = CollectSchemaTypes();
+        Dictionary<string, HashSet<Type>> byName = new(StringComparer.Ordinal);
+        WebApplicationBuilder builder = WebApplication.CreateBuilder();
+        builder.WebHost.UseTestServer();
+        builder.Services.AddApiControllers().AddApplicationPart(typeof(BaseController).Assembly);
+        builder.Services.AddOpenApi(options =>
+            options.CreateSchemaReferenceId = typeInfo =>
+            {
+                string? id = DtoSchemaIdName.Create(typeInfo);
+                if (id is null)
+                    return null;
+
+                lock (byName)
+                {
+                    if (!byName.TryGetValue(id, out HashSet<Type>? types))
+                        byName[id] = types = [];
+                    types.Add(Nullable.GetUnderlyingType(typeInfo.Type) ?? typeInfo.Type);
+                }
+
+                return id;
+            }
+        );
+        await using WebApplication app = builder.Build();
+        app.MapOpenApi();
+        app.MapControllers();
+        await app.StartAsync();
+
+        HttpResponseMessage response = await app.GetTestClient().GetAsync("/openapi/v1.json");
+        response.EnsureSuccessStatusCode();
+        using JsonDocument document = JsonDocument.Parse(
+            await response.Content.ReadAsStringAsync()
+        );
+        HashSet<string> published =
+        [
+            .. document
+                .RootElement.GetProperty("components")
+                .GetProperty("schemas")
+                .EnumerateObject()
+                .Select(schema => schema.Name),
+        ];
+
+        byName.Should().NotBeEmpty("the generator must have named the schemas of the API");
+        published
+            .Should()
+            .Contain(byName.Keys, "every schema id the generator asked for is published");
 
         List<string> clashes =
         [
@@ -55,150 +101,5 @@ public sealed class OpenApiSchemaNameClashTests
                     + string.Join(" | ", clashes)
                     + ". Rename one side so the name says what it is"
             );
-    }
-
-    private static Dictionary<string, HashSet<Type>> CollectSchemaTypes()
-    {
-        Dictionary<string, HashSet<Type>> byName = new(StringComparer.Ordinal);
-        HashSet<Type> visited = [];
-
-        foreach (
-            Type controller in typeof(BaseController)
-                .Assembly.GetTypes()
-                .Where(type =>
-                    type is { IsClass: true, IsAbstract: false }
-                    && typeof(ControllerBase).IsAssignableFrom(type)
-                )
-        )
-        {
-            foreach (
-                MethodInfo action in controller.GetMethods(
-                    BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly
-                )
-            )
-            {
-                if (action.IsSpecialName || action.GetCustomAttributes<NonActionAttribute>().Any())
-                    continue;
-
-                Visit(action.ReturnType, byName, visited);
-                foreach (
-                    ProducesResponseTypeAttribute produces in action.GetCustomAttributes<ProducesResponseTypeAttribute>()
-                )
-                    Visit(produces.Type, byName, visited);
-
-                foreach (ParameterInfo parameter in action.GetParameters())
-                    Visit(parameter.ParameterType, byName, visited);
-            }
-        }
-
-        return byName;
-    }
-
-    private static void Visit(
-        Type type,
-        Dictionary<string, HashSet<Type>> byName,
-        HashSet<Type> visited
-    )
-    {
-        Type? inner = Unwrap(type);
-        if (inner is null)
-            return;
-        if (inner != type)
-        {
-            Visit(inner, byName, visited);
-            return;
-        }
-
-        if (type.IsGenericType && !IsFrameworkType(type))
-        {
-            foreach (Type argument in type.GetGenericArguments())
-                Visit(argument, byName, visited);
-        }
-
-        if (IsFrameworkType(type) || type.IsGenericParameter || !visited.Add(type))
-            return;
-
-        string name = SchemaName(type);
-        if (!byName.TryGetValue(name, out HashSet<Type>? types))
-            byName[name] = types = [];
-        types.Add(type);
-
-        if (type.IsEnum)
-            return;
-
-        foreach (
-            PropertyInfo property in type.GetProperties(BindingFlags.Public | BindingFlags.Instance)
-        )
-        {
-            if (property.GetIndexParameters().Length == 0)
-                Visit(property.PropertyType, byName, visited);
-        }
-    }
-
-    /// <summary>
-    /// Peels Task, ActionResult, Nullable, arrays and collections down to the element type. Returns null when
-    /// nothing nameable is left, the same type when it is itself a schema candidate.
-    /// </summary>
-    private static Type? Unwrap(Type type)
-    {
-        if (type == typeof(void) || type == typeof(string) || type.IsPrimitive)
-            return null;
-        if (type.IsArray)
-            return type.GetElementType();
-
-        if (type.IsGenericType)
-        {
-            Type definition = type.GetGenericTypeDefinition();
-            Type[] arguments = type.GetGenericArguments();
-            if (
-                definition == typeof(Task<>)
-                || definition == typeof(ValueTask<>)
-                || definition == typeof(ActionResult<>)
-                || definition == typeof(Nullable<>)
-            )
-                return arguments[0];
-
-            Type? dictionary = type.GetInterfaces()
-                .Append(type)
-                .FirstOrDefault(i =>
-                    i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IDictionary<,>)
-                );
-            if (dictionary is not null)
-                return dictionary.GetGenericArguments()[1];
-
-            if (
-                typeof(IEnumerable).IsAssignableFrom(type)
-                && type.GetInterfaces()
-                    .Append(type)
-                    .FirstOrDefault(i =>
-                        i.IsGenericType && i.GetGenericTypeDefinition() == typeof(IEnumerable<>)
-                    )
-                    is { } enumerable
-            )
-                return enumerable.GetGenericArguments()[0];
-        }
-
-        return type;
-    }
-
-    private static bool IsFrameworkType(Type type)
-    {
-        string? ns = type.Namespace;
-        return ns is not null
-            && (
-                ns == "System"
-                || ns.StartsWith("System.", StringComparison.Ordinal)
-                || ns.StartsWith("Microsoft.", StringComparison.Ordinal)
-                || ns.StartsWith("Newtonsoft.", StringComparison.Ordinal)
-            );
-    }
-
-    private static string SchemaName(Type type)
-    {
-        if (!type.IsGenericType)
-            return type.Name;
-
-        string name = type.Name[..type.Name.IndexOf('`', StringComparison.Ordinal)];
-        return name + "Of" + string.Concat(type.GetGenericArguments().Select(SchemaName));
     }
 }
