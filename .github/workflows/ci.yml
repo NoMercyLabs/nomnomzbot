@@ -297,7 +297,8 @@ jobs:
           echo "$body" | grep -Eqi '"onboardingComplete": ?true'
           # The saved secret still decrypts after the restart, so the generated key was kept.
           echo "$body" | grep -q 'ready_redirect'
-          docker compose -f docker-compose.lite.yml exec -T api ls -la /app/data /app/data/keys
+          # The listing is for the log only: SQLite can drop its -wal file mid-listing, so a vanished file must not fail the run.
+          docker compose -f docker-compose.lite.yml exec -T api ls -la /app/data /app/data/keys || true
 
       - name: Prove the data survives removing the container
         run: |
