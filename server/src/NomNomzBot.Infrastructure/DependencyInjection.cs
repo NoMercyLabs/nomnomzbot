@@ -906,21 +906,8 @@ public static class DependencyInjection
         services.AddScoped<Content.Commands.RaidResponseFlowSeeder>();
         services.AddScoped<Content.Commands.CheerResponseFlowSeeder>();
 
-        // Service impls bound by their I<X>Service interface (scoped). Singletons,
-        // deployment-variant, and special-construction interfaces stay explicit below
-        // and are excluded so the scan never picks a wrong binding. Ambiguity (two
-        // impls of one interface) throws at build time — the DeploymentProfile case.
-        services.AddServicesByConvention(
-            infrastructure,
-            ServiceLifetime.Scoped,
-            typeof(IJwtTokenService), // singleton crypto
-            typeof(ICacheService), // deployment-variant: Redis vs in-memory (ambiguity)
-            typeof(ITtsService), // singleton — stateful TTS queues
-            typeof(ITwitchEventSubService), // singleton + hosted (shared TwitchEventSubHostedService instance)
-            typeof(ISubjectKeyService), // crypto envelope — wired explicitly below
-            typeof(IDeploymentProfileService), // singleton — boot detector + Current accessor (wired explicitly above)
-            typeof(Application.Chat.Services.IChatColorAssignmentService) // singleton — the dev-catalog sample stub is a second impl
-        );
+        // Service impls bound by their I<X>Service interface (scoped); the exclusions live in the method.
+        services.AddInfrastructureServicesByConvention();
 
         // Ambient outbound-sanction scope. Singleton because the AsyncLocal it wraps is process-wide state,
         // and a scoped instance would hand each DI scope its own empty view of a flow already in progress.
@@ -2101,6 +2088,29 @@ public static class DependencyInjection
         >();
 
         return services;
+    }
+
+    /// <summary>
+    /// Binds every Infrastructure service impl to its I&lt;X&gt;Service interface (scoped). Singletons,
+    /// deployment-variant and special-construction interfaces stay explicit in <see cref="AddInfrastructure"/>
+    /// and are excluded here so the scan never picks a wrong binding. Ambiguity (two impls of one interface)
+    /// throws at build time, the DeploymentProfile case.
+    /// </summary>
+    public static IServiceCollection AddInfrastructureServicesByConvention(
+        this IServiceCollection services
+    )
+    {
+        return services.AddServicesByConvention(
+            typeof(DependencyInjection).Assembly,
+            ServiceLifetime.Scoped,
+            typeof(IJwtTokenService), // singleton crypto
+            typeof(ICacheService), // deployment-variant: Redis vs in-memory (ambiguity)
+            typeof(ITtsService), // singleton — stateful TTS queues
+            typeof(ITwitchEventSubService), // singleton + hosted (shared TwitchEventSubHostedService instance)
+            typeof(ISubjectKeyService), // crypto envelope — wired explicitly below
+            typeof(IDeploymentProfileService), // singleton — boot detector + Current accessor (wired explicitly above)
+            typeof(Application.Chat.Services.IChatColorAssignmentService) // singleton — the dev-catalog sample stub is a second impl
+        );
     }
 
     /// <summary>
