@@ -16,6 +16,7 @@ using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using NomNomzBot.Api.AutomationStream;
 using NomNomzBot.Api.Configuration;
+using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.HealthChecks;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Overlay;
@@ -140,21 +141,7 @@ try
             // Gate-2 pass -> the sanction the Helix transport demands for any outbound write.
             options.Filters.Add<NomNomzBot.Api.Authorization.OutboundSanctionFilter>();
         })
-        .AddJsonOptions(o =>
-        {
-            o.JsonSerializerOptions.PropertyNamingPolicy = System
-                .Text
-                .Json
-                .JsonNamingPolicy
-                .CamelCase;
-            o.JsonSerializerOptions.DefaultIgnoreCondition = System
-                .Text
-                .Json
-                .Serialization
-                .JsonIgnoreCondition
-                .WhenWritingNull;
-            OwnedIdJson.AddConverters(o.JsonSerializerOptions);
-        });
+        .AddJsonOptions(o => o.UseApiJsonConventions());
 
     // Swap the built-in {x:guid} inline route constraint for one that accepts a ULID string too, so an owned-id
     // route matches its ULID wire form (the built-in constraint would 404 a 26-char ULID before model binding).
