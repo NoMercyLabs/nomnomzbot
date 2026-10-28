@@ -309,6 +309,7 @@ try
                 .AllowAnyMethod()
                 .AllowCredentials();
         });
+        NomNomzBot.Api.Controllers.ReadAloudCors.Configure(options, builder.Configuration);
     });
 
     // Health checks — profile-selected (platform-conventions §7). The DB readiness probe is the resolved
