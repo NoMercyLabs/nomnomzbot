@@ -1,350 +1,147 @@
 # NomNomzBot
 
-> An open-source, **multi-tenant, multi-platform bot platform** — one channel, many platform connections
-> (Twitch, Kick, YouTube, X Live, simultaneously) managed from one uniform dashboard for streamers,
-> moderators and viewers. Run one deployment and serve unlimited channels — every streamer gets a fully
-> isolated bot: custom commands, a visual pipeline engine, moderation, channel-point rewards, timers, an
-> economy, text-to-speech, song requests, widgets & overlays, and integrations (Spotify, Discord, YouTube).
->
-> Binding product statement: [`.claude/docs/design/PRODUCT-ALIGNMENT.md`](.claude/docs/design/PRODUCT-ALIGNMENT.md).
-
-[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](server/LICENSE) [![Backend: .NET 10](https://img.shields.io/badge/backend-.NET%2010-512BD4.svg)](#how-it-works) [![Frontend: Vue 3](https://img.shields.io/badge/frontend-Vue%203-42B883.svg)](#how-it-works) [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)](#project-status)
-
-You run NomNomzBot through its **dashboard app**, which gives you a **guided setup** — it connects your
-Twitch and bot accounts and collects everything the bot needs through proper input fields, so you never
-edit a config file. The bot itself is **self-hostable from day one** (point the dashboard at your own
-server — zero external infrastructure or oversight), and the same codebase powers an optional hosted
-(SaaS) offering. Under the hood it speaks Twitch over Helix and EventSub (WebSocket) — chat included, no
-IRC — and exposes a versioned REST API plus real-time SignalR feeds.
-
----
-
-## Table of contents
-
-- [NomNomzBot](#nomnomzbot)
-  - [Table of contents](#table-of-contents)
-  - [Project status](#project-status)
-  - [Features](#features)
-  - [How it works](#how-it-works)
-  - [Getting started](#getting-started)
-    - [Set up with the dashboard](#set-up-with-the-dashboard)
-    - [Run your own backend (Docker)](#run-your-own-backend-docker)
-      - [Key URLs](#key-urls)
-  - [Using NomNomzBot](#using-nomnomzbot)
-    - [What the guided setup does](#what-the-guided-setup-does)
-    - [Configuring your bot](#configuring-your-bot)
-    - [Public surfaces (viewers + OBS)](#public-surfaces-viewers--obs)
-  - [Configuration](#configuration)
-  - [Production deployment](#production-deployment)
-  - [Development](#development)
-    - [Project layout](#project-layout)
-    - [Run the backend locally](#run-the-backend-locally)
-    - [Build \& test](#build--test)
-  - [Contributing](#contributing)
-  - [Security](#security)
-  - [License](#license)
-
----
-
-## Project status
-
-Pre-1.0, under active development. Honest snapshot:
-
-- **Backend (`server/`)** — the live, supported component. Built and covered by tests across identity/auth,
-  the Twitch Helix + EventSub integration, moderation, channel-point rewards, the pipeline engine, timers,
-  the economy, TTS, roles & permissions, server-side chat decoration (emotes, badges, cheermotes), webhooks,
-  and the sandboxed custom-code action.
-- **Public surfaces (widgets & overlays + song-request)** — delivered by the **widget system**: each widget is
-  a standalone Vue SPA compiled from source, served by the bot, and CDN-cached for SaaS (not static files).
-  Shipped — the gallery, editor, overlay host page and per-widget event subscriptions are live.
-- **Dashboard (`dashboard/`)** — the **Vue 3** web client (Vite, TypeScript, shadcn-vue components) is
-  **built and functional**: guided setup, Twitch device-code login, and management pages for the
-  core modules, all against the live API. It ships inside every backend artifact; pre-release
-  polish is ongoing. Every operation is also available through the self-describing REST API (`/scalar`).
-
-It has not yet been validated in a long-running production deployment, so treat it as early software.
-
-## Features
-
-What a connected channel gets:
-
-- **Commands** — custom and built-in chat commands, each backed by a **visual pipeline** of actions and
-  conditions (send/reply, timeout/ban, shoutout, set-variable, wait, play music, and more), with 90+
-  template variables (`{{user.name}}`, `{{stream.uptime}}`, `{{args.1}}`, …).
-- **Event responses & timers** — "when X happens do Y" for follows, subs, gifts, cheers, raids, and
-  redemptions (including on-air alerts); scheduled recurring messages.
-- **Moderation** — bans and timeouts, AutoMod settings, blocked-term lists, Shield Mode, and a mod-action
-  log — all mirrored from the real Twitch API.
-- **Channel points & live ops** — custom reward management, polls, and predictions.
-- **Economy & games** — a per-channel currency with an atomic ledger, a store, cross-channel savings jars,
-  leaderboards, and fun-money games (with an optional, off-by-default 18+ gate).
-- **Music & song requests** — viewer song requests (Spotify / YouTube) with a fair, rank-based queue and
-  trust scoring, plus a public request page that needs no login.
-- **Rich chat** — server-side message decoration: Twitch **and** BTTV / FFZ / 7TV emotes, badge and
-  cheermote images, coloured mentions, and opt-in link previews, emitted ready-to-render to the dashboard.
-- **Text-to-speech** — Azure Cognitive Services and ElevenLabs voices.
-- **Widgets & overlays** — alerts, a now-playing bar and the full widget gallery rendered on the OBS overlay
-  page, pushed in real time over SignalR.
-- **Platforms** — Twitch, Kick, YouTube and X Live as platform connections under one channel (chat + events
-  per platform); any of them can be the first login.
-- **Integrations** — Spotify, Discord, and YouTube (music) via OAuth, requested progressively as you enable them.
-- **Multi-tenant & roles** — one deployment, unlimited channels, each isolated; two role ladders
-  (`CommunityStanding` and `ManagementRole`) plus per-action `!permit` delegation.
-- **Extensibility** — inbound and outbound webhooks, and a hardened, sandboxed custom-code action.
-
-## How it works
-
-```
-┌─ server/  — .NET 10 backend (the bot)
-│   SQLite (self_host_lite) or PostgreSQL + Redis (self_host_full / saas) · Twitch Helix + EventSub (WebSocket) · SignalR · Serilog
-│   Versioned REST API (v1)  ·  interactive docs at /scalar
-│   Public surfaces (OBS overlays, song-request) — compiled widgets served by the bot, CDN-cached for SaaS
-│
-└─ dashboard/ — Vue 3 dashboard (Vite + TypeScript; the build is served by the bot)
-```
-
-The backend is **profile-agnostic and direct-connect**: the dashboard just needs the backend URL and talks
-REST + SignalR straight to it. Self-host points it at `localhost` or your own exposed URL; the hosted build
-points it at the SaaS API. There is no central broker.
-
-| Layer | Technology |
-|-------|-----------|
-| Runtime | .NET 10, C# 14 |
-| Framework | ASP.NET Core (Asp.Versioning) |
-| ORM | EF Core 10 — SQLite (`self_host_lite`) or Npgsql → PostgreSQL 16 (`self_host_full` / `saas`) |
-| Cache / pub-sub | Redis 7 (`self_host_full` / `saas`; none in `self_host_lite`) |
-| Real-time | ASP.NET SignalR (WebSocket) |
-| Auth | JWT + provider-generic sign-in (device code where the platform has it, code flow otherwise) · OAuth code flow for integrations |
-| Twitch | Helix API, EventSub (WebSocket) — chat reads via EventSub, sends via Helix; no IRC |
-| Kick | Platform connection — chat + events via the Kick API (OAuth 2.1 + PKCE) |
-| YouTube | Platform connection — live chat + events via the YouTube Data API (also the YouTube music provider) |
-| X Live | Platform connection — X Live chat + events (OAuth 2.0 + PKCE) |
-| Logging | Serilog |
-| Dashboard | Vue 3 + Vite + TypeScript |
-| API docs | OpenAPI + Scalar |
-
-## Getting started
-
-There are two pieces: the **dashboard**, which you set the bot up and run it from, and the **backend**, the
-server the dashboard talks to. On the hosted offering the backend is run for you, so you only need the
-dashboard. To **self-host**, run your own backend and point the dashboard at it.
-
-> **Quickest path:** one deploy script per OS, covering every scenario — the zero-dependency
-> single-file binary, the Docker stack, and SaaS mode (a **restricted option** — hosting NomNomzBot
-> for others is against the project license, reserved to NoMercy Labs), each with the bundled web
-> dashboard. **[DEPLOY.md](DEPLOY.md)** explains which to choose.
->
-> - **Linux / macOS:** `./deploy.sh <scenario>`
-> - **Windows (PowerShell):** `.\deploy.ps1 <scenario>`
-
-### Set up with the dashboard
-
-The dashboard is the normal way to run NomNomzBot — **no config files, no API calls by hand.** You point it
-at a backend URL (`localhost` or your own server for self-host, the hosted API for SaaS) and a **setup
-wizard** walks you through everything, with a labelled input for each value the bot needs:
-
-1. **Connect your first platform** — Twitch, Kick, YouTube or X; sign in and authorize. This creates
-   your channel; other platforms attach afterwards as connections. Scopes are requested
-   progressively, only as you enable the features that need them.
-2. **Connect your bot account** — optionally authorize a separate account the bot types chat from. This
-   is an *additional connection* on top of your account (like linking Spotify), not a second login;
-   until then the bot types as you, with a line prefix you choose.
-3. **Enter your app credentials** *(self-host)* — paste the Twitch **Client ID / Secret** from your Twitch
-   developer app into the wizard's fields. On the hosted offering this is already configured for you.
-4. **Basics** — bot prefix, default language, timezone.
-5. **Integrations (optional)** — Spotify, Discord, YouTube (music); enable any now or from settings. Additional
-   platform connections (Kick, YouTube, X Live) attach to the same channel from the Platforms page.
-
-When you finish, you land on the dashboard home with the bot live in your channel.
-
-> **Where to get it:** the **web dashboard ships inside every backend build** — just open the bot's URL in
-> a browser (see [DEPLOY.md](DEPLOY.md)).
->
-> The same guided flow is also available through the self-describing API: `GET /api/v1/system/setup/wizard`
-> returns each step and the endpoint to call, runnable from the interactive docs at **`/scalar`**.
-
-### Run your own backend (Docker)
-
-Skip this section if you're using the hosted offering. To self-host, run the backend — the dashboard then
-connects to it.
-
-**Prerequisites:** **Docker**, and a registered **Twitch application** ([Twitch Developer
-Console](https://dev.twitch.tv/console/apps)) for its Client ID / Secret. Redirect URIs are computed at
-runtime from `App:BaseUrl`, so register exactly one callback — `{App:BaseUrl}/api/v1/auth/twitch/callback`
-(locally, `http://localhost:5080/api/v1/auth/twitch/callback`).
-
-**Linux / macOS**
-
-```bash
-./deploy.sh docker
-```
-
-**Windows (PowerShell)**
-
-```powershell
-.\deploy.ps1 docker
-```
-
-The script creates `.env` with **generated secrets**, asks for your Twitch credentials (press Enter to
-skip and enter them in the dashboard wizard instead), starts PostgreSQL, Redis, and the API, and waits
-until the stack reports ready. Prefer raw compose? Copy `.env.example` to `.env`, then
-`docker compose up -d --build` from the repo root — same result on every OS. The zero-Docker
-single-file path and SaaS mode are covered in **[DEPLOY.md](DEPLOY.md)**. On first start the API waits for Postgres and Redis, runs migrations, seeds
-reference data (TTS voices, permission presets), and connects the Twitch EventSub WebSocket. Point your
-dashboard at `http://localhost:5080` (or your exposed URL) and run the setup above.
-
-No Postgres or Redis wanted? Run the one-container SQLite stack instead: see
-[Install with Docker, without Postgres or Redis](docs/install-docker-lite.md).
-
-For local backend development without Docker (`dotnet run`), see [Development](#development).
-
-#### Key URLs
-
-| URL | Purpose |
-|-----|---------|
-| `http://localhost:5080` | API (point the dashboard here) |
-| `http://localhost:5080/scalar` | Interactive API docs (Scalar) |
-| `http://localhost:5080/health` | Health status (JSON) |
-| `http://localhost:5080/health/live` | Liveness probe |
-| `http://localhost:5080/health/ready` | Readiness probe (DB + Redis) |
-| `http://localhost:5080/health/version` | Deployed build version |
-| `http://localhost:8082` | Adminer (Postgres browser) — dev override only |
-
-> The root quickstart compose includes Adminer **bound to loopback only**. The production compose
-> (`server/docker-compose.yml`) excludes it — there it is a dev-overlay extra
-> (`docker compose -f docker-compose.yml -f docker-compose.dev.yml up -d adminer`).
-
-## Using NomNomzBot
-
-Day to day you drive the bot from the dashboard. Everything the dashboard does is also available through
-the **REST API** — the interactive Scalar docs at `/scalar` let you call every endpoint from the browser.
-
-### What the guided setup does
-
-The onboarding flow (the dashboard wizard, or `GET /api/v1/system/setup/wizard` today) is:
-
-1. **Twitch application** — your Client ID / Secret (entered in the wizard, or set in the backend env).
-2. **Streamer account** — authorize your own Twitch account (`GET /api/v1/auth/twitch` → approve on
-   Twitch → back to the callback). Scopes are requested progressively as you enable features.
-3. **Bot account** — authorize the account the bot posts chat from — an *additional connection*, not a
-   separate login.
-4. **Basics** — bot prefix, default language, timezone.
-5. **Integrations (optional)** — Spotify, Discord, YouTube; can be added later.
-
-Once a streamer account is configured, the credential-setup endpoints lock to admins.
-
-### Configuring your bot
-
-Everything the dashboard surfaces is a versioned endpoint under `/api/v1/` (browse them in `/scalar`):
-
-- Commands, pipelines, event responses, timers
-- Moderation, channel-point rewards, polls/predictions, stream info
-- Economy (currency, store, jars, leaderboards, games)
-- TTS config and voices, music/song-request settings
-- Roles & permissions, integrations, webhooks
-
-Responses use `StatusResponseDto<T>` or `PaginatedResponse<T>`; errors are RFC 7807 problem details.
-
-### Public surfaces (viewers + OBS)
-
-Viewer/OBS-facing surfaces are delivered by the **widget system** — widgets are compiled from source at build
-time, served by the bot, and CDN-cached for SaaS (not static files):
-
-- **Song requests** — viewers open a token-based request page and queue tracks with no login.
-- **Overlays** — add your channel's overlay URL as an OBS **browser source**; the widgets placed on it (alerts,
-  now-playing bar, gallery widgets) are pushed live over the `OverlayHub` (SignalR).
-
-## Configuration
-
-The dashboard collects most settings for you; these are the backend's own knobs:
-
-- **Docker / deploy** — `.env` at the repo root (the deploy script creates it; `.env.example` documents
-  every variable). Config keys map to env vars with `__`, e.g. `Twitch:ClientId` → `TWITCH_CLIENT_ID`;
-  `docker-compose.yml` also maps the friendly `API_BASE_URL` onto `App__BaseUrl`.
-- **Local dev (`dotnet run`)** — `server/src/NomNomzBot.Api/appsettings.json` (defaults) +
-  `appsettings.Development.json` (your secrets). Everything else falls back to the defaults.
-- **Twitch redirect URI** is computed at runtime from `App:BaseUrl` — register only
-  `{App:BaseUrl}/api/v1/auth/twitch/callback`.
-
-Optional integrations activate when their credentials are present: `Spotify`, `Discord`, `YouTube`,
-`Azure:Tts`, and `ElevenLabs`; platform connections `Kick` and `Twitter` (X) likewise. See `server/.env.example` for the full, commented reference.
-
-## Production deployment
-
-The API speaks plain HTTP inside the container (`ASPNETCORE_URLS=http://+:5000`); **TLS is terminated by a
-reverse proxy in front of it**. Running the API port directly on the public internet without TLS is not
-supported — OAuth tokens and JWTs would travel in cleartext. Two supported paths:
-
-- **Cloudflare Tunnel** — the bundled `cloudflared` service (set `CLOUDFLARE_TUNNEL_TOKEN`) gives a public
-  HTTPS hostname with no inbound ports opened.
-- **Reverse proxy** — put Caddy or nginx in front (`reverse_proxy localhost:5080`). Caddy provisions
-  Let's Encrypt certificates automatically:
-
-  ```caddyfile
-  api.example.com {
-      reverse_proxy localhost:5080
-  }
-  ```
-
-The Postgres/Redis ports bind to `127.0.0.1` and Adminer is excluded from the production compose, so only
-the proxy reaches the API. Set `App:BaseUrl` to your public HTTPS URL — host-header filtering and the
-Twitch OAuth redirect URI are both derived from it. If the proxy reaches the API from a non-loopback
-address (e.g. a containerised sidecar), set `TRUSTED_PROXY_NETWORKS` so the real client IP is trusted.
-
-## Development
-
-### Project layout
-
-```
-nomnomzbot/
-├── server/   .NET 10 backend (Domain → Application → Infrastructure → Api), tests, Docker
-└── dashboard/  Vue 3 dashboard (Vite + TypeScript)
-```
-
-The backend follows Clean Architecture (dependencies flow inward) with the `Result<T>` pattern, soft
-deletes, per-request multi-tenancy, and auto-discovered DI.
-
-### Run the backend locally
-
-```bash
-cd server
-docker compose up -d postgres redis        # just the infrastructure
-cd src/NomNomzBot.Api
-dotnet run                                  # auto-migrates and seeds on first start
-```
-
-### Run the dashboard locally
-
-```bash
-cd dashboard
-npm ci
-npm run dev                                 # Vite dev server on http://localhost:5090, proxies /api to :5080
-```
-
-### Build & test
-
-```bash
-cd server
-dotnet build NomNomzBot.slnx
-dotnet test
-```
-
-The build treats warnings as errors, and the code is formatted with CSharpier
-(`dotnet csharpier format .`) — both are commit gates.
-
-## Contributing
-
-Contributions are welcome. [CONTRIBUTING.md](CONTRIBUTING.md) explains how to file a good issue (bug,
-feature or platform API gap, for people and for bots), the checks a pull request must pass, and the rules
-for code. The default branch is `master`.
-
-## Security
-
-Found a vulnerability? Please report it privately via a
-[GitHub Security Advisory](https://github.com/NoMercyLabs/nomnomzbot/security/advisories/new) rather than a
-public issue. Security fixes ship as GitHub releases tagged `[SECURITY]` and, where warranted, as
-advisories — **watch this repository's releases**. Check the build you are running with
-`GET /health/version`.
+NomNomzBot is a free, open-source chat bot for live streamers.
+You run it on your own computer or server, and you control it from a web dashboard.
+One channel can connect Twitch, Kick, YouTube and X Live at the same time.
+
+[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](server/LICENSE) [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)](#where-to-get-help)
+
+The full reference is at **https://docs.nomnomz.bot**.
+
+## Contents
+
+- [What it can do](#what-it-can-do)
+- [How to start](#how-to-start)
+- [Where to get help](#where-to-get-help)
+- [For developers](#for-developers)
+- [License](#license)
+
+## What it can do
+
+### Chat and commands
+
+- Make your own chat commands. A simple command is one line of text.
+- Build bigger commands in a visual editor, with steps, conditions and branches.
+- Put live values in any message, such as the viewer name or the stream uptime. There are more than 90.
+- Turn on the built-in commands you want, and change their replies.
+- Set timers that post a message on a schedule.
+- Set chat triggers that answer a keyword.
+- Keep a quote book.
+- Chat from the dashboard, with 7TV, BTTV and FFZ emotes shown.
+- Import commands, quotes and timers from StreamElements.
+
+### Viewers and points
+
+- See your real viewers, their activity and their watch streaks.
+- Give your channel its own currency, with earning rules, a store and leaderboards.
+- Run chat games and overlay games.
+- Gambling games are optional. Each viewer must confirm they are 18 or older.
+- Run giveaways, and draw winners.
+
+### Rewards
+
+- Create, edit and delete channel-point rewards.
+- Fulfill or refund redemptions from a queue.
+- Let a redemption start a command flow.
+
+### Music
+
+- Control Spotify or YouTube playback from the dashboard.
+- Take song requests from chat, with a fair queue.
+- Give viewers a public request page. They need no account.
+- Block tracks you do not want.
+
+### Voice
+
+- Read chat aloud with text-to-speech (Azure or ElevenLabs).
+- Let viewers pick their own voice with `!voice`.
+- Approve messages before they are read, and filter bad words.
+- Play sound clips from commands.
+
+### Overlays and widgets
+
+- Add overlays to OBS. Paste the overlay link into an OBS browser source.
+- Show alerts for follows, subs, cheers, raids and gifts.
+- Install widgets from the gallery, change their settings, or write your own.
+- Control OBS scenes and VTube Studio from the bot.
+
+### Moderation
+
+- Time out, ban and unban from one page.
+- Set AutoMod levels, blocked terms and chat filters.
+- Review unban requests, reports and the AutoMod queue.
+- Keep notes and a history for each viewer.
+- Use layered spam defense. It starts in test mode, so it only watches until you turn it on.
+
+For how the bot keeps your community safe, read [Community safety](docs/community-safety.md).
+
+### Integrations
+
+- **Discord:** post a message when you go live, and give live roles.
+- **Spotify** and **YouTube** for music.
+- Ko-fi, GitHub, Fourthwall, Shopify, Patreon and Buy Me a Coffee can trigger the bot.
+- Other apps can send events to the bot, and get events from it (webhooks).
+- Your own tools can control the bot with a key you make and can cancel (automation API).
+
+Every feature is listed in [FEATURES.md](FEATURES.md).
+
+## How to start
+
+This runs the bot on your own machine with Docker.
+Self-hosting your own bot is always free.
+
+### What you need
+
+- [Docker](https://docs.docker.com/get-docker/), the free app that runs the bot in a container.
+- A Twitch application. Make one in the [Twitch Developer Console](https://dev.twitch.tv/console/apps).
+  - Set its OAuth Redirect URL to `http://localhost:5080/api/v1/auth/twitch/callback`.
+  - Copy its Client ID and Client Secret. You need them in step 3 or in the setup wizard.
+
+### Steps
+
+1. Download or clone this repository.
+2. Open a terminal in the project folder.
+3. Run the deploy script.
+
+   Linux or macOS:
+
+   ```bash
+   ./deploy.sh docker
+   ```
+
+   Windows (PowerShell):
+
+   ```powershell
+   .\deploy.ps1 docker
+   ```
+
+   The script makes a `.env` file with new secret keys.
+   It asks for your Twitch Client ID and Secret. Press Enter to skip, and enter them in the dashboard later.
+   It then starts the bot and waits until it is ready.
+
+4. Open `http://localhost:5080` in your browser.
+5. Follow the setup wizard. It connects your accounts and asks for each value it needs.
+
+### Other ways to run it
+
+- **One container, no Postgres or Redis:** read [Install with Docker, without Postgres or Redis](docs/install-docker-lite.md).
+- **One file, no Docker:** run `./deploy.sh desktop`. Read [DEPLOY.md](DEPLOY.md).
+- **Public access with HTTPS:** read [DEPLOY.md](DEPLOY.md).
+- **SaaS mode:** a **restricted option**. Running NomNomzBot as a hosted service for other people is against the project license. That right is reserved to NoMercy Labs. Read [DEPLOY.md](DEPLOY.md).
+
+## Where to get help
+
+NomNomzBot is pre-release software. Expect changes.
+
+- Ask a question or report a bug in [GitHub issues](https://github.com/NoMercyLabs/nomnomzbot/issues/new/choose).
+- Report a security problem in private. Read [SECURITY.md](SECURITY.md).
+
+## For developers
+
+- How to contribute, and the checks a pull request must pass: [CONTRIBUTING.md](CONTRIBUTING.md).
+- All deployment options and settings: [DEPLOY.md](DEPLOY.md) and [.env.example](.env.example).
+- The backend is in `server/` (.NET). The dashboard is in `dashboard/` (Vue).
+- The running bot shows its API docs at `http://localhost:5080/scalar`.
 
 ## License
 
