@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -46,32 +45,6 @@ public sealed class MusicCommandParityTests
             Args = args,
             Personality = personality,
         };
-
-    private static IBuiltinResponseComposer FakeComposer()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return Task.FromResult(template);
-            });
-        return new BuiltinResponseComposer(
-            resolver,
-            NoPlatformBuiltinReplies.Instance,
-            FakeChannelBuiltinReplies.None
-        );
-    }
 
     private static NowPlaying Playing(
         string? requestedBy,
@@ -111,10 +84,10 @@ public sealed class MusicCommandParityTests
     }
 
     private static SkipBuiltin Skip(IMusicService music, bool holdsGrant = false) =>
-        new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant));
+        new(music, TestBuiltinComposer.Create(), MusicGateTestKit.Gate(holdsGrant));
 
     private static VolumeBuiltin Volume(IMusicService music) =>
-        new(music, FakeComposer(), MusicGateTestKit.Gate(true));
+        new(music, TestBuiltinComposer.Create(), MusicGateTestKit.Gate(true));
 
     // ── !skip ──────────────────────────────────────────────────────────────────
 
@@ -295,7 +268,7 @@ public sealed class MusicCommandParityTests
     public async Task Song_names_the_track_artist_and_a_clickable_link_like_the_legacy_bot()
     {
         IMusicService music = MusicWith(Playing(requestedBy: "f0xb17"));
-        CurrentSongBuiltin sut = new(music, FakeComposer());
+        CurrentSongBuiltin sut = new(music, TestBuiltinComposer.Create());
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty));
 
@@ -312,7 +285,7 @@ public sealed class MusicCommandParityTests
         IMusicService music = MusicWith(
             Playing(requestedBy: null, uri: "https://www.youtube.com/watch?v=dQw4w9WgXcQ")
         );
-        CurrentSongBuiltin sut = new(music, FakeComposer());
+        CurrentSongBuiltin sut = new(music, TestBuiltinComposer.Create());
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty));
 
@@ -327,7 +300,7 @@ public sealed class MusicCommandParityTests
     public async Task Song_without_a_known_uri_has_no_link_and_no_trailing_space()
     {
         IMusicService music = MusicWith(Playing(requestedBy: null, uri: null));
-        CurrentSongBuiltin sut = new(music, FakeComposer());
+        CurrentSongBuiltin sut = new(music, TestBuiltinComposer.Create());
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty));
 
@@ -338,7 +311,7 @@ public sealed class MusicCommandParityTests
     public async Task Song_with_nothing_playing_answers_in_the_legacy_words()
     {
         IMusicService music = MusicWith(null);
-        CurrentSongBuiltin sut = new(music, FakeComposer());
+        CurrentSongBuiltin sut = new(music, TestBuiltinComposer.Create());
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty));
 
@@ -349,7 +322,7 @@ public sealed class MusicCommandParityTests
     public async Task Song_in_the_sassy_tone_keeps_its_voice_and_the_same_facts()
     {
         IMusicService music = MusicWith(Playing(requestedBy: null));
-        CurrentSongBuiltin sut = new(music, FakeComposer());
+        CurrentSongBuiltin sut = new(music, TestBuiltinComposer.Create());
 
         Result<string> result = await sut.ExecuteAsync(
             Ctx(string.Empty, personality: PersonalityTone.Sassy)

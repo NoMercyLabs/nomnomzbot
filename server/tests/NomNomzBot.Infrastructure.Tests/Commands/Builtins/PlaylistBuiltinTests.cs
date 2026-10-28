@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Dtos;
@@ -36,7 +35,7 @@ public sealed class PlaylistBuiltinTests : IDisposable
 
     public void Dispose() => _config.Dispose();
 
-    private PlaylistBuiltin Sut() => new(_music, _config.Service, FakeComposer());
+    private PlaylistBuiltin Sut() => new(_music, _config.Service, TestBuiltinComposer.Create());
 
     private static BuiltinCommandContext Context() =>
         new()
@@ -46,32 +45,6 @@ public sealed class PlaylistBuiltinTests : IDisposable
             TriggeringUserDisplayName = "Viewer",
             Personality = PersonalityTone.Informative,
         };
-
-    private static IBuiltinResponseComposer FakeComposer()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return Task.FromResult(template);
-            });
-        return new BuiltinResponseComposer(
-            resolver,
-            NoPlatformBuiltinReplies.Instance,
-            FakeChannelBuiltinReplies.None
-        );
-    }
 
     private Task Choose(string? id, string? provider) =>
         _config.Service.UpdateConfigAsync(

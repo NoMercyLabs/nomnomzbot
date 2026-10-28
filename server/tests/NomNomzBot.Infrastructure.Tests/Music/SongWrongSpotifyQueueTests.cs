@@ -23,6 +23,7 @@ using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Music.PipelineActions;
 using NomNomzBot.Infrastructure.Platform.Security;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -223,7 +224,7 @@ public sealed class SongWrongSpotifyQueueTests
             h.Sut,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
         PipelineExecutionContext ctx = new()

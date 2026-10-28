@@ -13,7 +13,6 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
@@ -420,25 +419,8 @@ public sealed class SongRequestActionTests
         string personality = PersonalityTone.Informative
     )
     {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> v in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{v.Key}}}", v.Value);
-                return Task.FromResult(template);
-            });
         BuiltinResponseComposer composer = new(
-            resolver,
+            TestTemplateResolver.Create(),
             NoPlatformBuiltinReplies.Instance,
             FakeChannelBuiltinReplies.None
         );

@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -43,26 +42,6 @@ public sealed class PauseResumeBuiltinTests
             Args = string.Empty,
         };
 
-    private static IBuiltinResponseComposer FakeComposer(
-        IChannelBuiltinReplyOverrides? channelReplies = null
-    )
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call => Task.FromResult(call.ArgAt<string>(0)));
-        return new BuiltinResponseComposer(
-            resolver,
-            NoPlatformBuiltinReplies.Instance,
-            channelReplies ?? FakeChannelBuiltinReplies.None
-        );
-    }
-
     private static IMusicService MusicAnswering(Result pause, Result play)
     {
         IMusicService music = Substitute.For<IMusicService>();
@@ -72,10 +51,10 @@ public sealed class PauseResumeBuiltinTests
     }
 
     private static PauseBuiltin Pause(IMusicService music, bool holdsGrant = false) =>
-        new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant));
+        new(music, TestBuiltinComposer.Create(), MusicGateTestKit.Gate(holdsGrant));
 
     private static ResumeBuiltin Resume(IMusicService music, bool holdsGrant = false) =>
-        new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant));
+        new(music, TestBuiltinComposer.Create(), MusicGateTestKit.Gate(holdsGrant));
 
     [Fact]
     public async Task A_moderator_pauses_the_music_and_chat_hears_it_paused()
@@ -124,12 +103,12 @@ public sealed class PauseResumeBuiltinTests
         );
         PauseBuiltin pause = new(
             music,
-            FakeComposer(channel),
+            TestBuiltinComposer.Create(channel),
             MusicGateTestKit.Gate(holdsGrant: false)
         );
         ResumeBuiltin resume = new(
             music,
-            FakeComposer(channel),
+            TestBuiltinComposer.Create(channel),
             MusicGateTestKit.Gate(holdsGrant: false)
         );
 

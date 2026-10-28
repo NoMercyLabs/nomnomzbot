@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
@@ -38,32 +37,6 @@ public sealed class DiscordInviteBuiltinTests
             Args = "",
         };
 
-    private static IBuiltinResponseComposer FakeComposer()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return Task.FromResult(template);
-            });
-        return new BuiltinResponseComposer(
-            resolver,
-            NoPlatformBuiltinReplies.Instance,
-            FakeChannelBuiltinReplies.None
-        );
-    }
-
     private static DiscordGuildConnectionDto ActiveConnection() =>
         new(
             Guid.NewGuid(),
@@ -89,7 +62,7 @@ public sealed class DiscordInviteBuiltinTests
             .Returns(Result.Success<IReadOnlyList<DiscordGuildConnectionDto>>([]));
         IDiscordBotGateway gateway = Substitute.For<IDiscordBotGateway>();
 
-        DiscordInviteBuiltin sut = new(guilds, gateway, FakeComposer());
+        DiscordInviteBuiltin sut = new(guilds, gateway, TestBuiltinComposer.Create());
 
         Result<string> result = await sut.ExecuteAsync(Context());
 
@@ -130,7 +103,7 @@ public sealed class DiscordInviteBuiltinTests
                 ])
             );
 
-        DiscordInviteBuiltin sut = new(guilds, gateway, FakeComposer());
+        DiscordInviteBuiltin sut = new(guilds, gateway, TestBuiltinComposer.Create());
 
         Result<string> result = await sut.ExecuteAsync(Context());
 
@@ -167,7 +140,7 @@ public sealed class DiscordInviteBuiltinTests
             .CreateChannelInviteAsync(Broadcaster, "chan-1", Arg.Any<CancellationToken>())
             .Returns(Result.Success("xyz789"));
 
-        DiscordInviteBuiltin sut = new(guilds, gateway, FakeComposer());
+        DiscordInviteBuiltin sut = new(guilds, gateway, TestBuiltinComposer.Create());
 
         Result<string> result = await sut.ExecuteAsync(Context());
 
@@ -200,7 +173,7 @@ public sealed class DiscordInviteBuiltinTests
             .CreateChannelInviteAsync(Broadcaster, "chan-1", Arg.Any<CancellationToken>())
             .Returns(Result.Failure<string>("Discord request failed.", "DISCORD_ERROR"));
 
-        DiscordInviteBuiltin sut = new(guilds, gateway, FakeComposer());
+        DiscordInviteBuiltin sut = new(guilds, gateway, TestBuiltinComposer.Create());
 
         Result<string> result = await sut.ExecuteAsync(Context());
 

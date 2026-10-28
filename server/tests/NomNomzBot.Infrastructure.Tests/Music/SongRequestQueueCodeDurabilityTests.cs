@@ -22,6 +22,7 @@ using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Music.PipelineActions;
 using NomNomzBot.Infrastructure.Platform.Persistence;
 using NomNomzBot.Infrastructure.Platform.Security;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -167,7 +168,7 @@ public sealed class SongRequestQueueCodeDurabilityTests
             restartedService,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 

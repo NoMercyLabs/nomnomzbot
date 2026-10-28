@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -46,32 +45,6 @@ public sealed class WhisperBuiltinTests
             Personality = personality,
         };
 
-    private static IBuiltinResponseComposer FakeComposer()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return Task.FromResult(template);
-            });
-        return new BuiltinResponseComposer(
-            resolver,
-            NoPlatformBuiltinReplies.Instance,
-            FakeChannelBuiltinReplies.None
-        );
-    }
-
     private static TwitchUser Viewer1() =>
         new(
             Id: "999",
@@ -106,7 +79,7 @@ public sealed class WhisperBuiltinTests
         WhisperBuiltin sut = new(
             twitchUsers,
             [twitchSender],
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             TestMentionTargets.LoginsOnly()
         );
 
@@ -134,7 +107,7 @@ public sealed class WhisperBuiltinTests
         WhisperBuiltin sut = new(
             twitchUsers,
             [twitchSender],
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             TestMentionTargets.LoginsOnly()
         );
 
@@ -157,7 +130,12 @@ public sealed class WhisperBuiltinTests
     public async Task Missing_message_argument_never_looks_up_a_user()
     {
         ITwitchUsersApi twitchUsers = Substitute.For<ITwitchUsersApi>();
-        WhisperBuiltin sut = new(twitchUsers, [], FakeComposer(), TestMentionTargets.LoginsOnly());
+        WhisperBuiltin sut = new(
+            twitchUsers,
+            [],
+            TestBuiltinComposer.Create(),
+            TestMentionTargets.LoginsOnly()
+        );
 
         Result<string> result = await sut.ExecuteAsync(Context("viewer1"));
 
@@ -175,7 +153,7 @@ public sealed class WhisperBuiltinTests
         WhisperBuiltin sut = new(
             Substitute.For<ITwitchUsersApi>(),
             [],
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             TestMentionTargets.LoginsOnly()
         );
 
@@ -201,7 +179,12 @@ public sealed class WhisperBuiltinTests
         twitchUsers
             .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<TwitchUser>>([]));
-        WhisperBuiltin sut = new(twitchUsers, [], FakeComposer(), TestMentionTargets.LoginsOnly());
+        WhisperBuiltin sut = new(
+            twitchUsers,
+            [],
+            TestBuiltinComposer.Create(),
+            TestMentionTargets.LoginsOnly()
+        );
 
         Result<string> sassy = await sut.ExecuteAsync(
             Context("ghostuser hello", PersonalityTone.Sassy)
@@ -219,7 +202,12 @@ public sealed class WhisperBuiltinTests
         twitchUsers
             .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Result.Failure<IReadOnlyList<TwitchUser>>("TIMEOUT", "TIMEOUT"));
-        WhisperBuiltin sut = new(twitchUsers, [], FakeComposer(), TestMentionTargets.LoginsOnly());
+        WhisperBuiltin sut = new(
+            twitchUsers,
+            [],
+            TestBuiltinComposer.Create(),
+            TestMentionTargets.LoginsOnly()
+        );
 
         Result<string> sassy = await sut.ExecuteAsync(
             Context("ghostuser hello", PersonalityTone.Sassy)
@@ -246,7 +234,12 @@ public sealed class WhisperBuiltinTests
             .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<TwitchUser>>([Viewer1()]));
         // No DM senders bound for any provider -> the "not available" branch.
-        WhisperBuiltin sut = new(twitchUsers, [], FakeComposer(), TestMentionTargets.LoginsOnly());
+        WhisperBuiltin sut = new(
+            twitchUsers,
+            [],
+            TestBuiltinComposer.Create(),
+            TestMentionTargets.LoginsOnly()
+        );
 
         Result<string> sassy = await sut.ExecuteAsync(
             Context("@viewer1 hey", PersonalityTone.Sassy)

@@ -11,7 +11,6 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -32,28 +31,6 @@ public sealed class UptimeBuiltinTests
     private static readonly Guid Channel = Guid.Parse("0198c111-0000-7000-8000-0000000000a1");
     private static readonly DateTimeOffset Now = new(2026, 7, 12, 20, 0, 0, TimeSpan.Zero);
 
-    private static ITemplateResolver FakeResolver()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return Task.FromResult(template);
-            });
-        return resolver;
-    }
-
     private static UptimeBuiltin Sut(ChannelContext? ctx)
     {
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
@@ -63,7 +40,7 @@ public sealed class UptimeBuiltinTests
             // The real channel-override reader over the same registry: an override lives on the ChannelContext
             // exactly where ChannelRegistry loads it.
             new BuiltinResponseComposer(
-                FakeResolver(),
+                TestTemplateResolver.Create(),
                 NoPlatformBuiltinReplies.Instance,
                 new ChannelBuiltinReplyOverridesReader(registry)
             ),

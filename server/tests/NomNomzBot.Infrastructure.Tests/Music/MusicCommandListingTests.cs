@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
@@ -43,37 +42,11 @@ public sealed class MusicCommandListingTests
             RoleLevel = roleLevel,
         };
 
-    private static IBuiltinResponseComposer Composer()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return Task.FromResult(template);
-            });
-        return new BuiltinResponseComposer(
-            resolver,
-            NoPlatformBuiltinReplies.Instance,
-            FakeChannelBuiltinReplies.None
-        );
-    }
-
-    private static async Task<string> ListingForAsync(bool holdsGrant, int roleLevel = VipLevel)
+    private static CommandsBuiltin CommandsBuiltinWithMusicCommands(bool holdsGrant)
     {
         MusicModerationGate gate = MusicGateTestKit.Gate(holdsGrant);
         IMusicService music = Substitute.For<IMusicService>();
-        IBuiltinResponseComposer composer = Composer();
+        IBuiltinResponseComposer composer = TestBuiltinComposer.Create();
         List<IBuiltinCommand> impls =
         [
             new VolumeBuiltin(music, composer, gate),
@@ -119,15 +92,15 @@ public sealed class MusicCommandListingTests
             .ListAsync(Arg.Any<string>(), Arg.Any<PaginationParams>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(new PagedList<CommandListItem>([], 1, 100, 0)));
 
-        CommandsBuiltin commandsBuiltin = new(commands, provider, composer);
-        Result<string> result = await commandsBuiltin.ExecuteAsync(Ctx(roleLevel: roleLevel));
-        return result.Value;
+        return new(commands, provider, composer);
     }
 
     [Fact]
     public async Task A_vip_without_the_grant_does_not_see_bansong_but_still_sees_volume_and_skip()
     {
-        string listing = await ListingForAsync(holdsGrant: false);
+        Result<string> result = await CommandsBuiltinWithMusicCommands(holdsGrant: false)
+            .ExecuteAsync(Ctx(roleLevel: VipLevel));
+        string listing = result.Value;
 
         listing.Should().NotContain("!bansong");
         listing.Should().Contain("!volume");
@@ -137,7 +110,9 @@ public sealed class MusicCommandListingTests
     [Fact]
     public async Task A_caller_with_the_grant_sees_bansong()
     {
-        string listing = await ListingForAsync(holdsGrant: true);
+        Result<string> result = await CommandsBuiltinWithMusicCommands(holdsGrant: true)
+            .ExecuteAsync(Ctx(roleLevel: VipLevel));
+        string listing = result.Value;
 
         listing.Should().Contain("!bansong");
         listing.Should().Contain("!volume");
@@ -164,7 +139,7 @@ public sealed class MusicCommandListingTests
                     "spotify"
                 )
             );
-        VolumeBuiltin sut = new(music, Composer(), MusicGateTestKit.Gate(false));
+        VolumeBuiltin sut = new(music, TestBuiltinComposer.Create(), MusicGateTestKit.Gate(false));
 
         Result<string> result = await sut.ExecuteAsync(Ctx());
 
@@ -191,7 +166,7 @@ public sealed class MusicCommandListingTests
                     "spotify"
                 )
             );
-        VolumeBuiltin sut = new(music, Composer(), MusicGateTestKit.Gate(false));
+        VolumeBuiltin sut = new(music, TestBuiltinComposer.Create(), MusicGateTestKit.Gate(false));
 
         Result<string> result = await sut.ExecuteAsync(Ctx("80"));
 

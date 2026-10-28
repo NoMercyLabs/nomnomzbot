@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -31,28 +30,6 @@ public sealed class LeaderboardBuiltinTests
 {
     private static readonly Guid Broadcaster = Guid.Parse("0192a000-0000-7000-8000-00000000a501");
     private static readonly Guid ConfigId = Guid.Parse("0192a000-0000-7000-8000-00000000a502");
-
-    private static ITemplateResolver FakeResolver()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return Task.FromResult(template);
-            });
-        return resolver;
-    }
 
     private static BuiltinCommandContext Context() =>
         new()
@@ -97,7 +74,7 @@ public sealed class LeaderboardBuiltinTests
         LeaderboardBuiltin sut = new(
             leaderboards,
             new BuiltinResponseComposer(
-                FakeResolver(),
+                TestTemplateResolver.Create(),
                 NoPlatformBuiltinReplies.Instance,
                 FakeChannelBuiltinReplies.None
             )
@@ -123,7 +100,7 @@ public sealed class LeaderboardBuiltinTests
         LeaderboardBuiltin sut = new(
             leaderboards,
             new BuiltinResponseComposer(
-                FakeResolver(),
+                TestTemplateResolver.Create(),
                 NoPlatformBuiltinReplies.Instance,
                 FakeChannelBuiltinReplies.None
             )

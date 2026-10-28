@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -35,32 +34,6 @@ namespace NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 public sealed class UpdateUserInfoBuiltinTests
 {
     private const string Login = "stoney_eagle";
-
-    private static IBuiltinResponseComposer FakeComposer()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return Task.FromResult(template);
-            });
-        return new BuiltinResponseComposer(
-            resolver,
-            NoPlatformBuiltinReplies.Instance,
-            FakeChannelBuiltinReplies.None
-        );
-    }
 
     private static TwitchUser Profile(string avatar) =>
         new(
@@ -142,7 +115,7 @@ public sealed class UpdateUserInfoBuiltinTests
             twitch,
             users,
             db,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             TestMentionTargets.LoginsOnly()
         );
 
@@ -174,7 +147,7 @@ public sealed class UpdateUserInfoBuiltinTests
             twitch,
             Substitute.For<IUserService>(),
             db,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             TestMentionTargets.LoginsOnly()
         );
 
@@ -200,7 +173,7 @@ public sealed class UpdateUserInfoBuiltinTests
             twitch,
             Substitute.For<IUserService>(),
             db,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             TestMentionTargets.LoginsOnly()
         );
 
@@ -223,7 +196,7 @@ public sealed class UpdateUserInfoBuiltinTests
             twitch,
             Substitute.For<IUserService>(),
             db,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             TestMentionTargets.LoginsOnly()
         );
 
@@ -260,7 +233,7 @@ public sealed class UpdateUserInfoBuiltinTests
             twitch,
             Substitute.For<IUserService>(),
             db,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             TestMentionTargets.LoginsOnly()
         );
 
@@ -312,7 +285,7 @@ public sealed class UpdateUserInfoBuiltinTests
             twitch,
             users,
             db,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             TestMentionTargets.LoginsOnly()
         );
 
@@ -346,7 +319,7 @@ public sealed class UpdateUserInfoBuiltinTests
             twitch,
             Substitute.For<IUserService>(),
             db,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             TestMentionTargets.LoginsOnly()
         );
 
@@ -391,7 +364,7 @@ public sealed class UpdateUserInfoBuiltinTests
             twitch,
             Substitute.For<IUserService>(),
             db,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             TestMentionTargets.LoginsOnly()
         );
 

@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -50,34 +49,6 @@ public sealed class SkipBuiltinTests
             Args = args,
         };
 
-    private static IBuiltinResponseComposer FakeComposer(
-        IChannelBuiltinReplyOverrides? channelReplies = null
-    )
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return Task.FromResult(template);
-            });
-        return new BuiltinResponseComposer(
-            resolver,
-            NoPlatformBuiltinReplies.Instance,
-            channelReplies ?? FakeChannelBuiltinReplies.None
-        );
-    }
-
     private static MusicQueueItem Item(string trackName, string? requestedBy) =>
         new(
             TrackName: trackName,
@@ -106,7 +77,11 @@ public sealed class SkipBuiltinTests
         music
             .RemoveFromQueueAsync(Broadcaster.ToString(), 3, Arg.Any<CancellationToken>())
             .Returns(true);
-        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+        SkipBuiltin sut = new(
+            music,
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(holdsGrant: false)
+        );
 
         Result<string> result = await sut.ExecuteAsync(Ctx("2", ViewerLevel));
 
@@ -130,7 +105,11 @@ public sealed class SkipBuiltinTests
 
         IMusicService music = Substitute.For<IMusicService>();
         music.GetQueueAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>()).Returns(queue);
-        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+        SkipBuiltin sut = new(
+            music,
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(holdsGrant: false)
+        );
 
         Result<string> result = await sut.ExecuteAsync(Ctx("2", ViewerLevel));
 
@@ -154,7 +133,7 @@ public sealed class SkipBuiltinTests
             .Returns(Result.Success());
         SkipBuiltin sut = new(
             music,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             MusicGateTestKit.Gate(holdsGrant: true, out IRoleResolver roles)
         );
 
@@ -200,7 +179,11 @@ public sealed class SkipBuiltinTests
                     "spotify"
                 )
             );
-        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+        SkipBuiltin sut = new(
+            music,
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(holdsGrant: false)
+        );
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ViewerLevel));
 
@@ -220,7 +203,7 @@ public sealed class SkipBuiltinTests
         );
         VolumeBuiltin sut = new(
             music,
-            FakeComposer(channel),
+            TestBuiltinComposer.Create(channel),
             MusicGateTestKit.Gate(holdsGrant: false)
         );
 
@@ -248,7 +231,11 @@ public sealed class SkipBuiltinTests
                     errorData: new NoActivePlayerRefusal("youtube")
                 )
             );
-        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+        SkipBuiltin sut = new(
+            music,
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(holdsGrant: false)
+        );
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
 
@@ -274,7 +261,11 @@ public sealed class SkipBuiltinTests
                     errorData: new NoActivePlayerRefusal("spotify")
                 )
             );
-        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+        SkipBuiltin sut = new(
+            music,
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(holdsGrant: false)
+        );
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
 
@@ -299,7 +290,11 @@ public sealed class SkipBuiltinTests
                     errorData: new NoActivePlayerRefusal("youtube")
                 )
             );
-        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+        SkipBuiltin sut = new(
+            music,
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(holdsGrant: false)
+        );
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
 
@@ -332,7 +327,11 @@ public sealed class SkipBuiltinTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Failure("internal detail 5521", errorCode));
-        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+        SkipBuiltin sut = new(
+            music,
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(holdsGrant: false)
+        );
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
 
@@ -354,7 +353,11 @@ public sealed class SkipBuiltinTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Failure("internal provider detail 7731", "PREMIUM_REQUIRED"));
-        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+        SkipBuiltin sut = new(
+            music,
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(holdsGrant: false)
+        );
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
 
@@ -379,7 +382,11 @@ public sealed class SkipBuiltinTests
         music
             .RemoveFromQueueAsync(Broadcaster.ToString(), 0, Arg.Any<CancellationToken>())
             .Returns(true);
-        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+        SkipBuiltin sut = new(
+            music,
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(holdsGrant: false)
+        );
 
         Result<string> result = await sut.ExecuteAsync(Ctx("1", ViewerLevel));
 
@@ -400,7 +407,7 @@ public sealed class SkipBuiltinTests
             .Returns(Result.Success());
         SkipBuiltin sut = new(
             music,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             MusicGateTestKit.Gate(holdsGrant: false, out IRoleResolver roles)
         );
 
@@ -431,7 +438,7 @@ public sealed class SkipBuiltinTests
             .Returns(Result.Success());
         VolumeBuiltin allowed = new(
             granted,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             MusicGateTestKit.Gate(holdsGrant: true)
         );
         Result<string> ok = await allowed.ExecuteAsync(Ctx("40", ViewerLevel));
@@ -443,7 +450,7 @@ public sealed class SkipBuiltinTests
         IMusicService denied = Substitute.For<IMusicService>();
         VolumeBuiltin refused = new(
             denied,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             MusicGateTestKit.Gate(holdsGrant: false)
         );
         Result<string> no = await refused.ExecuteAsync(Ctx("40", ViewerLevel));
@@ -463,7 +470,11 @@ public sealed class SkipBuiltinTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success());
-        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+        SkipBuiltin sut = new(
+            music,
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(holdsGrant: false)
+        );
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ModeratorLevel));
 
@@ -483,7 +494,11 @@ public sealed class SkipBuiltinTests
     public async Task Bare_skip_from_a_plain_viewer_is_refused_and_never_skips_playback()
     {
         IMusicService music = Substitute.For<IMusicService>();
-        SkipBuiltin sut = new(music, FakeComposer(), MusicGateTestKit.Gate(holdsGrant: false));
+        SkipBuiltin sut = new(
+            music,
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(holdsGrant: false)
+        );
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty, ViewerLevel));
 
