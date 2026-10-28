@@ -58,11 +58,7 @@ internal sealed record FunRow(
     ) => new(key, sample, render, TemplateHelperFreshness.Live, TemplateHelperScope.Channel);
 
     public TemplateHelperEntry ToEntry() =>
-        new(
-            Key,
-            [.. Enum.GetValues<TemplateHelperContext>()],
-            new LocalizedText("template.helper." + Key)
-        )
+        new(Key, TemplateHelperContexts.Standard, new LocalizedText("template.helper." + Key))
         {
             Sample = Sample,
             Freshness = Freshness,

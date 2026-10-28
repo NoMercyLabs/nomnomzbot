@@ -29,5 +29,29 @@ internal abstract class TextHelperGroup : ITextHelperGroup
     public IReadOnlyList<TemplateHelperEntry> Entries { get; }
 
     public string? TryRender(HelperNode node, TemplateRenderScope scope) =>
-        _rows.TryGetValue(node.Key, out TextHelperRow? row) ? row.Render(node.Arguments) : null;
+        _rows.TryGetValue(node.Key, out TextHelperRow? row)
+            ? row.Render(WithinLimit(node.Arguments, row.AmplifierArgument, scope.TextCountLimit))
+            : null;
+
+    /// <summary>
+    /// The arguments with the count at <paramref name="index"/> cut down to <paramref name="limit"/>, so a viewer's
+    /// <c>{text.repeat:30|ha}</c> gives 20 copies instead of a refusal. No limit or no count argument: unchanged.
+    /// </summary>
+    private static IReadOnlyList<string> WithinLimit(
+        IReadOnlyList<string> args,
+        int? index,
+        int? limit
+    )
+    {
+        if (index is null || limit is null || index >= args.Count)
+            return args;
+
+        bool isCount = TextArguments.TryCount(args[index.Value], out int count);
+        if (!isCount || count <= limit)
+            return args;
+
+        List<string> cut = [.. args];
+        cut[index.Value] = limit.Value.ToString(System.Globalization.CultureInfo.InvariantCulture);
+        return cut;
+    }
 }

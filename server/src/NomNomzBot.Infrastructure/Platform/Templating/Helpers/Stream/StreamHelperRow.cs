@@ -162,11 +162,7 @@ internal sealed record StreamHelperRow(
         );
 
     public TemplateHelperEntry ToEntry() =>
-        new(
-            Key,
-            [.. Enum.GetValues<TemplateHelperContext>()],
-            new LocalizedText("template.helper." + Key)
-        )
+        new(Key, TemplateHelperContexts.Standard, new LocalizedText("template.helper." + Key))
         {
             Sample = Sample,
             Source = Source,

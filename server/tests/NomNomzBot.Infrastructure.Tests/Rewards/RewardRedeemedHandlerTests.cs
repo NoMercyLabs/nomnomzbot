@@ -34,14 +34,14 @@ namespace NomNomzBot.Infrastructure.Tests.Rewards;
 /// reward-triggered <c>play_sound</c> takes), while a reward with no bound pipeline / inline response falls
 /// through to the generic redemption event response — unchanged behavior.
 /// </summary>
-public sealed class RewardRedeemedHandlerTests
+public sealed partial class RewardRedeemedHandlerTests
 {
-    private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-00000000c401");
+    internal static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-00000000c401");
     private static readonly Guid BoundPipelineId = Guid.Parse(
         "0192a000-0000-7000-8000-00000000c402"
     );
 
-    private sealed record Harness(
+    internal sealed record Harness(
         RewardRedeemedHandler Handler,
         AuthDbContext Db,
         IPipelineEngine Engine,
@@ -52,12 +52,13 @@ public sealed class RewardRedeemedHandlerTests
         ITtsDispatchService Tts
     );
 
-    private const string ViewerTwitchId = "twitch-viewer-1";
+    internal const string ViewerTwitchId = "twitch-viewer-1";
 
-    private static readonly Guid ViewerUserId = Guid.Parse("0192a000-0000-7000-8000-00000000c403");
+    internal static readonly Guid ViewerUserId = Guid.Parse("0192a000-0000-7000-8000-00000000c403");
 
     /// <param name="viewerLevel">The unified-ladder level the role resolver reports for the redeeming viewer.</param>
-    private static Harness Build(int viewerLevel = 0)
+    /// <param name="configure">Registers extra services (a test double) before the provider is built.</param>
+    internal static Harness Build(int viewerLevel = 0, Action<IServiceCollection>? configure = null)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
 
@@ -120,7 +121,8 @@ public sealed class RewardRedeemedHandlerTests
         );
         db.SaveChanges();
 
-        ServiceProvider provider = new ServiceCollection()
+        ServiceCollection services = new();
+        services
             .AddSingleton<IApplicationDbContext>(db)
             .AddSingleton(executor)
             .AddSingleton(timers)
@@ -128,8 +130,9 @@ public sealed class RewardRedeemedHandlerTests
             .AddSingleton(chat)
             .AddSingleton(composer)
             .AddSingleton(roles)
-            .AddSingleton(tts)
-            .BuildServiceProvider();
+            .AddSingleton(tts);
+        configure?.Invoke(services);
+        ServiceProvider provider = services.BuildServiceProvider();
 
         RewardRedeemedHandler handler = new(
             provider.GetRequiredService<IServiceScopeFactory>(),

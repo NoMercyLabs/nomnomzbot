@@ -148,6 +148,23 @@ public sealed class FeatureServiceTests
     }
 
     [Fact]
+    public async Task Viewer_templates_are_off_for_a_channel_that_never_enabled_them()
+    {
+        (FeatureService sut, _, _) = Build();
+
+        Result<List<FeatureStatusDto>> result = await sut.GetFeaturesAsync(Channel.ToString());
+
+        result
+            .Value.Should()
+            .ContainSingle(f => f.FeatureKey == "use_viewer_templates")
+            .Which.IsEnabled.Should()
+            .BeFalse();
+        (await sut.IsFeatureEnabledAsync(Channel.ToString(), "use_viewer_templates"))
+            .Should()
+            .BeFalse();
+    }
+
+    [Fact]
     public async Task GetFeatures_reports_an_explicit_row_state_over_the_key_default()
     {
         FeatureServiceTestDbContext db = FeatureServiceTestDbContext.New();

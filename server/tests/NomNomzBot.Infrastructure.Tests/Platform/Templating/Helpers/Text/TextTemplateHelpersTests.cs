@@ -102,13 +102,21 @@ public sealed class TextTemplateHelpersTests
             "{text.word.random:a b c d e f}"
         );
 
-        string? shuffledWords = first.TryRender(words, null!);
-        string? shuffledChars = first.TryRender(chars, null!);
-        string? pickedWord = first.TryRender(pick, null!);
+        TemplateRenderScope scope = new()
+        {
+            BroadcasterId = null,
+            Channel = null,
+            Variables = new Dictionary<string, string>(),
+            Now = DateTimeOffset.UnixEpoch,
+        };
 
-        second.TryRender(words, null!).Should().Be(shuffledWords);
-        second.TryRender(chars, null!).Should().Be(shuffledChars);
-        second.TryRender(pick, null!).Should().Be(pickedWord);
+        string? shuffledWords = first.TryRender(words, scope);
+        string? shuffledChars = first.TryRender(chars, scope);
+        string? pickedWord = first.TryRender(pick, scope);
+
+        second.TryRender(words, scope).Should().Be(shuffledWords);
+        second.TryRender(chars, scope).Should().Be(shuffledChars);
+        second.TryRender(pick, scope).Should().Be(pickedWord);
         shuffledWords!.Split(' ').Order().Should().Equal("a", "b", "c", "d", "e", "f");
         shuffledWords.Should().NotBe("a b c d e f");
         shuffledChars!.Order().Should().Equal("abcdef".ToCharArray());

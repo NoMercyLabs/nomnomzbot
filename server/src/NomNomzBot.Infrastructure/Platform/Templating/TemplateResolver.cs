@@ -25,7 +25,7 @@ namespace NomNomzBot.Infrastructure.Platform.Templating;
 /// that provider (its <c>PrepareAsync</c> runs once per source for all its tokens, then <c>RenderAsync</c>);
 /// every other key goes through the as-built <see cref="LegacyTemplateHelpers"/>. An unknown key renders as written.
 /// </summary>
-public sealed class TemplateResolver : ITemplateResolver
+public sealed partial class TemplateResolver : ITemplateResolver
 {
     private readonly LegacyTemplateHelpers _legacy;
     private readonly ITemplateHelperRegistry _helpers;
@@ -77,17 +77,35 @@ public sealed class TemplateResolver : ITemplateResolver
     }
 
     /// <summary>Full async resolve with lazy lookups: only the keys the template uses are fetched.</summary>
-    public async Task<string> ResolveAsync(
+    public Task<string> ResolveAsync(
         string template,
         IDictionary<string, string> seedVariables,
         Guid? broadcasterId,
         CancellationToken cancellationToken = default
+    ) => ResolveCoreAsync(template, seedVariables, broadcasterId, null, cancellationToken);
+
+    /// <summary>
+    /// The one render. With <paramref name="viewer"/> set it is a viewer's own text: no pre-pass runs (they read
+    /// custom data), a token whose key is neither a seed nor a helper of the Viewer context prints as written, and
+    /// the text helpers cut their counts to the limit.
+    /// </summary>
+    private async Task<string> ResolveCoreAsync(
+        string template,
+        IDictionary<string, string> seedVariables,
+        Guid? broadcasterId,
+        ViewerTemplateLimits? viewer,
+        CancellationToken cancellationToken
     )
     {
         if (string.IsNullOrEmpty(template))
             return string.Empty;
 
-        template = await _legacy.ExpandPrePassesAsync(template, broadcasterId, cancellationToken);
+        if (viewer is null)
+            template = await _legacy.ExpandPrePassesAsync(
+                template,
+                broadcasterId,
+                cancellationToken
+            );
         IReadOnlyList<TemplateNode> nodes = TemplateParser.Parse(template);
         if (!nodes.OfType<PlaceholderNode>().Any())
             return TemplateTreeRenderer.Render(nodes, _ => null);
@@ -99,13 +117,22 @@ public sealed class TemplateResolver : ITemplateResolver
             Channel = broadcasterId is null ? null : _channels.Get(broadcasterId.Value),
             Variables = seeds,
             Now = _timeProvider.GetUtcNow(),
+            TextCountLimit = viewer?.MaxTextCount,
         };
         ProviderDispatch providers = new(_helpers, scope, seeds);
+        IReadOnlyList<TemplateHelperEntry> viewerHelpers = viewer is null
+            ? []
+            : _helpers.ForContext(TemplateHelperContext.Viewer);
+        bool Permitted(RenderedToken token) =>
+            viewer is null || IsViewerKey(token.Key.Trim(), seeds, viewerHelpers);
 
         HashSet<string> needed = new(StringComparer.OrdinalIgnoreCase);
         foreach (PlaceholderNode node in TemplateTree.StaticPlaceholders(nodes, providers.IsLazy))
         {
             RenderedToken token = RenderedToken.FromStatic(node, providers.IsLazy);
+            if (!Permitted(token))
+                continue;
+
             if (!providers.Claim(token))
                 needed.Add(token.Content.Trim());
         }
@@ -125,6 +152,9 @@ public sealed class TemplateResolver : ITemplateResolver
 
         async ValueTask<string?> EvaluateAsync(RenderedToken token)
         {
+            if (!Permitted(token))
+                return null;
+
             if (providers.Owns(token))
                 return await providers.RenderAsync(token, cancellationToken);
             string key = token.Content.Trim();

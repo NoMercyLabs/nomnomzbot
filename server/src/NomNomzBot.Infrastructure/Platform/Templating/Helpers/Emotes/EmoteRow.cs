@@ -77,11 +77,7 @@ internal sealed record EmoteRow(
             : Render(call);
 
     public TemplateHelperEntry ToEntry() =>
-        new(
-            Key,
-            [.. Enum.GetValues<TemplateHelperContext>()],
-            new LocalizedText("template.helper." + Key)
-        )
+        new(Key, TemplateHelperContexts.Standard, new LocalizedText("template.helper." + Key))
         {
             Sample = Sample,
             Source = Sources == EmoteSources.None ? null : Sources.ToString().ToLowerInvariant(),

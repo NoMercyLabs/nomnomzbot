@@ -88,6 +88,14 @@ public class FeatureService : IFeatureService
             [],
             false
         ),
+        ["use_viewer_templates"] = (
+            "Viewer Templates",
+            "Let viewers who hold the template permission use text and info helpers such as {text.repeat:3|ha} "
+                + "or {stream.game} in a reward input, spoken by text to speech or passed on to the reward. "
+                + "Subscribers and above hold it by default. Off by default.",
+            [],
+            false
+        ),
     };
 
     /// <summary>The key's resting state when no <see cref="ChannelFeature"/> row exists yet — false for an unrecognized key.</summary>

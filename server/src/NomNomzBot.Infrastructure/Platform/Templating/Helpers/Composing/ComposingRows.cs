@@ -29,7 +29,7 @@ internal static class ComposingRows
     ) =>
         new(
             key,
-            [.. Enum.GetValues<TemplateHelperContext>()],
+            TemplateHelperContexts.Standard,
             new LocalizedText(descriptionKey ?? "template.helper." + key),
             prefix
         )

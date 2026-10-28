@@ -52,4 +52,12 @@ public enum TemplateHelperContext
     /// event carries one) minus <c>args.*</c>, which only exists for a live chat-command invocation.
     /// </summary>
     Webhook,
+
+    /// <summary>
+    /// A viewer's own text (a reward input, spoken or shown) on a channel that enabled
+    /// <c>use_viewer_templates</c>. It holds only helpers that are pure text or read-only channel and
+    /// viewer info; a helper is in it only when its row lists <see cref="Viewer"/> by name. Nothing here
+    /// writes state, includes another command, or reads custom data or another viewer's data.
+    /// </summary>
+    Viewer,
 }
