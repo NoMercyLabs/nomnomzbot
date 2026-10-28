@@ -10,10 +10,22 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Chat.Decoration;
+using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Identity.Dtos;
+using NomNomzBot.Application.Identity.Services;
+using NomNomzBot.Application.Platform.Dtos;
+using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.Chat.Enums;
+using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
+using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Chat.Adapters;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Chat;
 
@@ -61,12 +73,80 @@ public sealed class HtmlFragmentAdapterTests
             Fragments = [.. fragments],
         };
 
-    // Mirrors the orchestrator: an adapter only runs when its gate passes.
-    private static async Task RunGated(HtmlFragmentAdapter adapter, ChatDecorationContext context)
+    // The real orchestrator over the real adapter; only the feature store, cache, user store and role
+    // resolver (storage the decorator reads) are stand-ins.
+    private static ChatMessageDecorator Decorator(bool featureOn)
     {
-        if (adapter.AppliesTo(context))
-            await adapter.DecorateAsync(context);
+        IFeatureService features = Substitute.For<IFeatureService>();
+        features
+            .GetFeaturesAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new List<FeatureStatusDto>
+                    {
+                        new("use_chat_html", "Chat HTML", "Inline HTML", featureOn, null, []),
+                    }
+                )
+            );
+        IUserService users = Substitute.For<IUserService>();
+        users
+            .GetOrCreateAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new UserDto(
+                        Guid.NewGuid().ToString(),
+                        "viewer",
+                        "Viewer",
+                        null,
+                        null,
+                        DateTime.UtcNow,
+                        DateTime.UtcNow
+                    )
+                )
+            );
+        IRoleResolver roles = Substitute.For<IRoleResolver>();
+        roles
+            .HasCapabilityAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(false));
+        return new(
+            [new HtmlFragmentAdapter()],
+            features,
+            Substitute.For<ICacheService>(),
+            users,
+            roles,
+            Substitute.For<IChatLinkAllowlist>(),
+            NullLogger<ChatMessageDecorator>.Instance
+        );
     }
+
+    private static ChatMessageReceivedEvent Message(bool subscriber, string text) =>
+        new()
+        {
+            BroadcasterId = Guid.NewGuid(),
+            MessageId = "msg-1",
+            TwitchBroadcasterId = "chan-1",
+            UserId = "viewer-1",
+            UserDisplayName = "Viewer",
+            UserLogin = "viewer",
+            Message = text,
+            Fragments = [Text(text)],
+            Badges = [],
+            IsSubscriber = subscriber,
+            IsVip = false,
+            IsModerator = false,
+            IsBroadcaster = false,
+        };
 
     [Fact]
     public async Task Subscriber_with_the_feature_on_renders_inline_html_as_one_html_fragment()
@@ -109,29 +189,34 @@ public sealed class HtmlFragmentAdapterTests
     [Fact]
     public async Task A_non_subscriber_gets_no_html_fragment()
     {
-        ChatMessageFragment original = Text("<marquee>hi</marquee>");
-        ChatDecorationContext context = Context(standing: false, enabled: true, original);
-        HtmlFragmentAdapter adapter = new();
+        DecoratedChatMessage decorated = await Decorator(featureOn: true)
+            .DecorateAsync(Message(subscriber: false, "<marquee>hi</marquee>"));
 
-        adapter.AppliesTo(context).Should().BeFalse();
-        await RunGated(adapter, context);
+        ChatMessageFragment fragment = decorated.Fragments.Should().ContainSingle().Subject;
+        fragment.Type.Should().Be("text");
+        fragment.Text.Should().Be("<marquee>hi</marquee>");
+    }
 
-        context.Fragments.Should().ContainSingle().Which.Should().BeSameAs(original);
-        context.Fragments.Should().NotContain(fragment => fragment.Type == "html");
+    [Fact]
+    public async Task A_subscriber_through_the_decorator_gets_the_html_fragment_when_the_feature_is_on()
+    {
+        DecoratedChatMessage decorated = await Decorator(featureOn: true)
+            .DecorateAsync(Message(subscriber: true, "<marquee>hi</marquee>"));
+
+        ChatMessageFragment fragment = decorated.Fragments.Should().ContainSingle().Subject;
+        fragment.Type.Should().Be("html");
+        fragment.Text.Should().Contain("<marquee>");
     }
 
     [Fact]
     public async Task The_feature_being_off_yields_no_html_fragment()
     {
-        ChatMessageFragment original = Text("<marquee>hi</marquee>");
-        ChatDecorationContext context = Context(standing: true, enabled: false, original);
-        HtmlFragmentAdapter adapter = new();
+        DecoratedChatMessage decorated = await Decorator(featureOn: false)
+            .DecorateAsync(Message(subscriber: true, "<marquee>hi</marquee>"));
 
-        adapter.AppliesTo(context).Should().BeFalse();
-        await RunGated(adapter, context);
-
-        context.Fragments.Should().ContainSingle().Which.Should().BeSameAs(original);
-        context.Fragments.Should().NotContain(fragment => fragment.Type == "html");
+        ChatMessageFragment fragment = decorated.Fragments.Should().ContainSingle().Subject;
+        fragment.Type.Should().Be("text");
+        fragment.Text.Should().Be("<marquee>hi</marquee>");
     }
 
     [Fact]
