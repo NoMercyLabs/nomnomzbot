@@ -56,7 +56,7 @@ public sealed class WrongSongBuiltinTests
             music,
             MusicTestDbContext.New(),
             Substitute.For<IChatProvider>(),
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
         return (new WrongSongBuiltin([action]), music);

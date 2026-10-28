@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -44,34 +43,6 @@ public sealed class BanSongBuiltinTests
             RoleLevel = 10,
             Personality = personality,
         };
-
-    private static IBuiltinResponseComposer FakeComposer(
-        IChannelBuiltinReplyOverrides? channelReplies = null
-    )
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return Task.FromResult(template);
-            });
-        return new BuiltinResponseComposer(
-            resolver,
-            NoPlatformBuiltinReplies.Instance,
-            channelReplies ?? FakeChannelBuiltinReplies.None
-        );
-    }
 
     private const string Confirmation = "Toxic banned from being requested again.";
 
@@ -134,7 +105,7 @@ public sealed class BanSongBuiltinTests
         BanSongBuiltin sut = new(
             music,
             blockedTracks,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             MusicGateTestKit.Gate(false)
         );
 
@@ -185,7 +156,7 @@ public sealed class BanSongBuiltinTests
         BanSongBuiltin sut = new(
             music,
             blockedTracks,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             MusicGateTestKit.Gate(false)
         );
 
@@ -254,7 +225,7 @@ public sealed class BanSongBuiltinTests
         BanSongBuiltin sut = new(
             music,
             blockedTracks,
-            FakeComposer(channel),
+            TestBuiltinComposer.Create(channel),
             MusicGateTestKit.Gate(false)
         );
 
@@ -311,7 +282,7 @@ public sealed class BanSongBuiltinTests
         BanSongBuiltin sut = new(
             music,
             blockedTracks,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             MusicGateTestKit.Gate(false)
         );
 
@@ -392,7 +363,7 @@ public sealed class BanSongBuiltinTests
         BanSongBuiltin sut = new(
             music,
             blockedTracks,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             MusicGateTestKit.Gate(false)
         );
 
@@ -421,7 +392,7 @@ public sealed class BanSongBuiltinTests
         BanSongBuiltin sut = new(
             music,
             blockedTracks,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             MusicGateTestKit.Gate(false)
         );
 
@@ -449,7 +420,7 @@ public sealed class BanSongBuiltinTests
         BanSongBuiltin sut = new(
             music,
             Substitute.For<IBlockedTrackService>(),
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             MusicGateTestKit.Gate(false)
         );
 
@@ -499,7 +470,7 @@ public sealed class BanSongBuiltinTests
         BanSongBuiltin sut = new(
             music,
             blockedTracks,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             MusicGateTestKit.Gate(false)
         );
 

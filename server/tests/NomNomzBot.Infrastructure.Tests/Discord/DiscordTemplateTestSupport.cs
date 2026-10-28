@@ -9,12 +9,8 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using Microsoft.Extensions.DependencyInjection;
-using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Templating;
-using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Templating;
-using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Discord;
 
@@ -25,19 +21,7 @@ namespace NomNomzBot.Infrastructure.Tests.Discord;
 /// </summary>
 internal static class DiscordTemplateTestSupport
 {
-    public static ITemplateResolver CreateResolver()
-    {
-        IServiceScopeFactory scopeFactory = Substitute.For<IServiceScopeFactory>();
-        IChannelRegistry registry = Substitute.For<IChannelRegistry>();
-        registry.Get(Arg.Any<Guid>()).Returns((ChannelContext?)null);
-
-        return new TemplateResolver(
-            scopeFactory,
-            registry,
-            NullLogger<TemplateResolver>.Instance,
-            TimeProvider.System
-        );
-    }
+    public static ITemplateResolver CreateResolver() => TestTemplateResolver.Create();
 
     public static ITemplateHelperValidator CreateValidator() => new TemplateHelperValidator();
 }

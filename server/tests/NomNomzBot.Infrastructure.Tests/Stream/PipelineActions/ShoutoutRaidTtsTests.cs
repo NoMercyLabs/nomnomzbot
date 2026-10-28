@@ -45,15 +45,6 @@ public sealed class ShoutoutRaidTtsTests
         public required ChannelContext ChannelCtx { get; init; }
     }
 
-    private static string NaiveResolve(NSubstitute.Core.CallInfo callInfo)
-    {
-        string template = (string)callInfo[0];
-        IDictionary<string, string> vars = (IDictionary<string, string>)callInfo[1];
-        foreach (KeyValuePair<string, string> kv in vars)
-            template = template.Replace("{" + kv.Key + "}", kv.Value);
-        return template;
-    }
-
     private static async Task<Rig> BuildAsync()
     {
         ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();
@@ -87,15 +78,7 @@ public sealed class ShoutoutRaidTtsTests
                 ])
             );
 
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(callInfo => Task.FromResult(NaiveResolve(callInfo)));
+        ITemplateResolver resolver = TestTemplateResolver.Create();
 
         ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
         tts.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())

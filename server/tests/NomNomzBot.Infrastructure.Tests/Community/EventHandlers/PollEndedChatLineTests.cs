@@ -15,7 +15,6 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Domain.Chat.Interfaces;
@@ -43,29 +42,6 @@ public sealed class PollEndedChatLineTests
 
     private sealed record Harness(AuthDbContext Db, PollEndedHandler Handler, IChatProvider Chat);
 
-    /// <summary>A resolver that only swaps <c>{name}</c> for its variable, which is all the poll line needs.</summary>
-    private static ITemplateResolver SubstitutingResolver()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string text = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> pair in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    text = text.Replace("{" + pair.Key + "}", pair.Value, StringComparison.Ordinal);
-                return Task.FromResult(text);
-            });
-        return resolver;
-    }
-
     private static async Task<Harness> BuildAsync()
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
@@ -90,7 +66,7 @@ public sealed class PollEndedChatLineTests
         EventResponseExecutor executor = new(
             db,
             Substitute.For<IPipelineEngine>(),
-            SubstitutingResolver(),
+            TestTemplateResolver.Create(),
             TestReplyDispatcher.OverProvider(chat),
             new OutboundSanctionAccessor(),
             Substitute.For<IEventResponseOverlayNotifier>(),

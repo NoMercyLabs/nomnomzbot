@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Commands.Dtos;
@@ -45,32 +44,6 @@ public sealed class CommandsBuiltinTests
             RoleLevel = roleLevel,
             CommandPrefix = commandPrefix,
         };
-
-    private static IBuiltinResponseComposer FakeComposer()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return Task.FromResult(template);
-            });
-        return new BuiltinResponseComposer(
-            resolver,
-            NoPlatformBuiltinReplies.Instance,
-            FakeChannelBuiltinReplies.None
-        );
-    }
 
     private static IServiceProvider FakeServiceProvider(IBuiltinCommandService builtins)
     {
@@ -135,7 +108,11 @@ public sealed class CommandsBuiltinTests
                 ])
             );
 
-        CommandsBuiltin builtin = new(commands, FakeServiceProvider(builtins), FakeComposer());
+        CommandsBuiltin builtin = new(
+            commands,
+            FakeServiceProvider(builtins),
+            TestBuiltinComposer.Create()
+        );
 
         Result<string> result = await builtin.ExecuteAsync(Context());
 
@@ -175,7 +152,11 @@ public sealed class CommandsBuiltinTests
                 ])
             );
 
-        CommandsBuiltin builtin = new(commands, FakeServiceProvider(builtins), FakeComposer());
+        CommandsBuiltin builtin = new(
+            commands,
+            FakeServiceProvider(builtins),
+            TestBuiltinComposer.Create()
+        );
 
         Result<string> result = await builtin.ExecuteAsync(Context());
 
@@ -201,7 +182,11 @@ public sealed class CommandsBuiltinTests
             .ListAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<BuiltinCommandDto>>([]));
 
-        CommandsBuiltin builtin = new(commands, FakeServiceProvider(builtins), FakeComposer());
+        CommandsBuiltin builtin = new(
+            commands,
+            FakeServiceProvider(builtins),
+            TestBuiltinComposer.Create()
+        );
 
         Result<string> sassy = await builtin.ExecuteAsync(Context(PersonalityTone.Sassy));
         Result<string> informative = await builtin.ExecuteAsync(Context());
@@ -267,7 +252,7 @@ public sealed class CommandsBuiltinTests
         builtins
             .ListAsync(Arg.Any<string>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success(builtinDtos));
-        return new(commands, FakeServiceProvider(builtins), FakeComposer());
+        return new(commands, FakeServiceProvider(builtins), TestBuiltinComposer.Create());
     }
 
     [Fact]

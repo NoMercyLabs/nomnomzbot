@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -586,27 +585,10 @@ public sealed class SongRequestBuiltinTests
             )
             .Returns(requestResult);
 
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                IDictionary<string, string> variables = call.ArgAt<IDictionary<string, string>>(1);
-                foreach (KeyValuePair<string, string> variable in variables)
-                    template = template.Replace($"{{{variable.Key}}}", variable.Value);
-                return Task.FromResult(template);
-            });
-
         return new(
             music,
             new BuiltinResponseComposer(
-                resolver,
+                TestTemplateResolver.Create(),
                 NoPlatformBuiltinReplies.Instance,
                 channelReplies ?? FakeChannelBuiltinReplies.None
             ),

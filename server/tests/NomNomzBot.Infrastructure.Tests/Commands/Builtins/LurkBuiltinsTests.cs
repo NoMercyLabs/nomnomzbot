@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -46,32 +45,6 @@ public sealed class LurkBuiltinsTests
             Personality = personality,
             TriggeringPlatform = platform,
         };
-
-    private static IBuiltinResponseComposer FakeComposer()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return Task.FromResult(template);
-            });
-        return new BuiltinResponseComposer(
-            resolver,
-            NoPlatformBuiltinReplies.Instance,
-            FakeChannelBuiltinReplies.None
-        );
-    }
 
     private static IUserService FakeUsers() =>
         Substitute
@@ -119,7 +92,7 @@ public sealed class LurkBuiltinsTests
             FakeUsers(),
             db,
             BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
-            FakeComposer()
+            TestBuiltinComposer.Create()
         );
 
         Result<string> result = await builtin.ExecuteAsync(Context());
@@ -149,7 +122,7 @@ public sealed class LurkBuiltinsTests
             FakeUsers(),
             db,
             BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
-            FakeComposer()
+            TestBuiltinComposer.Create()
         );
 
         Result<string> sassy = await builtin.ExecuteAsync(Context(PersonalityTone.Sassy));
@@ -193,7 +166,7 @@ public sealed class LurkBuiltinsTests
             FakeUsers(),
             db,
             BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
-            FakeComposer()
+            TestBuiltinComposer.Create()
         );
 
         Result<string> result = await builtin.ExecuteAsync(Context());
@@ -259,7 +232,7 @@ public sealed class LurkBuiltinsTests
             users,
             db,
             BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
-            FakeComposer()
+            TestBuiltinComposer.Create()
         ).ExecuteAsync(Context(platform: AuthEnums.Platform.Kick));
 
         await users

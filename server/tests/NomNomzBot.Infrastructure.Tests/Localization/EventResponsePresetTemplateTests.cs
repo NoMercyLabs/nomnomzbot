@@ -9,10 +9,10 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using System.Text.RegularExpressions;
 using FluentAssertions;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Infrastructure.Platform.Templating.Parsing;
 
 namespace NomNomzBot.Infrastructure.Tests.Localization;
 
@@ -23,7 +23,7 @@ namespace NomNomzBot.Infrastructure.Tests.Localization;
 /// <c>{placeholder}</c> in chat), in both languages. A translator who invents <c>{viewer}</c> where the event
 /// only seeds <c>{user}</c> fails here, not in the streamer's chat.
 /// </summary>
-public sealed partial class EventResponsePresetTemplateTests
+public sealed class EventResponsePresetTemplateTests
 {
     [Fact]
     public void Every_english_and_dutch_template_uses_only_variables_its_event_actually_seeds()
@@ -41,14 +41,18 @@ public sealed partial class EventResponsePresetTemplateTests
                 .Should()
                 .BeTrue($"'{preset.EventType}' needs a Dutch default template");
 
-            PlaceholdersIn(english)
+            TemplateTree
+                .StaticPlaceholders(TemplateParser.Parse(english))
+                .Select(token => token.StaticContent)
                 .Should()
                 .BeSubsetOf(
                     preset.Variables,
                     "the {0} English preset must never advertise a placeholder its trigger source won't fill",
                     preset.EventType
                 );
-            PlaceholdersIn(dutch)
+            TemplateTree
+                .StaticPlaceholders(TemplateParser.Parse(dutch))
+                .Select(token => token.StaticContent)
                 .Should()
                 .BeSubsetOf(
                     preset.Variables,
@@ -57,10 +61,4 @@ public sealed partial class EventResponsePresetTemplateTests
                 );
         }
     }
-
-    private static IReadOnlyList<string> PlaceholdersIn(string template) =>
-        [.. PlaceholderPattern().Matches(template).Select(match => match.Groups[1].Value)];
-
-    [GeneratedRegex(@"\{([^{}]+)\}")]
-    private static partial Regex PlaceholderPattern();
 }

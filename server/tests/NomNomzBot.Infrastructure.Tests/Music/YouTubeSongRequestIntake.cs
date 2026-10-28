@@ -11,7 +11,6 @@
 
 using System.Net;
 using Microsoft.Extensions.Logging.Abstractions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Services;
@@ -196,26 +195,11 @@ internal sealed class YouTubeSongRequestIntake
         return service;
     }
 
-    /// <summary>The shipped catalogue through the real composer, with a plain {variable} substitution.</summary>
-    private static BuiltinResponseComposer RealComposer()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                IDictionary<string, string> variables = call.ArgAt<IDictionary<string, string>>(1);
-                foreach (KeyValuePair<string, string> variable in variables)
-                    template = template.Replace($"{{{variable.Key}}}", variable.Value);
-                return Task.FromResult(template);
-            });
-
-        return new(resolver, NoPlatformBuiltinReplies.Instance, FakeChannelBuiltinReplies.None);
-    }
+    /// <summary>The shipped catalogue through the real composer and the real template resolver.</summary>
+    private static BuiltinResponseComposer RealComposer() =>
+        new(
+            TestTemplateResolver.Create(),
+            NoPlatformBuiltinReplies.Instance,
+            FakeChannelBuiltinReplies.None
+        );
 }

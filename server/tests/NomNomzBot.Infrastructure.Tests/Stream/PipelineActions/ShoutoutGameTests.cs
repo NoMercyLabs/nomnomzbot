@@ -105,21 +105,7 @@ public sealed class ShoutoutGameTests
         users
             .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<TwitchUser>>([User()]));
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = (string)call[0];
-                foreach (KeyValuePair<string, string> kv in (IDictionary<string, string>)call[1])
-                    template = template.Replace("{" + kv.Key + "}", kv.Value);
-                return Task.FromResult(template);
-            });
+        ITemplateResolver resolver = TestTemplateResolver.Create();
 
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(

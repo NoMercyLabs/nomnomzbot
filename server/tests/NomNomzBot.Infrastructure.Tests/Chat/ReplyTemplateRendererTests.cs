@@ -30,7 +30,7 @@ public sealed class ReplyTemplateRendererTests
     [Fact]
     public async Task Chat_only_resolves_once_for_chat_and_has_no_overlay_text()
     {
-        SubstitutingTemplateResolver resolver = new();
+        RecordingTemplateResolver resolver = new();
 
         RenderedReply rendered = await ReplyTemplateRenderer.RenderAsync(
             resolver,
@@ -49,7 +49,7 @@ public sealed class ReplyTemplateRendererTests
     [Fact]
     public async Task Overlay_with_html_encodes_every_variable_and_leaves_the_chat_text_empty()
     {
-        SubstitutingTemplateResolver resolver = new();
+        RecordingTemplateResolver resolver = new();
 
         RenderedReply rendered = await ReplyTemplateRenderer.RenderAsync(
             resolver,
@@ -70,7 +70,7 @@ public sealed class ReplyTemplateRendererTests
     [Fact]
     public async Task Both_with_html_keeps_the_chat_text_raw_and_encodes_only_the_overlay_text()
     {
-        SubstitutingTemplateResolver resolver = new();
+        RecordingTemplateResolver resolver = new();
 
         RenderedReply rendered = await ReplyTemplateRenderer.RenderAsync(
             resolver,
@@ -88,7 +88,7 @@ public sealed class ReplyTemplateRendererTests
     [Fact]
     public async Task Both_without_html_shows_the_same_resolved_text_in_both_places_after_one_resolve()
     {
-        SubstitutingTemplateResolver resolver = new();
+        RecordingTemplateResolver resolver = new();
 
         RenderedReply rendered = await ReplyTemplateRenderer.RenderAsync(
             resolver,
@@ -106,7 +106,7 @@ public sealed class ReplyTemplateRendererTests
     [Fact]
     public async Task Overlay_without_html_resolves_plain_variables_for_the_overlay_only()
     {
-        SubstitutingTemplateResolver resolver = new();
+        RecordingTemplateResolver resolver = new();
 
         RenderedReply rendered = await ReplyTemplateRenderer.RenderAsync(
             resolver,
@@ -124,7 +124,7 @@ public sealed class ReplyTemplateRendererTests
     [Fact]
     public async Task None_resolves_nothing()
     {
-        SubstitutingTemplateResolver resolver = new();
+        RecordingTemplateResolver resolver = new();
 
         RenderedReply rendered = await ReplyTemplateRenderer.RenderAsync(
             resolver,

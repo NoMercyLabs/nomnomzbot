@@ -13,15 +13,12 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Abstractions.Templating;
-using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Music;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Music.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Infrastructure.Commands.Builtins;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Music.PipelineActions;
 using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
@@ -77,33 +74,6 @@ public sealed class MusicPipelineActionsTests
                 p => JsonSerializer.SerializeToElement(p.Value)
             ),
         };
-
-    /// <summary>The real composer over the shipped tone catalog; the resolver only fills <c>{variable}</c> tokens.</summary>
-    private static IBuiltinResponseComposer BangerComposer()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return Task.FromResult(template);
-            });
-        return new BuiltinResponseComposer(
-            resolver,
-            NoPlatformBuiltinReplies.Instance,
-            FakeChannelBuiltinReplies.None
-        );
-    }
 
     private static NowPlaying Playing(
         string uri = "spotify:track:current",
@@ -285,7 +255,7 @@ public sealed class MusicPipelineActionsTests
             manage,
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
-            BangerComposer(),
+            TestBuiltinComposer.Create(),
             Substitute.For<IChannelRegistry>(),
             NullLogger<PlaylistAddAction>.Instance
         );
@@ -333,7 +303,7 @@ public sealed class MusicPipelineActionsTests
             manage,
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
-            BangerComposer(),
+            TestBuiltinComposer.Create(),
             Substitute.For<IChannelRegistry>(),
             NullLogger<PlaylistAddAction>.Instance
         );
@@ -377,7 +347,7 @@ public sealed class MusicPipelineActionsTests
             manage,
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
-            BangerComposer(),
+            TestBuiltinComposer.Create(),
             Substitute.For<IChannelRegistry>(),
             NullLogger<PlaylistAddAction>.Instance
         );
@@ -417,7 +387,7 @@ public sealed class MusicPipelineActionsTests
             manage,
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
-            BangerComposer(),
+            TestBuiltinComposer.Create(),
             Substitute.For<IChannelRegistry>(),
             NullLogger<PlaylistAddAction>.Instance
         );
@@ -452,7 +422,7 @@ public sealed class MusicPipelineActionsTests
             manage,
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
-            BangerComposer(),
+            TestBuiltinComposer.Create(),
             Substitute.For<IChannelRegistry>(),
             NullLogger<PlaylistAddAction>.Instance
         );
@@ -493,7 +463,7 @@ public sealed class MusicPipelineActionsTests
             manage,
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
-            BangerComposer(),
+            TestBuiltinComposer.Create(),
             Substitute.For<IChannelRegistry>(),
             NullLogger<PlaylistAddAction>.Instance
         );
@@ -559,7 +529,7 @@ public sealed class MusicPipelineActionsTests
             manage,
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
-            BangerComposer(),
+            TestBuiltinComposer.Create(),
             Substitute.For<IChannelRegistry>(),
             NullLogger<PlaylistAddAction>.Instance
         );
@@ -628,7 +598,7 @@ public sealed class MusicPipelineActionsTests
             manage,
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
-            BangerComposer(),
+            TestBuiltinComposer.Create(),
             Substitute.For<IChannelRegistry>(),
             NullLogger<PlaylistAddAction>.Instance
         );
@@ -812,7 +782,7 @@ public sealed class MusicPipelineActionsTests
             manage,
             chat,
             DiscordTemplateTestSupport.CreateResolver(),
-            BangerComposer(),
+            TestBuiltinComposer.Create(),
             Substitute.For<IChannelRegistry>(),
             NullLogger<PlaylistAddAction>.Instance
         );
@@ -850,7 +820,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -881,7 +851,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -908,7 +878,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -944,7 +914,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -989,7 +959,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1025,7 +995,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1052,7 +1022,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1087,7 +1057,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1130,7 +1100,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1168,7 +1138,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1211,7 +1181,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1245,7 +1215,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1276,7 +1246,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1319,7 +1289,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1345,7 +1315,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1379,7 +1349,7 @@ public sealed class MusicPipelineActionsTests
             music,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1436,7 +1406,7 @@ public sealed class MusicPipelineActionsTests
             music,
             db,
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1476,7 +1446,7 @@ public sealed class MusicPipelineActionsTests
             music,
             db,
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1511,7 +1481,7 @@ public sealed class MusicPipelineActionsTests
             music,
             db,
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 
@@ -1544,7 +1514,7 @@ public sealed class MusicPipelineActionsTests
             music,
             db,
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
 

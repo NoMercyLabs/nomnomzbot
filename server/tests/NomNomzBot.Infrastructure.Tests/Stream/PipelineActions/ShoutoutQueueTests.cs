@@ -114,21 +114,7 @@ public sealed class ShoutoutQueueTests
                 )
             );
 
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = (string)call[0];
-                foreach (KeyValuePair<string, string> kv in (IDictionary<string, string>)call[1])
-                    template = template.Replace("{" + kv.Key + "}", kv.Value);
-                return Task.FromResult(template);
-            });
+        ITemplateResolver resolver = TestTemplateResolver.Create();
 
         ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
         tts.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
@@ -579,7 +565,7 @@ public sealed class ShoutoutQueueTests
             .BotChat.Received(1)
             .SendMessageAsync(
                 Channel,
-                Arg.Is<string>(text => text.Contains("Name" + ManualId)),
+                "Shoutout for login" + ManualId + " queued.",
                 Arg.Any<CancellationToken>()
             );
     }

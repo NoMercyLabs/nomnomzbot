@@ -11,7 +11,6 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -20,6 +19,7 @@ using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
+using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Tests.Music;
 using NSubstitute;
 using ContractPlaylist = NomNomzBot.Application.Contracts.Music.MusicPlaylistDto;
@@ -58,7 +58,7 @@ public sealed class BangerBuiltinTests : IDisposable
             _music,
             _playlists,
             _config.Service,
-            FakeComposer(),
+            TestBuiltinComposer.Create(),
             NullLogger<BangerBuiltin>.Instance
         );
 
@@ -71,32 +71,6 @@ public sealed class BangerBuiltinTests : IDisposable
             RoleLevel = 0,
             Personality = personality,
         };
-
-    private static IBuiltinResponseComposer FakeComposer()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return Task.FromResult(template);
-            });
-        return new BuiltinResponseComposer(
-            resolver,
-            NoPlatformBuiltinReplies.Instance,
-            FakeChannelBuiltinReplies.None
-        );
-    }
 
     private void Playing() =>
         _music
@@ -160,17 +134,30 @@ public sealed class BangerBuiltinTests : IDisposable
                 Arg.Any<CancellationToken>()
             );
 
-    private static List<string> Texts(string slot, string playlistName = PlaylistName) =>
-        [
-            .. ToneTemplateCatalog
-                .Get(PersonalityTone.Sassy, BuiltinResponseSlots.Banger.Key, slot)
-                .Select(t =>
-                    t.Replace("{user}", "Viewer1")
-                        .Replace("{track.name}", TrackName)
-                        .Replace("{track.artist}", TrackArtist)
-                        .Replace("{playlist.name}", playlistName)
-                ),
-        ];
+    private static async Task<List<string>> TextsAsync(
+        string slot,
+        string playlistName = PlaylistName
+    )
+    {
+        Dictionary<string, string> variables = new()
+        {
+            ["user"] = "Viewer1",
+            ["track.name"] = TrackName,
+            ["track.artist"] = TrackArtist,
+            ["playlist.name"] = playlistName,
+        };
+        TemplateResolver resolver = TestTemplateResolver.Create();
+        List<string> texts = [];
+        foreach (
+            string template in ToneTemplateCatalog.Get(
+                PersonalityTone.Sassy,
+                BuiltinResponseSlots.Banger.Key,
+                slot
+            )
+        )
+            texts.Add(await resolver.ResolveAsync(template, variables, null));
+        return texts;
+    }
 
     [Fact]
     public async Task A_new_track_is_added_to_the_configured_playlist_once()
@@ -183,7 +170,7 @@ public sealed class BangerBuiltinTests : IDisposable
         Result<string> reply = await Sut().ExecuteAsync(Context());
 
         await AddReceived(1, "pl1");
-        Texts(BuiltinResponseSlots.Banger.Added).Should().Contain(reply.Value);
+        (await TextsAsync(BuiltinResponseSlots.Banger.Added)).Should().Contain(reply.Value);
         reply.Value.Should().Contain(TrackName);
     }
 
@@ -242,7 +229,7 @@ public sealed class BangerBuiltinTests : IDisposable
         Result<string> reply = await Sut().ExecuteAsync(Context());
 
         await AddReceived(0, "pl1");
-        Texts(BuiltinResponseSlots.Banger.AlreadyThere)
+        (await TextsAsync(BuiltinResponseSlots.Banger.AlreadyThere))
             .Should()
             .HaveCount(10)
             .And.Contain(reply.Value);
@@ -295,7 +282,9 @@ public sealed class BangerBuiltinTests : IDisposable
         saved.BangerPlaylistProvider.Should().Be("spotify");
         await AddReceived(1, "new-pl");
         reply.Value.Should().Contain("Bangers");
-        Texts(BuiltinResponseSlots.Banger.Added, "Bangers").Should().Contain(reply.Value);
+        (await TextsAsync(BuiltinResponseSlots.Banger.Added, "Bangers"))
+            .Should()
+            .Contain(reply.Value);
     }
 
     [Fact]
@@ -306,7 +295,7 @@ public sealed class BangerBuiltinTests : IDisposable
         Result<string> reply = await Sut().ExecuteAsync(Context());
 
         _playlists.ReceivedCalls().Should().BeEmpty();
-        Texts(BuiltinResponseSlots.Banger.NoPlaylist).Should().Contain(reply.Value);
+        (await TextsAsync(BuiltinResponseSlots.Banger.NoPlaylist)).Should().Contain(reply.Value);
     }
 
     [Fact]
@@ -319,7 +308,7 @@ public sealed class BangerBuiltinTests : IDisposable
         Result<string> reply = await Sut().ExecuteAsync(Context());
 
         _playlists.ReceivedCalls().Should().BeEmpty();
-        Texts(BuiltinResponseSlots.Banger.Nothing).Should().Contain(reply.Value);
+        (await TextsAsync(BuiltinResponseSlots.Banger.Nothing)).Should().Contain(reply.Value);
     }
 
     [Fact]
@@ -332,6 +321,6 @@ public sealed class BangerBuiltinTests : IDisposable
         Result<string> reply = await Sut().ExecuteAsync(Context());
 
         await AddReceived(0, "pl1");
-        Texts(BuiltinResponseSlots.Banger.Failed).Should().Contain(reply.Value);
+        (await TextsAsync(BuiltinResponseSlots.Banger.Failed)).Should().Contain(reply.Value);
     }
 }

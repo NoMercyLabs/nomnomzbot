@@ -10,11 +10,9 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
-using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 
@@ -28,32 +26,9 @@ public sealed class BuiltinResponseComposerTests
 {
     private static readonly Guid Channel = Guid.Parse("0198c000-0000-7000-8000-0000000000f1");
 
-    /// <summary>A resolver double that performs literal <c>{key}</c> substitution — no DB/registry needed.</summary>
-    private static ITemplateResolver FakeResolver()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return Task.FromResult(template);
-            });
-        return resolver;
-    }
-
     private static BuiltinResponseComposer Sut(FakeChannelBuiltinReplies? channelReplies = null) =>
         new(
-            FakeResolver(),
+            TestTemplateResolver.Create(),
             NoPlatformBuiltinReplies.Instance,
             channelReplies ?? FakeChannelBuiltinReplies.None
         );

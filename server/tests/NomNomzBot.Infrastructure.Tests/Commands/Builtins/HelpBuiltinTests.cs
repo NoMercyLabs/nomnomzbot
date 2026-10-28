@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Commands.Dtos;
@@ -45,32 +44,6 @@ public sealed class HelpBuiltinTests
             Personality = personality,
             CommandPrefix = prefix,
         };
-
-    private static IBuiltinResponseComposer FakeComposer()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return Task.FromResult(template);
-            });
-        return new BuiltinResponseComposer(
-            resolver,
-            NoPlatformBuiltinReplies.Instance,
-            FakeChannelBuiltinReplies.None
-        );
-    }
 
     private static CommandDto FakeCommand(string name, string? description) =>
         new(
@@ -117,8 +90,8 @@ public sealed class HelpBuiltinTests
 
         HelpBuiltin help = new(
             commands,
-            new CommandsBuiltin(commands, EmptyBuiltins(), FakeComposer()),
-            FakeComposer()
+            new CommandsBuiltin(commands, EmptyBuiltins(), TestBuiltinComposer.Create()),
+            TestBuiltinComposer.Create()
         );
 
         Result<string> result = await help.ExecuteAsync(Context("sr"));
@@ -137,8 +110,8 @@ public sealed class HelpBuiltinTests
 
         HelpBuiltin help = new(
             commands,
-            new CommandsBuiltin(commands, EmptyBuiltins(), FakeComposer()),
-            FakeComposer()
+            new CommandsBuiltin(commands, EmptyBuiltins(), TestBuiltinComposer.Create()),
+            TestBuiltinComposer.Create()
         );
 
         Result<string> sassy = await help.ExecuteAsync(
@@ -201,8 +174,8 @@ public sealed class HelpBuiltinTests
             .Returns(Result.Success(new PagedList<CommandListItem>([], 1, 100, 0)));
         return new(
             commands,
-            new CommandsBuiltin(commands, serviceProvider, FakeComposer()),
-            FakeComposer()
+            new CommandsBuiltin(commands, serviceProvider, TestBuiltinComposer.Create()),
+            TestBuiltinComposer.Create()
         );
     }
 

@@ -15,6 +15,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Infrastructure.Music.PipelineActions;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -54,7 +55,7 @@ public sealed class SongWrongByQueueNumberTests
             music,
             MusicTestDbContext.New(),
             chat,
-            WrongSongTestComposer.Create(),
+            TestBuiltinComposer.Create(),
             NullLogger<SongWrongAction>.Instance
         );
         return (action, music, chat);
@@ -99,7 +100,7 @@ public sealed class SongWrongByQueueNumberTests
         await chat.Received(1)
             .SendMessageAsync(
                 ChannelId,
-                Arg.Is<string>(m => m.Contains("#2")),
+                "You can only skip songs you requested yourself.",
                 Arg.Any<CancellationToken>()
             );
     }
@@ -115,7 +116,7 @@ public sealed class SongWrongByQueueNumberTests
         await chat.Received(1)
             .SendMessageAsync(
                 ChannelId,
-                Arg.Is<string>(m => m.Contains("#9")),
+                "@Bamo You don't have a request at position 9.",
                 Arg.Any<CancellationToken>()
             );
     }

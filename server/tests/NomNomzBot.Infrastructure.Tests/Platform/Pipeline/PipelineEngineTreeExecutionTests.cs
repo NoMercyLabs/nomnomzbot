@@ -2091,26 +2091,6 @@ public sealed class PipelineEngineTreeExecutionTests
 
     // ─── S-PIPE-TREE-d2b(a): named parameters ──────────────────────────────────
 
-    /// <summary>Resolves <c>{{key}}</c> placeholders against whatever <c>seedVariables</c> the engine
-    /// hands it — a real substitution, not the default echo stub, so a test can prove a template
-    /// argument actually resolved rather than merely being passed through unresolved.</summary>
-    private sealed class SubstitutingResolver : ITemplateResolver
-    {
-        public string Resolve(string template, IDictionary<string, string> variables) =>
-            System.Text.RegularExpressions.Regex.Replace(
-                template,
-                @"\{\{(.*?)\}\}",
-                m => variables.TryGetValue(m.Groups[1].Value, out string? v) ? v : m.Value
-            );
-
-        public Task<string> ResolveAsync(
-            string template,
-            IDictionary<string, string> seedVariables,
-            Guid? broadcasterId,
-            CancellationToken cancellationToken = default
-        ) => Task.FromResult(Resolve(template, seedVariables));
-    }
-
     [Fact]
     public async Task RunPipelineInline_NamedArgs_BindByName_RegardlessOfCallerOrder()
     {
@@ -2200,7 +2180,7 @@ public sealed class PipelineEngineTreeExecutionTests
             0,
             "run_pipeline",
             $$$"""
-            {"type":"run_pipeline","pipeline":"{{{calleePipelineId}}}","mode":"inline","named_args":{"greeting":"{{user.name}}"}}
+            {"type":"run_pipeline","pipeline":"{{{calleePipelineId}}}","mode":"inline","named_args":{"greeting":"{user.name}"}}
             """
         );
 
@@ -2215,7 +2195,7 @@ public sealed class PipelineEngineTreeExecutionTests
         PipelineEngine engine = CreateEngine(
             db,
             [greetingRecorder],
-            resolverOverride: new SubstitutingResolver()
+            resolverOverride: TestTemplateResolver.Create()
         );
         PipelineExecutionResult result = await engine.ExecuteAsync(
             BuildRequest(
@@ -2292,7 +2272,7 @@ public sealed class PipelineEngineTreeExecutionTests
             null,
             0,
             "return_value",
-            """{"type":"return_value","value":"{{stream.title}}"}"""
+            """{"type":"return_value","value":"{stream.title}"}"""
         );
         PipelineStep callerRunPipeline = NewLeaf(
             callerPipelineId,
@@ -2322,7 +2302,7 @@ public sealed class PipelineEngineTreeExecutionTests
         PipelineEngine engine = CreateEngine(
             db,
             [resultRecorder],
-            resolverOverride: new SubstitutingResolver()
+            resolverOverride: TestTemplateResolver.Create()
         );
         PipelineExecutionResult result = await engine.ExecuteAsync(
             BuildRequest(

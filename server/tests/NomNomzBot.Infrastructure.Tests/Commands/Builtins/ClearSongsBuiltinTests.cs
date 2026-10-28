@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
@@ -39,31 +38,6 @@ public sealed class ClearSongsBuiltinTests
             RoleLevel = 4,
         };
 
-    private static IBuiltinResponseComposer Composer()
-    {
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string text = call.ArgAt<string>(0);
-                IDictionary<string, string> vars = call.ArgAt<IDictionary<string, string>>(1);
-                foreach (KeyValuePair<string, string> pair in vars)
-                    text = text.Replace("{" + pair.Key + "}", pair.Value);
-                return Task.FromResult(text);
-            });
-        return new BuiltinResponseComposer(
-            resolver,
-            NoPlatformBuiltinReplies.Instance,
-            FakeChannelBuiltinReplies.None
-        );
-    }
-
     private static IMusicService Music(int removed)
     {
         IMusicService music = Substitute.For<IMusicService>();
@@ -81,7 +55,11 @@ public sealed class ClearSongsBuiltinTests
     public async Task Without_the_grant_it_is_refused_and_removes_nothing()
     {
         IMusicService music = Music(3);
-        ClearSongsBuiltin builtin = new(music, Composer(), MusicGateTestKit.Gate(false));
+        ClearSongsBuiltin builtin = new(
+            music,
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(false)
+        );
 
         bool available = await builtin.IsAvailableToAsync(Ctx("viewer1"));
         Result<string> result = await builtin.ExecuteAsync(Ctx("viewer1"));
@@ -100,7 +78,11 @@ public sealed class ClearSongsBuiltinTests
     public async Task It_removes_that_requesters_songs_and_says_how_many(string args)
     {
         IMusicService music = Music(3);
-        ClearSongsBuiltin builtin = new(music, Composer(), MusicGateTestKit.Gate(true));
+        ClearSongsBuiltin builtin = new(
+            music,
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(true)
+        );
 
         Result<string> result = await builtin.ExecuteAsync(Ctx(args));
 
@@ -119,7 +101,11 @@ public sealed class ClearSongsBuiltinTests
     [Fact]
     public async Task It_says_when_that_user_had_nothing_queued()
     {
-        ClearSongsBuiltin builtin = new(Music(0), Composer(), MusicGateTestKit.Gate(true));
+        ClearSongsBuiltin builtin = new(
+            Music(0),
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(true)
+        );
 
         Result<string> result = await builtin.ExecuteAsync(Ctx("viewer1"));
 
@@ -130,7 +116,11 @@ public sealed class ClearSongsBuiltinTests
     public async Task Without_a_name_it_gives_the_usage_and_removes_nothing()
     {
         IMusicService music = Music(3);
-        ClearSongsBuiltin builtin = new(music, Composer(), MusicGateTestKit.Gate(true));
+        ClearSongsBuiltin builtin = new(
+            music,
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(true)
+        );
 
         Result<string> result = await builtin.ExecuteAsync(Ctx("  "));
 
@@ -151,7 +141,11 @@ public sealed class ClearSongsBuiltinTests
                 Arg.Any<CancellationToken>()
             )
             .Returns<Task<int>>(_ => throw new InvalidOperationException("provider down"));
-        ClearSongsBuiltin builtin = new(music, Composer(), MusicGateTestKit.Gate(true));
+        ClearSongsBuiltin builtin = new(
+            music,
+            TestBuiltinComposer.Create(),
+            MusicGateTestKit.Gate(true)
+        );
 
         Result<string> result = await builtin.ExecuteAsync(Ctx("viewer1"));
 
