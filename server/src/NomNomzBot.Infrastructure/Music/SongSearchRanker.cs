@@ -57,6 +57,23 @@ internal static class SongSearchRanker
         "lullaby",
     ];
 
+    /// <summary>Whole phrases that name a release of a song, never the song itself.</summary>
+    private static readonly string[] ReleaseLabels =
+    [
+        "radio edit",
+        "single version",
+        "album version",
+        "extended version",
+        "extended mix",
+        "original mix",
+        "remastered",
+        "remaster",
+        "official video",
+        "official audio",
+        "lyric video",
+        "lyrics",
+    ];
+
     /// <summary>Uploads around the song rather than of it — common on YouTube, never what "!sr song" meant.</summary>
     private static readonly string[] FillerPhrases =
     [
@@ -92,7 +109,7 @@ internal static class SongSearchRanker
             return null;
 
         string normalizedQuery = Normalize(query);
-        HashSet<string> queryWords = RealWords(normalizedQuery);
+        HashSet<string> queryWords = TitleQueryWords(normalizedQuery);
         string compactQuery = normalizedQuery.Replace(" ", string.Empty, StringComparison.Ordinal);
 
         List<(TrackInfo Hit, int Index)> survivors =
@@ -119,7 +136,7 @@ internal static class SongSearchRanker
     /// </summary>
     public static TrackInfo? Closest(string query, IReadOnlyList<TrackInfo> hits)
     {
-        HashSet<string> queryWords = RealWords(Normalize(query));
+        HashSet<string> queryWords = TitleQueryWords(Normalize(query));
         return hits.Select(
                 (hit, index) => (Hit: hit, Index: index, Coverage: TitleCoverage(hit, queryWords))
             )
@@ -222,6 +239,20 @@ internal static class SongSearchRanker
             return paddedHit.Contains(padded, StringComparison.Ordinal)
                 && !paddedQuery.Contains(padded, StringComparison.Ordinal);
         });
+    }
+
+    /// <summary>
+    /// The query's words that can name the song: a release label such as "radio edit" is on thousands of
+    /// songs, so it never counts towards a title match. A query that is only a label keeps it.
+    /// </summary>
+    private static HashSet<string> TitleQueryWords(string normalizedQuery)
+    {
+        string padded = $" {normalizedQuery} ";
+        foreach (string label in ReleaseLabels)
+            padded = padded.Replace($" {label} ", " ", StringComparison.Ordinal);
+
+        HashSet<string> words = RealWords(padded.Trim());
+        return words.Count == 0 ? RealWords(normalizedQuery) : words;
     }
 
     private static HashSet<string> RealWords(string normalized) =>

@@ -191,6 +191,36 @@ public sealed class SongSearchRankerTests
     }
 
     [Fact]
+    public void A_version_label_alone_does_not_make_another_song_the_requested_one()
+    {
+        TrackInfo? pick = SongSearchRanker.Pick(
+            "caramelldansen - radio edit",
+            [Hit("wrong", "Mr. Saxobeat - Radio Edit", "Alexandra Stan")]
+        );
+
+        pick.Should().BeNull();
+        SongSearchRanker
+            .Closest(
+                "caramelldansen - radio edit",
+                [Hit("wrong", "Mr. Saxobeat - Radio Edit", "Alexandra Stan")]
+            )
+            .Should()
+            .BeNull();
+    }
+
+    [Fact]
+    public void A_version_label_still_picks_the_right_song_when_the_title_matches()
+    {
+        TrackInfo pick = Pick(
+            "caramelldansen radio edit",
+            Hit("real", "Caramelldansen (Radio Edit)", "Caramella Girls"),
+            Hit("other", "Mr. Saxobeat - Radio Edit", "Alexandra Stan")
+        );
+
+        pick.ProviderTrackId.Should().Be("real");
+    }
+
+    [Fact]
     public void No_hits_pick_nothing()
     {
         SongSearchRanker.Pick("anything", []).Should().BeNull();
