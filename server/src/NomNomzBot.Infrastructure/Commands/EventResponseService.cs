@@ -166,6 +166,10 @@ public class EventResponseService : IEventResponseService
         if (targetOk.IsFailure)
             return targetOk.ToTyped<EventResponseDto>();
 
+        Result deliveryOk = request.ReplyDelivery.Check();
+        if (deliveryOk.IsFailure)
+            return deliveryOk.ToTyped<EventResponseDto>();
+
         // Rows are a fixed, seeded catalogue (EventResponseDefaultsSeeder seeds one disabled row per
         // catalog event type for every channel) — never user-created and never soft-deleted, so this is a
         // plain tenant-filtered lookup; there is no restore path and no per-channel enable cap

@@ -229,6 +229,7 @@ interface NnzDashboardChatMessageDto {
   provider: string;
   paint?: NnzChatPaintDto | null;
   isArtist: boolean;
+  overlayLine?: NnzOverlayLineDto | null;
 }
 
 interface NnzChatClearedDto {
@@ -780,6 +781,18 @@ interface NnzChatPaintDto {
   color?: string | null;
   textShadow?: string | null;
   isImageOnly: boolean;
+}
+
+/** What a chat widget needs to draw a bot overlay line beyond its text: the viewer who asked for it (drawn as "requested by ...", like the song request card; the line is never shown under the viewer's name) and the look the channel chose. A null look value means the widget's default for that part. */
+interface NnzOverlayLineDto {
+  /** The display name of the viewer who triggered the reply; null when nobody did. */
+  requestedBy?: string | null;
+  /** A design token name (primary | success | warning | destructive); null = the widget accent. */
+  highlight?: string | null;
+  /** normal | large. */
+  size: string;
+  /** How long the line stays before it fades; null = the widget's own show time. */
+  durationSeconds?: number | null;
 }
 
 interface NnzHypeTrainContributionDto {

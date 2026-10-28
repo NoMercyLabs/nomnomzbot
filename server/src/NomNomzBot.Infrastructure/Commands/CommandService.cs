@@ -163,6 +163,10 @@ public class CommandService : ICommandService
                 .ValidationFailed(UnknownRungMessage(request.MinPermissionLevel))
                 .ToTyped<CommandDto>();
 
+        Result deliveryOk = request.ReplyDelivery.Check();
+        if (deliveryOk.IsFailure)
+            return deliveryOk.ToTyped<CommandDto>();
+
         Command command = new()
         {
             BroadcasterId = broadcaster,
@@ -365,7 +369,13 @@ public class CommandService : ICommandService
         if (request.SpeakWithTts.HasValue)
             command.SpeakWithTts = request.SpeakWithTts.Value;
         if (request.ReplyDelivery is not null)
+        {
+            Result deliveryOk = request.ReplyDelivery.Check();
+            if (deliveryOk.IsFailure)
+                return deliveryOk.ToTyped<CommandDto>();
+
             command.ReplyDelivery = request.ReplyDelivery;
+        }
 
         await _db.SaveChangesAsync(cancellationToken);
         await _registry.InvalidateCommandsAsync(broadcaster, cancellationToken);

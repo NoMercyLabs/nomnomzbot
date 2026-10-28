@@ -8,7 +8,6 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
-using System.Net;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
@@ -93,17 +92,15 @@ public sealed class ReplyDispatcher(
     private async Task<bool> SendToOverlayAsync(ReplyRequest request, CancellationToken ct)
     {
         ChannelTwitchBot? bot = await bots.ResolveAsync(request.BroadcasterId, ct);
-        string text = WithAttribution(
-            request.OverlayText ?? request.Text,
-            request.RequestedBy,
-            request.Delivery.Html
-        );
+        string text = request.OverlayText ?? request.Text;
         ChatOverlayLine line = new(
             request.BroadcasterId,
             bot?.TwitchUserId ?? request.BroadcasterId.ToString(),
             bot?.Username ?? DbBotIdentityDirectory.FallbackName,
             request.Delivery.Html ? ChatHtmlSanitizer.Sanitize(text, _ => true) : text,
-            request.Delivery.Html
+            request.Delivery.Html,
+            string.IsNullOrWhiteSpace(request.RequestedBy) ? null : request.RequestedBy,
+            request.Delivery.Look
         );
 
         ChatOverlayDelivery delivery = await overlay.SendAsync(line, ct);
@@ -118,15 +115,5 @@ public sealed class ReplyDispatcher(
         );
         recovery.Schedule(request.BroadcasterId);
         return false;
-    }
-
-    private static string WithAttribution(string text, string? requestedBy, bool html)
-    {
-        if (string.IsNullOrWhiteSpace(requestedBy))
-            return text;
-
-        return html
-            ? $"{text}<br><small>requested by {WebUtility.HtmlEncode(requestedBy)}</small>"
-            : $"{text} (requested by {requestedBy})";
     }
 }

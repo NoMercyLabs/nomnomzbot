@@ -11,6 +11,7 @@
 using FluentAssertions;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform.Events;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Templating;
@@ -82,6 +83,53 @@ public sealed class TimerManagementServiceTests
         ).Value;
         updated.SpeakWithTts.Should().BeFalse();
         (await sut.GetAsync(Channel.ToString(), spoken.Id)).Value.SpeakWithTts.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task An_overlay_line_duration_outside_the_allowed_range_is_refused_on_create_and_update()
+    {
+        (TimerManagementService sut, RecordingEventBus bus, CommandsTestDbContext db) =
+            BuildWithDb();
+        ReplyLook look = new(ReplyHighlight.Primary, DurationSeconds: 30);
+        TimerDto good = (
+            await sut.CreateAsync(
+                Channel.ToString(),
+                new CreateTimerDto
+                {
+                    Name = "train",
+                    Messages = ["choo"],
+                    ReplyDelivery = new(ReplyTarget.Overlay, Look: look),
+                }
+            )
+        ).Value;
+        ReplyDelivery bad = new(ReplyTarget.Overlay, Look: new ReplyLook(DurationSeconds: -5));
+        bus.Published.Clear();
+
+        Result<TimerDto> created = await sut.CreateAsync(
+            Channel.ToString(),
+            new CreateTimerDto
+            {
+                Name = "other",
+                Messages = ["x"],
+                ReplyDelivery = bad,
+            }
+        );
+        Result<TimerDto> updated = await sut.UpdateAsync(
+            Channel.ToString(),
+            good.Id,
+            new UpdateTimerDto { ReplyDelivery = bad }
+        );
+
+        created.IsFailure.Should().BeTrue();
+        created.ErrorCode.Should().Be("VALIDATION_FAILED");
+        updated.IsFailure.Should().BeTrue();
+        updated.ErrorCode.Should().Be("VALIDATION_FAILED");
+        db.Timers.Should().ContainSingle();
+        // The test database does not map the column, so the tracked row is what shows an untouched look.
+        db.Timers.Single()
+            .ReplyDelivery.Should()
+            .Be(new ReplyDelivery(ReplyTarget.Overlay, Look: look));
+        bus.Published.Should().BeEmpty();
     }
 
     [Fact]

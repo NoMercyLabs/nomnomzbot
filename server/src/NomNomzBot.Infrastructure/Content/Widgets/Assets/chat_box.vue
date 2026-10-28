@@ -67,7 +67,7 @@ function hexLuminance(hex: string): number {
     const v: number = parseInt(full.slice(i, i + 2), 16) / 255
     return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4)
   })
-  return 0.2126 * channels[0] + 0.7152 * channels[1] + 0.0722 * channels[2]
+  return 0.2126 * (channels[0] ?? 0) + 0.7152 * (channels[1] ?? 0) + 0.0722 * (channels[2] ?? 0)
 }
 
 // WCAG contrast ratio between two relative luminances.
@@ -116,7 +116,7 @@ function headStyle(l: ChatLine): Record<string, string> {
     }
   }
   if (!image || image.startsWith('url(')) {
-    if (colors.length) style['background-color'] = colors[0]
+    if (colors.length) style['background-color'] = colors[0] ?? ''
   }
   const text: string = colors.length ? readableTextColor(colors) : '#ffffff'
   style.color = text
@@ -177,6 +177,41 @@ interface ChatFragment {
   gif?: { url?: string } | null
 }
 
+// How a reply the bot put on the overlay looks (the wire OverlayLineDto): who asked, a highlight named by design
+// token, a size and how long it stays. Absent on every ordinary chat line.
+interface LineLook {
+  requestedBy: string
+  highlight: string      // a key of HIGHLIGHT_COLORS, '' = none
+  large: boolean
+  durationSeconds: number // 0 = the widget's own fade setting
+}
+
+// The design tokens a channel can pick, as the dark-theme colors the dashboard shows. A token this widget does not
+// know is ignored, never drawn as a guess.
+const HIGHLIGHT_COLORS: Record<string, string> = {
+  primary: 'oklch(0.692953 0.114282 309.045)',
+  success: 'oklch(0.795095 0.234563 145.534)',
+  warning: 'oklch(0.8 0.16 75)',
+  destructive: 'oklch(0.710627 0.166148 22.216)',
+}
+
+function lookOf(value: unknown): LineLook | null {
+  if (!value || typeof value !== 'object') return null
+  const o: Payload = value as Payload
+  const highlight: string = typeof o.highlight === 'string' && o.highlight in HIGHLIGHT_COLORS ? o.highlight : ''
+  const seconds: number = Number(o.durationSeconds)
+  return {
+    requestedBy: typeof o.requestedBy === 'string' ? o.requestedBy.trim() : '',
+    highlight,
+    large: o.size === 'large',
+    durationSeconds: isFinite(seconds) && seconds > 0 ? seconds : 0,
+  }
+}
+
+function lookStyle(l: ChatLine): Record<string, string> {
+  return l.look && l.look.highlight ? { '--hl': HIGHLIGHT_COLORS[l.look.highlight] ?? '' } : {}
+}
+
 interface ChatLine {
   id: string
   // The RAW chat message id, unlike `id` which is suffixed with a sequence to stay unique when the same
@@ -204,6 +239,7 @@ interface ChatLine {
   replyMessageBody: string
   provider: string      // 'twitch' | 'kick' | 'youtube'
   paint: ChatPaint | null
+  look: LineLook | null // the bot overlay line's requester, highlight, size and duration
 }
 
 const PROVIDER_LABEL: Record<string, string> = { twitch: 'Twitch', kick: 'Kick', youtube: 'YouTube' }
@@ -330,14 +366,30 @@ function onChat(data: unknown): void {
     replyMessageBody: typeof m.replyParentMessageBody === 'string' ? m.replyParentMessageBody : '',
     provider: typeof m.provider === 'string' ? m.provider.toLowerCase() : 'twitch',
     paint: paintOf(m.paint),
+    look: lookOf(m.overlayLine),
   }
   const next: ChatLine[] = lines.value.concat([line])
   while (next.length > Math.max(1, cfg.maxMessages)) next.shift()
   lines.value = next
 
-  if (cfg.fadeAfterMs > 0) {
-    fadeTimers.push(window.setTimeout(() => { line.faded = true }, cfg.fadeAfterMs))
+  // A line with its own duration fades after it and is then removed; any other line follows the widget's fade setting.
+  const own: number = line.look ? line.look.durationSeconds * 1000 : 0
+  if (own > 0) {
+    fadeTimers.push(window.setTimeout(() => expire(line.id), own))
+  } else if (cfg.fadeAfterMs > 0) {
+    fadeTimers.push(window.setTimeout(() => fade(line.id), cfg.fadeAfterMs))
   }
+}
+
+// State flips go through the REACTIVE entry: `line` above is the raw object, and mutating it never notifies Vue.
+function fade(id: string): void {
+  const entry: ChatLine | undefined = lines.value.find((l: ChatLine) => l.id === id)
+  if (entry) entry.faded = true
+}
+
+function expire(id: string): void {
+  fade(id)
+  fadeTimers.push(window.setTimeout(() => { lines.value = lines.value.filter((l: ChatLine) => l.id !== id) }, 1000))
 }
 
 // A moderator (or Twitch AutoMod) deleted ONE message — Twitch removes it from its own chat immediately, so a
@@ -409,7 +461,9 @@ onUnmounted(() => {
       :key="l.id"
       class="line"
       :class="{ faded: l.faded, [`role-${l.role}`]: !!l.role, cheer: l.isCheer }"
-      :style="lineStyle"
+      :data-highlight="l.look?.highlight || undefined"
+      :data-size="l.look?.large ? 'large' : undefined"
+      :style="[lineStyle, lookStyle(l)]"
     >
       <span v-if="l.replyMessageBody" class="reply-preview">
         <span class="reply-arrow">↳</span>
@@ -471,6 +525,8 @@ onUnmounted(() => {
           </template>
         </template>
         <template v-else>{{ l.message }}</template>
+        <!-- Drawn as text (never markup), like the song request mark: the line is the bot's, the viewer only asked. -->
+        <span v-if="l.look && l.look.requestedBy" class="requested-by">requested by {{ l.look.requestedBy }}</span>
       </span>
     </div>
   </TransitionGroup>
@@ -535,6 +591,23 @@ onUnmounted(() => {
 .line.cheer {
   border-left: 3px solid #f2b21c;
   background: color-mix(in srgb, #f2b21c 12%, transparent);
+}
+/* The look a channel gave a bot overlay line: a highlight token (--hl) as the left edge plus a soft wash laid over
+   whatever background the theme or the channel set, and a larger size. */
+.line[data-highlight] {
+  border-left: 3px solid var(--hl);
+  box-shadow: inset 0 0 0 999px color-mix(in srgb, var(--hl) 12%, transparent);
+}
+.line[data-size='large'] {
+  font-size: 1.35em;
+}
+/* Small muted mark under the reply, the way the song request card marks its source. */
+.requested-by {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.8em;
+  line-height: 1.2;
+  opacity: 0.7;
 }
 .role-badge {
   font-size: 0.65em;

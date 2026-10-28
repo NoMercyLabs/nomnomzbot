@@ -651,8 +651,8 @@ public sealed class CommandInvokerTests
         line.BotUserId.Should().Be("bot-9");
         line.BotDisplayName.Should().Be("NomNomzBotLive");
         line.IsHtml.Should().BeTrue();
-        line.Text.Should()
-            .Be("resolved:<marquee>CHOO CHOO</marquee><br><small>requested by Viewer One</small>");
+        line.Text.Should().Be("resolved:<marquee>CHOO CHOO</marquee>");
+        line.RequestedBy.Should().Be("Viewer One");
     }
 
     [Fact]

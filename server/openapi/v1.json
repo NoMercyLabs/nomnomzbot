@@ -113934,6 +113934,16 @@
           "isArtist": {
             "type": "boolean",
             "default": false
+          },
+          "overlayLine": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/OverlayLine"
+              }
+            ]
           }
         },
         "description": "Rich chat message DTO sent to dashboard/overlay clients via SignalR. Includes structured fragments for\r\ninline emote, mention, and cheermote rendering; field names match the frontend ChatMessagePayload type\r\nexactly. `Message` is the raw plain-text fallback for clients that don't render fragments;\r\n`Fragments` are the structured text/emote/cheermote/mention pieces; `UserType` is the derived\r\nrole (broadcaster | moderator | vip | subscriber | viewer); `Color` is the user's chat color\r\n(#RRGGBB); `MessageType` is text | channel_points_highlighted | channel_points_sub_only | user_intro;\r\n`AvatarUrl` and `Pronouns` are additive hub-broadcast-layer enrichment (`IHubUserEnricher`),\r\nnull when unavailable."
@@ -122812,6 +122822,43 @@
         },
         "description": "One subscribable business event in the outbound webhook catalogue (webhooks.md §9). The string OutboundWebhookEventCatalogueEntry.EventType\r\nis the exact journaled event-type discriminator an endpoint puts in its `SubscribedEventTypes` (or `*`\r\nfor all); string OutboundWebhookEventCatalogueEntry.LabelKey and string OutboundWebhookEventCatalogueEntry.CategoryKey are dashboard string-resource keys (no prose —\r\nthe dashboard owns the translated text). Webhook-lifecycle events are deliberately absent — they are deny-listed to\r\nprevent self-amplification."
       },
+      "OverlayLine": {
+        "required": [
+          "size"
+        ],
+        "type": "object",
+        "properties": {
+          "requestedBy": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The display name of the viewer who triggered the reply; null when nobody did."
+          },
+          "highlight": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "A design token name (primary | success | warning | destructive); null = the widget accent."
+          },
+          "size": {
+            "type": "string",
+            "description": "normal | large."
+          },
+          "durationSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "description": "How long the line stays before it fades; null = the widget's own show time.",
+            "format": "int32"
+          }
+        },
+        "description": "What a chat widget needs to draw a bot overlay line beyond its text: the viewer who asked for it (drawn as\r\n\"requested by ...\", like the song request card; the line is never shown under the viewer's name) and the look\r\nthe channel chose. A null look value means the widget's default for that part."
+      },
       "OverlayManifest": {
         "required": [
           "channelId",
@@ -129360,9 +129407,64 @@
           "html": {
             "type": "boolean",
             "default": false
+          },
+          "look": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReplyLook"
+              }
+            ]
           }
         },
         "description": "How a channel-authored reply is delivered. bool ReplyDelivery.Html makes the overlay line render the authored\r\ntext as sanitized HTML; the platform chat always gets plain text. A missing value everywhere means\r\nReplyDelivery ReplyDelivery.ChatOnly, the behavior before this setting existed."
+      },
+      "ReplyHighlight": {
+        "enum": [
+          "primary",
+          "success",
+          "warning",
+          "destructive",
+          null
+        ]
+      },
+      "ReplyLook": {
+        "type": "object",
+        "properties": {
+          "highlight": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReplyHighlight"
+              }
+            ]
+          },
+          "size": {
+            "$ref": "#/components/schemas/ReplySize"
+          },
+          "durationSeconds": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "How a reply looks on the chat overlay: an optional highlight color (a design token name), a size, and how long\r\nthe line stays before it fades. A missing value means the overlay's own default for that part, so a null look\r\nchanges nothing about the line."
+      },
+      "ReplySize": {
+        "enum": [
+          "normal",
+          "large"
+        ],
+        "description": "How big a chat overlay line is drawn.",
+        "default": "normal"
       },
       "ReplyTarget": {
         "enum": [

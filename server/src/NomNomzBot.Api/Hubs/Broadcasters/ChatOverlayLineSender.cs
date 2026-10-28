@@ -13,6 +13,7 @@ using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Widgets.Entities;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
@@ -97,6 +98,18 @@ public sealed class ChatOverlayLineSender(
             ReplyToMessageId: null,
             ReplyParentMessageBody: null,
             ReplyParentUserName: null,
-            Timestamp: timeProvider.GetUtcNow().ToString("O")
+            Timestamp: timeProvider.GetUtcNow().ToString("O"),
+            OverlayLine: ToOverlayLine(line)
         );
+
+    private static OverlayLineDto ToOverlayLine(ChatOverlayLine line)
+    {
+        ReplyLook look = line.Look ?? ReplyLook.Default;
+        return new OverlayLineDto(
+            line.RequestedBy,
+            look.HighlightToken,
+            look.SizeToken,
+            look.DurationSeconds
+        );
+    }
 }

@@ -54,7 +54,26 @@ public record DashboardChatMessageDto(
     // absent (not an empty object) so a viewer with no paint produces no style attribute at all.
     ChatPaintDto? Paint = null,
     // True when Twitch's artist-badge is on the message (the channel named this chatter an artist).
-    bool IsArtist = false
+    bool IsArtist = false,
+    // Set only on a bot overlay line (MessageType overlay_line): who asked for it and how to draw it. Null on every
+    // ordinary chat message, so no other widget or client sees a change.
+    OverlayLineDto? OverlayLine = null
+);
+
+/// <summary>
+/// What a chat widget needs to draw a bot overlay line beyond its text: the viewer who asked for it (drawn as
+/// "requested by ...", like the song request card; the line is never shown under the viewer's name) and the look
+/// the channel chose. A null look value means the widget's default for that part.
+/// </summary>
+/// <param name="RequestedBy">The display name of the viewer who triggered the reply; null when nobody did.</param>
+/// <param name="Highlight">A design token name (primary | success | warning | destructive); null = the widget accent.</param>
+/// <param name="Size">normal | large.</param>
+/// <param name="DurationSeconds">How long the line stays before it fades; null = the widget's own show time.</param>
+public record OverlayLineDto(
+    string? RequestedBy,
+    string? Highlight,
+    string Size,
+    int? DurationSeconds
 );
 
 /// <summary>
