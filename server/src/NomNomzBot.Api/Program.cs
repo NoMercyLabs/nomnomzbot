@@ -10,12 +10,12 @@
 // -----------------------------------------------------------------------------
 
 using System.Reflection;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
 using Microsoft.AspNetCore.HttpOverrides;
 using Microsoft.Extensions.Diagnostics.HealthChecks;
 using Microsoft.IdentityModel.Tokens;
 using NomNomzBot.Api.AutomationStream;
 using NomNomzBot.Api.Configuration;
+using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.HealthChecks;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Overlay;
@@ -126,70 +126,11 @@ try
 
     builder.Services.AddDashboardResponseCompression();
 
-    // Controllers.
-    //
-    // Owned identifiers are UUIDv7 Guids in storage but are ULID strings on the wire (Identifiers/): the
-    // UlidGuidJsonConverter encodes/decodes every Guid in request + response bodies, and the model-binder provider
-    // (inserted ahead of the built-in simple-type binder) decodes a ULID-or-Guid route/query Guid. The guid route
-    // constraint is swapped below so {id:guid} also matches a 26-char ULID. Nothing internal changes.
-    builder
-        .Services.AddControllers(options =>
-        {
-            options.ModelBinderProviders.Insert(0, new UlidGuidModelBinderProvider());
-            options.Conventions.Add(new RateLimitReadTierConvention());
-            // Gate-2 pass -> the sanction the Helix transport demands for any outbound write.
-            options.Filters.Add<NomNomzBot.Api.Authorization.OutboundSanctionFilter>();
-        })
-        .AddJsonOptions(o =>
-        {
-            o.JsonSerializerOptions.PropertyNamingPolicy = System
-                .Text
-                .Json
-                .JsonNamingPolicy
-                .CamelCase;
-            o.JsonSerializerOptions.DefaultIgnoreCondition = System
-                .Text
-                .Json
-                .Serialization
-                .JsonIgnoreCondition
-                .WhenWritingNull;
-            OwnedIdJson.AddConverters(o.JsonSerializerOptions);
-        });
-
-    // Swap the built-in {x:guid} inline route constraint for one that accepts a ULID string too, so an owned-id
-    // route matches its ULID wire form (the built-in constraint would 404 a 26-char ULID before model binding).
-    builder.Services.Configure<RouteOptions>(options =>
-        options.ConstraintMap["guid"] = typeof(UlidOrGuidRouteConstraint)
-    );
-
-    // API Versioning
-    builder
-        .Services.AddApiVersioning(options =>
-        {
-            options.DefaultApiVersion = new(1, 0);
-            options.AssumeDefaultVersionWhenUnspecified = true;
-            options.ReportApiVersions = true;
-        })
-        .AddMvc();
+    // Controllers, the owned-id wire form (ULID), route constraints and API versioning.
+    builder.Services.AddApiControllers();
 
     // SignalR
-    builder
-        .Services.AddSignalR(options =>
-        {
-            options.EnableDetailedErrors = builder.Environment.IsDevelopment();
-            options.MaximumReceiveMessageSize = 128 * 1024;
-            options.KeepAliveInterval = TimeSpan.FromSeconds(15);
-            options.ClientTimeoutInterval = TimeSpan.FromSeconds(60);
-            options.HandshakeTimeout = TimeSpan.FromSeconds(15);
-            options.StatefulReconnectBufferSize = 100_000;
-        })
-        .AddJsonProtocol(options =>
-            // Hub JSON must speak the same owned-id form as REST: the same converters, from the same list.
-            OwnedIdJson.AddConverters(options.PayloadSerializerOptions)
-        )
-        // A widget runs its actions over this one socket (widget-sdk.md §8). One at a time, a widget that
-        // synthesizes several speech lines would wait for each before the next even starts.
-        .AddHubOptions<OverlayHub>(options => options.MaximumParallelInvocationsPerClient = 4);
+    builder.Services.AddApiSignalR(builder.Environment.IsDevelopment());
 
     // Overlay hub connection security (S035 item 3, U·B5/B7): the long-lived overlay token exchanges for a
     // short-lived, single-use ticket, and connection attempts are throttled per source. Singleton — the
@@ -281,45 +222,7 @@ try
     TokenValidationParameters bearerValidationParameters =
         bearerValidationFactory.GetValidationParameters();
 
-    builder
-        .Services.AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-        // Hub query-string tokens + the session-end checks (revoked sid, closed act-as grant) live in
-        // DashboardJwtBearer so tests authenticate through the exact same pipeline.
-        .AddJwtBearer(options =>
-            NomNomzBot.Api.Authentication.DashboardJwtBearer.Configure(
-                options,
-                bearerValidationParameters
-            )
-        )
-        // Automation data plane (automation-api.md D3/D4): channel API tokens over the
-        // Authorization header — a separate scheme so /automation/v1 never accepts a dashboard JWT.
-        .AddScheme<
-            Microsoft.AspNetCore.Authentication.AuthenticationSchemeOptions,
-            NomNomzBot.Api.Authentication.ApiTokenAuthenticationHandler
-        >(NomNomzBot.Api.Authentication.ApiTokenAuthenticationHandler.SchemeName, null);
-
-    builder.Services.AddAuthorization();
-    // A failed RequireAction answers which action, the role it needs and the role the caller holds.
-    builder.Services.AddSingleton<
-        Microsoft.AspNetCore.Authorization.IAuthorizationMiddlewareResultHandler,
-        NomNomzBot.Api.Authorization.ForbiddenActionResultHandler
-    >();
-
-    // Roles-permissions Gate 2 (§6) + Plane-C IAM (§3.7): ONE dynamic policy provider that synthesizes
-    // rbac:<actionKey> policies (Gate-2 handler over IActionAuthorizationService) and verbatim
-    // IamPermission-key policies (Plane-C handler over IPlatformIamService, audited on SaaS).
-    builder.Services.AddSingleton<
-        Microsoft.AspNetCore.Authorization.IAuthorizationPolicyProvider,
-        NomNomzBot.Api.Authorization.ActionAuthorizationPolicyProvider
-    >();
-    builder.Services.AddScoped<
-        Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
-        NomNomzBot.Api.Authorization.ActionAuthorizationHandler
-    >();
-    builder.Services.AddScoped<
-        Microsoft.AspNetCore.Authorization.IAuthorizationHandler,
-        NomNomzBot.Api.Authorization.PlatformIamAuthorizationHandler
-    >();
+    builder.Services.AddApiIdentity(bearerValidationParameters);
 
     // Rate limiting — per-user (or per-IP for anonymous) sliding window.
     //
@@ -725,30 +628,13 @@ try
 
     app.UseCors();
     app.UseRateLimiter();
-    app.UseAuthentication();
-    // Tenant resolution MUST sit between authentication and authorization: it needs the authenticated
-    // principal (to resolve the caller's own channel / verify channel access), and the [RequireAction]
-    // Gate-2 policies in UseAuthorization read the resolved tenant. Placing it after UseAuthorization
-    // left every action check tenant-less → an unconditional 403 on channel-scoped endpoints.
-    app.UseMiddleware<TenantResolutionMiddleware>();
-    app.UseAuthorization();
+    // Authentication, tenant resolution, authorization: in that order (see UseApiIdentity).
+    app.UseApiIdentity();
 
     app.MapControllers();
 
-    // SignalR hubs. `AllowStatefulReconnects = true` is the real per-endpoint switch (there is no
-    // `WithStatefulReconnect()` extension in this repo's ASP.NET Core 10.0 — verified against the
-    // installed 10.0.11 runtime; it does not exist in the shipped 8.0/9.0/10.0 assemblies either).
-    // Without this, `AddSignalR`'s global `StatefulReconnectBufferSize` configures the FEATURE's buffer
-    // but the connection dispatcher for each hub endpoint still defaults `AllowStatefulReconnects` to
-    // false — the option actually enforced at the WebSocket upgrade lives on the mapped endpoint, not on
-    // the shared `HubOptions`.
-    static void EnableStatefulReconnect(
-        Microsoft.AspNetCore.Http.Connections.HttpConnectionDispatcherOptions options
-    ) => options.AllowStatefulReconnects = true;
-    app.MapHub<DashboardHub>("/hubs/dashboard", EnableStatefulReconnect);
-    app.MapHub<OverlayHub>("/hubs/overlay", EnableStatefulReconnect);
-    app.MapHub<OBSRelayHub>("/hubs/obs", EnableStatefulReconnect);
-    app.MapHub<AdminHub>("/hubs/admin", EnableStatefulReconnect);
+    // SignalR hubs (stateful reconnect per endpoint: see MapApiHubs).
+    app.MapApiHubs();
 
     // Automation stream — a RAW WebSocket (automation-api.md D1: deliberately not SignalR, so any
     // language can integrate). UseWebSockets serves this endpoint; the hubs manage their own upgrade.
