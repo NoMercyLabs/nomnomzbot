@@ -99,7 +99,7 @@
         "confirmBody": "De pot en zijn saldo worden verwijderd.",
         "confirmAction": "Pot verwijderen",
         "moneyTitle": "Storten, opnemen en uitnodigen",
-        "notYet": "Nog niet beschikbaar hier. Kijkers gebruiken voorlopig de chatcommando's.",
+        "notYet": "Nog niet beschikbaar hier. Stortingen in een pot komen voorlopig van de stap Bijdragen aan pot in een pipeline.",
         "dialog": {
           "title": "Nieuwe spaarpot",
           "description": "De pot start open, zodat kijkers meteen valuta kunnen storten.",

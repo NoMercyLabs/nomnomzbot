@@ -380,7 +380,7 @@
           "dryRun": {
             "label": "Alleen kijken, niet ingrijpen",
             "explanation": "Alles wordt gedetecteerd en vastgelegd met een volledige uitleg, en er wordt niets ondernomen. Het dashboard laat zien wat er gebeurd zou zijn.",
-            "cost": "Aan laten betekent dat spam nooit automatisch wordt verwijderd. Het uitzetten is het moment waarop het systeem echte kijkers gaat raken, dus doe dat pas nadat je een week van je eigen resultaten hebt gelezen en het ermee eens bent."
+            "cost": "Aan laten betekent dat spam nooit automatisch wordt verwijderd. Het uitzetten is het moment waarop het systeem echte kijkers gaat raken, dus doe dat pas nadat je een week van je eigen resultaten hebt gelezen en het ermee eens bent. Een nieuw kanaal doorloopt eerst ook een observatieperiode van zeven dagen, dus in de eerste week wordt er niets ondernomen, ook als dit uitstaat."
           },
           "trustThresholds": {
             "label": "Drempels van de vertrouwensladder",
@@ -390,14 +390,12 @@
           "semiTrustedWatchHoursHere": {
             "label": "Kijkuren hier die bescherming opleveren",
             "explanation": "Iemand die dit aantal uren in jouw kanaal heeft gekeken, kan niet meer automatisch worden verbannen of getimed, zelfs als diegene nooit iets heeft getypt.",
-            "cost": "Lager beschermt stille vaste kijkers eerder. Hoger laat hen langer onbeschermd. Dit is de instelling die lurkers beschermt, die geen andere manier hebben om te bewijzen dat ze echt zijn.",
-            "inactive": "De bot telt nog geen kijkuren, dus niemand verdient vandaag op deze manier bescherming."
+            "cost": "Lager beschermt stille vaste kijkers eerder. Hoger laat hen langer onbeschermd. Dit is de instelling die lurkers beschermt, die geen andere manier hebben om te bewijzen dat ze echt zijn."
           },
           "semiTrustedWatchHoursInstance": {
             "label": "Kijkuren over alle kanalen die bescherming opleveren",
             "explanation": "Dezelfde bescherming, verdiend over elk kanaal op deze server in plaats van alleen het jouwe.",
-            "cost": "Lager breidt vertrouwen makkelijker uit tussen kanalen. Hoger houdt het oordeel van elk kanaal bij zichzelf.",
-            "inactive": "De bot telt nog geen kijkuren, dus niemand verdient vandaag op deze manier bescherming."
+            "cost": "Lager breidt vertrouwen makkelijker uit tussen kanalen. Hoger houdt het oordeel van elk kanaal bij zichzelf."
           },
           "nearDuplicateSimilarity": {
             "label": "Hoe gelijk telt als dezelfde spam",
@@ -412,8 +410,7 @@
           "nonLatinScriptGate": {
             "label": "Andere alfabetten beperken tot gevestigde kijkers",
             "explanation": "Beperkt Japanse, Koreaanse, Cyrillische, Arabische en andere niet-Latijnse berichten tot kijkers die er al even zijn.",
-            "cost": "Standaard uit, en dat zou het voor bijna iedereen moeten blijven: echte kijkers schrijven elke dag in deze alfabetten. Het bestaat voor een kanaal onder een actieve aanval die ze gebruikt, en het legt eerlijke internationale kijkers het zwijgen op zolang het aanstaat.",
-            "inactive": "De bot controleert nog niet wat elk vertrouwensniveau mag plaatsen, dus deze schakelaar verandert vandaag niets."
+            "cost": "Standaard uit, en dat zou het voor bijna iedereen moeten blijven: echte kijkers schrijven elke dag in deze alfabetten. Het bestaat voor een kanaal onder een actieve aanval die ze gebruikt, en het legt eerlijke internationale kijkers het zwijgen op zolang het aanstaat."
           },
           "accountAgeGateDays": {
             "label": "Jongste accountleeftijd die vrij mag chatten",
@@ -468,8 +465,7 @@
           "followSpikeFactor": {
             "label": "Volgsnelheid die als ongewoon telt",
             "explanation": "Hoeveel keer de normale volgsnelheid van je kanaal telt als een piek die het bekijken waard is. Het wordt gemeten tegen je eigen geschiedenis, dus een klein en een groot kanaal worden nooit met elkaar vergeleken.",
-            "cost": "Lager merkt kleinere pieken op, ook die door viraal gaan. Een piek blokkeert op zichzelf nooit iemand; die bepaalt alleen wanneer er beter gekeken wordt.",
-            "inactive": "Volgers worden nog niet gemeten tegen je normale snelheid, dus vandaag wordt geen piek opgemerkt."
+            "cost": "Lager merkt kleinere pieken op, ook die door viraal gaan. Een piek blokkeert op zichzelf nooit iemand; die bepaalt alleen wanneer er beter gekeken wordt."
           },
           "joinBurstFactor": {
             "label": "Instroomsnelheid die als ongewoon telt",

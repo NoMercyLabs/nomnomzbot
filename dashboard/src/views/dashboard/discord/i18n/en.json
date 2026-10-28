@@ -125,7 +125,7 @@
         "selfAssign": "Viewers can pick this role",
         "selfAssignHelp": "Turn it off to hide the role from the opt-in button.",
         "dm": "Send a direct message",
-        "dmHelp": "Message members when they take or leave the role.",
+        "dmHelp": "Also send each member who took this role a direct message whenever a notification pings it.",
         "buttonChannel": "Button channel",
         "postButton": "Post button",
         "remove": "Remove role",

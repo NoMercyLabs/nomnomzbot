@@ -13,7 +13,7 @@
         },
         "message": {
           "title": "Shoutout-bericht",
-          "description": "Wat de bot in de chat aankondigt bij elke shoutout. Laat het leeg voor het ingebouwde bericht.",
+          "description": "Wat de bot in de chat aankondigt als er geen specifieker bericht geldt. Een bericht op een pipelinestap, een notitie die je voor die persoon schreef en het eigen bericht van de geshoutoutte streamer gaan er allemaal voor. Laat het leeg voor het ingebouwde bericht.",
           "label": "Bericht",
           "placeholder": "Ga {'{'}target.displayname{'}'} volgen!",
           "save": "Opslaan",

@@ -380,7 +380,7 @@
           "dryRun": {
             "label": "Watch only, do not act",
             "explanation": "Everything is detected and recorded with a full explanation, and nothing is acted on. The dashboard shows what would have happened.",
-            "cost": "Leaving it on means spam is never removed automatically. Turning it off is the moment the system starts affecting real viewers, so do it after you have read a week of your own results and agree with them."
+            "cost": "Leaving it on means spam is never removed automatically. Turning it off is the moment the system starts affecting real viewers, so do it after you have read a week of your own results and agree with them. A new channel also serves a seven-day observation window first, so nothing is acted on during its first week even with this off."
           },
           "trustThresholds": {
             "label": "Trust ladder thresholds",
@@ -390,14 +390,12 @@
           "semiTrustedWatchHoursHere": {
             "label": "Watch hours here that earn protection",
             "explanation": "Someone who has watched this many hours in your channel can no longer be banned or timed out automatically, even if they have never typed a word.",
-            "cost": "Lower protects quiet regulars sooner. Higher leaves them exposed for longer. This is the setting that protects lurkers, who have no other way to prove they are real.",
-            "inactive": "The bot does not count watch hours yet, so nobody earns protection this way today."
+            "cost": "Lower protects quiet regulars sooner. Higher leaves them exposed for longer. This is the setting that protects lurkers, who have no other way to prove they are real."
           },
           "semiTrustedWatchHoursInstance": {
             "label": "Watch hours across all channels that earn protection",
             "explanation": "The same protection, earned across every channel on this server rather than just yours.",
-            "cost": "Lower extends trust between channels more readily. Higher keeps each channel's judgement to itself.",
-            "inactive": "The bot does not count watch hours yet, so nobody earns protection this way today."
+            "cost": "Lower extends trust between channels more readily. Higher keeps each channel's judgement to itself."
           },
           "nearDuplicateSimilarity": {
             "label": "How similar counts as the same spam",
@@ -412,8 +410,7 @@
           "nonLatinScriptGate": {
             "label": "Restrict other alphabets to established viewers",
             "explanation": "Limits Japanese, Korean, Cyrillic, Arabic and other non-Latin messages to viewers who have been around.",
-            "cost": "Off by default, and it should stay off for almost everyone: real viewers write in these alphabets every day. It exists for a channel under an active attack that uses them, and it silences honest international viewers while it is on.",
-            "inactive": "The bot does not check what each trust level may post yet, so this switch changes nothing today."
+            "cost": "Off by default, and it should stay off for almost everyone: real viewers write in these alphabets every day. It exists for a channel under an active attack that uses them, and it silences honest international viewers while it is on."
           },
           "accountAgeGateDays": {
             "label": "Newest account age that can chat freely",
@@ -468,8 +465,7 @@
           "followSpikeFactor": {
             "label": "Follow rate that counts as unusual",
             "explanation": "How many times your channel's normal follow rate counts as a spike worth looking at. It is measured against your own history, so a small channel and a large one are never compared to each other.",
-            "cost": "Lower notices smaller spikes, including the ones caused by going viral. A spike alone never blocks anybody; it only decides when to look closely.",
-            "inactive": "Follows are not measured against your normal rate yet, so no spike is noticed today."
+            "cost": "Lower notices smaller spikes, including the ones caused by going viral. A spike alone never blocks anybody; it only decides when to look closely."
           },
           "joinBurstFactor": {
             "label": "Join rate that counts as unusual",

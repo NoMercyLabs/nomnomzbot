@@ -19,7 +19,7 @@
           "testFailed": "Test to {name} failed. Answer {code} in {ms} ms. {error}",
           "rotate": "Make a new signing secret for {name}",
           "rotateTitle": "Make a new signing secret for {name}?",
-          "rotateDescription": "The old secret stops working at once. Update your server with the new one, or it will refuse every delivery.",
+          "rotateDescription": "From now on every delivery is signed with the new secret and with the old one. Update your server to the new secret; the old one is not switched off.",
           "deliveries": "Deliveries of {name}",
           "edit": "Edit {name}",
           "toggle": "Turn {name} on or off",

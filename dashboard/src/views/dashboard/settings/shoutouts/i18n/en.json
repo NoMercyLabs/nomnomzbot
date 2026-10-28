@@ -13,7 +13,7 @@
         },
         "message": {
           "title": "Shoutout message",
-          "description": "What the bot announces in chat for every shoutout. Leave it empty to use the built-in message.",
+          "description": "What the bot announces in chat when no more specific message applies. A message on a pipeline step, a note you wrote for that person, and the shouted streamer's own message all win over it. Leave it empty to use the built-in message.",
           "label": "Message",
           "placeholder": "Go follow {'{'}target.displayname{'}'}!",
           "save": "Save",

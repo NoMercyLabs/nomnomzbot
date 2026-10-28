@@ -19,7 +19,7 @@
           "testFailed": "Test naar {name} mislukt. Antwoord {code} in {ms} ms. {error}",
           "rotate": "Nieuw ondertekeningsgeheim maken voor {name}",
           "rotateTitle": "Nieuw ondertekeningsgeheim maken voor {name}?",
-          "rotateDescription": "Het oude geheim werkt direct niet meer. Zet het nieuwe op je server, anders weigert die elke levering.",
+          "rotateDescription": "Vanaf nu wordt elke levering ondertekend met het nieuwe geheim en met het oude. Zet het nieuwe geheim op je server; het oude wordt niet uitgezet.",
           "deliveries": "Leveringen van {name}",
           "edit": "{name} bewerken",
           "toggle": "{name} aan of uit zetten",

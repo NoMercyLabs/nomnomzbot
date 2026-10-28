@@ -99,7 +99,7 @@
         "confirmBody": "The jar and its balance are removed.",
         "confirmAction": "Delete jar",
         "moneyTitle": "Deposits, withdrawals and invites",
-        "notYet": "Not available here yet. Viewers use the chat commands for now.",
+        "notYet": "Not available here yet. For now, jar deposits come from the Contribute to jar step in a pipeline.",
         "dialog": {
           "title": "New savings jar",
           "description": "The jar starts open, so viewers can put currency in right away.",

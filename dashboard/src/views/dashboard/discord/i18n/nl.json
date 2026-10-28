@@ -125,7 +125,7 @@
         "selfAssign": "Kijkers mogen deze rol kiezen",
         "selfAssignHelp": "Zet uit om de rol te verbergen op de knop.",
         "dm": "Stuur een privébericht",
-        "dmHelp": "Stuur leden een bericht als ze de rol nemen of verlaten.",
+        "dmHelp": "Stuur ook elk lid dat deze rol nam een direct bericht wanneer een melding de rol pingt.",
         "buttonChannel": "Kanaal voor de knop",
         "postButton": "Knop plaatsen",
         "remove": "Rol verwijderen",
