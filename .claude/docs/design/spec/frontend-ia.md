@@ -211,7 +211,7 @@ One page (slice S-USER-HUB, built by S-IA-PEOPLE). The tabs are the old Communit
 |---|---|---|---|---|
 | Integrations | - | Broadcaster | Broadcaster | The one home of every credential: Twitch app credentials (3 places become 1), the bot account, Spotify, OBS, VTube Studio, Discord, YouTube, Kick, the TTS providers. |
 | Features | - | Broadcaster | Broadcaster | Per-channel feature toggles. |
-| Settings | General; Language & fonts; Notifications; Bot behavior; Privacy; Danger zone | Moderator | Broadcaster | Billing is a seventh tab in saas mode only. `saas` mode is a RESTRICTED option: it is reserved to NoMercy Labs under the licence. Self-hosting your own bot is always free. |
+| Settings | General; Language & fonts; Notifications; Bot behavior; Privacy; Danger zone | Moderator | Broadcaster | Billing is a seventh tab in saas mode only. `saas` mode is RESTRICTED: you may not earn money with NomNomzBot, and that right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is always free. |
 
 #### Outside the sidebar
 
@@ -344,7 +344,7 @@ The newer plan wins over the S080 profile menu contents (conflict table, section
 | Bot behavior | How the bot speaks and acts. The bot uses one voice per channel. |
 | Privacy | Privacy and data choices for the channel. |
 | Danger zone | Disconnect the bot, replay events, delete and restore the channel. |
-| Billing | A seventh tab, in saas mode only. `saas` mode is a RESTRICTED option reserved to NoMercy Labs under the licence. |
+| Billing | A seventh tab, in saas mode only. `saas` mode is RESTRICTED: you may not earn money with NomNomzBot, and that right is reserved to NoMercy Labs. |
 
 Proposal, not settled: the paper names the six tabs but does not list the controls of each tab. The old
 tabs (Bot basics, Bot Account, Appearance, Account, Billing, Danger zone) map to the new tabs as the

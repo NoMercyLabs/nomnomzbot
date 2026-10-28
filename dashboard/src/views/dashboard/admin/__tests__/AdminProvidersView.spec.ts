@@ -186,7 +186,7 @@ describe('AdminProvidersView', () => {
     expect(one('[data-provider="youtube"]').textContent).toContain('Secret: Environment');
     expect(one('[data-provider="kick"]').textContent).toContain('does not support');
     expect(document.body.querySelector('[data-provider="kick"] [data-action="edit-credentials"]')).toBeNull();
-    expect(one('[data-restricted]').textContent).toContain('restricted option');
+    expect(one('[data-restricted]').textContent).toContain('earn money with NomNomzBot');
   });
 
   it('opens the form in a dialog on Edit, with the secret empty and write only', async () => {

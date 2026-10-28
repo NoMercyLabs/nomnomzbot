@@ -54,7 +54,7 @@ One row per today route (46 including Admin) and per participant page (6).
 | Integrations | Setup | Setup | Integrations | - (the one home of every credential) | Broadcaster | Broadcaster | S-IA-SETUP |
 | Roles | Setup | People | People | Roles (with Individual permissions) | Moderator | Broadcaster (assign Moderator and VIP: Broadcaster, `ActionDefinitionSeeder.cs:236-237`) | S-IA-PEOPLE |
 | Features | Setup | Setup | Features | - | Broadcaster | Broadcaster | - |
-| Settings | Setup | Setup | Settings | General; Language & fonts; Notifications; Bot behavior; Privacy; Danger zone (Billing in saas mode only, a RESTRICTED option) | Moderator | Broadcaster | S-IA-SETUP |
+| Settings | Setup | Setup | Settings | General; Language & fonts; Notifications; Bot behavior; Privacy; Danger zone (Billing in saas mode only, NoMercy Labs only) | Moderator | Broadcaster | S-IA-SETUP |
 | MyData | Setup | Outside the sidebar: profile menu | My data | - | Everyone | Everyone | S-IA-NAV |
 | Admin | Admin (isAdmin) | Outside the sidebar: profile menu and Ctrl+K | Admin | 23 tabs unchanged; entering swaps the whole chrome | Platform admin | Platform admin | S-IA-NAV |
 | Participant: My channel | Viewer shell | Viewer shell (kept separate) | My channels | cards, one per channel | Everyone | - | S-IA-ROLE-HOMES |

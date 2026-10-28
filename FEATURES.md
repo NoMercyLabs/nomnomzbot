@@ -5,7 +5,7 @@
 > 100 concrete API controllers (94 versioned plus six public hosts), the 68 Compose API facades, all 50
 > shipped Compose feature roots, and the Stream Deck manifest. Last full code pass: 2026-09-04.
 >
-> NomNomzBot is an open-source, multi-tenant, multi-platform bot platform — one channel, many
+> NomNomzBot is a free, multi-tenant, multi-platform bot platform — one channel, many
 > platform connections (Twitch, Kick, YouTube, X Live) managed from one uniform dashboard for
 > streamers, moderators and viewers. This document lists **what a person can do**, grouped by
 > where they do it.
@@ -563,7 +563,7 @@ Anything that can start a pipeline / event response:
   use counts and alerts update without a page refresh, with reconnecting/lost-state treatment.
 - **i18n** — English + Dutch throughout, runtime switch.
 - **Design system** — shadcn (new-york) ported to Compose; dynamic accent from user's chat color.
-- **Deployment profiles** — self-host lite (SQLite), self-host full (Postgres+Redis), SaaS (restricted).
+- **Deployment profiles** — self-host lite (SQLite), self-host full (Postgres+Redis), SaaS (NoMercy Labs only: you may not earn money with NomNomzBot, and that right is reserved to NoMercy Labs).
 - **GDPR / privacy** — per-viewer export & erasure, consent records, crypto-shredding, analytics opt-out.
 - **Billing & entitlements** (SaaS) — tiers, usage metering, quotas, invite codes / founders badge.
 - **Federation** — cross-instance trust for shared bans, savings jars, and events.

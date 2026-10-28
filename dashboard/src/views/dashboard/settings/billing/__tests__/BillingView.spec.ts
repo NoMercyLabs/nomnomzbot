@@ -267,7 +267,7 @@ describe('Billing page: plan', () => {
     expect(find('[data-plan="period"]').textContent).toBe('Nov 15, 2026');
     expect(find('[data-plan="custom-bot-name"]').textContent).toBe('Included');
     expect(find('[data-plan="priority-support"]').textContent).toBe('Not included');
-    expect(find('[data-restricted]').textContent).toContain('restricted option');
+    expect(find('[data-restricted]').textContent).toContain('earn money with NomNomzBot');
   });
 
   it('a plan set to end shows its end date and Keep my plan resumes it', async () => {

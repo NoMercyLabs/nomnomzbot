@@ -5,14 +5,14 @@ Owner decisions, 2026-08-22. This file wins over any older sentence in `.claude/
 
 ## The product in one paragraph
 
-NomNomzBot is an open-source, multi-tenant bot plus ONE uniform management dashboard for
+NomNomzBot is a free, multi-tenant bot plus ONE uniform management dashboard for
 streamers who go live on **Twitch, Kick, YouTube and X (Live) — at the same time**. A streamer has
 **one channel with many platform connections**; commands, timers, event responses, settings,
 moderation, economy, song requests, TTS and analytics are managed once and fan out to every live
 platform; chat, mod queues and alerts fan in to one feed. A viewer is **one human across platforms**
 (one identity, one balance, one standing, one ban). Three personas get working surfaces, in this
 priority: **streamer → moderator of many channels → viewer**. Self-host is free and needs zero
-NoMercy infrastructure; SaaS is restricted to NoMercy Labs and gives viewers a **free account**.
+NoMercy infrastructure; SaaS is for NoMercy Labs only (nobody else may earn money with NomNomzBot) and gives viewers a **free account**.
 The bot **types** in chat via each platform's API (Twitch = Helix + EventSub; IRC is retired) and
 **speaks** via TTS. We **stabilize the existing feature set before adding features**.
 

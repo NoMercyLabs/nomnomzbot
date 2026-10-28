@@ -174,7 +174,7 @@ describe('AdminErrorBudgetView', () => {
   it('carries the restricted saas marker', async () => {
     await open();
 
-    expect(text()).toContain('reserved to NoMercy Labs');
+    expect(text()).toContain('earn money with NomNomzBot');
   });
 
   it('reloads the budgets when the hub says a delivery attempt resolved', async () => {

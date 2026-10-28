@@ -191,7 +191,7 @@ describe('AdminFeatureFlagsView', () => {
     expect(document.body.querySelectorAll('[data-override]')).toHaveLength(1);
     expect(one('[data-override]').textContent).toContain('kitte');
     expect(one('[data-override]').textContent).toContain('beta tester');
-    expect(one('[data-restricted]').textContent).toContain('restricted option');
+    expect(one('[data-restricted]').textContent).toContain('earn money with NomNomzBot');
   });
 
   it('shows the flags without new, edit or override actions when the admin lacks featureflag:write', async () => {

@@ -144,7 +144,7 @@ describe('AdminOverviewView', () => {
   it('carries the restricted-option marker for the hosted mode', async () => {
     await open();
 
-    expect(text()).toContain('Hosted mode is a restricted option');
+    expect(text()).toContain('earn money with NomNomzBot');
   });
 
   it('is registered as the real overview page, not the coming-soon scaffold', () => {

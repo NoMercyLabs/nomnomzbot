@@ -164,7 +164,7 @@ describe('AdminBillingView', () => {
     expect(text()).toContain('WELCOME');
     expect(text()).toContain('2 of 5 used');
     expect(text()).toContain('tts');
-    expect(text()).toContain('restricted option');
+    expect(text()).toContain('earn money with NomNomzBot');
   });
 
   it('revokes one invite code by its id, and only after the confirm', async () => {

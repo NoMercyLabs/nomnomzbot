@@ -91,10 +91,12 @@ describe('the site root', () => {
     const { wrapper } = await openRoot();
 
     expect(wrapper.text()).toContain(
-      'Only NoMercy Labs may operate NomNomzBot as a paid service for other streamers',
+      'You may not earn money with NomNomzBot: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs.',
     );
 
-    expect(wrapper.text()).toContain('Running your own bot stays free and unrestricted, forever');
+    expect(wrapper.text()).toContain(
+      'Running it for yourself, your friends and your community is free, forever',
+    );
   });
 
   it('switches the dashboard preview in the hero when another tab is chosen', async () => {

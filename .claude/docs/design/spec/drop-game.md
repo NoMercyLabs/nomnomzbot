@@ -48,7 +48,7 @@ At 100 channels x 50 drops per hour = 5,000 drops/hour = 1.4 drops/second:
 - Money: the increment is below the noise of the base host. The drop game needs no extra server, no tick loop and no extra service. The cost grows in a straight line with drops; 10x the drops is 10x of the numbers above, still not a sizing factor.
 - Rejected: simulating physics on the server at 60 Hz. It costs a tick loop per channel and gives no fairness gain, because the outcome is already server-decided.
 
-SaaS note: SaaS operation of NomNomzBot is reserved to NoMercy Labs. Self-hosting is always free. The numbers above apply equally to a self-hosted box.
+SaaS note: you may not earn money with NomNomzBot, and that right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is always free. The numbers above apply equally to a self-hosted box.
 
 ## 3. Game rules (all configurable, `DropRules`)
 

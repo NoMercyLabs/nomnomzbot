@@ -13,7 +13,7 @@
 # One command brings up the whole bot: Postgres + Redis (the durable data tier) and the API
 # containers, with Adminer for DB inspection. The same image runs self_host_full here and saas
 # in a fleet — the boot probe (Deployment__Mode) decides which adapters wake up, not this file.
-# saas is RESTRICTED: operating NomNomzBot as a hosted service for others is reserved to NoMercy Labs (see DEPLOY.md). Self-hosting your own bot is always free.
+# saas is RESTRICTED: you may not earn money with NomNomzBot (no selling it, no paid hosting or paid service built on it). That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is always free. See DEPLOY.md.
 #
 #   1. cp .env.example .env   (or run ./deploy.sh / .\deploy.ps1)
 #   2. fill in TWITCH_CLIENT_ID / TWITCH_CLIENT_SECRET / TWITCH_BOT_USERNAME
@@ -23,7 +23,7 @@
 # lock on full/saas — exactly one replica migrates while the other waits for the migrated schema,
 # which is what makes the blue/green overlap below safe). Every secret is read from .env; nothing
 # is hardcoded here.
-# saas is RESTRICTED: operating NomNomzBot as a hosted service for others is reserved to NoMercy Labs (see DEPLOY.md). Self-hosting your own bot is always free.
+# saas is RESTRICTED: you may not earn money with NomNomzBot (no selling it, no paid hosting or paid service built on it). That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is always free. See DEPLOY.md.
 #
 # --- Blue/green API + Caddy ingress (deployment-distribution.md, slice Z5) --------------------
 # Host port 5080 is owned by `caddy`, not by an API container — two API services (`api-blue` /
@@ -43,7 +43,7 @@
 # 5081->5001 mapping forwarded to a port nothing listened on — it was already dead. TLS
 # termination belongs to the operator's own reverse proxy (see DEPLOY.md's saas section), not
 # this stack.
-# saas is RESTRICTED: operating NomNomzBot as a hosted service for others is reserved to NoMercy Labs (see DEPLOY.md). Self-hosting your own bot is always free.
+# saas is RESTRICTED: you may not earn money with NomNomzBot (no selling it, no paid hosting or paid service built on it). That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is always free. See DEPLOY.md.
 #
 # `watchtower` is NOT part of this stack (it never was — it runs as a separate container the
 # operator adds by hand on the host, outside this file) and must NOT be pointed at api-blue /
@@ -69,7 +69,7 @@ x-api-service: &api-service
     - ASPNETCORE_ENVIRONMENT=Production
     - ASPNETCORE_URLS=http://+:5000
     # Deployment profile — self_host_full (default) or saas. Override via DEPLOYMENT_MODE in .env.
-    # saas is RESTRICTED: operating NomNomzBot as a hosted service for others is reserved to NoMercy Labs (see DEPLOY.md). Self-hosting your own bot is always free.
+    # saas is RESTRICTED: you may not earn money with NomNomzBot (no selling it, no paid hosting or paid service built on it). That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is always free. See DEPLOY.md.
     - Deployment__Mode=${DEPLOYMENT_MODE:-self_host_full}
     - ConnectionStrings__DefaultConnection=Host=postgres;Port=5432;Database=${POSTGRES_DB:-nomnomzbot};Username=${POSTGRES_USER:-nomnomzbot};Password=${POSTGRES_PASSWORD:-nomnomzbot_dev};MaxPoolSize=20
     # StackExchange.Redis syntax (host:port[,password=...]) — NOT a redis:// URI, which it can't parse.

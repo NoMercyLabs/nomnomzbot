@@ -46,7 +46,7 @@ The single `DeploymentProfile.Mode` axis (`deployment-profile`) has **three mode
 | `self_host_full` | **Docker image + bundled compose** | `./deploy.sh docker` (local build, or pull `ghcr.io/nomercylabs/nomnomzbot` via `API_IMAGE`) + root `docker-compose.yml` | Docker; the compose brings Caddy + Postgres + Redis (+ Adminer) |
 | `saas` **(RESTRICTED)** | **the same Docker image**, operated as a fleet | `./deploy.sh saas` (the operator's own deploy of the image) | Postgres + Redis + reverse proxy + the §4 phase infra |
 
-> **RESTRICTED:** operating NomNomzBot as a hosted service for third parties is against the project license — that right is reserved to NoMercy Labs. Self-hosting your own bot (desktop or docker) is always free and unrestricted. Every surface that documents `saas` must carry this marker.
+> **RESTRICTED:** you may not earn money with NomNomzBot: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community (desktop or docker) is always free. Every surface that documents `saas` must carry this marker.
 
 
 The **binary and the image are built from the identical solution** — nothing in `NomNomzBot.*` forks by artifact.
@@ -123,7 +123,7 @@ spec is their contract, not their source.
     (Enter = enter them later in the setup wizard), forces `DEPLOYMENT_MODE=self_host_full`, then `docker compose pull api`
     + `up -d --no-build` when `API_IMAGE` is a registry ref, otherwise `docker compose up -d --build`; polls
     `/health/ready` (up to 3 min) and prints the dashboard, health and Adminer URLs.
-  - `saas` (**RESTRICTED** — operating NomNomzBot as a hosted service for third parties is against the project license — that right is reserved to NoMercy Labs. Self-hosting your own bot (desktop or docker) is always free and unrestricted. Every surface that documents `saas` must carry this marker.) — same stack, but fail-closed guards first: `API_BASE_URL` must
+  - `saas` (**RESTRICTED** — you may not earn money with NomNomzBot: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community (desktop or docker) is always free. Every surface that documents `saas` must carry this marker.) — same stack, but fail-closed guards first: `API_BASE_URL` must
     be a public HTTPS origin (not localhost), `JWT_SECRET` and `ENCRYPTION_KEY` must not be the dev defaults; then
     it sets `DEPLOYMENT_MODE=saas` and brings the stack up. `TRUSTED_PROXY_NETWORKS` is set when the proxy reaches the
     API over a Docker network.
@@ -195,7 +195,7 @@ which adapters that pipeline resolves. The ordering below is binding (fail-close
 SaaS **starts on Docker for cost** — no Kubernetes, no managed services, no premium edge — and grows only when a
 trigger fires (§4). The Phase-1 baseline that the §2 `saas` sequence runs on:
 
-> **RESTRICTED:** operating NomNomzBot as a hosted service for third parties is against the project license — that right is reserved to NoMercy Labs. Self-hosting your own bot (desktop or docker) is always free and unrestricted. Every surface that documents `saas` must carry this marker.
+> **RESTRICTED:** you may not earn money with NomNomzBot: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community (desktop or docker) is always free. Every surface that documents `saas` must carry this marker.
 
 
 - **Reverse proxy** — **Caddy** (automatic HTTPS, the default) or **nginx**, terminating TLS and load-balancing
@@ -222,7 +222,7 @@ re-architecting.
 
 ## 4. SaaS scale-up path — price-vs-income phasing with triggers
 
-> **RESTRICTED:** operating NomNomzBot as a hosted service for third parties is against the project license — that right is reserved to NoMercy Labs. Self-hosting your own bot (desktop or docker) is always free and unrestricted. Every surface that documents `saas` must carry this marker.
+> **RESTRICTED:** you may not earn money with NomNomzBot: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community (desktop or docker) is always free. Every surface that documents `saas` must carry this marker.
 
 The fleet grows **only as revenue justifies it**, each phase tied to a concrete trigger metric, so infra cost
 tracks income rather than leading it. The statelessness (`scaling-qos.md`) makes every step **additive** — no

@@ -51,7 +51,7 @@ Per-subsystem endpoint counts are not kept here: the subsystems have shipped, so
 | VTube Studio Control | vtube-studio.md | P.19 VtsConnection | 3 | 6 (+vts_event trigger) |
 | Sound System | sound-system.md | P.18 SoundClip | 2 | 2 (play_sound, stop_sound) |
 | Stream Admin + IPC | `stream-admin.md` | F.10, F.11, A.5, C.x, P.12, P.13 | 6 | 1 (`set_stream_metadata`) |
-| Platform Admin (content authoring & propagation) | `platform-admin.md` | — (Plane-C admin surface over the seeded platform content; `saas` restricted option) | — | 0 |
+| Platform Admin (content authoring & propagation) | `platform-admin.md` | — (Plane-C admin surface over the seeded platform content; `saas` mode, NoMercy Labs only) | — | 0 |
 | Discord | `discord.md` | P.10 (5 tables) | 5 | 1 |
 | Supporter Events | supporter-events.md | P.15 SupporterConnection, P.16 SupporterEvent | 3 | 0 (supporter.* triggers) |
 | External Automation API | automation-api.md | P.17 AutomationApiToken | 7 | 0 (+ token-scoped data plane: REST + WS stream) |

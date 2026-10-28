@@ -26,7 +26,7 @@ A few come to hurt people.
 Platforms give streamers some tools. But the tools have gaps.
 Hate raids still happen. Scam links still spread. Many moderators work alone, late at night, without pay.
 
-NomNomzBot is an open-source bot. It helps streamers, moderators and viewers keep a channel safe and fun.
+NomNomzBot is a free bot with public code. It helps streamers, moderators and viewers keep a channel safe and fun.
 This document explains how we think about that job.
 
 ### What this document is
@@ -753,8 +753,9 @@ Each way puts your keys in a different place.
 | Your own server | A server at home, on your network or at a friend's | A small group's | Good for a team. You choose who holds the keys. | Whoever runs the server can reach every key on it. Pick someone you trust. |
 | Hosted service | Servers that NoMercy Labs runs | Every streamer who chose it | No setup for you. | One place keeps many keys, so it is the biggest target. |
 
-**Self-hosting your own bot is always free.**
-Running NomNomzBot as a hosted service for other people is reserved to NoMercy Labs under the license.
+**Running NomNomzBot for yourself, your friends and your community is always free.**
+You may not earn money with it: no selling it, and no paid hosting or paid service built on it.
+That right is reserved to NoMercy Labs.
 
 The more viewers a channel has, the more an attacker gains from its key.
 Weigh this when you choose how to run the bot.

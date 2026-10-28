@@ -1435,7 +1435,7 @@ Arc's reading: the old branch `worktree-agent-a233e3d68170a3e99` (b77b1f9b5, 9e5
 
 Owner, verbatim: "THIS is a dropgame: https://github.com/CodingGarden/SeedlingDrop https://github.com/CodingGarden/ChristmasDrop" / "i like the drop game to be interchangable with other assets or versions, so make the logic generic and configurable and make the assets responsive and dynamically changable. for example i like a birds nest with an eagle that drops 'meat' (the user) to the nest... this is not now but needs to be prepared for" / "can we tweak the luck chance? ... give the lucky feather holder more drop luck" / "settings like always, look at PixelPush for their config options to see what we can onboard" / "do we calculate the random path with a seed or something? how do you intend to do this server side and how much would this cost saas?"
 
-Benchmark (rule research-is-a-benchmark): `benchmarks/drop-game.md`. Spec: `spec/drop-game.md`. Replaces S082. Every partial or missing benchmark row is a slice below. SaaS operation is reserved to NoMercy Labs; self-hosting is always free.
+Benchmark (rule research-is-a-benchmark): `benchmarks/drop-game.md`. Spec: `spec/drop-game.md`. Replaces S082. Every partial or missing benchmark row is a slice below. You may not earn money with NomNomzBot, and that right is reserved to NoMercy Labs; running it for yourself, your friends and your community is always free.
 
 - **S-DROP-SEED** The server draws a 64-bit seed per drop, computes the landing from it, and sends `{seed, spawnX, landingX}`; the overlay path ends exactly at `landingX`. Done-when: unit test re-runs the generator from a persisted seed and gets the same `landingX`; a measured per-drop CPU and bytes line replaces the estimate in the spec.
 - **S-DROP-SCORING** A drop gets a graded 0-100 score from its distance to the target, besides hit or miss. Done-when: test lands at center = 100, at the band edge = 0, and the score is in the frame and the result row.
@@ -1805,9 +1805,10 @@ Owner, verbatim: "add a slice that completely overhauls the admin dashboard and 
 ever need managing the saas, including the editing of system commands, widgets, pipelines and code scripts.
 and i mean everything i could ever need to configure as a saas owner/admin".
 
-> **`saas` mode is a RESTRICTED option** — operating NomNomzBot as a hosted service for third parties is
-> reserved to NoMercy Labs under the licence. Self-hosting your own bot is always free. Everything below is
-> the operator surface for that restricted mode and must keep carrying this marker.
+> **`saas` mode is RESTRICTED** — you may not earn money with NomNomzBot: no selling it, and no paid
+> hosting or paid service built on it. That right is reserved to NoMercy Labs. Running it for yourself,
+> your friends and your community is always free. Everything below is the operator surface for that
+> restricted mode and must keep carrying this marker.
 
 **Measured today (2026-09-04), not assumed.** The admin plane is **11 tabs** — Overview, Channels, Users,
 System, Billing, IAM, Tenants, Audit, Spam Defaults, Providers — across 2,732 lines. Backing it: 10 admin

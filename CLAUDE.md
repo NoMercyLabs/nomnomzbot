@@ -1,6 +1,6 @@
 # NomNomzBot — AI Assistant Context
 
-An open-source, multi-tenant, multi-platform bot platform — one channel, many platform connections
+A free, multi-tenant, multi-platform bot platform — one channel, many platform connections
 (Twitch, Kick, YouTube, X Live, simultaneously) managed from one uniform dashboard for streamers,
 moderators and viewers. One deployment supports unlimited channels — each streamer gets a full
 isolated dashboard, pipeline editor, custom commands, event responses, timers, widgets & overlays,
@@ -9,7 +9,7 @@ and integrations (Spotify, Discord, YouTube, TTS).
 **Binding product statement:** `.claude/docs/design/PRODUCT-ALIGNMENT.md` (decisions D1–D12, glossary,
 domain table) — it wins over any older sentence in this file or any spec.
 
-Licensed under **AGPL-3.0**. Copyright (C) NoMercy Labs.
+Licensed under **AGPL-3.0** (`server/LICENSE`). Copyright (C) NoMercy Labs. The code is public. You may use, change and share NomNomzBot for free, and run it for yourself, your friends and your community. You may not earn money with it: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. The names and logos are covered in `TRADEMARKS.md`.
 
 ---
 
@@ -34,7 +34,7 @@ Licensed under **AGPL-3.0**. Copyright (C) NoMercy Labs.
 - **Track split + handoff inboxes — SUSPENDED (not allowed to be used) during the remediation campaign (2026-08-22, D7).** Claude works backend + frontend; the work queue is `.claude/docs/design/SHORTCOMINGS-EXECUTION-PLAN.md`; the design bar is the Sleak skill + the shadcn catalogue. The original rule ("Check your handoff inbox at session start — `handoff/for-backend.md` / `handoff/for-frontend.md`; open items are picked up automatically") stays on the books below and resumes when the campaign ends.
 - **CI green before sign-off** — run the full test suite before EVERY commit; after EVERY push, `gh run watch <run-id> --exit-status` and fix failures immediately. See *CI Gate*.
 - **Work queue = `.claude/docs/design/SHORTCOMINGS-EXECUTION-PLAN.md`, top to bottom** (D8: stabilize before adding; new feature ideas go to the tracker as ideas).
-- **`saas` mode is a RESTRICTED option** — operating NomNomzBot as a hosted service for third parties is against the project license (reserved to NoMercy Labs); self-hosting your own bot is always free. Every doc/script surface that shows saas instructions must carry this restriction marker — never drop it.
+- **`saas` mode is RESTRICTED** — you may not earn money with NomNomzBot: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is always free. Every doc/script surface that shows saas instructions must carry this restriction marker — never drop it.
 
 ---
 

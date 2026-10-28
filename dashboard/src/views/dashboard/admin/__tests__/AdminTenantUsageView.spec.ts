@@ -194,7 +194,7 @@ describe('AdminTenantUsageView', () => {
   it('carries the restricted saas marker', async () => {
     await open();
 
-    expect(text()).toContain('reserved to NoMercy Labs');
+    expect(text()).toContain('earn money with NomNomzBot');
   });
 
   it('registers an admin-only route', () => {

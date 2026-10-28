@@ -231,7 +231,7 @@ describe('AdminTenantsView', () => {
     expect(text()).toContain('Quiet_One');
     expect(text()).toContain('commands.max');
     expect(text()).toContain('Partner deal');
-    expect(text()).toContain('restricted option');
+    expect(text()).toContain('earn money with NomNomzBot');
   });
 
   it('suspends with the chosen status and the typed reason', async () => {

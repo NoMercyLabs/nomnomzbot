@@ -221,7 +221,7 @@ describe('AdminSupportView', () => {
 
     expect(calls).toHaveLength(0);
     expect(text()).toContain('Give a reason first. Every lookup is kept in the audit log.');
-    expect(text()).toContain('hosted service is reserved to NoMercy Labs');
+    expect(text()).toContain('earn money with NomNomzBot');
   });
 
   it('searches people with the justification and lists the match', async () => {
