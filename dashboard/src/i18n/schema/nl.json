@@ -2271,7 +2271,7 @@
         "help": "Het chatbericht dat de shoutout plaatst. Ondersteunt sjabloonvariabelen (bijv. {'{'}user.name{'}'}). Leeg laten voor het standaard shoutout-bericht."
       },
       "tts": {
-        "help": "Leest de shoutout ook hardop voor via tekst-naar-spraak. Bij een raid spreekt hij altijd, tenzij dit uit staat."
+        "help": "Leest de shoutout ook hardop voor via tekst-naar-spraak. Het staat uit tot je het aanzet, ook bij een raid."
       },
       "user_id": {
         "help": "De kijker die wordt uitgelicht."

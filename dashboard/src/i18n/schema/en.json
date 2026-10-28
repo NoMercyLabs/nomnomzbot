@@ -2271,7 +2271,7 @@
         "help": "The chat message the shoutout posts. Supports template variables (e.g. {'{'}user.name{'}'}). Leave blank for the default shoutout message."
       },
       "tts": {
-        "help": "Also reads the shoutout out loud through text-to-speech. On a raid it speaks unless this is turned off."
+        "help": "Also reads the shoutout out loud through text-to-speech. It is off unless you turn it on, also on a raid."
       },
       "user_id": {
         "help": "The viewer to shout out."
