@@ -449,10 +449,20 @@ describe('CommandsView list', () => {
     mounted = null;
     document.body.innerHTML = '';
 
-    // The built-in list keeps the bot's own order, so a sort that does nothing there is not shown.
+    // The built-in list is always A to Z, so a sort control there would do nothing.
     await open('/app/commands?view=builtin');
 
     expect(document.body.querySelector('[data-slot="page-bar"] [data-segmented]')).toBeNull();
+  });
+
+  it('lists the system commands A to Z, whatever order the bot sends them in', async () => {
+    await open('/app/commands?view=builtin');
+
+    const titles = [...document.body.querySelectorAll<HTMLElement>('[data-builtin-row]')].map(
+      (row): string => row.textContent?.match(/![a-z]+/)?.[0] ?? '',
+    );
+
+    expect(titles).toEqual(['!mydata', '!permit', '!shoutout', '!uptime']);
   });
 
   it('shows only the channel\'s own commands by default, with the system commands on their own tab', async () => {

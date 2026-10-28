@@ -157,7 +157,7 @@ const creating = ref(false);
       />
     </template>
     <template #bar>
-      <!-- The sort sits over the list it orders. The built-in list keeps the bot's own order: no sort there.
+      <!-- The sort sits over the list it orders. The built-in list is always A to Z, so it has no sort control.
            On a phone the sort joins the search in the list's own control row. -->
       <SegmentedControl
         v-if="listed && tablet"

@@ -33,9 +33,9 @@ const search = ref('');
 const needle = computed<string>(() => search.value.trim().replace(/^!+/, '').toLowerCase());
 
 const rows = computed<BuiltinCommand[]>(() =>
-  (builtins.data.value ?? []).filter((row): boolean =>
-    triggerWord(row).toLowerCase().includes(needle.value),
-  ),
+  (builtins.data.value ?? [])
+    .filter((row): boolean => triggerWord(row).toLowerCase().includes(needle.value))
+    .sort((a, b): number => triggerWord(a).localeCompare(triggerWord(b))),
 );
 
 type Settings = {
