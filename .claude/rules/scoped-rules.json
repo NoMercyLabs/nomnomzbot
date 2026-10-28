@@ -811,6 +811,20 @@
    ]
   },
   {
+   "id": "readme-through-atlas",
+   "paths": [
+    "**/README.md",
+    "**/docs/**",
+    "**/*.mdx"
+   ],
+   "brief": [
+    "README",
+    "[Dd]ocumentation"
+   ],
+   "text": "Every README and docs page, in this repo and in any repo Arc creates (nomnomzbot-docs included), is written with the nomercylabs:atlas skill loaded: every claim grounded in a file it names, the Atlas README shape, scannable one-idea sentences, and no claim about what a feature will do later.",
+   "source": "Stoney 2026-10-28 (translated from Dutch): \"You did not use the documentation skill for the README, did you? Huh?\" (Arc wrote the nomnomzbot-docs README without Atlas after using it for the bot README.) Memory: feedback-every-readme-through-atlas.md"
+  },
+  {
    "id": "docs-english-only",
    "paths": [
     "**/CLAUDE.md",
