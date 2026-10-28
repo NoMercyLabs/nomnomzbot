@@ -10,8 +10,9 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json;
-using System.Text.Json.Serialization;
 using FluentAssertions;
+using Microsoft.AspNetCore.Mvc;
+using NomNomzBot.Api.Extensions;
 using NomNomzBot.Api.Identifiers;
 
 namespace NomNomzBot.Api.Tests.Identifiers;
@@ -26,24 +27,16 @@ public sealed class UlidGuidJsonConverterTests
 {
     private static readonly Guid KnownId = Guid.Parse("0192a000-0000-7000-8000-000000000c01");
 
-    // Mirrors Program.cs's AddJsonOptions: camelCase + ignore-null + the ULID Guid converter.
-    private static JsonSerializerOptions Options()
-    {
-        JsonSerializerOptions options = new()
-        {
-            PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-            DefaultIgnoreCondition = JsonIgnoreCondition.WhenWritingNull,
-        };
-        options.Converters.Add(new UlidGuidJsonConverter());
-        return options;
-    }
-
     private sealed record IdCarrier(Guid Id, Guid? OptionalId, string Name);
 
     [Fact]
     public void Serializes_a_guid_field_as_a_ulid_string()
     {
-        string json = JsonSerializer.Serialize(new IdCarrier(KnownId, null, "timer"), Options());
+        JsonSerializerOptions options = new JsonOptions()
+            .UseApiJsonConventions()
+            .JsonSerializerOptions;
+
+        string json = JsonSerializer.Serialize(new IdCarrier(KnownId, null, "timer"), options);
 
         using JsonDocument doc = JsonDocument.Parse(json);
         string? id = doc.RootElement.GetProperty("id").GetString();
@@ -56,7 +49,9 @@ public sealed class UlidGuidJsonConverterTests
     [Fact]
     public void Round_trips_the_emitted_ulid_back_to_the_same_guid()
     {
-        JsonSerializerOptions options = Options();
+        JsonSerializerOptions options = new JsonOptions()
+            .UseApiJsonConventions()
+            .JsonSerializerOptions;
         string json = JsonSerializer.Serialize(new IdCarrier(KnownId, KnownId, "x"), options);
 
         IdCarrier? back = JsonSerializer.Deserialize<IdCarrier>(json, options);
@@ -69,9 +64,12 @@ public sealed class UlidGuidJsonConverterTests
     [Fact]
     public void Deserializes_a_raw_guid_string_too_for_inbound_tolerance()
     {
+        JsonSerializerOptions options = new JsonOptions()
+            .UseApiJsonConventions()
+            .JsonSerializerOptions;
         string json = $$"""{"id":"{{KnownId}}","name":"x"}""";
 
-        IdCarrier? back = JsonSerializer.Deserialize<IdCarrier>(json, Options());
+        IdCarrier? back = JsonSerializer.Deserialize<IdCarrier>(json, options);
 
         back.Should().NotBeNull();
         back.Id.Should().Be(KnownId);
@@ -81,7 +79,9 @@ public sealed class UlidGuidJsonConverterTests
     [Fact]
     public void Nullable_guid_null_is_omitted_and_round_trips_to_null()
     {
-        JsonSerializerOptions options = Options();
+        JsonSerializerOptions options = new JsonOptions()
+            .UseApiJsonConventions()
+            .JsonSerializerOptions;
         string json = JsonSerializer.Serialize(new IdCarrier(KnownId, null, "x"), options);
 
         json.Should().NotContain("optionalId");
@@ -92,9 +92,12 @@ public sealed class UlidGuidJsonConverterTests
     [Fact]
     public void Malformed_id_throws_json_exception()
     {
+        JsonSerializerOptions options = new JsonOptions()
+            .UseApiJsonConventions()
+            .JsonSerializerOptions;
         string json = """{"id":"not-a-valid-id","name":"x"}""";
 
-        Action act = () => JsonSerializer.Deserialize<IdCarrier>(json, Options());
+        Action act = () => JsonSerializer.Deserialize<IdCarrier>(json, options);
 
         act.Should().Throw<JsonException>();
     }
@@ -102,9 +105,12 @@ public sealed class UlidGuidJsonConverterTests
     [Fact]
     public void Non_string_id_token_throws_json_exception()
     {
+        JsonSerializerOptions options = new JsonOptions()
+            .UseApiJsonConventions()
+            .JsonSerializerOptions;
         string json = """{"id":12345,"name":"x"}""";
 
-        Action act = () => JsonSerializer.Deserialize<IdCarrier>(json, Options());
+        Action act = () => JsonSerializer.Deserialize<IdCarrier>(json, options);
 
         act.Should().Throw<JsonException>();
     }
