@@ -408,6 +408,7 @@ public sealed class ChannelRegistry : IChannelRegistry, IHostedService
                 MatchType = trigger.MatchType,
                 CaseSensitive = trigger.CaseSensitive,
                 Response = trigger.Response,
+                ReplyDelivery = trigger.ReplyDelivery,
                 // Live PipelineStep rows are the execution truth (PipelineGraphJson is only a build-time
                 // performance cache that can drift from them — event-store.md's own "DB steps take
                 // priority" precedent); only fall back to the cache when a pipeline has no split-out rows

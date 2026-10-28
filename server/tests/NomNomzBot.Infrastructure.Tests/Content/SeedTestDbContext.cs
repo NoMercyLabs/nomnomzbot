@@ -492,7 +492,9 @@ public sealed class SeedTestDbContext : DbContext, IApplicationDbContext
         {
             b.HasKey(t => t.Id);
             b.Ignore(t => t.Pipeline);
+            b.Ignore(t => t.ReplyDelivery);
         });
+        modelBuilder.Entity<ChatTrigger>(b => b.Ignore(t => t.ReplyDelivery));
         modelBuilder.Ignore<WatchStreak>();
         modelBuilder.Ignore<PipelineExecution>();
         modelBuilder.Ignore<CommandCooldownState>();

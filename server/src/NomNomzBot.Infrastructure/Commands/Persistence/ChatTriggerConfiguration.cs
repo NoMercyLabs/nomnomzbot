@@ -23,6 +23,7 @@ public class ChatTriggerConfiguration : IEntityTypeConfiguration<ChatTrigger>
         builder.Property(e => e.Pattern).IsRequired().HasMaxLength(200);
         builder.Property(e => e.MatchType).IsRequired().HasMaxLength(20);
         builder.Property(e => e.Response).HasMaxLength(500);
+        builder.Property(e => e.ReplyDelivery).HasReplyDeliveryColumn();
 
         // The registry's cache load: one channel's enabled triggers.
         builder.HasIndex(e => new { e.BroadcasterId, e.IsEnabled });

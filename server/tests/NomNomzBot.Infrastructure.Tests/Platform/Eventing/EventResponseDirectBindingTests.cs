@@ -24,7 +24,9 @@ using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Platform.Templating;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -64,7 +66,8 @@ public sealed class EventResponseDirectBindingTests
             db,
             engine,
             Substitute.For<ITemplateResolver>(),
-            Substitute.For<IChatProvider>(),
+            TestReplyDispatcher.OverProvider(Substitute.For<IChatProvider>()),
+            new OutboundSanctionAccessor(),
             Substitute.For<IEventResponseOverlayNotifier>(),
             Substitute.For<ITtsDispatchService>(),
             invoker,

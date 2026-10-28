@@ -1444,6 +1444,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<string>("ReplyDelivery")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("ReplyDeliveryJson");
+
                     b.Property<string>("Response")
                         .HasMaxLength(500)
                         .HasColumnType("TEXT");
@@ -1776,6 +1780,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.Property<int?>("PlatformSourceVersion")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("ReplyDelivery")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("ReplyDeliveryJson");
 
                     b.Property<string>("ResponseType")
                         .IsRequired()
@@ -2527,6 +2535,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.Property<int?>("PlatformSourceVersion")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("ReplyDelivery")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("ReplyDeliveryJson");
 
                     b.Property<bool>("SpeakWithTts")
                         .ValueGeneratedOnAdd()

@@ -25,6 +25,8 @@ using NomNomzBot.Infrastructure.Content.Commands;
 using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NomNomzBot.Infrastructure.Platform.Security;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -305,7 +307,8 @@ public sealed class ModerationAlertHandlersTests
             db,
             Substitute.For<IPipelineEngine>(),
             templates,
-            chat,
+            TestReplyDispatcher.OverProvider(chat),
+            new OutboundSanctionAccessor(),
             Substitute.For<IEventResponseOverlayNotifier>(),
             Substitute.For<ITtsDispatchService>(),
             Substitute.For<ICommandInvoker>(),

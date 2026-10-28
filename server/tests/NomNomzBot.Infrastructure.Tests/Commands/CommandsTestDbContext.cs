@@ -125,6 +125,7 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
             e.HasKey(t => t.Id);
             e.Ignore(t => t.Pipeline);
             e.Ignore(t => t.Channel);
+            e.Ignore(t => t.ReplyDelivery);
             e.Property(t => t.Messages)
                 .HasConversion(
                     JsonValueConverter.Converter<List<string>>(),

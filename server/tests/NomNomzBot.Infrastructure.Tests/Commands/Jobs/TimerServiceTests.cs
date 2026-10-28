@@ -16,14 +16,19 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
+using NomNomzBot.Application.Obs.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands.Jobs;
+using NomNomzBot.Infrastructure.Platform.Security;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Common;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -50,8 +55,33 @@ public sealed class TimerServiceTests
         IPipelineEngine Engine,
         IRunOnceGuard Guard,
         ILogger<TimerService> Logger,
-        ICommandInvoker Invoker
+        ICommandInvoker Invoker,
+        RecordingChatOverlayLineSender Overlay,
+        OutboundSanctionAccessor Sanctions
     );
+
+    /// <summary>
+    /// Registers what a firing message timer sends its line through: the real dispatcher over
+    /// <paramref name="chat"/> and <paramref name="overlay"/>, and the ambient sanction accessor.
+    /// </summary>
+    private static ServiceCollection WithReplyDispatch(
+        ServiceCollection services,
+        IChatProvider chat,
+        RecordingChatOverlayLineSender overlay,
+        OutboundSanctionAccessor sanctions
+    )
+    {
+        services.AddSingleton<IReplyDispatcher>(
+            TestReplyDispatcher.Over(
+                Substitute.For<IInboundOriginChatSender>(),
+                overlay,
+                chat,
+                Substitute.For<IObsBrowserSourceRecoveryScheduler>()
+            )
+        );
+        services.AddSingleton<IOutboundSanctionAccessor>(sanctions);
+        return services;
+    }
 
     private static Harness Build(IRunOnceGuard? guard = null, ILogger<TimerService>? logger = null)
     {
@@ -122,7 +152,14 @@ public sealed class TimerServiceTests
             )
             .Returns(Result.Success(new InvocationOutcome(true, "ok", null)));
 
-        ServiceProvider provider = new ServiceCollection()
+        RecordingChatOverlayLineSender overlay = new();
+        OutboundSanctionAccessor sanctions = new();
+        ServiceProvider provider = WithReplyDispatch(
+                new ServiceCollection(),
+                chat,
+                overlay,
+                sanctions
+            )
             .AddSingleton(invoker)
             .AddSingleton<IApplicationDbContext>(db)
             .AddSingleton(chat)
@@ -138,7 +175,7 @@ public sealed class TimerServiceTests
             logger
         );
 
-        return new(service, db, chat, engine, guard, logger, invoker);
+        return new(service, db, chat, engine, guard, logger, invoker, overlay, sanctions);
     }
 
     private static Timer SeedTimer(
@@ -321,6 +358,88 @@ public sealed class TimerServiceTests
     }
 
     [Fact]
+    public async Task An_overlay_timer_puts_its_line_on_the_overlay_and_sends_nothing_to_chat()
+    {
+        Harness h = Build();
+        Timer timer = SeedTimer(h.Db, pipelineId: null, ["<b>hello overlay</b>", "second line"]);
+        timer.ReplyDelivery = new(ReplyTarget.Overlay, Html: true);
+        h.Db.SaveChanges();
+
+        await h.Service.TickAsync(CancellationToken.None);
+
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        h.Overlay.Lines.Should().ContainSingle().Which.Text.Should().Be("<b>hello overlay</b>");
+        Timer saved = h.Db.Timers.Single(t => t.Id == timer.Id);
+        saved.LastFiredAt.Should().Be(Now.UtcDateTime);
+        saved.NextMessageIndex.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_timer_with_no_delivery_set_sends_to_chat_and_never_touches_the_overlay()
+    {
+        Harness h = Build();
+        SeedTimer(h.Db, pipelineId: null, ["hello chat!"]);
+
+        await h.Service.TickAsync(CancellationToken.None);
+
+        await h
+            .Chat.Received(1)
+            .SendMessageAsync(Channel, "hello chat!", Arg.Any<CancellationToken>());
+        h.Overlay.Lines.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_timer_aimed_nowhere_sends_nothing_yet_still_advances_its_rotation()
+    {
+        Harness h = Build();
+        Timer timer = SeedTimer(h.Db, pipelineId: null, ["one", "two"]);
+        timer.ReplyDelivery = new(ReplyTarget.None);
+        h.Db.SaveChanges();
+
+        await h.Service.TickAsync(CancellationToken.None);
+
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        h.Overlay.Lines.Should().BeEmpty();
+        h.Db.Timers.Single(t => t.Id == timer.Id).NextMessageIndex.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task A_timer_with_no_open_overlay_does_not_advance_and_does_not_fall_back_to_chat()
+    {
+        Harness h = Build();
+        h.Overlay.Result = ChatOverlayDelivery.NoChatOverlayOpen;
+        Timer timer = SeedTimer(h.Db, pipelineId: null, ["one", "two"]);
+        timer.ReplyDelivery = new(ReplyTarget.Overlay);
+        h.Db.SaveChanges();
+
+        await h.Service.TickAsync(CancellationToken.None);
+
+        await h.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        h.Db.Timers.Single(t => t.Id == timer.Id).NextMessageIndex.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_timer_chat_write_runs_under_a_channel_configuration_sanction()
+    {
+        Harness h = Build();
+        OutboundSanction? during = null;
+        h.Chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                during = h.Sanctions.Current;
+                return true;
+            });
+        SeedTimer(h.Db, pipelineId: null, ["hello chat!"]);
+
+        await h.Service.TickAsync(CancellationToken.None);
+
+        during.Should().NotBeNull();
+        during!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
+        during.Detail.Should().Be("timer:auto-shoutout");
+        h.Sanctions.Current.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Spoken_message_timer_sends_chat_and_queues_exactly_one_resolved_reply()
     {
         Harness h = Build();
@@ -397,7 +516,12 @@ public sealed class TimerServiceTests
                 Arg.Any<CancellationToken>()
             )
             .Returns(callInfo => callInfo.ArgAt<string>(0));
-        ServiceProvider secondProvider = new ServiceCollection()
+        ServiceProvider secondProvider = WithReplyDispatch(
+                new ServiceCollection(),
+                secondChat,
+                new RecordingChatOverlayLineSender(),
+                new OutboundSanctionAccessor()
+            )
             .AddSingleton<IApplicationDbContext>(first.Db)
             .AddSingleton(secondChat)
             .AddSingleton(Substitute.For<IPipelineEngine>())

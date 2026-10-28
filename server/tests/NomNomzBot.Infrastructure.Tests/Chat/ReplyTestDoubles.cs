@@ -43,6 +43,15 @@ internal static class TestReplyDispatcher
             NullLogger<ReplyDispatcher>.Instance
         );
 
+    /// <summary>
+    /// A real dispatcher for a surface that sends with no inbound origin (event responses, timers): its chat
+    /// leg is the channel provider <paramref name="chat"/>, so a test asserts what chat received.
+    /// </summary>
+    public static ReplyDispatcher OverProvider(
+        IChatProvider chat,
+        IChatOverlayLineSender? overlay = null
+    ) => Over(Substitute.For<IInboundOriginChatSender>(), overlay, provider: chat);
+
     private static IChatProvider AcceptingProvider()
     {
         IChatProvider provider = Substitute.For<IChatProvider>();

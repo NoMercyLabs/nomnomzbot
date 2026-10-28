@@ -19,7 +19,9 @@ using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Supporters.Events;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Supporters.EventHandlers;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Supporters;
@@ -61,7 +63,8 @@ public sealed class SupporterTriggerSourceTests
             db,
             Substitute.For<IPipelineEngine>(),
             templates,
-            chat,
+            TestReplyDispatcher.OverProvider(chat),
+            new OutboundSanctionAccessor(),
             Substitute.For<IEventResponseOverlayNotifier>(),
             Substitute.For<ITtsDispatchService>(),
             Substitute.For<ICommandInvoker>(),

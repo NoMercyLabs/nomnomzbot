@@ -44,6 +44,12 @@ public class ChatTrigger : SoftDeletableEntity, ITenantScoped, IBindingTargetHol
     [MaxLength(500)]
     public string? Response { get; set; }
 
+    /// <summary>
+    /// Where the template <see cref="Response"/> goes (chat, chat overlay, both, nowhere) and whether the overlay
+    /// line is HTML. Stored in the <c>ReplyDeliveryJson</c> column; null = the platform chat as plain text.
+    /// </summary>
+    public ReplyDelivery? ReplyDelivery { get; set; }
+
     /// <summary>Bound pipeline for chained reactions; wins over <see cref="Response"/> when set.</summary>
     public Guid? PipelineId { get; set; }
 

@@ -28,7 +28,11 @@ public sealed record ChatTriggerDto(
     string MinPermissionLevel,
     DateTime CreatedAt,
     DateTime UpdatedAt
-);
+)
+{
+    /// <summary>Where the template response goes and whether the overlay line is HTML; null = the platform chat as plain text.</summary>
+    public ReplyDelivery? ReplyDelivery { get; init; }
+}
 
 public sealed record CreateChatTriggerRequest
 {
@@ -47,6 +51,9 @@ public sealed record CreateChatTriggerRequest
     /// <summary>Template response — required unless a pipeline is bound.</summary>
     [MaxLength(500)]
     public string? Response { get; init; }
+
+    /// <summary>Where the template response goes and whether the overlay line is HTML; null = the platform chat as plain text.</summary>
+    public ReplyDelivery? ReplyDelivery { get; init; }
 
     /// <summary>Bound pipeline for chained reactions; wins over the template response.</summary>
     public Guid? PipelineId { get; init; }
@@ -82,6 +89,9 @@ public sealed record UpdateChatTriggerRequest
 
     [MaxLength(500)]
     public string? Response { get; init; }
+
+    /// <summary>Where the template response goes and whether the overlay line is HTML. Absent leaves it unchanged.</summary>
+    public ReplyDelivery? ReplyDelivery { get; init; }
 
     public Guid? PipelineId { get; init; }
 

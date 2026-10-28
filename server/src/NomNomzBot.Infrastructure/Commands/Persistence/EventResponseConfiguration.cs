@@ -28,6 +28,7 @@ public class EventResponseConfiguration : IEntityTypeConfiguration<EventResponse
             .HasMaxLength(40)
             .HasDefaultValue("chat_message");
         builder.Property(e => e.Message).HasMaxLength(2000);
+        builder.Property(e => e.ReplyDelivery).HasReplyDeliveryColumn();
         builder.Property(e => e.IsEnabled).IsRequired().HasDefaultValue(true);
         builder.Property(e => e.ConfigSchemaVersion).IsRequired().HasDefaultValue(1);
 

@@ -102,6 +102,7 @@ public sealed class ChatTriggerService : IChatTriggerService
             CaseSensitive = request.CaseSensitive,
             IsEnabled = request.IsEnabled,
             Response = request.Response,
+            ReplyDelivery = ReplyDelivery.ForStorage(request.ReplyDelivery),
             CooldownSeconds = Math.Clamp(request.CooldownSeconds, 0, MaxCooldownSeconds),
             MinPermissionLevel = minLevel.Value,
         };
@@ -158,6 +159,8 @@ public sealed class ChatTriggerService : IChatTriggerService
         trigger.Pattern = pattern;
         trigger.MatchType = matchType;
         trigger.Response = response;
+        if (request.ReplyDelivery is not null)
+            trigger.ReplyDelivery = ReplyDelivery.ForStorage(request.ReplyDelivery);
         BindingTargetBinder.ApplyTo(trigger, target, trigger.PipelineId);
         if (request.CaseSensitive.HasValue)
             trigger.CaseSensitive = request.CaseSensitive.Value;
@@ -273,7 +276,10 @@ public sealed class ChatTriggerService : IChatTriggerService
             PermissionLevelNames.ToName(t.MinPermissionLevel),
             t.CreatedAt,
             t.UpdatedAt
-        );
+        )
+        {
+            ReplyDelivery = t.ReplyDelivery,
+        };
 
     /// <summary>One wording for an unusable rung, naming what IS accepted so the caller can fix it.</summary>
     private static string UnknownRungMessage(string? given) =>

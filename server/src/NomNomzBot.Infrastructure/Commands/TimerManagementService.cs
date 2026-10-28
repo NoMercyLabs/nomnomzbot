@@ -202,6 +202,7 @@ public class TimerManagementService : ITimerManagementService
             IsEnabled = request.IsEnabled,
             FireOnce = request.FireOnce,
             SpeakWithTts = request.SpeakWithTts,
+            ReplyDelivery = ReplyDelivery.ForStorage(request.ReplyDelivery),
         };
         BindingTargetBinder.ApplyTo(timer, request.Target, timer.PipelineId);
 
@@ -286,6 +287,8 @@ public class TimerManagementService : ITimerManagementService
             timer.FireOnce = request.FireOnce.Value;
         if (request.SpeakWithTts.HasValue)
             timer.SpeakWithTts = request.SpeakWithTts.Value;
+        if (request.ReplyDelivery is not null)
+            timer.ReplyDelivery = ReplyDelivery.ForStorage(request.ReplyDelivery);
 
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcaster, timer.Id, "updated", cancellationToken);
@@ -403,6 +406,7 @@ public class TimerManagementService : ITimerManagementService
         )
         {
             SpeakWithTts = t.SpeakWithTts,
+            ReplyDelivery = t.ReplyDelivery,
             Target = t.GetBindingTarget(),
         };
 }

@@ -90881,6 +90881,7 @@ export interface components {
             createdAt: string;
             /** Format: date-time */
             updatedAt: string;
+            replyDelivery?: null | components["schemas"]["ReplyDelivery"];
         };
         /**
          * @description One readiness check. bool CheckItem.Ready means the area is <em>usable now</em>; bool CheckItem.Ok means the
@@ -91281,6 +91282,7 @@ export interface components {
             isEnabled?: boolean;
             /** @description Template response — required unless a pipeline is bound. */
             response?: null | string;
+            replyDelivery?: null | components["schemas"]["ReplyDelivery"];
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
@@ -91610,6 +91612,7 @@ export interface components {
             /** @description When true the timer fires once and then disables itself, instead of looping on the interval. */
             fireOnce?: boolean;
             speakWithTts?: boolean;
+            replyDelivery?: null | components["schemas"]["ReplyDelivery"];
             target?: null | components["schemas"]["BindingTarget"];
         };
         /** @description Add a note about a viewer. */
@@ -92663,6 +92666,7 @@ export interface components {
             speakWithTts: boolean;
             toneLines: string[];
             target: null | components["schemas"]["BindingTarget"];
+            replyDelivery?: null | components["schemas"]["ReplyDelivery"];
         };
         /**
          * @description One event type's platform default, as the admin editor shows it: whether following channels respond and
@@ -104139,6 +104143,7 @@ export interface components {
             /** Format: date-time */
             updatedAt: string;
             speakWithTts?: boolean;
+            replyDelivery?: null | components["schemas"]["ReplyDelivery"];
             target?: null | components["schemas"]["BindingTarget"];
         };
         /** @description Lightweight timer info for list views. */
@@ -104908,6 +104913,7 @@ export interface components {
             caseSensitive?: null | boolean;
             isEnabled?: null | boolean;
             response?: null | string;
+            replyDelivery?: null | components["schemas"]["ReplyDelivery"];
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
@@ -105011,6 +105017,7 @@ export interface components {
             };
             /** @description A chat_message response also speaks its resolved text through the channel's TTS. Absent leaves it unchanged. */
             speakWithTts?: null | boolean;
+            replyDelivery?: null | components["schemas"]["ReplyDelivery"];
             target?: null | components["schemas"]["BindingTarget"];
         };
         UpdateGameRequest: {
@@ -105261,6 +105268,7 @@ export interface components {
             /** @description When set, toggles one-shot mode (fire once then disable) vs looping. */
             fireOnce?: null | boolean;
             speakWithTts?: null | boolean;
+            replyDelivery?: null | components["schemas"]["ReplyDelivery"];
             target?: null | components["schemas"]["BindingTarget"];
         };
         UpdateTitleRequest: {

@@ -110760,6 +110760,17 @@
           "updatedAt": {
             "type": "string",
             "format": "date-time"
+          },
+          "replyDelivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Where the template response goes and whether the overlay line is HTML; null = the platform chat as plain text.",
+                "$ref": "#/components/schemas/ReplyDelivery"
+              }
+            ]
           }
         },
         "description": "One keyword auto-reply: fires on ordinary chat lines matching the pattern."
@@ -112045,6 +112056,17 @@
             ],
             "description": "Template response — required unless a pipeline is bound."
           },
+          "replyDelivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Where the template response goes and whether the overlay line is HTML; null = the platform chat as plain text.",
+                "$ref": "#/components/schemas/ReplyDelivery"
+              }
+            ]
+          },
           "pipelineId": {
             "type": [
               "null",
@@ -113100,6 +113122,17 @@
           },
           "speakWithTts": {
             "type": "boolean"
+          },
+          "replyDelivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Where a message timer's line goes and whether the overlay line is HTML; null = the platform chat as plain text.",
+                "$ref": "#/components/schemas/ReplyDelivery"
+              }
+            ]
           },
           "target": {
             "oneOf": [
@@ -116113,6 +116146,17 @@
               },
               {
                 "$ref": "#/components/schemas/BindingTarget"
+              }
+            ]
+          },
+          "replyDelivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Where a chat_message response goes and whether the overlay line is HTML; null = the platform chat as plain text.",
+                "$ref": "#/components/schemas/ReplyDelivery"
               }
             ]
           }
@@ -149166,6 +149210,17 @@
           "speakWithTts": {
             "type": "boolean"
           },
+          "replyDelivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Where a message timer's line goes and whether the overlay line is HTML; null = the platform chat as plain text.",
+                "$ref": "#/components/schemas/ReplyDelivery"
+              }
+            ]
+          },
           "target": {
             "oneOf": [
               {
@@ -151647,6 +151702,17 @@
               "string"
             ]
           },
+          "replyDelivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Where the template response goes and whether the overlay line is HTML. Absent leaves it unchanged.",
+                "$ref": "#/components/schemas/ReplyDelivery"
+              }
+            ]
+          },
           "pipelineId": {
             "type": [
               "null",
@@ -152025,6 +152091,17 @@
               "boolean"
             ],
             "description": "A chat_message response also speaks its resolved text through the channel's TTS. Absent leaves it unchanged."
+          },
+          "replyDelivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Where a chat_message response goes and whether the overlay line is HTML. Absent leaves it unchanged; a\r\ndelivery of plain Twitch chat is stored as the default.",
+                "$ref": "#/components/schemas/ReplyDelivery"
+              }
+            ]
           },
           "target": {
             "oneOf": [
@@ -152962,6 +153039,17 @@
             "type": [
               "null",
               "boolean"
+            ]
+          },
+          "replyDelivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Where a message timer's line goes and whether the overlay line is HTML. Absent leaves it unchanged.",
+                "$ref": "#/components/schemas/ReplyDelivery"
+              }
             ]
           },
           "target": {

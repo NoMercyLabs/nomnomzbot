@@ -16,10 +16,11 @@ using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -122,7 +123,6 @@ public sealed class TimerService : BackgroundService
 
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
-        IChatProvider chat = scope.ServiceProvider.GetRequiredService<IChatProvider>();
         IPipelineEngine pipelineEngine =
             scope.ServiceProvider.GetRequiredService<IPipelineEngine>();
 
@@ -139,15 +139,7 @@ public sealed class TimerService : BackgroundService
         {
             try
             {
-                await ProcessTimerAsync(
-                    scope.ServiceProvider,
-                    db,
-                    chat,
-                    pipelineEngine,
-                    timer,
-                    now,
-                    ct
-                );
+                await ProcessTimerAsync(scope.ServiceProvider, db, pipelineEngine, timer, now, ct);
             }
             catch (Exception ex)
             {
@@ -159,7 +151,6 @@ public sealed class TimerService : BackgroundService
     private async Task ProcessTimerAsync(
         IServiceProvider services,
         IApplicationDbContext db,
-        IChatProvider chat,
         IPipelineEngine pipelineEngine,
         Timer timer,
         DateTime now,
@@ -205,7 +196,7 @@ public sealed class TimerService : BackgroundService
         else
             fired = timer.PipelineId is { } pipelineId
                 ? await FirePipelineAsync(db, pipelineEngine, timer, pipelineId, channelCtx, ct)
-                : await FireMessageAsync(chat, pipelineEngine, timer, channelCtx, ct);
+                : await FireMessageAsync(services, pipelineEngine, timer, channelCtx, ct);
         if (!fired)
             return;
 
@@ -255,7 +246,7 @@ public sealed class TimerService : BackgroundService
 
     /// <summary>The classic timer: sends the next round-robin chat line. True when a line was sent.</summary>
     private async Task<bool> FireMessageAsync(
-        IChatProvider chat,
+        IServiceProvider services,
         IPipelineEngine pipelineEngine,
         Timer timer,
         ChannelContext channelCtx,
@@ -268,38 +259,61 @@ public sealed class TimerService : BackgroundService
         // Pick next message (round-robin)
         string messageTemplate = timer.Messages[timer.NextMessageIndex % timer.Messages.Count];
 
-        // Resolve template variables (template resolution is keyed by the tenant Guid)
-        string message = await _templateResolver.ResolveAsync(
+        // The timer says where its line goes (chat, the chat overlay, both or neither); a timer that sets
+        // nothing sends to chat as it always did. Template resolution is keyed by the tenant Guid.
+        ReplyDelivery delivery = timer.ReplyDelivery ?? ReplyDelivery.ChatOnly;
+        RenderedReply rendered = await ReplyTemplateRenderer.RenderAsync(
+            _templateResolver,
             messageTemplate,
             new Dictionary<string, string>(),
             timer.BroadcasterId,
+            delivery,
             ct
         );
+        string message = rendered.ChatText;
 
-        if (string.IsNullOrWhiteSpace(message))
+        // A timer aimed nowhere has no text to check; every other target needs a line to send.
+        if (
+            delivery.Target != ReplyTarget.None
+            && string.IsNullOrWhiteSpace(rendered.ChatText)
+            && string.IsNullOrWhiteSpace(rendered.OverlayText)
+        )
             return false;
 
-        // IChatProvider takes the tenant Guid and resolves it to the Twitch channel string id internally.
-        // Before this, the send's bool was discarded and true was hardcoded, so a failed transport send
-        // still stamped LastFiredAt and advanced the round-robin index as if the line went out — the
-        // failed line was silently skipped forever instead of retrying next interval.
-        bool sent = await chat.SendMessageAsync(
-            channelCtx.BroadcasterId,
-            message,
-            cancellationToken: ct
-        );
-        if (!sent)
+        // A timer is background work with no viewer behind it: the channel's own timer configuration is what
+        // sanctions the write. The outcome carries the real delivery result — before the S008d fix the send's
+        // bool was discarded and true hardcoded, so a failed send still stamped LastFiredAt and advanced the
+        // round-robin as if the line went out; the failed line was skipped forever instead of retrying.
+        ReplyOutcome outcome;
+        using (
+            services
+                .GetRequiredService<IOutboundSanctionAccessor>()
+                .Begin(OutboundSanction.ChannelConfiguration($"timer:{timer.Name}"))
+        )
+            outcome = await services
+                .GetRequiredService<IReplyDispatcher>()
+                .DispatchAsync(
+                    new ReplyRequest
+                    {
+                        BroadcasterId = channelCtx.BroadcasterId,
+                        Text = rendered.ChatText,
+                        OverlayText = rendered.OverlayText,
+                        Delivery = delivery,
+                    },
+                    ct
+                );
+        if (!outcome.Succeeded(delivery))
         {
             _logger.LogWarning(
                 "Timer {Name} failed to send in channel {BroadcasterId}: \"{Message}\"",
                 timer.Name,
                 timer.BroadcasterId,
-                message
+                rendered.ChatText.Length > 0 ? rendered.ChatText : rendered.OverlayText
             );
             return false;
         }
 
-        if (timer.SpeakWithTts)
+        if (timer.SpeakWithTts && outcome.SentToChat)
             await ReplyTtsPipeline.QueueAsync(
                 pipelineEngine,
                 timer.BroadcasterId,

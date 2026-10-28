@@ -26,8 +26,10 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.Commands;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.PlatformDefaults;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -82,12 +84,15 @@ public sealed class EventResponseDefaultsAdminServiceTests
             )
             .Returns(call => call.ArgAt<string>(0));
         IChatProvider chat = Substitute.For<IChatProvider>();
+        chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(true);
         ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
         EventResponseExecutor executor = new(
             db,
             Substitute.For<IPipelineEngine>(),
             templates,
-            chat,
+            TestReplyDispatcher.OverProvider(chat),
+            new OutboundSanctionAccessor(),
             Substitute.For<IEventResponseOverlayNotifier>(),
             tts,
             Substitute.For<ICommandInvoker>(),

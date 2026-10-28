@@ -44,6 +44,13 @@ public sealed record ReplyDelivery(ReplyTarget Target = ReplyTarget.Chat, bool H
     /// <summary>The default: reply in the platform chat, as plain text.</summary>
     public static ReplyDelivery ChatOnly { get; } = new();
 
+    /// <summary>
+    /// The value a row stores for <paramref name="delivery"/>: plain Twitch chat is stored as null (the default
+    /// every row had before the setting existed), so a client that sends the chat target back resets a row.
+    /// </summary>
+    public static ReplyDelivery? ForStorage(ReplyDelivery? delivery) =>
+        delivery is { Target: ReplyTarget.Chat } ? null : delivery;
+
     [JsonIgnore]
     public bool SendsToChat => Target is ReplyTarget.Chat or ReplyTarget.Both;
 
