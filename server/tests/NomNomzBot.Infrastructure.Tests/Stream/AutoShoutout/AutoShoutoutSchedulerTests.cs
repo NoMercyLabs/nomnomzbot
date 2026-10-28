@@ -93,15 +93,6 @@ public sealed class AutoShoutoutSchedulerTests
             CreatedAt: DateTimeOffset.UnixEpoch
         );
 
-    private static string NaiveResolve(NSubstitute.Core.CallInfo callInfo)
-    {
-        string template = (string)callInfo[0];
-        IDictionary<string, string> vars = (IDictionary<string, string>)callInfo[1];
-        foreach (KeyValuePair<string, string> kv in vars)
-            template = template.Replace("{" + kv.Key + "}", kv.Value);
-        return template;
-    }
-
     private static NomNomzBot.Domain.Identity.Entities.Channel StreamerRow(
         string twitchId,
         bool enabled
@@ -147,15 +138,7 @@ public sealed class AutoShoutoutSchedulerTests
                 )
             );
 
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(callInfo => Task.FromResult(NaiveResolve(callInfo)));
+        ITemplateResolver resolver = TestTemplateResolver.Create(clock);
 
         ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
         tts.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())

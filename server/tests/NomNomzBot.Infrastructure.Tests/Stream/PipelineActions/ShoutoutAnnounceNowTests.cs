@@ -12,7 +12,6 @@
 using System.Text.Json;
 using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -44,7 +43,7 @@ public sealed class ShoutoutAnnounceNowTests
         ITwitchStreamsApi Streams,
         ShoutoutQueue Queue,
         ChannelContext ChannelCtx,
-        List<IDictionary<string, string>> Seeds
+        List<Dictionary<string, string>> Seeds
     );
 
     private static TwitchUser User() =>
@@ -146,24 +145,7 @@ public sealed class ShoutoutAnnounceNowTests
             .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<TwitchUser>>([User()]));
 
-        List<IDictionary<string, string>> seeds = [];
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                IDictionary<string, string> seed = (IDictionary<string, string>)call[1];
-                seeds.Add(new Dictionary<string, string>(seed));
-                string template = (string)call[0];
-                foreach (KeyValuePair<string, string> kv in seed)
-                    template = template.Replace("{" + kv.Key + "}", kv.Value);
-                return Task.FromResult(template);
-            });
+        RecordingTemplateResolver resolver = new();
         ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
         tts.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
             .Returns(
@@ -209,7 +191,17 @@ public sealed class ShoutoutAnnounceNowTests
             botChat,
             streamsApi
         );
-        return new(action, chat, botChat, tts, channelsApi, streamsApi, queue, channelCtx, seeds);
+        return new(
+            action,
+            chat,
+            botChat,
+            tts,
+            channelsApi,
+            streamsApi,
+            queue,
+            channelCtx,
+            resolver.Seeds
+        );
     }
 
     private static PipelineExecutionContext Manual() =>

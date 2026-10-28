@@ -170,7 +170,7 @@ public sealed class ChatTriggerReplyDeliveryTests
                 ),
                 Substitute.For<IPipelineEngine>(),
                 builtins,
-                new SubstitutingTemplateResolver(),
+                TestTemplateResolver.Create(),
                 Substitute.For<IEventBus>(),
                 new(),
                 TimeProvider.System,

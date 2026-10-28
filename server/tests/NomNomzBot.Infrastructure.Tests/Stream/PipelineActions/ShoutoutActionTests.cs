@@ -62,18 +62,6 @@ public sealed class ShoutoutActionTests
             Parameters = new() { ["user_id"] = JsonSerializer.SerializeToElement(userId) },
         };
 
-    /// <summary>Minimal stand-in for the real resolver's <c>{key}</c> substitution — enough to prove the
-    /// action actually threads its seeded target vars into the announcement, without pulling in the full
-    /// DB-backed resolver implementation.</summary>
-    private static string NaiveResolve(NSubstitute.Core.CallInfo callInfo)
-    {
-        string template = (string)callInfo[0];
-        IDictionary<string, string> vars = (IDictionary<string, string>)callInfo[1];
-        foreach (KeyValuePair<string, string> kv in vars)
-            template = template.Replace("{" + kv.Key + "}", kv.Value);
-        return template;
-    }
-
     private static TwitchUser User(string id, string login) =>
         new(
             Id: id,
@@ -88,7 +76,9 @@ public sealed class ShoutoutActionTests
             CreatedAt: DateTimeOffset.UnixEpoch
         );
 
-    private static (ShoutoutAction Sut, ITwitchChatApi Chat, ITwitchUsersApi Users) Build()
+    private static (ShoutoutAction Sut, ITwitchChatApi Chat, ITwitchUsersApi Users) Build(
+        AuthDbContext? db = null
+    )
     {
         ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();
         chat.SendShoutoutAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
@@ -110,54 +100,21 @@ public sealed class ShoutoutActionTests
                 ])
             );
 
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(callInfo => Task.FromResult(NaiveResolve(callInfo)));
-
         ShoutoutAction sut = ShoutoutTestFactory.Create(
             chat,
             users,
             Substitute.For<IChannelRegistry>(),
-            AuthTestBuilder.NewContext(),
-            resolver,
+            db ?? AuthTestBuilder.NewContext(),
+            TestTemplateResolver.Create(),
             Substitute.For<ITtsDispatchService>(),
             TimeProvider.System
         );
         return (sut, chat, users);
     }
 
-    private static async Task<string> AnnounceAsync(string? personality, string? ownTemplate)
+    [Fact]
+    public async Task A_sassy_channel_with_no_template_announces_a_line_from_the_snarky_pool()
     {
-        ITwitchChatApi chat = Substitute.For<ITwitchChatApi>();
-        chat.SendShoutoutAsync(Channel, Arg.Any<string>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success());
-        chat.SendAnnouncementAsync(
-                Channel,
-                Arg.Any<string>(),
-                Arg.Any<string?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(Result.Success());
-        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
-        users
-            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
-            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([User("123456", "numerictarget")]));
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(callInfo => Task.FromResult(NaiveResolve(callInfo)));
-
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
             new()
@@ -166,49 +123,35 @@ public sealed class ShoutoutActionTests
                 Name = "stoney",
                 NameNormalized = "stoney",
                 OwnerUserId = Guid.NewGuid(),
-                Personality = personality ?? PersonalityTone.Informative,
-                ShoutoutTemplate = ownTemplate,
+                Personality = PersonalityTone.Sassy,
             }
         );
         await db.SaveChangesAsync();
-
-        ShoutoutAction sut = ShoutoutTestFactory.Create(
-            chat,
-            users,
-            Substitute.For<IChannelRegistry>(),
-            db,
-            resolver,
-            Substitute.For<ITtsDispatchService>(),
-            TimeProvider.System
-        );
+        (ShoutoutAction sut, ITwitchChatApi chat, ITwitchUsersApi _) = Build(db);
 
         ActionResult result = await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
 
         result.Succeeded.Should().BeTrue();
-        IEnumerable<NSubstitute.Core.ICall> sent = chat.ReceivedCalls()
-            .Where(c => c.GetMethodInfo().Name == nameof(ITwitchChatApi.SendAnnouncementAsync));
-        return (string)sent.Single().GetArguments()[1]!;
-    }
-
-    [Fact]
-    public async Task A_sassy_channel_with_no_template_announces_a_line_from_the_snarky_pool()
-    {
-        string announced = await AnnounceAsync(PersonalityTone.Sassy, null);
-
+        string announced = (string)
+            chat.ReceivedCalls()
+                .Single(c => c.GetMethodInfo().Name == nameof(ITwitchChatApi.SendAnnouncementAsync))
+                .GetArguments()[1]!;
         IReadOnlyList<string> pool = ToneTemplateCatalog.Get(
             PersonalityTone.Sassy,
             BuiltinResponseSlots.Shoutout.Key,
             BuiltinResponseSlots.Shoutout.Announcement
         );
         pool.Should().HaveCount(9);
-        List<string> filled =
-        [
-            .. pool.Select(l =>
-                l.Replace("{target.displayname}", "numerictarget")
-                    .Replace("{target.link}", "twitch.tv/numerictarget")
-                    .Replace("{target.game}", "something awesome")
-            ),
-        ];
+        ITemplateResolver resolver = TestTemplateResolver.Create();
+        Dictionary<string, string> seeds = new()
+        {
+            ["target.displayname"] = "numerictarget",
+            ["target.link"] = "twitch.tv/numerictarget",
+            ["target.game"] = "something awesome",
+        };
+        List<string> filled = [];
+        foreach (string line in pool)
+            filled.Add(await resolver.ResolveAsync(line, seeds, Channel));
         filled.Should().Contain(announced);
         announced.Should().Contain("numerictarget");
     }
@@ -216,21 +159,42 @@ public sealed class ShoutoutActionTests
     [Fact]
     public async Task An_informative_channel_with_no_template_announces_a_plain_line_without_a_link()
     {
-        string announced = await AnnounceAsync(PersonalityTone.Informative, null);
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(
+            new()
+            {
+                Id = Channel,
+                Name = "stoney",
+                NameNormalized = "stoney",
+                OwnerUserId = Guid.NewGuid(),
+                Personality = PersonalityTone.Informative,
+            }
+        );
+        await db.SaveChangesAsync();
+        (ShoutoutAction sut, ITwitchChatApi chat, ITwitchUsersApi _) = Build(db);
 
-        List<string> filled =
-        [
-            .. ToneTemplateCatalog
-                .Get(
-                    PersonalityTone.Informative,
-                    BuiltinResponseSlots.Shoutout.Key,
-                    BuiltinResponseSlots.Shoutout.Announcement
-                )
-                .Select(l =>
-                    l.Replace("{target.displayname}", "numerictarget")
-                        .Replace("{target.game}", "something awesome")
-                ),
-        ];
+        ActionResult result = await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
+
+        result.Succeeded.Should().BeTrue();
+        string announced = (string)
+            chat.ReceivedCalls()
+                .Single(c => c.GetMethodInfo().Name == nameof(ITwitchChatApi.SendAnnouncementAsync))
+                .GetArguments()[1]!;
+        ITemplateResolver resolver = TestTemplateResolver.Create();
+        Dictionary<string, string> seeds = new()
+        {
+            ["target.displayname"] = "numerictarget",
+            ["target.game"] = "something awesome",
+        };
+        List<string> filled = [];
+        foreach (
+            string line in ToneTemplateCatalog.Get(
+                PersonalityTone.Informative,
+                BuiltinResponseSlots.Shoutout.Key,
+                BuiltinResponseSlots.Shoutout.Announcement
+            )
+        )
+            filled.Add(await resolver.ResolveAsync(line, seeds, Channel));
         filled.Should().Contain(announced);
         announced.Should().NotContain("twitch.tv");
     }
@@ -238,12 +202,31 @@ public sealed class ShoutoutActionTests
     [Fact]
     public async Task A_sassy_channel_with_its_own_template_still_announces_that_template()
     {
-        string announced = await AnnounceAsync(
-            PersonalityTone.Sassy,
-            "Go follow {target.name} at {target.link}!"
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Channels.Add(
+            new()
+            {
+                Id = Channel,
+                Name = "stoney",
+                NameNormalized = "stoney",
+                OwnerUserId = Guid.NewGuid(),
+                Personality = PersonalityTone.Sassy,
+                ShoutoutTemplate = "Go follow {target.name} at {target.link}!",
+            }
         );
+        await db.SaveChangesAsync();
+        (ShoutoutAction sut, ITwitchChatApi chat, ITwitchUsersApi _) = Build(db);
 
-        announced.Should().Be("Go follow numerictarget at twitch.tv/numerictarget!");
+        ActionResult result = await sut.ExecuteAsync(Ctx(), Shoutout("123456"));
+
+        result.Succeeded.Should().BeTrue();
+        await chat.Received(1)
+            .SendAnnouncementAsync(
+                Channel,
+                "Go follow numerictarget at twitch.tv/numerictarget!",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -334,15 +317,7 @@ public sealed class ShoutoutActionTests
         users
             .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<TwitchUser>>([User("123456", "numerictarget")]));
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(callInfo => Task.FromResult(NaiveResolve(callInfo)));
+        ITemplateResolver resolver = TestTemplateResolver.Create();
 
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
@@ -412,15 +387,7 @@ public sealed class ShoutoutActionTests
         users
             .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<TwitchUser>>([User("123456", "numerictarget")]));
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(callInfo => Task.FromResult(NaiveResolve(callInfo)));
+        ITemplateResolver resolver = TestTemplateResolver.Create();
 
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
@@ -539,15 +506,7 @@ public sealed class ShoutoutActionTests
         users
             .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<TwitchUser>>([korean]));
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(Task.FromResult("Go follow @keiraravt, they stream great!"));
+        ITemplateResolver resolver = TestTemplateResolver.Create();
         ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
         tts.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
             .Returns(
@@ -563,6 +522,7 @@ public sealed class ShoutoutActionTests
                 Name = "stoney",
                 NameNormalized = "stoney",
                 OwnerUserId = Guid.NewGuid(),
+                ShoutoutTemplate = "Go follow @{target.name}, they stream great!",
             }
         );
         await db.SaveChangesAsync();
@@ -623,15 +583,7 @@ public sealed class ShoutoutActionTests
         users
             .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<TwitchUser>>([User("123456", "numerictarget")]));
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(callInfo => Task.FromResult(NaiveResolve(callInfo)));
+        ITemplateResolver resolver = TestTemplateResolver.Create();
         ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
         tts.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
             .Returns(
@@ -729,7 +681,7 @@ public sealed class ShoutoutActionTests
             users,
             registry,
             AuthTestBuilder.NewContext(),
-            Substitute.For<ITemplateResolver>(),
+            TestTemplateResolver.Create(),
             Substitute.For<ITtsDispatchService>(),
             TimeProvider.System
         );

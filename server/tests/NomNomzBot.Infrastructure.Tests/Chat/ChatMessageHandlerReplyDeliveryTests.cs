@@ -316,7 +316,7 @@ public sealed class ChatMessageHandlerReplyDeliveryTests
                 TestReplyDispatcher.Over(Chat, Overlay, Provider, Recovery),
                 Pipeline,
                 builtins,
-                new SubstitutingTemplateResolver(),
+                TestTemplateResolver.Create(),
                 Bus,
                 new(),
                 TimeProvider.System,

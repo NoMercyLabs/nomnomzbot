@@ -20,7 +20,6 @@ using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Pipeline;
 using NomNomzBot.Infrastructure.Stage;
-using NomNomzBot.Infrastructure.Tests.Chat;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Stage;
@@ -123,7 +122,7 @@ public sealed class StageEffectActionTests
             registry,
             [Action()],
             [],
-            new SubstitutingTemplateResolver(),
+            TestTemplateResolver.Create(),
             NullLogger<PipelineEngine>.Instance,
             TimeProvider.System
         );

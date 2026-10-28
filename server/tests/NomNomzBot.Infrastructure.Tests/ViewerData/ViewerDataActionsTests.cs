@@ -91,24 +91,7 @@ public sealed class ViewerDataActionsTests
             )
             .Returns(Result.Success(Dto(Bob, "bob", "Bob")));
 
-        // Seed-only substitution — enough to prove the value parameter template-resolves.
-        _templates = Substitute.For<ITemplateResolver>();
-        _templates
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(call =>
-            {
-                string template = call.ArgAt<string>(0);
-                foreach (
-                    KeyValuePair<string, string> kvp in call.ArgAt<IDictionary<string, string>>(1)
-                )
-                    template = template.Replace($"{{{kvp.Key}}}", kvp.Value);
-                return Task.FromResult(template);
-            });
+        _templates = TestTemplateResolver.Create();
     }
 
     private static UserDto Dto(Guid id, string login, string display) =>

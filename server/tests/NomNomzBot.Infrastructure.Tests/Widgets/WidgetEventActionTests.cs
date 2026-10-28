@@ -13,7 +13,6 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
@@ -128,28 +127,6 @@ public sealed class WidgetEventActionTests
         data["vip"].Should().Be(true);
     }
 
-    /// <summary>Replaces <c>{name}</c> with the seeded variable; stands in for the real template resolver.</summary>
-    private sealed class VariableResolver : ITemplateResolver
-    {
-        public string Resolve(string template, IDictionary<string, string> variables) =>
-            Fill(template, variables);
-
-        public Task<string> ResolveAsync(
-            string template,
-            IDictionary<string, string> seedVariables,
-            Guid? broadcasterId,
-            CancellationToken cancellationToken = default
-        ) => Task.FromResult(Fill(template, seedVariables));
-
-        private static string Fill(string template, IDictionary<string, string> variables)
-        {
-            string result = template;
-            foreach (KeyValuePair<string, string> pair in variables)
-                result = result.Replace("{" + pair.Key + "}", pair.Value);
-            return result;
-        }
-    }
-
     [Fact]
     public async Task Engine_fills_templates_in_data_and_event_type_and_delivers_data_as_an_object()
     {
@@ -170,7 +147,7 @@ public sealed class WidgetEventActionTests
             registry,
             [Action()],
             [],
-            new VariableResolver(),
+            TestTemplateResolver.Create(),
             NullLogger<PipelineEngine>.Instance,
             TimeProvider.System
         );

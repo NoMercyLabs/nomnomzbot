@@ -40,25 +40,7 @@ public sealed class AnnounceActionTests
             )
             .Returns(Result.Success());
 
-        ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
-        resolver
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            // Naive stand-in for tone/template resolution: substitutes {name} placeholders from the
-            // run's variable bag, proving the action feeds ITemplateResolver (the same resolution path
-            // SendMessageAction uses) rather than posting the raw, unresolved template.
-            .Returns(ci =>
-            {
-                string template = (string)ci[0];
-                IDictionary<string, string> vars = (IDictionary<string, string>)ci[1];
-                foreach (KeyValuePair<string, string> kv in vars)
-                    template = template.Replace("{" + kv.Key + "}", kv.Value);
-                return Task.FromResult(template);
-            });
+        ITemplateResolver resolver = TestTemplateResolver.Create();
 
         return (new(chat, resolver), chat, resolver);
     }

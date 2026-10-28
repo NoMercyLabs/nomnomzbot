@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.Extensions.Logging.Abstractions;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -85,30 +84,5 @@ internal sealed class RecordingChatOverlayLineSender : IChatOverlayLineSender
     {
         Lines.Add(line);
         return Task.FromResult(Result);
-    }
-}
-
-/// <summary>Replaces <c>{key}</c> with the seed value and records each seed bag it was given.</summary>
-internal sealed class SubstitutingTemplateResolver : ITemplateResolver
-{
-    public List<Dictionary<string, string>> Seeds { get; } = [];
-
-    public Task<string> ResolveAsync(
-        string template,
-        IDictionary<string, string> seedVariables,
-        Guid? broadcasterId,
-        CancellationToken cancellationToken = default
-    )
-    {
-        Seeds.Add(new Dictionary<string, string>(seedVariables, StringComparer.OrdinalIgnoreCase));
-        return Task.FromResult(Resolve(template, seedVariables));
-    }
-
-    public string Resolve(string template, IDictionary<string, string> variables)
-    {
-        string text = template;
-        foreach (KeyValuePair<string, string> pair in variables)
-            text = text.Replace("{" + pair.Key + "}", pair.Value, StringComparison.Ordinal);
-        return text;
     }
 }
