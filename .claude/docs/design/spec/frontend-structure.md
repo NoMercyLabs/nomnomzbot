@@ -15,7 +15,7 @@ here." This is the rulebook every contributor and scaffold follows, the sibling 
 `core/di/AppGraph.kt` and hand-written `…Api` facades in `core/network/`.
 
 **Conventions:** `commonMain`-first with full `wasmJs` parity; explicit types; one public type per
-file; **package == folder path**; AGPL header on every `.kt`; `ApiResult<T>` over exceptions/null;
+file; **package == folder path**; PolyForm Noncommercial header on every `.kt`; `ApiResult<T>` over exceptions/null;
 async via coroutines (never block). Package root is `bot.nomnomz.dashboard`.
 
 ---
@@ -193,7 +193,7 @@ stub:
 A detekt ruleset (+ CI gate), the frontend `taxonomy-linter`, fails the build on:
 
 - a **banned dump folder** (F3), or an artifact whose folder doesn't match its base type (§2);
-- a **package that doesn't equal its folder path** (hand-written `.kt` under `kotlin/` only; the OpenAPI generator emits `packageName = bot.nomnomz.dashboard.core.network.generated`, and `composeResources/` XML is exempt), or a missing AGPL header;
+- a **package that doesn't equal its folder path** (hand-written `.kt` under `kotlin/` only; the OpenAPI generator emits `packageName = bot.nomnomz.dashboard.core.network.generated`, and `composeResources/` XML is exempt), or a missing PolyForm Noncommercial header;
 - a `*Module` **not** in `AppModules`, or a `Route` **not** wired into the shell (F5);
 - more than one `HttpClient` / `QueryClient` / realtime client (F7);
 - a hand-edit inside `core/network/generated/`;

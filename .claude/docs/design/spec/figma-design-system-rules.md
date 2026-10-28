@@ -451,4 +451,4 @@ Before committing any new screen or component, verify:
 - [ ] Every icon-only button wrapped in `GlyphButton` (tooltip + a11y name)
 - [ ] All user-visible strings in both `strings.xml` (en) and `values-nl/strings.xml` (nl)
 - [ ] Screen subscribes to relevant `HubEvent` types if it shows live data
-- [ ] AGPL license header at top of every new `.kt` file
+- [ ] PolyForm Noncommercial license header at top of every new `.kt` file

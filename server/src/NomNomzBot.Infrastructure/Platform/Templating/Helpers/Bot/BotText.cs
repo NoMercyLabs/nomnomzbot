@@ -24,7 +24,7 @@ internal static class BotText
 
     public const string SourceCode = "https://github.com/NoMercyLabs/nomnomzbot";
 
-    public const string License = "AGPL-3.0-or-later";
+    public const string License = "PolyForm-Noncommercial-1.0.0";
 
     /// <summary>The time between two moments, never below zero.</summary>
     public static TimeSpan Since(DateTimeOffset then, DateTimeOffset now) =>

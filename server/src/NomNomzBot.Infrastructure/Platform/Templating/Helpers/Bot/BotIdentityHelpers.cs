@@ -19,7 +19,7 @@ internal sealed class BotIdentityHelpers()
         BotRow.Read("bot.name", "SampleBot", BotSources.Identity, call => NameAsync(call, "")),
         BotRow.Read("bot.mention", "@SampleBot", BotSources.Identity, call => NameAsync(call, "@")),
         BotRow.Memory("bot.version", "1.42.0", call => call.Data.Process.Version),
-        BotRow.Fixed("bot.license", "AGPL-3.0-or-later", BotText.License),
+        BotRow.Fixed("bot.license", "PolyForm-Noncommercial-1.0.0", BotText.License),
         BotRow.Fixed("bot.sourceCode", BotText.SourceCode, BotText.SourceCode),
         BotRow.Read("bot.isMod", "true", BotSources.Moderator, IsModAsync)
     )

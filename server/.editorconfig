@@ -121,7 +121,7 @@ resharper_web_config_wrong_module_highlighting = warning
 [*.cs]
 
 # License header — Rider/ReSharper renders this as the file header (folded/dimmed) and can
-# auto-insert it on new files. Generated to match the AGPL banner in CLAUDE.md byte-for-byte.
+# auto-insert it on new files. Generated to match the PolyForm banner in CLAUDE.md byte-for-byte.
 file_header_template = -----------------------------------------------------------------------------\n Copyright (c) NoMercy Labs.\n\n This file is part of NomNomzBot. You may use, change and share it for free,\n for any noncommercial purpose, under the PolyForm Noncommercial License\n 1.0.0. You may not earn money with it. Distributed WITHOUT ANY WARRANTY.\n See LICENSE for details, and TRADEMARKS.md for the name and logo.\n\n SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0\n-----------------------------------------------------------------------------
 dotnet_diagnostic.IDE0073.severity = suggestion
 

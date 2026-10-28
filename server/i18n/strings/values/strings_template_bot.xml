@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
   Copyright (c) NoMercy Labs.
-  Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
+  Part of NomNomzBot. You may use, change and share it for free. You may not earn money with it.
   SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
   Template helper help text, namespace "bot", lane L2l1 (catalog section 7.17).
@@ -11,7 +11,7 @@
     <string name="template_helper_bot_name">The name of the bot in chat: SampleBot</string>
     <string name="template_helper_bot_mention">The bot name as a mention: @SampleBot</string>
     <string name="template_helper_bot_version">The version of the running bot: 1.42.0</string>
-    <string name="template_helper_bot_license">The licence of the bot source code: AGPL-3.0-or-later</string>
+    <string name="template_helper_bot_license">The licence of the bot source code: PolyForm-Noncommercial-1.0.0</string>
     <string name="template_helper_bot_sourceCode">The address of the bot source code: https://github.com/NoMercyLabs/nomnomzbot</string>
     <string name="template_helper_bot_isMod">true when the bot can moderate this chat, false when it cannot. Empty when this is not known yet</string>
     <string name="template_helper_bot_uptime">How long the bot has been running, short: 3d 4h</string>

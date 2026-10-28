@@ -1392,8 +1392,8 @@ reads it); process start (`Environment.TickCount64` / `Process.StartTime`); `Cha
 | `bot.personality` | `{bot.personality}` | Informative | `ChannelContext.Personality` | L2l |
 | `bot.language` | `{bot.language}` | en | `ChannelContext.Language` | L2l |
 | `bot.dashboard` | `{bot.dashboard}` | https://nomnomz.bot/app/u/samplechannel | public origin (memory rule: public origin, not request scheme) | L2l |
-| `bot.sourceCode` | `{bot.sourceCode}` | https://github.com/NoMercyLabs/nomnomzbot | fixed (AGPL source offer) | L2l |
-| `bot.license` | `{bot.license}` | AGPL-3.0-or-later | fixed | L2l |
+| `bot.sourceCode` | `{bot.sourceCode}` | https://github.com/NoMercyLabs/nomnomzbot | fixed (public source link) | L2l |
+| `bot.license` | `{bot.license}` | PolyForm-Noncommercial-1.0.0 | fixed | L2l |
 | `bot.ping` | `{bot.ping}` | 42 ms | last EventSub/chat round-trip (source: not checked; L2l checks the WebSocket keepalive timing) | L2l |
 | `bot.lastRestart.relative` | `{bot.lastRestart.relative}` | 3 days ago | process start | L2l |
 
@@ -1582,7 +1582,7 @@ Rules for all lookups:
 4. The poller limits per source are enforced per process, not per channel, so 1,000 channels cannot exceed the
    provider limit. Open-Meteo's 600 per minute is the tightest: the 10-minute cache keeps a busy bot far below it.
 
-**OPEN DECISION D3 (Stoney): Open-Meteo is free for non-commercial use only.** NomNomzBot is AGPL and self-hosted
+**OPEN DECISION D3 (Stoney): Open-Meteo is free for non-commercial use only.** NomNomzBot is PolyForm Noncommercial and self-hosted
 bots are free, but the project also has a hosted option (`saas` mode, run by NoMercy Labs only; nobody else may earn money with NomNomzBot).
 A hosted, paid use is commercial under the Open-Meteo terms quoted above. Options: (a) ship weather and local time
 on Open-Meteo for self-hosted bots only and switch the two weather rows off in `saas` mode; (b) buy the Open-Meteo

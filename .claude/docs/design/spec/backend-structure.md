@@ -4,7 +4,7 @@
 
 **Applies to:** `server/src` (the five .NET projects: the four layers plus `NomNomzBot.Migrations.Sqlite`). Frontend layout is owned by `frontend-structure.md`.
 
-**Conventions:** file-scoped namespaces; `Nullable` enabled; async all the way; `Result<T>` over exceptions/null; one public type per file; **namespace == folder path**; AGPL license header on every file. Namespace root is `NomNomzBot.*` everywhere.
+**Conventions:** file-scoped namespaces; `Nullable` enabled; async all the way; `Result<T>` over exceptions/null; one public type per file; **namespace == folder path**; PolyForm Noncommercial license header on every file. Namespace root is `NomNomzBot.*` everywhere.
 
 ---
 

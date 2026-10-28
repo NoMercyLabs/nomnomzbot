@@ -11,7 +11,7 @@ commands, rewards, or any domain (the nomercy version had media-server logic fus
 stripped out; domain logic lives in per-feature hooks, `frontend-structure.md` §3).
 
 **Conventions:** `commonMain`-first, full `wasmJs` parity; explicit types; one public type per file;
-package == folder path; AGPL header; coroutines (never block); `ApiResult<T>` (`frontend.md` §3) is
+package == folder path; PolyForm Noncommercial header; coroutines (never block); `ApiResult<T>` (`frontend.md` §3) is
 the fetcher contract.
 
 ---

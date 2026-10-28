@@ -139,7 +139,8 @@ accepted. Ask yourself: if this behavior broke, would this test fail?
 
 ## License
 
-NomNomzBot is licensed under the [GNU Affero General Public License v3.0 or later](server/LICENSE).
+NomNomzBot is licensed under the [PolyForm Noncommercial License 1.0.0](LICENSE).
+You may use, change and share NomNomzBot for free. You may not earn money with it.
 By contributing, you agree that your contribution is licensed under the same terms.
 You may not earn money with NomNomzBot: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs.
 The names and logos are covered in [TRADEMARKS.md](TRADEMARKS.md).

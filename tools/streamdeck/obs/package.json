@@ -3,7 +3,7 @@
   "version": "1.0.1",
   "private": true,
   "description": "NomNomzBot Stream Deck plugin — OBS Studio control over the bot's own Automation API",
-  "license": "AGPL-3.0-or-later",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "scripts": {
     "build": "rollup -c rollup.config.mjs",

@@ -25,7 +25,7 @@ npx esbuild entry.js \
 
 Produces ~778 kb. Do NOT hand-edit the bundle; only regenerate.
 
-## `compile-sfc.js` (ours, AGPL)
+## `compile-sfc.js` (ours, PolyForm Noncommercial 1.0.0)
 
 A thin wrapper (loaded after the bundle) that assembles an SFC into ONE ES module the way `@vue/repl` does —
 `compileScript` (→ `rewriteDefault` to the stable binding `__sfc_main__`) + `compileTemplate` (render bound

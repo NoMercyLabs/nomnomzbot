@@ -11,7 +11,7 @@
 - **i18n: `en` + `nl`, never hardcode user-facing strings.** Compose Multiplatform resources; runtime locale switch without restart.
 - **shadcn/ui (new-york) is the design source of truth** — ported 1:1 to Compose; fully specified in `frontend-design-system.md`. The previous Figma file is discarded (it did not represent a viable dashboard); a fresh Figma, if ever minted, is derived *from* this spec, never the reverse. The OKLCH token contract, component catalogue, and the dynamic chat-color accent live in `frontend-design-system.md` (§8 below is a summary).
 - **Hand-synced DTOs, guarded against drift.** REST DTOs and endpoint facades are hand-written `@Serializable` Kotlin types in `core/network`. The backend's committed OpenAPI snapshot (`server/openapi/v1.json`) is the source of truth. `ApiContractTest` fails when a Kotlin DTO field is missing from the matching backend schema. `ApiRouteContractTest` fails when a client URL is not a route the API serves. SignalR has no schema → hand-authored.
-- **Kotlin/Compose house style.** Explicit types, `commonMain`-first, feature packages (never a `misc`/`utils` dump), one responsibility per file, UDF state. AGPL header on every source file (`//` line comments).
+- **Kotlin/Compose house style.** Explicit types, `commonMain`-first, feature packages (never a `misc`/`utils` dump), one responsibility per file, UDF state. PolyForm Noncommercial header on every source file (`//` line comments).
 
 ---
 

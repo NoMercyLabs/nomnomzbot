@@ -138,7 +138,7 @@ public static class LuckyFeatherBundle
                     Name: "Lucky Feather",
                     Version: "1.0.0",
                     Author: "NoMercy Labs",
-                    License: "AGPL-3.0-or-later",
+                    License: "PolyForm-Noncommercial-1.0.0",
                     Description: "A channel-points chest-steal game: whoever holds the feather can have it stolen."
                 ),
                 Items = items,

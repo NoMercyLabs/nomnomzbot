@@ -42,7 +42,7 @@ public sealed class BotHelpersTableTests
             { "{bot.language}", "en" },
             { "{bot.dashboard}", "https://nomnomz.bot/app/u/samplechannel" },
             { "{bot.sourceCode}", "https://github.com/NoMercyLabs/nomnomzbot" },
-            { "{bot.license}", "AGPL-3.0-or-later" },
+            { "{bot.license}", "PolyForm-Noncommercial-1.0.0" },
         };
 
     [Theory]

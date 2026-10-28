@@ -9,7 +9,7 @@ component catalogue, and the rules that make UI generation **mechanical, not cre
 (placement rulebook), and `frontend-data-layer.md` (query engine).
 
 **Conventions:** `commonMain`-first with full `wasmJs` parity; explicit types; one public type per
-file; package == folder path; AGPL header on every `.kt`. Components read **tokens only** — never a
+file; package == folder path; PolyForm Noncommercial header on every `.kt`. Components read **tokens only** — never a
 raw hex, `Color(0x…)`, or `.dp` literal (test-enforced, §8).
 
 **Sleak applies.** The design system says which token; the `sleak` skill says which element wins attention. Both are the design bar (D7) — load `sleak` before writing any UI.
@@ -245,7 +245,7 @@ The accent's source is the **active theme subject** — whoever the current scre
 ### 4.1 Placement & faithfulness
 
 - One component = **one file**, `core/designsystem/component/<Name>.kt`, **named exactly as shadcn**
-  (`Button`, `Select`, `Dialog`, …). AGPL header, explicit types, one public composable + its enums.
+  (`Button`, `Select`, `Dialog`, …). PolyForm Noncommercial header, explicit types, one public composable + its enums.
 - Each component mirrors shadcn's **variants, sizes, and states** verbatim. The catalogue manifest
   (`catalogue.md` beside the components) is the closed list:
 

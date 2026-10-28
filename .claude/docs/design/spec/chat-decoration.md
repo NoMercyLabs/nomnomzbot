@@ -2,7 +2,7 @@
 
 **Status:** Implementable — decision-complete.
 **Area:** Chat — server-side message decoration (BTTV / FFZ / 7TV emotes, badges, cheermote images, mentions, link previews).
-**Conventions:** Clean Architecture, `NomNomzBot.*` namespaces, file-scoped namespaces, `Nullable` on, explicit types (never `var`), `async` all the way, `Result<T>` over throw/null, UUIDv7 keys, AGPL header on every file, CSharpier-formatted, `TreatWarningsAsErrors`. Newtonsoft for provider JSON. Tests prove the fragment-tree shape, not non-null.
+**Conventions:** Clean Architecture, `NomNomzBot.*` namespaces, file-scoped namespaces, `Nullable` on, explicit types (never `var`), `async` all the way, `Result<T>` over throw/null, UUIDv7 keys, PolyForm Noncommercial header on every file, CSharpier-formatted, `TreatWarningsAsErrors`. Newtonsoft for provider JSON. Tests prove the fragment-tree shape, not non-null.
 
 > **Decided architecture (do not re-derive).** Decoration is **server-side** and **enrich-and-emit** — it never persists chat. The pipeline: EventSub `channel.chat.message` → `ChatMessageReceivedEvent` (Twitch already gives text / emote / cheermote / mention fragments) → tokenize text fragments to words → enrich with third-party emotes → attach badge/cheermote images, mention colors, and an optional link/OG preview → emit **one** enriched `DashboardChatMessageDto` over the existing `DashboardHub` chat flow. The client only renders; it never fetches emotes.
 

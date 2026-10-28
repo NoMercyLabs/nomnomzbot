@@ -3,7 +3,7 @@
   "version": "1.0.0",
   "private": true,
   "description": "NomNomzBot Stream Deck plugins — shared connection/pairing/token layer against the bot's own Automation API. Not an installable plugin.",
-  "license": "AGPL-3.0-or-later",
+  "license": "SEE LICENSE IN LICENSE",
   "type": "module",
   "main": "dist/index.js",
   "types": "dist/index.d.ts",
