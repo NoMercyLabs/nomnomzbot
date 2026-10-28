@@ -23,6 +23,13 @@ internal sealed record TextHelperRow(
     Func<IReadOnlyList<string>, string?> Render
 )
 {
+    /// <summary>
+    /// The index of the argument that sets how many copies or how wide the output grows (<c>text.repeat</c>'s
+    /// count, a pad width), or null for a helper whose output does not grow with a number. A render with a
+    /// <see cref="TemplateRenderScope.TextCountLimit"/> cuts that argument down to the limit.
+    /// </summary>
+    public int? AmplifierArgument { get; init; }
+
     /// <summary>A row whose function takes the whole text as its only argument.</summary>
     public static TextHelperRow OfText(string key, string sample, Func<string, string?> render) =>
         new(key, sample, args => args.Count == 1 ? render(args[0]) : null);
@@ -30,7 +37,7 @@ internal sealed record TextHelperRow(
     public TemplateHelperEntry ToEntry() =>
         new(
             Key,
-            [.. Enum.GetValues<TemplateHelperContext>()],
+            TemplateHelperContexts.StandardAndViewer,
             new LocalizedText("template.helper." + Key)
         )
         {

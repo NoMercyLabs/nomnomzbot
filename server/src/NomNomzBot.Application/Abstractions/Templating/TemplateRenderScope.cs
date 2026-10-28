@@ -35,6 +35,12 @@ public sealed class TemplateRenderScope
     /// <summary>The channel's language, or null for English.</summary>
     public string? Language => Channel?.Language;
 
+    /// <summary>
+    /// The most copies or the widest pad a <c>text.*</c> helper may produce in this render, or null for the usual
+    /// limit. A viewer's own text sets it (a viewer must not make one token fill a screen).
+    /// </summary>
+    public int? TextCountLimit { get; init; }
+
     /// <summary>Values written by <c>{set:…}</c> during this render.</summary>
     public Dictionary<string, string> SetVariables { get; } = new(StringComparer.OrdinalIgnoreCase);
 

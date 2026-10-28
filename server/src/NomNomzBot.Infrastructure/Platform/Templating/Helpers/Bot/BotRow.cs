@@ -73,11 +73,7 @@ internal sealed record BotRow(
         arguments.Count > 0 ? Task.FromResult<string?>(null) : Render(call);
 
     public TemplateHelperEntry ToEntry() =>
-        new(
-            Key,
-            [.. Enum.GetValues<TemplateHelperContext>()],
-            new LocalizedText("template.helper." + Key)
-        )
+        new(Key, TemplateHelperContexts.Standard, new LocalizedText("template.helper." + Key))
         {
             Sample = Sample,
             Source = Sources == BotSources.None ? null : Sources.ToString().ToLowerInvariant(),

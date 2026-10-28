@@ -94,8 +94,6 @@ public sealed class RewardRedeemedHandler
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        Dictionary<string, string> variables = BuildVariables(@event);
-
         // Look up Reward entity matched by TwitchRewardId
         Reward? reward = await db.Rewards.FirstOrDefaultAsync(
             r => r.BroadcasterId == broadcasterId && r.TwitchRewardId == @event.RewardId,
@@ -141,6 +139,11 @@ public sealed class RewardRedeemedHandler
             )
         )
             return EventResponseOutcome.None;
+
+        // The viewer's own text, resolved once for every use below: the spoken line, the {input} variable and the
+        // text a bound command receives. It stays as typed unless the channel and the viewer allow templates.
+        @event = await WithResolvedInputAsync(scope, @event, reward, replay, cancellationToken);
+        Dictionary<string, string> variables = BuildVariables(@event);
 
         // A time-limited reward starts its countdown the moment it's redeemed (idempotent per
         // redemption — an EventSub redelivery returns the existing timer). Orthogonal to the response, and
@@ -274,6 +277,50 @@ public sealed class RewardRedeemedHandler
             cancellationToken
         );
         return run is null ? outcome : outcome.Plus(RewardReplayTally.FromPipeline(run));
+    }
+
+    /// <summary>
+    /// The redemption with its input resolved by <see cref="IViewerInputTemplateService"/>; the same event when there is
+    /// no input, no service, or the text stays as typed.
+    /// </summary>
+    private static async Task<RewardRedeemedEvent> WithResolvedInputAsync(
+        IServiceScope scope,
+        RewardRedeemedEvent @event,
+        Reward? reward,
+        bool replay,
+        CancellationToken ct
+    )
+    {
+        IViewerInputTemplateService? templates =
+            scope.ServiceProvider.GetService<IViewerInputTemplateService>();
+        if (templates is null || string.IsNullOrWhiteSpace(@event.UserInput))
+            return @event;
+
+        string resolved = await templates.ResolveRewardInputAsync(
+            @event.BroadcasterId,
+            new ViewerInputIdentity(@event.UserId, @event.UserLogin, @event.UserDisplayName),
+            @event.UserInput,
+            reward is { SpeaksViaTts: true },
+            audit: !replay,
+            ct
+        );
+        return resolved == @event.UserInput
+            ? @event
+            : new RewardRedeemedEvent
+            {
+                EventId = @event.EventId,
+                OccurredAt = @event.OccurredAt,
+                BroadcasterId = @event.BroadcasterId,
+                IsChannelIngress = @event.IsChannelIngress,
+                RewardId = @event.RewardId,
+                RewardTitle = @event.RewardTitle,
+                RedemptionId = @event.RedemptionId,
+                UserId = @event.UserId,
+                UserDisplayName = @event.UserDisplayName,
+                UserLogin = @event.UserLogin,
+                Cost = @event.Cost,
+                UserInput = resolved,
+            };
     }
 
     private static async Task<EventResponseOutcome> RunGenericResponseAsync(

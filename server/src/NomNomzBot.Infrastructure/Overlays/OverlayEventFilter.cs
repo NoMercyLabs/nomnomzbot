@@ -28,6 +28,7 @@ public static class OverlayEventFilter
         "Deployment",
         "Projection",
         "Authorization",
+        "ViewerTemplate",
     ];
 
     // Events that reach overlays in a RICHER, render-ready form via a dedicated broadcaster, so the raw

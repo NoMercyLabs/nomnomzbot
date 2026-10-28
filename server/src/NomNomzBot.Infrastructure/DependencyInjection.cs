@@ -1115,6 +1115,10 @@ public static class DependencyInjection
         // Every ITemplateHelperProvider class (one per template namespace) plus the registry over them.
         services.AddTemplateHelpers(infrastructure);
         services.AddSingleton<ITemplateResolver, TemplateResolver>();
+        // The viewer surface of the same engine: one instance, two contracts.
+        services.AddSingleton<IViewerTemplateResolver>(provider =>
+            (TemplateResolver)provider.GetRequiredService<ITemplateResolver>()
+        );
         services.AddScoped<ITemplateSampleRenderer, TemplateSampleRenderer>();
         services.AddSingleton<IWebhookBodyTemplateRenderer, WebhookBodyTemplateRenderer>();
         services.AddSingleton<ITemplateHelperValidator, TemplateHelperValidator>();

@@ -13,10 +13,19 @@ namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Text;
 /// <summary>Padding to a width, centering, and repeating.</summary>
 internal sealed class PadTextHelpers()
     : TextHelperGroup(
-        new TextHelperRow("text.pad.left", "007", args => Pad(args, left: 1, right: 0)),
-        new TextHelperRow("text.pad.right", "ab..", args => Pad(args, left: 0, right: 1)),
-        new TextHelperRow("text.center", "**hi**", args => Pad(args, left: 1, right: 1)),
-        new TextHelperRow("text.repeat", "ha ha ha", Repeat)
+        new TextHelperRow("text.pad.left", "007", args => Pad(args, left: 1, right: 0))
+        {
+            AmplifierArgument = 1,
+        },
+        new TextHelperRow("text.pad.right", "ab..", args => Pad(args, left: 0, right: 1))
+        {
+            AmplifierArgument = 1,
+        },
+        new TextHelperRow("text.center", "**hi**", args => Pad(args, left: 1, right: 1))
+        {
+            AmplifierArgument = 1,
+        },
+        new TextHelperRow("text.repeat", "ha ha ha", Repeat) { AmplifierArgument = 0 }
     )
 {
     /// <summary>

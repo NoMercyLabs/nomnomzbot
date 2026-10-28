@@ -66,6 +66,26 @@ public static class TemplateHelperRegistry
         TemplateHelperContext.Webhook,
     ];
 
+    /// <summary>
+    /// Read-only channel and stream info: <see cref="AllContexts"/> plus a viewer's own text. A helper joins this
+    /// set only when it writes nothing and reads nothing private to the channel.
+    /// </summary>
+    private static readonly TemplateHelperContext[] ViewerInfoContexts =
+    [
+        .. AllContexts,
+        TemplateHelperContext.Viewer,
+    ];
+
+    /// <summary>
+    /// The viewer's own fields (<c>user.*</c>): <see cref="TriggerContexts"/> plus a viewer's own text. In the
+    /// viewer surface they read the viewer who typed the text, never another viewer.
+    /// </summary>
+    private static readonly TemplateHelperContext[] ViewerOwnContexts =
+    [
+        .. TriggerContexts,
+        TemplateHelperContext.Viewer,
+    ];
+
     /// <summary>Helpers that need command arguments — a command trigger, or a pipeline bound to one.</summary>
     private static readonly TemplateHelperContext[] CommandArgContexts =
     [
@@ -171,15 +191,15 @@ public static class TemplateHelperRegistry
     private static List<TemplateHelperEntry> BuildEntries() =>
         [
             // ── Channel / stream (all contexts) ─────────────────────────────
-            Literal("channel", AllContexts, "template.helper.channel"),
-            Literal("channel.display", AllContexts, "template.helper.channel_display"),
+            Literal("channel", ViewerInfoContexts, "template.helper.channel"),
+            Literal("channel.display", ViewerInfoContexts, "template.helper.channel_display"),
             Literal("channel.id", AllContexts, "template.helper.channel_id"),
-            Literal("streamer", AllContexts, "template.helper.streamer"),
-            Literal("stream.title", AllContexts, "template.helper.stream_title"),
-            Literal("stream.game", AllContexts, "template.helper.stream_game"),
-            Literal("stream.uptime", AllContexts, "template.helper.stream_uptime"),
+            Literal("streamer", ViewerInfoContexts, "template.helper.streamer"),
+            Literal("stream.title", ViewerInfoContexts, "template.helper.stream_title"),
+            Literal("stream.game", ViewerInfoContexts, "template.helper.stream_game"),
+            Literal("stream.uptime", ViewerInfoContexts, "template.helper.stream_uptime"),
             Literal("stream.viewers", AllContexts, "template.helper.stream_viewers"),
-            Literal("stream.isLive", AllContexts, "template.helper.stream_is_live"),
+            Literal("stream.isLive", ViewerInfoContexts, "template.helper.stream_is_live"),
             Literal("stream.startedAt", AllContexts, "template.helper.stream_started_at"),
             Literal("tts.audioconnected", AllContexts, "template.helper.tts_audioconnected"),
             Literal("status", AllContexts, "template.helper.status"),
@@ -635,26 +655,26 @@ public static class TemplateHelperRegistry
             // ── Triggering user (command + event response — no bare trigger user on a timer) ──
             Literal(
                 "user",
-                [.. TriggerContexts, TemplateHelperContext.Discord],
+                [.. ViewerOwnContexts, TemplateHelperContext.Discord],
                 "template.helper.user"
             ),
             Literal(
                 "user.name",
-                [.. TriggerContexts, TemplateHelperContext.Discord],
+                [.. ViewerOwnContexts, TemplateHelperContext.Discord],
                 "template.helper.user_name"
             ),
             Literal(
                 "user.id",
-                [.. TriggerContexts, TemplateHelperContext.Discord],
+                [.. ViewerOwnContexts, TemplateHelperContext.Discord],
                 "template.helper.user_id"
             ),
             Literal("user.provider", TriggerContexts, "template.helper.user_provider"),
-            Literal("user.accountAge", TriggerContexts, "template.helper.user_account_age"),
-            Literal("user.followAge", TriggerContexts, "template.helper.user_follow_age"),
-            Literal("user.pronouns", TriggerContexts, "template.helper.user_pronouns"),
-            Literal("user.messageCount", TriggerContexts, "template.helper.user_message_count"),
+            Literal("user.accountAge", ViewerOwnContexts, "template.helper.user_account_age"),
+            Literal("user.followAge", ViewerOwnContexts, "template.helper.user_follow_age"),
+            Literal("user.pronouns", ViewerOwnContexts, "template.helper.user_pronouns"),
+            Literal("user.messageCount", ViewerOwnContexts, "template.helper.user_message_count"),
             Literal("user.lastmessage", TriggerContexts, "template.helper.user_lastmessage"),
-            Literal("user.link", TriggerContexts, "template.helper.user_link"),
+            Literal("user.link", ViewerOwnContexts, "template.helper.user_link"),
             Literal("viewer.messages", TriggerContexts, "template.helper.viewer_messages"),
             Literal("viewer.watchtime", TriggerContexts, "template.helper.viewer_watchtime"),
             Literal("viewer.firstseen", TriggerContexts, "template.helper.viewer_firstseen"),
@@ -713,12 +733,12 @@ public static class TemplateHelperRegistry
             Literal("possessive", TriggerContexts, "template.helper.possessive"),
             Literal("presentTense", TriggerContexts, "template.helper.present_tense"),
             Literal("genderedTerm", TriggerContexts, "template.helper.gendered_term"),
-            Literal("user.subject", TriggerContexts, "template.helper.user_subject"),
-            Literal("user.object", TriggerContexts, "template.helper.user_object"),
-            Literal("user.possessive", TriggerContexts, "template.helper.user_possessive"),
-            Literal("user.presentTense", TriggerContexts, "template.helper.user_present_tense"),
-            Literal("user.genderedTerm", TriggerContexts, "template.helper.user_gendered_term"),
-            Literal("user.tense", TriggerContexts, "template.helper.user_tense"),
+            Literal("user.subject", ViewerOwnContexts, "template.helper.user_subject"),
+            Literal("user.object", ViewerOwnContexts, "template.helper.user_object"),
+            Literal("user.possessive", ViewerOwnContexts, "template.helper.user_possessive"),
+            Literal("user.presentTense", ViewerOwnContexts, "template.helper.user_present_tense"),
+            Literal("user.genderedTerm", ViewerOwnContexts, "template.helper.user_gendered_term"),
+            Literal("user.tense", ViewerOwnContexts, "template.helper.user_tense"),
             Literal("target.subject", TriggerContexts, "template.helper.target_subject"),
             Literal("target.object", TriggerContexts, "template.helper.target_object"),
             Literal("target.possessive", TriggerContexts, "template.helper.target_possessive"),

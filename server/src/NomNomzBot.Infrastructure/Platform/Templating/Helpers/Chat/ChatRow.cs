@@ -103,11 +103,7 @@ internal sealed record ChatRow(
     public string Namespace => HelperNode.NamespaceOf(Key);
 
     public TemplateHelperEntry ToEntry() =>
-        new(
-            Key,
-            [.. Enum.GetValues<TemplateHelperContext>()],
-            new LocalizedText("template.helper." + Key)
-        )
+        new(Key, TemplateHelperContexts.Standard, new LocalizedText("template.helper." + Key))
         {
             Sample = Sample,
             Source = Sources == ChatSources.None ? null : Sources.ToString().ToLowerInvariant(),

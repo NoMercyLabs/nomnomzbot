@@ -11,6 +11,7 @@
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Chat.Decoration;
+using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Content.Identity;
@@ -100,6 +101,7 @@ public sealed class ActionDefinitionSeederTests
     [Theory]
     [InlineData(ChatDecorationCapabilities.RenderHtml)]
     [InlineData(ChatDecorationCapabilities.PreviewLinks)]
+    [InlineData(ViewerTemplateCapabilities.RewardInput)]
     public async Task Seeds_chat_decoration_standing_as_a_permittable_subscriber_rung_lowerable_to_everyone(
         string key
     )

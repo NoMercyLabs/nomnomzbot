@@ -12,6 +12,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Content;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Chat.Decoration;
+using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
@@ -614,6 +615,19 @@ public sealed class ActionDefinitionSeeder : ISeeder
         s.Add(
             new(
                 ChatDecorationCapabilities.PreviewLinks,
+                Subscriber,
+                Everyone,
+                DangerTier.Low,
+                true,
+                AuthPlane.Community
+            )
+        );
+        // A viewer's own template text in a reward input (on the use_viewer_templates feature): text and read-only
+        // info helpers only. It defaults to the Subscriber rung, is permittable to one viewer, and the broadcaster
+        // may lower the floor to Everyone or raise the rung.
+        s.Add(
+            new(
+                ViewerTemplateCapabilities.RewardInput,
                 Subscriber,
                 Everyone,
                 DangerTier.Low,

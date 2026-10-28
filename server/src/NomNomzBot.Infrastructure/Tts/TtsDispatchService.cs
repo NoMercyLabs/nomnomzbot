@@ -268,18 +268,11 @@ public sealed class TtsDispatchService : ITtsDispatchService
     /// The effective character cap: the STRICTER of the streamer's own setting and the plan's
     /// tts_max_characters tier limit (monetization-billing §3.3; -1 / self-host = no tier clamp).
     /// </summary>
-    private async Task<int> ResolveCapAsync(
+    private Task<int> ResolveCapAsync(
         Guid broadcasterId,
         TtsConfigDto config,
         CancellationToken ct
-    )
-    {
-        int cap = config.MaxCharacters > 0 ? config.MaxCharacters : 500;
-        Result<long> tierCap = await _tiers.GetLimitAsync(broadcasterId, "tts_max_characters", ct);
-        if (tierCap is { IsSuccess: true, Value: >= 0 })
-            cap = (int)Math.Min(cap, tierCap.Value);
-        return cap;
-    }
+    ) => TtsCharacterCap.ResolveAsync(broadcasterId, config, _tiers, ct);
 
     /// <summary>
     /// Cuts a bot-written line to the cap at the last word break, so a command reply that repeats a viewer's short
