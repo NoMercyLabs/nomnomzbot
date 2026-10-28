@@ -45,8 +45,10 @@ const backupDir = option('--backup-dir');
 const apply = args.includes('--yes');
 // The origin may only be this dev machine; the port picks which local server the hostname shows.
 const origin = option('--origin', DEV_ORIGIN);
-if (!/^http:\/\/192\.168\.2\.201:\d{2,5}$/.test(origin)) {
-	console.error(`refused: --origin must be http://192.168.2.201:<port>, got ${origin}`);
+// Stoney 2026-10-28: "Never pick the tools default port for a static origin, pick something between 5080 and 5090".
+const originPort = Number(/^http:\/\/192\.168\.2\.201:(\d+)$/.exec(origin)?.[1]);
+if (!(originPort >= 5080 && originPort <= 5090)) {
+	console.error(`refused: --origin must be http://192.168.2.201:<5080-5090>, got ${origin}`);
 	process.exit(2);
 }
 
@@ -108,7 +110,8 @@ async function rewriteIngress(tunnelId, change) {
 	const added = next.filter((rule) => !rules.some((old) => JSON.stringify(old) === JSON.stringify(rule)));
 	const dropped = rules.filter((old) => !next.some((rule) => JSON.stringify(old) === JSON.stringify(rule)));
 	const touched = [...added, ...dropped];
-	if (touched.length !== 1 || !String(touched[0].hostname).endsWith('.nomnomz.bot')) {
+	const hosts = new Set(touched.map((rule) => rule.hostname));
+	if (hosts.size !== 1 || touched.length > 2 || !String(touched[0].hostname).endsWith('.nomnomz.bot')) {
 		throw new Error(`refused: the change touches ${touched.length} rules`);
 	}
 	console.log(`${tunnelId}: +${added.length} -${dropped.length}`, JSON.stringify(touched[0]));
@@ -203,7 +206,9 @@ if (mode === 'pages-docs') await pointDocsAtPages();
 
 if (mode === 'point') {
 	await rewriteIngress(DEV_TUNNEL, (rules) => {
-		if (rules.some((rule) => rule.hostname === host)) return rules;
+		if (rules.some((rule) => rule.hostname === host)) {
+			return rules.map((rule) => (rule.hostname === host ? { ...rule, service: origin } : rule));
+		}
 		const last = rules.findIndex(catchAll);
 		return [...rules.slice(0, last), { hostname: host, service: origin }, ...rules.slice(last)];
 	});
