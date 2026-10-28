@@ -181,7 +181,7 @@ describe('AdminSpamDefaultsView', () => {
     expect(row('accountAgeGateDays').querySelector('[data-inactive]')).toBeNull();
 
     expect(document.body.querySelector('[data-restricted]')?.textContent).toContain(
-      'restricted option',
+      'earn money with NomNomzBot',
     );
 
     expect(document.body.querySelector('[data-invariants]')?.textContent).toContain(

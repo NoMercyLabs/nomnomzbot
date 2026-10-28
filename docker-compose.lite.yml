@@ -21,7 +21,7 @@
 #
 # Secrets are optional: when JWT_SECRET / ENCRYPTION_KEY are empty the bot generates its own
 # and stores them in the data folder. Twitch credentials can be set in the dashboard wizard.
-# saas is RESTRICTED: operating NomNomzBot as a hosted service for others is reserved to NoMercy Labs (see DEPLOY.md). Self-hosting your own bot is always free.
+# saas is RESTRICTED: you may not earn money with NomNomzBot (no selling it, no paid hosting or paid service built on it). That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is always free. See DEPLOY.md.
 
 services:
   api:

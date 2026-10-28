@@ -18,7 +18,7 @@
   served it; there is **no central broker/orchestrator**, so a self-host bot needs **zero NoMercy
   infrastructure or oversight**:
   - Self-host → the bot serves the dashboard at `localhost` / LAN, or the operator's own exposed URL.
-  - SaaS → the SaaS API serves it (restricted option, see `DEPLOY.md`).
+  - SaaS → the SaaS API serves it (NoMercy Labs only, see `DEPLOY.md`).
   - The dashboard only talks to the origin that served it. To use a different bot's dashboard, open
     that bot's URL.
 - **The bot serves two web surfaces:** (1) the **Vue dashboard**, and (2) the **public surfaces** that

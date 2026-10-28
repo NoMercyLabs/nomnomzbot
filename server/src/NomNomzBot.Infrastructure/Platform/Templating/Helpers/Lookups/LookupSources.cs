@@ -19,7 +19,7 @@ namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Lookups;
 /// The outside sources of the <c>lookup</c> provider. A test builds it by hand with stub clients; the host
 /// builds it from its services. <see cref="OpenMeteoAllowed"/> is false in saas mode: Open-Meteo is free for
 /// non-commercial use only, so the weather and local-time forms print their fallback there (catalog D3, option
-/// a). Saas mode is a restricted option: hosting NomNomzBot for third parties is reserved to NoMercy Labs.
+/// a). Saas mode is RESTRICTED: you may not earn money with NomNomzBot, and that right is reserved to NoMercy Labs.
 /// </summary>
 internal sealed record LookupSources(
     ILocationClient Location,

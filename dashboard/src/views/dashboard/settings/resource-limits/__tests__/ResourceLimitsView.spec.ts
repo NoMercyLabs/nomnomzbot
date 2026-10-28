@@ -235,7 +235,7 @@ describe('Resource limits page', () => {
     expect(document.body.querySelector('[data-plan="tier"]')?.textContent).toBe('Plus');
     expect(document.body.querySelector('[data-plan="custom-bot-name"]')?.textContent).toBe('Included');
     expect(document.body.querySelector('[data-plan="priority-support"]')?.textContent).toBe('Not included');
-    expect(document.body.querySelector('[data-restricted]')?.textContent).toContain('restricted option');
+    expect(document.body.querySelector('[data-restricted]')?.textContent).toContain('earn money with NomNomzBot');
   });
 
   it('lists the metered usage of the period with its own word', async () => {

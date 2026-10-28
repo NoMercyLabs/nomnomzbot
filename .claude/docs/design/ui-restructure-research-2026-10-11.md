@@ -210,7 +210,7 @@ Floors: "Read" is the lowest role that sees the page. "Manage" is the lowest rol
 |---|---|---|---|
 | Integrations | Broadcaster | Broadcaster | The one home for every credential: Twitch app credentials (3 places become 1), the bot account, Spotify, OBS, VTube Studio, Discord, YouTube, Kick, the TTS providers. |
 | Features | Broadcaster | Broadcaster | |
-| Settings | Moderator | Broadcaster | 6 tabs: General; Language & fonts; Notifications; Bot behavior; Privacy; Danger zone. Billing is a seventh tab in saas mode only (saas is a RESTRICTED option, reserved to NoMercy Labs under the licence). |
+| Settings | Moderator | Broadcaster | 6 tabs: General; Language & fonts; Notifications; Bot behavior; Privacy; Danger zone. Billing is a seventh tab in saas mode only (saas is RESTRICTED: you may not earn money with NomNomzBot, and that right is reserved to NoMercy Labs). |
 
 **Outside the sidebar**
 

@@ -7,8 +7,8 @@ To run the whole bot, use the deploy script at the repo root (full guide: [DEPLO
 - **Linux / macOS:** `./deploy.sh <desktop|docker|saas>`
 - **Windows (PowerShell):** `.\deploy.ps1 <desktop|docker|saas>`
 
-`saas` is a **restricted option** — hosting NomNomzBot as a service for others is against the
-project license (reserved to NoMercy Labs); see [DEPLOY.md](../DEPLOY.md).
+`saas` is for NoMercy Labs only. You may not earn money with NomNomzBot: no selling it, and no
+paid hosting or paid service built on it. That right is reserved to NoMercy Labs. See [DEPLOY.md](../DEPLOY.md).
 
 ## Manual development
 

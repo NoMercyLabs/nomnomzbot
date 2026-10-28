@@ -3,7 +3,7 @@
     "settings": {
       "billing": {
         "crumb": "Account",
-        "restricted": "NomNomzBot als gehoste dienst voor anderen draaien is een beperkte optie, voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis.",
+        "restricted": "Je mag geen geld verdienen met NomNomzBot: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Voor jezelf, je vrienden en je community draaien is altijd gratis.",
         "status": {
           "active": "Actief",
           "trialing": "Proefperiode",

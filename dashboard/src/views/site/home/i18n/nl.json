@@ -2,7 +2,7 @@
   "site": {
     "home": {
       "title": "NomNomzBot: run je stream, niet je administratie",
-      "description": "Een open-source streambot voor Twitch, Kick, YouTube en X. Moderatie, commando's, alerts en overlays in één dashboard. Host hem gratis zelf.",
+      "description": "Een gratis streambot voor Twitch, Kick, YouTube en X. Moderatie, commando's, alerts en overlays in één dashboard. Host hem gratis zelf.",
       "brand": "NomNomzBot",
       "signIn": "Inloggen",
       "comingSoon": "Binnenkort",
@@ -21,7 +21,7 @@
       "hero": {
         "title": "Run je stream. Sla het gedoe over.",
         "subtitle": "NomNomzBot modereert de chat, beantwoordt kijkers en speelt alerts af zodra ze gebeuren. Hij bedient Twitch, Kick, YouTube en X vanuit één dashboard.",
-        "finePrint": "Gratis, zelf gehost, open source (AGPL-3.0). Geen creditcard, geen limiet op gebruikers."
+        "finePrint": "Gratis en zelf gehost. De code is openbaar (AGPL-3.0). Geen creditcard, geen limiet op gebruikers."
       },
       "areas": {
         "pipelines": {
@@ -93,7 +93,7 @@
           "tag": "Altijd gratis",
           "point1": "Draait op jouw server met één Docker Compose-commando, of als één bestand zonder afhankelijkheden",
           "point2": "Elke functie, zonder limiet op gebruikers en zonder betaalde niveaus",
-          "point3": "Open source (AGPL-3.0), dus je kunt het zelf controleren, forken en aanpassen"
+          "point3": "De code is openbaar (AGPL-3.0), dus je kunt het zelf controleren, aanpassen en delen"
         },
         "hosted": {
           "title": "Gehost door NoMercy Labs",
@@ -102,7 +102,7 @@
           "point2": "Hetzelfde dashboard, dezelfde functies",
           "point3": "Kijkers krijgen één gratis account voor elke streamer op de server"
         },
-        "note": "Alleen NoMercy Labs mag NomNomzBot als betaalde dienst voor andere streamers aanbieden. Je eigen bot draaien blijft gratis en onbeperkt, voor altijd."
+        "note": "Je mag geen geld verdienen met NomNomzBot: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Voor jezelf, je vrienden en je community draaien is gratis, voor altijd."
       },
       "integrations": {
         "title": "Werkt samen met wat je stream al gebruikt",
@@ -117,7 +117,7 @@
         "body": "Host het gratis, voor altijd. Het heeft niets nodig van de servers van NoMercy."
       },
       "footer": {
-        "text": "© NomNomzBot. Gratis, open-source software (AGPL-3.0).",
+        "text": "© NomNomzBot. Gratis software met openbare code (AGPL-3.0).",
         "privacy": "Privacybeleid",
         "terms": "Gebruiksvoorwaarden"
       }

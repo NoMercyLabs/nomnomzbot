@@ -5,7 +5,7 @@ Source: design dialogue 2026-06-16. The central axis that selects every swappabl
 ## Three profiles, one codebase (matching `DEPLOY.md` scenarios)
 - **`self_host_lite`** (`desktop` scenario): SQLite + in-memory cache/pub-sub. **No Docker required.**
 - **`self_host_full`** (`docker` scenario): Postgres + Redis, single-tenant.
-- **`saas`** (`saas` scenario — **RESTRICTED option**, reserved to NoMercy Labs; hosting NomNomzBot as a service for third parties is against the project license): Postgres + Redis, multi-tenant. Managed infra.
+- **`saas`** (`saas` scenario — **RESTRICTED**; you may not earn money with NomNomzBot: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs): Postgres + Redis, multi-tenant. Managed infra.
 
 ## Selection
 - **Auto-detect** (Docker / Postgres / Redis reachable? → full; else lite) **+ explicit override** (`App__DeploymentMode`). Auto-detect picks the sensible default; the operator can force either.

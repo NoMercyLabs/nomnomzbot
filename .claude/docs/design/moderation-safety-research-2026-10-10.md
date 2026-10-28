@@ -731,7 +731,7 @@ How to read this section:
 - Code facts were read this run unless the text says "from the code note". The code note is `research/token-custody-code.md`. A line number from the code note was not re-read.
 - Anything not read is listed as blocked in the coverage ledger, with its reason.
 - No secret value appears in this section.
-- The hosted (saas) mode is a RESTRICTED option. Only NoMercy Labs may run it for third parties. Self-hosting your own bot is always free (`CLAUDE.md`, Critical Rules).
+- The hosted (saas) mode is RESTRICTED. You may not earn money with NomNomzBot: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is always free (`CLAUDE.md`, Critical Rules).
 
 ### 10.1 What we hold
 

@@ -2,8 +2,8 @@
 Source: design dialogue 2026-06-16.
 
 ## Model
-- **Self-host: free, forever** (open-source, BYO infra). SaaS is the paid product.
-- **SaaS (RESTRICTED option — hosting NomNomzBot for third parties is reserved to NoMercy Labs under the license; self-hosting your own bot is always free): tiered subscription**, economies of scale — marginal cost/user drops as shared infra amortizes across users. Target steady-state ~$1 cost / ~$2+ charge per user.
+- **Self-host: free, forever** (BYO infra). SaaS is the paid product.
+- **SaaS (RESTRICTED — you may not earn money with NomNomzBot: no selling it, and no paid hosting or paid service built on it; that right is reserved to NoMercy Labs; running it for yourself, your friends and your community is always free): tiered subscription**, economies of scale — marginal cost/user drops as shared infra amortizes across users. Target steady-state ~$1 cost / ~$2+ charge per user.
 - Tiers (final): **$3.99 base / $7.99 pro / $14.99 premium.** There is **no free hosted tier** — SaaS is paid-only from Base up; self-host is the only free path.
 - **Tier limits are drawn around real cost drivers** — sandboxed execution time, widget/asset hosting, event-store retention, queue/quota sizes — so each tier covers its own cost (the "minimum per tier that doesn't lose money").
 

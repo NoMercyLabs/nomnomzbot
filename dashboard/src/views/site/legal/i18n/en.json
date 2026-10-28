@@ -16,7 +16,7 @@
             "title": "Who we are and what this covers",
             "p": [
               "NomNomzBot is a chat bot and dashboard for streamers. This policy explains what personal data {company} (\"we\", \"us\") handles when you use the hosted NomNomzBot service, why, and what rights you have.",
-              "NomNomzBot is open-source software. If a streamer runs their own copy on their own server, that streamer is responsible for that copy, and this policy does not cover it.",
+              "The NomNomzBot code is public. If a streamer runs their own copy on their own server, that streamer is responsible for that copy, and this policy does not cover it.",
               "For people who sign in, we decide why and how their account data is used. For a channel's chat and viewer data, the streamer who runs the channel decides, and we act on the streamer's instructions."
             ]
           },
@@ -101,7 +101,7 @@
             "title": "About these terms",
             "p": [
               "These terms are between you and {company} (\"we\", \"us\") and cover the hosted NomNomzBot service. By signing in or using the bot in a channel you accept them. If you do not accept them, do not use the service.",
-              "NomNomzBot is open-source software under the AGPL-3.0 license. You may run your own copy under that license. These terms do not apply to a copy that someone else runs, and the hosted service for third parties is a service run by {company} only."
+              "The NomNomzBot code is public under the AGPL-3.0 license. You may run your own copy for yourself, your friends and your community. You may not earn money with it: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. These terms do not apply to a copy that someone else runs, and the hosted service is run by {company} only."
             ]
           },
           {

@@ -38,7 +38,7 @@ per-tenant state in process, so they are interchangeable and replaceable.
   old colour with a drain window (SIGTERM → up to 30 s → SIGKILL). Caddy's **active** `/health/ready` poll
   (`Caddyfile`) moves traffic; the script never edits the Caddyfile. If the new colour never becomes ready it is
   stopped and the old one keeps serving — never zero healthy instances. See `deployment-distribution.md` §1.1 / §8.
-- **Multi-replica SaaS fleet — rolling update over the stateless pool** (**RESTRICTED** option — NoMercy Labs only;
+- **Multi-replica SaaS fleet — rolling update over the stateless pool** (**RESTRICTED** — NoMercy Labs only;
   see `deployment-distribution.md` §1). Replace instances one (or a batch) at a time: the proxy **drains**
   in-flight requests from the target instance (stops routing new ones, lets open ones finish), the instance is
   replaced with the new image, and it only rejoins the pool once its **readiness probe** passes (`/health/ready`).
@@ -226,7 +226,7 @@ this to: stop → start (auto-migrate) → ramp.
 
 1. **Compose deploys are blue/green behind Caddy** (`scripts/switchover.ps1`: idle colour up → its own
    `/health/ready` → old colour drained; `IActiveInstanceGate` keeps the overlap from double-reading chat);
-   **multi-replica SaaS rolls** (drain + readiness-gated, over the stateless pool — restricted option);
+   **multi-replica SaaS rolls** (drain + readiness-gated, over the stateless pool — NoMercy Labs only);
    **desktop is a single-process restart**. Conduit delivery is opt-in (`EventSub:Conduits:Enabled`, off by default).
 2. **Forward-only expand-contract migrations** — additive + backward-compatible per release; destructive DDL
    deferred to a later contract release. Incremental migrations in **both** assemblies (Postgres in Infrastructure,

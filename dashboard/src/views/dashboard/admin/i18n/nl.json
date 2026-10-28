@@ -66,7 +66,7 @@
           "selfhost": "Zelf gehost",
           "saas": "Gehoste dienst (beperkt)"
         },
-        "restricted": "Kanalen voor derden hosten is een beperkte optie: NomNomzBot als gehoste dienst draaien is voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis.",
+        "restricted": "Je mag geen geld verdienen met NomNomzBot: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Voor jezelf, je vrienden en je community draaien is altijd gratis.",
         "manage": "Beheer dit kanaal"
       },
       "supportContact": {
@@ -82,7 +82,7 @@
         "title": "Tenants",
         "pick": "Kies een tenant om te beheren.",
         "error": "De tenant kon niet laden.",
-        "restricted": "Tenants hosten voor derden is een beperkte optie: NomNomzBot als gehoste dienst draaien is voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis.",
+        "restricted": "Je mag geen geld verdienen met NomNomzBot: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Voor jezelf, je vrienden en je community draaien is altijd gratis.",
         "justification": "Onderbouwing",
         "justificationRequired": "Vul een onderbouwing in. Die staat in het auditlog.",
         "result": "Klaar: {value}",
@@ -331,7 +331,7 @@
       "spamDefaults": {
         "title": "Spam-standaarden",
         "crumb": "Beheer",
-        "restricted": "Saas-modus is een beperkte optie: NomNomzBot als gehoste dienst voor derden draaien is voorbehouden aan NoMercy Labs. Zelf hosten van je eigen bot is altijd gratis.",
+        "restricted": "Je mag geen geld verdienen met NomNomzBot: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Voor jezelf, je vrienden en je community draaien is altijd gratis.",
         "save": "Standaarden opslaan",
         "saving": "Opslaan",
         "saved": "Spam-standaarden opgeslagen.",
@@ -548,7 +548,7 @@
       "errorBudget": {
         "title": "Foutbudget",
         "count": "{count} tenants",
-        "restricted": "Tenants voor derden hosten is een beperkte optie: NomNomzBot als gehoste dienst draaien is voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis.",
+        "restricted": "Je mag geen geld verdienen met NomNomzBot: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Voor jezelf, je vrienden en je community draaien is altijd gratis.",
         "noAttempts": "Geen pogingen",
         "exhausted": "Budget op",
         "left": "{share} over",
@@ -569,7 +569,7 @@
       },
       "billing": {
         "title": "Facturatie",
-        "restricted": "Tenants voor derden hosten is een beperkte optie: NomNomzBot als gehoste dienst draaien is voorbehouden aan NoMercy Labs. Zelf hosten is altijd gratis.",
+        "restricted": "Je mag geen geld verdienen met NomNomzBot: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Voor jezelf, je vrienden en je community draaien is altijd gratis.",
         "tiers": {
           "title": "Niveaus",
           "empty": "Er bestaan nog geen niveaus.",
@@ -636,7 +636,7 @@
       "tenantUsage": {
         "title": "Gebruik per tenant",
         "count": "{count} tenants",
-        "restricted": "Tenants voor derden hosten is een beperkte optie: NomNomzBot als gehoste dienst draaien is voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis.",
+        "restricted": "Je mag geen geld verdienen met NomNomzBot: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Voor jezelf, je vrienden en je community draaien is altijd gratis.",
         "noUsage": "Geen gebruik vastgelegd",
         "noCost": "Geen prijs",
         "unpriced": "Nog geen prijs: {units}",
@@ -663,7 +663,7 @@
         "pick": "Kies een persoon om de status te lezen.",
         "forbidden": "Je mag de supportdesk niet gebruiken.",
         "error": "Deze persoon kon niet laden.",
-        "restricted": "Tenants hosten voor derden is een beperkte optie: NomNomzBot als gehoste dienst draaien is voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis.",
+        "restricted": "Je mag geen geld verdienen met NomNomzBot: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Voor jezelf, je vrienden en je community draaien is altijd gratis.",
         "list": {
           "title": "Mensen",
           "empty": "Niemand komt overeen met deze zoekopdracht.",
@@ -1172,7 +1172,7 @@
         "title": "Functievlaggen",
         "crumb": "Beheer",
         "explain": "Een vlag zet een functie aan of uit voor elk kanaal. Het uitrolpercentage bereikt maar een deel ervan. Een kanaaloverride wint van de vlag voor dat ene kanaal.",
-        "restricted": "Saas-modus is een beperkte optie: NomNomzBot als gehoste dienst voor derden draaien is voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis.",
+        "restricted": "Je mag geen geld verdienen met NomNomzBot: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Voor jezelf, je vrienden en je community draaien is altijd gratis.",
         "flagsTitle": "Vlaggen",
         "newFlag": "Nieuwe vlag",
         "edit": "Bewerken",
@@ -1232,7 +1232,7 @@
         "title": "Providers",
         "crumb": "Beheer",
         "explain": "Elke provider heeft een OAuth-app nodig. Een secret dat je hier typt wordt versleuteld opgeslagen en nooit meer getoond. Een leeg veld laat die waarde ongemoeid.",
-        "restricted": "Saas-modus is een beperkte optie: NomNomzBot als gehoste dienst voor derden draaien is voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis.",
+        "restricted": "Je mag geen geld verdienen met NomNomzBot: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Voor jezelf, je vrienden en je community draaien is altijd gratis.",
         "listTitle": "OAuth-apps",
         "empty": "Er zijn geen providers bekend.",
         "loadError": "De providers konden niet laden.",
@@ -1295,7 +1295,7 @@
           "degraded": "Verminderd",
           "unhealthy": "Ongezond"
         },
-        "restricted": "Hosted modus is een beperkte optie: NomNomzBot als dienst voor derden draaien is voorbehouden aan NoMercy Labs. Je eigen bot zelf hosten is altijd gratis."
+        "restricted": "Je mag geen geld verdienen met NomNomzBot: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Voor jezelf, je vrienden en je community draaien is altijd gratis."
       }
     }
   }

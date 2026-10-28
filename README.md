@@ -1,8 +1,11 @@
 # NomNomzBot
 
-NomNomzBot is a free, open-source chat bot for live streamers.
+NomNomzBot is a free chat bot for live streamers.
 You run it on your own computer or server, and you control it from a web dashboard.
 One channel can connect Twitch, Kick, YouTube and X Live at the same time.
+
+The code is public. You may use, change and share NomNomzBot for free, and run it for yourself, your friends and your community.
+You may not earn money with it: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs.
 
 [![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](server/LICENSE) [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)](#where-to-get-help)
 
@@ -127,7 +130,7 @@ Self-hosting your own bot is always free.
 - **One container, no Postgres or Redis:** read [Install with Docker, without Postgres or Redis](docs/install-docker-lite.md).
 - **One file, no Docker:** run `./deploy.sh desktop`. Read [DEPLOY.md](DEPLOY.md).
 - **Public access with HTTPS:** read [DEPLOY.md](DEPLOY.md).
-- **SaaS mode:** a **restricted option**. Running NomNomzBot as a hosted service for other people is against the project license. That right is reserved to NoMercy Labs. Read [DEPLOY.md](DEPLOY.md).
+- **SaaS mode:** for NoMercy Labs only. You may not earn money with NomNomzBot: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. Read [DEPLOY.md](DEPLOY.md).
 
 ## Where to get help
 
@@ -145,4 +148,8 @@ NomNomzBot is pre-release software. Expect changes.
 
 ## License
 
-[AGPL-3.0-or-later](server/LICENSE). Copyright © NoMercy Labs.
+The code is public. You may use, change and share NomNomzBot for free, and run it for yourself, your friends and your community.
+You may not earn money with it: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs.
+
+The legal text is [AGPL-3.0-or-later](server/LICENSE). Copyright © NoMercy Labs.
+The names and logos are covered in [TRADEMARKS.md](TRADEMARKS.md).

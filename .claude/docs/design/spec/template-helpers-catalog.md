@@ -1583,7 +1583,7 @@ Rules for all lookups:
    provider limit. Open-Meteo's 600 per minute is the tightest: the 10-minute cache keeps a busy bot far below it.
 
 **OPEN DECISION D3 (Stoney): Open-Meteo is free for non-commercial use only.** NomNomzBot is AGPL and self-hosted
-bots are free, but the project also has a hosted option for third parties (`saas` mode, restricted to NoMercy Labs).
+bots are free, but the project also has a hosted option (`saas` mode, run by NoMercy Labs only; nobody else may earn money with NomNomzBot).
 A hosted, paid use is commercial under the Open-Meteo terms quoted above. Options: (a) ship weather and local time
 on Open-Meteo for self-hosted bots only and switch the two weather rows off in `saas` mode; (b) buy the Open-Meteo
 commercial plan (cost and terms **not checked**); (c) pick another source after a new benchmark. Until he picks, L2m
@@ -1744,7 +1744,7 @@ Cut table (7.20) lists 17 forms that are not counted (6 of them also appear as C
 
 - **D1 decided:** keep `{{key}}` output as built (`{{user}}` renders `{ViewerOne}`); `\{` is the literal-brace escape.
 - **D2 decided:** `num.currency` always takes an explicit currency code; the form without a code stays cut.
-- **D3 decided:** weather uses Open-Meteo behind an interface, on for self-host, off in saas mode (saas mode is a restricted option: hosting for third parties is reserved to NoMercy Labs; self-hosting is always free).
+- **D3 decided:** weather uses Open-Meteo behind an interface, on for self-host, off in saas mode (saas mode is RESTRICTED: you may not earn money with NomNomzBot, and that right is reserved to NoMercy Labs; running it for yourself, your friends and your community is always free).
 - **L2d decided:** `stream.game.short` and `text.lines.wrap` keep what the lanes built (`" / "` joiner for wrap).
 
 ### Parked helper decisions, answered by Stoney on 2026-10-27

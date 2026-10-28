@@ -16,7 +16,7 @@
             "title": "Wie wij zijn en wat dit beleid dekt",
             "p": [
               "NomNomzBot is een chatbot en dashboard voor streamers. Dit beleid legt uit welke persoonsgegevens {company} (\"wij\", \"ons\") verwerkt wanneer je de gehoste NomNomzBot-dienst gebruikt, waarom, en welke rechten je hebt.",
-              "NomNomzBot is open-sourcesoftware. Als een streamer een eigen exemplaar op een eigen server draait, is die streamer daar zelf verantwoordelijk voor en valt dat exemplaar niet onder dit beleid.",
+              "De code van NomNomzBot is openbaar. Als een streamer een eigen exemplaar op een eigen server draait, is die streamer daar zelf verantwoordelijk voor en valt dat exemplaar niet onder dit beleid.",
               "Voor mensen die inloggen bepalen wij waarom en hoe hun accountgegevens worden gebruikt. Voor de chat- en kijkersgegevens van een kanaal bepaalt de streamer die het kanaal beheert dat, en wij handelen op instructie van de streamer."
             ]
           },
@@ -101,7 +101,7 @@
             "title": "Over deze voorwaarden",
             "p": [
               "Deze voorwaarden gelden tussen jou en {company} (\"wij\", \"ons\") en dekken de gehoste NomNomzBot-dienst. Door in te loggen of de bot in een kanaal te gebruiken, accepteer je ze. Als je ze niet accepteert, gebruik de dienst dan niet.",
-              "NomNomzBot is open-sourcesoftware onder de AGPL-3.0-licentie. Je mag onder die licentie een eigen exemplaar draaien. Deze voorwaarden gelden niet voor een exemplaar dat iemand anders draait, en de gehoste dienst voor derden wordt alleen door {company} aangeboden."
+              "De code van NomNomzBot is openbaar onder de AGPL-3.0-licentie. Je mag een eigen exemplaar draaien voor jezelf, je vrienden en je community. Je mag er geen geld mee verdienen: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Deze voorwaarden gelden niet voor een exemplaar dat iemand anders draait, en de gehoste dienst wordt alleen door {company} aangeboden."
             ]
           },
           {

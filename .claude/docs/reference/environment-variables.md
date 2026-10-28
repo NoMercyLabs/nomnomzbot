@@ -19,7 +19,7 @@
 | `API_BASE_URL` | no | `http://localhost:5080` | Public URL the API is reachable at; OAuth redirect URIs derive from it (`App__BaseUrl`) |
 | `INITIAL_ADMIN_TWITCH_ID` | no | — | Numeric Twitch user id promoted to platform admin on next login; blank once an admin exists |
 | `TRUSTED_PROXY_NETWORKS` | no | `172.16.0.0/12` | CIDR of the proxy allowed to set `X-Forwarded-For` (`ForwardedHeaders__KnownNetworks__0` in docker-compose; the docker private-bridge range Caddy reaches the API over); loopback trusted by default |
-| `DEPLOYMENT_MODE` | no | `self_host_full` (compose) | `self_host_lite` (SQLite, in-memory cache; the desktop/dev default), `self_host_full` (single-tenant Postgres+Redis) or `saas` (multi-tenant — **RESTRICTED**, reserved to NoMercy Labs). Compose maps it to `Deployment__Mode`; the app also reads `App__DeploymentMode`. Unset, the app auto-detects whether Postgres and Redis are reachable |
+| `DEPLOYMENT_MODE` | no | `self_host_full` (compose) | `self_host_lite` (SQLite, in-memory cache; the desktop/dev default), `self_host_full` (single-tenant Postgres+Redis) or `saas` (multi-tenant — **RESTRICTED**: you may not earn money with NomNomzBot, and that right is reserved to NoMercy Labs). Compose maps it to `Deployment__Mode`; the app also reads `App__DeploymentMode`. Unset, the app auto-detects whether Postgres and Redis are reachable |
 | `API_IMAGE` | no | `nomnomzbot-api:local` | Container image; set `ghcr.io/nomercylabs/nomnomzbot:latest` to pull the CI image instead of building |
 | `SPOTIFY_CLIENT_ID` | no | — | Enables Spotify music integration |
 | `SPOTIFY_CLIENT_SECRET` | no | — | Enables Spotify music integration |

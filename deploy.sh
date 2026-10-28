@@ -36,9 +36,10 @@ NomNomzBot deploy — pick a scenario (full guide: DEPLOY.md)
                         Best for: a home server, database durability, room to grow.
   ./deploy.sh saas      The same Docker stack in multi-tenant SaaS mode, behind
                         YOUR HTTPS reverse proxy.
-                        RESTRICTED: hosting NomNomzBot as a service for others is
-                        against the project license (reserved to NoMercy Labs).
-                        Self-hosting your own bot is always free and unrestricted.
+                        RESTRICTED: you may not earn money with NomNomzBot (no
+                        selling it, no paid hosting or paid service built on it).
+                        That right is reserved to NoMercy Labs. Running it for
+                        yourself, your friends and your community is always free.
 
 Dashboard (every scenario):
   The Vue dashboard is built into the bot's image or binary. Nothing extra to
@@ -227,9 +228,9 @@ scenario_saas() {
     env_set DEPLOYMENT_MODE saas
   fi
 
-  echo "RESTRICTED OPTION: operating NomNomzBot as a hosted service for third parties is against"
-  echo "the project license — that right is reserved to NoMercy Labs. Self-hosting your own bot"
-  echo "(desktop/docker) is always free and unrestricted. See DEPLOY.md (SaaS)."
+  echo "RESTRICTED: you may not earn money with NomNomzBot: no selling it, and no paid hosting or"
+  echo "paid service built on it. That right is reserved to NoMercy Labs. Running it for yourself,"
+  echo "your friends and your community is always free. See DEPLOY.md (SaaS)."
   echo
   echo "SaaS mode: TLS terminates at YOUR reverse proxy; set TRUSTED_PROXY_NETWORKS in .env if the"
   echo "proxy reaches the API over a docker network (e.g. 172.16.0.0/12). Scale-out guidance: DEPLOY.md."

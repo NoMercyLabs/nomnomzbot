@@ -8,8 +8,8 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// Self-host or hosted. The license note under the cards must stay visible: hosting NomNomzBot as a
-// service for third parties is reserved to NoMercy Labs, while self-hosting your own bot is always free.
+// Self-host or hosted. The license note under the cards must stay visible: earning money with
+// NomNomzBot is reserved to NoMercy Labs, while running it for yourself, friends and community is free.
 import { useI18n } from 'vue-i18n';
 import Check from '~icons/nnz/check';
 

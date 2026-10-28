@@ -30,7 +30,7 @@ Prefer Docker but want no Postgres or Redis? Use the one-container SQLite stack:
 [docs/install-docker-lite.md](docs/install-docker-lite.md).
 
 Rule of thumb: start with **desktop**. Move to **docker** when you want Postgres-grade durability
-or the bot lives on a server. **saas** is a **restricted option** — see its section below.
+or the bot lives on a server. **saas** is for NoMercy Labs only — see its section below.
 
 ## The dashboard
 
@@ -160,10 +160,10 @@ declared here and updates must go through `switchover.ps1` instead.
 
 ## Scenario: saas — `saas` multi-tenant fleet mode (restricted)
 
-> **⚠ Restricted option.** Operating NomNomzBot as a hosted service for other people is **against
-> the project license** — that right is reserved to **NoMercy Labs** (the official cloud offering).
-> Self-hosting your own bot for your own channel(s) — desktop or docker — is always free and
-> unrestricted. This section documents the mode for the official cloud deployment.
+> **⚠ Restricted: NoMercy Labs only.** You may not earn money with NomNomzBot: no selling it, and
+> no paid hosting or paid service built on it. That right is reserved to **NoMercy Labs** (the
+> official cloud offering). Running it for yourself, your friends and your community — desktop or
+> docker — is always free. This section documents the mode for the official cloud deployment.
 
 The same Docker stack switched to `saas` mode (`DEPLOYMENT_MODE=saas`) — multi-tenant, built to sit
 behind **your** HTTPS reverse proxy. A single streamer never needs it.
@@ -218,7 +218,7 @@ stream ends. Discord's own rules put these steps on the server owner. The bot ca
 |---|---|
 | desktop | `http://localhost:5080` |
 | docker | `http://localhost:5080` (or your URL) |
-| saas *(restricted — see above)* | `https://your-domain` |
+| saas *(NoMercy Labs only — see above)* | `https://your-domain` |
 
 The dashboard is the same Vue build in every scenario. Any device on your network can open it.
 

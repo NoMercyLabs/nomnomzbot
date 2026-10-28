@@ -3,7 +3,7 @@
     "settings": {
       "billing": {
         "crumb": "Account",
-        "restricted": "Running NomNomzBot as a hosted service for others is a restricted option, reserved to NoMercy Labs. Self-hosting your own bot is always free.",
+        "restricted": "You may not earn money with NomNomzBot: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is always free.",
         "status": {
           "active": "Active",
           "trialing": "Trial",

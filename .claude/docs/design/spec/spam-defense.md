@@ -654,7 +654,7 @@ The known-bot **account** ids in the `dak` list are a starting hint for L1, neve
 auto-ban list (SD9: every block needs that account's own evidence).
 
 Commercially this is the honest SaaS hook: the hosted tier's value is *the network*, not the
-software. `saas` deployment mode remains restricted to NoMercy Labs per license.
+software. `saas` deployment mode is NoMercy Labs only: nobody else may earn money with NomNomzBot.
 
 ---
 

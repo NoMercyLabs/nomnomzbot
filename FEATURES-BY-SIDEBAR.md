@@ -132,7 +132,7 @@ Other services that send things in or receive things out.
 |---|---|---|---|
 | **Integrations** | - | Broadcaster / Broadcaster | The one home of every credential: Twitch app credentials, the bot account, Spotify, OBS, VTube Studio, Discord, YouTube, Kick and the TTS providers. EventSub reconcile. |
 | **Features** | - | Broadcaster / Broadcaster | Per-channel feature toggles. |
-| **Settings** | General; Language & fonts; Notifications; Bot behavior; Privacy; Danger zone | Moderator / Broadcaster | Channel basics and bot behavior. Billing is a seventh tab in saas mode only. `saas` mode is a RESTRICTED option: it is reserved to NoMercy Labs under the licence. Self-hosting your own bot is always free. |
+| **Settings** | General; Language & fonts; Notifications; Bot behavior; Privacy; Danger zone | Moderator / Broadcaster | Channel basics and bot behavior. Billing is a seventh tab in saas mode only. `saas` mode is RESTRICTED: you may not earn money with NomNomzBot, and that right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is always free. |
 
 ---
 
