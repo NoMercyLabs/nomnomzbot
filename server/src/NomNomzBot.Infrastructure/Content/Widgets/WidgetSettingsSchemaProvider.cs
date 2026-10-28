@@ -204,6 +204,11 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                 SelectField(d, "position", Appearance, Opts(d, "position", "top", "bottom")),
                 Accent(d),
             ],
+            "stage" =>
+            [
+                NumberField(d, "intensity", Behaviour, min: 1, max: 10, step: 1),
+                Accent(d),
+            ],
             "poll_prediction" =>
             [
                 SelectField(d, "position", Appearance, Opts(d, "position", "left", "right")),

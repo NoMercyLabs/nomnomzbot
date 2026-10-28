@@ -10,6 +10,7 @@
 
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Infrastructure.Stage;
 
 namespace NomNomzBot.Infrastructure.Content.Widgets;
 
@@ -58,6 +59,8 @@ public static class FirstPartyWidgetCatalogue
     public static readonly IReadOnlyCollection<string> SystemSurfaceNaturalKeys =
     [
         "tts_caption",
+        // The stage: full-screen one-off effects (run across, confetti, shake, flash) a command or pipeline triggers.
+        StageSurface.WidgetKey,
         WidgetKeyAliases.Audio,
         WidgetKeyAliases.MusicPlayer,
         "alerts",
@@ -335,6 +338,16 @@ public static class FirstPartyWidgetCatalogue
                 ["accentColor"] = "#9146ff",
             },
             DefaultEventSubscriptions: ["tts_speak"]
+        ),
+        new(
+            Key: StageSurface.WidgetKey,
+            ObsSetup: FullCanvas,
+            Name: "Stage",
+            Description: "A transparent full-screen layer for one-off effects a command or pipeline triggers — a text or "
+                + "emoji running across the screen, confetti, a shake, a flash. Add it once at the full canvas size; "
+                + "it draws nothing while idle.",
+            DefaultSettings: new() { ["intensity"] = 5, ["accentColor"] = "#9146ff" },
+            DefaultEventSubscriptions: [StageSurface.EventType]
         ),
         new(
             Key: "poll_prediction",

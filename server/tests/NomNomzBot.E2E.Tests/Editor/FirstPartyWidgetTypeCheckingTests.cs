@@ -29,6 +29,7 @@ public sealed class FirstPartyWidgetTypeCheckingTests : EditorPageTest
         ["audio"] = "Bot Audio",
         ["music_player"] = "Music Player",
         ["tts_caption"] = "TTS Caption",
+        ["stage"] = "Stage",
         ["countdown_timer"] = "Countdown / Timer",
         ["alerts"] = "Alerts",
         ["chat_box"] = "Chat Box",

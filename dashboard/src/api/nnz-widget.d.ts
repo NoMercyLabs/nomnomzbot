@@ -489,6 +489,15 @@ interface NnzTtsSpeakWidgetPayload {
   audioUrl?: string | null;
 }
 
+/** stage_effect: one effect for the stage widget to play. Text is plain text the widget sets through a text node, never markup. Intensity and Color are null when the caller left them out, and the widget then uses its own channel settings. */
+interface NnzStageEffectPayload {
+  preset: string;
+  text?: string | null;
+  durationMs: number;
+  intensity?: number | null;
+  color?: string | null;
+}
+
 /** The wire shape `goal_bar.vue`/`labels.vue`'s nnz.on('goal', ...) handlers expect (widget-quality-audit §1): the authoritative absolute value for one metric, not a delta. */
 interface NnzGoalWidgetEventPayload {
   metric: string;
@@ -1792,6 +1801,13 @@ interface NnzActionParams {
   };
   'song_wrong': {
   };
+  'stage_effect': {
+    preset: 'confetti' | 'flash' | 'run_across' | 'shake';
+    text?: string;
+    duration_ms?: number;
+    intensity?: number;
+    color?: string;
+  };
   'start_live_game': {
     game_type: string;
   };
@@ -1924,6 +1940,7 @@ interface NnzWidgetEventMap {
   'youtube.volume': NnzYouTubeVolumeWidgetPayload;
   'track_saved_changed': NnzTrackSavedWidgetPayload;
   'tts_speak': NnzTtsSpeakWidgetPayload;
+  'stage_effect': NnzStageEffectPayload;
   'goal': NnzGoalWidgetEventPayload;
   'count': NnzCountWidgetEventPayload;
   'supporter.tip': NnzSupporterAlertPayload;
@@ -1987,6 +2004,7 @@ type NnzWidgetAnyEvent =
   | [eventType: 'youtube.volume', data: NnzYouTubeVolumeWidgetPayload]
   | [eventType: 'track_saved_changed', data: NnzTrackSavedWidgetPayload]
   | [eventType: 'tts_speak', data: NnzTtsSpeakWidgetPayload]
+  | [eventType: 'stage_effect', data: NnzStageEffectPayload]
   | [eventType: 'goal', data: NnzGoalWidgetEventPayload]
   | [eventType: 'count', data: NnzCountWidgetEventPayload]
   | [eventType: 'supporter.tip', data: NnzSupporterAlertPayload]

@@ -48,6 +48,7 @@ public sealed class FirstPartyWidgetCatalogueSeederTests
         "audio",
         "music_player",
         "tts_caption",
+        "stage",
         "poll_prediction",
         "redemption_alert",
         "countdown_timer",

@@ -16,6 +16,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Infrastructure.Games.Frames;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Stage;
 using NomNomzBot.Infrastructure.Widgets;
 using NomNomzBot.Infrastructure.Widgets.EventHandlers;
 
@@ -327,6 +328,13 @@ internal static class WidgetTestSamples
             "100000016",
             3200,
             null
+        ),
+        [StageSurface.EventType] = _ => new StageEffectPayload(
+            "run_across",
+            "Choo choo!",
+            6000,
+            5,
+            "#9146ff"
         ),
         // The overlay SDK raises these from the raw PlaySound / StopSound hub targets; a clip and its handle pair
         // up, so firing play_sound then stop_sound exercises the same start/stop path a pipeline does.
