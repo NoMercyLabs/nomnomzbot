@@ -279,7 +279,7 @@ public sealed class ShoutoutAction : ICommandAction
                     perUserCooldown,
                     now,
                     Announcement: announcement,
-                    Speak: action.GetBool("tts", isRaid),
+                    Speak: action.GetBool("tts"),
                     ActorUserId: ctx.ActorUserId
                 ),
                 ctx.CancellationToken
@@ -295,7 +295,7 @@ public sealed class ShoutoutAction : ICommandAction
                 ctx.BroadcasterId,
                 target,
                 immediateAnnouncement,
-                action.GetBool("tts", isRaid),
+                action.GetBool("tts"),
                 DeliveryKey: ShoutoutSender.DeliveryKey(ctx.BroadcasterId, target.Id, now)
             ),
             ctx.CancellationToken
@@ -313,7 +313,7 @@ public sealed class ShoutoutAction : ICommandAction
                 perUserCooldown,
                 now,
                 Announcement: immediateAnnouncement,
-                Speak: action.GetBool("tts", isRaid),
+                Speak: action.GetBool("tts"),
                 ActorUserId: ctx.ActorUserId
             ),
             ctx.CancellationToken

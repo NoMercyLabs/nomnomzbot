@@ -24,11 +24,12 @@ using NSubstitute;
 namespace NomNomzBot.Infrastructure.Tests.Stream.PipelineActions;
 
 /// <summary>
-/// Old-bot parity for the raid shoutout: when a <c>channel.raid</c> event runs a shoutout step, the raider
-/// gets their own customised line in chat AND spoken with TTS, even when the step never sets <c>tts</c>, and
-/// even inside the Twitch cooldowns (only the native Helix call is skipped then — the legacy
-/// <c>skipApiCall</c> rule). An automated run that is not a raid stays silent, and an explicit
-/// <c>tts: false</c> always wins.
+/// The raid shoutout: when a <c>channel.raid</c> event runs a shoutout step, the raider gets their own
+/// customised line in chat, even inside the Twitch cooldowns (only the native Helix call is skipped then — the
+/// legacy <c>skipApiCall</c> rule). The line is spoken only when the step sets <c>tts: true</c>: the owner
+/// turned the long custom speech off by default (2026-10-28), because it held the speech queue for minutes,
+/// and the short spoken raid line comes from the raid flow's own <c>play_tts</c> step. An automated run that
+/// is not a raid stays silent, and an explicit <c>tts: false</c> always wins.
 /// </summary>
 public sealed class ShoutoutRaidTtsTests
 {
@@ -187,7 +188,7 @@ public sealed class ShoutoutRaidTtsTests
             );
 
     [Fact]
-    public async Task A_raid_shoutout_with_tts_unset_posts_the_raiders_own_line_and_speaks_it()
+    public async Task A_raid_shoutout_with_tts_unset_posts_the_raiders_own_line_and_stays_silent()
     {
         Rig rig = await BuildAsync();
 
@@ -195,10 +196,22 @@ public sealed class ShoutoutRaidTtsTests
 
         result.Succeeded.Should().BeTrue();
         await AssertRaiderLineAnnouncedAsync(rig);
-        await AssertRaiderLineSpokenAsync(rig);
+        await rig.Tts.DidNotReceiveWithAnyArgs().RequestSpeakAsync(default!);
         await rig
             .Chat.Received(1)
             .SendShoutoutAsync(Channel, RaiderId, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task An_explicit_tts_true_still_speaks_the_raiders_own_line_on_a_raid()
+    {
+        Rig rig = await BuildAsync();
+
+        ActionResult result = await rig.Sut.ExecuteAsync(EventCtx("channel.raid"), Step(true));
+
+        result.Succeeded.Should().BeTrue();
+        await AssertRaiderLineAnnouncedAsync(rig);
+        await AssertRaiderLineSpokenAsync(rig);
     }
 
     [Fact]

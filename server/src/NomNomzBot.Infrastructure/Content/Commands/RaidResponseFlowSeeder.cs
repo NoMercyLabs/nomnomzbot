@@ -119,7 +119,8 @@ public sealed class RaidResponseFlowSeeder(IApplicationDbContext db) : ISeeder
     private sealed record SeedStep(string ActionType, string ConfigJson);
 
     // The shoutout needs no flag for the raid case: ShoutoutAction reads event.name = channel.raid and
-    // then queues it ahead of auto-shoutouts and speaks it.
+    // then queues it ahead of auto-shoutouts. It does not speak (the long custom speech held the speech queue
+    // for minutes); the short spoken raid line is the play_tts step above it.
     private static IEnumerable<SeedStep> BuildSteps()
     {
         yield return new("send_message", $$"""{"message":"{{WelcomeLine}}"}""");

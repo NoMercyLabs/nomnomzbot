@@ -5605,7 +5605,7 @@
     <string name="pipeline_shoutout_global_cooldown_minutes_help">Minutes before any shoutout can run again, regardless of viewer. Leave blank for no channel-wide cooldown.</string>
     <string name="pipeline_shoutout_priority_help">Waits in the queue with raid priority, ahead of manual shoutouts, instead of being skipped while the global cooldown runs. Use it for a milestone such as a modiversary.</string>
     <string name="pipeline_shoutout_template_help">The chat message the shoutout posts. Supports template variables (e.g. {user.name}). Leave blank for the default shoutout message.</string>
-    <string name="pipeline_shoutout_tts_help">Also reads the shoutout out loud through text-to-speech. On a raid it speaks unless this is turned off.</string>
+    <string name="pipeline_shoutout_tts_help">Also reads the shoutout out loud through text-to-speech. It is off unless you turn it on, also on a raid.</string>
     <string name="pipeline_shoutout_user_id_help">The viewer to shout out.</string>
     <string name="pipeline_song_ban_reason_help">The reason the track is blocked, shown in the block list. Leave blank for no reason recorded.</string>
     <string name="pipeline_song_queue_max_help">How many upcoming tracks to list. Defaults to 5.</string>
