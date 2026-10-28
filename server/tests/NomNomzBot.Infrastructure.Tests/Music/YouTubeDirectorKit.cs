@@ -9,10 +9,16 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
+using NomNomzBot.Domain.Platform;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Music.Playback;
+using NomNomzBot.Infrastructure.Platform.Eventing;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
 
@@ -111,6 +117,45 @@ internal static class YouTubeDirectorKit
             );
 
             return [new PlaybackDirectorTestKit.FakeEngine(EngineKind.Spotify), YouTube];
+        }
+    }
+
+    /// <summary>
+    /// Keeps every published event for assertions, then hands it to the real <see cref="EventBus"/>, which
+    /// resolves the handlers from the provider given to <see cref="Deliver"/> exactly as the host does. The bus
+    /// exists before its handlers (they take it as a dependency), so the provider is attached afterwards.
+    /// </summary>
+    internal sealed class DispatchingEventBus : IEventBus
+    {
+        private EventBus? _real;
+
+        public List<IDomainEvent> Published { get; } = [];
+
+        public void Deliver(IServiceProvider handlers) =>
+            _real = new(
+                handlers,
+                NullLogger<EventBus>.Instance,
+                new(NullLogger<EventLogger>.Instance),
+                Substitute.For<IChannelOnboardingGate>()
+            );
+
+        public Task PublishAsync<TEvent>(
+            TEvent @event,
+            CancellationToken cancellationToken = default
+        )
+            where TEvent : class, IDomainEvent
+        {
+            Published.Add(@event);
+            return _real is null
+                ? Task.CompletedTask
+                : _real.PublishAsync(@event, cancellationToken);
+        }
+
+        public void PublishFireAndForget<TEvent>(TEvent @event)
+            where TEvent : class, IDomainEvent
+        {
+            Published.Add(@event);
+            _real?.PublishFireAndForget(@event);
         }
     }
 

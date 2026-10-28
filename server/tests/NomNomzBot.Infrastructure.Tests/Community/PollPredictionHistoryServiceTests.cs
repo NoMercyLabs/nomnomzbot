@@ -11,13 +11,16 @@
 
 using FluentAssertions;
 using Newtonsoft.Json;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Community.Dtos;
 using NomNomzBot.Domain.Community.Entities;
 using NomNomzBot.Domain.Community.Events;
-using NomNomzBot.Domain.EventStore.Entities;
-using NomNomzBot.Domain.Platform;
 using NomNomzBot.Infrastructure.Community;
+using NomNomzBot.Infrastructure.EventStore;
+using NomNomzBot.Infrastructure.Tests.Content.PlatformContent;
+using NomNomzBot.Infrastructure.Tests.EventStore;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Community;
 
@@ -29,23 +32,19 @@ public sealed class PollPredictionHistoryServiceTests
 {
     private static readonly Guid Broadcaster = Guid.CreateVersion7();
     private static readonly DateTimeOffset T0 = new(2026, 10, 15, 18, 0, 0, TimeSpan.Zero);
-    private static long _position;
 
-    private static EventJournal Row<TEvent>(TEvent @event, Guid channel)
-        where TEvent : DomainEventBase =>
-        new()
-        {
-            EventId = @event.EventId,
-            BroadcasterId = channel,
-            StreamPosition = Interlocked.Increment(ref _position),
-            EventType = typeof(TEvent).Name,
-            EventVersion = 1,
-            Source = "domain",
-            Payload = JsonConvert.SerializeObject(@event),
-            Metadata = "{}",
-            OccurredAt = @event.OccurredAt.UtcDateTime,
-            RecordedAt = @event.OccurredAt.UtcDateTime,
-        };
+    private static EventStoreSubscriber NewSubscriber(ViewerProfileServiceTestDbContext db) =>
+        new(
+            new EventJournalService(
+                db,
+                new CountingTenantSequenceAllocator(),
+                new TestUnitOfWork(db),
+                TimeProvider.System,
+                new PassthroughEventPayloadProtector(),
+                Substitute.For<ICurrentUserService>()
+            ),
+            new EventUpcasterRegistry([])
+        );
 
     private static PollBeganEvent PollBegan(string id, DateTimeOffset at, Guid channel) =>
         new()
@@ -75,11 +74,13 @@ public sealed class PollPredictionHistoryServiceTests
     public async Task ListAsync_FoldsBeginAndEnd_IntoOnePollRowWithFinalResult()
     {
         ViewerProfileServiceTestDbContext db = ViewerProfileServiceTestDbContext.New();
-        db.EventJournals.AddRange(
-            Row(PollBegan("p1", T0, Broadcaster), Broadcaster),
-            Row(PollEnded("p1", T0.AddMinutes(1), Broadcaster), Broadcaster)
-        );
-        await db.SaveChangesAsync();
+        EventStoreSubscriber subscriber = NewSubscriber(db);
+        (await subscriber.CaptureAsync(PollBegan("p1", T0, Broadcaster)))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await subscriber.CaptureAsync(PollEnded("p1", T0.AddMinutes(1), Broadcaster)))
+            .IsSuccess.Should()
+            .BeTrue();
 
         Result<IReadOnlyList<PollPredictionHistoryItemDto>> result =
             await new PollPredictionHistoryService(db).ListAsync(Broadcaster);
@@ -100,8 +101,9 @@ public sealed class PollPredictionHistoryServiceTests
     public async Task ListAsync_FoldsPredictionOutcomes_WithUsersAsVotesAndPointsAsChannelPoints()
     {
         ViewerProfileServiceTestDbContext db = ViewerProfileServiceTestDbContext.New();
-        db.EventJournals.AddRange(
-            Row(
+        EventStoreSubscriber subscriber = NewSubscriber(db);
+        (
+            await subscriber.CaptureAsync(
                 new PredictionBeganEvent
                 {
                     BroadcasterId = Broadcaster,
@@ -111,10 +113,11 @@ public sealed class PollPredictionHistoryServiceTests
                     Outcomes = [new("o1", "Yes", 0, 0, "blue"), new("o2", "No", 0, 0, "pink")],
                     WindowSeconds = 120,
                     LocksAt = T0.AddSeconds(120),
-                },
-                Broadcaster
-            ),
-            Row(
+                }
+            )
+        ).IsSuccess.Should().BeTrue();
+        (
+            await subscriber.CaptureAsync(
                 new PredictionEndedEvent
                 {
                     BroadcasterId = Broadcaster,
@@ -124,11 +127,9 @@ public sealed class PollPredictionHistoryServiceTests
                     Status = "resolved",
                     Outcomes = [new("o1", "Yes", 900, 3, "blue"), new("o2", "No", 100, 1, "pink")],
                     WinningOutcomeId = "o1",
-                },
-                Broadcaster
+                }
             )
-        );
-        await db.SaveChangesAsync();
+        ).IsSuccess.Should().BeTrue();
 
         Result<IReadOnlyList<PollPredictionHistoryItemDto>> result =
             await new PollPredictionHistoryService(db).ListAsync(Broadcaster);
@@ -147,14 +148,22 @@ public sealed class PollPredictionHistoryServiceTests
     {
         ViewerProfileServiceTestDbContext db = ViewerProfileServiceTestDbContext.New();
         Guid other = Guid.CreateVersion7();
-        db.EventJournals.AddRange(
-            Row(PollBegan("old", T0, Broadcaster), Broadcaster),
-            Row(PollEnded("old", T0.AddMinutes(1), Broadcaster), Broadcaster),
-            Row(PollBegan("lost", T0.AddHours(1), Broadcaster), Broadcaster),
-            Row(PollBegan("theirs", T0.AddHours(2), other), other),
-            Row(PollEnded("theirs", T0.AddHours(2), other), other)
-        );
-        await db.SaveChangesAsync();
+        EventStoreSubscriber subscriber = NewSubscriber(db);
+        (await subscriber.CaptureAsync(PollBegan("old", T0, Broadcaster)))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await subscriber.CaptureAsync(PollEnded("old", T0.AddMinutes(1), Broadcaster)))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await subscriber.CaptureAsync(PollBegan("lost", T0.AddHours(1), Broadcaster)))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await subscriber.CaptureAsync(PollBegan("theirs", T0.AddHours(2), other)))
+            .IsSuccess.Should()
+            .BeTrue();
+        (await subscriber.CaptureAsync(PollEnded("theirs", T0.AddHours(2), other)))
+            .IsSuccess.Should()
+            .BeTrue();
 
         Result<IReadOnlyList<PollPredictionHistoryItemDto>> result =
             await new PollPredictionHistoryService(db).ListAsync(Broadcaster);

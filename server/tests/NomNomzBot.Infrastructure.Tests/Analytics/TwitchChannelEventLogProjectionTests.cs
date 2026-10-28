@@ -54,7 +54,12 @@ public sealed class TwitchChannelEventLogProjectionTests
         EventJournalService journal = NewJournal(db);
 
         IReadOnlyList<DomainEventBase> spread = Spread();
-        await AppendAsync(journal, spread);
+        EventStoreSubscriber subscriber = new(journal, new EventUpcasterRegistry([]));
+        foreach (DomainEventBase @event in spread)
+        {
+            Result<EventRecord> captured = await subscriber.CaptureAsync((dynamic)@event);
+            captured.IsSuccess.Should().BeTrue(captured.ErrorMessage);
+        }
 
         TwitchChannelEventLogProjection projection = NewProjection(db);
         ProjectionRunner runner = NewRunner(db, journal, projection);
@@ -151,7 +156,12 @@ public sealed class TwitchChannelEventLogProjectionTests
                 Tier = "2000",
             },
         ];
-        await AppendAsync(journal, events);
+        EventStoreSubscriber subscriber = new(journal, new EventUpcasterRegistry([]));
+        foreach (DomainEventBase @event in events)
+        {
+            Result<EventRecord> captured = await subscriber.CaptureAsync((dynamic)@event);
+            captured.IsSuccess.Should().BeTrue(captured.ErrorMessage);
+        }
 
         TwitchChannelEventLogProjection projection = NewProjection(db);
         ProjectionRunner runner = NewRunner(db, journal, projection);
@@ -228,7 +238,12 @@ public sealed class TwitchChannelEventLogProjectionTests
                 UserInput = null,
             },
         ];
-        await AppendAsync(journal, spread);
+        EventStoreSubscriber subscriber = new(journal, new EventUpcasterRegistry([]));
+        foreach (DomainEventBase @event in spread)
+        {
+            Result<EventRecord> captured = await subscriber.CaptureAsync((dynamic)@event);
+            captured.IsSuccess.Should().BeTrue(captured.ErrorMessage);
+        }
 
         TwitchChannelEventLogProjection projection = NewProjection(db);
         ProjectionRunner runner = NewRunner(db, journal, projection);
@@ -254,7 +269,12 @@ public sealed class TwitchChannelEventLogProjectionTests
         EventJournalService journal = NewJournal(db);
 
         IReadOnlyList<DomainEventBase> spread = Spread();
-        await AppendAsync(journal, spread);
+        EventStoreSubscriber subscriber = new(journal, new EventUpcasterRegistry([]));
+        foreach (DomainEventBase @event in spread)
+        {
+            Result<EventRecord> captured = await subscriber.CaptureAsync((dynamic)@event);
+            captured.IsSuccess.Should().BeTrue(captured.ErrorMessage);
+        }
 
         TwitchChannelEventLogProjection projection = NewProjection(db);
         ProjectionRunner runner = NewRunner(db, journal, projection);
@@ -358,28 +378,6 @@ public sealed class TwitchChannelEventLogProjectionTests
             Clock,
             new NoOpRunOnceGuard()
         );
-
-    private static async Task AppendAsync(
-        EventJournalService journal,
-        IReadOnlyList<DomainEventBase> events
-    )
-    {
-        foreach (DomainEventBase @event in events)
-        {
-            AppendEventRequest request = new(
-                EventId: @event.EventId,
-                BroadcasterId: Channel,
-                EventType: @event.GetType().Name,
-                EventVersion: 1,
-                Source: "import",
-                PayloadJson: Newtonsoft.Json.JsonConvert.SerializeObject(@event),
-                MetadataJson: "{}",
-                OccurredAt: @event.OccurredAt.UtcDateTime
-            );
-            Result<EventRecord> appended = await journal.AppendAsync(request);
-            appended.IsSuccess.Should().BeTrue(appended.ErrorMessage);
-        }
-    }
 
     private static async Task<List<string>> SnapshotAsync(ReadModelRebuildDbContext db) =>
         await db

@@ -102,6 +102,33 @@ internal sealed class PassthroughEventPayloadProtector : IEventPayloadProtector
     ) => Task.FromResult(Result.Success(record.PayloadJson));
 }
 
+/// <summary>
+/// Stands in for the database's per-tenant sequence table in test contexts that map no <c>TenantSequence</c>
+/// entity: hands out 1, 2, 3, … per tenant in call order, so the real journal assigns real positions.
+/// </summary>
+internal sealed class CountingTenantSequenceAllocator : ITenantSequenceAllocator
+{
+    private readonly Dictionary<Guid, long> _last = [];
+
+    public Task<Result<long>> NextAsync(
+        Guid broadcasterId,
+        string sequenceName,
+        CancellationToken cancellationToken = default
+    ) => NextBlockAsync(broadcasterId, sequenceName, 1, cancellationToken);
+
+    public Task<Result<long>> NextBlockAsync(
+        Guid broadcasterId,
+        string sequenceName,
+        int count,
+        CancellationToken cancellationToken = default
+    )
+    {
+        long first = _last.GetValueOrDefault(broadcasterId) + 1;
+        _last[broadcasterId] = first + count - 1;
+        return Task.FromResult(Result.Success(first));
+    }
+}
+
 /// <summary>Records every committed journal row the decorator hands it, so a test can assert the hook fired.</summary>
 internal sealed class RecordingPostCommitHook : IJournalPostCommitHook
 {

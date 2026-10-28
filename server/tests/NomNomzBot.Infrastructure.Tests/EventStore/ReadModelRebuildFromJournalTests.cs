@@ -61,7 +61,12 @@ public sealed class ReadModelRebuildFromJournalTests
             Substitute.For<ICurrentUserService>()
         );
 
-        await AppendRepresentativeSpreadAsync(journal);
+        EventStoreSubscriber subscriber = new(journal, new EventUpcasterRegistry([]));
+        foreach (DomainEventBase @event in RepresentativeSpread())
+        {
+            Result<EventRecord> captured = await subscriber.CaptureAsync((dynamic)@event);
+            captured.IsSuccess.Should().BeTrue(captured.ErrorMessage);
+        }
 
         List<IProjection> projections = BuildProjections(db);
         ProjectionRunner runner = new(
@@ -103,10 +108,8 @@ public sealed class ReadModelRebuildFromJournalTests
     }
 
     // A representative spread: every event type the analytics projections subscribe to, for two distinct viewers,
-    // inside the live window so watch-sessions open. Appended via the real journal so they get real StreamPositions.
-    private static async Task AppendRepresentativeSpreadAsync(EventJournalService journal)
-    {
-        List<DomainEventBase> events =
+    // inside the live window so watch-sessions open. The test journals them through the real subscriber.
+    private static List<DomainEventBase> RepresentativeSpread() =>
         [
             Chat("100", "alice", "Alice", Live),
             Chat("100", "alice", "Alice", Live.AddSeconds(90)),
@@ -152,23 +155,6 @@ public sealed class ReadModelRebuildFromJournalTests
             Command("100", "alice", Live.AddSeconds(30)),
             Reward("100", "Alice", Live.AddSeconds(60)),
         ];
-
-        foreach (DomainEventBase @event in events)
-        {
-            AppendEventRequest request = new(
-                EventId: @event.EventId,
-                BroadcasterId: Channel,
-                EventType: @event.GetType().Name,
-                EventVersion: 1,
-                Source: "domain",
-                PayloadJson: Newtonsoft.Json.JsonConvert.SerializeObject(@event),
-                MetadataJson: "{}",
-                OccurredAt: @event.OccurredAt.UtcDateTime
-            );
-            Result<EventRecord> appended = await journal.AppendAsync(request);
-            appended.IsSuccess.Should().BeTrue(appended.ErrorMessage);
-        }
-    }
 
     private static List<IProjection> BuildProjections(ReadModelRebuildDbContext db)
     {

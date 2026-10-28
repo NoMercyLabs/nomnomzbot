@@ -13,12 +13,12 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
-using Newtonsoft.Json;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
-using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Dashboard.Dtos;
@@ -26,7 +26,6 @@ using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Entities;
-using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform;
@@ -40,6 +39,8 @@ using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Rewards.EventHandlers;
 using NomNomzBot.Infrastructure.Stream;
 using NomNomzBot.Infrastructure.Tests.Chat;
+using NomNomzBot.Infrastructure.Tests.Content.PlatformContent;
+using NomNomzBot.Infrastructure.Tests.EventStore;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -66,7 +67,8 @@ public sealed class ActivityReplayServiceTests
         IPipelineEngine Pipeline,
         IRenderedAlertReplayer Captures,
         ITtsDispatchService Tts,
-        ITwitchChatApi TwitchChat
+        ITwitchChatApi TwitchChat,
+        EventStoreSubscriber Subscriber
     );
 
     private static Harness Build()
@@ -115,7 +117,12 @@ public sealed class ActivityReplayServiceTests
         EventResponseExecutor executor = new(
             db,
             pipeline,
-            RealTemplates(),
+            new TemplateResolver(
+                Substitute.For<IServiceScopeFactory>(),
+                Substitute.For<IChannelRegistry>(),
+                NullLogger<TemplateResolver>.Instance,
+                TimeProvider.System
+            ),
             TestReplyDispatcher.OverProvider(chat),
             new OutboundSanctionAccessor(),
             Substitute.For<IEventResponseOverlayNotifier>(),
@@ -176,50 +183,19 @@ public sealed class ActivityReplayServiceTests
                 NullLogger<ShoutoutReplayPresenter>.Instance
             )
         );
-        return new(db, service, chat, pipeline, captures, tts, twitchChat);
-    }
-
-    // The real resolver's flat substitution, without its DI-backed helper pass.
-    private static ITemplateResolver RealTemplates()
-    {
-        TemplateResolver real = new(
-            Substitute.For<IServiceScopeFactory>(),
-            Substitute.For<IChannelRegistry>(),
-            NullLogger<TemplateResolver>.Instance,
-            TimeProvider.System
+        EventStoreSubscriber subscriber = new(
+            new EventJournalService(
+                db,
+                new CountingTenantSequenceAllocator(),
+                new TestUnitOfWork(db),
+                TimeProvider.System,
+                new PassthroughEventPayloadProtector(),
+                Substitute.For<ICurrentUserService>()
+            ),
+            new EventUpcasterRegistry([])
         );
-        ITemplateResolver templates = Substitute.For<ITemplateResolver>();
-        templates
-            .ResolveAsync(
-                Arg.Any<string>(),
-                Arg.Any<IDictionary<string, string>>(),
-                Arg.Any<Guid?>(),
-                Arg.Any<CancellationToken>()
-            )
-            .Returns(ci =>
-                real.Resolve(ci.ArgAt<string>(0), ci.ArgAt<IDictionary<string, string>>(1))
-            );
-        return templates;
+        return new(db, service, chat, pipeline, captures, tts, twitchChat, subscriber);
     }
-
-    private static long _position;
-
-    private static void Journal(AuthDbContext db, DomainEventBase domainEvent, DateTime at) =>
-        db.EventJournals.Add(
-            new EventJournal
-            {
-                EventId = domainEvent.EventId,
-                BroadcasterId = ChannelId,
-                StreamPosition = Interlocked.Increment(ref _position),
-                EventType = domainEvent.GetType().Name,
-                EventVersion = 1,
-                Source = "domain",
-                Payload = JsonConvert.SerializeObject(domainEvent),
-                Metadata = "{}",
-                OccurredAt = at,
-                RecordedAt = at,
-            }
-        );
 
     private static void Respond(
         AuthDbContext db,
@@ -240,10 +216,16 @@ public sealed class ActivityReplayServiceTests
             }
         );
 
-    private static GiftSubscriptionEvent Bomb(string gifterId, string gifterName, int count) =>
+    private static GiftSubscriptionEvent Bomb(
+        string gifterId,
+        string gifterName,
+        int count,
+        DateTime at
+    ) =>
         new()
         {
             BroadcasterId = ChannelId,
+            OccurredAt = at,
             GifterUserId = gifterId,
             GifterDisplayName = gifterName,
             Tier = "1000",
@@ -255,11 +237,13 @@ public sealed class ActivityReplayServiceTests
     private static GiftSubscriptionReceivedEvent Recipient(
         string name,
         string gifterId,
-        string gifterName
+        string gifterName,
+        DateTime at
     ) =>
         new()
         {
             BroadcasterId = ChannelId,
+            OccurredAt = at,
             RecipientUserId = "id-" + name,
             RecipientDisplayName = name,
             GifterUserId = gifterId,
@@ -271,48 +255,50 @@ public sealed class ActivityReplayServiceTests
 
     /// <summary>Seeds the real journal order: both bombs, then the six sub_gift notices (QTkittE's five and
     /// Minecraft's one), then the recipient-side channel.subscribe rows. Returns QTkittE's bomb.</summary>
-    private static (
+    private static async Task<(
         GiftSubscriptionEvent Bomb,
         List<GiftSubscriptionReceivedEvent> Recipients
-    ) SeedGiftBomb(AuthDbContext db)
+    )> SeedGiftBombAsync(Harness h)
     {
-        GiftSubscriptionEvent qtBomb = Bomb(QtKitteId, "QTkittE", 5);
-        Journal(db, qtBomb, BombAt);
+        GiftSubscriptionEvent qtBomb = Bomb(QtKitteId, "QTkittE", 5, BombAt);
         List<GiftSubscriptionReceivedEvent> qtRecipients =
         [
-            Recipient("FuleSnabel", QtKitteId, "QTkittE"),
-            Recipient("Labyricorn", QtKitteId, "QTkittE"),
-            Recipient("atixwasfound", QtKitteId, "QTkittE"),
-            Recipient("moar_power", QtKitteId, "QTkittE"),
-            Recipient("MoehDev", QtKitteId, "QTkittE"),
+            Recipient("FuleSnabel", QtKitteId, "QTkittE", BombAt.AddMilliseconds(600)),
+            Recipient("Labyricorn", QtKitteId, "QTkittE", BombAt.AddMilliseconds(630)),
+            Recipient("atixwasfound", QtKitteId, "QTkittE", BombAt.AddMilliseconds(660)),
+            Recipient("moar_power", QtKitteId, "QTkittE", BombAt.AddMilliseconds(690)),
+            Recipient("MoehDev", QtKitteId, "QTkittE", BombAt.AddMilliseconds(720)),
         ];
         // Live, Minecraft's notice landed last; Twitch does not promise that order, so it is placed mid-batch
         // here — the gift-count cap alone must not be what keeps it out.
-        for (int i = 0; i < qtRecipients.Count; i++)
+        List<DomainEventBase> journaled =
+        [
+            qtBomb,
+            qtRecipients[0],
+            qtRecipients[1],
+            Recipient("quuuuuuux", MinecraftId, "Minecraft", BombAt.AddSeconds(1)),
+            .. qtRecipients.Skip(2),
+            Bomb(MinecraftId, "Minecraft", 1, BombAt.AddSeconds(2)),
+            .. qtRecipients.Select(r => new NewSubscriptionEvent
+            {
+                BroadcasterId = ChannelId,
+                OccurredAt = BombAt.AddSeconds(3),
+                UserId = r.RecipientUserId,
+                UserDisplayName = r.RecipientDisplayName,
+                Tier = "1000",
+                IsGift = true,
+            }),
+        ];
+        foreach (DomainEventBase @event in journaled)
         {
-            Journal(db, qtRecipients[i], BombAt.AddMilliseconds(600 + (i * 30)));
-            if (i == 1)
-                Journal(db, Recipient("quuuuuuux", MinecraftId, "Minecraft"), BombAt.AddSeconds(1));
+            Result<EventRecord> captured = await h.Subscriber.CaptureAsync((dynamic)@event);
+            captured.IsSuccess.Should().BeTrue(captured.ErrorMessage);
         }
-        Journal(db, Bomb(MinecraftId, "Minecraft", 1), BombAt.AddSeconds(2));
-        foreach (GiftSubscriptionReceivedEvent r in qtRecipients)
-            Journal(
-                db,
-                new NewSubscriptionEvent
-                {
-                    BroadcasterId = ChannelId,
-                    UserId = r.RecipientUserId,
-                    UserDisplayName = r.RecipientDisplayName,
-                    Tier = "1000",
-                    IsGift = true,
-                },
-                BombAt.AddSeconds(3)
-            );
 
-        Respond(db, "channel.subscription.gift", "{user} gifted {count} subs to the community!");
-        Respond(db, "channel.subscription.gift.received", "{user} was gifted a sub by {gifter}!");
-        Respond(db, "channel.subscribe", "{user} just subscribed!");
-        db.SaveChanges();
+        Respond(h.Db, "channel.subscription.gift", "{user} gifted {count} subs to the community!");
+        Respond(h.Db, "channel.subscription.gift.received", "{user} was gifted a sub by {gifter}!");
+        Respond(h.Db, "channel.subscribe", "{user} just subscribed!");
+        h.Db.SaveChanges();
         return (qtBomb, qtRecipients);
     }
 
@@ -327,9 +313,8 @@ public sealed class ActivityReplayServiceTests
     public async Task Replaying_a_gift_bomb_replays_the_gifter_line_then_each_of_its_own_recipients_in_order()
     {
         Harness h = Build();
-        (GiftSubscriptionEvent bomb, List<GiftSubscriptionReceivedEvent> recipients) = SeedGiftBomb(
-            h.Db
-        );
+        (GiftSubscriptionEvent bomb, List<GiftSubscriptionReceivedEvent> recipients) =
+            await SeedGiftBombAsync(h);
 
         Result<ActivityReplayResult> result = await h.Service.ReplayAsync(
             ChannelId,
@@ -365,7 +350,7 @@ public sealed class ActivityReplayServiceTests
     public async Task With_speak_with_tts_on_every_line_of_the_chain_is_spoken_in_order()
     {
         Harness h = Build();
-        (GiftSubscriptionEvent bomb, _) = SeedGiftBomb(h.Db);
+        (GiftSubscriptionEvent bomb, _) = await SeedGiftBombAsync(h);
         foreach (EventResponse response in h.Db.EventResponses.Local)
             response.SpeakWithTts = true;
         await h.Db.SaveChangesAsync();
@@ -391,7 +376,7 @@ public sealed class ActivityReplayServiceTests
     public async Task A_second_gifters_sub_under_the_same_community_gift_id_stays_out_of_the_chain()
     {
         Harness h = Build();
-        (GiftSubscriptionEvent bomb, _) = SeedGiftBomb(h.Db);
+        (GiftSubscriptionEvent bomb, _) = await SeedGiftBombAsync(h);
 
         await h.Service.ReplayAsync(ChannelId, bomb.EventId.ToString());
 
@@ -402,7 +387,7 @@ public sealed class ActivityReplayServiceTests
     public async Task Replaying_the_foreign_gifters_own_bomb_replays_only_that_gifters_recipient()
     {
         Harness h = Build();
-        SeedGiftBomb(h.Db);
+        await SeedGiftBombAsync(h);
         string minecraftBombId = h
             .Db.EventJournals.AsEnumerable()
             .Single(e =>
@@ -428,17 +413,19 @@ public sealed class ActivityReplayServiceTests
     public async Task A_replay_writes_no_activity_journal_ledger_or_handler_state_row()
     {
         Harness h = Build();
-        (GiftSubscriptionEvent bomb, _) = SeedGiftBomb(h.Db);
+        (GiftSubscriptionEvent bomb, _) = await SeedGiftBombAsync(h);
         WatchStreakReceivedEvent streak = new()
         {
             BroadcasterId = ChannelId,
+            OccurredAt = BombAt.AddMinutes(10),
             UserId = "852857507",
             UserLogin = "moehdev",
             UserDisplayName = "MoehDev",
             StreakMonths = 5,
             ChannelPointsEarned = 450,
         };
-        Journal(h.Db, streak, BombAt.AddMinutes(10));
+        Result<EventRecord> streakCaptured = await h.Subscriber.CaptureAsync(streak);
+        streakCaptured.IsSuccess.Should().BeTrue(streakCaptured.ErrorMessage);
         Respond(h.Db, "engagement.watch_streak", "{user} is on a {streak.months} stream streak!");
         await h.Db.SaveChangesAsync();
         int journalRows = await h.Db.EventJournals.CountAsync();
@@ -477,7 +464,7 @@ public sealed class ActivityReplayServiceTests
                 GraphJsonCache = "{}",
             }
         );
-        (GiftSubscriptionEvent bomb, _) = SeedGiftBomb(h.Db);
+        (GiftSubscriptionEvent bomb, _) = await SeedGiftBombAsync(h);
         SwitchGiftResponseToPipeline(h.Db, pipelineId);
         await h.Db.SaveChangesAsync();
         h.Pipeline.ExecuteAsync(Arg.Any<PipelineRequest>(), Arg.Any<CancellationToken>())
@@ -557,7 +544,7 @@ public sealed class ActivityReplayServiceTests
     public async Task A_gifted_recipients_own_subscribe_row_stays_silent_on_replay_as_it_did_live()
     {
         Harness h = Build();
-        SeedGiftBomb(h.Db);
+        await SeedGiftBombAsync(h);
         string giftedSubId = h
             .Db.EventJournals.AsEnumerable()
             .First(e => e.EventType == nameof(NewSubscriptionEvent))
@@ -578,11 +565,12 @@ public sealed class ActivityReplayServiceTests
         NomNomzBot.Domain.Stream.Events.ShoutoutSentEvent cheer = new()
         {
             BroadcasterId = ChannelId,
+            OccurredAt = BombAt,
             ToUserId = "42",
             ToDisplayName = "Kitte",
         };
-        Journal(h.Db, cheer, BombAt);
-        h.Db.SaveChanges();
+        Result<EventRecord> cheerCaptured = await h.Subscriber.CaptureAsync(cheer);
+        cheerCaptured.IsSuccess.Should().BeTrue(cheerCaptured.ErrorMessage);
 
         Result<ActivityReplayResult> result = await h.Service.ReplayAsync(
             ChannelId,

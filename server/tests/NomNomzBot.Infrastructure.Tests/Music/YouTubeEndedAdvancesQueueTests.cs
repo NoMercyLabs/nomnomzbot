@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
@@ -19,6 +20,7 @@ using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
 using NomNomzBot.Infrastructure.Integrations;
 using NomNomzBot.Infrastructure.Music;
@@ -33,8 +35,8 @@ namespace NomNomzBot.Infrastructure.Tests.Music;
 /// <summary>
 /// S-YOUTUBE-NOW-PLAYING: a YouTube request that ENDED leaves the song request queue and the next one plays.
 /// The real music service, YouTube provider, player state store, report service and queue reconciler run
-/// together; only the widget notifier, the overlay presence and the clock are fakes. The reconciler is fed
-/// the events the report service publishes, as the event bus would deliver them.
+/// together; only the widget notifier, the overlay presence and the clock are fakes. The real event bus
+/// delivers the published events to the reconciler.
 /// </summary>
 public sealed class YouTubeEndedAdvancesQueueTests
 {
@@ -74,10 +76,9 @@ public sealed class YouTubeEndedAdvancesQueueTests
         MusicService Music,
         YouTubeMusicProvider Provider,
         YouTubePlayerReportService Reports,
-        SongRequestQueueReconciler Reconciler,
         SongRequestQueueStore Queues,
         RecordingWidgetEventNotifier Notifier,
-        RecordingEventBus Bus,
+        DispatchingEventBus Bus,
         RealYouTubeEngineFactory Engines,
         PlaybackDirectorRegistry Registry
     );
@@ -134,7 +135,7 @@ public sealed class YouTubeEndedAdvancesQueueTests
 
         FakeTimeProvider clock = new(DateTimeOffset.Parse("2026-10-04T12:00:00Z"));
         RecordingWidgetEventNotifier notifier = new();
-        RecordingEventBus bus = new();
+        DispatchingEventBus bus = new();
         LateSink lateSink = new();
         YouTubePlayerStateStore playerStore = new(clock);
         YouTubePlayerDispatcher players = new(db, presence, notifier, playerStore);
@@ -207,18 +208,22 @@ public sealed class YouTubeEndedAdvancesQueueTests
             bus,
             registry
         );
+        bus.Deliver(
+            new ServiceCollection()
+                .AddSingleton<IEventHandler<PlaybackStateChangedEvent>>(reconciler)
+                .BuildServiceProvider()
+        );
         // The open player attaches before any request exists, which is how a channel gets its director.
         if (attached)
             await registry.SendAsync(Broadcaster, new OutputAttached());
 
-        return new(music, provider, reports, reconciler, queues, notifier, bus, engines, registry);
+        return new(music, provider, reports, queues, notifier, bus, engines, registry);
     }
 
     private static string Watch(string videoId) => $"https://www.youtube.com/watch?v={videoId}";
 
     private static async Task ReportAsync(Rig rig, string videoId, string state)
     {
-        int seen = rig.Bus.Published.Count;
         Result reported = await rig.Reports.ReportAsync(
             Broadcaster,
             PlayerWidget,
@@ -227,12 +232,6 @@ public sealed class YouTubeEndedAdvancesQueueTests
             1000
         );
         reported.IsSuccess.Should().BeTrue();
-        List<PlaybackStateChangedEvent> changes = rig
-            .Bus.Published.Skip(seen)
-            .OfType<PlaybackStateChangedEvent>()
-            .ToList();
-        foreach (PlaybackStateChangedEvent changed in changes)
-            await rig.Reconciler.HandleAsync(changed);
     }
 
     private static List<string> QueuedUris(Rig rig) =>
