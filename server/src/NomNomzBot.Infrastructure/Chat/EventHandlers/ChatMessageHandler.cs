@@ -32,6 +32,7 @@ using NomNomzBot.Application.Games;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.MediaShare.Services;
+using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Commands.Events;
@@ -510,7 +511,11 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 // Pipelines gate on `user.role` via SYNCHRONOUS conditions, so the variable must carry
                 // the EFFECTIVE role up front — a badge-less Editor or a !permit elevation would
                 // otherwise fail user_role conditions it rightfully clears (item 24c).
-                Dictionary<string, string> variables = BuildInitialVariables(@event, args);
+                Dictionary<string, string> variables = await BuildInterpretedVariablesAsync(
+                    @event,
+                    args,
+                    cancellationToken
+                );
                 variables["user.role"] = await ResolveEffectiveRoleTokenAsync(level);
 
                 PipelineRequest request = new()
@@ -628,7 +633,11 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
                 }
 
                 // Build template context
-                Dictionary<string, string> variables = BuildInitialVariables(@event, args);
+                Dictionary<string, string> variables = await BuildInterpretedVariablesAsync(
+                    @event,
+                    args,
+                    cancellationToken
+                );
                 // Only a reply that shows the role pays for the resolver; any other reply keeps the badge path.
                 if (response.Contains("user.role", StringComparison.Ordinal))
                     variables["user.role"] = await ResolveEffectiveRoleTokenAsync(level);
@@ -1015,7 +1024,11 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         CancellationToken ct
     )
     {
-        Dictionary<string, string> variables = BuildInitialVariables(@event, args);
+        Dictionary<string, string> variables = await BuildInterpretedVariablesAsync(
+            @event,
+            args,
+            ct
+        );
         variables["user.role"] = await ResolveEffectiveRoleTokenAsync(level);
         ScriptInvocation invocation = ScriptInvocationFactory.Create(
             Guid.NewGuid().ToString("N"),
@@ -1592,7 +1605,11 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         CancellationToken ct
     )
     {
-        Dictionary<string, string> variables = BuildInitialVariables(@event, text);
+        Dictionary<string, string> variables = await BuildInterpretedVariablesAsync(
+            @event,
+            text,
+            ct
+        );
         variables["user.role"] = effectiveRoleToken;
 
         // A trigger bound straight to a command or an action runs it through the one invoker, as the sender.
@@ -1838,6 +1855,34 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             vars[pair.Key] = pair.Value;
 
         return vars;
+    }
+
+    /// <summary>
+    /// The chat variables, with the text typed after the command interpreted once, here at input. Every action
+    /// of the command then reads the same resolved <c>{args}</c>. A text with no brace skips the lookup.
+    /// </summary>
+    private async Task<Dictionary<string, string>> BuildInterpretedVariablesAsync(
+        ChatMessageReceivedEvent @event,
+        string args,
+        CancellationToken cancellationToken
+    )
+    {
+        Dictionary<string, string> variables = BuildInitialVariables(@event, args);
+        if (args.IndexOf('{', StringComparison.Ordinal) < 0)
+            return variables;
+
+        using IServiceScope scope = _scopeFactory.CreateScope();
+        IViewerInputTemplateService? templates =
+            scope.ServiceProvider.GetService<IViewerInputTemplateService>();
+        if (templates is not null)
+            await ViewerArgsInterpreter.InterpretAsync(
+                templates,
+                @event,
+                variables,
+                cancellationToken
+            );
+
+        return variables;
     }
 
     /// <summary>The variables a command's argument text seeds: <c>target</c>, <c>args</c>, <c>args.count</c>

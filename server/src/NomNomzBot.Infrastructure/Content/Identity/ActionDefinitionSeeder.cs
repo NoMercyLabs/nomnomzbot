@@ -623,7 +623,7 @@ public sealed class ActionDefinitionSeeder : ISeeder
                 AuthPlane.Community
             )
         );
-        // A viewer's own template text in a reward input (on the use_viewer_templates feature): text and read-only
+        // A viewer's own template text in a reward input or after a chat command (on the use_viewer_templates feature): text and read-only
         // info helpers only. It defaults to the Subscriber rung, is permittable to one viewer, and the broadcaster
         // may lower the floor to Everyone or raise the rung.
         s.Add(

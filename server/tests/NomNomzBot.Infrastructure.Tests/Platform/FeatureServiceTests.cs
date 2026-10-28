@@ -149,7 +149,7 @@ public sealed class FeatureServiceTests
     }
 
     [Fact]
-    public async Task Viewer_templates_are_off_for_a_channel_that_never_enabled_them()
+    public async Task Viewer_templates_are_on_for_a_channel_that_never_changed_them()
     {
         (FeatureService sut, _, _) = Build();
 
@@ -159,10 +159,10 @@ public sealed class FeatureServiceTests
             .Value.Should()
             .ContainSingle(f => f.FeatureKey == "use_viewer_templates")
             .Which.IsEnabled.Should()
-            .BeFalse();
+            .BeTrue();
         (await sut.IsFeatureEnabledAsync(Channel.ToString(), "use_viewer_templates"))
             .Should()
-            .BeFalse();
+            .BeTrue();
     }
 
     [Fact]

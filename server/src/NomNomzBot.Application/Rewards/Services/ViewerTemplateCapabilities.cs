@@ -17,7 +17,10 @@ namespace NomNomzBot.Application.Rewards.Services;
 /// </summary>
 public static class ViewerTemplateCapabilities
 {
-    /// <summary>Have helpers in the viewer's reward input resolved (on the <c>use_viewer_templates</c> feature).</summary>
+    /// <summary>
+    /// Have helpers in the text the viewer types resolved: a reward input, or the text after a chat command
+    /// (on the <c>use_viewer_templates</c> feature).
+    /// </summary>
     public const string RewardInput = "reward:input:template";
 
     /// <summary>The channel feature that turns viewer templates on. Off until the channel opts in.</summary>

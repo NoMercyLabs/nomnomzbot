@@ -92,10 +92,11 @@ public class FeatureService : IFeatureService
         ["use_viewer_templates"] = (
             "Viewer Templates",
             "Let viewers who hold the template permission use text and info helpers such as {text.repeat:3|ha} "
-                + "or {stream.game} in a reward input, spoken by text to speech or passed on to the reward. "
-                + "Subscribers and above hold it by default. Off by default.",
+                + "or {stream.game} in the text they type after a command or in a reward input, spoken by text to "
+                + "speech or passed on to the command or the reward. Subscribers and above hold it by default. "
+                + "On by default; turn it off here, or change who holds the permission.",
             [],
-            false
+            true
         ),
     };
 
@@ -179,7 +180,7 @@ public class FeatureService : IFeatureService
             f => f.BroadcasterId == broadcasterId && f.FeatureKey == featureKey,
             cancellationToken
         );
-        return row is { IsEnabled: true };
+        return row?.IsEnabled ?? DefaultOnFor(featureKey);
     }
 
     public async Task<Result<FeatureStatusDto>> ToggleFeatureAsync(
