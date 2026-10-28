@@ -5191,6 +5191,12 @@
     <string name="widget_tts_caption_voiceLabel_label">Show voice label</string>
     <string name="widget_tts_caption_position_label">Position</string>
     <string name="widget_tts_caption_accentColor_label">Accent color</string>
+    <string name="widget_stage_intensity_label">Default intensity</string>
+    <string name="widget_stage_accentColor_label">Accent color</string>
+    <string name="stage_preset_run_across_name">Run across the screen</string>
+    <string name="stage_preset_confetti_name">Confetti</string>
+    <string name="stage_preset_shake_name">Shake</string>
+    <string name="stage_preset_flash_name">Flash</string>
     <string name="widget_poll_prediction_position_label">Position</string>
     <string name="widget_poll_prediction_colors_label">Colors</string>
     <string name="widget_poll_prediction_colors_help">Optional per-outcome color overrides as a JSON object.</string>
@@ -5782,6 +5788,12 @@
     <string name="pipeline_wait_for_event_timeout_seconds_help">How long to wait before giving up, in seconds (default 300, max 86400). On timeout the pipeline continues with event.timed_out set to true.</string>
     <string name="pipeline_wait_until_raid_fires_description">Wait for whatever time remains until a prior Start raid step actually fires, correcting for any delay from the steps in between</string>
     <string name="pipeline_widget_event_description">Push an event to a widget overlay</string>
+    <string name="pipeline_stage_effect_description">Play a one-off effect on the Stage overlay: run across the screen, confetti, shake or flash</string>
+    <string name="pipeline_stage_effect_preset_help">Which effect to play.</string>
+    <string name="pipeline_stage_effect_text_help">The words or emoji to show. Only the run-across effect uses it. Template variables work here.</string>
+    <string name="pipeline_stage_effect_duration_ms_help">How long the effect runs, in milliseconds. Leave blank to use the effect's own length. The most is 30000.</string>
+    <string name="pipeline_stage_effect_intensity_help">How big and fast the effect is, from 1 to 10. Leave blank to use the Stage widget's default intensity.</string>
+    <string name="pipeline_stage_effect_color_help">The main color as a hex value such as #ff8800. Leave blank to use the Stage widget's accent color.</string>
 
     <!-- Event-response preset default templates (backend EventResponsePresetCatalog serves the KEY only). -->
     <string name="eventresponse_preset_channel_follow_template">Thanks for the follow, {user}!</string>
@@ -6263,6 +6275,8 @@
     <string name="widget_gallery_audio_description">Sound clips, redemption sounds and spoken messages (TTS) come out of this one browser source. Add it once, size it 1x1, and leave it. Keep “Control audio via OBS” ON or the stream will not hear it. Renders nothing; the optional indicator is only for confirming the source is alive during setup. Music plays from the Music Player widget.</string>
     <string name="widget_gallery_music_player_name">Music Player</string>
     <string name="widget_gallery_music_player_description">Spotify and YouTube music plays here, at its own level. Add it once, size it 1x1, and leave it. Keep “Control audio via OBS” ON or the stream will not hear it. Renders nothing; the optional indicator is only for confirming the source is alive during setup. To hear music at a different level, set the Music source to Monitor and Output in OBS.</string>
+    <string name="widget_gallery_stage_name">Stage</string>
+    <string name="widget_gallery_stage_description">A transparent full-screen layer for one-off effects a command or pipeline triggers: a text or emoji running across the screen, confetti, a shake, a flash. Draws nothing while idle.</string>
     <string name="widget_gallery_tts_caption_name">TTS Caption</string>
     <string name="widget_gallery_tts_caption_description">A speaking indicator with a live caption for TTS playback, with animated voice bars, the speaker’s name, an optional voice label, and top or bottom placement. Hidden while nothing speaks.</string>
     <string name="widget_gallery_poll_prediction_name">Poll / Prediction</string>

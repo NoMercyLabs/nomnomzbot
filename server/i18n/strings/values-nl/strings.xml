@@ -5175,6 +5175,12 @@
     <string name="widget_tts_caption_voiceLabel_label">Stemlabel tonen</string>
     <string name="widget_tts_caption_position_label">Positie</string>
     <string name="widget_tts_caption_accentColor_label">Accentkleur</string>
+    <string name="widget_stage_intensity_label">Standaardintensiteit</string>
+    <string name="widget_stage_accentColor_label">Accentkleur</string>
+    <string name="stage_preset_run_across_name">Over het scherm rennen</string>
+    <string name="stage_preset_confetti_name">Confetti</string>
+    <string name="stage_preset_shake_name">Schudden</string>
+    <string name="stage_preset_flash_name">Flits</string>
     <string name="widget_poll_prediction_position_label">Positie</string>
     <string name="widget_poll_prediction_colors_label">Kleuren</string>
     <string name="widget_poll_prediction_colors_help">Optionele kleuroverschrijvingen per uitkomst als JSON-object.</string>
@@ -5766,6 +5772,12 @@
     <string name="pipeline_wait_for_event_timeout_seconds_help">Hoelang wachten voordat wordt opgegeven, in seconden (standaard 300, maximaal 86400). Bij time-out gaat de pipeline verder met event.timed_out ingesteld op true.</string>
     <string name="pipeline_wait_until_raid_fires_description">Wacht de resterende tijd af tot een eerdere Start raid-stap daadwerkelijk afgaat, met correctie voor vertraging door de stappen ertussen</string>
     <string name="pipeline_widget_event_description">Stuur een gebeurtenis naar een widget-overlay</string>
+    <string name="pipeline_stage_effect_description">Speel een eenmalig effect af op de Stage-overlay: over het scherm rennen, confetti, schudden of flitsen</string>
+    <string name="pipeline_stage_effect_preset_help">Welk effect wordt afgespeeld.</string>
+    <string name="pipeline_stage_effect_text_help">De woorden of emoji die getoond worden. Alleen het effect over het scherm rennen gebruikt dit. Sjabloonvariabelen werken hier.</string>
+    <string name="pipeline_stage_effect_duration_ms_help">Hoe lang het effect duurt, in milliseconden. Laat leeg voor de eigen lengte van het effect. Maximaal 30000.</string>
+    <string name="pipeline_stage_effect_intensity_help">Hoe groot en snel het effect is, van 1 tot 10. Laat leeg voor de standaardintensiteit van de Stage-widget.</string>
+    <string name="pipeline_stage_effect_color_help">De hoofdkleur als hexwaarde, bijvoorbeeld #ff8800. Laat leeg voor de accentkleur van de Stage-widget.</string>
 
     <!-- Event-response preset default templates (backend EventResponsePresetCatalog serves the KEY only). -->
     <string name="eventresponse_preset_channel_follow_template">Bedankt voor het volgen, {user}!</string>
@@ -6237,6 +6249,8 @@
     <string name="widget_gallery_music_player_name">Muziekspeler</string>
     <string name="widget_gallery_music_player_description">Spotify- en YouTube-muziek speelt hier af, met een eigen volume. Voeg hem één keer toe, maak hem 1x1 en laat hem staan. Houd “Audio via OBS regelen” AAN, anders hoort de stream niets. Toont zelf niets; de optionele indicator is er alleen om tijdens het instellen te zien dat de bron leeft. Wil je de muziek op een ander niveau horen, zet de Muziekbron in OBS dan op Monitor en uitvoer.</string>
 
+    <string name="widget_gallery_stage_name">Stage</string>
+    <string name="widget_gallery_stage_description">Een transparante laag over het hele scherm voor eenmalige effecten die een commando of pipeline start: tekst of emoji die over het scherm rent, confetti, schudden, een flits. Tekent niets zolang er niets gebeurt.</string>
     <string name="widget_gallery_tts_caption_name">TTS-ondertitel</string>
     <string name="widget_gallery_tts_caption_description">Een spreekindicator met live ondertitel bij TTS-weergave, met geanimeerde stembalkjes, de naam van de spreker, optioneel een stemlabel en plaatsing boven of onder. Verborgen zolang er niemand spreekt.</string>
     <string name="widget_gallery_poll_prediction_name">Poll / Voorspelling</string>

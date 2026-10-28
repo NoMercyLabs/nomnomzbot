@@ -14,6 +14,7 @@ using NomNomzBot.Application.DevPlatform.Services;
 using NomNomzBot.Application.Music.Dtos;
 using NomNomzBot.Infrastructure.Games.Frames;
 using NomNomzBot.Infrastructure.Music;
+using NomNomzBot.Infrastructure.Stage;
 using NomNomzBot.Infrastructure.Widgets;
 using NomNomzBot.Infrastructure.Widgets.EventHandlers;
 
@@ -92,6 +93,7 @@ internal sealed class WidgetEventPayloadRegistry : IWidgetEventPayloadRegistry
         new(YouTubePlayerDispatcher.VolumeEventType, typeof(YouTubeVolumeWidgetPayload)),
         new("track_saved_changed", typeof(TrackSavedWidgetPayload)),
         new("tts_speak", typeof(TtsSpeakWidgetPayload)),
+        new(StageSurface.EventType, typeof(StageEffectPayload)),
         new("goal", typeof(GoalWidgetEventPayload)),
         new("count", typeof(CountWidgetEventPayload)),
         new("supporter.tip", typeof(SupporterAlertPayload)),

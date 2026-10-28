@@ -14,6 +14,7 @@ using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Application.DevPlatform;
 using NomNomzBot.Application.DevPlatform.Services;
 using NomNomzBot.Infrastructure.DevPlatform;
+using NomNomzBot.Infrastructure.Stage;
 
 namespace NomNomzBot.Api.Tests.Hubs;
 
@@ -204,6 +205,29 @@ public sealed partial class WidgetEventPayloadRegistryDriftTests
         );
 
         dts.Should().Contain($"  '{eventType}': Nnz{entry.PayloadType!.Name};");
+    }
+
+    [Fact]
+    public void The_stage_effect_event_is_registered_sampled_and_typed_with_the_payload_the_action_pushes()
+    {
+        WidgetEventPayloadEntry? entry = Registry.Events.FirstOrDefault(e =>
+            e.Name == StageSurface.EventType
+        );
+
+        entry.Should().NotBeNull();
+        entry.PayloadType.Should().Be(typeof(StageEffectPayload));
+        WidgetTestSamples
+            .For(StageSurface.EventType, DateTimeOffset.UnixEpoch)
+            .Should()
+            .Be(new StageEffectPayload("run_across", "Choo choo!", 6000, 5, "#9146ff"));
+
+        string dts = new SdkTypeEmitter(new EventCatalog(), null, null, Registry).EmitTypeScript(
+            SdkContext.Widget
+        );
+        dts.Should().Contain("  'stage_effect': NnzStageEffectPayload;");
+        dts.Should().Contain("interface NnzStageEffectPayload {");
+        dts.Should().Contain("  preset: string;");
+        dts.Should().Contain("  durationMs: number;");
     }
 
     /// <summary>The eventType argument (first literal, no other quotes before it) of an overlay alert push.</summary>

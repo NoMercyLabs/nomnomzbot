@@ -45,6 +45,7 @@ public sealed class WidgetJoinStateCoverageTests
         "emote_wall",
         "redemption_alert",
         "tts_caption",
+        "stage",
         "countdown_timer",
         "socials",
     ];
