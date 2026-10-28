@@ -199,6 +199,7 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
             e.HasKey(r => r.Id);
             e.Ignore(r => r.Pipeline);
             e.Ignore(r => r.Channel);
+            e.Ignore(r => r.ReplyDelivery);
             e.Property(r => r.MetadataJson)
                 .HasConversion(
                     JsonValueConverter.Converter<Dictionary<string, string>>(),
@@ -217,6 +218,7 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
             e.HasKey(t => t.Id);
             e.Ignore(t => t.Pipeline);
             e.Ignore(t => t.Channel);
+            e.Ignore(t => t.ReplyDelivery);
             e.Property(t => t.Messages)
                 .HasConversion(
                     JsonValueConverter.Converter<List<string>>(),
@@ -229,6 +231,7 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
             e.HasKey(t => t.Id);
             e.Ignore(t => t.Pipeline);
             e.Ignore(t => t.Channel);
+            e.Ignore(t => t.ReplyDelivery);
         });
 
         b.Entity<NomNomzBot.Domain.PickLists.Entities.PickList>(e =>

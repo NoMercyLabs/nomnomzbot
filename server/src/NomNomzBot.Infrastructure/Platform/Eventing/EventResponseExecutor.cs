@@ -16,8 +16,8 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Tts;
-using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
@@ -40,7 +40,8 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
     private readonly IApplicationDbContext _db;
     private readonly IPipelineEngine _pipeline;
     private readonly ITemplateResolver _templateResolver;
-    private readonly IChatProvider _chatProvider;
+    private readonly IReplyDispatcher _replies;
+    private readonly IOutboundSanctionAccessor _sanctions;
     private readonly IEventResponseOverlayNotifier _overlayNotifier;
     private readonly ITtsDispatchService _tts;
     private readonly ICommandInvoker _invoker;
@@ -50,7 +51,8 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         IApplicationDbContext db,
         IPipelineEngine pipeline,
         ITemplateResolver templateResolver,
-        IChatProvider chatProvider,
+        IReplyDispatcher replies,
+        IOutboundSanctionAccessor sanctions,
         IEventResponseOverlayNotifier overlayNotifier,
         ITtsDispatchService tts,
         ICommandInvoker invoker,
@@ -61,7 +63,8 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         _db = db;
         _pipeline = pipeline;
         _templateResolver = templateResolver;
-        _chatProvider = chatProvider;
+        _replies = replies;
+        _sanctions = sanctions;
         _overlayNotifier = overlayNotifier;
         _tts = tts;
         _logger = logger;
@@ -167,7 +170,8 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                 row.PipelineId,
                 row.MetadataJson,
                 row.SpeakWithTts,
-                row.GetBindingTarget()
+                row.GetBindingTarget(),
+                row.ReplyDelivery
             ),
         };
         if (config is not { IsEnabled: true })
@@ -189,6 +193,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                     eventTypeKey,
                     config.Message,
                     config.SpeakWithTts,
+                    config.Delivery ?? ReplyDelivery.ChatOnly,
                     variables,
                     cancellationToken
                 ),
@@ -287,7 +292,8 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         Guid? PipelineId,
         Dictionary<string, string> Metadata,
         bool SpeakWithTts,
-        BindingTarget? Target = null
+        BindingTarget? Target = null,
+        ReplyDelivery? Delivery = null
     );
 
     private async Task<EventResponseOutcome> SendChatMessageAsync(
@@ -295,28 +301,56 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         string eventTypeKey,
         string? messageTemplate,
         bool speakWithTts,
+        ReplyDelivery delivery,
         Dictionary<string, string> variables,
         CancellationToken ct
     )
     {
-        if (string.IsNullOrWhiteSpace(messageTemplate))
+        if (string.IsNullOrWhiteSpace(messageTemplate) || delivery.Target == ReplyTarget.None)
             return EventResponseOutcome.None;
 
-        string message = await _templateResolver.ResolveAsync(
+        // The response says where its line goes (chat, the chat overlay, both or neither); one that sets
+        // nothing answers in chat as it always did.
+        RenderedReply rendered = await ReplyTemplateRenderer.RenderAsync(
+            _templateResolver,
             messageTemplate,
-            ChatMentionName.ForChat(variables),
+            variables,
             broadcasterId,
+            delivery,
             ct
         );
-        if (string.IsNullOrWhiteSpace(message))
+        if (
+            string.IsNullOrWhiteSpace(rendered.ChatText)
+            && string.IsNullOrWhiteSpace(rendered.OverlayText)
+        )
             return EventResponseOutcome.None;
 
-        bool sent = await _chatProvider.SendMessageAsync(broadcasterId, message, ct);
+        // An event response is background work with no viewer behind it: the channel's own event response
+        // configuration sanctions the write.
+        ReplyOutcome outcome;
+        using (
+            _sanctions.Begin(
+                OutboundSanction.ChannelConfiguration($"event_response:{eventTypeKey}")
+            )
+        )
+            outcome = await _replies.DispatchAsync(
+                new ReplyRequest
+                {
+                    BroadcasterId = broadcasterId,
+                    Text = rendered.ChatText,
+                    OverlayText = rendered.OverlayText,
+                    Delivery = delivery,
+                },
+                ct
+            );
+
         bool spoken =
-            speakWithTts && await SpeakAsync(broadcasterId, eventTypeKey, message, variables, ct);
+            speakWithTts
+            && outcome.SentToChat
+            && await SpeakAsync(broadcasterId, eventTypeKey, rendered.ChatText, variables, ct);
         return EventResponseOutcome.None with
         {
-            ChatMessagesSent = sent ? 1 : 0,
+            ChatMessagesSent = outcome.SentToChat ? 1 : 0,
             TtsQueued = spoken ? 1 : 0,
         };
     }

@@ -204,6 +204,9 @@ internal sealed class ReadModelRebuildDbContext : DbContext, IApplicationDbConte
         modelBuilder.Ignore<NomNomzBot.Domain.Tts.Entities.TtsUsageRecord>();
         modelBuilder.Ignore<NomNomzBot.Domain.Tts.Entities.TtsCacheEntry>();
         modelBuilder.Ignore<NomNomzBot.Domain.Platform.Entities.DeletionAuditLog>();
+        modelBuilder.Entity<NomNomzBot.Domain.Commands.Entities.ChatTrigger>(b =>
+            b.Ignore(t => t.ReplyDelivery)
+        );
         modelBuilder.Ignore<NomNomzBot.Domain.Commands.Entities.Timer>();
         modelBuilder.Ignore<NomNomzBot.Domain.Commands.Entities.EventResponse>();
         modelBuilder.Ignore<NomNomzBot.Domain.Rewards.Entities.WatchStreak>();

@@ -91,6 +91,13 @@ public class EventResponse
     public bool SpeakWithTts { get; set; }
 
     /// <summary>
+    /// Where a chat_message response goes (chat, chat overlay, both, nowhere) and whether the overlay line is
+    /// HTML. Stored in the <c>ReplyDeliveryJson</c> column; null = the platform chat as plain text, so every row
+    /// written before this setting existed behaves exactly as it did.
+    /// </summary>
+    public ReplyDelivery? ReplyDelivery { get; set; }
+
+    /// <summary>
     /// True while the channel has never saved its own response for this event: the runtime then uses the
     /// <see cref="PlatformEventResponseDefault"/> for the event type instead of this row's own values. Saving
     /// a response clears it; resetting the response sets it again.

@@ -12,11 +12,16 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NomNomzBot.Infrastructure.Platform.Security;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Supporters;
 using NSubstitute;
 
@@ -40,7 +45,11 @@ public sealed class EventResponseExecutorTests
         IChatProvider Chat,
         IPipelineEngine Engine,
         IEventResponseOverlayNotifier Overlay
-    ) Build(ITtsDispatchService? tts = null)
+    ) Build(
+        ITtsDispatchService? tts = null,
+        IChatOverlayLineSender? lineSender = null,
+        IOutboundSanctionAccessor? sanctions = null
+    )
     {
         SupporterTestDbContext db = SupporterTestDbContext.New();
 
@@ -65,7 +74,8 @@ public sealed class EventResponseExecutorTests
             db,
             engine,
             templates,
-            chat,
+            TestReplyDispatcher.OverProvider(chat, lineSender),
+            sanctions ?? new OutboundSanctionAccessor(),
             overlay,
             tts ?? Substitute.For<ITtsDispatchService>(),
             Substitute.For<ICommandInvoker>(),
@@ -81,7 +91,8 @@ public sealed class EventResponseExecutorTests
         string? message = null,
         Guid? pipelineId = null,
         bool enabled = true,
-        bool speakWithTts = false
+        bool speakWithTts = false,
+        ReplyDelivery? delivery = null
     )
     {
         db.EventResponses.Add(
@@ -95,9 +106,109 @@ public sealed class EventResponseExecutorTests
                 PipelineId = pipelineId,
                 IsEnabled = enabled,
                 SpeakWithTts = speakWithTts,
+                ReplyDelivery = delivery,
             }
         );
         await db.SaveChangesAsync();
+    }
+
+    [Fact]
+    public async Task A_response_aimed_at_the_overlay_puts_its_line_there_and_sends_nothing_to_chat()
+    {
+        RecordingChatOverlayLineSender lines = new();
+        (EventResponseExecutor executor, SupporterTestDbContext db, IChatProvider chat, _, _) =
+            Build(lineSender: lines);
+        await SeedResponseAsync(
+            db,
+            "stream.online",
+            "chat_message",
+            message: "We're live!",
+            delivery: new(ReplyTarget.Overlay, Html: false)
+        );
+
+        await executor.ExecuteAsync(Tenant, "stream.online", null, "Streamer", new());
+
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        lines.Lines.Should().ContainSingle().Which.Text.Should().Be("resolved:We're live!");
+    }
+
+    [Fact]
+    public async Task A_response_aimed_at_both_sends_the_chat_line_and_the_overlay_line()
+    {
+        RecordingChatOverlayLineSender lines = new();
+        (EventResponseExecutor executor, SupporterTestDbContext db, IChatProvider chat, _, _) =
+            Build(lineSender: lines);
+        await SeedResponseAsync(
+            db,
+            "stream.online",
+            "chat_message",
+            message: "We're live!",
+            delivery: new(ReplyTarget.Both, Html: false)
+        );
+
+        await executor.ExecuteAsync(Tenant, "stream.online", null, "Streamer", new());
+
+        await chat.Received(1)
+            .SendMessageAsync(Tenant, "resolved:We're live!", Arg.Any<CancellationToken>());
+        lines.Lines.Should().ContainSingle().Which.Text.Should().Be("resolved:We're live!");
+    }
+
+    [Fact]
+    public async Task A_response_aimed_nowhere_sends_nothing()
+    {
+        RecordingChatOverlayLineSender lines = new();
+        (EventResponseExecutor executor, SupporterTestDbContext db, IChatProvider chat, _, _) =
+            Build(lineSender: lines);
+        await SeedResponseAsync(
+            db,
+            "stream.online",
+            "chat_message",
+            message: "We're live!",
+            delivery: new(ReplyTarget.None)
+        );
+
+        await executor.ExecuteAsync(Tenant, "stream.online", null, "Streamer", new());
+
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        lines.Lines.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_response_with_no_delivery_set_sends_to_chat_and_never_touches_the_overlay()
+    {
+        RecordingChatOverlayLineSender lines = new();
+        (EventResponseExecutor executor, SupporterTestDbContext db, IChatProvider chat, _, _) =
+            Build(lineSender: lines);
+        await SeedResponseAsync(db, "stream.online", "chat_message", message: "We're live!");
+
+        await executor.ExecuteAsync(Tenant, "stream.online", null, "Streamer", new());
+
+        await chat.Received(1)
+            .SendMessageAsync(Tenant, "resolved:We're live!", Arg.Any<CancellationToken>());
+        lines.Lines.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_response_chat_write_runs_under_an_event_response_sanction()
+    {
+        OutboundSanctionAccessor sanctions = new();
+        (EventResponseExecutor executor, SupporterTestDbContext db, IChatProvider chat, _, _) =
+            Build(sanctions: sanctions);
+        OutboundSanction? during = null;
+        chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
+            .Returns(_ =>
+            {
+                during = sanctions.Current;
+                return true;
+            });
+        await SeedResponseAsync(db, "stream.online", "chat_message", message: "We're live!");
+
+        await executor.ExecuteAsync(Tenant, "stream.online", null, "Streamer", new());
+
+        during.Should().NotBeNull();
+        during!.Basis.Should().Be(OutboundSanctionBasis.ChannelConfiguration);
+        during.Detail.Should().Be("event_response:stream.online");
+        sanctions.Current.Should().BeNull();
     }
 
     [Fact]

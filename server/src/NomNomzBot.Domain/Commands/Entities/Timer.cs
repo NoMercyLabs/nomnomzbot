@@ -83,6 +83,12 @@ public class Timer : SoftDeletableEntity, ITenantScoped, IPlatformSourced, IBind
     /// <summary>Whether the selected timer message is also spoken.</summary>
     public bool SpeakWithTts { get; set; }
 
+    /// <summary>
+    /// Where a message timer's line goes (chat, chat overlay, both, nowhere) and whether the overlay line is
+    /// HTML. Stored in the <c>ReplyDeliveryJson</c> column; null = the platform chat as plain text.
+    /// </summary>
+    public ReplyDelivery? ReplyDelivery { get; set; }
+
     /// <summary>UTC time the timer last sent a message.</summary>
     public DateTime? LastFiredAt { get; set; }
 

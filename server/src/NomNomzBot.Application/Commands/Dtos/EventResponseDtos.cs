@@ -35,7 +35,11 @@ public sealed record EventResponseDto(
     bool SpeakWithTts,
     IReadOnlyList<string> ToneLines,
     BindingTarget? Target
-);
+)
+{
+    /// <summary>Where a chat_message response goes and whether the overlay line is HTML; null = the platform chat as plain text.</summary>
+    public ReplyDelivery? ReplyDelivery { get; init; }
+}
 
 /// <summary>
 /// The channel's auto-provisioned alert overlay (widgets-overlays.md §1.2): its OBS browser-source URL and
@@ -87,6 +91,12 @@ public sealed record UpdateEventResponseDto
 
     /// <summary>A chat_message response also speaks its resolved text through the channel's TTS. Absent leaves it unchanged.</summary>
     public bool? SpeakWithTts { get; init; }
+
+    /// <summary>
+    /// Where a chat_message response goes and whether the overlay line is HTML. Absent leaves it unchanged; a
+    /// delivery of plain Twitch chat is stored as the default.
+    /// </summary>
+    public ReplyDelivery? ReplyDelivery { get; init; }
 
     /// <summary>
     /// What the response runs when its type is pipeline: a command (by id), a pipeline or an action. Wins

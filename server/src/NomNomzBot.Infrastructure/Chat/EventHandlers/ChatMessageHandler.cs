@@ -1626,23 +1626,38 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         if (string.IsNullOrWhiteSpace(trigger.Response))
             return;
 
-        string resolved = await _templateResolver.ResolveAsync(
+        // The trigger says where its reply goes (chat, the chat overlay, both or neither); a trigger
+        // that sets nothing answers in chat as it always did.
+        ReplyDelivery delivery = trigger.ReplyDelivery ?? ReplyDelivery.ChatOnly;
+        RenderedReply rendered = await ReplyTemplateRenderer.RenderAsync(
+            _templateResolver,
             trigger.Response,
-            ChatMentionName.ForChat(variables),
+            variables,
             @event.BroadcasterId,
+            delivery,
             ct
         );
-        if (!string.IsNullOrWhiteSpace(resolved))
-            await _replies.DispatchAsync(
-                new ReplyRequest
-                {
-                    BroadcasterId = @event.BroadcasterId,
-                    Text = resolved,
-                    Delivery = ReplyDelivery.ChatOnly,
-                    Origin = OriginOf(@event, threaded: false),
-                },
-                ct
-            );
+        if (delivery.Target == ReplyTarget.None)
+            return;
+
+        if (
+            string.IsNullOrWhiteSpace(rendered.ChatText)
+            && string.IsNullOrWhiteSpace(rendered.OverlayText)
+        )
+            return;
+
+        await _replies.DispatchAsync(
+            new ReplyRequest
+            {
+                BroadcasterId = @event.BroadcasterId,
+                Text = rendered.ChatText,
+                OverlayText = rendered.OverlayText,
+                Delivery = delivery,
+                Origin = OriginOf(@event, threaded: false),
+                RequestedBy = @event.UserDisplayName,
+            },
+            ct
+        );
     }
 
     private async Task RunChatTriggerTargetAsync(

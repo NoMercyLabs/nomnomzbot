@@ -31,6 +31,9 @@ public sealed record TimerDto(
 {
     public bool SpeakWithTts { get; init; }
 
+    /// <summary>Where a message timer's line goes and whether the overlay line is HTML; null = the platform chat as plain text.</summary>
+    public ReplyDelivery? ReplyDelivery { get; init; }
+
     /// <summary>What a firing runs when bound directly: a command, an action or a pipeline. Null for a plain message timer.</summary>
     public BindingTarget? Target { get; init; }
 }
@@ -74,6 +77,9 @@ public sealed record CreateTimerDto
 
     public bool SpeakWithTts { get; init; }
 
+    /// <summary>Where a message timer's line goes and whether the overlay line is HTML; null = the platform chat as plain text.</summary>
+    public ReplyDelivery? ReplyDelivery { get; init; }
+
     /// <summary>
     /// What a firing runs: a command (by id), a pipeline or an action. Wins over <see cref="PipelineId"/>
     /// when both are sent. The command must exist in the channel.
@@ -103,6 +109,9 @@ public sealed record UpdateTimerDto
     public bool? FireOnce { get; init; }
 
     public bool? SpeakWithTts { get; init; }
+
+    /// <summary>Where a message timer's line goes and whether the overlay line is HTML. Absent leaves it unchanged.</summary>
+    public ReplyDelivery? ReplyDelivery { get; init; }
 
     /// <summary>
     /// The new target; absent leaves the binding unchanged. A pipeline target with no id clears the binding.

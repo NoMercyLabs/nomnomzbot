@@ -132,6 +132,7 @@ public sealed class IdentityRekeyBehaviorTests
             b.Entity<Command>().Ignore(e => e.TemplateResponses).Ignore(e => e.Aliases);
             b.Entity<Command>().Ignore(e => e.ReplyDelivery);
             b.Entity<Command>().Ignore(e => e.Channel);
+            b.Entity<ChatTrigger>().Ignore(e => e.ReplyDelivery);
 
             // The unit under test: the production composing tenant + soft-delete global query filter.
             b.ApplyTenantAndSoftDeleteFilters(() => _tenant.BroadcasterId);

@@ -14,14 +14,18 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Stream.Events;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Stream.EventHandlers;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Supporters;
 using NSubstitute;
 
@@ -67,6 +71,8 @@ public sealed class RaidEventHandlerTargetVariableTests
         services.AddSingleton<ILogger<TemplateResolver>>(NullLogger<TemplateResolver>.Instance);
         services.AddSingleton<ITemplateResolver, TemplateResolver>();
         services.AddSingleton(chat);
+        services.AddSingleton<IReplyDispatcher>(TestReplyDispatcher.OverProvider(chat));
+        services.AddSingleton<IOutboundSanctionAccessor>(new OutboundSanctionAccessor());
         services.AddSingleton<IEventResponseOverlayNotifier>(
             Substitute.For<IEventResponseOverlayNotifier>()
         );

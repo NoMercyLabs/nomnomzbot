@@ -124,11 +124,16 @@ internal sealed class BillingTierChangeTestDbContext : DbContext, IApplicationDb
             e.Ignore(c => c.ReplyDelivery);
         });
         b.Entity<SoundClip>(e => e.HasKey(c => c.Id));
-        b.Entity<Domain.Commands.Entities.Timer>(e => e.HasKey(t => t.Id));
+        b.Entity<Domain.Commands.Entities.Timer>(e =>
+        {
+            e.HasKey(t => t.Id);
+            e.Ignore(t => t.ReplyDelivery);
+        });
         b.Entity<EventResponse>(e =>
         {
             e.HasKey(r => r.Id);
             e.Ignore(r => r.MetadataJson);
+            e.Ignore(r => r.ReplyDelivery);
         });
         b.Entity<Domain.Assets.Entities.ChannelAsset>(e => e.HasKey(a => a.Id));
         b.Entity<TenantLimitOverride>(e => e.HasKey(o => o.Id));

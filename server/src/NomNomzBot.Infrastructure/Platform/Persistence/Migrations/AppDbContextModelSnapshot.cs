@@ -1393,6 +1393,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<Guid?>("PipelineId")
                         .HasColumnType("uuid");
 
+                    b.Property<string>("ReplyDelivery")
+                        .HasColumnType("text")
+                        .HasColumnName("ReplyDeliveryJson");
+
                     b.Property<string>("Response")
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
@@ -1717,6 +1721,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<int?>("PlatformSourceVersion")
                         .HasColumnType("integer");
+
+                    b.Property<string>("ReplyDelivery")
+                        .HasColumnType("text")
+                        .HasColumnName("ReplyDeliveryJson");
 
                     b.Property<string>("ResponseType")
                         .IsRequired()
@@ -2431,6 +2439,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<int?>("PlatformSourceVersion")
                         .HasColumnType("integer");
+
+                    b.Property<string>("ReplyDelivery")
+                        .HasColumnType("text")
+                        .HasColumnName("ReplyDeliveryJson");
 
                     b.Property<bool>("SpeakWithTts")
                         .ValueGeneratedOnAdd()

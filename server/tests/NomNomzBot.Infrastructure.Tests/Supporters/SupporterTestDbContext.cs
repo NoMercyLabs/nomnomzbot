@@ -31,6 +31,7 @@ using NomNomzBot.Domain.Supporters.Entities;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Commands.Persistence;
 using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
@@ -188,6 +189,7 @@ internal sealed class SupporterTestDbContext : DbContext, IApplicationDbContext
             e.Ignore(r => r.Pipeline);
             e.Ignore(r => r.Channel);
             e.Ignore(r => r.MetadataJson);
+            e.Property(r => r.ReplyDelivery).HasReplyDeliveryColumn();
             // Mirrors the real AppDbContext's global soft-delete query filter for this one entity — the
             // production filter (ApplyTenantAndSoftDeleteFilters) is Npgsql-model-wide and can't run on
             // this focused context, so EventResponseSeedingTests re-declares it here to exercise the same

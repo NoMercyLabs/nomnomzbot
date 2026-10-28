@@ -350,6 +350,10 @@ public class CachedChatTrigger
 
     public required bool CaseSensitive { get; init; }
     public string? Response { get; init; }
+
+    /// <summary>Where <see cref="Response"/> goes; null = the platform chat as plain text.</summary>
+    public ReplyDelivery? ReplyDelivery { get; init; }
+
     public string? PipelineGraphJson { get; init; }
 
     /// <summary>

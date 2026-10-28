@@ -503,7 +503,6 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         // (navs ignored) so the reward-sync tests can prove the Twitch read path through this harness.
         b.Entity<NomNomzBot.Domain.Rewards.Entities.Reward>().HasKey(e => e.Id);
         b.Entity<NomNomzBot.Domain.Rewards.Entities.Reward>().Ignore(e => e.Channel);
-
         // SoundClip: mapped scalar-only (Channel/CreatedByUser navs ignored) so ChannelRegistry's
         // sound-trigger cache load (LoadSoundTriggersAsync) runs cleanly through this harness — reached
         // by the channel-registry bootstrap run-once tests, which drive the real GetOrCreateAsync path.
@@ -604,7 +603,11 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Entity<NomNomzBot.Domain.Commands.Entities.Timer>().HasKey(e => e.Id);
         b.Entity<NomNomzBot.Domain.Commands.Entities.Timer>()
             .Ignore(e => e.Channel)
-            .Ignore(e => e.Pipeline);
+            .Ignore(e => e.Pipeline)
+            .Ignore(e => e.ReplyDelivery);
+        // ChatTrigger: reached by convention through its DbSet; the JSON-converted delivery record has no
+        // converter in this harness, so it stays out of the model.
+        b.Entity<NomNomzBot.Domain.Commands.Entities.ChatTrigger>().Ignore(e => e.ReplyDelivery);
         // WatchStreak: mapped scalar-only (Channel nav ignored) so the watch-streak handler tests can seed and read the stored max.
         b.Entity<NomNomzBot.Domain.Rewards.Entities.WatchStreak>().HasKey(e => e.Id);
         b.Entity<NomNomzBot.Domain.Rewards.Entities.WatchStreak>().Ignore(e => e.Channel);
@@ -615,7 +618,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Entity<NomNomzBot.Domain.Commands.Entities.EventResponse>()
             .Ignore(e => e.Channel)
             .Ignore(e => e.Pipeline)
-            .Ignore(e => e.MetadataJson);
+            .Ignore(e => e.MetadataJson)
+            .Ignore(e => e.ReplyDelivery);
 
         // ChannelBuiltinCommand: mapped scalar-only (nav ignored) so DefaultCommandsSeedOnOnboardingHandler
         // tests can drive the real DefaultCommandsSeeder through this harness.

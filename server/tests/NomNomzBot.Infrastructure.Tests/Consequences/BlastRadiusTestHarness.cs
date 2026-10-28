@@ -129,6 +129,7 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
         {
             b.HasKey(e => e.Id);
             b.Ignore(e => e.MetadataJson);
+            b.Ignore(e => e.ReplyDelivery);
             b.Ignore(e => e.Pipeline);
             b.Ignore(e => e.Channel);
         });
@@ -145,12 +146,14 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
         {
             b.HasKey(t => t.Id);
             b.Ignore(t => t.Messages);
+            b.Ignore(t => t.ReplyDelivery);
             b.Ignore(t => t.Pipeline);
             b.Ignore(t => t.Channel);
         });
         modelBuilder.Entity<ChatTrigger>(b =>
         {
             b.HasKey(t => t.Id);
+            b.Ignore(t => t.ReplyDelivery);
             b.Ignore(t => t.Pipeline);
             b.Ignore(t => t.Channel);
         });

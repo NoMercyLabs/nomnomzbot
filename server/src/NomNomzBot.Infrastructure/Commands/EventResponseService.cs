@@ -188,6 +188,7 @@ public class EventResponseService : IEventResponseService
                 PipelineId = request.PipelineId == Guid.Empty ? null : request.PipelineId,
                 MetadataJson = request.Metadata ?? new Dictionary<string, string>(),
                 SpeakWithTts = request.SpeakWithTts ?? false,
+                ReplyDelivery = ReplyDelivery.ForStorage(request.ReplyDelivery),
             };
             if (request.Target is not null)
             {
@@ -230,6 +231,8 @@ public class EventResponseService : IEventResponseService
                 entity.MetadataJson = request.Metadata;
             if (request.SpeakWithTts.HasValue)
                 entity.SpeakWithTts = request.SpeakWithTts.Value;
+            if (request.ReplyDelivery is not null)
+                entity.ReplyDelivery = ReplyDelivery.ForStorage(request.ReplyDelivery);
         }
         entity.FollowsPlatformDefault = false;
         // A saved copy of the shown Informative default is no text of its own: the row keeps speaking its tone.
@@ -296,6 +299,7 @@ public class EventResponseService : IEventResponseService
         entity.SetBindingTarget(null);
         entity.MetadataJson = new Dictionary<string, string>();
         entity.SpeakWithTts = false;
+        entity.ReplyDelivery = null;
         // Reset hands the event back to the platform default — the same state a fresh channel starts in.
         entity.FollowsPlatformDefault = true;
 
@@ -421,7 +425,10 @@ public class EventResponseService : IEventResponseService
             follows ? platform?.SpeakWithTts ?? false : e.SpeakWithTts,
             toneLines,
             follows ? null : e.GetBindingTarget()
-        );
+        )
+        {
+            ReplyDelivery = follows ? null : e.ReplyDelivery,
+        };
     }
 
     private static IReadOnlyList<string> OwnToneLines(EventResponse e, string tone) =>

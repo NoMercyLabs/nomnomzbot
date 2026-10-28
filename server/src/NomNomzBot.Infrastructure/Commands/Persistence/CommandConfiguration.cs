@@ -11,7 +11,6 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NomNomzBot.Domain.Commands.Entities;
-using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.CustomCode.Entities;
 
 namespace NomNomzBot.Infrastructure.Commands.Persistence;
@@ -43,15 +42,7 @@ public class CommandConfiguration : IEntityTypeConfiguration<Command>
 
         builder.Property(e => e.SpeakWithTts).HasDefaultValue(false);
 
-        // One nullable JSON text column; null reads as "chat only", so rows and clients from before it existed
-        // keep their behavior. The record's value equality is the change comparer.
-        builder
-            .Property(e => e.ReplyDelivery)
-            .HasColumnName("ReplyDeliveryJson")
-            .HasConversion(
-                v => v == null ? null : ReplyDeliveryJson.Serialize(v),
-                v => ReplyDeliveryJson.Deserialize(v)
-            );
+        builder.Property(e => e.ReplyDelivery).HasReplyDeliveryColumn();
 
         builder.Property(e => e.Description).HasMaxLength(500);
 

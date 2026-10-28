@@ -34,9 +34,11 @@ using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Infrastructure.Dashboard.Replay;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Platform.Eventing;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NomNomzBot.Infrastructure.Platform.Templating;
 using NomNomzBot.Infrastructure.Rewards.EventHandlers;
 using NomNomzBot.Infrastructure.Stream;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
 
@@ -113,7 +115,8 @@ public sealed class ActivityReplayServiceTests
             db,
             pipeline,
             RealTemplates(),
-            chat,
+            TestReplyDispatcher.OverProvider(chat),
+            new OutboundSanctionAccessor(),
             Substitute.For<IEventResponseOverlayNotifier>(),
             tts,
             Substitute.For<ICommandInvoker>(),
