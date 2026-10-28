@@ -13,8 +13,10 @@ using System.Net;
 using System.Text;
 using FluentAssertions;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.WebUtilities;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Primitives;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Interfaces;
@@ -154,9 +156,6 @@ public sealed class DiscordOAuthControllerTests
 
     // A failure goes through the relay page, so a popup tells the dashboard and closes; with no opener the relay
     // carries the person on to the Discord page, which says in words what went wrong.
-    private static string Failed(string reason) =>
-        $"https://api.example.test/oauth-relay?discord_error={reason}"
-        + $"&return=%2Fapp%2Fsettings%2Fdiscord%3Fdiscord_error%3D{reason}";
 
     [Theory]
     [InlineData(HttpStatusCode.Unauthorized, "token_exchange_failed")]
@@ -173,7 +172,11 @@ public sealed class DiscordOAuthControllerTests
 
         IActionResult result = await controller.HandleDiscordCallback("c", "nonce", null, default);
 
-        result.Should().BeOfType<RedirectResult>().Which.Url.Should().Be(Failed(reason));
+        Uri relay = new(result.Should().BeOfType<RedirectResult>().Subject.Url);
+        Dictionary<string, StringValues> query = QueryHelpers.ParseQuery(relay.Query);
+        relay.GetLeftPart(UriPartial.Path).Should().Be("https://api.example.test/oauth-relay");
+        query["discord_error"].ToString().Should().Be(reason);
+        query["return"].ToString().Should().Be($"/app/settings/discord?discord_error={reason}");
         discord.UpsertCalls.Should().BeEmpty();
     }
 
@@ -184,7 +187,11 @@ public sealed class DiscordOAuthControllerTests
 
         IActionResult result = await controller.HandleDiscordCallback("c", "gone", null, default);
 
-        result.Should().BeOfType<RedirectResult>().Which.Url.Should().Be(Failed("invalid_state"));
+        Uri relay = new(result.Should().BeOfType<RedirectResult>().Subject.Url);
+        Dictionary<string, StringValues> query = QueryHelpers.ParseQuery(relay.Query);
+        relay.GetLeftPart(UriPartial.Path).Should().Be("https://api.example.test/oauth-relay");
+        query["discord_error"].ToString().Should().Be("invalid_state");
+        query["return"].ToString().Should().Be("/app/settings/discord?discord_error=invalid_state");
     }
 
     // Pressing Cancel on Discord's page sends back error=access_denied and no code at all.
@@ -202,7 +209,11 @@ public sealed class DiscordOAuthControllerTests
             default
         );
 
-        result.Should().BeOfType<RedirectResult>().Which.Url.Should().Be(Failed("access_denied"));
+        Uri relay = new(result.Should().BeOfType<RedirectResult>().Subject.Url);
+        Dictionary<string, StringValues> query = QueryHelpers.ParseQuery(relay.Query);
+        relay.GetLeftPart(UriPartial.Path).Should().Be("https://api.example.test/oauth-relay");
+        query["discord_error"].ToString().Should().Be("access_denied");
+        query["return"].ToString().Should().Be("/app/settings/discord?discord_error=access_denied");
         discord.UpsertCalls.Should().BeEmpty();
     }
 
@@ -216,11 +227,14 @@ public sealed class DiscordOAuthControllerTests
 
         IActionResult result = await controller.HandleDiscordCallback("c", "nonce", null, default);
 
-        result
+        Uri relay = new(result.Should().BeOfType<RedirectResult>().Subject.Url);
+        Dictionary<string, StringValues> query = QueryHelpers.ParseQuery(relay.Query);
+        relay.GetLeftPart(UriPartial.Path).Should().Be("https://api.example.test/oauth-relay");
+        query["discord_error"].ToString().Should().Be("guild_link_failed");
+        query["return"]
+            .ToString()
             .Should()
-            .BeOfType<RedirectResult>()
-            .Which.Url.Should()
-            .Be(Failed("guild_link_failed"));
+            .Be("/app/settings/discord?discord_error=guild_link_failed");
     }
 
     // ─── callback: loopback completion (success / failure) + web fallback ───────

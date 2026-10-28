@@ -88,7 +88,7 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
     public DbSet<NomNomzBot.Domain.Platform.Entities.Record> Records =>
         Set<NomNomzBot.Domain.Platform.Entities.Record>();
     public DbSet<Channel> Channels => Set<Channel>();
-    public DbSet<TenantLimitOverride> TenantLimitOverrides => throw new NotSupportedException();
+    public DbSet<TenantLimitOverride> TenantLimitOverrides => Set<TenantLimitOverride>();
     public DbSet<EntitlementGrant> EntitlementGrants => throw new NotSupportedException();
     public DbSet<PlatformConnection> PlatformConnections => Set<PlatformConnection>();
 
@@ -149,6 +149,8 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
 
         b.Entity<CodeScript>(e => e.HasKey(s => s.Id));
 
+        b.Entity<TenantLimitOverride>(e => e.HasKey(o => o.Id));
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -167,6 +169,7 @@ internal sealed class CommandsTestDbContext : DbContext, IApplicationDbContext
         typeof(User),
         typeof(Pipeline),
         typeof(CodeScript),
+        typeof(TenantLimitOverride),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =

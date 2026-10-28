@@ -10,8 +10,10 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Controllers;
+using NomNomzBot.Api.Tests.Hosting;
 
 namespace NomNomzBot.Api.Tests.Configuration;
 
@@ -48,13 +50,36 @@ public sealed class ControllerSecurityBaselineTests
 
         List<string> missingRateLimit =
         [
-            .. controllerTypes
-                .Where(type => !HasEffectiveRateLimitPolicy(type))
+            .. ApiEndpointSurface
+                .All.Where(endpoint =>
+                    endpoint.Metadata.GetMetadata<EnableRateLimitingAttribute>() is null
+                    || endpoint.Metadata.GetMetadata<DisableRateLimitingAttribute>() is not null
+                )
+                .Select(endpoint =>
+                    endpoint.Metadata.GetMetadata<ControllerActionDescriptor>()!.ControllerTypeInfo
+                )
+                .Distinct()
                 .Select(type => type.FullName ?? type.Name)
                 .OrderBy(name => name, StringComparer.Ordinal),
         ];
 
-        bool allPass = missingApiController.Count == 0 && missingRateLimit.Count == 0;
+        // A controller with no routed endpoint would pass the rate-limit check above without being checked.
+        List<string> unrouted =
+        [
+            .. controllerTypes
+                .Where(type =>
+                    !ApiEndpointSurface.All.Any(endpoint =>
+                        endpoint
+                            .Metadata.GetMetadata<ControllerActionDescriptor>()!
+                            .ControllerTypeInfo == type
+                    )
+                )
+                .Select(type => type.FullName ?? type.Name)
+                .OrderBy(name => name, StringComparer.Ordinal),
+        ];
+
+        bool allPass =
+            missingApiController.Count == 0 && missingRateLimit.Count == 0 && unrouted.Count == 0;
 
         Assert.True(
             allPass,
@@ -66,6 +91,8 @@ public sealed class ControllerSecurityBaselineTests
                 )
                 + " | Controllers missing an effective rate-limit policy: "
                 + (missingRateLimit.Count == 0 ? "none" : string.Join(", ", missingRateLimit))
+                + " | Controllers with no routed endpoint: "
+                + (unrouted.Count == 0 ? "none" : string.Join(", ", unrouted))
         );
     }
 
@@ -75,20 +102,6 @@ public sealed class ControllerSecurityBaselineTests
         for (Type? current = type; current is not null; current = current.BaseType)
         {
             if (current.IsDefined(typeof(TAttribute), inherit: false))
-                return true;
-        }
-
-        return false;
-    }
-
-    private static bool HasEffectiveRateLimitPolicy(Type type)
-    {
-        for (Type? current = type; current is not null; current = current.BaseType)
-        {
-            if (current.IsDefined(typeof(DisableRateLimitingAttribute), inherit: false))
-                return false;
-
-            if (current.IsDefined(typeof(EnableRateLimitingAttribute), inherit: false))
                 return true;
         }
 

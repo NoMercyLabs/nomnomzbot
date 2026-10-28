@@ -44,8 +44,9 @@ public sealed class EditorSdkReferenceTests
         return engine.Modules.Import("test").Get("out").ToString();
     }
 
-    private static string ScriptSdk() =>
-        SdkRuntimeSurface.ScriptApiInterfaces() + "\n" + SdkRuntimeSurface.ScriptGlobals();
+    private static readonly string ScriptSdk = new SdkTypeEmitter(
+        new EventCatalog()
+    ).EmitTypeScript(SdkContext.Script);
 
     private static JsonElement Find(string json, string path)
     {
@@ -58,7 +59,7 @@ public sealed class EditorSdkReferenceTests
     public void A_script_lists_nnz_random_pick_with_its_real_signature_and_doc()
     {
         string json = Run(
-            ScriptSdk(),
+            ScriptSdk,
             """
             (function () {
                 const nnz = r.buildSdkReference(DTS).find((n) => n.name === 'nnz');
@@ -81,7 +82,7 @@ public sealed class EditorSdkReferenceTests
     public void Every_global_and_nested_namespace_of_the_script_sdk_is_a_root_or_branch()
     {
         string result = Run(
-            ScriptSdk(),
+            ScriptSdk,
             """
             (function () {
                 const tree = r.buildSdkReference(DTS);
@@ -100,7 +101,7 @@ public sealed class EditorSdkReferenceTests
         result
             .Should()
             .StartWith(
-                """[["bot","console","nnz"],["units","time","math","str","json","random","template","api"],["nnz.api.user.get","nnz.api.user.lookup"]]"""
+                """[["bot","console","nnz","template helpers"],["units","time","math","str","json","random","template","api"],["nnz.api.user.get","nnz.api.user.lookup"]]"""
             );
     }
 
@@ -126,14 +127,14 @@ public sealed class EditorSdkReferenceTests
     public void A_filter_keeps_only_matching_calls_with_their_namespaces_and_a_click_inserts_the_call()
     {
         string result = Run(
-            ScriptSdk(),
+            ScriptSdk,
             """
             (function () {
                 const hits = r.filterSdkReference(r.buildSdkReference(DTS), 'random pick');
                 const nnz = hits[0];
                 const random = nnz.children[0];
                 return JSON.stringify([
-                    hits.length,
+                    hits.map((n) => n.name),
                     nnz.children.length,
                     random.children.map((n) => n.path),
                     r.insertTextFor(random.children[0]),
@@ -143,7 +144,11 @@ public sealed class EditorSdkReferenceTests
             """
         );
 
-        result.Should().Be("""[1,1,["nnz.random.pick"],"nnz.random.pick()","bot.args"]""");
+        result
+            .Should()
+            .Be(
+                """[["nnz","template helpers"],1,["nnz.random.pick"],"nnz.random.pick()","bot.args"]"""
+            );
     }
 
     private const string HelperTypes = """

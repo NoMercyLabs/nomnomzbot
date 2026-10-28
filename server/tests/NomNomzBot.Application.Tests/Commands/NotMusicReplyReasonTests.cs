@@ -26,15 +26,7 @@ public sealed class NotMusicReplyReasonTests
     private const string RulePattern =
         @"youtube requests (must|have to) be in youtube's music category or come from an official artist \(- topic\) channel";
 
-    public static TheoryData<string> Tones =>
-        new()
-        {
-            PersonalityTone.Informative,
-            PersonalityTone.Friendly,
-            PersonalityTone.Sassy,
-            PersonalityTone.Hype,
-            PersonalityTone.Chill,
-        };
+    public static TheoryData<string> Tones => new(PersonalityTone.All);
 
     [Theory]
     [MemberData(nameof(Tones))]

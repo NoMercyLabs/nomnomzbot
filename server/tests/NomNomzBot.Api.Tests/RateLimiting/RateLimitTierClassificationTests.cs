@@ -9,30 +9,27 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using System.Reflection;
 using System.Text.RegularExpressions;
-using Microsoft.AspNetCore.Mvc.Routing;
+using Microsoft.AspNetCore.Mvc.Controllers;
 using Microsoft.AspNetCore.RateLimiting;
-using NomNomzBot.Api.Controllers;
+using Microsoft.AspNetCore.Routing;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.RateLimiting;
+using NomNomzBot.Api.Tests.Hosting;
 
 namespace NomNomzBot.Api.Tests.RateLimiting;
 
 /// <summary>
 /// S118 — finishes the S114 tier-assignment sweep. S114 hand-classified four offenders (TTS synthesis,
-/// script execution, marketplace install, one admin GET); this reflects over EVERY action in the Api
-/// assembly and encodes the classification rule itself, so an endpoint added later that matches the
-/// "expensive" name pattern (synthesis/execution/upload/install/publish/import/export/bulk/…) fails here
-/// until it is explicitly tiered, and a plain GET stuck on an admin/write tier fails until it moves to
+/// script execution, marketplace install, one admin GET); this reads EVERY routed action of the API and
+/// encodes the classification rule itself, so an endpoint added later that matches the "expensive" name
+/// pattern (synthesis/execution/upload/install/publish/import/export/bulk/…) fails here until it is
+/// explicitly tiered, and a plain GET stuck on an admin/write tier fails until it moves to
 /// <see cref="RateLimitPolicyNames.Read"/>.
 ///
-/// The effective tier is resolved the same way <see cref="RateLimitReadTierConvention"/> and ASP.NET's own
-/// attribute-inheritance resolve it at runtime: an action's own <see cref="EnableRateLimitingAttribute"/>
-/// wins; otherwise a controller's OWN (non-inherited) attribute wins and disables the GET/HEAD convention
-/// (mirroring the real <see cref="IControllerModelConvention"/>); otherwise GET/HEAD gets
-/// <see cref="RateLimitPolicyNames.Read"/> by convention; otherwise the action inherits
-/// <see cref="RateLimitPolicyNames.WriteCheap"/> from <c>BaseController</c>.
+/// The effective tier is the one the rate limiter middleware reads at runtime: the
+/// <see cref="EnableRateLimitingAttribute"/> on the endpoint metadata of the endpoint table built by the
+/// production controller setup, which includes what <see cref="RateLimitReadTierConvention"/> applied.
 /// </summary>
 public sealed class RateLimitTierClassificationTests
 {
@@ -62,7 +59,8 @@ public sealed class RateLimitTierClassificationTests
     /// </summary>
     private static readonly Regex ExpensiveActionNamePattern = new(
         @"(Synthes|Upload|(?<!Un)Install|Publish(?!er)|Import|Export|Bulk|Replay|Rebuild|Reindex|Migrate|Compile|Sync|Fanout|Broadcast|TestVoice|TestRun|Execute)",
-        RegexOptions.IgnoreCase | RegexOptions.Compiled
+        RegexOptions.IgnoreCase | RegexOptions.Compiled,
+        TimeSpan.FromSeconds(1)
     );
 
     /// <summary>Tiers that are deliberate, standalone security/anonymity surfaces — an action landing here
@@ -80,72 +78,36 @@ public sealed class RateLimitTierClassificationTests
 
     private readonly record struct ActionRecord(
         Type Controller,
-        MethodInfo Method,
-        string EffectiveTier
+        string ActionName,
+        string EffectiveTier,
+        bool IsGetOrHead
     );
 
     private static IEnumerable<ActionRecord> AllActions()
     {
-        List<Type> controllerTypes =
-        [
-            .. typeof(BaseController)
-                .Assembly.GetTypes()
-                .Where(type =>
-                    type is { IsClass: true, IsAbstract: false }
-                    && typeof(BaseController).IsAssignableFrom(type)
-                ),
-        ];
-
-        foreach (Type controllerType in controllerTypes)
+        foreach (RouteEndpoint endpoint in ApiEndpointSurface.All)
         {
-            bool controllerHasOwnPolicy =
-                controllerType.IsDefined(typeof(EnableRateLimitingAttribute), inherit: false)
-                || controllerType.IsDefined(typeof(DisableRateLimitingAttribute), inherit: false);
+            ControllerActionDescriptor descriptor =
+                endpoint.Metadata.GetMetadata<ControllerActionDescriptor>()!;
 
-            string? controllerOwnTier = controllerHasOwnPolicy
-                ? controllerType
-                    .GetCustomAttribute<EnableRateLimitingAttribute>(inherit: false)
-                    ?.PolicyName
-                : null;
-
-            foreach (
-                MethodInfo method in controllerType.GetMethods(
-                    BindingFlags.Public | BindingFlags.Instance | BindingFlags.DeclaredOnly
-                )
+            // An endpoint with [DisableRateLimiting] has no tier; ControllerSecurityBaselineTests fails that case.
+            string? tier = endpoint.Metadata.GetMetadata<EnableRateLimitingAttribute>()?.PolicyName;
+            if (
+                string.IsNullOrEmpty(tier)
+                || endpoint.Metadata.GetMetadata<DisableRateLimitingAttribute>() is not null
             )
-            {
-                bool isHttpAction = method
-                    .GetCustomAttributes()
-                    .OfType<HttpMethodAttribute>()
-                    .Any();
-                if (!isHttpAction)
-                    continue;
+                continue;
 
-                EnableRateLimitingAttribute? ownAction =
-                    method.GetCustomAttribute<EnableRateLimitingAttribute>(inherit: false);
-
-                string effectiveTier;
-                if (ownAction is not null)
-                {
-                    effectiveTier = ownAction.PolicyName ?? string.Empty;
-                }
-                else if (controllerHasOwnPolicy)
-                {
-                    // A controller-level [DisableRateLimiting] with no per-action override has no tier —
-                    // ControllerSecurityBaselineTests already fails that case; skip it here.
-                    if (string.IsNullOrEmpty(controllerOwnTier))
-                        continue;
-                    effectiveTier = controllerOwnTier;
-                }
-                else
-                {
-                    effectiveTier = IsGetOrHead(method)
-                        ? RateLimitPolicyNames.Read
-                        : RateLimitPolicyNames.WriteCheap;
-                }
-
-                yield return new(controllerType, method, effectiveTier);
-            }
+            IReadOnlyList<string> verbs = endpoint
+                .Metadata.GetMetadata<HttpMethodMetadata>()!
+                .HttpMethods;
+            yield return new(
+                descriptor.ControllerTypeInfo,
+                descriptor.MethodInfo.Name,
+                tier,
+                verbs.Contains("GET", StringComparer.OrdinalIgnoreCase)
+                    || verbs.Contains("HEAD", StringComparer.OrdinalIgnoreCase)
+            );
         }
     }
 
@@ -158,17 +120,18 @@ public sealed class RateLimitTierClassificationTests
                 // GETs are judged by the separate read-tier rule below — a heavy read (GdprController.ExportData,
                 // BundlesController.ListInstalled) stays on the generous per-user "read" tier by design; it is
                 // not required to also earn the per-channel "write-expensive" partition.
-                .Where(action => !IsGetOrHead(action.Method))
+                .Where(action => !action.IsGetOrHead)
                 .Where(action => !ExemptFromExpensiveNameCheck.Contains(action.EffectiveTier))
-                .Where(action => ExpensiveActionNamePattern.IsMatch(action.Method.Name))
+                .Where(action => ExpensiveActionNamePattern.IsMatch(action.ActionName))
                 .Where(action =>
                     !PermitLimitByPolicy.TryGetValue(action.EffectiveTier, out int limit)
                     || limit > WriteExpensiveRateLimitPolicy.PermitLimit
                 )
                 .Select(action =>
-                    $"{action.Controller.Name}.{action.Method.Name} is on '{action.EffectiveTier}' "
+                    $"{action.Controller.Name}.{action.ActionName} is on '{action.EffectiveTier}' "
                     + $"but its name indicates expensive work (synthesis/execution/upload/install/publish/import/export/bulk)"
                 )
+                .Distinct()
                 .OrderBy(message => message, StringComparer.Ordinal),
         ];
 
@@ -185,15 +148,16 @@ public sealed class RateLimitTierClassificationTests
         List<string> violations =
         [
             .. AllActions()
-                .Where(action => IsGetOrHead(action.Method))
+                .Where(action => action.IsGetOrHead)
                 .Where(action =>
                     action.EffectiveTier == RateLimitPolicyNames.Admin
                     || action.EffectiveTier == RateLimitPolicyNames.WriteCheap
                 )
                 .Select(action =>
-                    $"{action.Controller.Name}.{action.Method.Name} is a GET/HEAD stuck on '{action.EffectiveTier}' "
+                    $"{action.Controller.Name}.{action.ActionName} is a GET/HEAD stuck on '{action.EffectiveTier}' "
                     + $"— it belongs on '{RateLimitPolicyNames.Read}'"
                 )
+                .Distinct()
                 .OrderBy(message => message, StringComparer.Ordinal),
         ];
 
@@ -214,7 +178,7 @@ public sealed class RateLimitTierClassificationTests
     {
         ActionRecord action = AllActions()
             .Single(record =>
-                record.Controller == typeof(AuthController) && record.Method.Name == actionName
+                record.Controller == typeof(AuthController) && record.ActionName == actionName
             );
 
         Assert.NotEqual(RateLimitPolicyNames.Auth, action.EffectiveTier);
@@ -229,20 +193,9 @@ public sealed class RateLimitTierClassificationTests
     {
         ActionRecord action = AllActions()
             .Single(record =>
-                record.Controller == typeof(AuthController) && record.Method.Name == actionName
+                record.Controller == typeof(AuthController) && record.ActionName == actionName
             );
 
         Assert.Equal(RateLimitPolicyNames.Auth, action.EffectiveTier);
     }
-
-    private static bool IsGetOrHead(MethodInfo method) =>
-        method
-            .GetCustomAttributes()
-            .OfType<HttpMethodAttribute>()
-            .Any(attribute =>
-                attribute.HttpMethods.Any(verb =>
-                    string.Equals(verb, "GET", StringComparison.OrdinalIgnoreCase)
-                    || string.Equals(verb, "HEAD", StringComparison.OrdinalIgnoreCase)
-                )
-            );
 }
