@@ -132,9 +132,10 @@ $guardRemote = @"
 chmod +x $deployDir/guard-single-color.sh
 ( crontab -l 2>/dev/null | grep -vF 'guard-single-color.sh' ; echo "*/5 * * * * $deployDir/guard-single-color.sh >> $deployDir/guard-single-color.log 2>&1" ) | crontab -
 "@
+# PowerShell 5.1 adds CRLF to every line it pipes into a native command, so the remote side strips CR.
 $guardRemote = $guardRemote.TrimStart([char]0xFEFF) -replace "`r`n", "`n"
 $ErrorActionPreference = "Continue"
-$guardOutput = ($guardRemote | & ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget "bash -s" 2>&1 | Out-String)
+$guardOutput = ($guardRemote | & ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget "tr -d '\r' | bash -s" 2>&1 | Out-String)
 $guardExit = $LASTEXITCODE
 $ErrorActionPreference = "Stop"
 if ($guardExit -ne 0) { Fail "could not install guard-single-color.sh cron job on ${sshTarget}: $guardOutput" }
@@ -150,7 +151,7 @@ docker exec nomnomzbot-caddy caddy reload --config /etc/caddy/Caddyfile
 "@
 $caddyRemote = $caddyRemote.TrimStart([char]0xFEFF) -replace "`r`n", "`n"
 $ErrorActionPreference = "Continue"
-$caddyOutput = ($caddyRemote | & ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget "bash -s" 2>&1 | Out-String)
+$caddyOutput = ($caddyRemote | & ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget "tr -d '\r' | bash -s" 2>&1 | Out-String)
 $caddyExit = $LASTEXITCODE
 $ErrorActionPreference = "Stop"
 if ($caddyExit -ne 0) { Fail "could not reload Caddy on ${sshTarget}: $caddyOutput" }
@@ -214,7 +215,7 @@ echo "container=`$(docker ps --filter name=nomnomzbot-api --format '{{.Status}}'
 # CR as part of the last token (a bash syntax error naming a CR-suffixed word).
 $remote = $remote.TrimStart([char]0xFEFF) -replace "`r`n", "`n"
 $ErrorActionPreference = "Continue"
-$deployOutput = ($remote | & ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget "bash -s" 2>&1 | Out-String)
+$deployOutput = ($remote | & ssh -i $sshKey -o StrictHostKeyChecking=accept-new $sshTarget "tr -d '\r' | bash -s" 2>&1 | Out-String)
 $deployExit = $LASTEXITCODE
 $ErrorActionPreference = "Stop"
 $deployResult = @{ Output = $deployOutput.TrimEnd("`r", "`n"); ExitCode = $deployExit }
