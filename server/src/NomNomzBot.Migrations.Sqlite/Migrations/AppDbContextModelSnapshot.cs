@@ -10870,6 +10870,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<int?>("PlatformSourceVersion")
                         .HasColumnType("INTEGER");
 
+                    b.Property<string>("ReplyDelivery")
+                        .HasColumnType("TEXT")
+                        .HasColumnName("ReplyDeliveryJson");
+
                     b.Property<string>("Response")
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");

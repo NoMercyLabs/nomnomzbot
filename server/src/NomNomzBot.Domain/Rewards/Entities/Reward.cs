@@ -29,6 +29,12 @@ public class Reward : SoftDeletableEntity, ITenantScoped, IPlatformSourced, IBin
     [MaxLength(2000)]
     public string? Response { get; set; }
 
+    /// <summary>
+    /// Where the <see cref="Response"/> line goes (chat, chat overlay, both, nowhere) and whether the overlay
+    /// line is HTML. Stored in the <c>ReplyDeliveryJson</c> column; null = the platform chat as plain text.
+    /// </summary>
+    public ReplyDelivery? ReplyDelivery { get; set; }
+
     [MaxLength(20)]
     public string Permission { get; set; } = "everyone";
 

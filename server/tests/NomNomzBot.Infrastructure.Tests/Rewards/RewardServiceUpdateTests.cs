@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Rewards.Dtos;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Rewards.Entities;
 using NomNomzBot.Infrastructure.Rewards;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -369,6 +370,77 @@ public sealed class RewardServiceUpdateTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Response.Should().Be("Original message");
+    }
+
+    [Fact]
+    public async Task Update_saves_where_the_response_goes_and_reads_it_back()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi _) = Build(
+            manageable: false,
+            twitchRewardId: null
+        );
+
+        Result<RewardDetail> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            RewardId.ToString(),
+            new() { ReplyDelivery = new(ReplyTarget.Both, Html: true) }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ReplyDelivery.Should().Be(new ReplyDelivery(ReplyTarget.Both, Html: true));
+        db.ChangeTracker.Clear();
+        Reward row = await db.Rewards.SingleAsync(r => r.Id == RewardId);
+        row.ReplyDelivery.Should().Be(new ReplyDelivery(ReplyTarget.Both, Html: true));
+    }
+
+    [Fact]
+    public async Task Update_with_no_reply_delivery_keeps_the_saved_one()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi _) = Build(
+            manageable: false,
+            twitchRewardId: null
+        );
+        (await db.Rewards.SingleAsync(r => r.Id == RewardId)).ReplyDelivery = new(
+            ReplyTarget.Overlay
+        );
+        await db.SaveChangesAsync();
+
+        Result<RewardDetail> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            RewardId.ToString(),
+            new() { Title = "Renamed" }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ReplyDelivery.Should().Be(new ReplyDelivery(ReplyTarget.Overlay));
+        db.ChangeTracker.Clear();
+        (await db.Rewards.SingleAsync(r => r.Id == RewardId))
+            .ReplyDelivery.Should()
+            .Be(new ReplyDelivery(ReplyTarget.Overlay));
+    }
+
+    [Fact]
+    public async Task Update_with_target_chat_resets_the_saved_delivery_to_the_default()
+    {
+        (RewardService sut, AuthDbContext db, ITwitchChannelPointsApi _) = Build(
+            manageable: false,
+            twitchRewardId: null
+        );
+        (await db.Rewards.SingleAsync(r => r.Id == RewardId)).ReplyDelivery = new(
+            ReplyTarget.Overlay
+        );
+        await db.SaveChangesAsync();
+
+        Result<RewardDetail> result = await sut.UpdateAsync(
+            Channel.ToString(),
+            RewardId.ToString(),
+            new() { ReplyDelivery = new(ReplyTarget.Chat) }
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.ReplyDelivery.Should().BeNull();
+        db.ChangeTracker.Clear();
+        (await db.Rewards.SingleAsync(r => r.Id == RewardId)).ReplyDelivery.Should().BeNull();
     }
 
     // Twitch's own view of a reward whose three limits are all on (10 per stream, 2 per user, 30 s cooldown).

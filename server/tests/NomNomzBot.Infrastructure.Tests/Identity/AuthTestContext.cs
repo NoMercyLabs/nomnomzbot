@@ -27,6 +27,7 @@ using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Commands.Persistence;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Configuration;
@@ -503,6 +504,10 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         // (navs ignored) so the reward-sync tests can prove the Twitch read path through this harness.
         b.Entity<NomNomzBot.Domain.Rewards.Entities.Reward>().HasKey(e => e.Id);
         b.Entity<NomNomzBot.Domain.Rewards.Entities.Reward>().Ignore(e => e.Channel);
+        // SQLite here, so the real column mapping is used: the reward tests read the saved delivery back.
+        b.Entity<NomNomzBot.Domain.Rewards.Entities.Reward>()
+            .Property(e => e.ReplyDelivery)
+            .HasReplyDeliveryColumn();
         // SoundClip: mapped scalar-only (Channel/CreatedByUser navs ignored) so ChannelRegistry's
         // sound-trigger cache load (LoadSoundTriggersAsync) runs cleanly through this harness — reached
         // by the channel-registry bootstrap run-once tests, which drive the real GetOrCreateAsync path.

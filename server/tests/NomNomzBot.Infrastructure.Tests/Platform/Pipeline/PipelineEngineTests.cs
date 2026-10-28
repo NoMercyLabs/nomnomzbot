@@ -122,7 +122,8 @@ public class PipelineEngineTests
             [
                 new NomNomzBot.Infrastructure.Chat.PipelineActions.SendMessageAction(
                     chat,
-                    resolver
+                    resolver,
+                    NomNomzBot.Infrastructure.Tests.Chat.TestReplyDispatcher.OverProvider(chat)
                 ),
                 speech,
             ],
@@ -250,7 +251,8 @@ public class PipelineEngineTests
             [
                 new NomNomzBot.Infrastructure.Chat.PipelineActions.SendMessageAction(
                     chat,
-                    resolver
+                    resolver,
+                    NomNomzBot.Infrastructure.Tests.Chat.TestReplyDispatcher.OverProvider(chat)
                 ),
                 new PlayTtsAction(resolver, dispatch),
             ],
@@ -638,7 +640,13 @@ public class PipelineEngineTests
         PipelineEngine engine = new(
             db,
             registry,
-            [new NomNomzBot.Infrastructure.Chat.PipelineActions.SendMessageAction(chat, resolver)],
+            [
+                new NomNomzBot.Infrastructure.Chat.PipelineActions.SendMessageAction(
+                    chat,
+                    resolver,
+                    NomNomzBot.Infrastructure.Tests.Chat.TestReplyDispatcher.OverProvider(chat)
+                ),
+            ],
             [],
             resolver,
             NullLogger<PipelineEngine>.Instance,

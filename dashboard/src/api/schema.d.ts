@@ -91530,6 +91530,7 @@ export interface components {
             prompt?: null | string;
             /** @description The chat template announced when the reward is redeemed; null when none. */
             response?: null | string;
+            replyDelivery?: null | components["schemas"]["ReplyDelivery"];
             isUserInputRequired?: boolean;
             backgroundColor?: null | string;
             /** Format: int32 */
@@ -97271,6 +97272,7 @@ export interface components {
             updatedAt: string;
             /** @default false */
             speaksViaTts: boolean;
+            replyDelivery?: null | components["schemas"]["ReplyDelivery"];
         };
         RewardsLeaderboardEntry: {
             /** Format: int32 */
@@ -105151,6 +105153,7 @@ export interface components {
              *                 empty string clears it.
              */
             response?: null | string;
+            replyDelivery?: null | components["schemas"]["ReplyDelivery"];
             isUserInputRequired?: null | boolean;
             isEnabled?: null | boolean;
             isPaused?: null | boolean;

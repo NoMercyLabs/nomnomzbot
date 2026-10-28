@@ -211,6 +211,7 @@ internal sealed class MarketplaceTestDbContext : DbContext, IApplicationDbContex
         {
             e.HasKey(r => r.Id);
             e.Ignore(r => r.Channel);
+            e.Ignore(r => r.ReplyDelivery);
         });
 
         b.Entity<DomainTimer>(e =>

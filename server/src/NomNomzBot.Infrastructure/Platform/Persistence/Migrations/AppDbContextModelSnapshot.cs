@@ -10384,6 +10384,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<int?>("PlatformSourceVersion")
                         .HasColumnType("integer");
 
+                    b.Property<string>("ReplyDelivery")
+                        .HasColumnType("text")
+                        .HasColumnName("ReplyDeliveryJson");
+
                     b.Property<string>("Response")
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");

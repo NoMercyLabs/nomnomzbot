@@ -81,7 +81,9 @@ public sealed record RewardDetail(
     DateTime CreatedAt,
     DateTime UpdatedAt,
     // True when a redemption with viewer text speaks that text through TTS in the viewer's voice.
-    bool SpeaksViaTts = false
+    bool SpeaksViaTts = false,
+    // Where the Response line goes and whether the overlay line is HTML; null = the platform chat as plain text.
+    ReplyDelivery? ReplyDelivery = null
 );
 
 public sealed record CreateRewardRequest
@@ -92,6 +94,9 @@ public sealed record CreateRewardRequest
 
     /// <summary>The chat template announced when the reward is redeemed; null when none.</summary>
     public string? Response { get; init; }
+
+    /// <summary>Where the Response line goes and whether the overlay line is HTML; null = the platform chat as plain text.</summary>
+    public ReplyDelivery? ReplyDelivery { get; init; }
 
     public bool IsUserInputRequired { get; init; }
     public string? BackgroundColor { get; init; }
@@ -124,6 +129,9 @@ public sealed record UpdateRewardRequest
     /// <summary>The chat template announced when the reward is redeemed; null leaves it unchanged, an
     /// empty string clears it.</summary>
     public string? Response { get; init; }
+
+    /// <summary>Where the Response line goes and whether the overlay line is HTML. Absent leaves it unchanged; send target chat to reset it.</summary>
+    public ReplyDelivery? ReplyDelivery { get; init; }
 
     public bool? IsUserInputRequired { get; init; }
     public bool? IsEnabled { get; init; }

@@ -219,7 +219,13 @@ public sealed class PipelineEngineTemplateResolutionTests
             }
         );
         PipelineEngine engine = CreateEngine(
-            [new NomNomzBot.Infrastructure.Chat.PipelineActions.SendMessageAction(chat, resolver)],
+            [
+                new NomNomzBot.Infrastructure.Chat.PipelineActions.SendMessageAction(
+                    chat,
+                    resolver,
+                    NomNomzBot.Infrastructure.Tests.Chat.TestReplyDispatcher.OverProvider(chat)
+                ),
+            ],
             resolver
         );
 

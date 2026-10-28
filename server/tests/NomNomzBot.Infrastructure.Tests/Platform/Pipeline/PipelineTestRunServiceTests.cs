@@ -96,7 +96,11 @@ public sealed class PipelineTestRunServiceTests
         IPipelineModerationService moderation = Substitute.For<IPipelineModerationService>();
         ICommandAction[] actions =
         [
-            new SendMessageAction(chat, resolver),
+            new SendMessageAction(
+                chat,
+                resolver,
+                NomNomzBot.Infrastructure.Tests.Chat.TestReplyDispatcher.OverProvider(chat)
+            ),
             new PlayTtsAction(resolver, tts),
             new SetVariableAction(),
             new BanAction(moderation),

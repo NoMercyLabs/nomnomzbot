@@ -125,6 +125,7 @@ function withChange(rewards: Reward[] | undefined, { rewardId, change }: RewardE
       isPaused: change.isPaused ?? reward.isPaused,
       prompt: change.prompt ?? reward.prompt,
       response: change.response ?? reward.response,
+      replyDelivery: change.replyDelivery ?? reward.replyDelivery,
       isUserInputRequired: change.isUserInputRequired ?? reward.isUserInputRequired,
       backgroundColor: change.backgroundColor ?? reward.backgroundColor,
       maxPerStream: change.maxPerStream ?? reward.maxPerStream,
