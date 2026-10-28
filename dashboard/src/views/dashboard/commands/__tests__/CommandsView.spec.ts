@@ -691,7 +691,7 @@ describe('CommandsView editor', () => {
     expect(writes('PUT')[0]!.body).toEqual({ replyDelivery: { target: 'overlay', html: true } });
   });
 
-  it('shows the saved delivery of a command and saves null when it goes back to Twitch chat', async () => {
+  it('shows the saved delivery of a command and saves chat when it goes back to Twitch chat', async () => {
     rows[0] = command('hello', { replyDelivery: { target: 'both', html: false } });
 
     await open('/app/commands?command=hello');
@@ -705,7 +705,7 @@ describe('CommandsView editor', () => {
     buttonByText('Save changes').click();
     await settle();
 
-    expect(writes('PUT')[0]!.body).toEqual({ replyDelivery: null });
+    expect(writes('PUT')[0]!.body).toEqual({ replyDelivery: { target: 'chat', html: false } });
   });
 
   it('hides the reply delivery while a pipeline answers, because the pipeline has its own reply step', async () => {

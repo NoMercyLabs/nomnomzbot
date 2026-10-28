@@ -113,8 +113,8 @@ describe('the reply delivery helpers', () => {
     expect(deliveryOf({ html: false })).toEqual({ target: 'chat', html: false });
   });
 
-  it('saves plain Twitch chat as null, so the command keeps the behavior from before the setting', () => {
-    expect(deliveryToSave({ target: 'chat', html: false })).toBeNull();
+  it('saves plain Twitch chat as chat, because the bot reads null on an update as unchanged', () => {
+    expect(deliveryToSave({ target: 'chat', html: false })).toEqual({ target: 'chat', html: false });
     expect(deliveryToSave({ target: 'overlay', html: true })).toEqual({ target: 'overlay', html: true });
   });
 

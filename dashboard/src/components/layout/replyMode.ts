@@ -47,11 +47,12 @@ export function sameDelivery(left: ReplyDelivery, right: ReplyDelivery): boolean
   return targetOf(left) === targetOf(right) && left.html === right.html;
 }
 
-// Plain Twitch chat travels as null: the command keeps the behavior it had before the setting existed.
-export function deliveryToSave(draft: ReplyDelivery): ReplyDelivery | null {
-  return sameDelivery(draft, plainDelivery)
-    ? null
-    : draft;
+// The bot reads a null delivery on an update as "unchanged", so going back to Twitch chat must send chat itself.
+export function deliveryToSave(draft: ReplyDelivery) {
+  return {
+    target: targetOf(draft),
+    html: draft.html,
+  } as const satisfies ReplyDelivery;
 }
 
 // A pipeline that is picked sends this id. The bot reads the empty id as "no pipeline" (the sentinel of its PUT calls).
