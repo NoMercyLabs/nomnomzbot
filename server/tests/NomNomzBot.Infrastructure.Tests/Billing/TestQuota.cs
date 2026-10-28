@@ -22,8 +22,8 @@ namespace NomNomzBot.Infrastructure.Tests.Billing;
 /// <summary>
 /// <see cref="IResourceQuotaService"/> stubs for creation-path quota tests, mirroring the real
 /// <c>ResourceQuotaService</c> decision shape without depending on the registry's real (generous)
-/// baselines. <see cref="Unlimited"/> mirrors every key resolving -1; <see cref="WithLimit"/> layers one
-/// finite cap on top. <see cref="GetCurrentCountAsync"/> is stubbed to delegate to a REAL
+/// baselines. <see cref="Unlimited"/> mirrors every key resolving -1; a test that needs a finite cap
+/// seeds a <c>TenantLimitOverride</c> and uses the real <c>ResourceQuotaService</c>. <see cref="GetCurrentCountAsync"/> is stubbed to delegate to a REAL
 /// <c>ResourceQuotaService</c> counting against the caller's OWN db instance (S-BUDGETS-b1) — a
 /// create-then-create-then-refuse test still sees the rows it actually seeded, exactly like production;
 /// callers that don't pass a db (nothing under test seeds rows / cares about the count) get a harmless 0.
@@ -85,32 +85,6 @@ internal static class TestQuota
                 );
         }
 
-        return quota;
-    }
-
-    public static IResourceQuotaService WithLimit(
-        string limitKey,
-        long value,
-        IApplicationDbContext? db = null
-    )
-    {
-        IResourceQuotaService quota = Unlimited(db);
-        quota
-            .CheckAsync(Arg.Any<Guid>(), limitKey, Arg.Any<long>(), Arg.Any<CancellationToken>())
-            .Returns(callInfo =>
-            {
-                long resultingCount = callInfo.ArgAt<long>(2);
-                bool allowed = resultingCount <= value;
-                return Result.Success(
-                    new QuotaCheckDto(
-                        allowed,
-                        limitKey,
-                        resultingCount,
-                        value,
-                        Math.Max(0, value - resultingCount)
-                    )
-                );
-            });
         return quota;
     }
 }

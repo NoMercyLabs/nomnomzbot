@@ -11,9 +11,12 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Billing;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Content.Billing;
 using NomNomzBot.Infrastructure.Platform.Templating;
@@ -54,7 +57,26 @@ public sealed class TierQuotaEnforcementTests
     public async Task Command_create_at_the_cap_is_refused_and_persists_nothing()
     {
         CommandsTestDbContext db = CommandsTestDbContext.New();
-        CommandService sut = Commands(db, TestQuota.WithLimit("custom_commands", 2, db));
+        db.TenantLimitOverrides.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                LimitKey = "custom_commands",
+                LimitValue = 2,
+                Reason = "cap for the test",
+                GrantedByPrincipalId = Guid.NewGuid(),
+            }
+        );
+        await db.SaveChangesAsync();
+        CommandService sut = Commands(
+            db,
+            new ResourceQuotaService(
+                Substitute.For<IBillingTierService>(),
+                Substitute.For<IUsageMeteringService>(),
+                db,
+                new FakeTimeProvider()
+            )
+        );
 
         (await sut.CreateAsync(Channel.ToString(), new() { Name = "one", TemplateResponse = "hi" }))
             .IsSuccess.Should()
@@ -76,9 +98,25 @@ public sealed class TierQuotaEnforcementTests
     public async Task Command_variation_list_over_the_cap_is_refused_on_create_and_update()
     {
         CommandsTestDbContext db = CommandsTestDbContext.New();
+        db.TenantLimitOverrides.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                LimitKey = "response_variations_per_trigger",
+                LimitValue = 2,
+                Reason = "cap for the test",
+                GrantedByPrincipalId = Guid.NewGuid(),
+            }
+        );
+        await db.SaveChangesAsync();
         CommandService sut = Commands(
             db,
-            TestQuota.WithLimit("response_variations_per_trigger", 2)
+            new ResourceQuotaService(
+                Substitute.For<IBillingTierService>(),
+                Substitute.For<IUsageMeteringService>(),
+                db,
+                new FakeTimeProvider()
+            )
         );
 
         Result<CommandDto> over = await sut.CreateAsync(
@@ -121,10 +159,26 @@ public sealed class TierQuotaEnforcementTests
     public async Task Timer_create_at_the_cap_is_refused_and_persists_nothing()
     {
         CommandsTestDbContext db = CommandsTestDbContext.New();
+        db.TenantLimitOverrides.Add(
+            new()
+            {
+                BroadcasterId = Channel,
+                LimitKey = "timers",
+                LimitValue = 1,
+                Reason = "cap for the test",
+                GrantedByPrincipalId = Guid.NewGuid(),
+            }
+        );
+        await db.SaveChangesAsync();
         TimerManagementService sut = new(
             db,
             new RecordingEventBus(),
-            TestQuota.WithLimit("timers", 1, db),
+            new ResourceQuotaService(
+                Substitute.For<IBillingTierService>(),
+                Substitute.For<IUsageMeteringService>(),
+                db,
+                new FakeTimeProvider()
+            ),
             new TemplateHelperValidator()
         );
 
