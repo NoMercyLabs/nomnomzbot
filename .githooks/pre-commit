@@ -9,6 +9,11 @@
 #
 #  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 # -----------------------------------------------------------------------------
+# The KMP app is gone, so no Kotlin or Gradle file comes back (Stoney, 2026-10-21; again 2026-10-28).
+if git diff --cached --name-only --diff-filter=ACMR -- '*.kt' '*.kts' '*.gradle' '*.gradle.kts' 'gradlew' 'gradlew.bat' | grep -q .; then
+  echo "pre-commit: Kotlin and Gradle files are gone with the KMP app. Take them out of the commit." >&2
+  exit 1
+fi
 # A streamer SDK doc page lands only when every claim on it is verified and its slice is closed.
 if git diff --cached --name-only --diff-filter=ACMR -- 'docs/sdk/*.md' 'docs/sdk/**/*.md' | grep -q .; then
   root=$(git rev-parse --show-toplevel)

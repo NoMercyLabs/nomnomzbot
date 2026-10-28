@@ -732,7 +732,13 @@
   {
    "id": "kmp-frozen",
    "paths": [
-    "**/app/**"
+    "**/app/**",
+    "**/*.kt",
+    "**/*.kts",
+    "**/*.gradle",
+    "**/*.gradle.kts",
+    "**/gradlew*",
+    "**/examples-kmp/**"
    ],
    "brief": [
     "\\b[Kk][Mm][Pp]\\b",
