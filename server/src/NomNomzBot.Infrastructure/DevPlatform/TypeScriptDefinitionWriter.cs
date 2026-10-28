@@ -1,11 +1,12 @@
 // -----------------------------------------------------------------------------
 //  Copyright (c) NoMercy Labs.
 //
-//  This file is part of NomNomzBot, free software licensed under the GNU Affero
-//  General Public License v3.0 or later. You may redistribute and/or modify it
-//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//  This file is part of NomNomzBot. You may use, change and share it for free,
+//  for any noncommercial purpose, under the PolyForm Noncommercial License
+//  1.0.0. You may not earn money with it. Distributed WITHOUT ANY WARRANTY.
+//  See LICENSE for details, and TRADEMARKS.md for the name and logo.
 //
-//  SPDX-License-Identifier: AGPL-3.0-or-later
+//  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
 using System.Reflection;
@@ -110,7 +111,7 @@ internal sealed class TypeScriptDefinitionWriter
             "// nnz.d.ts — generated from the NomNomzBot Event Catalog (dev-platform.md §2). DO NOT EDIT."
         );
         sb.AppendLine($"// context: {_context.ToString().ToLowerInvariant()}");
-        sb.AppendLine("// SPDX-License-Identifier: AGPL-3.0-or-later");
+        sb.AppendLine("// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0");
         sb.AppendLine();
 
         foreach (Type type in _objectTypes)

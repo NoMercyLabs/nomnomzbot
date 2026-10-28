@@ -5,7 +5,7 @@ description: Sign the agent's browser in to the Proxmox dev deployment (192.168.
 
 <!--
   Copyright (c) NoMercy Labs.
-  SPDX-License-Identifier: AGPL-3.0-or-later
+  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 -->
 
 # Browser sign-in (sanctioned 2026-10-17)

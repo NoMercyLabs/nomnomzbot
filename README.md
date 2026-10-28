@@ -7,7 +7,7 @@ One channel can connect Twitch, Kick, YouTube and X Live at the same time.
 The code is public. You may use, change and share NomNomzBot for free, and run it for yourself, your friends and your community.
 You may not earn money with it: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs.
 
-[![License: AGPL-3.0](https://img.shields.io/badge/license-AGPL--3.0-blue.svg)](server/LICENSE) [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)](#where-to-get-help)
+[![License: PolyForm Noncommercial 1.0.0](https://img.shields.io/badge/license-PolyForm%20Noncommercial%201.0.0-blue.svg)](LICENSE) [![Status: pre-release](https://img.shields.io/badge/status-pre--release-orange.svg)](#where-to-get-help)
 
 The full reference is at **https://docs.nomnomz.bot**.
 
@@ -151,5 +151,5 @@ NomNomzBot is pre-release software. Expect changes.
 The code is public. You may use, change and share NomNomzBot for free, and run it for yourself, your friends and your community.
 You may not earn money with it: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs.
 
-The legal text is [AGPL-3.0-or-later](server/LICENSE). Copyright © NoMercy Labs.
+The legal text is the [PolyForm Noncommercial License 1.0.0](LICENSE). Copyright © NoMercy Labs.
 The names and logos are covered in [TRADEMARKS.md](TRADEMARKS.md).

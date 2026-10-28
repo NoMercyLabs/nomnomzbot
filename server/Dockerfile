@@ -4,7 +4,7 @@
 # Keep changes that must reach production in the root Dockerfile - editing only this one ships nothing
 # (that mistake cost a release cycle: a /health/version stamp was added here and never appeared live).
 
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 # Copyright (C) NoMercy Labs. All rights reserved.
 
 FROM mcr.microsoft.com/dotnet/aspnet:10.0 AS base

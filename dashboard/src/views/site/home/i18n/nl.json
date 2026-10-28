@@ -21,7 +21,7 @@
       "hero": {
         "title": "Run je stream. Sla het gedoe over.",
         "subtitle": "NomNomzBot modereert de chat, beantwoordt kijkers en speelt alerts af zodra ze gebeuren. Hij bedient Twitch, Kick, YouTube en X vanuit één dashboard.",
-        "finePrint": "Gratis en zelf gehost. De code is openbaar (AGPL-3.0). Geen creditcard, geen limiet op gebruikers."
+        "finePrint": "Gratis en zelf gehost. De code is openbaar (PolyForm Noncommercial). Geen creditcard, geen limiet op gebruikers."
       },
       "areas": {
         "pipelines": {
@@ -93,7 +93,7 @@
           "tag": "Altijd gratis",
           "point1": "Draait op jouw server met één Docker Compose-commando, of als één bestand zonder afhankelijkheden",
           "point2": "Elke functie, zonder limiet op gebruikers en zonder betaalde niveaus",
-          "point3": "De code is openbaar (AGPL-3.0), dus je kunt het zelf controleren, aanpassen en delen"
+          "point3": "De code is openbaar (PolyForm Noncommercial), dus je kunt het zelf controleren, aanpassen en delen"
         },
         "hosted": {
           "title": "Gehost door NoMercy Labs",
@@ -117,7 +117,7 @@
         "body": "Host het gratis, voor altijd. Het heeft niets nodig van de servers van NoMercy."
       },
       "footer": {
-        "text": "© NomNomzBot. Gratis software met openbare code (AGPL-3.0).",
+        "text": "© NomNomzBot. Gratis software met openbare code (PolyForm Noncommercial).",
         "privacy": "Privacybeleid",
         "terms": "Gebruiksvoorwaarden"
       }

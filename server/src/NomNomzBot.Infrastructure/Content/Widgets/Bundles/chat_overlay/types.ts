@@ -1,4 +1,4 @@
-// SPDX-License-Identifier: AGPL-3.0-or-later  (c) NoMercy Labs
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0  (c) NoMercy Labs
 // The shapes the chat overlay passes between its components. The wire types (NnzChatFragmentDto,
 // NnzChatPaintDto, ...) are the typed SDK globals the widget nnz.d.ts declares.
 

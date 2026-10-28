@@ -1,4 +1,4 @@
-# SPDX-License-Identifier: AGPL-3.0-or-later
+# SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 # Copyright (C) NoMercy Labs. All rights reserved.
 #
 # Multi-stage build — produces a single self-contained image:

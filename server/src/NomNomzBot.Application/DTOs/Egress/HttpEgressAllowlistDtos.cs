@@ -1,12 +1,14 @@
 // -----------------------------------------------------------------------------
 //  Copyright (c) NoMercy Labs.
 //
-//  This file is part of NomNomzBot, free software licensed under the GNU Affero
-//  General Public License v3.0 or later. You may redistribute and/or modify it
-//  under those terms. Distributed WITHOUT ANY WARRANTY. See LICENSE for details.
+//  This file is part of NomNomzBot. You may use, change and share it for free,
+//  for any noncommercial purpose, under the PolyForm Noncommercial License
+//  1.0.0. You may not earn money with it. Distributed WITHOUT ANY WARRANTY.
+//  See LICENSE for details, and TRADEMARKS.md for the name and logo.
 //
-//  SPDX-License-Identifier: AGPL-3.0-or-later
+//  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
+
 namespace NomNomzBot.Application.DTOs.Egress;
 
 /// <summary>One approved outbound host of the channel (egress allowlist). Only the host and its on/off switch are exposed.</summary>

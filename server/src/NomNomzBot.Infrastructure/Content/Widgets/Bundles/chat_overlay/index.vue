@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later  (c) NoMercy Labs -->
+<!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0  (c) NoMercy Labs -->
 <script setup lang="ts">
 import { reactive, ref, onMounted, onUnmounted } from 'vue'
 import ChatMessage from './components/ChatMessage.vue'

@@ -21,7 +21,7 @@
       "hero": {
         "title": "Run your stream. Skip the busywork.",
         "subtitle": "NomNomzBot moderates chat, answers viewers, and fires alerts the instant they happen. It runs Twitch, Kick, YouTube, and X from one dashboard.",
-        "finePrint": "Free and self-hosted. The code is public (AGPL-3.0). No credit card, no seat limits."
+        "finePrint": "Free and self-hosted. The code is public (PolyForm Noncommercial). No credit card, no seat limits."
       },
       "areas": {
         "pipelines": {
@@ -93,7 +93,7 @@
           "tag": "Free forever",
           "point1": "Runs on your server with one Docker Compose command, or as a single binary with no dependencies",
           "point2": "Every feature, with no seat limits and no paid tiers",
-          "point3": "The code is public (AGPL-3.0), so you can audit, change, and share it yourself"
+          "point3": "The code is public (PolyForm Noncommercial), so you can audit, change, and share it yourself"
         },
         "hosted": {
           "title": "Hosted by NoMercy Labs",
@@ -117,7 +117,7 @@
         "body": "Self-host it for free, forever. It needs nothing from NoMercy's servers."
       },
       "footer": {
-        "text": "© NomNomzBot. Free software with public code (AGPL-3.0).",
+        "text": "© NomNomzBot. Free software with public code (PolyForm Noncommercial).",
         "privacy": "Privacy Policy",
         "terms": "Terms of Service"
       }

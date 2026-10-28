@@ -2,7 +2,7 @@
 <!--
   Copyright (c) NoMercy Labs.
   Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
-  SPDX-License-Identifier: AGPL-3.0-or-later
+  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
   Template helper help text, namespaces "hypetrain", "goal" and "charity", lane L2h2 (catalog section 7.10).
   Names follow template_helper_<key with dots as underscores>.

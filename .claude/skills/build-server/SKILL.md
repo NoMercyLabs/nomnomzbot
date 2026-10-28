@@ -79,7 +79,7 @@ dotnet csharpier check .
 
 - **Explicit types, never `var`** (`.editorconfig` IDE0008 is an *error*). The only exception is
   an anonymous-type projection, where C# forces it.
-- **License header** at the top of every new source file (AGPL-3.0, NoMercy Labs).
+- **License header** at the top of every new source file (PolyForm Noncommercial 1.0.0, NoMercy Labs).
 - **Warnings are errors** — resolve them, never suppress.
 - A test asserts a **state change, an emitted event, or a side effect**. "It returned non-null"
   and "it did not throw" are void and do not count.

@@ -1,6 +1,6 @@
 // nnz.d.ts — generated from the NomNomzBot Event Catalog (dev-platform.md §2). DO NOT EDIT.
 // context: widget
-// SPDX-License-Identifier: AGPL-3.0-or-later
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 
 /** THE canonical chat fact — published for every chat message the bot ingests on any platform: Twitch (EventSub channel.chat.message) and YouTube (Live Chat poller); Provider names the source. This is the HOT PATH event — handlers must be fast, and Twitch-only consumers (command replies, auto-mod enforcement, pronouns, decoration) gate on Provider. */
 interface NnzChatMessageReceived {

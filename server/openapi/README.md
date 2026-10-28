@@ -1,7 +1,7 @@
 <!--
   Copyright (c) NoMercy Labs.
   Part of NomNomzBot, licensed under the GNU AGPL v3.0 or later.
-  SPDX-License-Identifier: AGPL-3.0-or-later
+  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 -->
 
 # API contract — server ↔ app schema sync

@@ -266,10 +266,10 @@
    "brief": [
     "\\bsaas\\b"
    ],
-   "text": "`saas` mode is a RESTRICTED option: operating NomNomzBot as a hosted service for third parties is reserved to NoMercy Labs. Self-hosting your own bot is always free. Every doc/script surface showing saas instructions must carry this restriction marker — never drop it.",
-   "source": "CLAUDE.md: Critical Rules; memory saas-mode-restricted-option.md",
+   "text": "`saas` mode is RESTRICTED: you may not earn money with NomNomzBot (no selling it, no paid hosting or paid service built on it); that right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is free. The license is PolyForm Noncommercial 1.0.0; never call it open source or source available. Every doc/script surface showing saas instructions must carry this marker — never drop it.",
+   "source": "CLAUDE.md: Critical Rules; memory saas-mode-restricted-option.md; Stoney 2026-10-28 (translated from Dutch): \"You may run a server for your friends, but you may not earn money with it.\"",
    "covers": [
-    "`saas` mode is a RESTRICTED option",
+    "`saas` mode is RESTRICTED",
     "saas-mode-restricted-option.md"
    ]
   },

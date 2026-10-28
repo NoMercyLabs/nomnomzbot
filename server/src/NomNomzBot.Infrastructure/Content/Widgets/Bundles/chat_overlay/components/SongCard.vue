@@ -1,4 +1,4 @@
-<!-- SPDX-License-Identifier: AGPL-3.0-or-later  (c) NoMercy Labs -->
+<!-- SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0  (c) NoMercy Labs -->
 <script setup lang="ts">
 // The card a processed song request renders inside the REQUESTER's own bubble. Ported from the legacy chat
 // overlay's SpotifyCard (widget 01K0QVBQYEGAQKAX1CYTK1S61M), which the owner keeps as the reference: the card

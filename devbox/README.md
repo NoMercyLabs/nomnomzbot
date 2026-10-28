@@ -1,6 +1,6 @@
 <!--
   Copyright (c) NoMercy Labs.
-  SPDX-License-Identifier: AGPL-3.0-or-later
+  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 -->
 
 # Devbox — the containerised work environment

@@ -101,7 +101,7 @@
             "title": "About these terms",
             "p": [
               "These terms are between you and {company} (\"we\", \"us\") and cover the hosted NomNomzBot service. By signing in or using the bot in a channel you accept them. If you do not accept them, do not use the service.",
-              "The NomNomzBot code is public under the AGPL-3.0 license. You may run your own copy for yourself, your friends and your community. You may not earn money with it: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. These terms do not apply to a copy that someone else runs, and the hosted service is run by {company} only."
+              "The NomNomzBot code is public under the PolyForm Noncommercial License 1.0.0. You may run your own copy for yourself, your friends and your community. You may not earn money with it: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. These terms do not apply to a copy that someone else runs, and the hosted service is run by {company} only."
             ]
           },
           {

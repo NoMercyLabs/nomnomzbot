@@ -101,7 +101,7 @@
             "title": "Over deze voorwaarden",
             "p": [
               "Deze voorwaarden gelden tussen jou en {company} (\"wij\", \"ons\") en dekken de gehoste NomNomzBot-dienst. Door in te loggen of de bot in een kanaal te gebruiken, accepteer je ze. Als je ze niet accepteert, gebruik de dienst dan niet.",
-              "De code van NomNomzBot is openbaar onder de AGPL-3.0-licentie. Je mag een eigen exemplaar draaien voor jezelf, je vrienden en je community. Je mag er geen geld mee verdienen: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Deze voorwaarden gelden niet voor een exemplaar dat iemand anders draait, en de gehoste dienst wordt alleen door {company} aangeboden."
+              "De code van NomNomzBot is openbaar onder de PolyForm Noncommercial License 1.0.0. Je mag een eigen exemplaar draaien voor jezelf, je vrienden en je community. Je mag er geen geld mee verdienen: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Deze voorwaarden gelden niet voor een exemplaar dat iemand anders draait, en de gehoste dienst wordt alleen door {company} aangeboden."
             ]
           },
           {
