@@ -40,6 +40,14 @@ public interface IPlaybackEngine
     /// </summary>
     bool LinesUpInItsOwnQueue => false;
 
+    /// <summary>
+    /// Whether the engine's own queue still holds the item, so it is pending and not failed. The director
+    /// asks before it gives up on a start that was not confirmed in time. An engine with no queue of its own,
+    /// or one that cannot answer, says no.
+    /// </summary>
+    Task<bool> IsStillQueuedAsync(PlaybackItem item, CancellationToken ct = default) =>
+        Task.FromResult(false);
+
     Task PauseAsync(CancellationToken ct = default);
 
     Task ResumeAsync(CancellationToken ct = default);

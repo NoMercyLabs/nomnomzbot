@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.ValueObjects;
 using static NomNomzBot.Infrastructure.Tests.Music.PlaybackDirectorTestKit;
 
@@ -34,6 +35,38 @@ public sealed partial class PlaybackDirectorTests
         );
 
         rig.Director.State.Kind.Should().NotBe(PlaybackStateKind.Starting);
+        rig.Journal.Should().Contain(e => e.Reason == "start_timeout");
+    }
+
+    [Fact]
+    public async Task Starting_WhenTheDeadlinePassedButSpotifysOwnQueueStillHoldsTheItem_ItKeepsWaiting()
+    {
+        Rig rig = new();
+        await rig.Request(Item("a"));
+        rig.Spotify.Held.Add("a");
+
+        rig.Clock.Advance(TimeSpan.FromSeconds(11));
+        await rig.Spotify.EmitAsync(
+            new EngineReport(EngineKind.Spotify, "spotify:track:other", false, 0, 200_000)
+        );
+
+        rig.Director.State.Kind.Should().Be(PlaybackStateKind.Starting);
+        rig.Director.State.Item!.Id.Should().Be("a");
+        rig.Journal.Should().NotContain(e => e.Reason == "start_timeout");
+        rig.Bus.Published.Should().NotContain(e => e is SongPlaybackFailedEvent);
+    }
+
+    [Fact]
+    public async Task Starting_WhenTheDeadlinePassedAndSpotifysQueueNoLongerHoldsTheItem_ItFails()
+    {
+        Rig rig = new();
+        await rig.Request(Item("a"));
+
+        rig.Clock.Advance(TimeSpan.FromSeconds(11));
+        await rig.Spotify.EmitAsync(
+            new EngineReport(EngineKind.Spotify, "spotify:track:other", false, 0, 200_000)
+        );
+
         rig.Journal.Should().Contain(e => e.Reason == "start_timeout");
     }
 

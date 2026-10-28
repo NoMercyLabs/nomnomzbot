@@ -113,6 +113,13 @@ public sealed class SpotifyPlaybackEngine(
             ) == true;
     }
 
+    public async Task<bool> IsStillQueuedAsync(PlaybackItem item, CancellationToken ct = default)
+    {
+        await using EngineLease lease = open();
+
+        return await HoldsAsync(lease, item, ct);
+    }
+
     /// <summary>The item is already in Spotify's queue: moving on plays it, and no second copy is added.</summary>
     private async Task<bool> SkipHeldAsync(EngineLease lease, CancellationToken ct)
     {

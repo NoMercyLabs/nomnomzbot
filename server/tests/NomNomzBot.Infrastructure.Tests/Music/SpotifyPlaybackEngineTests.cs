@@ -449,6 +449,20 @@ public sealed class SpotifyPlaybackEngineTests
     }
 
     [Fact]
+    public async Task The_engine_reports_an_item_as_still_queued_only_while_Spotifys_queue_holds_it()
+    {
+        List<string> spotifyQueue = SpotifyQueue();
+        PlaybackItem item = Item();
+        (await _engine.IsStillQueuedAsync(item)).Should().BeFalse();
+
+        (await _engine.QueueNextAsync(item)).Accepted.Should().BeTrue();
+        (await _engine.IsStillQueuedAsync(item)).Should().BeTrue();
+
+        spotifyQueue.Clear();
+        (await _engine.IsStillQueuedAsync(item)).Should().BeFalse();
+    }
+
+    [Fact]
     public async Task A_restarted_engine_starts_a_request_Spotify_already_holds_without_adding_a_copy()
     {
         List<string> spotifyQueue = SpotifyQueue();

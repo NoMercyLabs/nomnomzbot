@@ -177,12 +177,39 @@ public sealed partial class PlaybackDirector
             case TrackEnded t when t.Engine == item.Engine && t.Uri == item.Uri:
                 await FailStartAsync(item, name, "player error", "start_failed", ct);
                 break;
+            case StartTimeout when await IsStillQueuedAsync(item, ct):
+                _startDeadline = _time.GetUtcNow() + StartDeadline;
+                await MoveAsync(State, name, "start_still_queued", item.Id);
+                break;
             case StartTimeout:
                 await FailStartAsync(item, name, "did not start", "start_timeout", ct);
                 break;
             default:
                 await IgnoreAsync(input);
                 break;
+        }
+    }
+
+    /// <summary>
+    /// Whether the item's engine still holds it in its own queue. A start the engine has not confirmed yet is
+    /// pending there, not failed: Spotify plays a queued song only after the track before it ends. An engine
+    /// that is missing, has no queue or throws answers no.
+    /// </summary>
+    private async Task<bool> IsStillQueuedAsync(PlaybackItem item, CancellationToken ct)
+    {
+        if (!_engines.TryGetValue(item.Engine, out IPlaybackEngine? engine))
+            return false;
+        if (!engine.LinesUpInItsOwnQueue)
+            return false;
+
+        try
+        {
+            return await engine.IsStillQueuedAsync(item, ct);
+        }
+        catch (Exception ex)
+            when (ex is not OperationCanceledException || !ct.IsCancellationRequested)
+        {
+            return false;
         }
     }
 

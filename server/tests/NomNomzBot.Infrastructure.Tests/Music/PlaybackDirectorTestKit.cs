@@ -118,6 +118,12 @@ public static class PlaybackDirectorTestKit
         public Task SkipAsync(CancellationToken ct = default) =>
             LinesUpInItsOwnQueue ? Record("Skip") : StopAsync(ct);
 
+        /// <summary>Ids of the items this engine's own queue still holds; a read, not a command.</summary>
+        public HashSet<string> Held { get; } = [];
+
+        public Task<bool> IsStillQueuedAsync(PlaybackItem item, CancellationToken ct = default) =>
+            Task.FromResult(Held.Contains(item.Id));
+
         /// <summary>What <see cref="CanStartAsync"/> answers. Defaults to ready.</summary>
         public bool CanStart { get; set; } = true;
 
