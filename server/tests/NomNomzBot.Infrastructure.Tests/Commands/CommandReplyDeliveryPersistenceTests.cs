@@ -60,6 +60,67 @@ public sealed class CommandReplyDeliveryPersistenceTests : IDisposable
     }
 
     [Fact]
+    public async Task A_look_is_stored_inside_the_delivery_json_and_read_back_equal()
+    {
+        ReplyLook look = new(ReplyHighlight.Warning, ReplySize.Large, DurationSeconds: 25);
+        await Commands.CreateAsync(
+            Channel,
+            new CreateCommandDto
+            {
+                Name = "train",
+                TemplateResponse = "choo",
+                ReplyDelivery = new ReplyDelivery(ReplyTarget.Overlay, Html: false, Look: look),
+            }
+        );
+        _real.Db.ChangeTracker.Clear();
+
+        (await StoredJsonAsync("train"))
+            .Should()
+            .Be(
+                "{\"target\":\"overlay\",\"html\":false,\"look\":{\"highlight\":\"warning\",\"size\":\"large\",\"durationSeconds\":25}}"
+            );
+        (await Commands.GetAsync(Channel, "train"))
+            .Value.ReplyDelivery.Should()
+            .Be(new ReplyDelivery(ReplyTarget.Overlay, Html: false, Look: look));
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(-5)]
+    [InlineData(121)]
+    public async Task A_look_with_a_duration_outside_the_allowed_range_is_refused_on_create_and_update(
+        int seconds
+    )
+    {
+        ReplyDelivery bad = new(ReplyTarget.Overlay, Look: new ReplyLook(DurationSeconds: seconds));
+        await Commands.CreateAsync(
+            Channel,
+            new CreateCommandDto { Name = "train", TemplateResponse = "choo" }
+        );
+
+        Result<CommandDto> created = await Commands.CreateAsync(
+            Channel,
+            new CreateCommandDto
+            {
+                Name = "other",
+                TemplateResponse = "choo",
+                ReplyDelivery = bad,
+            }
+        );
+        Result<CommandDto> updated = await Commands.UpdateAsync(
+            Channel,
+            "train",
+            new UpdateCommandDto { ReplyDelivery = bad }
+        );
+        _real.Db.ChangeTracker.Clear();
+
+        created.IsFailure.Should().BeTrue();
+        updated.IsFailure.Should().BeTrue();
+        (await Commands.GetAsync(Channel, "other")).IsFailure.Should().BeTrue();
+        (await StoredJsonAsync("train")).Should().BeNull();
+    }
+
+    [Fact]
     public async Task A_command_saved_without_a_delivery_stores_null_and_reads_as_none_set()
     {
         await Commands.CreateAsync(

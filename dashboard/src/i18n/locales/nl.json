@@ -104,7 +104,30 @@
         "none": "Nergens"
       },
       "html": "HTML",
-      "htmlHelp": "De overlayregel toont HTML. De bot haalt eerst onveilige opmaak weg. Dit werkt als het antwoord naar de chat-overlay gaat."
+      "htmlHelp": "De overlayregel toont HTML. De bot haalt eerst onveilige opmaak weg. Dit werkt als het antwoord naar de chat-overlay gaat.",
+      "look": {
+        "label": "Uiterlijk",
+        "summaryDefault": "Standaard",
+        "seconds": "{count} s",
+        "highlight": {
+          "label": "Accentkleur",
+          "help": "De kleur van de linkerrand van de regel en de zachte achtergrond. Standaard voegt er geen toe.",
+          "default": "Standaard",
+          "primary": "Primair",
+          "success": "Succes",
+          "warning": "Waarschuwing",
+          "destructive": "Gevaar"
+        },
+        "size": {
+          "label": "Grootte",
+          "normal": "Normaal",
+          "large": "Groot"
+        },
+        "duration": {
+          "label": "Toonduur",
+          "help": "Hoe lang de regel blijft staan voor hij vervaagt, in minuten en seconden, tot 2:00. 0:00 gebruikt de eigen toonduur van de widget."
+        }
+      }
     },
     "targetPicker": {
       "label": "Voert uit",

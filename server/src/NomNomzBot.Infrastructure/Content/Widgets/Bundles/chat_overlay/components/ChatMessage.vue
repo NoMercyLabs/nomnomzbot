@@ -9,11 +9,14 @@ const props = defineProps<{ line: ChatLine; defaultColor: string; features: Feat
 
 function lineVars(): Record<string, string> {
   const base: string = (props.features.userColors && props.line.color) ? props.line.color : props.defaultColor
-  return {
+  const vars: Record<string, string> = {
     '--user-300': `hsl(from ${base} h calc(s * .30) l)`,
     '--user-500': `hsl(from ${base} h calc(s * .50) l)`,
     '--user-700': `hsl(from ${base} h s calc(l * .70))`,
   }
+  // The highlight a channel gave a bot overlay line, as its design token color.
+  if (props.line.look?.color) vars['--hl'] = props.line.look.color
+  return vars
 }
 
 // Legacy tooLight(): perceptual brightness > 140 flips the banner text to black.
@@ -60,7 +63,7 @@ function bannerPaintStyle(): Record<string, string> {
     style['background-image'] = 'none'
   }
   const colors: string[] = paintColors(p)
-  if (colors.length) style['background-color'] = colors[0]
+  if (colors.length) style['background-color'] = colors[0] ?? ''
   const dark: boolean = colors.length ? colors.filter((c: string) => tooLight(c)).length * 2 >= colors.length : false
   style.color = colors.length && dark ? '#000' : '#fff'
   if (!colors.length) style['text-shadow'] = '0 1px 3px rgba(0, 0, 0, 0.9)'
@@ -75,7 +78,13 @@ const ogPreviews: NnzChatLinkPreviewDto[] = props.line.fragments
 </script>
 
 <template>
-  <div class="message-container" :class="[line.state]" :style="lineVars()">
+  <div
+    class="message-container"
+    :class="[line.state]"
+    :data-highlight="line.look?.highlight || undefined"
+    :data-size="line.look?.large ? 'large' : undefined"
+    :style="lineVars()"
+  >
     <div class="head">
       <div class="shine-wrapper" :class="{ 'shine-on': features.shineEffect }">
         <div class="banner" :class="[bannerTextClass(), { 'banner-painted': hasPaint() }]" :style="bannerPaintStyle()">
@@ -116,6 +125,8 @@ const ogPreviews: NnzChatLinkPreviewDto[] = props.line.fragments
           </template>
         </template>
         <template v-else>{{ line.message }}</template>
+        <!-- Drawn as text (never markup), like the song request mark: the line is the bot's, the viewer only asked. -->
+        <span v-if="line.look && line.look.requestedBy" class="requested-by">requested by {{ line.look.requestedBy }}</span>
       </div>
     </div>
   </div>
@@ -270,6 +281,25 @@ const ogPreviews: NnzChatLinkPreviewDto[] = props.line.fragments
 }
 .message-container.active .message-content {
   opacity: 1;
+}
+/* The look a channel gave a bot overlay line: the highlight (--hl) as the bubble's left edge plus a soft wash, and a
+   larger size. */
+.message-container[data-highlight] .message-bubble {
+  border-left: 4px solid var(--hl);
+  background-image: linear-gradient(color-mix(in srgb, var(--hl) 14%, transparent), color-mix(in srgb, var(--hl) 14%, transparent));
+}
+.message-container[data-size='large'] .message-content {
+  font-size: 1.5rem;
+  line-height: 2.1rem;
+}
+/* Small muted mark under the reply, the way the song request card marks its source. */
+.requested-by {
+  display: block;
+  margin-top: 4px;
+  font-size: 0.8rem;
+  line-height: 1;
+  font-weight: 500;
+  color: rgba(255, 255, 255, 0.55);
 }
 .message-content.emote-only {
   display: flex;

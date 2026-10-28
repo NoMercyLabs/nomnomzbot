@@ -191,6 +191,10 @@ public class TimerManagementService : ITimerManagementService
         if (targetOk.IsFailure)
             return targetOk.ToTyped<TimerDto>();
 
+        Result deliveryOk = request.ReplyDelivery.Check();
+        if (deliveryOk.IsFailure)
+            return deliveryOk.ToTyped<TimerDto>();
+
         DomainTimer timer = new()
         {
             BroadcasterId = broadcaster,
@@ -288,7 +292,13 @@ public class TimerManagementService : ITimerManagementService
         if (request.SpeakWithTts.HasValue)
             timer.SpeakWithTts = request.SpeakWithTts.Value;
         if (request.ReplyDelivery is not null)
+        {
+            Result deliveryOk = request.ReplyDelivery.Check();
+            if (deliveryOk.IsFailure)
+                return deliveryOk.ToTyped<TimerDto>();
+
             timer.ReplyDelivery = ReplyDelivery.ForStorage(request.ReplyDelivery);
+        }
 
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcaster, timer.Id, "updated", cancellationToken);

@@ -104,7 +104,30 @@
         "none": "Nowhere"
       },
       "html": "HTML",
-      "htmlHelp": "The overlay line renders HTML. The bot removes unsafe markup first. It applies when the reply goes to the chat overlay."
+      "htmlHelp": "The overlay line renders HTML. The bot removes unsafe markup first. It applies when the reply goes to the chat overlay.",
+      "look": {
+        "label": "Look",
+        "summaryDefault": "Default",
+        "seconds": "{count} s",
+        "highlight": {
+          "label": "Highlight",
+          "help": "The color of the line's left edge and its soft background. The default adds none.",
+          "default": "Default",
+          "primary": "Primary",
+          "success": "Success",
+          "warning": "Warning",
+          "destructive": "Destructive"
+        },
+        "size": {
+          "label": "Size",
+          "normal": "Normal",
+          "large": "Large"
+        },
+        "duration": {
+          "label": "Show time",
+          "help": "How long the line stays before it fades, as minutes and seconds, up to 2:00. 0:00 uses the widget's own show time."
+        }
+      }
     },
     "targetPicker": {
       "label": "Runs",

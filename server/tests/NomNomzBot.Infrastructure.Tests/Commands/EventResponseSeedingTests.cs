@@ -14,6 +14,7 @@ using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
@@ -181,6 +182,40 @@ public sealed class EventResponseSeedingTests
         (await db.EventResponses.CountAsync())
             .Should()
             .Be(EventResponsePresetCatalog.EventTypes.Count);
+    }
+
+    [Fact]
+    public async Task An_overlay_line_duration_outside_the_allowed_range_is_refused_and_the_row_keeps_its_delivery()
+    {
+        (
+            EventResponseService service,
+            EventResponseDefaultsSeeder seeder,
+            SupporterTestDbContext db
+        ) = Build();
+        await seeder.SeedAsync(Tenant);
+        ReplyLook look = new(ReplyHighlight.Success, DurationSeconds: 20);
+        Result<EventResponseDto> saved = await service.UpsertAsync(
+            Tenant.ToString(),
+            "channel.follow",
+            new UpdateEventResponseDto { ReplyDelivery = new(ReplyTarget.Overlay, Look: look) }
+        );
+
+        Result<EventResponseDto> refused = await service.UpsertAsync(
+            Tenant.ToString(),
+            "channel.follow",
+            new UpdateEventResponseDto
+            {
+                ReplyDelivery = new(ReplyTarget.Overlay, Look: new ReplyLook(DurationSeconds: 0)),
+            }
+        );
+
+        saved.IsSuccess.Should().BeTrue(saved.ErrorMessage);
+        refused.IsFailure.Should().BeTrue();
+        refused.ErrorCode.Should().Be("VALIDATION_FAILED");
+        EventResponse row = await db
+            .EventResponses.AsNoTracking()
+            .SingleAsync(r => r.EventType == "channel.follow");
+        row.ReplyDelivery.Should().Be(new ReplyDelivery(ReplyTarget.Overlay, Look: look));
     }
 
     // ── Seeding moved to EventResponseDefaultsSeeder ────────────────────────────

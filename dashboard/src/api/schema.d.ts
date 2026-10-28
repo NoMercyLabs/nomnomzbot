@@ -91889,6 +91889,7 @@ export interface components {
             paint?: null | components["schemas"]["ChatPaint"];
             /** @default false */
             isArtist: boolean;
+            overlayLine?: null | components["schemas"]["OverlayLine"];
         };
         /**
          * @description Snapshot of a channel's current state, returned by GET /api/v1/dashboard/{broadcasterId}/stats.
@@ -95090,6 +95091,24 @@ export interface components {
             categoryKey: string;
         };
         /**
+         * @description What a chat widget needs to draw a bot overlay line beyond its text: the viewer who asked for it (drawn as
+         *     "requested by ...", like the song request card; the line is never shown under the viewer's name) and the look
+         *     the channel chose. A null look value means the widget's default for that part.
+         */
+        OverlayLine: {
+            /** @description The display name of the viewer who triggered the reply; null when nobody did. */
+            requestedBy?: null | string;
+            /** @description A design token name (primary | success | warning | destructive); null = the widget accent. */
+            highlight?: null | string;
+            /** @description normal | large. */
+            size: string;
+            /**
+             * Format: int32
+             * @description How long the line stays before it fades; null = the widget's own show time.
+             */
+            durationSeconds?: null | number | string;
+        };
+        /**
          * @description The public, token-resolved overlay manifest (widgets-overlays.md §4). The single read an OBS browser source
          *     needs: the channel's enabled, successfully-built widgets, each with the URL to fetch its compiled bundle, the
          *     content hash (cache-bust key), its render-time trust tier, and its live settings + event subscriptions.
@@ -97102,7 +97121,27 @@ export interface components {
             target?: components["schemas"]["ReplyTarget"];
             /** @default false */
             html: boolean;
+            look?: null | components["schemas"]["ReplyLook"];
         };
+        /** @enum {unknown} */
+        ReplyHighlight: "primary" | "success" | "warning" | "destructive" | null;
+        /**
+         * @description How a reply looks on the chat overlay: an optional highlight color (a design token name), a size, and how long
+         *     the line stays before it fades. A missing value means the overlay's own default for that part, so a null look
+         *     changes nothing about the line.
+         */
+        ReplyLook: {
+            highlight?: null | components["schemas"]["ReplyHighlight"];
+            size?: components["schemas"]["ReplySize"];
+            /** Format: int32 */
+            durationSeconds?: null | number | string;
+        };
+        /**
+         * @description How big a chat overlay line is drawn.
+         * @default normal
+         * @enum {unknown}
+         */
+        ReplySize: "normal" | "large";
         /**
          * @description Where an authored reply goes: the platform chat, the chat overlay, both, or nowhere.
          * @default chat

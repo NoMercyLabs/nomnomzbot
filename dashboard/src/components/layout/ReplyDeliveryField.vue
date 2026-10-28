@@ -8,8 +8,8 @@
   SPDX-License-Identifier: AGPL-3.0-or-later
 -->
 <script setup lang="ts">
-// Where a simple reply goes: Twitch chat, the chat overlay, both, or nowhere, and whether the overlay line
-// is HTML. Every editor with a simple reply uses this one field, so the choices and the hint read the same
+// Where a simple reply goes: Twitch chat, the chat overlay, both, or nowhere, whether the overlay line
+// is HTML, and (for the overlay targets) how the line looks. Every editor with a simple reply uses this one field, so the choices and the hint read the same
 // everywhere. All four targets sit in one segmented control and HTML is one switch: nothing here is the primary
 // action, so nothing carries the accent. HTML only means something on the overlay, so the switch is off
 // (and cleared) for the other targets.
@@ -17,11 +17,15 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
+import ReplyLookFields from '@/components/layout/ReplyLookFields.vue';
 import {
+  lookOf,
   reachesOverlay,
   replyTargets,
   targetOf,
+  withLook,
   type ReplyDelivery,
+  type ReplyLookView,
   type ReplyTarget,
 } from '@/components/layout/replyMode';
 import SegmentedControl from '@/components/layout/SegmentedControl.vue';
@@ -41,27 +45,43 @@ const options = computed(() =>
   })),
 );
 
+// HTML and the look only mean something on the overlay, so a target that never reaches it clears both.
 const target = computed<ReplyTarget>({
   get: () => targetOf(delivery.value),
   set: (value: ReplyTarget): void => {
-    delivery.value = {
-      target: value,
-      html: reachesOverlay(value) && delivery.value.html,
-    };
+    delivery.value = withLook(
+      {
+        target: value,
+        html: reachesOverlay(value) && delivery.value.html,
+      },
+      lookOf(delivery.value),
+    );
   },
 });
 
 const html = computed<boolean>({
   get: () => delivery.value.html,
   set: (value: boolean): void => {
-    delivery.value = {
-      target: target.value,
-      html: value,
-    };
+    delivery.value = withLook(
+      {
+        target: target.value,
+        html: value,
+      },
+      lookOf(delivery.value),
+    );
   },
 });
 
-const htmlLocked = computed<boolean>(() => props.disabled || !reachesOverlay(target.value));
+const look = computed<ReplyLookView>({
+  get: () => lookOf(delivery.value),
+  set: (value: ReplyLookView): void => {
+    delivery.value = withLook(delivery.value, value);
+  },
+});
+
+const overlay = computed<boolean>(() => reachesOverlay(target.value));
+
+const htmlLocked = computed<boolean>(() => props.disabled || !overlay.value);
 </script>
 
 <template>
@@ -84,5 +104,6 @@ const htmlLocked = computed<boolean>(() => props.disabled || !reachesOverlay(tar
       :help="$t('common.replyDelivery.htmlHelp')"
       :disabled="htmlLocked"
     />
+    <ReplyLookFields v-if="overlay" v-model="look" :disabled="disabled" />
   </div>
 </template>

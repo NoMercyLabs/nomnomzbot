@@ -8,6 +8,8 @@
 //  SPDX-License-Identifier: AGPL-3.0-or-later
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Commands.ValueObjects;
+
 namespace NomNomzBot.Application.Chat.Services;
 
 /// <summary>
@@ -32,12 +34,19 @@ public interface IChatOverlayLineSender
 /// <param name="BotDisplayName">The display name of that bot identity.</param>
 /// <param name="Text">The line. Already sanitized HTML when <paramref name="IsHtml"/> is true, plain text otherwise.</param>
 /// <param name="IsHtml">True when <paramref name="Text"/> is sanitized HTML for the widget's <c>html</c> fragment.</param>
+/// <param name="RequestedBy">
+/// The display name of the viewer who asked for the line. The widget draws "requested by ..." under the line,
+/// like the song request card; the line itself is never shown under the viewer's name. Null = no attribution.
+/// </param>
+/// <param name="Look">How the widget draws the line. Null = the overlay's own defaults.</param>
 public sealed record ChatOverlayLine(
     Guid BroadcasterId,
     string BotUserId,
     string BotDisplayName,
     string Text,
-    bool IsHtml
+    bool IsHtml,
+    string? RequestedBy = null,
+    ReplyLook? Look = null
 );
 
 /// <summary>How many chat widgets the overlay line reached.</summary>

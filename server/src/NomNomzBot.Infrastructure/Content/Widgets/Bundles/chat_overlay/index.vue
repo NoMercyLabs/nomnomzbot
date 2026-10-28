@@ -2,7 +2,7 @@
 <script setup lang="ts">
 import { reactive, ref, onMounted, onUnmounted } from 'vue'
 import ChatMessage from './components/ChatMessage.vue'
-import type { ChatLine, Features } from './types'
+import type { ChatLine, Features, LineLook } from './types'
 
 // The overlay SDK is the typed global `NomNomz`, injected before this bundle runs. Its event payloads
 // (NnzDashboardChatMessageDto, NnzMessageDeletedDto, ...) come from the widget nnz.d.ts the editor loads.
@@ -67,7 +67,10 @@ function hexColor(c: unknown): string {
 
 function firstUrl(urls: Record<string, string> | null | undefined, keys: string[]): string {
   if (!urls) return ''
-  for (let i = 0; i < keys.length; i++) if (urls[keys[i]]) return urls[keys[i]]
+  for (const key of keys) {
+    const url: string | undefined = urls[key]
+    if (url) return url
+  }
   return ''
 }
 
@@ -139,6 +142,27 @@ function rememberIdentity(m: NnzDashboardChatMessageDto): void {
   })
 }
 
+// The design tokens a channel can pick for a bot overlay line, as the dark-theme colors the dashboard shows. A token
+// this widget does not know is ignored, never drawn as a guess.
+const HIGHLIGHT_COLORS: Record<string, string> = {
+  primary: 'oklch(0.692953 0.114282 309.045)',
+  success: 'oklch(0.795095 0.234563 145.534)',
+  warning: 'oklch(0.8 0.16 75)',
+  destructive: 'oklch(0.710627 0.166148 22.216)',
+}
+
+function lookOf(value: NnzOverlayLineDto | null | undefined): LineLook | null {
+  if (!isRecord(value)) return null
+  const token: string = typeof value.highlight === 'string' && value.highlight in HIGHLIGHT_COLORS ? value.highlight : ''
+  return {
+    requestedBy: typeof value.requestedBy === 'string' ? value.requestedBy.trim() : '',
+    highlight: token,
+    color: HIGHLIGHT_COLORS[token] ?? '',
+    large: value.size === 'large',
+    durationSeconds: positive(value.durationSeconds) ?? 0,
+  }
+}
+
 function onChat(m: NnzDashboardChatMessageDto): void {
   if (!m || typeof m !== 'object') return
   rememberIdentity(m)
@@ -160,6 +184,7 @@ function onChat(m: NnzDashboardChatMessageDto): void {
     state: 'entering',
     card: null,
     paint: paintOf(m),
+    look: lookOf(m.overlayLine),
   }
 
   pushLine(line)
@@ -170,9 +195,11 @@ function onChat(m: NnzDashboardChatMessageDto): void {
 function pushLine(line: ChatLine): void {
   // Legacy queue behavior: push out the oldest with its leave animation when full.
   if (lines.value.length >= Math.max(1, cfg.maxMessages)) {
-    const oldest: ChatLine = lines.value[0]
-    oldest.state = 'leaving'
-    later(() => { lines.value = lines.value.filter((x) => x.id !== oldest.id) }, cfg.chatAnimationDuration * 1000)
+    const oldest: ChatLine | undefined = lines.value[0]
+    if (oldest) {
+      oldest.state = 'leaving'
+      later(() => { lines.value = lines.value.filter((x) => x.id !== oldest.id) }, cfg.chatAnimationDuration * 1000)
+    }
   }
   lines.value = lines.value.concat([line])
 
@@ -187,7 +214,7 @@ function pushLine(line: ChatLine): void {
   later(() => {
     setState(line.id, 'leaving')
     later(() => { lines.value = lines.value.filter((x) => x.id !== line.id) }, cfg.chatAnimationDuration * 1000)
-  }, cfg.chatShowDuration * 1000)
+  }, (line.look?.durationSeconds || cfg.chatShowDuration) * 1000)
 }
 
 // A song request the bot has finished processing. It arrives resolved (title, artist, artwork, provider)
@@ -215,6 +242,7 @@ function onEnriched(e: NnzChatMessageEnrichedWidgetPayload): void {
     emoteOnly: false,
     state: 'entering',
     paint: who?.paint ?? null,
+    look: null,
     card: {
       title: e.title,
       description: e.description || '',

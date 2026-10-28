@@ -85,6 +85,10 @@ public sealed class ChatTriggerService : IChatTriggerService
         if (invalid.IsFailure)
             return Result.Failure<ChatTriggerDto>(invalid.ErrorMessage!, invalid.ErrorCode);
 
+        Result deliveryOk = request.ReplyDelivery.Check();
+        if (deliveryOk.IsFailure)
+            return deliveryOk.ToTyped<ChatTriggerDto>();
+
         // Refused, never clamped: Math.Max(0, x) used to accept any integer, so a caller sending a rung
         // that does not exist got the nearest legal-looking value instead of an error.
         int? minLevel = PermissionLevelNames.ToLevelValue(request.MinPermissionLevel);
@@ -155,6 +159,10 @@ public sealed class ChatTriggerService : IChatTriggerService
         Result invalid = Validate(pattern, matchType, response, bound);
         if (invalid.IsFailure)
             return Result.Failure<ChatTriggerDto>(invalid.ErrorMessage!, invalid.ErrorCode);
+
+        Result deliveryOk = request.ReplyDelivery.Check();
+        if (deliveryOk.IsFailure)
+            return deliveryOk.ToTyped<ChatTriggerDto>();
 
         trigger.Pattern = pattern;
         trigger.MatchType = matchType;

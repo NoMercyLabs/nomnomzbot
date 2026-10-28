@@ -44,10 +44,9 @@ public sealed class ChatTriggerReplyDeliveryTests
 
         await rig.Sut.HandleAsync(Line("hello there"), CancellationToken.None);
 
-        rig.Overlay.Lines.Should()
-            .ContainSingle()
-            .Which.Text.Should()
-            .Be("<b>welcome Viewer</b><br><small>requested by Viewer</small>");
+        ChatOverlayLine line = rig.Overlay.Lines.Should().ContainSingle().Subject;
+        line.Text.Should().Be("<b>welcome Viewer</b>");
+        line.RequestedBy.Should().Be("Viewer");
         await rig.Chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!, default!);
         rig.Provider.ReceivedCalls().Should().BeEmpty();
     }

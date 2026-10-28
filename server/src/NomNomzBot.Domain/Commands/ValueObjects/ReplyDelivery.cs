@@ -39,17 +39,30 @@ public sealed class ReplyTargetJsonConverter()
 /// text as sanitized HTML; the platform chat always gets plain text. A missing value everywhere means
 /// <see cref="ChatOnly"/>, the behavior before this setting existed.
 /// </summary>
-public sealed record ReplyDelivery(ReplyTarget Target = ReplyTarget.Chat, bool Html = false)
+public sealed record ReplyDelivery(
+    ReplyTarget Target = ReplyTarget.Chat,
+    bool Html = false,
+    [property: JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)] ReplyLook? Look = null
+)
 {
     /// <summary>The default: reply in the platform chat, as plain text.</summary>
     public static ReplyDelivery ChatOnly { get; } = new();
 
     /// <summary>
     /// The value a row stores for <paramref name="delivery"/>: plain Twitch chat is stored as null (the default
-    /// every row had before the setting existed), so a client that sends the chat target back resets a row.
+    /// every row had before the setting existed), so a client that sends the chat target back resets a row. A look
+    /// at the overlay default is dropped, so a stored delivery only carries a look that changes the line.
     /// </summary>
     public static ReplyDelivery? ForStorage(ReplyDelivery? delivery) =>
-        delivery is { Target: ReplyTarget.Chat } ? null : delivery;
+        delivery switch
+        {
+            { Target: ReplyTarget.Chat } => null,
+            { Look.IsDefault: true } => delivery with { Look = null },
+            _ => delivery,
+        };
+
+    /// <summary>What is wrong with this delivery, or null when it can be stored.</summary>
+    public string? Problem() => Look?.Problem();
 
     [JsonIgnore]
     public bool SendsToChat => Target is ReplyTarget.Chat or ReplyTarget.Both;

@@ -15,6 +15,7 @@ using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
 
@@ -192,6 +193,41 @@ public sealed class ChatOverlayLineSenderTests : IAsyncDisposable
     }
 
     private ChatOverlayLineSender Sut() => new(_db, _widgets, _presence, new FakeTimeProvider(Now));
+
+    [Fact]
+    public async Task The_payload_names_the_requester_and_carries_the_look_without_changing_the_bot_identity()
+    {
+        Widget chat = await AddWidgetAsync("Chat box", true, "ChatMessage");
+        _presence.IsWidgetAttached(_channel, chat.Id).Returns(true);
+        ChatOverlayLine line = Line("<marquee>CHOO CHOO</marquee>", isHtml: true) with
+        {
+            RequestedBy = "Viewer One",
+            Look = new ReplyLook(ReplyHighlight.Warning, ReplySize.Large, DurationSeconds: 45),
+        };
+
+        await Sut().SendAsync(line);
+
+        DashboardChatMessageDto dto = (DashboardChatMessageDto)Single(Pushes()).Data!;
+        dto.OverlayLine.Should()
+            .Be(new OverlayLineDto("Viewer One", "warning", "large", DurationSeconds: 45));
+        // The viewer is only the requester: the line stays the bot's, never the viewer's.
+        dto.DisplayName.Should().Be("NomNomzBot");
+        dto.UserType.Should().Be("bot");
+        dto.UserId.Should().Be("bot-1");
+        dto.Message.Should().NotContain("Viewer One");
+    }
+
+    [Fact]
+    public async Task A_line_with_no_look_and_no_requester_carries_the_defaults()
+    {
+        Widget chat = await AddWidgetAsync("Chat box", true, "ChatMessage");
+        _presence.IsWidgetAttached(_channel, chat.Id).Returns(true);
+
+        await Sut().SendAsync(Line("hi", isHtml: false));
+
+        DashboardChatMessageDto dto = (DashboardChatMessageDto)Single(Pushes()).Data!;
+        dto.OverlayLine.Should().Be(new OverlayLineDto(null, null, "normal", null));
+    }
 
     private ChatOverlayLine Line(string text, bool isHtml) =>
         new(_channel, "bot-1", "NomNomzBot", text, isHtml);

@@ -54,8 +54,8 @@ public sealed class ChatMessageHandlerReplyDeliveryTests
         ChatOverlayLine line = rig.Overlay.Lines.Should().ContainSingle().Subject;
         line.IsHtml.Should().BeTrue();
         line.BroadcasterId.Should().Be(Broadcaster);
-        line.Text.Should()
-            .Be("<marquee>CHOO CHOO Viewer</marquee><br><small>requested by Viewer</small>");
+        line.Text.Should().Be("<marquee>CHOO CHOO Viewer</marquee>");
+        line.RequestedBy.Should().Be("Viewer");
         await rig
             .Bus.Received(1)
             .PublishAsync(
@@ -74,12 +74,10 @@ public sealed class ChatMessageHandlerReplyDeliveryTests
             CancellationToken.None
         );
 
-        string text = rig.Overlay.Lines.Should().ContainSingle().Subject.Text;
-        text.Should().NotContain("<script");
-        text.Should()
-            .Be(
-                "<marquee>CHOO CHOO &lt;script&gt;x()&lt;/script&gt;</marquee><br><small>requested by &lt;script&gt;x()&lt;/script&gt;</small>"
-            );
+        ChatOverlayLine line = rig.Overlay.Lines.Should().ContainSingle().Subject;
+        line.Text.Should().NotContain("<script");
+        line.Text.Should().Be("<marquee>CHOO CHOO &lt;script&gt;x()&lt;/script&gt;</marquee>");
+        line.RequestedBy.Should().Be("<script>x()</script>", "the widget draws the name as text");
     }
 
     [Fact]
@@ -121,10 +119,9 @@ public sealed class ChatMessageHandlerReplyDeliveryTests
                 "<marquee>CHOO CHOO Viewer</marquee>",
                 Arg.Any<CancellationToken>()
             );
-        rig.Overlay.Lines.Should()
-            .ContainSingle()
-            .Which.Text.Should()
-            .Be("<marquee>CHOO CHOO Viewer</marquee><br><small>requested by Viewer</small>");
+        ChatOverlayLine line = rig.Overlay.Lines.Should().ContainSingle().Subject;
+        line.Text.Should().Be("<marquee>CHOO CHOO Viewer</marquee>");
+        line.RequestedBy.Should().Be("Viewer");
         await rig
             .Bus.Received(1)
             .PublishAsync(

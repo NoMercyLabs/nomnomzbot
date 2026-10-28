@@ -4,7 +4,10 @@ defineProps<{ fragment: NnzChatFragmentDto; emoteOnly: boolean; emoteSupport: bo
 
 function firstUrl(urls: Record<string, string> | null | undefined, keys: string[]): string {
   if (!urls) return ''
-  for (let i = 0; i < keys.length; i++) if (urls[keys[i]]) return urls[keys[i]]
+  for (const key of keys) {
+    const url: string | undefined = urls[key]
+    if (url) return url
+  }
   return ''
 }
 

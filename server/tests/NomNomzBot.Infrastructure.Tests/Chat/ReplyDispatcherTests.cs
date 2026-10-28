@@ -215,7 +215,7 @@ public sealed class ReplyDispatcherTests
     }
 
     [Fact]
-    public async Task The_html_overlay_line_names_who_requested_it_with_the_name_encoded()
+    public async Task The_html_overlay_line_carries_the_requester_beside_the_text_and_never_inside_it()
     {
         Rig rig = new();
 
@@ -229,20 +229,23 @@ public sealed class ReplyDispatcherTests
             )
         );
 
+        // The widget draws "requested by ..." from this field as text. The sanitized HTML stays exactly the
+        // channel's own line, so a viewer name can never become markup.
         rig.Overlay.Lines.Should()
             .Equal(
                 new ChatOverlayLine(
                     Channel,
                     BotUserId,
                     BotName,
-                    "<marquee>CHOO CHOO</marquee><br><small>requested by Viewer&lt;script&gt;x()&lt;/script&gt;</small>",
-                    IsHtml: true
+                    "<marquee>CHOO CHOO</marquee>",
+                    IsHtml: true,
+                    RequestedBy: "Viewer<script>x()</script>"
                 )
             );
     }
 
     [Fact]
-    public async Task The_plain_overlay_line_names_who_requested_it_and_a_chat_reply_never_does()
+    public async Task The_plain_overlay_line_carries_the_requester_and_a_chat_reply_never_names_them()
     {
         Rig rig = new();
 
@@ -262,10 +265,63 @@ public sealed class ReplyDispatcherTests
                     Channel,
                     BotUserId,
                     BotName,
-                    "choo choo (requested by Viewer One)",
-                    IsHtml: false
+                    "choo choo",
+                    IsHtml: false,
+                    RequestedBy: "Viewer One"
                 )
             );
+    }
+
+    [Fact]
+    public async Task A_blank_requester_means_no_attribution()
+    {
+        Rig rig = new();
+
+        await rig.Sut.DispatchAsync(
+            Request(
+                new ReplyDelivery(ReplyTarget.Overlay),
+                "",
+                overlayText: "hi",
+                origin: Origin,
+                requestedBy: "   "
+            )
+        );
+
+        rig.Overlay.Lines.Should().ContainSingle().Which.RequestedBy.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task The_overlay_line_carries_the_look_the_channel_chose_and_the_chat_reply_ignores_it()
+    {
+        Rig rig = new();
+        ReplyLook look = new(ReplyHighlight.Success, ReplySize.Large, DurationSeconds: 20);
+
+        await rig.Sut.DispatchAsync(
+            Request(
+                new ReplyDelivery(ReplyTarget.Both, Look: look),
+                "choo choo",
+                origin: Origin,
+                requestedBy: "Viewer One"
+            )
+        );
+
+        rig.Chat.Sent.Should().Equal(("twitch", "reply:msg-1", "choo choo"));
+        ChatOverlayLine line = rig.Overlay.Lines.Should().ContainSingle().Subject;
+        line.Look.Should().Be(look);
+        line.Look!.HighlightToken.Should().Be("success");
+        line.Look.SizeToken.Should().Be("large");
+    }
+
+    [Fact]
+    public async Task A_delivery_without_a_look_sends_a_line_without_a_look()
+    {
+        Rig rig = new();
+
+        await rig.Sut.DispatchAsync(
+            Request(new ReplyDelivery(ReplyTarget.Overlay), "", overlayText: "hi", origin: Origin)
+        );
+
+        rig.Overlay.Lines.Should().ContainSingle().Which.Look.Should().BeNull();
     }
 
     [Fact]

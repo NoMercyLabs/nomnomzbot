@@ -12,6 +12,7 @@ using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -220,6 +221,54 @@ public sealed class ChatTriggerServiceTests
         updated.IsFailure.Should().BeTrue();
         updated.ErrorCode.Should().Be("PIPELINE_NOT_IN_CHANNEL");
         (await db.ChatTriggers.FirstAsync(t => t.Id == id)).PipelineId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task An_overlay_line_duration_outside_the_allowed_range_is_refused_on_create_and_update()
+    {
+        (ChatTriggerService service, AuthDbContext db, IChannelRegistry registry) = Build();
+        ReplyLook look = new(ReplyHighlight.Warning, ReplySize.Large, DurationSeconds: 15);
+        ChatTriggerDto good = (
+            await service.CreateAsync(
+                Tenant.ToString(),
+                new()
+                {
+                    Pattern = "choo",
+                    Response = "choo choo",
+                    ReplyDelivery = new(ReplyTarget.Overlay, Look: look),
+                }
+            )
+        ).Value;
+        ReplyDelivery bad = new(ReplyTarget.Overlay, Look: new ReplyLook(DurationSeconds: 121));
+        registry.ClearReceivedCalls();
+
+        Result<ChatTriggerDto> created = await service.CreateAsync(
+            Tenant.ToString(),
+            new()
+            {
+                Pattern = "other",
+                Response = "x",
+                ReplyDelivery = bad,
+            }
+        );
+        Result<ChatTriggerDto> updated = await service.UpdateAsync(
+            Tenant.ToString(),
+            good.Id,
+            new() { ReplyDelivery = bad }
+        );
+
+        created.IsFailure.Should().BeTrue();
+        created.ErrorCode.Should().Be("VALIDATION_FAILED");
+        updated.IsFailure.Should().BeTrue();
+        updated.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await db.ChatTriggers.CountAsync()).Should().Be(1);
+        // The test database does not map the column, so the tracked row is what shows an untouched look.
+        db.ChatTriggers.Single()
+            .ReplyDelivery.Should()
+            .Be(new ReplyDelivery(ReplyTarget.Overlay, Look: look));
+        await registry
+            .DidNotReceiveWithAnyArgs()
+            .InvalidateChatTriggersAsync(default, Arg.Any<CancellationToken>());
     }
 
     [Fact]
