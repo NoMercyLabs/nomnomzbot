@@ -22,6 +22,7 @@ const areaOfKey = new Map<string, FeatureAreaId>([
   ['use_ffz', 'chat'],
   ['use_link_preview', 'chat'],
   ['use_chat_html', 'chat'],
+  ['use_viewer_templates', 'chat'],
   ['custom_code', 'automation'],
 ]);
 

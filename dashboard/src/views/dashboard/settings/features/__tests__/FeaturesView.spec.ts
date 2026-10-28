@@ -181,6 +181,7 @@ describe('Features page', () => {
       make('custom_code', 'Custom Code'),
       make('use_7tv', '7TV Emotes'),
       make('use_chat_html', 'Chat HTML Fragments'),
+      make('use_viewer_templates', 'Viewer templates'),
     ];
 
     await open();
@@ -190,7 +191,7 @@ describe('Features page', () => {
       Array.from(area.querySelectorAll('[data-feature]')).map((item) => item.getAttribute('data-feature'));
 
     expect(areas.map((area) => area.getAttribute('data-area'))).toEqual(['chat', 'automation', 'other']);
-    expect(keysIn(areas[0] as HTMLElement)).toEqual(['use_7tv', 'use_chat_html']);
+    expect(keysIn(areas[0] as HTMLElement)).toEqual(['use_7tv', 'use_chat_html', 'use_viewer_templates']);
     expect(keysIn(areas[1] as HTMLElement)).toEqual(['custom_code']);
     expect(keysIn(areas[2] as HTMLElement)).toEqual(['tts']);
     expect(areas[0]?.querySelector('h3')?.textContent).toBe(en.dashboard.settings.features.areas.chat);
