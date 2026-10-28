@@ -100,10 +100,7 @@ public sealed class SrQueueBroadcastHandlerTests
     {
         if (data is null)
             return false;
-        JsonElement json = JsonSerializer.SerializeToElement(
-            data,
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
-        );
+        JsonElement json = JsonSerializer.SerializeToElement(data, OverlayWireJson.Options);
         JsonElement items = json.GetProperty("items");
         return items.GetArrayLength() == 2
             && items[0].GetProperty("title").GetString() == "Song A"

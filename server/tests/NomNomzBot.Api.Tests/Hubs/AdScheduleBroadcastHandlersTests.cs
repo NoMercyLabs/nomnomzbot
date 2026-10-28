@@ -28,10 +28,7 @@ public sealed class AdScheduleBroadcastHandlersTests
     private static readonly DateTimeOffset NextAd = new(2026, 10, 5, 12, 50, 0, TimeSpan.Zero);
 
     private static JsonElement Wire(object? data) =>
-        JsonSerializer.SerializeToElement(
-            data,
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
-        );
+        JsonSerializer.SerializeToElement(data, OverlayWireJson.Options);
 
     [Fact]
     public async Task A_schedule_poll_reaches_only_the_widget_subscribed_to_ad_schedule()

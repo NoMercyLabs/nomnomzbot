@@ -122,10 +122,7 @@ public sealed class MediaPlaybackOverlayBroadcastHandlerTests
     }
 
     private static JsonElement Wire(object? data) =>
-        JsonSerializer.SerializeToElement(
-            data,
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
-        );
+        JsonSerializer.SerializeToElement(data, OverlayWireJson.Options);
 
     private static bool IsLoadOf(object? data, Guid requestId)
     {

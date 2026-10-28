@@ -184,10 +184,7 @@ public sealed class WidgetNowPlayingHandlerTests
     {
         if (data is null)
             return false;
-        JsonElement json = JsonSerializer.SerializeToElement(
-            data,
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
-        );
+        JsonElement json = JsonSerializer.SerializeToElement(data, OverlayWireJson.Options);
         return json.GetProperty("requestedByColor").GetString() == expected;
     }
 
@@ -195,10 +192,7 @@ public sealed class WidgetNowPlayingHandlerTests
     {
         if (data is null)
             return false;
-        JsonElement json = JsonSerializer.SerializeToElement(
-            data,
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
-        );
+        JsonElement json = JsonSerializer.SerializeToElement(data, OverlayWireJson.Options);
         return json.GetProperty("requestedBy").ValueKind == JsonValueKind.Null;
     }
 
@@ -206,10 +200,7 @@ public sealed class WidgetNowPlayingHandlerTests
     {
         if (data is null)
             return false;
-        JsonElement json = JsonSerializer.SerializeToElement(
-            data,
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
-        );
+        JsonElement json = JsonSerializer.SerializeToElement(data, OverlayWireJson.Options);
         return json.GetProperty("isPlaying").GetBoolean()
             && json.GetProperty("track").GetString() == "Song A"
             && json.GetProperty("artist").GetString() == "Artist A"

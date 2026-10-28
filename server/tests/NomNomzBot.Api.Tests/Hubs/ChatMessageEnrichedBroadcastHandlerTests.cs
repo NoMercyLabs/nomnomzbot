@@ -32,10 +32,7 @@ public sealed class ChatMessageEnrichedBroadcastHandlerTests
     private static readonly Guid Broadcaster = Guid.CreateVersion7();
 
     private static JsonElement PayloadOf(WidgetEventDto pushed) =>
-        JsonSerializer.SerializeToElement(
-            pushed.Data,
-            new JsonSerializerOptions { PropertyNamingPolicy = JsonNamingPolicy.CamelCase }
-        );
+        JsonSerializer.SerializeToElement(pushed.Data, OverlayWireJson.Options);
 
     [Fact]
     public async Task A_song_request_enrichment_reaches_a_subscribing_widget_with_its_card_and_its_requester()

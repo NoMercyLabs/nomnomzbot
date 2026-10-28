@@ -9,10 +9,10 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using System.Reflection;
 using System.Text.Json;
 using System.Text.RegularExpressions;
 using FluentAssertions;
+using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Infrastructure.Content.Widgets;
 using NomNomzBot.Infrastructure.Widgets.EventHandlers;
@@ -36,11 +36,6 @@ namespace NomNomzBot.Api.Tests.Hubs;
 /// </summary>
 public sealed class WidgetDtoFieldContractTests
 {
-    private static readonly JsonSerializerOptions CamelCase = new()
-    {
-        PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
-    };
-
     public sealed record Row(
         string WidgetName,
         string FunctionName,
@@ -264,7 +259,7 @@ public sealed class WidgetDtoFieldContractTests
 
         foreach ((string eventType, object payload) in payloads)
         {
-            JsonElement json = JsonSerializer.SerializeToElement(payload, CamelCase);
+            JsonElement json = JsonSerializer.SerializeToElement(payload, OverlayWireJson.Options);
 
             json.TryGetProperty("user", out JsonElement user)
                 .Should()
@@ -288,15 +283,15 @@ public sealed class WidgetDtoFieldContractTests
     {
         JsonElement raid = JsonSerializer.SerializeToElement(
             new RaidAlertDto("1", "Alice", "alice", 18),
-            CamelCase
+            OverlayWireJson.Options
         );
         JsonElement gift = JsonSerializer.SerializeToElement(
             new GiftSubAlertDto("1", "Alice", "1000", 5, false),
-            CamelCase
+            OverlayWireJson.Options
         );
         JsonElement cheer = JsonSerializer.SerializeToElement(
             new CheerAlertDto("1", "Alice", 100, "cheer100", false),
-            CamelCase
+            OverlayWireJson.Options
         );
 
         raid.GetProperty("viewers").GetInt32().Should().Be(18);
@@ -310,7 +305,9 @@ public sealed class WidgetDtoFieldContractTests
     public void Widget_handler_reads_only_fields_the_real_dto_sends(Row row)
     {
         HashSet<string> wireFields = row
-            .DtoTypes.SelectMany(WireFieldNames)
+            .DtoTypes.SelectMany(dtoType =>
+                OverlayWireJson.Options.GetTypeInfo(dtoType).Properties.Select(p => p.Name)
+            )
             .Concat(row.ExtraAllowedFields)
             .ToHashSet(StringComparer.Ordinal);
 
@@ -334,11 +331,6 @@ public sealed class WidgetDtoFieldContractTests
                     + $"({string.Join(", ", row.DtoTypes.Select(t => t.Name))}) actually send"
             );
     }
-
-    private static IEnumerable<string> WireFieldNames(Type dtoType) =>
-        dtoType
-            .GetProperties(BindingFlags.Public | BindingFlags.Instance)
-            .Select(p => CamelCase.PropertyNamingPolicy!.ConvertName(p.Name));
 
     // Brace-counting extraction (regex alone can't safely match nested braces): finds "function <name>(" then
     // returns everything up to the matching closing brace.
