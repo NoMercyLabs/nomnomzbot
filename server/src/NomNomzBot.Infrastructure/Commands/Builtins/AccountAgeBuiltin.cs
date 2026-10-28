@@ -58,7 +58,8 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
     }
 
     public string BuiltinKey => "accountage";
-    public int DefaultCooldownSeconds => 15;
+    public int DefaultCooldownSeconds => 0;
+    public int DefaultUserCooldownSeconds => 30;
     public int DefaultMinPermissionLevel => 0;
 
     public async Task<Result<string>> ExecuteAsync(

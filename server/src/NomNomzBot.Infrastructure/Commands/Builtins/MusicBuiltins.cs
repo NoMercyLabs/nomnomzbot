@@ -313,7 +313,8 @@ public sealed class QueueBuiltin(IMusicService music, IBuiltinResponseComposer c
 
     public string BuiltinKey => BuiltinResponseSlots.Queue.Key;
     public bool WhisperSafe => true;
-    public int DefaultCooldownSeconds => 10;
+    public int DefaultCooldownSeconds => 0;
+    public int DefaultUserCooldownSeconds => 10;
     public int DefaultMinPermissionLevel => 0;
 
     public async Task<Result<string>> ExecuteAsync(

@@ -48,7 +48,8 @@ public sealed class WhisperBuiltin : IBuiltinCommand
     }
 
     public string BuiltinKey => "whisper";
-    public int DefaultCooldownSeconds => 3;
+    public int DefaultCooldownSeconds => 0;
+    public int DefaultUserCooldownSeconds => 3;
 
     // Moderator on the unified ladder (0/2/4/6/10/…) — a viewer must not be able to make the bot DM
     // an arbitrary third party.

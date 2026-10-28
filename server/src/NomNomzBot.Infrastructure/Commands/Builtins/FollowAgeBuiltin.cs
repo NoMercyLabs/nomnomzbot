@@ -41,7 +41,8 @@ public sealed class FollowAgeBuiltin : IBuiltinCommand
     }
 
     public string BuiltinKey => BuiltinResponseSlots.FollowAge.Key;
-    public int DefaultCooldownSeconds => 15;
+    public int DefaultCooldownSeconds => 0;
+    public int DefaultUserCooldownSeconds => 30;
     public int DefaultMinPermissionLevel => 0;
 
     public async Task<Result<string>> ExecuteAsync(

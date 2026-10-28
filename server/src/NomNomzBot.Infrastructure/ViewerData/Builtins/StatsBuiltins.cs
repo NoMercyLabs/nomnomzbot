@@ -60,7 +60,8 @@ public abstract class StatsBuiltinBase : IBuiltinCommand
     private const string AccountUnresolvedCode = "ACCOUNT_UNRESOLVED";
 
     public abstract string BuiltinKey { get; }
-    public int DefaultCooldownSeconds => 5;
+    public int DefaultCooldownSeconds => 0;
+    public int DefaultUserCooldownSeconds => 10;
     public int DefaultMinPermissionLevel => 0; // Everyone — it reads public channel standing.
 
     public async Task<Result<string>> ExecuteAsync(

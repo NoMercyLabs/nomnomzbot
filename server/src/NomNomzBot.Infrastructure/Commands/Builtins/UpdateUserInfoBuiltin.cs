@@ -27,7 +27,7 @@ namespace NomNomzBot.Infrastructure.Commands.Builtins;
 /// !update — re-reads a viewer's Twitch profile on demand (old-bot parity): display name, login AND
 /// avatar, through the same <see cref="UserProfileHydrationService.ApplyProfile"/> the background refresh
 /// uses, so the on-demand path can never drift from the periodic one or leave a stale avatar behind.
-/// Always available as a system built-in (rate-limited via <see cref="DefaultCooldownSeconds"/>, not a
+/// Always available as a system built-in (rate-limited via <see cref="DefaultUserCooldownSeconds"/>, not a
 /// deletable per-channel command). Self-service by default; naming another user requires moderator+.
 /// </summary>
 public sealed class UpdateUserInfoBuiltin : IBuiltinCommand
@@ -56,7 +56,8 @@ public sealed class UpdateUserInfoBuiltin : IBuiltinCommand
     }
 
     public string BuiltinKey => "update";
-    public int DefaultCooldownSeconds => 30;
+    public int DefaultCooldownSeconds => 0;
+    public int DefaultUserCooldownSeconds => 60;
     public int DefaultMinPermissionLevel => 0;
 
     public async Task<Result<string>> ExecuteAsync(
