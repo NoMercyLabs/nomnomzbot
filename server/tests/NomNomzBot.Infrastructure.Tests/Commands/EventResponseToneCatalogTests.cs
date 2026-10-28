@@ -9,12 +9,12 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using System.Text.RegularExpressions;
 using FluentAssertions;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Infrastructure.Platform.Templating.Parsing;
 
-namespace NomNomzBot.Application.Tests.Commands;
+namespace NomNomzBot.Infrastructure.Tests.Commands;
 
 /// <summary>
 /// Proves the content contract of <see cref="EventResponseToneCatalog"/>: every event ships all five tones
@@ -22,14 +22,8 @@ namespace NomNomzBot.Application.Tests.Commands;
 /// raw <c>{token}</c>), the voices hold (Hype uppercase, Chill lowercase), and picking never repeats a line
 /// back to back.
 /// </summary>
-public sealed partial class EventResponseToneCatalogTests
+public sealed class EventResponseToneCatalogTests
 {
-    [GeneratedRegex(@"\{[^{}]+\}")]
-    private static partial Regex Placeholder();
-
-    private static HashSet<string> PlaceholdersOf(IEnumerable<string> lines) =>
-        [.. lines.SelectMany(l => Placeholder().Matches(l).Select(m => m.Value))];
-
     public static TheoryData<string> Events() => [.. EventResponseToneCatalog.EventTypes];
 
     [Fact]
@@ -68,14 +62,27 @@ public sealed partial class EventResponseToneCatalogTests
     [MemberData(nameof(Events))]
     public void Every_tone_uses_only_placeholders_the_informative_lines_use(string eventType)
     {
-        HashSet<string> allowed = PlaceholdersOf(
-            EventResponseToneCatalog.Get(PersonalityTone.Informative, eventType)
-        );
+        HashSet<string> allowed =
+        [
+            .. EventResponseToneCatalog
+                .Get(PersonalityTone.Informative, eventType)
+                .SelectMany(line => TemplateTree.StaticPlaceholders(TemplateParser.Parse(line)))
+                .Select(token => token.StaticContent),
+        ];
 
         foreach (string tone in PersonalityTone.All)
-            PlaceholdersOf(EventResponseToneCatalog.Get(tone, eventType))
-                .Should()
+        {
+            HashSet<string> used =
+            [
+                .. EventResponseToneCatalog
+                    .Get(tone, eventType)
+                    .SelectMany(line => TemplateTree.StaticPlaceholders(TemplateParser.Parse(line)))
+                    .Select(token => token.StaticContent),
+            ];
+
+            used.Should()
                 .BeSubsetOf(allowed, $"{eventType}/{tone} must not introduce a placeholder");
+        }
     }
 
     [Theory]
@@ -109,15 +116,22 @@ public sealed partial class EventResponseToneCatalogTests
     public void Hype_lines_are_uppercase_and_chill_lines_are_lowercase(string eventType)
     {
         foreach (string line in EventResponseToneCatalog.Get(PersonalityTone.Hype, eventType))
-            Placeholder()
-                .Replace(line, string.Empty)
-                .Should()
-                .Be(Placeholder().Replace(line, string.Empty).ToUpperInvariant());
+        {
+            string spoken = string.Concat(
+                TemplateParser.Parse(line).OfType<TextNode>().Select(text => text.Text)
+            );
+
+            spoken.Should().Be(spoken.ToUpperInvariant(), line);
+        }
+
         foreach (string line in EventResponseToneCatalog.Get(PersonalityTone.Chill, eventType))
-            Placeholder()
-                .Replace(line, string.Empty)
-                .Should()
-                .Be(Placeholder().Replace(line, string.Empty).ToLowerInvariant());
+        {
+            string spoken = string.Concat(
+                TemplateParser.Parse(line).OfType<TextNode>().Select(text => text.Text)
+            );
+
+            spoken.Should().Be(spoken.ToLowerInvariant(), line);
+        }
     }
 
     [Theory]
