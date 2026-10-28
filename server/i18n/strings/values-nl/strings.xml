@@ -5232,6 +5232,8 @@
     <string name="widget_top_cheerers_accentColor_label">Accentkleur</string>
     <string name="pipeline_send_message_message_help">Het chatbericht om te versturen. Ondersteunt sjabloonvariabelen (bijv. {user.name}).</string>
     <string name="pipeline_send_message_sender_help">Namens wie dit bericht wordt geplaatst. Bot (standaard) gebruikt de identiteit die voor dit kanaal is ingesteld. Broadcaster stuurt altijd als de streamer zelf, ook als er een apart botaccount is gekoppeld. Gebruik dit voor content die alleen de streamer kan plaatsen, zoals een alleen-abonnee-emote waarop het botaccount niet is geabonneerd.</string>
+    <string name="pipeline_send_message_reply_target_help">Waar het bericht naartoe gaat: de chat (standaard), de chatoverlay, beide of nergens. Versturen als broadcaster gaat altijd naar de chat.</string>
+    <string name="pipeline_send_message_reply_html_help">Toon de overlayregel als gezuiverde HTML. De chat van het platform krijgt altijd platte tekst.</string>
     <string name="pipeline_send_reply_message_help">De antwoordtekst, geplaatst als reactie op het triggerende bericht. Ondersteunt sjabloonvariabelen (bijv. {user.name}).</string>
     <string name="pipeline_deduct_currency_amount_help">Hoeveel van de valuta van het kanaal van het saldo van de kijker wordt afgetrokken.</string>
     <string name="pipeline_deduct_currency_reason_help">Wordt getoond in de transactiegeschiedenis van de kijker.</string>

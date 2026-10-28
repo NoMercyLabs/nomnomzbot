@@ -96,7 +96,11 @@ internal sealed class BlastRadiusTestDbContext : DbContext, IApplicationDbContex
             b.Ignore(c => c.CreatedByUser);
         });
 
-        modelBuilder.Entity<Reward>(b => b.HasKey(r => r.Id));
+        modelBuilder.Entity<Reward>(b =>
+        {
+            b.HasKey(r => r.Id);
+            b.Ignore(r => r.ReplyDelivery);
+        });
         modelBuilder.Entity<Redemption>(b => b.HasKey(r => r.Id));
         modelBuilder.Entity<RedemptionTimer>(b => b.HasKey(t => t.Id));
 

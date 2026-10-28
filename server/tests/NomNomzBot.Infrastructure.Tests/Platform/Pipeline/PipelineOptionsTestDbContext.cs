@@ -89,6 +89,7 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
         {
             e.HasKey(r => r.Id);
             e.Ignore(r => r.Channel);
+            e.Ignore(r => r.ReplyDelivery);
         });
 
         b.Entity<TtsVoice>(e => e.HasKey(v => v.Id));

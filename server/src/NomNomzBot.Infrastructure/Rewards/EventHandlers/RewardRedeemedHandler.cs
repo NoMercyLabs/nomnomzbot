@@ -241,7 +241,7 @@ public sealed class RewardRedeemedHandler
         // Fall back to simple Response text as a send_message pipeline
         if (pipelineJson is null && reward?.Response is not null)
         {
-            pipelineJson = BuildResponsePipeline(reward.Response);
+            pipelineJson = BuildResponsePipeline(reward.Response, reward.ReplyDelivery);
         }
 
         // No reward-specific behavior → the generic redemption event response (the row the
@@ -479,12 +479,22 @@ public sealed class RewardRedeemedHandler
         return variables;
     }
 
-    private static string BuildResponsePipeline(string message)
+    /// <summary>
+    /// The one-step <c>send_message</c> pipeline a reward's simple Response runs as. A reward that sets a
+    /// <paramref name="delivery"/> hands it to the step as <c>reply_target</c> / <c>reply_html</c>, so the line
+    /// goes where the reward says; a reward that sets none builds the same step it always did.
+    /// </summary>
+    internal static string BuildResponsePipeline(string message, ReplyDelivery? delivery)
     {
         string escaped = message.Replace("\\", "\\\\").Replace("\"", "\\\"");
+        string deliveryParams = delivery is null
+            ? string.Empty
+            : $",\"reply_target\":\"{delivery.Target.ToString().ToLowerInvariant()}\",\"reply_html\":{(delivery.Html ? "true" : "false")}";
         return "{\"steps\":[{\"action\":{\"type\":\"send_message\",\"message\":\""
             + escaped
-            + "\",\"target\":\"channel\"}}]}";
+            + "\",\"target\":\"channel\""
+            + deliveryParams
+            + "}}]}";
     }
 
     /// <summary>Runs the reward's pipeline; null when the run threw. A live run reports the result on the bus,

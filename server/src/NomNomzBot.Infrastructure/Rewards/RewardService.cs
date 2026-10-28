@@ -161,6 +161,7 @@ public class RewardService : IRewardService
                 Cost = tr.Cost,
                 Description = tr.Prompt,
                 Response = request.Response,
+                ReplyDelivery = ReplyDelivery.ForStorage(request.ReplyDelivery),
                 IsEnabled = tr.IsEnabled,
                 IsManageable = true,
                 IsUserInputRequired = tr.IsUserInputRequired,
@@ -185,6 +186,7 @@ public class RewardService : IRewardService
                 Cost = request.Cost,
                 Description = request.Prompt,
                 Response = request.Response,
+                ReplyDelivery = ReplyDelivery.ForStorage(request.ReplyDelivery),
                 BackgroundColor = request.BackgroundColor,
                 MaxPerStream = request.MaxPerStream,
                 MaxPerUserPerStream = request.MaxPerUserPerStream,
@@ -322,6 +324,8 @@ public class RewardService : IRewardService
             reward.Description = request.Prompt;
         if (request.Response is not null)
             reward.Response = request.Response;
+        if (request.ReplyDelivery is not null)
+            reward.ReplyDelivery = ReplyDelivery.ForStorage(request.ReplyDelivery);
         if (request.IsEnabled.HasValue)
             reward.IsEnabled = request.IsEnabled.Value;
         bool wasPaused = reward.IsPaused;
@@ -1414,6 +1418,7 @@ public class RewardService : IRewardService
             r.GetBindingTarget(),
             r.CreatedAt,
             r.UpdatedAt,
-            r.SpeaksViaTts
+            r.SpeaksViaTts,
+            r.ReplyDelivery
         );
 }

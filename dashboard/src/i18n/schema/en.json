@@ -2192,6 +2192,12 @@
       "message": {
         "help": "The chat message to send. Supports template variables (e.g. {'{'}user.name{'}'})."
       },
+      "reply_html": {
+        "help": "Show the overlay line as sanitized HTML. The platform chat always gets plain text."
+      },
+      "reply_target": {
+        "help": "Where the message goes: chat (default), the chat overlay, both, or nowhere. Sending as the broadcaster always goes to chat."
+      },
       "sender": {
         "help": "Who this message is posted as. Bot (default) uses whichever identity the channel is already configured with. Broadcaster always sends as the streamer, even when a separate bot account is connected. Use it for content only the streamer can post, like a subscriber-only emote the bot account is not subscribed to."
       }

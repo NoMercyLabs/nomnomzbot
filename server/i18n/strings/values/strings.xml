@@ -5248,6 +5248,8 @@
     <string name="widget_top_cheerers_accentColor_label">Accent color</string>
     <string name="pipeline_send_message_message_help">The chat message to send. Supports template variables (e.g. {user.name}).</string>
     <string name="pipeline_send_message_sender_help">Who this message is posted as. Bot (default) uses whichever identity the channel is already configured with. Broadcaster always sends as the streamer, even when a separate bot account is connected. Use it for content only the streamer can post, like a subscriber-only emote the bot account is not subscribed to.</string>
+    <string name="pipeline_send_message_reply_target_help">Where the message goes: chat (default), the chat overlay, both, or nowhere. Sending as the broadcaster always goes to chat.</string>
+    <string name="pipeline_send_message_reply_html_help">Show the overlay line as sanitized HTML. The platform chat always gets plain text.</string>
     <string name="pipeline_send_reply_message_help">The reply text, threaded under the triggering message. Supports template variables (e.g. {user.name}).</string>
     <string name="pipeline_deduct_currency_amount_help">How much of the channel's currency to deduct from the viewer's balance.</string>
     <string name="pipeline_deduct_currency_reason_help">Shown on the viewer's transaction history.</string>

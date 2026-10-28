@@ -12,7 +12,9 @@ using FluentAssertions;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Infrastructure.Chat.PipelineActions;
+using NomNomzBot.Infrastructure.Rewards.EventHandlers;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Chat.PipelineActions;
@@ -28,7 +30,12 @@ public sealed class SendMessageActionTests
 {
     private static readonly Guid Broadcaster = Guid.Parse("0198b000-0000-7000-8000-00000000f001");
 
-    private static (SendMessageAction Action, IChatProvider Chat) Build()
+    private static (SendMessageAction Action, IChatProvider Chat) Build() =>
+        BuildWithOverlay(new RecordingChatOverlayLineSender());
+
+    private static (SendMessageAction Action, IChatProvider Chat) BuildWithOverlay(
+        RecordingChatOverlayLineSender overlay
+    )
     {
         IChatProvider chat = Substitute.For<IChatProvider>();
         ITemplateResolver resolver = Substitute.For<ITemplateResolver>();
@@ -41,7 +48,7 @@ public sealed class SendMessageActionTests
             )
             .Returns(ci => Task.FromResult((string)ci[0]));
 
-        return (new(chat, resolver), chat);
+        return (new(chat, resolver, TestReplyDispatcher.OverProvider(chat, overlay)), chat);
     }
 
     private static PipelineExecutionContext BuildContext() =>
@@ -188,6 +195,112 @@ public sealed class SendMessageActionTests
 
         result.Succeeded.Should().BeTrue();
         await chat.Received(1).SendMessageAsync(Broadcaster, line, Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_reward_response_aimed_at_the_overlay_sends_the_overlay_line_and_no_chat_message()
+    {
+        RecordingChatOverlayLineSender overlay = new();
+        (SendMessageAction action, IChatProvider chat) = BuildWithOverlay(overlay);
+
+        ActionResult result = await action.ExecuteAsync(
+            BuildContext(),
+            RewardResponseStep("Thanks for the redeem", new(ReplyTarget.Overlay))
+        );
+
+        result.Succeeded.Should().BeTrue();
+        overlay.Lines.Should().ContainSingle();
+        // The overlay line is the bot's own line; the redeeming viewer is only named as the requester.
+        overlay.Lines[0].Text.Should().Be("Thanks for the redeem (requested by Viewer)");
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+    }
+
+    [Fact]
+    public async Task A_reward_response_aimed_at_chat_sends_chat_and_nothing_to_the_overlay()
+    {
+        RecordingChatOverlayLineSender overlay = new();
+        (SendMessageAction action, IChatProvider chat) = BuildWithOverlay(overlay);
+        chat.SendMessageAsync(Broadcaster, "Thanks for the redeem", Arg.Any<CancellationToken>())
+            .Returns(true);
+
+        ActionResult result = await action.ExecuteAsync(
+            BuildContext(),
+            RewardResponseStep("Thanks for the redeem", new(ReplyTarget.Chat))
+        );
+
+        result.Succeeded.Should().BeTrue();
+        await chat.Received(1)
+            .SendMessageAsync(Broadcaster, "Thanks for the redeem", Arg.Any<CancellationToken>());
+        overlay.Lines.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_reward_response_aimed_at_both_sends_chat_and_the_overlay_line()
+    {
+        RecordingChatOverlayLineSender overlay = new();
+        (SendMessageAction action, IChatProvider chat) = BuildWithOverlay(overlay);
+        chat.SendMessageAsync(Broadcaster, "Thanks", Arg.Any<CancellationToken>()).Returns(true);
+
+        ActionResult result = await action.ExecuteAsync(
+            BuildContext(),
+            RewardResponseStep("Thanks", new(ReplyTarget.Both))
+        );
+
+        result.Succeeded.Should().BeTrue();
+        await chat.Received(1)
+            .SendMessageAsync(Broadcaster, "Thanks", Arg.Any<CancellationToken>());
+        overlay.Lines.Should().ContainSingle();
+    }
+
+    [Fact]
+    public async Task A_reward_response_aimed_nowhere_sends_nothing_and_still_succeeds()
+    {
+        RecordingChatOverlayLineSender overlay = new();
+        (SendMessageAction action, IChatProvider chat) = BuildWithOverlay(overlay);
+
+        ActionResult result = await action.ExecuteAsync(
+            BuildContext(),
+            RewardResponseStep("Thanks", new(ReplyTarget.None))
+        );
+
+        result.Succeeded.Should().BeTrue();
+        await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
+        overlay.Lines.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_reward_response_with_no_delivery_builds_the_same_step_as_before_and_answers_in_chat()
+    {
+        RecordingChatOverlayLineSender overlay = new();
+        (SendMessageAction action, IChatProvider chat) = BuildWithOverlay(overlay);
+        chat.SendMessageAsync(Broadcaster, "Thanks", Arg.Any<CancellationToken>()).Returns(true);
+
+        ActionResult result = await action.ExecuteAsync(
+            BuildContext(),
+            RewardResponseStep("Thanks", delivery: null)
+        );
+
+        result.Succeeded.Should().BeTrue();
+        RewardRedeemedHandler
+            .BuildResponsePipeline("Thanks", delivery: null)
+            .Should()
+            .Be(
+                "{\"steps\":[{\"action\":{\"type\":\"send_message\",\"message\":\"Thanks\",\"target\":\"channel\"}}]}"
+            );
+        await chat.Received(1)
+            .SendMessageAsync(Broadcaster, "Thanks", Arg.Any<CancellationToken>());
+        overlay.Lines.Should().BeEmpty();
+    }
+
+    // The exact step a reward's simple Response runs as: the handler builds the JSON, the pipeline reads it.
+    private static ActionDefinition RewardResponseStep(string message, ReplyDelivery? delivery)
+    {
+        string json = RewardRedeemedHandler.BuildResponsePipeline(message, delivery);
+        using System.Text.Json.JsonDocument document = System.Text.Json.JsonDocument.Parse(json);
+        System.Text.Json.JsonElement step = document
+            .RootElement.GetProperty("steps")[0]
+            .GetProperty("action");
+        return System.Text.Json.JsonSerializer.Deserialize<ActionDefinition>(step.GetRawText())!;
     }
 
     private static System.Text.Json.JsonElement ParamValue(string value) =>

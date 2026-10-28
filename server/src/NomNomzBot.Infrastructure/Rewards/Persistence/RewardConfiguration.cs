@@ -11,6 +11,7 @@
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.Metadata.Builders;
 using NomNomzBot.Domain.Rewards.Entities;
+using NomNomzBot.Infrastructure.Commands.Persistence;
 
 namespace NomNomzBot.Infrastructure.Rewards.Persistence;
 
@@ -25,6 +26,8 @@ public class RewardConfiguration : IEntityTypeConfiguration<Reward>
         builder.Property(e => e.Title).IsRequired().HasMaxLength(255);
 
         builder.Property(e => e.Response).HasMaxLength(2000);
+
+        builder.Property(e => e.ReplyDelivery).HasReplyDeliveryColumn();
 
         builder
             .Property(e => e.Permission)

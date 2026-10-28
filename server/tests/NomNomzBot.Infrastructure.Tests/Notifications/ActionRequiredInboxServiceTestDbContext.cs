@@ -148,6 +148,7 @@ internal sealed class ActionRequiredInboxServiceTestDbContext : DbContext, IAppl
         {
             e.HasKey(r => r.Id);
             e.Ignore(r => r.Channel);
+            e.Ignore(r => r.ReplyDelivery);
         });
 
         b.Entity<NomNomzBot.Domain.Moderation.Entities.ViewerReport>(e =>

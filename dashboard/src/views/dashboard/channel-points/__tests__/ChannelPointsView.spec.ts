@@ -524,6 +524,53 @@ describe('ChannelPointsView', () => {
       });
     });
 
+    // Stoney 2026-10-28: every reply surface picks where its reply goes, rewards included.
+    it('shows Twitch chat for a reward that has no reply delivery', async () => {
+      reward = { ...reward, pipelineId: null };
+      await openDialog();
+
+      const chosen = pick('[data-reply-delivery] [data-state="on"]');
+
+      expect(chosen.textContent?.trim()).toBe('Twitch chat');
+    });
+
+    it('saves the exact reply delivery when the reward answers on the chat overlay as HTML', async () => {
+      reward = { ...reward, pipelineId: null };
+      await openDialog();
+
+      const overlay = [...document.body.querySelectorAll<HTMLElement>('[data-reply-delivery] button')]
+        .find((button) => button.textContent?.trim() === 'Chat overlay');
+
+      overlay?.click();
+      await flushPromises();
+      pick('[data-reply-delivery] [role="switch"]').click();
+      await flushPromises();
+
+      const patch = await save();
+
+      expect(patch?.body).toMatchObject({ replyDelivery: { target: 'overlay', html: true } });
+    });
+
+    it('saves chat when a reward goes back to Twitch chat, because the bot reads no delivery as unchanged', async () => {
+      reward = {
+        ...reward,
+        pipelineId: null,
+        replyDelivery: { target: 'both', html: false },
+      };
+
+      await openDialog();
+
+      const chat = [...document.body.querySelectorAll<HTMLElement>('[data-reply-delivery] button')]
+        .find((button) => button.textContent?.trim() === 'Twitch chat');
+
+      chat?.click();
+      await flushPromises();
+
+      const patch = await save();
+
+      expect(patch?.body).toMatchObject({ replyDelivery: { target: 'chat', html: false } });
+    });
+
     it('pipeline mode hides the chat reply and sends the pipeline with an empty reply', async () => {
       reward = {
         ...reward,

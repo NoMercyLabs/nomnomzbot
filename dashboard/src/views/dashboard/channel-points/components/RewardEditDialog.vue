@@ -25,8 +25,16 @@ import {
 } from '@/api/rewards';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import ReplyDeliveryField from '@/components/layout/ReplyDeliveryField.vue';
 import ReplyModeField from '@/components/layout/ReplyModeField.vue';
-import { noPipelineId, type ReplyMode } from '@/components/layout/replyMode';
+import {
+  deliveryOf,
+  deliveryToSave,
+  noPipelineId,
+  plainDelivery,
+  type ReplyDelivery,
+  type ReplyMode,
+} from '@/components/layout/replyMode';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
 import { ColorPicker } from '@/components/ui/color-picker';
@@ -97,6 +105,8 @@ const flags = ref<Record<FlagKey, boolean>>({
   isUserInputRequired: false,
 });
 const mode = ref<ReplyMode>('simple');
+// Where the typed reply goes: Twitch chat, the chat overlay, both, or nowhere.
+const delivery = ref<ReplyDelivery>({ ...plainDelivery });
 // What the reward runs now (a pipeline, a command or an action) and what the form picked.
 const bound = ref<PickedTarget | null>(null);
 const target = ref<PickedTarget | null>(null);
@@ -136,6 +146,7 @@ function load(reward: Reward): void {
     isUserInputRequired: reward.isUserInputRequired,
   };
 
+  delivery.value = deliveryOf(reward.replyDelivery);
   bound.value = boundTarget(reward.target, reward.pipelineId);
   target.value = bound.value;
 
@@ -185,12 +196,14 @@ const limitsSummary = computed(() => {
 
 // Simple mode sends the typed reply and clears the binding; pipeline mode sends the target and clears the reply.
 // A pipeline travels as its id, as before; a command or action travels as a target, and a target wins over the id.
-function replyChange(): Pick<RewardChange, 'response' | 'pipelineId' | 'target'> {
+// The bot reads no delivery as "unchanged", so the simple reply always sends its target, chat included.
+function replyChange(): Pick<RewardChange, 'response' | 'replyDelivery' | 'pipelineId' | 'target'> {
   const leavingOther = bound.value !== null && bound.value.kind !== 'pipeline';
 
   if (mode.value === 'simple') {
     return {
       response: text.value.response,
+      replyDelivery: deliveryToSave(delivery.value),
       pipelineId: noPipelineId,
       ...(leavingOther
         ? { target: targetToWire(null) }
@@ -293,6 +306,7 @@ async function duplicate(): Promise<void> {
       cost: reward.cost,
       prompt: reward.prompt,
       response: reward.response,
+      replyDelivery: reward.replyDelivery,
       isUserInputRequired: reward.isUserInputRequired,
       backgroundColor: reward.backgroundColor,
       maxPerStream: reward.maxPerStream,
@@ -486,6 +500,8 @@ async function duplicate(): Promise<void> {
             :help="$t('dashboard.channelPoints.rewards.dialog.hints.response')"
             :disabled="!reward.isManageable"
           />
+          <!-- Where the typed reply goes belongs to the simple reply; a pipeline sends through its own step. -->
+          <ReplyDeliveryField v-model="delivery" :disabled="!reward.isManageable" />
         </ReplyModeField>
       </div>
     </div>

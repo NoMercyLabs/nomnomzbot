@@ -112855,6 +112855,17 @@
             ],
             "description": "The chat template announced when the reward is redeemed; null when none."
           },
+          "replyDelivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Where the Response line goes and whether the overlay line is HTML; null = the platform chat as plain text.",
+                "$ref": "#/components/schemas/ReplyDelivery"
+              }
+            ]
+          },
           "isUserInputRequired": {
             "type": "boolean"
           },
@@ -129897,6 +129908,16 @@
           "speaksViaTts": {
             "type": "boolean",
             "default": false
+          },
+          "replyDelivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ReplyDelivery"
+              }
+            ]
           }
         }
       },
@@ -152702,6 +152723,17 @@
               "string"
             ],
             "description": "The chat template announced when the reward is redeemed; null leaves it unchanged, an\r\n            empty string clears it."
+          },
+          "replyDelivery": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "Where the Response line goes and whether the overlay line is HTML. Absent leaves it unchanged; send target chat to reset it.",
+                "$ref": "#/components/schemas/ReplyDelivery"
+              }
+            ]
           },
           "isUserInputRequired": {
             "type": [

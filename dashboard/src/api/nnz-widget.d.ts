@@ -1752,6 +1752,8 @@ interface NnzActionParams {
   'send_message': {
     message: string;
     sender?: 'bot' | 'broadcaster';
+    reply_target?: 'chat' | 'overlay' | 'both' | 'none';
+    reply_html?: boolean;
   };
   'send_reply': {
     message: string;
