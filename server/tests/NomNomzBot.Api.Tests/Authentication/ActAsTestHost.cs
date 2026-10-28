@@ -9,13 +9,8 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using System.Text.Json;
-using Microsoft.AspNetCore.Authentication.JwtBearer;
-using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.Hosting;
-using Microsoft.AspNetCore.Mvc;
-using Microsoft.AspNetCore.Routing;
 using Microsoft.AspNetCore.TestHost;
 using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
@@ -24,12 +19,8 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
-using NomNomzBot.Api.Authentication;
-using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Controllers.V1;
-using NomNomzBot.Api.Hubs;
-using NomNomzBot.Api.Identifiers;
-using NomNomzBot.Api.Middleware;
+using NomNomzBot.Api.Extensions;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -39,20 +30,23 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
+using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Application.Platform.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
+using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure;
 using NomNomzBot.Infrastructure.Identity;
-using NomNomzBot.Infrastructure.Notifications;
 using NomNomzBot.Infrastructure.Platform.Auth;
 using NomNomzBot.Infrastructure.Platform.Caching;
+using NomNomzBot.Infrastructure.Platform.Deployment;
 using NomNomzBot.Infrastructure.Platform.Persistence;
+using NomNomzBot.Infrastructure.Platform.Security;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Authentication;
@@ -120,7 +114,6 @@ internal sealed class ActAsTestHost : IAsyncDisposable
             .Build();
         JwtTokenService jwt = new(config, TimeProvider.System);
         IEventBus eventBus = Substitute.For<IEventBus>();
-        IAuthService authService = Substitute.For<IAuthService>();
         ITwitchModeratorsApi moderators = Substitute.For<ITwitchModeratorsApi>();
         IOwnerActionService ownerActions = Substitute.For<IOwnerActionService>();
         moderators
@@ -135,16 +128,24 @@ internal sealed class ActAsTestHost : IAsyncDisposable
             web.UseTestServer()
                 .ConfigureServices(services =>
                 {
-                    Register(services, config, jwt, eventBus, authService, adminUserId, connection);
+                    Register(services, config, jwt, eventBus, adminUserId, connection);
                     configureServices?.Invoke(services);
                     services.AddSingleton(moderators);
                     services.AddSingleton(ownerActions);
                 })
-                .Configure(Pipeline)
+                .Configure(app =>
+                {
+                    app.UseRouting();
+                    app.UseApiIdentity();
+                    app.UseEndpoints(endpoints =>
+                    {
+                        endpoints.MapControllers();
+                        endpoints.MapApiHubs();
+                    });
+                })
         );
 
         IHost host = await builder.StartAsync();
-        SessionBackedAuth.Wire(authService, host.Services);
 
         await using (AsyncServiceScope scope = host.Services.CreateAsyncScope())
             await scope
@@ -197,74 +198,26 @@ internal sealed class ActAsTestHost : IAsyncDisposable
         await _connection.DisposeAsync();
     }
 
-    private static void Pipeline(IApplicationBuilder app)
-    {
-        // Same order as Program.cs: authenticate, resolve the tenant from the authenticated caller, authorize.
-        app.UseRouting();
-        app.UseAuthentication();
-        app.UseMiddleware<TenantResolutionMiddleware>();
-        app.UseAuthorization();
-        app.UseEndpoints(endpoints =>
-        {
-            endpoints.MapControllers();
-            endpoints.MapHub<DashboardHub>("/hubs/dashboard");
-        });
-    }
-
     private static void Register(
         IServiceCollection services,
         IConfiguration config,
         JwtTokenService jwt,
         IEventBus eventBus,
-        IAuthService authService,
         Guid adminUserId,
         SqliteConnection connection
     )
     {
         services.AddRouting();
         services.AddLogging();
-        services.AddSignalR();
-        services
-            .AddControllers()
-            .AddApplicationPart(typeof(AuthController).Assembly)
-            .AddJsonOptions(o =>
-            {
-                o.JsonSerializerOptions.PropertyNamingPolicy = JsonNamingPolicy.CamelCase;
-                o.JsonSerializerOptions.Converters.Add(new UlidGuidJsonConverter());
-            });
-        services.Configure<MvcOptions>(o =>
-            o.ModelBinderProviders.Insert(0, new UlidGuidModelBinderProvider())
-        );
-        services.Configure<RouteOptions>(o =>
-            o.ConstraintMap["guid"] = typeof(UlidOrGuidRouteConstraint)
-        );
-        services.AddSingleton<
-            Asp.Versioning.IApiVersionReader,
-            Asp.Versioning.QueryStringApiVersionReader
-        >();
-        services
-            .AddApiVersioning(o =>
-            {
-                o.DefaultApiVersion = new(1, 0);
-                o.AssumeDefaultVersionWhenUnspecified = true;
-            })
-            .AddMvc();
+        services.AddHttpClient();
+        services.AddApiSignalR(enableDetailedErrors: true);
+        services.AddApiControllers().AddApplicationPart(typeof(AuthController).Assembly);
 
         // Identity: the production bearer pipeline over the real token service.
         services.AddSingleton(config);
         services.AddSingleton(TimeProvider.System);
         services.AddSingleton<IJwtTokenService>(jwt);
-        services
-            .AddAuthentication(JwtBearerDefaults.AuthenticationScheme)
-            .AddJwtBearer(o => DashboardJwtBearer.Configure(o, jwt.GetValidationParameters()));
-        services.AddAuthorization();
-        services.AddSingleton<
-            IAuthorizationMiddlewareResultHandler,
-            ForbiddenActionResultHandler
-        >();
-        services.AddSingleton<IAuthorizationPolicyProvider, ActionAuthorizationPolicyProvider>();
-        services.AddScoped<IAuthorizationHandler, ActionAuthorizationHandler>();
-        services.AddScoped<IAuthorizationHandler, PlatformIamAuthorizationHandler>();
+        services.AddApiIdentity(jwt.GetValidationParameters());
         services.AddHttpContextAccessor();
         services.AddScoped<ICurrentUserService, CurrentUserService>();
         services.AddScoped<ICurrentTenantService, CurrentTenantService>();
@@ -275,31 +228,21 @@ internal sealed class ActAsTestHost : IAsyncDisposable
             )
         );
         services.AddSingleton<IMemoryCache>(new MemoryCache(new MemoryCacheOptions()));
-        services.AddSingleton<ISessionRevocationService, SessionRevocationService>();
 
         // Persistence: the real context, tenant filters included.
         services.AddDbContext<AppDbContext>(o => o.UseSqlite(connection));
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AppDbContext>());
 
-        // Everything that answers "what does THIS caller see".
-        services.AddScoped<ISessionService, SessionService>();
-        services.AddScoped<IUserService, UserService>();
-        services.AddScoped<IChannelService, ChannelService>();
-        services.AddScoped<
-            NomNomzBot.Application.Music.Services.IPlayerButtonService,
-            NomNomzBot.Infrastructure.Music.PlayerButtonService
-        >();
-        services.AddScoped<IChannelAccessService, ChannelAccessService>();
+        // Everything that answers "what does THIS caller see": the production service bindings (the same
+        // convention scan the deployed API runs), then the few production singletons the scan leaves out.
+        services.AddInfrastructureServicesByConvention();
+        services.AddSingleton<ISessionRevocationService, SessionRevocationService>();
+        services.AddSingleton<IOutboundSanctionAccessor, OutboundSanctionAccessor>();
+        services.AddSingleton<TwitchScopeRegistry>();
+        services.AddSingleton(new DeploymentContext(DeploymentMode.SelfHostLite));
         services.AddScoped<IRoleResolver, RoleResolver>();
         services.AddScoped<IActAsMembershipOverlay, ActAsMembershipOverlay>();
         services.AddScoped<IViewAsScope, HttpViewAsScope>();
-        services.AddScoped<IMembershipService, MembershipService>();
-        services.AddScoped<IActionAuthorizationService, ActionAuthorizationService>();
-        services.AddScoped<IActionRequiredInboxService, ActionRequiredInboxService>();
-        services.AddScoped<ITenantMemberDirectoryService, TenantMemberDirectoryService>();
-        services.AddScoped<IImpersonationSessionService, ImpersonationSessionService>();
-        services.AddScoped<IPlatformAdminService, PlatformAdminService>();
-        services.AddSingleton(authService);
         services.AddSingleton<IEnumerable<IActionRequiredSource>>([new ChannelInboxProbe()]);
 
         // The IAM permission store: the admin operator holds every Plane-C permission; nobody else is a
@@ -357,5 +300,9 @@ internal sealed class ActAsTestHost : IAsyncDisposable
         services.AddSingleton(Substitute.For<IExternalLoginService>());
         services.AddSingleton(Substitute.For<ISystemCredentialsProvider>());
         services.AddSingleton(Substitute.For<ISupportContactService>());
+        services.AddSingleton(Substitute.For<ITwitchAuthService>());
+        services.AddSingleton(Substitute.For<ITwitchDeviceCodeService>());
+        services.AddSingleton(Substitute.For<IIntegrationTokenVault>());
+        services.AddSingleton(Substitute.For<IPlatformOwnerPrincipalMinter>());
     }
 }
