@@ -14,15 +14,14 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                 name: "ReplyDeliveryJson",
                 table: "Rewards",
                 type: "TEXT",
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "ReplyDeliveryJson",
-                table: "Rewards");
+            migrationBuilder.DropColumn(name: "ReplyDeliveryJson", table: "Rewards");
         }
     }
 }

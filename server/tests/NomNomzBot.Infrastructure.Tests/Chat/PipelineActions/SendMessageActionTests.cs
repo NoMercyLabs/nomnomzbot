@@ -211,7 +211,8 @@ public sealed class SendMessageActionTests
         result.Succeeded.Should().BeTrue();
         overlay.Lines.Should().ContainSingle();
         // The overlay line is the bot's own line; the redeeming viewer is only named as the requester.
-        overlay.Lines[0].Text.Should().Be("Thanks for the redeem (requested by Viewer)");
+        overlay.Lines[0].Text.Should().Be("Thanks for the redeem");
+        overlay.Lines[0].RequestedBy.Should().Be("Viewer");
         await chat.DidNotReceiveWithAnyArgs().SendMessageAsync(default, default!);
     }
 

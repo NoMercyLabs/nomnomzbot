@@ -14,15 +14,14 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                 name: "ReplyDeliveryJson",
                 table: "Rewards",
                 type: "text",
-                nullable: true);
+                nullable: true
+            );
         }
 
         /// <inheritdoc />
         protected override void Down(MigrationBuilder migrationBuilder)
         {
-            migrationBuilder.DropColumn(
-                name: "ReplyDeliveryJson",
-                table: "Rewards");
+            migrationBuilder.DropColumn(name: "ReplyDeliveryJson", table: "Rewards");
         }
     }
 }
