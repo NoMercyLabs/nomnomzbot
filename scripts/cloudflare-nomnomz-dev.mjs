@@ -43,9 +43,15 @@ const option = (name, fallback) => (args.includes(name) ? args[args.indexOf(name
 const host = option('--host', 'dev.nomnomz.bot');
 const backupDir = option('--backup-dir');
 const apply = args.includes('--yes');
+// The origin may only be this dev machine; the port picks which local server the hostname shows.
+const origin = option('--origin', DEV_ORIGIN);
+if (!/^http:\/\/192\.168\.2\.201:\d{2,5}$/.test(origin)) {
+	console.error(`refused: --origin must be http://192.168.2.201:<port>, got ${origin}`);
+	process.exit(2);
+}
 
 if (!['backup', 'point', 'remove-old', 'pages-apex', 'pages-docs'].includes(mode) || !backupDir) {
-	console.error('usage: <backup|point|remove-old|pages-apex|pages-docs> --backup-dir <dir> [--host *.nomnomz.bot] [--yes]');
+	console.error('usage: <backup|point|remove-old|pages-apex|pages-docs> --backup-dir <dir> [--host *.nomnomz.bot] [--origin http://192.168.2.201:<port>] [--yes]');
 	process.exit(2);
 }
 if (mode !== 'pages-apex' && mode !== 'pages-docs' && (!host.endsWith('.nomnomz.bot') || host === 'nomnomz.bot')) {
@@ -188,7 +194,7 @@ const pagesMode = mode === 'pages-apex' || mode === 'pages-docs';
 if (mode === 'backup' || (apply && !pagesMode)) {
 	save('proxmox-tunnel.json', await tunnelConfig(PROXMOX_TUNNEL));
 	save('dev-tunnel.json', await tunnelConfig(DEV_TUNNEL));
-	save('dns-record.json', (await dnsRecord()).record);
+	save('dns-record.json', (await dnsRecord()).record ?? null);
 	console.log(`backup written to ${backupDir}`);
 }
 
@@ -199,10 +205,17 @@ if (mode === 'point') {
 	await rewriteIngress(DEV_TUNNEL, (rules) => {
 		if (rules.some((rule) => rule.hostname === host)) return rules;
 		const last = rules.findIndex(catchAll);
-		return [...rules.slice(0, last), { hostname: host, service: DEV_ORIGIN }, ...rules.slice(last)];
+		return [...rules.slice(0, last), { hostname: host, service: origin }, ...rules.slice(last)];
 	});
 	const { zoneId, record } = await dnsRecord();
 	const content = `${DEV_TUNNEL}.cfargotunnel.com`;
+	if (!record) {
+		console.log(`dns ${host}: (none) -> ${content} proxied${apply ? '' : ' (dry run)'}`);
+		if (apply) {
+			await call('POST', `/zones/${zoneId}/dns_records`, { type: 'CNAME', name: host, content, proxied: true });
+		}
+		process.exit(0);
+	}
 	console.log(`dns ${record.name}: ${record.content} -> ${content}${apply ? '' : ' (dry run)'}`);
 	if (apply && record.content !== content) {
 		await call('PATCH', `/zones/${zoneId}/dns_records/${record.id}`, { content });
