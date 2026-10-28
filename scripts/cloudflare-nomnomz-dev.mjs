@@ -20,6 +20,9 @@
 //               GitHub Pages A records, DNS only (GitHub must reach the host to issue its certificate).
 //               It touches only the names nomnomz.bot and www.nomnomz.bot, only the types A, AAAA and
 //               CNAME (MX and TXT stay), and never dev or vue. It ignores --host.
+//   pages-docs  point docs.nomnomz.bot at the NoMercyLabs GitHub Pages site: one CNAME to
+//               nomercylabs.github.io, DNS only. It refuses when docs.nomnomz.bot already holds any record
+//               of another shape, and ignores --host.
 //
 // Without --yes a mode only prints what it would change. The key comes from the nomercy-tv .env (path in
 // CF_ENV_FILE) and is never printed. Every call refuses a hostname outside *.nomnomz.bot, and a write
@@ -40,11 +43,11 @@ const host = option('--host', 'dev.nomnomz.bot');
 const backupDir = option('--backup-dir');
 const apply = args.includes('--yes');
 
-if (!['backup', 'point', 'remove-old', 'pages-apex'].includes(mode) || !backupDir) {
-	console.error('usage: <backup|point|remove-old|pages-apex> --backup-dir <dir> [--host *.nomnomz.bot] [--yes]');
+if (!['backup', 'point', 'remove-old', 'pages-apex', 'pages-docs'].includes(mode) || !backupDir) {
+	console.error('usage: <backup|point|remove-old|pages-apex|pages-docs> --backup-dir <dir> [--host *.nomnomz.bot] [--yes]');
 	process.exit(2);
 }
-if (mode !== 'pages-apex' && (!host.endsWith('.nomnomz.bot') || host === 'nomnomz.bot')) {
+if (mode !== 'pages-apex' && mode !== 'pages-docs' && (!host.endsWith('.nomnomz.bot') || host === 'nomnomz.bot')) {
 	console.error(`refused: ${host} is not a *.nomnomz.bot subdomain`);
 	process.exit(2);
 }
@@ -159,14 +162,37 @@ async function pointApexAtPages() {
 	console.log(`apex now: ${apexAfter.length} A records, DNS only; www unchanged (${wwwAfter.length} record)`);
 }
 
-if (mode === 'backup' || (apply && mode !== 'pages-apex')) {
+const DOCS_NAME = 'docs.nomnomz.bot';
+const DOCS_TARGET = 'nomercylabs.github.io';
+
+// Creates the one docs CNAME and proves it is the only record at that name.
+async function pointDocsAtPages() {
+	const zones = await call('GET', '/zones?name=nomnomz.bot');
+	const zoneId = zones[0].id;
+	const existing = await call('GET', `/zones/${zoneId}/dns_records?name=${DOCS_NAME}`);
+	save('pages-docs-before.json', existing);
+	const done = existing.length === 1 && existing[0].type === 'CNAME' && existing[0].content === DOCS_TARGET;
+	if (done) return console.log(`already: CNAME ${DOCS_NAME} ${DOCS_TARGET}`);
+	if (existing.length > 0) throw new Error(`refused: ${DOCS_NAME} already holds ${existing.map(recordLine).join(', ')}`);
+	console.log(`create CNAME ${DOCS_NAME} ${DOCS_TARGET} proxied=false${apply ? '' : ' (dry run)'}`);
+	if (!apply) return;
+
+	await call('POST', `/zones/${zoneId}/dns_records`, { type: 'CNAME', name: DOCS_NAME, content: DOCS_TARGET, proxied: false, ttl: 1 });
+	const after = await call('GET', `/zones/${zoneId}/dns_records?name=${DOCS_NAME}`);
+	save('pages-docs-after.json', after);
+	console.log(`docs now: ${after.map(recordLine).join(', ')}`);
+}
+
+const pagesMode = mode === 'pages-apex' || mode === 'pages-docs';
+if (mode === 'backup' || (apply && !pagesMode)) {
 	save('proxmox-tunnel.json', await tunnelConfig(PROXMOX_TUNNEL));
 	save('dev-tunnel.json', await tunnelConfig(DEV_TUNNEL));
-	if (mode !== 'pages-apex') save('dns-record.json', (await dnsRecord()).record);
+	save('dns-record.json', (await dnsRecord()).record);
 	console.log(`backup written to ${backupDir}`);
 }
 
 if (mode === 'pages-apex') await pointApexAtPages();
+if (mode === 'pages-docs') await pointDocsAtPages();
 
 if (mode === 'point') {
 	await rewriteIngress(DEV_TUNNEL, (rules) => {
