@@ -60,6 +60,14 @@ public sealed class EdgeTtsProvider : ITtsProvider
 
     private readonly Func<ClientWebSocket, Uri, CancellationToken, Task> _connect;
 
+    /// <summary>How many finished connections stay open for the next line. Three clips run at once from a reader.</summary>
+    private const int MaxIdleConnections = 4;
+
+    /// <summary>A connection idle longer than this is not reused; Microsoft closes quiet ones on its side.</summary>
+    private static readonly TimeSpan MaxIdleTime = TimeSpan.FromSeconds(25);
+
+    private readonly IdleConnectionPool<EdgeConnection> _idle;
+
     public EdgeTtsProvider(
         TimeProvider timeProvider,
         IHttpClientFactory httpClientFactory,
@@ -84,6 +92,12 @@ public sealed class EdgeTtsProvider : ITtsProvider
         _httpClientFactory = httpClientFactory;
         _logger = logger;
         _connect = connect;
+        _idle = new(
+            timeProvider,
+            MaxIdleConnections,
+            MaxIdleTime,
+            connection => connection.Socket.State == WebSocketState.Open
+        );
     }
 
     public Task<TtsSynthesisResult> SynthesizeAsync(
@@ -118,28 +132,77 @@ public sealed class EdgeTtsProvider : ITtsProvider
         CancellationToken cancellationToken
     )
     {
-        EdgeConnection? connection = await ConnectWithRetryAsync(cancellationToken);
-        if (connection is null)
+        byte[] audioData = [];
+
+        // A kept-open connection skips the handshake, which is most of the wait for a short line. Microsoft
+        // closes an idle one without notice, so an empty answer from a reused connection is tried again on a
+        // new one.
+        if (_idle.TryRent(out EdgeConnection? reused) && reused is not null)
+            audioData = await SynthesizeOnAsync(reused, ssml, voiceId, cancellationToken);
+
+        if (audioData.Length == 0)
+        {
+            EdgeConnection? connection = await ConnectWithRetryAsync(cancellationToken);
+            if (connection is null)
+                return EmptyResult(voiceId);
+
+            audioData = await SynthesizeOnAsync(connection, ssml, voiceId, cancellationToken);
+        }
+
+        if (audioData.Length == 0)
+        {
+            _logger.LogWarning("Edge TTS: No audio received for voice {VoiceId}", voiceId);
             return EmptyResult(voiceId);
+        }
 
-        using ClientWebSocket ws = connection.Socket;
-        string connectionId = connection.ConnectionId;
+        // The length comes from the MP3 frame headers; 48 kbit/s is the rate requested above.
+        int durationMs = Mp3Duration.ToMilliseconds(audioData, 48);
+        string hash = Convert.ToHexString(
+            SHA256.HashData(Encoding.UTF8.GetBytes(hashSource + voiceId))
+        )[..16];
 
-        // Send configuration
-        string configMsg = BuildConfigMessage(connectionId);
-        await SendTextAsync(ws, configMsg, cancellationToken);
+        return new()
+        {
+            AudioData = audioData,
+            DurationMs = durationMs,
+            Provider = ProviderName,
+            VoiceId = voiceId,
+            ContentHash = hash,
+        };
+    }
 
-        // Send synthesis request
-        string requestId = Guid.NewGuid().ToString("N");
-        string synthesisMsg = BuildSynthesisMessage(requestId, ssml);
-        await SendTextAsync(ws, synthesisMsg, cancellationToken);
-
-        // Collect audio chunks
+    /// <summary>
+    /// Speaks one request on a connection and collects the audio. A connection that finished the turn cleanly
+    /// goes back to the idle pool; any other is disposed. Returns an empty array when nothing came back.
+    /// </summary>
+    private async Task<byte[]> SynthesizeOnAsync(
+        EdgeConnection connection,
+        string ssml,
+        string voiceId,
+        CancellationToken cancellationToken
+    )
+    {
+        ClientWebSocket ws = connection.Socket;
         using MemoryStream audioStream = new();
         byte[] buffer = new byte[32768];
+        bool turnEnded = false;
 
         try
         {
+            // The configuration is sent once per connection, not once per request.
+            if (!connection.ConfigSent)
+            {
+                await SendTextAsync(
+                    ws,
+                    BuildConfigMessage(connection.ConnectionId),
+                    cancellationToken
+                );
+                connection.ConfigSent = true;
+            }
+
+            string requestId = Guid.NewGuid().ToString("N");
+            await SendTextAsync(ws, BuildSynthesisMessage(requestId, ssml), cancellationToken);
+
             while (ws.State == WebSocketState.Open)
             {
                 using MemoryStream msgStream = new();
@@ -166,57 +229,49 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 {
                     string text2 = Encoding.UTF8.GetString(msgBytes);
                     if (text2.Contains("turn.end"))
+                    {
+                        turnEnded = true;
                         break;
+                    }
                 }
             }
         }
         catch (OperationCanceledException)
         {
+            connection.Dispose();
             throw;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Edge TTS: Error receiving audio for voice {VoiceId}", voiceId);
         }
+
+        if (turnEnded)
+            _idle.Return(connection);
+        else
+            await CloseAsync(connection);
+
+        return audioStream.ToArray();
+    }
+
+    private static async Task CloseAsync(EdgeConnection connection)
+    {
+        try
+        {
+            if (connection.Socket.State == WebSocketState.Open)
+                await connection.Socket.CloseAsync(
+                    WebSocketCloseStatus.NormalClosure,
+                    "Done",
+                    CancellationToken.None
+                );
+        }
+        catch
+        { /* ignore close errors */
+        }
         finally
         {
-            if (ws.State == WebSocketState.Open)
-            {
-                try
-                {
-                    await ws.CloseAsync(
-                        WebSocketCloseStatus.NormalClosure,
-                        "Done",
-                        CancellationToken.None
-                    );
-                }
-                catch
-                { /* ignore close errors */
-                }
-            }
+            connection.Dispose();
         }
-
-        byte[] audioData = audioStream.ToArray();
-        if (audioData.Length == 0)
-        {
-            _logger.LogWarning("Edge TTS: No audio received for voice {VoiceId}", voiceId);
-            return EmptyResult(voiceId);
-        }
-
-        // The length comes from the MP3 frame headers; 48 kbit/s is the rate requested above.
-        int durationMs = Mp3Duration.ToMilliseconds(audioData, 48);
-        string hash = Convert.ToHexString(
-            SHA256.HashData(Encoding.UTF8.GetBytes(hashSource + voiceId))
-        )[..16];
-
-        return new()
-        {
-            AudioData = audioData,
-            DurationMs = durationMs,
-            Provider = ProviderName,
-            VoiceId = voiceId,
-            ContentHash = hash,
-        };
     }
 
     /// <summary>
@@ -320,8 +375,18 @@ public sealed class EdgeTtsProvider : ITtsProvider
         return ws;
     }
 
-    /// <summary>An open read-aloud socket and the ConnectionId its handshake carried.</summary>
-    internal sealed record EdgeConnection(ClientWebSocket Socket, string ConnectionId);
+    /// <summary>
+    /// An open read-aloud socket and the ConnectionId its handshake carried. <see cref="ConfigSent"/> is true once
+    /// the speech configuration went over this socket, so a reused connection does not send it again.
+    /// </summary>
+    internal sealed class EdgeConnection(ClientWebSocket socket, string connectionId) : IDisposable
+    {
+        public ClientWebSocket Socket { get; } = socket;
+        public string ConnectionId { get; } = connectionId;
+        public bool ConfigSent { get; set; }
+
+        public void Dispose() => Socket.Dispose();
+    }
 
     /// <summary>
     /// The full live Edge read-aloud voice list (300+ voices — full external-API coverage). Any fetch or
