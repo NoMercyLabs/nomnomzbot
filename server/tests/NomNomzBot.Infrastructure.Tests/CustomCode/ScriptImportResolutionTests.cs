@@ -57,6 +57,9 @@ public sealed class ScriptImportResolutionTests
             new("scene-picker", "desc", "var x = 1;")
         );
         created.IsSuccess.Should().BeTrue(created.ErrorMessage);
+        // A new script starts off; the run below needs the owner's switch-on.
+        Result switchedOn = await sut.SetEnabledAsync(created.Value.Id, true);
+        switchedOn.IsSuccess.Should().BeTrue(switchedOn.ErrorMessage);
         return created.Value.Id;
     }
 
