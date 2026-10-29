@@ -218,12 +218,14 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
         if (target is null)
             return;
 
-        string displayName =
-            await _db
-                .Users.Where(u => u.Id == winner.ViewerUserId)
-                .Select(u => u.DisplayName ?? u.Username ?? "winner")
-                .FirstOrDefaultAsync(ct)
-            ?? "winner";
+        // A missing user row yields no projection at all, so the fallback name covers that case.
+        var user = await _db
+            .Users.Where(u => u.Id == winner.ViewerUserId)
+            .Select(u => new { u.DisplayName, u.Username })
+            .FirstOrDefaultAsync(ct);
+        string displayName = user is null
+            ? "winner"
+            : user.DisplayName ?? user.Username ?? "winner";
 
         if (target.Kind is BindingTargetKind.Command or BindingTargetKind.Action)
         {
@@ -285,13 +287,13 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
                 ),
                 ct
             );
-            if (run.IsFailure || !run.Value!.Succeeded)
+            if (run.IsFailure || !run.Value.Succeeded)
                 _logger.LogWarning(
                     "Giveaway {GiveawayId} prize could not run its {Kind} target for winner {WinnerId}: {Error}",
                     giveaway.Id,
                     target.Kind,
                     winner.Id,
-                    run.IsFailure ? run.ErrorMessage : run.Value!.Error
+                    run.IsFailure ? run.ErrorMessage : run.Value.Error
                 );
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
