@@ -180,7 +180,7 @@ public sealed class BillingTierServiceTests
         EntitlementDto entitlement = (await sut.GetEntitlementAsync(Channel)).Value;
 
         entitlement.Limits["tts_max_characters"].Should().Be(500);
-        entitlement.Limits["sandbox_exec_ms"].Should().Be(300_000);
+        entitlement.Limits["sandbox_exec_ms"].Should().Be(600_000);
     }
 
     private static TenantLimitOverride AddOverride(

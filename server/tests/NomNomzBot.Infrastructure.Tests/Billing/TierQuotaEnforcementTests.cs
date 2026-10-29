@@ -40,10 +40,7 @@ public sealed class TierQuotaEnforcementTests
 
     // ─── custom_commands + response variations ──────────────────────────────
 
-    private static CommandService Commands(
-        CommandsTestDbContext db,
-        Application.Contracts.Billing.IResourceQuotaService quota
-    ) =>
+    private static CommandService Commands(CommandsTestDbContext db, IResourceQuotaService quota) =>
         new(
             db,
             Substitute.For<IChannelRegistry>(),
@@ -202,8 +199,8 @@ public sealed class TierQuotaEnforcementTests
     {
         // Rows are seeded per event type and never user-created, so a per-channel cap here could never
         // be reached — it would be a decorative, unenforceable number (removed from the registry).
-        NomNomzBot
-            .Application.Contracts.Billing.LimitedResourceRegistry.TryGet("event_responses", out _)
+        LimitedResourceRegistry
+            .TryGet("event_responses", out _)
             .Should()
             .BeFalse(
                 "event_responses carries no limit — the catalogue is fixed-size, never user-created"
@@ -289,7 +286,7 @@ public sealed class TierQuotaEnforcementTests
             )
         )
             .LimitValue.Should()
-            .Be(300_000);
+            .Be(600_000);
         (
             await db.TierLimits.SingleAsync(l =>
                 l.TierId == baseTier.Id && l.LimitKey == "tts_max_characters"
