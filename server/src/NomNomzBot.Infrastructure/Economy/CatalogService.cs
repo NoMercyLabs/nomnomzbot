@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore.ChangeTracking;
 using Microsoft.Extensions.Logging;
@@ -18,7 +19,6 @@ using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
-using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Commands.ValueObjects;
 using NomNomzBot.Domain.Economy.Entities;
 using NomNomzBot.Domain.Economy.Enums;
@@ -461,9 +461,9 @@ public sealed class CatalogService(
         return Result.Success(ToDto(purchase));
     }
 
-    // An item bound straight to a command or an action runs through the one invoker, with the buyer as the
-    // invoker and no wrapper pipeline. The buyer is already charged, so a fault is logged and never unwinds
-    // the purchase, same as the pipeline path.
+    // A paid item runs its pipeline, command or action through the one invoker, with the buyer as the
+    // invoker and the item data as variables. The buyer is already charged, so a fault is logged and never
+    // unwinds the purchase.
     private async Task RunDirectTargetAsync(
         Guid broadcasterId,
         CatalogItem item,
@@ -473,7 +473,7 @@ public sealed class CatalogService(
     )
     {
         BindingTarget? target = item.GetBindingTarget();
-        if (target is not { Kind: BindingTargetKind.Command or BindingTargetKind.Action })
+        if (target is null)
             return;
 
         try
@@ -488,7 +488,16 @@ public sealed class CatalogService(
                     buyer?.TwitchUserId ?? request.BuyerUserId.ToString(),
                     buyer?.DisplayName,
                     request.InputArgs ?? string.Empty,
-                    "catalog"
+                    "catalog",
+                    Variables: new Dictionary<string, string>
+                    {
+                        ["catalog.item.id"] = item.Id.ToString(),
+                        ["catalog.item.name"] = item.Name,
+                        ["catalog.item.cost"] = item.Cost.ToString(CultureInfo.InvariantCulture),
+                        ["catalog.purchase.id"] = purchase.Id.ToString(
+                            CultureInfo.InvariantCulture
+                        ),
+                    }
                 ),
                 ct
             );
