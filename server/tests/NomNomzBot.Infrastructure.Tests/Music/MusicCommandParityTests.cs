@@ -281,7 +281,7 @@ public sealed class MusicCommandParityTests
         result
             .Value.Should()
             .Be(
-                "The current song is: High by Basslovers United https://open.spotify.com/track/4PTG3Z6ehGkBFwjybzWkR8"
+                "The current song is: High by Basslovers United https://open.spotify.com/track/4PTG3Z6ehGkBFwjybzWkR8 (requested by f0xb17)"
             );
     }
 
@@ -298,7 +298,7 @@ public sealed class MusicCommandParityTests
         result
             .Value.Should()
             .Be(
-                "The current song is: High by Basslovers United https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+                "The current song is: High by Basslovers United https://www.youtube.com/watch?v=dQw4w9WgXcQ (from spotify)"
             );
     }
 
@@ -310,7 +310,7 @@ public sealed class MusicCommandParityTests
 
         Result<string> result = await sut.ExecuteAsync(Ctx(string.Empty));
 
-        result.Value.Should().Be("The current song is: High by Basslovers United");
+        result.Value.Should().Be("The current song is: High by Basslovers United (from spotify)");
     }
 
     [Fact]

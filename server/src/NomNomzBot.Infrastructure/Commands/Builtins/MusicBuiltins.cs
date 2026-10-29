@@ -681,7 +681,9 @@ public sealed class CurrentSongBuiltin(IMusicService music, IBuiltinResponseComp
             },
             ct
         );
-        // A track with no known link leaves {song.link} empty; keep the sentence free of a dangling space.
-        return Result.Success(message.Trim());
+        // A track with no known link leaves {song.link} empty; close the gap and trim the ends.
+        return Result.Success(
+            string.Join(' ', message.Split(' ', StringSplitOptions.RemoveEmptyEntries))
+        );
     }
 }
