@@ -224,6 +224,55 @@ public sealed class ScriptRunnerTests
     }
 
     [Fact]
+    public async Task The_metered_run_time_leaves_out_the_wait_inside_a_host_call()
+    {
+        NomNomzBot.Domain.Chat.Interfaces.IChatProvider chat =
+            Substitute.For<NomNomzBot.Domain.Chat.Interfaces.IChatProvider>();
+        chat.SendReplyAsync(Channel, "m-9", "thanks!", Arg.Any<CancellationToken>())
+            .Returns(async ci =>
+            {
+                await Task.Delay(2000, ci.Arg<CancellationToken>());
+                return true;
+            });
+        IScriptExecutionMeter meter = Substitute.For<IScriptExecutionMeter>();
+        meter
+            .CheckSandboxBudgetAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new QuotaCheck(true, -1, 0, default, default)));
+        List<long> metered = [];
+        (ScriptRunner sut, AuthDbContext db) = Build(
+            chat,
+            failingMeter: meter,
+            granted: "chat.reply"
+        );
+        meter
+            .RecordSandboxUsageAsync(
+                Channel,
+                Arg.Do<long>(metered.Add),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        Guid id = await SeedAsync(
+            db,
+            enabled: true,
+            withValidVersion: true,
+            js: "nnz.api.chat.reply('thanks!');"
+        );
+        ScriptInvocation invocation = Invocation() with
+        {
+            ReplyTo = new ScriptReplyTarget("m-9", "Viewer"),
+        };
+
+        // Warm Jint once so its cold start is not part of the measured run.
+        await sut.RunAsync(id, invocation);
+        ScriptRunResult r = (await sut.RunAsync(id, invocation)).Value;
+
+        r.Outcome.Should().Be(ScriptExecutionOutcome.Success, r.ErrorMessage);
+        metered.Should().HaveCount(2);
+        metered[1].Should().BeLessThan(1000);
+    }
+
+    [Fact]
     public async Task A_disabled_script_fails_closed()
     {
         (ScriptRunner sut, AuthDbContext db) = Build();
