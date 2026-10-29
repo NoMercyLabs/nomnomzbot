@@ -16,8 +16,8 @@ import { loadPage } from '@/i18n';
 export const homeRoute = {
   path: '',
   name: 'home',
-  // A visitor who is already signed in goes straight to the dashboard instead of the sign-in pitch.
-  meta: { guestOnly: true },
+  // The home page is public for everyone, also a signed-in person: it shows them an "Open dashboard" button
+  // (HomeSignIn) instead of a redirect. Only the login page skips a signed-in visitor.
   component: () =>
     loadPage(
       () => import('./HomeView.vue'),

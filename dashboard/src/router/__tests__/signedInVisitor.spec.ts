@@ -30,8 +30,7 @@ const page = defineComponent({ render: () => null });
 const routes: RouteRecordRaw[] = [
   {
     path: '/',
-    name: 'home',
-    meta: homeRoute.meta,
+    name: homeRoute.name,
     component: page,
   },
   {
@@ -67,12 +66,14 @@ beforeEach(() => {
 });
 
 describe('a visitor who is already signed in', () => {
-  it('skips the home page and lands on the dashboard', async () => {
+  // Stoney 2026-10-29: "i need to be able to get to the homepage and not be redirected to the dashboard".
+  // The home page carries an "Open dashboard" button for a signed-in person instead.
+  it('can open the home page and stays on it', async () => {
     const subject = router();
 
     await subject.push('/');
 
-    expect(subject.currentRoute.value.path).toBe('/app');
+    expect(subject.currentRoute.value.path).toBe('/');
   });
 
   it('skips the login page and lands where the login was asked for', async () => {

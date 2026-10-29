@@ -10,15 +10,15 @@
 -->
 <script setup lang="ts">
 // The product shot under the hero: the real dashboard shell with its real sidebar, and one tab for each area.
-// A tab changes the page the shell shows. The window is a still picture of sample data (see PreviewFrame).
+// A tab changes the picture. Each picture is a 1920x1080 photograph of the real page filled with sample data.
 import { ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { Tabs, TabsList, TabsTrigger } from '@/components/ui/tabs';
 
-import LazyPreview from './preview/LazyPreview.vue';
-import { areaPages, previewAreas, type PreviewArea } from './preview/previewAreas';
+import { previewAreas, type PreviewArea } from './preview/previewAreas';
 import { sampleChannel } from './sampleChannel';
+import ShowcaseImage from './ShowcaseImage.vue';
 
 const { t } = useI18n();
 const area = ref<PreviewArea>('pipelines');
@@ -41,11 +41,10 @@ function choose(value: string | number): void {
         </TabsList>
       </div>
     </Tabs>
-    <LazyPreview
+    <ShowcaseImage
       eager
-      shell
-      :path="areaPages[area].path"
-      :height="areaPages[area].height"
+      :area="area"
+      kind="hero"
       :label="t(`site.home.areas.${area}.caption`)"
     />
     <p class="text-sm text-muted-foreground">

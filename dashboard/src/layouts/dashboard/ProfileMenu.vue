@@ -16,11 +16,13 @@ import { useRouter, type RouteLocationRaw } from 'vue-router';
 import ChevronDown from '~icons/nnz/chevron-down';
 import ArrowEnterFullscreen from '~icons/nnz/arrow-enter-fullscreen';
 import ArrowExitFullscreen from '~icons/nnz/arrow-exit-fullscreen';
+import Book from '~icons/nnz/book';
 import BookOpen from '~icons/nnz/book-open';
 import DoorOut from '~icons/nnz/door-out';
 import Eye from '~icons/nnz/eye';
 import Shield from '~icons/nnz/shield';
 import Translate from '~icons/nnz/translate';
+import Users from '~icons/nnz/users';
 
 import { signOut, useCurrentUser } from '@/api/auth';
 import { useViewAs, type ViewAsRole } from '@/api/viewAs';
@@ -133,6 +135,20 @@ function startPreview(target: ViewAsRole): Promise<void> {
         <RouterLink :to="settingsLink">
           <BookOpen aria-hidden="true" />
           {{ t('frame.profile.readability') }}
+        </RouterLink>
+      </DropdownMenuItem>
+      <DropdownMenuItem as-child>
+        <a :href="t('frame.profile.docsUrl')" target="_blank" rel="noopener">
+          <Book aria-hidden="true" />
+          {{ t('frame.profile.docs') }}
+        </a>
+      </DropdownMenuItem>
+      <!-- The viewer pages as any viewer sees them: a plain page of the site, for a streamer and a moderator alike.
+           The two "View as" entries below swap the identity; this link does not. -->
+      <DropdownMenuItem v-if="!previewing" as-child>
+        <RouterLink to="/me">
+          <Users aria-hidden="true" />
+          {{ t('frame.profile.viewerPages') }}
         </RouterLink>
       </DropdownMenuItem>
       <DropdownMenuItem v-if="isOwner" @select="startPreview('moderator')">

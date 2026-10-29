@@ -1,0 +1,40 @@
+<!doctype html>
+<!--
+  Copyright (c) NoMercy Labs.
+
+  This file is part of NomNomzBot. You may use, change and share it for free,
+  for any noncommercial purpose, under the PolyForm Noncommercial License
+  1.0.0. You may not earn money with it. Distributed WITHOUT ANY WARRANTY.
+  See LICENSE for details, and TRADEMARKS.md for the name and logo.
+
+  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+-->
+<!-- Development only: draws one showcase view of the home page at the size of the browser window, so the images
+     in public/showcase can be photographed at 1920x1080. Vite builds only index.html, so this page never ships.
+     Open /capture.html?path=/app/commands?command=hug&shell=1 . See public/showcase/README.md. -->
+<html lang="en" class="dark">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="color-scheme" content="dark" />
+    <style>
+      html {
+        background: oklch(0.177638 0 0);
+      }
+      /* The dev server's own floating button is not part of the product. */
+      [id^='vue-devtools'],
+      .vue-devtools__anchor {
+        display: none !important;
+      }
+      #capture {
+        width: 100vw;
+        height: 100vh;
+        overflow: hidden;
+      }
+    </style>
+    <title>NomNomzBot showcase capture</title>
+  </head>
+  <body>
+    <div id="capture"></div>
+    <script type="module" src="/src/views/site/home/preview/capture.ts"></script>
+  </body>
+</html>

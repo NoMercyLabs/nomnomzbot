@@ -12,7 +12,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
-import { defineComponent, h } from 'vue';
+import { defineComponent } from 'vue';
 import { RouterView } from 'vue-router';
 
 import { i18n } from '@/i18n';
@@ -20,17 +20,12 @@ import { isSignInOpen } from '@/lib/flags';
 import { siteRoutes } from '@/router/site';
 
 import words from '../i18n/en.json';
-import { areaPages, groupPages, previewAreas, type PreviewArea } from '../preview/previewAreas';
-
-// The real dashboard behind a preview is proved in previews.spec.ts. Here the frame is a plain box that keeps
-// the path it was given, so the page around it can be tested fast.
-vi.mock('../preview/PreviewFrame.vue', () => ({
-  __esModule: true,
-  default: defineComponent({
-    props: { path: { type: String, required: true } },
-    setup: (props) => () => h('div', { 'data-testid': 'preview-frame', 'data-path': props.path }),
-  }),
-}));
+import {
+  groupPages,
+  previewAreas,
+  showcaseImage,
+  type PreviewArea,
+} from '../preview/previewAreas';
 
 const Shell = defineComponent({ components: { RouterView }, template: '<RouterView />' });
 
@@ -81,8 +76,16 @@ describe('the site root', () => {
       'Features',
       'Self-host vs hosted',
       'Integrations',
+      'Documentation',
       'GitHub',
     ]);
+
+    const docs: HTMLAnchorElement | undefined = [...panel!.querySelectorAll('a')].find(
+      (link) => link.textContent!.trim() === 'Documentation',
+    );
+
+    expect(docs?.getAttribute('href')).toBe(words.site.home.docsUrl);
+    expect(docs?.getAttribute('href')).toBe('https://docs.nomnomz.bot');
 
     expect(panel!.querySelector('[data-slot="select-trigger"]')).not.toBeNull();
     expect(panel!.querySelector('button[disabled]')!.textContent).toBe('Coming soon');
@@ -100,16 +103,32 @@ describe('the site root', () => {
     );
   });
 
-  it('switches the dashboard preview in the hero when another tab is chosen', async () => {
+  it('switches the picture in the hero when another tab is chosen', async () => {
     const { wrapper } = await openRoot();
     const hero = wrapper.find('[data-testid="hero-shot"]');
     const tabs = hero.findAll('[role="tab"]');
-    const shownPath = (): string | undefined =>
-      hero.find('[data-testid="preview-frame"]').attributes('data-path');
+
+    const shown = () => {
+      const image = hero.find('img[data-testid="showcase-image"]');
+
+      return {
+        src: image.attributes('src'),
+        alt: image.attributes('alt'),
+        loading: image.attributes('loading'),
+      } as const satisfies {
+        src?: string;
+        alt?: string;
+        loading?: string;
+      };
+    };
 
     expect(tabs).toHaveLength(previewAreas.length);
     expect(tabs[0]!.attributes('aria-selected')).toBe('true');
-    expect(shownPath()).toBe(areaPages.pipelines.path);
+    expect(shown().src).toBe('/showcase/pipelines-hero.webp');
+    expect(shown().src).toBe(showcaseImage('pipelines', 'hero'));
+    // The picture the visitor sees first is not held back.
+    expect(shown().loading).toBe('eager');
+    expect(shown().alt).toBe(words.site.home.areas.pipelines.caption);
 
     const moderation = tabs.find((tab) => tab.text() === 'Moderation')!;
 
@@ -118,7 +137,8 @@ describe('the site root', () => {
 
     expect(moderation.attributes('aria-selected')).toBe('true');
     expect(tabs[0]!.attributes('aria-selected')).toBe('false');
-    expect(shownPath()).toBe(areaPages.moderation.path);
+    expect(shown().src).toBe('/showcase/moderation-hero.webp');
+    expect(shown().alt).toBe(words.site.home.areas.moderation.caption);
     expect(hero.text()).toContain(words.site.home.areas.moderation.caption);
   });
 });
@@ -136,7 +156,7 @@ describe('the network', () => {
 });
 
 describe('the feature groups', () => {
-  it('give each area a title, a text, one outline link to the page source and a wide preview', async () => {
+  it('give each area a title, a text, one outline link to the page source and a wide picture', async () => {
     const { wrapper } = await openRoot();
     const groups = wrapper.findAll('[data-feature-group]');
 
@@ -158,7 +178,14 @@ describe('the feature groups', () => {
         `${words.site.home.githubUrl}/tree/master/dashboard/src/views/dashboard/${groupPages[area].source}`,
       );
 
-      expect(group.find('[data-testid="lazy-preview"]').exists()).toBe(true);
+      const image = group.find('img[data-testid="showcase-image"]');
+
+      // 1920x1080 sets the box before the file arrives, and a group below the fold loads when it nears the screen.
+      expect(image.attributes('src')).toBe(`/showcase/${area}-group.webp`);
+      expect(image.attributes('width')).toBe('1920');
+      expect(image.attributes('height')).toBe('1080');
+      expect(image.attributes('loading')).toBe('lazy');
+      expect(image.attributes('alt')).toBe(copy.caption);
     }
   });
 

@@ -93,6 +93,10 @@ function mountMenu(): void {
         path: '/login',
         component: page,
       },
+      {
+        path: '/me',
+        component: page,
+      },
     ],
   });
 
@@ -147,6 +151,8 @@ describe('the account menu', () => {
 
     expect(items()).toEqual([
       'Readability',
+      'Documentation',
+      'Viewer pages',
       'View as moderator',
       'View as viewer',
       'Language',
@@ -168,7 +174,13 @@ describe('the account menu', () => {
 
     const links = [...document.body.querySelectorAll('[role="menu"] a')];
 
-    expect(links.map((link) => link.textContent?.trim())).toEqual(['Readability', 'Platform admin']);
+    expect(links.map((link) => link.textContent?.trim())).toEqual([
+      'Readability',
+      'Documentation',
+      'Viewer pages',
+      'Platform admin',
+    ]);
+
     expect(document.body.querySelectorAll('[role="menu"] a:not([data-slot])')).toHaveLength(0);
   });
 
@@ -199,6 +211,31 @@ describe('the account menu', () => {
     await openMenu();
 
     expect(fullscreenEntry()).toBeNull();
-    expect(items()).toEqual(['Readability', 'View as moderator', 'View as viewer', 'Language', 'Sign out']);
+
+    expect(items()).toEqual([
+      'Readability',
+      'Documentation',
+      'Viewer pages',
+      'View as moderator',
+      'View as viewer',
+      'Language',
+      'Sign out',
+    ]);
+  });
+
+  // Stoney 2026-10-29: "i also need to be able to enter a normal user view without a magic button within the streamer
+  // or mod dashboard view". The viewer pages are a plain link of the menu; the preview entries swap the identity.
+  it('opens the viewer pages with a plain link, and the documentation in a new tab', async () => {
+    await openMenu();
+
+    const link = (label: string): HTMLAnchorElement | undefined =>
+      [...document.body.querySelectorAll<HTMLAnchorElement>('[role="menu"] a')].find(
+        (anchor) => anchor.textContent?.trim() === label,
+      );
+
+    expect(link('Viewer pages')?.getAttribute('href')).toBe('/me');
+    expect(link('Documentation')?.getAttribute('href')).toBe('https://docs.nomnomz.bot');
+    expect(link('Documentation')?.getAttribute('target')).toBe('_blank');
+    expect(link('Documentation')?.getAttribute('rel')).toContain('noopener');
   });
 });

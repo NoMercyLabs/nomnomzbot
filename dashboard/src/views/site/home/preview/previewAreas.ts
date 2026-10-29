@@ -30,24 +30,29 @@ export const previewAreas = [
 export type PreviewArea = (typeof previewAreas)[number];
 
 export type AreaPage = {
-  // The dashboard path the preview opens.
+  // The dashboard path the capture page opens (dashboard/capture.html).
   path: string;
-  // The visible height of the window at the drawn width of 1280 px.
-  height: number;
 };
+
+// The two pictures of an area: the hero tab (with the sidebar) and the feature group below it (without).
+export type ShowcaseKind = 'hero' | 'group';
+
+// The still picture of an area, photographed from the real page at 1920x1080 (see public/showcase/README.md).
+export function showcaseImage(area: PreviewArea, kind: ShowcaseKind): string {
+  return `/showcase/${area}-${kind}.webp`;
+}
 
 export const areaPages = {
   pipelines: {
     path: `/app/pipelines/${raidPipelineId}?step=${stepIdOf('Raid response', 'play_tts')}`,
-    height: 640,
   },
-  moderation: { path: '/app/settings/spam-defense', height: 640 },
-  widgets: { path: `/app/overlays?id=${widgetIdOf('Goal Bar')}`, height: 640 },
-  analytics: { path: '/app/analytics', height: 640 },
-  commands: { path: '/app/commands?command=hug', height: 780 },
-  loyalty: { path: '/app/economy?view=rules', height: 640 },
-  music: { path: '/app/music', height: 640 },
-  platforms: { path: '/app/settings/integrations', height: 640 },
+  moderation: { path: '/app/settings/spam-defense' },
+  widgets: { path: `/app/overlays?id=${widgetIdOf('Goal Bar')}` },
+  analytics: { path: '/app/analytics' },
+  commands: { path: '/app/commands?command=hug' },
+  loyalty: { path: '/app/economy?view=rules' },
+  music: { path: '/app/music' },
+  platforms: { path: '/app/settings/integrations' },
 } as const satisfies Record<PreviewArea, AreaPage>;
 
 export type GroupPage = AreaPage & {
@@ -59,42 +64,34 @@ export type GroupPage = AreaPage & {
 export const groupPages = {
   pipelines: {
     path: `/app/pipelines/${branchingPipelineId}?step=big-raid-shoutout`,
-    height: 560,
     source: 'pipelines',
   },
   moderation: {
     path: '/app/settings/escalation',
-    height: 560,
     source: 'settings/escalation',
   },
   widgets: {
     path: `/app/overlays?id=${widgetIdOf('Now Playing')}`,
-    height: 560,
     source: 'overlays',
   },
   analytics: {
     path: '/app/analytics?view=chat',
-    height: 560,
     source: 'analytics',
   },
   commands: {
     path: '/app/commands?command=luck',
-    height: 560,
     source: 'commands',
   },
   loyalty: {
     path: '/app/economy?view=catalog',
-    height: 560,
     source: 'economy',
   },
   music: {
     path: '/app/tts',
-    height: 720,
     source: 'tts',
   },
   platforms: {
     path: '/app/settings/white-label-bot',
-    height: 380,
     source: 'settings/white-label-bot',
   },
 } as const satisfies Record<PreviewArea, GroupPage>;

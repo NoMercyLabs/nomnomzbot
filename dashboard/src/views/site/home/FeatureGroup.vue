@@ -9,7 +9,7 @@
   SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 -->
 <script setup lang="ts">
-// One feature group: a short text column and a wide preview of the real dashboard page below it. The only
+// One feature group: a short text column and a wide picture of the real dashboard page below it. The only
 // action is one outline link to the page's source, so the group has one thing to do and it is not the accent.
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -18,7 +18,7 @@ import { Button } from '@/components/ui/button';
 
 import { groupPages } from './preview/previewAreas';
 import type { PreviewArea } from './preview/previewAreas';
-import LazyPreview from './preview/LazyPreview.vue';
+import ShowcaseImage from './ShowcaseImage.vue';
 
 const props = defineProps<{ area: PreviewArea }>();
 
@@ -38,11 +38,7 @@ const sourceUrl = computed(() => `${t('site.home.githubUrl')}/tree/master/dashbo
         <a :href="sourceUrl" target="_blank" rel="noopener">{{ t('site.home.features.source') }}</a>
       </Button>
     </div>
-    <LazyPreview
-      :path="page.path"
-      :height="page.height"
-      :label="t(`site.home.areas.${area}.caption`)"
-    />
+    <ShowcaseImage :area="area" kind="group" :label="t(`site.home.areas.${area}.caption`)" />
     <p class="text-sm text-muted-foreground">{{ t(`site.home.areas.${area}.caption`) }}</p>
   </article>
 </template>

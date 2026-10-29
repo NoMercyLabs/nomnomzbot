@@ -41,6 +41,11 @@ const links: Link[] = [
   { key: 'site.home.nav.deploy', href: '#deploy' },
   { key: 'site.home.nav.integrations', href: '#integrations' },
   {
+    key: 'site.home.docs',
+    href: t('site.home.docsUrl'),
+    external: true,
+  },
+  {
     key: 'site.home.github',
     href: t('site.home.githubUrl'),
     external: true,

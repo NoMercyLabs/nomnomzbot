@@ -20,12 +20,6 @@ import { followSiteTitle } from '@/router/siteTitle';
 
 import { sitePages } from '../../../vite.site.config';
 
-// These specs are about routes and the sign-in buttons. The real preview would start loading the dashboard
-// router after a spec ends, and the test environment is gone by then (EnvironmentTeardownError on a slow runner).
-vi.mock('@/views/site/home/preview/LazyPreview.vue', () => ({
-  default: defineComponent({ template: '<div data-preview-stub />' }),
-}));
-
 const Shell = defineComponent({ components: { RouterView }, template: '<RouterView />' });
 
 const fetched = vi.fn<(input: unknown) => Promise<Response>>(async () => Response.json({}));

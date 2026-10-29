@@ -11,9 +11,6 @@
 
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
-import { mount } from '@vue/test-utils';
-
-import PreviewFrame from '../preview/PreviewFrame.vue';
 import { ownerActionKeys } from '../preview/replies/actionKeys';
 import { startFakeApi, unmatched } from '../preview/fakeApi';
 import { createPreviewApp, type PreviewApp } from '../preview/previewApp';
@@ -116,10 +113,6 @@ describe('the feature groups', () => {
   it.each(previewAreas)('show another real screen for %s than the hero tab shows', (area) => {
     expect(groupPages[area].path).not.toBe(areaPages[area].path);
   });
-
-  it('give the commands hero room for the reply, the cooldowns and the action bar', () => {
-    expect(areaPages.commands.height).toBeGreaterThanOrEqual(760);
-  });
 });
 
 describe.each(previewAreas)('the %s preview', (area) => {
@@ -153,29 +146,6 @@ describe.each(previewAreas)('the %s preview', (area) => {
     expect(host!.querySelector('[data-sidebar="sidebar"], [data-slot="sidebar"]')).toBeNull();
     expect(unmatched).toEqual([]);
     expect(fetched).not.toHaveBeenCalled();
-  }, 15_000);
-});
-
-describe('the preview frame while its page loads', () => {
-  it('holds a placeholder until the page is ready, then shows the page and removes it', async () => {
-    const frame = mount(PreviewFrame, {
-      attachTo: host as HTMLElement,
-      props: {
-        path: areaPages.pipelines.path,
-        label: 'Pipelines',
-        shell: true,
-      },
-    });
-
-    expect(frame.find('[data-preview-loading]').exists()).toBe(true);
-
-    await vi.waitFor(() => expect(frame.find('[data-preview-loading]').exists()).toBe(false), {
-      timeout: 8000,
-    });
-
-    await vi.waitFor(() => expect(frame.text()).toContain(shown.pipelines), { timeout: 8000 });
-
-    frame.unmount();
   }, 15_000);
 });
 

@@ -976,12 +976,16 @@
       "viewer": "Kijker",
       "broadcaster": "Streamer",
       "readability": "Leesbaarheid",
+      "docs": "Documentatie",
+      "docsUrl": "https://docs.nomnomz.bot",
+      "viewerPages": "Kijkerspagina's",
       "fullscreen": "Volledig scherm",
       "exitFullscreen": "Volledig scherm verlaten",
       "admin": "Platformbeheer",
       "viewAsModerator": "Bekijk als moderator",
       "viewAsViewer": "Bekijk als kijker"
     },
+    "viewerDashboard": "Dashboard",
     "viewAs": {
       "banner": "Je bekijkt het als {role}",
       "moderator": "een moderator",

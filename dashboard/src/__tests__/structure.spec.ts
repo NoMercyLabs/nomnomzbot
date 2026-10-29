@@ -708,15 +708,13 @@ describe('template helper lists', () => {
 
 // Stoney 2026-10-18: "extract things like these into reusables". "Is there room?" is asked through
 // composables/useLayout.ts (its width table, useScreenFrom, usePhone, useFits), never with a media query or a
-// size measure written in a view. The files left are height measures, the generated shadcn sidebar, and the
-// home page preview frame, which scales a fixed-width window to the width of its own box.
+// size measure written in a view. The files left are height measures and the generated shadcn sidebar.
 const ownRoomCheck = /useMediaQuery\(\s*['"`(]|useElementSize\(/;
 const ownRoomCheckAllowlist = [
   'components/layout/ReplyModeField.vue',
   'components/ui/sidebar/SidebarProvider.vue',
   'views/dashboard/analytics/RecapPreview.vue',
   'views/dashboard/chat/ChatView.vue',
-  'views/site/home/preview/PreviewFrame.vue',
   'views/viewer/nav/ViewerNav.vue',
 ] as const satisfies readonly string[];
 

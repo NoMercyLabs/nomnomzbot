@@ -21,6 +21,7 @@ function mountLayout() {
         AppMark: true,
         LanguagePicker: true,
         ViewAsBanner: true,
+        ViewerDashboardLink: true,
         ViewerChannelFinder: true,
         ViewerNav: true,
         Toaster: true,

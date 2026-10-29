@@ -20,6 +20,7 @@ import ViewerNav from '@/views/viewer/nav/ViewerNav.vue';
 
 import ViewAsBanner from './dashboard/ViewAsBanner.vue';
 import ViewerChannelFinder from './dashboard/ViewerChannelFinder.vue';
+import ViewerDashboardLink from './dashboard/ViewerDashboardLink.vue';
 </script>
 
 <template>
@@ -35,6 +36,7 @@ import ViewerChannelFinder from './dashboard/ViewerChannelFinder.vue';
           <span class="max-sm:sr-only">{{ $t('frame.brand') }}</span>
         </span>
         <span class="flex items-center gap-2">
+          <ViewerDashboardLink />
           <ViewerChannelFinder />
           <LanguagePicker />
         </span>

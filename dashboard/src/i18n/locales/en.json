@@ -976,12 +976,16 @@
       "viewer": "Viewer",
       "broadcaster": "Broadcaster",
       "readability": "Readability",
+      "docs": "Documentation",
+      "docsUrl": "https://docs.nomnomz.bot",
+      "viewerPages": "Viewer pages",
       "fullscreen": "Fullscreen",
       "exitFullscreen": "Exit fullscreen",
       "admin": "Platform admin",
       "viewAsModerator": "View as moderator",
       "viewAsViewer": "View as viewer"
     },
+    "viewerDashboard": "Dashboard",
     "viewAs": {
       "banner": "Viewing as {role}",
       "moderator": "a moderator",
