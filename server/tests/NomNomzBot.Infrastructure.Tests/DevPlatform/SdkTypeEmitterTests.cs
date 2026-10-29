@@ -27,6 +27,14 @@ namespace NomNomzBot.Infrastructure.Tests.DevPlatform;
 /// </summary>
 public sealed class SdkTypeEmitterTests
 {
+    // A raw string takes the line endings of this file as it sits on disk.
+    private static readonly string RawStringNewLine = """
+        a
+        b
+        """.Contains('\r')
+        ? "\r\n"
+        : "\n";
+
     private static SdkTypeEmitter RealEmitter() => new(new EventCatalog());
 
     private static SdkTypeEmitter FakeEmitter(params EventDescriptor[] descriptors) =>
@@ -197,10 +205,12 @@ public sealed class SdkTypeEmitterTests
     [Fact]
     public void Script_dts_declares_the_batteries_and_full_api_surface()
     {
-        // Normalized to \n: SdkRuntimeSurface builds the .d.ts with StringBuilder.AppendLine, which emits
-        // Environment.NewLine (\r\n on Windows) — the raw-string blocks below are \n-only, so without this the
-        // multi-line Contain assertions fail on an invisible CRLF/LF mismatch despite matching text.
-        string ts = RealEmitter().EmitTypeScript(SdkContext.Script).ReplaceLineEndings("\n");
+        // SdkRuntimeSurface builds the .d.ts with StringBuilder.AppendLine (Environment.NewLine), and the raw-string
+        // blocks below take this file's own line endings (LF on CI, CRLF in a Windows working copy). Both sides get
+        // the same ending, or the multi-line Contain assertions fail on an invisible CRLF/LF mismatch.
+        string ts = RealEmitter()
+            .EmitTypeScript(SdkContext.Script)
+            .ReplaceLineEndings(RawStringNewLine);
 
         // Batteries — the pure-JS floor, with real signatures (not just a name) — each its own named
         // interface (not one sprawling inline object) so hovering `nnz.time` etc. shows a short, readable type.
