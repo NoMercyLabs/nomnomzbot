@@ -9,7 +9,6 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using System.Net.WebSockets;
 using System.Web;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
