@@ -22,6 +22,9 @@ namespace NomNomzBot.Infrastructure.Tts;
 /// </summary>
 internal static class EdgeSecMsGecToken
 {
+    /// <summary>The token format this class makes; Sec-MS-GEC-Version starts with it.</summary>
+    internal const string Version = "2";
+
     private const long WindowsEpochOffsetSeconds = 11_644_473_600L;
 
     private static readonly uint[] Sha256Initial =

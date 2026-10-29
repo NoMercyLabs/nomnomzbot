@@ -46,7 +46,8 @@ public sealed class ByokTtsProviderFactoryTests
         EdgeTtsProvider edge = new(
             new FakeTimeProvider(),
             httpFactory,
-            NullLogger<EdgeTtsProvider>.Instance
+            NullLogger<EdgeTtsProvider>.Instance,
+            Microsoft.Extensions.Options.Options.Create(new EdgeTtsOptions())
         );
         ByokTtsProviderFactory sut = new(
             db,

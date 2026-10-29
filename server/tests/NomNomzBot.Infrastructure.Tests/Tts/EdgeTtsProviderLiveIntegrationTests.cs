@@ -11,6 +11,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Options;
 using NomNomzBot.Infrastructure.Tests.Seeding;
 using NomNomzBot.Infrastructure.Tts;
 
@@ -37,7 +38,8 @@ public sealed class EdgeTtsProviderLiveIntegrationTests
         EdgeTtsProvider provider = new(
             TimeProvider.System,
             serviceProvider.GetRequiredService<IHttpClientFactory>(),
-            log
+            log,
+            Options.Create(new EdgeTtsOptions())
         );
 
         Domain.Tts.Interfaces.TtsSynthesisResult result = await provider.SynthesizeAsync(

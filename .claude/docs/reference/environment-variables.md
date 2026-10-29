@@ -43,6 +43,8 @@
 | `AZURE_TTS_API_KEY` | no | — | Azure Cognitive Services key for TTS |
 | `AZURE_TTS_REGION` | no | `westeurope` | Azure region for TTS service |
 | `ELEVENLABS_API_KEY` | no | — | ElevenLabs key for TTS |
+| `EDGE_TTS_CHROMIUM_VERSION` | no | shipped value (`EdgeTtsOptions.DefaultChromiumVersion`) | `Tts:Edge:ChromiumVersion`. The Chromium version the free Edge voice reports; Microsoft refuses old ones with a 403. Four dotted numbers; a malformed value is logged and ignored. Change it and restart the container |
+| `EDGE_TTS_TRUSTED_CLIENT_TOKEN` | no | shipped value (`EdgeTtsOptions.DefaultTrustedClientToken`) | `Tts:Edge:TrustedClientToken`. The Edge read-aloud client token, 32 hex characters; rarely changes |
 | `API_HTTP_PORT` | no | `5080` | Host port of the Caddy ingress (`api-blue`/`api-green` publish no port) |
 | `API_EXPOSE_DOCS` | no | `false` | Serves `/scalar` outside Development (`Api__ExposeDocs`); off by default in docker |
 | `NOMNOMZ_DATA_DIR` | no | per-user data dir (`/app/data` in docker) | Overrides the directory for SQLite, uploaded assets, sound clips and key files |

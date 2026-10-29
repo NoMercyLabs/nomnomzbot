@@ -13,6 +13,7 @@ using System.Net.WebSockets;
 using System.Web;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Domain.Tts.Interfaces;
 using NomNomzBot.Infrastructure.Tts;
@@ -65,6 +66,7 @@ public sealed class EdgeTtsProviderHandshakeRetryTests
             time,
             Substitute.For<IHttpClientFactory>(),
             NullLogger<EdgeTtsProvider>.Instance,
+            Options.Create(new EdgeTtsOptions()),
             script.Connect
         );
 
@@ -96,7 +98,7 @@ public sealed class EdgeTtsProviderHandshakeRetryTests
         script.Sockets.Distinct().Should().HaveCount(3, "every try must use a new ClientWebSocket");
         List<string> ids = [script.ConnectionId(0), script.ConnectionId(1), script.ConnectionId(2)];
         ids.Distinct().Should().HaveCount(3, "every try must carry its own ConnectionId");
-        connection!.ConnectionId.Should().Be(ids[2]);
+        connection.ConnectionId.Should().Be(ids[2]);
         connection.Socket.Should().BeSameAs(script.Sockets[2]);
         connection.Socket.Dispose();
     }

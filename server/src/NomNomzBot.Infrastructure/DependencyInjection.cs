@@ -1347,6 +1347,8 @@ public static class DependencyInjection
         // kept explicit. ITtsService is singleton (stateful queues), also kept explicit.
         // Bounded voice-list fetch: a slow Edge endpoint degrades to the curated fallback, never a hang.
         services.AddHttpClient("edge-tts", client => client.Timeout = TimeSpan.FromSeconds(15));
+        // The values Microsoft's free voice checks; they rotate, so they are settings (Tts:Edge).
+        services.Configure<EdgeTtsOptions>(configuration.GetSection(EdgeTtsOptions.SectionName));
         services.AddSingleton<ITtsProvider, EdgeTtsProvider>();
         services.AddHttpClient("azure-tts");
         services.AddSingleton<ITtsProvider>(sp => new AzureTtsProvider(
@@ -1893,9 +1895,9 @@ public static class DependencyInjection
         // no-op fallback; the API host replaces it with the hub-backed ChatOverlayLineSender.
         services.AddScoped<
             Application.Chat.Services.IChatOverlayLineSender,
-            Chat.NullChatOverlayLineSender
+            NullChatOverlayLineSender
         >();
-        services.AddScoped<Application.Chat.Services.IReplyDispatcher, Chat.ReplyDispatcher>();
+        services.AddScoped<Application.Chat.Services.IReplyDispatcher, ReplyDispatcher>();
 
         // Kick transport + token custody (slice 3b-2c): the client is stateless HTTP over api.kick.com
         // (singleton); the token provider resolves the tenant's vaulted Kick connection and refreshes

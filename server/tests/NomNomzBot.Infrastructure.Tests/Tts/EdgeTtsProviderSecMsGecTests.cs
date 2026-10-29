@@ -11,6 +11,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Infrastructure.Tts;
 using NSubstitute;
@@ -29,7 +30,8 @@ public sealed class EdgeTtsProviderSecMsGecTests
         new(
             timeProvider,
             Substitute.For<IHttpClientFactory>(),
-            NullLogger<EdgeTtsProvider>.Instance
+            NullLogger<EdgeTtsProvider>.Instance,
+            Options.Create(new EdgeTtsOptions())
         );
 
     [Theory]
@@ -62,7 +64,7 @@ public sealed class EdgeTtsProviderSecMsGecTests
     [Fact]
     public void SecMsGecVersion_NamesTheV2Token()
     {
-        EdgeTtsProvider.SecMsGecVersion.Should().StartWith("2-");
+        EdgeClientIdentity.Resolve(new(), out _).SecMsGecVersion.Should().StartWith("2-");
     }
 
     [Fact]

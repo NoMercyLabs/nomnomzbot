@@ -42,7 +42,8 @@ public sealed class TtsServiceTests
         new(
             TimeProvider.System,
             Substitute.For<IHttpClientFactory>(),
-            NullLogger<EdgeTtsProvider>.Instance
+            NullLogger<EdgeTtsProvider>.Instance,
+            Microsoft.Extensions.Options.Options.Create(new EdgeTtsOptions())
         );
 
     [Fact]

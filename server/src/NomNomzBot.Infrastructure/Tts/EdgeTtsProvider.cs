@@ -15,6 +15,7 @@ using System.Security.Cryptography;
 using System.Text;
 using System.Text.Json;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NomNomzBot.Domain.Tts.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Tts;
@@ -32,22 +33,10 @@ public sealed class EdgeTtsProvider : ITtsProvider
 
     /// <summary>Free, keyless Microsoft read-aloud service — always usable, no BYOK gate.</summary>
     public bool IsConfigured => true;
-    private const string TrustedToken = "6A5AA1D4EAFF4E9FB37E23D68491D6F4";
 
-    /// <summary>Chromium version Edge's own client currently reports; feeds both Sec-MS-GEC-Version and the
-    /// User-Agent below — Microsoft's edge (WAF-level, not just the GEC hash) rejects the handshake if the
-    /// two disagree, so this constant is the single source for both.</summary>
-    private const string ChromiumFullVersion = "143.0.3650.75";
-    private const string ChromiumMajorVersion = "143";
-    internal const string SecMsGecVersion = $"2-{ChromiumFullVersion}";
-
-    private const string UserAgent =
-        "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) "
-        + $"Chrome/{ChromiumMajorVersion}.0.0.0 Safari/537.36 Edg/{ChromiumMajorVersion}.0.0.0";
-
-    /// <summary>Same read-aloud surface the synthesis WebSocket uses, so the token stays a single constant.</summary>
+    /// <summary>Same read-aloud surface the synthesis WebSocket uses, so one trusted token serves both.</summary>
     private const string VoiceListUrl =
-        $"https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/list?trustedclienttoken={TrustedToken}";
+        "https://speech.platform.bing.com/consumer/speech/synthesize/readaloud/voices/list?trustedclienttoken=";
 
     internal const string HttpClientName = "edge-tts";
 
@@ -68,15 +57,19 @@ public sealed class EdgeTtsProvider : ITtsProvider
 
     private readonly IdleConnectionPool<EdgeConnection> _idle;
 
+    private readonly EdgeClientIdentity _identity;
+
     public EdgeTtsProvider(
         TimeProvider timeProvider,
         IHttpClientFactory httpClientFactory,
-        ILogger<EdgeTtsProvider> logger
+        ILogger<EdgeTtsProvider> logger,
+        IOptions<EdgeTtsOptions> options
     )
         : this(
             timeProvider,
             httpClientFactory,
             logger,
+            options,
             static (ws, url, ct) => ws.ConnectAsync(url, ct)
         ) { }
 
@@ -85,6 +78,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
         TimeProvider timeProvider,
         IHttpClientFactory httpClientFactory,
         ILogger<EdgeTtsProvider> logger,
+        IOptions<EdgeTtsOptions> options,
         Func<ClientWebSocket, Uri, CancellationToken, Task> connect
     )
     {
@@ -92,6 +86,13 @@ public sealed class EdgeTtsProvider : ITtsProvider
         _httpClientFactory = httpClientFactory;
         _logger = logger;
         _connect = connect;
+        _identity = EdgeClientIdentity.Resolve(options.Value, out List<string> rejected);
+        foreach (string key in rejected)
+            _logger.LogError(
+                "Edge TTS: the {Section}:{Key} setting is malformed and was ignored; the shipped value is used",
+                EdgeTtsOptions.SectionName,
+                key
+            );
         _idle = new(
             timeProvider,
             MaxIdleConnections,
@@ -289,9 +290,9 @@ public sealed class EdgeTtsProvider : ITtsProvider
             // trusted client token as of a recent 5-minute window (see rany2/edge-tts#290).
             Uri url = new(
                 $"wss://speech.platform.bing.com/consumer/speech/synthesize/readaloud/edge/v1"
-                    + $"?TrustedClientToken={TrustedToken}"
+                    + $"?TrustedClientToken={_identity.TrustedClientToken}"
                     + $"&Sec-MS-GEC={GenerateSecMsGecToken()}"
-                    + $"&Sec-MS-GEC-Version={SecMsGecVersion}"
+                    + $"&Sec-MS-GEC-Version={_identity.SecMsGecVersion}"
                     + $"&ConnectionId={connectionId}"
             );
 
@@ -353,7 +354,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
             )
         );
 
-    private static ClientWebSocket CreateSocket()
+    private ClientWebSocket CreateSocket()
     {
         ClientWebSocket ws = new();
         ws.Options.CollectHttpResponseDetails = true;
@@ -367,7 +368,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
         );
         ws.Options.SetRequestHeader("Accept-Encoding", "gzip, deflate, br, zstd");
         ws.Options.SetRequestHeader("Accept-Language", "en-US,en;q=0.9");
-        ws.Options.SetRequestHeader("User-Agent", UserAgent);
+        ws.Options.SetRequestHeader("User-Agent", _identity.UserAgent);
         ws.Options.SetRequestHeader(
             "Cookie",
             $"muid={Convert.ToHexString(RandomNumberGenerator.GetBytes(16))};"
@@ -400,11 +401,11 @@ public sealed class EdgeTtsProvider : ITtsProvider
         try
         {
             HttpClient client = _httpClientFactory.CreateClient(HttpClientName);
-            using HttpRequestMessage request = new(HttpMethod.Get, VoiceListUrl);
-            request.Headers.TryAddWithoutValidation(
-                "User-Agent",
-                "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
+            using HttpRequestMessage request = new(
+                HttpMethod.Get,
+                VoiceListUrl + _identity.TrustedClientToken
             );
+            request.Headers.TryAddWithoutValidation("User-Agent", _identity.UserAgent);
             using HttpResponseMessage response = await client.SendAsync(request, cancellationToken);
             response.EnsureSuccessStatusCode();
             string json = await response.Content.ReadAsStringAsync(cancellationToken);
@@ -476,7 +477,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
     /// WebSocket handshake 403s without it.
     /// </summary>
     internal string GenerateSecMsGecToken() =>
-        EdgeSecMsGecToken.Generate(_timeProvider.GetUtcNow(), TrustedToken);
+        EdgeSecMsGecToken.Generate(_timeProvider.GetUtcNow(), _identity.TrustedClientToken);
 
     private static string? GetString(JsonElement element, string property) =>
         element.TryGetProperty(property, out JsonElement value)

@@ -13,6 +13,7 @@ using System.Net;
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Tts.Interfaces;
 using NomNomzBot.Infrastructure.Tts;
@@ -104,7 +105,8 @@ public sealed class EdgeTtsProviderVoiceCatalogTests
         new(
             TimeProvider.System,
             new StubHttpClientFactory(handler),
-            NullLogger<EdgeTtsProvider>.Instance
+            NullLogger<EdgeTtsProvider>.Instance,
+            Options.Create(new EdgeTtsOptions())
         );
 
     [Fact]

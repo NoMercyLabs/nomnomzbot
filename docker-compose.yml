@@ -117,6 +117,9 @@ x-api-service: &api-service
     - Twitter__ClientSecret=${TWITTER_CLIENT_SECRET:-}
     - Azure__Tts__ApiKey=${AZURE_TTS_API_KEY:-}
     - Azure__Tts__Region=${AZURE_TTS_REGION:-westeurope}
+    # Empty keeps the shipped value (EdgeTtsOptions); set them when Microsoft rotates them.
+    - Tts__Edge__ChromiumVersion=${EDGE_TTS_CHROMIUM_VERSION:-}
+    - Tts__Edge__TrustedClientToken=${EDGE_TTS_TRUSTED_CLIENT_TOKEN:-}
     - ElevenLabs__ApiKey=${ELEVENLABS_API_KEY:-}
     - Api__ExposeDocs=${API_EXPOSE_DOCS:-false}
   depends_on:
