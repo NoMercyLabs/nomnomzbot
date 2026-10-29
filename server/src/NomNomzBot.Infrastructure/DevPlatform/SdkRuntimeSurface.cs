@@ -99,7 +99,7 @@ internal static class SdkRuntimeSurface
         sb.AppendLine("  /** How many characters TTS accepted for the line. */");
         sb.AppendLine("  characterCount: number;");
         sb.AppendLine(
-            "  /** How long the line takes to play, in ms. 0 when it was not measured (browser voice, test run). */"
+            "  /** How long the line takes to play, in ms. 0 in a test run, where nothing is synthesized. */"
         );
         sb.AppendLine("  durationMs: number;");
         sb.AppendLine("}");
