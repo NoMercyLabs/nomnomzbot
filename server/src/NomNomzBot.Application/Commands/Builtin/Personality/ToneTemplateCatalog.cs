@@ -220,31 +220,34 @@ public static partial class ToneTemplateCatalog
                 "song.source",
                 "song.status",
             ],
-            informative: ["The current song is: {song.name} by {song.artist} {song.link}"],
+            informative:
+            [
+                "The current song is: {song.name} by {song.artist} {song.link} {song.attribution}",
+            ],
             friendly:
             [
-                "We're vibing to {song.name} by {song.artist} — great pick! {song.link}",
-                "Now playing {song.name} by {song.artist}. Enjoy! {song.link}",
-                "This one's {song.name} by {song.artist}. {song.link}",
+                "We're vibing to {song.name} by {song.artist} — great pick! {song.link} {song.attribution}",
+                "Now playing {song.name} by {song.artist}. Enjoy! {song.link} {song.attribution}",
+                "This one's {song.name} by {song.artist}. {song.link} {song.attribution}",
             ],
             sassy:
             [
-                "It's {song.name} by {song.artist}. You could have read the overlay, but I'm flattered you asked. {song.link}",
-                "{song.name} by {song.artist}. Yes, again. No, I don't pick them. I just endure them. {song.link}",
-                "Currently {song.name} by {song.artist}. Bold choice by someone. Not naming names. {song.link}",
-                "{song.name} by {song.artist}. The court will note nobody skipped it. Yet. {song.link}",
+                "It's {song.name} by {song.artist}. You could have read the overlay, but I'm flattered you asked. {song.link} {song.attribution}",
+                "{song.name} by {song.artist}. Yes, again. No, I don't pick them. I just endure them. {song.link} {song.attribution}",
+                "Currently {song.name} by {song.artist}. Bold choice by someone. Not naming names. {song.link} {song.attribution}",
+                "{song.name} by {song.artist}. The court will note nobody skipped it. Yet. {song.link} {song.attribution}",
             ],
             hype:
             [
-                "{song.name} BY {song.artist}. ABSOLUTE TUNE. TURN IT UP. {song.link}",
-                "WE ARE BLASTING {song.name} BY {song.artist}. NEIGHBORS BEWARE. {song.link}",
-                "{song.name} BY {song.artist} AND IT GOES HARD. THAT'S THE TWEET. {song.link}",
+                "{song.name} BY {song.artist}. ABSOLUTE TUNE. TURN IT UP. {song.link} {song.attribution}",
+                "WE ARE BLASTING {song.name} BY {song.artist}. NEIGHBORS BEWARE. {song.link} {song.attribution}",
+                "{song.name} BY {song.artist} AND IT GOES HARD. THAT'S THE TWEET. {song.link} {song.attribution}",
             ],
             chill:
             [
-                "{song.status} {song.name} — {song.artist}. {song.link}",
-                "playing {song.name} by {song.artist}. {song.link}",
-                "{song.name}, {song.artist}. nice. {song.link}",
+                "{song.status} {song.name} — {song.artist}. {song.link} {song.attribution}",
+                "playing {song.name} by {song.artist}. {song.link} {song.attribution}",
+                "{song.name}, {song.artist}. nice. {song.link} {song.attribution}",
             ]
         );
 

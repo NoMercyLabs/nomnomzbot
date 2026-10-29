@@ -14,6 +14,7 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Infrastructure.Commands.Builtins;
+using NomNomzBot.Infrastructure.Tests.Commands.Builtins;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -51,36 +52,20 @@ public sealed class CurrentSongAttributionTests
             Provider: provider
         );
 
-    /// <summary>Renders the neutral fallback with the variables the builtin supplies, so the assertions are
-    /// about the SENTENCE chat actually sees rather than the dictionary behind it.</summary>
-    private static (CurrentSongBuiltin Builtin, IBuiltinResponseComposer Composer) Build(
-        NowPlaying now
-    )
+    /// <summary>The builtin over the real composer, so the assertions are about the SENTENCE chat actually
+    /// sees rather than the dictionary behind it.</summary>
+    private static CurrentSongBuiltin Build(NowPlaying now)
     {
         IMusicService music = Substitute.For<IMusicService>();
         music.GetNowPlayingAsync(Broadcaster.ToString(), Arg.Any<CancellationToken>()).Returns(now);
 
-        IBuiltinResponseComposer composer = Substitute.For<IBuiltinResponseComposer>();
-        composer
-            .ComposeAsync(Arg.Any<BuiltinResponseRequest>(), Arg.Any<CancellationToken>())
-            .Returns(call =>
-            {
-                BuiltinResponseRequest request = call.Arg<BuiltinResponseRequest>();
-                string rendered = request.NeutralFallback ?? string.Empty;
-                IReadOnlyDictionary<string, string> variables =
-                    request.Variables ?? new Dictionary<string, string>();
-                foreach (KeyValuePair<string, string> variable in variables)
-                    rendered = rendered.Replace($"{{{variable.Key}}}", variable.Value);
-                return Task.FromResult(rendered);
-            });
-
-        return (new(music, composer), composer);
+        return new(music, TestBuiltinComposer.Create());
     }
 
     [Fact]
     public async Task A_requested_track_names_the_viewer_who_asked_for_it()
     {
-        (CurrentSongBuiltin builtin, _) = Build(Track(requestedBy: "f0xb17", provider: "spotify"));
+        CurrentSongBuiltin builtin = Build(Track(requestedBy: "f0xb17", provider: "spotify"));
 
         Result<string> result = await builtin.ExecuteAsync(Ctx());
 
@@ -92,7 +77,7 @@ public sealed class CurrentSongAttributionTests
     [Fact]
     public async Task An_autoplayed_track_says_where_it_came_from_and_never_invents_a_requester()
     {
-        (CurrentSongBuiltin builtin, _) = Build(Track(requestedBy: null, provider: "spotify"));
+        CurrentSongBuiltin builtin = Build(Track(requestedBy: null, provider: "spotify"));
 
         Result<string> result = await builtin.ExecuteAsync(Ctx());
 
@@ -106,7 +91,7 @@ public sealed class CurrentSongAttributionTests
     [Fact]
     public async Task The_same_distinction_holds_for_youtube_not_just_spotify()
     {
-        (CurrentSongBuiltin builtin, _) = Build(Track(requestedBy: null, provider: "youtube"));
+        CurrentSongBuiltin builtin = Build(Track(requestedBy: null, provider: "youtube"));
 
         Result<string> result = await builtin.ExecuteAsync(Ctx());
 
@@ -117,7 +102,7 @@ public sealed class CurrentSongAttributionTests
     [Fact]
     public async Task A_blank_requester_string_counts_as_nobody_not_as_a_viewer_named_nothing()
     {
-        (CurrentSongBuiltin builtin, _) = Build(Track(requestedBy: "   ", provider: "spotify"));
+        CurrentSongBuiltin builtin = Build(Track(requestedBy: "   ", provider: "spotify"));
 
         Result<string> result = await builtin.ExecuteAsync(Ctx());
 
