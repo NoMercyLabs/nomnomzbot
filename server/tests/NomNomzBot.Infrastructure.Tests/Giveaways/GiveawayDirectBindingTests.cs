@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
@@ -58,6 +59,7 @@ public sealed class GiveawayDirectBindingTests
                 .AddScoped(_ => invoker)
                 .BuildServiceProvider(),
             [],
+            Substitute.For<IInboundOriginChatSender>(),
             Substitute.For<ITokenProtector>(),
             TimeProvider.System,
             NullLogger<GiveawayFulfillment>.Instance
