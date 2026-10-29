@@ -333,7 +333,8 @@ function step(delta: 1 | -1, unit: StepUnit): void {
   jumpTo(index);
 }
 
-// The rate is fixed per utterance, so a playing sentence restarts at the new one.
+// The playing sentence changes speed where it is; a sentence still being fetched or the next one reads the rate
+// when it starts (playClip).
 function cycleRate(): void {
   const next = RATES[(KNOWN_RATES.indexOf(rate.value) + 1) % RATES.length]!;
 
@@ -345,8 +346,8 @@ function cycleRate(): void {
 
   rate.value = next;
 
-  if (status.value === 'playing') {
-    speak();
+  if (player) {
+    player.playbackRate = next;
   }
 }
 

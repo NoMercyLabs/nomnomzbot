@@ -220,14 +220,29 @@ describe('Read aloud', () => {
     expect(reading()).toBe('One is first. Two is second.');
   });
 
-  it('cycles the speed, keeps it, and plays the restarted sentence at the new speed', async () => {
+  // Stoney 2026-10-29: "changing the speed should not restart the phrase".
+  it('cycles the speed, keeps it, and changes the speed of the sentence that is playing', async () => {
     await open();
     await tap('[data-read-aloud-start]');
+    const playing = lastClip();
+    const clipsBefore = FakeAudio.played.length;
 
     await tap('[data-read-rate]');
 
-    expect(lastClip().playbackRate).toBe(1.25);
+    expect(lastClip()).toBe(playing);
+    expect(FakeAudio.played).toHaveLength(clipsBefore);
+    expect(playing.paused).toBe(false);
+    expect(playing.playbackRate).toBe(1.25);
     expect(localStorage.getItem('read-aloud-rate')).toBe('1.25');
+  });
+
+  it('plays the next sentence at the speed chosen while the one before it was playing', async () => {
+    await open();
+    await tap('[data-read-aloud-start]');
+    await tap('[data-read-rate]');
+    await clipEnds();
+
+    expect(lastClip().playbackRate).toBe(1.25);
   });
 
   it('stops on Escape, clears the highlight and brings the start button back', async () => {
