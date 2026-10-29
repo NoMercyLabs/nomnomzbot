@@ -309,8 +309,9 @@ try
                 .AllowAnyMethod()
                 .AllowCredentials();
         });
-        NomNomzBot.Api.Controllers.ReadAloudCors.Configure(options, builder.Configuration);
+        NomNomzBot.Api.Controllers.ReadAloudCors.Configure(options);
     });
+    builder.Services.AddSingleton<NomNomzBot.Api.Controllers.ReadAloudOriginGate>();
 
     // Health checks — profile-selected (platform-conventions §7). The DB readiness probe is the resolved
     // provider's: AddDbContextCheck<AppDbContext> on SQLite (lite — no Npgsql probe, no Postgres dependency),

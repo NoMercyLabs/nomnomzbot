@@ -167,4 +167,68 @@ public sealed class ReadAloudServiceTests
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("TTS_UNAVAILABLE");
     }
+
+    // Stoney 2026-10-29: the public voice must not be usable without limit. Run in parallel, the voice provider
+    // answered some requests with an empty clip, and a clip that is empty must never reach the cache.
+    [Fact]
+    public async Task AnEmptyClip_IsATtsUnavailableResult_SoItIsNeverServedOrCached()
+    {
+        (ReadAloudService service, ITtsService tts) = await BuildAsync();
+        tts.SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(new TtsResult([], 0, "en-US-AriaNeural", "edge"));
+
+        Result<TtsResult> result = await service.SynthesizeAsync("Hello.", "en");
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("TTS_UNAVAILABLE");
+    }
+
+    [Fact]
+    public async Task ManyCallsAtOnce_NeverRunMoreThanTheCapOfSynthesesTogether_AndAllAreAnswered()
+    {
+        int running = 0;
+        int mostAtOnce = 0;
+        ITtsService tts = Substitute.For<ITtsService>();
+        tts.SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(async _ =>
+            {
+                int now = Interlocked.Increment(ref running);
+                int seen;
+                while (now > (seen = Volatile.Read(ref mostAtOnce)))
+                    Interlocked.CompareExchange(ref mostAtOnce, now, seen);
+
+                await Task.Delay(60);
+                Interlocked.Decrement(ref running);
+                return Clip;
+            });
+
+        List<Task<Result<TtsResult>>> calls = [];
+        for (int i = 0; i < 8; i++)
+        {
+            // Each caller has its own request scope, so its own database context; the cap is shared.
+            TtsTestDbContext db = TtsTestDbContext.New();
+            db.TtsVoices.Add(Voice("en-US-AriaNeural", "en-US", isDefault: true));
+            await db.SaveChangesAsync();
+            ReadAloudService service = new(db, tts, new PlatformTtsVoiceDefault(db));
+            calls.Add(service.SynthesizeAsync($"Sentence number {i}.", "en"));
+        }
+
+        Result<TtsResult>[] results = await Task.WhenAll(calls);
+
+        results.Should().AllSatisfy(result => result.IsSuccess.Should().BeTrue());
+        mostAtOnce.Should().BeLessThanOrEqualTo(ReadAloudService.MaxSynthesesAtOnce);
+        mostAtOnce.Should().BeGreaterThan(0);
+    }
 }

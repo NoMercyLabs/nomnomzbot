@@ -12,8 +12,10 @@
 using FluentAssertions;
 using Microsoft.AspNetCore.Cors.Infrastructure;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Extensions.Configuration;
 using NomNomzBot.Api.Controllers;
+using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Tts.Services;
 using NSubstitute;
@@ -29,12 +31,28 @@ public sealed class ReadAloudControllerTests
 {
     private static readonly byte[] Mp3 = [1, 2, 3, 4];
 
-    private static (ReadAloudController Controller, IReadAloudService Service) Build()
+    private const string DocsOrigin = "https://docs.nomnomz.bot";
+
+    // The request comes from the docs site, which the gate allows by default.
+    private static (ReadAloudController Controller, IReadAloudService Service) Build(
+        string? origin = DocsOrigin,
+        string host = "bot.example",
+        string? baseUrl = null
+    )
     {
         IReadAloudService service = Substitute.For<IReadAloudService>();
-        ReadAloudController controller = new(service)
+        DefaultHttpContext http = new();
+        http.Request.Host = new(host);
+        if (origin is not null)
+            http.Request.Headers.Origin = origin;
+
+        IConfiguration configuration = new ConfigurationBuilder()
+            .AddInMemoryCollection(new Dictionary<string, string?> { ["App:BaseUrl"] = baseUrl })
+            .Build();
+
+        ReadAloudController controller = new(service, new(configuration))
         {
-            ControllerContext = new() { HttpContext = new DefaultHttpContext() },
+            ControllerContext = new() { HttpContext = http },
         };
         return (controller, service);
     }
@@ -73,7 +91,7 @@ public sealed class ReadAloudControllerTests
         IActionResult result = await controller.SpeakCached("", "en", CancellationToken.None);
 
         result.Should().BeOfType<StatusCodeResult>().Which.StatusCode.Should().Be(400);
-        controller.Response.Headers.CacheControl.ToString().Should().BeEmpty();
+        controller.Response.Headers.CacheControl.ToString().Should().Be("no-store");
     }
 
     [Fact]
@@ -87,7 +105,135 @@ public sealed class ReadAloudControllerTests
         IActionResult result = await controller.SpeakCached("Hello.", "nl", CancellationToken.None);
 
         result.Should().BeOfType<StatusCodeResult>().Which.StatusCode.Should().Be(503);
-        controller.Response.Headers.CacheControl.ToString().Should().BeEmpty();
+        controller.Response.Headers.CacheControl.ToString().Should().Be("no-store");
+    }
+
+    // Stoney 2026-10-29: the read-aloud clips must not be usable from any site, and the prod copy is cached
+    // heavily on Cloudflare's side. A cached refusal or an empty clip would be kept for a month.
+    [Fact]
+    public async Task A_clip_with_no_audio_is_503_and_never_cached()
+    {
+        (ReadAloudController controller, IReadAloudService service) = Build();
+        service
+            .SynthesizeAsync("Hello.", "en", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new TtsResult([], 0, "voice-1", "edge")));
+
+        IActionResult result = await controller.SpeakCached("Hello.", "en", CancellationToken.None);
+
+        result.Should().BeOfType<StatusCodeResult>().Which.StatusCode.Should().Be(503);
+        controller.Response.Headers.CacheControl.ToString().Should().Be("no-store");
+    }
+
+    [Theory]
+    [InlineData("https://evil.example")]
+    [InlineData("https://docs.nomnomz.bot.evil.example")]
+    [InlineData("http://docs.nomnomz.bot")]
+    [InlineData(null)]
+    public async Task A_request_from_a_site_that_is_not_allowed_is_refused_before_anything_is_spoken(
+        string? origin
+    )
+    {
+        (ReadAloudController controller, IReadAloudService service) = Build(origin);
+
+        IActionResult get = await controller.SpeakCached("Hello.", "en", CancellationToken.None);
+        IActionResult post = await controller.Speak(new("Hello.", "en"), CancellationToken.None);
+
+        get.Should().BeOfType<StatusCodeResult>().Which.StatusCode.Should().Be(403);
+        post.Should().BeOfType<StatusCodeResult>().Which.StatusCode.Should().Be(403);
+        controller.Response.Headers.CacheControl.ToString().Should().Be("no-store");
+        await service.DidNotReceiveWithAnyArgs().SynthesizeAsync(default!, default!, default);
+    }
+
+    [Fact]
+    public async Task The_site_that_serves_the_bot_itself_may_use_it_as_named_in_the_app_base_url()
+    {
+        (ReadAloudController controller, IReadAloudService service) = Build(
+            origin: "https://bot.example",
+            baseUrl: "https://bot.example/"
+        );
+        service
+            .SynthesizeAsync("Hello.", "en", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new TtsResult(Mp3, 900, "voice-1", "edge")));
+
+        IActionResult result = await controller.Speak(new("Hello.", "en"), CancellationToken.None);
+
+        result.Should().BeOfType<FileContentResult>();
+    }
+
+    // A caller controls its own Host and X-Forwarded-Host, so neither may make a site "the bot itself".
+    [Fact]
+    public async Task A_forged_host_header_does_not_make_a_site_allowed()
+    {
+        (ReadAloudController controller, IReadAloudService service) = Build(
+            origin: "https://evil.example",
+            host: "evil.example"
+        );
+        controller.Request.Headers["X-Forwarded-Host"] = "evil.example";
+
+        IActionResult result = await controller.Speak(new("Hello.", "en"), CancellationToken.None);
+
+        result.Should().BeOfType<StatusCodeResult>().Which.StatusCode.Should().Be(403);
+        await service.DidNotReceiveWithAnyArgs().SynthesizeAsync(default!, default!, default);
+    }
+
+    // Cloudflare keeps one copy of a clip for every caller on the plans that cannot add the Origin header to the
+    // cache key, so the answer must be the same for every allowed site. The CORS header is a constant "*" (the
+    // route sends no credentials) and the answer does not vary by Origin.
+    [Fact]
+    public async Task A_clip_is_the_same_answer_for_every_allowed_site_so_one_cached_copy_serves_them_all()
+    {
+        (ReadAloudController controller, IReadAloudService service) = Build();
+        service
+            .SynthesizeAsync("Hello.", "en", Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new TtsResult(Mp3, 900, "voice-1", "edge")));
+
+        await controller.SpeakCached("Hello.", "en", CancellationToken.None);
+
+        controller.Response.Headers.Vary.ToString().Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("en;drop table")]
+    [InlineData("e")]
+    [InlineData("english-united-states-of-america-extra-long")]
+    [InlineData("../../x")]
+    public async Task A_locale_that_is_not_a_language_code_is_400_so_it_cannot_fill_the_cache_with_junk(
+        string locale
+    )
+    {
+        (ReadAloudController controller, IReadAloudService service) = Build();
+
+        IActionResult result = await controller.SpeakCached(
+            "Hello.",
+            locale,
+            CancellationToken.None
+        );
+
+        result.Should().BeOfType<StatusCodeResult>().Which.StatusCode.Should().Be(400);
+        controller.Response.Headers.CacheControl.ToString().Should().Be("no-store");
+        await service.DidNotReceiveWithAnyArgs().SynthesizeAsync(default!, default!, default);
+    }
+
+    [Theory]
+    [InlineData("en")]
+    [InlineData("nl")]
+    [InlineData("en-US")]
+    [InlineData("pt_BR")]
+    public async Task A_language_code_is_accepted(string locale)
+    {
+        (ReadAloudController controller, IReadAloudService service) = Build();
+        service
+            .SynthesizeAsync("Hello.", locale, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new TtsResult(Mp3, 900, "voice-1", "edge")));
+
+        IActionResult result = await controller.SpeakCached(
+            "Hello.",
+            locale,
+            CancellationToken.None
+        );
+
+        result.Should().BeOfType<FileContentResult>();
     }
 
     [Fact]
@@ -104,22 +250,44 @@ public sealed class ReadAloudControllerTests
     }
 
     [Fact]
-    public void The_cors_policy_allows_the_docs_site_by_default_and_never_sends_credentials()
+    public void The_route_is_on_its_own_tighter_rate_limit_tier()
     {
-        IConfiguration empty = new ConfigurationBuilder().Build();
+        EnableRateLimitingAttribute tier = typeof(ReadAloudController)
+            .GetCustomAttributes(typeof(EnableRateLimitingAttribute), inherit: false)
+            .Cast<EnableRateLimitingAttribute>()
+            .Single();
+
+        tier.PolicyName.Should().Be(RateLimitPolicyNames.ReadAloud);
+    }
+
+    [Fact]
+    public void The_cors_policy_is_one_constant_answer_and_never_sends_credentials()
+    {
         CorsOptions options = new();
 
-        ReadAloudCors.Configure(options, empty);
+        ReadAloudCors.Configure(options);
 
+        // Which sites may call is decided by ReadAloudOriginGate and the edge rule, not by this header: a cached
+        // clip would carry one site's name to every other site.
         CorsPolicy policy = options.GetPolicy(ReadAloudCors.PolicyName)!;
-        policy.Origins.Should().Contain("https://docs.nomnomz.bot");
-        policy.Origins.Should().Contain("https://docs-dev.nomnomz.bot");
+        policy.AllowAnyOrigin.Should().BeTrue();
         policy.SupportsCredentials.Should().BeFalse();
         policy.Methods.Should().BeEquivalentTo("GET", "POST");
     }
 
     [Fact]
-    public void The_cors_origins_come_from_the_read_aloud_setting_when_it_is_set()
+    public void The_allowed_sites_are_the_docs_sites_by_default()
+    {
+        IConfiguration empty = new ConfigurationBuilder().Build();
+
+        ReadAloudCors
+            .AllowedOrigins(empty)
+            .Should()
+            .BeEquivalentTo("https://docs.nomnomz.bot", "https://docs-dev.nomnomz.bot");
+    }
+
+    [Fact]
+    public void The_allowed_sites_come_from_the_read_aloud_setting_when_it_is_set()
     {
         IConfiguration configured = new ConfigurationBuilder()
             .AddInMemoryCollection(
@@ -129,13 +297,10 @@ public sealed class ReadAloudControllerTests
                 }
             )
             .Build();
-        CorsOptions options = new();
 
-        ReadAloudCors.Configure(options, configured);
-
-        options
-            .GetPolicy(ReadAloudCors.PolicyName)!
-            .Origins.Should()
+        ReadAloudCors
+            .AllowedOrigins(configured)
+            .Should()
             .BeEquivalentTo("https://help.example.org");
     }
 }

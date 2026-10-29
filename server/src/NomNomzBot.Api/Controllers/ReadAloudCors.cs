@@ -28,16 +28,17 @@ public static class ReadAloudCors
         "https://docs-dev.nomnomz.bot",
     ];
 
-    public static void Configure(CorsOptions options, IConfiguration configuration) =>
+    /// <summary>The allowed sites: the <c>ReadAloud:Origins</c> setting, or the official docs sites.</summary>
+    public static string[] AllowedOrigins(IConfiguration configuration) =>
+        configuration.GetSection("ReadAloud:Origins").Get<string[]>() ?? DefaultOrigins;
+
+    // The header is "*" for every caller, never the caller's own origin: Cloudflare keeps one copy of a clip for
+    // all callers (a cache key with the Origin header needs an Enterprise plan), so a header that named one
+    // site would be served to the others. Which sites may call is decided by <see cref="ReadAloudOriginGate"/>
+    // at the bot and by a rule on Origin at Cloudflare; the route sends no credentials, so "*" widens nothing.
+    public static void Configure(CorsOptions options) =>
         options.AddPolicy(
             PolicyName,
-            policy =>
-                policy
-                    .WithOrigins(
-                        configuration.GetSection("ReadAloud:Origins").Get<string[]>()
-                            ?? DefaultOrigins
-                    )
-                    .WithMethods("GET", "POST")
-                    .AllowAnyHeader()
+            policy => policy.AllowAnyOrigin().WithMethods("GET", "POST").AllowAnyHeader()
         );
 }

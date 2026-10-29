@@ -42,6 +42,10 @@ public static class RateLimitPolicyNames
     /// <summary>Unauthenticated public surfaces (overlays, webhooks, song-request) — partitioned per IP.</summary>
     public const string Anonymous = "anonymous";
 
+    /// <summary>The public Read Aloud voice — tighter than <see cref="Anonymous"/> because a clip that is not
+    /// cached costs a real synthesis; partitioned per IP.</summary>
+    public const string ReadAloud = "read-aloud";
+
     /// <summary>Platform-admin reads/non-destructive writes — partitioned per principal.</summary>
     public const string Admin = "admin";
 

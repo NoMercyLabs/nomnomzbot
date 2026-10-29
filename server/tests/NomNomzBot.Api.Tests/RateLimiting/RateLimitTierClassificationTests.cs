@@ -48,6 +48,7 @@ public sealed class RateLimitTierClassificationTests
         [RateLimitPolicyNames.Session] = SessionRateLimitPolicy.PermitLimit,
         [RateLimitPolicyNames.DevicePoll] = DevicePollRateLimitPolicy.PermitLimit,
         [RateLimitPolicyNames.Anonymous] = AnonymousRateLimitPolicy.PermitLimit,
+        [RateLimitPolicyNames.ReadAloud] = ReadAloudRateLimitPolicy.PermitLimit,
         [RateLimitPolicyNames.Read] = ReadRateLimitPolicy.PermitLimit,
     };
 
@@ -72,6 +73,7 @@ public sealed class RateLimitTierClassificationTests
         RateLimitPolicyNames.Auth,
         RateLimitPolicyNames.DevicePoll,
         RateLimitPolicyNames.Anonymous,
+        RateLimitPolicyNames.ReadAloud,
         RateLimitPolicyNames.Admin,
         SecuritySensitiveRateLimitPolicy.PolicyName,
     };

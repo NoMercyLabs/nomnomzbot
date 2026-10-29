@@ -24,6 +24,11 @@
 //   pages-docs  point docs.nomnomz.bot at the NoMercyLabs GitHub Pages site: one CNAME to
 //               nomercylabs.github.io, DNS only. It refuses when docs.nomnomz.bot already holds any record
 //               of another shape, and ignores --host.
+//   cache-read-aloud    one cache rule: Cloudflare keeps each public read-aloud clip of <host> (30 days, as the
+//               bot says). The host must be proxied (orange cloud) or Cloudflare never sees the request.
+//   protect-read-aloud  one firewall rule: a request to the read-aloud route of <host> is blocked unless its
+//               Origin is one of our sites (docs, docs-dev, <host> itself, and any --allow-origin). It runs
+//               before the cache, so a cached clip is protected too. --remove takes either rule out again.
 //
 // Without --yes a mode only prints what it would change. The key comes from the nomercy-tv .env (path in
 // CF_ENV_FILE) and is never printed. Every call refuses a hostname outside *.nomnomz.bot, and a write
@@ -52,8 +57,8 @@ if (!(originPort >= 5080 && originPort <= 5090)) {
 	process.exit(2);
 }
 
-if (!['backup', 'point', 'remove-old', 'pages-apex', 'pages-docs'].includes(mode) || !backupDir) {
-	console.error('usage: <backup|point|remove-old|pages-apex|pages-docs> --backup-dir <dir> [--host *.nomnomz.bot] [--origin http://192.168.2.201:<port>] [--yes]');
+if (!['backup', 'point', 'remove-old', 'remove-dev', 'pages-apex', 'pages-docs', 'cache-read-aloud', 'protect-read-aloud'].includes(mode) || !backupDir) {
+	console.error('usage: <backup|point|remove-old|remove-dev|pages-apex|pages-docs|cache-read-aloud|protect-read-aloud> --backup-dir <dir> [--host *.nomnomz.bot] [--origin http://192.168.2.201:<port>] [--allow-origin https://site] [--remove] [--yes]');
 	process.exit(2);
 }
 if (mode !== 'pages-apex' && mode !== 'pages-docs' && (!host.endsWith('.nomnomz.bot') || host === 'nomnomz.bot')) {
@@ -193,7 +198,90 @@ async function pointDocsAtPages() {
 	console.log(`docs now: ${after.map(recordLine).join(', ')}`);
 }
 
-const pagesMode = mode === 'pages-apex' || mode === 'pages-docs';
+const CACHE_PHASE = 'http_request_cache_settings';
+const FIREWALL_PHASE = 'http_request_firewall_custom';
+const READ_ALOUD_PATH = '/api/v1/public/read-aloud';
+const CACHE_RULE_REF = 'nnz-read-aloud-cache';
+const PROTECT_RULE_REF = 'nnz-read-aloud-origin';
+// The sites that may use the voice from a browser; the host's own site is always added. Same sites as the bot's
+// ReadAloud:Origins default (ReadAloudCors.cs), and --allow-origin adds more.
+const DEFAULT_ORIGINS = ['https://docs.nomnomz.bot', 'https://docs-dev.nomnomz.bot'];
+
+// Adds, replaces or removes ONE rule of a zone ruleset phase, keyed by its ref, and proves that every other rule
+// is still there afterwards. Without --yes it only prints the rule it would write.
+async function changeOneRule(phase, ref, rule, label) {
+	const zones = await call('GET', '/zones?name=nomnomz.bot');
+	const zoneId = zones[0].id;
+	const path = `/zones/${zoneId}/rulesets/phases/${phase}/entrypoint`;
+	let rules = [];
+	try {
+		rules = (await call('GET', path)).rules ?? [];
+	} catch (error) {
+		if (!String(error.message).includes('10003')) throw error;
+	}
+	save(`${label}-rules-before.json`, rules);
+
+	const keep = rules.filter((existing) => existing.ref !== ref);
+	const had = rules.length - keep.length;
+	const remove = args.includes('--remove');
+	console.log(`${label} rules now: ${rules.length}; ${remove ? 'remove' : had ? 'replace' : 'add'} ${ref} for ${host}${READ_ALOUD_PATH}${apply ? '' : ' (dry run)'}`);
+	if (!remove) console.log(`expression: ${rule.expression}`);
+	if (!apply) return;
+
+	const clean = ({ id, ref, description, expression, action, action_parameters, enabled }) => ({ id, ref, description, expression, action, action_parameters, enabled });
+	await call('PUT', path, { rules: [...keep.map(clean), ...(remove ? [] : [rule])] });
+	const after = (await call('GET', path)).rules ?? [];
+	save(`${label}-rules-after.json`, after);
+	const keptIds = keep.every((old) => after.some((now) => now.id === old.id));
+	const ours = after.filter((now) => now.ref === ref);
+	if (!keptIds || ours.length !== (remove ? 0 : 1) || after.length !== keep.length + (remove ? 0 : 1)) throw new Error(`the rules after the change are not exactly the one ${label} rule change`);
+	console.log(`${label} rules after: ${after.length}; ${keep.length} earlier rule(s) unchanged; ours ${remove ? 'removed' : `enabled=${ours[0].enabled}`}`);
+}
+
+// The cache rule for the public read-aloud clips of one host. It follows the origin's Cache-Control (the bot sends
+// a 30 day s-maxage on a clip and `no-store` on every refusal and every empty clip), so an error answer is never
+// stored. The default cache key keeps the query string, which holds the text and the language; a custom key
+// (query string list, Origin header) needs an Enterprise plan, so the rule does not use one.
+function cacheReadAloud() {
+	return changeOneRule(
+		CACHE_PHASE,
+		CACHE_RULE_REF,
+		{
+			ref: CACHE_RULE_REF,
+			description: 'NomNomzBot: cache the public read-aloud clips',
+			expression: `(http.host eq "${host}" and http.request.method eq "GET" and http.request.uri.path eq "${READ_ALOUD_PATH}")`,
+			action: 'set_cache_settings',
+			action_parameters: { cache: true, edge_ttl: { mode: 'respect_origin' }, browser_ttl: { mode: 'respect_origin' } },
+			enabled: true,
+		},
+		'cache',
+	);
+}
+
+// The Origin rule for the same path. A cached clip is answered by Cloudflare without asking the bot, so the
+// bot's own origin check never sees it; this rule runs before the cache and refuses every browser request whose
+// Origin is not one of the allowed sites. A request with no Origin (curl, a script) is refused too.
+function protectReadAloud() {
+	const allowed = [...DEFAULT_ORIGINS, `https://${host}`, ...args.flatMap((arg, i) => (arg === '--allow-origin' ? [args[i + 1]] : []))];
+	const list = [...new Set(allowed)].map((origin) => `"${origin}"`).join(' ');
+	return changeOneRule(
+		FIREWALL_PHASE,
+		PROTECT_RULE_REF,
+		{
+			ref: PROTECT_RULE_REF,
+			description: 'NomNomzBot: only our own sites may use the public read-aloud voice',
+			expression: `(http.host eq "${host}" and http.request.uri.path eq "${READ_ALOUD_PATH}" and not any(http.request.headers["origin"][*] in {${list}}))`,
+			action: 'block',
+			enabled: true,
+		},
+		'protect',
+	);
+}
+
+const zoneOnlyMode = mode === 'pages-apex' || mode === 'pages-docs' || mode === 'cache-read-aloud' || mode === 'protect-read-aloud';
+const pagesMode = zoneOnlyMode;
+if (mode === 'cache-read-aloud') await cacheReadAloud();
+if (mode === 'protect-read-aloud') await protectReadAloud();
 if (mode === 'backup' || (apply && !pagesMode)) {
 	save('proxmox-tunnel.json', await tunnelConfig(PROXMOX_TUNNEL));
 	save('dev-tunnel.json', await tunnelConfig(DEV_TUNNEL));
@@ -229,4 +317,24 @@ if (mode === 'point') {
 
 if (mode === 'remove-old') {
 	await rewriteIngress(PROXMOX_TUNNEL, (rules) => rules.filter((rule) => rule.hostname !== host));
+}
+
+// Takes a hostname down: drops its route from the Dev tunnel, then deletes its DNS record when that record
+// points at the Dev tunnel. A record that points anywhere else stays and is reported.
+if (mode === 'remove-dev') {
+	await rewriteIngress(DEV_TUNNEL, (rules) => rules.filter((rule) => rule.hostname !== host));
+	const { zoneId, record } = await dnsRecord();
+	const content = `${DEV_TUNNEL}.cfargotunnel.com`;
+	if (!record) {
+		console.log(`dns ${host}: no record`);
+	} else if (record.content !== content) {
+		console.log(`dns ${record.name}: points at ${record.content}, not the Dev tunnel; left as it is`);
+	} else {
+		console.log(`dns ${record.name}: delete ${record.type} -> ${record.content}${apply ? '' : ' (dry run)'}`);
+		if (apply) {
+			await call('DELETE', `/zones/${zoneId}/dns_records/${record.id}`);
+			const left = await call('GET', `/zones/${zoneId}/dns_records?name=${host}`);
+			console.log(`dns ${host}: ${left.length} record(s) now`);
+		}
+	}
 }

@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Text.RegularExpressions;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Cors;
 using Microsoft.AspNetCore.Mvc;
@@ -30,11 +31,19 @@ namespace NomNomzBot.Api.Controllers;
 [Route("api/v1/public/read-aloud")]
 [AllowAnonymous]
 [ApiExplorerSettings(IgnoreApi = true)]
-[EnableRateLimiting(RateLimiting.RateLimitPolicyNames.Anonymous)]
+[EnableRateLimiting(RateLimiting.RateLimitPolicyNames.ReadAloud)]
 [EnableCors(ReadAloudCors.PolicyName)]
-public sealed class ReadAloudController(IReadAloudService readAloud) : ControllerBase
+public sealed partial class ReadAloudController(
+    IReadAloudService readAloud,
+    ReadAloudOriginGate originGate
+) : ControllerBase
 {
     private const string PublicCacheControl = "public, max-age=604800, s-maxage=2592000";
+
+    // A language code, such as en, nl, en-US or pt_BR. Anything else is not a language, and a free-form value
+    // here would let one sentence fill the cache with a copy for every spelling.
+    [GeneratedRegex("^[A-Za-z]{2,3}([-_][A-Za-z0-9]{2,8})?$")]
+    private static partial Regex LanguageCode();
 
     /// <summary>The request body: the text to speak and the page language.</summary>
     public sealed record ReadAloudRequest(string Text, string Locale);
@@ -65,14 +74,28 @@ public sealed class ReadAloudController(IReadAloudService readAloud) : Controlle
         CancellationToken ct
     )
     {
-        Result<TtsResult> result = await readAloud.SynthesizeAsync(text, locale, ct);
-        if (result.IsSuccess)
+        if (!originGate.Allows(Request))
+            return Refuse(StatusCodes.Status403Forbidden);
+
+        if (!LanguageCode().IsMatch(locale ?? string.Empty))
+            return Refuse(StatusCodes.Status400BadRequest);
+
+        Result<TtsResult> result = await readAloud.SynthesizeAsync(text, locale!, ct);
+        if (result.IsSuccess && result.Value.AudioData.Length > 0)
             return File(result.Value.AudioData, "audio/mpeg");
 
-        return StatusCode(
+        // An empty clip is a failure too: a cache would keep it for a month.
+        return Refuse(
             result.ErrorCode == "VALIDATION_FAILED"
                 ? StatusCodes.Status400BadRequest
                 : StatusCodes.Status503ServiceUnavailable
         );
+    }
+
+    // Every refusal says it must never be cached, so Cloudflare and the browser never keep one.
+    private StatusCodeResult Refuse(int status)
+    {
+        Response.Headers.CacheControl = "no-store";
+        return StatusCode(status);
     }
 }

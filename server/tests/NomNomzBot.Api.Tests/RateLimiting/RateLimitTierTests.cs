@@ -239,6 +239,41 @@ public sealed class RateLimitTierTests
         httpContext.Response.Headers.RetryAfter.ToString().Should().Be("42");
     }
 
+    // Stoney 2026-10-29: the public read-aloud voice must not be usable without limit. It has its own, tighter
+    // per-IP budget, because a clip the cache does not hold costs a real synthesis.
+    [Fact]
+    public async Task ReadAloud_AllowsAReadingPaceByOneIp_ThenRejects_AndNeverTouchesTheAnonymousBucket()
+    {
+        using PartitionedRateLimiter<HttpContext> readAloud = PartitionedRateLimiter.Create<
+            HttpContext,
+            string
+        >(ReadAloudRateLimitPolicy.Partition);
+        using PartitionedRateLimiter<HttpContext> anonymous = PartitionedRateLimiter.Create<
+            HttpContext,
+            string
+        >(AnonymousRateLimitPolicy.Partition);
+
+        HttpContext Context() => ContextForIp("203.0.113.9");
+
+        for (int i = 0; i < ReadAloudRateLimitPolicy.PermitLimit; i++)
+        {
+            using RateLimitLease lease = await readAloud.AcquireAsync(Context());
+            lease.IsAcquired.Should().BeTrue();
+        }
+
+        using RateLimitLease rejected = await readAloud.AcquireAsync(Context());
+        rejected.IsAcquired.Should().BeFalse();
+        ReadAloudRateLimitPolicy
+            .PermitLimit.Should()
+            .BeLessThan(AnonymousRateLimitPolicy.PermitLimit);
+
+        using RateLimitLease otherBucket = await anonymous.AcquireAsync(Context());
+        otherBucket.IsAcquired.Should().BeTrue();
+
+        using RateLimitLease otherIp = await readAloud.AcquireAsync(ContextForIp("203.0.113.10"));
+        otherIp.IsAcquired.Should().BeTrue();
+    }
+
     /// <summary>Minimal fake lease exposing only a Retry-After metadata value, for the OnRejected test above.</summary>
     private sealed class FixedRateLimitLeaseWithRetryAfter(TimeSpan retryAfter) : RateLimitLease
     {

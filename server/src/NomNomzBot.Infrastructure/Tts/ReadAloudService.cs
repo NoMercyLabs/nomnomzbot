@@ -30,7 +30,17 @@ public sealed class ReadAloudService(
     /// <summary>The longest text one call speaks: a long sentence, never a page.</summary>
     public const int MaxTextLength = 500;
 
+    /// <summary>
+    /// How many clips the public voice makes at the same moment, across every caller. The voice provider gave
+    /// an empty clip to some requests that ran in parallel, and the route is open to anyone, so a few at a time
+    /// bounds the cost of a flood. The rest wait for a slot; a clip already cached never reaches this.
+    /// </summary>
+    public const int MaxSynthesesAtOnce = 2;
+
     private const string EdgeProvider = "edge";
+
+    private static readonly SemaphoreSlim Slots = new(MaxSynthesesAtOnce);
+    private static readonly TimeSpan WaitForSlot = TimeSpan.FromSeconds(30);
 
     public async Task<Result<TtsResult>> SynthesizeAsync(
         string text,
@@ -46,9 +56,15 @@ public sealed class ReadAloudService(
             );
 
         string voiceId = await ResolveVoiceIdAsync(locale, ct);
+        if (!await Slots.WaitAsync(WaitForSlot, ct))
+            return Unavailable();
+
         try
         {
-            return Result.Success(await tts.SynthesizeAsync(spoken, voiceId, ct: ct));
+            TtsResult clip = await tts.SynthesizeAsync(spoken, voiceId, ct: ct);
+
+            // An empty clip is a failure: it cannot be played, and a cache would keep it.
+            return clip.AudioData.Length > 0 ? Result.Success(clip) : Unavailable();
         }
         catch (Exception exception)
             when (exception
@@ -58,12 +74,16 @@ public sealed class ReadAloudService(
                         or TimeoutException
             )
         {
-            return Result.Failure<TtsResult>(
-                "The voice is not available right now.",
-                "TTS_UNAVAILABLE"
-            );
+            return Unavailable();
+        }
+        finally
+        {
+            Slots.Release();
         }
     }
+
+    private static Result<TtsResult> Unavailable() =>
+        Result.Failure<TtsResult>("The voice is not available right now.", "TTS_UNAVAILABLE");
 
     private async Task<string> ResolveVoiceIdAsync(string locale, CancellationToken ct)
     {

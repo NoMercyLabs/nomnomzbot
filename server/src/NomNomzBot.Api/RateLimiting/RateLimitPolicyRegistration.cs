@@ -42,6 +42,7 @@ public static class RateLimitPolicyRegistration
             DevicePollRateLimitPolicy.Partition
         );
         options.AddPolicy(AnonymousRateLimitPolicy.PolicyName, AnonymousRateLimitPolicy.Partition);
+        options.AddPolicy(ReadAloudRateLimitPolicy.PolicyName, ReadAloudRateLimitPolicy.Partition);
         options.AddPolicy(AdminRateLimitPolicy.PolicyName, AdminRateLimitPolicy.Partition);
         options.AddPolicy(
             ViewerChatSendRateLimitPolicy.PolicyName,
