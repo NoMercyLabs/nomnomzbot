@@ -31,8 +31,8 @@ namespace NomNomzBot.Infrastructure.Tests.Economy;
 
 /// <summary>
 /// A catalog item binds a command (or action) directly: a purchase runs it through <see cref="ICommandInvoker"/>
-/// with the buyer as the invoker and no wrapper pipeline, a pipeline-bound item keeps its old path, a failing run
-/// never unwinds the paid purchase, the command guard lists the item, and the create/update request refuses a
+/// with the buyer as the invoker and no wrapper pipeline, an item with no target runs nothing (a pipeline-linked
+/// item is covered by <c>CatalogPipelinePurchaseTests</c>), a failing run never unwinds the paid purchase, the command guard lists the item, and the create/update request refuses a
 /// command that is not in the channel.
 /// </summary>
 public sealed class CatalogDirectBindingTests
@@ -237,7 +237,7 @@ public sealed class CatalogDirectBindingTests
     }
 
     [Fact]
-    public async Task A_pipeline_bound_item_never_calls_the_invoker()
+    public async Task An_item_with_no_target_never_calls_the_invoker()
     {
         Harness h = Build();
         Guid itemId = (await h.Sut.CreateItemAsync(Channel, Create(null))).Value.Id;
