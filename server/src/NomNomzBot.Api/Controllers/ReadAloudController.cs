@@ -77,11 +77,11 @@ public sealed partial class ReadAloudController(
         if (!originGate.Allows(Request))
             return Refuse(StatusCodes.Status403Forbidden);
 
-        if (!LanguageCode().IsMatch(locale ?? string.Empty))
+        if (!LanguageCode().IsMatch(locale))
             return Refuse(StatusCodes.Status400BadRequest);
 
-        Result<TtsResult> result = await readAloud.SynthesizeAsync(text, locale!, ct);
-        if (result.IsSuccess && result.Value.AudioData.Length > 0)
+        Result<TtsResult> result = await readAloud.SynthesizeAsync(text, locale, ct);
+        if (result is { IsSuccess: true, Value.AudioData.Length: > 0 })
             return File(result.Value.AudioData, "audio/mpeg");
 
         // An empty clip is a failure too: a cache would keep it for a month.

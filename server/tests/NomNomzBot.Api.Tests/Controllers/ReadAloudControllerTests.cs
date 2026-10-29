@@ -141,7 +141,7 @@ public sealed class ReadAloudControllerTests
         get.Should().BeOfType<StatusCodeResult>().Which.StatusCode.Should().Be(403);
         post.Should().BeOfType<StatusCodeResult>().Which.StatusCode.Should().Be(403);
         controller.Response.Headers.CacheControl.ToString().Should().Be("no-store");
-        await service.DidNotReceiveWithAnyArgs().SynthesizeAsync(default!, default!, default);
+        await service.DidNotReceiveWithAnyArgs().SynthesizeAsync(default!, default!);
     }
 
     [Fact]
@@ -173,7 +173,7 @@ public sealed class ReadAloudControllerTests
         IActionResult result = await controller.Speak(new("Hello.", "en"), CancellationToken.None);
 
         result.Should().BeOfType<StatusCodeResult>().Which.StatusCode.Should().Be(403);
-        await service.DidNotReceiveWithAnyArgs().SynthesizeAsync(default!, default!, default);
+        await service.DidNotReceiveWithAnyArgs().SynthesizeAsync(default!, default!);
     }
 
     // Cloudflare keeps one copy of a clip for every caller on the plans that cannot add the Origin header to the
@@ -212,7 +212,7 @@ public sealed class ReadAloudControllerTests
 
         result.Should().BeOfType<StatusCodeResult>().Which.StatusCode.Should().Be(400);
         controller.Response.Headers.CacheControl.ToString().Should().Be("no-store");
-        await service.DidNotReceiveWithAnyArgs().SynthesizeAsync(default!, default!, default);
+        await service.DidNotReceiveWithAnyArgs().SynthesizeAsync(default!, default!);
     }
 
     [Theory]
