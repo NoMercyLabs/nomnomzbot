@@ -145,4 +145,41 @@ public sealed class OverlaySdkTtsPlaybackTests
         // Skip must immediately try the next item — unlike pause, it does not leave the queue stalled.
         skip.Should().Contain("playNextTts();");
     }
+
+    // Stoney 2026-10-29: the pause between two spoken lines felt unnatural, though synthesis is fast. A queued
+    // line was only fetched when its turn came, and the next one only started after the "ended" event.
+    [Fact]
+    public void A_queued_line_is_fully_buffered_while_the_line_before_it_plays()
+    {
+        string sdk = Sdk();
+        string speak = SpeakTtsBody();
+
+        // A new audio element fetches only its metadata by default; it must be told to buffer the whole line.
+        speak.Should().Contain("tts.preload = \"auto\"");
+        sdk.Should().Contain("el.preload = \"auto\"", "a queued clip is buffered the same way");
+    }
+
+    [Fact]
+    public void The_next_line_starts_slightly_before_the_current_one_ends_so_no_gap_is_heard()
+    {
+        string sdk = Sdk();
+        int start = sdk.IndexOf("function playNextTts()", StringComparison.Ordinal);
+        int end = sdk.IndexOf("function ttsSkip", StringComparison.Ordinal);
+        start.Should().BeGreaterThan(-1);
+        string playNext = sdk[start..end];
+
+        sdk.Should().Contain("var ttsHandoffLeadMs =");
+        playNext.Should().Contain("armHandoff(el, advance)");
+
+        int armStart = sdk.IndexOf("function armHandoff(", StringComparison.Ordinal);
+        armStart.Should().BeGreaterThan(-1);
+        string arm = sdk[armStart..start];
+
+        // Only a spoken line hands off early; a clip owns its own timing. The handoff reuses advance, which
+        // is guarded against running twice, so the later "ended" event does not skip a line.
+        arm.Should().Contain("el.isClip");
+        arm.Should().Contain("el.duration");
+        arm.Should().Contain("ttsHandoffLeadMs");
+        arm.Should().Contain("advance()");
+    }
 }

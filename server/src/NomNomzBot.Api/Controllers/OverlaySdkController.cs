@@ -291,6 +291,7 @@ public sealed class OverlaySdkController : ControllerBase
             }
 
             var el = document.createElement("audio");
+            el.preload = "auto";
             el.src = payload.playbackUrl;
             var volume = payload.volume == null ? NaN : Number(payload.volume);
             el.volume = Math.max(0, Math.min(100, isFinite(volume) ? volume : 100)) / 100;
@@ -310,10 +311,29 @@ public sealed class OverlaySdkController : ControllerBase
           // The lane plays one item at a time — overlapping voices are unintelligible, and a busy chat can
           // dispatch several TTS lines within a second.
           var ttsQueue = [];
+          // How long before a spoken line ends the next one starts. A line's last moments are silence (the
+          // synthesiser pads it), and waiting for the "ended" event adds a further delay, so starting on the
+          // event leaves an audible gap between two lines.
+          var ttsHandoffLeadMs = 120;
           // Set by a dashboard-pushed "pause" control; playNextTts refuses to advance onto a TTS line while
           // true, and a fresh line arriving mid-pause is queued but not auto-started (see speakTts below).
           // A paused line stays at the head, so it holds the clips behind it until resume.
           var ttsPaused = false;
+          // Starts the next line a little before this spoken line ends. advance() runs once: it only acts
+          // while this line is at the head, so the "ended" event that follows does not skip a second line.
+          function armHandoff(el, advance) {
+            if (el.isClip || el.handoffArmed) return;
+            el.handoffArmed = true;
+            var arm = function () {
+              if (!isFinite(el.duration)) return;
+              var remainingMs = (el.duration - el.currentTime) * 1000 - ttsHandoffLeadMs;
+              window.setTimeout(function () {
+                if (ttsQueue[0] === el && ttsQueue.length > 1 && !el.paused && !ttsPaused) advance();
+              }, Math.max(0, remainingMs));
+            };
+            if (isFinite(el.duration)) arm(); else el.addEventListener("loadedmetadata", arm, { once: true });
+          }
+
           function playNextTts() {
             var el = ttsQueue[0];
             if (!el || (ttsPaused && !el.isClip)) return;
@@ -330,7 +350,7 @@ public sealed class OverlaySdkController : ControllerBase
               el.addEventListener("ended", advance);
               el.addEventListener("error", advance);
             }
-            el.play().catch(function (e) {
+            el.play().then(function () { armHandoff(el, advance); }).catch(function (e) {
               report(el.isClip ? "audio playback blocked: " + ((e && e.message) || e) : "tts playback blocked: " + ((e && e.message) || e));
               advance();
             });
@@ -399,6 +419,9 @@ public sealed class OverlaySdkController : ControllerBase
             // a line with no audio URL is reported and dropped.
             if (payload.audioUrl) {
               var tts = document.createElement("audio");
+              // A new audio element fetches only its metadata until it plays. Buffering the whole line now means a
+              // queued line is ready the moment the line before it ends.
+              tts.preload = "auto";
               tts.src = payload.audioUrl;
               var vol = (payload.options || {}).volume;
               tts.volume = vol == null ? 1 : Math.max(0, Math.min(1, Number(vol)));
