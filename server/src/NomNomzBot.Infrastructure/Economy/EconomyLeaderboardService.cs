@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Domain.Economy.Entities;
+using NomNomzBot.Domain.Economy.Enums;
 
 namespace NomNomzBot.Infrastructure.Economy;
 
@@ -23,9 +24,9 @@ namespace NomNomzBot.Infrastructure.Economy;
 /// Economy leaderboards (economy.md §3.8), excluding opted-out viewers; closed periods freeze into append-only
 /// snapshots. An <c>alltime</c> ranking (and any <c>balance</c> metric) reads the <see cref="CurrencyAccount"/>
 /// projection; a bounded period (daily / weekly / monthly) folds the ledger over the window for the earned /
-/// spent metrics. (Deferred — documented: jar-scope rankings; the display name falls back to the account's
-/// Twitch id pending a Users-join enrichment; and the opt-out's ConsentRecords marker awaits the IConsentService
-/// owner of the now-built ConsentRecords ledger.)
+/// spent metrics. A jar-scope ranking sums each contributor's stored Contribute movements. (Deferred —
+/// documented: the display name falls back to the account's Twitch id pending a Users-join enrichment; and the
+/// opt-out's ConsentRecords marker awaits the IConsentService owner of the now-built ConsentRecords ledger.)
 /// </summary>
 public sealed class EconomyLeaderboardService(IApplicationDbContext db, TimeProvider clock)
     : IEconomyLeaderboardService
@@ -288,13 +289,15 @@ public sealed class EconomyLeaderboardService(IApplicationDbContext db, TimeProv
         CancellationToken ct
     )
     {
-        if (!string.Equals(config.Scope, "channel", StringComparison.OrdinalIgnoreCase))
-            return []; // jar-scope ranking deferred
-
         List<Guid> optedOut = await db
             .LeaderboardOptOuts.Where(o => o.BroadcasterId == broadcasterId && o.DeletedAt == null)
             .Select(o => o.ViewerUserId)
             .ToListAsync(ct);
+
+        if (string.Equals(config.Scope, "jar", StringComparison.OrdinalIgnoreCase))
+            return await RankJarContributorsAsync(broadcasterId, config, optedOut, take, ct);
+        if (!string.Equals(config.Scope, "channel", StringComparison.OrdinalIgnoreCase))
+            return [];
 
         string metric = config.Metric.ToLowerInvariant();
         // Balance is point-in-time (no window); earned/spent over a BOUNDED period fold the ledger.
@@ -364,6 +367,81 @@ public sealed class EconomyLeaderboardService(IApplicationDbContext db, TimeProv
         return result;
     }
 
+    /// <summary>
+    /// Ranks a jar's contributors by the sum of their stored Contribute movements inside the period window.
+    /// The channel must own the jar or hold an accepted membership; otherwise nobody is ranked.
+    /// </summary>
+    private async Task<List<(CurrencyAccount Account, long Value)>> RankJarContributorsAsync(
+        Guid broadcasterId,
+        LeaderboardConfig config,
+        List<Guid> optedOut,
+        int take,
+        CancellationToken ct
+    )
+    {
+        if (config.JarId is not { } jarId)
+            return [];
+        bool hasAccess =
+            await db.SavingsJars.AnyAsync(
+                j => j.Id == jarId && j.OwnerBroadcasterId == broadcasterId,
+                ct
+            )
+            || await db.SavingsJarMemberships.AnyAsync(
+                m =>
+                    m.JarId == jarId
+                    && m.MemberBroadcasterId == broadcasterId
+                    && m.Status == JarMembershipStatus.Accepted
+                    && m.DeletedAt == null,
+                ct
+            );
+        if (!hasAccess)
+            return [];
+
+        DateTime? since = PeriodStart(config.Period);
+        List<AccountTotal> parts = await db
+            .JarContributions.Where(c =>
+                c.JarId == jarId
+                && c.MovementType == JarMovementType.Contribute
+                && c.ContributorUserId != null
+                && c.ContributorAccountId != null
+                && (since == null || c.CreatedAt >= since)
+            )
+            .GroupBy(c => new { c.ContributorUserId, c.ContributorAccountId })
+            .Select(g => new AccountTotal(
+                g.Key.ContributorUserId!.Value,
+                g.Key.ContributorAccountId!.Value,
+                g.Sum(c => c.Amount)
+            ))
+            .ToListAsync(ct);
+
+        // A viewer can hold an account per partner channel: sum their parts, show the largest part's account.
+        List<AccountTotal> top =
+        [
+            .. parts
+                .Where(p => !optedOut.Contains(p.UserId))
+                .GroupBy(p => p.UserId)
+                .Select(g => new AccountTotal(
+                    g.Key,
+                    g.OrderByDescending(p => p.Total).First().AccountId,
+                    g.Sum(p => p.Total)
+                ))
+                .OrderByDescending(t => t.Total)
+                .Take(take),
+        ];
+
+        List<Guid> accountIds = [.. top.Select(t => t.AccountId)];
+        Dictionary<Guid, CurrencyAccount> accounts = await db
+            .CurrencyAccounts.IgnoreQueryFilters()
+            .Where(a => accountIds.Contains(a.Id))
+            .ToDictionaryAsync(a => a.Id, ct);
+
+        List<(CurrencyAccount, long)> result = [];
+        foreach (AccountTotal t in top)
+            if (accounts.TryGetValue(t.AccountId, out CurrencyAccount? account))
+                result.Add((account, t.Total));
+        return result;
+    }
+
     private DateTime? PeriodStart(string period)
     {
         DateTime now = clock.GetUtcNow().UtcDateTime;
@@ -385,6 +463,8 @@ public sealed class EconomyLeaderboardService(IApplicationDbContext db, TimeProv
         };
 
     private readonly record struct ViewerTotal(Guid ViewerUserId, long Total);
+
+    private readonly record struct AccountTotal(Guid UserId, Guid AccountId, long Total);
 
     private static LeaderboardConfigDto ToDto(LeaderboardConfig c) =>
         new(

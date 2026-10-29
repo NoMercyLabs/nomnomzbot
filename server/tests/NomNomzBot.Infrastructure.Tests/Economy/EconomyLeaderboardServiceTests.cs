@@ -189,6 +189,115 @@ public sealed class EconomyLeaderboardServiceTests
         frozen[0].Value.Should().Be(200);
     }
 
+    private static readonly Guid Partner = Guid.Parse("0192a000-0000-7000-8000-0000000000f9");
+    private static long _jarSeq;
+
+    private static SavingsJar SeedJar(AuthDbContext db, Guid owner, string name)
+    {
+        SavingsJar jar = new() { OwnerBroadcasterId = owner, Name = name };
+        db.SavingsJars.Add(jar);
+        return jar;
+    }
+
+    private static void SeedMovement(
+        AuthDbContext db,
+        SavingsJar jar,
+        Guid viewer,
+        long amount,
+        JarMovementType type,
+        DateTime createdAt
+    )
+    {
+        CurrencyAccount account = db.CurrencyAccounts.Local.Single(a => a.ViewerUserId == viewer);
+        db.JarContributions.Add(
+            new()
+            {
+                JarId = jar.Id,
+                SourceBroadcasterId = Channel,
+                ContributorAccountId = type == JarMovementType.Contribute ? account.Id : null,
+                ContributorUserId = viewer,
+                Amount = amount,
+                MovementType = type,
+                JarBalanceAfter = ++_jarSeq,
+                CreatedAt = createdAt,
+            }
+        );
+    }
+
+    private static Task<Result<LeaderboardConfigDto>> JarBoard(
+        EconomyLeaderboardService sut,
+        Guid jarId,
+        string period = "alltime"
+    ) => sut.UpsertConfigAsync(Channel, new(null, "earned", "jar", period, true, 10, jarId));
+
+    [Fact]
+    public async Task A_one_jar_ranking_sums_the_contributions_of_the_chosen_jar_only()
+    {
+        (EconomyLeaderboardService sut, AuthDbContext db) = Build();
+        SeedAccount(db, V1, 0);
+        SeedAccount(db, V2, 0);
+        SeedAccount(db, V3, 0);
+        SavingsJar chosen = SeedJar(db, Channel, "Chosen");
+        SavingsJar other = SeedJar(db, Channel, "Other");
+        DateTime at = new(2026, 6, 10);
+        SeedMovement(db, chosen, V1, 30, JarMovementType.Contribute, at);
+        SeedMovement(db, chosen, V1, 20, JarMovementType.Contribute, at);
+        SeedMovement(db, chosen, V2, 80, JarMovementType.Contribute, at);
+        SeedMovement(db, chosen, V3, 10, JarMovementType.Contribute, at);
+        SeedMovement(db, chosen, V2, 40, JarMovementType.Withdraw, at); // a payout is not a contribution
+        SeedMovement(db, other, V1, 999, JarMovementType.Contribute, at); // another jar does not count
+        await db.SaveChangesAsync();
+        Guid configId = (await JarBoard(sut, chosen.Id)).Value.Id;
+
+        IReadOnlyList<LeaderboardEntryDto> ranking = (
+            await sut.GetRankingAsync(Channel, configId, top: null)
+        ).Value;
+
+        ranking.Select(r => r.SubjectUserId).Should().Equal(V2, V1, V3);
+        ranking.Select(r => r.Rank).Should().Equal(1, 2, 3);
+        ranking.Select(r => r.Value).Should().Equal(80, 50, 10);
+        ranking[0]
+            .SubjectAccountId.Should()
+            .Be(db.CurrencyAccounts.Local.Single(a => a.ViewerUserId == V2).Id);
+    }
+
+    [Fact]
+    public async Task A_one_jar_ranking_honors_the_period_window_and_the_opt_out()
+    {
+        (EconomyLeaderboardService sut, AuthDbContext db) = Build();
+        SeedAccount(db, V1, 0);
+        SeedAccount(db, V2, 0);
+        SeedAccount(db, V3, 0);
+        SavingsJar jar = SeedJar(db, Channel, "Chosen");
+        SeedMovement(db, jar, V1, 100, JarMovementType.Contribute, new(2026, 6, 10)); // this month
+        SeedMovement(db, jar, V1, 500, JarMovementType.Contribute, new(2026, 5, 1)); // last month
+        SeedMovement(db, jar, V2, 70, JarMovementType.Contribute, new(2026, 6, 15));
+        SeedMovement(db, jar, V3, 900, JarMovementType.Contribute, new(2026, 6, 11)); // opted out
+        await db.SaveChangesAsync();
+        await sut.OptOutAsync(Channel, V3);
+        Guid configId = (await JarBoard(sut, jar.Id, "monthly")).Value.Id;
+
+        IReadOnlyList<LeaderboardEntryDto> ranking = (
+            await sut.GetRankingAsync(Channel, configId, top: null)
+        ).Value;
+
+        ranking.Select(r => r.SubjectUserId).Should().Equal(V1, V2);
+        ranking.Select(r => r.Value).Should().Equal(100, 70);
+    }
+
+    [Fact]
+    public async Task A_one_jar_ranking_ranks_nobody_for_a_jar_the_channel_has_no_access_to()
+    {
+        (EconomyLeaderboardService sut, AuthDbContext db) = Build();
+        SeedAccount(db, V1, 0);
+        SavingsJar foreign = SeedJar(db, Partner, "Foreign");
+        SeedMovement(db, foreign, V1, 100, JarMovementType.Contribute, new(2026, 6, 10));
+        await db.SaveChangesAsync();
+        Guid configId = (await JarBoard(sut, foreign.Id)).Value.Id;
+
+        (await sut.GetRankingAsync(Channel, configId, top: null)).Value.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task A_monthly_ranking_folds_only_the_current_month_ledger()
     {
