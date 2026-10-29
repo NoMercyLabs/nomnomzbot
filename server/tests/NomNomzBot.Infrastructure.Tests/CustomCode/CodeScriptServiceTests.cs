@@ -71,6 +71,24 @@ public sealed class CodeScriptServiceTests
     }
 
     [Fact]
+    public async Task Create_starts_switched_off_until_the_owner_switches_it_on()
+    {
+        (CodeScriptService sut, AuthDbContext db, _) = Build();
+
+        Result<CodeScriptDetailDto> created = await sut.CreateAsync(
+            new("greet", null, "var x = 1;")
+        );
+
+        created.Value.IsEnabled.Should().BeFalse();
+        db.CodeScripts.Single().IsEnabled.Should().BeFalse();
+
+        Result switchedOn = await sut.SetEnabledAsync(created.Value.Id, true);
+
+        switchedOn.IsSuccess.Should().BeTrue();
+        db.CodeScripts.Single().IsEnabled.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Create_with_invalid_source_rejects_but_persists_the_version()
     {
         (CodeScriptService sut, AuthDbContext db, _) = Build();

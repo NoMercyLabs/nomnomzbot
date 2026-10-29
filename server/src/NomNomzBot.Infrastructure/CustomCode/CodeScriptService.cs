@@ -188,7 +188,7 @@ public sealed class CodeScriptService(
             Name = name,
             Description = description,
             Language = "typescript",
-            IsEnabled = true,
+            IsEnabled = false,
             CreatedAt = now,
             UpdatedAt = now,
         };
