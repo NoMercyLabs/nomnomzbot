@@ -5203,6 +5203,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<long?>("EntryCostLedgerEntryId")
                         .HasColumnType("INTEGER");
 
+                    b.Property<int>("EntryCount")
+                        .HasColumnType("INTEGER");
+
                     b.Property<Guid>("GiveawayId")
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");

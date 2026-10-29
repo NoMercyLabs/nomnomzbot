@@ -4953,6 +4953,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<long?>("EntryCostLedgerEntryId")
                         .HasColumnType("bigint");
 
+                    b.Property<int>("EntryCount")
+                        .HasColumnType("integer");
+
                     b.Property<Guid>("GiveawayId")
                         .HasColumnType("uuid");
 

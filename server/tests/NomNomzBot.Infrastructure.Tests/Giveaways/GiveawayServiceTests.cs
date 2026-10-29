@@ -587,6 +587,110 @@ public sealed class GiveawayServiceTests
     }
 
     [Fact]
+    public async Task A_viewer_cannot_hold_more_entries_than_the_giveaway_allows()
+    {
+        Harness harness = Build();
+        Guid giveawayId = await SeedOpenGiveawayAsync(
+            harness,
+            new("Double Drop", GiveawayEntryMode.Keyword, Keyword: "!win", MaxEntriesPerUser: 2)
+        );
+        Guid viewer = SeedViewer(harness.Db, "111");
+        Guid other = SeedViewer(harness.Db, "222");
+
+        Result<GiveawayEntryDto> first = await harness.Service.EnterAsync(
+            Tenant,
+            giveawayId,
+            viewer,
+            CancellationToken.None
+        );
+        Result<GiveawayEntryDto> second = await harness.Service.EnterAsync(
+            Tenant,
+            giveawayId,
+            viewer,
+            CancellationToken.None
+        );
+        Result<GiveawayEntryDto> third = await harness.Service.EnterAsync(
+            Tenant,
+            giveawayId,
+            viewer,
+            CancellationToken.None
+        );
+        Result<GiveawayEntryDto> otherViewer = await harness.Service.EnterAsync(
+            Tenant,
+            giveawayId,
+            other,
+            CancellationToken.None
+        );
+
+        first.IsSuccess.Should().BeTrue(first.ErrorMessage);
+        second.IsSuccess.Should().BeTrue(second.ErrorMessage);
+        third.IsFailure.Should().BeTrue("a third entry is above the limit of 2");
+        third.ErrorCode.Should().Be("ALREADY_ENTERED");
+        third.ErrorMessage.Should().Contain("2", "the refusal tells the viewer the limit");
+        otherViewer.IsSuccess.Should().BeTrue(otherViewer.ErrorMessage);
+
+        GiveawayEntry held = harness.Db.GiveawayEntries.Single(e => e.ViewerUserId == viewer);
+        held.EntryCount.Should().Be(2, "the refused third entry is not stored");
+        held.TicketCount.Should().Be(2, "each entry adds its own tickets to the draw pool");
+        second.Value.TicketCount.Should().Be(2, "the second entry reports the tickets now held");
+        harness.Db.GiveawayEntries.Single(e => e.ViewerUserId == other).EntryCount.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Every_paid_extra_entry_posts_its_own_debit_and_a_refused_one_posts_none()
+    {
+        Harness harness = Build();
+        Guid giveawayId = await SeedOpenGiveawayAsync(
+            harness,
+            new(
+                "Paid Double",
+                GiveawayEntryMode.Keyword,
+                Keyword: "!win",
+                EntryCost: 25,
+                MaxEntriesPerUser: 2
+            )
+        );
+        Guid viewer = SeedViewer(harness.Db, "111");
+
+        await harness.Service.EnterAsync(Tenant, giveawayId, viewer, CancellationToken.None);
+        await harness.Service.EnterAsync(Tenant, giveawayId, viewer, CancellationToken.None);
+        Result<GiveawayEntryDto> third = await harness.Service.EnterAsync(
+            Tenant,
+            giveawayId,
+            viewer,
+            CancellationToken.None
+        );
+
+        third.IsFailure.Should().BeTrue();
+        await harness
+            .Accounts.Received(2)
+            .PostLedgerEntryAsync(
+                Tenant,
+                Arg.Is<PostLedgerEntryCommand>(c => c.Amount == -25 && c.ViewerUserId == viewer),
+                Arg.Any<CancellationToken>()
+            );
+        await harness
+            .Accounts.Received(1)
+            .PostLedgerEntryAsync(
+                Tenant,
+                Arg.Is<PostLedgerEntryCommand>(c =>
+                    c.IdempotencyKey == $"giveaway-entry:{giveawayId}:{viewer}"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await harness
+            .Accounts.Received(1)
+            .PostLedgerEntryAsync(
+                Tenant,
+                Arg.Is<PostLedgerEntryCommand>(c =>
+                    c.IdempotencyKey == $"giveaway-entry:{giveawayId}:{viewer}:2"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        harness.Db.GiveawayEntries.Single().EntryCount.Should().Be(2);
+    }
+
+    [Fact]
     public async Task A_broke_viewer_is_rejected_and_no_entry_row_is_written()
     {
         Harness harness = Build();

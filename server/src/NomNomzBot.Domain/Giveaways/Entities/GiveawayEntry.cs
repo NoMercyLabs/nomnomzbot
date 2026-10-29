@@ -16,8 +16,9 @@ namespace NomNomzBot.Domain.Giveaways.Entities;
 
 /// <summary>
 /// One viewer's entry into a keyword-mode giveaway (giveaways.md G.7). Unique per
-/// <c>(GiveawayId, ViewerUserId)</c> — re-entering bumps nothing; <see cref="TicketCount"/> carries the
-/// sub-luck weighting (D4, 1 when unweighted). A paid entry links its <c>spend_giveaway</c> ledger debit.
+/// <c>(GiveawayId, ViewerUserId)</c> — one row per viewer; every extra entry (up to the giveaway's
+/// <c>MaxEntriesPerUser</c>) bumps <see cref="EntryCount"/> and adds tickets. <see cref="TicketCount"/>
+/// carries the sub-luck weighting (D4, 1 when unweighted). A paid entry links its <c>spend_giveaway</c> ledger debit.
 /// </summary>
 public class GiveawayEntry : SoftDeletableEntity, ITenantScoped
 {
@@ -41,7 +42,10 @@ public class GiveawayEntry : SoftDeletableEntity, ITenantScoped
     /// <summary>The entrant's native user id on <see cref="Provider"/> (S065).</summary>
     public string? ProviderUserId { get; set; }
 
-    /// <summary>Weighted tickets this entry holds in the draw pool (D4; 1 = unweighted).</summary>
+    /// <summary>How many entries this viewer holds; never above the giveaway's <c>MaxEntriesPerUser</c>.</summary>
+    public int EntryCount { get; set; } = 1;
+
+    /// <summary>Weighted tickets this viewer holds in the draw pool, summed over all entries (D4; 1 = unweighted).</summary>
     public int TicketCount { get; set; } = 1;
 
     /// <summary>The <c>spend_giveaway</c> ledger entry that paid for this entry, when EntryCost is set.</summary>

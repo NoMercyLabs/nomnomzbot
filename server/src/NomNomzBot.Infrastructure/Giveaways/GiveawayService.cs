@@ -204,7 +204,7 @@ public sealed class GiveawayService : IGiveawayService
         Dictionary<Guid, int> counts = await _db
             .GiveawayEntries.Where(e => ids.Contains(e.GiveawayId))
             .GroupBy(e => e.GiveawayId)
-            .Select(g => new { g.Key, Count = g.Count() })
+            .Select(g => new { g.Key, Count = g.Sum(e => e.EntryCount) })
             .ToDictionaryAsync(g => g.Key, g => g.Count, ct);
 
         List<GiveawayDto> dtos = [.. rows.Select(g => ToDto(g, counts.GetValueOrDefault(g.Id)))];
@@ -351,17 +351,20 @@ public sealed class GiveawayService : IGiveawayService
                 );
         }
 
-        // MaxEntriesPerUser is a config surface, but the unique (GiveawayId, ViewerUserId) key means one
-        // ROW per viewer — the cap gates whether a repeat attempt is an error or a friendly no-op.
+        // One row per viewer (unique key); each extra entry bumps EntryCount up to MaxEntriesPerUser.
         GiveawayEntry? existing = await _db.GiveawayEntries.FirstOrDefaultAsync(
             e => e.GiveawayId == giveawayId && e.ViewerUserId == viewerUserId,
             ct
         );
-        if (existing is not null)
+        int maxEntries = Math.Max(1, giveaway.MaxEntriesPerUser);
+        if (existing is not null && existing.EntryCount >= maxEntries)
             return Result.Failure<GiveawayEntryDto>(
-                "You have already entered this giveaway.",
+                maxEntries == 1
+                    ? "You have already entered this giveaway."
+                    : $"You have already used all {maxEntries} of your entries in this giveaway.",
                 "ALREADY_ENTERED"
             );
+        int entryNumber = (existing?.EntryCount ?? 0) + 1;
 
         (string viewerTwitchId, string viewerDisplayName) = await _db
             .Users.Where(u => u.Id == viewerUserId)
@@ -385,7 +388,9 @@ public sealed class GiveawayService : IGiveawayService
                     EventId: null,
                     Reason: $"Giveaway entry: {giveaway.Title}",
                     ActorUserId: null,
-                    IdempotencyKey: $"giveaway-entry:{giveawayId}:{viewerUserId}"
+                    IdempotencyKey: entryNumber == 1
+                        ? $"giveaway-entry:{giveawayId}:{viewerUserId}"
+                        : $"giveaway-entry:{giveawayId}:{viewerUserId}:{entryNumber}"
                 ),
                 ct
             );
@@ -394,21 +399,33 @@ public sealed class GiveawayService : IGiveawayService
             costLedgerEntryId = debit.Value.Id;
         }
 
-        GiveawayEntry entry = new()
+        int tickets = ComputeTickets(giveaway.WeightingJson, standing);
+        GiveawayEntry entry;
+        if (existing is not null)
         {
-            BroadcasterId = broadcasterId,
-            GiveawayId = giveawayId,
-            ViewerUserId = viewerUserId,
-            ViewerTwitchUserId = viewerTwitchId,
-            // Entry recording only resolves the entrant's Twitch id today (the User lookup above); a
-            // future non-Twitch entry path threads its own Provider/ProviderUserId through here.
-            Provider = AuthEnums.Platform.Twitch,
-            ProviderUserId = viewerTwitchId,
-            TicketCount = ComputeTickets(giveaway.WeightingJson, standing),
-            EntryCostLedgerEntryId = costLedgerEntryId,
-            EnteredAt = _clock.GetUtcNow().UtcDateTime,
-        };
-        await _db.GiveawayEntries.AddAsync(entry, ct);
+            entry = existing;
+            entry.EntryCount = entryNumber;
+            entry.TicketCount += tickets;
+        }
+        else
+        {
+            entry = new()
+            {
+                BroadcasterId = broadcasterId,
+                GiveawayId = giveawayId,
+                ViewerUserId = viewerUserId,
+                ViewerTwitchUserId = viewerTwitchId,
+                // Entry recording only resolves the entrant's Twitch id today (the User lookup above); a
+                // future non-Twitch entry path threads its own Provider/ProviderUserId through here.
+                Provider = AuthEnums.Platform.Twitch,
+                ProviderUserId = viewerTwitchId,
+                EntryCount = 1,
+                TicketCount = tickets,
+                EntryCostLedgerEntryId = costLedgerEntryId,
+                EnteredAt = _clock.GetUtcNow().UtcDateTime,
+            };
+            await _db.GiveawayEntries.AddAsync(entry, ct);
+        }
         await _db.SaveChangesAsync(ct);
         await PublishChangedAsync(broadcasterId, giveawayId, "entered", ct);
 
@@ -1100,7 +1117,7 @@ public sealed class GiveawayService : IGiveawayService
         );
 
     private Task<int> CountEntriesAsync(Guid giveawayId, CancellationToken ct) =>
-        _db.GiveawayEntries.CountAsync(e => e.GiveawayId == giveawayId, ct);
+        _db.GiveawayEntries.Where(e => e.GiveawayId == giveawayId).SumAsync(e => e.EntryCount, ct);
 
     private async Task<IReadOnlyList<GiveawayEntryDto>> ToEntryDtosAsync(
         IReadOnlyList<GiveawayEntry> entries,
