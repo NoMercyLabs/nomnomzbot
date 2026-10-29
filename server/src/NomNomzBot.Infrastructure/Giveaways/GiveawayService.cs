@@ -16,6 +16,7 @@ using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Giveaways.Dtos;
@@ -30,6 +31,7 @@ using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Analytics;
 using NomNomzBot.Infrastructure.Commands;
+using NomNomzBot.Infrastructure.Identity.Jobs;
 
 namespace NomNomzBot.Infrastructure.Giveaways;
 
@@ -56,6 +58,7 @@ public sealed class GiveawayService : IGiveawayService
     private readonly IAgeConsentService _ageConsent;
     private readonly TimeProvider _clock;
     private readonly ILogger<GiveawayService> _logger;
+    private readonly ITwitchUsersApi? _users;
 
     public GiveawayService(
         IApplicationDbContext db,
@@ -65,9 +68,11 @@ public sealed class GiveawayService : IGiveawayService
         IGiveawayFulfillment fulfillment,
         IAgeConsentService ageConsent,
         TimeProvider clock,
-        ILogger<GiveawayService> logger
+        ILogger<GiveawayService> logger,
+        ITwitchUsersApi? users = null
     )
     {
+        _users = users;
         _db = db;
         _unitOfWork = unitOfWork;
         _bus = bus;
@@ -884,14 +889,20 @@ public sealed class GiveawayService : IGiveawayService
 
         if (config.MinAccountAgeDays is { } minAge)
         {
-            DateTime? knownSince = await _db
-                .Users.AsNoTracking()
-                .Where(u => u.Id == viewerUserId)
-                .Select(u => (DateTime?)u.CreatedAt)
-                .FirstOrDefaultAsync(ct);
+            // The Twitch account date, never the bot's own row date (User.CreatedAt).
+            User? viewer = await _db.Users.FirstOrDefaultAsync(u => u.Id == viewerUserId, ct);
+            DateTime? accountCreatedAt =
+                viewer is not null && _users is not null
+                    ? await UserProfileHydrationService.AccountCreatedAtAsync(
+                        viewer,
+                        _users,
+                        _db,
+                        ct
+                    )
+                    : viewer?.AccountCreatedAt;
             if (
-                knownSince is null
-                || (_clock.GetUtcNow().UtcDateTime - knownSince.Value).TotalDays < minAge
+                accountCreatedAt is null
+                || (_clock.GetUtcNow().UtcDateTime - accountCreatedAt.Value).TotalDays < minAge
             )
                 return Result.Failure("Your account is too new for this giveaway.", "NOT_ELIGIBLE");
         }

@@ -14,6 +14,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.DTOs.Economy;
 using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Giveaways.Dtos;
@@ -54,7 +55,7 @@ public sealed class GiveawayServiceTests
 
     // Defaults to a passing age-consent gate so every test that doesn't care about D5 stays unaffected;
     // the value-out-gate tests override this per case.
-    private static Harness Build(bool ageConsentGranted = true)
+    private static Harness Build(bool ageConsentGranted = true, ITwitchUsersApi? users = null)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         db.Channels.Add(
@@ -99,7 +100,8 @@ public sealed class GiveawayServiceTests
             fulfillment,
             ageConsent,
             TimeProvider.System,
-            NullLogger<GiveawayService>.Instance
+            NullLogger<GiveawayService>.Instance,
+            users
         );
         return new(service, db, accounts, fulfillment, bus, ageConsent);
     }
@@ -678,6 +680,70 @@ public sealed class GiveawayServiceTests
         rejected.IsFailure.Should().BeTrue();
         rejected.ErrorCode.Should().Be("NOT_ELIGIBLE");
         accepted.IsSuccess.Should().BeTrue(accepted.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task Least_account_age_reads_the_twitch_account_date_not_the_bot_row_date()
+    {
+        DateTime now = DateTime.UtcNow;
+        ITwitchUsersApi users = Substitute.For<ITwitchUsersApi>();
+        users
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+                Result.Success<IReadOnlyList<TwitchUser>>([
+                    new(
+                        call.Arg<IReadOnlyList<string>>()[0],
+                        "login",
+                        "Login",
+                        "",
+                        "",
+                        "",
+                        "",
+                        "",
+                        0,
+                        call.Arg<IReadOnlyList<string>>()[0] == "111"
+                            ? now.AddDays(-10)
+                            : now.AddYears(-5)
+                    ),
+                ])
+            );
+        Harness harness = Build(users: users);
+        Guid giveawayId = await SeedOpenGiveawayAsync(
+            harness,
+            new(
+                "Old Accounts",
+                GiveawayEntryMode.Keyword,
+                Keyword: "!win",
+                EligibilityJson: """{"min_account_age_days":365}"""
+            )
+        );
+        // Opposite order: the bot saw 111 two years ago on a 10-day-old Twitch account, 222 yesterday on a 5-year-old one.
+        Guid newAccountKnownLong = SeedViewer(harness.Db, "111");
+        Guid oldAccountKnownBriefly = SeedViewer(harness.Db, "222");
+        harness.Db.Users.Single(u => u.Id == newAccountKnownLong).CreatedAt = now.AddYears(-2);
+        harness.Db.Users.Single(u => u.Id == oldAccountKnownBriefly).CreatedAt = now.AddDays(-1);
+        harness.Db.SaveChanges();
+
+        Result<GiveawayEntryDto> rejected = await harness.Service.EnterAsync(
+            Tenant,
+            giveawayId,
+            newAccountKnownLong,
+            CancellationToken.None
+        );
+        Result<GiveawayEntryDto> accepted = await harness.Service.EnterAsync(
+            Tenant,
+            giveawayId,
+            oldAccountKnownBriefly,
+            CancellationToken.None
+        );
+
+        rejected.IsFailure.Should().BeTrue("the Twitch account is 10 days old");
+        rejected.ErrorCode.Should().Be("NOT_ELIGIBLE");
+        accepted.IsSuccess.Should().BeTrue(accepted.ErrorMessage);
+        harness
+            .Db.Users.Single(u => u.Id == oldAccountKnownBriefly)
+            .AccountCreatedAt.Should()
+            .BeCloseTo(now.AddYears(-5), TimeSpan.FromSeconds(1), "the Twitch date is kept");
     }
 
     [Fact]
