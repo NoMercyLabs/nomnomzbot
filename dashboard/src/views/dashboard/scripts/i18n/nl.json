@@ -172,6 +172,9 @@
         "action": "Script verwijderen",
         "nothing": "Niets anders gebruikt dit script."
       },
+      "versions": {
+        "deleteLive": "Deze versie draait het script nu. Maak eerst een andere versie live en verwijder deze daarna."
+      },
       "new": {
         "button": "Nieuw script",
         "title": "Nieuw script",

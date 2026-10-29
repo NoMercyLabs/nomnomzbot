@@ -66,7 +66,10 @@ const detail = useScriptDetail(() => props.scriptId);
 const setEnabled = useSetScriptEnabled();
 const remove = useDeleteCodeScript();
 const create = useCreateCodeScript();
-const editor = useScriptEditor(() => props.scriptId);
+const editor = useScriptEditor(
+  () => props.scriptId,
+  () => detail.data.value?.currentVersionId ?? null,
+);
 const blast: UseQueryReturnType<BlastRadius, Error> = useQuery({
   queryKey: computed(() => ['code-scripts', 'blast', props.scriptId]),
   queryFn: () => fetchBlastRadius(props.scriptId),
@@ -337,6 +340,8 @@ function confirmDelete(): void {
     :entry="editor.session.value.project.manifest.entry"
     :sdk-types="editor.session.value.sdkTypes ?? ''"
     :sdk-types-unavailable="editor.session.value.sdkTypes === null"
+    :initial-history="editor.session.value.versions"
+    :history="editor.history"
     :save="editor.save"
     @close="editor.close"
   />

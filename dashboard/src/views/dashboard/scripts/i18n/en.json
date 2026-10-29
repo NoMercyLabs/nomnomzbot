@@ -172,6 +172,9 @@
         "action": "Delete script",
         "nothing": "Nothing else uses this script."
       },
+      "versions": {
+        "deleteLive": "This version is the one the script runs now. Make another version live first, then delete this one."
+      },
       "new": {
         "button": "New script",
         "title": "New script",
