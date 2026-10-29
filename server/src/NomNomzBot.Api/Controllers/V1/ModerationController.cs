@@ -2018,8 +2018,8 @@ public class ModerationController : BaseController
     }
 
     /// <summary>
-    /// Whether moderators' mass bans across their channels also reach this channel. On by default: a Twitch
-    /// moderator may already ban here.
+    /// Whether moderators' mass bans across their channels also reach this channel. Off by default: the
+    /// channel owner opts in.
     /// </summary>
     [RequireAction("moderation:read")]
     [HttpGet("mass-ban-opt-in")]
