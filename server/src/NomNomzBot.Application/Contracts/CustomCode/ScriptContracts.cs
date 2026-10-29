@@ -28,20 +28,18 @@ public sealed record ScriptResourceBudget(
     long MaxFuelOrStatements,
     long MaxMemoryBytes,
     long MaxOutputBytes,
-    long MaxEgressBytes
+    long MaxEgressBytes,
+    int MaxHostCallMs
 )
 {
     /// <summary>
     /// The safety baseline applied to every tenant (sandbox §5.1, self-host/Jint column). WallClockMs bounds
-    /// the WHOLE execution, not just JS statements — every granted host capability (tts.speak, chat.send,
-    /// http.fetch) is a real network round trip that runs inside this same budget, cancelled through the same
-    /// token. 2000ms measured as too tight the moment a script did BOTH: a live edge-tts synthesis alone took
-    /// 1089ms for a 28-character test string (a real hug line is 3-5x longer), and a chat.send precedes it in
-    /// any script that also messages chat — two sequential I/O calls plus engine/bootstrap overhead routinely
-    /// exceeded 2000ms and killed a script that did nothing wrong (`PartiallyFailed: Execution exceeded its
-    /// time budget`, 2026-08-26, the Hug script on a real channel). 8000ms comfortably covers one slow TTS
-    /// synth plus one chat send with room to spare, while a genuine runaway is still caught well before a
-    /// viewer would call the command a second time.
+    /// the script's OWN run time: its statements, its bootstrap and its nnz.time.sleep pauses. The time spent
+    /// waiting inside a host call (tts.speak, chat.send, http.fetch) is not script time: it pauses that budget
+    /// and is not metered, and each call is bounded by its own MaxHostCallMs deadline instead. On the box one
+    /// tts.speak clip on the default voice waits 7-15 s, so a three-line hug script spent its whole 8 s inside
+    /// one host call and failed (`Execution exceeded its time budget`, 9 of 14 runs on a real channel,
+    /// 2026-10-29). One run therefore stays bounded by <see cref="MaxRunMs"/>.
     /// </summary>
     public static ScriptResourceBudget Baseline { get; } =
         new(
@@ -50,8 +48,12 @@ public sealed record ScriptResourceBudget(
             MaxFuelOrStatements: 200_000,
             MaxMemoryBytes: 64L * 1024 * 1024,
             MaxOutputBytes: 8 * 1024,
-            MaxEgressBytes: 256L * 1024
+            MaxEgressBytes: 256L * 1024,
+            MaxHostCallMs: 15_000
         );
+
+    /// <summary>The longest one run can take in wall time: its own budget plus every host call at its deadline.</summary>
+    public long MaxRunMs => WallClockMs + (long)MaxHostCalls * MaxHostCallMs;
 }
 
 /// <summary>Value snapshot of the script's inputs — NO PII (internal ids only) (custom-code.md §4).</summary>
@@ -87,8 +89,10 @@ public sealed record ScriptCapabilityDescriptor(
 );
 
 /// <summary>
-/// The executor's value-typed result + accounting (custom-code.md §4). [LogLines] are the script's own
-/// <c>console.*</c> lines in order, capped, kept even when the run fails.
+/// The executor's value-typed result + accounting (custom-code.md §4). [ElapsedMs] is the script's own run
+/// time (the metered number); [HostWaitMs] is the time it spent waiting inside host calls, so the wall time of
+/// the run is the sum of the two. [LogLines] are the script's own <c>console.*</c> lines in order, capped, kept
+/// even when the run fails.
 /// </summary>
 public sealed record ScriptExecutionOutcomeResult(
     ScriptExecutionOutcome Outcome,
@@ -99,7 +103,8 @@ public sealed record ScriptExecutionOutcomeResult(
     bool StopPipeline,
     string? ErrorMessage,
     IReadOnlyList<string> LogLines,
-    ScriptSourcePosition? ErrorPosition = null
+    ScriptSourcePosition? ErrorPosition = null,
+    long HostWaitMs = 0
 );
 
 /// <summary>The result of compiling+validating a script at save time (custom-code.md §4).</summary>

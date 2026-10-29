@@ -29,9 +29,11 @@ public static class JintEngineFactory
         {
             // Resource constraints (best-effort, between-statement; the OS worker is the real bound).
             options.MaxStatements((int)budget.MaxFuelOrStatements);
-            options.TimeoutInterval(TimeSpan.FromMilliseconds(budget.WallClockMs));
+            // The script's own run budget (WallClockMs) lives in ct: the executor's run clock cancels it, and
+            // pauses it while a host call waits. This timer only backstops the whole run in wall time.
+            options.TimeoutInterval(TimeSpan.FromMilliseconds(budget.MaxRunMs));
             options.LimitMemory(budget.MaxMemoryBytes);
-            options.CancellationToken(ct); // external kill switch (worker-driven)
+            options.CancellationToken(ct); // the run budget + external kill switch
 
             // Constraint properties — dangerous defaults, set explicitly.
             options.Constraints.MaxRecursionDepth = 64; // default -1 = no check

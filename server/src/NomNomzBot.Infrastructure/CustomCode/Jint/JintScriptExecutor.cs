@@ -9,7 +9,6 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
@@ -409,19 +408,19 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
         HashSet<string> grantedKeys = new(grant.Granted.Select(g => g.Key), StringComparer.Ordinal);
         int hostCalls = 0;
         bool stopPipeline = false;
-        Stopwatch stopwatch = Stopwatch.StartNew();
         ScriptExecutionOutcome outcome;
         string? error = null;
         ScriptSourcePosition? errorPosition = null;
+        // Set when the last host call ran past its own deadline; the bridge never saw that failure, so
+        // last.error reports it from here until the next host call.
+        ScriptHostError? deadlineError = null;
 
-        using CancellationTokenSource timeout = CancellationTokenSource.CreateLinkedTokenSource(
-            cancellationToken
-        );
-        timeout.CancelAfter(TimeSpan.FromMilliseconds(request.Budget.WallClockMs));
+        // The script's own run time is bounded by WallClockMs; the clock pauses while a host call waits.
+        using ScriptRunClock clock = new(request.Budget.WallClockMs, cancellationToken);
 
         try
         {
-            Engine engine = JintEngineFactory.CreateHardened(request.Budget, timeout.Token);
+            Engine engine = JintEngineFactory.CreateHardened(request.Budget, clock.Token);
 
             engine.SetValue(
                 "__getVar",
@@ -473,7 +472,21 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                             throw new ScriptHostBudgetException();
                         IReadOnlyList<string> a =
                             JsonConvert.DeserializeObject<List<string>>(argsJson) ?? [];
-                        return bridge.Resolve(key)(key, a, timeout.Token);
+                        HostImportDelegate host = bridge.Resolve(key);
+                        if (isLastError)
+                            return deadlineError?.ToJson() ?? host(key, a, clock.Token);
+                        deadlineError = null;
+                        HostCallAnswer answer = clock.WaitOnHost(() =>
+                            CallWithDeadline(
+                                host,
+                                key,
+                                a,
+                                request.Budget.MaxHostCallMs,
+                                cancellationToken
+                            )
+                        );
+                        deadlineError = answer.DeadlineError;
+                        return answer.Value;
                     }
                 )
             );
@@ -481,16 +494,17 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
             // Genuinely blocks the calling thread for up to MaxSleepMs — Jint has no event loop to resume a
             // suspended script on, so this is the honest cost of nnz.time.sleep, not a Task.Delay a caller can
             // await around it. Clamped so one call can never claim the whole per-execution wall-clock budget on
-            // its own; Task.Delay (not Thread.Sleep) so the SAME `timeout` token that bounds the rest of the
-            // execution also cuts a sleep short the instant the overall budget expires, surfacing as the usual
-            // ScriptExecutionOutcome.Timeout below rather than a second, uncancellable wait.
+            // its own; Task.Delay (not Thread.Sleep) so the SAME run-clock token that bounds the rest of the
+            // execution also cuts a sleep short the instant the script's own budget expires, surfacing as the
+            // usual ScriptExecutionOutcome.Timeout below rather than a second, uncancellable wait. A sleep is
+            // the script's own time, never a host-call wait: it is not paused out of the budget or the meter.
             engine.SetValue(
                 "__sleep",
                 (Action<double>)(
                     ms =>
                         Task.Delay(
                                 TimeSpan.FromMilliseconds(Math.Clamp(ms, 0, MaxSleepMs)),
-                                timeout.Token
+                                clock.Token
                             )
                             .GetAwaiter()
                             .GetResult()
@@ -540,7 +554,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
             outcome = ScriptExecutionOutcome.Faulted;
             error = "Script execution faulted.";
         }
-        stopwatch.Stop();
+        clock.Stop();
         if (droppedLogLines > 0)
             logLines.Add($"{droppedLogLines} more console line(s) not shown.");
 
@@ -548,17 +562,51 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
             Result.Success(
                 new ScriptExecutionOutcomeResult(
                     outcome,
-                    stopwatch.ElapsedMilliseconds,
+                    clock.ScriptMs,
                     hostCalls,
                     vars,
                     output.Length == 0 ? null : output.ToString(),
                     StopPipeline: stopPipeline,
                     error,
                     logLines,
-                    errorPosition
+                    errorPosition,
+                    clock.HostWaitMs
                 )
             )
         );
+    }
+
+    private sealed record HostCallAnswer(string? Value, ScriptHostError? DeadlineError);
+
+    // One host call under its own deadline. Past the deadline only that call fails, the way a refused call does:
+    // the script gets null and last.error says why. The caller's own cancellation still ends the whole run.
+    private static HostCallAnswer CallWithDeadline(
+        HostImportDelegate host,
+        string key,
+        IReadOnlyList<string> args,
+        int deadlineMs,
+        CancellationToken cancellationToken
+    )
+    {
+        using CancellationTokenSource deadline = CancellationTokenSource.CreateLinkedTokenSource(
+            cancellationToken
+        );
+        deadline.CancelAfter(TimeSpan.FromMilliseconds(deadlineMs));
+        try
+        {
+            return new(host(key, args, deadline.Token), null);
+        }
+        catch (OperationCanceledException)
+            when (deadline.IsCancellationRequested && !cancellationToken.IsCancellationRequested)
+        {
+            return new(
+                null,
+                new(
+                    ScriptHostErrorCodes.UpstreamFailed,
+                    $"{key} took longer than its {deadlineMs} ms limit."
+                )
+            );
+        }
     }
 
     // The Jint source names, so a runtime location tells the author's script apart from the sandbox's own helpers.

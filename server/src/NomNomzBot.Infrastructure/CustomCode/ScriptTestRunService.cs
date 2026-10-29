@@ -175,7 +175,7 @@ public sealed class ScriptTestRunService(
             new TestRunResultDto(
                 success,
                 error,
-                outcome.ElapsedMs,
+                outcome.ElapsedMs + outcome.HostWaitMs,
                 outcome.HostCallCount,
                 sink.Effects,
                 chatOutput,
