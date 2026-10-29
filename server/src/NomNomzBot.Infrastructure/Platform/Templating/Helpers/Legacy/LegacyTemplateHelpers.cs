@@ -139,9 +139,26 @@ public sealed partial class LegacyTemplateHelpers
     {
         if (!vars.TryGetValue(key, out string? val))
             return ResolveVerbAgreement(key, vars);
-        return IsPronounGrammarKey(key) && key.Length > 0 && char.IsUpper(key[0])
+        return
+            IsPronounGrammarKey(key)
+            && key.Length > 0
+            && char.IsUpper(key[0])
+            && !IsNameForm(key, vars)
             ? CapitalizeFirst(val)
             : val;
+    }
+
+    /// <summary>Internal marker, never a template helper: the grammar words of this side are a person's name.</summary>
+    private const string NameFormMarker = "nameform";
+
+    /// <summary>Whether a subject, object or possessive placeholder holds a person's name, which keeps its own capitals.</summary>
+    private static bool IsNameForm(string key, Dictionary<string, string> vars)
+    {
+        int dot = key.LastIndexOf('.');
+        string prefix = dot < 0 ? string.Empty : key[..(dot + 1)];
+        string word = key[(dot + 1)..].ToLowerInvariant();
+        return word is "subject" or "object" or "possessive"
+            && vars.ContainsKey($"{prefix}{NameFormMarker}");
     }
 
     /// <summary>The clock, zone and language a <c>{date:…}</c> expression renders with (UTC without a channel).</summary>
@@ -730,7 +747,12 @@ public sealed partial class LegacyTemplateHelpers
             }
 
             // Grammar helpers key off the primary pronoun only (AltPronoun only drives the display badge).
-            ApplyPronounGrammarVars(vars, "user.", user.Pronoun);
+            ApplyPronounGrammarVars(
+                vars,
+                "user.",
+                user.Pronoun,
+                string.IsNullOrWhiteSpace(user.DisplayName) ? user.Username : user.DisplayName
+            );
 
             // Real follow age via Helix Get Channel Followers (moderator:read:followers). "not following" when
             // the viewer does not follow, "unknown" only when the lookup itself fails — never a fake duration.
@@ -942,7 +964,12 @@ public sealed partial class LegacyTemplateHelpers
                         )
                         : "unknown";
 
-            ApplyPronounGrammarVars(vars, "target.", target.Pronoun);
+            ApplyPronounGrammarVars(
+                vars,
+                "target.",
+                target.Pronoun,
+                string.IsNullOrWhiteSpace(target.DisplayName) ? target.Username : target.DisplayName
+            );
         }
         catch (Exception ex)
         {
@@ -998,13 +1025,20 @@ public sealed partial class LegacyTemplateHelpers
     private static void ApplyPronounGrammarVars(
         Dictionary<string, string> vars,
         string prefix,
-        Pronoun? pronoun
+        Pronoun? pronoun,
+        string? name
     )
     {
-        // "any/all" and "other/ask" name a choice, not words for a sentence ("Any was here"): they take
-        // the same they/them fallback as a viewer with no pronoun on record.
-        if (pronoun is null || OpenChoiceSubjects.Contains(pronoun.Subject))
+        if (pronoun is null)
             return;
+
+        // "any/all" and "other/ask" name a choice, not words for a sentence ("Any was here"), and "they"
+        // would be a guess about the person. The name is always right: a singular third-person word.
+        if (OpenChoiceSubjects.Contains(pronoun.Subject))
+        {
+            ApplyNameGrammarVars(vars, prefix, name);
+            return;
+        }
 
         vars.TryAdd($"{prefix}subject", pronoun.Subject);
         vars.TryAdd($"{prefix}object", pronoun.Object);
@@ -1015,6 +1049,29 @@ public sealed partial class LegacyTemplateHelpers
         vars.TryAdd($"{prefix}presenttense", singular ? "is" : "are");
         vars.TryAdd($"{prefix}pasttense", singular ? "was" : "were");
         vars.TryAdd($"{prefix}genderedterm", pronoun.GenderedTerm);
+    }
+
+    /// <summary>
+    /// The grammar for a person whose pronoun set is an open choice: the name stands where a pronoun would,
+    /// and the verb agrees as singular. A viewer with no name on record keeps the they/them fallback.
+    /// <c>{prefix}nameform</c> tells <see cref="Lookup"/> not to capitalize the name ("iFiLLz" stays "iFiLLz").
+    /// </summary>
+    private static void ApplyNameGrammarVars(
+        Dictionary<string, string> vars,
+        string prefix,
+        string? name
+    )
+    {
+        if (string.IsNullOrWhiteSpace(name))
+            return;
+
+        vars.TryAdd($"{prefix}subject", name);
+        vars.TryAdd($"{prefix}object", name);
+        vars.TryAdd($"{prefix}possessive", $"{name}'s");
+        vars.TryAdd($"{prefix}presenttense", "is");
+        vars.TryAdd($"{prefix}pasttense", "was");
+        vars.TryAdd($"{prefix}genderedterm", "person");
+        vars.TryAdd($"{prefix}{NameFormMarker}", "true");
     }
 
     /// <summary>Referenced counters resolve in one round-trip; unset counters render as 0.</summary>
@@ -1404,6 +1461,8 @@ public sealed partial class LegacyTemplateHelpers
     )
     {
         string bareSource = hasTargetContext ? "target" : "user";
+        if (vars.ContainsKey($"{bareSource}.{NameFormMarker}"))
+            vars.TryAdd(NameFormMarker, "true");
         foreach (string suffix in PronounGrammarSuffixes)
         {
             if (

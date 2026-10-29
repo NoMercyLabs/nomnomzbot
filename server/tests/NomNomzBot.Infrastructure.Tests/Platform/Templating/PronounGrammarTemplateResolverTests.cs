@@ -136,6 +136,14 @@ public sealed class PronounGrammarTemplateResolverTests
                 UsernameNormalized = "frank",
                 DisplayName = "Frank",
                 Pronoun = otherAsk,
+            },
+            new User
+            {
+                TwitchUserId = "777",
+                Username = "iris",
+                UsernameNormalized = "iris",
+                DisplayName = "iFiLLz",
+                Pronoun = anyAll,
             }
         );
         db.SaveChanges();
@@ -264,17 +272,48 @@ public sealed class PronounGrammarTemplateResolverTests
     // ── "any/all" and "other/ask" are a choice, not words to put in a sentence ──
 
     [Theory]
-    [InlineData("erin")] // any/all
-    [InlineData("frank")] // other/ask
-    public async Task AnyOrOtherPronoun_ReadsAsTheyThem_NeverAsTheLabelWord(string target)
+    [InlineData("erin", "Erin")] // any/all
+    [InlineData("frank", "Frank")] // other/ask
+    public async Task AnyOrOtherPronoun_ReadsAsTheName_NeverAsTheLabelWordOrAGuessedPronoun(
+        string target,
+        string name
+    )
     {
         string resolved = await _resolver.ResolveAsync(
-            "{Subject} {pastTense} here. Follow before {subject} {verb:refactors|refactor} you and {object}/{possessive}/{presentTense}",
+            "{Subject} {pastTense} here. Follow before {subject} {verb:refactors|refactor} you and {object}/{possessive}/{presentTense}/{genderedTerm}",
             Seeds("111", target: target),
             Channel
         );
 
-        resolved.Should().Be("They were here. Follow before they refactor you and them/their/are");
+        resolved
+            .Should()
+            .Be(
+                $"{name} was here. Follow before {name} refactors you and {name}/{name}'s/is/person"
+            );
+    }
+
+    [Fact]
+    public async Task AnyPronoun_KeepsTheNamesOwnCapitalsInACapitalizedPlaceholder()
+    {
+        string resolved = await _resolver.ResolveAsync(
+            "{Subject} {tense}. {Possessive} stream.",
+            Seeds("111", target: "iris"),
+            Channel
+        );
+
+        resolved.Should().Be("iFiLLz was. iFiLLz's stream.");
+    }
+
+    [Fact]
+    public async Task AnyPronoun_OnTheCaller_ReadsAsTheCallersName()
+    {
+        string resolved = await _resolver.ResolveAsync(
+            "{user.subject} {user.verb:waves|wave}",
+            Seeds("777"),
+            Channel
+        );
+
+        resolved.Should().Be("iFiLLz waves");
     }
 
     // ── Capitalization keys off the placeholder's own first letter ──────────
