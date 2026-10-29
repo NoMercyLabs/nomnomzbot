@@ -183,4 +183,53 @@ public sealed class GiveawayPotPayoutTests
         second.Should().Be(50);
         (first + second).Should().Be(101);
     }
+
+    [Fact]
+    public async Task The_pot_counts_every_paid_entry_of_a_viewer_who_entered_more_than_once()
+    {
+        Harness harness = Build();
+        Giveaway giveaway = new()
+        {
+            BroadcasterId = Tenant,
+            Title = "Pot",
+            EntryMode = GiveawayEntryMode.Keyword,
+            Keyword = "!win",
+            PrizeMode = GiveawayPrizeMode.Currency,
+            PrizeFromPot = true,
+            EntryCost = 50,
+            MaxEntriesPerUser = 2,
+        };
+        harness.Db.Giveaways.Add(giveaway);
+        // One row per viewer: the first viewer paid for 2 entries, the second for 1.
+        int[] entryCounts = [2, 1];
+        for (int i = 0; i < entryCounts.Length; i++)
+            harness.Db.GiveawayEntries.Add(
+                new()
+                {
+                    BroadcasterId = Tenant,
+                    GiveawayId = giveaway.Id,
+                    ViewerUserId = Guid.CreateVersion7(),
+                    ViewerTwitchUserId = $"entrant-{i}",
+                    EntryCount = entryCounts[i],
+                    EntryCostLedgerEntryId = i + 1,
+                    EnteredAt = DateTime.UtcNow,
+                }
+            );
+        GiveawayWinner winner = new()
+        {
+            BroadcasterId = Tenant,
+            GiveawayId = giveaway.Id,
+            ViewerUserId = Guid.CreateVersion7(),
+            ViewerTwitchUserId = "winner-0",
+            DrawnAt = DateTime.UtcNow,
+        };
+        harness.Db.GiveawayWinners.Add(winner);
+        harness.Db.SaveChanges();
+
+        await harness.Fulfillment.FulfillAsync(giveaway, winner);
+        harness.Db.SaveChanges();
+
+        long balance = (await harness.Accounts.GetBalanceAsync(Tenant, winner.ViewerUserId)).Value;
+        balance.Should().Be(150, "three paid entries of 50 make the pot, not two paid rows");
+    }
 }

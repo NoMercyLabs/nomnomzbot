@@ -153,10 +153,11 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
         {
             // The pot = the summed PAID entry costs; it splits evenly across the winners DRAWN (not the
             // configured count), remainder to the earliest-drawn winner (integer currency — nothing vanishes).
-            int paidEntries = await _db.GiveawayEntries.CountAsync(
-                e => e.GiveawayId == giveaway.Id && e.EntryCostLedgerEntryId != null,
-                ct
-            );
+            int paidEntries = await _db
+                .GiveawayEntries.Where(e =>
+                    e.GiveawayId == giveaway.Id && e.EntryCostLedgerEntryId != null
+                )
+                .SumAsync(e => e.EntryCount, ct);
             int drawnWinners = await _db.GiveawayWinners.CountAsync(
                 w => w.GiveawayId == giveaway.Id && w.Status != GiveawayWinnerStatus.Redrawn,
                 ct
