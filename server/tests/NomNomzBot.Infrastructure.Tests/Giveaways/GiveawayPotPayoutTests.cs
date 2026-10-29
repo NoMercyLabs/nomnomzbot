@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Domain.Giveaways.Entities;
 using NomNomzBot.Infrastructure.Economy;
@@ -69,6 +70,7 @@ public sealed class GiveawayPotPayoutTests
                 .AddScoped<IPipelineEngine>(_ => Substitute.For<IPipelineEngine>())
                 .BuildServiceProvider(),
             [],
+            Substitute.For<IInboundOriginChatSender>(),
             Substitute.For<ITokenProtector>(),
             Clock,
             NullLogger<GiveawayFulfillment>.Instance

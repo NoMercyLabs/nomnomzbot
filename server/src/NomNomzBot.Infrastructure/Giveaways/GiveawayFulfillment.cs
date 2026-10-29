@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
@@ -28,8 +29,8 @@ using NomNomzBot.Domain.Giveaways.Entities;
 namespace NomNomzBot.Infrastructure.Giveaways;
 
 /// <summary>
-/// Fulfills ONE drawn winner per the giveaway's prize mode (giveaways.md §4): <c>announce</c> records
-/// only; <c>currency</c> credits a fixed amount or the summed entry-cost pot through the ledger;
+/// Fulfills ONE drawn winner per the giveaway's prize mode (giveaways.md §4): <c>announce</c> posts one
+/// bot line in chat naming the winner and the prize; <c>currency</c> credits a fixed amount or the summed entry-cost pot through the ledger;
 /// <c>pipeline</c> runs the prize pipeline with the winner as the triggering user; <c>code_pool</c>
 /// atomically claims an available code and whispers the decrypted plaintext — a failed whisper leaves
 /// the code <c>assigned</c> with <c>WhisperDelivered=false</c> for the broadcaster reveal (D6). Extracted
@@ -46,6 +47,7 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
     private readonly ICurrencyAccountService _accounts;
     private readonly IServiceProvider _services;
     private readonly IReadOnlyDictionary<string, IPlatformDirectMessageSender> _dmSendersByProvider;
+    private readonly IInboundOriginChatSender _chat;
     private readonly ITokenProtector _protector;
     private readonly TimeProvider _clock;
     private readonly ILogger<GiveawayFulfillment> _logger;
@@ -55,6 +57,7 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
         ICurrencyAccountService accounts,
         IServiceProvider services,
         IEnumerable<IPlatformDirectMessageSender> dmSenders,
+        IInboundOriginChatSender chat,
         ITokenProtector protector,
         TimeProvider clock,
         ILogger<GiveawayFulfillment> logger
@@ -67,6 +70,7 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
         // — a constructor-injected engine here closes that loop into a DI cycle.
         _services = services;
         _dmSendersByProvider = dmSenders.ToDictionary(s => s.Provider);
+        _chat = chat;
         _protector = protector;
         _clock = clock;
         _logger = logger;
@@ -89,7 +93,52 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
             case GiveawayPrizeMode.CodePool:
                 await FulfillCodeAsync(giveaway, winner, ct);
                 break;
-            // announce: recording the winner IS the fulfillment; GiveawayDrawnEvent carries the rest.
+            case GiveawayPrizeMode.Announce:
+                await FulfillAnnouncementAsync(giveaway, winner, ct);
+                break;
+        }
+    }
+
+    // The announcement is bot speech: it goes out through the one bot sender, on the winner's platform.
+    // A refused or faulted send must not unwind the draw; the winner row stands.
+    private async Task FulfillAnnouncementAsync(
+        Giveaway giveaway,
+        GiveawayWinner winner,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            var user = await _db
+                .Users.Where(u => u.Id == winner.ViewerUserId)
+                .Select(u => new { u.DisplayName, u.Username })
+                .FirstOrDefaultAsync(ct);
+            string mention = user is null
+                ? "winner"
+                : ChatMentionName.For(user.DisplayName, user.Username);
+
+            Result sent = await _chat.SendMessageAsync(
+                giveaway.BroadcasterId,
+                winner.Provider,
+                $"Congratulations @{mention}, you won {giveaway.Title}!",
+                ct
+            );
+            if (sent.IsFailure)
+                _logger.LogWarning(
+                    "Giveaway {GiveawayId} announcement for winner {WinnerId} was not sent: {Error}",
+                    giveaway.Id,
+                    winner.Id,
+                    sent.ErrorMessage
+                );
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogError(
+                ex,
+                "Giveaway {GiveawayId} announcement failed for winner {WinnerId}",
+                giveaway.Id,
+                winner.Id
+            );
         }
     }
 

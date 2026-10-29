@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -175,6 +176,7 @@ public sealed class GiveawayCodeCustodyTests
                 .AddScoped<IPipelineEngine>(_ => Substitute.For<IPipelineEngine>())
                 .BuildServiceProvider(),
             [new TwitchWhisperDirectMessageSender(whispers)],
+            Substitute.For<IInboundOriginChatSender>(),
             new FakeProtector(),
             TimeProvider.System,
             NullLogger<GiveawayFulfillment>.Instance
@@ -360,6 +362,7 @@ public sealed class GiveawayCodeCustodyTests
                 .AddScoped<IPipelineEngine>(_ => Substitute.For<IPipelineEngine>())
                 .BuildServiceProvider(),
             [new TwitchWhisperDirectMessageSender(Substitute.For<ITwitchWhispersApi>())],
+            Substitute.For<IInboundOriginChatSender>(),
             new FakeProtector(),
             TimeProvider.System,
             NullLogger<GiveawayFulfillment>.Instance
