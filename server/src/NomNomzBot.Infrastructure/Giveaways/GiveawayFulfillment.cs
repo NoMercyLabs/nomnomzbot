@@ -102,19 +102,28 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
         long amount;
         if (giveaway.PrizeFromPot)
         {
-            // The pot = the summed PAID entry costs; multi-winner splits evenly, remainder to the
-            // earliest-drawn winner (integer currency — nothing vanishes).
+            // The pot = the summed PAID entry costs; it splits evenly across the winners DRAWN (not the
+            // configured count), remainder to the earliest-drawn winner (integer currency — nothing vanishes).
             int paidEntries = await _db.GiveawayEntries.CountAsync(
                 e => e.GiveawayId == giveaway.Id && e.EntryCostLedgerEntryId != null,
                 ct
             );
-            long pot = paidEntries * (giveaway.EntryCost ?? 0);
-            long share = pot / Math.Max(giveaway.WinnerCount, 1);
-            bool isFirstWinner = !await _db.GiveawayWinners.AnyAsync(
-                w => w.GiveawayId == giveaway.Id && w.FulfillmentLedgerEntryId != null,
+            int drawnWinners = await _db.GiveawayWinners.CountAsync(
+                w => w.GiveawayId == giveaway.Id && w.Status != GiveawayWinnerStatus.Redrawn,
                 ct
             );
-            amount = isFirstWinner ? share + pot % Math.Max(giveaway.WinnerCount, 1) : share;
+            long pot = paidEntries * (giveaway.EntryCost ?? 0);
+            long share = pot / Math.Max(drawnWinners, 1);
+            // Winners paid earlier in this same draw are not saved yet, so the tracked rows count too.
+            bool isFirstWinner =
+                !_db.GiveawayWinners.Local.Any(w =>
+                    w.GiveawayId == giveaway.Id && w.FulfillmentLedgerEntryId != null
+                )
+                && !await _db.GiveawayWinners.AnyAsync(
+                    w => w.GiveawayId == giveaway.Id && w.FulfillmentLedgerEntryId != null,
+                    ct
+                );
+            amount = isFirstWinner ? share + pot % Math.Max(drawnWinners, 1) : share;
         }
         else
         {
