@@ -42,6 +42,15 @@ $TestProject = $TestProject -replace '^server[\\/]', ''
 $repo = Join-Path $PSScriptRoot '..' | Resolve-Path
 $worktree = $null
 
+# The script and widget bundling tests run the real esbuild, which CI installs (ci.yml "Install esbuild",
+# same pinned version). Without it every unfiltered Infrastructure run failed 25 tests on 2026-10-29. A local
+# copy unpacked under C:/Projects/.work/tools/esbuild-<version>/package is used when none is configured.
+if (-not $env:Widgets__EsbuildPath) {
+    $localEsbuild = Get-ChildItem -Path 'C:/Projects/.work/tools' -Filter 'esbuild.exe' -Recurse -ErrorAction SilentlyContinue |
+        Sort-Object FullName -Descending | Select-Object -First 1
+    if ($localEsbuild) { $env:Widgets__EsbuildPath = $localEsbuild.FullName }
+}
+
 # Every native call here is judged by its exit code, never by stderr: docker/dotnet/jb all write
 # ordinary progress to stderr, and under Windows PowerShell 5.1 that becomes a terminating
 # NativeCommandError while ErrorActionPreference is 'Stop'. Same helper shape as switchover.ps1.
