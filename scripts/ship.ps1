@@ -201,8 +201,13 @@ if [ "`$code" = "200" ]; then
 else
   docker compose stop "api-`$idle" >/dev/null 2>&1 || true
 fi
-echo "image_created=`$(docker inspect --format '{{.Created}}' ghcr.io/nomercylabs/nomnomzbot:latest)"
-echo "image_digest=`$(docker inspect --format '{{index .RepoDigests 0}}' ghcr.io/nomercylabs/nomnomzbot:latest)"
+# The box runs the image its API_IMAGE names (a release channel tag), not :latest, so read the image of
+# the container that now serves, and the commit it reports.
+running_image=`$(docker inspect --format '{{.Image}}' "nomnomzbot-api-`$idle" 2>/dev/null)
+echo "image_created=`$(docker inspect --format '{{.Created}}' "`$running_image")"
+echo "image_digest=`$(docker inspect --format '{{index .RepoDigests 0}}' "`$running_image")"
+echo "image_ref=`$(docker inspect --format '{{.Config.Image}}' "nomnomzbot-api-`$idle" 2>/dev/null)"
+echo "version=`$(docker exec "nomnomzbot-api-`$idle" curl -s http://localhost:5000/health/version 2>/dev/null)"
 echo "container=`$(docker ps --filter name=nomnomzbot-api --format '{{.Status}}')"
 "@
 # The remote script goes over STDIN to `bash -s`, never inside a command STRING. A command string run
@@ -239,9 +244,17 @@ $ambiguous = ($deployLines | Select-String -Pattern "^ambiguous=(.+)$" | Select-
 if ($ambiguous) { Fail "refused to deploy - $($ambiguous.Matches.Groups[1].Value)" }
 if ($health -ne "200") { Fail "API did not become ready (health=$health) after deploy" }
 
-# `docker compose pull` succeeded, so the host now runs EXACTLY the registry's :latest - which the
-# green image job just (re)published for this commit. An old Created timestamp only means the cached
-# build reproduced an identical image (no code change in the image), which is fine and reported as such.
+# 2026-10-29: a deploy of 779081d1 pulled the stable tag, which still named 0f9b0927, and the old code went
+# back live while the script looked for :latest. The box runs what its channel tag names, so the commit it
+# reports is the only proof.
+$imageRef = Get-Field 'image_ref'
+$version = Get-Field 'version'
+if ($version -notmatch [regex]::Escape($Sha)) {
+    Fail "the box runs $version from $imageRef, not $Sha. Its channel tag points at an older image: promote the commit with the Release workflow (nightly, then beta, then stable) and ship again."
+}
+
+# The reported commit matched above. An old Created timestamp only means the cached build reproduced an
+# identical image (no code change in the image), which is fine and reported as such.
 $runStarted = gh api "repos/NoMercyLabs/nomnomzbot/actions/runs/$runId" --jq '.run_started_at' 2>$null
 $freshness =
     if ([string]::IsNullOrWhiteSpace($runStarted)) { "unknown (could not read run start time)" }
@@ -252,6 +265,7 @@ $freshness =
 Write-Host ""
 Write-Host "SHIP: DEPLOYED" -ForegroundColor Green
 Write-Host "  commit     $Sha"
+Write-Host "  version    $version ($imageRef)"
 Write-Host "  ci run     $runId (green; image job: $imageJob)"
 Write-Host "  health     $health"
 Write-Host "  image      $freshness - created $imageCreated"
