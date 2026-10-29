@@ -1025,8 +1025,12 @@ public sealed class GiveawayService : IGiveawayService
                 "VALIDATION_FAILED"
             );
         if (
-            request is { PrizeMode: GiveawayPrizeMode.Pipeline, PrizePipelineId: null }
-            && request.Target is not { Kind: BindingTargetKind.Command or BindingTargetKind.Action }
+            request is
+            {
+                PrizeMode: GiveawayPrizeMode.Pipeline,
+                PrizePipelineId: null,
+                Target: not { Kind: BindingTargetKind.Command or BindingTargetKind.Action },
+            }
         )
             return Result.Failure("Pipeline mode needs a pipeline.", "VALIDATION_FAILED");
         if (request is { PrizeMode: GiveawayPrizeMode.CodePool, PrizeCodePoolId: null })
