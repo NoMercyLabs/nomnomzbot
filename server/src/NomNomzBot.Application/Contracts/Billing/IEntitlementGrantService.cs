@@ -15,8 +15,8 @@ using NomNomzBot.Application.DTOs.Billing;
 namespace NomNomzBot.Application.Contracts.Billing;
 
 /// <summary>
-/// Comps and per-tenant entitlement grants (S-ADMIN-4b) — a time-boxed elevation of one tenant's effective
-/// tier, distinct from <see cref="IBillingTierAdminService"/> (which edits the tier catalogue itself) and
+/// Gifts (comps) and per-tenant entitlement grants (S-ADMIN-4b, S-GIFT-PLAN) — an elevation of one tenant's
+/// effective tier for N months or forever, distinct from <see cref="IBillingTierAdminService"/> (which edits the tier catalogue itself) and
 /// from the numeric quota exceptions <c>IPlatformAdminService</c> issues via <c>TenantLimitOverride</c>. A
 /// grant is read by <see cref="IBillingTierService"/>'s tier resolution, so it actually gates
 /// <c>IsTierAtLeastAsync</c>/<c>GetEntitlementAsync</c> and every capability built on them — never a row that
@@ -26,7 +26,7 @@ namespace NomNomzBot.Application.Contracts.Billing;
 /// </summary>
 public interface IEntitlementGrantService
 {
-    /// <summary>Every LIVE grant (not expired, not soft-deleted) for the tenant, newest first.</summary>
+    /// <summary>Every LIVE grant (forever or not yet ended, not soft-deleted) for the tenant, newest first.</summary>
     Task<Result<IReadOnlyList<EntitlementGrantDto>>> ListGrantsAsync(
         Guid broadcasterId,
         CancellationToken ct = default
@@ -50,6 +50,17 @@ public interface IEntitlementGrantService
     Task<Result<EntitlementGrantDto>> IssueGrantAsync(
         Guid broadcasterId,
         IssueEntitlementGrantRequest request,
+        Guid? actorUserId,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// End a live gift now: its end date becomes this moment, so the tier resolves back at once. The row stays
+    /// as the record of what was given, and an <c>IamAuditLog</c> row is written in the same transaction.
+    /// </summary>
+    Task<Result<EntitlementGrantDto>> EndGrantAsync(
+        Guid broadcasterId,
+        Guid grantId,
         Guid? actorUserId,
         CancellationToken ct = default
     );

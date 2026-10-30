@@ -1689,8 +1689,11 @@ export interface paths {
         };
         put?: never;
         /**
-         * Issue a comp — a time-boxed entitlement grant with a mandatory reason and expiry. Fails closed
-         *     (`PREVIEW_STALE`, 409) if int IssueEntitlementGrantRequest.ConfirmedChangedLimitCount
+         * Gift a channel any tier (a hidden one too) — an entitlement grant with a mandatory reason that runs for
+         *     N months (int? IssueEntitlementGrantRequest.Months) or forever
+         *     (bool IssueEntitlementGrantRequest.Forever); an explicit
+         *     DateTime? IssueEntitlementGrantRequest.ExpiresAt still works. Exactly one length is required. Fails
+         *     closed (`PREVIEW_STALE`, 409) if int IssueEntitlementGrantRequest.ConfirmedChangedLimitCount
          *     no longer matches a freshly recomputed diff.
          */
         post: {
@@ -1866,6 +1869,104 @@ export interface paths {
         };
         put?: never;
         post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/admin/billing/channels/{broadcasterId}/grants/{grantId}/end": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * End a live gift now: its end date becomes this moment, so the channel's tier resolves back at once. The
+         *     row stays as the record of what was given. `NOT_FOUND` when no live gift with that id belongs to
+         *     the channel.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broadcasterId: string;
+                    grantId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfEntitlementGrant"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
         delete?: never;
         options?: never;
         head?: never;
@@ -52413,8 +52514,8 @@ export interface paths {
             cookie?: never;
         };
         /**
-         * Whether moderators' mass bans across their channels also reach this channel. On by default: a Twitch
-         *     moderator may already ban here.
+         * Whether moderators' mass bans across their channels also reach this channel. Off by default: the
+         *     channel owner opts in.
          */
         get: {
             parameters: {
@@ -92397,7 +92498,10 @@ export interface components {
                 [key: string]: number | string;
             };
         };
-        /** @description A live comp (S-ADMIN-4b) — a time-boxed entitlement grant, as read back for the admin surface. */
+        /**
+         * @description A live gift (S-ADMIN-4b, S-GIFT-PLAN) — an entitlement grant, as read back for the admin surface. A null
+         *     DateTime? EntitlementGrantDto.ExpiresAt is a forever gift.
+         */
         EntitlementGrant: {
             /**
              * Format: ulid
@@ -92417,7 +92521,7 @@ export interface components {
             grantedTierKey: string;
             reason: string;
             /** Format: date-time */
-            expiresAt: string;
+            expiresAt?: null | string;
             /** Format: date-time */
             issuedAt: string;
             /**
@@ -93692,8 +93796,10 @@ export interface components {
             token: components["schemas"]["AutomationToken"];
         };
         /**
-         * @description Issue a comp. int IssueEntitlementGrantRequest.ConfirmedChangedLimitCount must equal the count a fresh preview just returned
-         *     for this `(broadcasterId, tierId)` pair — a stale count is rejected, never silently applied.
+         * @description Issue a gift. int IssueEntitlementGrantRequest.ConfirmedChangedLimitCount must equal the count a fresh preview just returned
+         *     for this `(broadcasterId, tierId)` pair — a stale count is rejected, never silently applied. The
+         *     length is exactly one of: an explicit DateTime? IssueEntitlementGrantRequest.ExpiresAt in the future, a number of
+         *     int? IssueEntitlementGrantRequest.Months from now, or bool IssueEntitlementGrantRequest.Forever (no end date).
          */
         IssueEntitlementGrantRequest: {
             /**
@@ -93702,10 +93808,14 @@ export interface components {
              */
             tierId: string;
             reason: string;
-            /** Format: date-time */
-            expiresAt: string;
             /** Format: int32 */
             confirmedChangedLimitCount: number | string;
+            /** Format: date-time */
+            expiresAt?: null | string;
+            /** Format: int32 */
+            months?: null | number | string;
+            /** @default false */
+            forever: boolean;
         };
         /** @description Contribute a viewer's currency into a jar (economy.md §4). long JarContributeRequest.Amount &gt; 0. */
         JarContributeRequest: {
@@ -99117,6 +99227,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseOfEntitlementGrant: {
+            status?: string;
+            data?: null | components["schemas"]["EntitlementGrant"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseOfEntitlementGrantPreview: {
             status?: string;
             data?: null | components["schemas"]["EntitlementGrantPreview"];
@@ -103746,7 +103869,10 @@ export interface components {
             tierKey: string;
             grants: components["schemas"]["SupportPersonEntitlementGrant"][];
         };
-        /** @description One LIVE operator comp on a channel this person owns (`EntitlementGrant`). */
+        /**
+         * @description One LIVE operator gift on a channel this person owns (`EntitlementGrant`). A null
+         *     DateTime? SupportPersonEntitlementGrantDto.ExpiresAt is a forever gift.
+         */
         SupportPersonEntitlementGrant: {
             /**
              * Format: ulid
@@ -103762,7 +103888,7 @@ export interface components {
             /** Format: date-time */
             issuedAt: string;
             /** Format: date-time */
-            expiresAt: string;
+            expiresAt?: null | string;
         };
         /**
          * @description One real event recorded about this person in ONE tenant (S-ADMIN-7b), read straight from the append-only

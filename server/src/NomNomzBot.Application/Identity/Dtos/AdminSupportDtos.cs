@@ -117,13 +117,16 @@ public sealed record SupportPersonEntitlementDto(
     IReadOnlyList<SupportPersonEntitlementGrantDto> Grants
 );
 
-/// <summary>One LIVE operator comp on a channel this person owns (<c>EntitlementGrant</c>).</summary>
+/// <summary>
+/// One LIVE operator gift on a channel this person owns (<c>EntitlementGrant</c>). A null
+/// <see cref="ExpiresAt"/> is a forever gift.
+/// </summary>
 public sealed record SupportPersonEntitlementGrantDto(
     Guid GrantId,
     Guid GrantedTierId,
     string Reason,
     DateTime IssuedAt,
-    DateTime ExpiresAt
+    DateTime? ExpiresAt
 );
 
 /// <summary>

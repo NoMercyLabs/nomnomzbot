@@ -25,6 +25,7 @@ using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Moderation.Entities;
+using NomNomzBot.Infrastructure.Billing;
 using PipelineEntity = NomNomzBot.Domain.Commands.Entities.Pipeline;
 
 namespace NomNomzBot.Infrastructure.Identity;
@@ -39,7 +40,8 @@ public sealed class AdminSupportService(
     IApplicationDbContext db,
     IPlatformIamService iam,
     IBillingTierService billingTiers,
-    IEventJournal eventJournal
+    IEventJournal eventJournal,
+    TimeProvider clock
 ) : IAdminSupportService
 {
     public async Task<Result<PagedList<SupportPersonSearchResultDto>>> SearchPeopleAsync(
@@ -445,7 +447,8 @@ public sealed class AdminSupportService(
         List<Guid> channelIds = ownedChannels.Select(c => c.Id).ToList();
         List<EntitlementGrant> grants = await db
             .EntitlementGrants.IgnoreQueryFilters()
-            .Where(g => channelIds.Contains(g.BroadcasterId) && g.DeletedAt == null)
+            .WhereLive(clock.GetUtcNow().UtcDateTime)
+            .Where(g => channelIds.Contains(g.BroadcasterId))
             .ToListAsync(ct);
 
         List<SupportPersonEntitlementDto> result = [];

@@ -14,14 +14,15 @@ using NomNomzBot.Domain.Platform;
 namespace NomNomzBot.Domain.Billing.Entities;
 
 /// <summary>
-/// A comp — an operator-issued, time-boxed elevation of one tenant's effective tier (S-ADMIN-4b), distinct
-/// from <see cref="TenantLimitOverride"/> (a numeric quota exception for one <c>LimitKey</c>). A LIVE grant
-/// (<c>DeletedAt == null</c> and <see cref="ExpiresAt"/> in the future) makes
+/// A gift (comp) — an operator-issued elevation of one tenant's effective tier (S-ADMIN-4b, S-GIFT-PLAN),
+/// distinct from <see cref="TenantLimitOverride"/> (a numeric quota exception for one <c>LimitKey</c>). A LIVE
+/// grant (<c>DeletedAt == null</c> and <see cref="ExpiresAt"/> null or in the future) makes
 /// <c>BillingTierService.ResolveTierAsync</c> treat the tenant as being on <see cref="GrantedTierId"/> whenever
 /// that ranks above its billed/subscribed tier — so <c>IsTierAtLeastAsync</c>, <c>GetEntitlementAsync</c> and
-/// every tier-gated capability that reads them (e.g. the <c>require_tier</c> pipeline action) see the comped
-/// tier for as long as the grant is live. Every grant carries a mandatory <see cref="Reason"/> and a mandatory
-/// <see cref="ExpiresAt"/> — there is no indefinite comp; a support case that needs to persist is reissued.
+/// every tier-gated capability that reads them (e.g. the <c>require_tier</c> pipeline action) see the gifted
+/// tier for as long as the grant is live. Every grant carries a mandatory <see cref="Reason"/>. A null
+/// <see cref="ExpiresAt"/> is a forever gift; ending a gift early sets <see cref="ExpiresAt"/> to the moment
+/// it ended, so the row stays as the record of what was given.
 /// </summary>
 public class EntitlementGrant : SoftDeletableEntity, ITenantScoped
 {
@@ -29,7 +30,7 @@ public class EntitlementGrant : SoftDeletableEntity, ITenantScoped
     public Guid BroadcasterId { get; set; }
     public Guid GrantedTierId { get; set; }
     public string Reason { get; set; } = null!;
-    public DateTime ExpiresAt { get; set; }
+    public DateTime? ExpiresAt { get; set; }
     public DateTime IssuedAt { get; set; }
     public Guid? IssuedByAdminId { get; set; }
 }

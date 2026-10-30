@@ -15,10 +15,12 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Abstractions.Auth;
+using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Domain.Billing.Entities;
+using NomNomzBot.Domain.Billing.Events;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -43,11 +45,17 @@ public sealed class EntitlementGrantControllerTests
     private static AdminBillingController BuildController(
         BillingTierChangeTestDbContext db,
         FakeTimeProvider clock,
-        out IEntitlementGrantService grantService
+        out IEntitlementGrantService grantService,
+        IEventBus? eventBus = null
     )
     {
         BillingTierService tiers = new(db, clock);
-        grantService = new EntitlementGrantService(db, tiers, clock);
+        grantService = new EntitlementGrantService(
+            db,
+            tiers,
+            clock,
+            Substitute.For<IFeatureFlagCacheService>()
+        );
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserId.Returns(Actor.ToString());
 
@@ -58,7 +66,7 @@ public sealed class EntitlementGrantControllerTests
             grantService,
             Substitute.For<IPricedUnitAdminService>(),
             currentUser,
-            Substitute.For<IEventBus>()
+            eventBus ?? Substitute.For<IEventBus>()
         );
     }
 
@@ -350,5 +358,104 @@ public sealed class EntitlementGrantControllerTests
         limit
             .Value.Should()
             .Be(10, "resolution falls back to the base tier once the grant has lapsed");
+    }
+
+    [Fact]
+    public async Task Ending_a_forever_gift_stores_now_as_its_end_and_tells_the_operator_desks()
+    {
+        (BillingTierChangeTestDbContext db, _, BillingTier proTier) =
+            await SeedChannelOnBaseTierAsync();
+        DateTimeOffset now = DateTimeOffset.Parse("2026-10-29T12:00:00Z");
+        FakeTimeProvider clock = new(now);
+        IEventBus eventBus = Substitute.For<IEventBus>();
+        AdminBillingController controller = BuildController(db, clock, out _, eventBus);
+
+        IActionResult issued = await controller.IssueGrant(
+            Broadcaster,
+            new IssueEntitlementGrantRequest(
+                TierId: proTier.Id,
+                Reason: "Community thank-you, forever",
+                ConfirmedChangedLimitCount: 1,
+                Forever: true
+            ),
+            CancellationToken.None
+        );
+        issued.Should().BeOfType<OkObjectResult>();
+        EntitlementGrant gift = await db
+            .EntitlementGrants.AsNoTracking()
+            .SingleAsync(g => g.BroadcasterId == Broadcaster);
+        gift.ExpiresAt.Should().BeNull("a forever gift stores no end date");
+
+        clock.Advance(TimeSpan.FromDays(3));
+        eventBus.ClearReceivedCalls();
+
+        IActionResult ended = await controller.EndGrant(
+            Broadcaster,
+            gift.Id,
+            CancellationToken.None
+        );
+
+        ended.Should().BeOfType<OkObjectResult>();
+        EntitlementGrant stored = await db
+            .EntitlementGrants.AsNoTracking()
+            .SingleAsync(g => g.Id == gift.Id);
+        stored.ExpiresAt.Should().Be(now.UtcDateTime.AddDays(3), "ending stores this moment");
+        stored.DeletedAt.Should().BeNull("the row stays as the record of what was given");
+        (
+            await db
+                .IamAuditLogs.AsNoTracking()
+                .CountAsync(a => a.Permission == "entitlement_grant:end")
+        )
+            .Should()
+            .Be(1);
+        await eventBus
+            .Received(1)
+            .PublishAsync(
+                Arg.Is<BillingChangedEvent>(e =>
+                    e.Area == "grant"
+                    && e.Action == "ended"
+                    && e.SubjectId == gift.Id
+                    && e.TargetBroadcasterId == Broadcaster
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task Ending_a_gift_of_another_channel_is_not_found_and_publishes_nothing()
+    {
+        (BillingTierChangeTestDbContext db, _, BillingTier proTier) =
+            await SeedChannelOnBaseTierAsync();
+        DateTimeOffset now = DateTimeOffset.Parse("2026-10-29T12:00:00Z");
+        FakeTimeProvider clock = new(now);
+        IEventBus eventBus = Substitute.For<IEventBus>();
+        AdminBillingController controller = BuildController(db, clock, out _, eventBus);
+        EntitlementGrant gift = new()
+        {
+            BroadcasterId = Broadcaster,
+            GrantedTierId = proTier.Id,
+            Reason = "Two-month gift",
+            ExpiresAt = now.UtcDateTime.AddMonths(2),
+            IssuedAt = now.UtcDateTime,
+            IssuedByAdminId = Actor,
+        };
+        db.EntitlementGrants.Add(gift);
+        await db.SaveChangesAsync();
+
+        IActionResult ended = await controller.EndGrant(
+            Guid.Parse("0199c000-0000-7000-8000-000000000b99"),
+            gift.Id,
+            CancellationToken.None
+        );
+
+        ObjectResult objectResult = ended.Should().BeAssignableTo<ObjectResult>().Subject;
+        objectResult.StatusCode.Should().Be(StatusCodes.Status404NotFound);
+        EntitlementGrant stored = await db
+            .EntitlementGrants.AsNoTracking()
+            .SingleAsync(g => g.Id == gift.Id);
+        stored.ExpiresAt.Should().Be(now.UtcDateTime.AddMonths(2), "the gift runs on untouched");
+        await eventBus
+            .DidNotReceive()
+            .PublishAsync(Arg.Any<BillingChangedEvent>(), Arg.Any<CancellationToken>());
     }
 }

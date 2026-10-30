@@ -11,7 +11,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { clockLength, formatTime } from '@/lib/time';
+import { addMonths, clockLength, formatTime } from '@/lib/time';
 
 process.env.TZ = 'UTC';
 
@@ -100,5 +100,19 @@ describe('duration', () => {
   it('is empty for a value that is not a number of seconds', () => {
     expect(formatTime('x', 'duration', 'en')).toBe('');
     expect(formatTime(Number.NaN, 'durationClock', 'en')).toBe('');
+  });
+});
+
+describe('addMonths', () => {
+  it('moves the same moment N calendar months on, across a year end', () => {
+    const from = new Date('2026-10-29T12:00:00Z');
+
+    expect(addMonths(from, 3).toISOString()).toBe('2027-01-29T12:00:00.000Z');
+    expect(from.toISOString()).toBe('2026-10-29T12:00:00.000Z');
+  });
+
+  it('lands on the last day of a shorter month, as the server does', () => {
+    expect(addMonths(new Date('2027-01-31T08:00:00Z'), 1).toISOString()).toBe('2027-02-28T08:00:00.000Z');
+    expect(addMonths(new Date('2028-01-31T08:00:00Z'), 1).toISOString()).toBe('2028-02-29T08:00:00.000Z');
   });
 });

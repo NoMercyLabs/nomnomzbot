@@ -11,6 +11,7 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Commands.Dtos;
@@ -73,7 +74,8 @@ public sealed class AdminSupportServiceTests
             db,
             new PlatformIamService(db, new RecordingEventBus(), TimeProvider.System, new(mode)),
             billing,
-            eventJournal
+            eventJournal,
+            new FakeTimeProvider(new DateTimeOffset(2026, 9, 15, 0, 0, 0, TimeSpan.Zero))
         );
         return (sut, db, billing);
     }
@@ -369,6 +371,17 @@ public sealed class AdminSupportServiceTests
                 Reason = "Support case #8812 — 30-day comp",
                 IssuedAt = new DateTime(2026, 9, 1, 0, 0, 0, DateTimeKind.Utc),
                 ExpiresAt = new DateTime(2026, 10, 1, 0, 0, 0, DateTimeKind.Utc),
+            }
+        );
+        // An ended gift on the same channel: the desk must not show it as live.
+        db.EntitlementGrants.Add(
+            new()
+            {
+                BroadcasterId = ownTenant,
+                GrantedTierId = Guid.Parse("0199a000-0000-7000-8000-0000000000e1"),
+                Reason = "Support case #7001 — ended comp",
+                IssuedAt = new DateTime(2026, 7, 1, 0, 0, 0, DateTimeKind.Utc),
+                ExpiresAt = new DateTime(2026, 8, 1, 0, 0, 0, DateTimeKind.Utc),
             }
         );
         await db.SaveChangesAsync();

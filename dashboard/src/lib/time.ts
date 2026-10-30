@@ -158,6 +158,24 @@ export function fromLocalInput(value: string): string {
   return new Date(value).toISOString();
 }
 
+// The same moment N calendar months later, in UTC. A day the target month lacks becomes its last day
+// (Jan 31 + 1 month = Feb 28), the same rule the server applies, so a preview names the date it will store.
+export function addMonths(from: Date, months: number): Date {
+  const target = new Date(from.getTime());
+  const day = target.getUTCDate();
+
+  target.setUTCDate(1);
+  target.setUTCMonth(target.getUTCMonth() + months);
+
+  // Day 0 of the next month is the last day of this one.
+  const monthEnd = Date.UTC(target.getUTCFullYear(), target.getUTCMonth() + 1, 0);
+  const lastDay = new Date(monthEnd).getUTCDate();
+
+  target.setUTCDate(Math.min(day, lastDay));
+
+  return target;
+}
+
 // Whole minutes between two ISO moments.
 export function minutesBetween(startIso: string, endIso: string): number {
   return Math.round((new Date(endIso).getTime() - new Date(startIso).getTime()) / MINUTE_MS);

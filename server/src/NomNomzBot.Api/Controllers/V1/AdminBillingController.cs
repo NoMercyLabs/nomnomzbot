@@ -251,8 +251,11 @@ public class AdminBillingController(
     ) => ResultResponse(await grants.PreviewGrantAsync(broadcasterId, tierId, ct));
 
     /// <summary>
-    /// Issue a comp — a time-boxed entitlement grant with a mandatory reason and expiry. Fails closed
-    /// (<c>PREVIEW_STALE</c>, 409) if <see cref="IssueEntitlementGrantRequest.ConfirmedChangedLimitCount"/>
+    /// Gift a channel any tier (a hidden one too) — an entitlement grant with a mandatory reason that runs for
+    /// N months (<see cref="IssueEntitlementGrantRequest.Months"/>) or forever
+    /// (<see cref="IssueEntitlementGrantRequest.Forever"/>); an explicit
+    /// <see cref="IssueEntitlementGrantRequest.ExpiresAt"/> still works. Exactly one length is required. Fails
+    /// closed (<c>PREVIEW_STALE</c>, 409) if <see cref="IssueEntitlementGrantRequest.ConfirmedChangedLimitCount"/>
     /// no longer matches a freshly recomputed diff.
     /// </summary>
     [HttpPost("channels/{broadcasterId:guid}/grants")]
@@ -279,6 +282,31 @@ public class AdminBillingController(
             ct
         );
         return ResultResponse(issued);
+    }
+
+    /// <summary>
+    /// End a live gift now: its end date becomes this moment, so the channel's tier resolves back at once. The
+    /// row stays as the record of what was given. <c>NOT_FOUND</c> when no live gift with that id belongs to
+    /// the channel.
+    /// </summary>
+    [HttpPost("channels/{broadcasterId:guid}/grants/{grantId:guid}/end")]
+    [Authorize(Policy = IamPermissionKeys.BillingWrite)]
+    [EnableRateLimiting(SecuritySensitiveRateLimitPolicy.PolicyName)]
+    [ProducesResponseType<StatusResponseDto<EntitlementGrantDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> EndGrant(
+        Guid broadcasterId,
+        Guid grantId,
+        CancellationToken ct
+    )
+    {
+        Result<EntitlementGrantDto> ended = await grants.EndGrantAsync(
+            broadcasterId,
+            grantId,
+            Caller(),
+            ct
+        );
+        await PublishChangeAsync(ended, "grant", "ended", grantId, broadcasterId, ct);
+        return ResultResponse(ended);
     }
 
     /// <summary>

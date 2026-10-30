@@ -296,6 +296,24 @@ export const useIssueGrant = () =>
     'billing grant issue',
   );
 
+export type GrantEnd = {
+  broadcasterId: string;
+  grantId: string;
+};
+
+export const useEndGrant = () =>
+  useBillingWrite<GrantEnd>(
+    ({ broadcasterId, grantId }) =>
+      client.POST('/api/v{version}/admin/billing/channels/{broadcasterId}/grants/{grantId}/end', {
+        params: { path: {
+          version,
+          broadcasterId,
+          grantId,
+        } },
+      }),
+    'billing grant end',
+  );
+
 export const useAuthorPricedUnit = () =>
   useBillingWrite<AuthorPricedUnitRequest>(
     (body) =>

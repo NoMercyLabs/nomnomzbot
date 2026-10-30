@@ -286,7 +286,7 @@ public sealed class BillingTierAdminService(
 
         Dictionary<Guid, BillingTier> compedTierByChannel = (
             await db
-                .EntitlementGrants.Where(g => g.DeletedAt == null && g.ExpiresAt > now)
+                .EntitlementGrants.WhereLive(now)
                 .Select(g => new KeyValuePair<Guid, Guid>(g.BroadcasterId, g.GrantedTierId))
                 .ToListAsync(ct)
         )

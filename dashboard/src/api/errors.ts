@@ -81,6 +81,7 @@ export const apiOperations = {
   'billing founder grant': 'admin',
   'billing refund': 'admin',
   'billing grant issue': 'admin',
+  'billing grant end': 'admin',
   'billing priced unit': 'admin',
   'admin spam defaults': 'admin',
   'admin eventsub health': 'admin',

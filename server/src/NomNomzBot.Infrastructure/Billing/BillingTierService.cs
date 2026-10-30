@@ -183,8 +183,9 @@ public sealed class BillingTierService(IApplicationDbContext db, TimeProvider cl
     }
 
     /// <summary>
-    /// The highest-ranked tier granted by a still-LIVE <c>EntitlementGrant</c> (S-ADMIN-4b) — an expired or
-    /// soft-deleted grant never reaches here, so it stops elevating the tenant the moment it lapses.
+    /// The highest-ranked tier granted by a still-LIVE <c>EntitlementGrant</c> (S-ADMIN-4b, S-GIFT-PLAN) — a
+    /// forever gift always counts; an ended or soft-deleted grant never reaches here, so it stops elevating the
+    /// tenant the moment it lapses.
     /// </summary>
     private async Task<BillingTier?> ResolveLiveGrantTierAsync(
         Guid broadcasterId,
@@ -193,9 +194,8 @@ public sealed class BillingTierService(IApplicationDbContext db, TimeProvider cl
     {
         DateTime now = clock.GetUtcNow().UtcDateTime;
         List<Guid> grantedTierIds = await db
-            .EntitlementGrants.Where(g =>
-                g.BroadcasterId == broadcasterId && g.DeletedAt == null && g.ExpiresAt > now
-            )
+            .EntitlementGrants.WhereLive(now)
+            .Where(g => g.BroadcasterId == broadcasterId)
             .Select(g => g.GrantedTierId)
             .ToListAsync(ct);
         if (grantedTierIds.Count == 0)

@@ -177,14 +177,17 @@ public sealed record InviteCodeRequest(string Code);
 /// <summary>Admin-grant a tier to a channel without Stripe.</summary>
 public sealed record GrantTierRequest(Guid TierId, bool IsInviteOnlyGrant);
 
-/// <summary>A live comp (S-ADMIN-4b) — a time-boxed entitlement grant, as read back for the admin surface.</summary>
+/// <summary>
+/// A live gift (S-ADMIN-4b, S-GIFT-PLAN) — an entitlement grant, as read back for the admin surface. A null
+/// <see cref="ExpiresAt"/> is a forever gift.
+/// </summary>
 public sealed record EntitlementGrantDto(
     Guid Id,
     Guid BroadcasterId,
     Guid GrantedTierId,
     string GrantedTierKey,
     string Reason,
-    DateTime ExpiresAt,
+    DateTime? ExpiresAt,
     DateTime IssuedAt,
     Guid? IssuedByAdminId
 );
@@ -203,14 +206,18 @@ public sealed record EntitlementGrantPreviewDto(
 );
 
 /// <summary>
-/// Issue a comp. <see cref="ConfirmedChangedLimitCount"/> must equal the count a fresh preview just returned
-/// for this <c>(broadcasterId, tierId)</c> pair — a stale count is rejected, never silently applied.
+/// Issue a gift. <see cref="ConfirmedChangedLimitCount"/> must equal the count a fresh preview just returned
+/// for this <c>(broadcasterId, tierId)</c> pair — a stale count is rejected, never silently applied. The
+/// length is exactly one of: an explicit <see cref="ExpiresAt"/> in the future, a number of
+/// <see cref="Months"/> from now, or <see cref="Forever"/> (no end date).
 /// </summary>
 public sealed record IssueEntitlementGrantRequest(
     Guid TierId,
     string Reason,
-    DateTime ExpiresAt,
-    int ConfirmedChangedLimitCount
+    int ConfirmedChangedLimitCount,
+    DateTime? ExpiresAt = null,
+    int? Months = null,
+    bool Forever = false
 );
 
 /// <summary>Create an invite code (admin).</summary>

@@ -9,8 +9,9 @@
   SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 -->
 <script setup lang="ts">
-// One channel's billing: its invoices (refund after the amount is shown), its comps, and the tier and
-// founders-badge grants. A comp reads the changed limits first and sends the counted number back.
+// One channel's billing: its invoices (refund after the amount is shown), its gifts, and the tier and
+// founders-badge grants. A gift gives any tier (a hidden one too) for N months or forever; it reads the
+// changed limits first, names the end date it will store, and sends the counted number back.
 import { refDebounced } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -19,12 +20,14 @@ import {
   useBillingGrants,
   useBillingInvoices,
   useBillingTiers,
+  useEndGrant,
   useGrantFounder,
   useGrantPreview,
   useGrantTier,
   useIssueGrant,
   useRefundInvoice,
   type BillingInvoice,
+  type EntitlementGrant,
   type EntitlementGrantPreview,
 } from '@/api/adminBilling';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
@@ -33,12 +36,21 @@ import OptionSelect from '@/components/layout/OptionSelect.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { Switch } from '@/components/ui/switch';
 import { merge } from '@/lib/array';
+import { addMonths } from '@/lib/time';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
+import { useTime } from '@/composables/useTime';
+
+// The server takes 1 to 120 months for a gift that ends.
+const MIN_MONTHS = 1;
+const MAX_MONTHS = 120;
 
 const { t } = useI18n();
 const { can } = usePlatformCan();
+const time = useTime();
 
 const typed = ref('');
 const channelId = refDebounced(typed, 300);
@@ -55,25 +67,80 @@ const grantTier = useGrantTier();
 const grantFounder = useGrantFounder();
 const preview = useGrantPreview();
 const issue = useIssueGrant();
+const endGrant = useEndGrant();
 
 const tierId = ref('');
+const giftTierId = ref('');
 const reason = ref('');
-const expiresAt = ref('');
+const months = ref('1');
+const forever = ref(false);
 const refunding = ref<BillingInvoice | null>(null);
-const action = ref<'tier' | 'founder' | 'comp' | null>(null);
-const compForm = ref(false);
+const ending = ref<EntitlementGrant | null>(null);
+const action = ref<'tier' | 'founder' | 'gift' | null>(null);
+const giftForm = ref(false);
 const counted = ref<EntitlementGrantPreview | null>(null);
 
 const ready = computed<boolean>(() => channelId.value.trim() !== '');
-const tierName = computed<string>(
-  () => (tiers.data.value ?? []).find((tier) => tier.id === tierId.value)?.displayName ?? '',
-);
+
+// A channel with no invoices still shows its gifts, so an empty invoice list is a ready panel.
+const panelState = computed(() => {
+  if (!ready.value)
+    return 'empty';
+
+  return invoiceState.value === 'empty'
+    ? 'ready'
+    : invoiceState.value;
+});
+const noInvoices = computed<boolean>(() => (invoices.data.value ?? []).length === 0);
+const noGifts = computed<boolean>(() => (grants.data.value ?? []).length === 0);
+
+function tierLabel(id: string): string {
+  return (tiers.data.value ?? []).find((tier) => tier.id === id)?.displayName ?? '';
+}
+
+const monthCount = computed<number>(() => Number(months.value));
+const monthsValid = computed<boolean>(() => {
+  const count = monthCount.value;
+
+  return Number.isInteger(count) && count >= MIN_MONTHS && count <= MAX_MONTHS;
+});
+const giftReady = computed<boolean>(() =>
+  giftTierId.value !== '' && reason.value.trim() !== '' && (forever.value || monthsValid.value));
+
+const giftSummary = computed<string>(() => {
+  const tier = tierLabel(giftTierId.value);
+
+  if (forever.value)
+    return t('dashboard.admin.billing.channel.giftForever', { tier });
+
+  const end = addMonths(new Date(), monthCount.value);
+  const date = time.date(end);
+
+  return t('dashboard.admin.billing.channel.giftUntil', { tier, date });
+});
+const showSummary = computed<boolean>(() =>
+  giftTierId.value !== '' && (forever.value || monthsValid.value));
+
+function grantEnd(grant: EntitlementGrant): string {
+  if (grant.expiresAt === null || grant.expiresAt === undefined)
+    return t('dashboard.admin.billing.channel.forever');
+
+  return t('dashboard.admin.billing.channel.until', { date: time.date(grant.expiresAt) });
+}
 
 const refundOpen = computed({
   get: () => refunding.value !== null,
   set: (open: boolean) => {
     if (!open) {
       refunding.value = null;
+    }
+  },
+});
+const endOpen = computed({
+  get: () => ending.value !== null,
+  set: (open: boolean) => {
+    if (!open) {
+      ending.value = null;
     }
   },
 });
@@ -93,13 +160,19 @@ const confirmTitle = computed<string>(() => {
   if (action.value === 'founder')
     return t('dashboard.admin.billing.channel.founderTitle', { channel: channelId.value });
 
-  return t('dashboard.admin.billing.channel.tierTitle', { channel: channelId.value, tier: tierName.value });
+  const channel = channelId.value;
+
+  if (action.value === 'gift')
+    return t('dashboard.admin.billing.channel.giftTitle', { channel, tier: tierLabel(giftTierId.value) });
+
+  return t('dashboard.admin.billing.channel.tierTitle', { channel, tier: tierLabel(tierId.value) });
 });
 const consequences = computed<string[]>(() => {
+  if (action.value !== 'gift')
+    return [];
+
   const count = Number(counted.value?.changedLimitCount ?? 0);
-  const changed = action.value === 'comp'
-    ? [t('dashboard.admin.billing.channel.changed', { count })]
-    : [];
+  const changed = [giftSummary.value, t('dashboard.admin.billing.channel.changed', { count })];
 
   return Array.from(merge(changed, counted.value?.changedLimitKeys ?? []));
 });
@@ -111,12 +184,35 @@ async function confirmRefund(): Promise<void> {
   refunding.value = null;
 }
 
-async function startComp(): Promise<void> {
-  const target = { broadcasterId: channelId.value, tierId: tierId.value };
+async function confirmEnd(): Promise<void> {
+  if (ending.value === null) return;
+
+  await endGrant.mutateAsync({ broadcasterId: channelId.value, grantId: ending.value.id });
+  ending.value = null;
+}
+
+function openGift(): void {
+  giftTierId.value = '';
+  reason.value = '';
+  months.value = String(MIN_MONTHS);
+  forever.value = false;
+  giftForm.value = true;
+}
+
+async function startGift(): Promise<void> {
+  const target = { broadcasterId: channelId.value, tierId: giftTierId.value };
 
   counted.value = await preview.mutateAsync(target);
-  compForm.value = false;
-  action.value = 'comp';
+  giftForm.value = false;
+  action.value = 'gift';
+}
+
+// A gift runs forever or for whole months; the server takes exactly one of the two.
+function giftLength() {
+  if (forever.value)
+    return { forever: true };
+
+  return { months: monthCount.value, forever: false };
 }
 
 async function confirmAction(): Promise<void> {
@@ -124,13 +220,13 @@ async function confirmAction(): Promise<void> {
     await grantTier.mutateAsync({ broadcasterId: channelId.value, tierId: tierId.value });
   } else if (action.value === 'founder') {
     await grantFounder.mutateAsync(channelId.value);
-  } else if (action.value === 'comp') {
+  } else if (action.value === 'gift') {
     await issue.mutateAsync({
       broadcasterId: channelId.value,
       body: {
-        tierId: tierId.value,
-        reason: reason.value,
-        expiresAt: new Date(expiresAt.value).toISOString(),
+        tierId: giftTierId.value,
+        reason: reason.value.trim(),
+        ...giftLength(),
         confirmedChangedLimitCount: counted.value?.changedLimitCount ?? 0,
       },
     });
@@ -143,8 +239,8 @@ async function confirmAction(): Promise<void> {
 <template>
   <PanelCard
     :title="t('dashboard.admin.billing.channel.title')"
-    :state="ready ? invoiceState : 'empty'"
-    :empty-text="ready ? t('dashboard.admin.billing.channel.noInvoices') : t('dashboard.admin.billing.channel.pick')"
+    :state="panelState"
+    :empty-text="t('dashboard.admin.billing.channel.pick')"
     :error-text="t('dashboard.admin.billing.channel.error')"
     @retry="invoices.refetch()"
   >
@@ -157,7 +253,10 @@ async function confirmAction(): Promise<void> {
         :placeholder="t('dashboard.admin.billing.channel.id')"
       />
     </template>
-    <ul class="grid divide-y divide-border text-sm">
+    <p v-if="noInvoices" data-no-invoices class="px-2 py-2 text-sm text-muted-foreground">
+      {{ t("dashboard.admin.billing.channel.noInvoices") }}
+    </p>
+    <ul v-else class="grid divide-y divide-border text-sm">
       <li v-for="invoice in invoices.data.value ?? []" :key="invoice.id" data-invoice-row class="flex items-center gap-3 px-2 py-2">
         <span class="min-w-0 flex-1">{{ invoice.number }} <span class="text-muted-foreground">{{ invoice.status }}</span></span>
         <span class="tabular-nums">{{ amount(invoice) }}</span>
@@ -171,20 +270,44 @@ async function confirmAction(): Promise<void> {
         </Button>
       </li>
     </ul>
-    <ul v-if="ready" class="grid divide-y divide-border border-t border-border text-sm">
-      <li v-for="grant in grants.data.value ?? []" :key="grant.id" data-grant-row class="px-2 py-2">
-        {{ grant.grantedTierKey }} <span class="text-muted-foreground">{{ grant.reason }}</span>
+    <p v-if="noGifts" data-no-gifts class="border-t border-border px-2 py-2 text-sm text-muted-foreground">
+      {{ t("dashboard.admin.billing.channel.noGifts") }}
+    </p>
+    <ul v-else class="grid divide-y divide-border border-t border-border text-sm">
+      <li v-for="grant in grants.data.value ?? []"
+          :key="grant.id"
+          :data-grant-row="grant.id"
+          class="flex items-center gap-3 px-2 py-2"
+      >
+        <span class="min-w-0 flex-1">
+          {{ tierLabel(grant.grantedTierId) || grant.grantedTierKey }}
+          <span class="text-muted-foreground">{{ grant.reason }}</span>
+        </span>
+        <span class="tabular-nums text-muted-foreground">{{ grantEnd(grant) }}</span>
+        <Button v-if="can('billing:write')"
+                variant="outline"
+                size="sm"
+                data-grant-end
+                @click="ending = grant"
+        >
+          {{ t("dashboard.admin.billing.channel.endNow") }}
+        </Button>
       </li>
     </ul>
     <template v-if="ready && can('billing:write')" #footer>
       <div class="flex flex-wrap items-center gap-2">
-        <OptionSelect
-          v-model="tierId"
-          data-grant-tier
-          class="w-48"
-          :options="tierChoices"
-          :placeholder="t('dashboard.admin.billing.channel.pickTier')"
-        />
+        <Button size="sm" data-grant-gift @click="openGift">
+          {{ t("dashboard.admin.billing.channel.gift") }}
+        </Button>
+        <!-- The trigger fills its box, so the box sets the width. -->
+        <div class="w-48">
+          <OptionSelect
+            v-model="tierId"
+            data-grant-tier
+            :options="tierChoices"
+            :placeholder="t('dashboard.admin.billing.channel.pickTier')"
+          />
+        </div>
         <Button variant="outline"
                 size="sm"
                 data-grant-tier-go
@@ -192,14 +315,6 @@ async function confirmAction(): Promise<void> {
                 @click="action = 'tier'"
         >
           {{ t("dashboard.admin.billing.channel.grantTier") }}
-        </Button>
-        <Button variant="outline"
-                size="sm"
-                data-grant-comp
-                :disabled="tierId === ''"
-                @click="compForm = true"
-        >
-          {{ t("dashboard.admin.billing.channel.comp") }}
         </Button>
         <Button variant="outline" size="sm" data-grant-founder @click="action = 'founder'">
           {{ t("dashboard.admin.billing.channel.founder") }}
@@ -214,17 +329,57 @@ async function confirmAction(): Promise<void> {
     :pending="refund.isPending.value"
     @confirm="confirmRefund"
   />
+  <ConfirmDialog
+    v-model:open="endOpen"
+    :title="t('dashboard.admin.billing.channel.endTitle', { tier: ending === null ? '' : tierLabel(ending.grantedTierId) })"
+    :consequences="[t('dashboard.admin.billing.channel.endConsequence')]"
+    :action="t('dashboard.admin.billing.channel.endNow')"
+    :pending="endGrant.isPending.value"
+    @confirm="confirmEnd"
+  />
   <FormDialog
-    v-model:open="compForm"
-    :title="t('dashboard.admin.billing.channel.comp')"
+    v-model:open="giftForm"
+    :title="t('dashboard.admin.billing.channel.gift')"
     :action="t('dashboard.admin.billing.tiers.continue')"
     :pending="preview.isPending.value"
-    @submit="startComp"
+    :disabled="!giftReady"
+    @submit="startGift"
   >
-    <div class="grid gap-3">
-      <Input v-model="reason" :placeholder="t('dashboard.admin.billing.channel.reason')" />
-      <Input v-model="expiresAt" type="date" :aria-label="t('dashboard.admin.billing.channel.expires')" />
+    <div class="grid gap-2">
+      <Label for="gift-tier">{{ t('dashboard.admin.billing.channel.giftTier') }}</Label>
+      <OptionSelect
+        id="gift-tier"
+        v-model="giftTierId"
+        data-gift-tier
+        :options="tierChoices"
+        :placeholder="t('dashboard.admin.billing.channel.pickTier')"
+      />
     </div>
+    <div class="grid gap-2">
+      <Label for="gift-months">{{ t('dashboard.admin.billing.channel.months') }}</Label>
+      <div class="flex items-center gap-4">
+        <Input id="gift-months"
+               v-model="months"
+               data-gift-months
+               type="number"
+               class="w-28"
+               :min="MIN_MONTHS"
+               :max="MAX_MONTHS"
+               :disabled="forever"
+        />
+        <div data-touch-target class="flex min-h-9 items-center gap-3">
+          <Label for="gift-forever">{{ t('dashboard.admin.billing.channel.forever') }}</Label>
+          <Switch id="gift-forever" v-model="forever" data-gift-forever />
+        </div>
+      </div>
+    </div>
+    <div class="grid gap-2">
+      <Label for="gift-reason">{{ t('dashboard.admin.billing.channel.reason') }}</Label>
+      <Input id="gift-reason" v-model="reason" data-gift-reason />
+    </div>
+    <p v-if="showSummary" data-gift-summary class="text-sm text-muted-foreground">
+      {{ giftSummary }}
+    </p>
   </FormDialog>
   <ConfirmDialog
     v-model:open="confirmOpen"

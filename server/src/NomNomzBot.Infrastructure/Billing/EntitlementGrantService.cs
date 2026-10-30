@@ -11,6 +11,7 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Platform;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.DTOs.Billing;
@@ -28,7 +29,8 @@ namespace NomNomzBot.Infrastructure.Billing;
 public sealed class EntitlementGrantService(
     IApplicationDbContext db,
     IBillingTierService tiers,
-    TimeProvider clock
+    TimeProvider clock,
+    IFeatureFlagCacheService flagCache
 ) : IEntitlementGrantService
 {
     public async Task<Result<IReadOnlyList<EntitlementGrantDto>>> ListGrantsAsync(
@@ -38,9 +40,8 @@ public sealed class EntitlementGrantService(
     {
         DateTime now = clock.GetUtcNow().UtcDateTime;
         List<EntitlementGrant> grants = await db
-            .EntitlementGrants.Where(g =>
-                g.BroadcasterId == broadcasterId && g.DeletedAt == null && g.ExpiresAt > now
-            )
+            .EntitlementGrants.WhereLive(now)
+            .Where(g => g.BroadcasterId == broadcasterId)
             .OrderByDescending(g => g.IssuedAt)
             .ToListAsync(ct);
 
@@ -88,11 +89,9 @@ public sealed class EntitlementGrantService(
             );
 
         DateTime now = clock.GetUtcNow().UtcDateTime;
-        if (request.ExpiresAt <= now)
-            return Result.Failure<EntitlementGrantDto>(
-                "ExpiresAt must be in the future.",
-                "VALIDATION_FAILED"
-            );
+        Result<DateTime?> endDate = ResolveEndDate(request, now);
+        if (endDate.IsFailure)
+            return Result.Failure<EntitlementGrantDto>(endDate.ErrorMessage, endDate.ErrorCode);
 
         bool channelExists = await db.Channels.AnyAsync(c => c.Id == broadcasterId, ct);
         if (!channelExists)
@@ -123,33 +122,120 @@ public sealed class EntitlementGrantService(
             BroadcasterId = broadcasterId,
             GrantedTierId = targetTier.Id,
             Reason = request.Reason,
-            ExpiresAt = request.ExpiresAt,
+            ExpiresAt = endDate.Value,
             IssuedAt = now,
             IssuedByAdminId = actorUserId,
         };
         db.EntitlementGrants.Add(grant);
 
         db.IamAuditLogs.Add(
-            new IamAuditLog
-            {
-                PrincipalId = actorUserId ?? Guid.Empty,
-                PrincipalType = IamPrincipalType.Employee,
-                Permission = "entitlement_grant:issue",
-                TargetBroadcasterId = broadcasterId,
-                TargetResource = targetTier.Key,
-                Justification =
-                    $"actor={actorUserId?.ToString() ?? "system"};tier={targetTier.Key};reason={request.Reason};expires={request.ExpiresAt:O}",
-                BreakGlass = false,
-                Outcome = IamOutcome.Allowed,
-                OccurredAt = now,
-                AffectedTenantCount = freshPreview.ChangedLimitCount,
-            }
+            Audit(
+                "entitlement_grant:issue",
+                grant,
+                targetTier.Key,
+                actorUserId,
+                now,
+                freshPreview.ChangedLimitCount
+            )
         );
 
         await db.SaveChangesAsync(ct);
+        // A tier-gated flag caches its verdict; the gift must change what the channel can do at once.
+        await flagCache.InvalidateAllAsync(ct);
 
         return Result.Success(ToDto(grant, targetTier.Key));
     }
+
+    public async Task<Result<EntitlementGrantDto>> EndGrantAsync(
+        Guid broadcasterId,
+        Guid grantId,
+        Guid? actorUserId,
+        CancellationToken ct = default
+    )
+    {
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        EntitlementGrant? grant = await db
+            .EntitlementGrants.WhereLive(now)
+            .FirstOrDefaultAsync(g => g.Id == grantId && g.BroadcasterId == broadcasterId, ct);
+        if (grant is null)
+            return Result.Failure<EntitlementGrantDto>("No live gift with that id.", "NOT_FOUND");
+
+        string tierKey =
+            await db
+                .BillingTiers.Where(t => t.Id == grant.GrantedTierId)
+                .Select(t => t.Key)
+                .FirstOrDefaultAsync(ct)
+            ?? "";
+
+        grant.ExpiresAt = now;
+        db.IamAuditLogs.Add(Audit("entitlement_grant:end", grant, tierKey, actorUserId, now, 0));
+
+        await db.SaveChangesAsync(ct);
+        await flagCache.InvalidateAllAsync(ct);
+
+        return Result.Success(ToDto(grant, tierKey));
+    }
+
+    /// <summary>The longest gift a number of months may name; anything longer is a forever gift.</summary>
+    private const int MaxGiftMonths = 120;
+
+    /// <summary>
+    /// The stored end date for exactly one requested length: forever is null, N months counts from now, and
+    /// an explicit date (the shape older clients send) must lie in the future.
+    /// </summary>
+    private static Result<DateTime?> ResolveEndDate(
+        IssueEntitlementGrantRequest request,
+        DateTime now
+    )
+    {
+        int lengthsGiven =
+            (request.ExpiresAt is null ? 0 : 1)
+            + (request.Months is null ? 0 : 1)
+            + (request.Forever ? 1 : 0);
+        if (lengthsGiven != 1)
+            return Result.Failure<DateTime?>(
+                "Pick exactly one length: an end date, a number of months, or forever.",
+                "VALIDATION_FAILED"
+            );
+
+        if (request.Forever)
+            return Result.Success<DateTime?>(null);
+
+        if (request.Months is { } months)
+            return months is >= 1 and <= MaxGiftMonths
+                ? Result.Success<DateTime?>(now.AddMonths(months))
+                : Result.Failure<DateTime?>(
+                    $"Months must be between 1 and {MaxGiftMonths}.",
+                    "VALIDATION_FAILED"
+                );
+
+        return request.ExpiresAt > now
+            ? Result.Success(request.ExpiresAt)
+            : Result.Failure<DateTime?>("ExpiresAt must be in the future.", "VALIDATION_FAILED");
+    }
+
+    private static IamAuditLog Audit(
+        string permission,
+        EntitlementGrant grant,
+        string tierKey,
+        Guid? actorUserId,
+        DateTime now,
+        int changedLimitCount
+    ) =>
+        new()
+        {
+            PrincipalId = actorUserId ?? Guid.Empty,
+            PrincipalType = IamPrincipalType.Employee,
+            Permission = permission,
+            TargetBroadcasterId = grant.BroadcasterId,
+            TargetResource = tierKey,
+            Justification =
+                $"actor={actorUserId?.ToString() ?? "system"};tier={tierKey};reason={grant.Reason};expires={grant.ExpiresAt?.ToString("O") ?? "forever"}",
+            BreakGlass = false,
+            Outcome = IamOutcome.Allowed,
+            OccurredAt = now,
+            AffectedTenantCount = changedLimitCount,
+        };
 
     private async Task<EntitlementGrantPreviewDto> ComputePreviewAsync(
         Guid broadcasterId,
