@@ -60,6 +60,7 @@
         "tabs": {
           "summary": "Overzicht",
           "runs": "Runs",
+          "tts": "TTS",
           "billing": "Facturatie",
           "people": "Mensen",
           "limits": "Limieten",
@@ -131,6 +132,36 @@
             "hostCalls": "Host-aanroepen ({count})",
             "worked": "Gelukt",
             "failed": "Mislukt"
+          }
+        },
+        "tts": {
+          "title": "TTS-clips",
+          "description": "De laatste 50 clips die dit kanaal sprak, nieuwste eerst, met hoe lang elke clip over de synthese deed.",
+          "empty": "Dit kanaal heeft nog geen TTS-clip.",
+          "error": "De TTS-clips konden niet laden.",
+          "none": "-",
+          "figuresTitle": "Synthese, laatste 24 uur",
+          "figuresDescription": "Hoe snel de stemdienst voor dit kanaal antwoordde.",
+          "clips": "Clips, laatste 24 uur",
+          "clipsHint": "Elke clip waar het kanaal om vroeg.",
+          "failed": "Mislukte clips, laatste 24 uur",
+          "failedHint": "{count} van {total} clips mislukten.",
+          "noneFailed": "Geen clip mislukte.",
+          "average": "Gemiddelde synthesetijd",
+          "averageHint": "Clips met een gemeten tijd, mislukte ook.",
+          "p95": "95e percentiel",
+          "p95Hint": "19 van 20 clips waren binnen deze tijd klaar.",
+          "columns": {
+            "time": "Tijd",
+            "provider": "Aanbieder",
+            "voice": "Stem",
+            "characters": "Tekens",
+            "synthesis": "Synthesetijd",
+            "result": "Resultaat"
+          },
+          "result": {
+            "failed": "Mislukt",
+            "ok": "Gelukt"
           }
         },
         "audit": {

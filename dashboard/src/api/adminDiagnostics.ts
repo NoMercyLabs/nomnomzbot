@@ -24,10 +24,13 @@ export type ChannelRun = components['schemas']['PipelineExecutionSummary'];
 export type ChannelRunDetail = components['schemas']['PipelineExecutionDetail'];
 export type ChannelRunStep = components['schemas']['PipelineExecutionStepLog'];
 export type ChannelRunHostCall = components['schemas']['PipelineExecutionHostCall'];
+export type ChannelTts = components['schemas']['ChannelDiagnosticTts'];
+export type ChannelTtsClip = components['schemas']['ChannelDiagnosticTtsClip'];
+export type ChannelTtsWindow = components['schemas']['ChannelDiagnosticTtsWindow'];
 
 // The sections the bot can answer. One read takes any of them, so a new tab asks for its section here
 // and never adds a second call.
-export type DiagnosticSection = 'summary' | 'runs';
+export type DiagnosticSection = 'summary' | 'runs' | 'tts';
 
 // What the runs section is narrowed by: one page, failed runs only, one pipeline ('' means every pipeline).
 export type DiagnosticRunsQuery = {

@@ -29,6 +29,7 @@ import ChannelAuditPanel from './components/ChannelAuditPanel.vue';
 import ChannelConsoleHeader from './components/ChannelConsoleHeader.vue';
 import ChannelRunsPanel from './components/ChannelRunsPanel.vue';
 import ChannelSummaryPanel from './components/ChannelSummaryPanel.vue';
+import ChannelTtsPanel from './components/ChannelTtsPanel.vue';
 import { withoutRunsKeys } from './components/runsQuery';
 import TenantActions from './components/TenantActions.vue';
 import TenantLimitsPanel from './components/TenantLimitsPanel.vue';
@@ -37,6 +38,7 @@ import TenantMembersPanel from './components/TenantMembersPanel.vue';
 const TABS = [
   'summary',
   'runs',
+  'tts',
   'billing',
   'people',
   'limits',
@@ -97,6 +99,9 @@ function openTab(tab: string | number): void {
         </TabsContent>
         <TabsContent value="runs">
           <ChannelRunsPanel :channel-id="channelId" />
+        </TabsContent>
+        <TabsContent value="tts">
+          <ChannelTtsPanel :channel-id="channelId" />
         </TabsContent>
         <TabsContent value="billing">
           <BillingChannelPanel :channel="channelId" />

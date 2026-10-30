@@ -60,6 +60,7 @@
         "tabs": {
           "summary": "Summary",
           "runs": "Runs",
+          "tts": "TTS",
           "billing": "Billing",
           "people": "People",
           "limits": "Limits",
@@ -131,6 +132,36 @@
             "hostCalls": "Host calls ({count})",
             "worked": "Worked",
             "failed": "Failed"
+          }
+        },
+        "tts": {
+          "title": "TTS clips",
+          "description": "The last 50 clips this channel spoke, newest first, with how long each took to synthesize.",
+          "empty": "This channel has no TTS clip yet.",
+          "error": "The TTS clips could not load.",
+          "none": "-",
+          "figuresTitle": "Synthesis, last 24 hours",
+          "figuresDescription": "How fast the voice service answered for this channel.",
+          "clips": "Clips, last 24 hours",
+          "clipsHint": "Every clip the channel asked for.",
+          "failed": "Failed clips, last 24 hours",
+          "failedHint": "{count} of {total} clips failed.",
+          "noneFailed": "No clip failed.",
+          "average": "Average synthesis time",
+          "averageHint": "Clips with a measured time, failed ones included.",
+          "p95": "95th percentile",
+          "p95Hint": "19 in 20 clips finished within this time.",
+          "columns": {
+            "time": "Time",
+            "provider": "Provider",
+            "voice": "Voice",
+            "characters": "Characters",
+            "synthesis": "Synthesis time",
+            "result": "Result"
+          },
+          "result": {
+            "failed": "Failed",
+            "ok": "Succeeded"
           }
         },
         "audit": {

@@ -360,13 +360,13 @@ describe('AdminChannelConsoleView header', () => {
 });
 
 describe('AdminChannelConsoleView tabs', () => {
-  it('shows exactly the seven tabs that have a source today, Summary first', async () => {
+  it('shows exactly the eight tabs that have a source today, Summary first', async () => {
     await open();
 
     const labels = [...document.body.querySelectorAll('[role="tab"]')].map((tab) =>
       tab.textContent?.trim());
 
-    expect(labels).toEqual(['Summary', 'Runs', 'Billing', 'People', 'Limits', 'Audit', 'Data']);
+    expect(labels).toEqual(['Summary', 'Runs', 'TTS', 'Billing', 'People', 'Limits', 'Audit', 'Data']);
   });
 
   it('shows the diagnostics summary: the runs, the failures, the last failure and the facts', async () => {
