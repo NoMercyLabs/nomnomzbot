@@ -14,6 +14,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.DTOs.Billing;
@@ -21,7 +22,9 @@ using NomNomzBot.Domain.Billing.Entities;
 using NomNomzBot.Domain.Billing.Events;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Domain.Identity.Events;
 using NomNomzBot.Infrastructure.Billing;
+using NomNomzBot.Infrastructure.Billing.EventHandlers;
 using NomNomzBot.Infrastructure.Platform;
 using NomNomzBot.Infrastructure.Platform.Caching;
 using NomNomzBot.Infrastructure.Platform.Persistence;
@@ -116,13 +119,29 @@ public sealed class InviteCodeServiceTests : IDisposable
             SortOrder = sortOrder,
         };
 
-    private InviteCodeService NewService(AppDbContext db) =>
-        new(
-            db,
-            new EntitlementGrantService(db, new BillingTierService(db, _time), _time, _flagCache),
-            _bus,
-            _time
+    private InviteCodeService NewService(AppDbContext db) => new(db, NewGrants(db), _bus, _time);
+
+    private EntitlementGrantService NewGrants(AppDbContext db) =>
+        new(db, new BillingTierService(db, _time, TestTiers.Unsubscribed()), _time, _flagCache);
+
+    private async Task SignUpAsync(int trialDays)
+    {
+        using AppDbContext db = NewDbContext();
+        await new SignUpTrialOnRegistrationHandler(
+            NewGrants(db),
+            Options.Create(new BillingOptions { SignUpTrialDays = trialDays }),
+            NullLogger<SignUpTrialOnRegistrationHandler>.Instance
+        ).HandleAsync(
+            new UserRegisteredEvent
+            {
+                BroadcasterId = ChannelId,
+                UserId = OwnerUserId,
+                TwitchUserId = "ext-invited",
+                Username = "invited",
+                Platform = AuthEnums.Platform.Twitch,
+            }
         );
+    }
 
     private async Task<InviteCode> AddInviteAsync(
         string code,
@@ -184,7 +203,8 @@ public sealed class InviteCodeServiceTests : IDisposable
         using AppDbContext db = NewDbContext();
         Result<EntitlementDto> entitlement = await new BillingTierService(
             db,
-            _time
+            _time,
+            TestTiers.Unsubscribed()
         ).GetEntitlementAsync(ChannelId);
         entitlement.IsSuccess.Should().BeTrue(entitlement.ErrorMessage);
         return entitlement.Value;
@@ -486,5 +506,56 @@ public sealed class InviteCodeServiceTests : IDisposable
         (await db.FoundersBadges.CountAsync(b => b.BroadcasterId == ChannelId)).Should().Be(1);
         _bus.Published.OfType<FoundersBadgeGrantedEvent>().Should().ContainSingle();
         (await sut.GetFoundersBadgeAsync(ChannelId)).Value.Should().NotBeNull();
+    }
+
+    [Fact]
+    public async Task A_new_sign_up_gets_one_Base_trial_that_ends_after_the_configured_days()
+    {
+        await SignUpAsync(trialDays: 14);
+        await SignUpAsync(trialDays: 14);
+
+        EntitlementGrant trial = (await StoredGrantsAsync()).Should().ContainSingle().Subject;
+        trial.BroadcasterId.Should().Be(ChannelId);
+        trial.Reason.Should().Be(EntitlementGrant.SignUpTrialReason);
+        trial.InviteCodeId.Should().BeNull();
+        trial.IssuedByAdminId.Should().BeNull();
+        trial.ExpiresAt.Should().Be(new DateTime(2026, 11, 12, 12, 0, 0, DateTimeKind.Utc));
+        (await ResolveAsync()).TierKey.Should().Be(EffectiveTierRule.BaseTierKey);
+    }
+
+    [Fact]
+    public async Task A_sign_up_gets_no_trial_when_the_trial_is_set_to_zero_days()
+    {
+        await SignUpAsync(trialDays: 0);
+
+        (await StoredGrantsAsync()).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_sign_up_with_an_invite_keeps_only_the_invite_gift()
+    {
+        InviteCode invite = await AddInviteAsync("TRIAL", months: 3);
+
+        await SignUpAsync(trialDays: 14);
+        Result<RedeemInviteCodeResultDto> redeemed = await RedeemForOwnerAsync(
+            OwnerUserId,
+            "TRIAL"
+        );
+
+        redeemed.IsSuccess.Should().BeTrue(redeemed.ErrorMessage);
+        DateTime now = _time.GetUtcNow().UtcDateTime;
+        List<EntitlementGrant> grants = await StoredGrantsAsync();
+        grants.Should().HaveCount(2);
+        grants
+            .Where(g => g.ExpiresAt is null || g.ExpiresAt > now)
+            .Should()
+            .ContainSingle()
+            .Which.InviteCodeId.Should()
+            .Be(invite.Id);
+        grants
+            .Single(g => g.Reason == EntitlementGrant.SignUpTrialReason)
+            .ExpiresAt.Should()
+            .Be(now);
+        (await ResolveAsync()).TierKey.Should().Be("unlimited");
     }
 }

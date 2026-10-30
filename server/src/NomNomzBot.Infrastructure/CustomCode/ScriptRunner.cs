@@ -61,6 +61,8 @@ public sealed class ScriptRunner(
             return DeniedByQuota(
                 "Sandbox execution quota could not be verified, so the script was not run."
             );
+        if (ScriptPlanGate.IsExcluded(budget.Value))
+            return DeniedByQuota(ScriptPlanGate.Refusal.ErrorMessage!);
         if (!budget.Value.Allowed)
             return DeniedByQuota("Sandbox execution quota exhausted for this period.");
 

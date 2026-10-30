@@ -127,7 +127,7 @@ public sealed class EntitlementGrantGiftTests : IDisposable
         };
 
     private EntitlementGrantService NewGrantService(AppDbContext db) =>
-        new(db, new BillingTierService(db, _time), _time, _flagCache);
+        new(db, new BillingTierService(db, _time, TestTiers.Unsubscribed()), _time, _flagCache);
 
     private async Task<Result<EntitlementGrantDto>> GiftAsync(
         int? months = null,
@@ -160,7 +160,8 @@ public sealed class EntitlementGrantGiftTests : IDisposable
         using AppDbContext db = NewDbContext();
         Result<EntitlementDto> entitlement = await new BillingTierService(
             db,
-            _time
+            _time,
+            TestTiers.Unsubscribed()
         ).GetEntitlementAsync(channelId);
         entitlement.IsSuccess.Should().BeTrue(entitlement.ErrorMessage);
         return entitlement.Value;
@@ -187,7 +188,7 @@ public sealed class EntitlementGrantGiftTests : IDisposable
             db,
             new CurrentTenantService(),
             _flagCache,
-            new BillingTierService(db, _time),
+            new BillingTierService(db, _time, TestTiers.Unsubscribed()),
             _time
         ).IsEnabledForAsync(GiftedFlag, ChannelId);
     }

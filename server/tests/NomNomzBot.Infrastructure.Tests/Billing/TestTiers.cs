@@ -9,8 +9,11 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Billing;
+using NomNomzBot.Infrastructure.Billing;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Billing;
@@ -21,6 +24,15 @@ namespace NomNomzBot.Infrastructure.Tests.Billing;
 /// </summary>
 internal static class TestTiers
 {
+    /// <summary>The real unsubscribed-tier policy; the shipped settings put a channel with no plan on base.</summary>
+    public static UnsubscribedTierPolicy Unsubscribed(
+        string defaultTierKey = EffectiveTierRule.BaseTierKey
+    ) =>
+        new(
+            Options.Create(new BillingOptions { DefaultTierKey = defaultTierKey }),
+            NullLogger<UnsubscribedTierPolicy>.Instance
+        );
+
     public static IBillingTierService Unlimited()
     {
         IBillingTierService tiers = Substitute.For<IBillingTierService>();

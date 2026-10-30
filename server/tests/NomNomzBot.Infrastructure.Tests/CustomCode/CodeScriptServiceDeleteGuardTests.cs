@@ -48,7 +48,8 @@ public sealed class CodeScriptServiceDeleteGuardTests
             ScriptBundlers.Real(),
             new RecordingEventBus(),
             TimeProvider.System,
-            new WidgetDependencyAllowlist()
+            new WidgetDependencyAllowlist(),
+            new ScriptBudget()
         );
         return (sut, db, script.Id);
     }

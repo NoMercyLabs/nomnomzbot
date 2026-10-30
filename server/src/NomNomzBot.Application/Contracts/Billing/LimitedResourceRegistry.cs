@@ -55,6 +55,13 @@ public static class LimitedResourceRegistry
         new(
             "tts_max_characters",
             ResourceClass.CostDriving,
+            "TTS characters per line",
+            SafetyBaseline: 0
+        ),
+        // A monthly counter (UsageRecord per calendar month, UTC), unlike the per-line cap above.
+        new(
+            "tts_monthly_characters",
+            ResourceClass.CostDriving,
             "TTS characters per month",
             SafetyBaseline: 0
         ),

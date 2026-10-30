@@ -111,7 +111,7 @@ public sealed class TierEditFlagGatingTests : IDisposable
             db,
             new CurrentTenantService(),
             _flagCache,
-            new BillingTierService(db, _time),
+            new BillingTierService(db, _time, TestTiers.Unsubscribed()),
             _time
         ).IsEnabledForAsync(ProOnlyFlag, ChannelId);
     }
@@ -119,7 +119,7 @@ public sealed class TierEditFlagGatingTests : IDisposable
     private async Task RankBaseTierAsync(int sortOrder)
     {
         using AppDbContext db = NewDbContext();
-        BillingTierAdminService admin = new(db, _time, _flagCache);
+        BillingTierAdminService admin = new(db, _time, _flagCache, TestTiers.Unsubscribed());
         Result<TierChangePreviewDto> preview = await admin.PreviewTierChangeAsync(_baseTierId);
         Result<TierDto> saved = await admin.UpdateTierAsync(
             _baseTierId,

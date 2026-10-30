@@ -27,6 +27,9 @@ namespace NomNomzBot.Domain.Billing.Entities;
 /// </summary>
 public class EntitlementGrant : SoftDeletableEntity, ITenantScoped
 {
+    /// <summary>The <see cref="Reason"/> of the Base trial a new sign-up gets; an invite's gift ends it.</summary>
+    public const string SignUpTrialReason = "Sign-up trial";
+
     public Guid Id { get; set; } = Guid.CreateVersion7();
     public Guid BroadcasterId { get; set; }
     public Guid GrantedTierId { get; set; }

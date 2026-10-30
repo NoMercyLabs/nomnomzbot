@@ -49,7 +49,7 @@ public sealed class EntitlementGrantControllerTests
         IEventBus? eventBus = null
     )
     {
-        BillingTierService tiers = new(db, clock);
+        BillingTierService tiers = new(db, clock, TestUnsubscribedTier.Default());
         grantService = new EntitlementGrantService(
             db,
             tiers,
@@ -266,7 +266,7 @@ public sealed class EntitlementGrantControllerTests
         (BillingTierChangeTestDbContext db, _, BillingTier proTier) =
             await SeedChannelOnBaseTierAsync();
         FakeTimeProvider clock = new(DateTimeOffset.Parse("2026-09-05T00:00:00Z"));
-        BillingTierService tiers = new(db, clock);
+        BillingTierService tiers = new(db, clock, TestUnsubscribedTier.Default());
         AdminBillingController controller = BuildController(
             db,
             clock,
@@ -323,7 +323,7 @@ public sealed class EntitlementGrantControllerTests
             await SeedChannelOnBaseTierAsync();
         DateTimeOffset now = DateTimeOffset.Parse("2026-09-05T00:00:00Z");
         FakeTimeProvider clock = new(now);
-        BillingTierService tiers = new(db, clock);
+        BillingTierService tiers = new(db, clock, TestUnsubscribedTier.Default());
 
         // Inserted directly (bypassing IssueGrantAsync's future-expiry validation) to model a grant that has
         // since lapsed — the resolution path, not the issuing path, is what must refuse to honor it.

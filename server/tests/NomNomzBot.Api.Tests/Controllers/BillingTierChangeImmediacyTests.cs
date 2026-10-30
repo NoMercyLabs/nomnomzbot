@@ -156,7 +156,7 @@ public sealed class BillingTierChangeImmediacyTests
             Subscription subscription
         ) = await SeedSaasChannelOnLowTierAsync();
 
-        BillingTierService tiers = new(db, TimeProvider.System);
+        BillingTierService tiers = new(db, TimeProvider.System, TestUnsubscribedTier.Default());
         ResourceQuotaService quota = new(
             tiers,
             new NoUsageMeteringService(),
@@ -204,7 +204,7 @@ public sealed class BillingTierChangeImmediacyTests
             Subscription subscription
         ) = await SeedSaasChannelOnLowTierAsync();
 
-        BillingTierService tiers = new(db, TimeProvider.System);
+        BillingTierService tiers = new(db, TimeProvider.System, TestUnsubscribedTier.Default());
         ResourceQuotaService quota = new(
             tiers,
             new NoUsageMeteringService(),

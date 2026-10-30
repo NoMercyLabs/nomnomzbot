@@ -52,7 +52,7 @@ public sealed class AdminBillingInvoicesTests
         IConfiguration config = Substitute.For<IConfiguration>();
         ISubscriptionService subscriptions = new SubscriptionService(
             db,
-            new BillingTierService(db, TimeProvider.System),
+            new BillingTierService(db, TimeProvider.System, TestUnsubscribedTier.Default()),
             stripe ?? Substitute.For<IStripeGateway>(),
             config,
             Substitute.For<IEventBus>(),

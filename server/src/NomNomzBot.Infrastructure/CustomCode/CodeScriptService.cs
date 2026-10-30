@@ -38,7 +38,8 @@ public sealed class CodeScriptService(
     IScriptBundler bundler,
     IEventBus eventBus,
     TimeProvider clock,
-    IWidgetDependencyAllowlist dependencyAllowlist
+    IWidgetDependencyAllowlist dependencyAllowlist,
+    IScriptExecutionMeter meter
 ) : ICodeScriptService
 {
     public async Task<Result<PagedList<CodeScriptSummaryDto>>> ListAsync(
@@ -165,6 +166,8 @@ public sealed class CodeScriptService(
     {
         if (tenant.BroadcasterId is not { } bid)
             return Result.Failure<CodeScriptDetailDto>("No tenant.", "NO_TENANT");
+        if (await ScriptPlanGate.RefuseWriteAsync(meter, bid, cancellationToken) is { } refusal)
+            return Result.Failure<CodeScriptDetailDto>(refusal.ErrorMessage, refusal.ErrorCode);
         if (string.IsNullOrWhiteSpace(name) || name.Length > 100)
             return Result.Failure<CodeScriptDetailDto>(
                 "Name is required (≤100).",
@@ -227,6 +230,11 @@ public sealed class CodeScriptService(
         CodeScript? script = await LoadAsync(codeScriptId, cancellationToken);
         if (script is null)
             return Result.Failure<CodeScriptVersionDto>("Script not found.", "NOT_FOUND");
+        if (
+            await ScriptPlanGate.RefuseWriteAsync(meter, script.BroadcasterId, cancellationToken) is
+            { } refusal
+        )
+            return Result.Failure<CodeScriptVersionDto>(refusal.ErrorMessage, refusal.ErrorCode);
 
         int nextVersion =
             await db
@@ -263,6 +271,11 @@ public sealed class CodeScriptService(
         CodeScript? script = await LoadAsync(codeScriptId, cancellationToken);
         if (script is null)
             return Result.Failure<CodeScriptDetailDto>("Script not found.", "NOT_FOUND");
+        if (
+            await ScriptPlanGate.RefuseWriteAsync(meter, script.BroadcasterId, cancellationToken) is
+            { } refusal
+        )
+            return Result.Failure<CodeScriptDetailDto>(refusal.ErrorMessage, refusal.ErrorCode);
         CodeScriptVersion? version = await db.CodeScriptVersions.FirstOrDefaultAsync(
             v => v.Id == codeScriptVersionId && v.CodeScriptId == script.Id,
             cancellationToken
@@ -398,6 +411,11 @@ public sealed class CodeScriptService(
         CodeScript? script = await LoadAsync(codeScriptId, cancellationToken);
         if (script is null)
             return Result.Failure<CodeScriptVersionDto>("Script not found.", "NOT_FOUND");
+        if (
+            await ScriptPlanGate.RefuseWriteAsync(meter, script.BroadcasterId, cancellationToken) is
+            { } refusal
+        )
+            return Result.Failure<CodeScriptVersionDto>(refusal.ErrorMessage, refusal.ErrorCode);
 
         int nextVersion =
             await db
@@ -514,6 +532,13 @@ public sealed class CodeScriptService(
         CodeScript? script = await LoadAsync(codeScriptId, cancellationToken);
         if (script is null)
             return Result.Failure("Script not found.", "NOT_FOUND");
+        // Turning a script off is always allowed, so a channel that dropped to a plan without scripts can stop them.
+        if (
+            isEnabled
+            && await ScriptPlanGate.RefuseWriteAsync(meter, script.BroadcasterId, cancellationToken)
+                is { } refusal
+        )
+            return refusal;
         script.IsEnabled = isEnabled;
         script.UpdatedAt = clock.GetUtcNow().UtcDateTime;
         await db.SaveChangesAsync(cancellationToken);

@@ -294,7 +294,8 @@ public class ExpandedBlastRadiusTests
             ScriptBundlers.Real(),
             Substitute.For<IEventBus>(),
             Clock,
-            Substitute.For<IWidgetDependencyAllowlist>()
+            Substitute.For<IWidgetDependencyAllowlist>(),
+            Substitute.For<IScriptExecutionMeter>()
         );
     }
 

@@ -226,7 +226,8 @@ public sealed class BundleParityTypesTests
             ScriptBundlers.Real(),
             bus,
             TimeProvider.System,
-            allowlist
+            allowlist,
+            new ScriptBudget()
         );
 
         BundleExportService export = new(

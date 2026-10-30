@@ -121,7 +121,8 @@ public sealed class LuckyFeatherBundleTests
             ScriptBundlers.Real(),
             Substitute.For<IEventBus>(),
             TimeProvider.System,
-            allowlist
+            allowlist,
+            new ScriptBudget()
         );
 
         // A stateful IWidgetService stand-in: CreateAsync records the widget so ListAsync/GetAsync can serve

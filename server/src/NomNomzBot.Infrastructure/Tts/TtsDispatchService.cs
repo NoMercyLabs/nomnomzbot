@@ -52,6 +52,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
     private readonly IApplicationDbContext _db;
     private readonly IEventBus _eventBus;
     private readonly IBillingTierService _tiers;
+    private readonly IUsageMeteringService _usage;
     private readonly ITtsChannelSerializer _serializer;
     private readonly TimeProvider _clock;
     private readonly Random _random;
@@ -68,6 +69,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         IApplicationDbContext db,
         IEventBus eventBus,
         IBillingTierService tiers,
+        IUsageMeteringService usage,
         ITtsChannelSerializer serializer,
         TimeProvider clock,
         ILogger<TtsDispatchService> logger,
@@ -84,6 +86,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         _db = db;
         _eventBus = eventBus;
         _tiers = tiers;
+        _usage = usage;
         _serializer = serializer;
         _clock = clock;
         _logger = logger;
@@ -715,6 +718,18 @@ public sealed class TtsDispatchService : ITtsDispatchService
         CancellationToken ct
     )
     {
+        // The plan's monthly total counts the shared voices only; a byok channel pays its own provider.
+        bool metered = config.Mode != "byok";
+        if (metered && !await TtsMonthlyAllowance.FitsAsync(_usage, broadcasterId, text.Length, ct))
+            return await PublishRejectAsync(
+                broadcasterId,
+                requestedByTwitchUserId,
+                "monthly_limit",
+                "This channel has used its TTS characters for this month.",
+                "QUOTA_EXCEEDED",
+                ct
+            );
+
         TtsResult synth;
         try
         {
@@ -816,6 +831,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
         };
         _db.TtsUsageRecords.Add(usage);
         await _db.SaveChangesAsync(ct);
+        if (metered)
+            await TtsMonthlyAllowance.RecordAsync(_usage, broadcasterId, text.Length, ct);
 
         await _eventBus.PublishAsync(
             new TtsUtteranceDispatchedEvent

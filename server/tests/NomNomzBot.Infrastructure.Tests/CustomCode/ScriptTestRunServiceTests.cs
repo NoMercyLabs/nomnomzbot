@@ -126,7 +126,8 @@ public sealed class ScriptTestRunServiceTests
                     ScriptBundlers.Real(),
                     new RecordingEventBus(),
                     TimeProvider.System,
-                    new WidgetDependencyAllowlist()
+                    new WidgetDependencyAllowlist(),
+                    new ScriptBudget()
                 )
             ),
             db,

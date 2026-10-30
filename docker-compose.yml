@@ -122,6 +122,9 @@ x-api-service: &api-service
     - Tts__Edge__TrustedClientToken=${EDGE_TTS_TRUSTED_CLIENT_TOKEN:-}
     - ElevenLabs__ApiKey=${ELEVENLABS_API_KEY:-}
     - Api__ExposeDocs=${API_EXPOSE_DOCS:-false}
+    # The plan of a channel with no subscription, and the days of Base a new sign-up gets (0 = none).
+    - Billing__DefaultTierKey=${BILLING_DEFAULT_TIER_KEY:-base}
+    - Billing__SignUpTrialDays=${BILLING_SIGNUP_TRIAL_DAYS:-0}
   depends_on:
     postgres:
       condition: service_healthy

@@ -49,7 +49,8 @@ public sealed class CodeScriptServiceProjectTests
             ScriptBundlers.Real(),
             new RecordingEventBus(),
             new FakeTimeProvider(Now),
-            new WidgetDependencyAllowlist()
+            new WidgetDependencyAllowlist(),
+            new ScriptBudget()
         );
     }
 

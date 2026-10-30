@@ -47,7 +47,8 @@ public sealed class CodeScriptServiceTests
             ScriptBundlers.Real(),
             bus,
             new FakeTimeProvider(Now),
-            new WidgetDependencyAllowlist()
+            new WidgetDependencyAllowlist(),
+            new ScriptBudget()
         );
         return (sut, db, bus);
     }

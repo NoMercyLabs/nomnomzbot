@@ -30,10 +30,12 @@ public sealed class BillingTierServiceTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-0000000000e1");
 
-    private static (BillingTierService Sut, AuthDbContext Db) Build()
+    private static (BillingTierService Sut, AuthDbContext Db) Build(
+        string defaultTierKey = EffectiveTierRule.BaseTierKey
+    )
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
-        return (new(db, TimeProvider.System), db);
+        return (new(db, TimeProvider.System, TestTiers.Unsubscribed(defaultTierKey)), db);
     }
 
     private static async Task SeedTiersAsync(AuthDbContext db)
@@ -87,6 +89,55 @@ public sealed class BillingTierServiceTests
     }
 
     [Fact]
+    public async Task The_seeder_adds_the_free_plan_and_keeps_limits_an_operator_tuned()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        await SeedTiersAsync(db);
+
+        BillingTier free = await db.BillingTiers.SingleAsync(t => t.Key == "hosted_free");
+        BillingTier baseTier = await db.BillingTiers.SingleAsync(t => t.Key == "base");
+        free.DisplayName.Should().Be("Free");
+        free.PriceCents.Should().Be(0);
+        free.IsPublic.Should().BeTrue();
+        free.SortOrder.Should().BeLessThan(baseTier.SortOrder);
+        (await LimitsAsync(db, free.Id))
+            .Should()
+            .Equal(
+                new Dictionary<string, long>
+                {
+                    ["tts_max_characters"] = 200,
+                    ["sandbox_exec_ms"] = 0,
+                    ["sound_clip_storage_bytes"] = 25L * 1024 * 1024,
+                    ["channel_asset_storage_bytes"] = 25L * 1024 * 1024,
+                    ["tts_monthly_characters"] = 25_000,
+                }
+            );
+        (await LimitsAsync(db, baseTier.Id))["tts_monthly_characters"].Should().Be(-1);
+
+        TierLimit tunedBase = await db.TierLimits.SingleAsync(l =>
+            l.TierId == baseTier.Id && l.LimitKey == "tts_max_characters"
+        );
+        TierLimit tunedFree = await db.TierLimits.SingleAsync(l =>
+            l.TierId == free.Id && l.LimitKey == "tts_monthly_characters"
+        );
+        tunedBase.LimitValue = 750;
+        tunedFree.LimitValue = 30_000;
+        await db.SaveChangesAsync();
+
+        await SeedTiersAsync(db);
+
+        (await db.BillingTiers.CountAsync(t => t.Key == "hosted_free")).Should().Be(1);
+        (await LimitsAsync(db, baseTier.Id))["tts_max_characters"].Should().Be(750);
+        (await LimitsAsync(db, free.Id))["tts_monthly_characters"].Should().Be(30_000);
+    }
+
+    private static Task<Dictionary<string, long>> LimitsAsync(AuthDbContext db, Guid tierId) =>
+        db
+            .TierLimits.AsNoTracking()
+            .Where(l => l.TierId == tierId && l.DeletedAt == null)
+            .ToDictionaryAsync(l => l.LimitKey, l => l.LimitValue);
+
+    [Fact]
     public async Task A_self_host_channel_is_unlimited()
     {
         (BillingTierService sut, AuthDbContext db) = Build();
@@ -132,6 +183,37 @@ public sealed class BillingTierServiceTests
 
         entitlement.TierKey.Should().Be("base");
         entitlement.Limits["tts_max_characters"].Should().Be(500);
+    }
+
+    [Fact]
+    public async Task A_channel_without_a_plan_lands_on_the_configured_free_tier_with_its_limits()
+    {
+        (BillingTierService sut, AuthDbContext db) = Build(defaultTierKey: "hosted_free");
+        await SeedTiersAsync(db);
+        SeedChannel(db, AuthEnums.DeploymentMode.Saas);
+        await db.SaveChangesAsync();
+
+        EntitlementDto entitlement = (await sut.GetEntitlementAsync(Channel)).Value;
+
+        entitlement.TierKey.Should().Be("hosted_free");
+        entitlement.Limits["sandbox_exec_ms"].Should().Be(0);
+        entitlement.Limits["tts_max_characters"].Should().Be(200);
+        entitlement.Limits["tts_monthly_characters"].Should().Be(25_000);
+        (await sut.IsTierAtLeastAsync(Channel, "base")).Value.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task A_configured_tier_that_does_not_exist_falls_back_to_base()
+    {
+        (BillingTierService sut, AuthDbContext db) = Build(defaultTierKey: "no_such_tier");
+        await SeedTiersAsync(db);
+        SeedChannel(db, AuthEnums.DeploymentMode.Saas);
+        await db.SaveChangesAsync();
+
+        EntitlementDto entitlement = (await sut.GetEntitlementAsync(Channel)).Value;
+
+        entitlement.TierKey.Should().Be("base");
+        entitlement.Limits["sandbox_exec_ms"].Should().Be(600_000);
     }
 
     // A6 admin truth: an operator's per-tenant override is what the TTS cap and the sandbox/TTS metering

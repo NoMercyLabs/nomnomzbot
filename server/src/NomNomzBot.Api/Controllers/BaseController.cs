@@ -187,6 +187,7 @@ public abstract class BaseController : ControllerBase
             or "AGE_CONSENT_REQUIRED"
             or "GAMBLING_DISABLED"
             or "QUOTA_EXCEEDED"
+            or "PLAN_REQUIRED"
             or "tier_limit_reached"
             or "EGRESS_NOT_ALLOWED"
             or "MISSING_SCOPE"

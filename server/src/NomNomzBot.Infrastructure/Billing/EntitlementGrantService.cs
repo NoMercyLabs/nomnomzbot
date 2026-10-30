@@ -179,7 +179,78 @@ public sealed class EntitlementGrantService(
             InviteCodeId = inviteCodeId,
         };
 
+        await EndLiveSignUpTrialAsync(broadcasterId, now, ct);
         return await SaveGrantAsync(grant, targetTier.Key, actorUserId: null, now, 0, ct);
+    }
+
+    public async Task<Result<EntitlementGrantDto>> IssueSignUpTrialAsync(
+        Guid broadcasterId,
+        Guid ownerUserId,
+        int days,
+        CancellationToken ct = default
+    )
+    {
+        if (days <= 0)
+            return Result.Failure<EntitlementGrantDto>(
+                "A trial needs at least one day.",
+                "VALIDATION_FAILED"
+            );
+
+        bool ownsChannel = await db.Channels.AnyAsync(
+            c => c.Id == broadcasterId && c.OwnerUserId == ownerUserId,
+            ct
+        );
+        if (!ownsChannel)
+            return Result.Failure<EntitlementGrantDto>("Channel not found.", "NOT_FOUND");
+
+        bool hadTrial = await db
+            .EntitlementGrants.IgnoreQueryFilters()
+            .AnyAsync(
+                g =>
+                    g.BroadcasterId == broadcasterId
+                    && g.Reason == EntitlementGrant.SignUpTrialReason,
+                ct
+            );
+        if (hadTrial)
+            return Result.Failure<EntitlementGrantDto>(
+                "This channel already had its sign-up trial.",
+                "ALREADY_EXISTS"
+            );
+
+        BillingTier? baseTier = await db.BillingTiers.FirstOrDefaultAsync(
+            t => t.Key == EffectiveTierRule.BaseTierKey && t.DeletedAt == null,
+            ct
+        );
+        if (baseTier is null)
+            return Result.Failure<EntitlementGrantDto>("Tier not found.", "NOT_FOUND");
+
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        EntitlementGrant grant = new()
+        {
+            BroadcasterId = broadcasterId,
+            GrantedTierId = baseTier.Id,
+            Reason = EntitlementGrant.SignUpTrialReason,
+            ExpiresAt = now.AddDays(days),
+            IssuedAt = now,
+        };
+        return await SaveGrantAsync(grant, baseTier.Key, actorUserId: null, now, 0, ct);
+    }
+
+    // An invite's gift replaces the sign-up trial: the trial ends now, saved with the gift.
+    private async Task EndLiveSignUpTrialAsync(
+        Guid broadcasterId,
+        DateTime now,
+        CancellationToken ct
+    )
+    {
+        List<EntitlementGrant> trials = await db
+            .EntitlementGrants.WhereLive(now)
+            .Where(g =>
+                g.BroadcasterId == broadcasterId && g.Reason == EntitlementGrant.SignUpTrialReason
+            )
+            .ToListAsync(ct);
+        foreach (EntitlementGrant trial in trials)
+            trial.ExpiresAt = now;
     }
 
     /// <summary>

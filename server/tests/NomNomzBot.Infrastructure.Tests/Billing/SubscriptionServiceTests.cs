@@ -50,7 +50,7 @@ public sealed class SubscriptionServiceTests
         config["App:BaseUrl"].Returns("https://bot.example");
         SubscriptionService sut = new(
             db,
-            new BillingTierService(db, TimeProvider.System),
+            new BillingTierService(db, TimeProvider.System, TestTiers.Unsubscribed()),
             stripe ?? Substitute.For<IStripeGateway>(),
             config,
             bus,
@@ -637,7 +637,7 @@ public sealed class SubscriptionServiceTests
         Result<InvoiceDto> result = await sut.RefundInvoiceAsync(invoice.Id);
 
         result.ErrorCode.Should().Be("VALIDATION_FAILED");
-        await gateway.DidNotReceiveWithAnyArgs().RefundInvoiceAsync(default!, default);
+        await gateway.DidNotReceiveWithAnyArgs().RefundInvoiceAsync(default!);
     }
 
     [Fact]

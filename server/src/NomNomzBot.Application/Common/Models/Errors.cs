@@ -73,6 +73,11 @@ public static class Errors
             "QUOTA_EXCEEDED"
         );
 
+    /// <summary>The channel's plan does not include <paramref name="feature"/> at all; <paramref name="planName"/>
+    /// is the first plan that does.</summary>
+    public static Result PlanRequired(string feature, string planName) =>
+        Result.Failure($"{feature} need the {planName} plan.", "PLAN_REQUIRED");
+
     public static Result ChannelNotFound(string channelId) =>
         Result.Failure(
             "Channel not found.",

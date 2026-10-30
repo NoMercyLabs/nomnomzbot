@@ -10,12 +10,15 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.Contracts.Tts;
+using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Tts.Dtos;
 using NomNomzBot.Application.Tts.Services;
@@ -24,7 +27,10 @@ using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.Tts.Events;
 using NomNomzBot.Domain.Tts.Interfaces;
+using NomNomzBot.Infrastructure.Billing;
 using NomNomzBot.Infrastructure.Platform.Caching;
+using NomNomzBot.Infrastructure.Tests.EventStore;
+using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Tts;
 using NSubstitute;
 
@@ -68,9 +74,10 @@ public sealed class TtsDispatchServiceTests
         string mode = "self_host",
         string minPermission = "everyone",
         string defaultProvider = "edge",
-        Application.Contracts.Billing.IBillingTierService? tiers = null,
+        IBillingTierService? tiers = null,
         Random? random = null,
-        int cooldownSeconds = 0
+        int cooldownSeconds = 0,
+        IUsageMeteringService? usage = null
     )
     {
         TtsTestDbContext db = TtsTestDbContext.New();
@@ -174,6 +181,7 @@ public sealed class TtsDispatchServiceTests
             db,
             bus,
             tiers ?? Billing.TestTiers.Unlimited(),
+            usage ?? UnmeteredUsage(),
             new TtsChannelSerializer(),
             clock,
             NullLogger<TtsDispatchService>.Instance,
@@ -210,6 +218,133 @@ public sealed class TtsDispatchServiceTests
             SourceMessageId: null,
             StreamId: streamId
         );
+
+    // Every limit unlimited, the way a channel without a monthly TTS total is metered.
+    private static IUsageMeteringService UnmeteredUsage()
+    {
+        IUsageMeteringService usage = Substitute.For<IUsageMeteringService>();
+        usage
+            .CheckAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<long>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(ci =>
+                Result.Success(new QuotaCheckDto(true, ci.ArgAt<string>(1), 0, -1, long.MaxValue))
+            );
+        usage
+            .RecordAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<long>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success());
+        return usage;
+    }
+
+    private static async Task<EventStoreTestDbContext> NewUsageDbAsync(SqliteConnection connection)
+    {
+        await connection.OpenAsync();
+        EventStoreTestDbContext db = new(
+            new DbContextOptionsBuilder<EventStoreTestDbContext>().UseSqlite(connection).Options
+        );
+        await db.Database.EnsureCreatedAsync();
+        return db;
+    }
+
+    private static Task<long> MonthlyCharactersAsync(EventStoreTestDbContext db, DateTime month) =>
+        db
+            .UsageRecords.AsNoTracking()
+            .Where(u =>
+                u.BroadcasterId == Tenant
+                && u.MetricKey == "tts_monthly_characters"
+                && u.PeriodStart
+                    == new DateTime(month.Year, month.Month, 1, 0, 0, 0, DateTimeKind.Utc)
+            )
+            .Select(u => u.Quantity)
+            .FirstOrDefaultAsync();
+
+    [Fact]
+    public async Task The_monthly_TTS_total_refuses_the_line_that_passes_it_and_starts_again_next_month()
+    {
+        await using SqliteConnection connection = new("DataSource=:memory:");
+        await using EventStoreTestDbContext usageDb = await NewUsageDbAsync(connection);
+        FakeTimeProvider meterClock = new(new DateTimeOffset(T0));
+        UsageMeteringService meter = new(
+            usageDb,
+            Billing.TestTiers.WithLimit("tts_monthly_characters", 25_000),
+            new RecordingEventBus(),
+            meterClock,
+            Billing.TestConfiguration.Empty()
+        );
+        (await meter.RecordAsync(Tenant, "tts_monthly_characters", 24_995))
+            .IsSuccess.Should()
+            .BeTrue();
+        Harness h = Build(usage: meter);
+
+        Result<TtsDispatchOutcome> refused = await h.Service.RequestSpeakAsync(
+            Speak("hello world")
+        );
+
+        refused.IsFailure.Should().BeTrue();
+        refused.ErrorCode.Should().Be("QUOTA_EXCEEDED");
+        refused
+            .ErrorMessage.Should()
+            .Be("This channel has used its TTS characters for this month.");
+        await h
+            .Tts.DidNotReceive()
+            .SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            );
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
+        await h
+            .Bus.Received(1)
+            .PublishAsync(
+                Arg.Is<TtsUtteranceRejectedEvent>(e => e.Reason == "monthly_limit"),
+                Arg.Any<CancellationToken>()
+            );
+        (await MonthlyCharactersAsync(usageDb, T0)).Should().Be(24_995);
+
+        Result<TtsDispatchOutcome> fits = await h.Service.RequestSpeakAsync(Speak("hey"));
+
+        fits.IsSuccess.Should().BeTrue(fits.ErrorMessage);
+        (await MonthlyCharactersAsync(usageDb, T0)).Should().Be(24_998);
+
+        meterClock.Advance(TimeSpan.FromDays(31));
+        Result<TtsDispatchOutcome> nextMonth = await h.Service.RequestSpeakAsync(
+            Speak("hello world")
+        );
+
+        nextMonth.IsSuccess.Should().BeTrue(nextMonth.ErrorMessage);
+        (await MonthlyCharactersAsync(usageDb, T0.AddDays(31))).Should().Be(11);
+    }
+
+    [Fact]
+    public async Task A_plan_without_a_monthly_TTS_total_speaks_and_meters_nothing()
+    {
+        await using SqliteConnection connection = new("DataSource=:memory:");
+        await using EventStoreTestDbContext usageDb = await NewUsageDbAsync(connection);
+        UsageMeteringService meter = new(
+            usageDb,
+            Billing.TestTiers.Unlimited(),
+            new RecordingEventBus(),
+            new FakeTimeProvider(new DateTimeOffset(T0)),
+            Billing.TestConfiguration.Empty()
+        );
+        Harness h = Build(usage: meter);
+
+        Result<TtsDispatchOutcome> spoken = await h.Service.RequestSpeakAsync(Speak("hello world"));
+
+        spoken.IsSuccess.Should().BeTrue(spoken.ErrorMessage);
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(1);
+        (await usageDb.UsageRecords.CountAsync()).Should().Be(0);
+    }
 
     private static TtsSpeakRequest SpeakAsViewer(
         string text,

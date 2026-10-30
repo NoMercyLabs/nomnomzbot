@@ -33,7 +33,8 @@ namespace NomNomzBot.Infrastructure.Billing;
 public sealed class BillingTierAdminService(
     IApplicationDbContext db,
     TimeProvider clock,
-    IFeatureFlagCacheService flagCache
+    IFeatureFlagCacheService flagCache,
+    UnsubscribedTierPolicy unsubscribed
 ) : IBillingTierAdminService
 {
     public async Task<Result<IReadOnlyList<TierDto>>> ListAllTiersAsync(
@@ -265,9 +266,7 @@ public sealed class BillingTierAdminService(
         Dictionary<Guid, BillingTier> tiers = await db
             .BillingTiers.Where(t => t.DeletedAt == null)
             .ToDictionaryAsync(t => t.Id, ct);
-        BillingTier? baseTier = tiers.Values.FirstOrDefault(t =>
-            t.Key == EffectiveTierRule.BaseTierKey
-        );
+        BillingTier? baseTier = unsubscribed.Pick(tiers.Values);
 
         Dictionary<Guid, Guid> billedTierIdByChannel = (
             await db

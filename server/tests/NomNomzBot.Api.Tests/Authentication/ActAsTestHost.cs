@@ -21,6 +21,7 @@ using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Api.Extensions;
+using NomNomzBot.Api.Tests.Controllers;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -239,6 +240,7 @@ internal sealed class ActAsTestHost : IAsyncDisposable
         services.AddSingleton<ISessionRevocationService, SessionRevocationService>();
         services.AddSingleton<IOutboundSanctionAccessor, OutboundSanctionAccessor>();
         services.AddSingleton<TwitchScopeRegistry>();
+        services.AddSingleton(TestUnsubscribedTier.Default());
         services.AddSingleton(new DeploymentContext(DeploymentMode.SelfHostLite));
         services.AddScoped<IRoleResolver, RoleResolver>();
         services.AddScoped<IActAsMembershipOverlay, ActAsMembershipOverlay>();

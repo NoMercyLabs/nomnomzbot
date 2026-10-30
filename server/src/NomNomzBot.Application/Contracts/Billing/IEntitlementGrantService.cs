@@ -70,6 +70,17 @@ public interface IEntitlementGrantService
     );
 
     /// <summary>
+    /// Give a new sign-up <paramref name="days"/> of Base as a gift with no issuing admin. Refused when the channel is
+    /// not owned by <paramref name="ownerUserId"/>, or when it already had a sign-up trial. A later invite gift ends it.
+    /// </summary>
+    Task<Result<EntitlementGrantDto>> IssueSignUpTrialAsync(
+        Guid broadcasterId,
+        Guid ownerUserId,
+        int days,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
     /// End a live gift now: its end date becomes this moment, so the tier resolves back at once. The row stays
     /// as the record of what was given, and an <c>IamAuditLog</c> row is written in the same transaction.
     /// </summary>

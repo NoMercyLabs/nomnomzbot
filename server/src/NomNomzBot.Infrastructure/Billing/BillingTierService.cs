@@ -25,8 +25,11 @@ namespace NomNomzBot.Infrastructure.Billing;
 /// (or the <c>base</c> entry tier when none is active — grandfathered, additions only). A live per-tenant
 /// override replaces the resolved limit for its key. An unseeded limit key is treated as unlimited.
 /// </summary>
-public sealed class BillingTierService(IApplicationDbContext db, TimeProvider clock)
-    : IBillingTierService
+public sealed class BillingTierService(
+    IApplicationDbContext db,
+    TimeProvider clock,
+    UnsubscribedTierPolicy unsubscribed
+) : IBillingTierService
 {
     private const string SelfHostTierKey = "free";
 
@@ -173,13 +176,19 @@ public sealed class BillingTierService(IApplicationDbContext db, TimeProvider cl
 
         BillingTier? billedTier = tierId is { } id
             ? await db.BillingTiers.FirstOrDefaultAsync(t => t.Id == id && t.DeletedAt == null, ct)
-            : await db.BillingTiers.FirstOrDefaultAsync(
-                t => t.Key == EffectiveTierRule.BaseTierKey && t.DeletedAt == null,
-                ct
-            );
+            : await FindUnsubscribedTierAsync(ct);
 
         BillingTier? compedTier = await ResolveLiveGrantTierAsync(broadcasterId, ct);
         return EffectiveTierRule.Pick(billedTier, compedTier);
+    }
+
+    private async Task<BillingTier?> FindUnsubscribedTierAsync(CancellationToken ct)
+    {
+        List<string> keys = [.. unsubscribed.CandidateKeys];
+        List<BillingTier> candidates = await db
+            .BillingTiers.Where(t => keys.Contains(t.Key) && t.DeletedAt == null)
+            .ToListAsync(ct);
+        return unsubscribed.Pick(candidates);
     }
 
     /// <summary>

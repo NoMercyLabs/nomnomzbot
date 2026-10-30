@@ -55,6 +55,8 @@ services:
       - Tts__Edge__ChromiumVersion=${EDGE_TTS_CHROMIUM_VERSION:-}
       - Tts__Edge__TrustedClientToken=${EDGE_TTS_TRUSTED_CLIENT_TOKEN:-}
       - ElevenLabs__ApiKey=${ELEVENLABS_API_KEY:-}
+      - Billing__DefaultTierKey=${BILLING_DEFAULT_TIER_KEY:-base}
+      - Billing__SignUpTrialDays=${BILLING_SIGNUP_TRIAL_DAYS:-0}
       - ConnectionStrings__Redis=${REDIS_URL:-redis://redis:6379}
     depends_on:
       postgres:

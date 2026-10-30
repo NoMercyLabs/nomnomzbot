@@ -168,7 +168,8 @@ public sealed class ScriptErrorPositionTests
             ScriptBundlers.Real(),
             new RecordingEventBus(),
             new FakeTimeProvider(new DateTimeOffset(2026, 9, 1, 12, 0, 0, TimeSpan.Zero)),
-            new WidgetDependencyAllowlist()
+            new WidgetDependencyAllowlist(),
+            new ScriptBudget()
         );
         Result<CodeScriptDetailDto> created = await sut.CreateProjectAsync(
             "pos",

@@ -857,6 +857,11 @@ public static class DependencyInjection
         services.AddScoped<ICodeScriptTriggerResolver, CustomCode.CodeScriptTriggerResolver>();
         services.AddScoped<IScriptExecutionMeter, CustomCode.ScriptExecutionMeter>();
         services.AddScoped<Application.Contracts.Billing.IStripeGateway, Billing.StripeGateway>();
+        // The plan of a channel with no subscription, and the sign-up trial, are settings (Billing).
+        services.Configure<Billing.BillingOptions>(
+            configuration.GetSection(Billing.BillingOptions.SectionName)
+        );
+        services.AddSingleton<Billing.UnsubscribedTierPolicy>();
 
         // Event store — projections, post-commit hooks, and upcasters are pluggable multi-bindings discovered
         // by convention (drop a file → it is live next boot), mirroring ICommandAction. Projections + hooks

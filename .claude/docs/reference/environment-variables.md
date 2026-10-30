@@ -45,6 +45,8 @@
 | `ELEVENLABS_API_KEY` | no | — | ElevenLabs key for TTS |
 | `EDGE_TTS_CHROMIUM_VERSION` | no | shipped value (`EdgeTtsOptions.DefaultChromiumVersion`) | `Tts:Edge:ChromiumVersion`. The Chromium version the free Edge voice reports; Microsoft refuses old ones with a 403. Four dotted numbers; a malformed value is logged and ignored. Change it and restart the container |
 | `EDGE_TTS_TRUSTED_CLIENT_TOKEN` | no | shipped value (`EdgeTtsOptions.DefaultTrustedClientToken`) | `Tts:Edge:TrustedClientToken`. The Edge read-aloud client token, 32 hex characters; rarely changes |
+| `BILLING_DEFAULT_TIER_KEY` | no | `base` | `Billing:DefaultTierKey`. The plan of a channel with no subscription and no live gift. `hosted_free` puts those channels on the Free plan (no code scripts, 200 characters per TTS line, 25 000 TTS characters per month, 25 MB sound clips, 25 MB assets). A key that names no live tier falls back to `base` and logs a warning once |
+| `BILLING_SIGNUP_TRIAL_DAYS` | no | `0` | `Billing:SignUpTrialDays`. The days of Base a new sign-up gets as a gift, then the channel falls to the default plan. `0` gives no trial. A sign-up that redeems an invite gets the invite's gift and no trial |
 | `API_HTTP_PORT` | no | `5080` | Host port of the Caddy ingress (`api-blue`/`api-green` publish no port) |
 | `API_EXPOSE_DOCS` | no | `false` | Serves `/scalar` outside Development (`Api__ExposeDocs`); off by default in docker |
 | `NOMNOMZ_DATA_DIR` | no | per-user data dir (`/app/data` in docker) | Overrides the directory for SQLite, uploaded assets, sound clips and key files |

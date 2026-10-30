@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
@@ -17,8 +18,10 @@ using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomCode.Enums;
+using NomNomzBot.Infrastructure.Billing;
 using NomNomzBot.Infrastructure.CustomCode;
 using NomNomzBot.Infrastructure.CustomCode.Jint;
+using NomNomzBot.Infrastructure.Tests.Billing;
 using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -314,5 +317,42 @@ public sealed class ScriptRunnerTests
             .Value.ErrorMessage.Should()
             .Be("Sandbox execution quota could not be verified, so the script was not run.");
         await executor.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default!, default!);
+    }
+
+    [Fact]
+    public async Task A_plan_without_script_time_refuses_the_run_before_it_starts_and_records_nothing()
+    {
+        IScriptExecutor executor = Substitute.For<IScriptExecutor>();
+        FakeTimeProvider clock = new(Now);
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        ScriptExecutionMeter meter = new(
+            new UsageMeteringService(
+                db,
+                TestTiers.WithLimit("sandbox_exec_ms", 0),
+                new RecordingEventBus(),
+                clock,
+                TestConfiguration.Empty()
+            ),
+            clock
+        );
+        ScriptRunner sut = new(
+            db,
+            executor,
+            Substitute.For<IScriptCapabilityBroker>(),
+            meter,
+            Substitute.For<IScriptHostBridgeFactory>(),
+            clock
+        );
+        Guid id = await SeedAsync(db, enabled: true, withValidVersion: true);
+
+        Result<ScriptRunResult> result = await sut.RunAsync(id, Invocation());
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Outcome.Should().Be(ScriptExecutionOutcome.Denied);
+        result.Value.DenialReason.Should().Be(ScriptDenialReason.QuotaExceeded);
+        result.Value.ErrorMessage.Should().Be("Code scripts need the Base plan.");
+        await executor.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default!, default!);
+        (await db.UsageRecords.CountAsync()).Should().Be(0);
+        (await db.CodeScripts.SingleAsync(s => s.Id == id)).LastRanAt.Should().BeNull();
     }
 }

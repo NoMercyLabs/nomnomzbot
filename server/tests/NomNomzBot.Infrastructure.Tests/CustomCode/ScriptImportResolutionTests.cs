@@ -47,7 +47,8 @@ public sealed class ScriptImportResolutionTests
             ScriptBundlers.Real(),
             new RecordingEventBus(),
             new FakeTimeProvider(Now),
-            new WidgetDependencyAllowlist()
+            new WidgetDependencyAllowlist(),
+            new ScriptBudget()
         );
     }
 

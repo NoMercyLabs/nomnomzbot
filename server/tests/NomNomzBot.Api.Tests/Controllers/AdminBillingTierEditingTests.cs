@@ -49,7 +49,8 @@ public sealed class AdminBillingTierEditingTests
         tierAdmin = new BillingTierAdminService(
             db,
             TimeProvider.System,
-            Substitute.For<IFeatureFlagCacheService>()
+            Substitute.For<IFeatureFlagCacheService>(),
+            TestUnsubscribedTier.Default()
         );
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserId.Returns(Actor.ToString());
@@ -296,7 +297,7 @@ public sealed class AdminBillingTierEditingTests
         premiumPreview.SampleChannelNames.Should().BeEquivalentTo("pro-comped-to-premium");
 
         // The count is the set the entitlement resolver actually puts on the tier: same rule, no drift.
-        BillingTierService resolver = new(db, TimeProvider.System);
+        BillingTierService resolver = new(db, TimeProvider.System, TestUnsubscribedTier.Default());
         foreach (Channel channel in await db.Channels.ToListAsync())
         {
             EntitlementDto entitlement = (await resolver.GetEntitlementAsync(channel.Id)).Value;
