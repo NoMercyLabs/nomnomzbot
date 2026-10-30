@@ -5235,6 +5235,8 @@
     <string name="pipeline_send_message_reply_target_help">Waar het bericht naartoe gaat: de chat (standaard), de chatoverlay, beide of nergens. Versturen als broadcaster gaat altijd naar de chat.</string>
     <string name="pipeline_send_message_reply_html_help">Toon de overlayregel als gezuiverde HTML. De chat van het platform krijgt altijd platte tekst.</string>
     <string name="pipeline_send_reply_message_help">De antwoordtekst, geplaatst als reactie op het triggerende bericht. Ondersteunt sjabloonvariabelen (bijv. {user.name}).</string>
+    <string name="pipeline_send_whisper_recipient_help">Wie de fluistering krijgt: een Twitch-login, een @vermelding of een Twitch-gebruikers-id. Ondersteunt sjabloonvariabelen. Gebruik {user.name} om de persoon te fluisteren die dit heeft gestart.</string>
+    <string name="pipeline_send_whisper_message_help">Het privébericht om te versturen. Ondersteunt sjabloonvariabelen (bijv. {user.name}). Twitch laat de bot per dag 40 nieuwe mensen fluisteren, en de bot heeft de fluistertoestemming nodig.</string>
     <string name="pipeline_deduct_currency_amount_help">Hoeveel van de valuta van het kanaal van het saldo van de kijker wordt afgetrokken.</string>
     <string name="pipeline_deduct_currency_reason_help">Wordt getoond in de transactiegeschiedenis van de kijker.</string>
     <string name="pipeline_grant_currency_amount_help">Hoeveel van de valuta van het kanaal wordt toegevoegd aan het saldo van de kijker.</string>
@@ -5733,6 +5735,7 @@
     <string name="pipeline_send_discord_notification_description">Plaats een melding in een geconfigureerd Discord-kanaal</string>
     <string name="pipeline_send_message_description">Stuur een bericht naar de chat</string>
     <string name="pipeline_send_reply_description">Reageer op het chatbericht dat dit heeft geactiveerd</string>
+    <string name="pipeline_send_whisper_description">Stuur een privéfluistering naar een gebruiker</string>
     <string name="pipeline_send_webhook_description">Stuur een uitgaand webhookverzoek</string>
     <string name="pipeline_set_counter_description">Zet een benoemde teller op een vaste waarde</string>
     <string name="pipeline_set_pronoun_description">Stel de voornaamwoorden van een kijker in</string>
