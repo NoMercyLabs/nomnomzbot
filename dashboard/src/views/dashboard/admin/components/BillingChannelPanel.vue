@@ -328,6 +328,7 @@ async function confirmAction(): Promise<void> {
     @confirm="confirmEnd"
   />
   <FormDialog
+    v-if="can('billing:write')"
     v-model:open="giftForm"
     :title="t('dashboard.admin.billing.channel.gift')"
     :action="t('dashboard.admin.billing.tiers.continue')"

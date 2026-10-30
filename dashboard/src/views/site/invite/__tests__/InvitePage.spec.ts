@@ -55,7 +55,7 @@ const channelRow = {
   isLive: false,
 };
 
-let invite: typeof sixMonths | typeof unusable = sixMonths;
+let invite: typeof sixMonths | typeof foreverGift | typeof unusable = sixMonths;
 let redeemAnswer: Response = Response.json({
   data: {
     grantedFoundersBadge: false,

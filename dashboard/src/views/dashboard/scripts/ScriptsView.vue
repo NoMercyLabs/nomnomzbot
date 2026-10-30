@@ -146,12 +146,6 @@ function back(): void {
 
 const newOpen = ref(false);
 
-// Why New script is off: a reader may not create, and a plan without code scripts cannot.
-const createReason = computed<string | undefined>(() =>
-  can('code:script:author')
-    ? planGate.reason.value
-    : t('common.readOnly'));
-
 // The test runs of this visit, newest first. A failed run opens its dialog at once.
 const runs = ref<SessionRun[]>([]);
 const failedRun = ref<SessionRun | null>(null);
@@ -193,7 +187,7 @@ function opened(id: string | null): void {
       </Button>
       <PageCreateButton
         :label="$t('dashboard.scripts.new.button')"
-        :disabled-reason="createReason"
+        :disabled-reason="can('code:script:author') ? planGate.reason.value : $t('common.readOnly')"
         @create="newOpen = true"
       />
     </template>

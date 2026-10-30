@@ -254,6 +254,7 @@ async function confirmRevoke(): Promise<void> {
     </ul>
   </PanelCard>
   <FormDialog
+    v-if="can('billing:write')"
     v-model:open="formOpen"
     data-invite-form
     :title="t('dashboard.admin.billing.invites.new')"
@@ -293,7 +294,7 @@ async function confirmRevoke(): Promise<void> {
       {{ summary }}
     </p>
   </FormDialog>
-  <Dialog v-model:open="createdOpen">
+  <Dialog v-if="can('billing:write')" v-model:open="createdOpen">
     <DialogContent data-invite-created class="sm:max-w-130" :show-close-button="false">
       <DialogTitle>{{ t('dashboard.admin.billing.invites.createdTitle', { code: created?.code ?? '' }) }}</DialogTitle>
       <DialogDescription>{{ t('dashboard.admin.billing.invites.createdDescription') }}</DialogDescription>
