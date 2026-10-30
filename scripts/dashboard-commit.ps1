@@ -16,8 +16,8 @@
 #   scripts/dashboard-commit.ps1 -Paths dashboard/src/api/home.ts,dashboard/src/views/dashboard/home -MessageFile msg.txt
 #   -DryRun runs the gate and skips the commit.
 #
-# The gate worktree is kept between runs. Its node_modules is a junction to the main tree's, so it
-# is only ever removed with .claude/scripts/remove-worktree.ps1, which unlinks the junction first.
+# The gate worktree is kept between runs and owns its own node_modules (npm ci, again when the lock
+# file changes). Remove it only with scripts/remove-worktree.ps1.
 
 param(
     [Parameter(Mandatory = $true)][string[]]$Paths,
@@ -64,11 +64,21 @@ if (-not (Test-Path $wt)) {
     git -C $repo worktree add --detach $wt $head | Out-Null
 } else {
     git -C $wt checkout --force --detach $head | Out-Null
-    # Untracked files from the last run only; node_modules is ignored, so its junction is left alone.
+    # Untracked files from the last run only; node_modules is ignored, so its install is left alone.
     git -C $wt clean -fd -- dashboard/src | Out-Null
 }
-if (-not (Test-Path "$wt/dashboard/node_modules")) {
-    New-Item -ItemType Junction -Path "$wt/dashboard/node_modules" -Target "$repo/dashboard/node_modules" | Out-Null
+# The gate worktree owns its packages, the same install CI runs. A link to the main tree's node_modules is
+# refused by restore-guard (2026-10-27: a shared link let another worktree damage a running dev server).
+# Installed once, and again only when the lock file changes.
+$lockHash = (Get-FileHash "$wt/dashboard/package-lock.json").Hash
+$stamp = "$wt/dashboard/node_modules/.gate-lock-hash"
+if (-not (Test-Path $stamp) -or (Get-Content $stamp) -ne $lockHash) {
+    Push-Location "$wt/dashboard"
+    npm ci --no-audit --no-fund | Out-Null
+    $installed = $LASTEXITCODE -eq 0
+    Pop-Location
+    if (-not $installed) { 'NPM CI FAILED in the gate worktree'; exit 1 }
+    Set-Content -Path $stamp -Value $lockHash
 }
 
 foreach ($path in $Paths) {
