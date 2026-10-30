@@ -8,6 +8,17 @@ Stoney's answers (AskUserQuestion, 2026-10-30), which settle section 6:
 - Channels and Tenants: "Merge".
 - Scope: "Yes, build it", in the order of section 5.
 
+Stoney's correction, 2026-10-30, verbatim (it overrides "Channels and Tenants: Merge" above and every "Channel list" row below):
+- "one correction that needs to be made is that users and channels are one and the same entiry, just with different data type access on twitch's side. tenants are people who are actually part of the system so this needs to be corrected in the admin pannels"
+- "so people that are viewers on multiple platforms (and link their twitch and youtube together) are also tennants but without the full onboarding as a streamer"
+
+What this means for the admin panel (Arc's decision, from the code facts below):
+- A **tenant** is a person who joined the system: a streamer (full onboarding, owns a `Channel` row) or a viewer who signed in, for example to link Twitch and YouTube (a `User` with an `AuthSession`, no `Channel`). Today `admin/users` already selects exactly this set (`AdminService.cs:189-197`); `admin/tenants` selects only `Channel` rows (`PlatformAdminService.cs:69`), so it misses the linked viewer.
+- A user and their channel are one row in the panel, never two lists. The Channels page and the Users page become one **Tenants** list. Each row shows the person, their linked platforms, and, for a streamer, the channel state (live, status, tier, onboarded).
+- The console opens per tenant. Channel tabs (runs, TTS, billing, limits, people, data) show only for a streamer; a linked viewer's console shows identities, sessions and their data.
+- A person who only chats is not a tenant. The Support person search keeps finding them.
+- Scope is the admin panel. The `User` and `Channel` tables stay as they are.
+
 Stoney, 2026-10-30, verbatim: "i tried to debug anda_six's issues myself but i have no tools for this like i asked for. impersonation does nothing on the new ui. i need highly detailed and informative and feature rich tools in the admin pannel".
 Stoney, 2026-10-30, verbatim, on three layouts for one channel page: "Too short sighted view of the scope".
 
@@ -222,7 +233,7 @@ Source words: an endpoint or table, or **missing: needs ...** (gap id in section
 
 | Page | Purpose | Shows | Drill-downs | Actions | Source | Status |
 |---|---|---|---|---|---|---|
-| Channel list (merge Channels + Tenants) | Find a channel and see its state at a glance. | Name, live, status (active, suspended), tier, mode, owner, members, created, **problem badges** (failing runs, broken EventSub, reauth needed, over limit). Filters: live, status, tier, "has problems". | Row to channel console. | Suspend, reinstate (exist). Act as (link). | `admin/tenants`, `admin/channels` exist. Problem badges: missing (G3). | thin (two pages, no problem signal, fact 12) |
+| Tenant list (one list for Channels + Users, Stoney's correction above) | Find anyone who joined and see their state at a glance. | Person, kind (streamer or viewer), linked platforms, and for a streamer: live, status (active, suspended), tier, onboarded, members, **problem badges** (failing runs, broken EventSub, reauth needed, over limit). Last active, created. Filters: kind, live, status, tier, "has problems". | Row to tenant console. | Suspend, reinstate (exist). Act as (link). | `admin/users` selects the right set; `admin/tenants` returns channel rows only. Problem badges: missing (G3). | thin (two pages, linked viewers missing from the channel list, no problem signal) |
 | Channel console: Summary | One screen that says what is wrong with this channel and why. | "Needs attention" list (Stripe-style actions required). Health cards: bot in chat, each platform connection, EventSub topics, integrations, last failed run, usage against each limit, tier. Last 10 failures across runs and deliveries. | Each card to its tab. Each failure to its run or delivery. | Act as (link). Copy link. | missing: needs the admin channel read family (G1) | missing (`ChannelDetailPanel.vue` shows 8 facts only) |
 | Channel console: Runs | Every pipeline, command, script and timer run of this channel. | Time, trigger kind, pipeline, who triggered, status, duration, host calls, error. Filters: failures only, pipeline, trigger, time, error text. | Row to run detail. Pipeline name to the Content tab item. | Re-run as test (see run detail). | `channels/{id}/pipeline-executions` (has `failuresOnly`, `pipelineId`). Admin access: G1. | missing |
 | Channel console: Events | What happened in this channel, in order. | Journal rows: time, type, source, actor, position. Filters: type (wildcard), source, actor, time. | Row to event detail. Actor to person. | Replay from here (pre-fills Event replay). Live tail toggle. | `event-store/channels/{id}/journal`. Admin access: G1. | missing |
@@ -242,7 +253,7 @@ Source words: an endpoint or table, or **missing: needs ...** (gap id in section
 
 | Page | Purpose | Shows | Drill-downs | Actions | Source | Status |
 |---|---|---|---|---|---|---|
-| People list (merge Users + Support people search) | Find a person on any platform. | Name, login, platform, identities, role, channels owned, last active, flags (anonymized, platform staff). | Row to person console. | none | `admin/users`, `admin/support/people` | thin (two pages) |
+| People search (Support people search; tenants live in the Tenant list) | Find anyone the bot has seen, tenant or chatter. | Name, login, platform, identities, role, channels owned, last active, flags (anonymized, platform staff). | Row to person console. | none | `admin/users`, `admin/support/people` | thin (two pages) |
 | Person console: Summary | Who this person is across the platform. | Identities, platform connections, channels owned and moderated, IAM roles, entitlements, trust scores, last seen. | Channel to channel console. | Act as (link). | `admin/support/people/{id}` | exists (support desk, needs a URL) |
 | Person console: History | What this person did and what was done to them, everywhere. | Journal rows by actor across channels; moderation history; community standings. | Event to event detail. Channel to console. | none | `admin/support/people/{id}/history` (journal by actor) | exists (needs filters: type, channel, time) |
 | Person console: Runs | Runs this person triggered. | Same columns as the runs explorer, filtered by person. | Run detail. | none | missing: runs explorer with `triggeredBy` (G1/G4 family) | missing |

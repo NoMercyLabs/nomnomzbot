@@ -37,7 +37,8 @@ The bot **types** in chat via each platform's API (Twitch = Helix + EventSub; IR
 
 | Canonical | Meaning | Retired aliases |
 |---|---|---|
-| **channel** (= tenant, `BroadcasterId`) | the streamer's one channel spanning platforms | "tenant" in prose, "broadcaster" for the row |
+| **channel** (`BroadcasterId`) | the streamer's one channel spanning platforms; on a platform a user and their channel are one entity (Stoney, 2026-10-30: "users and channels are one and the same entiry, just with different data type access on twitch's side"), so no surface lists them as two kinds of thing | "broadcaster" for the row |
+| **tenant** | a person who joined the system: a streamer (full onboarding, owns a channel) or a viewer who signed in, for example to link platforms (Stoney, 2026-10-30: "tenants are people who are actually part of the system"; "people that are viewers on multiple platforms (and link their twitch and youtube together) are also tennants but without the full onboarding as a streamer"). A person who only chats is not a tenant. Code names such as the RLS tenant id stay as they are. | "tenant" for a channel row |
 | **platform connection** | one platform's presence under a channel (Twitch/Kick/YouTube/X) | "platform channel", "sibling channel", "presence" |
 | **broadcaster** | the human role (owner of the channel) | — |
 | **viewer** (= `User`) | one human; `UserIdentity(Provider, ProviderUserId)` links platforms | "chatter", "participant" (UI rung name only) |
