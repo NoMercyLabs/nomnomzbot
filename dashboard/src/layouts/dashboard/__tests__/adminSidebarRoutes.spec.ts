@@ -39,7 +39,12 @@ const sidebarRoutes = adminNav
 const isComingSoon = (route: RouteRecordRaw): boolean => Boolean(route.meta?.comingSoon);
 
 const adminRoutes = children.filter((child) => child.meta?.navMode === 'admin');
-const builtAdminPages = adminRoutes.filter((route) => !isComingSoon(route));
+
+// A page that opens from a sidebar page (its name is the entry's name plus a suffix) lights that entry; it has no entry of its own.
+const isChildPage = (route: RouteRecordRaw): boolean =>
+  sidebarRoutes.some((entry) => String(route.name).startsWith(`${entry}-`));
+
+const builtAdminPages = adminRoutes.filter((route) => !isComingSoon(route) && !isChildPage(route));
 const comingSoonNames = adminRoutes.filter(isComingSoon).map((route) => String(route.name));
 const builtSidebarRoutes = sidebarRoutes.filter((name) => !comingSoonNames.includes(name));
 

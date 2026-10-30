@@ -268,7 +268,7 @@ describe('folder layout', () => {
     const marked = (path: string): boolean => {
       const text: string = readFileSync(join(src, path), 'utf8');
 
-      return /<(div|section)\b[^>]*\bdata-page-body\b/.test(text);
+      return /<(div|section|PageBody)\b[^>]*\bdata-page-body\b/.test(text);
     };
 
     const unmarked = bodies.filter((path) =>
@@ -1171,7 +1171,6 @@ const handSearchInHeadAllowlist = [
   // Admin and people lists, and the permissions area list: head searches built by hand (phase 2).
   'views/dashboard/admin/AdminChannelsView.vue',
   'views/dashboard/admin/AdminSupportView.vue',
-  'views/dashboard/admin/AdminTenantsView.vue',
   'views/dashboard/admin/AdminUsersView.vue',
   'views/dashboard/admin/components/TenantMembersPanel.vue',
   'views/dashboard/people/PeopleView.vue',

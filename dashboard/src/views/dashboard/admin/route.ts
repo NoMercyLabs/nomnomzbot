@@ -80,16 +80,37 @@ export const dashboardAdminEventSubHealthRoute = {
     ),
 } as const satisfies RouteRecordRaw;
 
-export const dashboardAdminTenantsRoute = {
-  path: 'admin/tenants',
-  name: 'dashboard-admin-tenants',
+export const dashboardAdminChannelConsoleRoute = {
+  path: 'admin/channels/:channelId/:tab?',
+  name: 'dashboard-admin-channels-console',
   meta: { navMode: 'admin' },
   beforeEnter: adminOnly,
   component: () =>
     loadPage(
-      () => import('./AdminTenantsView.vue'),
+      () => import('./AdminChannelConsoleView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
     ),
+} as const satisfies RouteRecordRaw;
+
+// The Tenants page became the Channels list, so its address and its name keep working: the query goes along,
+// and an old ?tenant= link opens that channel's console. A redirect never renders, so it has no
+// sidebar mode and no guard; the page it lands on has both.
+export function tenantsRedirect(to: Pick<RouteLocationNormalized, 'query'>): RouteLocationRaw {
+  const { tenant, ...query } = to.query;
+
+  return typeof tenant === 'string'
+    ? {
+        name: 'dashboard-admin-channels-console',
+        params: { channelId: tenant },
+        query,
+      }
+    : { name: 'dashboard-admin-channels', query };
+}
+
+export const dashboardAdminTenantsRoute = {
+  path: 'admin/tenants',
+  name: 'dashboard-admin-tenants',
+  redirect: tenantsRedirect,
 } as const satisfies RouteRecordRaw;
 
 export const dashboardAdminWebhookDeliveriesRoute = {

@@ -26,7 +26,24 @@ import { useNavigation, type Navigation } from '../useNavigation';
 // The ledger is the mockup navigation (base/shell.js NAV and 4-settings.html), extracted by script.
 type Ledger = Record<NavMode, { group: string; entries: { label: string; icon: string }[] }[]>;
 
-const planned = ledger as Ledger;
+const mockup = ledger as Ledger;
+
+// Mockup pages the owner merged into another page (2026-10-30, "Merge (Recommended)"): the Tenants page is
+// the Channels list now, so the sidebar has no Tenants entry.
+const mergedAway: ReadonlySet<string> = new Set(['Tenants']);
+
+function withoutMerged(groups: Ledger[NavMode]): Ledger[NavMode] {
+  return groups.map((group) => ({
+    ...group,
+    entries: group.entries.filter((entry) => !mergedAway.has(entry.label)),
+  }));
+}
+
+const planned: Ledger = {
+  dashboard: withoutMerged(mockup.dashboard),
+  admin: withoutMerged(mockup.admin),
+  settings: withoutMerged(mockup.settings),
+};
 // The viewer pages sit under /me/:channel with their own navigation (views/viewer/nav), not in a sidebar here.
 const MODES = ['dashboard', 'admin', 'settings'] as const satisfies readonly NavMode[];
 
@@ -127,13 +144,13 @@ beforeEach(() => {
 afterEach(() => localStorage.clear());
 
 describe('every planned page is reachable from its sidebar', () => {
-  it('plans 65 sidebar pages in the ledger', () => {
+  it('plans 64 sidebar pages in the ledger', () => {
     const total = MODES.reduce(
       (sum, mode) => sum + planned[mode].reduce((n, group) => n + group.entries.length, 0),
       0,
     );
 
-    expect(total).toBe(65);
+    expect(total).toBe(64);
   });
 
   for (const mode of MODES) {

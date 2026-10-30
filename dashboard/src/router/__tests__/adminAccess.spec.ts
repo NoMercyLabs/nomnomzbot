@@ -104,6 +104,7 @@ describe('the platform admin route table', () => {
     const pages = dashboardRoutes.children ?? [];
     const strays = pages
       .filter((route) => route.path.startsWith('admin/'))
+      .filter((route) => route.redirect === undefined)
       .filter((route) => route.meta?.navMode !== 'admin')
       .map((route) => String(route.name));
 

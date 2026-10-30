@@ -21,7 +21,11 @@ import { dashboardRoutes } from '@/router/dashboard';
 
 import AdminChannelsView from '../AdminChannelsView.vue';
 import en from '../i18n/en.json';
-import { dashboardAdminChannelsRoute } from '../route';
+import {
+  dashboardAdminChannelConsoleRoute,
+  dashboardAdminChannelsRoute,
+  dashboardAdminTenantsRoute,
+} from '../route';
 
 type Options = { params?: { query?: Record<string, unknown> } };
 type Call = { path: string; query: Record<string, unknown> };
@@ -52,6 +56,12 @@ const tenant = (
   ...over,
 }) as const satisfies Record<string, unknown>;
 
+// The signed-in admin holds every platform key, so the Act as button shows. The route guard keeps the real check.
+vi.mock('@/composables/usePlatformCan', async (importOriginal) => ({
+  ...(await importOriginal<Record<string, unknown>>()),
+  usePlatformCan: () => ({ known: { value: true }, can: () => true }),
+}));
+
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
@@ -63,31 +73,25 @@ vi.mock('@/api/client', () => ({
 
       if (path.endsWith('/admin/billing/tiers')) {
         return {
-          data: { data: [{
-            id: 'k1',
-            key: 'pro',
-            displayName: 'Pro plan',
-          }] },
+          data: { data: [
+            {
+              id: 'k1',
+              key: 'pro',
+              displayName: 'Pro plan',
+            },
+            {
+              id: 'k2',
+              key: 'free',
+              displayName: 'Free plan',
+            },
+          ] },
           response: { status: 200, ok: true },
         };
       }
 
-      if (path.endsWith('/admin/tenants/{broadcasterId}')) {
+      if (path.endsWith('/support-contact')) {
         return {
-          data: {
-            data: {
-              id: 't1',
-              name: 'stoney_eagle',
-              twitchChannelId: 'tw-t1',
-              status: 'active',
-              billingTierKey: 'pro',
-              deploymentMode: 'selfhost',
-              ownerUserId: 'u1',
-              ownerDisplayName: 'Stoney Owner',
-              membershipCount: 4,
-              createdAt: '2026-06-29T10:00:00Z',
-            },
-          },
+          data: { data: { url: 'https://example.com/help' } },
           response: { status: 200, ok: true },
         };
       }
@@ -116,7 +120,7 @@ beforeEach(() => {
   total = 2;
 
   rowsOnPage = [
-    tenant('t1', 'stoney_eagle', { isLive: true }),
+    tenant('t1', 'stoney_eagle', { isLive: true, billingTierKey: 'pro' }),
     tenant('t2', 'quiet_one', { status: 'suspended', createdAt: '2026-05-01T10:00:00Z' }),
   ];
 
@@ -154,8 +158,8 @@ async function open(start: string = '/app/admin/channels'): Promise<void> {
         component: blank,
       },
       {
-        path: '/app/admin/tenants',
-        name: 'dashboard-admin-tenants',
+        path: '/app/admin/channels/:channelId/:tab?',
+        name: 'dashboard-admin-channels-console',
         component: blank,
       },
     ],
@@ -254,28 +258,59 @@ describe('AdminChannelsView', () => {
     expect(lastQuery().Page).toBe(1);
   });
 
-  it('opens the channel detail with the tier, owner and members when a row is clicked', async () => {
+  it('names the tier of each channel by its plan name, never by its key', async () => {
     await open();
-    rows()[0]!.click();
-    await settle();
 
-    const detail = document.body.querySelector('[data-channel-detail]') as HTMLElement;
-
-    expect(router.currentRoute.value.query.channel).toBe('t1');
-    expect(detail.textContent).toContain('stoney_eagle');
-    expect(detail.textContent).toContain('Stoney Owner');
-    expect(detail.textContent).toContain('Pro plan');
-    expect(detail.textContent).toContain('Self-hosted');
-    expect(detail.textContent).not.toContain('selfhost');
-    expect(detail.textContent).not.toContain('tw-t1');
-    expect(detail.textContent).toContain('4');
-    expect(detail.querySelector('a[href*="tenant=t1"]')).not.toBeNull();
+    expect(rows()[0]!.textContent).toContain('Pro plan');
+    expect(rows()[1]!.textContent).toContain('Free plan');
+    expect(text()).not.toContain('>pro<');
   });
 
-  it('opens the detail of the channel named in the address', async () => {
-    await open('/app/admin/channels?channel=t1');
+  it('links the name of each channel to its console', async () => {
+    await open();
 
-    expect(document.body.querySelector('[data-channel-detail]')).not.toBeNull();
+    const links = rows().map((row) => row.querySelector('a')!.getAttribute('href'));
+
+    expect(links).toEqual(['/app/admin/channels/t1', '/app/admin/channels/t2']);
+  });
+
+  it('opens the console of the channel when its row is clicked', async () => {
+    await open();
+    rows()[1]!.click();
+    await settle();
+
+    expect(router.currentRoute.value.name).toBe('dashboard-admin-channels-console');
+    expect(router.currentRoute.value.params.channelId).toBe('t2');
+  });
+
+  it('keeps the Act as button in the row, and it opens the dialog without leaving the list', async () => {
+    await open();
+    rows()[0]!.querySelector<HTMLElement>('[data-act-as]')!.click();
+    await settle();
+
+    expect(router.currentRoute.value.name).toBe('dashboard-admin-channels');
+
+    expect(document.body.querySelector('[role="dialog"]')!.textContent).toContain(
+      'Act as someone in stoney_eagle',
+    );
+  });
+
+  it('keeps the support contact form under the list', async () => {
+    await open();
+
+    const field = document.body.querySelector<HTMLInputElement>(
+      'input[placeholder="https://example.com/support"]',
+    );
+
+    expect(text()).toContain('Support contact');
+    expect(field!.value).toBe('https://example.com/help');
+  });
+
+  it('starts with the search of the address, so a copied link reopens the same list', async () => {
+    await open('/app/admin/channels?search=stoney');
+
+    expect((document.body.querySelector('input[type="search"]') as HTMLInputElement).value).toBe('stoney');
+    expect(calls.some((call) => call.query.search === 'stoney')).toBe(true);
   });
 
   it('sends the chosen status as the status filter', async () => {
@@ -394,5 +429,60 @@ describe('admin channels route', () => {
     });
 
     expect(real.hasRoute('dashboard-admin-channels')).toBe(true);
+  });
+});
+
+describe('admin tenants route', () => {
+  const blank = { template: '<div />' };
+  const testRouter = (): Router =>
+    createRouter({
+      history: createMemoryHistory(),
+      routes: [
+        { ...dashboardAdminTenantsRoute, path: '/app/admin/tenants' },
+        { ...dashboardAdminChannelsRoute, path: '/app/admin/channels' },
+        { ...dashboardAdminChannelConsoleRoute, path: '/app/admin/channels/:channelId/:tab?' },
+        {
+          path: '/',
+          name: 'dashboard-home',
+          component: blank,
+        },
+      ],
+    });
+
+  beforeEach(() => {
+    queryClient.setQueryData(['auth', 'me'], {
+      id: 'u1',
+      isAdmin: true,
+      platformPermissions: ['tenant:read'],
+    });
+  });
+
+  it('sends the old address to the merged list with the same query', async () => {
+    const redirected = testRouter();
+
+    await redirected.push('/app/admin/tenants?search=stoney&status=suspended');
+
+    expect(redirected.currentRoute.value.name).toBe('dashboard-admin-channels');
+
+    expect(redirected.currentRoute.value.fullPath).toBe(
+      '/app/admin/channels?search=stoney&status=suspended',
+    );
+  });
+
+  it('sends the old route name to the merged list too', async () => {
+    const redirected = testRouter();
+
+    await redirected.push({ name: 'dashboard-admin-tenants', query: { search: 'quiet' } });
+
+    expect(redirected.currentRoute.value.fullPath).toBe('/app/admin/channels?search=quiet');
+  });
+
+  it('sends an old link to one tenant to the console of that channel', async () => {
+    const redirected = testRouter();
+
+    await redirected.push('/app/admin/tenants?tenant=t1');
+
+    expect(redirected.currentRoute.value.name).toBe('dashboard-admin-channels-console');
+    expect(redirected.currentRoute.value.params.channelId).toBe('t1');
   });
 });

@@ -46,11 +46,14 @@ import { useTime } from '@/composables/useTime';
 import TierLengthFields from './TierLengthFields.vue';
 import { useTierLength } from './tierLength';
 
+// A channel console passes its channel, which fixes the id; the Billing page leaves it out and types one.
+const props = defineProps<{ channel?: string }>();
+
 const { t } = useI18n();
 const { can } = usePlatformCan();
 const time = useTime();
 
-const typed = ref('');
+const typed = ref(props.channel ?? '');
 const channelId = refDebounced(typed, 300);
 const invoices = useBillingInvoices(channelId);
 const grants = useBillingGrants(channelId);
@@ -236,6 +239,7 @@ async function confirmAction(): Promise<void> {
   >
     <template #actions>
       <Input
+        v-if="channel === undefined"
         v-model="typed"
         data-channel-id
         class="w-56"

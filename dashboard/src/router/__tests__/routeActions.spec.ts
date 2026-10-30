@@ -22,7 +22,9 @@ const checkedByOtherWork = ['admin', 'settings'];
 function gatedRoutes(): RouteRecordRaw[] {
   const pages = dashboardRoutes.children ?? [];
 
-  return pages.filter((route) => !checkedByOtherWork.includes(route.meta?.navMode ?? ''));
+  return pages
+    .filter((route) => route.redirect === undefined)
+    .filter((route) => !checkedByOtherWork.includes(route.meta?.navMode ?? ''));
 }
 
 function sidebarEntries(): ReadonlyMap<string, NavEntry> {

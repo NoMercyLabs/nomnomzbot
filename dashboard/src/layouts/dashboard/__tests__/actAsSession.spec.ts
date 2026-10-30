@@ -202,7 +202,7 @@ async function load(fragment = ''): Promise<void> {
   const { i18n } = await import('@/i18n');
   const ActAsExit: Component = (await import('../ActAsExit.vue')).default;
   const ProfileMenu: Component = (await import('../ProfileMenu.vue')).default;
-  const AdminTenantsView: Component = (await import('@/views/dashboard/admin/AdminTenantsView.vue')).default;
+  const AdminChannelsView: Component = (await import('@/views/dashboard/admin/AdminChannelsView.vue')).default;
   const AdminAccessView: Component = (await import('@/views/dashboard/admin/AdminAccessView.vue')).default;
 
   i18n.global.mergeLocaleMessage('en', adminEn);
@@ -218,13 +218,13 @@ async function load(fragment = ''): Promise<void> {
         component: { render: () => h('p', 'home') },
       },
       {
-        path: '/admin/tenants',
-        name: 'dashboard-admin-tenants',
-        component: AdminTenantsView,
-      },
-      {
         path: '/admin/channels',
         name: 'dashboard-admin-channels',
+        component: AdminChannelsView,
+      },
+      {
+        path: '/admin/channels/:channelId/:tab?',
+        name: 'dashboard-admin-channels-console',
         component: { render: () => null },
       },
       {
@@ -259,7 +259,7 @@ async function load(fragment = ''): Promise<void> {
 
   await router.push(server.acting
     ? '/'
-    : '/admin/tenants?tenant=T1');
+    : '/admin/channels');
 
   await settle();
 }
@@ -379,7 +379,7 @@ describe('acting as a channel person from the admin panel', () => {
 
     expect(server.seen).toContain(`POST /api/v1/auth/impersonation/exit Bearer ${actToken}`);
     expect(server.seen).toContain(`GET /api/v1/auth/me Bearer ${adminToken}`);
-    expect(router.currentRoute.value.fullPath).toBe('/admin/tenants?tenant=T1');
+    expect(router.currentRoute.value.fullPath).toBe('/admin/channels');
     expect(localStorage.getItem('nnz.channel')).toBe('');
     expect(exits()).toHaveLength(0);
     expect(text()).toContain('Stoney_Eagle');
@@ -401,7 +401,7 @@ describe('acting as a channel person from the admin panel', () => {
 
     expect(dialog().textContent).not.toContain('failed');
     expect(exits()).toHaveLength(0);
-    expect(router.currentRoute.value.name).toBe('dashboard-admin-tenants');
+    expect(router.currentRoute.value.name).toBe('dashboard-admin-channels');
   });
 
   it('acts from the Access page through the same dialog, picking the channel by name', async () => {

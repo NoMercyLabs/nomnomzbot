@@ -64,13 +64,12 @@ describe('the row a side panel opens into', () => {
   });
 });
 
-// The six pages that once forced a sheet at every width. A page that opens a side panel puts it in the shared row.
+// The five pages that once forced a sheet at every width. A page that opens a side panel puts it in the shared row.
 const pages = import.meta.glob<string>(
   [
     '/src/views/dashboard/music/MusicView.vue',
     '/src/views/dashboard/media-share/MediaShareView.vue',
     '/src/views/dashboard/overlays/OverlaysView.vue',
-    '/src/views/dashboard/admin/AdminChannelsView.vue',
     '/src/views/dashboard/admin/AdminUsersView.vue',
     '/src/views/dashboard/settings/webhooks/WebhooksView.vue',
   ],
@@ -82,8 +81,8 @@ const pages = import.meta.glob<string>(
 );
 
 describe('the pages whose side panel was a sheet at every width', () => {
-  it('covers all six pages', () => {
-    expect(Object.keys(pages)).toHaveLength(6);
+  it('covers all five pages', () => {
+    expect(Object.keys(pages)).toHaveLength(5);
   });
 
   it.each(Object.entries(pages))('%s opens its panel in the shared row', (_path, source) => {

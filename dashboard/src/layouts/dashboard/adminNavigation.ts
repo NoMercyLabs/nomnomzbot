@@ -10,7 +10,6 @@
 // -----------------------------------------------------------------------------
 
 import BarChart from '~icons/nnz/bar-chart';
-import Building from '~icons/nnz/building';
 import CalendarTimed from '~icons/nnz/calendar-timed';
 import ChatBot from '~icons/nnz/chat-bot';
 import ClockBackward from '~icons/nnz/clock-backward';
@@ -59,7 +58,6 @@ export const adminNav: readonly NavGroup[] = [
     entries: [
       navEntry('dashboard-admin-channels', 'admin.channels', Tv),
       navEntry('dashboard-admin-users', 'admin.users', Users),
-      navEntry('dashboard-admin-tenants', 'admin.tenants', Building),
       navEntry('dashboard-admin-support', 'admin.support', Headset),
     ],
   },

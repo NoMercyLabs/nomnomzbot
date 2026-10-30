@@ -9,8 +9,9 @@
   SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 -->
 <script setup lang="ts">
-// The platform admin's channel registry: a searchable, filterable, paged table. The bot pages and sorts
-// (newest first); a filter or a search always goes back to page 1. The channel in view is ?channel=.
+// The platform admin's channel list (the old Channels and Tenants pages in one): a searchable, filterable,
+// paged table. The bot pages and sorts (newest first); a filter or a search always goes back to page 1.
+// A row opens the channel's console. ?search= starts the search, so a copied link reopens the same list.
 import { refDebounced, useLocalStorage } from '@vueuse/core';
 import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -21,17 +22,16 @@ import { ApiError } from '@/api/errors';
 import FilterBar from '@/components/layout/FilterBar.vue';
 import type { FilterOption } from '@/components/layout/filterOption';
 import PageActionFooter from '@/components/layout/PageActionFooter.vue';
+import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SearchField from '@/components/layout/SearchField.vue';
-import PanelBeside from '@/components/layout/PanelBeside.vue';
-import SidePanel from '@/components/layout/SidePanel.vue';
 import { useScreenFrom } from '@/composables/useLayout';
 import { usePanelState } from '@/composables/usePanelState';
 
 import AdminPager from './components/AdminPager.vue';
-import ChannelDetailPanel from './components/ChannelDetailPanel.vue';
 import ChannelsTable from './components/ChannelsTable.vue';
+import SupportContactPanel from './components/SupportContactPanel.vue';
 
 const PAGE_SIZE: number = 25;
 const SEARCH_PAUSE_MS: number = 300;
@@ -41,7 +41,9 @@ const tablet = useScreenFrom('tablet');
 const route = useRoute();
 const router = useRouter();
 
-const search = ref('');
+const search = ref(typeof route.query.search === 'string'
+  ? route.query.search
+  : '');
 const typed = refDebounced(search, SEARCH_PAUSE_MS);
 const status = useLocalStorage<string>('nnz.admin.status', 'all');
 const live = useLocalStorage<string>('nnz.admin.live', 'all');
@@ -90,27 +92,8 @@ const listError = computed<string>(() =>
     : t('dashboard.admin.list.error'),
 );
 
-const selectedId = computed<string>(() =>
-  typeof route.query.channel === 'string'
-    ? route.query.channel
-    : '',
-);
-
-const selected = computed<AdminTenant | null>(() =>
-  rows.value.find((row) => row.id === selectedId.value) ?? null);
-
-// The drawer is open while a channel of this page is in the address; closing it drops the channel from there.
-const detailOpen = computed<boolean>({
-  get: () => selected.value !== null,
-  set: (open) => {
-    if (!open) {
-      void router.push({ query: { ...route.query, channel: undefined } });
-    }
-  },
-});
-
-function pick(row: AdminTenant): void {
-  void router.push({ query: { ...route.query, channel: row.id } });
+function openConsole(row: AdminTenant): void {
+  void router.push({ name: 'dashboard-admin-channels-console', params: { channelId: row.id } });
 }
 </script>
 
@@ -146,40 +129,34 @@ function pick(row: AdminTenant): void {
       </div>
     </template>
   </PageHeader>
-  <PanelBeside>
-    <div data-page-body class="flex min-h-0 min-w-0 flex-1 flex-col gap-3 p-6 max-md:p-4">
-      <PanelCard
-        tier="lead"
-        class="min-h-80 min-w-0 flex-1"
-        :title="$t('dashboard.admin.list.title')"
-        :description="$t('dashboard.admin.list.newestFirst')"
-        :state="panelState"
-        :empty-text="$t('dashboard.admin.list.empty')"
-        :error-text="listError"
-        @retry="tenants.refetch()"
-      >
-        <template #actions>
-          <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
-          <SearchField
-            v-model="search"
-            class="-mr-2 w-52 rounded-[12px]"
-            :placeholder="$t('dashboard.admin.search')"
-          />
-        </template>
-        <ChannelsTable :rows="rows" :selected-id="selectedId" @pick="pick" />
-        <template v-if="tablet" #footer>
-          <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
-        </template>
-      </PanelCard>
-      <!-- On a phone the list takes its full height and the pager rides in the sticky page footer. -->
-      <PageActionFooter v-if="!tablet">
+  <PageBody data-page-body>
+    <PanelCard
+      tier="lead"
+      class="min-h-80 min-w-0 flex-1"
+      :title="$t('dashboard.admin.list.title')"
+      :description="$t('dashboard.admin.list.newestFirst')"
+      :state="panelState"
+      :empty-text="$t('dashboard.admin.list.empty')"
+      :error-text="listError"
+      @retry="tenants.refetch()"
+    >
+      <template #actions>
+        <!-- Concentric with the panel corner: 8px from the top and the right, so a 20 - 8 = 12px radius. -->
+        <SearchField
+          v-model="search"
+          class="-mr-2 w-52 rounded-[12px]"
+          :placeholder="$t('dashboard.admin.search')"
+        />
+      </template>
+      <ChannelsTable :rows="rows" @open="openConsole" />
+      <template v-if="tablet" #footer>
         <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
-      </PageActionFooter>
-    </div>
-    <template #panel>
-      <SidePanel v-model:open="detailOpen" :label="$t('dashboard.admin.detail.title')">
-        <ChannelDetailPanel v-if="selected" :channel="selected" />
-      </SidePanel>
-    </template>
-  </PanelBeside>
+      </template>
+    </PanelCard>
+    <!-- On a phone the list takes its full height and the pager rides in the sticky page footer. -->
+    <PageActionFooter v-if="!tablet">
+      <AdminPager :page="page" :pages="pages" @previous="page -= 1" @next="page += 1" />
+    </PageActionFooter>
+    <SupportContactPanel />
+  </PageBody>
 </template>

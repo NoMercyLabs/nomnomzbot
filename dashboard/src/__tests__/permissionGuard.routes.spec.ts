@@ -18,7 +18,11 @@ import { dashboardChannelRoutes, dashboardRoutes } from '../router/dashboard';
 
 // Stoney 2026-10-18: "every tab and pannel and button and page needs to have proper permission checks before being shown".
 // A page is guarded when it names a channel action key, opens itself on purpose, or is an admin page behind adminOnly.
+// A redirect shows nothing; the page it lands on carries the guard.
 function isGuarded(route: RouteRecordRaw): boolean {
+  if (route.redirect !== undefined)
+    return true;
+
   if (route.meta?.action !== undefined || route.meta?.open === true)
     return true;
 

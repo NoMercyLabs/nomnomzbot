@@ -15,6 +15,7 @@
         "channel": "Channel",
         "status": "Status",
         "live": "Live",
+        "tier": "Tier",
         "created": "Created"
       },
       "status": {
@@ -50,24 +51,59 @@
         "error": "The channel list could not load.",
         "forbidden": "You may not see the channel list."
       },
+      "console": {
+        "title": "Channel console",
+        "back": "All channels",
+        "error": "The channel could not load.",
+        "copyLink": "Copy link",
+        "tabsLabel": "Channel sections",
+        "tabs": {
+          "summary": "Summary",
+          "billing": "Billing",
+          "people": "People",
+          "limits": "Limits",
+          "audit": "Audit",
+          "data": "Data"
+        },
+        "summary": {
+          "healthTitle": "Health",
+          "healthDescription": "How the channel's runs went in the last 24 hours.",
+          "runs": "Runs, last 24 hours",
+          "runsHint": "Every command, pipeline and timer run.",
+          "failed": "Failed runs, last 24 hours",
+          "failedHint": "{count} of {total} runs failed.",
+          "noneFailed": "No run failed.",
+          "lastFailure": "Last failure",
+          "noFailure": "No failed run on record.",
+          "failedAt": "Failed {when}",
+          "error": "The summary could not load.",
+          "factsTitle": "Channel",
+          "factsDescription": "What the bot holds about this channel."
+        },
+        "audit": {
+          "title": "Audit trail",
+          "description": "What operators and the system did to this channel, newest first.",
+          "empty": "No audit entry for this channel yet.",
+          "error": "The audit trail could not load."
+        },
+        "data": {
+          "title": "Lifecycle",
+          "description": "Suspend, reinstate, export, migrate or erase this channel. Each action asks for a reason and is audited."
+        }
+      },
       "detail": {
-        "title": "Channel",
-        "description": "What the bot holds about this channel.",
         "owner": "Owner",
         "status": "Status",
         "live": "Stream",
         "tier": "Billing tier",
         "mode": "Deployment mode",
         "members": "Members",
-        "twitchId": "Twitch channel ID",
         "created": "Created",
         "suspendedReason": "Suspended because",
         "modes": {
           "selfhost": "Self-hosted",
           "saas": "Hosted service (restricted)"
-        },
-        "restricted": "You may not earn money with NomNomzBot: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is always free.",
-        "manage": "Manage this channel"
+        }
       },
       "supportContact": {
         "title": "Support contact",
@@ -109,9 +145,6 @@
         "panelDescription": "Open a time-boxed support session for a channel and see the dashboard as one of its people."
       },
       "tenants": {
-        "title": "Tenants",
-        "pick": "Pick a tenant to manage it.",
-        "error": "The tenant could not load.",
         "restricted": "You may not earn money with NomNomzBot: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is always free.",
         "justification": "Justification",
         "justificationRequired": "Enter a justification. It is kept in the audit log.",
@@ -123,15 +156,6 @@
           "remigrate": "Re-run migrations",
           "export": "Export data",
           "erase": "Erase channel"
-        },
-        "facts": {
-          "title": "Tenant",
-          "owner": "Owner",
-          "status": "Status",
-          "tier": "Billing tier",
-          "mode": "Deployment mode",
-          "members": "Members",
-          "suspendedReason": "Suspended because"
         },
         "suspend": {
           "title": "Suspend {name}",

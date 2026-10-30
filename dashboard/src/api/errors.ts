@@ -59,6 +59,7 @@ export const apiOperations = {
   'action-required-dismiss': 'actionRequired',
   'admin tenants': 'admin',
   'admin tenant': 'admin',
+  'admin channel diagnostics': 'admin',
   'admin stats': 'admin',
   'admin users': 'admin',
   'support people': 'admin',

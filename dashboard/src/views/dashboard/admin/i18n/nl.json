@@ -15,6 +15,7 @@
         "channel": "Kanaal",
         "status": "Status",
         "live": "Live",
+        "tier": "Niveau",
         "created": "Aangemaakt"
       },
       "status": {
@@ -50,24 +51,59 @@
         "error": "De kanaallijst kon niet laden.",
         "forbidden": "Je mag de kanaallijst niet zien."
       },
+      "console": {
+        "title": "Kanaalconsole",
+        "back": "Alle kanalen",
+        "error": "Het kanaal kon niet laden.",
+        "copyLink": "Kopieer link",
+        "tabsLabel": "Onderdelen van het kanaal",
+        "tabs": {
+          "summary": "Overzicht",
+          "billing": "Facturatie",
+          "people": "Mensen",
+          "limits": "Limieten",
+          "audit": "Auditlog",
+          "data": "Data"
+        },
+        "summary": {
+          "healthTitle": "Gezondheid",
+          "healthDescription": "Hoe de runs van het kanaal de afgelopen 24 uur gingen.",
+          "runs": "Runs, laatste 24 uur",
+          "runsHint": "Elke commando-, pipeline- en timerrun.",
+          "failed": "Mislukte runs, laatste 24 uur",
+          "failedHint": "{count} van {total} runs mislukt.",
+          "noneFailed": "Geen run mislukt.",
+          "lastFailure": "Laatste mislukking",
+          "noFailure": "Geen mislukte run bekend.",
+          "failedAt": "Mislukt {when}",
+          "error": "Het overzicht kon niet laden.",
+          "factsTitle": "Kanaal",
+          "factsDescription": "Wat de bot over dit kanaal bijhoudt."
+        },
+        "audit": {
+          "title": "Auditspoor",
+          "description": "Wat beheerders en het systeem met dit kanaal deden, nieuwste eerst.",
+          "empty": "Nog geen auditregel voor dit kanaal.",
+          "error": "Het auditspoor kon niet laden."
+        },
+        "data": {
+          "title": "Levenscyclus",
+          "description": "Schors, hef de schorsing op, exporteer, migreer of wis dit kanaal. Elke actie vraagt een reden en wordt geaudit."
+        }
+      },
       "detail": {
-        "title": "Kanaal",
-        "description": "Wat de bot over dit kanaal bijhoudt.",
         "owner": "Eigenaar",
         "status": "Status",
         "live": "Stream",
         "tier": "Abonnement",
         "mode": "Implementatiemodus",
         "members": "Leden",
-        "twitchId": "Twitch-kanaal-ID",
         "created": "Aangemaakt",
         "suspendedReason": "Geschorst omdat",
         "modes": {
           "selfhost": "Zelf gehost",
           "saas": "Gehoste dienst (beperkt)"
-        },
-        "restricted": "Je mag geen geld verdienen met NomNomzBot: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Voor jezelf, je vrienden en je community draaien is altijd gratis.",
-        "manage": "Beheer dit kanaal"
+        }
       },
       "supportContact": {
         "title": "Supportcontact",
@@ -109,9 +145,6 @@
         "panelDescription": "Open een supportsessie met een tijdslimiet voor een kanaal en zie het dashboard als een van de mensen daar."
       },
       "tenants": {
-        "title": "Tenants",
-        "pick": "Kies een tenant om te beheren.",
-        "error": "De tenant kon niet laden.",
         "restricted": "Je mag geen geld verdienen met NomNomzBot: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Voor jezelf, je vrienden en je community draaien is altijd gratis.",
         "justification": "Onderbouwing",
         "justificationRequired": "Vul een onderbouwing in. Die staat in het auditlog.",
@@ -123,15 +156,6 @@
           "remigrate": "Migraties opnieuw draaien",
           "export": "Gegevens exporteren",
           "erase": "Kanaal wissen"
-        },
-        "facts": {
-          "title": "Tenant",
-          "owner": "Eigenaar",
-          "status": "Status",
-          "tier": "Factuurniveau",
-          "mode": "Implementatiemodus",
-          "members": "Leden",
-          "suspendedReason": "Opgeschort wegens"
         },
         "suspend": {
           "title": "{name} opschorten",
