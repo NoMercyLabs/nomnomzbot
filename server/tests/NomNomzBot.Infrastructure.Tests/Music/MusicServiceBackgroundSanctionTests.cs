@@ -92,7 +92,7 @@ public sealed class MusicServiceBackgroundSanctionTests
 
         public PlaybackInput? Sent { get; private set; }
 
-        public Task SendAsync(
+        public Task<PlaybackInputOutcome> SendAsync(
             Guid broadcasterId,
             PlaybackInput input,
             CancellationToken ct = default
@@ -236,7 +236,7 @@ public sealed class MusicServiceBackgroundSanctionTests
             {
                 observed = sanctions.Current;
                 sent = call.ArgAt<PlaybackInput>(1);
-                return Task.CompletedTask;
+                return Task.FromResult(PlaybackInputOutcome.Applied);
             });
 
         sanctions.Current.Should().BeNull();

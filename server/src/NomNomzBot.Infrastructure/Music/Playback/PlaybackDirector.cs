@@ -58,6 +58,9 @@ public sealed partial class PlaybackDirector : IDisposable
     private int _volume = 100;
     private bool _muted;
 
+    /// <summary>Set by <see cref="IgnoreAsync"/> while one input runs; <see cref="HandleAsync"/> reads it as the outcome.</summary>
+    private bool _ignored;
+
     /// <summary>The share of the owner level while bot audio plays; null when no duck is active.</summary>
     private int? _duckPercent;
 
@@ -97,15 +100,25 @@ public sealed partial class PlaybackDirector : IDisposable
     /// <summary>The item that most recently started playing, or null when none has.</summary>
     public PlaybackItem? LastPlayed => _history.Last;
 
-    public async Task HandleAsync(PlaybackInput input, CancellationToken ct = default)
+    /// <summary>Applies one input in order and says whether the state handled it or ignored it.</summary>
+    public async Task<PlaybackInputOutcome> HandleAsync(
+        PlaybackInput input,
+        CancellationToken ct = default
+    )
     {
         using IDisposable? sanction = ClaimQueueSanction();
         await _gate.WaitAsync(ct);
         try
         {
             await RaiseDueDeadlinesAsync(ct);
+            _ignored = false;
             await ApplyAsync(input, ct);
+            PlaybackInputOutcome outcome = _ignored
+                ? PlaybackInputOutcome.Ignored
+                : PlaybackInputOutcome.Applied;
             await LineUpNextSpotifyAsync(input.GetType().Name, ct);
+
+            return outcome;
         }
         finally
         {
@@ -243,8 +256,12 @@ public sealed partial class PlaybackDirector : IDisposable
     }
 
     /// <summary>An input the table does not list. A poll report is not journaled (it would flood).</summary>
-    private Task IgnoreAsync(PlaybackInput input) =>
-        input is EngineReport ? Task.CompletedTask : MoveAsync(State, input, "ignored");
+    private Task IgnoreAsync(PlaybackInput input)
+    {
+        _ignored = true;
+
+        return input is EngineReport ? Task.CompletedTask : MoveAsync(State, input, "ignored");
+    }
 
     /// <summary>What was playing on an engine before a queue item took over (rules 12 and 13).</summary>
     private sealed record OwnerMusicMemory(EngineKind Engine, bool WasPlaying);

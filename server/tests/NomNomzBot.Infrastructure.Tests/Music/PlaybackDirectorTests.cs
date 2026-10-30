@@ -510,7 +510,7 @@ public sealed partial class PlaybackDirectorTests
     }
 
     [Fact]
-    public async Task Starting_OwnerIntentInputs_AreIgnoredAndJournaled_WithNoEngineCall()
+    public async Task Starting_SkipPauseAndSeek_AreIgnoredAndJournaled_WithNoEngineCall()
     {
         Rig rig = new();
         PlaybackItem a = Item("a");
@@ -518,14 +518,14 @@ public sealed partial class PlaybackDirectorTests
 
         await rig.Director.HandleAsync(new OwnerSkip());
         await rig.Director.HandleAsync(new OwnerPause());
-        await rig.Director.HandleAsync(new OwnerVolume(30));
+        await rig.Director.HandleAsync(new OwnerSeek(10_000));
 
         rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.Spotify, a));
         rig.Spotify.Calls.Should().Equal(new EngineCall("Start", "a"));
         rig.Journal.Skip(1)
             .Select(e => (e.Input, e.Reason))
             .Should()
-            .Equal(("OwnerSkip", "ignored"), ("OwnerPause", "ignored"), ("OwnerVolume", "ignored"));
+            .Equal(("OwnerSkip", "ignored"), ("OwnerPause", "ignored"), ("OwnerSeek", "ignored"));
     }
 
     [Fact]

@@ -432,11 +432,20 @@ public sealed class MusicService : IMusicService
 
         // The director stops the playing song and starts the next head; the provider's own skip is never
         // called. An engine that refuses leaves the director Blocked, and that reason is the answer.
-        await _playbackInput.SendAsync(tenantId, new OwnerSkip(), cancellationToken);
+        PlaybackInputOutcome outcome = await _playbackInput.SendAsync(
+            tenantId,
+            new OwnerSkip(),
+            cancellationToken
+        );
 
+        // A skip that took the last song leaves the director Idle: that is a skip done, not nothing to skip.
         PlaybackState state = _playbackState.StateOf(tenantId);
-        if (state.Kind == PlaybackStateKind.Blocked)
-            return BlockedOnSkip(provider, state.Reason);
+        Result control =
+            state.Kind == PlaybackStateKind.Idle && outcome == PlaybackInputOutcome.Applied
+                ? Result.Success()
+                : OwnerControlResult(provider, state, outcome);
+        if (control.IsFailure)
+            return control;
 
         if (skippedTrack?.TrackName is { } skippedTrackName)
             await _eventBus.PublishAsync(
@@ -1410,7 +1419,8 @@ public sealed class MusicService : IMusicService
     /// <summary>
     /// Sends an owner control (pause, resume, previous, seek, volume) to the playback director, which commands
     /// the engine that plays and no other. An engine that refuses leaves the director Blocked and that reason is
-    /// the answer; an Idle director has nothing to control.
+    /// the answer; an Idle director has nothing to control; a director that ignores the control in its state
+    /// (for example pause while a request waits to start) answers <c>INVALID_STATE</c>, never success.
     /// </summary>
     private async Task<Result> SendOwnerControlAsync(
         Guid tenantId,
@@ -1419,10 +1429,25 @@ public sealed class MusicService : IMusicService
         CancellationToken cancellationToken
     )
     {
-        await _playbackInput.SendAsync(tenantId, input, cancellationToken);
+        PlaybackInputOutcome outcome = await _playbackInput.SendAsync(
+            tenantId,
+            input,
+            cancellationToken
+        );
 
-        PlaybackState state = _playbackState.StateOf(tenantId);
-        return state.Kind switch
+        return OwnerControlResult(provider, _playbackState.StateOf(tenantId), outcome);
+    }
+
+    /// <summary>
+    /// The answer to an owner control from the director's state and outcome. Blocked and Idle name their own
+    /// cause; any other state whose director ignored the control did not do it.
+    /// </summary>
+    private static Result OwnerControlResult(
+        IMusicProvider provider,
+        PlaybackState state,
+        PlaybackInputOutcome outcome
+    ) =>
+        state.Kind switch
         {
             PlaybackStateKind.Blocked
                 when state.Reason == nameof(EngineBlockReason.PremiumRequired) => PremiumRequired(
@@ -1430,9 +1455,16 @@ public sealed class MusicService : IMusicService
             ),
             PlaybackStateKind.Blocked => BlockedOnSkip(provider, state.Reason),
             PlaybackStateKind.Idle => NothingPlaying(provider.Provider),
+            _ when outcome == PlaybackInputOutcome.Ignored => ControlIgnored(),
             _ => Result.Success(),
         };
-    }
+
+    /// <summary>The director has no row for this control in its current state, so nothing changed.</summary>
+    private static Result ControlIgnored() =>
+        Result.Failure(
+            "The music player could not do that right now — it is not in a state where that control applies.",
+            "INVALID_STATE"
+        );
 
     /// <summary>Turns the director's Blocked reason into the typed refusal the skipper sees.</summary>
     private static Result BlockedOnSkip(IMusicProvider provider, string? reason) =>

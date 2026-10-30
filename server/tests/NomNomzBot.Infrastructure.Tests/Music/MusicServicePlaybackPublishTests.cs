@@ -274,7 +274,9 @@ public sealed class MusicServicePlaybackPublishTests
     [Fact]
     public async Task SkipAsync_publishes_the_next_tracks_state()
     {
-        (MusicService sut, RecordingEventBus bus, _) = Build(TrackJson("Song B", isPlaying: true));
+        (MusicService sut, RecordingEventBus bus, _) = await BuildPlayingAsync(
+            TrackJson("Song B", isPlaying: true)
+        );
 
         Result ok = await sut.SkipAsync(ChannelId.ToString(), "4242");
 
@@ -290,10 +292,8 @@ public sealed class MusicServicePlaybackPublishTests
     public async Task SkipAsync_raises_SongSkipped_with_the_internal_id_of_a_chat_actor_and_the_track()
     {
         Guid viewerId = Guid.NewGuid();
-        (MusicService sut, RecordingEventBus bus, _) = Build(
+        (MusicService sut, RecordingEventBus bus, _) = await BuildPlayingAsync(
             TrackJson("Song B", isPlaying: true),
-            new NowPlayingCache(),
-            new SongRequestQueueStore(),
             db => SeedViewer(db, viewerId, "4242", AuthEnums.Platform.Twitch)
         );
 
@@ -310,10 +310,8 @@ public sealed class MusicServicePlaybackPublishTests
     public async Task SkipAsync_resolves_a_kick_chatter_through_their_kick_identity()
     {
         Guid kickViewer = Guid.NewGuid();
-        (MusicService sut, RecordingEventBus bus, _) = Build(
+        (MusicService sut, RecordingEventBus bus, _) = await BuildPlayingAsync(
             TrackJson("Song B", isPlaying: true),
-            new NowPlayingCache(),
-            new SongRequestQueueStore(),
             db => SeedViewer(db, kickViewer, "kick-777", AuthEnums.Platform.Kick)
         );
 
@@ -330,10 +328,8 @@ public sealed class MusicServicePlaybackPublishTests
     public async Task SkipAsync_without_a_platform_still_resolves_a_twitch_chatter()
     {
         Guid twitchViewer = Guid.NewGuid();
-        (MusicService sut, RecordingEventBus bus, _) = Build(
+        (MusicService sut, RecordingEventBus bus, _) = await BuildPlayingAsync(
             TrackJson("Song B", isPlaying: true),
-            new NowPlayingCache(),
-            new SongRequestQueueStore(),
             db => SeedViewer(db, twitchViewer, "4242", AuthEnums.Platform.Twitch)
         );
 
@@ -348,10 +344,8 @@ public sealed class MusicServicePlaybackPublishTests
     [Fact]
     public async Task SkipAsync_never_maps_an_unknown_kick_id_onto_a_twitch_user_with_the_same_number()
     {
-        (MusicService sut, RecordingEventBus bus, _) = Build(
+        (MusicService sut, RecordingEventBus bus, _) = await BuildPlayingAsync(
             TrackJson("Song B", isPlaying: true),
-            new NowPlayingCache(),
-            new SongRequestQueueStore(),
             db => SeedViewer(db, Guid.NewGuid(), "5555", AuthEnums.Platform.Twitch)
         );
 
@@ -364,10 +358,8 @@ public sealed class MusicServicePlaybackPublishTests
     public async Task SkipAsync_resolves_a_twitch_chatter_who_has_no_identity_row_yet()
     {
         Guid preIdentityUser = Guid.NewGuid();
-        (MusicService sut, RecordingEventBus bus, _) = Build(
+        (MusicService sut, RecordingEventBus bus, _) = await BuildPlayingAsync(
             TrackJson("Song B", isPlaying: true),
-            new NowPlayingCache(),
-            new SongRequestQueueStore(),
             db =>
                 db.Users.Add(
                     new User
@@ -421,7 +413,9 @@ public sealed class MusicServicePlaybackPublishTests
     public async Task SkipAsync_keeps_the_internal_id_a_dashboard_actor_already_holds()
     {
         Guid dashboardUser = Guid.NewGuid();
-        (MusicService sut, RecordingEventBus bus, _) = Build(TrackJson("Song B", isPlaying: true));
+        (MusicService sut, RecordingEventBus bus, _) = await BuildPlayingAsync(
+            TrackJson("Song B", isPlaying: true)
+        );
 
         await sut.SkipAsync(ChannelId.ToString(), dashboardUser.ToString());
 
@@ -434,7 +428,9 @@ public sealed class MusicServicePlaybackPublishTests
     [Fact]
     public async Task SkipAsync_raises_SongSkipped_with_an_empty_actor_when_nobody_resolves()
     {
-        (MusicService sut, RecordingEventBus bus, _) = Build(TrackJson("Song B", isPlaying: true));
+        (MusicService sut, RecordingEventBus bus, _) = await BuildPlayingAsync(
+            TrackJson("Song B", isPlaying: true)
+        );
 
         await sut.SkipAsync(ChannelId.ToString(), "9999");
 
@@ -444,7 +440,9 @@ public sealed class MusicServicePlaybackPublishTests
     [Fact]
     public async Task SkipAsync_raises_no_SongSkipped_when_nothing_is_playing()
     {
-        (MusicService sut, RecordingEventBus bus, _) = Build(currentTrackJson: null);
+        (MusicService sut, RecordingEventBus bus, _) = await BuildPlayingAsync(
+            currentTrackJson: null
+        );
 
         Result ok = await sut.SkipAsync(ChannelId.ToString(), "4242");
 
@@ -537,6 +535,25 @@ public sealed class MusicServicePlaybackPublishTests
 
         ok.IsFailure.Should().BeTrue();
         bus.Published.Should().BeEmpty();
+    }
+
+    /// <summary>A service whose director already follows the owner's Spotify music, so a skip has something to act on.</summary>
+    private static async Task<(
+        MusicService Sut,
+        RecordingEventBus Bus,
+        FakeSpotifyHttpHandler Handler
+    )> BuildPlayingAsync(string? currentTrackJson, Action<MusicTestDbContext>? seed = null)
+    {
+        SongRequestQueueStore store = new();
+        (MusicService Sut, RecordingEventBus Bus, FakeSpotifyHttpHandler Handler) built = Build(
+            currentTrackJson,
+            new NowPlayingCache(),
+            store,
+            seed
+        );
+        await DirectorRig.Of(store).PlaySpotifyAsync(ChannelId);
+
+        return built;
     }
 
     private static (MusicService Sut, RecordingEventBus Bus, FakeSpotifyHttpHandler Handler) Build(

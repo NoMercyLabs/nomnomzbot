@@ -255,7 +255,7 @@ public sealed class MusicServiceQueuePushFailureTests
     }
 
     [Fact]
-    public async Task Skip_does_not_start_the_next_track_again_because_the_director_already_started_it()
+    public async Task Skip_of_a_request_still_waiting_to_start_is_reported_as_not_done_and_starts_nothing_again()
     {
         (MusicService sut, RecordingHttpHandler handler, _, _, _, _) = Build();
         RespondWithResolvedTrack(handler);
@@ -272,9 +272,12 @@ public sealed class MusicServiceQueuePushFailureTests
 
         Result skip = await sut.SkipAsync(ChannelId.ToString(), "4242");
 
-        skip.IsSuccess.Should().BeTrue();
-        // A skip only advances the provider. Starting the entry again here would play the same track a
-        // second time, which is exactly the double-play the old dequeue-and-push skip produced.
+        // The request is still waiting to start (director Starting), so there is no song to skip: the
+        // director ignores the skip and the answer says it was not done.
+        skip.IsFailure.Should().BeTrue();
+        skip.ErrorCode.Should().Be("INVALID_STATE");
+        // Starting the entry again here would play the same track a second time, which is exactly the
+        // double-play the old dequeue-and-push skip produced.
         StartTrackCount(handler).Should().Be(startsAfterRequest);
         // The entry stays pending until the live playback state confirms it is the track now playing.
         (await sut.GetQueueAsync(ChannelId.ToString()))
@@ -285,7 +288,7 @@ public sealed class MusicServiceQueuePushFailureTests
     [Fact]
     public async Task Skip_still_succeeds_when_the_provider_push_succeeds()
     {
-        (MusicService sut, RecordingHttpHandler handler, _, _, _, _) = Build();
+        (MusicService sut, RecordingHttpHandler handler, _, _, _, DirectorRig rig) = Build();
         RespondWithResolvedTrack(handler);
         handler.RespondWhen(IsStartTrack, HttpStatusCode.NoContent);
         handler.RespondWhen(
@@ -294,6 +297,7 @@ public sealed class MusicServiceQueuePushFailureTests
                 && r.RequestUri!.AbsolutePath.EndsWith("/me/player/next", StringComparison.Ordinal),
             HttpStatusCode.NoContent
         );
+        await rig.PlaySpotifyAsync(ChannelId);
 
         await sut.RequestTrackAsync(
             ChannelId.ToString(),
