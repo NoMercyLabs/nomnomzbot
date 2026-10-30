@@ -17,6 +17,7 @@ using NomNomzBot.Application.Economy.Services;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Music.Services;
 using NomNomzBot.Domain.Music.Events;
+using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Identity;
 using NomNomzBot.Infrastructure.Integrations;
@@ -173,7 +174,8 @@ public sealed class MusicServiceDirectorIntakeTests
 
     internal static (MusicService Sut, RecordingHttpHandler Handler, DirectorRig Rig) BuildSpotify(
         NowPlayingCache? nowPlaying = null,
-        RecordingEventBus? bus = null
+        RecordingEventBus? bus = null,
+        Func<DirectorRig, IPlaybackInputSink>? inputSink = null
     )
     {
         MusicTestDbContext db = MusicTestDbContext.New();
@@ -225,7 +227,7 @@ public sealed class MusicServiceDirectorIntakeTests
             new OutboundSanctionAccessor(),
             Substitute.For<IUserIdentityService>(),
             Substitute.For<IForeignLinkTitleLookup>(),
-            rig.Registry,
+            inputSink?.Invoke(rig) ?? rig.Registry,
             rig.Registry
         );
         return (sut, handler, rig);

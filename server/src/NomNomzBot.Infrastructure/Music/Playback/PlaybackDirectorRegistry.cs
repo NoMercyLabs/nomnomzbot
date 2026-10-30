@@ -41,13 +41,13 @@ public sealed class PlaybackDirectorRegistry(
     /// that make an idle director start the head, so only the active instance acts on them; every other input
     /// (owner controls, reports) still reaches the director on any instance.
     /// </summary>
-    public Task SendAsync(
+    public Task<PlaybackInputOutcome> SendAsync(
         Guid broadcasterId,
         PlaybackInput input,
         CancellationToken ct = default
     ) =>
         input is RequestAdded or OutputAttached && instanceGate is { IsActiveInstance: false }
-            ? Task.CompletedTask
+            ? Task.FromResult(PlaybackInputOutcome.Ignored)
             : ChannelOf(broadcasterId).Director.HandleAsync(input, ct);
 
     public PlaybackState StateOf(Guid channelId) =>

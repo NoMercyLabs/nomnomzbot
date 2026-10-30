@@ -139,6 +139,14 @@ public sealed partial class PlaybackDirector
         PlaybackItem item = State.Item!;
         string name = input.GetType().Name;
 
+        // The owner's level (volume, mute, duck) needs no playing track: it reaches the item's engine at once,
+        // so a request that waits for its start never freezes the controls.
+        if (input is OwnerVolume or OwnerMute or DuckStart or DuckEnd)
+        {
+            await OnOwnerIntentAsync(input, ct);
+            return;
+        }
+
         if (_stopWait is { } stopping)
         {
             bool confirmed = input switch

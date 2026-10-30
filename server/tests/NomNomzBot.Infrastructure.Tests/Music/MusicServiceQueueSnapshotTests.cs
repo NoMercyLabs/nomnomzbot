@@ -110,7 +110,10 @@ public sealed class MusicServiceQueueSnapshotTests
     [Fact]
     public async Task Skip_republishes_the_snapshot_and_leaves_the_entry_pending_until_playback_confirms()
     {
-        (MusicService sut, RecordingEventBus bus) = Build();
+        (MusicService sut, RecordingEventBus bus) = Build(out SongRequestQueueStore store);
+        // The owner's own song plays and the request waits behind it; a request that merely waits to
+        // start (director Starting) would have its skip ignored.
+        await DirectorRig.Of(store).PlaySpotifyAsync(ChannelId);
         await sut.AddToQueueAsync(ChannelId.ToString(), "spotify:track:q1", "viewer1");
 
         (await sut.SkipAsync(ChannelId.ToString(), "4242")).IsSuccess.Should().BeTrue();

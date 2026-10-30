@@ -164,7 +164,7 @@ internal static class YouTubeDirectorKit
     {
         public IPlaybackInputSink? Inner { get; set; }
 
-        public Task SendAsync(
+        public Task<PlaybackInputOutcome> SendAsync(
             Guid broadcasterId,
             PlaybackInput input,
             CancellationToken ct = default

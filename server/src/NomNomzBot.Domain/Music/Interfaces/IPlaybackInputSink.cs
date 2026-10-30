@@ -19,6 +19,13 @@ namespace NomNomzBot.Domain.Music.Interfaces;
 /// </summary>
 public interface IPlaybackInputSink
 {
-    /// <summary>Hands one input for the channel to its playback director, which applies it in order.</summary>
-    Task SendAsync(Guid broadcasterId, PlaybackInput input, CancellationToken ct = default);
+    /// <summary>
+    /// Hands one input for the channel to its playback director, which applies it in order. The outcome says
+    /// whether the director acted on it or ignored it in its current state.
+    /// </summary>
+    Task<PlaybackInputOutcome> SendAsync(
+        Guid broadcasterId,
+        PlaybackInput input,
+        CancellationToken ct = default
+    );
 }

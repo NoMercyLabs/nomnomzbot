@@ -1234,14 +1234,14 @@ public sealed class MusicStatePollingServiceTests
         public List<string> Calls =>
             Sent.Where(s => s.Input is RequestAdded).Select(s => s.ChannelId.ToString()).ToList();
 
-        public Task SendAsync(
+        public Task<PlaybackInputOutcome> SendAsync(
             Guid broadcasterId,
             PlaybackInput input,
             CancellationToken ct = default
         )
         {
             Sent.Add((broadcasterId, input));
-            return Task.CompletedTask;
+            return Task.FromResult(PlaybackInputOutcome.Applied);
         }
     }
 
