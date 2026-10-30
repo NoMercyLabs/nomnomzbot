@@ -941,6 +941,25 @@ public static partial class ToneTemplateCatalog
             chill: ["whispering isn't available right now."]
         );
 
+        // ── !whisper / capreached (no args) ──────────────────────────────────────
+        Add(
+            catalog,
+            BuiltinResponseSlots.Whisper.Key,
+            BuiltinResponseSlots.Whisper.CapReached,
+            variables: [],
+            informative:
+            [
+                "The bot reached Twitch's daily limit of 40 new whisper recipients. Try again tomorrow.",
+            ],
+            friendly:
+            [
+                "I've whispered 40 new people today, that's Twitch's daily limit. Try again tomorrow!",
+            ],
+            sassy: ["Twitch says 40 new whisper buddies a day is plenty. Try again tomorrow."],
+            hype: ["40 NEW WHISPERS TODAY, THAT'S THE TWITCH LIMIT! BACK TOMORROW!"],
+            chill: ["hit twitch's daily limit of 40 new whisper people. try again tomorrow."]
+        );
+
         // ── !bansong / couldnotban (no args) ─────────────────────────────────────
         Add(
             catalog,

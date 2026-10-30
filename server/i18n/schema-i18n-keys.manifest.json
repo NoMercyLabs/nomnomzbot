@@ -697,6 +697,8 @@
     "builtin.reply.volume.setfailed.label",
     "builtin.reply.volume.usage.description",
     "builtin.reply.volume.usage.label",
+    "builtin.reply.whisper.capreached.description",
+    "builtin.reply.whisper.capreached.label",
     "builtin.reply.whisper.notavailable.description",
     "builtin.reply.whisper.notavailable.label",
     "builtin.reply.whisper.notfound.description",

@@ -145,6 +145,8 @@
     <string name="builtin_reply_whisper_sent_description">De fluistering is verstuurd.</string>
     <string name="builtin_reply_whisper_sendfailed_label">Fluistering mislukt</string>
     <string name="builtin_reply_whisper_sendfailed_description">De fluistering kon niet worden verstuurd.</string>
+    <string name="builtin_reply_whisper_capreached_label">Dagelijkse fluisterlimiet bereikt</string>
+    <string name="builtin_reply_whisper_capreached_description">De bot heeft vandaag al de Twitch-limiet van 40 nieuwe mensen gefluisterd.</string>
     <string name="builtin_reply_update_updated_label">Info bijgewerkt</string>
     <string name="builtin_reply_update_updated_description">De info van de kijker is vernieuwd.</string>
     <string name="builtin_reply_discord_invite_label">Discord-uitnodiging</string>

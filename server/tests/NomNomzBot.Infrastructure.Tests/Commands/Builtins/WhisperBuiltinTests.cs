@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Platform;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Infrastructure.Chat.Whispers;
 using NomNomzBot.Infrastructure.Commands.Builtins;
 using NomNomzBot.Infrastructure.Tests.Chat;
 using NSubstitute;
@@ -80,7 +81,8 @@ public sealed class WhisperBuiltinTests
             twitchUsers,
             [twitchSender],
             TestBuiltinComposer.Create(),
-            TestMentionTargets.LoginsOnly()
+            TestMentionTargets.LoginsOnly(),
+            new WhisperRecipientCap(TimeProvider.System)
         );
 
         Result<string> result = await sut.ExecuteAsync(Context("@viewer1 hey stop that"));
@@ -91,6 +93,44 @@ public sealed class WhisperBuiltinTests
         await twitchSender
             .Received(1)
             .SendAsync(Broadcaster, "999", "hey stop that", Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_full_daily_recipient_cap_sends_nothing_and_says_so()
+    {
+        ITwitchUsersApi twitchUsers = Substitute.For<ITwitchUsersApi>();
+        twitchUsers
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([Viewer1()]));
+        IPlatformDirectMessageSender twitchSender = Substitute.For<IPlatformDirectMessageSender>();
+        twitchSender.Provider.Returns(AuthEnums.Platform.Twitch);
+        WhisperRecipientCap cap = new(TimeProvider.System);
+        for (int i = 0; i < WhisperRecipientCap.DailyNewRecipientLimit; i++)
+            cap.TryAdmit($"other-{i}");
+
+        WhisperBuiltin sut = new(
+            twitchUsers,
+            [twitchSender],
+            TestBuiltinComposer.Create(),
+            TestMentionTargets.LoginsOnly(),
+            cap
+        );
+
+        Result<string> result = await sut.ExecuteAsync(Context("@viewer1 hey stop that"));
+
+        result
+            .Value.Should()
+            .Be(
+                "The bot reached Twitch's daily limit of 40 new whisper recipients. Try again tomorrow."
+            );
+        await twitchSender
+            .DidNotReceive()
+            .SendAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -108,7 +148,8 @@ public sealed class WhisperBuiltinTests
             twitchUsers,
             [twitchSender],
             TestBuiltinComposer.Create(),
-            TestMentionTargets.LoginsOnly()
+            TestMentionTargets.LoginsOnly(),
+            new WhisperRecipientCap(TimeProvider.System)
         );
 
         Result<string> result = await sut.ExecuteAsync(Context("ghostuser hello"));
@@ -134,7 +175,8 @@ public sealed class WhisperBuiltinTests
             twitchUsers,
             [],
             TestBuiltinComposer.Create(),
-            TestMentionTargets.LoginsOnly()
+            TestMentionTargets.LoginsOnly(),
+            new WhisperRecipientCap(TimeProvider.System)
         );
 
         Result<string> result = await sut.ExecuteAsync(Context("viewer1"));
@@ -154,7 +196,8 @@ public sealed class WhisperBuiltinTests
             Substitute.For<ITwitchUsersApi>(),
             [],
             TestBuiltinComposer.Create(),
-            TestMentionTargets.LoginsOnly()
+            TestMentionTargets.LoginsOnly(),
+            new WhisperRecipientCap(TimeProvider.System)
         );
 
         Result<string> sassy = await sut.ExecuteAsync(Context("viewer1", PersonalityTone.Sassy));
@@ -183,7 +226,8 @@ public sealed class WhisperBuiltinTests
             twitchUsers,
             [],
             TestBuiltinComposer.Create(),
-            TestMentionTargets.LoginsOnly()
+            TestMentionTargets.LoginsOnly(),
+            new WhisperRecipientCap(TimeProvider.System)
         );
 
         Result<string> sassy = await sut.ExecuteAsync(
@@ -206,7 +250,8 @@ public sealed class WhisperBuiltinTests
             twitchUsers,
             [],
             TestBuiltinComposer.Create(),
-            TestMentionTargets.LoginsOnly()
+            TestMentionTargets.LoginsOnly(),
+            new WhisperRecipientCap(TimeProvider.System)
         );
 
         Result<string> sassy = await sut.ExecuteAsync(
@@ -238,7 +283,8 @@ public sealed class WhisperBuiltinTests
             twitchUsers,
             [],
             TestBuiltinComposer.Create(),
-            TestMentionTargets.LoginsOnly()
+            TestMentionTargets.LoginsOnly(),
+            new WhisperRecipientCap(TimeProvider.System)
         );
 
         Result<string> sassy = await sut.ExecuteAsync(
@@ -281,13 +327,15 @@ public sealed class WhisperBuiltinTests
             twitchUsers,
             [twitchSender],
             TestBuiltinComposer.Create(),
-            TestMentionTargets.LoginsOnly()
+            TestMentionTargets.LoginsOnly(),
+            new WhisperRecipientCap(TimeProvider.System)
         ).ExecuteAsync(Context("viewer1 psst"));
         Result<string> reworded = await new WhisperBuiltin(
             twitchUsers,
             [twitchSender],
             TestBuiltinComposer.Create(replies),
-            TestMentionTargets.LoginsOnly()
+            TestMentionTargets.LoginsOnly(),
+            new WhisperRecipientCap(TimeProvider.System)
         ).ExecuteAsync(Context("viewer1 psst"));
 
         plain.Value.Should().Be("Whispered Viewer1.");
@@ -311,7 +359,8 @@ public sealed class WhisperBuiltinTests
             twitchUsers,
             [twitchSender],
             TestBuiltinComposer.Create(),
-            TestMentionTargets.LoginsOnly()
+            TestMentionTargets.LoginsOnly(),
+            new WhisperRecipientCap(TimeProvider.System)
         ).ExecuteAsync(Context("viewer1 psst"));
 
         result.Value.Should().Be("Could not whisper Viewer1.");

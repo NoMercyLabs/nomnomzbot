@@ -1399,6 +1399,10 @@
         }
       },
       "whisper": {
+        "capreached": {
+          "description": "The bot already whispered Twitch's daily limit of 40 new people.",
+          "label": "Daily whisper limit reached"
+        },
         "notavailable": {
           "description": "The bot cannot send whispers on this platform.",
           "label": "Whispers not available"

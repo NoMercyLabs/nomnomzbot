@@ -145,6 +145,8 @@
     <string name="builtin_reply_whisper_sent_description">The whisper was sent.</string>
     <string name="builtin_reply_whisper_sendfailed_label">Whisper failed</string>
     <string name="builtin_reply_whisper_sendfailed_description">The whisper could not be sent.</string>
+    <string name="builtin_reply_whisper_capreached_label">Daily whisper limit reached</string>
+    <string name="builtin_reply_whisper_capreached_description">The bot already whispered Twitch's daily limit of 40 new people.</string>
     <string name="builtin_reply_update_updated_label">Info updated</string>
     <string name="builtin_reply_update_updated_description">The viewer's info was refreshed.</string>
     <string name="builtin_reply_discord_invite_label">Discord invite</string>

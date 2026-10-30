@@ -1399,6 +1399,10 @@
         }
       },
       "whisper": {
+        "capreached": {
+          "description": "De bot heeft vandaag al de Twitch-limiet van 40 nieuwe mensen gefluisterd.",
+          "label": "Dagelijkse fluisterlimiet bereikt"
+        },
         "notavailable": {
           "description": "De bot kan op dit platform niet fluisteren.",
           "label": "Fluisteren niet beschikbaar"

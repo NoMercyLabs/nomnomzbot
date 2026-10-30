@@ -139,6 +139,9 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>The platform refused the whisper; <c>{user}</c> is the recipient's display name.</summary>
         public const string SendFailed = "sendfailed";
+
+        /// <summary>The bot already whispered Twitch's daily limit of new recipients — no variables.</summary>
+        public const string CapReached = "capreached";
     }
 
     /// <summary><c>!discord</c> — points viewers at the channel's linked Discord server via a live-created invite.</summary>

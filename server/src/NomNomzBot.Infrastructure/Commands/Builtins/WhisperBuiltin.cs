@@ -16,6 +16,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Platform;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Infrastructure.Chat.Whispers;
 
 namespace NomNomzBot.Infrastructure.Commands.Builtins;
 
@@ -33,18 +34,21 @@ public sealed class WhisperBuiltin : IBuiltinCommand
     private readonly IReadOnlyDictionary<string, IPlatformDirectMessageSender> _dmSendersByProvider;
     private readonly IBuiltinResponseComposer _composer;
     private readonly IMentionTargetResolver _mentionTargets;
+    private readonly WhisperRecipientCap _cap;
 
     public WhisperBuiltin(
         ITwitchUsersApi twitchUsers,
         IEnumerable<IPlatformDirectMessageSender> dmSenders,
         IBuiltinResponseComposer composer,
-        IMentionTargetResolver mentionTargets
+        IMentionTargetResolver mentionTargets,
+        WhisperRecipientCap cap
     )
     {
         _twitchUsers = twitchUsers;
         _dmSendersByProvider = dmSenders.ToDictionary(s => s.Provider);
         _composer = composer;
         _mentionTargets = mentionTargets;
+        _cap = cap;
     }
 
     public string BuiltinKey => "whisper";
@@ -139,6 +143,23 @@ public sealed class WhisperBuiltin : IBuiltinCommand
                 ct
             );
             return Result.Success(notAvailable);
+        }
+
+        if (!_cap.TryAdmit(target.Id))
+        {
+            string capReached = await _composer.ComposeAsync(
+                new()
+                {
+                    BroadcasterId = context.BroadcasterId,
+                    Personality = context.Personality,
+                    BuiltinKey = BuiltinResponseSlots.Whisper.Key,
+                    Slot = BuiltinResponseSlots.Whisper.CapReached,
+                    NeutralFallback =
+                        "The bot reached Twitch's daily limit of 40 new whisper recipients. Try again tomorrow.",
+                },
+                ct
+            );
+            return Result.Success(capReached);
         }
 
         Result sent = await sender.SendAsync(context.BroadcasterId, target.Id, message, ct);
