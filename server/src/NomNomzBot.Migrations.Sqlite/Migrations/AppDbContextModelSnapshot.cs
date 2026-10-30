@@ -11892,6 +11892,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<bool>("Failed")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime>("OccurredAt")
                         .HasColumnType("TEXT");
 
@@ -11903,6 +11906,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<Guid?>("StreamId")
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
+
+                    b.Property<int?>("SynthesisMs")
+                        .HasColumnType("INTEGER");
 
                     b.Property<string>("Text")
                         .HasMaxLength(2000)

@@ -11371,6 +11371,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<bool>("Failed")
+                        .HasColumnType("boolean");
+
                     b.Property<DateTime>("OccurredAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -11381,6 +11384,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<Guid?>("StreamId")
                         .HasColumnType("uuid");
+
+                    b.Property<int?>("SynthesisMs")
+                        .HasColumnType("integer");
 
                     b.Property<string>("Text")
                         .HasMaxLength(2000)

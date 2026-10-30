@@ -27,6 +27,7 @@ using NomNomzBot.Domain.Identity;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Infrastructure.Admin.Diagnostics;
 using NomNomzBot.Infrastructure.Commands;
 using NomNomzBot.Infrastructure.Identity;
@@ -73,6 +74,7 @@ public sealed class AdminChannelDiagnosticsTests
         [
             new ChannelSummaryDiagnosticSection(db, runs, new FakeTimeProvider(Now)),
             new ChannelRunsDiagnosticSection(runs),
+            new ChannelTtsDiagnosticSection(db, new FakeTimeProvider(Now)),
         ];
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserId.Returns(callerUserId.ToString());
@@ -237,6 +239,144 @@ public sealed class AdminChannelDiagnosticsTests
         audit.Outcome.Should().Be(IamOutcome.Allowed);
     }
 
+    private static TtsUsageRecord TtsRow(
+        Guid channel,
+        int minutesAgo,
+        int? synthesisMs,
+        bool failed = false,
+        string provider = "edge"
+    ) =>
+        new()
+        {
+            BroadcasterId = channel,
+            UserId = "viewer-1",
+            CharacterCount = 40 + minutesAgo,
+            Provider = provider,
+            VoiceId = "en-US-AnaNeural",
+            Text = "made up line",
+            SynthesisMs = synthesisMs,
+            Failed = failed,
+            OccurredAt = Now.AddMinutes(-minutesAgo),
+        };
+
+    [Fact]
+    public async Task An_admin_reads_the_tts_clips_and_the_24_hour_synthesis_figures()
+    {
+        (ApiTestDbContext db, IamPrincipal principal) = await SeedAsync();
+        Guid otherChannel = Guid.Parse("0199a000-0000-7000-8000-000000000d11");
+        db.TtsUsageRecords.AddRange(
+            TtsRow(Broadcaster, 10, 1000),
+            TtsRow(Broadcaster, 20, 2000),
+            TtsRow(Broadcaster, 30, 3000, provider: "azure"),
+            TtsRow(Broadcaster, 40, 4000),
+            TtsRow(Broadcaster, 50, 20000, failed: true),
+            TtsRow(Broadcaster, 180, null),
+            TtsRow(Broadcaster, 30 * 60, 9999),
+            TtsRow(otherChannel, 5, 77777, failed: true)
+        );
+        await db.SaveChangesAsync();
+        AdminChannelDiagnosticsController controller = BuildController(db, OperatorUser);
+
+        IActionResult result = await controller.GetDiagnostics(
+            Broadcaster,
+            "tts",
+            new PageRequestDto(),
+            failuresOnly: false,
+            pipelineId: null,
+            CancellationToken.None
+        );
+
+        result.Should().BeOfType<OkObjectResult>();
+        ChannelDiagnosticsDto body = (
+            (StatusResponseDto<ChannelDiagnosticsDto>)((OkObjectResult)result).Value!
+        ).Data!;
+        body.Summary.Should().BeNull();
+        body.Runs.Should().BeNull();
+        ChannelDiagnosticTtsDto tts = body.Tts!;
+
+        tts.Clips.Select(c => c.SynthesisMs)
+            .Should()
+            .Equal(1000, 2000, 3000, 4000, 20000, null, 9999);
+        ChannelDiagnosticTtsClipDto newest = tts.Clips[0];
+        newest.OccurredAt.Should().Be(Now.AddMinutes(-10));
+        newest.Provider.Should().Be("edge");
+        newest.VoiceId.Should().Be("en-US-AnaNeural");
+        newest.CharacterCount.Should().Be(50);
+        newest.Failed.Should().BeFalse();
+        tts.Clips[2].Provider.Should().Be("azure");
+        tts.Clips[4].Failed.Should().BeTrue();
+        tts.Clips[5].SynthesisMs.Should().BeNull("rows written before the timing stay empty");
+
+        tts.Last24Hours.Clips.Should().Be(6);
+        tts.Last24Hours.FailedClips.Should().Be(1);
+        tts.Last24Hours.AverageSynthesisMs.Should().Be(6000);
+        tts.Last24Hours.P95SynthesisMs.Should().Be(20000);
+
+        IamAuditLog audit = await db.IamAuditLogs.AsNoTracking().SingleAsync();
+        audit.PrincipalId.Should().Be(principal.Id);
+        audit.TargetResource.Should().Be("diagnostics:tts");
+        audit.Outcome.Should().Be(IamOutcome.Allowed);
+    }
+
+    [Fact]
+    public async Task The_tts_section_lists_the_last_50_clips_and_counts_the_whole_day()
+    {
+        (ApiTestDbContext db, _) = await SeedAsync();
+        for (int i = 0; i < 55; i++)
+            db.TtsUsageRecords.Add(TtsRow(Broadcaster, 60 * 20 - i * 10, 100 * (i + 1)));
+        await db.SaveChangesAsync();
+        AdminChannelDiagnosticsController controller = BuildController(db, OperatorUser);
+
+        IActionResult result = await controller.GetDiagnostics(
+            Broadcaster,
+            "tts",
+            new PageRequestDto(),
+            failuresOnly: false,
+            pipelineId: null,
+            CancellationToken.None
+        );
+
+        ChannelDiagnosticTtsDto tts = (
+            (StatusResponseDto<ChannelDiagnosticsDto>)((OkObjectResult)result).Value!
+        )
+            .Data!
+            .Tts!;
+        tts.Clips.Should().HaveCount(50);
+        tts.Clips[0].SynthesisMs.Should().Be(5500, "the newest clip comes first");
+        tts.Clips[49].SynthesisMs.Should().Be(600);
+        tts.Last24Hours.Clips.Should().Be(55);
+        tts.Last24Hours.FailedClips.Should().Be(0);
+        tts.Last24Hours.AverageSynthesisMs.Should().Be(2800);
+        tts.Last24Hours.P95SynthesisMs.Should().Be(5300);
+    }
+
+    [Fact]
+    public async Task A_channel_with_no_tts_clips_gets_an_empty_tts_section()
+    {
+        (ApiTestDbContext db, _) = await SeedAsync();
+        AdminChannelDiagnosticsController controller = BuildController(db, OperatorUser);
+
+        IActionResult result = await controller.GetDiagnostics(
+            Broadcaster,
+            "tts",
+            new PageRequestDto(),
+            failuresOnly: false,
+            pipelineId: null,
+            CancellationToken.None
+        );
+
+        ChannelDiagnosticTtsDto tts = (
+            (StatusResponseDto<ChannelDiagnosticsDto>)((OkObjectResult)result).Value!
+        )
+            .Data!
+            .Tts!;
+        tts.Clips.Should().BeEmpty();
+        tts.Last24Hours.Clips.Should().Be(0);
+        tts.Last24Hours.FailedClips.Should().Be(0);
+        tts.Last24Hours.AverageSynthesisMs.Should().BeNull();
+        tts.Last24Hours.P95SynthesisMs.Should().BeNull();
+    }
+
     [Fact]
     public async Task An_admin_reads_one_runs_step_logs_and_the_read_is_audited()
     {
@@ -281,7 +421,7 @@ public sealed class AdminChannelDiagnosticsTests
 
         IActionResult list = await controller.GetDiagnostics(
             Broadcaster,
-            "summary,runs",
+            "summary,runs,tts",
             new PageRequestDto(),
             failuresOnly: false,
             pipelineId: null,
@@ -328,7 +468,7 @@ public sealed class AdminChannelDiagnosticsTests
         StatusResponseDto<object> body =
             (StatusResponseDto<object>)((BadRequestObjectResult)result).Value!;
         body.Message.Should()
-            .Be("Unknown diagnostic section 'bogus'. Known sections: runs, summary.");
+            .Be("Unknown diagnostic section 'bogus'. Known sections: runs, summary, tts.");
         (await db.IamAuditLogs.AsNoTracking().CountAsync()).Should().Be(0);
     }
 }

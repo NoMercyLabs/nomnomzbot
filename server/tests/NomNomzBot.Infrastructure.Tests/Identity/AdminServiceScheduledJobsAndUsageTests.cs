@@ -421,6 +421,22 @@ public sealed class AdminServiceScheduledJobsAndUsageTests
                 UpdatedAt = Now.UtcDateTime,
             }
         );
+        // A clip the provider failed on was never spoken, so its characters are not usage.
+        db.TtsUsageRecords.Add(
+            new TtsUsageRecord
+            {
+                BroadcasterId = tenantA.Id,
+                UserId = "1",
+                CharacterCount = 1_000,
+                Provider = "azure",
+                VoiceId = "en-US-Standard",
+                Failed = true,
+                SynthesisMs = 15_000,
+                OccurredAt = periodStart.AddDays(4),
+                CreatedAt = Now.UtcDateTime,
+                UpdatedAt = Now.UtcDateTime,
+            }
+        );
         await db.SaveChangesAsync();
 
         Result<PagedList<AdminTenantUsageDto>> result = await sut.GetTenantUsageAsync(

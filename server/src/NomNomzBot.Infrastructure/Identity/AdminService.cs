@@ -719,6 +719,7 @@ public sealed class AdminService : IAdminService
             long ttsCharacters = await _db
                 .TtsUsageRecords.Where(t =>
                     t.BroadcasterId == tenantId
+                    && !t.Failed
                     && t.OccurredAt >= periodStart
                     && t.OccurredAt < periodEnd
                 )

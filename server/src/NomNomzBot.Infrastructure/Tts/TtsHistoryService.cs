@@ -37,7 +37,7 @@ public class TtsHistoryService(IApplicationDbContext db) : ITtsHistoryService
         int take = Math.Clamp(limit, 1, MaxLimit);
 
         IQueryable<TtsUsageRecord> query = db.TtsUsageRecords.Where(r =>
-            r.BroadcasterId == broadcasterId
+            r.BroadcasterId == broadcasterId && !r.Failed
         );
         if (before is not null)
             query = query.Where(r => r.Id < before);

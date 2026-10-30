@@ -90852,6 +90852,7 @@ export interface components {
             broadcasterId: string;
             summary?: null | components["schemas"]["ChannelDiagnosticSummary"];
             runs?: null | components["schemas"]["ChannelDiagnosticRuns"];
+            tts?: null | components["schemas"]["ChannelDiagnosticTts"];
         };
         /**
          * @description A channel at a glance. The run counts cover the last 24 hours; the last failed run is the newest
@@ -90871,6 +90872,40 @@ export interface components {
             /** Format: date-time */
             lastFailedRunAt?: null | string;
             lastFailedRunError?: null | string;
+        };
+        /** @description A channel's TTS clips, newest first, and the synthesis figures for the last 24 hours. */
+        ChannelDiagnosticTts: {
+            clips: components["schemas"]["ChannelDiagnosticTtsClip"][];
+            last24Hours: components["schemas"]["ChannelDiagnosticTtsWindow"];
+        };
+        /**
+         * @description One TTS clip. SynthesisMs is null for a clip written before the timing was kept;
+         *                 for a failed clip it is the time spent until the failure.
+         */
+        ChannelDiagnosticTtsClip: {
+            /** Format: date-time */
+            occurredAt: string;
+            provider: string;
+            voiceId: string;
+            /** Format: int32 */
+            characterCount: number | string;
+            /** Format: int32 */
+            synthesisMs?: null | number | string;
+            failed: boolean;
+        };
+        /**
+         * @description Synthesis over the last 24 hours. The average and the 95th percentile (nearest rank) cover every clip
+         *                 with a measured time, failed ones included, and are null when no clip has one.
+         */
+        ChannelDiagnosticTtsWindow: {
+            /** Format: int32 */
+            clips: number | string;
+            /** Format: int32 */
+            failedClips: number | string;
+            /** Format: int32 */
+            averageSynthesisMs?: null | number | string;
+            /** Format: int32 */
+            p95SynthesisMs?: null | number | string;
         };
         ChannelFederationOptIn: {
             /**

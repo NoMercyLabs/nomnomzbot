@@ -1192,7 +1192,7 @@ public sealed class TtsDispatchServiceTests
     }
 
     [Fact]
-    public async Task RequestSpeakAsync_SynthesisThrows_RejectsWithoutPlayOrLedger()
+    public async Task RequestSpeakAsync_SynthesisThrows_RejectsWithoutPlayAndLedgersTheFailureWithItsTime()
     {
         Harness h = Build();
         h.Tts.SynthesizeAsync(
@@ -1202,19 +1202,114 @@ public sealed class TtsDispatchServiceTests
                 Arg.Any<double?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns<Task<TtsResult>>(_ => throw new InvalidOperationException("provider down"));
+            .Returns<Task<TtsResult>>(_ =>
+            {
+                h.Clock.Advance(TimeSpan.FromMilliseconds(7300));
+                throw new InvalidOperationException("provider down");
+            });
 
         Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
 
         result.IsFailure.Should().BeTrue();
         result.ErrorCode.Should().Be("SERVICE_UNAVAILABLE");
-        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
+        TtsUsageRecord row = await h.Db.TtsUsageRecords.SingleAsync();
+        row.Failed.Should().BeTrue();
+        row.SynthesisMs.Should().Be(7300);
+        row.BroadcasterId.Should().Be(Tenant);
+        row.UserId.Should().Be(Viewer);
+        row.Text.Should().Be("hello");
+        row.CharacterCount.Should().Be(5);
+        row.Provider.Should().Be("edge");
+        row.VoiceId.Should().Be("default-voice");
+        row.OccurredAt.Should().Be(T0.AddMilliseconds(7300));
         await h
             .Bus.Received(1)
             .PublishAsync(
                 Arg.Is<TtsUtteranceRejectedEvent>(e => e.Reason == "synthesis_failed"),
                 Arg.Any<CancellationToken>()
             );
+        await h
+            .Bus.DidNotReceive()
+            .PublishAsync(Arg.Any<TtsUtteranceDispatchedEvent>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_ASlowClip_LedgersTheMeasuredSynthesisTimeAndIsNotFailed()
+    {
+        Harness h = Build();
+        h.Tts.SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(ci =>
+            {
+                h.Clock.Advance(TimeSpan.FromMilliseconds(11250));
+                return Task.FromResult(
+                    new TtsResult([1, 2, 3, 4], 1200, ci.ArgAt<string>(1), "edge")
+                );
+            });
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        TtsUsageRecord row = await h.Db.TtsUsageRecords.SingleAsync();
+        row.SynthesisMs.Should().Be(11250);
+        row.Failed.Should().BeFalse();
+        row.Text.Should().Be("hello");
+        row.OccurredAt.Should().Be(T0.AddMilliseconds(11250));
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_ProviderReturnsNoAudio_LedgersAFailedClipWithItsTime()
+    {
+        Harness h = Build();
+        h.Tts.SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(ci =>
+            {
+                h.Clock.Advance(TimeSpan.FromMilliseconds(900));
+                return Task.FromResult(new TtsResult([], 0, ci.ArgAt<string>(1), "edge"));
+            });
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
+
+        result.IsFailure.Should().BeTrue();
+        TtsUsageRecord row = await h.Db.TtsUsageRecords.SingleAsync();
+        row.Failed.Should().BeTrue();
+        row.SynthesisMs.Should().Be(900);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_AFailedClipDoesNotStartTheViewersCooldown()
+    {
+        Harness h = Build(cooldownSeconds: 30);
+        h.Tts.SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                _ => Task.FromException<TtsResult>(new InvalidOperationException("provider down")),
+                ci =>
+                    Task.FromResult(new TtsResult([1, 2, 3, 4], 1200, ci.ArgAt<string>(1), "edge"))
+            );
+        (await h.Service.RequestSpeakAsync(SpeakAsViewer("one"))).IsFailure.Should().BeTrue();
+
+        Result<TtsDispatchOutcome> retry = await h.Service.RequestSpeakAsync(SpeakAsViewer("two"));
+
+        retry.IsSuccess.Should().BeTrue(retry.ErrorMessage);
+        (await h.Db.TtsUsageRecords.CountAsync(r => r.Failed)).Should().Be(1);
+        (await h.Db.TtsUsageRecords.CountAsync(r => !r.Failed)).Should().Be(1);
     }
 
     // Browser speech is gone: a channel whose stored mode is the retired "client_edge" still gets

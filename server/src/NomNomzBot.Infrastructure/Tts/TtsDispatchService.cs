@@ -731,6 +731,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             );
 
         TtsResult synth;
+        long synthesisStartedAt = _clock.GetTimestamp();
         try
         {
             // byok runs on the channel's own vault-decrypted provider key (tts.md §3.2); every other
@@ -777,6 +778,20 @@ public sealed class TtsDispatchService : ITtsDispatchService
         catch (Exception ex)
         {
             _logger.LogWarning(ex, "TTS synthesis failed for channel {Channel}.", broadcasterId);
+            await RecordFailedClipAsync(
+                NewLedgerRow(
+                    broadcasterId,
+                    requestedByTwitchUserId,
+                    config.DefaultProvider,
+                    voiceId,
+                    text,
+                    wasCensored,
+                    wasModApproved,
+                    streamId,
+                    synthesisMs: ElapsedMs(synthesisStartedAt),
+                    failed: true
+                )
+            );
             return await PublishRejectAsync(
                 broadcasterId,
                 requestedByTwitchUserId,
@@ -787,7 +802,23 @@ public sealed class TtsDispatchService : ITtsDispatchService
             );
         }
 
+        int synthesisMs = ElapsedMs(synthesisStartedAt);
         if (synth.AudioData.Length == 0)
+        {
+            await RecordFailedClipAsync(
+                NewLedgerRow(
+                    broadcasterId,
+                    requestedByTwitchUserId,
+                    synth.Provider,
+                    synth.VoiceId,
+                    text,
+                    wasCensored,
+                    wasModApproved,
+                    streamId,
+                    synthesisMs,
+                    failed: true
+                )
+            );
             return await PublishRejectAsync(
                 broadcasterId,
                 requestedByTwitchUserId,
@@ -796,6 +827,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 "SERVICE_UNAVAILABLE",
                 ct
             );
+        }
 
         string fileName = $"tts-{Guid.CreateVersion7():n}.mp3";
         using (MemoryStream audio = new(synth.AudioData))
@@ -816,19 +848,18 @@ public sealed class TtsDispatchService : ITtsDispatchService
         // do not re-decide this again without hard evidence either way.
         string dataUri = $"data:audio/mpeg;base64,{Convert.ToBase64String(synth.AudioData)}";
 
-        TtsUsageRecord usage = new()
-        {
-            BroadcasterId = broadcasterId,
-            UserId = requestedByTwitchUserId,
-            CharacterCount = text.Length,
-            Provider = synth.Provider,
-            VoiceId = synth.VoiceId,
-            Text = text,
-            WasCensored = wasCensored,
-            WasModApproved = wasModApproved,
-            StreamId = streamId,
-            OccurredAt = _clock.GetUtcNow().UtcDateTime,
-        };
+        TtsUsageRecord usage = NewLedgerRow(
+            broadcasterId,
+            requestedByTwitchUserId,
+            synth.Provider,
+            synth.VoiceId,
+            text,
+            wasCensored,
+            wasModApproved,
+            streamId,
+            synthesisMs,
+            failed: false
+        );
         _db.TtsUsageRecords.Add(usage);
         await _db.SaveChangesAsync(ct);
         if (metered)
@@ -892,6 +923,48 @@ public sealed class TtsDispatchService : ITtsDispatchService
         return provider ?? string.Empty;
     }
 
+    private int ElapsedMs(long startedAt) =>
+        (int)Math.Min(_clock.GetElapsedTime(startedAt).TotalMilliseconds, int.MaxValue);
+
+    private TtsUsageRecord NewLedgerRow(
+        Guid broadcasterId,
+        string requestedByTwitchUserId,
+        string provider,
+        string voiceId,
+        string text,
+        bool wasCensored,
+        bool? wasModApproved,
+        Guid? streamId,
+        int synthesisMs,
+        bool failed
+    ) =>
+        new()
+        {
+            BroadcasterId = broadcasterId,
+            UserId = requestedByTwitchUserId,
+            CharacterCount = text.Length,
+            Provider = provider,
+            VoiceId = voiceId,
+            Text = text,
+            WasCensored = wasCensored,
+            WasModApproved = wasModApproved,
+            StreamId = streamId,
+            SynthesisMs = synthesisMs,
+            Failed = failed,
+            OccurredAt = _clock.GetUtcNow().UtcDateTime,
+        };
+
+    /// <summary>
+    /// Ledgers a clip that never played, with the time spent until it failed, so the admin diagnostics can show
+    /// slow and failing providers. It is saved with <see cref="CancellationToken.None"/>: a timeout cancels the
+    /// request token, and that is exactly the failure this row has to survive.
+    /// </summary>
+    private async Task RecordFailedClipAsync(TtsUsageRecord failedClip)
+    {
+        _db.TtsUsageRecords.Add(failedClip);
+        await _db.SaveChangesAsync(CancellationToken.None);
+    }
+
     /// <summary>
     /// True when a viewer's own TTS request lands inside the channel's cooldown after that viewer's last spoken
     /// message. The ledger (<see cref="TtsUsageRecord"/>) is the clock, so the window survives a restart and needs
@@ -917,6 +990,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             u =>
                 u.BroadcasterId == request.BroadcasterId
                 && u.UserId == request.RequestedByTwitchUserId
+                && !u.Failed
                 && u.OccurredAt > windowStart,
             ct
         );

@@ -45,4 +45,10 @@ public class TtsUsageRecord : BaseEntity, ITenantScoped
 
     /// <summary>When the utterance was dispatched to the overlay.</summary>
     public DateTime OccurredAt { get; set; }
+
+    /// <summary>How long the synthesis call took, in milliseconds; for a failed clip, the time spent until it failed. Null on rows written before the timing was kept.</summary>
+    public int? SynthesisMs { get; set; }
+
+    /// <summary>True when the provider threw, timed out or returned no audio; such a row was never spoken.</summary>
+    public bool Failed { get; set; }
 }

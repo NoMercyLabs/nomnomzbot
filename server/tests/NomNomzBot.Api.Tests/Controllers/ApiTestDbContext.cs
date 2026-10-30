@@ -215,6 +215,9 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         b.Entity<PipelineExecution>().Ignore(e => e.Pipeline);
         b.Entity<BillingTier>().HasKey(e => e.Id);
 
+        // ...and its TTS clips (the diagnostics tts section).
+        b.Entity<TtsUsageRecord>().HasKey(e => e.Id);
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -243,6 +246,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         typeof(ChannelMembership),
         typeof(PipelineExecution),
         typeof(BillingTier),
+        typeof(TtsUsageRecord),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -331,7 +335,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<TtsConfig> TtsConfigs => throw new NotSupportedException();
     public DbSet<TtsVoice> TtsVoices => throw new NotSupportedException();
     public DbSet<UserTtsVoice> UserTtsVoices => throw new NotSupportedException();
-    public DbSet<TtsUsageRecord> TtsUsageRecords => throw new NotSupportedException();
+    public DbSet<TtsUsageRecord> TtsUsageRecords => Set<TtsUsageRecord>();
     public DbSet<TtsCacheEntry> TtsCacheEntries => throw new NotSupportedException();
     public DbSet<TtsLexiconEntry> TtsLexiconEntries => throw new NotSupportedException();
     public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries =>

@@ -31,7 +31,37 @@ public sealed record ChannelDiagnosticsDto
     /// <summary>One page of the channel's pipeline runs, newest first.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ChannelDiagnosticRunsDto? Runs { get; set; }
+
+    /// <summary>The channel's last 50 TTS clips and how long synthesis took over the last 24 hours.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ChannelDiagnosticTtsDto? Tts { get; set; }
 }
+
+/// <summary>A channel's TTS clips, newest first, and the synthesis figures for the last 24 hours.</summary>
+public sealed record ChannelDiagnosticTtsDto(
+    IReadOnlyList<ChannelDiagnosticTtsClipDto> Clips,
+    ChannelDiagnosticTtsWindowDto Last24Hours
+);
+
+/// <summary>One TTS clip. <paramref name="SynthesisMs"/> is null for a clip written before the timing was kept;
+/// for a failed clip it is the time spent until the failure.</summary>
+public sealed record ChannelDiagnosticTtsClipDto(
+    DateTime OccurredAt,
+    string Provider,
+    string VoiceId,
+    int CharacterCount,
+    int? SynthesisMs,
+    bool Failed
+);
+
+/// <summary>Synthesis over the last 24 hours. The average and the 95th percentile (nearest rank) cover every clip
+/// with a measured time, failed ones included, and are null when no clip has one.</summary>
+public sealed record ChannelDiagnosticTtsWindowDto(
+    int Clips,
+    int FailedClips,
+    int? AverageSynthesisMs,
+    int? P95SynthesisMs
+);
 
 /// <summary>A channel at a glance. The run counts cover the last 24 hours; the last failed run is the newest
 /// failure of all time, so a quiet day still shows the last thing that broke.</summary>

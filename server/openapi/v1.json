@@ -109957,6 +109957,17 @@
                 "$ref": "#/components/schemas/ChannelDiagnosticRuns"
               }
             ]
+          },
+          "tts": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "description": "The channel's last 50 TTS clips and how long synthesis took over the last 24 hours.",
+                "$ref": "#/components/schemas/ChannelDiagnosticTts"
+              }
+            ]
           }
         },
         "description": "The answer to an admin's `diagnostics` read of one channel: one property per requested section. A section\r\nthat was not requested is omitted. A new section adds a property here and a class implementing\r\n`IChannelDiagnosticSection`; never an endpoint."
@@ -110024,6 +110035,112 @@
           }
         },
         "description": "A channel at a glance. The run counts cover the last 24 hours; the last failed run is the newest\r\n            failure of all time, so a quiet day still shows the last thing that broke."
+      },
+      "ChannelDiagnosticTts": {
+        "required": [
+          "clips",
+          "last24Hours"
+        ],
+        "type": "object",
+        "properties": {
+          "clips": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/ChannelDiagnosticTtsClip"
+            }
+          },
+          "last24Hours": {
+            "$ref": "#/components/schemas/ChannelDiagnosticTtsWindow"
+          }
+        },
+        "description": "A channel's TTS clips, newest first, and the synthesis figures for the last 24 hours."
+      },
+      "ChannelDiagnosticTtsClip": {
+        "required": [
+          "occurredAt",
+          "provider",
+          "voiceId",
+          "characterCount",
+          "failed"
+        ],
+        "type": "object",
+        "properties": {
+          "occurredAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "provider": {
+            "type": "string"
+          },
+          "voiceId": {
+            "type": "string"
+          },
+          "characterCount": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "synthesisMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "failed": {
+            "type": "boolean"
+          }
+        },
+        "description": "One TTS clip. SynthesisMs is null for a clip written before the timing was kept;\r\n            for a failed clip it is the time spent until the failure."
+      },
+      "ChannelDiagnosticTtsWindow": {
+        "required": [
+          "clips",
+          "failedClips"
+        ],
+        "type": "object",
+        "properties": {
+          "clips": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "failedClips": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "averageSynthesisMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "p95SynthesisMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          }
+        },
+        "description": "Synthesis over the last 24 hours. The average and the 95th percentile (nearest rank) cover every clip\r\n            with a measured time, failed ones included, and are null when no clip has one."
       },
       "ChannelFederationOptIn": {
         "required": [

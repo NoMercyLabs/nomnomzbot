@@ -96,6 +96,24 @@ public sealed class TtsHistoryServiceTests
     }
 
     [Fact]
+    public async Task ListAsync_LeavesOutClipsThatFailedToSynthesize()
+    {
+        TtsTestDbContext db = TtsTestDbContext.New();
+        db.TtsUsageRecords.Add(Row(Tenant, "spoken", 0));
+        TtsUsageRecord failed = Row(Tenant, "never heard", 1);
+        failed.Failed = true;
+        failed.SynthesisMs = 8000;
+        db.TtsUsageRecords.Add(failed);
+        await db.SaveChangesAsync();
+        await using TtsTestDbContext _ = db;
+        TtsHistoryService service = new(db);
+
+        Result<TtsHistoryPageDto> result = await service.ListAsync(Tenant, 10, null);
+
+        result.Value.Items.Select(i => i.Text).Should().Equal("spoken");
+    }
+
+    [Fact]
     public async Task ListAsync_ClampsTheLimitAndKeepsRowsWithoutStoredText()
     {
         TtsTestDbContext db = TtsTestDbContext.New();
