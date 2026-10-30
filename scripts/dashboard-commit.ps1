@@ -122,6 +122,10 @@ try {
         # The tail alone cuts off which tests failed; their FAIL lines are printed first.
         $tests | Select-String -Pattern '^\s*FAIL\s' | Sort-Object -Unique
         $tests | Select-Object -Last 12
+        # The summary drops each failure's error text; the whole run is kept for diagnosis (ignored path).
+        $testLog = "$wt/dashboard/node_modules/.gate-vitest.log"
+        $tests | Set-Content -Path $testLog
+        "full test output: $testLog"
     }
 } finally {
     Pop-Location
