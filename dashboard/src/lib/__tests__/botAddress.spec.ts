@@ -11,7 +11,7 @@
 
 import { describe, expect, it } from 'vitest';
 
-import { isMixedContent, toBotOrigin } from '../botAddress';
+import { inviteLink, isMixedContent, toBotOrigin } from '../botAddress';
 
 describe('toBotOrigin', () => {
   it.each([
@@ -48,5 +48,19 @@ describe('isMixedContent', () => {
 
   it('allows any bot from a plain http page', () => {
     expect(isMixedContent('http://localhost:5090', 'http://192.168.1.20:5080')).toBe(false);
+  });
+});
+
+describe('inviteLink', () => {
+  it('points at the invite page on the given dashboard', () => {
+    expect(inviteLink('WELCOME42', 'https://dev.nomnomz.bot')).toBe('https://dev.nomnomz.bot/invite/WELCOME42');
+  });
+
+  it('uses the origin of this page when none is given', () => {
+    expect(inviteLink('ABC')).toBe(`${window.location.origin}/invite/ABC`);
+  });
+
+  it('escapes a code that holds a path character', () => {
+    expect(inviteLink('a/b c', 'https://bot.example')).toBe('https://bot.example/invite/a%2Fb%20c');
   });
 });

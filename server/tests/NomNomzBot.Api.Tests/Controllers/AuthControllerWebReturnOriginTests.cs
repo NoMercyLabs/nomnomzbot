@@ -20,6 +20,7 @@ using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Infrastructure.Identity;
@@ -181,14 +182,19 @@ public sealed class AuthControllerWebReturnOriginTests
             controller.Request.Headers["X-Forwarded-Host"] = forwardedHost;
             controller.Request.Headers["X-Forwarded-Proto"] = "https";
 
-            await controller.StartTwitchOAuth(null, "web", returnTo, null, null, default);
+            await controller.StartTwitchOAuth(null, "web", returnTo, null, null);
             return issued;
         }
 
         public async Task<RedirectResult> CallbackAsync(string nonce)
         {
             AuthController controller = Controller(origin: null);
-            IActionResult result = await controller.HandleTwitchCallback("code", nonce, default);
+            IActionResult result = await controller.HandleTwitchCallback(
+                "code",
+                nonce,
+                Substitute.For<IInviteCodeService>(),
+                default
+            );
             LastCallbackSetCookie = controller.Response.Headers["Set-Cookie"].ToString();
             return result.Should().BeOfType<RedirectResult>().Subject;
         }

@@ -595,7 +595,26 @@
           "founder": "Founders badge",
           "revoke": "Revoke",
           "revokeTitle": "Revoke {code}?",
-          "ended": "Revoked or expired"
+          "revokeConsequence": "The link stops working at once. Channels that already redeemed it keep what it gave them.",
+          "ended": "Revoked or expired",
+          "givesMonths": "Gives {tier} for {count} month | Gives {tier} for {count} months",
+          "givesForever": "Gives {tier} forever",
+          "givesBadge": "Gives the founders badge only",
+          "months": "{count} month | {count} months",
+          "forever": "Forever",
+          "left": "None left | {count} left | {count} left",
+          "expires": "Expires {date}",
+          "expiresLabel": "Expires (optional)",
+          "copy": "Copy link",
+          "createdTitle": "Invite {code} is ready",
+          "createdDescription": "Send this link to the streamer. It works until it is used up, expires or is revoked.",
+          "done": "Done"
+        },
+        "length": {
+          "tier": "Tier",
+          "pickTier": "Pick a tier",
+          "months": "Months",
+          "forever": "Forever"
         },
         "channel": {
           "title": "Channel billing",
@@ -609,8 +628,6 @@
           "pickTier": "Pick a tier",
           "grantTier": "Grant tier",
           "gift": "Gift a plan",
-          "giftTier": "Tier",
-          "months": "Months",
           "forever": "Forever",
           "giftUntil": "Gives {tier} until {date}",
           "giftForever": "Gives {tier} forever",

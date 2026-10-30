@@ -18,6 +18,7 @@ using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NSubstitute;
@@ -50,7 +51,12 @@ public sealed class AuthControllerWebFlowTests
             )
             .Returns(Result.Success(Auth("acc-tok", "ref-tok")));
 
-        IActionResult result = await controller.HandleTwitchCallback("code", "nonce", default);
+        IActionResult result = await controller.HandleTwitchCallback(
+            "code",
+            "nonce",
+            Substitute.For<IInviteCodeService>(),
+            default
+        );
 
         // Full-page redirect back to the served origin with the access token in the fragment. Defaults to
         // /app, never "/": the refresh cookie's Path scoping means "/" always looks logged-out right after
@@ -95,7 +101,12 @@ public sealed class AuthControllerWebFlowTests
             )
             .Returns(Result.Success(Auth("acc-tok", "ref-tok")));
 
-        IActionResult result = await controller.HandleTwitchCallback("code", "nonce", default);
+        IActionResult result = await controller.HandleTwitchCallback(
+            "code",
+            "nonce",
+            Substitute.For<IInviteCodeService>(),
+            default
+        );
 
         RedirectResult redirect = result.Should().BeOfType<RedirectResult>().Subject;
         redirect.Url.Should().Contain("&return_route=integrations");
@@ -119,7 +130,12 @@ public sealed class AuthControllerWebFlowTests
             )
             .Returns(Result.Success(Auth("mobile-acc-tok", "mobile-ref-tok")));
 
-        IActionResult result = await controller.HandleTwitchCallback("code", "nonce", default);
+        IActionResult result = await controller.HandleTwitchCallback(
+            "code",
+            "nonce",
+            Substitute.For<IInviteCodeService>(),
+            default
+        );
 
         // No redirect at all for the mobile path any more — the deep-link URI carried no body, so it could
         // never carry the refresh token safely. The app reads the JSON response of this very call instead.
@@ -152,7 +168,12 @@ public sealed class AuthControllerWebFlowTests
             )
             .Returns(Result.Success(Auth("acc-tok", "ref-tok")));
 
-        IActionResult result = await controller.HandleTwitchCallback("code", "nonce", default);
+        IActionResult result = await controller.HandleTwitchCallback(
+            "code",
+            "nonce",
+            Substitute.For<IInviteCodeService>(),
+            default
+        );
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
         ok.Value.Should().BeOfType<StatusResponseDto<object>>();

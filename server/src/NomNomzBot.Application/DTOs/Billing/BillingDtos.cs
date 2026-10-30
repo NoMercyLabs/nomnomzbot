@@ -131,7 +131,10 @@ public sealed record FoundersBadgeDto(
     string? InviteCode
 );
 
-/// <summary>An invite-code view (admin).</summary>
+/// <summary>
+/// An invite-code view (admin). With a tier, <see cref="GrantsMonths"/> is the gift length in months; null is
+/// a forever gift.
+/// </summary>
 public sealed record InviteCodeDto(
     Guid Id,
     string Code,
@@ -140,7 +143,8 @@ public sealed record InviteCodeDto(
     bool GrantsFoundersBadge,
     Guid? GrantsTierId,
     string? GrantsTierKey,
-    DateTimeOffset? ExpiresAt
+    DateTimeOffset? ExpiresAt,
+    int? GrantsMonths = null
 );
 
 /// <summary>The result of validating an invite code (pre-redemption).</summary>
@@ -150,14 +154,32 @@ public sealed record InviteCodeValidationDto(
     bool GrantsFoundersBadge,
     string? GrantsTierKey,
     int RemainingRedemptions,
-    DateTimeOffset? ExpiresAt
+    DateTimeOffset? ExpiresAt,
+    int? GrantsMonths = null
 );
 
-/// <summary>The result of redeeming an invite code.</summary>
+/// <summary>
+/// The result of redeeming an invite code. <see cref="GrantedTierExpiresAt"/> is when the gifted tier ends;
+/// null with a tier is a forever gift.
+/// </summary>
 public sealed record RedeemInviteCodeResultDto(
     bool GrantedFoundersBadge,
     string? GrantedTierKey,
-    FoundersBadgeDto? FoundersBadge
+    FoundersBadgeDto? FoundersBadge,
+    DateTime? GrantedTierExpiresAt = null
+);
+
+/// <summary>
+/// What an invite link gives, for a signed-out visitor (S-INVITE-TIER). An unknown, used-up, expired or revoked
+/// code all read the same (not usable, one fixed reason, no tier), so a guesser cannot tell which codes exist.
+/// Reading never spends a redemption.
+/// </summary>
+public sealed record PublicInviteDto(
+    bool IsUsable,
+    string? NotUsableReason,
+    string? TierDisplayName,
+    int? Months,
+    bool Forever
 );
 
 // ── Requests ──
@@ -220,12 +242,16 @@ public sealed record IssueEntitlementGrantRequest(
     bool Forever = false
 );
 
-/// <summary>Create an invite code (admin).</summary>
+/// <summary>
+/// Create an invite code (admin). <see cref="GrantsMonths"/> (1 to 120) sets how long the gifted tier lasts;
+/// null with a tier is a forever gift. A length needs a tier.
+/// </summary>
 public sealed record CreateInviteCodeRequest(
     int MaxRedemptions,
     bool GrantsFoundersBadge,
     Guid? GrantsTierId,
-    DateTimeOffset? ExpiresAt
+    DateTimeOffset? ExpiresAt,
+    int? GrantsMonths = null
 );
 
 // ── Tier authoring (admin — S-ADMIN-4a) ──

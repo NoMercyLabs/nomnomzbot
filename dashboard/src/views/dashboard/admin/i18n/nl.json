@@ -595,7 +595,26 @@
           "founder": "Founders-badge",
           "revoke": "Intrekken",
           "revokeTitle": "{code} intrekken?",
-          "ended": "Ingetrokken of verlopen"
+          "revokeConsequence": "De link werkt meteen niet meer. Kanalen die hem al hebben ingewisseld houden wat ze kregen.",
+          "ended": "Ingetrokken of verlopen",
+          "givesMonths": "Geeft {tier} voor {count} maand | Geeft {tier} voor {count} maanden",
+          "givesForever": "Geeft {tier} voor altijd",
+          "givesBadge": "Geeft alleen de founders-badge",
+          "months": "{count} maand | {count} maanden",
+          "forever": "Voor altijd",
+          "left": "Geen meer over | {count} over | {count} over",
+          "expires": "Verloopt {date}",
+          "expiresLabel": "Verloopt (optioneel)",
+          "copy": "Link kopiëren",
+          "createdTitle": "Uitnodiging {code} is klaar",
+          "createdDescription": "Stuur deze link naar de streamer. Hij werkt tot hij op is, verloopt of wordt ingetrokken.",
+          "done": "Klaar"
+        },
+        "length": {
+          "tier": "Niveau",
+          "pickTier": "Kies een niveau",
+          "months": "Maanden",
+          "forever": "Voor altijd"
         },
         "channel": {
           "title": "Kanaalfacturatie",
@@ -609,8 +628,6 @@
           "pickTier": "Kies een niveau",
           "grantTier": "Niveau toekennen",
           "gift": "Abonnement cadeau geven",
-          "giftTier": "Niveau",
-          "months": "Maanden",
           "forever": "Voor altijd",
           "giftUntil": "Geeft {tier} tot {date}",
           "giftForever": "Geeft {tier} voor altijd",

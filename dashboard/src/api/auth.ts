@@ -147,6 +147,33 @@ export function takeOAuthLanding(): boolean {
   return landed;
 }
 
+// What happened to the invite a streamer sign-in carried: the bot redeemed it, or says why it did not.
+// A failed redeem never blocks the sign-in, so this is only a message for the page the person lands on.
+export type InviteOutcome = { redeemed: true } | { redeemed: false; reason: string };
+
+let inviteOutcome: InviteOutcome | null = null;
+
+function readInviteOutcome(fragment: URLSearchParams): void {
+  const result = fragment.get('invite');
+
+  if (result === 'redeemed') {
+    inviteOutcome = { redeemed: true };
+  }
+
+  if (result === 'failed') {
+    inviteOutcome = { redeemed: false, reason: fragment.get('invite_reason') ?? '' };
+  }
+}
+
+// True once per sign-in that carried an invite: the message is shown a single time.
+export function takeInviteOutcome(): InviteOutcome | null {
+  const outcome = inviteOutcome;
+
+  inviteOutcome = null;
+
+  return outcome;
+}
+
 // The OAuth callback returns the access token in the URL fragment; take it once and strip it.
 function consumeFragment(): boolean {
   const fragment = new URLSearchParams(window.location.hash.slice(1));
@@ -155,6 +182,7 @@ function consumeFragment(): boolean {
   if (!token)
     return false;
 
+  readInviteOutcome(fragment);
   setAccessToken(token);
   signedIn.value = true;
   landedFromOAuth = true;
@@ -166,9 +194,11 @@ function consumeFragment(): boolean {
 // A sign-in started on another listed site of this bot comes back with a one-time code instead of a token.
 // This site trades it for the token, and the bot sets the refresh cookie on this site. A spent code is dropped.
 function takeLoginCode(): string | null {
-  const code = new URLSearchParams(window.location.hash.slice(1)).get('login_code');
+  const fragment = new URLSearchParams(window.location.hash.slice(1));
+  const code = fragment.get('login_code');
 
   if (code) {
+    readInviteOutcome(fragment);
     stripFragment();
   }
 

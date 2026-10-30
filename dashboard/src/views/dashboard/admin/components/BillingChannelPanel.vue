@@ -11,7 +11,8 @@
 <script setup lang="ts">
 // One channel's billing: its invoices (refund after the amount is shown), its gifts, and the tier and
 // founders-badge grants. A gift gives any tier (a hidden one too) for N months or forever; it reads the
-// changed limits first, names the end date it will store, and sends the counted number back.
+// changed limits first, names the end date it will store, and sends the counted number back. The tier and
+// length fields are shared with the invite form (TierLengthFields).
 import { refDebounced } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -19,7 +20,6 @@ import { useI18n } from 'vue-i18n';
 import {
   useBillingGrants,
   useBillingInvoices,
-  useBillingTiers,
   useEndGrant,
   useGrantFounder,
   useGrantPreview,
@@ -37,16 +37,14 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
-import { Switch } from '@/components/ui/switch';
 import { merge } from '@/lib/array';
 import { addMonths } from '@/lib/time';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 import { useTime } from '@/composables/useTime';
 
-// The server takes 1 to 120 months for a gift that ends.
-const MIN_MONTHS = 1;
-const MAX_MONTHS = 120;
+import TierLengthFields from './TierLengthFields.vue';
+import { useTierLength } from './tierLength';
 
 const { t } = useI18n();
 const { can } = usePlatformCan();
@@ -56,9 +54,16 @@ const typed = ref('');
 const channelId = refDebounced(typed, 300);
 const invoices = useBillingInvoices(channelId);
 const grants = useBillingGrants(channelId);
-const tiers = useBillingTiers();
-const tierChoices = computed(() =>
-  (tiers.data.value ?? []).map((tier) => ({ value: tier.id, label: tier.displayName })));
+const {
+  tierId: giftTierId,
+  months,
+  forever,
+  tierChoices,
+  monthCount,
+  lengthValid,
+  tierLabel,
+  reset: resetLength,
+} = useTierLength();
 const invoiceState = usePanelState(invoices, (list) =>
   list.length === 0);
 
@@ -70,10 +75,7 @@ const issue = useIssueGrant();
 const endGrant = useEndGrant();
 
 const tierId = ref('');
-const giftTierId = ref('');
 const reason = ref('');
-const months = ref('1');
-const forever = ref(false);
 const refunding = ref<BillingInvoice | null>(null);
 const ending = ref<EntitlementGrant | null>(null);
 const action = ref<'tier' | 'founder' | 'gift' | null>(null);
@@ -94,18 +96,8 @@ const panelState = computed(() => {
 const noInvoices = computed<boolean>(() => (invoices.data.value ?? []).length === 0);
 const noGifts = computed<boolean>(() => (grants.data.value ?? []).length === 0);
 
-function tierLabel(id: string): string {
-  return (tiers.data.value ?? []).find((tier) => tier.id === id)?.displayName ?? '';
-}
-
-const monthCount = computed<number>(() => Number(months.value));
-const monthsValid = computed<boolean>(() => {
-  const count = monthCount.value;
-
-  return Number.isInteger(count) && count >= MIN_MONTHS && count <= MAX_MONTHS;
-});
 const giftReady = computed<boolean>(() =>
-  giftTierId.value !== '' && reason.value.trim() !== '' && (forever.value || monthsValid.value));
+  giftTierId.value !== '' && reason.value.trim() !== '' && lengthValid.value);
 
 const giftSummary = computed<string>(() => {
   const tier = tierLabel(giftTierId.value);
@@ -119,7 +111,7 @@ const giftSummary = computed<string>(() => {
   return t('dashboard.admin.billing.channel.giftUntil', { tier, date });
 });
 const showSummary = computed<boolean>(() =>
-  giftTierId.value !== '' && (forever.value || monthsValid.value));
+  giftTierId.value !== '' && lengthValid.value);
 
 function grantEnd(grant: EntitlementGrant): string {
   if (grant.expiresAt === null || grant.expiresAt === undefined)
@@ -192,10 +184,8 @@ async function confirmEnd(): Promise<void> {
 }
 
 function openGift(): void {
-  giftTierId.value = '';
+  resetLength();
   reason.value = '';
-  months.value = String(MIN_MONTHS);
-  forever.value = false;
   giftForm.value = true;
 }
 
@@ -345,34 +335,13 @@ async function confirmAction(): Promise<void> {
     :disabled="!giftReady"
     @submit="startGift"
   >
-    <div class="grid gap-2">
-      <Label for="gift-tier">{{ t('dashboard.admin.billing.channel.giftTier') }}</Label>
-      <OptionSelect
-        id="gift-tier"
-        v-model="giftTierId"
-        data-gift-tier
-        :options="tierChoices"
-        :placeholder="t('dashboard.admin.billing.channel.pickTier')"
-      />
-    </div>
-    <div class="grid gap-2">
-      <Label for="gift-months">{{ t('dashboard.admin.billing.channel.months') }}</Label>
-      <div class="flex items-center gap-4">
-        <Input id="gift-months"
-               v-model="months"
-               data-gift-months
-               type="number"
-               class="w-28"
-               :min="MIN_MONTHS"
-               :max="MAX_MONTHS"
-               :disabled="forever"
-        />
-        <div data-touch-target class="flex min-h-9 items-center gap-3">
-          <Label for="gift-forever">{{ t('dashboard.admin.billing.channel.forever') }}</Label>
-          <Switch id="gift-forever" v-model="forever" data-gift-forever />
-        </div>
-      </div>
-    </div>
+    <TierLengthFields
+      id="gift"
+      v-model:tier-id="giftTierId"
+      v-model:months="months"
+      v-model:forever="forever"
+      :choices="tierChoices"
+    />
     <div class="grid gap-2">
       <Label for="gift-reason">{{ t('dashboard.admin.billing.channel.reason') }}</Label>
       <Input id="gift-reason" v-model="reason" data-gift-reason />

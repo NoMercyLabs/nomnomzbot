@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 import {
+  queryOptions,
   useMutation,
   useQuery,
   useQueryClient,
@@ -33,6 +34,7 @@ export type ChannelInvoice = components['schemas']['Invoice'];
 export type FoundersBadge = components['schemas']['FoundersBadge'];
 export type InviteCheck = components['schemas']['InviteCodeValidation'];
 export type InviteRedeemed = components['schemas']['RedeemInviteCodeResult'];
+export type PublicInvite = components['schemas']['PublicInvite'];
 export type TierChange = components['schemas']['ChangeTierRequest'];
 export type PlanCancel = components['schemas']['CancelSubscriptionRequest'];
 
@@ -284,6 +286,29 @@ export function useOpenBillingPortal(
 
       return portal.portalUrl;
     },
+  });
+}
+
+// What an invite link gives, read by anyone: a visitor who is not signed in has no channel yet.
+export function publicInviteQuery(code: string) {
+  return queryOptions({
+    queryKey: ['billing', 'invite', code],
+    queryFn: async (): Promise<PublicInvite> => {
+      const { data, error, response } = await client.GET('/api/v{version}/billing/invites/{code}', {
+        params: { path: { version, code } },
+      });
+
+      const invite = data?.data;
+
+      if (error !== undefined)
+        throw refusal('read invite', error, response.status);
+
+      if (invite === undefined || invite === null)
+        throw failed('read invite', response.status);
+
+      return invite;
+    },
+    retry: false,
   });
 }
 

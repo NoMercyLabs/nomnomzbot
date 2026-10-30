@@ -11,6 +11,14 @@
       "reload": "Reload"
     }
   },
+  "invite": {
+    "outcome": {
+      "redeemed": "Invite redeemed",
+      "nowYours": "Your invite is now on your channel.",
+      "nowYoursNamed": "{gift} is now on your channel.",
+      "failed": "The invite could not be redeemed"
+    }
+  },
   "errors": {
     "failed": "Something went wrong. Try again.",
     "refused": "The bot refused this.",

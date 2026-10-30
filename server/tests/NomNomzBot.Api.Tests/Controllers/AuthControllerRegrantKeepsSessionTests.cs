@@ -16,6 +16,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Infrastructure.Identity;
@@ -87,8 +88,9 @@ public sealed class AuthControllerRegrantKeepsSessionTests
         );
 
         await Controller(auth, state, sessions, "raw-refresh")
-            .StartTwitchOAuth(null, null, null, null, role, default);
-        await Controller(auth, state, sessions, null).HandleTwitchCallback("code", issued, default);
+            .StartTwitchOAuth(null, null, null, null, role);
+        await Controller(auth, state, sessions, null)
+            .HandleTwitchCallback("code", issued, Substitute.For<IInviteCodeService>(), default);
 
         userHint.Should().Be(Person);
         arrivingUser.Should().Be(Person);
@@ -128,8 +130,9 @@ public sealed class AuthControllerRegrantKeepsSessionTests
         ISessionService sessions = Substitute.For<ISessionService>();
 
         await Controller(auth, state, sessions, null)
-            .StartTwitchOAuth(null, null, null, null, "moderator", default);
-        await Controller(auth, state, sessions, null).HandleTwitchCallback("code", issued, default);
+            .StartTwitchOAuth(null, null, null, null, "moderator");
+        await Controller(auth, state, sessions, null)
+            .HandleTwitchCallback("code", issued, Substitute.For<IInviteCodeService>(), default);
 
         userHint.Should().BeNull();
         arrivingUser.Should().BeNull();

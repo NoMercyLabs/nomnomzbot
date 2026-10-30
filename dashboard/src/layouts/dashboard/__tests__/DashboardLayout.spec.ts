@@ -64,6 +64,8 @@ vi.mock('@/composables/useCurrentChannel', () => ({
 // The intent prefetch has its own spec; these tests cover the frame, which has no query client here.
 vi.mock('@/composables/useIntentPrefetch', () => ({ useIntentPrefetch: () => undefined }));
 vi.mock('../useReadableRedirect', () => ({ useReadableRedirect: () => undefined }));
+// The invite message after a sign-in has its own spec; these tests cover the frame.
+vi.mock('@/composables/useInviteOutcome', () => ({ useInviteOutcome: () => undefined }));
 
 const stub = (slot: string) => defineComponent({ render: () => h('div', { 'data-stub': slot }) });
 

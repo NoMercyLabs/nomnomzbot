@@ -174,7 +174,7 @@ async function pickTier(label: string): Promise<void> {
   Element.prototype.releasePointerCapture = (): void => undefined;
   Element.prototype.scrollIntoView = (): void => undefined;
 
-  hook('[data-gift-tier]').dispatchEvent(
+  hook('[data-length-tier]').dispatchEvent(
     new PointerEvent('pointerdown', {
       bubbles: true,
       button: 0,
@@ -225,7 +225,7 @@ describe('BillingChannelPanel gifts', () => {
     // Only the clock is frozen, and only after the tier is picked: the select reads time while it opens.
     vi.useFakeTimers({ toFake: ['Date'] });
     vi.setSystemTime(new Date('2026-10-29T12:00:00Z'));
-    type('[data-gift-months]', '3');
+    type('[data-length-months]', '3');
     await settle();
 
     expect(hook('[data-gift-summary]').textContent?.trim()).toBe('Gives Friends until Jan 29, 2027');
@@ -254,11 +254,11 @@ describe('BillingChannelPanel gifts', () => {
   it('gifts a tier forever with no months and no end date in the body', async () => {
     await open();
     await openGift('Pro');
-    hook('[data-gift-forever]').click();
+    hook('[data-length-forever]').click();
     await settle();
 
     expect(hook('[data-gift-summary]').textContent?.trim()).toBe('Gives Pro forever');
-    expect((hook('[data-gift-months]') as HTMLInputElement).disabled).toBe(true);
+    expect((hook('[data-length-months]') as HTMLInputElement).disabled).toBe(true);
 
     await issueGift();
 

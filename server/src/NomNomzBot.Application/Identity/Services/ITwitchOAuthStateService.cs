@@ -81,6 +81,11 @@ public sealed record WebLoginHandoff(string Origin, AuthResultDto Auth);
 /// signed in IS that person, so signing in again lands the person on the channel they were on. Null when the
 /// start carried no live session.
 /// </para>
+/// <para>
+/// <paramref name="InviteCode"/> is an invite code a streamer sign-in started with (S-INVITE-TIER), already
+/// checked for shape by the issuing endpoint. It stays in this server-side single-use state, never travels
+/// through Twitch, and the callback redeems it once on the channel the sign-in opened. Null when none.
+/// </para>
 /// </summary>
 public sealed record TwitchOAuthFlowState(
     string Flow,
@@ -94,5 +99,6 @@ public sealed record TwitchOAuthFlowState(
     string? ReturnRoute = null,
     string? ReturnOrigin = null,
     Guid? ArrivingUserId = null,
-    Guid? ArrivingChannelId = null
+    Guid? ArrivingChannelId = null,
+    string? InviteCode = null
 );

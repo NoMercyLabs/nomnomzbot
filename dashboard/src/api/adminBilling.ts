@@ -242,12 +242,30 @@ export const useCreateTier = () =>
     'billing tier create',
   );
 
-export const useCreateInvite = () =>
-  useBillingWrite<CreateInviteCodeRequest>(
-    (body) =>
-      client.POST('/api/v{version}/admin/billing/invites', { params: { path: { version } }, body }),
-    'billing invite create',
-  );
+// The new invite comes back, so the operator can copy its link at once.
+export function useCreateInvite(): UseMutationReturnType<
+  InviteCode,
+  Error,
+  CreateInviteCodeRequest,
+  undefined
+> {
+  const queries = useQueryClient();
+
+  return useMutation({
+    mutationFn: async (body: CreateInviteCodeRequest): Promise<InviteCode> => {
+      const { data, error, response } = await client.POST('/api/v{version}/admin/billing/invites', {
+        params: { path: { version } },
+        body,
+      });
+
+      if (error !== undefined || !data?.data)
+        throw problemError('billing invite create', response.status, error);
+
+      return data.data;
+    },
+    onSuccess: () => queries.invalidateQueries({ queryKey: billingPrefix }),
+  });
+}
 
 export const useRevokeInvite = () =>
   useBillingWrite<string>(

@@ -22,18 +22,35 @@ using NomNomzBot.Domain.Platform.Interfaces;
 namespace NomNomzBot.Infrastructure.Billing;
 
 /// <summary>
-/// Invite codes + founders badge (monetization-billing.md §3.4). Redemption grants the calling tenant a founders
-/// badge and/or a tier (the latter via <see cref="ISubscriptionService.GrantTierAsync"/>). (Deferred —
-/// documented: the <c>Channels.IsFounder</c> denormalized sync awaits that column; the badge entity is the source
-/// of truth. Dedup is by the per-tenant badge row for badge-granting codes.)
+/// Invite codes + founders badge (monetization-billing.md §3.4, S-INVITE-TIER). Redemption gives the calling
+/// tenant a founders badge and/or a tier gift for N months or forever — the same entitlement grant an admin gives
+/// (<see cref="IEntitlementGrantService.IssueInviteGiftAsync"/>), never a subscription row. One tenant redeems one
+/// code once: dedup is by the per-tenant badge row for badge-granting codes and by the grant's invite id for
+/// tier-granting codes. (Deferred — documented: the <c>Channels.IsFounder</c> denormalized sync awaits that
+/// column; the badge entity is the source of truth.)
 /// </summary>
 public sealed class InviteCodeService(
     IApplicationDbContext db,
-    ISubscriptionService subscriptions,
+    IEntitlementGrantService grants,
     IEventBus eventBus,
     TimeProvider clock
 ) : IInviteCodeService
 {
+    /// <summary>The longest gift length, in months, an invite may carry (the same bound an admin gift has).</summary>
+    private const int MaxGrantMonths = 120;
+
+    /// <summary>
+    /// The one answer for every code a visitor cannot use — unknown, used up, expired or revoked look the same,
+    /// so a guesser learns nothing about which codes exist.
+    /// </summary>
+    private static readonly PublicInviteDto NotUsableInvite = new(
+        false,
+        "This invite link is not valid or can no longer be used.",
+        null,
+        null,
+        false
+    );
+
     public async Task<Result<InviteCodeValidationDto>> ValidateAsync(
         string code,
         CancellationToken ct = default
@@ -51,9 +68,57 @@ public sealed class InviteCodeService(
                 invite.GrantsFoundersBadge,
                 await TierKeyAsync(invite.GrantsTierId, ct),
                 Math.Max(0, invite.MaxRedemptions - invite.RedemptionCount),
-                ToOffset(invite.ExpiresAt)
+                ToOffset(invite.ExpiresAt),
+                invite.GrantsMonths
             )
         );
+    }
+
+    public async Task<Result<PublicInviteDto>> GetPublicInviteAsync(
+        string code,
+        CancellationToken ct = default
+    )
+    {
+        InviteCode? invite = await FindByCodeAsync(code, ct);
+        if (invite is null || !IsRedeemable(invite))
+            return Result.Success(NotUsableInvite);
+
+        if (invite.GrantsTierId is not { } tierId)
+            return Result.Success(new PublicInviteDto(true, null, null, null, false));
+
+        string? tierName = await db
+            .BillingTiers.Where(t => t.Id == tierId)
+            .Select(t => t.DisplayName)
+            .FirstOrDefaultAsync(ct);
+        return Result.Success(
+            new PublicInviteDto(
+                true,
+                null,
+                tierName,
+                invite.GrantsMonths,
+                invite.GrantsMonths is null
+            )
+        );
+    }
+
+    public async Task<Result<RedeemInviteCodeResultDto>> RedeemForOwnerAsync(
+        Guid userId,
+        string code,
+        CancellationToken ct = default
+    )
+    {
+        Guid? channelId = await db
+            .Channels.Where(c => c.OwnerUserId == userId && c.IsOnboarded)
+            .OrderBy(c => c.CreatedAt)
+            .Select(c => (Guid?)c.Id)
+            .FirstOrDefaultAsync(ct);
+        if (channelId is not { } broadcasterId)
+            return Result.Failure<RedeemInviteCodeResultDto>(
+                "There is no channel to redeem this invite on yet.",
+                "NOT_FOUND"
+            );
+
+        return await RedeemAsync(broadcasterId, code, ct);
     }
 
     public async Task<Result<RedeemInviteCodeResultDto>> RedeemAsync(
@@ -82,10 +147,15 @@ public sealed class InviteCodeService(
                 ct
             )
         )
-            return Result.Failure<RedeemInviteCodeResultDto>(
-                "You have already redeemed this code.",
-                "ALREADY_EXISTS"
-            );
+            return AlreadyRedeemed();
+        if (
+            invite.GrantsTierId is not null
+            && await db.EntitlementGrants.AnyAsync(
+                g => g.BroadcasterId == broadcasterId && g.InviteCodeId == invite.Id,
+                ct
+            )
+        )
+            return AlreadyRedeemed();
 
         invite.RedemptionCount++;
 
@@ -102,24 +172,33 @@ public sealed class InviteCodeService(
             db.FoundersBadges.Add(badge);
         }
 
-        string? grantedTierKey = null;
+        EntitlementGrantDto? gift = null;
         if (invite.GrantsTierId is { } tierId)
         {
-            Result<SubscriptionDto> grant = await subscriptions.GrantTierAsync(
+            // The gift's save commits the count and the badge tracked above in the same transaction.
+            Result<EntitlementGrantDto> granted = await grants.IssueInviteGiftAsync(
                 broadcasterId,
                 tierId,
-                isInviteOnlyGrant: true,
+                invite.GrantsMonths,
+                invite.Id,
+                code,
                 ct
             );
-            if (grant.IsFailure)
+            if (granted.IsFailure)
+            {
+                UndoRedemption(invite, badge);
                 return Result.Failure<RedeemInviteCodeResultDto>(
-                    grant.ErrorMessage,
-                    grant.ErrorCode
+                    granted.ErrorMessage,
+                    granted.ErrorCode
                 );
-            grantedTierKey = grant.Value.TierKey;
-        }
+            }
 
-        await db.SaveChangesAsync(ct);
+            gift = granted.Value;
+        }
+        else
+        {
+            await db.SaveChangesAsync(ct);
+        }
 
         await eventBus.PublishAsync(
             new InviteCodeRedeemedEvent
@@ -144,7 +223,12 @@ public sealed class InviteCodeService(
             );
 
         return Result.Success(
-            new RedeemInviteCodeResultDto(badge is not null, grantedTierKey, ToBadgeDto(badge))
+            new RedeemInviteCodeResultDto(
+                badge is not null,
+                gift?.GrantedTierKey,
+                ToBadgeDto(badge),
+                gift?.ExpiresAt
+            )
         );
     }
 
@@ -170,6 +254,19 @@ public sealed class InviteCodeService(
                 "MaxRedemptions must be positive.",
                 "VALIDATION_FAILED"
             );
+        if (request.GrantsMonths is { } months)
+        {
+            if (request.GrantsTierId is null)
+                return Result.Failure<InviteCodeDto>(
+                    "A gift length needs a tier to give.",
+                    "VALIDATION_FAILED"
+                );
+            if (months is < 1 or > MaxGrantMonths)
+                return Result.Failure<InviteCodeDto>(
+                    $"Months must be between 1 and {MaxGrantMonths}.",
+                    "VALIDATION_FAILED"
+                );
+        }
         if (
             request.GrantsTierId is { } tierId
             && !await db.BillingTiers.AnyAsync(t => t.Id == tierId && t.DeletedAt == null, ct)
@@ -183,6 +280,7 @@ public sealed class InviteCodeService(
             RedemptionCount = 0,
             GrantsFoundersBadge = request.GrantsFoundersBadge,
             GrantsTierId = request.GrantsTierId,
+            GrantsMonths = request.GrantsMonths,
             ExpiresAt = request.ExpiresAt?.UtcDateTime,
         };
         db.InviteCodes.Add(invite);
@@ -261,6 +359,20 @@ public sealed class InviteCodeService(
     private Task<InviteCode?> FindByCodeAsync(string code, CancellationToken ct) =>
         db.InviteCodes.FirstOrDefaultAsync(c => c.Code == code && c.DeletedAt == null, ct);
 
+    private static Result<RedeemInviteCodeResultDto> AlreadyRedeemed() =>
+        Result.Failure<RedeemInviteCodeResultDto>(
+            "You have already redeemed this code.",
+            "ALREADY_EXISTS"
+        );
+
+    /// <summary>A refused gift spends nothing: give the redemption back and drop the unsaved badge.</summary>
+    private void UndoRedemption(InviteCode invite, FoundersBadge? badge)
+    {
+        invite.RedemptionCount--;
+        if (badge is not null)
+            db.FoundersBadges.Remove(badge);
+    }
+
     private bool IsRedeemable(InviteCode invite) =>
         invite.RedemptionCount < invite.MaxRedemptions
         && (invite.ExpiresAt is not { } e || e > clock.GetUtcNow().UtcDateTime);
@@ -282,7 +394,8 @@ public sealed class InviteCodeService(
             invite.GrantsFoundersBadge,
             invite.GrantsTierId,
             await TierKeyAsync(invite.GrantsTierId, ct),
-            ToOffset(invite.ExpiresAt)
+            ToOffset(invite.ExpiresAt),
+            invite.GrantsMonths
         );
 
     private static FoundersBadgeDto? ToBadgeDto(FoundersBadge? badge) =>

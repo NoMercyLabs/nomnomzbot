@@ -86,11 +86,21 @@ export type LoginRole = 'viewer' | 'moderator' | 'broadcaster';
 
 // Twitch has its own route; every other provider goes through the shared PKCE authorize route.
 // A role asks the platform for only the scopes that role uses (Twitch is the one platform with roles so far).
-export function signInUrl(provider: string, returnTo: string, role?: LoginRole): string {
+// An invite code rides along for a streamer sign-in: the bot redeems it on the channel the sign-in sets up.
+export function signInUrl(
+  provider: string,
+  returnTo: string,
+  role?: LoginRole,
+  invite?: string,
+): string {
   const query = new URLSearchParams({ client: 'web', return_to: returnTo });
 
   if (role) {
     query.set('role', role);
+  }
+
+  if (invite) {
+    query.set('invite', invite);
   }
 
   const path =

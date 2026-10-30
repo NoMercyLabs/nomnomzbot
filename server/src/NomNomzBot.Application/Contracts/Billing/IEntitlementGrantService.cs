@@ -55,6 +55,21 @@ public interface IEntitlementGrantService
     );
 
     /// <summary>
+    /// Issue the gift an invite code carries (S-INVITE-TIER): <paramref name="months"/> from now, or forever when
+    /// null. No operator stands behind a redemption, so there is no preview count to confirm and the grant has no
+    /// issuing admin. The grant names <paramref name="inviteCodeId"/>, and its save commits every row the caller
+    /// tracked on the same context (the redemption count, a founders badge) in one transaction.
+    /// </summary>
+    Task<Result<EntitlementGrantDto>> IssueInviteGiftAsync(
+        Guid broadcasterId,
+        Guid tierId,
+        int? months,
+        Guid inviteCodeId,
+        string code,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
     /// End a live gift now: its end date becomes this moment, so the tier resolves back at once. The row stays
     /// as the record of what was given, and an <c>IamAuditLog</c> row is written in the same transaction.
     /// </summary>

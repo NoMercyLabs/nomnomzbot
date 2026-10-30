@@ -1,0 +1,27 @@
+{
+  "site": {
+    "invite": {
+      "brand": "NomNomzBot",
+      "title": "Je bent uitgenodigd",
+      "gives": "Deze uitnodiging geeft je kanaal {gift}.",
+      "gift": {
+        "months": "{tier} voor {count} maand | {tier} voor {count} maanden",
+        "forever": "{tier} voor altijd",
+        "badge": "de oprichtersbadge"
+      },
+      "loading": "Deze uitnodiging wordt opgezocht…",
+      "failed": "Deze uitnodiging kon niet worden geladen. Probeer het zo opnieuw.",
+      "unusable": {
+        "title": "Deze uitnodiging werkt niet",
+        "body": "Deze uitnodigingslink is niet geldig of kan niet meer worden gebruikt."
+      },
+      "signIn": "Meld je aan met Twitch om te claimen",
+      "redeem": "Inwisselen op {channel}",
+      "channelLoading": "Je kanaal wordt geladen…",
+      "noChannel": "Je hebt hier nog geen kanaal ingesteld. Open het dashboard om er een in te stellen en open daarna deze link opnieuw.",
+      "redeemed": "{channel} heeft nu {gift}.",
+      "dashboard": "Open het dashboard",
+      "home": "Terug naar de startpagina"
+    }
+  }
+}

@@ -621,6 +621,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<Guid>("GrantedTierId")
                         .HasColumnType("uuid");
 
+                    b.Property<Guid?>("InviteCodeId")
+                        .HasColumnType("uuid");
+
                     b.Property<DateTime>("IssuedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -638,6 +641,8 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("BroadcasterId", "ExpiresAt");
+
+                    b.HasIndex("BroadcasterId", "InviteCodeId");
 
                     b.ToTable("EntitlementGrants");
                 });
@@ -696,6 +701,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<bool>("GrantsFoundersBadge")
                         .HasColumnType("boolean");
+
+                    b.Property<int?>("GrantsMonths")
+                        .HasColumnType("integer");
 
                     b.Property<Guid?>("GrantsTierId")
                         .HasColumnType("uuid");

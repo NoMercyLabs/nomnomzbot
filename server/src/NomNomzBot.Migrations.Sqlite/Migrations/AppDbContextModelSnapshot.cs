@@ -635,6 +635,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .UseCollation("NOCASE");
 
+                    b.Property<Guid?>("InviteCodeId")
+                        .HasColumnType("TEXT")
+                        .UseCollation("NOCASE");
+
                     b.Property<DateTime>("IssuedAt")
                         .HasColumnType("TEXT");
 
@@ -653,6 +657,8 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("BroadcasterId", "ExpiresAt");
+
+                    b.HasIndex("BroadcasterId", "InviteCodeId");
 
                     b.ToTable("EntitlementGrants");
                 });
@@ -714,6 +720,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT");
 
                     b.Property<bool>("GrantsFoundersBadge")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<int?>("GrantsMonths")
                         .HasColumnType("INTEGER");
 
                     b.Property<Guid?>("GrantsTierId")

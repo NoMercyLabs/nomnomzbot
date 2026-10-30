@@ -1098,6 +1098,15 @@ export interface paths {
                 };
             };
             responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfInviteCode"];
+                    };
+                };
                 /** @description Bad Request */
                 400: {
                     headers: {
@@ -8571,6 +8580,8 @@ export interface paths {
          *     cookie instead. A RETURNING operator's re-auth is additive: when the navigation carries a live web
          *     session cookie, the requested scope set widens to `base ∪ granted ∪ recorded-missing` so a re-grant
          *     clears every recorded gap and never drops an already-held scope (a fresh login gets the base set).
+         *     Pass `invite` on a streamer sign-in to carry an invite code (S-INVITE-TIER): it is held in the
+         *     server-side state and redeemed once, after sign-in, on the channel the sign-in opened.
          */
         get: {
             parameters: {
@@ -8580,6 +8591,7 @@ export interface paths {
                     return_to?: string;
                     return_route?: string;
                     role?: string;
+                    invite?: string;
                 };
                 header?: never;
                 path: {
@@ -8665,7 +8677,9 @@ export interface paths {
          *     them in a JSON body (S098c: a mobile `redirect_uri` no longer carries any token in the query string
          *     — mobile is a native client and reads its tokens from this response body like any other native caller).
          *     The served-web flow is the only success path that still redirects, and only the short-lived access
-         *     token rides in that redirect's URL fragment.
+         *     token rides in that redirect's URL fragment. A streamer sign-in that carried an invite code redeems it
+         *     once on the channel it opened; the web fragment then adds `invite=redeemed`, or
+         *     `invite=failed&amp;invite_reason=...`. A failed redeem never blocks the sign-in.
          */
         get: {
             parameters: {
@@ -41624,6 +41638,99 @@ export interface paths {
                 };
             };
         };
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/billing/invites/{code}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** What an invite code gives: the tier, and how long (N months or forever). */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    code: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfPublicInvite"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
         options?: never;
         head?: never;
         patch?: never;
@@ -91525,7 +91632,10 @@ export interface components {
             genericConfig?: null | components["schemas"]["GenericInboundConfig"];
             isEnabled?: boolean;
         };
-        /** @description Create an invite code (admin). */
+        /**
+         * @description Create an invite code (admin). int? CreateInviteCodeRequest.GrantsMonths (1 to 120) sets how long the gifted tier lasts;
+         *     null with a tier is a forever gift. A length needs a tier.
+         */
         CreateInviteCodeRequest: {
             /** Format: int32 */
             maxRedemptions: number | string;
@@ -91537,6 +91647,8 @@ export interface components {
             grantsTierId?: null | string;
             /** Format: date-time */
             expiresAt?: null | string;
+            /** Format: int32 */
+            grantsMonths?: null | number | string;
         };
         /** @description Request to mint a local-IPC dev-mode key (stream-admin.md §4). */
         CreateIpcKeyRequest: {
@@ -93696,7 +93808,10 @@ export interface components {
             /** Format: int64 */
             withdrawalCap?: null | number | string;
         };
-        /** @description An invite-code view (admin). */
+        /**
+         * @description An invite-code view (admin). With a tier, int? InviteCodeDto.GrantsMonths is the gift length in months; null is
+         *     a forever gift.
+         */
         InviteCode: {
             /**
              * Format: ulid
@@ -93717,6 +93832,8 @@ export interface components {
             grantsTierKey?: null | string;
             /** Format: date-time */
             expiresAt?: null | string;
+            /** Format: int32 */
+            grantsMonths?: null | number | string;
         };
         /** @description Validate or redeem an invite code by its code string. */
         InviteCodeRequest: {
@@ -93732,6 +93849,8 @@ export interface components {
             remainingRedemptions: number | string;
             /** Format: date-time */
             expiresAt?: null | string;
+            /** Format: int32 */
+            grantsMonths?: null | number | string;
         };
         /**
          * @description A billing invoice view. string InvoiceDto.DunningStatus is InvoiceDunningStatus
@@ -96837,6 +96956,19 @@ export interface components {
             /** @default true */
             onBot: boolean;
         };
+        /**
+         * @description What an invite link gives, for a signed-out visitor (S-INVITE-TIER). An unknown, used-up, expired or revoked
+         *     code all read the same (not usable, one fixed reason, no tier), so a guesser cannot tell which codes exist.
+         *     Reading never spends a redemption.
+         */
+        PublicInvite: {
+            isUsable: boolean;
+            notUsableReason?: null | string;
+            tierDisplayName?: null | string;
+            /** Format: int32 */
+            months?: null | number | string;
+            forever: boolean;
+        };
         PublicMessage: {
             id: string;
             message: string;
@@ -97085,11 +97217,16 @@ export interface components {
         };
         /** @description Recording control verbs (obs-control.md §3.1). */
         RecordAction: number;
-        /** @description The result of redeeming an invite code. */
+        /**
+         * @description The result of redeeming an invite code. DateTime? RedeemInviteCodeResultDto.GrantedTierExpiresAt is when the gifted tier ends;
+         *     null with a tier is a forever gift.
+         */
         RedeemInviteCodeResult: {
             grantedFoundersBadge: boolean;
             grantedTierKey?: null | string;
             foundersBadge: null | components["schemas"]["FoundersBadge"];
+            /** Format: date-time */
+            grantedTierExpiresAt?: null | string;
         };
         /** @description Body of `POST /automation/v1/pair` — the code IS the credential. */
         RedeemPairingCodeRequest: {
@@ -99634,6 +99771,19 @@ export interface components {
         StatusResponseOfIntegrationsResponse: {
             status?: string;
             data?: null | components["schemas"]["IntegrationsResponse"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfInviteCode: {
+            status?: string;
+            data?: null | components["schemas"]["InviteCode"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -102302,6 +102452,19 @@ export interface components {
         StatusResponseOfProviderCredential: {
             status?: string;
             data?: null | components["schemas"]["ProviderCredential"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfPublicInvite: {
+            status?: string;
+            data?: null | components["schemas"]["PublicInvite"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on

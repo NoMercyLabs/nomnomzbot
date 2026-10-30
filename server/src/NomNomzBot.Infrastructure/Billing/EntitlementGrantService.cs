@@ -126,24 +126,84 @@ public sealed class EntitlementGrantService(
             IssuedAt = now,
             IssuedByAdminId = actorUserId,
         };
-        db.EntitlementGrants.Add(grant);
 
+        return await SaveGrantAsync(
+            grant,
+            targetTier.Key,
+            actorUserId,
+            now,
+            freshPreview.ChangedLimitCount,
+            ct
+        );
+    }
+
+    public async Task<Result<EntitlementGrantDto>> IssueInviteGiftAsync(
+        Guid broadcasterId,
+        Guid tierId,
+        int? months,
+        Guid inviteCodeId,
+        string code,
+        CancellationToken ct = default
+    )
+    {
+        DateTime now = clock.GetUtcNow().UtcDateTime;
+        IssueEntitlementGrantRequest length = new(
+            tierId,
+            $"Invite code {code}",
+            ConfirmedChangedLimitCount: 0,
+            Months: months,
+            Forever: months is null
+        );
+        Result<DateTime?> endDate = ResolveEndDate(length, now);
+        if (endDate.IsFailure)
+            return Result.Failure<EntitlementGrantDto>(endDate.ErrorMessage, endDate.ErrorCode);
+
+        bool channelExists = await db.Channels.AnyAsync(c => c.Id == broadcasterId, ct);
+        if (!channelExists)
+            return Result.Failure<EntitlementGrantDto>("Channel not found.", "NOT_FOUND");
+
+        BillingTier? targetTier = await db.BillingTiers.FirstOrDefaultAsync(
+            t => t.Id == tierId && t.DeletedAt == null,
+            ct
+        );
+        if (targetTier is null)
+            return Result.Failure<EntitlementGrantDto>("Tier not found.", "NOT_FOUND");
+
+        EntitlementGrant grant = new()
+        {
+            BroadcasterId = broadcasterId,
+            GrantedTierId = targetTier.Id,
+            Reason = length.Reason,
+            ExpiresAt = endDate.Value,
+            IssuedAt = now,
+            InviteCodeId = inviteCodeId,
+        };
+
+        return await SaveGrantAsync(grant, targetTier.Key, actorUserId: null, now, 0, ct);
+    }
+
+    /// <summary>
+    /// Adds the grant and its audit row, saves both in one transaction, and drops cached flag verdicts: a
+    /// tier-gated flag caches its verdict, and the gift must change what the channel can do at once.
+    /// </summary>
+    private async Task<Result<EntitlementGrantDto>> SaveGrantAsync(
+        EntitlementGrant grant,
+        string tierKey,
+        Guid? actorUserId,
+        DateTime now,
+        int changedLimitCount,
+        CancellationToken ct
+    )
+    {
+        db.EntitlementGrants.Add(grant);
         db.IamAuditLogs.Add(
-            Audit(
-                "entitlement_grant:issue",
-                grant,
-                targetTier.Key,
-                actorUserId,
-                now,
-                freshPreview.ChangedLimitCount
-            )
+            Audit("entitlement_grant:issue", grant, tierKey, actorUserId, now, changedLimitCount)
         );
 
         await db.SaveChangesAsync(ct);
-        // A tier-gated flag caches its verdict; the gift must change what the channel can do at once.
         await flagCache.InvalidateAllAsync(ct);
 
-        return Result.Success(ToDto(grant, targetTier.Key));
+        return Result.Success(ToDto(grant, tierKey));
     }
 
     public async Task<Result<EntitlementGrantDto>> EndGrantAsync(

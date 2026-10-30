@@ -22,7 +22,8 @@ namespace NomNomzBot.Domain.Billing.Entities;
 /// every tier-gated capability that reads them (e.g. the <c>require_tier</c> pipeline action) see the gifted
 /// tier for as long as the grant is live. Every grant carries a mandatory <see cref="Reason"/>. A null
 /// <see cref="ExpiresAt"/> is a forever gift; ending a gift early sets <see cref="ExpiresAt"/> to the moment
-/// it ended, so the row stays as the record of what was given.
+/// it ended, so the row stays as the record of what was given. <see cref="InviteCodeId"/> names the invite a
+/// gift came from (S-INVITE-TIER); null is an admin gift. One channel redeems one invite once.
 /// </summary>
 public class EntitlementGrant : SoftDeletableEntity, ITenantScoped
 {
@@ -33,4 +34,5 @@ public class EntitlementGrant : SoftDeletableEntity, ITenantScoped
     public DateTime? ExpiresAt { get; set; }
     public DateTime IssuedAt { get; set; }
     public Guid? IssuedByAdminId { get; set; }
+    public Guid? InviteCodeId { get; set; }
 }

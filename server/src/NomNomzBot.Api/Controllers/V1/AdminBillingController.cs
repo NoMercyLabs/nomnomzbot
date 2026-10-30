@@ -134,6 +134,7 @@ public class AdminBillingController(
     /// <summary>Mint an invite code with redemption cap, optional tier/founders-badge grant, and expiry.</summary>
     [HttpPost("invites")]
     [Authorize(Policy = IamPermissionKeys.BillingWrite)]
+    [ProducesResponseType<StatusResponseDto<InviteCodeDto>>(StatusCodes.Status200OK)]
     public async Task<IActionResult> CreateInvite(
         [FromBody] CreateInviteCodeRequest request,
         CancellationToken ct

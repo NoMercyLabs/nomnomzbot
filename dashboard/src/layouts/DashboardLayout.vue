@@ -18,6 +18,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { railWanted } from '@/composables/useFrameRail';
 import { useIntentPrefetch } from '@/composables/useIntentPrefetch';
+import { useInviteOutcome } from '@/composables/useInviteOutcome';
 import { useScreenFrom } from '@/composables/useLayout';
 import { useRouteChannel } from '@/composables/useRouteChannel';
 import { applyAccent, defaultAccent } from '@/lib/accent';
@@ -52,6 +53,7 @@ watchEffect(() => applyAccent(current.value?.chatColor ?? defaultAccent));
 provide(frameActionsKey, FrameActions);
 useRealtime();
 useIntentPrefetch();
+useInviteOutcome();
 useReadableRedirect();
 </script>
 

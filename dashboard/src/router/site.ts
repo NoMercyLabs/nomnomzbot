@@ -12,6 +12,7 @@
 import type { RouteRecordRaw } from 'vue-router';
 
 import { homeRoute } from '@/views/site/home/route';
+import { inviteRoute } from '@/views/site/invite/route';
 import { privacyRoute, termsRoute } from '@/views/site/legal/route';
 import { loginRoute } from '@/views/site/login/route';
 import { setupRoute } from '@/views/site/setup/route';
@@ -19,5 +20,5 @@ import { setupRoute } from '@/views/site/setup/route';
 export const siteRoutes: RouteRecordRaw = {
   path: '/',
   component: () => import('@/layouts/SiteLayout.vue'),
-  children: [homeRoute, loginRoute, setupRoute, privacyRoute, termsRoute],
+  children: [homeRoute, loginRoute, inviteRoute, setupRoute, privacyRoute, termsRoute],
 };

@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Infrastructure.Identity;
@@ -107,8 +108,9 @@ public sealed class AuthControllerRoleLoginTests
             )
             .Returns(Result.Failure<AuthResultDto>("stop", "STOP"));
 
-        await Controller(auth, state).StartTwitchOAuth(null, null, null, null, role, default);
-        await Controller(auth, state).HandleTwitchCallback("code", issued, default);
+        await Controller(auth, state).StartTwitchOAuth(null, null, null, null, role);
+        await Controller(auth, state)
+            .HandleTwitchCallback("code", issued, Substitute.For<IInviteCodeService>(), default);
         return auth;
     }
 

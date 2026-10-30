@@ -562,6 +562,7 @@ export const apiOperations = {
   'resume plan': 'settings',
   'billing portal': 'settings',
   'check invite code': 'settings',
+  'read invite': 'settings',
   'redeem invite code': 'settings',
   'export event journal': 'settings',
   'read event journal': 'settings',

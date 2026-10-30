@@ -25,5 +25,8 @@ public class EntitlementGrantConfiguration : IEntityTypeConfiguration<Entitlemen
 
         // Resolution scans only LIVE grants for a broadcaster — this index makes that scan an index seek.
         builder.HasIndex(e => new { e.BroadcasterId, e.ExpiresAt });
+
+        // Invite redemption checks "has this channel already redeemed this code" before it gives the gift.
+        builder.HasIndex(e => new { e.BroadcasterId, e.InviteCodeId });
     }
 }

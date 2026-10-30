@@ -71,6 +71,13 @@ export function toBotOrigin(typed: string): string | null {
     : (parse(`https://${address}`)?.origin ?? null);
 }
 
+// The page a streamer opens to take up an invite, on the dashboard that serves this page.
+export function inviteLink(code: string, pageOrigin: string = window.location.origin): string {
+  const path = `${import.meta.env.BASE_URL}invite/${encodeURIComponent(code)}`;
+
+  return new URL(path, pageOrigin).href;
+}
+
 // An https page may not call a plain http bot, except on this machine's loopback.
 export function isMixedContent(pageOrigin: string, botOrigin: string): boolean {
   const bot = parse(botOrigin);

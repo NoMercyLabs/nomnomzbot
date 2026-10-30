@@ -15,8 +15,9 @@ using NomNomzBot.Application.DTOs.Billing;
 namespace NomNomzBot.Application.Contracts.Billing;
 
 /// <summary>
-/// Invite codes + founders badge (monetization-billing.md §3.4). Codes are GLOBAL; redemption grants the calling
-/// tenant a founders badge and/or a tier (via <see cref="ISubscriptionService.GrantTierAsync"/>).
+/// Invite codes + founders badge (monetization-billing.md §3.4, S-INVITE-TIER). Codes are GLOBAL; redemption
+/// gives the calling tenant a founders badge and/or a tier gift for N months or forever (an entitlement grant
+/// through <see cref="IEntitlementGrantService.IssueInviteGiftAsync"/>, never a subscription row).
 /// </summary>
 public interface IInviteCodeService
 {
@@ -27,12 +28,28 @@ public interface IInviteCodeService
     );
 
     /// <summary>
-    /// Redeems a code for the tenant: increments the count (guarded), grants the badge and/or tier, publishes the
-    /// redeemed (+ badge) events. ALREADY_EXISTS if already redeemed; RATE_LIMITED/VALIDATION_FAILED if
-    /// exhausted/expired.
+    /// What a code gives, for a signed-out visitor. Always succeeds: an unknown, used-up, expired or revoked code
+    /// reads as one identical not-usable answer. Never spends a redemption.
+    /// </summary>
+    Task<Result<PublicInviteDto>> GetPublicInviteAsync(string code, CancellationToken ct = default);
+
+    /// <summary>
+    /// Redeems a code for the tenant: increments the count (guarded), grants the badge and/or the tier gift,
+    /// publishes the redeemed (+ badge) events. ALREADY_EXISTS if this tenant already redeemed it;
+    /// RATE_LIMITED/VALIDATION_FAILED if exhausted/expired. A failed gift spends nothing.
     /// </summary>
     Task<Result<RedeemInviteCodeResultDto>> RedeemAsync(
         Guid broadcasterId,
+        string code,
+        CancellationToken ct = default
+    );
+
+    /// <summary>
+    /// Redeems a code on the onboarded channel the user owns (the oldest one), for a code carried through
+    /// sign-in. NOT_FOUND, with nothing spent, when the user owns no onboarded channel.
+    /// </summary>
+    Task<Result<RedeemInviteCodeResultDto>> RedeemForOwnerAsync(
+        Guid userId,
         string code,
         CancellationToken ct = default
     );
@@ -45,7 +62,10 @@ public interface IInviteCodeService
 
     // ── Platform-admin (Plane-C) ──
 
-    /// <summary>Creates an invite code. VALIDATION_FAILED on a bad max-redemptions / tier.</summary>
+    /// <summary>
+    /// Creates an invite code. VALIDATION_FAILED on a bad max-redemptions / tier, a length outside 1 to 120
+    /// months, or a length without a tier; nothing is stored on failure.
+    /// </summary>
     Task<Result<InviteCodeDto>> CreateInviteCodeAsync(
         CreateInviteCodeRequest request,
         CancellationToken ct = default

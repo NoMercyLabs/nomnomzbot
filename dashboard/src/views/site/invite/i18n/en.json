@@ -1,0 +1,27 @@
+{
+  "site": {
+    "invite": {
+      "brand": "NomNomzBot",
+      "title": "You are invited",
+      "gives": "This invite gives your channel {gift}.",
+      "gift": {
+        "months": "{tier} for {count} month | {tier} for {count} months",
+        "forever": "{tier} forever",
+        "badge": "the founders badge"
+      },
+      "loading": "Looking up this invite…",
+      "failed": "This invite could not be loaded. Try again in a moment.",
+      "unusable": {
+        "title": "This invite does not work",
+        "body": "This invite link is not valid or can no longer be used."
+      },
+      "signIn": "Sign in with Twitch to claim",
+      "redeem": "Redeem on {channel}",
+      "channelLoading": "Loading your channel…",
+      "noChannel": "You have no channel set up here yet. Open the dashboard to set one up, then open this link again.",
+      "redeemed": "{channel} now has {gift}.",
+      "dashboard": "Open the dashboard",
+      "home": "Back to the home page"
+    }
+  }
+}

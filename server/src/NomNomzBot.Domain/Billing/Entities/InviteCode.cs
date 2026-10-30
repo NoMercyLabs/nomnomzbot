@@ -15,7 +15,9 @@ namespace NomNomzBot.Domain.Billing.Entities;
 
 /// <summary>
 /// A redeemable invite code (monetization-billing.md N.7) — GLOBAL. May grant a founders badge and/or a tier,
-/// bounded by <c>MaxRedemptions</c> and an optional expiry.
+/// bounded by <c>MaxRedemptions</c> and an optional expiry. A granted tier comes as a gift (S-INVITE-TIER) that
+/// lasts <see cref="GrantsMonths"/> months from the redemption, or forever when <see cref="GrantsMonths"/> is
+/// null (so older rows keep their meaning). A length without a tier is invalid.
 /// </summary>
 public class InviteCode : SoftDeletableEntity
 {
@@ -25,5 +27,6 @@ public class InviteCode : SoftDeletableEntity
     public int RedemptionCount { get; set; }
     public bool GrantsFoundersBadge { get; set; }
     public Guid? GrantsTierId { get; set; }
+    public int? GrantsMonths { get; set; }
     public DateTime? ExpiresAt { get; set; }
 }

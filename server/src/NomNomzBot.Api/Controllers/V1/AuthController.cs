@@ -18,11 +18,14 @@ using Microsoft.Extensions.Primitives;
 using NomNomzBot.Api.Authentication;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Extensions;
+using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Billing;
+using NomNomzBot.Application.DTOs.Billing;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Integrations.Dtos;
@@ -364,6 +367,8 @@ public class AuthController : BaseController
     /// cookie instead. A RETURNING operator's re-auth is additive: when the navigation carries a live web
     /// session cookie, the requested scope set widens to <c>base ∪ granted ∪ recorded-missing</c> so a re-grant
     /// clears every recorded gap and never drops an already-held scope (a fresh login gets the base set).
+    /// Pass <c>invite</c> on a streamer sign-in to carry an invite code (S-INVITE-TIER): it is held in the
+    /// server-side state and redeemed once, after sign-in, on the channel the sign-in opened.
     /// </summary>
     [HttpGet("twitch")]
     [AllowAnonymous]
@@ -374,7 +379,8 @@ public class AuthController : BaseController
         [FromQuery] string? return_to,
         [FromQuery] string? return_route,
         [FromQuery] string? role,
-        CancellationToken ct
+        [FromQuery] string? invite = null,
+        CancellationToken ct = default
     )
     {
         if (!ClientRedirectPolicy.IsAllowed(redirect_uri))
@@ -401,7 +407,8 @@ public class AuthController : BaseController
                 ReturnRoute: NormalizeReturnRoute(return_route),
                 ReturnOrigin: CaptureReturnOrigin(client),
                 ArrivingUserId: viewer ? arriving?.UserId : null,
-                ArrivingChannelId: viewer ? arriving?.BroadcasterId : null
+                ArrivingChannelId: viewer ? arriving?.BroadcasterId : null,
+                InviteCode: viewer ? null : NormalizeInviteCode(invite)
             ),
             ct
         );
@@ -440,7 +447,9 @@ public class AuthController : BaseController
     /// them in a JSON body (S098c: a mobile <c>redirect_uri</c> no longer carries any token in the query string
     /// — mobile is a native client and reads its tokens from this response body like any other native caller).
     /// The served-web flow is the only success path that still redirects, and only the short-lived access
-    /// token rides in that redirect's URL fragment.
+    /// token rides in that redirect's URL fragment. A streamer sign-in that carried an invite code redeems it
+    /// once on the channel it opened; the web fragment then adds <c>invite=redeemed</c>, or
+    /// <c>invite=failed&amp;invite_reason=...</c>. A failed redeem never blocks the sign-in.
     /// </summary>
     [HttpGet("twitch/callback")]
     [AllowAnonymous]
@@ -448,6 +457,7 @@ public class AuthController : BaseController
     public async Task<IActionResult> HandleTwitchCallback(
         [FromQuery] string code,
         [FromQuery] string? state,
+        [FromServices] IInviteCodeService invites,
         CancellationToken ct
     )
     {
@@ -565,7 +575,12 @@ public class AuthController : BaseController
             return ResultResponse(result);
         }
 
-        return await BuildLoginResponseAsync(result.Value, client, flowState, ct);
+        string inviteSuffix =
+            flow == "user" && flowState.InviteCode is { } inviteCode
+                ? await RedeemPendingInviteAsync(invites, result.Value, inviteCode, ct)
+                : string.Empty;
+
+        return await BuildLoginResponseAsync(result.Value, client, flowState, inviteSuffix, ct);
     }
 
     // A closed set of ASCII lower-case letters/digits (ShellRouteSlug's format) — echoed unescaped into a
@@ -576,6 +591,42 @@ public class AuthController : BaseController
         && returnRoute.All(c => c is >= 'a' and <= 'z' or >= '0' and <= '9')
             ? returnRoute
             : null;
+
+    // An invite code is ASCII letters/digits, at most the stored 50 characters; anything else is dropped before
+    // it enters the OAuth state.
+    private static string? NormalizeInviteCode(string? invite) =>
+        !string.IsNullOrEmpty(invite)
+        && invite.Length <= 50
+        && invite.All(c => c is >= 'a' and <= 'z' or >= 'A' and <= 'Z' or >= '0' and <= '9')
+            ? invite
+            : null;
+
+    /// <summary>
+    /// Redeems the invite a streamer sign-in carried on the channel that person owns, and returns the redirect
+    /// fragment part that tells the dashboard how it went.
+    /// </summary>
+    private static async Task<string> RedeemPendingInviteAsync(
+        IInviteCodeService invites,
+        AuthResultDto auth,
+        string inviteCode,
+        CancellationToken ct
+    )
+    {
+        if (!GuidUlidCodec.TryDecode(auth.User.Id, out Guid userId))
+            return InviteFailedSuffix("We could not tell which account signed in.");
+
+        Result<RedeemInviteCodeResultDto> redeemed = await invites.RedeemForOwnerAsync(
+            userId,
+            inviteCode,
+            ct
+        );
+        return redeemed.IsSuccess
+            ? "&invite=redeemed"
+            : InviteFailedSuffix(redeemed.ErrorMessage ?? "The invite could not be redeemed.");
+    }
+
+    private static string InviteFailedSuffix(string reason) =>
+        $"&invite=failed&invite_reason={Uri.EscapeDataString(reason)}";
 
     /// <summary>
     /// Turns a successful login into the client-appropriate response — shared by the Twitch callback and the
@@ -593,11 +644,16 @@ public class AuthController : BaseController
     /// gets no token in a URL to that origin and no cookie here: the login is held under a 60-second single-use
     /// code, and that origin redeems it through <c>web/exchange</c>, which sets the cookie on that origin.
     /// </para>
+    /// <para>
+    /// <paramref name="inviteSuffix"/> is the invite outcome part of the web fragment (empty when the sign-in
+    /// carried no invite); it rides on both web paths.
+    /// </para>
     /// </summary>
     private async Task<IActionResult> BuildLoginResponseAsync(
         AuthResultDto auth,
         string? client,
         TwitchOAuthFlowState flowState,
+        string inviteSuffix,
         CancellationToken ct
     )
     {
@@ -613,13 +669,16 @@ public class AuthController : BaseController
             if (WebReturnOriginPolicy.IsCrossOriginTarget(returnOrigin, Request, _config, _env))
             {
                 string code = await _oauthState.IssueLoginHandoffAsync(new(returnOrigin, auth), ct);
-                return Redirect($"{returnOrigin}{returnTo}#login_code={code}{routeSuffix}");
+                return Redirect(
+                    $"{returnOrigin}{returnTo}#login_code={code}{routeSuffix}{inviteSuffix}"
+                );
             }
 
             SetRefreshTokenCookie(auth.RefreshToken);
             string fragment =
                 $"#access_token={Uri.EscapeDataString(auth.AccessToken)}&expires_in={expiresIn}"
-                + routeSuffix;
+                + routeSuffix
+                + inviteSuffix;
             // Default to /app, never "/": the refresh-token cookie is scoped Path=/api/v1/auth (deliberately
             // narrow), so it is NEVER sent on a request to "/" — landing there right after this redirect always
             // looks logged-out to the root handler, which then serves the marketing landing page instead of the
@@ -1111,7 +1170,13 @@ public class AuthController : BaseController
         if (login.IsFailure)
             return ResultResponse(login);
 
-        return await BuildLoginResponseAsync(login.Value, flowState.Client, flowState, ct);
+        return await BuildLoginResponseAsync(
+            login.Value,
+            flowState.Client,
+            flowState,
+            string.Empty,
+            ct
+        );
     }
 
     /// <summary>
