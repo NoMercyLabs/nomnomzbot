@@ -2217,6 +2217,15 @@
         "help": "De event-type-string waarop het abonnement van het eindpunt matcht. Wordt letterlijk verzonden, niet verwerkt als sjabloon, ook niet als het {'{'}{'{'} {'}'}{'}'} bevat."
       }
     },
+    "send_whisper": {
+      "description": "Stuur een privéfluistering naar een gebruiker",
+      "message": {
+        "help": "Het privébericht om te versturen. Ondersteunt sjabloonvariabelen (bijv. {'{'}user.name{'}'}). Twitch laat de bot per dag 40 nieuwe mensen fluisteren, en de bot heeft de fluistertoestemming nodig."
+      },
+      "recipient": {
+        "help": "Wie de fluistering krijgt: een Twitch-login, een {'@'}vermelding of een Twitch-gebruikers-id. Ondersteunt sjabloonvariabelen. Gebruik {'{'}user.name{'}'} om de persoon te fluisteren die dit heeft gestart."
+      }
+    },
     "set_counter": {
       "description": "Zet een benoemde teller op een vaste waarde",
       "key": {

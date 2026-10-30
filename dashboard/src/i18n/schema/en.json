@@ -2217,6 +2217,15 @@
         "help": "The event type string the endpoint's subscription matches. Sent verbatim, not resolved as a template, even if it contains {'{'}{'{'} {'}'}{'}'}."
       }
     },
+    "send_whisper": {
+      "description": "Send a private whisper to a user",
+      "message": {
+        "help": "The private message to send. Supports template variables (e.g. {'{'}user.name{'}'}). Twitch lets the bot whisper 40 new people a day, and it needs the whisper permission."
+      },
+      "recipient": {
+        "help": "Who gets the whisper: a Twitch login, an {'@'}mention or a Twitch user id. Supports template variables. Use {'{'}user.name{'}'} to whisper the person who triggered this."
+      }
+    },
     "set_counter": {
       "description": "Set a named counter to a fixed value",
       "key": {
