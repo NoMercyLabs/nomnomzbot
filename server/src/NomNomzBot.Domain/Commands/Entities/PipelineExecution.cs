@@ -11,6 +11,7 @@
 
 using System.ComponentModel.DataAnnotations;
 using System.ComponentModel.DataAnnotations.Schema;
+using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Domain.Commands.Entities;
@@ -37,12 +38,24 @@ public class PipelineExecution : BaseEntity, ITenantScoped
     [MaxLength(20)]
     public string Status { get; set; } = null!;
 
+    /// <summary>How many host calls the run made, summed over the <c>HostCalls</c> of every step log.</summary>
     public int HostCallCount { get; set; }
 
     public int DurationMs { get; set; }
 
     [MaxLength(1000)]
     public string? ErrorMessage { get; set; }
+
+    /// <summary>What kind of failure ended the run; null on success. Set where the failure happens.</summary>
+    public RunFailureKind? FailureKind { get; set; }
+
+    /// <summary>The stable name of the limit that stopped the run (for example <c>script.wall_clock_ms</c>);
+    /// null unless a limit or a time budget stopped it.</summary>
+    [MaxLength(60)]
+    public string? LimitKey { get; set; }
+
+    /// <summary>The value of <see cref="LimitKey"/> in force, in the unit the key names.</summary>
+    public long? LimitValue { get; set; }
 
     /// <summary>
     /// Bounded, PII-excluded step execution logs (JSON array). TTL-purged; null until persisted

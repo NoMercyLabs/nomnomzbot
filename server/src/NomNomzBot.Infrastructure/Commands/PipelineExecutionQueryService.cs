@@ -77,6 +77,9 @@ public class PipelineExecutionQueryService : IPipelineExecutionQueryService
                 e.HostCallCount,
                 e.DurationMs,
                 e.ErrorMessage,
+                e.FailureKind,
+                e.LimitKey,
+                e.LimitValue,
                 e.StartedAt,
                 e.CompletedAt
             ))
@@ -152,14 +155,18 @@ public class PipelineExecutionQueryService : IPipelineExecutionQueryService
     }
 
     /// <summary>Mirrors the wire shape <c>PipelineEngine.PersistExecutionAsync</c> serializes onto
-    /// <see cref="PipelineExecution.StepLogsJson"/> (StepIndex, ActionType, Succeeded, DurationMs, ErrorMessage).</summary>
+    /// <see cref="PipelineExecution.StepLogsJson"/> (StepIndex, ActionType, Succeeded, DurationMs, ErrorMessage,
+    /// HostCalls). A row written before host calls were recorded has no HostCalls.</summary>
     private sealed record StepLogJson(
         int StepIndex,
         string ActionType,
         bool Succeeded,
         int DurationMs,
-        string? ErrorMessage
+        string? ErrorMessage,
+        List<HostCallJson>? HostCalls = null
     );
+
+    private sealed record HostCallJson(string Name, int DurationMs, bool Ok, string? Error);
 
     private static PipelineExecutionDetailDto ToDetailDto(PipelineExecution entity)
     {
@@ -174,7 +181,15 @@ public class PipelineExecutionQueryService : IPipelineExecutionQueryService
                 s.ActionType,
                 s.Succeeded,
                 s.DurationMs,
-                s.ErrorMessage
+                s.ErrorMessage,
+                [
+                    .. (s.HostCalls ?? []).Select(h => new PipelineExecutionHostCallDto(
+                        h.Name,
+                        h.DurationMs,
+                        h.Ok,
+                        h.Error
+                    )),
+                ]
             )),
         ];
 
@@ -187,6 +202,9 @@ public class PipelineExecutionQueryService : IPipelineExecutionQueryService
             entity.HostCallCount,
             entity.DurationMs,
             entity.ErrorMessage,
+            entity.FailureKind,
+            entity.LimitKey,
+            entity.LimitValue,
             entity.StartedAt,
             entity.CompletedAt,
             stepLogs

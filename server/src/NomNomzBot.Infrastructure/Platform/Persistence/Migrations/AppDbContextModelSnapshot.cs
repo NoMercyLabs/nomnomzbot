@@ -1927,10 +1927,21 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("character varying(2000)");
 
+                    b.Property<string>("FailureKind")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<int>("HostCallCount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("integer")
                         .HasDefaultValue(0);
+
+                    b.Property<string>("LimitKey")
+                        .HasMaxLength(60)
+                        .HasColumnType("character varying(60)");
+
+                    b.Property<long?>("LimitValue")
+                        .HasColumnType("bigint");
 
                     b.Property<Guid?>("PipelineId")
                         .HasColumnType("uuid");

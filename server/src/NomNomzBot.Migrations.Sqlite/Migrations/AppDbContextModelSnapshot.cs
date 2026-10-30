@@ -1994,10 +1994,21 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(2000)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("FailureKind")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
                     b.Property<int>("HostCallCount")
                         .ValueGeneratedOnAdd()
                         .HasColumnType("INTEGER")
                         .HasDefaultValue(0);
+
+                    b.Property<string>("LimitKey")
+                        .HasMaxLength(60)
+                        .HasColumnType("TEXT");
+
+                    b.Property<long?>("LimitValue")
+                        .HasColumnType("INTEGER");
 
                     b.Property<Guid?>("PipelineId")
                         .HasColumnType("TEXT")

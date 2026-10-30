@@ -27,6 +27,7 @@ using NomNomzBot.Infrastructure.Chat.PipelineActions;
 using NomNomzBot.Infrastructure.Moderation.PipelineActions;
 using NomNomzBot.Infrastructure.Platform.Pipeline;
 using NomNomzBot.Infrastructure.Platform.Pipeline.CoreActions;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NomNomzBot.Infrastructure.Tts.PipelineActions;
 using NSubstitute;
 
@@ -83,11 +84,7 @@ public sealed class PipelineTestRunServiceTests
         IPipelineModerationService moderation = Substitute.For<IPipelineModerationService>();
         ICommandAction[] actions =
         [
-            new SendMessageAction(
-                chat,
-                resolver,
-                NomNomzBot.Infrastructure.Tests.Chat.TestReplyDispatcher.OverProvider(chat)
-            ),
+            new SendMessageAction(chat, resolver, TestReplyDispatcher.OverProvider(chat)),
             new PlayTtsAction(resolver, tts),
             new SetVariableAction(),
             new BanAction(moderation),
@@ -602,7 +599,8 @@ public sealed class PipelineTestRunServiceTests
         row.PipelineId.Should().Be(PipelineId);
         row.TriggerKind.Should().Be("test_run");
         row.BroadcasterId.Should().Be(Channel);
-        row.HostCallCount.Should().Be(1);
+        // HostCallCount counts host calls (S-RUN-FAILURE-SHAPE), not steps: set_variable makes none.
+        row.HostCallCount.Should().Be(0);
     }
 
     [Fact]

@@ -73,8 +73,16 @@ public sealed class RunCodeAction(IScriptRunner runner) : ICommandAction
         if (run.StopPipeline)
             ctx.ShouldStop = true;
 
-        return run.Outcome == ScriptExecutionOutcome.Success
-            ? ActionResult.Success(run.Output)
-            : ActionResult.Failure(run.ErrorMessage ?? "Script did not complete successfully.");
+        bool succeeded = run.Outcome == ScriptExecutionOutcome.Success;
+        return new()
+        {
+            Succeeded = succeeded,
+            Output = succeeded ? run.Output : null,
+            ErrorMessage = succeeded
+                ? null
+                : run.ErrorMessage ?? "Script did not complete successfully.",
+            FailureShape = succeeded ? null : run.FailureShape,
+            HostCalls = run.HostCalls ?? [],
+        };
     }
 }

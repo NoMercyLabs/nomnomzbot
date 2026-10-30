@@ -99,7 +99,8 @@ public sealed class PipelineExecutionPersistenceTests : IDisposable
             e.BroadcasterId == TestChannel
         );
         row.Status.Should().Be("completed");
-        row.HostCallCount.Should().Be(1);
+        // HostCallCount counts host calls (S-RUN-FAILURE-SHAPE), not steps: set_variable makes none.
+        row.HostCallCount.Should().Be(0);
         row.ErrorMessage.Should().BeNull();
         row.StepLogsJson.Should().NotBeNullOrEmpty();
         row.StepLogsJson.Should().Contain("set_variable");

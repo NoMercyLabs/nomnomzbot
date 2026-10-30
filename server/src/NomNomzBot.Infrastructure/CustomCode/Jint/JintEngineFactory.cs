@@ -23,6 +23,9 @@ namespace NomNomzBot.Infrastructure.CustomCode.Jint;
 /// </summary>
 public static class JintEngineFactory
 {
+    /// <summary>How deep a script may recurse; a run that goes deeper records this limit.</summary>
+    public const int MaxRecursionDepth = 64;
+
     public static Engine CreateHardened(ScriptResourceBudget budget, CancellationToken ct)
     {
         return new(options =>
@@ -36,7 +39,7 @@ public static class JintEngineFactory
             options.CancellationToken(ct); // the run budget + external kill switch
 
             // Constraint properties — dangerous defaults, set explicitly.
-            options.Constraints.MaxRecursionDepth = 64; // default -1 = no check
+            options.Constraints.MaxRecursionDepth = MaxRecursionDepth; // default -1 = no check
             options.Constraints.MaxExecutionStackCount = 500; // default disabled = no native-stack guard
             options.Constraints.MaxArraySize = 10_000; // default uint.MaxValue
             options.Constraints.RegexTimeout = TimeSpan.FromSeconds(1); // default 10s

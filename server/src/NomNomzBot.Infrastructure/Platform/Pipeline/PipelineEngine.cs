@@ -20,6 +20,7 @@ using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Domain.Commands.Entities;
+using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Platform.Pipeline;
@@ -40,6 +41,14 @@ namespace NomNomzBot.Infrastructure.Platform.Pipeline;
 public sealed class PipelineEngine : IPipelineEngine
 {
     private static readonly TimeSpan ExecutionTimeout = TimeSpan.FromMinutes(5);
+
+    // What a run that outlives ExecutionTimeout records as its failure.
+    private static readonly RunFailureShape ExecutionTimeoutShape = new(
+        RunFailureKind.Timeout,
+        "pipeline.execution_timeout_ms",
+        (long)ExecutionTimeout.TotalMilliseconds
+    );
+
     private const int MaxConcurrentPerChannel = 5;
 
     // Tree-execution safety caps (pipeline-control-flow.md D6, pipeline-tree-and-editor.md §2.4/§2.6).
@@ -188,8 +197,13 @@ public sealed class PipelineEngine : IPipelineEngine
                 Duration = TimeSpan.Zero,
                 ErrorMessage =
                     $"Channel {request.BroadcasterId} has too many active pipelines ({MaxConcurrentPerChannel} max)",
+                FailureShape = new(
+                    RunFailureKind.Limit,
+                    "pipeline.max_concurrent_runs",
+                    MaxConcurrentPerChannel
+                ),
             };
-            await PersistExecutionAsync(request, null, startedAt, throttled, ct);
+            await PersistExecutionAsync(request, null, startedAt, throttled);
             return throttled;
         }
 
@@ -247,7 +261,7 @@ public sealed class PipelineEngine : IPipelineEngine
                 ErrorMessage =
                     "Invalid pipeline: could not parse JSON or load steps from database.",
             };
-            await PersistExecutionAsync(request, null, startedAt, invalid, ct);
+            await PersistExecutionAsync(request, null, startedAt, invalid);
             return invalid;
         }
 
@@ -263,7 +277,7 @@ public sealed class PipelineEngine : IPipelineEngine
                 Outcome = PipelineOutcome.Completed,
                 Duration = _timeProvider.GetUtcNow() - startedAt,
             };
-            await PersistExecutionAsync(request, definition, startedAt, empty, ct);
+            await PersistExecutionAsync(request, definition, startedAt, empty);
             return empty;
         }
 
@@ -327,6 +341,7 @@ public sealed class PipelineEngine : IPipelineEngine
                 StepsExecuted = execCtx.CurrentStepIndex,
                 Total = totalLeaves,
                 StepLogs = execCtx.StepLogs,
+                FailureShape = ExecutionTimeoutShape,
             };
         }
         catch (OperationCanceledException)
@@ -339,6 +354,7 @@ public sealed class PipelineEngine : IPipelineEngine
                 StepsExecuted = execCtx.CurrentStepIndex,
                 Total = totalLeaves,
                 StepLogs = execCtx.StepLogs,
+                FailureShape = new(RunFailureKind.Canceled),
             };
         }
         finally
@@ -356,7 +372,7 @@ public sealed class PipelineEngine : IPipelineEngine
         // Persist outside the finally block: SaveChangesAsync can itself throw (e.g. transient DB
         // failure) and must not mask the pipeline's own outcome above, nor prevent the active-count
         // decrement in `finally` from running first.
-        await PersistExecutionAsync(request, definition, startedAt, result, ct);
+        await PersistExecutionAsync(request, definition, startedAt, result);
         result.RepliedToChat = execCtx.RepliedToChat;
         if (execCtx.Trace is not null)
             result.Trace = execCtx.Trace.Steps;
@@ -403,6 +419,11 @@ public sealed class PipelineEngine : IPipelineEngine
                 StepLogs = result.StepLogs,
                 ErrorMessage =
                     $"suspended_run_cap_exceeded: channel already has {MaxSuspendedRunsPerChannel} suspended pipeline runs",
+                FailureShape = new(
+                    RunFailureKind.Limit,
+                    "pipeline.max_suspended_runs",
+                    MaxSuspendedRunsPerChannel
+                ),
             };
         }
 
@@ -498,6 +519,7 @@ public sealed class PipelineEngine : IPipelineEngine
                 Outcome = PipelineOutcome.TimedOut,
                 Duration = TimeSpan.Zero,
                 ErrorMessage = "max_runtime_exceeded",
+                FailureShape = ExecutionTimeoutShape,
             };
         }
 
@@ -560,6 +582,7 @@ public sealed class PipelineEngine : IPipelineEngine
                 Outcome = PipelineOutcome.TimedOut,
                 Duration = _timeProvider.GetUtcNow() - startedAt,
                 StepLogs = execCtx.StepLogs,
+                FailureShape = ExecutionTimeoutShape,
             };
         }
 
@@ -784,6 +807,8 @@ public sealed class PipelineEngine : IPipelineEngine
                     Duration = _timeProvider.GetUtcNow() - stepStart,
                     Output = actionResult.Output,
                     ErrorMessage = actionResult.ErrorMessage,
+                    FailureShape = actionResult.FailureShape,
+                    HostCalls = actionResult.HostCalls,
                 }
             );
             TraceStep();
@@ -814,7 +839,7 @@ public sealed class PipelineEngine : IPipelineEngine
             // stop_on_match stops only when a condition matched; a step with no condition matched nothing.
             if (
                 ctx.ShouldStop
-                || (step.StopOnMatch && step.Condition is not null && actionResult.Succeeded)
+                || (step is { StopOnMatch: true, Condition: not null } && actionResult.Succeeded)
             )
             {
                 stoppedDeliberately = true;
@@ -836,8 +861,13 @@ public sealed class PipelineEngine : IPipelineEngine
             StepsSkipped = skipped,
             Total = definition.Steps.Count,
             StepLogs = ctx.StepLogs,
+            FailureShape = failedBreak ? BreakingStepShape(ctx.StepLogs) : null,
         };
     }
+
+    // The run failed because a step failed: its shape is the one the last failed step recorded.
+    private static RunFailureShape? BreakingStepShape(IReadOnlyList<StepExecutionLog> logs) =>
+        logs.LastOrDefault(log => !log.Succeeded)?.FailureShape;
 
     private async Task<bool> EvaluateConditionAsync(
         PipelineExecutionContext ctx,
@@ -1205,6 +1235,12 @@ public sealed class PipelineEngine : IPipelineEngine
             Total = rows.Count(r => r.BlockKind is null),
             StepLogs = ctx.StepLogs,
             ErrorMessage = state.AbortReason,
+            FailureShape = outcome switch
+            {
+                PipelineOutcome.AbortedBudget => state.AbortShape,
+                PipelineOutcome.PartiallyFailed => BreakingStepShape(ctx.StepLogs),
+                _ => null,
+            },
             SuspendedAtStepId = state.SuspendRequested ? state.SuspendStepId : null,
             SuspendCursorJson = state.SuspendRequested
                 ? JsonSerializer.Serialize(walk.LivePath, JsonOpts)
@@ -1373,6 +1409,11 @@ public sealed class PipelineEngine : IPipelineEngine
         {
             state.AbortedBudget = true;
             state.AbortReason = "max_recursion_depth_exceeded";
+            state.AbortShape = new(
+                RunFailureKind.Limit,
+                "pipeline.max_recursion_depth",
+                MaxRecursionDepth
+            );
             return;
         }
 
@@ -1612,6 +1653,8 @@ public sealed class PipelineEngine : IPipelineEngine
                 Duration = _timeProvider.GetUtcNow() - stepStart,
                 Output = actionResult.Output,
                 ErrorMessage = actionResult.ErrorMessage,
+                FailureShape = actionResult.FailureShape,
+                HostCalls = actionResult.HostCalls,
             }
         );
 
@@ -1666,7 +1709,7 @@ public sealed class PipelineEngine : IPipelineEngine
         // stop_on_match stops only when a condition matched; a step with no condition matched nothing.
         if (
             ctx.ShouldStop
-            || (step.StopOnMatch && step.Conditions.Count > 0 && actionResult.Succeeded)
+            || (step is { StopOnMatch: true, Conditions.Count: > 0 } && actionResult.Succeeded)
         )
             state.StoppedDeliberately = true;
     }
@@ -1959,6 +2002,7 @@ public sealed class PipelineEngine : IPipelineEngine
             {
                 state.AbortedBudget = true;
                 state.AbortReason = "loop_iteration_cap_exceeded";
+                state.AbortShape = new(RunFailureKind.Limit, "pipeline.max_loop_iterations", cap);
                 return;
             }
 
@@ -1969,6 +2013,11 @@ public sealed class PipelineEngine : IPipelineEngine
             {
                 state.AbortedBudget = true;
                 state.AbortReason = "loop_runtime_exceeded";
+                state.AbortShape = new(
+                    RunFailureKind.Limit,
+                    "pipeline.loop_runtime_seconds",
+                    config.MaxLoopRuntimeSeconds.Value
+                );
                 return;
             }
 
@@ -2019,6 +2068,7 @@ public sealed class PipelineEngine : IPipelineEngine
             {
                 state.AbortedBudget = true;
                 state.AbortReason = iterationState.AbortReason;
+                state.AbortShape = iterationState.AbortShape;
                 return;
             }
             if (iterationState.BreakLoop)
@@ -2186,6 +2236,7 @@ public sealed class PipelineEngine : IPipelineEngine
             // regardless of which block it tripped inside (pipeline-control-flow.md D6).
             state.AbortedBudget = true;
             state.AbortReason = bodyState.AbortReason;
+            state.AbortShape = bodyState.AbortShape;
             return;
         }
 
@@ -2245,6 +2296,7 @@ public sealed class PipelineEngine : IPipelineEngine
         {
             state.AbortedBudget = true;
             state.AbortReason = catchState.AbortReason;
+            state.AbortShape = catchState.AbortShape;
             return;
         }
         if (catchState.FailedBreak)
@@ -2305,8 +2357,7 @@ public sealed class PipelineEngine : IPipelineEngine
         PipelineRequest request,
         PipelineDefinition? definition,
         DateTimeOffset startedAt,
-        PipelineExecutionResult result,
-        CancellationToken ct
+        PipelineExecutionResult result
     )
     {
         Guid? triggeredByUserId = Guid.TryParse(request.TriggeredByUserId, out Guid parsedUserId)
@@ -2326,6 +2377,13 @@ public sealed class PipelineEngine : IPipelineEngine
                         l.Succeeded,
                         DurationMs = (int)l.Duration.TotalMilliseconds,
                         l.ErrorMessage,
+                        HostCalls = l.HostCalls.Select(h => new
+                        {
+                            h.Name,
+                            h.DurationMs,
+                            h.Ok,
+                            h.Error,
+                        }),
                     })
                 );
 
@@ -2336,19 +2394,24 @@ public sealed class PipelineEngine : IPipelineEngine
             TriggeredByUserId = triggeredByUserId,
             TriggerKind = TriggerKindOf(request),
             Status = ToStatus(result.Outcome),
-            HostCallCount = result.StepsExecuted,
+            HostCallCount = result.StepLogs.Sum(l => l.HostCalls.Count),
             DurationMs = (int)result.Duration.TotalMilliseconds,
             ErrorMessage = result.ErrorMessage,
+            FailureKind = result.FailureShape?.Kind,
+            LimitKey = result.FailureShape?.LimitKey,
+            LimitValue = result.FailureShape?.LimitValue,
             StepLogsJson = stepLogsJson,
             StartedAt = startedAt.UtcDateTime,
             CompletedAt = startedAt.UtcDateTime.Add(result.Duration),
         };
 
+        // The record is written even when the run was canceled: a stopped run still belongs in the history, so
+        // the run's own (already canceled) token never cancels the write of its row.
         try
         {
             _db.PipelineExecutions.Add(row);
-            await _db.SaveChangesAsync(ct);
-            await PurgeOldExecutionsAsync(request.BroadcasterId, ct);
+            await _db.SaveChangesAsync(CancellationToken.None);
+            await PurgeOldExecutionsAsync(request.BroadcasterId, CancellationToken.None);
         }
         catch (Exception ex)
         {

@@ -28,6 +28,8 @@ public class PipelineExecutionConfiguration : IEntityTypeConfiguration<PipelineE
         builder.Property(e => e.HostCallCount).IsRequired().HasDefaultValue(0);
         builder.Property(e => e.DurationMs).IsRequired().HasDefaultValue(0);
         builder.Property(e => e.ErrorMessage).HasMaxLength(2000);
+        builder.Property(e => e.FailureKind).HasConversion<string>().HasMaxLength(20);
+        builder.Property(e => e.LimitKey).HasMaxLength(60);
         builder.Property(e => e.StartedAt).IsRequired();
 
         builder

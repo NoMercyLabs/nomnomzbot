@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.CustomCode.Enums;
 
@@ -104,7 +105,9 @@ public sealed record ScriptExecutionOutcomeResult(
     string? ErrorMessage,
     IReadOnlyList<string> LogLines,
     ScriptSourcePosition? ErrorPosition = null,
-    long HostWaitMs = 0
+    long HostWaitMs = 0,
+    IReadOnlyList<HostCallRecord>? HostCalls = null,
+    RunFailureShape? FailureShape = null
 );
 
 /// <summary>The result of compiling+validating a script at save time (custom-code.md §4).</summary>
@@ -138,7 +141,9 @@ public sealed record ScriptRunResult(
     bool StopPipeline,
     string? ErrorMessage,
     ScriptDenialReason? DenialReason,
-    ScriptSourcePosition? ErrorPosition = null
+    ScriptSourcePosition? ErrorPosition = null,
+    IReadOnlyList<HostCallRecord>? HostCalls = null,
+    RunFailureShape? FailureShape = null
 );
 
 /// <summary>The sandbox exec-ms quota verdict for a period (custom-code.md §4). <c>LimitMs</c> -1 = unlimited.</summary>
@@ -167,6 +172,10 @@ public delegate string? HostImportDelegate(
 public interface IScriptHostBridge
 {
     HostImportDelegate Resolve(string capabilityKey);
+
+    /// <summary>Why the last host call was refused, or null when it answered. Reading it is not a host call;
+    /// the run history records it beside the call (S-RUN-FAILURE-SHAPE).</summary>
+    string? LastErrorMessage => null;
 }
 
 /// <summary>

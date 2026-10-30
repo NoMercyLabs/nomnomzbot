@@ -12,8 +12,10 @@
 using Microsoft.EntityFrameworkCore;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.CustomCode.Entities;
 using NomNomzBot.Domain.CustomCode.Enums;
 
@@ -32,9 +34,14 @@ public sealed class ScriptRunner(
     IScriptCapabilityBroker broker,
     IScriptExecutionMeter meter,
     IScriptHostBridgeFactory bridgeFactory,
-    TimeProvider clock
+    TimeProvider clock,
+    ScriptResourceBudget? budget = null
 ) : IScriptRunner
 {
+    // The budget every run is clamped to. It is also the value a limit failure records, so what the run
+    // history says was in force is what was in force.
+    private readonly ScriptResourceBudget _budget = budget ?? ScriptResourceBudget.Baseline;
+
     public async Task<Result<ScriptRunResult>> RunAsync(
         Guid codeScriptId,
         ScriptInvocation invocation,
@@ -49,7 +56,11 @@ public sealed class ScriptRunner(
             return Result.Failure<ScriptRunResult>("Script not found.", "NOT_FOUND");
 
         if (!script.IsEnabled)
-            return Faulted("Script is disabled.", ScriptDenialReason.ScriptDisabled);
+            return Faulted(
+                "Script is disabled.",
+                ScriptDenialReason.ScriptDisabled,
+                new(RunFailureKind.Permission)
+            );
 
         // Meter-gate: refuse before execution when the tenant is over its sandbox-exec-ms budget, or when the
         // budget cannot be checked at all (fail-closed: an unmetered run is never allowed).
@@ -59,12 +70,19 @@ public sealed class ScriptRunner(
         );
         if (budget.IsFailure)
             return DeniedByQuota(
-                "Sandbox execution quota could not be verified, so the script was not run."
+                "Sandbox execution quota could not be verified, so the script was not run.",
+                new(RunFailureKind.Permission)
             );
         if (ScriptPlanGate.IsExcluded(budget.Value))
-            return DeniedByQuota(ScriptPlanGate.Refusal.ErrorMessage!);
+            return DeniedByQuota(
+                ScriptPlanGate.Refusal.ErrorMessage!,
+                new(RunFailureKind.Permission)
+            );
         if (!budget.Value.Allowed)
-            return DeniedByQuota("Sandbox execution quota exhausted for this period.");
+            return DeniedByQuota(
+                "Sandbox execution quota exhausted for this period.",
+                new(RunFailureKind.Limit, "sandbox.exec_ms", budget.Value.LimitMs)
+            );
 
         CodeScriptVersion? version = script.CurrentVersionId is { } versionId
             ? await db.CodeScriptVersions.FirstOrDefaultAsync(
@@ -75,7 +93,8 @@ public sealed class ScriptRunner(
         if (version is null || version.ValidationStatus != "valid" || version.CompiledJs is null)
             return Faulted(
                 "Script has no valid published version.",
-                ScriptDenialReason.VersionInvalid
+                ScriptDenialReason.VersionInvalid,
+                new(RunFailureKind.ScriptError)
             );
 
         ScriptExecutionRequest request = new(
@@ -88,7 +107,7 @@ public sealed class ScriptRunner(
                 invocation.Args,
                 invocation.Variables
             ),
-            ScriptResourceBudget.Baseline
+            _budget
         );
         // Deny-by-default grant: the broker validates the version's declared capabilities against the catalogue
         // + feature-flag gates. A disallowed capability denies the whole run (fail-closed).
@@ -111,7 +130,8 @@ public sealed class ScriptRunner(
                     Output: null,
                     StopPipeline: false,
                     ErrorMessage: grantResult.ErrorMessage,
-                    DenialReason: ScriptDenialReason.CapabilityDenied
+                    DenialReason: ScriptDenialReason.CapabilityDenied,
+                    FailureShape: new(RunFailureKind.Permission)
                 )
             );
         }
@@ -159,12 +179,18 @@ public sealed class ScriptRunner(
                 outcome.StopPipeline,
                 outcome.ErrorMessage,
                 denial,
-                outcome.ErrorPosition
+                outcome.ErrorPosition,
+                outcome.HostCalls,
+                outcome.FailureShape
             )
         );
     }
 
-    private static Result<ScriptRunResult> Faulted(string message, ScriptDenialReason reason) =>
+    private static Result<ScriptRunResult> Faulted(
+        string message,
+        ScriptDenialReason reason,
+        RunFailureShape shape
+    ) =>
         Result.Success(
             new ScriptRunResult(
                 ScriptExecutionOutcome.Faulted,
@@ -172,11 +198,12 @@ public sealed class ScriptRunner(
                 Output: null,
                 StopPipeline: false,
                 ErrorMessage: message,
-                DenialReason: reason
+                DenialReason: reason,
+                FailureShape: shape
             )
         );
 
-    private static Result<ScriptRunResult> DeniedByQuota(string message) =>
+    private static Result<ScriptRunResult> DeniedByQuota(string message, RunFailureShape shape) =>
         Result.Success(
             new ScriptRunResult(
                 ScriptExecutionOutcome.Denied,
@@ -184,7 +211,8 @@ public sealed class ScriptRunner(
                 Output: null,
                 StopPipeline: false,
                 ErrorMessage: message,
-                DenialReason: ScriptDenialReason.QuotaExceeded
+                DenialReason: ScriptDenialReason.QuotaExceeded,
+                FailureShape: shape
             )
         );
 }

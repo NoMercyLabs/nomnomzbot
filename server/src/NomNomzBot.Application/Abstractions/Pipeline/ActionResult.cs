@@ -19,6 +19,13 @@ public sealed class ActionResult
     public string? Output { get; init; }
     public string? ErrorMessage { get; init; }
 
+    /// <summary>What kind of failure this was, and the limit that stopped it when one did. Set by the action
+    /// at the place the failure happens; null on success and on a failure the action did not classify.</summary>
+    public RunFailureShape? FailureShape { get; init; }
+
+    /// <summary>The host calls this action made while it ran, in order (empty for an action that makes none).</summary>
+    public IReadOnlyList<HostCallRecord> HostCalls { get; init; } = [];
+
     /// <summary>True on a failure that waiting can cure (a rate limit, a dropped connection): the queue worker
     /// keeps the item and tries again. A permanent failure (missing scope, no token) is never retried.</summary>
     public bool Retryable { get; init; }

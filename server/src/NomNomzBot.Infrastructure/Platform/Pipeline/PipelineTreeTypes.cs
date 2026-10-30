@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json.Serialization;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Domain.Commands.Entities;
 
 namespace NomNomzBot.Infrastructure.Platform.Pipeline;
@@ -38,6 +39,9 @@ internal sealed class PipelineTreeRunState
     public bool StoppedDeliberately;
     public bool AbortedBudget;
     public string? AbortReason;
+
+    /// <summary>The limit a budget breach hit, set beside <see cref="AbortReason"/> where the breach happens.</summary>
+    public RunFailureShape? AbortShape;
 
     /// <summary>A <c>break</c> action fired somewhere in this walk; bubbles up unconsumed until the
     /// innermost enclosing <c>loop</c> block claims it (pipeline-control-flow.md D3). Distinct from

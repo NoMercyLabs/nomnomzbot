@@ -115,6 +115,8 @@ public sealed partial class ScriptHostBridge(
     // describes the LAST call; reading it through "last.error" is itself not a call and leaves it untouched.
     private ScriptHostError? _lastError;
 
+    public string? LastErrorMessage => _lastError?.Message;
+
     public HostImportDelegate Resolve(string capabilityKey)
     {
         if (capabilityKey == ScriptHostErrorCodes.LastErrorKey)

@@ -9,14 +9,17 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Diagnostics;
 using System.Security.Cryptography;
 using System.Text;
 using System.Text.RegularExpressions;
 using Jint;
 using Jint.Runtime;
 using Newtonsoft.Json;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.CustomCode.Enums;
 
 namespace NomNomzBot.Infrastructure.CustomCode.Jint;
@@ -414,6 +417,10 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
         // Set when the last host call ran past its own deadline; the bridge never saw that failure, so
         // last.error reports it from here until the next host call.
         ScriptHostError? deadlineError = null;
+        // Every host call the script made, in order, timed where it ran; and whether one of them threw.
+        List<HostCallRecord> hostCallLog = [];
+        bool hostCallFaulted = false;
+        RunFailureShape? failureShape = null;
 
         // The script's own run time is bounded by WallClockMs; the clock pauses while a host call waits.
         using ScriptRunClock clock = new(request.Budget.WallClockMs, cancellationToken);
@@ -476,17 +483,41 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                         if (isLastError)
                             return deadlineError?.ToJson() ?? host(key, a, clock.Token);
                         deadlineError = null;
-                        HostCallAnswer answer = clock.WaitOnHost(() =>
-                            CallWithDeadline(
-                                host,
-                                key,
-                                a,
-                                request.Budget.MaxHostCallMs,
-                                cancellationToken
-                            )
-                        );
-                        deadlineError = answer.DeadlineError;
-                        return answer.Value;
+                        Stopwatch watch = Stopwatch.StartNew();
+                        string? hostFault = "The host call did not return.";
+                        try
+                        {
+                            HostCallAnswer answer = clock.WaitOnHost(() =>
+                                CallWithDeadline(
+                                    host,
+                                    key,
+                                    a,
+                                    request.Budget.MaxHostCallMs,
+                                    cancellationToken
+                                )
+                            );
+                            deadlineError = answer.DeadlineError;
+                            hostFault = Capped(
+                                answer.DeadlineError?.Message ?? bridge.LastErrorMessage
+                            );
+                            return answer.Value;
+                        }
+                        catch (Exception ex) when (ex is not OperationCanceledException)
+                        {
+                            hostCallFaulted = true;
+                            throw;
+                        }
+                        finally
+                        {
+                            hostCallLog.Add(
+                                new(
+                                    key,
+                                    (int)watch.ElapsedMilliseconds,
+                                    hostFault is null,
+                                    hostFault
+                                )
+                            );
+                        }
                     }
                 )
             );
@@ -519,11 +550,17 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
         {
             outcome = ScriptExecutionOutcome.HostBudgetExceeded;
             error = "Host-call budget exceeded.";
+            failureShape = new(
+                RunFailureKind.Limit,
+                "script.max_host_calls",
+                request.Budget.MaxHostCalls
+            );
         }
         catch (ScriptCapabilityDeniedException ex)
         {
             outcome = ScriptExecutionOutcome.Denied;
             error = $"Capability denied: {ex.CapabilityKey}.";
+            failureShape = new(RunFailureKind.Permission);
         }
         catch (Exception ex)
             when (ex is TimeoutException or ExecutionCanceledException or OperationCanceledException
@@ -531,6 +568,7 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
         {
             outcome = ScriptExecutionOutcome.Timeout;
             error = "Execution exceeded its time budget.";
+            failureShape = TimeLimitShape(ex, request.Budget, cancellationToken);
         }
         catch (Exception ex)
             when (ex
@@ -541,18 +579,23 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
         {
             outcome = ScriptExecutionOutcome.Faulted;
             error = "Execution exceeded a resource limit.";
+            failureShape = ResourceLimitShape(ex, request.Budget);
         }
         catch (JavaScriptException ex)
         {
             outcome = ScriptExecutionOutcome.Faulted;
             error = ex.Message;
             errorPosition = LocateRuntimeError(ex, request.CompiledJs);
+            failureShape = new(RunFailureKind.ScriptError);
         }
         catch (Exception)
         {
             // Fail-closed: never surface a sandbox escape / host exception to the caller.
             outcome = ScriptExecutionOutcome.Faulted;
             error = "Script execution faulted.";
+            failureShape = new(
+                hostCallFaulted ? RunFailureKind.HostCallError : RunFailureKind.ScriptError
+            );
         }
         clock.Stop();
         if (droppedLogLines > 0)
@@ -570,11 +613,57 @@ public sealed partial class JintScriptExecutor : IScriptExecutor
                     error,
                     logLines,
                     errorPosition,
-                    clock.HostWaitMs
+                    clock.HostWaitMs,
+                    hostCallLog,
+                    failureShape
                 )
             )
         );
     }
+
+    // Longest refusal reason a run keeps per host call; the full text stays in the script's own last.error.
+    private const int MaxHostCallErrorLength = 300;
+
+    private static string? Capped(string? message) =>
+        message is null || message.Length <= MaxHostCallErrorLength
+            ? message
+            : message[..MaxHostCallErrorLength];
+
+    // The outside token ending the run is a cancel; the engine's own backstop timer is the whole-run cap;
+    // anything else is the script's own run clock.
+    private static RunFailureShape TimeLimitShape(
+        Exception ex,
+        ScriptResourceBudget budget,
+        CancellationToken cancellationToken
+    )
+    {
+        if (cancellationToken.IsCancellationRequested)
+            return new(RunFailureKind.Canceled);
+
+        return ex is TimeoutException
+            ? new(RunFailureKind.Timeout, "script.max_run_ms", budget.MaxRunMs)
+            : new(RunFailureKind.Timeout, "script.wall_clock_ms", budget.WallClockMs);
+    }
+
+    private static RunFailureShape ResourceLimitShape(Exception ex, ScriptResourceBudget budget) =>
+        ex switch
+        {
+            StatementsCountOverflowException => new(
+                RunFailureKind.Limit,
+                "script.max_statements",
+                budget.MaxFuelOrStatements
+            ),
+            MemoryLimitExceededException => new(
+                RunFailureKind.Limit,
+                "script.max_memory_bytes",
+                budget.MaxMemoryBytes
+            ),
+            _ => new(
+                RunFailureKind.Limit,
+                "script.max_recursion_depth",
+                JintEngineFactory.MaxRecursionDepth
+            ),
+        };
 
     private sealed record HostCallAnswer(string? Value, ScriptHostError? DeadlineError);
 

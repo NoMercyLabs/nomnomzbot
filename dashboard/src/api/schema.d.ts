@@ -96532,11 +96532,23 @@ export interface components {
             /** Format: int32 */
             durationMs: number | string;
             errorMessage?: null | string;
+            failureKind: null | components["schemas"]["RunFailureKind"];
+            limitKey?: null | string;
+            /** Format: int64 */
+            limitValue?: null | number | string;
             /** Format: date-time */
             startedAt: string;
             /** Format: date-time */
             completedAt?: null | string;
             stepLogs: components["schemas"]["PipelineExecutionStepLog"][];
+        };
+        /** @description One host call a step made (for example `tts.speak`), with how long it took. */
+        PipelineExecutionHostCall: {
+            name: string;
+            /** Format: int32 */
+            durationMs: number | string;
+            ok: boolean;
+            error?: null | string;
         };
         /** @description One step's outcome within a run, so the FAILING step is identifiable in the detail read. */
         PipelineExecutionStepLog: {
@@ -96547,8 +96559,13 @@ export interface components {
             /** Format: int32 */
             durationMs: number | string;
             errorMessage?: null | string;
+            hostCalls: components["schemas"]["PipelineExecutionHostCall"][];
         };
-        /** @description Lightweight run summary for the execution-history list view (H.4 PipelineExecution). */
+        /**
+         * @description Lightweight run summary for the execution-history list view (H.4 PipelineExecution).
+         *                 `FailureKind` is null on a run that did not fail; `LimitKey` and `LimitValue` are set only
+         *                 when a limit or a time budget stopped the run.
+         */
         PipelineExecutionSummary: {
             /** Format: int64 */
             id: number | string;
@@ -96569,6 +96586,10 @@ export interface components {
             /** Format: int32 */
             durationMs: number | string;
             errorMessage?: null | string;
+            failureKind: null | components["schemas"]["RunFailureKind"];
+            limitKey?: null | string;
+            /** Format: int64 */
+            limitValue?: null | number | string;
             /** Format: date-time */
             startedAt: string;
             /** Format: date-time */
@@ -97840,6 +97861,8 @@ export interface components {
             previousKey: string;
             currentKey: string;
         };
+        /** @enum {unknown} */
+        RunFailureKind: "Limit" | "Timeout" | "HostCallError" | "ScriptError" | "Permission" | "PlatformApiError" | "Canceled" | null;
         SaveCredentialRequest: {
             clientId: string;
             clientSecret: string;

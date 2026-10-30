@@ -143,6 +143,10 @@ public class PipelineExecutionResult
     public int Total { get; init; }
     public string? ErrorMessage { get; init; }
 
+    /// <summary>What kind of failure ended the run and the limit that stopped it, set where the failure
+    /// happened; null on a run that did not fail.</summary>
+    public RunFailureShape? FailureShape { get; init; }
+
     /// <summary>True when an action in the run already sent a chat message. A failed run that replied
     /// needs no generic failure notice on top of that reply.</summary>
     public bool RepliedToChat { get; set; }
@@ -212,4 +216,11 @@ public class StepExecutionLog
     public required TimeSpan Duration { get; init; }
     public string? ErrorMessage { get; init; }
     public string? Output { get; init; }
+
+    /// <summary>What kind of failure this step ended in; null when the step succeeded or its action did not
+    /// classify the failure. The run's own failure shape is taken from the step that broke the run.</summary>
+    public RunFailureShape? FailureShape { get; init; }
+
+    /// <summary>The host calls the step made, in order, with their durations.</summary>
+    public IReadOnlyList<HostCallRecord> HostCalls { get; init; } = [];
 }

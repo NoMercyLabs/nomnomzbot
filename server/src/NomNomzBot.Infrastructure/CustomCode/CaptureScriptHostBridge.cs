@@ -56,6 +56,8 @@ public sealed class CaptureScriptHostBridge(
     // it. This flag makes "last.error" report null after a captured write, like a successful live call would.
     private bool _lastCallWasCaptured;
 
+    public string? LastErrorMessage => _lastCallWasCaptured ? null : inner.LastErrorMessage;
+
     public HostImportDelegate Resolve(string capabilityKey)
     {
         if (capabilityKey == ScriptHostErrorCodes.LastErrorKey)

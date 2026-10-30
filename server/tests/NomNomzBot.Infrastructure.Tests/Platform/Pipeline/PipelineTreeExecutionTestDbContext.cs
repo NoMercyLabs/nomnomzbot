@@ -117,6 +117,10 @@ internal sealed class PipelineTreeExecutionTestDbContext : DbContext, IApplicati
             e.Ignore(x => x.Pipeline);
         });
 
+        // The run_code action reads the script and its published version (S-RUN-FAILURE-SHAPE).
+        b.Entity<CodeScript>(e => e.HasKey(s => s.Id));
+        b.Entity<CodeScriptVersion>(e => e.HasKey(v => v.Id));
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -131,6 +135,8 @@ internal sealed class PipelineTreeExecutionTestDbContext : DbContext, IApplicati
         typeof(PipelineTrigger),
         typeof(PipelineExecution),
         typeof(PipelineRunState),
+        typeof(CodeScript),
+        typeof(CodeScriptVersion),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -241,8 +247,7 @@ internal sealed class PipelineTreeExecutionTestDbContext : DbContext, IApplicati
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
     public DbSet<ChatMessage> ChatMessages => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Chat.Entities.FavoriteEmote> FavoriteEmotes =>
-        throw new NotSupportedException();
+    public DbSet<FavoriteEmote> FavoriteEmotes => throw new NotSupportedException();
     public DbSet<ChatterAssignedColor> ChatterAssignedColors => throw new NotSupportedException();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Giveaways.Entities.Giveaway> Giveaways =>
@@ -408,8 +413,8 @@ internal sealed class PipelineTreeExecutionTestDbContext : DbContext, IApplicati
     public DbSet<ChannelChatterDay> ChannelChatterDays => throw new NotSupportedException();
     public DbSet<FeatureFlag> FeatureFlags => throw new NotSupportedException();
     public DbSet<FeatureFlagOverride> FeatureFlagOverrides => throw new NotSupportedException();
-    public DbSet<CodeScript> CodeScripts => throw new NotSupportedException();
-    public DbSet<CodeScriptVersion> CodeScriptVersions => throw new NotSupportedException();
+    public DbSet<CodeScript> CodeScripts => Set<CodeScript>();
+    public DbSet<CodeScriptVersion> CodeScriptVersions => Set<CodeScriptVersion>();
     public DbSet<SoundClip> SoundClips => throw new NotSupportedException();
     public DbSet<ChannelAudioMix> ChannelAudioMixes => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Assets.Entities.ChannelAsset> ChannelAssets =>

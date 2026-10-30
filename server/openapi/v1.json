@@ -127165,6 +127165,7 @@
           "status",
           "hostCallCount",
           "durationMs",
+          "failureKind",
           "startedAt",
           "stepLogs"
         ],
@@ -127222,6 +127223,31 @@
               "string"
             ]
           },
+          "failureKind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RunFailureKind"
+              }
+            ]
+          },
+          "limitKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "limitValue": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
           "startedAt": {
             "type": "string",
             "format": "date-time"
@@ -127242,12 +127268,44 @@
         },
         "description": "Full run detail — the summary fields plus its ordered per-step logs."
       },
+      "PipelineExecutionHostCall": {
+        "required": [
+          "name",
+          "durationMs",
+          "ok"
+        ],
+        "type": "object",
+        "properties": {
+          "name": {
+            "type": "string"
+          },
+          "durationMs": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "format": "int32"
+          },
+          "ok": {
+            "type": "boolean"
+          },
+          "error": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One host call a step made (for example `tts.speak`), with how long it took."
+      },
       "PipelineExecutionStepLog": {
         "required": [
           "stepIndex",
           "actionType",
           "succeeded",
-          "durationMs"
+          "durationMs",
+          "hostCalls"
         ],
         "type": "object",
         "properties": {
@@ -127278,6 +127336,12 @@
               "null",
               "string"
             ]
+          },
+          "hostCalls": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/PipelineExecutionHostCall"
+            }
           }
         },
         "description": "One step's outcome within a run, so the FAILING step is identifiable in the detail read."
@@ -127289,6 +127353,7 @@
           "status",
           "hostCallCount",
           "durationMs",
+          "failureKind",
           "startedAt"
         ],
         "type": "object",
@@ -127345,6 +127410,31 @@
               "string"
             ]
           },
+          "failureKind": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/RunFailureKind"
+              }
+            ]
+          },
+          "limitKey": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "limitValue": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "null",
+              "integer",
+              "string"
+            ],
+            "format": "int64"
+          },
           "startedAt": {
             "type": "string",
             "format": "date-time"
@@ -127357,7 +127447,7 @@
             "format": "date-time"
           }
         },
-        "description": "Lightweight run summary for the execution-history list view (H.4 PipelineExecution)."
+        "description": "Lightweight run summary for the execution-history list view (H.4 PipelineExecution).\r\n            `FailureKind` is null on a run that did not fail; `LimitKey` and `LimitValue` are set only\r\n            when a limit or a time budget stopped the run."
       },
       "PipelineGraphInput": {
         "required": [
@@ -130742,6 +130832,18 @@
             "type": "string"
           }
         }
+      },
+      "RunFailureKind": {
+        "enum": [
+          "Limit",
+          "Timeout",
+          "HostCallError",
+          "ScriptError",
+          "Permission",
+          "PlatformApiError",
+          "Canceled",
+          null
+        ]
       },
       "SaveCredentialRequest": {
         "required": [

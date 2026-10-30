@@ -9,9 +9,13 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Domain.Commands.Enums;
+
 namespace NomNomzBot.Application.Commands.Dtos;
 
-/// <summary>Lightweight run summary for the execution-history list view (H.4 PipelineExecution).</summary>
+/// <summary>Lightweight run summary for the execution-history list view (H.4 PipelineExecution).
+/// <c>FailureKind</c> is null on a run that did not fail; <c>LimitKey</c> and <c>LimitValue</c> are set only
+/// when a limit or a time budget stopped the run.</summary>
 public sealed record PipelineExecutionSummaryDto(
     long Id,
     Guid? PipelineId,
@@ -21,8 +25,19 @@ public sealed record PipelineExecutionSummaryDto(
     int HostCallCount,
     int DurationMs,
     string? ErrorMessage,
+    RunFailureKind? FailureKind,
+    string? LimitKey,
+    long? LimitValue,
     DateTime StartedAt,
     DateTime? CompletedAt
+);
+
+/// <summary>One host call a step made (for example <c>tts.speak</c>), with how long it took.</summary>
+public sealed record PipelineExecutionHostCallDto(
+    string Name,
+    int DurationMs,
+    bool Ok,
+    string? Error
 );
 
 /// <summary>One step's outcome within a run, so the FAILING step is identifiable in the detail read.</summary>
@@ -31,7 +46,8 @@ public sealed record PipelineExecutionStepLogDto(
     string ActionType,
     bool Succeeded,
     int DurationMs,
-    string? ErrorMessage
+    string? ErrorMessage,
+    IReadOnlyList<PipelineExecutionHostCallDto> HostCalls
 );
 
 /// <summary>Full run detail — the summary fields plus its ordered per-step logs.</summary>
@@ -44,6 +60,9 @@ public sealed record PipelineExecutionDetailDto(
     int HostCallCount,
     int DurationMs,
     string? ErrorMessage,
+    RunFailureKind? FailureKind,
+    string? LimitKey,
+    long? LimitValue,
     DateTime StartedAt,
     DateTime? CompletedAt,
     IReadOnlyList<PipelineExecutionStepLogDto> StepLogs
