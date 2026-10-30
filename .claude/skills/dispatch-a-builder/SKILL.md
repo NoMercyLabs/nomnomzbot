@@ -63,6 +63,11 @@ Rules applied:
   the license header on every new source file. **Dashboard (TypeScript/Vue) briefs** say the
   opposite: no annotation the value already has, constant tables `as const satisfies`, and
   `eslint --fix` before the gate.
+- **Dashboard commits go through `scripts/dashboard-commit.ps1`**, which runs the CI gate
+  (`vue-tsc --build`, oxlint, eslint, cspell, the whole vitest run) on HEAD plus the slice's files.
+  Never hand a dashboard brief a smaller gate: `vue-tsc -p tsconfig.app.json` skips the spec files
+  and a per-spec vitest run skips the repo-wide guards (2026-10-30: two lanes committed a spec type
+  error and five ungated controls that way, found only by the full run before the push).
 - **UI briefs**: "load the `sleak` skill before writing the screen", verbatim, plus the three rules
   the work is judged on: **one primary action per group**, **concentric radius**, **scarce accent**.
 - **Read-only jobs** go to a read-only type: Explore (search, measure, read-only commands) or

@@ -769,6 +769,19 @@
    "covers": []
   },
   {
+   "id": "dashboard-commit-full-gate",
+   "paths": [
+    "**/dashboard/src/**"
+   ],
+   "brief": [
+    "dashboard/",
+    "\\.vue\\b"
+   ],
+   "text": "A dashboard commit goes through scripts/dashboard-commit.ps1, which runs the CI gate (vue-tsc --build, oxlint, eslint, cspell, the whole vitest run) on HEAD plus the slice's files. A brief never names a smaller gate: `vue-tsc -p tsconfig.app.json` skips the spec files, and a per-spec vitest run skips the repo-wide guard specs.",
+   "source": "2026-10-30: two lanes gated by hand and committed a spec type error (InvitePage.spec.ts:171) and five ungated controls (permissionGuard.elements.spec.ts); the full run before the push found them.",
+   "covers": []
+  },
+  {
    "id": "dashboard-generics-over-annotations",
    "paths": [
     "**/dashboard/src/**"
