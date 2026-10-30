@@ -68,6 +68,22 @@ jobs:
             # api-green is profiled so a bare `up -d` cannot start both colours.
             export COMPOSE_PROFILES=green
 
+            # The image is only half a deploy: docker-compose.yml carries the API's environment. Sync the stack
+            # files at the image's own commit (scripts/ship.ps1 does the same); .env stays the operator's.
+            sha=$(docker image inspect -f '{{index .Config.Labels "org.opencontainers.image.revision"}}' "$image")
+            [ -n "$sha" ] || { echo "No revision label on $image." >&2; exit 1; }
+            raw="https://raw.githubusercontent.com/${{ github.repository }}/$sha"
+            for f in docker-compose.yml Caddyfile scripts/guard-single-color.sh; do
+              curl -fsSL "$raw/$f" -o "$(basename "$f").new"
+            done
+            for f in docker-compose.yml Caddyfile guard-single-color.sh; do mv "$f.new" "$f"; done
+            chmod +x guard-single-color.sh
+            ( crontab -l 2>/dev/null | grep -vF 'guard-single-color.sh' ; echo "*/5 * * * * /opt/nomnomzbot/guard-single-color.sh >> /opt/nomnomzbot/guard-single-color.log 2>&1" ) | crontab -
+            # The Caddyfile is a bind mount: `up -d caddy` recreates only on a service change, the reload applies it.
+            docker compose up -d --no-deps caddy >/dev/null 2>&1
+            docker exec nomnomzbot-caddy caddy reload --config /etc/caddy/Caddyfile
+            echo "Stack files synced at $sha"
+
             # Ask docker which colour is live, so a re-run after a failed attempt converges.
             ps_out=$(docker ps --filter name=nomnomzbot-api- --format '{{.Names}}' || true)
             blue_up=$(echo "$ps_out" | grep -c 'nomnomzbot-api-blue' || true)
