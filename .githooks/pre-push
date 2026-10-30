@@ -12,11 +12,17 @@
 # Blocks a push that would turn the dashboard CI job red. A push that changes dashboard/ must pass the full
 # lint and the type-check first (2026-10-22: two pushes in a row failed CI on lint after only the specs ran).
 # Skip once with NNZ_SKIP_PREPUSH=1 only when CI is the thing being fixed.
+#
+# The check runs on the pushed commit in its own worktree, never on the shared working tree: another lane's
+# unfinished file must not block a push of finished commits (2026-10-30: two pushes blocked on files that were
+# not in them). The worktree owns its packages (npm ci, again when the lock file changes; a node_modules link
+# is refused, 2026-10-27). Remove it only with scripts/remove-worktree.ps1.
 
 [ "$NNZ_SKIP_PREPUSH" = "1" ] && exit 0
 
 zero=0000000000000000000000000000000000000000
 touched=""
+pushed=""
 
 while read -r _local_ref local_sha _remote_ref remote_sha; do
   [ "$local_sha" = "$zero" ] && continue
@@ -27,15 +33,32 @@ while read -r _local_ref local_sha _remote_ref remote_sha; do
   fi
   if git diff --name-only "$range" 2>/dev/null | grep -q '^dashboard/'; then
     touched=1
+    pushed="$local_sha"
   fi
 done
 
 [ -z "$touched" ] && exit 0
 
 root=$(git rev-parse --show-toplevel)
-echo "pre-push: dashboard/ changed, running the full lint and the type-check"
+gate="$root/.claude/worktrees/prepush-gate"
+echo "pre-push: dashboard/ changed, running the full lint and the type-check on $pushed"
 
-npm --prefix "$root/dashboard" run lint || { echo "pre-push: lint failed, push blocked"; exit 1; }
-npm --prefix "$root/dashboard" run type-check || { echo "pre-push: type-check failed, push blocked"; exit 1; }
+if [ -d "$gate" ]; then
+  git -C "$gate" checkout --quiet --force --detach "$pushed" || { echo "pre-push: gate checkout failed"; exit 1; }
+  git -C "$gate" clean -fdq -- dashboard/src
+else
+  git worktree add --quiet --detach "$gate" "$pushed" || { echo "pre-push: gate worktree failed"; exit 1; }
+fi
+
+lock=$(git -C "$gate" hash-object dashboard/package-lock.json)
+stamp="$gate/dashboard/node_modules/.gate-lock-hash"
+if [ ! -f "$stamp" ] || [ "$(cat "$stamp")" != "$lock" ]; then
+  echo "pre-push: installing the gate's packages (npm ci)"
+  (cd "$gate/dashboard" && npm ci --no-audit --no-fund >/dev/null) || { echo "pre-push: npm ci failed, push blocked"; exit 1; }
+  echo "$lock" > "$stamp"
+fi
+
+npm --prefix "$gate/dashboard" run lint || { echo "pre-push: lint failed, push blocked"; exit 1; }
+npm --prefix "$gate/dashboard" run type-check || { echo "pre-push: type-check failed, push blocked"; exit 1; }
 
 exit 0
