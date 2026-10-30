@@ -9,6 +9,8 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Infrastructure.Platform.Templating.Helpers.Numbers;
+
 namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Fun;
 
 /// <summary>
@@ -21,7 +23,11 @@ internal readonly record struct FunDiceSpec(int Count, int Sides)
     public const int MaxCount = 100;
     public const int MaxSides = 1000;
 
-    public static bool TryParse(IReadOnlyList<string> args, out FunDiceSpec spec)
+    /// <summary>
+    /// Parses <c>[count d]sides</c>. A <paramref name="countLimit"/> (a viewer's text) cuts the dice count down to the
+    /// limit before the hard cap is checked, so <c>50d6</c> rolls the limit instead of being refused.
+    /// </summary>
+    public static bool TryParse(IReadOnlyList<string> args, int? countLimit, out FunDiceSpec spec)
     {
         spec = new FunDiceSpec(1, DefaultSides);
         if (args.Count == 0)
@@ -33,12 +39,11 @@ internal readonly record struct FunDiceSpec(int Count, int Sides)
         int split = text.IndexOfAny(['d', 'D']);
         string countText = split <= 0 ? "1" : text[..split];
         string sidesText = split < 0 ? text : text[(split + 1)..];
-        if (
-            !TryWhole(countText, out int dice)
-            || !TryWhole(sidesText, out int sides)
-            || dice is < 1 or > MaxCount
-            || sides is < 2 or > MaxSides
-        )
+        if (!TryWhole(countText, out int requested) || !TryWhole(sidesText, out int sides))
+            return false;
+
+        int dice = ViewerCountLimit.Within(requested, countLimit);
+        if (dice is < 1 or > MaxCount || sides is < 2 or > MaxSides)
             return false;
 
         spec = new FunDiceSpec(dice, sides);

@@ -66,8 +66,24 @@ internal sealed record NumberHelperRow(
                     : null
         );
 
+    /// <summary>
+    /// The index of the argument that sets how wide the output grows (a meter's width), or null for a helper whose
+    /// output does not grow with a number. A render with a <see cref="TemplateRenderScope.TextCountLimit"/> cuts
+    /// that argument down to the limit.
+    /// </summary>
+    public int? AmplifierArgument { get; init; }
+
+    /// <summary>
+    /// Every number helper is pure: it reads its own arguments and the channel's language, and writes nothing. Its
+    /// cost is bounded by the argument text (or by a hard cap, or by <see cref="AmplifierArgument"/>), so a row
+    /// is open to a viewer's own text.
+    /// </summary>
     public TemplateHelperEntry ToEntry() =>
-        new(Key, TemplateHelperContexts.Standard, new LocalizedText("template.helper." + Key))
+        new(
+            Key,
+            TemplateHelperContexts.StandardAndViewer,
+            new LocalizedText("template.helper." + Key)
+        )
         {
             Sample = Sample,
             Freshness = TemplateHelperFreshness.Pure,

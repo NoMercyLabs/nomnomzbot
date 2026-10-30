@@ -31,14 +31,21 @@ internal static class ValuePredicate
         ["contains"] = (left, operand) => left.Contains(operand, StringComparison.Ordinal),
         ["startswith"] = (left, operand) => left.StartsWith(operand, StringComparison.Ordinal),
         ["endswith"] = (left, operand) => left.EndsWith(operand, StringComparison.Ordinal),
-        ["matches"] = Matches,
+        [RegexOperator] = Matches,
         ["gt"] = (left, operand) => Compare(left, operand, (a, b) => a > b),
         ["lt"] = (left, operand) => Compare(left, operand, (a, b) => a < b),
         ["gte"] = (left, operand) => Compare(left, operand, (a, b) => a >= b),
         ["lte"] = (left, operand) => Compare(left, operand, (a, b) => a <= b),
     };
 
+    /// <summary>The operator that compiles a pattern; each use may cost the full regex timeout.</summary>
+    public const string RegexOperator = "matches";
+
     public static IEnumerable<string> Names => Operators.Keys;
+
+    /// <summary>True for the operator that runs a regular expression, whose cost is not cut by a viewer's count limit.</summary>
+    public static bool RunsRegex(string name) =>
+        name.Equals(RegexOperator, StringComparison.OrdinalIgnoreCase);
 
     public static bool IsOperator(string name) => Operators.ContainsKey(name);
 

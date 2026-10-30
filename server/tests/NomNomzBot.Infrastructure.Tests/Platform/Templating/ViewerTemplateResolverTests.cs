@@ -95,7 +95,7 @@ public sealed class ViewerTemplateResolverTests
     [InlineData("{count.visits}")]
     [InlineData("{viewer.data.score}")]
     [InlineData("{date:yyyy}")]
-    [InlineData("{math.sqrt:9}")]
+    [InlineData("{fun.8ball}")]
     [InlineData("{not.a.helper}")]
     public async Task A_helper_outside_the_viewer_row_stays_as_written(string text)
     {

@@ -34,7 +34,12 @@ public sealed class IfTemplateHelpers : LogicHelperProvider
         Row("if.empty", "who?", lazy: true),
         PathRow("if.<path>", "on", "template.helper.if.path"),
         .. ValuePredicate.Names.Select(op =>
-            PathRow($"if.<path>.{op}", "yes", $"template.helper.if.path.{op}")
+            PathRow(
+                $"if.<path>.{op}",
+                "yes",
+                $"template.helper.if.path.{op}",
+                viewer: !ValuePredicate.RunsRegex(op)
+            )
         ),
     ];
 
@@ -53,8 +58,20 @@ public sealed class IfTemplateHelpers : LogicHelperProvider
             _ => await PathFormAsync(scope, node, cancellationToken),
         };
 
-    private static TemplateHelperEntry PathRow(string key, string sample, string descriptionKey) =>
-        Row(key, sample, lazy: true, prefix: PathPrefix, descriptionKey: descriptionKey);
+    private static TemplateHelperEntry PathRow(
+        string key,
+        string sample,
+        string descriptionKey,
+        bool viewer = true
+    ) =>
+        Row(
+            key,
+            sample,
+            lazy: true,
+            prefix: PathPrefix,
+            descriptionKey: descriptionKey,
+            viewer: viewer
+        );
 
     /// <summary><c>if:value|then[|else]</c> and <c>if.not:value|then[|else]</c>.</summary>
     private static async ValueTask<string?> ValueFormAsync(
@@ -148,7 +165,10 @@ public sealed class IfTemplateHelpers : LogicHelperProvider
         CancellationToken cancellationToken
     )
     {
-        if (node.Arguments.Count is not (1 or 2))
+        if (
+            node.Arguments.Count is not (1 or 2)
+            || (scope.IsViewerText && ValuePredicate.RunsRegex(op))
+        )
             return null;
 
         SplitArgument? operandAndThen = await LogicArguments.SplitAsync(

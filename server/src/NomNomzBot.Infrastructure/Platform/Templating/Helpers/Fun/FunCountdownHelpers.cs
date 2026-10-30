@@ -29,18 +29,23 @@ internal sealed class FunCountdownHelpers()
 
     private static readonly MeterBarHelpers MeterBar = new();
 
-    private static string? Countdown(FunCall call) =>
-        call.Args.Count == 1
-        && FunDiceSpec.TryWhole(call.Args[0], out int from)
-        && from is >= 1 and <= MaxCount
-            ? string.Join(
-                ' ',
-                Enumerable
-                    .Range(1, from)
-                    .Reverse()
-                    .Select(n => n.ToString(CultureInfo.InvariantCulture) + "…")
-            )
-            : null;
+    private static string? Countdown(FunCall call)
+    {
+        if (call.Args.Count != 1 || !FunDiceSpec.TryWhole(call.Args[0], out int from))
+            return null;
+
+        from = ViewerCountLimit.Within(from, call.Scope.TextCountLimit);
+        if (from is < 1 or > MaxCount)
+            return null;
+
+        return string.Join(
+            ' ',
+            Enumerable
+                .Range(1, from)
+                .Reverse()
+                .Select(n => n.ToString(CultureInfo.InvariantCulture) + "…")
+        );
+    }
 
     private static string? Meter(FunCall call) =>
         MeterBar.TryRender(new HelperNode("meter", call.Args, "{meter}"), call.Scope);
