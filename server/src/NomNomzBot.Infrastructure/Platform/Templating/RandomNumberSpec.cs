@@ -24,11 +24,14 @@ internal readonly record struct RandomNumberSpec(int Min, int Max, int Step)
         spec = default;
         if (parts.Length is not (2 or 3))
             return false;
-        if (!int.TryParse(parts[0], out int min) || !int.TryParse(parts[1], out int max))
+        if (
+            !int.TryParse(parts[0].Trim(), out int min)
+            || !int.TryParse(parts[1].Trim(), out int max)
+        )
             return false;
 
         int step = 1;
-        if (parts.Length == 3 && !int.TryParse(parts[2], out step))
+        if (parts.Length == 3 && !int.TryParse(parts[2].Trim(), out step))
             return false;
         if (step < 1 || max < min)
             return false;

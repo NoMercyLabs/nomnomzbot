@@ -49,10 +49,10 @@ internal sealed partial class NumberWordHelpers()
     /// <summary><c>num.fromRoman:r</c>: a Roman numeral in either letter case; a non-canonical one such as IIII has no answer.</summary>
     private static string? FromRoman(IReadOnlyList<string> args)
     {
-        if (args.Count != 1 || !RomanLetters().IsMatch(args[0]))
+        if (args.Count != 1 || !RomanLetters().IsMatch(ParsedArgument.Word(args[0])))
             return null;
 
-        string numeral = args[0].ToUpperInvariant();
+        string numeral = ParsedArgument.Word(args[0]).ToUpperInvariant();
         int value = numeral.FromRoman();
         return value.ToRoman() == numeral ? value.ToString(CultureInfo.InvariantCulture) : null;
     }

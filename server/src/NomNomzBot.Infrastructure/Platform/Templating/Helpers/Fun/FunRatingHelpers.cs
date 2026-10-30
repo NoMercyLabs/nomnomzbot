@@ -76,12 +76,16 @@ internal sealed class FunRatingHelpers()
 
     /// <summary>Two names, in the same order every time, so <c>a|b</c> and <c>b|a</c> hash alike.</summary>
     private static (string, string)? Pair(FunCall call) =>
-        call.Args.Count == 2 && call.Args[0].Length > 0 && call.Args[1].Length > 0
-            ? (call.Args[0], call.Args[1])
+        call.Args.Count == 2
+        && ParsedArgument.Word(call.Args[0]).Length > 0
+        && ParsedArgument.Word(call.Args[1]).Length > 0
+            ? (ParsedArgument.Word(call.Args[0]), ParsedArgument.Word(call.Args[1]))
             : null;
 
     private static string? Single(FunCall call) =>
-        call.Args.Count == 1 && call.Args[0].Length > 0 ? call.Args[0] : null;
+        call.Args.Count == 1 && ParsedArgument.Word(call.Args[0]).Length > 0
+            ? ParsedArgument.Word(call.Args[0])
+            : null;
 
     private static string Viewer(TemplateRenderScope scope) =>
         scope.Variables.GetValueOrDefault("user.login")

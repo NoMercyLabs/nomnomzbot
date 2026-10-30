@@ -81,13 +81,13 @@ public sealed class PickTemplateHelpers(Random random) : LogicHelperProvider
         string raw = string.Join("|", node.Arguments);
         if (LogicArguments.IsPlainText(raw))
             return PickOne(scope, node, SplitItems(raw)) is { } plain
-                ? LogicArguments.Unescape(plain).Trim()
+                ? LogicArguments.Unescape(plain)
                 : null;
 
         List<string> rendered = [];
         for (int i = 0; i < node.Arguments.Count; i++)
             rendered.Add(await LogicArguments.RenderAsync(node, i, cancellationToken));
-        return PickOne(scope, node, SplitItems(string.Join("|", rendered)))?.Trim();
+        return PickOne(scope, node, SplitItems(string.Join("|", rendered)));
     }
 
     private static List<string> SplitItems(string text)
@@ -117,7 +117,7 @@ public sealed class PickTemplateHelpers(Random random) : LogicHelperProvider
             if (
                 equals < 1
                 || !double.TryParse(
-                    argument[..equals],
+                    ParsedArgument.Word(argument[..equals]),
                     NumberStyles.Float,
                     CultureInfo.InvariantCulture,
                     out double weight
@@ -125,7 +125,7 @@ public sealed class PickTemplateHelpers(Random random) : LogicHelperProvider
                 || weight < 0
             )
                 return null;
-            entries.Add((weight, argument[(equals + 1)..].Trim()));
+            entries.Add((weight, argument[(equals + 1)..]));
         }
 
         double total = entries.Sum(e => e.Weight);
@@ -147,12 +147,7 @@ public sealed class PickTemplateHelpers(Random random) : LogicHelperProvider
     {
         if (
             arguments.Count < 2
-            || !int.TryParse(
-                arguments[0],
-                NumberStyles.None,
-                CultureInfo.InvariantCulture,
-                out int count
-            )
+            || !ParsedArgument.TryWhole(arguments[0], out int count)
             || count < 1
         )
             return null;

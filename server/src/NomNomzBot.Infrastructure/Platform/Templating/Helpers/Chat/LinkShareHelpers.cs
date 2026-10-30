@@ -35,8 +35,8 @@ internal sealed class LinkShareHelpers()
             2,
             2,
             call =>
-                IsHostName(call.Args[0])
-                    ? $"https://{call.Args[0]}/share?text={Uri.EscapeDataString(call.Args[1])}"
+                IsHostName(ParsedArgument.Word(call.Args[0]))
+                    ? $"https://{ParsedArgument.Word(call.Args[0])}/share?text={Uri.EscapeDataString(call.Args[1])}"
                     : null
         )
     )

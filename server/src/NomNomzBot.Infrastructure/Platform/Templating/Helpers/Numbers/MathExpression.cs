@@ -27,10 +27,11 @@ internal static class MathExpression
 
     public static decimal? Evaluate(string expression)
     {
-        if (expression.Length == 0 || expression.Length > MaxLength)
+        string text = ParsedArgument.Word(expression);
+        if (text.Length == 0 || text.Length > MaxLength)
             return null;
 
-        Parser parser = new(expression);
+        Parser parser = new(text);
         decimal? value = parser.ParseExpression();
         return parser.AtEnd ? value : null;
     }

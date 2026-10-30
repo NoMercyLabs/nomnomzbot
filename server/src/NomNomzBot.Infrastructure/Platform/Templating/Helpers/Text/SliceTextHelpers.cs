@@ -71,8 +71,7 @@ internal sealed class SliceTextHelpers()
             TextArguments.Words(text).Select(w => TextArguments.Elements(w)[0].ToUpperInvariant())
         );
 
-    private static string FirstLine(string text) =>
-        TextArguments.Literal(text).Split('\n')[0].TrimEnd('\r');
+    private static string FirstLine(string text) => text.Split('\n')[0].TrimEnd('\r');
 
     /// <summary><c>{text.lines.join:t|sep}</c>: the lines of t joined with sep (default one space).</summary>
     private static string? JoinLines(IReadOnlyList<string> args)
@@ -80,11 +79,7 @@ internal sealed class SliceTextHelpers()
         if (args.Count is < 1 or > 2)
             return null;
 
-        string[] lines = TextArguments
-            .Literal(args[0])
-            .Split('\n')
-            .Select(l => l.TrimEnd('\r'))
-            .ToArray();
+        string[] lines = [.. args[0].Split('\n').Select(l => l.TrimEnd('\r'))];
         return string.Join(TextArguments.TextAt(args, 1, " "), lines);
     }
 }

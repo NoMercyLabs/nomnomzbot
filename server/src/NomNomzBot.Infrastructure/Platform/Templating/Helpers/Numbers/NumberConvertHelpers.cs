@@ -23,10 +23,12 @@ internal sealed class NumberConvertHelpers()
         if (args.Count != 3 || !NumberArguments.TryNumber(args[0], out decimal value))
             return null;
 
-        if (args[2].Equals("ft", StringComparison.OrdinalIgnoreCase))
-            return NumberUnits.TryFeetAndInches(value, args[1], out string feet) ? feet : null;
+        string from = ParsedArgument.Word(args[1]);
+        string to = ParsedArgument.Word(args[2]);
+        if (to.Equals("ft", StringComparison.OrdinalIgnoreCase))
+            return NumberUnits.TryFeetAndInches(value, from, out string feet) ? feet : null;
 
-        return NumberUnits.TryConvert(value, args[1], args[2], out decimal result)
+        return NumberUnits.TryConvert(value, from, to, out decimal result)
             ? NumberText.Plain(NumberText.Round(result, Places))
             : null;
     }

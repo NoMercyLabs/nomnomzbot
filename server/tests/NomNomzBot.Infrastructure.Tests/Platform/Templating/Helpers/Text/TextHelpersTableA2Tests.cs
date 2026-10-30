@@ -132,11 +132,11 @@ public sealed class TextHelpersTableA2Tests
     }
 
     [Fact]
-    public async Task The_catalog_example_of_lines_join_keeps_a_trimmed_separator_as_written()
+    public async Task The_catalog_example_of_lines_join_keeps_the_separator_spaces_as_written()
     {
         string rendered = await RenderAsync(@"{text.lines.join:a\nb| / }");
 
-        rendered.Should().Be("a/b");
+        rendered.Should().Be("a / b");
     }
 
     private static async Task<string> RenderAsync(string template)

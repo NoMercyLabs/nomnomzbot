@@ -86,12 +86,7 @@ public sealed class RandomTemplateHelpers(Random random) : LogicHelperProvider
             arguments.Count != 3
             || !LogicArguments.TryNumber(arguments[0], out double min)
             || !LogicArguments.TryNumber(arguments[1], out double max)
-            || !int.TryParse(
-                arguments[2],
-                NumberStyles.None,
-                CultureInfo.InvariantCulture,
-                out int places
-            )
+            || !ParsedArgument.TryWhole(arguments[2], out int places)
             || max < min
             || places > MaxDecimalPlaces
         )

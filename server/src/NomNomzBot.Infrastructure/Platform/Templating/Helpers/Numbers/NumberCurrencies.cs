@@ -22,7 +22,8 @@ internal static class NumberCurrencies
     public static bool TrySymbol(string code, out string symbol)
     {
         symbol = string.Empty;
-        return code.Length == 3 && Symbols.Value.TryGetValue(code, out symbol!);
+        string word = ParsedArgument.Word(code);
+        return word.Length == 3 && Symbols.Value.TryGetValue(word, out symbol!);
     }
 
     private static Dictionary<string, string> Build()

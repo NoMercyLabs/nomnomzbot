@@ -37,7 +37,7 @@ public sealed class ChanceTemplateHelpers(Random random) : LogicHelperProvider
         if (node.Arguments.Count is not (2 or 3))
             return null;
 
-        string percentText = await LogicArguments.RenderAsync(node, 0, cancellationToken);
+        string percentText = await LogicArguments.RenderParsedAsync(node, 0, cancellationToken);
         if (!LogicArguments.TryNumber(percentText, out double percent) || percent is < 0 or > 100)
             return null;
 

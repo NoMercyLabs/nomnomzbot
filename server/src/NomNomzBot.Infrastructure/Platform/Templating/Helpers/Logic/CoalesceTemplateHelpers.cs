@@ -33,7 +33,7 @@ public sealed class CoalesceTemplateHelpers : LogicHelperProvider
         for (int i = 0; i < node.Arguments.Count; i++)
         {
             string value = await LogicArguments.RenderAsync(node, i, cancellationToken);
-            if (value.Length > 0)
+            if (!string.IsNullOrWhiteSpace(value))
                 return value;
         }
         return "";

@@ -75,7 +75,7 @@ public sealed partial class VariableTemplateHelpers : ITemplateHelperProvider
         if (!ValidName().IsMatch(name) || scope.Variables.ContainsKey(name))
             return null;
 
-        scope.SetVariables[name] = text[(equals + 1)..].Trim();
+        scope.SetVariables[name] = text[(equals + 1)..];
         return string.Empty;
     }
 

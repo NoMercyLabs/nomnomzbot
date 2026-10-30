@@ -69,6 +69,8 @@ internal sealed partial class LookupTranslateHelpers()
         string to
     )
     {
+        from = ParsedArgument.Word(from);
+        to = ParsedArgument.Word(to);
         if (text.Length == 0 || !LanguagePattern().IsMatch(from) || !LanguagePattern().IsMatch(to))
             return null;
 

@@ -16,7 +16,8 @@ namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Text;
 
 /// <summary>
 /// One <c>text.*</c> helper: its canonical key, a sample output and the pure function that renders it from the
-/// trimmed arguments (null for a bad argument, so the token prints as written).
+/// arguments as written (null for a bad argument, so the token prints as written). A row that parses an
+/// argument reads it through <see cref="ParsedArgument"/>, which ignores the spaces around it.
 /// </summary>
 internal sealed record TextHelperRow(
     string Key,

@@ -45,7 +45,7 @@ internal sealed class ChannelRaidHelpers()
             "channel.raids.lastIn.at",
             "2026-10-24",
             (history, _) =>
-                Task.FromResult<string?>(
+                Task.FromResult(
                     Latest(history.Incoming) is { } id
                         ? StreamText.Date(history.Incoming[id].LastAt)
                         : null
@@ -73,7 +73,7 @@ internal sealed class ChannelRaidHelpers()
         StreamHelperCall call
     )
     {
-        string login = call.Args[0].TrimStart('@');
+        string login = ParsedArgument.Word(call.Args[0]).TrimStart('@');
         if (login.Length == 0)
             return null;
 

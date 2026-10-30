@@ -104,7 +104,11 @@ internal sealed partial class LookupCurrencyHelpers()
     }
 
     private static (string From, string To)? Pair(string from, string to) =>
-        CodePattern().IsMatch(from) && CodePattern().IsMatch(to)
-            ? (from.ToUpperInvariant(), to.ToUpperInvariant())
+        CodePattern().IsMatch(ParsedArgument.Word(from))
+        && CodePattern().IsMatch(ParsedArgument.Word(to))
+            ? (
+                ParsedArgument.Word(from).ToUpperInvariant(),
+                ParsedArgument.Word(to).ToUpperInvariant()
+            )
             : null;
 }

@@ -17,7 +17,7 @@ namespace NomNomzBot.Infrastructure.Platform.Templating.Parsing;
 /// The one template tokenizer (catalog section 3). It builds a tree of <see cref="TextNode"/> and
 /// <see cref="PlaceholderNode"/>: the first <c>:</c> of a token starts its arguments, <c>|</c> at the token's
 /// own level splits them, and a <c>{…}</c> inside the key or an argument is a nested token. <c>\{ \} \| \: \\</c>
-/// print the character. An unclosed or empty token, a stray <c>}</c>, and any token nested deeper than
+/// print the character; inside an argument <c>\s</c> prints a space and <c>\n</c> a new line. An unclosed or empty token, a stray <c>}</c>, and any token nested deeper than
 /// <see cref="MaxDepth"/> stay text exactly as written.
 /// </summary>
 public static class TemplateParser
@@ -66,6 +66,18 @@ public static class TemplateParser
             }
 
             if (
+                stopAtSeparators
+                && current == '\\'
+                && position + 1 < text.Length
+                && TryReadArgumentEscape(text[position + 1], out char printed)
+            )
+            {
+                plain.Append(printed);
+                position += 2;
+                continue;
+            }
+
+            if (
                 depth > 0
                 && (
                     current == '}'
@@ -106,6 +118,21 @@ public static class TemplateParser
         }
 
         Flush(text, textStart, position, plain, nodes);
+    }
+
+    /// <summary>
+    /// The escapes that only an argument has, the one place every text argument gets them: <c>\s</c> prints a
+    /// space and <c>\n</c> a new line. <paramref name="letter"/> is the character after the backslash.
+    /// </summary>
+    internal static bool TryReadArgumentEscape(char letter, out char printed)
+    {
+        printed = letter switch
+        {
+            's' => ' ',
+            'n' => '\n',
+            _ => '\0',
+        };
+        return printed != '\0';
     }
 
     /// <summary>Reads one token starting at its <c>{</c>; null (position unchanged) when it never closes or is empty.</summary>

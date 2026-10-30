@@ -61,8 +61,12 @@ internal sealed class ScheduleNextHelpers()
             "schedule.next.viewerTime",
             "Fri 15:00",
             (s, call) =>
-                IsKnownZone(call.Args[0])
-                    ? BroadcastText.ShortDayAndTime(s.StartTime, call.Args[0], call.Culture)
+                IsKnownZone(ParsedArgument.Word(call.Args[0]))
+                    ? BroadcastText.ShortDayAndTime(
+                        s.StartTime,
+                        ParsedArgument.Word(call.Args[0]),
+                        call.Culture
+                    )
                     : null,
             args: 1
         )

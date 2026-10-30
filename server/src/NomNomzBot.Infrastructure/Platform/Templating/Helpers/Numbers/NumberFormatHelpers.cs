@@ -49,10 +49,10 @@ internal sealed class NumberFormatHelpers()
     /// <summary><c>num.parse:text</c>: a number with an optional k, M, B or T suffix, as the plain number.</summary>
     private static string? Parse(IReadOnlyList<string> args)
     {
-        if (args.Count != 1 || args[0].Length == 0)
+        if (args.Count != 1 || ParsedArgument.Word(args[0]).Length == 0)
             return null;
 
-        string text = args[0];
+        string text = ParsedArgument.Word(args[0]);
         decimal multiplier = 1;
         if (Suffixes.TryGetValue(char.ToLowerInvariant(text[^1]), out decimal factor))
         {

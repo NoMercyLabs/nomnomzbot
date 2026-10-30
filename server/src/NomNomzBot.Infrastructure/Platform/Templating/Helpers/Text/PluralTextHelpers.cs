@@ -35,7 +35,7 @@ internal sealed class PluralTextHelpers()
             return null;
 
         string word = Math.Abs(n) == 1 ? args[1] : args[2];
-        return withCount ? args[0] + " " + word : word;
+        return withCount ? ParsedArgument.Word(args[0]) + " " + word : word;
     }
 
     /// <summary><c>{text.plural.auto:n|word}</c>: the word, pluralized by Humanizer unless n is 1.</summary>
@@ -52,7 +52,7 @@ internal sealed class PluralTextHelpers()
 
     private static bool TryWhole(string value, out long number) =>
         long.TryParse(
-            value,
+            ParsedArgument.Word(value),
             NumberStyles.AllowLeadingSign,
             CultureInfo.InvariantCulture,
             out number

@@ -64,9 +64,9 @@ Status words used below:
 | Lazy branches | `if`, `switch`, `default`, `chance` resolve only the branch they pick | `{if:{stream.isLive}\|{stream.uptime}\|offline}` |
 | Optional arguments | `[…]` in the Name column; a missing argument takes the default named in the row | `{num.round:{x}}` = 0 decimals |
 | Named arguments | `name=value` inside an argument, for helpers with more than 2 optional arguments | `{text.cut:{chat.message}\|max=200\|end=…}` |
-| Escape | `\|` `\:` `\{` `\}` `\\` print the character | `{text.replace:a\|b\\|c}` |
+| Escape | `\|` `\:` `\{` `\}` `\\` print the character. In ANY argument, `\s` prints a space and `\n` prints a new line (`\\s` prints a backslash and `s`) | `{text.replace:a\|b\\|c}`, `{text.repeat:3\|rofl\s}` = `rofl rofl rofl ` |
 | Literal braces | `{{` prints `{` and `}}` prints `}` (Stoney's group 16) | `{{not a key}}` prints `{not a key}` |
-| Quoting | none. Spaces are kept as written, and leading or trailing spaces of an argument are trimmed. To keep them, use `\s` | `{text.pad.left:5\|7\|\s}` |
+| Quoting | none. Spaces in an argument are kept exactly as written; the resolver never trims one. A helper that prints the argument (text, a separator, a pad, a branch output, a variable value, a pick item) prints the spaces. A helper that reads the argument (a number, a count, a mode, a name, a key, a code, a condition) ignores the spaces around it. Stoney, 2026-10-30: "you should not ignore the whitespace when resolving the string template". `\s` and `\n` also print a space and a new line (see Escape) | `{text.repeat:3\|ha }` = `ha ha ha `; `{text.repeat: 3 \|ha}` = `hahaha`; `{text.pad.left:5\|7\|\s}` |
 | Unknown or invalid | renders the token as written and logs one warning (as-built for unknown keys and for `date:`) | `{nope}` prints `{nope}` |
 | Limits | nesting depth 8, output 4 KB per render, a cycle in `include`/`set` stops with the token as written | spec §6.3.2 |
 

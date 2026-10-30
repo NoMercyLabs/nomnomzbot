@@ -49,11 +49,14 @@ internal sealed record ListHelperRow(
                 bool fits =
                     call.Args.Count >= 1 + extraMin
                     && call.Args.Count <= 1 + extraMax
-                    && call.Args[0].Length > 0;
+                    && ParsedArgument.Word(call.Args[0]).Length > 0;
                 if (!fits || !call.Source.HasChannel)
                     return null;
 
-                IReadOnlyList<string> items = await call.Source.ItemsAsync(call.Args[0], call.Ct);
+                IReadOnlyList<string> items = await call.Source.ItemsAsync(
+                    ParsedArgument.Word(call.Args[0]),
+                    call.Ct
+                );
                 return render(items, [.. call.Args.Skip(1)]);
             },
             TemplateHelperFreshness.Live,
@@ -70,8 +73,10 @@ internal sealed record ListHelperRow(
             key,
             sample,
             async call =>
-                call.Args.Count == 1 && call.Args[0].Length > 0 && call.Source.HasChannel
-                    ? await render(call.Args[0], call)
+                call.Args.Count == 1
+                && ParsedArgument.Word(call.Args[0]).Length > 0
+                && call.Source.HasChannel
+                    ? await render(ParsedArgument.Word(call.Args[0]), call)
                     : null,
             TemplateHelperFreshness.Live,
             TemplateHelperScope.Channel
