@@ -1762,6 +1762,10 @@ interface NnzActionParams {
     endpoint: string;
     event_type?: string;
   };
+  'send_whisper': {
+    recipient: string;
+    message: string;
+  };
   'set_counter': {
     key: string;
     value: number;

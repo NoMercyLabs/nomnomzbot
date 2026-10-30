@@ -5251,6 +5251,8 @@
     <string name="pipeline_send_message_reply_target_help">Where the message goes: chat (default), the chat overlay, both, or nowhere. Sending as the broadcaster always goes to chat.</string>
     <string name="pipeline_send_message_reply_html_help">Show the overlay line as sanitized HTML. The platform chat always gets plain text.</string>
     <string name="pipeline_send_reply_message_help">The reply text, threaded under the triggering message. Supports template variables (e.g. {user.name}).</string>
+    <string name="pipeline_send_whisper_recipient_help">Who gets the whisper: a Twitch login, an @mention or a Twitch user id. Supports template variables. Use {user.name} to whisper the person who triggered this.</string>
+    <string name="pipeline_send_whisper_message_help">The private message to send. Supports template variables (e.g. {user.name}). Twitch lets the bot whisper 40 new people a day, and it needs the whisper permission.</string>
     <string name="pipeline_deduct_currency_amount_help">How much of the channel's currency to deduct from the viewer's balance.</string>
     <string name="pipeline_deduct_currency_reason_help">Shown on the viewer's transaction history.</string>
     <string name="pipeline_grant_currency_amount_help">How much of the channel's currency to add to the viewer's balance.</string>
@@ -5749,6 +5751,7 @@
     <string name="pipeline_send_discord_notification_description">Post a notification to a configured Discord channel</string>
     <string name="pipeline_send_message_description">Send a message to chat</string>
     <string name="pipeline_send_reply_description">Reply to the triggering chat message</string>
+    <string name="pipeline_send_whisper_description">Send a private whisper to a user</string>
     <string name="pipeline_send_webhook_description">Send an outbound webhook request</string>
     <string name="pipeline_set_counter_description">Set a named counter to a fixed value</string>
     <string name="pipeline_set_pronoun_description">Set a viewer&apos;s pronouns</string>
