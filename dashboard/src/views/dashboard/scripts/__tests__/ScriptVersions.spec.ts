@@ -280,6 +280,16 @@ async function openEditor(): Promise<VueWrapper> {
 }
 
 const ids = (list: readonly VersionSummary[]): string[] => list.map((entry) => entry.id);
+
+// The page a history call returned; a refused call fails the test with its own message.
+function pageOf(outcome: Awaited<ReturnType<EditorHistoryRunner['loadMore']>>): VersionsPage {
+  if (!outcome.ok) {
+    throw new Error(`the history call was refused: ${outcome.message}`);
+  }
+
+  return outcome.value;
+}
+
 const mutations = (): Pick<Call, 'method' | 'path' | 'id' | 'versionId'>[] =>
   state.calls
     .filter((call) => call.method !== 'GET' && call.method !== 'PUT')
@@ -313,14 +323,10 @@ describe('the script editor shows the saved versions', () => {
   it('loads the next page and keeps the first one in the list', async () => {
     const view = await openEditor();
     const history = view.findComponent(CodeEditor).props('history') as EditorHistoryRunner;
-    const outcome = await history.loadMore();
+    const page = pageOf(await history.loadMore());
 
-    expect(outcome.ok).toBe(true);
-
-    if (outcome.ok) {
-      expect(ids(outcome.value.versions)).toEqual(['v3', 'v2', 'v1']);
-      expect(outcome.value.hasMore).toBe(false);
-    }
+    expect(ids(page.versions)).toEqual(['v3', 'v2', 'v1']);
+    expect(page.hasMore).toBe(false);
 
     const pages = state.calls.filter((call) => call.path.endsWith('/versions')).map((c) => c.page);
 
@@ -341,14 +347,10 @@ describe('the script editor shows the saved versions', () => {
       },
     ]);
 
-    expect(outcome.ok).toBe(true);
-
-    if (outcome.ok) {
-      expect(outcome.value.versions.map((entry) => [entry.id, entry.isCurrent])).toEqual([
-        ['v3', false],
-        ['v2', true],
-      ]);
-    }
+    expect(pageOf(outcome).versions.map((entry) => [entry.id, entry.isCurrent])).toEqual([
+      ['v3', false],
+      ['v2', true],
+    ]);
   });
 
   it('deletes a version that is not live and drops it from the list', async () => {
@@ -365,11 +367,7 @@ describe('the script editor shows the saved versions', () => {
       },
     ]);
 
-    expect(outcome.ok).toBe(true);
-
-    if (outcome.ok) {
-      expect(ids(outcome.value.versions)).toEqual(['v3']);
-    }
+    expect(ids(pageOf(outcome).versions)).toEqual(['v3']);
 
     expect(state.saved.map((entry) => entry.id)).toEqual(['v3', 'v1']);
   });
@@ -393,13 +391,9 @@ describe('the script editor shows the saved versions', () => {
     const history = editor.props('history') as EditorHistoryRunner;
     const outcome = await history.rollback('v4');
 
-    expect(outcome.ok).toBe(true);
-
-    if (outcome.ok) {
-      expect(outcome.value.versions.map((entry) => [entry.id, entry.isCurrent])).toEqual([
-        ['v4', true],
-        ['v3', false],
-      ]);
-    }
+    expect(pageOf(outcome).versions.map((entry) => [entry.id, entry.isCurrent])).toEqual([
+      ['v4', true],
+      ['v3', false],
+    ]);
   });
 });
