@@ -866,6 +866,40 @@
    "source": "Stoney 2026-10-28: \"when will you learn to not overcorrect when i say something? did i ask you to stop them or did i ask you to reduce the count\" (Arc stopped three managers when asked to reduce the agent count; the same day the helper pages were split into 15 sub-sections, \"this is an overcorrection\"). Memory: feedback-no-overcorrection.md"
   },
   {
+   "id": "tenant-is-a-person-who-joined",
+   "paths": [
+    "**/dashboard/src/views/dashboard/admin/**",
+    "**/server/src/**/Identity/*Admin*.cs"
+   ],
+   "brief": [
+    "\\btenants?\\b",
+    "admin/(users|channels|tenants)"
+   ],
+   "text": "A user and their channel are one entity: never list them as two kinds of thing in the admin panel. A tenant is a person who joined the system: a streamer (full onboarding, owns a channel) or a viewer who signed in, for example to link Twitch and YouTube. A person who only chats is not a tenant. Never call a channel row a tenant in admin copy.",
+   "source": "Stoney 2026-10-30: \"users and channels are one and the same entiry, just with different data type access on twitch's side. tenants are people who are actually part of the system so this needs to be corrected in the admin pannels\"; \"so people that are viewers on multiple platforms (and link their twitch and youtube together) are also tennants but without the full onboarding as a streamer\". Memory: users-and-channels-one-entity-tenants-are-members.md",
+   "covers": [
+    "users-and-channels-one-entity-tenants-are-members.md"
+   ]
+  },
+  {
+   "id": "health-signals-to-who-can-act",
+   "paths": [
+    "**/server/src/**/*Health*.cs",
+    "**/server/src/**/*Diagnostic*.cs",
+    "**/server/src/**/*Notice*.cs"
+   ],
+   "brief": [
+    "\\bhealth\\b",
+    "attention (signal|list)",
+    "\\breconnect\\b"
+   ],
+   "text": "Every health or attention signal names who can fix it. User-fixable (reauth, missing scopes, a key that no longer decrypts, a limit the plan can raise) reaches the streamer. Operator-only (platform app credentials, server keys, EventSub transport, provider outages) reaches only the admin console, never the streamer.",
+   "source": "Stoney 2026-10-30: \"Health checks that a user can act on should be shown to the user, something only I can act on should be shown to me\". Memory: health-signals-go-to-who-can-act.md",
+   "covers": [
+    "health-signals-go-to-who-can-act.md"
+   ]
+  },
+  {
    "id": "docs-english-only",
    "paths": [
     "**/CLAUDE.md",
