@@ -233,7 +233,7 @@ public sealed class CatalogDirectBindingTests
         CatalogPurchase row = await h.Db.CatalogPurchases.SingleAsync(p =>
             p.CatalogItemId == itemId
         );
-        row.Status.Should().Be(NomNomzBot.Domain.Economy.Enums.CatalogPurchaseStatus.Completed);
+        row.Status.Should().Be(Domain.Economy.Enums.CatalogPurchaseStatus.Completed);
     }
 
     [Fact]
@@ -245,9 +245,7 @@ public sealed class CatalogDirectBindingTests
         Result<CatalogPurchaseDto> result = await h.Sut.PurchaseAsync(Channel, Buy(itemId));
 
         result.IsSuccess.Should().BeTrue();
-        await h
-            .Invoker.DidNotReceiveWithAnyArgs()
-            .InvokeAsync(default, default!, default!, default);
+        await h.Invoker.DidNotReceiveWithAnyArgs().InvokeAsync(default, default!, default!);
     }
 
     [Fact]

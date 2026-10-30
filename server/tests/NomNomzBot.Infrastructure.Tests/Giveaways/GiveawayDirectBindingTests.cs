@@ -194,7 +194,7 @@ public sealed class GiveawayDirectBindingTests
                 Arg.Is<PipelineRequest>(r => r.PipelineId == pipelineId),
                 Arg.Any<CancellationToken>()
             );
-        await invoker.DidNotReceiveWithAnyArgs().InvokeAsync(default, default!, default!, default);
+        await invoker.DidNotReceiveWithAnyArgs().InvokeAsync(default, default!, default!);
     }
 
     [Fact]
@@ -323,7 +323,7 @@ public sealed class GiveawayDirectBindingTests
 
         result.IsSuccess.Should().BeTrue(result.ErrorMessage);
         result
-            .Value!.Target.Should()
+            .Value.Target.Should()
             .Be(new BindingTarget(BindingTargetKind.Command, CommandId.ToString()));
         Giveaway stored = await db.Giveaways.SingleAsync();
         stored.TargetKind.Should().Be(BindingTargetKind.Command);

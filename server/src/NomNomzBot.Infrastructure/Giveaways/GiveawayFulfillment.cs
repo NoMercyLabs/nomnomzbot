@@ -223,9 +223,7 @@ public sealed class GiveawayFulfillment : IGiveawayFulfillment
             .Users.Where(u => u.Id == winner.ViewerUserId)
             .Select(u => new { u.DisplayName, u.Username })
             .FirstOrDefaultAsync(ct);
-        string displayName = user is null
-            ? "winner"
-            : user.DisplayName ?? user.Username ?? "winner";
+        string displayName = user is null ? "winner" : user.DisplayName ?? user.Username;
 
         if (target.Kind is BindingTargetKind.Command or BindingTargetKind.Action)
         {

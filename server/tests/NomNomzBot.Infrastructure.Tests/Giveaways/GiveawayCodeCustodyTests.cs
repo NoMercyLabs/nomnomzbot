@@ -308,7 +308,7 @@ public sealed class GiveawayCodeCustodyTests
     public async Task Two_winners_never_share_a_code()
     {
         (GiveawayFulfillment fulfillment, AuthDbContext db, _) = BuildFulfillment(Result.Success());
-        (Giveaway giveaway, GiveawayWinner first, _) = SeedCodeDraw(db, "KEY-1");
+        (Giveaway giveaway, GiveawayWinner first, _) = SeedCodeDraw(db);
         GiveawayCode second = new()
         {
             BroadcasterId = Tenant,

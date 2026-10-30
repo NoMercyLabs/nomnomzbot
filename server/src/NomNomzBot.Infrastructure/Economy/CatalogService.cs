@@ -501,13 +501,13 @@ public sealed class CatalogService(
                 ),
                 ct
             );
-            if (run.IsFailure || !run.Value!.Succeeded)
+            if (run.IsFailure || !run.Value.Succeeded)
                 logger.LogWarning(
                     "Catalog item {ItemId} purchase {PurchaseId} could not run its {Kind} target: {Error}",
                     item.Id,
                     purchase.Id,
                     target.Kind,
-                    run.IsFailure ? run.ErrorMessage : run.Value!.Error
+                    run.IsFailure ? run.ErrorMessage : run.Value.Error
                 );
         }
         catch (Exception ex) when (!ct.IsCancellationRequested)
