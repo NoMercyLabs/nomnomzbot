@@ -82,13 +82,13 @@ public sealed class SendWhisperAction : ICommandAction
     )
     {
         string recipient = await _mentionTargets.ResolveLoginAsync(
-            await RenderAsync(ctx, action, "recipient"),
+            await RenderAsync(ctx, action.GetString("recipient")),
             ctx.CancellationToken
         );
         if (string.IsNullOrWhiteSpace(recipient))
             return ActionResult.Failure("send_whisper requires a 'recipient'");
 
-        string message = (await RenderAsync(ctx, action, "message")).Trim();
+        string message = (await RenderAsync(ctx, action.GetString("message"))).Trim();
         if (message.Length == 0)
             return ActionResult.Failure("send_whisper requires a 'message' that is not empty");
 
@@ -122,13 +122,9 @@ public sealed class SendWhisperAction : ICommandAction
             );
     }
 
-    private async Task<string> RenderAsync(
-        PipelineExecutionContext ctx,
-        ActionDefinition action,
-        string field
-    ) =>
+    private async Task<string> RenderAsync(PipelineExecutionContext ctx, string? template) =>
         await _resolver.ResolveAsync(
-            action.GetString(field) ?? string.Empty,
+            template ?? string.Empty,
             ctx.Variables,
             ctx.BroadcasterId,
             ctx.CancellationToken

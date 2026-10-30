@@ -288,7 +288,7 @@ public sealed class SendWhisperActionTests
     [Fact]
     public async Task A_failed_twitch_user_lookup_fails_with_the_lookup_reason_and_sends_nothing()
     {
-        Rig rig = Build(true);
+        Rig rig = Build();
         rig.Users.GetUsersByLoginsAsync(
                 Arg.Any<IReadOnlyList<string>>(),
                 Arg.Any<CancellationToken>()
