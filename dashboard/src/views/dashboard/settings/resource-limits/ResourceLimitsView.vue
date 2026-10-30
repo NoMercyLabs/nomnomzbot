@@ -15,7 +15,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { useRouter } from 'vue-router';
 
-import { useBillingTiers } from '@/api/billing';
+import { tierNameOf, useBillingTiers } from '@/api/billing';
 import { useEntitlement, useResourceLimits, useUsageMetrics, type UsageMetric } from '@/api/resourceLimits';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -41,7 +41,7 @@ const plan = useEntitlement(channelId);
 const tiers = useBillingTiers(channelId);
 
 const planName = computed(() =>
-  (tiers.data.value ?? []).find((tier) => tier.key === plan.data.value?.tierKey)?.displayName ??
+  tierNameOf(tiers.data.value, plan.data.value?.tierKey) ??
   t('dashboard.settings.resourceLimits.plan.unnamed'));
 
 const groups = computed(() => groupLimits(limits.data.value ?? []));

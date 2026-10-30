@@ -91,6 +91,28 @@ const free = {
   limits: [],
 };
 
+const hostedFree = {
+  ...free,
+  id: 't0',
+  key: 'hosted_free',
+  sortOrder: 0,
+  limits: [
+    { limitKey: 'sound_clip_storage_bytes', limitValue: 26_214_400 },
+    { limitKey: 'sandbox_exec_ms', limitValue: 0 },
+    { limitKey: 'tts_max_characters', limitValue: 200 },
+    { limitKey: 'tts_monthly_characters', limitValue: 25_000 },
+  ],
+};
+
+const plusWithMonthlyTts = {
+  ...plus,
+  limits: [
+    { limitKey: 'sandbox_exec_ms', limitValue: 1_800_000 },
+    { limitKey: 'tts_max_characters', limitValue: 500 },
+    { limitKey: 'tts_monthly_characters', limitValue: -1 },
+  ],
+};
+
 const subscriptionOf = (tierKey: string, name: string, extra: object = {}) => ({
   id: 's1',
   broadcasterId: 'c1',
@@ -123,13 +145,14 @@ function invoice(id: string, number: string) {
 
 let subscription: object = subscriptionOf('free', 'Free');
 let badge: object | null = null;
+let tiersOnOffer: object[] = [pro, free, plus];
 
 function answerGet(path: string, init: unknown) {
   if (path === `${base}/subscription`)
     return { data: { data: subscription }, response: ok } as const satisfies Answer;
 
   if (path === `${base}/tiers`)
-    return { data: { data: [pro, free, plus] }, response: ok } as const satisfies Answer;
+    return { data: { data: tiersOnOffer }, response: ok } as const satisfies Answer;
 
   if (path === `${base}/founders-badge`)
     return { data: { data: badge }, response: ok } as const satisfies Answer;
@@ -232,6 +255,7 @@ beforeEach(() => {
   i18n.global.mergeLocaleMessage('en', en);
   subscription = subscriptionOf('free', 'Free');
   badge = null;
+  tiersOnOffer = [pro, free, plus];
   http.GET.mockReset();
   http.POST.mockReset();
   http.GET.mockImplementation(async (path: string, init: unknown) => answerGet(path, init));
@@ -418,6 +442,53 @@ describe('Billing page: plans on offer', () => {
   });
 });
 
+describe('Billing page: the free plan', () => {
+  const limitText = (key: string, tier: string): string | undefined =>
+    find(`[data-limit-key="${key}"] [data-limit-tier="${tier}"]`).textContent?.trim();
+
+  beforeEach(() => {
+    tiersOnOffer = [plusWithMonthlyTts, hostedFree];
+    subscription = subscriptionOf('hosted_free', 'hosted_free');
+  });
+
+  it('names the plan by its display name from the plans list, never by its key', async () => {
+    await open();
+
+    expect(find('[data-plan="tier"]').textContent).toBe('Free');
+    expect(find('[data-panel="plan"]').textContent).not.toContain('hosted_free');
+    expect(find('[data-panel="tiers"]').textContent).not.toContain('hosted_free');
+    expect(find('[data-tier="hosted_free"] [data-current-marker]').textContent).toContain('Current plan');
+  });
+
+  it('lists the monthly text-to-speech total with a plain name, its amount and No limit for -1', async () => {
+    await open();
+
+    const names = [...document.body.querySelectorAll<HTMLElement>('[data-limit-key]')].map(
+      (row) => row.dataset.limitKey,
+    );
+
+    expect(names).toContain('tts_monthly_characters');
+    expect(find('[data-limit-key="tts_monthly_characters"]').textContent).toContain('TTS characters this month');
+    expect(limitText('tts_monthly_characters', 'hosted_free')).toBe('25,000 characters');
+    expect(limitText('tts_monthly_characters', 'plus')).toBe('No limit');
+  });
+
+  it('names the per-line text-to-speech cap as the length of one line', async () => {
+    await open();
+
+    expect(find('[data-limit-key="tts_max_characters"]').textContent).toContain('Length of one TTS line');
+    expect(find('[data-limit-key="tts_max_characters"]').textContent).not.toContain('TTS characters this month');
+    expect(limitText('tts_max_characters', 'hosted_free')).toBe('200 characters');
+  });
+
+  it('says Not included for a plan whose script run time is 0', async () => {
+    await open();
+
+    expect(limitText('sandbox_exec_ms', 'hosted_free')).toBe('Not included');
+    expect(limitText('sandbox_exec_ms', 'plus')).toBe('30 min');
+  });
+});
+
 describe('Billing page: invite code and founders badge', () => {
   it('checks a code without using it and shows what it unlocks', async () => {
     await open();
@@ -426,7 +497,8 @@ describe('Billing page: invite code and founders badge', () => {
 
     expect(postedTo(`${base}/invite/validate`)[0]![1].body).toEqual({ code: 'FOUNDER' });
     expect(postedTo(`${base}/invite/redeem`)).toHaveLength(0);
-    expect(find('[data-result="check"]').textContent).toContain('Unlocks the plan plus.');
+    expect(find('[data-result="check"]').textContent).toContain('Unlocks the plan Plus.');
+    expect(find('[data-result="check"]').textContent).not.toContain('plus');
     expect(find('[data-result="check"]').textContent).toContain('Gives the founders badge.');
     expect(find('[data-result="check"]').textContent).toContain('3 uses left.');
   });

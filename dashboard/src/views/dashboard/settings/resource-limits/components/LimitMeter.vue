@@ -32,10 +32,15 @@ const { locale, t } = useI18n();
 const figures = computed(() => {
   const used = formatAmount(props.used, props.unit, locale.value);
 
+  if (props.level === 'excluded')
+    return t('dashboard.settings.resourceLimits.meter.excluded');
+
   return props.level === 'unlimited'
     ? t('dashboard.settings.resourceLimits.meter.unlimited', { used })
     : t('dashboard.settings.resourceLimits.meter.of', { used, limit: formatAmount(props.limit, props.unit, locale.value) });
 });
+
+const hasBar = computed(() => props.level !== 'unlimited' && props.level !== 'excluded');
 
 const barClass = computed(() => {
   if (props.level === 'full')
@@ -56,7 +61,7 @@ const barClass = computed(() => {
       }}</span>
     </div>
     <div
-      v-if="level !== 'unlimited'"
+      v-if="hasBar"
       role="progressbar"
       :aria-label="label"
       aria-valuemin="0"

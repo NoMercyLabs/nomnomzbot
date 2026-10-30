@@ -4,6 +4,7 @@
       "title": "Scripts",
       "crumb": "Build",
       "backToPipeline": "Back to the pipeline",
+      "planNotice": "Code scripts need the Base plan.",
       "search": "Search scripts",
       "count": "{count} scripts",
       "noMatch": "No script matches \"{query}\".",

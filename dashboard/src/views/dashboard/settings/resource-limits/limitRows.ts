@@ -13,8 +13,9 @@ import { costDrivingClass, type ResourceUsage, type UsageMetric } from '@/api/re
 
 import { unitOf, type LimitUnit } from './limitUnits';
 
-// How full a limited resource is. `unlimited` is a limit of -1: nothing stops the channel.
-export type LimitLevel = 'ok' | 'near' | 'full' | 'unlimited';
+// How full a limited resource is. `unlimited` is a limit of -1: nothing stops the channel. `excluded` is a
+// limit of 0: the plan does not include the resource, so there is nothing to fill.
+export type LimitLevel = 'ok' | 'near' | 'full' | 'unlimited' | 'excluded';
 
 export type LimitRow = {
   key: string;
@@ -63,6 +64,9 @@ export function toNumber(value: number | string): number {
 function levelOf(used: number, limit: number): LimitLevel {
   if (limit < 0)
     return 'unlimited';
+
+  if (limit === 0)
+    return 'excluded';
 
   if (used >= limit)
     return 'full';

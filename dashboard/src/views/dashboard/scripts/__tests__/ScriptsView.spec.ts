@@ -100,6 +100,19 @@ let blast: Record<string, unknown> = {
   totalReferences: 0,
 };
 let detailExtra: Record<string, unknown> = {};
+let scriptTime: number = 1_800_000;
+let createRefusal: Record<string, unknown> | null = null;
+
+const PLAN_NOTICE: string = 'Code scripts need the Base plan.';
+
+const limitRow = (limit: number) => ({
+  limitKey: 'sandbox_exec_ms',
+  class: 0,
+  displayName: 'Script CPU time per month',
+  currentCount: 0,
+  limit,
+  safetyBaseline: 0,
+}) as const satisfies Record<string, unknown>;
 
 const script = (
   id: string,
@@ -146,6 +159,9 @@ vi.mock('@/api/client', () => ({
           error: { message: REFUSAL },
           response: { status: 403, ok: false },
         };
+
+      if (path.endsWith('/billing/limits'))
+        return { data: { data: [limitRow(scriptTime)] }, response: { status: 200, ok: true } };
 
       if (path.endsWith('/test-triggers'))
         return {
@@ -225,6 +241,9 @@ vi.mock('@/api/client', () => ({
         };
       }
 
+      if (createRefusal !== null && path.endsWith('/code-scripts'))
+        return { error: createRefusal, response: { status: 403, ok: false } };
+
       return { data: { data: { id: 'new1' } }, response: { status: 200, ok: true } };
     },
     DELETE: async (path: string, options?: Options): Promise<Answer> => {
@@ -282,6 +301,8 @@ beforeEach(() => {
   localStorage.clear();
   calls.length = 0;
   refused = false;
+  scriptTime = 1_800_000;
+  createRefusal = null;
   testResult = WORKED;
   testLimited = false;
 
@@ -1086,5 +1107,124 @@ describe('ScriptsView', () => {
     await open();
 
     expect(text()).toContain('This channel has no scripts yet.');
+  });
+});
+
+const planNotice = (): HTMLElement | null =>
+  document.body.querySelector<HTMLElement>('[data-plan-notice]');
+const button = (label: string): HTMLButtonElement =>
+  byText('button', label) as HTMLButtonElement;
+const detailSwitch = (): HTMLButtonElement =>
+  document.body.querySelector<HTMLButtonElement>('[data-slot="script-detail"] button[role="switch"]')!;
+const rowSwitch = (name: string): HTMLButtonElement =>
+  rows()
+    .find((row) => row.textContent?.includes(name))!
+    .querySelector<HTMLButtonElement>('button[role="switch"]')!;
+
+describe('ScriptsView on a plan without code scripts', () => {
+  beforeEach(() => {
+    scriptTime = 0;
+  });
+
+  it('shows one plain notice, and no notice when the plan has script time', async () => {
+    await open();
+
+    expect(planNotice()?.textContent?.trim()).toBe(PLAN_NOTICE);
+    expect(text().split(PLAN_NOTICE)).toHaveLength(2);
+
+    mounted?.unmount();
+    mounted = null;
+    scriptTime = 1_800_000;
+    await open();
+
+    expect(planNotice()).toBeNull();
+    expect(text()).not.toContain(PLAN_NOTICE);
+  });
+
+  it('keeps no notice for a plan with no limit on script time', async () => {
+    scriptTime = -1;
+    await open();
+
+    expect(planNotice()).toBeNull();
+    expect(button('New script').disabled).toBe(false);
+  });
+
+  it('disables New script and sends nothing when it is pressed', async () => {
+    await open();
+
+    expect(button('New script').disabled).toBe(true);
+
+    button('New script').click();
+    await settle();
+
+    expect(document.body.querySelector('[role="dialog"]')).toBeNull();
+    expect(calls.filter((call) => call.method === 'POST')).toHaveLength(0);
+  });
+
+  it('disables Edit code and Duplicate with the reason, and leaves Delete usable', async () => {
+    await open('/app/scripts?script=s1');
+
+    expect(button('Edit code').disabled).toBe(true);
+    expect(button('Edit code').closest('[title]')?.getAttribute('title')).toBe(PLAN_NOTICE);
+    expect(button('Duplicate').disabled).toBe(true);
+    expect(button('Delete').disabled).toBe(false);
+  });
+
+  it('refuses to switch a script on, in the list and in the detail, but lets one switch off', async () => {
+    await open('/app/scripts?script=s3');
+
+    expect(rowSwitch('Quote Keeper').disabled).toBe(true);
+    expect(detailSwitch().disabled).toBe(true);
+    expect(rowSwitch('Hype Train Banner').disabled).toBe(false);
+
+    detailSwitch().click();
+    await settle();
+
+    expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(0);
+
+    mounted?.unmount();
+    mounted = null;
+    await open('/app/scripts?script=s1');
+
+    expect(detailSwitch().disabled).toBe(false);
+  });
+
+  it('leaves every control on when the plan has script time', async () => {
+    scriptTime = 1_800_000;
+    await open('/app/scripts?script=s3');
+
+    expect(button('New script').disabled).toBe(false);
+    expect(button('Edit code').disabled).toBe(false);
+    expect(button('Duplicate').disabled).toBe(false);
+    expect(detailSwitch().disabled).toBe(false);
+    expect(rowSwitch('Quote Keeper').disabled).toBe(false);
+  });
+
+  it('shows the server text alone when a refused create reaches the dialog', async () => {
+    scriptTime = 1_800_000;
+
+    createRefusal = {
+      status: 'error',
+      message: PLAN_NOTICE,
+      code: 'PLAN_REQUIRED',
+    };
+
+    await open();
+    button('New script').click();
+    await settle();
+
+    const input = document.body.querySelector('[role="dialog"] input') as HTMLInputElement;
+
+    input.value = 'Dice';
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    await settle();
+    button('Create script').click();
+    await settle();
+
+    const dialog = document.body.querySelector('[role="dialog"]')?.textContent ?? '';
+
+    expect(dialog).toContain(PLAN_NOTICE);
+    expect(dialog).not.toContain('PLAN_REQUIRED');
+    expect(dialog).not.toContain('You do not have the right');
   });
 });

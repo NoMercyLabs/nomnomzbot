@@ -21,6 +21,7 @@ import {
   useRevokeInvite,
   type InviteCode,
 } from '@/api/adminBilling';
+import { tierNameOf } from '@/api/billing';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
@@ -131,7 +132,7 @@ const summary = computed<string>(() => {
 });
 
 function grantedTier(invite: InviteCode): string {
-  return (tiers.data.value ?? []).find((tier) => tier.key === invite.grantsTierKey)?.displayName ?? '';
+  return tierNameOf(tiers.data.value, invite.grantsTierKey) ?? '';
 }
 
 // A tier invite runs for its months, or forever when it names none.

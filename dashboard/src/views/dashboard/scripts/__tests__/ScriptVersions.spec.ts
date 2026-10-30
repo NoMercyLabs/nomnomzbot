@@ -125,6 +125,9 @@ vi.mock('@/api/client', () => ({
       if (path.endsWith('/test-triggers'))
         return { data: { data: [] }, response: { status: 200, ok: true } };
 
+      if (path.endsWith('/billing/limits'))
+        return { data: { data: [] }, response: { status: 200, ok: true } };
+
       return {
         data: {
           data: {

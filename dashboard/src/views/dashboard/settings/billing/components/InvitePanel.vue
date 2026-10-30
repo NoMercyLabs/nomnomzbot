@@ -17,6 +17,8 @@ import { useI18n } from 'vue-i18n';
 import Ticket from '~icons/nnz/ticket';
 
 import {
+  tierNameOf,
+  useBillingTiers,
   useCheckInviteCode,
   useFoundersBadge,
   useRedeemInviteCode,
@@ -35,6 +37,7 @@ const { channelId } = useCurrentChannel();
 const { can } = useCan();
 
 const badge = useFoundersBadge(channelId);
+const tiers = useBillingTiers(channelId);
 const check = useCheckInviteCode(channelId);
 const redeem = useRedeemInviteCode(channelId);
 
@@ -47,6 +50,16 @@ const trimmed = computed(() => code.value.trim());
 
 function dateOf(value: string): string {
   return d(new Date(value), { dateStyle: 'medium' });
+}
+
+// A plan is named by its display name. A plan the list does not carry gets a plain line, never its key.
+function tierLine(prefix: 'grantsTier' | 'redeemedTier', key: string): string {
+  const name = tierNameOf(tiers.data.value, key);
+
+  if (name === undefined)
+    return t(`dashboard.settings.billing.invite.${prefix}Unknown`);
+
+  return t(`dashboard.settings.billing.invite.${prefix}`, { tier: name });
 }
 
 const badgeLine = computed(() => {
@@ -87,7 +100,7 @@ const checkLines = computed<string[]>(() => {
   const lines = [t('dashboard.settings.billing.invite.valid')];
 
   if (result.grantsTierKey) {
-    lines.push(t('dashboard.settings.billing.invite.grantsTier', { tier: result.grantsTierKey }));
+    lines.push(tierLine('grantsTier', result.grantsTierKey));
   }
 
   if (result.grantsFoundersBadge) {
@@ -112,7 +125,7 @@ const redeemedLines = computed<string[]>(() => {
   const lines = [t('dashboard.settings.billing.invite.redeemed')];
 
   if (result.grantedTierKey) {
-    lines.push(t('dashboard.settings.billing.invite.redeemedTier', { tier: result.grantedTierKey }));
+    lines.push(tierLine('redeemedTier', result.grantedTierKey));
   }
 
   if (result.grantedFoundersBadge) {

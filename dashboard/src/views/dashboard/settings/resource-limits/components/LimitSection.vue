@@ -41,6 +41,9 @@ function labelOf(row: LimitRow): string {
 }
 
 function capOf(row: LimitRow): string {
+  if (row.level === 'excluded')
+    return t('dashboard.settings.resourceLimits.meter.excluded');
+
   return row.level === 'unlimited'
     ? t('dashboard.settings.resourceLimits.limits.noCap')
     : t(

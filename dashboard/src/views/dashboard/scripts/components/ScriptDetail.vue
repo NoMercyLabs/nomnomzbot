@@ -51,6 +51,7 @@ import { inputLines, readInputs } from './scriptInputs';
 import ScriptTestCard from './ScriptTestCard.vue';
 import type { SessionRun } from './sessionRun';
 import { useScriptEditor } from './useScriptEditor';
+import { useScriptPlanGate } from './useScriptPlanGate';
 
 const props = defineProps<{ scriptId: string; summary?: CodeScriptSummary }>();
 const emit = defineEmits<{
@@ -66,6 +67,7 @@ const detail = useScriptDetail(() => props.scriptId);
 const setEnabled = useSetScriptEnabled();
 const remove = useDeleteCodeScript();
 const create = useCreateCodeScript();
+const planGate = useScriptPlanGate();
 const editor = useScriptEditor(
   () => props.scriptId,
   () => detail.data.value?.currentVersionId ?? null,
@@ -230,13 +232,17 @@ function confirmDelete(): void {
             }}
             <Switch
               :model-value="script.isEnabled"
+              :disabled="planGate.blocked.value && !script.isEnabled"
               :aria-label="$t('dashboard.scripts.detail.switchLabel')"
               @update:model-value="toggle(Boolean($event))"
             />
           </label>
-          <Button v-if="can('code:script:author')" :disabled="editor.opening.value" @click="editor.open">
-            {{ $t('dashboard.scripts.detail.edit') }}
-          </Button>
+          <!-- A disabled button gets no pointer events, so the span carries the reason. -->
+          <span v-if="can('code:script:author')" class="inline-flex" :title="planGate.reason.value">
+            <Button :disabled="editor.opening.value || planGate.blocked.value" @click="editor.open">
+              {{ $t('dashboard.scripts.detail.edit') }}
+            </Button>
+          </span>
         </div>
       </div>
     </template>
@@ -322,7 +328,8 @@ function confirmDelete(): void {
             data-slot="script-duplicate"
             variant="outline"
             size="sm"
-            :disabled="create.isPending.value || !script?.currentVersion"
+            :disabled="create.isPending.value || !script?.currentVersion || planGate.blocked.value"
+            :title="planGate.reason.value"
             @click="copyScript"
           >
             <Copy aria-hidden="true" />

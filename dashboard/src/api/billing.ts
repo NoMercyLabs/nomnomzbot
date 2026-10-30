@@ -151,6 +151,15 @@ export function useBillingTiers(
   return channelQuery(channelId, tiersKey, readTiers);
 }
 
+// The name a person reads for a plan: the display name from the plans list, never the key. It is undefined
+// while the list is not loaded or when the plan is not in it, so the caller picks its own plain fallback.
+export function tierNameOf(
+  tiers: readonly Pick<BillingTier, 'displayName' | 'key'>[] | undefined,
+  key: string | null | undefined,
+): string | undefined {
+  return tiers?.find((tier) => tier.key === key)?.displayName;
+}
+
 export function useFoundersBadge(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<FoundersBadge | null, Error> {

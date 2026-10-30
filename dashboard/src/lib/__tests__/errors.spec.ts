@@ -30,6 +30,29 @@ describe('errorText', () => {
     expect(errorText(failed('warn', 403), t)).toBe('No right.');
   });
 
+  it.each([
+    ['PLAN_REQUIRED', 'Code scripts need the Base plan.'],
+    ['QUOTA_EXCEEDED', 'This channel has used its TTS characters for this month.'],
+  ])('shows the server text of %s alone, never the code or the generic refusal', (code, message) => {
+    const error = failed('warn', 403, {
+      status: 'error',
+      message,
+      code,
+    });
+
+    expect(errorText(error, t)).toBe(message);
+  });
+
+  it('keeps the generic message in front of a refusal whose code does not explain itself', () => {
+    const error = failed('warn', 403, {
+      status: 'error',
+      message: 'You are not a moderator.',
+      code: 'FORBIDDEN',
+    });
+
+    expect(errorText(error, t)).toBe('No right. You are not a moderator.');
+  });
+
   it('shows the message of a plain error', () => {
     expect(errorText(new Error('boom'), t)).toBe('boom');
   });

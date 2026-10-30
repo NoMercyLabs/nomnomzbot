@@ -4,6 +4,7 @@
       "title": "Scripts",
       "crumb": "Bouwen",
       "backToPipeline": "Terug naar de pipeline",
+      "planNotice": "Codescripts vragen het Base-abonnement.",
       "search": "Zoek scripts",
       "count": "{count} scripts",
       "noMatch": "Geen script past bij \"{query}\".",

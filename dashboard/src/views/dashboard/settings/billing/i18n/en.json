@@ -62,7 +62,8 @@
             "sound_clip_storage_bytes": "Sound clip storage",
             "channel_asset_storage_bytes": "Channel asset storage",
             "sandbox_exec_ms": "Script run time per month",
-            "tts_max_characters": "Text-to-speech message length"
+            "tts_max_characters": "Length of one TTS line",
+            "tts_monthly_characters": "TTS characters this month"
           },
           "checkoutFailed": "The payment page could not be opened.",
           "changeFailed": "The plan could not be changed."
@@ -76,11 +77,13 @@
           "valid": "This code is valid.",
           "invalid": "This code is not valid.",
           "grantsTier": "Unlocks the plan {tier}.",
+          "grantsTierUnknown": "Unlocks a plan.",
           "grantsBadge": "Gives the founders badge.",
           "remaining": "{count} uses left.",
           "expires": "Valid until {date}.",
           "redeemed": "The code is used.",
           "redeemedTier": "Plan unlocked: {tier}.",
+          "redeemedTierUnknown": "A plan is unlocked.",
           "redeemedBadge": "Founders badge granted.",
           "failed": "The code could not be used."
         },

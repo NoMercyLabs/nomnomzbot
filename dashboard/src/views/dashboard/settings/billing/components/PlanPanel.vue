@@ -16,7 +16,14 @@ import { useI18n } from 'vue-i18n';
 
 import CreditCard from '~icons/nnz/credit-card-front';
 
-import { useCancelPlan, useOpenBillingPortal, useResumePlan, useSubscription } from '@/api/billing';
+import {
+  tierNameOf,
+  useBillingTiers,
+  useCancelPlan,
+  useOpenBillingPortal,
+  useResumePlan,
+  useSubscription,
+} from '@/api/billing';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -34,6 +41,7 @@ const { channelId } = useCurrentChannel();
 const { can } = useCan();
 
 const subscription = useSubscription(channelId);
+const tiers = useBillingTiers(channelId);
 const resume = useResumePlan(channelId);
 const portal = useOpenBillingPortal(channelId);
 const cancel = useCancelPlan(channelId);
@@ -44,6 +52,9 @@ const reason = ref('');
 const failure = ref('');
 
 const plan = computed(() => subscription.data.value);
+const planName = computed(
+  () => tierNameOf(tiers.data.value, plan.value?.tierKey) ?? plan.value?.tierDisplayName,
+);
 const state = computed<PanelState>(() => {
   if (subscription.isError.value)
     return 'error';
@@ -168,7 +179,7 @@ async function confirmCancel(): Promise<void> {
   >
     <div v-if="plan" class="grid gap-3">
       <div class="flex flex-wrap items-center gap-3">
-        <span data-plan="tier" class="text-lg font-semibold">{{ plan.tierDisplayName }}</span>
+        <span data-plan="tier" class="text-lg font-semibold">{{ planName }}</span>
         <StatusBadge data-plan="status" :tone="tone" :label="statusLabel" />
       </div>
       <dl class="grid gap-2 text-sm">

@@ -17,6 +17,7 @@ import { RouterLink } from 'vue-router';
 
 import { useAdminTenant, type AdminTenant } from '@/api/admin';
 import { useBillingTiers } from '@/api/adminBilling';
+import { tierNameOf } from '@/api/billing';
 import KeyValueList from '@/components/layout/KeyValueList.vue';
 import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import PanelCard from '@/components/layout/PanelCard.vue';
@@ -36,9 +37,7 @@ const state = usePanelState(detail, (data) =>
 
 const tiers = useBillingTiers();
 
-const tierName = computed(
-  () => tiers.data.value?.find((tier) => tier.key === tenant.value?.billingTierKey)?.displayName,
-);
+const tierName = computed(() => tierNameOf(tiers.data.value, tenant.value?.billingTierKey));
 
 const modeName = computed(() => {
   const mode = tenant.value?.deploymentMode;

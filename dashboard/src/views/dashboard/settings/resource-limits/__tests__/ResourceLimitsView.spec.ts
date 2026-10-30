@@ -103,6 +103,18 @@ const entitlement = {
   limits: {},
 };
 
+const tiersList: {
+  key: string;
+  displayName: string;
+  sortOrder: number;
+}[] = [
+  {
+    key: 'plus',
+    displayName: 'Plus',
+    sortOrder: 1,
+  },
+];
+
 function answer(path: string): Answer {
   if (path.endsWith('/billing/limits'))
     return { data: { data: limits }, response: { ok: true, status: 200 } };
@@ -111,11 +123,7 @@ function answer(path: string): Answer {
     return { data: { data: usage }, response: { ok: true, status: 200 } };
 
   if (path.endsWith('/billing/tiers'))
-    return { data: { data: [{
-      key: 'plus',
-      displayName: 'Plus',
-      sortOrder: 1,
-    }] }, response: { ok: true, status: 200 } };
+    return { data: { data: tiersList }, response: { ok: true, status: 200 } };
 
   return { data: { data: entitlement }, response: { ok: true, status: 200 } };
 }
@@ -226,7 +234,7 @@ describe('Resource limits page', () => {
 
     expect(row.dataset.level).toBe('unlimited');
     expect(row.querySelector('[role="progressbar"]')).toBeNull();
-    expect(row.textContent).toContain('3.2 MB, no limit');
+    expect(row.textContent).toContain('3.2 MB · No limit');
     limits[0]!.limit = gigabytes2;
   });
 
@@ -290,6 +298,104 @@ describe('Resource limits page', () => {
       expect(body).toContain('3.2 MB of 2 GB');
     } finally {
       usage.splice(usage.length - extra.length, extra.length);
+    }
+  });
+
+  it('shows the monthly text-to-speech total as used out of the total, apart from the per-message cap', async () => {
+    const monthly = {
+      limitKey: 'tts_monthly_characters',
+      class: 0,
+      displayName: 'TTS characters per month',
+      currentCount: 1200,
+      limit: 25_000,
+      safetyBaseline: 0,
+    };
+
+    limits.push(monthly);
+
+    try {
+      await open();
+
+      const row = rowOf('TTS characters this month');
+
+      expect(document.body.querySelector('[data-group="allowance"]')!.contains(row)).toBe(true);
+      expect(row.textContent).toContain('1,200 of 25,000');
+      expect(row.querySelector('[role="progressbar"]')?.getAttribute('aria-valuenow')).toBe('5');
+      expect(document.body.querySelector('[data-group="per-message"]')!.textContent).toContain('Length of one TTS line');
+      expect(document.body.querySelector('[data-group="per-message"]')!.textContent).not.toContain('this month');
+    } finally {
+      limits.splice(limits.indexOf(monthly), 1);
+    }
+  });
+
+  it('shows No limit and no bar for a monthly text-to-speech total of -1', async () => {
+    const monthly = {
+      limitKey: 'tts_monthly_characters',
+      class: 0,
+      displayName: 'TTS characters per month',
+      currentCount: 1200,
+      limit: -1,
+      safetyBaseline: 0,
+    };
+
+    limits.push(monthly);
+
+    try {
+      await open();
+
+      const row = rowOf('TTS characters this month');
+
+      expect(row.dataset.level).toBe('unlimited');
+      expect(row.textContent).toContain('1,200 · No limit');
+      expect(row.querySelector('[role="progressbar"]')).toBeNull();
+    } finally {
+      limits.splice(limits.indexOf(monthly), 1);
+    }
+  });
+
+  it('says Not included, with no bar and no alarm, for a limit of 0', async () => {
+    const original = limits[2]!.limit;
+
+    limits[2]!.limit = 0;
+
+    try {
+      await open();
+
+      const row = rowOf('Script run time per month');
+
+      expect(row.dataset.level).toBe('excluded');
+      expect(row.textContent).toContain('Not included');
+      expect(row.textContent).not.toContain('0 of 0');
+      expect(row.querySelector('[role="progressbar"]')).toBeNull();
+    } finally {
+      limits[2]!.limit = original;
+    }
+  });
+
+  it('names the free plan by its display name, and never shows a plan key', async () => {
+    const original = entitlement.tierKey;
+
+    entitlement.tierKey = 'hosted_free';
+
+    tiersList.push({
+      key: 'hosted_free',
+      displayName: 'Free',
+      sortOrder: 0,
+    });
+
+    try {
+      await open();
+      expect(document.body.querySelector('[data-plan="tier"]')?.textContent).toBe('Free');
+
+      tiersList.pop();
+      mounted?.unmount();
+      mounted = null;
+      await open();
+
+      expect(document.body.querySelector('[data-plan="tier"]')?.textContent).toBe('Your plan');
+      expect(text()).not.toContain('hosted_free');
+    } finally {
+      entitlement.tierKey = original;
     }
   });
 

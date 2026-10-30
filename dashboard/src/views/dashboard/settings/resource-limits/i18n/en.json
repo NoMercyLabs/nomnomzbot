@@ -15,7 +15,8 @@
             "sound_clip_storage_bytes": "Sound clip storage",
             "channel_asset_storage_bytes": "Channel asset storage",
             "sandbox_exec_ms": "Script run time per month",
-            "tts_max_characters": "Text-to-speech message length",
+            "tts_max_characters": "Length of one TTS line",
+            "tts_monthly_characters": "TTS characters this month",
             "custom_commands": "Custom commands",
             "timers": "Timers",
             "event_responses": "Event responses",
@@ -27,7 +28,7 @@
           },
           "allowance": {
             "title": "Monthly allowance",
-            "description": "Time you can use each month. It starts again every period."
+            "description": "Time and characters you can use each month. It starts again every period."
           },
           "perMessage": {
             "title": "Per message",
@@ -40,7 +41,8 @@
         },
         "meter": {
           "of": "{used} of {limit}",
-          "unlimited": "{used}, no limit"
+          "unlimited": "{used} · No limit",
+          "excluded": "Not included"
         },
         "plan": {
           "title": "Plan",

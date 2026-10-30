@@ -38,6 +38,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { errorText } from '@/lib/errors';
 import { centsAsMoney } from '@/lib/number';
 
+import { formatAmount } from '../../resource-limits/limitUnits';
 import { planLimitCell, shownLimitKeys, type PlanLimitKey } from '../planLimits';
 
 const { t, locale } = useI18n();
@@ -92,14 +93,18 @@ const features = [
 function limitText(tier: BillingTier, key: PlanLimitKey): string {
   const cell = planLimitCell(tier, key, locale.value);
 
-  if (cell.kind === 'missing')
+  if (cell.kind === 'missing' || cell.kind === 'none')
     return t('dashboard.settings.billing.tiers.notIncluded');
 
   if (cell.kind === 'unlimited')
     return t('dashboard.settings.billing.tiers.noLimit');
 
   if (cell.kind === 'characters')
-    return t('dashboard.settings.billing.tiers.characters', { n: cell.count }, cell.count);
+    return t(
+      'dashboard.settings.billing.tiers.characters',
+      { n: formatAmount(cell.count, 'count', locale.value) },
+      cell.count,
+    );
 
   return cell.text;
 }

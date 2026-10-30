@@ -17,6 +17,8 @@ import { useI18n } from 'vue-i18n';
 import { useRoute, useRouter } from 'vue-router';
 
 import { useAdminTenant, useAdminTenants, type AdminTenant, type AdminTenantsParams } from '@/api/admin';
+import { useBillingTiers } from '@/api/adminBilling';
+import { tierNameOf } from '@/api/billing';
 import DetailPane from '@/components/layout/DetailPane.vue';
 import KeyValueList from '@/components/layout/KeyValueList.vue';
 import type { KeyValueItem } from '@/components/layout/keyValueItem';
@@ -54,6 +56,7 @@ const selectedId = computed<string | null>(() =>
     ? route.query.tenant
     : null,
 );
+const tiers = useBillingTiers();
 const detail = useAdminTenant(selectedId);
 const tenant = computed(() => detail.data.value ?? null);
 const detailState = usePanelState(detail, (data) =>
@@ -66,7 +69,7 @@ function pick(row: AdminTenant): void {
 const facts = computed<KeyValueItem[]>(() => [
   { label: t('dashboard.admin.tenants.facts.owner'), value: tenant.value?.ownerDisplayName },
   { label: t('dashboard.admin.tenants.facts.status'), value: tenant.value?.status },
-  { label: t('dashboard.admin.tenants.facts.tier'), value: tenant.value?.billingTierKey },
+  { label: t('dashboard.admin.tenants.facts.tier'), value: tierNameOf(tiers.data.value, tenant.value?.billingTierKey) },
   { label: t('dashboard.admin.tenants.facts.mode'), value: tenant.value?.deploymentMode },
   { label: t('dashboard.admin.tenants.facts.members'), value: Number(tenant.value?.membershipCount ?? 0) },
   { label: t('dashboard.admin.tenants.facts.suspendedReason'), value: tenant.value?.suspendedReason },

@@ -21,6 +21,8 @@ import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Switch } from '@/components/ui/switch';
 
+import { useScriptPlanGate } from './useScriptPlanGate';
+
 const props = defineProps<{ script: CodeScriptSummary; selected: boolean }>();
 
 defineEmits<{ pick: [] }>();
@@ -28,6 +30,10 @@ defineEmits<{ pick: [] }>();
 const { t } = useI18n();
 const { can } = useCan();
 const setEnabled = useSetScriptEnabled();
+const planGate = useScriptPlanGate();
+
+// A plan without code scripts keeps a script off; switching one off stays possible.
+const switchLocked = computed<boolean>(() => planGate.blocked.value && !props.script.isEnabled);
 
 const ago = useFormattedTime(() => props.script.lastRanAt, 'relative', { live: true });
 const detail = computed<string>(() =>
@@ -68,6 +74,8 @@ function toggle(isEnabled: boolean): void {
           v-if="can('code:script:author')"
           class="mr-2"
           :model-value="script.isEnabled"
+          :disabled="switchLocked"
+          :title="switchLocked ? planGate.reason.value : undefined"
           :aria-label="$t('dashboard.scripts.list.switchLabel', { name: script.name })"
           @update:model-value="toggle(Boolean($event))"
         />

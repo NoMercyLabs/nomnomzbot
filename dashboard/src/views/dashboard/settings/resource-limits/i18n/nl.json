@@ -15,7 +15,8 @@
             "sound_clip_storage_bytes": "Opslag voor geluidsclips",
             "channel_asset_storage_bytes": "Opslag voor kanaalbestanden",
             "sandbox_exec_ms": "Scriptduur per maand",
-            "tts_max_characters": "Lengte van tekst-naar-spraakbericht",
+            "tts_max_characters": "Lengte van één tts-regel",
+            "tts_monthly_characters": "Tts-tekens deze maand",
             "custom_commands": "Eigen commando's",
             "timers": "Timers",
             "event_responses": "Gebeurtenisreacties",
@@ -27,7 +28,7 @@
           },
           "allowance": {
             "title": "Maandelijkse ruimte",
-            "description": "Tijd die je elke maand kunt gebruiken. Hij begint elke periode opnieuw."
+            "description": "Tijd en tekens die je elke maand kunt gebruiken. Het begint elke periode opnieuw."
           },
           "perMessage": {
             "title": "Per bericht",
@@ -40,7 +41,8 @@
         },
         "meter": {
           "of": "{used} van {limit}",
-          "unlimited": "{used}, geen limiet"
+          "unlimited": "{used} · Geen limiet",
+          "excluded": "Niet inbegrepen"
         },
         "plan": {
           "title": "Abonnement",

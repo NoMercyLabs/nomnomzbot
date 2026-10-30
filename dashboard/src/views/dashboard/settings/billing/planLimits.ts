@@ -21,19 +21,21 @@ export const planLimitKeys = [
   'channel_asset_storage_bytes',
   'sandbox_exec_ms',
   'tts_max_characters',
+  'tts_monthly_characters',
 ] as const satisfies readonly string[];
 
 export type PlanLimitKey = (typeof planLimitKeys)[number];
 
 export type PlanLimitCell =
   | { kind: 'missing' } |
+  { kind: 'none' } |
   { kind: 'unlimited' } |
   { kind: 'characters'; count: number } |
   { kind: 'amount'; text: string };
 
-const characterKeys = new Set<string>(['tts_max_characters']);
+const characterKeys = new Set<string>(['tts_max_characters', 'tts_monthly_characters']);
 
-// A limit of -1 is "no limit". A plan with no row for a limit does not include it.
+// A limit of -1 is "no limit". A limit of 0, or no row at all, means the plan does not include it.
 export function planLimitCell(tier: BillingTier, key: PlanLimitKey, locale: string) {
   const found = tier.limits.find((limit) => limit.limitKey === key);
 
@@ -44,6 +46,9 @@ export function planLimitCell(tier: BillingTier, key: PlanLimitKey, locale: stri
 
   if (value < 0)
     return { kind: 'unlimited' } as const satisfies PlanLimitCell;
+
+  if (value === 0)
+    return { kind: 'none' } as const satisfies PlanLimitCell;
 
   if (characterKeys.has(key))
     return { kind: 'characters', count: value } as const satisfies PlanLimitCell;

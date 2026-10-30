@@ -13,11 +13,18 @@ import { ApiError, type ApiFieldProblem } from '@/api/errors';
 
 type Translate = (key: string) => string;
 
+// Codes whose server text already says what stops the person and what to do (a plan that lacks a feature, a
+// used-up quota). The generic "you may not do this" line in front of it would be wrong, so the text stands alone.
+const selfExplainingCodes = new Set<string>(['PLAN_REQUIRED', 'QUOTA_EXCEEDED']);
+
 // The text a screen shows for a failure: the translated message of a typed API error, followed by the
 // reason the server gave when there is one. Any other error shows its own message.
 // eslint-disable-next-line no-restricted-syntax -- takes whatever a query or a catch clause threw
 export function errorText(error: unknown, t: Translate): string {
   if (error instanceof ApiError) {
+    if (error.detail !== undefined && selfExplainingCodes.has(error.serverCode ?? ''))
+      return error.detail;
+
     const base = t(error.messageKey);
 
     return error.detail === undefined

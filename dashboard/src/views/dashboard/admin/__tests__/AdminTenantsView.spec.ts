@@ -124,6 +124,16 @@ vi.mock('@/api/client', () => {
     if (path.endsWith('/admin/tenants/{broadcasterId}'))
       return { data: { data: detail } } as const satisfies Record<string, unknown>;
 
+    if (path.endsWith('/admin/billing/tiers'))
+      return {
+        data: {
+          data: [
+            { key: 'hosted_free', displayName: 'Free' },
+            { key: 'plus', displayName: 'Plus' },
+          ],
+        },
+      } as const satisfies Record<string, unknown>;
+
     return { data: { data: {} } } as const satisfies Record<string, unknown>;
   };
 
@@ -233,6 +243,25 @@ describe('AdminTenantsView', () => {
     expect(text()).toContain('commands.max');
     expect(text()).toContain('Partner deal');
     expect(text()).toContain('earn money with NomNomzBot');
+  });
+
+  it('names the plan of the picked tenant by its display name, and never shows a plan key', async () => {
+    const original = detail.billingTierKey;
+
+    detail.billingTierKey = 'hosted_free';
+
+    try {
+      await open();
+
+      const fact = [...document.body.querySelectorAll<HTMLElement>('dt')].find(
+        (term) => term.textContent?.trim() === en.dashboard.admin.tenants.facts.tier,
+      )!;
+
+      expect(fact.nextElementSibling?.textContent?.trim()).toBe('Free');
+      expect(text()).not.toContain('hosted_free');
+    } finally {
+      detail.billingTierKey = original;
+    }
   });
 
   it('suspends with the chosen status and the typed reason', async () => {

@@ -38,6 +38,7 @@ import ScriptDetail from './components/ScriptDetail.vue';
 import ScriptRow from './components/ScriptRow.vue';
 import ScriptRunsPanel from './components/ScriptRunsPanel.vue';
 import type { SessionRun } from './components/sessionRun';
+import { useScriptPlanGate } from './components/useScriptPlanGate';
 
 const FILTERS = {
   all: () => true,
@@ -56,6 +57,7 @@ const route = useRoute();
 const router = useRouter();
 
 const scripts = useCodeScripts();
+const planGate = useScriptPlanGate();
 const view = usePageView(TAB_VALUES);
 const search = ref('');
 
@@ -144,6 +146,12 @@ function back(): void {
 
 const newOpen = ref(false);
 
+// Why New script is off: a reader may not create, and a plan without code scripts cannot.
+const createReason = computed<string | undefined>(() =>
+  can('code:script:author')
+    ? planGate.reason.value
+    : t('common.readOnly'));
+
 // The test runs of this visit, newest first. A failed run opens its dialog at once.
 const runs = ref<SessionRun[]>([]);
 const failedRun = ref<SessionRun | null>(null);
@@ -185,7 +193,7 @@ function opened(id: string | null): void {
       </Button>
       <PageCreateButton
         :label="$t('dashboard.scripts.new.button')"
-        :disabled-reason="can('code:script:author') ? undefined : $t('common.readOnly')"
+        :disabled-reason="createReason"
         @create="newOpen = true"
       />
     </template>
@@ -194,6 +202,14 @@ function opened(id: string | null): void {
     </template>
   </PageHeader>
   <NewScriptDialog v-model:open="newOpen" @created="opened" />
+  <p
+    v-if="planGate.blocked.value"
+    role="status"
+    class="rounded-lg border bg-muted/50 px-4 py-3 text-sm text-muted-foreground"
+    data-plan-notice
+  >
+    {{ planGate.reason.value }}
+  </p>
   <ListDetail
     v-model:aside-open="runsOpen"
     :show-detail="asked !== ''"
