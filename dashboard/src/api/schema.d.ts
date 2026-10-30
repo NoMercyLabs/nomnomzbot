@@ -2153,6 +2153,214 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/admin/channels/{broadcasterId}/diagnostics": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * The requested sections of one channel. sections is a comma-separated list of section
+         *     keys (`summary`, `runs`; all when omitted); an unknown key is a 400 naming it. The run list
+         *     takes the channel run history's options: `page`, `pageSize`, `failuresOnly` and
+         *     `pipelineId`.
+         */
+        get: {
+            parameters: {
+                query?: {
+                    sections?: string;
+                    Page?: number | string;
+                    /**
+                     * @description Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-
+                     *     convention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to
+                     *     nothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the
+                     *     data was invisible. Both query keys now populate the same value.
+                     */
+                    Take?: number | string;
+                    PageSize?: number | string;
+                    Sort?: string;
+                    Order?: string;
+                    Search?: string;
+                    failuresOnly?: boolean;
+                    pipelineId?: string;
+                };
+                header?: never;
+                path: {
+                    broadcasterId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfChannelDiagnostics"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/admin/channels/{broadcasterId}/diagnostics/runs/{runId}": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One run of the channel, with its ordered step logs, so the failing step is identifiable. */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    broadcasterId: string;
+                    runId: number;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfPipelineExecutionDetail"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/admin/stats": {
         parameters: {
             query?: never;
@@ -90620,6 +90828,50 @@ export interface components {
              */
             permanentAfterUtc: string;
         };
+        /** @description One page of a channel's runs, in the same row shape as the channel's own run history. */
+        ChannelDiagnosticRuns: {
+            items: components["schemas"]["PipelineExecutionSummary"][];
+            /** Format: int32 */
+            page: number | string;
+            /** Format: int32 */
+            pageSize: number | string;
+            /** Format: int32 */
+            totalCount: number | string;
+            hasMore: boolean;
+        };
+        /**
+         * @description The answer to an admin's `diagnostics` read of one channel: one property per requested section. A section
+         *     that was not requested is omitted. A new section adds a property here and a class implementing
+         *     `IChannelDiagnosticSection`; never an endpoint.
+         */
+        ChannelDiagnostics: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            broadcasterId: string;
+            summary?: null | components["schemas"]["ChannelDiagnosticSummary"];
+            runs?: null | components["schemas"]["ChannelDiagnosticRuns"];
+        };
+        /**
+         * @description A channel at a glance. The run counts cover the last 24 hours; the last failed run is the newest
+         *                 failure of all time, so a quiet day still shows the last thing that broke.
+         */
+        ChannelDiagnosticSummary: {
+            channelName: string;
+            tierKey: string;
+            tierDisplayName: string;
+            isLive: boolean;
+            /** Format: int32 */
+            runsLast24Hours: number | string;
+            /** Format: int32 */
+            failedRunsLast24Hours: number | string;
+            /** Format: int64 */
+            lastFailedRunId?: null | number | string;
+            /** Format: date-time */
+            lastFailedRunAt?: null | string;
+            lastFailedRunError?: null | string;
+        };
         ChannelFederationOptIn: {
             /**
              * Format: ulid
@@ -96268,6 +96520,11 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             pipelineId?: null | string;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            triggeredByUserId?: null | string;
             triggerKind: string;
             status: string;
             /** Format: int32 */
@@ -96300,6 +96557,11 @@ export interface components {
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
             pipelineId?: null | string;
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            triggeredByUserId?: null | string;
             triggerKind: string;
             status: string;
             /** Format: int32 */
@@ -98793,6 +99055,19 @@ export interface components {
         StatusResponseOfChannelDeletePreview: {
             status?: string;
             data?: null | components["schemas"]["ChannelDeletePreview"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfChannelDiagnostics: {
+            status?: string;
+            data?: null | components["schemas"]["ChannelDiagnostics"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on

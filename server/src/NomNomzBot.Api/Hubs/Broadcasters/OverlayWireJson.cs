@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Text.Json;
+using System.Text.Json.Serialization.Metadata;
 
 namespace NomNomzBot.Api.Hubs.Broadcasters;
 
@@ -23,5 +24,8 @@ internal static class OverlayWireJson
     public static readonly JsonSerializerOptions Options = new()
     {
         PropertyNamingPolicy = JsonNamingPolicy.CamelCase,
+        // Set up front, not on the first serialize call, so GetTypeInfo (the widget field contract test)
+        // works whichever test touches these options first.
+        TypeInfoResolver = new DefaultJsonTypeInfoResolver(),
     };
 }

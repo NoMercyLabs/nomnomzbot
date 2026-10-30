@@ -71,6 +71,7 @@ public class PipelineExecutionQueryService : IPipelineExecutionQueryService
             .Select(e => new PipelineExecutionSummaryDto(
                 e.Id,
                 e.PipelineId,
+                e.TriggeredByUserId,
                 e.TriggerKind,
                 e.Status,
                 e.HostCallCount,
@@ -87,6 +88,42 @@ public class PipelineExecutionQueryService : IPipelineExecutionQueryService
                 pagination.Page,
                 pagination.PageSize,
                 total
+            )
+        );
+    }
+
+    public async Task<Result<PipelineExecutionActivityDto>> GetActivityAsync(
+        string broadcasterId,
+        DateTime sinceUtc,
+        CancellationToken ct = default
+    )
+    {
+        if (!Guid.TryParse(broadcasterId, out Guid broadcaster))
+            return Result.Failure<PipelineExecutionActivityDto>(
+                $"Invalid channel ID '{broadcasterId}'.",
+                "VALIDATION_FAILED"
+            );
+
+        IQueryable<PipelineExecution> channelRuns = _db.PipelineExecutions.Where(e =>
+            e.BroadcasterId == broadcaster
+        );
+        IQueryable<PipelineExecution> recent = channelRuns.Where(e => e.StartedAt >= sinceUtc);
+
+        int runs = await recent.CountAsync(ct);
+        int failedRuns = await recent.Where(e => FailureStatuses.Contains(e.Status)).CountAsync(ct);
+        PipelineExecution? lastFailed = await channelRuns
+            .Where(e => FailureStatuses.Contains(e.Status))
+            .OrderByDescending(e => e.StartedAt)
+            .ThenByDescending(e => e.Id)
+            .FirstOrDefaultAsync(ct);
+
+        return Result.Success(
+            new PipelineExecutionActivityDto(
+                runs,
+                failedRuns,
+                lastFailed?.Id,
+                lastFailed?.StartedAt,
+                lastFailed?.ErrorMessage
             )
         );
     }
@@ -144,6 +181,7 @@ public class PipelineExecutionQueryService : IPipelineExecutionQueryService
         return new(
             entity.Id,
             entity.PipelineId,
+            entity.TriggeredByUserId,
             entity.TriggerKind,
             entity.Status,
             entity.HostCallCount,

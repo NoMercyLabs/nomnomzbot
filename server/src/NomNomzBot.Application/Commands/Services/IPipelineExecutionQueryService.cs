@@ -31,6 +31,14 @@ public interface IPipelineExecutionQueryService
         CancellationToken ct = default
     );
 
+    /// <summary>Run and failure counts since <paramref name="sinceUtc"/>, and the channel's newest failed run.
+    /// "Failed" is the same non-success set <see cref="ListAsync"/> filters on.</summary>
+    Task<Result<PipelineExecutionActivityDto>> GetActivityAsync(
+        string broadcasterId,
+        DateTime sinceUtc,
+        CancellationToken ct = default
+    );
+
     /// <summary>One run's detail, including its ordered per-step logs.</summary>
     Task<Result<PipelineExecutionDetailDto>> GetDetailAsync(
         string broadcasterId,

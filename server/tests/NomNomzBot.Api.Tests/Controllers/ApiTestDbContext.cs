@@ -210,6 +210,11 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         // Management memberships — the channel list lazily grants Moderator from the caller's Twitch mod list.
         b.Entity<ChannelMembership>().HasKey(e => e.Id);
 
+        // The admin channel diagnostics read: a channel's pipeline runs and the name of its billing tier.
+        b.Entity<PipelineExecution>().HasKey(e => e.Id);
+        b.Entity<PipelineExecution>().Ignore(e => e.Pipeline);
+        b.Entity<BillingTier>().HasKey(e => e.Id);
+
         // EF discovers entity types from the DbSet<T> property declarations regardless of the throwing getter
         // bodies; ignore every entity these tests do not exercise so the model stays minimal + provider-agnostic.
         foreach (Type entity in UnmappedEntities)
@@ -236,6 +241,8 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
         typeof(IamRoleAssignment),
         typeof(IamAuditLog),
         typeof(ChannelMembership),
+        typeof(PipelineExecution),
+        typeof(BillingTier),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -275,8 +282,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
     public DbSet<ChatMessage> ChatMessages => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Chat.Entities.FavoriteEmote> FavoriteEmotes =>
-        throw new NotSupportedException();
+    public DbSet<FavoriteEmote> FavoriteEmotes => throw new NotSupportedException();
     public DbSet<ChatterAssignedColor> ChatterAssignedColors => throw new NotSupportedException();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => throw new NotSupportedException();
     public DbSet<Domain.Giveaways.Entities.Giveaway> Giveaways => throw new NotSupportedException();
@@ -347,7 +353,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<PipelineStep> PipelineSteps => throw new NotSupportedException();
     public DbSet<PipelineStepCondition> PipelineStepConditions => throw new NotSupportedException();
     public DbSet<PipelineTrigger> PipelineTriggers => throw new NotSupportedException();
-    public DbSet<PipelineExecution> PipelineExecutions => throw new NotSupportedException();
+    public DbSet<PipelineExecution> PipelineExecutions => Set<PipelineExecution>();
 
     public DbSet<PipelineRunState> PipelineRunStates => throw new NotSupportedException();
     public DbSet<ChannelBuiltinCommand> ChannelBuiltinCommands => throw new NotSupportedException();
@@ -407,7 +413,7 @@ internal sealed class ApiTestDbContext : DbContext, IApplicationDbContext
     public DbSet<LeaderboardConfig> LeaderboardConfigs => throw new NotSupportedException();
     public DbSet<LeaderboardOptOut> LeaderboardOptOuts => throw new NotSupportedException();
     public DbSet<LeaderboardSnapshot> LeaderboardSnapshots => throw new NotSupportedException();
-    public DbSet<BillingTier> BillingTiers => throw new NotSupportedException();
+    public DbSet<BillingTier> BillingTiers => Set<BillingTier>();
     public DbSet<TierLimit> TierLimits => throw new NotSupportedException();
     public DbSet<PricedUnit> PricedUnits => throw new NotSupportedException();
     public DbSet<Subscription> Subscriptions => throw new NotSupportedException();

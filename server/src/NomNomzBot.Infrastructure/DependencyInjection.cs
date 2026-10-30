@@ -1143,6 +1143,12 @@ public static class DependencyInjection
         services.AddScoped<ITriggerSampleCatalog, TriggerSampleCatalog>();
         // Every stream metric (stream-stats?metrics=...) is one registered class; the fact reader is shared per request.
         services.AddImplementationsOf<IStreamMetric>(infrastructure, ServiceLifetime.Scoped);
+        // Every admin channel diagnostics section (admin/channels/{id}/diagnostics?sections=...) is one
+        // registered class; IChannelDiagnosticsService itself is picked up by the I<X>Service convention.
+        services.AddImplementationsOf<Application.Admin.Diagnostics.IChannelDiagnosticSection>(
+            infrastructure,
+            ServiceLifetime.Scoped
+        );
         services.AddScoped<Dashboard.Stats.StreamBanFilter>();
         services.AddScoped<Dashboard.Stats.StreamFactReader>();
         services.AddScoped<EventStore.JournaledDomainEventReader>();

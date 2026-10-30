@@ -15,6 +15,7 @@ namespace NomNomzBot.Application.Commands.Dtos;
 public sealed record PipelineExecutionSummaryDto(
     long Id,
     Guid? PipelineId,
+    Guid? TriggeredByUserId,
     string TriggerKind,
     string Status,
     int HostCallCount,
@@ -37,6 +38,7 @@ public sealed record PipelineExecutionStepLogDto(
 public sealed record PipelineExecutionDetailDto(
     long Id,
     Guid? PipelineId,
+    Guid? TriggeredByUserId,
     string TriggerKind,
     string Status,
     int HostCallCount,
@@ -45,4 +47,14 @@ public sealed record PipelineExecutionDetailDto(
     DateTime StartedAt,
     DateTime? CompletedAt,
     IReadOnlyList<PipelineExecutionStepLogDto> StepLogs
+);
+
+/// <summary>How busy and how healthy a channel's runs are since a moment: run and failure counts, and the
+/// newest failed run of all time (so a quiet day still shows the last thing that broke).</summary>
+public sealed record PipelineExecutionActivityDto(
+    int Runs,
+    int FailedRuns,
+    long? LastFailedRunId,
+    DateTime? LastFailedRunAt,
+    string? LastFailedRunError
 );
