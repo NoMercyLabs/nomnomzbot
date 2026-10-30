@@ -24,6 +24,7 @@ import { useRouteChannel } from '@/composables/useRouteChannel';
 import { applyAccent, defaultAccent } from '@/lib/accent';
 import { useRealtime } from '@/realtime/useRealtime';
 
+import ActAsExit from './dashboard/ActAsExit.vue';
 import BottomBar from './dashboard/BottomBar.vue';
 import ChannelNoAccess from './dashboard/ChannelNoAccess.vue';
 import ChannelSuspended from './dashboard/ChannelSuspended.vue';
@@ -72,6 +73,7 @@ useReadableRedirect();
         <NavRail v-else-if="medium" class="max-md:sticky max-md:top-0" />
       </template>
       <div class="flex min-h-0 min-w-0 flex-1 flex-col">
+        <ActAsExit />
         <ViewAsBanner />
         <!-- Without the sidebar, the channel switch and the profile need a home of their own. -->
         <header

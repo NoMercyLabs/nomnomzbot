@@ -18,6 +18,7 @@ function mountLayout() {
     global: {
       mocks: { $t: (key: string) => key },
       stubs: {
+        ActAsExit: true,
         AppMark: true,
         LanguagePicker: true,
         ViewAsBanner: true,

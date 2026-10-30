@@ -35,6 +35,12 @@ vi.mock('@/api/auth', () => ({
   // Signed out for the live hubs: these tests cover the frame, not live updates.
   useSignedIn: () => ref(false),
   getAccessToken: () => '',
+  // Not acting as anyone: the act-as Exit stays out of the frame.
+  useActingAs: () => ref(false),
+  useIdentityChanges: () => ref(0),
+  acceptAccessToken: vi.fn<(token: string) => void>(),
+  exitActAs: vi.fn<() => Promise<void>>(),
+  isSignedIn: () => true,
 }));
 
 type Suspension = {

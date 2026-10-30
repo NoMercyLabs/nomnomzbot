@@ -30,6 +30,11 @@ vi.mock('@/api/auth', () => ({
     }),
   }),
   signOut: vi.fn<() => Promise<void>>(async () => undefined),
+  // Not acting as anyone: the act-as Exit stays out of the frame.
+  useActingAs: () => ref(false),
+  acceptAccessToken: vi.fn<(token: string) => void>(),
+  exitActAs: vi.fn<() => Promise<void>>(),
+  isSignedIn: () => true,
 }));
 
 vi.mock('@/composables/useCurrentChannel', () => ({

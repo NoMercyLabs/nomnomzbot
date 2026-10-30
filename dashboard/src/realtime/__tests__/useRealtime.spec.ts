@@ -21,9 +21,11 @@ vi.mock('@microsoft/signalr', (importOriginal) =>
 const signedIn = ref(false);
 const channel = ref<string | null>('c1');
 const admin = ref(false);
+const identityChanges = ref(0);
 
 vi.mock('@/api/auth', () => ({
   useSignedIn: () => signedIn,
+  useIdentityChanges: () => identityChanges,
   getAccessToken: () => 'token',
   useCurrentUser: () => ({ data: computed(() => ({ isAdmin: admin.value })) }),
 }));
@@ -57,6 +59,7 @@ beforeEach(() => {
   signedIn.value = false;
   channel.value = 'c1';
   admin.value = false;
+  identityChanges.value = 0;
 });
 
 describe('useRealtime', () => {
@@ -102,6 +105,23 @@ describe('useRealtime', () => {
       ['LeaveChannel', 'c1'],
       ['JoinChannel', 'c2'],
     ]);
+  });
+
+  it('reconnects with a new connection when the person behind the token changes (acting as someone)', async () => {
+    await mounted();
+    signedIn.value = true;
+    await flushPromises();
+    identityChanges.value += 1;
+    await flushPromises();
+
+    expect(FakeHubConnection.instances.map((c) => new URL(c.url).pathname)).toEqual([
+      '/hubs/dashboard',
+      '/hubs/dashboard',
+    ]);
+
+    expect(FakeHubConnection.at(0).stopped).toBe(true);
+    expect(FakeHubConnection.at(1).stopped).toBe(false);
+    expect(FakeHubConnection.at(1).invocations).toEqual([['JoinChannel', 'c1']]);
   });
 
   it('opens the operator hub only for an operator', async () => {

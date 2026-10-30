@@ -11,7 +11,7 @@
 <script setup lang="ts">
 // The detail of one channel of the registry: the facts the bot holds about it, and one way on to the tenant
 // console, where it is managed. The list row already carries the live state; the rest comes from the tenant read.
-import { computed } from 'vue';
+import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
 import { RouterLink } from 'vue-router';
 
@@ -23,12 +23,20 @@ import type { KeyValueItem } from '@/components/layout/keyValueItem';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Button } from '@/components/ui/button';
 import { usePanelState } from '@/composables/usePanelState';
+import { usePlatformCan } from '@/composables/usePlatformCan';
 import { useTime } from '@/composables/useTime';
+
+import ActAsDialog, { type ActAsChannel } from './ActAsDialog.vue';
 
 const props = defineProps<{ channel: AdminTenant }>();
 
 const { t, te } = useI18n();
 const time = useTime();
+const { can } = usePlatformCan();
+
+// Acting as someone opens a support session first, so it takes both keys.
+const canActAs = computed<boolean>(() => can('tenant:access') && can('user:impersonate'));
+const actingOn = ref<ActAsChannel | null>(null);
 
 const detail = useAdminTenant(() => props.channel.id);
 const tenant = computed(() => detail.data.value ?? null);
@@ -79,11 +87,22 @@ const facts = computed<KeyValueItem[]>(() => [
       <p v-if="tenant?.deploymentMode === 'saas'" data-saas-restricted class="text-sm text-muted-foreground">
         {{ t('dashboard.admin.detail.restricted') }}
       </p>
-      <Button as-child class="justify-self-start">
-        <RouterLink :to="{ name: 'dashboard-admin-tenants', query: { tenant: channel.id } }">
-          {{ t('dashboard.admin.detail.manage') }}
-        </RouterLink>
-      </Button>
+      <div class="flex flex-wrap items-center gap-2">
+        <Button as-child>
+          <RouterLink :to="{ name: 'dashboard-admin-tenants', query: { tenant: channel.id } }">
+            {{ t('dashboard.admin.detail.manage') }}
+          </RouterLink>
+        </Button>
+        <Button
+          v-if="canActAs"
+          variant="outline"
+          data-act-as
+          @click="actingOn = { id: channel.id, name: channel.name }"
+        >
+          {{ t('dashboard.admin.actAs.open') }}
+        </Button>
+      </div>
     </div>
   </PanelCard>
+  <ActAsDialog v-if="canActAs && actingOn !== null" :channel="actingOn" @close="actingOn = null" />
 </template>

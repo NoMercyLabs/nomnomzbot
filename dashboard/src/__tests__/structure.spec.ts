@@ -1184,6 +1184,7 @@ const rawSearchInputAllowlist = [
   'views/dashboard/picklists/PickListsView.vue',
   'views/dashboard/quotes/QuotesView.vue',
   // Pickers inside a popover or dialog: a search that narrows a choice, not a list page head.
+  'views/dashboard/admin/components/ActAsDialog.vue',
   'views/dashboard/admin/components/AuditFilterPicker.vue',
   'views/dashboard/admin/components/SupportPersonPicker.vue',
   'views/dashboard/obs/components/ObsHotkeysPanel.vue',

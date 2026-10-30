@@ -1000,6 +1000,10 @@
       "viewer": "a viewer",
       "exit": "Exit"
     },
+    "actAs": {
+      "banner": "Acting as {name}. Everything you do here is real and logged.",
+      "exit": "Exit"
+    },
     "shield": {
       "for": "Shield mode for {channel}",
       "on": "Shield on",

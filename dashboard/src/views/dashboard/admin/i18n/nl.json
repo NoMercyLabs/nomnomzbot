@@ -78,6 +78,36 @@
         "saved": "Het supportcontact is opgeslagen.",
         "loadFailed": "Het supportcontact kon niet worden geladen."
       },
+      "actAs": {
+        "open": "Handel als",
+        "openFor": "Handel als iemand in {channel}",
+        "title": "Handel als iemand in {channel}",
+        "titleAny": "Handel als iemand",
+        "description": "Je ziet en doet alles als deze persoon tot je op Stoppen drukt of de tijd om is. De bot legt de reden en elke wijziging vast.",
+        "action": "Handel als",
+        "channel": "Kanaal",
+        "channelSearch": "Zoek kanalen op naam",
+        "reason": "Reden",
+        "reasonHint": "Wat je controleert, voor het auditlog",
+        "length": "Hoe lang",
+        "lengths": {
+          "30": "30 minuten",
+          "60": "1 uur",
+          "120": "2 uur",
+          "240": "4 uur"
+        },
+        "person": "Persoon",
+        "personSearch": "Zoek mensen in dit kanaal",
+        "pickPerson": "Kies een persoon",
+        "relation": {
+          "owner": "Eigenaar",
+          "manager": "Beheerder",
+          "community": "Community",
+          "viewer": "Kijker"
+        },
+        "panelTitle": "Handel als iemand",
+        "panelDescription": "Open een supportsessie met een tijdslimiet voor een kanaal en zie het dashboard als een van de mensen daar."
+      },
       "tenants": {
         "title": "Tenants",
         "pick": "Kies een tenant om te beheren.",
@@ -1077,18 +1107,6 @@
           "error": "De rollen konden niet laden.",
           "system": "Ingebouwd",
           "permissions": "{count} recht | {count} rechten"
-        },
-        "session": {
-          "title": "Supportsessie",
-          "description": "Beëindig een toegangsrecht tot een kanaal, of handel als een gebruiker via een open toegangsrecht. Start het toegangsrecht op de pagina Kanalen.",
-          "grant": "Toegangsrecht-ID",
-          "grantHint": "De toegang is een ticket, geen persoon. Start die op de pagina Tenants en plak het ID hier.",
-          "user": "Persoon om over te nemen",
-          "userWait": "Schrijf eerst de reden, zoek dan op naam.",
-          "justification": "Reden",
-          "end": "Toegang beëindigen",
-          "impersonate": "Overnemen",
-          "ended": "Het toegangsrecht is beëindigd."
         }
       },
       "platformDefaults": {

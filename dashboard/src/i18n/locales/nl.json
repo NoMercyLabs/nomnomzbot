@@ -1000,6 +1000,10 @@
       "viewer": "een kijker",
       "exit": "Stoppen"
     },
+    "actAs": {
+      "banner": "Je handelt als {name}. Alles wat je hier doet is echt en wordt vastgelegd.",
+      "exit": "Stoppen"
+    },
     "shield": {
       "for": "Schildmodus voor {channel}",
       "on": "Schild aan",

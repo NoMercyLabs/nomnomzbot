@@ -10,11 +10,12 @@
 // -----------------------------------------------------------------------------
 
 import { queryOptions, useQuery, type UseQueryReturnType } from '@tanstack/vue-query';
-import { ref, type Ref } from 'vue';
+import { computed, ref, type ComputedRef, type Ref } from 'vue';
 
 import type { components } from './schema';
 import { activeBot } from './activeBot';
 import { client } from './client';
+import { problemError } from './errors';
 import { queryClient } from './queryClient';
 
 export type CurrentUser = components['schemas']['CurrentUser'];
@@ -29,8 +30,51 @@ let accessToken: string | null = keepsDevToken
   ? sessionStorage.getItem(devTokenKey)
   : null;
 
+// The admin behind an act-as token: the bot names them in its `act` claim. Null for a person's own sign-in.
+function actorOf(token: string | null): string | null {
+  const payload = token?.split('.')[1];
+
+  if (payload === undefined)
+    return null;
+
+  try {
+    const decoded = atob(payload.replaceAll('-', '+').replaceAll('_', '/'));
+    const claims = JSON.parse(decoded) as { act?: string };
+
+    return typeof claims.act === 'string' && claims.act !== ''
+      ? claims.act
+      : null;
+  } catch {
+    return null;
+  }
+}
+
+// Follows the sign-in for the live connection; a token swapped by the 401 retry does not move it.
+const signedIn = ref(accessToken !== null);
+const actingAs = ref<string | null>(actorOf(accessToken));
+const identityChanges = ref(0);
+
+// Acting as someone, or leaving that (Exit, or the session running out), changes the person behind every
+// answer: the cached answers go, the open pages ask again, and the live connection reconnects.
+function followIdentity(token: string): void {
+  const actor = actorOf(token);
+
+  if (actor === actingAs.value) return;
+
+  actingAs.value = actor;
+
+  if (!signedIn.value) return;
+
+  identityChanges.value += 1;
+  void queryClient.resetQueries();
+}
+
 function setAccessToken(token: string | null): void {
   accessToken = token;
+
+  if (token !== null) {
+    followIdentity(token);
+  }
 
   if (!keepsDevToken) return;
 
@@ -41,8 +85,6 @@ function setAccessToken(token: string | null): void {
   }
 }
 
-// Follows the sign-in for the live connection; a token swapped by the 401 retry does not move it.
-const signedIn = ref(accessToken !== null);
 let restoring: Promise<boolean> | null = null;
 let refreshRefused = false;
 
@@ -117,6 +159,16 @@ export function isSignedIn(): boolean {
 
 export function useSignedIn(): Readonly<Ref<boolean>> {
   return signedIn;
+}
+
+// True while an admin acts as someone else: the token is the target's, and only the Exit shows the admin.
+export function useActingAs(): ComputedRef<boolean> {
+  return computed(() => actingAs.value !== null);
+}
+
+// Counts the times the person behind the token changed while signed in; the live connection follows it.
+export function useIdentityChanges(): Readonly<Ref<number>> {
+  return identityChanges;
 }
 
 // The live connection asks for the token on every connect, so a refreshed one is used at once.
@@ -302,19 +354,58 @@ export function useCurrentUser(): UseQueryReturnType<CurrentUser | null, Error> 
   return useQuery(currentUserQuery);
 }
 
+// No token at all: signed out, acting as nobody, with no answer of the last person left in the cache.
+function forget(): void {
+  setAccessToken(null);
+  actingAs.value = null;
+  signedIn.value = false;
+}
+
+type ExitAnswer = {
+  data?: RefreshEnvelope;
+  error?: object;
+  response: Response;
+};
+
+// Exit from inside an act-as session: the bot ends the support session and hands back the admin's own session.
+// Without a token in the answer the refresh cookie brings it; without that either, the admin is signed out.
+export async function exitActAs(): Promise<void> {
+  const answer: ExitAnswer = await client.POST('/api/v{version}/auth/impersonation/exit', {
+    params: version,
+    credentials: 'include',
+  });
+
+  // The session had already ended: the 401 retry brought the admin's own session back on the way.
+  if (actingAs.value === null) return;
+
+  if (answer.error !== undefined)
+    throw problemError('exit act as', answer.response.status, answer.error);
+
+  const token = answer.data?.data?.accessToken;
+
+  if (typeof token === 'string') {
+    acceptAccessToken(token);
+
+    return;
+  }
+
+  if (await refresh()) return;
+
+  forget();
+  queryClient.clear();
+}
+
 // A sign-in and its answers belong to one bot; another bot starts signed out with an empty cache.
 export function switchBot(origin: string): void {
   if (origin === activeBot.value) return;
 
-  setAccessToken(null);
-  signedIn.value = false;
+  forget();
   queryClient.clear();
   activeBot.value = origin;
 }
 
 export async function signOut(): Promise<void> {
   await client.POST('/api/v{version}/auth/logout', { params: version, credentials: 'include' });
-  setAccessToken(null);
-  signedIn.value = false;
+  forget();
   queryClient.clear();
 }

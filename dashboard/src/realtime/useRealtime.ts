@@ -12,7 +12,7 @@
 import { watch } from 'vue';
 
 import { queryClient } from '@/api/queryClient';
-import { useCurrentUser, useSignedIn } from '@/api/auth';
+import { useCurrentUser, useIdentityChanges, useSignedIn } from '@/api/auth';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 
 import { startAdminHub, stopAdminHub } from './adminHub';
@@ -21,6 +21,7 @@ import { startDashboardHub, stopDashboardHub, watchChannel } from './dashboardHu
 // Called once by the dashboard frame: both hubs run while the person is signed in, and stop at sign-out.
 export function useRealtime(): void {
   const signedIn = useSignedIn();
+  const identityChanges = useIdentityChanges();
   const user = useCurrentUser();
   const { channelId } = useCurrentChannel();
 
@@ -38,6 +39,20 @@ export function useRealtime(): void {
     },
     { immediate: true },
   );
+
+  // Acting as someone, or leaving that, changes who the connection speaks for: it reconnects with the new token.
+  watch(identityChanges, async () => {
+    await Promise.all([stopDashboardHub(), stopAdminHub()]);
+
+    if (!signedIn.value) return;
+
+    void watchChannel(channelId.value);
+    void startDashboardHub(queryClient);
+
+    if (user.data.value?.isAdmin === true) {
+      void startAdminHub(queryClient);
+    }
+  });
 
   watch(channelId, (id: string | null) => {
     if (signedIn.value) {

@@ -259,13 +259,6 @@ async function type(selector: string, value: string): Promise<void> {
   await settle();
 }
 
-// The operator finds the person by name; the page fills the id itself.
-async function choosePerson(search: string): Promise<void> {
-  await type('[data-field-user] [data-person-search]', search);
-  document.body.querySelector<HTMLElement>('[data-person-option]')!.click();
-  await settle();
-}
-
 async function pick(selector: string, label: string): Promise<void> {
   // jsdom lacks these three; the select calls them when it opens.
   Element.prototype.hasPointerCapture = (): boolean => false;
@@ -401,32 +394,17 @@ describe('AdminAccessView', () => {
     expect(post.options?.params?.path?.principalId).toBe('p2');
   });
 
-  it('ends a tenant access grant by id', async () => {
+  it('opens the one Act as dialog, which asks for the channel and never for a grant id', async () => {
     await open();
-    await type('[data-field-grant]', 'g1');
-    byText('button', 'End access')!.click();
+    byText('button', 'Act as')!.click();
     await settle();
 
-    const removal = calls.find((call) => call.method === 'DELETE')!;
+    const dialog = document.body.querySelector<HTMLElement>('[role="dialog"]')!;
 
-    expect(removal.path).toBe('/api/v{version}/admin/access/{accessGrantId}');
-    expect(removal.options?.params?.path?.accessGrantId).toBe('g1');
-  });
-
-  it('impersonates through the open grant, signs in as the minted token and goes home', async () => {
-    await open();
-    await type('[data-field-grant]', 'g1');
-    await type('[data-field-justification]', 'ticket 42');
-    await choosePerson('viewer');
-    byText('button', 'Impersonate')!.click();
-    await settle();
-
-    const post = calls.find((call) => call.path.endsWith('/impersonate'))!;
-
-    expect(post.options?.params?.path?.userId).toBe('01HZ0000000000000000000009');
-    expect(post.options?.body).toMatchObject({ accessGrantId: 'g1', justification: 'ticket 42' });
-    expect(accepted).toEqual(['minted-token']);
-    expect(router.currentRoute.value.name).toBe('dashboard-home');
+    expect(dialog.textContent).toContain('Act as someone');
+    expect(dialog.querySelector('[data-act-as-channel-search]')).not.toBeNull();
+    expect(dialog.querySelector('[data-field-grant]')).toBeNull();
+    expect(calls.some((call) => call.path.endsWith('/impersonate'))).toBe(false);
   });
 
   it('shows the inactive filter as a switch with its default off', async () => {
@@ -615,47 +593,24 @@ describe('AdminAccessView', () => {
     expect(text()).not.toContain('tenant:read');
   });
 
-  it('shows only the end-access tools to an admin who holds tenant:access but not user:impersonate', async () => {
+  it('offers Act as to an admin who holds tenant:access and user:impersonate', async () => {
+    await open();
+
+    expect(document.body.querySelector('[data-act-as]')).not.toBeNull();
+  });
+
+  it('hides Act as from an admin without user:impersonate', async () => {
     keys.denied = ['user:impersonate'];
     await open();
 
-    expect(document.body.querySelector('[data-field-grant]')).not.toBeNull();
-    expect(byText('button', 'End access')).toBeDefined();
-    expect(document.body.querySelector('[data-field-user]')).toBeNull();
-    expect(byText('button', 'Impersonate')).toBeUndefined();
+    expect(document.body.querySelector('[data-act-as]')).toBeNull();
   });
 
-  it('shows only the impersonate tools to an admin who holds user:impersonate but not tenant:access', async () => {
+  it('hides Act as from an admin without tenant:access, who could not open the session', async () => {
     keys.denied = ['tenant:access'];
     await open();
 
-    expect(byText('button', 'End access')).toBeUndefined();
-    expect(byText('button', 'Impersonate')).toBeDefined();
-  });
-
-  it('hides the whole support panel when neither key is held', async () => {
-    keys.denied = ['tenant:access', 'user:impersonate'];
-    await open();
-
-    expect(document.body.querySelector('[data-field-grant]')).toBeNull();
-  });
-
-  it('keeps Impersonate disabled until a justification is typed', async () => {
-    await open();
-    await type('[data-field-grant]', 'g1');
-
-    expect(
-      document.body.querySelector<HTMLInputElement>('[data-field-user] [data-person-search]')!
-        .disabled,
-    ).toBe(true);
-
-    expect(text()).toContain('Write the reason first');
-    await type('[data-field-justification]', 'ticket 42');
-    await choosePerson('viewer');
-
-    expect(text()).toContain('Viewer Nine');
-    expect(text()).not.toContain('User id');
-    expect((byText('button', 'Impersonate') as HTMLButtonElement).disabled).toBe(false);
+    expect(document.body.querySelector('[data-act-as]')).toBeNull();
   });
 
   it('tells the operator when a reactivate fails', async () => {

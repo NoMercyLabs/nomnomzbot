@@ -141,6 +141,7 @@ export const apiOperations = {
   reinstate: 'admin',
   'begin access': 'admin',
   impersonate: 'admin',
+  'exit act as': 'admin',
   'tenant members': 'admin',
   'tenant limits': 'admin',
   'tenant limit save': 'admin',

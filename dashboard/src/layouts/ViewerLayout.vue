@@ -18,6 +18,7 @@ import { TooltipProvider } from '@/components/ui/tooltip';
 
 import ViewerNav from '@/views/viewer/nav/ViewerNav.vue';
 
+import ActAsExit from './dashboard/ActAsExit.vue';
 import ViewAsBanner from './dashboard/ViewAsBanner.vue';
 import ViewerChannelFinder from './dashboard/ViewerChannelFinder.vue';
 import ViewerDashboardLink from './dashboard/ViewerDashboardLink.vue';
@@ -26,6 +27,7 @@ import ViewerDashboardLink from './dashboard/ViewerDashboardLink.vue';
 <template>
   <TooltipProvider :delay-duration="300">
     <div class="min-h-svh bg-background text-foreground">
+      <ActAsExit />
       <ViewAsBanner />
       <!-- Below the tablet width the header stays on top while the page scrolls (owner rule 2026-10-21). -->
       <header

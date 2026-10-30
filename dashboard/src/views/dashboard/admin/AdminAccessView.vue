@@ -11,23 +11,19 @@
   -----------------------------------------------------------------------------
 -->
 <script setup lang="ts">
-// Platform access: who holds which operator role, the role catalog, and the support session tools.
-// An operator assigns or revokes a role, deactivates or reactivates a principal, ends a tenant access
-// grant, or acts as a user through an open grant. Other operators' changes arrive over the admin hub.
-import { useQueryClient } from '@tanstack/vue-query';
+// Platform access: who holds which operator role, the role catalog, and the way in to act as someone.
+// An operator assigns or revokes a role, deactivates or reactivates a principal, or acts as a person of a
+// channel through the one Act as dialog. Other operators' changes arrive over the admin hub.
 import { useLocalStorage } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRouter } from 'vue-router';
 
 import ChevronDown from '~icons/nnz/chevron-down';
 import Cross from '~icons/nnz/cross';
 
-import { useAdminImpersonate } from '@/api/admin';
 import {
   useAssignIamRole,
   useDeactivateIamPrincipal,
-  useEndTenantAccess,
   useIamPrincipals,
   useIamRoles,
   useReactivateIamPrincipal,
@@ -35,8 +31,7 @@ import {
   type IamAssignment,
   type IamPrincipal,
 } from '@/api/adminAccess';
-import type { SupportPerson } from '@/api/adminSupport';
-import { acceptAccessToken, useCurrentUser } from '@/api/auth';
+import { useCurrentUser } from '@/api/auth';
 import DateTime from '@/components/layout/DateTime.vue';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
@@ -60,14 +55,12 @@ import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 
 import AccessScope from './components/AccessScope.vue';
-import SupportPersonPicker from './components/SupportPersonPicker.vue';
+import ActAsDialog from './components/ActAsDialog.vue';
 
 type Step = 'assign' | 'revoke' | 'deactivate';
 
 const { t } = useI18n();
 const { can } = usePlatformCan();
-const router = useRouter();
-const queries = useQueryClient();
 const me = useCurrentUser();
 
 // The same role held twice with the same scope and end date reads as one chip with a count.
@@ -98,10 +91,7 @@ const roleId = ref('');
 const expires = ref('');
 const reason = ref('');
 const failure = ref<string | null>(null);
-const grantId = ref('');
-const person = ref<SupportPerson | null>(null);
-const justification = ref('');
-const sessionFailure = ref<string | null>(null);
+const choosingActAs = ref(false);
 
 const principals = useIamPrincipals();
 const roles = useIamRoles();
@@ -109,8 +99,6 @@ const assign = useAssignIamRole();
 const revoke = useRevokeIamAssignment();
 const deactivate = useDeactivateIamPrincipal();
 const reactivate = useReactivateIamPrincipal();
-const endAccess = useEndTenantAccess();
-const impersonate = useAdminImpersonate();
 
 // Principals that share a name get their place among them, so the rows can be told apart.
 const ordinals = computed<Map<string, { position: number; total: number }>>(() => {
@@ -154,11 +142,8 @@ const pending = computed(
   () => assign.isPending.value || revoke.isPending.value || deactivate.isPending.value,
 );
 
-const sessionPending = computed(() => endAccess.isPending.value || impersonate.isPending.value);
-
-const canEnd = computed<boolean>(() => can('tenant:access'));
-const canImpersonate = computed<boolean>(() => can('user:impersonate'));
-const showSession = computed<boolean>(() => canEnd.value || canImpersonate.value);
+// Acting as someone opens a support session first, so it takes both keys.
+const canActAs = computed<boolean>(() => can('tenant:access') && can('user:impersonate'));
 
 const name = computed<string>(() => target.value?.name ?? '');
 const roleName = computed<string>(() => assignment.value?.roleName ?? '');
@@ -265,36 +250,6 @@ async function submit(): Promise<void> {
   }
 }
 
-async function finishEnd(): Promise<void> {
-  sessionFailure.value = null;
-
-  try {
-    await endAccess.mutateAsync(grantId.value.trim());
-    grantId.value = '';
-  } catch {
-    sessionFailure.value = t('dashboard.admin.access.failed');
-  }
-}
-
-async function startImpersonation(): Promise<void> {
-  if (justification.value.trim() === '' || person.value === null) return;
-
-  sessionFailure.value = null;
-
-  try {
-    const minted = await impersonate.mutateAsync({
-      userId: person.value.userId,
-      accessGrantId: grantId.value.trim(),
-      justification: justification.value.trim(),
-    });
-
-    acceptAccessToken(minted.accessToken);
-    queries.clear();
-    await router.push({ name: 'dashboard-home' });
-  } catch {
-    sessionFailure.value = t('dashboard.admin.access.failed');
-  }
-}
 </script>
 
 <template>
@@ -489,68 +444,18 @@ async function startImpersonation(): Promise<void> {
     </PanelCard>
 
     <PanelCard
-      v-if="showSession"
+      v-if="canActAs"
       class="shrink-0"
+      pad
       tier="quiet"
-      :title="$t('dashboard.admin.access.session.title')"
-      :description="$t('dashboard.admin.access.session.description')"
+      :title="$t('dashboard.admin.actAs.panelTitle')"
+      :description="$t('dashboard.admin.actAs.panelDescription')"
     >
-      <div class="grid gap-3 sm:grid-cols-3">
-        <div class="grid gap-1.5">
-          <Label for="access-grant">{{ $t("dashboard.admin.access.session.grant") }}</Label>
-          <Input id="access-grant" v-model="grantId" data-field-grant />
-          <p class="text-sm text-muted-foreground">{{ $t("dashboard.admin.access.session.grantHint") }}</p>
-        </div>
-        <template v-if="canImpersonate">
-          <div class="grid gap-1.5">
-            <Label for="access-justification">{{
-              $t("dashboard.admin.access.session.justification")
-            }}</Label>
-            <Input
-              id="access-justification"
-              v-model="justification"
-              data-field-justification
-              required
-            />
-          </div>
-          <div class="grid gap-1.5">
-            <Label for="access-user">{{ $t("dashboard.admin.access.session.user") }}</Label>
-            <SupportPersonPicker
-              data-field-user
-              input-id="access-user"
-              :person="person"
-              :reason="justification"
-              :wait-hint="$t('dashboard.admin.access.session.userWait')"
-              @pick="person = $event"
-            />
-          </div>
-        </template>
-      </div>
-      <p v-if="sessionFailure" class="mt-3 text-sm text-destructive" role="alert">
-        {{ sessionFailure }}
-      </p>
-      <template #footer>
-        <div class="flex w-full justify-end gap-2">
-          <Button
-            v-if="canEnd"
-            variant="outline"
-            :disabled="sessionPending || grantId.trim() === ''"
-            @click="finishEnd"
-          >{{ $t("dashboard.admin.access.session.end") }}</Button>
-          <Button
-            v-if="canImpersonate"
-            variant="outline"
-            :disabled="
-              sessionPending ||
-                grantId.trim() === '' ||
-                person === null ||
-                justification.trim() === ''
-            "
-            @click="startImpersonation"
-          >{{ $t("dashboard.admin.access.session.impersonate") }}</Button>
-        </div>
-      </template>
+      <Button v-if="canActAs" variant="outline" data-act-as @click="choosingActAs = true">
+        {{ $t("dashboard.admin.actAs.open") }}
+      </Button>
     </PanelCard>
+    <ActAsDialog v-if="canActAs && choosingActAs" :channel="null" @close="choosingActAs = false" />
 
     <FormDialog
       :open="step !== null"
