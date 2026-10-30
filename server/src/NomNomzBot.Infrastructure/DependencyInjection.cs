@@ -1149,6 +1149,12 @@ public static class DependencyInjection
             infrastructure,
             ServiceLifetime.Scoped
         );
+        // Every place a channel's connections are stored (vault, Discord links, OBS, ...) is one registered
+        // source the connections section asks for its rows.
+        services.AddImplementationsOf<Application.Admin.Diagnostics.IChannelConnectionSource>(
+            infrastructure,
+            ServiceLifetime.Scoped
+        );
         services.AddScoped<Dashboard.Stats.StreamBanFilter>();
         services.AddScoped<Dashboard.Stats.StreamFactReader>();
         services.AddScoped<EventStore.JournaledDomainEventReader>();

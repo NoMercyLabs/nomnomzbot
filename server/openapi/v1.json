@@ -109879,6 +109879,117 @@
         },
         "description": "            Everything the delete-channel confirmation must state BEFORE the button can be pressed — the largest blast\r\n            radius in the product.\r\n            Channel delete is a SOFT delete with a restore window: the tenant's rows stay on disk and every query\r\nfilter hides them, and only after DateTime ChannelDeletePreviewDto.PermanentAfterUtc does the data become unrecoverable. The\r\ndialog states both the window and the date, because a button that looks irreversible and is not is as\r\ndishonest as one that looks reversible and is not."
       },
+      "ChannelDiagnosticConnection": {
+        "required": [
+          "kind",
+          "provider",
+          "id",
+          "connected"
+        ],
+        "type": "object",
+        "properties": {
+          "kind": {
+            "type": "string",
+            "description": "The family of the row (platform, integration, discordGuild, obs, vts, automationToken, supporter, webhook, service)."
+          },
+          "provider": {
+            "type": "string",
+            "description": "The provider inside the family (twitch, spotify, discord, ...)."
+          },
+          "id": {
+            "type": "string",
+            "description": "The row's own id, for keying a list."
+          },
+          "accountName": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The account, server, host or label the connection points at; null when the row has none."
+          },
+          "accountId": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The provider's id for that account; null when the row has none."
+          },
+          "connected": {
+            "type": "boolean",
+            "description": "Whether the connection works now."
+          },
+          "status": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The stored status as the code base writes it (connected, needs_reauth, decrypt_failed, enabled, error, ...)."
+          },
+          "needsReauth": {
+            "type": "boolean",
+            "description": "The streamer must sign in to the provider again."
+          },
+          "decryptFailed": {
+            "type": "boolean",
+            "description": "The stored token cannot be decrypted, so only a fresh grant helps."
+          },
+          "missingScopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Scopes the code needs that the connection does not hold; only the Twitch connection has a registry of them."
+          },
+          "grantedScopes": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            },
+            "description": "Scopes the provider granted, where the row stores them."
+          },
+          "tokenExpiresAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the access token or the automation token expires.",
+            "format": "date-time"
+          },
+          "lastError": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The last error text, where the row stores one."
+          },
+          "lastErrorAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "When the last error happened, where the row stores it.",
+            "format": "date-time"
+          },
+          "consecutiveFailures": {
+            "pattern": "^-?(?:0|[1-9]\\d*)$",
+            "type": [
+              "integer",
+              "string"
+            ],
+            "description": "Failures in a row since the last success, where the row counts them.",
+            "format": "int32"
+          },
+          "lastActivityAt": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "description": "The last sign of life: a connect, a token refresh, an event, a delivery or a use of the token.",
+            "format": "date-time"
+          }
+        },
+        "description": "The health of one connection a channel has: a platform link, an integration, a Discord server, OBS, VTube\r\nStudio, an automation token, a supporter source, a webhook or a legacy service row. It holds states and times\r\nonly, never a token, secret or URL token. string ChannelDiagnosticConnectionDto.Kind is one of `ChannelConnectionKinds`."
+      },
       "ChannelDiagnosticRuns": {
         "required": [
           "items",
@@ -109968,6 +110079,16 @@
                 "$ref": "#/components/schemas/ChannelDiagnosticTts"
               }
             ]
+          },
+          "connections": {
+            "type": [
+              "null",
+              "array"
+            ],
+            "items": {
+              "$ref": "#/components/schemas/ChannelDiagnosticConnection"
+            },
+            "description": "One row per platform and integration link the channel has, with its health. Never a token value."
           }
         },
         "description": "The answer to an admin's `diagnostics` read of one channel: one property per requested section. A section\r\nthat was not requested is omitted. A new section adds a property here and a class implementing\r\n`IChannelDiagnosticSection`; never an endpoint."

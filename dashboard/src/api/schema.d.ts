@@ -90828,6 +90828,57 @@ export interface components {
              */
             permanentAfterUtc: string;
         };
+        /**
+         * @description The health of one connection a channel has: a platform link, an integration, a Discord server, OBS, VTube
+         *     Studio, an automation token, a supporter source, a webhook or a legacy service row. It holds states and times
+         *     only, never a token, secret or URL token. string ChannelDiagnosticConnectionDto.Kind is one of `ChannelConnectionKinds`.
+         */
+        ChannelDiagnosticConnection: {
+            /** @description The family of the row (platform, integration, discordGuild, obs, vts, automationToken, supporter, webhook, service). */
+            kind: string;
+            /** @description The provider inside the family (twitch, spotify, discord, ...). */
+            provider: string;
+            /** @description The row's own id, for keying a list. */
+            id: string;
+            /** @description The account, server, host or label the connection points at; null when the row has none. */
+            accountName?: null | string;
+            /** @description The provider's id for that account; null when the row has none. */
+            accountId?: null | string;
+            /** @description Whether the connection works now. */
+            connected: boolean;
+            /** @description The stored status as the code base writes it (connected, needs_reauth, decrypt_failed, enabled, error, ...). */
+            status?: null | string;
+            /** @description The streamer must sign in to the provider again. */
+            needsReauth?: boolean;
+            /** @description The stored token cannot be decrypted, so only a fresh grant helps. */
+            decryptFailed?: boolean;
+            /** @description Scopes the code needs that the connection does not hold; only the Twitch connection has a registry of them. */
+            missingScopes?: string[];
+            /** @description Scopes the provider granted, where the row stores them. */
+            grantedScopes?: string[];
+            /**
+             * Format: date-time
+             * @description When the access token or the automation token expires.
+             */
+            tokenExpiresAt?: null | string;
+            /** @description The last error text, where the row stores one. */
+            lastError?: null | string;
+            /**
+             * Format: date-time
+             * @description When the last error happened, where the row stores it.
+             */
+            lastErrorAt?: null | string;
+            /**
+             * Format: int32
+             * @description Failures in a row since the last success, where the row counts them.
+             */
+            consecutiveFailures?: number | string;
+            /**
+             * Format: date-time
+             * @description The last sign of life: a connect, a token refresh, an event, a delivery or a use of the token.
+             */
+            lastActivityAt?: null | string;
+        };
         /** @description One page of a channel's runs, in the same row shape as the channel's own run history. */
         ChannelDiagnosticRuns: {
             items: components["schemas"]["PipelineExecutionSummary"][];
@@ -90853,6 +90904,8 @@ export interface components {
             summary?: null | components["schemas"]["ChannelDiagnosticSummary"];
             runs?: null | components["schemas"]["ChannelDiagnosticRuns"];
             tts?: null | components["schemas"]["ChannelDiagnosticTts"];
+            /** @description One row per platform and integration link the channel has, with its health. Never a token value. */
+            connections?: null | components["schemas"]["ChannelDiagnosticConnection"][];
         };
         /**
          * @description A channel at a glance. The run counts cover the last 24 hours; the last failed run is the newest

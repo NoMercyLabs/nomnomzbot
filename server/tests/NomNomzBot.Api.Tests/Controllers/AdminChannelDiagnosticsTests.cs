@@ -75,6 +75,8 @@ public sealed class AdminChannelDiagnosticsTests
             new ChannelSummaryDiagnosticSection(db, runs, new FakeTimeProvider(Now)),
             new ChannelRunsDiagnosticSection(runs),
             new ChannelTtsDiagnosticSection(db, new FakeTimeProvider(Now)),
+            // Its rows are proven in NomNomzBot.Infrastructure.Tests; here it only has to be a known key.
+            new ChannelConnectionsDiagnosticSection([]),
         ];
         ICurrentUserService currentUser = Substitute.For<ICurrentUserService>();
         currentUser.UserId.Returns(callerUserId.ToString());
@@ -421,7 +423,7 @@ public sealed class AdminChannelDiagnosticsTests
 
         IActionResult list = await controller.GetDiagnostics(
             Broadcaster,
-            "summary,runs,tts",
+            "summary,runs,tts,connections",
             new PageRequestDto(),
             failuresOnly: false,
             pipelineId: null,
@@ -468,7 +470,9 @@ public sealed class AdminChannelDiagnosticsTests
         StatusResponseDto<object> body =
             (StatusResponseDto<object>)((BadRequestObjectResult)result).Value!;
         body.Message.Should()
-            .Be("Unknown diagnostic section 'bogus'. Known sections: runs, summary, tts.");
+            .Be(
+                "Unknown diagnostic section 'bogus'. Known sections: connections, runs, summary, tts."
+            );
         (await db.IamAuditLogs.AsNoTracking().CountAsync()).Should().Be(0);
     }
 }

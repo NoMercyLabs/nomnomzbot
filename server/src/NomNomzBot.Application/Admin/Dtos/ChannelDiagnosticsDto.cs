@@ -35,6 +35,66 @@ public sealed record ChannelDiagnosticsDto
     /// <summary>The channel's last 50 TTS clips and how long synthesis took over the last 24 hours.</summary>
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ChannelDiagnosticTtsDto? Tts { get; set; }
+
+    /// <summary>One row per platform and integration link the channel has, with its health. Never a token value.</summary>
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public IReadOnlyList<ChannelDiagnosticConnectionDto>? Connections { get; set; }
+}
+
+/// <summary>
+/// The health of one connection a channel has: a platform link, an integration, a Discord server, OBS, VTube
+/// Studio, an automation token, a supporter source, a webhook or a legacy service row. It holds states and times
+/// only, never a token, secret or URL token. <see cref="Kind"/> is one of <c>ChannelConnectionKinds</c>.
+/// </summary>
+public sealed record ChannelDiagnosticConnectionDto
+{
+    /// <summary>The family of the row (platform, integration, discordGuild, obs, vts, automationToken, supporter, webhook, service).</summary>
+    public required string Kind { get; init; }
+
+    /// <summary>The provider inside the family (twitch, spotify, discord, ...).</summary>
+    public required string Provider { get; init; }
+
+    /// <summary>The row's own id, for keying a list.</summary>
+    public required string Id { get; init; }
+
+    /// <summary>The account, server, host or label the connection points at; null when the row has none.</summary>
+    public string? AccountName { get; init; }
+
+    /// <summary>The provider's id for that account; null when the row has none.</summary>
+    public string? AccountId { get; init; }
+
+    /// <summary>Whether the connection works now.</summary>
+    public required bool Connected { get; init; }
+
+    /// <summary>The stored status as the code base writes it (connected, needs_reauth, decrypt_failed, enabled, error, ...).</summary>
+    public string? Status { get; init; }
+
+    /// <summary>The streamer must sign in to the provider again.</summary>
+    public bool NeedsReauth { get; init; }
+
+    /// <summary>The stored token cannot be decrypted, so only a fresh grant helps.</summary>
+    public bool DecryptFailed { get; init; }
+
+    /// <summary>Scopes the code needs that the connection does not hold; only the Twitch connection has a registry of them.</summary>
+    public IReadOnlyList<string> MissingScopes { get; init; } = [];
+
+    /// <summary>Scopes the provider granted, where the row stores them.</summary>
+    public IReadOnlyList<string> GrantedScopes { get; init; } = [];
+
+    /// <summary>When the access token or the automation token expires.</summary>
+    public DateTime? TokenExpiresAt { get; init; }
+
+    /// <summary>The last error text, where the row stores one.</summary>
+    public string? LastError { get; init; }
+
+    /// <summary>When the last error happened, where the row stores it.</summary>
+    public DateTime? LastErrorAt { get; init; }
+
+    /// <summary>Failures in a row since the last success, where the row counts them.</summary>
+    public int ConsecutiveFailures { get; init; }
+
+    /// <summary>The last sign of life: a connect, a token refresh, an event, a delivery or a use of the token.</summary>
+    public DateTime? LastActivityAt { get; init; }
 }
 
 /// <summary>A channel's TTS clips, newest first, and the synthesis figures for the last 24 hours.</summary>
