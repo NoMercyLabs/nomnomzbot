@@ -59,6 +59,7 @@
         "tabsLabel": "Channel sections",
         "tabs": {
           "summary": "Summary",
+          "runs": "Runs",
           "billing": "Billing",
           "people": "People",
           "limits": "Limits",
@@ -79,6 +80,58 @@
           "error": "The summary could not load.",
           "factsTitle": "Channel",
           "factsDescription": "What the bot holds about this channel."
+        },
+        "runs": {
+          "title": "Runs",
+          "description": "Every command, pipeline, script and timer run of this channel, newest first.",
+          "empty": "No run matches these filters.",
+          "error": "The runs could not load.",
+          "none": "-",
+          "filters": {
+            "show": "Show",
+            "all": "All runs",
+            "failures": "Failures only",
+            "pipeline": "Pipeline",
+            "pipelinePlaceholder": "Pipeline id"
+          },
+          "columns": {
+            "time": "Time",
+            "trigger": "Trigger",
+            "pipeline": "Pipeline",
+            "person": "Triggered by",
+            "status": "Status",
+            "duration": "Duration",
+            "hostCalls": "Host calls",
+            "failure": "Failure",
+            "error": "Error"
+          },
+          "status": {
+            "success": "Succeeded",
+            "failed": "Failed",
+            "timeout": "Timed out",
+            "denied": "Denied"
+          },
+          "failureKinds": {
+            "Limit": "Limit",
+            "Timeout": "Timeout",
+            "HostCallError": "Host call error",
+            "ScriptError": "Script error",
+            "Permission": "Permission",
+            "PlatformApiError": "Platform API error",
+            "Canceled": "Canceled"
+          },
+          "detail": {
+            "title": "Run {id}",
+            "description": "How this run ended, step by step.",
+            "error": "The run could not load.",
+            "limit": "Hit limit {key} at {value}",
+            "started": "Started",
+            "steps": "Steps",
+            "noSteps": "This run recorded no steps.",
+            "hostCalls": "Host calls ({count})",
+            "worked": "Worked",
+            "failed": "Failed"
+          }
         },
         "audit": {
           "title": "Audit trail",

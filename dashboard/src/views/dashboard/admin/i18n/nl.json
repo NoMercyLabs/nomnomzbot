@@ -59,6 +59,7 @@
         "tabsLabel": "Onderdelen van het kanaal",
         "tabs": {
           "summary": "Overzicht",
+          "runs": "Runs",
           "billing": "Facturatie",
           "people": "Mensen",
           "limits": "Limieten",
@@ -79,6 +80,58 @@
           "error": "Het overzicht kon niet laden.",
           "factsTitle": "Kanaal",
           "factsDescription": "Wat de bot over dit kanaal bijhoudt."
+        },
+        "runs": {
+          "title": "Runs",
+          "description": "Elke commando-, pipeline-, script- en timerrun van dit kanaal, nieuwste eerst.",
+          "empty": "Geen run past bij deze filters.",
+          "error": "De runs konden niet laden.",
+          "none": "-",
+          "filters": {
+            "show": "Toon",
+            "all": "Alle runs",
+            "failures": "Alleen mislukt",
+            "pipeline": "Pipeline",
+            "pipelinePlaceholder": "Pipeline-id"
+          },
+          "columns": {
+            "time": "Tijd",
+            "trigger": "Trigger",
+            "pipeline": "Pipeline",
+            "person": "Gestart door",
+            "status": "Status",
+            "duration": "Duur",
+            "hostCalls": "Host-aanroepen",
+            "failure": "Fout",
+            "error": "Foutmelding"
+          },
+          "status": {
+            "success": "Gelukt",
+            "failed": "Mislukt",
+            "timeout": "Time-out",
+            "denied": "Geweigerd"
+          },
+          "failureKinds": {
+            "Limit": "Limiet",
+            "Timeout": "Time-out",
+            "HostCallError": "Host-aanroepfout",
+            "ScriptError": "Scriptfout",
+            "Permission": "Rechten",
+            "PlatformApiError": "Platform-API-fout",
+            "Canceled": "Geannuleerd"
+          },
+          "detail": {
+            "title": "Run {id}",
+            "description": "Hoe deze run eindigde, stap voor stap.",
+            "error": "De run kon niet laden.",
+            "limit": "Limiet {key} bereikt bij {value}",
+            "started": "Gestart",
+            "steps": "Stappen",
+            "noSteps": "Deze run heeft geen stappen vastgelegd.",
+            "hostCalls": "Host-aanroepen ({count})",
+            "worked": "Gelukt",
+            "failed": "Mislukt"
+          }
         },
         "audit": {
           "title": "Auditspoor",

@@ -27,12 +27,22 @@ import { usePanelState } from '@/composables/usePanelState';
 import BillingChannelPanel from './components/BillingChannelPanel.vue';
 import ChannelAuditPanel from './components/ChannelAuditPanel.vue';
 import ChannelConsoleHeader from './components/ChannelConsoleHeader.vue';
+import ChannelRunsPanel from './components/ChannelRunsPanel.vue';
 import ChannelSummaryPanel from './components/ChannelSummaryPanel.vue';
+import { withoutRunsKeys } from './components/runsQuery';
 import TenantActions from './components/TenantActions.vue';
 import TenantLimitsPanel from './components/TenantLimitsPanel.vue';
 import TenantMembersPanel from './components/TenantMembersPanel.vue';
 
-const TABS = ['summary', 'billing', 'people', 'limits', 'audit', 'data'] as const;
+const TABS = [
+  'summary',
+  'runs',
+  'billing',
+  'people',
+  'limits',
+  'audit',
+  'data',
+] as const;
 
 const { t } = useI18n();
 const route = useRoute();
@@ -54,7 +64,7 @@ function openTab(tab: string | number): void {
   void router.push({
     name: 'dashboard-admin-channels-console',
     params: { channelId: channelId.value, tab: String(tab) },
-    query: route.query,
+    query: withoutRunsKeys(route.query),
   });
 }
 </script>
@@ -84,6 +94,9 @@ function openTab(tab: string | number): void {
         </div>
         <TabsContent value="summary">
           <ChannelSummaryPanel :tenant="tenant" />
+        </TabsContent>
+        <TabsContent value="runs">
+          <ChannelRunsPanel :channel-id="channelId" />
         </TabsContent>
         <TabsContent value="billing">
           <BillingChannelPanel :channel="channelId" />

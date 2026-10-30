@@ -60,6 +60,7 @@ export const apiOperations = {
   'admin tenants': 'admin',
   'admin tenant': 'admin',
   'admin channel diagnostics': 'admin',
+  'admin channel run': 'admin',
   'admin stats': 'admin',
   'admin users': 'admin',
   'support people': 'admin',
