@@ -182,17 +182,13 @@ try {
             ForEach-Object { Write-Host "  $($_.name): $($_.conclusion)" }
         Write-Host 'CI GREEN'
 
-        # A green run is not a deployed commit. A run can be CANCELLED by the concurrency rule when a
-        # newer push lands mid-run, which skips the image build and the deploy entirely while every
-        # local signal still says "pushed, green". The only ground truth is what the box reports.
-        #
-        # Compare against the sha THIS RUN shipped, not `git rev-parse HEAD`: on a tree several agents
-        # push to, HEAD moves while the ~25min image build runs, and comparing against the moved HEAD
-        # reported NOT DEPLOYED three times for runs that had each deployed their own commit correctly.
-        # A newer commit not being live is the NEXT run's business, not this one's.
+        # A green run is not a deployed commit, and CI never deploys: only a stable release does
+        # (release.yml: nightly <- latest, beta <- nightly, stable <- beta; stable calls deploy.yml).
+        # So the box is reported, not judged: on 2026-10-30 this step failed a green push because the
+        # box rightly still ran the last stable release. To deploy, run release.yml (deploy-and-verify).
         [string]$head = $sha
         Write-Host ''
-        Write-Host "== confirming the box is actually serving $($head.Substring(0,8)) =="
+        Write-Host "== what the box serves (CI does not deploy; a stable release does) =="
 
         # Probe the LAN origin first, the public tunnel second. The tunnel can answer 530 while the box is
         # healthy and already serving the new commit; a probe of the tunnel alone reported such a landed
@@ -201,32 +197,24 @@ try {
         [string[]]$origins = @("http://${lanHost}:5080", 'https://dev.nomnomz.bot')
         [string]$live = ''
         [bool]$reachable = $false
-        for ([int]$i = 0; $i -lt 30; $i++) {
-            foreach ($origin in $origins) {
-                try {
-                    $live = [string](Invoke-RestMethod -Uri "$origin/health/version" -TimeoutSec 10).version
-                    $reachable = $true
-                    break
-                }
-                catch { $live = '' }
+        foreach ($origin in $origins) {
+            try {
+                $live = [string](Invoke-RestMethod -Uri "$origin/health/version" -TimeoutSec 10).version
+                $reachable = $true
+                break
             }
-            if ($live -like "*$head*") { break }
-            Start-Sleep -Seconds 10
+            catch { $live = '' }
         }
-        if ($live -like "*$head*") {
-            Write-Host "DEPLOYED: $live"
-            exit 0
-        }
-
-        Write-Host ''
         if (-not $reachable) {
-            Write-Host "UNREACHABLE. Neither $($origins -join ' nor ') answered /health/version - cannot say what the box runs."
-            Write-Host 'This is NOT proof of a failed deploy. Check the box directly (scripts/proxmox-triage.ps1).'
-            exit 1
+            Write-Host "box: unreachable ($($origins -join ', ')); check it with scripts/proxmox-triage.ps1."
         }
-        Write-Host "NOT DEPLOYED. box reports '$live', HEAD is $head."
-        Write-Host 'A cancelled or skipped run ships nothing - re-run the workflow for THIS commit.'
-        exit 1
+        elseif ($live -like "*$head*") {
+            Write-Host "box: already serves this commit ($live)."
+        }
+        else {
+            Write-Host "box: serves '$live', not $($head.Substring(0,8)). Run release.yml to stable to deploy it."
+        }
+        exit 0
     }
 
     Write-Host ''
