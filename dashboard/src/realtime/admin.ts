@@ -47,9 +47,11 @@ import type {
   AdminTrustSafetyPayload,
 } from './payloads';
 
-// What a registry push says about one row. Absent fields stay as they are.
-function patchOf(update: AdminChannelRegistryPayload): Partial<AdminTenant> {
-  const patch: Partial<AdminTenant> = {};
+type ChannelPatch = Partial<NonNullable<AdminTenant['channel']>>;
+
+// What a registry push says about one channel. Absent fields stay as they are.
+function patchOf(update: AdminChannelRegistryPayload): ChannelPatch {
+  const patch: ChannelPatch = {};
 
   if (update.isLive !== undefined) {
     patch.isLive = update.isLive;
@@ -62,6 +64,18 @@ function patchOf(update: AdminChannelRegistryPayload): Partial<AdminTenant> {
   return patch;
 }
 
+// A row is a person; only a streamer row carries a channel, and only that channel takes the push.
+function holdsChannel(row: AdminTenant, broadcasterId: string): boolean {
+  return row.channel?.broadcasterId === broadcasterId;
+}
+
+function patchRow(row: AdminTenant, broadcasterId: string, patch: ChannelPatch) {
+  if (!row.channel || !holdsChannel(row, broadcasterId))
+    return row;
+
+  return { ...row, channel: { ...row.channel, ...patch } } as const satisfies AdminTenant;
+}
+
 function applyRegistryUpdate(
   { queries }: HubEventContext,
   update: AdminChannelRegistryPayload,
@@ -72,17 +86,13 @@ function applyRegistryUpdate(
   for (const [key, page] of queries.getQueriesData<AdminTenantsPage>({
     queryKey: adminTenantsPrefix,
   })) {
-    if (!page?.data?.some((row: AdminTenant) => row.id === update.broadcasterId)) continue;
+    if (!page?.data?.some((row: AdminTenant) => holdsChannel(row, update.broadcasterId))) continue;
 
     found = true;
 
     queries.setQueryData<AdminTenantsPage>(key, {
       ...page,
-      data: page.data.map((row) =>
-        row.id === update.broadcasterId
-          ? { ...row, ...patch }
-          : row,
-      ),
+      data: page.data.map((row) => patchRow(row, update.broadcasterId, patch)),
     });
   }
 

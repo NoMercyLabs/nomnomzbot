@@ -96,7 +96,7 @@ afterEach(() => {
 
 describe('View as is a full identity swap', () => {
   it('hides the View as entries and Platform admin from the profile menu while previewing', async () => {
-    const router = makeRouter(['dashboard-admin-channels', 'dashboard-settings']);
+    const router = makeRouter(['dashboard-admin-tenants', 'dashboard-settings']);
 
     const mountMenu = async (): Promise<string> => {
       const menu = mount(ProfileMenu, {

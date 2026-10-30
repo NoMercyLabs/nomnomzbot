@@ -36,6 +36,13 @@ import { errorText } from '@/lib/errors';
 
 export type ActAsChannel = { id: string; name: string };
 
+type StreamerRow = AdminTenant & { channel: NonNullable<AdminTenant['channel']> };
+
+function hasChannel(row: AdminTenant): row is StreamerRow {
+  // The server leaves a null field out of the JSON, so a viewer row has no channel key at all.
+  return Boolean(row.channel);
+}
+
 type Length = '30' | '60' | '120' | '240';
 
 const props = defineProps<{ channel: ActAsChannel | null }>();
@@ -59,12 +66,16 @@ const personTyped = refDebounced(personSearch, 300);
 
 const channelParams = computed<AdminTenantsParams>(() => ({
   search: channelTyped.value.trim(),
+  kind: 'streamer',
   page: 1,
   take: 50,
 }));
 
 const tenants = useAdminTenants(channelParams);
-const channelOptions = computed<AdminTenant[]>(() => tenants.data.value?.data ?? []);
+
+// Only a streamer has a channel to act in; the list asks for streamers, and a row without a channel is skipped.
+const channelOptions = computed<StreamerRow[]>(() =>
+  (tenants.data.value?.data ?? []).filter(hasChannel));
 const channelId = computed<string | null>(() => picked.value?.id ?? null);
 const members = useTenantMembers(channelId, personTyped);
 const people = computed<TenantMember[]>(() => members.data.value?.data ?? []);
@@ -100,8 +111,8 @@ watch(
   { immediate: true },
 );
 
-function pickChannel(row: AdminTenant): void {
-  picked.value = { id: row.id, name: row.name };
+function pickChannel({ channel }: StreamerRow): void {
+  picked.value = { id: channel.broadcasterId, name: channel.name };
   person.value = null;
 }
 
@@ -154,15 +165,15 @@ async function submit(): Promise<void> {
         v-if="channelOptions.length > 0"
         class="max-h-40 overflow-auto rounded-lg border border-border p-1"
       >
-        <li v-for="row in channelOptions" :key="row.id">
+        <li v-for="row in channelOptions" :key="row.channel.broadcasterId">
           <button
             type="button"
             data-act-as-channel-option
-            :aria-pressed="row.id === channelId"
+            :aria-pressed="row.channel.broadcasterId === channelId"
             class="flex min-h-9 w-full items-center rounded-md px-2 text-left text-sm outline-none hover:bg-accent focus-visible:ring-2 focus-visible:ring-ring aria-pressed:bg-accent aria-pressed:font-medium"
             @click="pickChannel(row)"
           >
-            {{ row.name }}
+            {{ row.channel.name }}
           </button>
         </li>
       </ul>

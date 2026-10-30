@@ -84,8 +84,8 @@ function mountMenu(): void {
         component: page,
       },
       {
-        name: 'dashboard-admin-channels',
-        path: '/admin/channels',
+        name: 'dashboard-admin-tenants',
+        path: '/admin/tenants',
         component: page,
       },
       {

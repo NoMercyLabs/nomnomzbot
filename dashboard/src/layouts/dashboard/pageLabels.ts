@@ -20,7 +20,7 @@ import { settingsNav } from './settingsNavigation';
 // A page that opens from a sidebar page but has no entry of its own is named after the page it opens from.
 const childPages: ReadonlyMap<string, string> = new Map([
   ['dashboard-pipeline', 'dashboard-pipelines'],
-  ['dashboard-admin-channels-console', 'dashboard-admin-channels'],
+  ['dashboard-admin-channels-console', 'dashboard-admin-tenants'],
 ]);
 
 const labels: ReadonlyMap<string, string> = new Map(

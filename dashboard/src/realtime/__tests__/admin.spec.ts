@@ -19,12 +19,28 @@ import type { AdminChannelRegistryPayload } from '../payloads';
 
 type Page = { data: Record<string, unknown>[]; total: number };
 
+// A tenant row is a person; a streamer carries the state of their channel, a viewer carries none.
 const row = (id: string, status: string, isLive: boolean) => ({
-  id,
-  name: id,
-  status,
-  isLive,
+  userId: `user-${id}`,
+  displayName: id,
+  kind: 'streamer',
+  channel: {
+    broadcasterId: id,
+    name: id,
+    status,
+    isLive,
+  },
 }) as const satisfies Record<string, unknown>;
+
+const viewer = (id: string) => ({
+  userId: `user-${id}`,
+  displayName: id,
+  kind: 'viewer',
+  channel: null,
+}) as const satisfies Record<string, unknown>;
+
+const channelOf = (entry: Record<string, unknown> | undefined) =>
+  entry?.channel as Record<string, unknown> | null | undefined;
 const first: AdminTenantsParams = { page: 1, take: 25 };
 const second: AdminTenantsParams = { page: 2, take: 25 };
 
@@ -43,13 +59,13 @@ function seed(): QueryClient {
   const queries = new QueryClient();
 
   queries.setQueryData<Page>(adminTenantsKey(first), {
-    data: [row('a', 'active', false), row('b', 'active', false)],
-    total: 3,
+    data: [row('a', 'active', false), row('b', 'active', false), viewer('v')],
+    total: 4,
   });
 
   queries.setQueryData<Page>(adminTenantsKey(second), {
     data: [row('c', 'active', false)],
-    total: 3,
+    total: 4,
   });
 
   return queries;
@@ -69,16 +85,17 @@ describe('ReceiveChannelRegistryUpdate', () => {
 
     const page2 = queries.getQueryData<Page>(adminTenantsKey(second))!;
 
-    expect(page2.data[0]).toMatchObject({
-      id: 'c',
+    expect(channelOf(page2.data[0])).toMatchObject({
+      broadcasterId: 'c',
       isLive: true,
       status: 'active',
     });
 
-    expect(page2.total).toBe(3);
+    expect(page2.data[0]).toMatchObject({ userId: 'user-c', kind: 'streamer' });
+    expect(page2.total).toBe(4);
     const page1 = queries.getQueryData<Page>(adminTenantsKey(first))!;
 
-    expect(page1.data.map((r) => r.isLive)).toEqual([false, false]);
+    expect(page1.data.map((r) => channelOf(r)?.isLive)).toEqual([false, false, undefined]);
     expect(queries.getQueryState(adminTenantsKey(second))?.isInvalidated).toBe(false);
   });
 
@@ -91,14 +108,20 @@ describe('ReceiveChannelRegistryUpdate', () => {
       isLive: true,
     });
 
+    const live = queries.getQueryData<Page>(adminTenantsKey(first))!.data[0];
+
+    expect(channelOf(live)?.isLive).toBe(true);
+
     push(queries, {
       broadcasterId: 'a',
       channelName: 'a',
       isLive: false,
     });
 
-    expect(queries.getQueryData<Page>(adminTenantsKey(first))!.data[0]).toMatchObject({
-      id: 'a',
+    const person = queries.getQueryData<Page>(adminTenantsKey(first))!.data[0];
+
+    expect(channelOf(person)).toMatchObject({
+      broadcasterId: 'a',
       isLive: false,
     });
   });
@@ -114,8 +137,10 @@ describe('ReceiveChannelRegistryUpdate', () => {
 
     push(queries, { broadcasterId: 'a', status: 'Suspended' });
 
-    expect(queries.getQueryData<Page>(adminTenantsKey(first))!.data[0]).toMatchObject({
-      id: 'a',
+    const rows = queries.getQueryData<Page>(adminTenantsKey(first))!.data;
+
+    expect(channelOf(rows[0])).toMatchObject({
+      broadcasterId: 'a',
       status: 'Suspended',
       isLive: false,
     });
@@ -125,10 +150,24 @@ describe('ReceiveChannelRegistryUpdate', () => {
       status: 'Suspended',
     });
 
-    expect(queries.getQueryData<Page>(adminTenantsKey(first))!.data[1]).toMatchObject({
-      id: 'b',
+    expect(channelOf(rows[1])).toMatchObject({
+      broadcasterId: 'b',
       status: 'active',
     });
+  });
+
+  it('leaves a viewer row, which has no channel, exactly as it was', () => {
+    const queries = seed();
+
+    push(queries, {
+      broadcasterId: 'a',
+      isLive: true,
+      status: 'Suspended',
+    });
+
+    const rows = queries.getQueryData<Page>(adminTenantsKey(first))!.data;
+
+    expect(rows[2]).toEqual(viewer('v'));
   });
 
   it('does not throw for an unknown id and marks the lists stale', () => {
@@ -145,10 +184,9 @@ describe('ReceiveChannelRegistryUpdate', () => {
     expect(queries.getQueryState(adminTenantsKey(first))?.isInvalidated).toBe(true);
     expect(queries.getQueryState(adminTenantsKey(second))?.isInvalidated).toBe(true);
 
-    expect(queries.getQueryData<Page>(adminTenantsKey(first))!.data.map((r) => r.isLive)).toEqual([
-      false,
-      false,
-    ]);
+    const rows = queries.getQueryData<Page>(adminTenantsKey(first))!.data;
+
+    expect(rows.map((r) => channelOf(r)?.isLive)).toEqual([false, false, undefined]);
   });
 
   it('does not throw when nothing is cached', () => {

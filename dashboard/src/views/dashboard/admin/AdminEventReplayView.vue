@@ -55,7 +55,18 @@ const outcome = ref<string | null>(null);
 const counted = ref<{ key: string; count: number } | null>(null);
 
 const projections = useReplayableProjections();
-const tenants = useAdminTenants({ page: 1, take: 100 });
+const tenants = useAdminTenants({
+  kind: 'streamer',
+  page: 1,
+  take: 100,
+});
+
+// Replay runs on one channel, so the choices are the channels of the streamers in the list.
+const channels = computed(() =>
+  (tenants.data.value?.data ?? []).flatMap(({ channel }) =>
+    channel === null
+      ? []
+      : [channel]));
 const history = useReplayHistory();
 const previewing = useReplayPreview();
 const replaying = useReplayExecute();
@@ -72,7 +83,7 @@ const eventTypes = computed(() => {
 });
 
 const tenantChoices = computed(() =>
-  (tenants.data.value?.data ?? []).map((entry) => ({ value: entry.id, label: entry.name })));
+  channels.value.map((channel) => ({ value: channel.broadcasterId, label: channel.name })));
 const projectionChoices = computed(() =>
   (projections.data.value ?? []).map((entry) => ({
     value: entry.projectionName,
@@ -122,7 +133,7 @@ const confirmedCount = computed<number | null>(() => {
 });
 
 const channelName = computed(() => {
-  const match = tenants.data.value?.data?.find((entry) => entry.id === broadcasterId.value);
+  const match = channels.value.find((channel) => channel.broadcasterId === broadcasterId.value);
 
   return match?.name ?? broadcasterId.value;
 });

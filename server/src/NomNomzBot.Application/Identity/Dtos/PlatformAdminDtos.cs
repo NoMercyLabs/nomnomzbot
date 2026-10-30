@@ -11,15 +11,31 @@
 
 namespace NomNomzBot.Application.Identity.Dtos;
 
-/// <summary>One tenant row for the operator console (stream-admin.md §4 Platform admin).</summary>
+/// <summary>
+/// One tenant row for the operator console: a PERSON who joined the system (stream-admin.md §4 Platform admin).
+/// A streamer carries their <see cref="Channel"/>; a viewer who signed in and linked platforms has none.
+/// <paramref name="Kind"/> is <c>streamer</c> | <c>viewer</c>; <paramref name="Platforms"/> are the lower-case
+/// provider keys of the linked accounts; <paramref name="LastActive"/> is the user's last-seen time.
+/// </summary>
 public sealed record AdminTenantDto(
-    Guid Id,
+    Guid UserId,
+    string DisplayName,
+    string Login,
+    string Kind,
+    IReadOnlyList<string> Platforms,
+    DateTime? LastActive,
+    DateTime CreatedAt,
+    AdminTenantChannelDto? Channel
+);
+
+/// <summary>The channel state inside a streamer's <see cref="AdminTenantDto"/> row.</summary>
+public sealed record AdminTenantChannelDto(
+    Guid BroadcasterId,
     string Name,
-    string TwitchChannelId,
     string Status,
     string BillingTierKey,
     bool IsLive,
-    DateTime CreatedAt,
+    bool IsOnboarded,
     DateTime? SuspendedAt
 );
 
@@ -54,8 +70,12 @@ public sealed record AdminTenantDetailDto(
     DateTime? SuspendedAt
 );
 
-/// <summary>Tenant-list filters (stream-admin.md §4).</summary>
-public sealed record AdminTenantQuery(string? Search, string? Status, bool? IsLive);
+/// <summary>
+/// Tenant-list filters (stream-admin.md §4). <c>Search</c> matches login, display name or channel name;
+/// <c>Kind</c> is <c>streamer</c> | <c>viewer</c>; <c>Status</c> and <c>IsLive</c> apply to the channel, so they
+/// leave viewers out.
+/// </summary>
+public sealed record AdminTenantQuery(string? Search, string? Status, bool? IsLive, string? Kind);
 
 /// <summary><c>NewStatus</c> is <c>suspended</c> | <c>platform_banned</c> (stream-admin.md §4).</summary>
 public sealed record SuspendTenantRequest(string NewStatus, string Reason);

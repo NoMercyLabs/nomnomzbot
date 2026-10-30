@@ -3665,168 +3665,6 @@
         }
       }
     },
-    "/api/v{version}/admin/users": {
-      "get": {
-        "tags": [
-          "Admin"
-        ],
-        "summary": "Returns real bot USERS — operators/streamers/mods who authenticate and use the dashboard, or own a\r\nchannel, plus platform staff. Auto-created chatter rows, bot accounts, and anonymized users are excluded,\r\nso this list (and the \"act as\" support impersonation built on it) targets people who actually use the bot.",
-        "parameters": [
-          {
-            "name": "search",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Page",
-            "in": "query",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32"
-            }
-          },
-          {
-            "name": "Take",
-            "in": "query",
-            "description": "Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-\r\nconvention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to\r\nnothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the\r\ndata was invisible. Both query keys now populate the same value.",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32"
-            }
-          },
-          {
-            "name": "PageSize",
-            "in": "query",
-            "schema": {
-              "pattern": "^-?(?:0|[1-9]\\d*)$",
-              "type": [
-                "integer",
-                "string"
-              ],
-              "format": "int32"
-            }
-          },
-          {
-            "name": "Sort",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Order",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "Search",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "role",
-            "in": "query",
-            "schema": {
-              "type": "string"
-            }
-          },
-          {
-            "name": "version",
-            "in": "path",
-            "required": true,
-            "schema": {
-              "type": "string"
-            }
-          }
-        ],
-        "responses": {
-          "400": {
-            "description": "Bad Request",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "401": {
-            "description": "Unauthorized",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "403": {
-            "description": "Forbidden",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "404": {
-            "description": "Not Found",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "429": {
-            "description": "Too Many Requests",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "500": {
-            "description": "Internal Server Error",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/StatusResponseOfObject"
-                }
-              }
-            }
-          },
-          "200": {
-            "description": "OK",
-            "content": {
-              "application/json": {
-                "schema": {
-                  "$ref": "#/components/schemas/PaginatedResponseOfAdminUser"
-                }
-              }
-            }
-          }
-        }
-      }
-    },
     "/api/v{version}/admin/system": {
       "get": {
         "tags": [
@@ -75805,7 +75643,7 @@
         "tags": [
           "Admin"
         ],
-        "summary": "Paged tenant listing with search/status/live filters.",
+        "summary": "Paged tenant listing: one row per person who joined the system, their channel inside. Filters: search\r\n(login, display name or channel name), kind (`streamer` | `viewer`), status and live (channel).",
         "parameters": [
           {
             "name": "search",
@@ -75826,6 +75664,13 @@
             "in": "query",
             "schema": {
               "type": "boolean"
+            }
+          },
+          {
+            "name": "kind",
+            "in": "query",
+            "schema": {
+              "type": "string"
             }
           },
           {
@@ -106669,25 +106514,77 @@
       },
       "AdminTenant": {
         "required": [
-          "id",
-          "name",
-          "twitchChannelId",
-          "status",
-          "billingTierKey",
-          "isLive",
-          "createdAt"
+          "userId",
+          "displayName",
+          "login",
+          "kind",
+          "platforms",
+          "createdAt",
+          "channel"
         ],
         "type": "object",
         "properties": {
-          "id": {
+          "userId": {
+            "type": "string",
+            "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
+            "format": "ulid"
+          },
+          "displayName": {
+            "type": "string"
+          },
+          "login": {
+            "type": "string"
+          },
+          "kind": {
+            "type": "string"
+          },
+          "platforms": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "lastActive": {
+            "type": [
+              "null",
+              "string"
+            ],
+            "format": "date-time"
+          },
+          "createdAt": {
+            "type": "string",
+            "format": "date-time"
+          },
+          "channel": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/AdminTenantChannel"
+              }
+            ]
+          }
+        },
+        "description": "One tenant row for the operator console: a PERSON who joined the system (stream-admin.md §4 Platform admin).\r\nA streamer carries their AdminTenantChannelDto? AdminTenantDto.Channel; a viewer who signed in and linked platforms has none.\r\nKind is `streamer` | `viewer`; Platforms are the lower-case\r\nprovider keys of the linked accounts; LastActive is the user's last-seen time."
+      },
+      "AdminTenantChannel": {
+        "required": [
+          "broadcasterId",
+          "name",
+          "status",
+          "billingTierKey",
+          "isLive",
+          "isOnboarded"
+        ],
+        "type": "object",
+        "properties": {
+          "broadcasterId": {
             "type": "string",
             "description": "Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.",
             "format": "ulid"
           },
           "name": {
-            "type": "string"
-          },
-          "twitchChannelId": {
             "type": "string"
           },
           "status": {
@@ -106699,9 +106596,8 @@
           "isLive": {
             "type": "boolean"
           },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
+          "isOnboarded": {
+            "type": "boolean"
           },
           "suspendedAt": {
             "type": [
@@ -106711,7 +106607,7 @@
             "format": "date-time"
           }
         },
-        "description": "One tenant row for the operator console (stream-admin.md §4 Platform admin)."
+        "description": "The channel state inside a streamer's AdminTenantDto row."
       },
       "AdminTenantDetail": {
         "required": [
@@ -106990,56 +106886,6 @@
           }
         },
         "description": "One metered quantity for a tenant's usage period, straight off the real `UsageRecord` rows, joined\r\nagainst the owner-authored `PricedUnit` catalogue (S-ADMIN-4d). long? AdminTenantUsageMetricDto.CostMinorUnits and\r\nstring? AdminTenantUsageMetricDto.Currency are both `null` when string AdminTenantUsageMetricDto.MetricKey has no `PricedUnit` row —\r\nUNPRICED, never reported as a zero cost."
-      },
-      "AdminUser": {
-        "required": [
-          "id",
-          "displayName",
-          "login",
-          "role",
-          "channelCount",
-          "createdAt"
-        ],
-        "type": "object",
-        "properties": {
-          "id": {
-            "type": "string"
-          },
-          "displayName": {
-            "type": "string"
-          },
-          "login": {
-            "type": "string"
-          },
-          "email": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "role": {
-            "type": "string"
-          },
-          "channelCount": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "createdAt": {
-            "type": "string",
-            "format": "date-time"
-          },
-          "lastActive": {
-            "type": [
-              "null",
-              "string"
-            ],
-            "format": "date-time"
-          }
-        }
       },
       "AdminWebhookDelivery": {
         "required": [
@@ -124088,44 +123934,6 @@
             "type": "array",
             "items": {
               "$ref": "#/components/schemas/AdminTenantUsage"
-            }
-          },
-          "nextPage": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          },
-          "hasMore": {
-            "type": "boolean"
-          },
-          "nextCursor": {
-            "type": [
-              "null",
-              "string"
-            ]
-          },
-          "total": {
-            "pattern": "^-?(?:0|[1-9]\\d*)$",
-            "type": [
-              "null",
-              "integer",
-              "string"
-            ],
-            "format": "int32"
-          }
-        }
-      },
-      "PaginatedResponseOfAdminUser": {
-        "type": "object",
-        "properties": {
-          "data": {
-            "type": "array",
-            "items": {
-              "$ref": "#/components/schemas/AdminUser"
             }
           },
           "nextPage": {

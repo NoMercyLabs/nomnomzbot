@@ -703,17 +703,339 @@ public sealed class PlatformAdminServiceTests
 
         Result<PagedList<AdminTenantDto>> suspendedOnly = await sut.ListTenantsAsync(
             principal,
-            new(null, "platform_banned", null),
+            new(null, "platform_banned", null, null),
             Page
         );
         suspendedOnly.Value.Items.Should().ContainSingle();
-        suspendedOnly.Value.Items[0].Id.Should().Be(banned);
+        suspendedOnly.Value.Items[0].Channel!.BroadcasterId.Should().Be(banned);
 
         Result<AdminTenantDetailDto> detail = await sut.GetTenantAsync(principal, active);
         detail.IsSuccess.Should().BeTrue(detail.ErrorMessage);
         detail.Value.Name.Should().Be("active_chan");
         detail.Value.Status.Should().Be("active");
         detail.Value.OwnerDisplayName.Should().Be("active_chan");
+    }
+
+    /// <summary>
+    /// A person row for the tenant list: a user with one identity per <paramref name="providers"/> entry,
+    /// optionally an auth session (a sign-in) and an owned channel. Returns the user id.
+    /// </summary>
+    private static Guid SeedPerson(
+        AuthDbContext db,
+        string username,
+        string displayName,
+        string[] providers,
+        bool withSession,
+        bool isBot = false,
+        bool isAnonymized = false,
+        string? channelName = null,
+        Action<Channel>? configureChannel = null
+    )
+    {
+        Guid userId = Guid.NewGuid();
+        db.Users.Add(
+            new()
+            {
+                Id = userId,
+                Username = username,
+                UsernameNormalized = username.ToLowerInvariant(),
+                DisplayName = displayName,
+                IsBot = isBot,
+                IsAnonymized = isAnonymized,
+            }
+        );
+        foreach (string provider in providers)
+            db.UserIdentities.Add(
+                new()
+                {
+                    UserId = userId,
+                    Provider = provider,
+                    ProviderUserId = $"{provider}-{username}",
+                    ProviderUsername = username,
+                }
+            );
+        if (withSession)
+            db.AuthSessions.Add(
+                new()
+                {
+                    UserId = userId,
+                    ClientType = "web",
+                    LastSeenAt = Now.UtcDateTime,
+                    ExpiresAt = Now.UtcDateTime.AddDays(7),
+                }
+            );
+        if (channelName is not null)
+        {
+            Channel channel = new()
+            {
+                Id = Guid.NewGuid(),
+                OwnerUserId = userId,
+                TwitchChannelId = $"tw-{channelName}",
+                Name = channelName,
+                NameNormalized = channelName.ToLowerInvariant(),
+            };
+            configureChannel?.Invoke(channel);
+            db.Channels.Add(channel);
+        }
+        return userId;
+    }
+
+    [Fact]
+    public async Task ListTenants_lists_a_viewer_who_signed_in_and_linked_two_platforms_with_no_channel()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "tenant:read");
+        Guid viewer = SeedPerson(
+            db,
+            "linked_viewer",
+            "Linked Viewer",
+            [AuthEnums.Platform.Twitch, AuthEnums.Platform.YouTube],
+            withSession: true
+        );
+        await db.SaveChangesAsync();
+
+        Result<PagedList<AdminTenantDto>> result = await sut.ListTenantsAsync(
+            principal,
+            new(null, null, null, null),
+            Page
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.TotalCount.Should().Be(1);
+        AdminTenantDto row = result.Value.Items.Should().ContainSingle().Subject;
+        row.UserId.Should().Be(viewer);
+        row.Login.Should().Be("linked_viewer");
+        row.DisplayName.Should().Be("Linked Viewer");
+        row.Kind.Should().Be("viewer");
+        row.Platforms.Should().Equal("twitch", "youtube");
+        row.Channel.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task ListTenants_lists_a_streamer_once_with_the_channel_inside()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "tenant:read");
+        DateTime suspendedAt = Now.UtcDateTime.AddHours(-3);
+        Guid streamer = SeedPerson(
+            db,
+            "stream_er",
+            "Stream Er",
+            [AuthEnums.Platform.Twitch],
+            withSession: true,
+            channelName: "stream_er",
+            configureChannel: c =>
+            {
+                c.Status = "suspended";
+                c.BillingTierKey = "pro";
+                c.IsLive = true;
+                c.IsOnboarded = true;
+                c.SuspendedAt = suspendedAt;
+            }
+        );
+        await db.SaveChangesAsync();
+        Guid channelId = (await db.Channels.SingleAsync(c => c.OwnerUserId == streamer)).Id;
+
+        Result<PagedList<AdminTenantDto>> result = await sut.ListTenantsAsync(
+            principal,
+            new(null, null, null, null),
+            Page
+        );
+
+        AdminTenantDto row = result.Value.Items.Should().ContainSingle().Subject;
+        result.Value.TotalCount.Should().Be(1);
+        row.UserId.Should().Be(streamer);
+        row.Kind.Should().Be("streamer");
+        row.Platforms.Should().Equal("twitch");
+        row.Channel.Should().NotBeNull();
+        row.Channel!.BroadcasterId.Should().Be(channelId);
+        row.Channel.Name.Should().Be("stream_er");
+        row.Channel.Status.Should().Be("suspended");
+        row.Channel.BillingTierKey.Should().Be("pro");
+        row.Channel.IsLive.Should().BeTrue();
+        row.Channel.IsOnboarded.Should().BeTrue();
+        row.Channel.SuspendedAt.Should().Be(suspendedAt);
+    }
+
+    [Fact]
+    public async Task ListTenants_skips_chatters_bots_and_anonymized_people()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "tenant:read");
+        SeedPerson(db, "plain_chatter", "Plain Chatter", ["twitch"], withSession: false);
+        SeedPerson(db, "the_bot", "The Bot", ["twitch"], withSession: true, isBot: true);
+        SeedPerson(
+            db,
+            "erased_one",
+            "Erased One",
+            ["twitch"],
+            withSession: true,
+            isAnonymized: true
+        );
+        SeedPerson(
+            db,
+            "bot_channel_owner",
+            "Bot Channel Owner",
+            ["twitch"],
+            withSession: false,
+            isBot: true,
+            channelName: "bot_channel_owner"
+        );
+        Guid real = SeedPerson(db, "real_person", "Real Person", ["twitch"], withSession: true);
+        await db.SaveChangesAsync();
+
+        Result<PagedList<AdminTenantDto>> result = await sut.ListTenantsAsync(
+            principal,
+            new(null, null, null, null),
+            Page
+        );
+
+        result.Value.TotalCount.Should().Be(1);
+        result.Value.Items.Select(i => i.UserId).Should().Equal(real);
+    }
+
+    [Fact]
+    public async Task ListTenants_counts_a_platform_principal_without_session_or_channel()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "tenant:read");
+        Guid staff = SeedUser(db, "staff_member", isPlatformPrincipal: true);
+        await db.SaveChangesAsync();
+
+        Result<PagedList<AdminTenantDto>> result = await sut.ListTenantsAsync(
+            principal,
+            new(null, null, null, null),
+            Page
+        );
+
+        AdminTenantDto row = result.Value.Items.Should().ContainSingle().Subject;
+        row.UserId.Should().Be(staff);
+        row.Kind.Should().Be("viewer");
+        row.Platforms.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ListTenants_search_matches_username_display_name_or_channel_name()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "tenant:read");
+        Guid byLogin = SeedPerson(db, "zorblax", "Plain One", ["twitch"], withSession: true);
+        Guid byDisplay = SeedPerson(db, "plain_two", "Quillfeather", ["twitch"], withSession: true);
+        Guid byChannel = SeedPerson(
+            db,
+            "plain_three",
+            "Plain Three",
+            ["twitch"],
+            withSession: true,
+            channelName: "Mugwump_Plays"
+        );
+        SeedPerson(db, "nothing_alike", "Nothing Alike", ["twitch"], withSession: true);
+        await db.SaveChangesAsync();
+
+        async Task<List<Guid>> Ids(string search) =>
+            (await sut.ListTenantsAsync(principal, new(search, null, null, null), Page))
+                .Value.Items.Select(i => i.UserId)
+                .ToList();
+
+        (await Ids("ZORB")).Should().Equal(byLogin);
+        (await Ids("quillF")).Should().Equal(byDisplay);
+        (await Ids("mugwump")).Should().Equal(byChannel);
+        (await Ids("no-such-person")).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ListTenants_kind_filter_splits_streamers_from_viewers()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "tenant:read");
+        Guid streamer = SeedPerson(
+            db,
+            "kind_streamer",
+            "Kind Streamer",
+            ["twitch"],
+            withSession: true,
+            channelName: "kind_streamer"
+        );
+        Guid viewer = SeedPerson(db, "kind_viewer", "Kind Viewer", ["youtube"], withSession: true);
+        await db.SaveChangesAsync();
+
+        async Task<List<Guid>> Ids(string? kind) =>
+            (await sut.ListTenantsAsync(principal, new(null, null, null, kind), Page))
+                .Value.Items.Select(i => i.UserId)
+                .ToList();
+
+        (await Ids("streamer")).Should().Equal(streamer);
+        (await Ids("viewer")).Should().Equal(viewer);
+        (await Ids(null)).Should().BeEquivalentTo([streamer, viewer]);
+    }
+
+    [Fact]
+    public async Task ListTenants_status_and_live_filters_apply_to_the_channel_and_drop_viewers()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "tenant:read");
+        Guid liveActive = SeedPerson(
+            db,
+            "live_active",
+            "Live Active",
+            ["twitch"],
+            withSession: true,
+            channelName: "live_active",
+            configureChannel: c => c.IsLive = true
+        );
+        Guid offlineBanned = SeedPerson(
+            db,
+            "off_banned",
+            "Off Banned",
+            ["twitch"],
+            withSession: true,
+            channelName: "off_banned",
+            configureChannel: c => c.Status = "platform_banned"
+        );
+        SeedPerson(db, "just_viewer", "Just Viewer", ["youtube"], withSession: true);
+        await db.SaveChangesAsync();
+
+        async Task<List<Guid>> Ids(string? status, bool? isLive) =>
+            (await sut.ListTenantsAsync(principal, new(null, status, isLive, null), Page))
+                .Value.Items.Select(i => i.UserId)
+                .ToList();
+
+        (await Ids("platform_banned", null)).Should().Equal(offlineBanned);
+        (await Ids(null, true)).Should().Equal(liveActive);
+        (await Ids(null, false)).Should().Equal(offlineBanned);
+        (await Ids("active", true)).Should().Equal(liveActive);
+        (await Ids("active", false)).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ListTenants_pages_the_newest_person_first()
+    {
+        (PlatformAdminService sut, AuthDbContext db, _, _, _) = Build();
+        Guid principal = SeedPrincipal(db, "tenant:read");
+        Guid oldest = SeedPerson(db, "p_oldest", "Oldest", ["twitch"], withSession: true);
+        Guid middle = SeedPerson(db, "p_middle", "Middle", ["twitch"], withSession: true);
+        Guid newest = SeedPerson(db, "p_newest", "Newest", ["twitch"], withSession: true);
+        await db.SaveChangesAsync();
+        // The interceptor stamps CreatedAt on insert, so age the rows in a second write.
+        (await db.Users.SingleAsync(u => u.Id == oldest)).CreatedAt = Now.UtcDateTime.AddDays(-3);
+        (await db.Users.SingleAsync(u => u.Id == middle)).CreatedAt = Now.UtcDateTime.AddDays(-2);
+        (await db.Users.SingleAsync(u => u.Id == newest)).CreatedAt = Now.UtcDateTime.AddDays(-1);
+        await db.SaveChangesAsync();
+
+        Result<PagedList<AdminTenantDto>> first = await sut.ListTenantsAsync(
+            principal,
+            new(null, null, null, null),
+            new(1, 2, null, null)
+        );
+        Result<PagedList<AdminTenantDto>> second = await sut.ListTenantsAsync(
+            principal,
+            new(null, null, null, null),
+            new(2, 2, null, null)
+        );
+
+        first.Value.TotalCount.Should().Be(3);
+        first.Value.Items.Select(i => i.UserId).Should().Equal(newest, middle);
+        second.Value.Items.Select(i => i.UserId).Should().Equal(oldest);
     }
 
     [Fact]

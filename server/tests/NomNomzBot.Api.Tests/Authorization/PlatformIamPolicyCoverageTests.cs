@@ -51,7 +51,6 @@ public sealed class PlatformIamPolicyCoverageTests
     [Theory]
     [InlineData(nameof(AdminController.GetAdminStats), IamPermissionKeys.PlatformAnalyticsRead)]
     [InlineData(nameof(AdminController.ListChannels), IamPermissionKeys.TenantRead)]
-    [InlineData(nameof(AdminController.ListUsers), IamPermissionKeys.IamManage)]
     [InlineData(nameof(AdminController.GetSystemHealth), IamPermissionKeys.IamManage)]
     [InlineData(nameof(AdminController.GetHealth), IamPermissionKeys.IamManage)]
     [InlineData(nameof(AdminController.GetEvents), IamPermissionKeys.IamManage)]

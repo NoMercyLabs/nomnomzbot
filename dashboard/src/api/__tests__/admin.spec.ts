@@ -49,15 +49,23 @@ vi.mock('../client', () => ({ client: http }));
 const ok = { ok: true, status: 200 } as const satisfies Answer['response'];
 const settle = (): Promise<void> => new Promise((done) => setTimeout(done, 0));
 
+// A row of the tenants list is a person; a streamer carries the state of their channel.
 const tenant = (id: string, status: string) => ({
-  id,
-  name: id,
-  twitchChannelId: `t-${id}`,
-  status,
-  billingTierKey: 'free',
-  isLive: false,
+  userId: `u-${id}`,
+  displayName: id,
+  login: id,
+  kind: 'streamer',
+  platforms: ['twitch'],
   createdAt: '2026-01-01T00:00:00Z',
-  suspendedAt: null,
+  channel: {
+    broadcasterId: id,
+    name: id,
+    status,
+    billingTierKey: 'free',
+    isLive: false,
+    isOnboarded: true,
+    suspendedAt: null,
+  },
 }) as const satisfies Record<string, unknown>;
 
 function mount<T>(
@@ -85,7 +93,7 @@ beforeEach(() => {
 });
 
 describe('useAdminTenants', () => {
-  it('sends search, status, isLive, Page and Take as given and caches the page under the params key', async () => {
+  it('sends search, kind, status, isLive, Page and Take as given and caches the page under the params key', async () => {
     http.GET.mockResolvedValue({
       data: {
         data: [tenant('a', 'active')],
@@ -97,6 +105,7 @@ describe('useAdminTenants', () => {
 
     const params: AdminTenantsParams = {
       search: 'ste',
+      kind: 'streamer',
       status: 'active',
       isLive: true,
       page: 2,
@@ -111,14 +120,26 @@ describe('useAdminTenants', () => {
 
     expect(call[1].params?.query).toEqual({
       search: 'ste',
+      kind: 'streamer',
       status: 'active',
       isLive: true,
       Page: 2,
       Take: 50,
     });
 
-    expect(hook.data.value?.data?.map((t) => t.id)).toEqual(['a']);
+    expect(hook.data.value?.data?.map((t) => t.userId)).toEqual(['u-a']);
     expect(queries.getQueryData(adminTenantsKey(params))).toEqual(hook.data.value);
+  });
+
+  it('keeps the streamer list and the any-person list apart in the cache', () => {
+    const everyone = adminTenantsKey({ page: 1, take: 25 });
+    const streamers = adminTenantsKey({
+      kind: 'streamer',
+      page: 1,
+      take: 25,
+    });
+
+    expect(streamers).not.toEqual(everyone);
   });
 
   it('leaves empty filters out of the query', async () => {
@@ -145,10 +166,10 @@ describe('useAdminTenants', () => {
     await settle();
     params.value = { page: 2, take: 25 };
     await Promise.resolve();
-    expect(hook.data.value?.data?.[0]?.id).toBe('a');
+    expect(hook.data.value?.data?.[0]?.channel?.broadcasterId).toBe('a');
     await settle();
     expect((http.GET.mock.calls[1] as Call)[1].params?.query?.Page).toBe(2);
-    expect(hook.data.value?.data?.[0]?.id).toBe('b');
+    expect(hook.data.value?.data?.[0]?.channel?.broadcasterId).toBe('b');
   });
 
   it('turns a refusal into an error state, not an empty list', async () => {

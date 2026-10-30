@@ -30,8 +30,11 @@ export type AdminTenantsPage = components['schemas']['PaginatedResponseOfAdminTe
 export type AdminAccessGrant = components['schemas']['TenantAccessGrant'];
 export type AdminImpersonationToken = components['schemas']['ImpersonationToken'];
 
+export type AdminTenantKind = 'streamer' | 'viewer';
+
 export type AdminTenantsParams = {
   search?: string;
+  kind?: AdminTenantKind;
   status?: string;
   isLive?: boolean;
   page: number;
@@ -47,6 +50,7 @@ export const adminTenantsPrefix: KeyParts = ['admin', 'tenants'];
 
 export const adminTenantsKey = ({
   search,
+  kind,
   status,
   isLive,
   page,
@@ -55,6 +59,7 @@ export const adminTenantsKey = ({
   ...adminTenantsPrefix,
   {
     search,
+    kind,
     status,
     isLive,
     page,
@@ -67,6 +72,7 @@ export const adminTenantKey = (id: string | null): KeyParts => ['admin', 'tenant
 // An empty filter is left out of the request, not sent as an empty string.
 function listQuery({
   search,
+  kind,
   status,
   isLive,
   page,
@@ -76,6 +82,10 @@ function listQuery({
 
   if (search) {
     query.search = search;
+  }
+
+  if (kind) {
+    query.kind = kind;
   }
 
   if (status) {

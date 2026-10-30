@@ -3239,117 +3239,6 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
-    "/api/v{version}/admin/users": {
-        parameters: {
-            query?: never;
-            header?: never;
-            path?: never;
-            cookie?: never;
-        };
-        /**
-         * Returns real bot USERS — operators/streamers/mods who authenticate and use the dashboard, or own a
-         *     channel, plus platform staff. Auto-created chatter rows, bot accounts, and anonymized users are excluded,
-         *     so this list (and the "act as" support impersonation built on it) targets people who actually use the bot.
-         */
-        get: {
-            parameters: {
-                query?: {
-                    search?: string;
-                    Page?: number | string;
-                    /**
-                     * @description Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-
-                     *     convention name every frontend caller actually sends. Before this alias, `?pageSize=100` bound to
-                     *     nothing and silently fell back to 25, so every dashboard list was capped at 25 rows and the rest of the
-                     *     data was invisible. Both query keys now populate the same value.
-                     */
-                    Take?: number | string;
-                    PageSize?: number | string;
-                    Sort?: string;
-                    Order?: string;
-                    Search?: string;
-                    role?: string;
-                };
-                header?: never;
-                path: {
-                    version: string;
-                };
-                cookie?: never;
-            };
-            requestBody?: never;
-            responses: {
-                /** @description OK */
-                200: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["PaginatedResponseOfAdminUser"];
-                    };
-                };
-                /** @description Bad Request */
-                400: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Unauthorized */
-                401: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Forbidden */
-                403: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Not Found */
-                404: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Too Many Requests */
-                429: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-                /** @description Internal Server Error */
-                500: {
-                    headers: {
-                        [name: string]: unknown;
-                    };
-                    content: {
-                        "application/json": components["schemas"]["StatusResponseOfObject"];
-                    };
-                };
-            };
-        };
-        put?: never;
-        post?: never;
-        delete?: never;
-        options?: never;
-        head?: never;
-        patch?: never;
-        trace?: never;
-    };
     "/api/v{version}/admin/system": {
         parameters: {
             query?: never;
@@ -64251,13 +64140,17 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Paged tenant listing with search/status/live filters. */
+        /**
+         * Paged tenant listing: one row per person who joined the system, their channel inside. Filters: search
+         *     (login, display name or channel name), kind (`streamer` | `viewer`), status and live (channel).
+         */
         get: {
             parameters: {
                 query?: {
                     search?: string;
                     status?: string;
                     isLive?: boolean;
+                    kind?: string;
                     Page?: number | string;
                     /**
                      * @description Rows per page. Bound from EITHER `Take` (the historical name) OR `pageSize` — the REST-
@@ -89668,20 +89561,40 @@ export interface components {
             /** Format: double */
             cpuPercent: number | string;
         };
-        /** @description One tenant row for the operator console (stream-admin.md §4 Platform admin). */
+        /**
+         * @description One tenant row for the operator console: a PERSON who joined the system (stream-admin.md §4 Platform admin).
+         *     A streamer carries their AdminTenantChannelDto? AdminTenantDto.Channel; a viewer who signed in and linked platforms has none.
+         *     Kind is `streamer` | `viewer`; Platforms are the lower-case
+         *     provider keys of the linked accounts; LastActive is the user's last-seen time.
+         */
         AdminTenant: {
             /**
              * Format: ulid
              * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
              */
-            id: string;
+            userId: string;
+            displayName: string;
+            login: string;
+            kind: string;
+            platforms: string[];
+            /** Format: date-time */
+            lastActive?: null | string;
+            /** Format: date-time */
+            createdAt: string;
+            channel: null | components["schemas"]["AdminTenantChannel"];
+        };
+        /** @description The channel state inside a streamer's AdminTenantDto row. */
+        AdminTenantChannel: {
+            /**
+             * Format: ulid
+             * @description Owned identifier — a 26-character Crockford base32 ULID (the API-boundary encoding of the server's UUIDv7 storage key). Accepted inbound as either this ULID or a raw GUID string.
+             */
+            broadcasterId: string;
             name: string;
-            twitchChannelId: string;
             status: string;
             billingTierKey: string;
             isLive: boolean;
-            /** Format: date-time */
-            createdAt: string;
+            isOnboarded: boolean;
             /** Format: date-time */
             suspendedAt?: null | string;
         };
@@ -89793,19 +89706,6 @@ export interface components {
             /** Format: int64 */
             costMinorUnits?: null | number | string;
             currency?: null | string;
-        };
-        AdminUser: {
-            id: string;
-            displayName: string;
-            login: string;
-            email?: null | string;
-            role: string;
-            /** Format: int32 */
-            channelCount: number | string;
-            /** Format: date-time */
-            createdAt: string;
-            /** Format: date-time */
-            lastActive?: null | string;
         };
         /**
          * @description One delivery attempt across ALL tenants, for the platform-wide delivery log. string AdminWebhookDeliveryDto.EndpointName
@@ -95764,15 +95664,6 @@ export interface components {
         };
         PaginatedResponseOfAdminTenantUsage: {
             data?: components["schemas"]["AdminTenantUsage"][];
-            /** Format: int32 */
-            nextPage?: null | number | string;
-            hasMore?: boolean;
-            nextCursor?: null | string;
-            /** Format: int32 */
-            total?: null | number | string;
-        };
-        PaginatedResponseOfAdminUser: {
-            data?: components["schemas"]["AdminUser"][];
             /** Format: int32 */
             nextPage?: null | number | string;
             hasMore?: boolean;

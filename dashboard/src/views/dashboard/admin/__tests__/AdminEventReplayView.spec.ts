@@ -41,14 +41,23 @@ const projection = {
   subscribedEventTypes: ['chat.message', 'chat.cleared'],
 };
 
+// A person row from the tenants list. The user id and the broadcaster id differ on purpose: replay is
+// scoped by the channel, so the broadcaster id is what it must send.
 const tenant = {
-  id: 'b1',
-  name: 'Alpha',
-  twitchChannelId: '1',
-  status: 'active',
-  billingTierKey: 'free',
-  isLive: false,
+  userId: 'u1',
+  displayName: 'Alpha Person',
+  login: 'alpha',
+  kind: 'streamer',
+  platforms: ['twitch'],
   createdAt: '2026-01-01T00:00:00Z',
+  channel: {
+    broadcasterId: 'b1',
+    name: 'Alpha',
+    status: 'active',
+    billingTierKey: 'free',
+    isLive: false,
+    isOnboarded: true,
+  },
 };
 
 const past = {
@@ -239,6 +248,21 @@ describe('AdminEventReplayView', () => {
     const tenants = [...document.body.querySelectorAll('[data-option]')];
 
     expect(tenants.map((node) => node.textContent?.trim())).toContain('Alpha');
+  });
+
+  it('asks the tenants list for streamers only and labels each by its channel name', async () => {
+    await open();
+
+    const list = calls.find((call) => call.method === 'GET' && call.path.endsWith('/admin/tenants'))!;
+
+    expect(list.options?.params?.query).toMatchObject({ kind: 'streamer', Take: 100 });
+
+    await openChoice('[data-tenant]');
+
+    const labels = [...document.body.querySelectorAll('[data-option]')].map((node) => node.textContent?.trim());
+
+    expect(labels).toContain('Alpha');
+    expect(labels).not.toContain('Alpha Person');
   });
 
   it('offers only the event types the chosen projection subscribes to', async () => {

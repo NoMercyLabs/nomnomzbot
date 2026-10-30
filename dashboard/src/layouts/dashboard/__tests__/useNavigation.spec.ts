@@ -136,7 +136,7 @@ describe('the dashboard navigation', () => {
   });
 
   it('hides an admin entry whose platform key the person does not hold', async () => {
-    const adminPages = ['dashboard-admin-users', 'dashboard-admin-billing', 'dashboard-admin-audit-log'];
+    const adminPages = ['dashboard-admin-tenants', 'dashboard-admin-billing', 'dashboard-admin-audit-log'];
     const router = createRouter({
       history: createMemoryHistory(),
       routes: adminPages.map((name) => ({
@@ -147,16 +147,16 @@ describe('the dashboard navigation', () => {
       })),
     });
 
-    held.platform = ['iam:manage', 'billing:read'];
-    const navigation = await open(router, '/dashboard-admin-users');
+    held.platform = ['tenant:read', 'billing:read'];
+    const navigation = await open(router, '/dashboard-admin-tenants');
 
     expect(navigation.entries.value.map((entry) => entry.route)).toEqual([
-      'dashboard-admin-users',
+      'dashboard-admin-tenants',
       'dashboard-admin-billing',
     ]);
 
     held.platform = null;
-    const unknown = await open(router, '/dashboard-admin-users');
+    const unknown = await open(router, '/dashboard-admin-tenants');
 
     const shown = unknown.entries.value.map((entry) => entry.route);
 

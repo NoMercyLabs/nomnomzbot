@@ -92,8 +92,9 @@ describe('the platform admin route table', () => {
   });
 
   it('puts the admin check on every route of the admin sidebar', () => {
+    // A page may carry more guards after the admin check (Tenants also opens an old channel link); the check comes first.
     const unchecked = adminPages()
-      .filter((route) => route.beforeEnter !== adminOnly)
+      .filter((route) => [route.beforeEnter].flat()[0] !== adminOnly)
       .map((route) => String(route.name));
 
     expect(unchecked).toEqual([]);
@@ -155,7 +156,7 @@ describe('a person who is not a platform admin', () => {
     queryClient.setQueryData(currentUserQuery.queryKey, null);
     const router = realRouter();
 
-    await router.push('/app/admin/users');
+    await router.push('/app/admin/tenants');
 
     expect(router.currentRoute.value.name).toBe(homePage);
   });
@@ -174,20 +175,20 @@ describe('a platform admin who lacks the key of a page', () => {
   it('is sent home from that page and still opens the others', async () => {
     signedInAs(true, everyPageKey.filter((key) => key !== adminPageKeys['dashboard-admin-billing']));
     const billing = realRouter();
-    const users = realRouter();
+    const tenants = realRouter();
 
     await billing.push('/app/admin/billing');
-    await users.push('/app/admin/users');
+    await tenants.push('/app/admin/tenants');
 
     expect(billing.currentRoute.value.name).toBe(homePage);
-    expect(users.currentRoute.value.name).toBe('dashboard-admin-users');
+    expect(tenants.currentRoute.value.name).toBe('dashboard-admin-tenants');
   });
 
   it('is sent home when the bot sent no platform keys at all', async () => {
     signedInAs(true, []);
     const router = realRouter();
 
-    await router.push('/app/admin/users');
+    await router.push('/app/admin/tenants');
 
     expect(router.currentRoute.value.name).toBe(homePage);
   });

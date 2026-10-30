@@ -31,27 +31,41 @@ let entries: Record<string, unknown>[] = [];
 let total: number = 0;
 let refused: boolean = false;
 
+// Two people from the tenants list: a viewer who signed in (no channel) and a streamer. The user id and the
+// broadcaster id differ on purpose: the operator filter takes the first, the channel filter the second.
+const ada = {
+  userId: 'U1',
+  displayName: 'Ada Lovelace',
+  login: 'ada',
+  kind: 'viewer',
+  platforms: ['twitch'],
+  channel: null,
+};
+
+const chanNel = {
+  userId: 'U2',
+  displayName: 'Chan Nel',
+  login: 'channel',
+  kind: 'streamer',
+  platforms: ['twitch'],
+  channel: {
+    broadcasterId: 'T1',
+    name: 'Chan Nel',
+    status: 'active',
+  },
+};
+
 async function answer(path: string, options?: Options) {
   calls.push({ path, query: { ...options?.params?.query } });
 
-  if (path.endsWith('/admin/users')) {
-    return {
-      data: { data: [{
-        id: 'U1',
-        displayName: 'Ada Lovelace',
-        login: 'ada',
-      }], total: 1 },
-      response: { status: 200, ok: true },
-    };
-  }
-
+  // One endpoint answers both pickers: the operator asks for any person, the channel asks for streamers.
   if (path.endsWith('/admin/tenants')) {
+    const streamers = options?.params?.query?.kind === 'streamer';
+
     return {
-      data: { data: [{
-        id: 'T1',
-        name: 'Chan Nel',
-        status: 'active',
-      }], total: 1 },
+      data: { data: streamers
+        ? [chanNel]
+        : [ada, chanNel], total: 1 },
       response: { status: 200, ok: true },
     };
   }
@@ -212,6 +226,13 @@ describe('AdminAuditView', () => {
     const option = document.body.querySelector<HTMLElement>('[data-picker-option]')!;
 
     expect(option.textContent).toContain('Ada Lovelace');
+    expect(option.textContent).toContain('ada');
+
+    // The operator list is every person who joined, so it names no kind.
+    const asked = calls.filter((call) => call.path.endsWith('/admin/tenants')).at(-1)!.query;
+
+    expect(asked.search).toBe('ada');
+    expect(asked.kind).toBeUndefined();
 
     option.click();
     await settle();
@@ -225,7 +246,17 @@ describe('AdminAuditView', () => {
     await open();
 
     await type('Channel', 'chan');
-    document.body.querySelector<HTMLElement>('[data-picker-option]')!.click();
+
+    const option = document.body.querySelector<HTMLElement>('[data-picker-option]')!;
+
+    // Only a streamer owns a channel, so the channel list asks for streamers.
+    const asked = calls.filter((call) => call.path.endsWith('/admin/tenants')).at(-1)!.query;
+
+    expect(asked.kind).toBe('streamer');
+    expect(asked.search).toBe('chan');
+    expect(option.textContent).toContain('Chan Nel');
+
+    option.click();
     await settle();
 
     expect(lastQuery().targetBroadcasterId).toBe('T1');

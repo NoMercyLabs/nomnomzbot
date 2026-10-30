@@ -23,7 +23,10 @@ namespace NomNomzBot.Application.Identity.Services;
 /// </summary>
 public interface IPlatformAdminService
 {
-    /// <summary>Paged tenant listing with search/status/live filters. Requires <c>tenant:read</c>.</summary>
+    /// <summary>
+    /// Paged listing of every person who joined the system (a tenant), one row per person with their channel
+    /// inside, with search/kind/status/live filters. Requires <c>tenant:read</c>.
+    /// </summary>
     Task<Result<PagedList<AdminTenantDto>>> ListTenantsAsync(
         Guid principalId,
         AdminTenantQuery query,

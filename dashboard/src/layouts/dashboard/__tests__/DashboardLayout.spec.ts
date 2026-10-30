@@ -325,7 +325,7 @@ describe('the profile menu', () => {
       history: createMemoryHistory(),
       routes: [
         {
-          name: 'dashboard-admin-channels',
+          name: 'dashboard-admin-tenants',
           path: '/admin',
           component: page,
         },

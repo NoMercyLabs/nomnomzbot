@@ -55,6 +55,7 @@ const anda = {
   platformPermissions: [],
 };
 
+// The channel as the console detail reads it.
 const tenant = {
   id: 'T1',
   name: 'anda_six',
@@ -63,6 +64,24 @@ const tenant = {
   billingTierKey: 'free',
   isLive: false,
   createdAt: '2026-01-01T00:00:00Z',
+};
+
+// The person row the tenants list returns: a streamer, with the state of their channel inside it.
+const person = {
+  userId: 'u-anda',
+  displayName: 'anda_six',
+  login: 'anda_six',
+  kind: 'streamer',
+  platforms: ['twitch'],
+  createdAt: '2026-01-01T00:00:00Z',
+  channel: {
+    broadcasterId: 'T1',
+    name: 'anda_six',
+    status: 'active',
+    billingTierKey: 'free',
+    isLive: false,
+    isOnboarded: true,
+  },
 };
 
 // The bot as the browser sees it: who a request is from follows its bearer token, and the act-as cookie
@@ -75,6 +94,7 @@ const server = {
     message: string;
   },
   seen: [] as string[],
+  tenantQueries: [] as string[],
   bodies: new Map<string, string>(),
 };
 
@@ -100,7 +120,7 @@ function answer(method: string, path: string, bearer: string): Response {
   }
 
   if (path === '/api/v1/admin/tenants')
-    return json({ data: [tenant] });
+    return json({ data: [person] });
 
   if (path === '/api/v1/admin/tenants/T1')
     return json({ data: {
@@ -170,6 +190,10 @@ function stubServer(): void {
 
       server.seen.push(line);
 
+      if (path === '/api/v1/admin/tenants') {
+        server.tenantQueries.push(new URL(request.url).search);
+      }
+
       if (request.method === 'POST') {
         server.bodies.set(path, await request.clone().text());
       }
@@ -196,7 +220,7 @@ const modules = {
   i18n: () => import('@/i18n'),
   actAsExit: () => import('../ActAsExit.vue'),
   profileMenu: () => import('../ProfileMenu.vue'),
-  channelsView: () => import('@/views/dashboard/admin/AdminChannelsView.vue'),
+  tenantsView: () => import('@/views/dashboard/admin/AdminTenantsView.vue'),
   accessView: () => import('@/views/dashboard/admin/AdminAccessView.vue'),
 } as const;
 
@@ -217,7 +241,7 @@ async function load(fragment = ''): Promise<void> {
   const { i18n } = await modules.i18n();
   const ActAsExit: Component = (await modules.actAsExit()).default;
   const ProfileMenu: Component = (await modules.profileMenu()).default;
-  const AdminChannelsView: Component = (await modules.channelsView()).default;
+  const AdminTenantsView: Component = (await modules.tenantsView()).default;
   const AdminAccessView: Component = (await modules.accessView()).default;
 
   i18n.global.mergeLocaleMessage('en', adminEn);
@@ -233,9 +257,9 @@ async function load(fragment = ''): Promise<void> {
         component: { render: () => h('p', 'home') },
       },
       {
-        path: '/admin/channels',
-        name: 'dashboard-admin-channels',
-        component: AdminChannelsView,
+        path: '/admin/tenants',
+        name: 'dashboard-admin-tenants',
+        component: AdminTenantsView,
       },
       {
         path: '/admin/channels/:channelId/:tab?',
@@ -274,7 +298,7 @@ async function load(fragment = ''): Promise<void> {
 
   await router.push(server.acting
     ? '/'
-    : '/admin/channels');
+    : '/admin/tenants');
 
   await settle();
 }
@@ -299,7 +323,7 @@ async function type(selector: string, value: string): Promise<void> {
 
 // The admin opens Act as on the channel row, writes the reason, keeps the owner and confirms.
 async function actFromRow(): Promise<void> {
-  document.body.querySelector<HTMLElement>('[data-channel-row] [data-act-as]')!.click();
+  document.body.querySelector<HTMLElement>('[data-tenant-row] [data-act-as]')!.click();
   await settle();
   await type('[data-act-as-reason]', 'debug the failures');
   byText(dialog(), '[data-segment]', '30 minutes').click();
@@ -312,6 +336,7 @@ beforeEach(() => {
   server.acting = false;
   server.refusal = null;
   server.seen.length = 0;
+  server.tenantQueries.length = 0;
   server.bodies.clear();
   localStorage.clear();
   stubServer();
@@ -327,7 +352,7 @@ afterEach(() => {
 describe('acting as a channel person from the admin panel', () => {
   it('opens one dialog from the channel row with the owner picked and no grant id field', async () => {
     await load('#access_token=admin-token');
-    document.body.querySelector<HTMLElement>('[data-channel-row] [data-act-as]')!.click();
+    document.body.querySelector<HTMLElement>('[data-tenant-row] [data-act-as]')!.click();
     await settle();
 
     expect(dialog().textContent).toContain('Act as someone in anda_six');
@@ -394,7 +419,7 @@ describe('acting as a channel person from the admin panel', () => {
 
     expect(server.seen).toContain(`POST /api/v1/auth/impersonation/exit Bearer ${actToken}`);
     expect(server.seen).toContain(`GET /api/v1/auth/me Bearer ${adminToken}`);
-    expect(router.currentRoute.value.fullPath).toBe('/admin/channels');
+    expect(router.currentRoute.value.fullPath).toBe('/admin/tenants');
     expect(localStorage.getItem('nnz.channel')).toBe('');
     expect(exits()).toHaveLength(0);
     expect(text()).toContain('Stoney_Eagle');
@@ -416,19 +441,27 @@ describe('acting as a channel person from the admin panel', () => {
 
     expect(dialog().textContent).not.toContain('failed');
     expect(exits()).toHaveLength(0);
-    expect(router.currentRoute.value.name).toBe('dashboard-admin-channels');
+    expect(router.currentRoute.value.name).toBe('dashboard-admin-tenants');
   });
 
   it('acts from the Access page through the same dialog, picking the channel by name', async () => {
     await load('#access_token=admin-token');
     await router.push('/admin/access');
     await settle();
+    server.tenantQueries.length = 0;
     document.body.querySelector<HTMLElement>('[data-act-as]')!.click();
     await settle();
 
     expect(dialog().querySelector('[data-field-grant]')).toBeNull();
 
     await type('[data-act-as-channel-search]', 'anda');
+
+    // The picker lists streamers only: a viewer has no channel to act in.
+    const asked = server.tenantQueries.map((search) => new URLSearchParams(search).get('kind'));
+
+    expect(asked.length).toBeGreaterThan(0);
+    expect(asked.every((kind) => kind === 'streamer')).toBe(true);
+
     byText(dialog(), '[data-act-as-channel-option]', 'anda_six').click();
     await settle();
     await type('[data-act-as-reason]', 'ticket 42');

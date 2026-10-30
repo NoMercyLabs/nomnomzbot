@@ -1,22 +1,13 @@
 {
   "dashboard": {
     "admin": {
-      "title": "Channels",
+      "title": "Tenants",
       "crumb": "Admin",
       "person": {
         "placeholder": "Search by login or display name",
         "clear": "Choose someone else",
         "none": "Nobody matches that name.",
         "failed": "The search did not load. Try again."
-      },
-      "search": "Search channels",
-      "count": "{count} channels",
-      "columns": {
-        "channel": "Channel",
-        "status": "Status",
-        "live": "Live",
-        "tier": "Tier",
-        "created": "Created"
       },
       "status": {
         "active": "Active",
@@ -29,31 +20,9 @@
         "live": "Live",
         "offline": "Offline"
       },
-      "filters": {
-        "statusLabel": "Status",
-        "liveLabel": "Live",
-        "status": {
-          "all": "All",
-          "active": "Active",
-          "suspended": "Suspended",
-          "platform_banned": "Banned"
-        },
-        "live": {
-          "all": "All",
-          "live": "Live",
-          "offline": "Offline"
-        }
-      },
-      "list": {
-        "title": "Channels",
-        "newestFirst": "Newest first",
-        "empty": "No channel matches these filters.",
-        "error": "The channel list could not load.",
-        "forbidden": "You may not see the channel list."
-      },
       "console": {
         "title": "Channel console",
-        "back": "All channels",
+        "back": "All tenants",
         "error": "The channel could not load.",
         "copyLink": "Copy link",
         "tabsLabel": "Channel sections",
@@ -229,6 +198,61 @@
         "panelDescription": "Open a time-boxed support session for a channel and see the dashboard as one of its people."
       },
       "tenants": {
+        "title": "Tenants",
+        "search": "Search tenants",
+        "count": "{count} tenants",
+        "never": "Never",
+        "kind": {
+          "streamer": "Streamer",
+          "viewer": "Viewer"
+        },
+        "columns": {
+          "person": "Person",
+          "kind": "Kind",
+          "platforms": "Platforms",
+          "status": "Channel status",
+          "live": "Live",
+          "tier": "Tier",
+          "lastActive": "Last active",
+          "created": "Created"
+        },
+        "filters": {
+          "kindLabel": "Kind",
+          "statusLabel": "Status",
+          "liveLabel": "Live",
+          "kind": {
+            "all": "All",
+            "streamer": "Streamer",
+            "viewer": "Viewer"
+          },
+          "status": {
+            "all": "All",
+            "active": "Active",
+            "suspended": "Suspended",
+            "platform_banned": "Banned"
+          },
+          "live": {
+            "all": "All",
+            "live": "Live",
+            "offline": "Offline"
+          }
+        },
+        "list": {
+          "title": "Tenants",
+          "newestFirst": "Newest first",
+          "empty": "No tenant matches these filters.",
+          "error": "The tenant list could not load.",
+          "forbidden": "You may not see the tenant list."
+        },
+        "detail": {
+          "title": "Tenant",
+          "description": "What the bot holds about this person.",
+          "login": "Login",
+          "kind": "Kind",
+          "platforms": "Platforms",
+          "lastActive": "Last active",
+          "created": "Created"
+        },
         "restricted": "You may not earn money with NomNomzBot: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is always free.",
         "justification": "Justification",
         "justificationRequired": "Enter a justification. It is kept in the audit log.",
@@ -256,13 +280,13 @@
         },
         "access": {
           "title": "Begin access to {name}",
-          "description": "Opens a time-boxed support session on this tenant. Every step is audited.",
+          "description": "Opens a time-boxed support session on this channel. Every step is audited.",
           "breakGlass": "Break glass (emergency access)",
           "expires": "Expires at"
         },
         "remigrate": {
           "title": "Re-run migrations for {name}",
-          "description": "Applies the database migrations this tenant is still missing."
+          "description": "Applies the database migrations this channel is still missing."
         },
         "erase": {
           "title": "Erase {name}",
@@ -284,7 +308,7 @@
         "limits": {
           "title": "Limit overrides",
           "description": "Live quota overrides; clearing one returns to the tier default.",
-          "empty": "No override: this tenant follows its tier.",
+          "empty": "No override: this channel follows its tier.",
           "error": "The limits could not load.",
           "add": "Add limit",
           "clear": "Clear the {key} override",
@@ -297,48 +321,6 @@
           "value": "Value",
           "reason": "Reason",
           "expires": "Expires at"
-        }
-      },
-      "users": {
-        "title": "Users",
-        "search": "Search users",
-        "count": "{count} users",
-        "never": "Never",
-        "detail": {
-          "title": "User",
-          "description": "What the bot holds about this person.",
-          "login": "Login",
-          "email": "Email",
-          "role": "Role",
-          "channels": "Channels",
-          "lastActive": "Last active",
-          "created": "Created"
-        },
-        "columns": {
-          "user": "User",
-          "role": "Role",
-          "channels": "Channels",
-          "lastActive": "Last active",
-          "created": "Created"
-        },
-        "role": {
-          "admin": "Admin",
-          "user": "User"
-        },
-        "filters": {
-          "roleLabel": "Role",
-          "role": {
-            "all": "All",
-            "admin": "Admin",
-            "user": "User"
-          }
-        },
-        "list": {
-          "title": "Users",
-          "newestFirst": "Newest first",
-          "empty": "No user matches these filters.",
-          "error": "The user list could not load.",
-          "forbidden": "You may not see the user list."
         }
       },
       "trustSafety": {
@@ -681,7 +663,7 @@
       },
       "errorBudget": {
         "title": "Error budget",
-        "count": "{count} tenants",
+        "count": "{count} channels",
         "restricted": "You may not earn money with NomNomzBot: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is always free.",
         "noAttempts": "No attempts",
         "exhausted": "Budget spent",
@@ -694,7 +676,7 @@
           "budget": "Budget left"
         },
         "list": {
-          "title": "Webhook delivery per tenant",
+          "title": "Webhook delivery per channel",
           "window": "Last 24 hours. Target success rate {target}.",
           "empty": "No webhook delivery has finished in the last 24 hours.",
           "error": "The error budgets could not load.",
@@ -795,8 +777,8 @@
         }
       },
       "tenantUsage": {
-        "title": "Tenant usage",
-        "count": "{count} tenants",
+        "title": "Channel usage",
+        "count": "{count} channels",
         "restricted": "You may not earn money with NomNomzBot: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. Running it for yourself, your friends and your community is always free.",
         "noUsage": "No usage recorded",
         "noCost": "Not priced",
@@ -809,11 +791,11 @@
           "cost": "Cost"
         },
         "list": {
-          "title": "Usage per tenant",
-          "latestPeriod": "Latest metering period of each tenant",
+          "title": "Usage per channel",
+          "latestPeriod": "Latest metering period of each channel",
           "empty": "No usage has been recorded yet.",
-          "error": "The tenant usage could not load.",
-          "forbidden": "You may not see tenant usage."
+          "error": "The channel usage could not load.",
+          "forbidden": "You may not see channel usage."
         }
       },
       "support": {

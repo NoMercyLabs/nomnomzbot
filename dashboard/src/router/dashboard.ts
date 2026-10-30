@@ -21,7 +21,6 @@ import {
   dashboardAdminEventReplayRoute,
   dashboardAdminAuditRoute,
   dashboardAdminChannelConsoleRoute,
-  dashboardAdminChannelsRoute,
   dashboardAdminEventSubHealthRoute,
   dashboardAdminFeatureFlagsRoute,
   dashboardAdminOverviewRoute,
@@ -38,7 +37,6 @@ import {
   dashboardAdminErrorBudgetRoute,
   dashboardAdminTenantUsageRoute,
   dashboardAdminTrustSafetyRoute,
-  dashboardAdminUsersRoute,
   dashboardAdminWebhookDeliveriesRoute,
 } from '@/views/dashboard/admin/route';
 import { dashboardAnalyticsRoute } from '@/views/dashboard/analytics/route';
@@ -102,12 +100,10 @@ const builtRoutes: RouteRecordRaw[] = [
   dashboardStreamRoute,
   dashboardAnalyticsRoute,
   ...dashboardSettingsRoutes,
-  dashboardAdminChannelsRoute,
   dashboardAdminChannelConsoleRoute,
   dashboardAdminEventSubHealthRoute,
   dashboardAdminWebhookDeliveriesRoute,
   dashboardAdminOverviewRoute,
-  dashboardAdminUsersRoute,
   dashboardAdminSpamDefaultsRoute,
   dashboardAdminFeatureFlagsRoute,
   dashboardAdminTenantsRoute,
