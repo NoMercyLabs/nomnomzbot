@@ -1699,6 +1699,41 @@ keys in the written `NnzTemplateKey` union; (2) a surface in the table calls any
 (a source scan like `TemplateHelperCoverageTests` does today); (3) a seed key a surface provides is missing from
 `NnzTemplateValues`.
 
+### 11.1 Viewer text (a viewer's own words)
+
+A viewer's own text is a reward input (TTS or text) and the `{args}` of a command. It renders through
+`TemplateResolver.ResolveViewerAsync`, never through the full resolver. The channel turns it on with the feature
+`ViewerTemplateCapabilities.FeatureKey`, and the viewer needs the permission action. Text with no `{` before a `}`
+skips every check.
+
+**What a viewer can use.** Only the seeds `user`, `user.name` and `user.id` (the viewer's own name and id), plus
+every helper whose row is `TemplateHelperContexts.StandardAndViewer`. A helper qualifies when it writes nothing,
+reads nothing private and has a bounded cost. The live list is `GET api/v1/templates/helpers?context=Viewer`.
+
+| Group | Open to viewers | Closed, and why |
+|---|---|---|
+| Channel and stream fields, `user.*`, `text.*` | yes | |
+| Logic (`if`, `switch`, `chance`, `coalesce`, `default`, `literal`, `chars.*`, `pick*`, `random.number/decimal/percent/bool/letter/color`) | yes | `if.<path>.matches`: it compiles the viewer's regex, and each use can cost the full 250 ms timeout |
+| Numbers (`num.*`, `math.*`, `meter*`) | yes | |
+| Fun (`fun.*`) | yes | `fun.8ball`: it reads the channel's private pick list |
+| `random.quote`, `random.chatter*` | no | they read channel data |
+| `include`, `set`, `count`, `custom`, `viewer.data` | no | they write state or read private data |
+
+A closed helper, also inside an open `if` branch, prints as the viewer wrote it and never runs. Viewer `pick` draws
+keep no no-repeat memory, so viewer text cannot grow a shared list.
+
+**Limits** (`ViewerTemplateLimits.WithOutputCap`, `IViewerTemplateResolver.cs`):
+
+| Limit | Value | What happens past it |
+|---|---|---|
+| Nesting depth | 3 (a lone token is depth 1) | refused: `too_deep` |
+| Copies, pad width, dice, emoji, countdown start, meter width | 20 | cut to 20 (the broadcaster keeps the larger caps) |
+| Output length | TTS: the channel's TTS character cap; text: 500 characters | refused: `too_long` |
+
+**What a viewer gets on a refusal.** A refused text (`too_deep`, `too_long`, or `no_permission`) is used exactly as
+the viewer typed it, braces included. Chat shows it and TTS speaks it. The bot logs "Viewer template text left
+literal" and, when the reward audits, publishes `ViewerTemplateRefusedEvent` with the reason and the input length.
+
 ## 12. Voice
 
 Helpers render **text only**. Whatever speaks the text (chat, announce, TTS, Discord) keeps the channel's one bot
