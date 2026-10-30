@@ -35,15 +35,28 @@ $ErrorActionPreference = 'Stop'
 
 function Remove-LandedWorktree([string] $Branch) {
     $worktree = $null
+    $lock = $null
     $path = $null
+    $pathLock = $null
     foreach ($line in (git worktree list --porcelain)) {
-        if ($line -like 'worktree *') { $path = $line.Substring(9) }
-        elseif ($line -eq "branch refs/heads/$Branch") { $worktree = $path }
+        if ($line -like 'worktree *') { $path = $line.Substring(9); $pathLock = $null }
+        elseif ($line -like 'locked*') { $pathLock = $line.Substring(6).Trim(); if ($worktree -eq $path) { $lock = $pathLock } }
+        elseif ($line -eq "branch refs/heads/$Branch") { $worktree = $path; $lock = $pathLock }
     }
     if ($worktree) {
         if (git -C $worktree status --porcelain) {
             Write-Host "kept worktree $worktree - it has uncommitted files" -ForegroundColor Yellow
             return
+        }
+        # The harness locks each agent worktree ("claude agent <id> (pid N)") and keeps the lock after the
+        # agent ends; landing its branch means the agent is done (2026-10-30: the lock made removal exit 128).
+        if ($null -ne $lock) {
+            if ($lock -notlike 'claude agent *') {
+                Write-Host "kept worktree $worktree - locked: $lock" -ForegroundColor Yellow
+                return
+            }
+            git worktree unlock $worktree
+            if ($LASTEXITCODE -ne 0) { throw "could not unlock $worktree" }
         }
         & (Join-Path $PSScriptRoot 'remove-worktree.ps1') $worktree | Out-Null
         Write-Host "removed worktree $worktree" -ForegroundColor DarkGray
