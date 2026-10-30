@@ -24,8 +24,16 @@ const Shell = defineComponent({ components: { RouterView }, template: '<RouterVi
 
 const fetched = vi.fn<(input: unknown) => Promise<Response>>(async () => Response.json({}));
 
+function siteOnlyRouter(): Router {
+  return createRouter({ history: createMemoryHistory(), routes: siteOnlyRoutes });
+}
+
+// The first visit to a page imports the site frame and the page cold (3.6 s alone, far more beside a build).
+// Every page the tests land on is opened once while the file loads, where no test timeout runs.
+await Promise.all(['/', '/login', '/does-not-exist'].map((path) => siteOnlyRouter().push(path)));
+
 async function visit(path: string): Promise<{ wrapper: VueWrapper; router: Router }> {
-  const router: Router = createRouter({ history: createMemoryHistory(), routes: siteOnlyRoutes });
+  const router = siteOnlyRouter();
 
   await router.push(path);
   const wrapper: VueWrapper = mount(Shell, { global: { plugins: [router, i18n] } });

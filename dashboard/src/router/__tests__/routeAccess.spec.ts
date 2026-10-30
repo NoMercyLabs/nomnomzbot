@@ -10,7 +10,7 @@
 // -----------------------------------------------------------------------------
 
 import { beforeEach, describe, expect, it, vi } from 'vitest';
-import { createMemoryHistory, createRouter, type Router } from 'vue-router';
+import type { Router } from 'vue-router';
 
 import { channelAccessKey, type ResolvedAccess } from '@/api/access';
 import type { ChannelSummary } from '@/api/channels';
@@ -18,7 +18,7 @@ import { queryClient } from '@/api/queryClient';
 import { chosenChannelId } from '@/composables/useCurrentChannel';
 
 import { accessGuard } from '../accessGuard';
-import { dashboardChannelRoutes, dashboardRoutes } from '../dashboard';
+import { stubbedDashboardRouter } from './stubbedRouter';
 
 const http = vi.hoisted(() => ({
   GET: vi.fn<(path: string, init: unknown) => Promise<unknown>>(),
@@ -27,11 +27,9 @@ const http = vi.hoisted(() => ({
 
 vi.mock('@/api/client', () => ({ client: http }));
 
+// The real route table and the real guard; the pages are stand-ins, since this spec checks where a person lands.
 function realRouter(): Router {
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [dashboardRoutes, dashboardChannelRoutes],
-  });
+  const router = stubbedDashboardRouter();
 
   router.beforeEach(accessGuard(router));
 

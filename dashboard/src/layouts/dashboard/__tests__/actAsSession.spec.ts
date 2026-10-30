@@ -190,6 +190,21 @@ const settle = async (): Promise<void> => {
   await flushPromises();
 };
 
+const modules = {
+  auth: () => import('@/api/auth'),
+  queryClient: () => import('@/api/queryClient'),
+  i18n: () => import('@/i18n'),
+  actAsExit: () => import('../ActAsExit.vue'),
+  profileMenu: () => import('../ProfileMenu.vue'),
+  channelsView: () => import('@/views/dashboard/admin/AdminChannelsView.vue'),
+  accessView: () => import('@/views/dashboard/admin/AdminAccessView.vue'),
+} as const;
+
+// Every load below starts the modules over, but the first import of each is a cold transform of its whole graph
+// (5 s alone, far more beside a build). It happens while the file loads, where no test timeout runs; the loads
+// then only evaluate what is already transformed (0.3 s).
+await Promise.all(Object.values(modules).map((load) => load()));
+
 // A fresh page load: every module starts over, the way a reload does; the server and storage stay.
 async function load(fragment = ''): Promise<void> {
   mounted?.unmount();
@@ -197,13 +212,13 @@ async function load(fragment = ''): Promise<void> {
   vi.resetModules();
   history.replaceState(null, '', `/${fragment}`);
 
-  const auth = await import('@/api/auth');
-  const { queryClient } = await import('@/api/queryClient');
-  const { i18n } = await import('@/i18n');
-  const ActAsExit: Component = (await import('../ActAsExit.vue')).default;
-  const ProfileMenu: Component = (await import('../ProfileMenu.vue')).default;
-  const AdminChannelsView: Component = (await import('@/views/dashboard/admin/AdminChannelsView.vue')).default;
-  const AdminAccessView: Component = (await import('@/views/dashboard/admin/AdminAccessView.vue')).default;
+  const auth = await modules.auth();
+  const { queryClient } = await modules.queryClient();
+  const { i18n } = await modules.i18n();
+  const ActAsExit: Component = (await modules.actAsExit()).default;
+  const ProfileMenu: Component = (await modules.profileMenu()).default;
+  const AdminChannelsView: Component = (await modules.channelsView()).default;
+  const AdminAccessView: Component = (await modules.accessView()).default;
 
   i18n.global.mergeLocaleMessage('en', adminEn);
   queryClient.setDefaultOptions({ queries: { retry: false } });

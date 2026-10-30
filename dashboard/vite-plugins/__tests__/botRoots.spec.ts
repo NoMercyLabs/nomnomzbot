@@ -10,7 +10,7 @@
 // -----------------------------------------------------------------------------
 
 import { readdirSync, readFileSync } from 'node:fs';
-import { join, resolve, sep } from 'node:path';
+import { join, resolve } from 'node:path';
 
 import { describe, expect, it } from 'vitest';
 
@@ -25,18 +25,29 @@ const MAPPED_PATH: RegExp = /\.Map(?:Get|Post|Put|Delete|Hub<[\w.]+>|Fallback)?\
 // A folder of static files served under a path: RequestPath = "/editor", or the constant that holds it.
 const STATIC_PATH: RegExp = /(?:RequestPath|EditorPath)\s*=\s*"\/([^"/{]+)/g;
 
-function sourceFiles(): string[] {
-  return readdirSync(serverSource, { recursive: true, encoding: 'utf8' })
-    .filter((file: string) => file.endsWith('.cs'))
-    .filter((file: string) => !file.split(sep).some((part: string) => ['bin', 'obj', 'Migrations'].includes(part)))
-    .map((file: string) => join(serverSource, file));
+// Build output and migrations hold no route. A folder with one of these names is not entered at all: a listing of
+// the whole tree reads tens of thousands of build files, and a server build running beside the gate makes that
+// listing many times slower.
+const SKIPPED_FOLDERS: string[] = ['bin', 'obj', 'Migrations'];
+
+function sourceFiles(folder: string): string[] {
+  return readdirSync(folder, { withFileTypes: true }).flatMap((entry) => {
+    if (entry.isDirectory())
+      return SKIPPED_FOLDERS.includes(entry.name)
+        ? []
+        : sourceFiles(join(folder, entry.name));
+
+    return entry.name.endsWith('.cs')
+      ? [join(folder, entry.name)]
+      : [];
+  });
 }
 
 // The first path segment of every route the bot answers: [Route("...")] on a controller and Map...("/...").
-function serverRoots(): Set<string> {
+function findServerRoots(): Set<string> {
   const roots: Set<string> = new Set();
 
-  for (const file of sourceFiles()) {
+  for (const file of sourceFiles(serverSource)) {
     const code: string = readFileSync(file, 'utf8');
 
     for (const pattern of [ROUTE_ATTRIBUTE, MAPPED_PATH, STATIC_PATH]) {
@@ -49,26 +60,27 @@ function serverRoots(): Set<string> {
   return roots;
 }
 
+// Read the server once, while the file loads, so no test pays for the scan of thousands of files (the three tests
+// below each scanned it again) and no test timeout covers it.
+const serverRoots: Set<string> = findServerRoots();
+
 describe('the dev server passes every path the bot serves to the bot', () => {
   it('finds the routes it is meant to guard', () => {
-    const roots: Set<string> = serverRoots();
-
     for (const known of ['api', 'hubs', 'overlay', 'automation', 'obs-bridge']) {
-      expect(roots.has(known), `the scan should find /${known}`).toBe(true);
+      expect(serverRoots.has(known), `the scan should find /${known}`).toBe(true);
     }
   });
 
   it('lists every server root as proxied or as deliberately left out with a reason', () => {
     const covered: Set<string> = new Set([...botRoots, ...Object.keys(botRootsNotProxied)]);
-    const missing: string[] = [...serverRoots()].filter((root: string) => !covered.has(root)).sort();
+    const missing: string[] = [...serverRoots].filter((root: string) => !covered.has(root)).sort();
 
     expect(missing, 'add each to botRoots (vite-plugins/botRoots.ts) or to botRootsNotProxied with a reason').toEqual([]);
   });
 
   it('lists no root the server no longer serves', () => {
-    const served: Set<string> = serverRoots();
     const stale: string[] = [...botRoots, ...Object.keys(botRootsNotProxied)].filter(
-      (root: string) => !served.has(root),
+      (root: string) => !serverRoots.has(root),
     );
 
     // The health check is mapped as /health/live, so its root segment is "health" and is found above.

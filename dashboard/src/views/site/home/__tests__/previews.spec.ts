@@ -43,6 +43,13 @@ class Watcher {
   disconnect(): void {}
 }
 
+// The charts (Unovis) pick the observer once, when they load: the global one if it exists, else their own
+// polyfill. The stand-in must be in place at that first load, whether a test or the warm-up below causes it.
+function stubObservers(): void {
+  vi.stubGlobal('ResizeObserver', Watcher);
+  vi.stubGlobal('IntersectionObserver', Watcher);
+}
+
 // The group view of a page can show another tab than the hero does.
 const shownInGroup = {
   ...shown,
@@ -64,8 +71,7 @@ let host: HTMLElement | null = null;
 beforeEach(() => {
   fetched.mockClear();
   vi.stubGlobal('fetch', fetched);
-  vi.stubGlobal('ResizeObserver', Watcher);
-  vi.stubGlobal('IntersectionObserver', Watcher);
+  stubObservers();
   unmatched.length = 0;
   stop = startFakeApi();
   host = document.createElement('div');
@@ -80,6 +86,18 @@ afterEach(() => {
   host?.remove();
   vi.unstubAllGlobals();
 });
+
+// A preview app starts its first navigation when it is created, and that navigation imports the dashboard frame
+// and the page cold (0.7 to 3.4 s alone for one page, far more beside a build). Every page of every tab is
+// opened once while the file loads, where no test timeout runs, so each test measures the page it mounts.
+const everyPath: string[] = previewAreas.flatMap((area) => [
+  areaPages[area].path,
+  groupPages[area].path,
+]);
+
+stubObservers();
+await Promise.all(everyPath.map((path) => createPreviewApp(path, true).router.isReady()));
+vi.unstubAllGlobals();
 
 async function open(path: string, shell: boolean): Promise<PreviewApp> {
   preview = createPreviewApp(path, shell);

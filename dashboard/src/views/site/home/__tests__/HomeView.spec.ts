@@ -29,8 +29,16 @@ import {
 
 const Shell = defineComponent({ components: { RouterView }, template: '<RouterView />' });
 
+function siteRouter(): Router {
+  return createRouter({ history: createMemoryHistory(), routes: [siteRoutes] });
+}
+
+// The first visit to the root imports the site frame and the home page cold (3 s alone, far more beside a
+// build). It happens while the file loads, where no test timeout runs, so the first test measures the page.
+await siteRouter().push('/');
+
 async function openRoot(): Promise<{ wrapper: VueWrapper; router: Router }> {
-  const router: Router = createRouter({ history: createMemoryHistory(), routes: [siteRoutes] });
+  const router = siteRouter();
 
   await router.push('/');
   const wrapper: VueWrapper = mount(Shell, { global: { plugins: [router, i18n] } });

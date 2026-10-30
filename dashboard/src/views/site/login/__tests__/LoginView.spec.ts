@@ -61,13 +61,24 @@ function stubBot(): string[] {
   return calls;
 }
 
+const modules = {
+  i18n: () => import('@/i18n'),
+  queryClient: () => import('@/api/queryClient'),
+  loginView: () => import('../LoginView.vue'),
+} as const;
+
+// Each mount starts the modules over (vi.resetModules), but the first import of each is a cold transform of the
+// page's graph (3 s alone, far more beside a build). It happens while the file loads, where no test timeout
+// runs; the mounts then only evaluate what is already transformed.
+await Promise.all(Object.values(modules).map((load) => load()));
+
 async function mountLogin(): Promise<VueWrapper> {
   vi.resetModules();
-  const { i18n } = await import('@/i18n');
+  const { i18n } = await modules.i18n();
 
   i18n.global.mergeLocaleMessage('en', words);
-  const { queryClient } = await import('@/api/queryClient');
-  const LoginView = (await import('../LoginView.vue')).default;
+  const { queryClient } = await modules.queryClient();
+  const LoginView = (await modules.loginView()).default;
   const wrapper: VueWrapper = mount(LoginView, {
     global: { plugins: [createPinia(), [VueQueryPlugin, { queryClient }], i18n] },
   });

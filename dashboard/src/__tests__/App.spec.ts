@@ -17,6 +17,19 @@ import { viewerChannelsRoute } from '../views/viewer/channels/route';
 
 type Router = typeof import('../router').default;
 
+// This spec checks where the real router and its guards send a person. Each test starts the modules over, so a
+// frame or page it lands on would be evaluated cold again every time (5 s each beside a build). The frames and
+// the pages the tests land on are stand-ins; the routes, the guards and the page texts stay the app's own.
+const stubModule = vi.hoisted(() => () => ({ default: { render: (): null => null } }));
+
+vi.mock('../layouts/SiteLayout.vue', stubModule);
+vi.mock('../layouts/ViewerLayout.vue', stubModule);
+vi.mock('../layouts/DashboardLayout.vue', stubModule);
+vi.mock('../views/site/login/LoginGate.vue', stubModule);
+vi.mock('../views/viewer/channels/MyChannelsView.vue', stubModule);
+vi.mock('../views/dashboard/home/HomeView.vue', stubModule);
+vi.mock('../views/dashboard/commands/CommandsView.vue', stubModule);
+
 const refreshOk = { data: { accessToken: 'token-from-cookie', expiresIn: 3600 } };
 
 // A signed-in person's other calls answer with an empty list, so the access guard reads no channel.
@@ -35,9 +48,15 @@ function stubFetch(refreshStatus: number, otherCallsOk = false): void {
   );
 }
 
+const loadRouter = () => import('../router');
+
+// The first import of the router is a cold transform of every route file (5 s alone, far more beside a build). It
+// happens while the file loads, where no test timeout runs; each fresh router then only evaluates it again.
+await loadRouter();
+
 async function freshRouter(): Promise<Router> {
   vi.resetModules();
-  const router = (await import('../router')).default;
+  const router = (await loadRouter()).default;
 
   return router;
 }
