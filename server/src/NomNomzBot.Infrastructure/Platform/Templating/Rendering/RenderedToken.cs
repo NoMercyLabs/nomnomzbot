@@ -28,12 +28,12 @@ public sealed record RenderedToken(string Key, IReadOnlyList<string>? Arguments,
 
     public string Content => Arguments is null ? Key : Key + ":" + string.Join("|", Arguments);
 
-    /// <summary>The provider's view: key and arguments trimmed (catalog section 3, Quoting).</summary>
+    /// <summary>
+    /// The provider's view: the key trimmed, every argument as written (catalog section 3, Quoting). A helper
+    /// that parses an argument ignores the spaces around it; a helper that prints one keeps them.
+    /// </summary>
     public HelperNode ToHelperNode() =>
-        new(Key.Trim(), [.. (Arguments ?? []).Select(a => a.Trim())], Raw)
-        {
-            RenderArgumentAsync = RenderArgument,
-        };
+        new(Key.Trim(), [.. Arguments ?? []], Raw) { RenderArgumentAsync = RenderArgument };
 
     /// <summary>
     /// A token with no token inside: its text is known before any render. The arguments of a lazy key

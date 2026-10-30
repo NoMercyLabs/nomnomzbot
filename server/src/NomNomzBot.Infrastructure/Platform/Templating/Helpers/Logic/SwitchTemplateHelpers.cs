@@ -35,7 +35,7 @@ public sealed class SwitchTemplateHelpers : LogicHelperProvider
         if (node.Arguments.Count < 2)
             return null;
 
-        string value = await LogicArguments.RenderAsync(node, 0, cancellationToken);
+        string value = await LogicArguments.RenderParsedAsync(node, 0, cancellationToken);
         if (string.Equals(node.Key, "switch", StringComparison.OrdinalIgnoreCase))
             return await FirstCaseAsync(
                 node,

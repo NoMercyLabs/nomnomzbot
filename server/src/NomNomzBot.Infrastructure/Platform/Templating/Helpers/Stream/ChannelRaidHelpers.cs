@@ -73,7 +73,7 @@ internal sealed class ChannelRaidHelpers()
         StreamHelperCall call
     )
     {
-        string login = call.Args[0].TrimStart('@');
+        string login = ParsedArgument.Word(call.Args[0]).TrimStart('@');
         if (login.Length == 0)
             return null;
 

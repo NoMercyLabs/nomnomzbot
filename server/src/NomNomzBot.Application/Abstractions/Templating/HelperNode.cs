@@ -12,8 +12,9 @@
 namespace NomNomzBot.Application.Abstractions.Templating;
 
 /// <summary>
-/// One helper call as a provider sees it: the key and the arguments, each already rendered (inside out)
-/// and trimmed. <see cref="Raw"/> is the token as written, which the resolver prints when the provider
+/// One helper call as a provider sees it: the key (trimmed) and the arguments, each already rendered
+/// (inside out) and kept as written, spaces included. A helper that reads an argument as a number, a name or
+/// a keyword ignores the spaces around it; a helper that prints one keeps them. <see cref="Raw"/> is the token as written, which the resolver prints when the provider
 /// returns null. For a lazy entry (<see cref="TemplateHelperEntry.LazyArguments"/>) the arguments are the
 /// raw argument text instead, and <see cref="RenderArgumentAsync"/> renders one on demand.
 /// </summary>

@@ -19,33 +19,35 @@ internal static class TextArguments
     /// <summary>The most repeats or pad width a helper accepts: the resolver cuts output at 4 KB anyway.</summary>
     public const int MaxCount = 1000;
 
-    /// <summary>Applies the argument escapes the parser leaves alone: <c>\s</c> is a space, <c>\n</c> a new line.</summary>
-    public static string Literal(string value) =>
-        value
-            .Replace(@"\s", " ", StringComparison.Ordinal)
-            .Replace(@"\n", "\n", StringComparison.Ordinal);
-
-    /// <summary>A non-negative whole number up to <see cref="MaxCount"/>.</summary>
+    /// <summary>A non-negative whole number up to <see cref="MaxCount"/>; the spaces around it do not count.</summary>
     public static bool TryCount(string value, out int count) =>
-        int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out count)
-        && count <= MaxCount;
+        ParsedArgument.TryWhole(value, out count) && count <= MaxCount;
 
     /// <summary>
-    /// The separator or pad argument at <paramref name="index"/>. The resolver trims arguments, so an argument
-    /// that is empty after trimming stands for one space (<c>{text.repeat:3|ha| }</c>).
+    /// The separator or pad argument at <paramref name="index"/>, exactly as written (the parser already turned
+    /// <c>\s</c> and <c>\n</c> into a space and a new line); <paramref name="fallback"/> when it is absent.
     /// </summary>
     public static string TextAt(IReadOnlyList<string> args, int index, string fallback) =>
-        args.Count <= index ? fallback
-        : args[index].Length == 0 ? " "
-        : Literal(args[index]);
+        args.Count <= index ? fallback : args[index];
 
-    /// <summary>The value of a <c>name=value</c> argument after the first one; null when absent.</summary>
+    /// <summary>
+    /// The value of a <c>name=value</c> argument after the first one; null when absent. The spaces around the
+    /// name do not count, the value is returned as written.
+    /// </summary>
     public static string? Named(IReadOnlyList<string> args, string name)
     {
-        string prefix = name + "=";
-        string? match = args.Skip(1)
-            .FirstOrDefault(a => a.StartsWith(prefix, StringComparison.OrdinalIgnoreCase));
-        return match?[prefix.Length..];
+        foreach (string argument in args.Skip(1))
+        {
+            int equals = argument.IndexOf('=', StringComparison.Ordinal);
+            if (
+                equals > 0
+                && ParsedArgument
+                    .Word(argument[..equals])
+                    .Equals(name, StringComparison.OrdinalIgnoreCase)
+            )
+                return argument[(equals + 1)..];
+        }
+        return null;
     }
 
     /// <summary>Grapheme-safe split: a surrogate-pair emoji or a combining-mark letter is one element.</summary>

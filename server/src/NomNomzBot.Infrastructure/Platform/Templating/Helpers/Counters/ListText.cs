@@ -23,8 +23,7 @@ internal static class ListText
 
     /// <summary>A 1-based position: a whole number of at least 1.</summary>
     public static bool TryPosition(string value, out int position) =>
-        int.TryParse(value, NumberStyles.None, CultureInfo.InvariantCulture, out position)
-        && position >= 1;
+        ParsedArgument.TryWhole(value, out position) && position >= 1;
 
     /// <summary>The entry at a 1-based position; empty past the end.</summary>
     public static string ItemAt(IReadOnlyList<string> items, int position) =>

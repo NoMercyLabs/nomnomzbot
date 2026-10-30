@@ -95,9 +95,7 @@ internal sealed class EmoteLookupHelpers()
     }
 
     private static bool TryCount(string text, int max, out int count) =>
-        int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out count)
-        && count >= 1
-        && count <= max;
+        ParsedArgument.TryWhole(text, out count) && count >= 1 && count <= max;
 }
 
 /// <summary>The cheermote of a Bits amount: the biggest tier that fits, such as <c>Cheer100</c>.</summary>
@@ -117,15 +115,7 @@ internal sealed class EmoteCheermoteHelpers()
 
     private static async Task<string?> CheermoteAsync(EmoteCall call)
     {
-        if (
-            !int.TryParse(
-                call.Args[0],
-                NumberStyles.None,
-                CultureInfo.InvariantCulture,
-                out int bits
-            )
-            || bits < 1
-        )
+        if (!ParsedArgument.TryWhole(call.Args[0], out int bits) || bits < 1)
             return null;
 
         IReadOnlyList<TwitchCheermote> all = await call.Data.CheermotesAsync();

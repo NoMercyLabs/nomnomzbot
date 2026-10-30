@@ -43,11 +43,5 @@ internal static class ComposingRows
 
     /// <summary>A whole number of at least 1 (a quote number or a list position).</summary>
     public static bool TryPosition(string text, out int position) =>
-        int.TryParse(
-            text,
-            System.Globalization.NumberStyles.None,
-            System.Globalization.CultureInfo.InvariantCulture,
-            out position
-        )
-        && position >= 1;
+        ParsedArgument.TryWhole(text, out position) && position >= 1;
 }

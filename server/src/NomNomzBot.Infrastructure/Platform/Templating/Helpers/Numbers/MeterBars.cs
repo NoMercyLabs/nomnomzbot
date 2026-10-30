@@ -9,8 +9,6 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using System.Globalization;
-
 namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Numbers;
 
 /// <summary>Draws a bar of full and empty marks; shared by <c>meter.*</c> and <c>num.bar</c>.</summary>
@@ -33,8 +31,7 @@ internal static class MeterBars
 
     /// <summary>A width from 1 to <see cref="MaxWidth"/>.</summary>
     public static bool TryWidth(string text, out int width) =>
-        int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out width)
-        && width is >= 1 and <= MaxWidth;
+        ParsedArgument.TryWhole(text, out width) && width is >= 1 and <= MaxWidth;
 
     private static string Repeat(string mark, int count) =>
         string.Concat(Enumerable.Repeat(mark, count));

@@ -9,8 +9,6 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using System.Globalization;
-
 namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Numbers;
 
 /// <summary>Argument readers shared by the number groups (catalog section 3). All parsing is invariant.</summary>
@@ -21,12 +19,7 @@ internal static class NumberArguments
 
     /// <summary>A decimal number with an optional sign and point: <c>-4</c>, <c>2.5</c>. No thousands marks, no exponent.</summary>
     public static bool TryNumber(string text, out decimal value) =>
-        decimal.TryParse(
-            text,
-            NumberStyles.AllowLeadingSign | NumberStyles.AllowDecimalPoint,
-            CultureInfo.InvariantCulture,
-            out value
-        );
+        ParsedArgument.TryDecimal(text, out value);
 
     /// <summary>Every argument as a number; false when one is not.</summary>
     public static bool TryNumbers(IReadOnlyList<string> args, out List<decimal> values)
@@ -60,8 +53,7 @@ internal static class NumberArguments
 
     /// <summary>A count of decimal places, 0 to <see cref="MaxPlaces"/>.</summary>
     public static bool TryPlaces(string text, out int places) =>
-        int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out places)
-        && places <= MaxPlaces;
+        ParsedArgument.TryWhole(text, out places) && places <= MaxPlaces;
 
     /// <summary>The places argument at <paramref name="index"/>, or <paramref name="fallback"/> when it is absent; false when present and bad.</summary>
     public static bool TryPlacesAt(

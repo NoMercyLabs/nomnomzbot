@@ -11,6 +11,7 @@
 
 using System.Globalization;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Infrastructure.Platform.Templating.Parsing;
 
 namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Logic;
 
@@ -41,17 +42,22 @@ internal static class LogicArguments
             out number
         ) && double.IsFinite(number);
 
-    /// <summary>Renders argument <c>index</c> of a lazy helper, trimmed; an argument that is never asked for never runs.</summary>
+    /// <summary>Renders argument <c>index</c> of a lazy helper as written; an argument that is never asked for never runs.</summary>
     public static async ValueTask<string> RenderAsync(
         HelperNode node,
         int index,
         CancellationToken cancellationToken
     ) =>
-        (
-            node.RenderArgumentAsync is { } render
-                ? await render(index, cancellationToken)
-                : node.Arguments[index]
-        ).Trim();
+        node.RenderArgumentAsync is { } render
+            ? await render(index, cancellationToken)
+            : Unescape(node.Arguments[index]);
+
+    /// <summary>Renders argument <c>index</c> that the helper reads (a condition, a percent, a value to test), without the spaces around it.</summary>
+    public static async ValueTask<string> RenderParsedAsync(
+        HelperNode node,
+        int index,
+        CancellationToken cancellationToken
+    ) => ParsedArgument.Word(await RenderAsync(node, index, cancellationToken));
 
     /// <summary>Renders argument <c>index</c>, or nothing when the helper has fewer arguments (an omitted else branch).</summary>
     public static async ValueTask<string> RenderOrEmptyAsync(
@@ -62,14 +68,26 @@ internal static class LogicArguments
 
     public static bool IsPlainText(string raw) => !raw.Contains('{');
 
-    /// <summary>The text with each escape (<c>\{ \} \| \: \\</c>) replaced by the character it prints.</summary>
+    /// <summary>
+    /// The text with each escape (<c>\{ \} \| \: \\</c>, and in an argument <c>\s</c> and <c>\n</c>) replaced by the
+    /// character it prints.
+    /// </summary>
     public static string Unescape(string raw)
     {
         System.Text.StringBuilder text = new(raw.Length);
         for (int i = 0; i < raw.Length; i++)
         {
-            if (raw[i] == '\\' && i + 1 < raw.Length && Escapable.Contains(raw[i + 1]))
-                i++;
+            if (raw[i] == '\\' && i + 1 < raw.Length)
+            {
+                if (TemplateParser.TryReadArgumentEscape(raw[i + 1], out char printed))
+                {
+                    text.Append(printed);
+                    i++;
+                    continue;
+                }
+                if (Escapable.Contains(raw[i + 1]))
+                    i++;
+            }
             text.Append(raw[i]);
         }
         return text.ToString();
@@ -116,12 +134,11 @@ internal static class LogicArguments
 
         string head = Unescape(raw[..split]);
         return new SplitArgument(
-            head.Trim(),
+            ParsedArgument.Word(head),
             async () =>
                 IsPlainText(tailRaw)
-                    ? Unescape(tailRaw).Trim()
+                    ? Unescape(tailRaw)
                     : (await RenderAsync(node, index, cancellationToken))[(head.Length + 1)..]
-                        .Trim()
         );
     }
 
@@ -137,7 +154,10 @@ internal static class LogicArguments
         if (cut < 0)
             return null;
 
-        string tail = rendered[(cut + 1)..].Trim();
-        return new SplitArgument(rendered[..cut].Trim(), () => ValueTask.FromResult(tail));
+        string tail = rendered[(cut + 1)..];
+        return new SplitArgument(
+            ParsedArgument.Word(rendered[..cut]),
+            () => ValueTask.FromResult(tail)
+        );
     }
 }

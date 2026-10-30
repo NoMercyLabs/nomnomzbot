@@ -28,11 +28,14 @@ internal static class EmoteText
     public static string Count(int number, CultureInfo culture) => number.ToString("N0", culture);
 
     /// <summary>The emote with exactly this code, else the one that differs only in case; null when there is none.</summary>
-    public static EmoteItem? Find(IReadOnlyList<EmoteItem> emotes, string code) =>
-        emotes.FirstOrDefault(e => string.Equals(e.Code, code, StringComparison.Ordinal))
-        ?? emotes.FirstOrDefault(e =>
-            string.Equals(e.Code, code, StringComparison.OrdinalIgnoreCase)
-        );
+    public static EmoteItem? Find(IReadOnlyList<EmoteItem> emotes, string argument)
+    {
+        string code = ParsedArgument.Word(argument);
+        return emotes.FirstOrDefault(e => string.Equals(e.Code, code, StringComparison.Ordinal))
+            ?? emotes.FirstOrDefault(e =>
+                string.Equals(e.Code, code, StringComparison.OrdinalIgnoreCase)
+            );
+    }
 
     /// <summary>
     /// How often each known emote code appears in the texts. A word counts when it is exactly a code of

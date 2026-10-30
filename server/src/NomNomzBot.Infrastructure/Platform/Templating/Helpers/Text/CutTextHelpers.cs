@@ -25,7 +25,7 @@ internal sealed class CutTextHelpers()
     /// <summary><c>{text.truncate:n|t}</c>: at most n elements, then one ellipsis when it cut.</summary>
     private static string? Truncate(IReadOnlyList<string> args) =>
         args.Count == 2 && TextArguments.TryCount(args[0], out _)
-            ? TextTransformCatalog.Apply("truncate", args[1], args[0]).Value
+            ? TextTransformCatalog.Apply("truncate", args[1], ParsedArgument.Word(args[0])).Value
             : null;
 
     /// <summary><c>{text.cut:t|max=n|end=s}</c>: the result, end included, is at most n elements.</summary>
@@ -41,9 +41,7 @@ internal sealed class CutTextHelpers()
         if (elements.Count <= max)
             return args[0];
 
-        List<string> end = TextArguments.Elements(
-            TextArguments.Literal(TextArguments.Named(args, "end") ?? "…")
-        );
+        List<string> end = TextArguments.Elements(TextArguments.Named(args, "end") ?? "…");
         int keep = Math.Max(0, max - end.Count);
         return string.Concat(elements.Take(keep)) + string.Concat(end.Take(max));
     }

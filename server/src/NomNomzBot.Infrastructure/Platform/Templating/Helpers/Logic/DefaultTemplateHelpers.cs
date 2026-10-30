@@ -34,7 +34,7 @@ public sealed class DefaultTemplateHelpers : LogicHelperProvider
             return null;
 
         string value = await LogicArguments.RenderAsync(node, 0, cancellationToken);
-        return value.Length > 0
+        return !string.IsNullOrWhiteSpace(value)
             ? value
             : await LogicArguments.RenderAsync(node, 1, cancellationToken);
     }

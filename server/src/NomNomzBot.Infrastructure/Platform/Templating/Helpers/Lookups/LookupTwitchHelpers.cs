@@ -71,7 +71,7 @@ internal sealed partial class LookupTwitchHelpers()
 
     private static async Task<string?> RenderAsync(LookupCall call)
     {
-        string argument = call.Args[0].TrimStart('@');
+        string argument = ParsedArgument.Word(call.Args[0]).TrimStart('@');
         int dot = argument.IndexOf('.');
         if (dot < 0 || !LoginPattern().IsMatch(argument[..dot]))
             return null;

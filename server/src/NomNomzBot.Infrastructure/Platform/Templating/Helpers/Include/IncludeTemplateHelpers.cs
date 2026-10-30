@@ -57,14 +57,23 @@ public sealed class IncludeTemplateHelpers(IServiceScopeFactory scopes) : ITempl
     {
         return node.Key.ToLowerInvariant() switch
         {
-            "include.cmd" when node.Arguments.Count == 1 && node.Arguments[0].Length > 0 =>
-                await _commands.RenderAsync(scope, node.Arguments[0], cancellationToken),
-            "include.builtin" when node.Arguments.Count == 1 && node.Arguments[0].Length > 0 =>
-                await _builtins.RenderAsync(scope, node.Arguments[0], cancellationToken),
+            "include.cmd" when HasName(node) => await _commands.RenderAsync(
+                scope,
+                ParsedArgument.Word(node.Arguments[0]),
+                cancellationToken
+            ),
+            "include.builtin" when HasName(node) => await _builtins.RenderAsync(
+                scope,
+                ParsedArgument.Word(node.Arguments[0]),
+                cancellationToken
+            ),
             "include.list" => await ListEntryAsync(scope, node, cancellationToken),
             _ => null,
         };
     }
+
+    private static bool HasName(HelperNode node) =>
+        node.Arguments.Count == 1 && ParsedArgument.Word(node.Arguments[0]).Length > 0;
 
     private async Task<string?> ListEntryAsync(
         TemplateRenderScope scope,
@@ -80,7 +89,10 @@ public sealed class IncludeTemplateHelpers(IServiceScopeFactory scopes) : ITempl
             return null;
 
         ListSource lists = new(scopes, scope.BroadcasterId);
-        IReadOnlyList<string> items = await lists.ItemsAsync(node.Arguments[0], cancellationToken);
+        IReadOnlyList<string> items = await lists.ItemsAsync(
+            ParsedArgument.Word(node.Arguments[0]),
+            cancellationToken
+        );
         return ListText.ItemAt(items, position);
     }
 }

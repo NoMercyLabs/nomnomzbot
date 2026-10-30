@@ -41,8 +41,8 @@ internal sealed class ReplaceTextHelpers()
         if (args.Count != 3 || args[1].Length == 0)
             return null;
 
-        string find = TextArguments.Literal(args[1]);
-        string with = TextArguments.Literal(args[2]);
+        string find = args[1];
+        string with = args[2];
         if (all)
             return args[0].Replace(find, with, comparison);
 

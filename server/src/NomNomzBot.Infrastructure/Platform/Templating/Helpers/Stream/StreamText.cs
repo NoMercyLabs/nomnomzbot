@@ -155,7 +155,5 @@ internal static class StreamText
 
     /// <summary>A whole number of at least 1 and at most <paramref name="max"/>.</summary>
     public static bool TryPositive(string text, int max, out int value) =>
-        int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out value)
-        && value >= 1
-        && value <= max;
+        ParsedArgument.TryWhole(text, out value) && value >= 1 && value <= max;
 }

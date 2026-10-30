@@ -9,8 +9,6 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using System.Globalization;
-
 namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Fun;
 
 /// <summary>
@@ -49,7 +47,7 @@ internal readonly record struct FunDiceSpec(int Count, int Sides)
 
     /// <summary>A whole number made of digits only.</summary>
     public static bool TryWhole(string text, out int value) =>
-        int.TryParse(text, NumberStyles.None, CultureInfo.InvariantCulture, out value);
+        ParsedArgument.TryWhole(text, out value);
 
     public int[] Roll(Random random)
     {

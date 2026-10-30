@@ -49,8 +49,9 @@ internal sealed class FunGameHelpers()
         return $"{theirs.Name} — {verdict}";
     }
 
-    private static int? HandIndex(string choice)
+    private static int? HandIndex(string argument)
     {
+        string choice = ParsedArgument.Word(argument);
         for (int i = 0; i < FunCatalog.Hands.Count; i++)
             if (string.Equals(choice, FunCatalog.Hands[i].Name, StringComparison.OrdinalIgnoreCase))
                 return i;

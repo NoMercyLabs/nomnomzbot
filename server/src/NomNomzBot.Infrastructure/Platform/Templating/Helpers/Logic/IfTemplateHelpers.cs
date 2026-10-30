@@ -102,7 +102,7 @@ public sealed class IfTemplateHelpers : LogicHelperProvider
             return null;
 
         string value = await LogicArguments.RenderAsync(node, 0, cancellationToken);
-        return await BranchAsync(node, value.Length == 0, 1, 2, cancellationToken);
+        return await BranchAsync(node, string.IsNullOrWhiteSpace(value), 1, 2, cancellationToken);
     }
 
     /// <summary>
