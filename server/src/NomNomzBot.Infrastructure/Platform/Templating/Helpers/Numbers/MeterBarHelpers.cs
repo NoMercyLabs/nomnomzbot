@@ -16,12 +16,19 @@ namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Numbers;
 /// <summary>The <c>meter</c> rows: the bar with its number, the plain bar, hearts and stars.</summary>
 internal sealed class MeterBarHelpers()
     : NumberHelperGroup(
-        NumberHelperRow.Of("meter", "██████░░░░ 60%", Meter),
-        NumberHelperRow.Of("meter.plain", "██████░░░░", Plain),
+        NumberHelperRow.Of("meter", "██████░░░░ 60%", Meter) with
+        {
+            AmplifierArgument = WidthArgument,
+        },
+        NumberHelperRow.Of("meter.plain", "██████░░░░", Plain) with
+        {
+            AmplifierArgument = WidthArgument,
+        },
         NumberHelperRow.Of("meter.hearts", Heart + Heart + Heart + BlackHeart + BlackHeart, Hearts),
         NumberHelperRow.Of("meter.stars", "★★★☆☆", Stars)
     )
 {
+    private const int WidthArgument = 1;
     private const int HeartCount = 5;
     private const int MaxStars = 20;
     private const string Heart = "❤️";

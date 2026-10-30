@@ -50,7 +50,14 @@ internal abstract class NumberHelperGroup : INumberHelperGroup
 
         try
         {
-            return row.Render(node.Arguments, NumberCulture.For(scope.Language));
+            return row.Render(
+                ViewerCountLimit.Within(
+                    node.Arguments,
+                    row.AmplifierArgument,
+                    scope.TextCountLimit
+                ),
+                NumberCulture.For(scope.Language)
+            );
         }
         catch (OverflowException)
         {

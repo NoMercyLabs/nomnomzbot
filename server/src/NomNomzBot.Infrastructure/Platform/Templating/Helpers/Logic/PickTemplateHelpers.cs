@@ -52,24 +52,29 @@ public sealed class PickTemplateHelpers(Random random) : LogicHelperProvider
             _ => null,
         };
 
-    private static string? PickOne(
-        TemplateRenderScope scope,
-        HelperNode node,
-        IReadOnlyList<string> items
-    ) =>
-        items.Count == 0
-            ? null
+    /// <summary>
+    /// One item. The no-repeat memory is keyed by the token's text, so a viewer's text (which anyone can vary
+    /// without end) never reaches it: a viewer's draw is a plain random one and nothing is kept.
+    /// </summary>
+    private string? PickOne(TemplateRenderScope scope, HelperNode node, IReadOnlyList<string> items)
+    {
+        if (items.Count == 0)
+            return null;
+
+        return scope.IsViewerText
+            ? items[random.Next(items.Count)]
             : NoImmediateRepeatPicker.Pick(
                 items,
                 $"template.pick:{scope.BroadcasterId}:{node.Raw}"
             );
+    }
 
     /// <summary>
     /// <c>pick.inline:a;b;c</c>: the items are split at <c>;</c>, so a <c>|</c> may stay inside an item. Plain
     /// items are read from the source and only the chosen one is used; an item with a token inside renders the
     /// whole list first (one render of the arguments), then draws.
     /// </summary>
-    private static async ValueTask<string?> PickInlineAsync(
+    private async ValueTask<string?> PickInlineAsync(
         TemplateRenderScope scope,
         HelperNode node,
         CancellationToken cancellationToken

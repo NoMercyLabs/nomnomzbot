@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Globalization;
+using NomNomzBot.Infrastructure.Platform.Templating.Helpers.Numbers;
 
 namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Fun;
 
@@ -25,14 +26,14 @@ internal sealed class FunDiceHelpers()
 
     /// <summary><c>dice[:sides]</c> or <c>dice:NdS</c>: the sum of the rolls.</summary>
     private static string? Total(FunCall call) =>
-        FunDiceSpec.TryParse(call.Args, out FunDiceSpec spec)
+        FunDiceSpec.TryParse(call.Args, call.Scope.TextCountLimit, out FunDiceSpec spec)
             ? spec.Roll(call.Random).Sum().ToString(CultureInfo.InvariantCulture)
             : null;
 
     /// <summary><c>dice.detail:NdS</c>: every roll, then the total. One die is just its number.</summary>
     private static string? Detail(FunCall call)
     {
-        if (!FunDiceSpec.TryParse(call.Args, out FunDiceSpec spec))
+        if (!FunDiceSpec.TryParse(call.Args, call.Scope.TextCountLimit, out FunDiceSpec spec))
             return null;
 
         int[] rolls = spec.Roll(call.Random);
@@ -44,20 +45,21 @@ internal sealed class FunDiceHelpers()
     private static string? Faces(FunCall call)
     {
         int count = 1;
-        bool fits =
-            call.Args.Count == 0
-            || (
-                call.Args.Count == 1
-                && FunDiceSpec.TryWhole(call.Args[0], out count)
-                && count is >= 1 and <= MaxFaces
-            );
-        return fits
-            ? string.Join(
-                ' ',
-                Enumerable
-                    .Range(0, count)
-                    .Select(_ => FunCatalog.DieFaces[call.Random.Next(FunCatalog.DieFaces.Length)])
-            )
-            : null;
+        if (
+            call.Args.Count > 1
+            || (call.Args.Count == 1 && !FunDiceSpec.TryWhole(call.Args[0], out count))
+        )
+            return null;
+
+        count = ViewerCountLimit.Within(count, call.Scope.TextCountLimit);
+        if (count is < 1 or > MaxFaces)
+            return null;
+
+        return string.Join(
+            ' ',
+            Enumerable
+                .Range(0, count)
+                .Select(_ => FunCatalog.DieFaces[call.Random.Next(FunCatalog.DieFaces.Length)])
+        );
     }
 }

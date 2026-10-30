@@ -39,18 +39,20 @@ public abstract class LogicHelperProvider : ITemplateHelperProvider
     /// <summary>
     /// One registry row. The help string key is <c>template.helper.&lt;key&gt;</c> unless
     /// <paramref name="descriptionKey"/> names another one (a key that holds <c>&lt;path&gt;</c>, or one the
-    /// as-built helpers already own a string for).
+    /// as-built helpers already own a string for). Every logic helper writes nothing and reads only its own
+    /// arguments, so a row is open to a viewer's own text unless <paramref name="viewer"/> is false.
     /// </summary>
     protected static TemplateHelperEntry Row(
         string key,
         string sample,
         bool lazy = false,
         string? prefix = null,
-        string? descriptionKey = null
+        string? descriptionKey = null,
+        bool viewer = true
     ) =>
         new(
             key,
-            TemplateHelperContexts.Standard,
+            viewer ? TemplateHelperContexts.StandardAndViewer : TemplateHelperContexts.Standard,
             new LocalizedText(descriptionKey ?? "template.helper." + key),
             prefix
         )

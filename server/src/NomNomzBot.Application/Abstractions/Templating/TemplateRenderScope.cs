@@ -42,6 +42,12 @@ public sealed class TemplateRenderScope
     /// </summary>
     public int? TextCountLimit { get; init; }
 
+    /// <summary>
+    /// True for a viewer's own text (the viewer resolver sets <see cref="TextCountLimit"/>). A helper that would keep
+    /// state keyed by the text, or run work the limit cannot cut, skips it here.
+    /// </summary>
+    public bool IsViewerText => TextCountLimit is not null;
+
     /// <summary>Values written by <c>{set:…}</c> during this render.</summary>
     public Dictionary<string, string> SetVariables { get; } = new(StringComparer.OrdinalIgnoreCase);
 

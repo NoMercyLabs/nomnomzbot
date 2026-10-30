@@ -58,8 +58,19 @@ internal sealed record FunRow(
         Func<FunCall, ValueTask<string?>> render
     ) => new(key, sample, render, TemplateHelperFreshness.Live, TemplateHelperScope.Channel);
 
+    /// <summary>
+    /// A row that draws or computes from its own arguments and the clock only (<see cref="Pure"/>) writes nothing and
+    /// reads nothing private, so it is open to a viewer's own text. A row that reads the channel's pick lists
+    /// (<see cref="Channel"/>) stays closed to it.
+    /// </summary>
     public TemplateHelperEntry ToEntry() =>
-        new(Key, TemplateHelperContexts.Standard, new LocalizedText("template.helper." + Key))
+        new(
+            Key,
+            Freshness == TemplateHelperFreshness.Pure
+                ? TemplateHelperContexts.StandardAndViewer
+                : TemplateHelperContexts.Standard,
+            new LocalizedText("template.helper." + Key)
+        )
         {
             Sample = Sample,
             Freshness = Freshness,
