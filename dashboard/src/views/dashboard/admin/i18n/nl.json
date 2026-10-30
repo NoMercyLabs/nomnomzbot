@@ -1,22 +1,13 @@
 {
   "dashboard": {
     "admin": {
-      "title": "Kanalen",
+      "title": "Tenants",
       "crumb": "Beheer",
       "person": {
         "placeholder": "Zoek op login of weergavenaam",
         "clear": "Kies iemand anders",
         "none": "Niemand heet zo.",
         "failed": "Het zoeken is niet geladen. Probeer opnieuw."
-      },
-      "search": "Zoek kanalen",
-      "count": "{count} kanalen",
-      "columns": {
-        "channel": "Kanaal",
-        "status": "Status",
-        "live": "Live",
-        "tier": "Niveau",
-        "created": "Aangemaakt"
       },
       "status": {
         "active": "Actief",
@@ -29,31 +20,9 @@
         "live": "Live",
         "offline": "Offline"
       },
-      "filters": {
-        "statusLabel": "Status",
-        "liveLabel": "Live",
-        "status": {
-          "all": "Alles",
-          "active": "Actief",
-          "suspended": "Geschorst",
-          "platform_banned": "Verbannen"
-        },
-        "live": {
-          "all": "Alles",
-          "live": "Live",
-          "offline": "Offline"
-        }
-      },
-      "list": {
-        "title": "Kanalen",
-        "newestFirst": "Nieuwste eerst",
-        "empty": "Geen kanaal past bij deze filters.",
-        "error": "De kanaallijst kon niet laden.",
-        "forbidden": "Je mag de kanaallijst niet zien."
-      },
       "console": {
         "title": "Kanaalconsole",
-        "back": "Alle kanalen",
+        "back": "Alle tenants",
         "error": "Het kanaal kon niet laden.",
         "copyLink": "Kopieer link",
         "tabsLabel": "Onderdelen van het kanaal",
@@ -229,6 +198,61 @@
         "panelDescription": "Open een supportsessie met een tijdslimiet voor een kanaal en zie het dashboard als een van de mensen daar."
       },
       "tenants": {
+        "title": "Tenants",
+        "search": "Zoek tenants",
+        "count": "{count} tenants",
+        "never": "Nooit",
+        "kind": {
+          "streamer": "Streamer",
+          "viewer": "Kijker"
+        },
+        "columns": {
+          "person": "Persoon",
+          "kind": "Soort",
+          "platforms": "Platforms",
+          "status": "Kanaalstatus",
+          "live": "Live",
+          "tier": "Niveau",
+          "lastActive": "Laatst actief",
+          "created": "Aangemaakt"
+        },
+        "filters": {
+          "kindLabel": "Soort",
+          "statusLabel": "Status",
+          "liveLabel": "Live",
+          "kind": {
+            "all": "Alles",
+            "streamer": "Streamer",
+            "viewer": "Kijker"
+          },
+          "status": {
+            "all": "Alles",
+            "active": "Actief",
+            "suspended": "Geschorst",
+            "platform_banned": "Verbannen"
+          },
+          "live": {
+            "all": "Alles",
+            "live": "Live",
+            "offline": "Offline"
+          }
+        },
+        "list": {
+          "title": "Tenants",
+          "newestFirst": "Nieuwste eerst",
+          "empty": "Geen tenant past bij deze filters.",
+          "error": "De tenantlijst kon niet laden.",
+          "forbidden": "Je mag de tenantlijst niet zien."
+        },
+        "detail": {
+          "title": "Tenant",
+          "description": "Wat de bot over deze persoon bijhoudt.",
+          "login": "Login",
+          "kind": "Soort",
+          "platforms": "Platforms",
+          "lastActive": "Laatst actief",
+          "created": "Aangemaakt"
+        },
         "restricted": "Je mag geen geld verdienen met NomNomzBot: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Voor jezelf, je vrienden en je community draaien is altijd gratis.",
         "justification": "Onderbouwing",
         "justificationRequired": "Vul een onderbouwing in. Die staat in het auditlog.",
@@ -256,13 +280,13 @@
         },
         "access": {
           "title": "Toegang tot {name} starten",
-          "description": "Opent een tijdelijke supportsessie op deze tenant. Elke stap wordt vastgelegd.",
+          "description": "Opent een tijdelijke supportsessie op dit kanaal. Elke stap wordt vastgelegd.",
           "breakGlass": "Noodtoegang (break glass)",
           "expires": "Verloopt op"
         },
         "remigrate": {
           "title": "Migraties opnieuw draaien voor {name}",
-          "description": "Past de databasemigraties toe die deze tenant nog mist."
+          "description": "Past de databasemigraties toe die dit kanaal nog mist."
         },
         "erase": {
           "title": "{name} wissen",
@@ -284,7 +308,7 @@
         "limits": {
           "title": "Limietaanpassingen",
           "description": "Actuele quota-aanpassingen; wissen herstelt de standaard van het niveau.",
-          "empty": "Geen aanpassing: deze tenant volgt zijn niveau.",
+          "empty": "Geen aanpassing: dit kanaal volgt zijn niveau.",
           "error": "De limieten konden niet laden.",
           "add": "Limiet toevoegen",
           "clear": "De aanpassing {key} wissen",
@@ -297,48 +321,6 @@
           "value": "Waarde",
           "reason": "Reden",
           "expires": "Verloopt op"
-        }
-      },
-      "users": {
-        "title": "Gebruikers",
-        "search": "Zoek gebruikers",
-        "count": "{count} gebruikers",
-        "never": "Nooit",
-        "detail": {
-          "title": "Gebruiker",
-          "description": "Wat de bot over deze persoon bijhoudt.",
-          "login": "Login",
-          "email": "E-mail",
-          "role": "Rol",
-          "channels": "Kanalen",
-          "lastActive": "Laatst actief",
-          "created": "Aangemaakt"
-        },
-        "columns": {
-          "user": "Gebruiker",
-          "role": "Rol",
-          "channels": "Kanalen",
-          "lastActive": "Laatst actief",
-          "created": "Aangemaakt"
-        },
-        "role": {
-          "admin": "Beheerder",
-          "user": "Gebruiker"
-        },
-        "filters": {
-          "roleLabel": "Rol",
-          "role": {
-            "all": "Alle",
-            "admin": "Beheerder",
-            "user": "Gebruiker"
-          }
-        },
-        "list": {
-          "title": "Gebruikers",
-          "newestFirst": "Nieuwste eerst",
-          "empty": "Geen gebruiker past bij deze filters.",
-          "error": "De gebruikerslijst kon niet laden.",
-          "forbidden": "Je mag de gebruikerslijst niet zien."
         }
       },
       "trustSafety": {
@@ -681,7 +663,7 @@
       },
       "errorBudget": {
         "title": "Foutbudget",
-        "count": "{count} tenants",
+        "count": "{count} kanalen",
         "restricted": "Je mag geen geld verdienen met NomNomzBot: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Voor jezelf, je vrienden en je community draaien is altijd gratis.",
         "noAttempts": "Geen pogingen",
         "exhausted": "Budget op",
@@ -694,7 +676,7 @@
           "budget": "Budget over"
         },
         "list": {
-          "title": "Webhook-levering per tenant",
+          "title": "Webhook-levering per kanaal",
           "window": "Laatste 24 uur. Doel voor succespercentage: {target}.",
           "empty": "In de laatste 24 uur is geen webhook-levering afgerond.",
           "error": "De foutbudgetten konden niet laden.",
@@ -795,8 +777,8 @@
         }
       },
       "tenantUsage": {
-        "title": "Gebruik per tenant",
-        "count": "{count} tenants",
+        "title": "Kanaalgebruik",
+        "count": "{count} kanalen",
         "restricted": "Je mag geen geld verdienen met NomNomzBot: niet verkopen, en geen betaalde hosting of betaalde dienst erop bouwen. Dat recht is voorbehouden aan NoMercy Labs. Voor jezelf, je vrienden en je community draaien is altijd gratis.",
         "noUsage": "Geen gebruik vastgelegd",
         "noCost": "Geen prijs",
@@ -809,11 +791,11 @@
           "cost": "Kosten"
         },
         "list": {
-          "title": "Gebruik per tenant",
-          "latestPeriod": "Laatste meetperiode van elke tenant",
+          "title": "Gebruik per kanaal",
+          "latestPeriod": "Laatste meetperiode van elk kanaal",
           "empty": "Er is nog geen gebruik vastgelegd.",
-          "error": "Het tenantgebruik kon niet laden.",
-          "forbidden": "Je mag het tenantgebruik niet bekijken."
+          "error": "Het kanaalgebruik kon niet laden.",
+          "forbidden": "Je mag het kanaalgebruik niet bekijken."
         }
       },
       "support": {

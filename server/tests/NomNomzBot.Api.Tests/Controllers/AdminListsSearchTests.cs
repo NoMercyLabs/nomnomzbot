@@ -34,11 +34,10 @@ using NSubstitute;
 namespace NomNomzBot.Api.Tests.Controllers;
 
 /// <summary>
-/// S-OWN08b: the admin Channels/Users lists had no search — every deployment with more than a page of tenants
-/// or users made the console unusable. Proves <c>GET /api/v1/admin/channels?search=</c> and
-/// <c>GET /api/v1/admin/users?search=</c> run a REAL, case-insensitive query against a seeded database and
-/// return ONLY the matching rows (both the channel/user's own login AND its owner/display name are searched) —
-/// not a mock asserting the query string was forwarded to a stub.
+/// S-OWN08b: the admin Channels list had no search — every deployment with more than a page of channels made
+/// the console unusable. Proves <c>GET /api/v1/admin/channels?search=</c> runs a REAL, case-insensitive query
+/// against a seeded database and returns ONLY the matching rows (both the channel's own login AND its owner's
+/// display name are searched) — not a mock asserting the query string was forwarded to a stub.
 /// </summary>
 public sealed class AdminListsSearchTests
 {
@@ -102,22 +101,6 @@ public sealed class AdminListsSearchTests
         };
         db.Channels.Add(channel);
         return channel;
-    }
-
-    private static User SeedUser(AdminListsSearchTestDbContext db, string login, string displayName)
-    {
-        User user = new()
-        {
-            Id = Guid.NewGuid(),
-            Username = login,
-            UsernameNormalized = login.ToLowerInvariant(),
-            DisplayName = displayName,
-            // A platform principal is admitted by AdminService.ListUsersAsync's "real bot user" filter without
-            // needing an owned channel or an AuthSession row — the least setup that reaches the search filter.
-            IsPlatformPrincipal = true,
-        };
-        db.Users.Add(user);
-        return user;
     }
 
     [Fact]
@@ -194,34 +177,5 @@ public sealed class AdminListsSearchTests
         body.Total.Should().Be(3);
         body.HasMore.Should().BeTrue();
         body.NextPage.Should().Be(2);
-    }
-
-    [Fact]
-    public async Task ListUsers_search_matches_login_or_display_name_case_insensitively()
-    {
-        (AdminController controller, AdminListsSearchTestDbContext db) = Build();
-        SeedUser(db, login: "pixelqueen", displayName: "PixelQueen"); // matches via login
-        SeedUser(db, login: "mod99", displayName: "PixelFan"); // matches via display name
-        SeedUser(db, login: "rockhound", displayName: "RockHound"); // must be excluded
-        await db.SaveChangesAsync();
-
-        IActionResult result = await controller.ListUsers(
-            search: "pixel",
-            request: new PageRequestDto(),
-            ct: CancellationToken.None
-        );
-
-        OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
-        PaginatedResponse<AdminUserDto> body = ok
-            .Value.Should()
-            .BeOfType<PaginatedResponse<AdminUserDto>>()
-            .Subject;
-
-        body.Data.Select(u => u.Login).Should().BeEquivalentTo(["pixelqueen", "mod99"]);
-        body.Data.Should()
-            .NotContain(
-                u => u.Login == "rockhound",
-                "an unmatched user must be excluded, not merely deprioritized"
-            );
     }
 }

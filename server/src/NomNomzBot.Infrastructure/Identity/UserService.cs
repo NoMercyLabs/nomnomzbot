@@ -444,36 +444,6 @@ public class UserService : IUserService
         return Result.Success(result);
     }
 
-    public async Task<Result<PagedList<AdminUserDto>>> ListAdminUsersAsync(
-        PaginationParams pagination,
-        CancellationToken cancellationToken = default
-    )
-    {
-        IQueryable<User> query = _db.Users.Include(u => u.Channel);
-
-        int total = await query.CountAsync(cancellationToken);
-
-        List<AdminUserDto> items = await query
-            .OrderBy(u => u.Username)
-            .Skip((pagination.Page - 1) * pagination.PageSize)
-            .Take(pagination.PageSize)
-            .Select(u => new AdminUserDto(
-                u.Id.ToString(),
-                u.DisplayName,
-                u.Username,
-                null,
-                u.Channel != null ? "moderator" : "user",
-                u.Channel != null ? 1 : 0,
-                u.CreatedAt,
-                u.UpdatedAt
-            ))
-            .ToListAsync(cancellationToken);
-
-        return Result.Success(
-            new PagedList<AdminUserDto>(items, pagination.Page, pagination.PageSize, total)
-        );
-    }
-
     private static UserDto ToDto(User u) =>
         new(
             u.Id.ToString(),

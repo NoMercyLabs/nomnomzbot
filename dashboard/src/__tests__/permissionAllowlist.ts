@@ -38,7 +38,7 @@ export const permissionAllowlist = [
       'admin/components/ChannelRunsTable.vue': 1,
       'admin/components/PlatformDefaultPreview.vue': 2,
       'admin/components/RunDetailSheet.vue': 2,
-      'admin/components/UsersTable.vue': 1,
+      'admin/components/TenantsTable.vue': 1,
       'catalog/CatalogView.vue': 11,
       'chat/components/ChatDisplayPanel.vue': 2,
       'chat/components/ChatDockHeader.vue': 6,

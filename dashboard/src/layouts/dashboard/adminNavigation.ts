@@ -29,7 +29,6 @@ import Shield from '~icons/nnz/shield';
 import ShieldAlert from '~icons/nnz/shield-alert';
 import ShieldCheck from '~icons/nnz/shield-check';
 import Speedometer from '~icons/nnz/speedometer';
-import Tv from '~icons/nnz/tv';
 import Users from '~icons/nnz/users';
 
 import { backEntry, navEntry, type NavGroup } from './navigation';
@@ -56,8 +55,7 @@ export const adminNav: readonly NavGroup[] = [
   {
     key: 'admin.people',
     entries: [
-      navEntry('dashboard-admin-channels', 'admin.channels', Tv),
-      navEntry('dashboard-admin-users', 'admin.users', Users),
+      navEntry('dashboard-admin-tenants', 'admin.tenants', Users),
       navEntry('dashboard-admin-support', 'admin.support', Headset),
     ],
   },

@@ -83,10 +83,4 @@ public interface IUserService
         string userId,
         CancellationToken cancellationToken = default
     );
-
-    /// <summary>List all users for the admin panel.</summary>
-    Task<Result<PagedList<AdminUserDto>>> ListAdminUsersAsync(
-        PaginationParams pagination,
-        CancellationToken cancellationToken = default
-    );
 }

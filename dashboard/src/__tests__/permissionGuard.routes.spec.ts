@@ -26,7 +26,12 @@ function isGuarded(route: RouteRecordRaw): boolean {
   if (route.meta?.action !== undefined || route.meta?.open === true)
     return true;
 
-  return route.meta?.navMode === 'admin' && route.beforeEnter === adminOnly;
+  // A guard list counts when adminOnly runs first (the tenants page adds a redirect for old ?tenant= links).
+  const guards = Array.isArray(route.beforeEnter)
+    ? route.beforeEnter
+    : [route.beforeEnter];
+
+  return route.meta?.navMode === 'admin' && guards[0] === adminOnly;
 }
 
 function nameOf(route: RouteRecordRaw): string {

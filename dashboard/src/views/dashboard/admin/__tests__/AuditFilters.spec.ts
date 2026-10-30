@@ -10,13 +10,21 @@
 // -----------------------------------------------------------------------------
 
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
-import { mount, type VueWrapper } from '@vue/test-utils';
+import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+
+type Asked = { path: string; query: Record<string, unknown> };
+
+const asked = vi.hoisted<Asked[]>(() => []);
 
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async () => ({ data: { data: [], total: 0 }, response: { status: 200, ok: true } }),
+    GET: async (path: string, options?: { params?: { query?: Record<string, unknown> } }) => {
+      asked.push({ path, query: { ...options?.params?.query } });
+
+      return { data: { data: [], total: 0 }, response: { status: 200, ok: true } };
+    },
   },
 }));
 
@@ -47,6 +55,7 @@ function open(values: AuditFilterValues): VueWrapper {
 }
 
 beforeEach(() => {
+  asked.length = 0;
   i18n.global.mergeLocaleMessage('en', en);
 });
 
@@ -54,6 +63,20 @@ afterEach(() => {
   mounted?.unmount();
   mounted = null;
   document.body.innerHTML = '';
+});
+
+describe('the audit filter pickers', () => {
+  it('read the tenants list: the operator picker takes any person, the channel picker only streamers', async () => {
+    open(empty);
+    await flushPromises();
+
+    const lists = asked.filter((call) => call.path.endsWith('/admin/tenants'));
+    const kinds = lists.map((call) => call.query.kind).sort();
+
+    expect(asked.some((call) => call.path.endsWith('/admin/users'))).toBe(false);
+    expect(lists).toHaveLength(2);
+    expect(kinds).toEqual(['streamer', undefined]);
+  });
 });
 
 describe('the audit filters on a phone', () => {

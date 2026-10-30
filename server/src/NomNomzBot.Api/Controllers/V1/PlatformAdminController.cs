@@ -49,7 +49,10 @@ public class PlatformAdminController(
     IConfiguration configuration
 ) : BaseController
 {
-    /// <summary>Paged tenant listing with search/status/live filters.</summary>
+    /// <summary>
+    /// Paged tenant listing: one row per person who joined the system, their channel inside. Filters: search
+    /// (login, display name or channel name), kind (<c>streamer</c> | <c>viewer</c>), status and live (channel).
+    /// </summary>
     [HttpGet("tenants")]
     [EnableRateLimiting(RateLimitPolicyNames.Read)]
     [Authorize(Policy = IamPermissionKeys.TenantRead)]
@@ -58,6 +61,7 @@ public class PlatformAdminController(
         [FromQuery] string? search,
         [FromQuery] string? status,
         [FromQuery] bool? isLive,
+        [FromQuery] string? kind,
         [FromQuery] PageRequestDto request,
         CancellationToken ct
     )
@@ -69,7 +73,7 @@ public class PlatformAdminController(
         PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
         Result<PagedList<AdminTenantDto>> result = await admin.ListTenantsAsync(
             acting.Value,
-            new(search, status, isLive),
+            new(search, status, isLive, kind),
             pagination,
             ct
         );

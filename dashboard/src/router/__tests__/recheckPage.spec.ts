@@ -65,8 +65,8 @@ function makeRouter(): Router {
         meta: { action: 'chat:viewer:read' },
       },
       {
-        name: 'dashboard-admin-channels',
-        path: '/admin/channels',
+        name: 'dashboard-admin-tenants',
+        path: '/admin/tenants',
         component: page,
         meta: { navMode: 'admin' },
         beforeEnter: adminOnly,
@@ -96,8 +96,8 @@ describe('recheckOpenPage', () => {
     signedInAs(true);
     const router = makeRouter();
 
-    await router.push('/admin/channels');
-    expect(router.currentRoute.value.name).toBe('dashboard-admin-channels');
+    await router.push('/admin/tenants');
+    expect(router.currentRoute.value.name).toBe('dashboard-admin-tenants');
 
     signedInAs(false);
     await recheckOpenPage(router);
@@ -120,12 +120,12 @@ describe('recheckOpenPage', () => {
     signedInAs(true);
     const router = makeRouter();
 
-    await router.push('/admin/channels');
+    await router.push('/admin/tenants');
     const before = window.history.length;
 
     await recheckOpenPage(router);
 
-    expect(router.currentRoute.value.name).toBe('dashboard-admin-channels');
+    expect(router.currentRoute.value.name).toBe('dashboard-admin-tenants');
     expect(window.history.length).toBe(before);
   });
 });

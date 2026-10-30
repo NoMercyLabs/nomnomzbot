@@ -188,7 +188,7 @@ describe('AdminTenantUsageView', () => {
     refused = true;
     await open();
 
-    expect(text()).toContain('You may not see tenant usage.');
+    expect(text()).toContain('You may not see channel usage.');
     expect(rows()).toHaveLength(0);
   });
 

@@ -32,14 +32,29 @@ export async function adminOnly(to: RouteLocationNormalized): Promise<true | Rou
     : { name: 'dashboard-home' };
 }
 
-export const dashboardAdminChannelsRoute = {
-  path: 'admin/channels',
-  name: 'dashboard-admin-channels',
+// An old ?tenant=<channelId> link opens that channel's console, with the other filters kept. The admin
+// check runs first, so only an admin who holds the page's key is ever sent on.
+export function tenantLinkRedirect(to: Pick<RouteLocationNormalized, 'query'>): true | RouteLocationRaw {
+  const { tenant, ...query } = to.query;
+
+  return typeof tenant === 'string'
+    ? {
+        name: 'dashboard-admin-channels-console',
+        params: { channelId: tenant },
+        query,
+      }
+    : true;
+}
+
+// One list of the people who joined: streamers with their channel, and viewers who signed in.
+export const dashboardAdminTenantsRoute = {
+  path: 'admin/tenants',
+  name: 'dashboard-admin-tenants',
   meta: { navMode: 'admin' },
-  beforeEnter: adminOnly,
+  beforeEnter: [adminOnly, tenantLinkRedirect],
   component: () =>
     loadPage(
-      () => import('./AdminChannelsView.vue'),
+      () => import('./AdminTenantsView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;
@@ -52,18 +67,6 @@ export const dashboardAdminOverviewRoute = {
   component: () =>
     loadPage(
       () => import('./AdminOverviewView.vue'),
-      (locale) => import(`./i18n/${locale}.json`),
-    ),
-} as const satisfies RouteRecordRaw;
-
-export const dashboardAdminUsersRoute = {
-  path: 'admin/users',
-  name: 'dashboard-admin-users',
-  meta: { navMode: 'admin' },
-  beforeEnter: adminOnly,
-  component: () =>
-    loadPage(
-      () => import('./AdminUsersView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
     ),
 } as const satisfies RouteRecordRaw;
@@ -90,27 +93,6 @@ export const dashboardAdminChannelConsoleRoute = {
       () => import('./AdminChannelConsoleView.vue'),
       (locale) => import(`./i18n/${locale}.json`),
     ),
-} as const satisfies RouteRecordRaw;
-
-// The Tenants page became the Channels list, so its address and its name keep working: the query goes along,
-// and an old ?tenant= link opens that channel's console. A redirect never renders, so it has no
-// sidebar mode and no guard; the page it lands on has both.
-export function tenantsRedirect(to: Pick<RouteLocationNormalized, 'query'>): RouteLocationRaw {
-  const { tenant, ...query } = to.query;
-
-  return typeof tenant === 'string'
-    ? {
-        name: 'dashboard-admin-channels-console',
-        params: { channelId: tenant },
-        query,
-      }
-    : { name: 'dashboard-admin-channels', query };
-}
-
-export const dashboardAdminTenantsRoute = {
-  path: 'admin/tenants',
-  name: 'dashboard-admin-tenants',
-  redirect: tenantsRedirect,
 } as const satisfies RouteRecordRaw;
 
 export const dashboardAdminWebhookDeliveriesRoute = {

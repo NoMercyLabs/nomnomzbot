@@ -227,8 +227,8 @@ async function open(start: string = '/app/admin/channels/t1'): Promise<void> {
     history: createMemoryHistory(),
     routes: [
       {
-        path: '/app/admin/channels',
-        name: 'dashboard-admin-channels',
+        path: '/app/admin/tenants',
+        name: 'dashboard-admin-tenants',
         component: blank,
       },
       {
@@ -294,10 +294,20 @@ describe('AdminChannelConsoleView header', () => {
     expect(header.textContent).toContain('Active');
     expect(header.textContent).toContain('Pro plan');
     expect(document.body.querySelector('header h1')!.textContent).toBe('stoney_eagle');
-    expect(document.body.querySelector('[data-slot="page-crumb"]')!.textContent?.trim()).toBe('Channels');
+    expect(document.body.querySelector('[data-slot="page-crumb"]')!.textContent?.trim()).toBe('Tenants');
     expect(document.body.querySelectorAll('[data-slot="breadcrumb-item"]')).toHaveLength(0);
 
-    expect(document.body.querySelector('[data-slot="back-link"]')!.textContent?.trim()).toBe('All channels');
+    expect(document.body.querySelector('[data-slot="back-link"]')!.textContent?.trim()).toBe('All tenants');
+  });
+
+  it('goes back to the Tenants page and keeps the list filters in the address', async () => {
+    await open('/app/admin/channels/t1?search=stoney');
+
+    document.body.querySelector<HTMLElement>('[data-slot="back-link"]')!.click();
+    await settle();
+
+    expect(router.currentRoute.value.name).toBe('dashboard-admin-tenants');
+    expect(router.currentRoute.value.fullPath).toBe('/app/admin/tenants?search=stoney');
   });
 
   it('keeps Act as as the one filled button of the header and opens the Act as dialog', async () => {

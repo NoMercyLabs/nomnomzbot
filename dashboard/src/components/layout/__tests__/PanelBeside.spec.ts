@@ -70,7 +70,7 @@ const pages = import.meta.glob<string>(
     '/src/views/dashboard/music/MusicView.vue',
     '/src/views/dashboard/media-share/MediaShareView.vue',
     '/src/views/dashboard/overlays/OverlaysView.vue',
-    '/src/views/dashboard/admin/AdminUsersView.vue',
+    '/src/views/dashboard/admin/AdminTenantsView.vue',
     '/src/views/dashboard/settings/webhooks/WebhooksView.vue',
   ],
   {

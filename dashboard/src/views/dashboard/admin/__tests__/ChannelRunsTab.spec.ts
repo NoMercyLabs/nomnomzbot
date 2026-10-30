@@ -239,8 +239,8 @@ async function open(start: string): Promise<void> {
     history: createMemoryHistory(),
     routes: [
       {
-        path: '/app/admin/channels',
-        name: 'dashboard-admin-channels',
+        path: '/app/admin/tenants',
+        name: 'dashboard-admin-tenants',
         component: blank,
       },
       {

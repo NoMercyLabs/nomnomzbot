@@ -85,8 +85,8 @@ const pages: RouteRecordRaw[] = [
     meta: { navMode: 'settings' },
   },
   {
-    name: 'dashboard-admin-channels',
-    path: 'admin/channels',
+    name: 'dashboard-admin-tenants',
+    path: 'admin/tenants',
     component: page,
     meta: { navMode: 'admin' },
   },
@@ -166,7 +166,7 @@ describe('The sidebar always keeps a way back', () => {
 
   it('keeps the way back in the admin sidebar too', async () => {
     held.keys = ['chat:viewer:read'];
-    const { navigation, router } = await openAt('/app/admin/channels');
+    const { navigation, router } = await openAt('/app/admin/tenants');
     const back = navigation.entries.value.find((entry) => entry.label === 'back.admin');
 
     expect(back).toBeDefined();

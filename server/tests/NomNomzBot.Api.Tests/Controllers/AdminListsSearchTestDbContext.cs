@@ -37,11 +37,11 @@ using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 namespace NomNomzBot.Api.Tests.Controllers;
 
 /// <summary>
-/// A focused <see cref="IApplicationDbContext"/> over only the entities <c>AdminService.ListChannelsAsync</c>/
-/// <c>ListUsersAsync</c> (S-OWN08b) actually read — <see cref="Channel"/> WITH its <see cref="User"/> owner
+/// A focused <see cref="IApplicationDbContext"/> over only the entities <c>AdminService.ListChannelsAsync</c>
+/// (S-OWN08b) actually reads — <see cref="Channel"/> WITH its <see cref="User"/> owner
 /// navigation (the production query selects <c>c.User.DisplayName</c>, so this — unlike the shared
 /// <c>ApiTestDbContext</c>, which ignores that navigation — maps it for real), <see cref="ChannelSubscription"/>
-/// (the plan-tier left join), <see cref="User"/>, and <see cref="AuthSession"/> (the "real bot user" filter) —
+/// (the plan-tier left join), <see cref="User"/>, and <see cref="AuthSession"/> —
 /// on the EF Core SQLite harness, a REAL relational database, not the EF InMemory provider (S-API-TESTS-INMEMORY:
 /// InMemory ignores unique indexes/FK constraints and green-lights writes the real database rejects). Kept as
 /// its own file rather than extending the shared <c>ApiTestDbContext</c> so mapping the owner FK for real can't
@@ -159,8 +159,7 @@ internal sealed class AdminListsSearchTestDbContext : DbContext, IApplicationDbC
     public DbSet<EventSubConduitShard> EventSubConduitShards => throw new NotSupportedException();
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
     public DbSet<ChatMessage> ChatMessages => throw new NotSupportedException();
-    public DbSet<NomNomzBot.Domain.Chat.Entities.FavoriteEmote> FavoriteEmotes =>
-        throw new NotSupportedException();
+    public DbSet<FavoriteEmote> FavoriteEmotes => throw new NotSupportedException();
     public DbSet<ChatterAssignedColor> ChatterAssignedColors => throw new NotSupportedException();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => throw new NotSupportedException();
     public DbSet<Domain.Giveaways.Entities.Giveaway> Giveaways => throw new NotSupportedException();

@@ -117,42 +117,6 @@ public sealed class AdminListsSortFilterTests
         );
     }
 
-    private static void SeedUser(
-        AdminListsSearchTestDbContext db,
-        string login,
-        DateTime createdAt,
-        bool isPlatformPrincipal = true
-    )
-    {
-        db.Users.Add(
-            new()
-            {
-                Id = Guid.NewGuid(),
-                Username = login,
-                UsernameNormalized = login,
-                DisplayName = login,
-                CreatedAt = createdAt,
-                // A non-principal still has to pass the "real bot user" filter to reach the role filter at
-                // all, and owning a channel is the other way in.
-                IsPlatformPrincipal = isPlatformPrincipal,
-            }
-        );
-        if (!isPlatformPrincipal)
-        {
-            Guid ownerId = db.Users.Local.Last().Id;
-            db.Channels.Add(
-                new()
-                {
-                    Id = Guid.NewGuid(),
-                    OwnerUserId = ownerId,
-                    Name = login + "-ch",
-                    NameNormalized = login + "-ch",
-                    CreatedAt = createdAt,
-                }
-            );
-        }
-    }
-
     private static PaginatedResponse<T> Body<T>(IActionResult result) =>
         result
             .Should()
@@ -294,62 +258,5 @@ public sealed class AdminListsSortFilterTests
         );
 
         Body<AdminChannelDto>(result).Data.Select(c => c.Login).Should().Equal("offair");
-    }
-
-    [Fact]
-    public async Task ListUsers_sorted_by_name_orders_alphabetically()
-    {
-        (AdminController controller, AdminListsSearchTestDbContext db) = Build();
-        SeedUser(db, "zeta", Newer);
-        SeedUser(db, "alpha", Old);
-        await db.SaveChangesAsync();
-
-        IActionResult result = await controller.ListUsers(
-            search: null,
-            request: new PageRequestDto { Sort = "name" },
-            ct: CancellationToken.None
-        );
-
-        Body<AdminUserDto>(result).Data.Select(u => u.Login).Should().Equal("alpha", "zeta");
-    }
-
-    [Fact]
-    public async Task ListUsers_role_filter_returns_only_platform_staff()
-    {
-        // The filter uses the same derivation the row reports, so what an operator filters on is exactly
-        // what they then read — a filter whose result disagrees with the column beside it is worse than none.
-        (AdminController controller, AdminListsSearchTestDbContext db) = Build();
-        SeedUser(db, "staffer", Newer, isPlatformPrincipal: true);
-        SeedUser(db, "streamer", Old, isPlatformPrincipal: false);
-        await db.SaveChangesAsync();
-
-        IActionResult result = await controller.ListUsers(
-            search: null,
-            request: new PageRequestDto(),
-            ct: CancellationToken.None,
-            role: "admin"
-        );
-
-        PaginatedResponse<AdminUserDto> body = Body<AdminUserDto>(result);
-        body.Data.Select(u => u.Login).Should().Equal("staffer");
-        body.Data.Should().OnlyContain(u => u.Role == "admin");
-    }
-
-    [Fact]
-    public async Task ListUsers_role_filter_for_users_excludes_platform_staff()
-    {
-        (AdminController controller, AdminListsSearchTestDbContext db) = Build();
-        SeedUser(db, "staffer", Newer, isPlatformPrincipal: true);
-        SeedUser(db, "streamer", Old, isPlatformPrincipal: false);
-        await db.SaveChangesAsync();
-
-        IActionResult result = await controller.ListUsers(
-            search: null,
-            request: new PageRequestDto(),
-            ct: CancellationToken.None,
-            role: "user"
-        );
-
-        Body<AdminUserDto>(result).Data.Select(u => u.Login).Should().Equal("streamer");
     }
 }

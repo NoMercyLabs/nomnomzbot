@@ -47,6 +47,11 @@ public sealed class PlatformAdminService(
     /// <summary>The seeded role a support-access grant assigns, narrowed to the target tenant (§3.2).</summary>
     private const string SupportRoleName = "platform-support";
 
+    /// <summary>Tenant-list kinds: a person who owns a channel, or one who joined without one.</summary>
+    private const string TenantKindStreamer = "streamer";
+
+    private const string TenantKindViewer = "viewer";
+
     /// <summary>
     /// Default lifetime for a support-access grant when the request omits one. A grant with no expiry never
     /// expires — <see cref="StartImpersonationAsync"/> requires a non-null, still-future <c>ExpiresAt</c>, so
@@ -66,37 +71,128 @@ public sealed class PlatformAdminService(
         if (authorized.IsFailure)
             return authorized.WithValue<PagedList<AdminTenantDto>>(null!);
 
-        IQueryable<Channel> channels = db.Channels;
-        if (!string.IsNullOrWhiteSpace(query.Search))
-            channels = channels.Where(c =>
-                c.NameNormalized.Contains(query.Search.ToLowerInvariant())
+        string? kind = string.IsNullOrWhiteSpace(query.Kind)
+            ? null
+            : query.Kind.Trim().ToLowerInvariant();
+        if (kind is not null && kind != TenantKindStreamer && kind != TenantKindViewer)
+            return Result.Failure<PagedList<AdminTenantDto>>(
+                "Kind must be 'streamer' or 'viewer'.",
+                "VALIDATION_FAILED"
             );
-        if (!string.IsNullOrWhiteSpace(query.Status))
-            channels = channels.Where(c => c.Status == query.Status);
-        if (query.IsLive is not null)
-            channels = channels.Where(c => c.IsLive == query.IsLive);
 
-        int total = await channels.CountAsync(ct);
-        List<AdminTenantDto> items = await channels
-            .OrderByDescending(c => c.CreatedAt)
+        // A tenant is a person who joined the system: the same set as the admin users list (not a bot, not
+        // anonymized, and owns a channel, has signed in, or is platform staff).
+        IQueryable<User> people = db.Users.Where(u =>
+            !u.IsBot
+            && !u.IsAnonymized
+            && (
+                u.IsPlatformPrincipal
+                || db.Channels.Any(c => c.OwnerUserId == u.Id)
+                || db.AuthSessions.Any(s => s.UserId == u.Id)
+            )
+        );
+
+        if (!string.IsNullOrWhiteSpace(query.Search))
+        {
+            string needle = query.Search.Trim().ToLowerInvariant();
+            people = people.Where(u =>
+                u.UsernameNormalized.Contains(needle)
+                || u.DisplayName.ToLower().Contains(needle)
+                || db.Channels.Any(c => c.OwnerUserId == u.Id && c.NameNormalized.Contains(needle))
+            );
+        }
+        if (kind == TenantKindStreamer)
+            people = people.Where(u => db.Channels.Any(c => c.OwnerUserId == u.Id));
+        if (kind == TenantKindViewer)
+            people = people.Where(u => !db.Channels.Any(c => c.OwnerUserId == u.Id));
+        // Status and live describe the channel, so a person without one never matches them.
+        if (!string.IsNullOrWhiteSpace(query.Status))
+            people = people.Where(u =>
+                db.Channels.Any(c => c.OwnerUserId == u.Id && c.Status == query.Status)
+            );
+        if (query.IsLive is not null)
+            people = people.Where(u =>
+                db.Channels.Any(c => c.OwnerUserId == u.Id && c.IsLive == query.IsLive)
+            );
+
+        int total = await people.CountAsync(ct);
+        List<TenantPersonRow> page = await people
+            .OrderByDescending(u => u.CreatedAt)
+            .ThenByDescending(u => u.Id)
             .Skip((pagination.Page - 1) * pagination.PageSize)
             .Take(pagination.PageSize)
-            .Select(c => new AdminTenantDto(
-                c.Id,
-                c.Name,
-                c.TwitchChannelId ?? "",
-                c.Status,
-                c.BillingTierKey,
-                c.IsLive,
-                c.CreatedAt,
-                c.SuspendedAt
+            .Select(u => new TenantPersonRow(
+                u.Id,
+                u.DisplayName,
+                u.Username,
+                u.LastSeenAt,
+                u.CreatedAt
             ))
             .ToListAsync(ct);
+
+        List<Guid> ids = page.Select(p => p.UserId).ToList();
+        Dictionary<Guid, List<string>> platformsByUser = (
+            await db
+                .UserIdentities.Where(i => ids.Contains(i.UserId))
+                .Select(i => new LinkedProvider(i.UserId, i.Provider))
+                .ToListAsync(ct)
+        )
+            .GroupBy(i => i.UserId)
+            .ToDictionary(
+                g => g.Key,
+                g =>
+                    g.Select(i => i.Provider.ToLowerInvariant())
+                        .Distinct()
+                        .Order(StringComparer.Ordinal)
+                        .ToList()
+            );
+        Dictionary<Guid, AdminTenantChannelDto> channelByOwner = await db
+            .Channels.Where(c => ids.Contains(c.OwnerUserId))
+            .ToDictionaryAsync(
+                c => c.OwnerUserId,
+                c => new AdminTenantChannelDto(
+                    c.Id,
+                    c.Name,
+                    c.Status,
+                    c.BillingTierKey,
+                    c.IsLive,
+                    c.IsOnboarded,
+                    c.SuspendedAt
+                ),
+                ct
+            );
+
+        List<AdminTenantDto> items = page.Select(p =>
+            {
+                channelByOwner.TryGetValue(p.UserId, out AdminTenantChannelDto? channel);
+                platformsByUser.TryGetValue(p.UserId, out List<string>? platforms);
+                return new AdminTenantDto(
+                    p.UserId,
+                    p.DisplayName,
+                    p.Login,
+                    channel is null ? TenantKindViewer : TenantKindStreamer,
+                    platforms ?? [],
+                    p.LastActive,
+                    p.CreatedAt,
+                    channel
+                );
+            })
+            .ToList();
 
         return Result.Success(
             new PagedList<AdminTenantDto>(items, pagination.Page, pagination.PageSize, total)
         );
     }
+
+    private sealed record TenantPersonRow(
+        Guid UserId,
+        string DisplayName,
+        string Login,
+        DateTime? LastActive,
+        DateTime CreatedAt
+    );
+
+    private sealed record LinkedProvider(Guid UserId, string Provider);
 
     public async Task<Result<AdminTenantDetailDto>> GetTenantAsync(
         Guid principalId,

@@ -32,7 +32,7 @@ using NomNomzBot.Domain.Identity;
 namespace NomNomzBot.Api.Controllers.V1;
 
 /// <summary>
-/// Platform-admin dashboard: aggregate stats, channels, users, system health, and events. Plane-C IAM gates
+/// Platform-admin dashboard: aggregate stats, channels, system health, and events. Plane-C IAM gates
 /// (roles-permissions.md §5.5 rewires this controller off the legacy admin-role check): the tenant listing
 /// carries <c>tenant:read</c> (stream-admin.md §5 platform rows), aggregate stats carry
 /// <c>platform:analytics:read</c> (analytics.md §5), and the remaining operator reads carry <c>iam:manage</c>
@@ -263,33 +263,6 @@ public class AdminController : BaseController
             pagination,
             ct,
             isLive
-        );
-        if (result.IsFailure)
-            return ResultResponse(result);
-        return GetPaginatedResponse(result.Value, request);
-    }
-
-    /// <summary>
-    /// Returns real bot USERS — operators/streamers/mods who authenticate and use the dashboard, or own a
-    /// channel, plus platform staff. Auto-created chatter rows, bot accounts, and anonymized users are excluded,
-    /// so this list (and the "act as" support impersonation built on it) targets people who actually use the bot.
-    /// </summary>
-    [HttpGet("users")]
-    [Authorize(Policy = IamPermissionKeys.IamManage)]
-    [ProducesResponseType<PaginatedResponse<AdminUserDto>>(StatusCodes.Status200OK)]
-    public async Task<IActionResult> ListUsers(
-        [FromQuery] string? search,
-        [FromQuery] PageRequestDto request,
-        CancellationToken ct,
-        [FromQuery] string? role = null
-    )
-    {
-        PaginationParams pagination = new(request.Page, request.Take, request.Sort, request.Order);
-        Result<PagedList<AdminUserDto>> result = await _adminService.ListUsersAsync(
-            search,
-            pagination,
-            ct,
-            role
         );
         if (result.IsFailure)
             return ResultResponse(result);

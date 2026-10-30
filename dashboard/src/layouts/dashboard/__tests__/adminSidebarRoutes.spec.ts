@@ -16,6 +16,7 @@ import { createMemoryHistory, createRouter, type RouteRecordRaw } from 'vue-rout
 import { dashboardRoutes } from '@/router/dashboard';
 
 import { adminNav } from '../adminNavigation';
+import { pageLabel } from '../pageLabels';
 
 const stub = defineComponent({ render: () => h('div') });
 
@@ -40,9 +41,11 @@ const isComingSoon = (route: RouteRecordRaw): boolean => Boolean(route.meta?.com
 
 const adminRoutes = children.filter((child) => child.meta?.navMode === 'admin');
 
-// A page that opens from a sidebar page (its name is the entry's name plus a suffix) lights that entry; it has no entry of its own.
+// A page that opens from a sidebar page lights that entry and has no entry of its own: its name is the entry's
+// name plus a suffix, or the page labels name the entry it opens from (the channel console opens from Tenants).
 const isChildPage = (route: RouteRecordRaw): boolean =>
-  sidebarRoutes.some((entry) => String(route.name).startsWith(`${entry}-`));
+  sidebarRoutes.some((entry) => String(route.name).startsWith(`${entry}-`)) ||
+  (!sidebarRoutes.includes(String(route.name)) && pageLabel(route.name) !== null);
 
 const builtAdminPages = adminRoutes.filter((route) => !isComingSoon(route) && !isChildPage(route));
 const comingSoonNames = adminRoutes.filter(isComingSoon).map((route) => String(route.name));

@@ -257,7 +257,7 @@ describe('folder layout', () => {
     const bodies = [
       'components/layout/BoardGrid.vue',
       'views/dashboard/chat/ChatView.vue',
-      'views/dashboard/admin/AdminChannelsView.vue',
+      'views/dashboard/admin/AdminTenantsView.vue',
       'components/layout/ListDetail.vue',
     ];
 
@@ -1169,9 +1169,8 @@ describe('calls to the bot', () => {
 const handSearchInHead = /<template\s+#actions[^>]*>(?:(?!<\/template>)[\s\S])*?<SearchField\b/;
 const handSearchInHeadAllowlist = [
   // Admin and people lists, and the permissions area list: head searches built by hand (phase 2).
-  'views/dashboard/admin/AdminChannelsView.vue',
   'views/dashboard/admin/AdminSupportView.vue',
-  'views/dashboard/admin/AdminUsersView.vue',
+  'views/dashboard/admin/AdminTenantsView.vue',
   'views/dashboard/admin/components/TenantMembersPanel.vue',
   'views/dashboard/people/PeopleView.vue',
   'views/dashboard/settings/permissions/components/ActionAreaList.vue',

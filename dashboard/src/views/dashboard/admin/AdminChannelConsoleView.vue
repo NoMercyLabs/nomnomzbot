@@ -75,7 +75,7 @@ function openTab(tab: string | number): void {
   <PageHeader
     :title="tenant?.name ?? t('dashboard.admin.console.title')"
     :crumb="t('dashboard.admin.title')"
-    :back="{ name: 'dashboard-admin-channels', query: route.query }"
+    :back="{ name: 'dashboard-admin-tenants', query: route.query }"
     :back-label="t('dashboard.admin.console.back')"
   />
   <PageBody data-page-body>

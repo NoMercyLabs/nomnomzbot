@@ -58,7 +58,7 @@ const preview = useViewAs();
 const { isSupported: canFullscreen, isFullscreen, toggle: toggleFullscreen } = useFullscreen();
 
 const settingsLink: RouteLocationRaw = { name: 'dashboard-settings', query: { view: 'device' } };
-const adminLink: RouteLocationRaw = { name: 'dashboard-admin-channels' };
+const adminLink: RouteLocationRaw = { name: 'dashboard-admin-tenants' };
 
 // The two links appear when their page exists, like every other entry of the frame.
 const hasReadability = computed<boolean>(() => router.hasRoute('dashboard-settings'));
@@ -66,7 +66,7 @@ const hasReadability = computed<boolean>(() => router.hasRoute('dashboard-settin
 const previewing = computed<boolean>(() => preview.role.value !== '');
 const hasAdmin = computed<boolean>(
   () =>
-    !previewing.value && user.value?.isAdmin === true && router.hasRoute('dashboard-admin-channels'),
+    !previewing.value && user.value?.isAdmin === true && router.hasRoute('dashboard-admin-tenants'),
 );
 
 const initials = computed<string>(() =>

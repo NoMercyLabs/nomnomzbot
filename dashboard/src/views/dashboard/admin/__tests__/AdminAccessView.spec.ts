@@ -132,6 +132,40 @@ vi.mock('@/api/client', () => ({
           response: { status: 200, ok: true },
         };
 
+      // As the server sends them: a null channel is left out of the JSON, so the viewer row has no channel key.
+      if (path.endsWith('/admin/tenants'))
+        return {
+          data: {
+            data: [
+              {
+                userId: 'u-viewer',
+                displayName: 'Linked Viewer',
+                login: 'linkedviewer',
+                kind: 'viewer',
+                platforms: ['twitch', 'youtube'],
+                createdAt: '2026-10-30T00:00:00Z',
+              },
+              {
+                userId: 'u-streamer',
+                displayName: 'Kitte',
+                login: 'kitte',
+                kind: 'streamer',
+                platforms: ['twitch'],
+                createdAt: '2026-10-30T00:00:00Z',
+                channel: {
+                  broadcasterId: 'b-kitte',
+                  name: 'Kitte Live',
+                  status: 'active',
+                  billingTierKey: 'base',
+                  isLive: false,
+                  isOnboarded: true,
+                },
+              },
+            ],
+          },
+          response: { status: 200, ok: true },
+        };
+
       if (path.endsWith('/iam/roles'))
         return { data: { data: roles }, response: { status: 200, ok: true } };
 
@@ -405,6 +439,9 @@ describe('AdminAccessView', () => {
     expect(dialog.querySelector('[data-act-as-channel-search]')).not.toBeNull();
     expect(dialog.querySelector('[data-field-grant]')).toBeNull();
     expect(calls.some((call) => call.path.endsWith('/impersonate'))).toBe(false);
+    // A viewer row arrives without a channel key; only the streamer's channel is offered.
+    expect(dialog.textContent).toContain('Kitte Live');
+    expect(dialog.textContent).not.toContain('Linked Viewer');
   });
 
   it('shows the inactive filter as a switch with its default off', async () => {

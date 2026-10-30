@@ -28,9 +28,10 @@ type Ledger = Record<NavMode, { group: string; entries: { label: string; icon: s
 
 const mockup = ledger as Ledger;
 
-// Mockup pages the owner merged into another page (2026-10-30, "Merge (Recommended)"): the Tenants page is
-// the Channels list now, so the sidebar has no Tenants entry.
-const mergedAway: ReadonlySet<string> = new Set(['Tenants']);
+// Mockup pages the owner merged into another page. Stoney, 2026-10-30: "users and channels are one and the same
+// entiry ... tenants are people who are actually part of the system", so the Channels and Users pages are the
+// one Tenants list now.
+const mergedAway: ReadonlySet<string> = new Set(['Channels', 'Users']);
 
 function withoutMerged(groups: Ledger[NavMode]): Ledger[NavMode] {
   return groups.map((group) => ({
@@ -130,7 +131,11 @@ function words(path: string): string {
 
 // The mockup says "TTS" and "&"; the shipped words spell them out.
 function same(shown: string, mockup: string): boolean {
-  const aliases = { tts: 'text to speech' } as const satisfies Record<string, string>;
+  // A tenant is a person who joined (Stoney, 2026-10-30), so the per-channel usage page says channel.
+  const aliases = {
+    tts: 'text to speech',
+    'tenant usage': 'channel usage',
+  } as const satisfies Record<string, string>;
   const norm = (text: string): string => text.toLowerCase().replace(/&/g, 'and');
 
   return norm(shown) === (lookup(aliases, norm(mockup)) ?? norm(mockup));
@@ -144,13 +149,13 @@ beforeEach(() => {
 afterEach(() => localStorage.clear());
 
 describe('every planned page is reachable from its sidebar', () => {
-  it('plans 64 sidebar pages in the ledger', () => {
+  it('plans 63 sidebar pages in the ledger', () => {
     const total = MODES.reduce(
       (sum, mode) => sum + planned[mode].reduce((n, group) => n + group.entries.length, 0),
       0,
     );
 
-    expect(total).toBe(64);
+    expect(total).toBe(63);
   });
 
   for (const mode of MODES) {

@@ -57,8 +57,8 @@ const pages: RouteRecordRaw[] = [
     component: page,
   },
   {
-    path: 'admin/channels',
-    name: 'dashboard-admin-channels',
+    path: 'admin/tenants',
+    name: 'dashboard-admin-tenants',
     meta: { navMode: 'admin' },
     component: page,
   },
@@ -325,7 +325,7 @@ describe('pages that belong to no channel', () => {
   it('has no channel twin for the admin pages or the per-person settings', () => {
     const twins = channelVariants(pages).map((twin) => twin.name);
 
-    expect(twins).not.toContain('u:dashboard-admin-channels');
+    expect(twins).not.toContain('u:dashboard-admin-tenants');
     expect(twins).not.toContain('u:dashboard-settings');
     expect(twins).toContain('u:dashboard-settings-bot-basics');
   });
@@ -333,9 +333,9 @@ describe('pages that belong to no channel', () => {
   it('keeps /app/admin/... at its own address', async () => {
     const router = makeGuardedRouter();
 
-    await router.push('/app/admin/channels?x=1');
+    await router.push('/app/admin/tenants?x=1');
 
-    expect(router.currentRoute.value.fullPath).toBe('/app/admin/channels?x=1');
+    expect(router.currentRoute.value.fullPath).toBe('/app/admin/tenants?x=1');
   });
 
   it('keeps the per-person settings at /app/settings', async () => {
@@ -350,17 +350,17 @@ describe('pages that belong to no channel', () => {
     const router = makeGuardedRouter();
 
     await router.push('/app/u/friend/stream');
-    await router.push('/app/admin/channels');
+    await router.push('/app/admin/tenants');
 
-    expect(router.currentRoute.value.fullPath).toBe('/app/admin/channels');
+    expect(router.currentRoute.value.fullPath).toBe('/app/admin/tenants');
   });
 
   it('sends an old /app/u/<name>/admin/... address to /app/admin/...', async () => {
     const router = makeGuardedRouter();
 
-    await router.push('/app/u/friend/admin/channels?x=1#y');
+    await router.push('/app/u/friend/admin/tenants?x=1#y');
 
-    expect(router.currentRoute.value.fullPath).toBe('/app/admin/channels?x=1#y');
+    expect(router.currentRoute.value.fullPath).toBe('/app/admin/tenants?x=1#y');
   });
 
   it('sends an old /app/u/<name>/settings address to /app/settings', async () => {

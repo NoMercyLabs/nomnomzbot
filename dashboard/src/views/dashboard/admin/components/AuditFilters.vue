@@ -14,7 +14,6 @@ import type { AcceptableValue } from 'reka-ui';
 import { computed, ref } from 'vue';
 
 import { useAdminTenants } from '@/api/admin';
-import { useAdminUsers } from '@/api/adminUsers';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from '@/components/ui/collapsible';
@@ -58,30 +57,35 @@ const channelSearch = ref('');
 const operatorName = ref('');
 const channelName = ref('');
 
-const operatorFound = useAdminUsers(() => ({
+// The operator is any person who joined; the channel is a streamer's, so that list asks for streamers only.
+const operatorFound = useAdminTenants(() => ({
   search: operatorSearch.value.trim(),
   page: 1,
   take: PICK_SIZE,
 }));
 const channelFound = useAdminTenants(() => ({
   search: channelSearch.value.trim(),
+  kind: 'streamer',
   page: 1,
   take: PICK_SIZE,
 }));
 
 const operatorOptions = computed<AuditPickerOption[]>(() =>
-  (operatorFound.data.value?.data ?? []).map((user) => ({
-    id: user.id,
-    name: user.displayName,
-    hint: user.login,
+  (operatorFound.data.value?.data ?? []).map((person) => ({
+    id: person.userId,
+    name: person.displayName,
+    hint: person.login,
   }) as const satisfies AuditPickerOption),
 );
 const channelOptions = computed<AuditPickerOption[]>(() =>
-  (channelFound.data.value?.data ?? []).map((tenant) => ({
-    id: tenant.id,
-    name: tenant.name,
-    hint: tenant.status,
-  }) as const satisfies AuditPickerOption),
+  (channelFound.data.value?.data ?? []).flatMap(({ channel }) =>
+    channel === null
+      ? []
+      : [{
+        id: channel.broadcasterId,
+        name: channel.name,
+        hint: channel.status,
+      } as const satisfies AuditPickerOption]),
 );
 
 function pickOperator(option: AuditPickerOption | null): void {
