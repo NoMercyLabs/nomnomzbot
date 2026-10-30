@@ -359,17 +359,25 @@ public sealed class StreamStatusPollingService : BackgroundService
         if (isLive)
         {
             TwitchStream stream = result.Value;
-            if (!string.IsNullOrEmpty(stream.Title) && dbChannel.Title != stream.Title)
+            // Always fill the context (a restart leaves it empty while the row already matches);
+            // write the row only when its value differs.
+            if (!string.IsNullOrEmpty(stream.Title))
             {
                 ctx.CurrentTitle = stream.Title;
-                dbChannel.Title = stream.Title;
-                changed = true;
+                if (dbChannel.Title != stream.Title)
+                {
+                    dbChannel.Title = stream.Title;
+                    changed = true;
+                }
             }
-            if (!string.IsNullOrEmpty(stream.GameName) && dbChannel.GameName != stream.GameName)
+            if (!string.IsNullOrEmpty(stream.GameName))
             {
                 ctx.CurrentGame = stream.GameName;
-                dbChannel.GameName = stream.GameName;
-                changed = true;
+                if (dbChannel.GameName != stream.GameName)
+                {
+                    dbChannel.GameName = stream.GameName;
+                    changed = true;
+                }
             }
             // Rising edge (offline → live): anchor the uptime clock the dashboard reads.
             if (!wasLive)

@@ -106,6 +106,54 @@ public sealed class StreamStatusPollingServiceTests
     }
 
     [Fact]
+    public void Restart_while_live_fills_the_empty_context_without_a_needless_row_write()
+    {
+        ChannelContext ctx = Ctx(isLive: false);
+        Channel dbChannel = new()
+        {
+            IsLive = true,
+            Title = "Speedrun night",
+            GameName = "Celeste",
+        };
+
+        bool changed = StreamStatusPollingService.ApplyStreamState(
+            ctx,
+            dbChannel,
+            Live("Speedrun night", "Celeste")
+        );
+
+        changed.Should().BeFalse("the row already holds the same IsLive, title and game");
+        ctx.CurrentTitle.Should().Be("Speedrun night");
+        ctx.CurrentGame.Should().Be("Celeste");
+    }
+
+    [Fact]
+    public void Changed_title_while_live_updates_the_context_and_the_row()
+    {
+        ChannelContext ctx = Ctx(isLive: true);
+        ctx.CurrentTitle = "Old title";
+        ctx.CurrentGame = "Old game";
+        Channel dbChannel = new()
+        {
+            IsLive = true,
+            Title = "Old title",
+            GameName = "Old game",
+        };
+
+        bool changed = StreamStatusPollingService.ApplyStreamState(
+            ctx,
+            dbChannel,
+            Live("New title", "New game")
+        );
+
+        changed.Should().BeTrue();
+        ctx.CurrentTitle.Should().Be("New title");
+        ctx.CurrentGame.Should().Be("New game");
+        dbChannel.Title.Should().Be("New title");
+        dbChannel.GameName.Should().Be("New game");
+    }
+
+    [Fact]
     public void Live_to_offline_keeps_the_go_live_moment_for_a_late_offline_signal()
     {
         ChannelContext ctx = Ctx(isLive: true);
