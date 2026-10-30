@@ -1708,7 +1708,8 @@ skips every check.
 
 **What a viewer can use.** Only the seeds `user`, `user.name` and `user.id` (the viewer's own name and id), plus
 every helper whose row is `TemplateHelperContexts.StandardAndViewer`. A helper qualifies when it writes nothing,
-reads nothing private and has a bounded cost. The live list is `GET api/v1/templates/helpers?context=Viewer`.
+reads nothing private and has a bounded cost. The live list is `GET api/v1/templates/helpers?context=Viewer`: 242
+helpers on the box on 2026-10-31 (commit `e5e1be720`), up from 124 before the logic, number and fun groups opened.
 
 | Group | Open to viewers | Closed, and why |
 |---|---|---|
