@@ -195,7 +195,7 @@ public sealed class MusicServiceBackgroundSanctionTests
             .Calls.Select(c => c.Name + ":" + c.Argument)
             .Should()
             .EndWith("Resume:");
-        await sut.Provider.DidNotReceiveWithAnyArgs().PauseAsync(default, default);
+        await sut.Provider.DidNotReceiveWithAnyArgs().PauseAsync(default);
     }
 
     [Fact]
@@ -218,7 +218,7 @@ public sealed class MusicServiceBackgroundSanctionTests
             .Calls.Select(c => c.Name + ":" + c.Argument)
             .Should()
             .EndWith("Pause:");
-        await sut.Provider.DidNotReceiveWithAnyArgs().PauseAsync(default, default);
+        await sut.Provider.DidNotReceiveWithAnyArgs().PauseAsync(default);
     }
 
     [Fact]
@@ -272,7 +272,7 @@ public sealed class MusicServiceBackgroundSanctionTests
             .Calls.Select(c => c.Name + ":" + c.Argument)
             .Should()
             .EndWith("Seek:0");
-        await sut.Provider.DidNotReceiveWithAnyArgs().PauseAsync(default, default);
+        await sut.Provider.DidNotReceiveWithAnyArgs().PauseAsync(default);
     }
 
     [Fact]
@@ -295,7 +295,7 @@ public sealed class MusicServiceBackgroundSanctionTests
             .Calls.Select(c => c.Name + ":" + c.Argument)
             .Should()
             .EndWith("SetVolume:50");
-        await sut.Provider.DidNotReceiveWithAnyArgs().PauseAsync(default, default);
+        await sut.Provider.DidNotReceiveWithAnyArgs().PauseAsync(default);
     }
 
     [Fact]
@@ -318,7 +318,7 @@ public sealed class MusicServiceBackgroundSanctionTests
             .Calls.Select(c => c.Name + ":" + c.Argument)
             .Should()
             .EndWith("Seek:15000");
-        await sut.Provider.DidNotReceiveWithAnyArgs().PauseAsync(default, default);
+        await sut.Provider.DidNotReceiveWithAnyArgs().PauseAsync(default);
     }
 
     [Fact]

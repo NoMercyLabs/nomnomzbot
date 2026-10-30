@@ -142,8 +142,7 @@ public sealed class MusicServiceQueuePushFailureTests
                         StringComparison.Ordinal
                     )
                 ),
-            HttpStatusCode.NoContent,
-            null
+            HttpStatusCode.NoContent
         );
 
         await sut.RequestTrackAsync(
