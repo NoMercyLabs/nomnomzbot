@@ -40,16 +40,23 @@ public class TtsLexiconService : ITtsLexiconService
     private readonly IApplicationDbContext _db;
     private readonly ICacheService _cache;
     private readonly IChannelNamePronunciationService _channelNames;
+    private readonly ITtsEmoteRulesService? _emoteRules;
 
+    /// <param name="emoteRules">
+    /// Says the channel's own Twitch emotes without their prefix. Optional so a host that builds the lexicon without
+    /// emote data (a test of the plain rules) speaks emotes as written.
+    /// </param>
     public TtsLexiconService(
         IApplicationDbContext db,
         ICacheService cache,
-        IChannelNamePronunciationService channelNames
+        IChannelNamePronunciationService channelNames,
+        ITtsEmoteRulesService? emoteRules = null
     )
     {
         _db = db;
         _cache = cache;
         _channelNames = channelNames;
+        _emoteRules = emoteRules;
     }
 
     private static string CacheKey(Guid broadcasterId) => $"tts:lexicon:{broadcasterId}";
@@ -187,12 +194,19 @@ public class TtsLexiconService : ITtsLexiconService
             .. channelRules,
             .. await ChannelNameRulesAsync(cancellationToken),
         ];
+        if (entries.Count > MaxAppliedEntries)
+            entries.RemoveRange(MaxAppliedEntries, entries.Count - MaxAppliedEntries);
+
+        // The channel's emotes are said by name, after every written rule, so the streamer's own rule for an emote
+        // wins; they sit outside the 200-rule bound, which limits what a streamer writes, not what Twitch lists.
+        if (_emoteRules is not null)
+            entries.AddRange(await _emoteRules.RulesAsync(broadcasterId, cancellationToken));
         if (entries.Count == 0)
             return text;
 
         // Collect every match against the ORIGINAL text — replacements are never re-matched (no recursion).
         List<LexiconMatch> matches = [];
-        int applied = Math.Min(entries.Count, MaxAppliedEntries);
+        int applied = entries.Count;
         for (int order = 0; order < applied; order++)
         {
             TtsLexiconEntryDto entry = entries[order];
