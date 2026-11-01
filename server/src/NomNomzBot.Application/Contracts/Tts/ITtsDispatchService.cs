@@ -164,8 +164,17 @@ public sealed record TtsSpeakRequest(
     IReadOnlyList<TtsSpeakSegment>? Segments = null,
     TtsSpeaker Speaker = TtsSpeaker.Bot,
     IReadOnlyList<string>? SpokenNames = null,
-    bool AlreadyPaid = false
+    bool AlreadyPaid = false,
+    TtsSpokenEmotes? Emotes = null
 );
+
+/// <summary>
+/// Emotes the caller knows sit in the text, named by the event that carried them (a streak message with another
+/// channel's emote). The voice says the name of such an emote, not its channel prefix.
+/// </summary>
+/// <param name="Codes">The emote codes as written in the text.</param>
+/// <param name="OwnerLogin">The login of the viewer who wrote them, which usually owns the emotes; <c>null</c> when unknown.</param>
+public sealed record TtsSpokenEmotes(IReadOnlyList<string> Codes, string? OwnerLogin);
 
 /// <summary>One part of a segmented <see cref="TtsSpeakRequest"/> (see <see cref="TtsSpeakRequest.Segments"/>).</summary>
 /// <param name="Text">The words to speak; checked against the same cap and censor as a single text.</param>

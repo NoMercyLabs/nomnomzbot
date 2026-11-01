@@ -34,6 +34,27 @@ internal static class TtsViewerWords
         "user.message",
     ];
 
+    /// <summary>The variable that carries the codes of the emotes in the viewer's words, set by the event that held them.</summary>
+    private const string EmotesKey = "message.emotes";
+
+    /// <summary>The emotes the event named in the viewer's words, or null when it named none.</summary>
+    public static TtsSpokenEmotes? EmotesIn(
+        IReadOnlyDictionary<string, string> variables,
+        string? viewerName
+    )
+    {
+        if (
+            !variables.TryGetValue(EmotesKey, out string? joined)
+            || string.IsNullOrWhiteSpace(joined)
+        )
+            return null;
+
+        return new(
+            joined.Split(' ', StringSplitOptions.RemoveEmptyEntries),
+            viewerName?.Trim().ToLowerInvariant()
+        );
+    }
+
     /// <summary>A ready-made clause that quotes the viewer's words (" They also said: "..."").</summary>
     private const string QuoteClauseKey = "also_said";
 

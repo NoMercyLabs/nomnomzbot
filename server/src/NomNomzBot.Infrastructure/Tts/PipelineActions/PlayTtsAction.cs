@@ -164,7 +164,7 @@ public sealed class PlayTtsAction : ICommandAction
             List<TtsSpeakSegment>? mixed =
                 TtsViewerWords.Split(markedText, ctx.TriggeredByUserId)
                 ?? TtsViewerWords.SplitRendered(text, ctx.Variables, ctx.TriggeredByUserId);
-            if (mixed is { Count: 1 } && mixed[0].Speaker == TtsSpeaker.Viewer)
+            if (mixed is [{ Speaker: TtsSpeaker.Viewer }])
                 asField = "viewer";
             else if (mixed is not null)
                 segments = mixed;
@@ -218,7 +218,8 @@ public sealed class PlayTtsAction : ICommandAction
             ),
             Segments: segments,
             Speaker: IsBotSpeaker(asField) ? TtsSpeaker.Bot : TtsSpeaker.Viewer,
-            SpokenNames: SpokenNameVariables.From(ctx.Variables, ctx.TriggeredByDisplayName)
+            SpokenNames: SpokenNameVariables.From(ctx.Variables, ctx.TriggeredByDisplayName),
+            Emotes: TtsViewerWords.EmotesIn(ctx.Variables, ctx.TriggeredByDisplayName)
         );
 
         Result<TtsDispatchOutcome> result = await _dispatch.RequestSpeakAsync(

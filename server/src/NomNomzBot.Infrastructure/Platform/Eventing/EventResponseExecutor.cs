@@ -436,7 +436,11 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                     CommunityStanding: "broadcaster",
                     SourceMessageId: null,
                     StreamId: null,
-                    SpokenNames: SpokenNameVariables.From(variables)
+                    SpokenNames: SpokenNameVariables.From(variables),
+                    Emotes: TtsViewerWords.EmotesIn(
+                        variables,
+                        variables.GetValueOrDefault("viewer.name")
+                    )
                 ),
                 ct
             );

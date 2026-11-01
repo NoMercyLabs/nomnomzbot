@@ -27,6 +27,53 @@ public sealed class TtsEmoteSpokenNamesTests
     private static Dictionary<string, string> Derive(params string[] codes) =>
         TtsEmoteSpokenNames.Derive(codes, Formatter.Format);
 
+    // An emote the event itself names (a streak message with another channel's emote): the set is not known, so
+    // the prefix is only cut when it looks like an affiliate's (a collision number, or the start of the login).
+    [Fact]
+    public void Rewrite_CutsAnAffiliatePrefixWithACollisionNumberFromAnEmoteTheEventNamed()
+    {
+        string spoken = TtsEmoteSpokenNames.Rewrite(
+            "I only have 3 bamo16CatSmoke",
+            ["bamo16CatSmoke"],
+            "bamo16",
+            Formatter.Format
+        );
+
+        spoken.Should().Be("I only have 3 Cat Smoke");
+    }
+
+    [Fact]
+    public void Rewrite_CutsAPrefixWithNoDigitsWhenItIsTheStartOfTheOwnersLogin()
+    {
+        TtsEmoteSpokenNames
+            .Rewrite("bamoCatSmoke!", ["bamoCatSmoke"], "bamo16", Formatter.Format)
+            .Should()
+            .Be("Cat Smoke!");
+    }
+
+    [Fact]
+    public void Rewrite_LeavesAPartnersOwnNameAloneWhenNothingTiesItsStartToTheOwner()
+    {
+        TtsEmoteSpokenNames
+            .Rewrite("gachiGASM", ["gachiGASM"], "bamo16", Formatter.Format)
+            .Should()
+            .Be("gachiGASM");
+    }
+
+    [Fact]
+    public void Rewrite_OnlyReplacesTheWholeEmoteCode()
+    {
+        TtsEmoteSpokenNames
+            .Rewrite(
+                "bamo16CatSmokes and bamo16CatSmoke",
+                ["bamo16CatSmoke"],
+                "bamo16",
+                Formatter.Format
+            )
+            .Should()
+            .Be("bamo16CatSmokes and Cat Smoke");
+    }
+
     [Fact]
     public void A_two_digit_prefix_is_removed_and_the_name_is_spoken()
     {

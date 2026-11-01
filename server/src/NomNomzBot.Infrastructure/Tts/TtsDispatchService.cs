@@ -98,6 +98,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         CancellationToken ct = default
     )
     {
+        request = WithEmotesSpoken(request);
         Result<TtsConfigDto> configResult = await _config.GetConfigAsync(request.BroadcasterId, ct);
         if (configResult.IsFailure)
             return Result.Failure<TtsDispatchOutcome>(
@@ -576,6 +577,24 @@ public sealed class TtsDispatchService : ITtsDispatchService
             .ToListAsync(ct);
 
         return Result.Success(new PagedList<TtsQueueEntryDto>(items, page, pageSize, total));
+    }
+
+    /// <summary>The text (and every segment) with the emotes the caller named said as their names, not their prefixes.</summary>
+    private TtsSpeakRequest WithEmotesSpoken(TtsSpeakRequest request)
+    {
+        if (request.Emotes is not { Codes.Count: > 0 } emotes)
+            return request;
+
+        string Spoken(string text) =>
+            TtsEmoteSpokenNames.Rewrite(text, emotes.Codes, emotes.OwnerLogin, _spokenNames.Format);
+
+        return request with
+        {
+            Text = Spoken(request.Text),
+            Segments = request
+                .Segments?.Select(segment => segment with { Text = Spoken(segment.Text) })
+                .ToList(),
+        };
     }
 
     /// <summary>Includes the requester even when a producer supplies no separate name list.</summary>

@@ -37,4 +37,10 @@ public sealed class WatchStreakReceivedEvent : DomainEventBase
 
     /// <summary>The message the viewer shared with the streak. Empty when they wrote none.</summary>
     public string? CustomMessage { get; init; }
+
+    /// <summary>
+    /// The codes of the channel emotes in <see cref="CustomMessage"/>, as Twitch marked them (global emotes left out).
+    /// Kept with the event so the voice, live or on a replay, knows "bamo16CatSmoke" is an emote.
+    /// </summary>
+    public IReadOnlyList<string>? MessageEmotes { get; init; }
 }

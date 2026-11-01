@@ -122,6 +122,41 @@ public sealed class PlayTtsActionTests
     }
 
     [Fact]
+    public async Task ExecuteAsync_TheEmotesAnEventNamedReachTheRequestWithTheViewersName()
+    {
+        (PlayTtsAction action, ITtsDispatchService dispatch) = Build("Bamo hit 3 streams");
+        dispatch
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        "v1",
+                        "edge",
+                        14,
+                        900,
+                        null
+                    )
+                )
+            );
+        PipelineExecutionContext context = Context();
+        context.Variables["message.emotes"] = "bamo16CatSmoke";
+
+        await action.ExecuteAsync(context, Action(("text", "Bamo hit 3 streams")));
+
+        await dispatch
+            .Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r =>
+                    r.Emotes != null
+                    && r.Emotes.Codes.SequenceEqual(new[] { "bamo16CatSmoke" })
+                    && r.Emotes.OwnerLogin == "viewer"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task ExecuteAsync_MissingText_FailsWithoutDispatch()
     {
         (PlayTtsAction action, ITtsDispatchService dispatch) = Build("unused");

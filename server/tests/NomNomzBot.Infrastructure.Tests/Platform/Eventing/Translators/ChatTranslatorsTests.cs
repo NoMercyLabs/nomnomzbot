@@ -1046,6 +1046,51 @@ public sealed class ChatTranslatorsTests
         published.CustomMessage.Should().BeNull();
     }
 
+    // 2026-11-01: bamo's streak message held another channel's emote. The event kept only the text, so neither
+    // the live line nor a replay could tell "bamo16CatSmoke" was an emote and the voice read the prefix out.
+    [Fact]
+    public async Task ChatNotification_WatchStreakWithEmotes_KeepsTheNamesOfTheChannelEmotesNotTheGlobalOnes()
+    {
+        CapturingEventBus bus = new();
+        ChannelChatNotificationTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                "channel.chat.notification",
+                """
+                {
+                    "broadcaster_user_id": "broadcaster-99",
+                    "chatter_user_id": "555",
+                    "chatter_user_login": "bamo16",
+                    "chatter_user_name": "Bamo16",
+                    "chatter_is_anonymous": false,
+                    "message_id": "n-2",
+                    "message": {
+                        "text": "I only have 3 bamo16CatSmoke Kappa",
+                        "fragments": [
+                            { "type": "text", "text": "I only have 3 ", "emote": null },
+                            { "type": "emote", "text": "bamo16CatSmoke",
+                              "emote": { "id": "e1", "emote_set_id": "470377551", "owner_id": "555" } },
+                            { "type": "text", "text": " ", "emote": null },
+                            { "type": "emote", "text": "Kappa",
+                              "emote": { "id": "25", "emote_set_id": "0", "owner_id": "twitch" } }
+                        ]
+                    },
+                    "notice_type": "watch_streak",
+                    "system_message": "Bamo16 watched 3 streams in a row!",
+                    "watch_streak": { "streak_count": 3, "channel_points_awarded": 350 }
+                }
+                """
+            )
+        );
+
+        bus.EventsOf<WatchStreakReceivedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject.MessageEmotes.Should()
+            .Equal("bamo16CatSmoke");
+    }
+
     [Fact]
     public async Task ChatNotification_WatchStreakWithSharedMessage_CarriesTheViewersTextAsCustomMessage()
     {

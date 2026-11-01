@@ -79,6 +79,44 @@ public sealed class WatchStreakHandlerTests
             );
     }
 
+    [Fact]
+    public async Task The_emotes_of_the_streak_message_reach_the_response_as_message_emotes()
+    {
+        (IServiceScopeFactory scopes, IEventResponseExecutor executor) = Harness();
+        WatchStreakHandler handler = new(
+            scopes,
+            Substitute.For<IPipelineEngine>(),
+            TimeProvider.System,
+            NullLogger<WatchStreakHandler>.Instance
+        );
+
+        await handler.HandleAsync(
+            new()
+            {
+                BroadcasterId = Channel,
+                OccurredAt = DateTimeOffset.UtcNow,
+                UserId = "777",
+                UserLogin = "bamo16",
+                UserDisplayName = "Bamo16",
+                StreakMonths = 3,
+                ChannelPointsEarned = 350,
+                CustomMessage = "I only have 3 bamo16CatSmoke",
+                MessageEmotes = ["bamo16CatSmoke"],
+            }
+        );
+
+        await executor
+            .Received(1)
+            .ExecuteAsync(
+                Channel,
+                "engagement.watch_streak",
+                "777",
+                "Bamo16",
+                Arg.Is<Dictionary<string, string>>(v => v["message.emotes"] == "bamo16CatSmoke"),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     private static async Task<(Dictionary<string, string> Variables, int MaxStreakAfter)> RunAsync(
         int? storedMax,
         int newStreak

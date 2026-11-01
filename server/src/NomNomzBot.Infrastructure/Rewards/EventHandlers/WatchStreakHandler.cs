@@ -75,6 +75,7 @@ public sealed class WatchStreakHandler
             ["streak.months"] = e.StreakMonths.ToString(),
             ["streak.points"] = e.ChannelPointsEarned.ToString(),
             ["streak.message"] = e.CustomMessage ?? string.Empty,
+            ["message.emotes"] = string.Join(' ', e.MessageEmotes ?? []),
             ["streak.record"] = record.ToString(),
             ["record"] = record.ToString(),
             ["streak.state"] = StateFor(e.StreakMonths, record),

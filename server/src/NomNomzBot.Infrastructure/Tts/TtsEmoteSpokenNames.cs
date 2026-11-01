@@ -9,6 +9,8 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Text.RegularExpressions;
+
 namespace NomNomzBot.Infrastructure.Tts;
 
 /// <summary>
@@ -44,6 +46,48 @@ internal static class TtsEmoteSpokenNames
 
         return spoken;
     }
+
+    /// <summary>
+    /// The text with each emote the event itself named said as its name. The channel's whole set is not known here,
+    /// so the prefix is only cut when it looks like an affiliate's: it carries a collision number, or it is the start
+    /// of the owner's login. A partner's own name ("gachiGASM") has neither and is left as written.
+    /// </summary>
+    public static string Rewrite(
+        string text,
+        IReadOnlyList<string> codes,
+        string? ownerLogin,
+        Func<string, string> format
+    )
+    {
+        foreach (string code in codes.OrderByDescending(c => c.Length))
+        {
+            string? prefix = PrefixCandidate(code);
+            if (prefix is null || !LooksLikeAffiliatePrefix(prefix, ownerLogin))
+                continue;
+
+            string spoken = format(code[prefix.Length..]);
+            text = Regex.Replace(
+                text,
+                $@"(?<![\p{{L}}\p{{N}}]){Regex.Escape(code)}(?![\p{{L}}\p{{N}}])",
+                spoken.Replace("$", "$$", StringComparison.Ordinal),
+                RegexOptions.CultureInvariant,
+                TimeSpan.FromMilliseconds(100)
+            );
+        }
+
+        return text;
+    }
+
+    private static bool LooksLikeAffiliatePrefix(string prefix, string? ownerLogin) =>
+        prefix.Length >= MinPrefixLength
+        && char.IsAsciiLetterLower(prefix[0])
+        && (
+            prefix.Any(char.IsAsciiDigit)
+            || (
+                ownerLogin is { Length: > 0 }
+                && ownerLogin.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            )
+        );
 
     /// <summary>
     /// The lowercase-and-digit start every code shares, or null when the codes do not agree. A code with no capital

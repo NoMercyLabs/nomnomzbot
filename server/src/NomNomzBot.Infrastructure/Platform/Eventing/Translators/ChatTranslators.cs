@@ -50,6 +50,20 @@ internal static class ChatPayload
         return fragments;
     }
 
+    /// <summary>
+    /// The codes of the emotes a channel owns in a message (a subscriber or follower emote), without the global
+    /// ones Twitch owns itself; the voice reads those two kinds differently.
+    /// </summary>
+    public static List<string> ReadChannelEmoteCodes(JsonElement? messageObject) =>
+        [
+            .. ReadFragments(messageObject)
+                .Where(f =>
+                    f is { Type: "emote", EmoteOwnerId: { Length: > 0 } and not ("twitch" or "0") }
+                )
+                .Select(f => f.Text)
+                .Distinct(StringComparer.Ordinal),
+        ];
+
     private static ChatMessageFragment ReadFragment(JsonElement fragment)
     {
         JsonElement? emote = fragment.GetObject("emote");
@@ -428,6 +442,7 @@ public sealed class ChannelChatNotificationTranslator(IEventBus bus, TimeProvide
                     CustomMessage = string.IsNullOrEmpty(notice.MessageText)
                         ? null
                         : notice.MessageText,
+                    MessageEmotes = ChatPayload.ReadChannelEmoteCodes(message),
                 },
                 ct
             );
