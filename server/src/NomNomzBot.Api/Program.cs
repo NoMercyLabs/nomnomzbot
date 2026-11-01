@@ -442,6 +442,7 @@ try
     builder.Services.AddHostedService<NomNomzBot.Api.Hubs.Broadcasters.ChatSafetyStatusBroadcaster>();
     builder.Services.AddSingleton<OverlayTokenSweeper>();
     builder.Services.AddHostedService<OverlayTokenSweepService>();
+    builder.Services.AddHostedService<ObsBridgeRegistryHealService>();
 
     WebApplication app = builder.Build();
 

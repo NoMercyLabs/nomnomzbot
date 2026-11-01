@@ -93,6 +93,46 @@ public sealed class ObsBridgeTests
         bus.Published.OfType<ObsBridgeStateChangedEvent>().Last().HasLeader.Should().BeFalse();
     }
 
+    // 2026-11-01: during a deploy the old node sent a command to a bridge that was connected to the NEW node, got
+    // no ack and evicted it from the shared book. The connection stayed open but was never listed again, so every
+    // raid step that touches OBS answered "No OBS bridge is connected". Each node lists its live bridges again.
+    [Fact]
+    public async Task Listing_a_bridge_that_is_already_in_the_book_changes_nothing_and_announces_nothing()
+    {
+        RecordingEventBus bus = new();
+        ObsBridgeRegistry registry = new(new FakeCache(), bus, new FakeTimeProvider());
+        await registry.RegisterAsync(Channel, "conn-a", T0);
+        int announced = bus.Published.OfType<ObsBridgeStateChangedEvent>().Count();
+
+        await registry.RegisterAsync(Channel, "conn-a", T0.AddMinutes(9));
+
+        bus.Published.OfType<ObsBridgeStateChangedEvent>().Should().HaveCount(announced);
+        (await registry.GetStatusAsync(Channel))
+            .LeaderSince.Should()
+            .Be(T0, "a repeat listing must not make the bridge look newer");
+    }
+
+    [Fact]
+    public async Task A_live_bridge_that_was_evicted_is_listed_again_with_its_original_connect_time()
+    {
+        RecordingEventBus bus = new();
+        ObsBridgeRegistry registry = new(new FakeCache(), bus, new FakeTimeProvider());
+        await registry.RegisterAsync(Channel, "conn-old", T0);
+        await registry.RegisterAsync(Channel, "conn-new", T0.AddMinutes(5));
+        await registry.UnregisterAsync(Channel, "conn-old");
+        (await registry.GetLeaderAsync(Channel)).Should().Be("conn-new");
+
+        await registry.RegisterAsync(Channel, "conn-old", T0);
+
+        (await registry.GetLeaderAsync(Channel))
+            .Should()
+            .Be(
+                "conn-old",
+                "it connected first, so it leads again and a second OBS never steals the lead"
+            );
+        (await registry.GetStatusAsync(Channel)).InstanceCount.Should().Be(2);
+    }
+
     [Fact]
     public async Task A_command_without_a_leader_is_OBS_BRIDGE_OFFLINE_and_pushes_nothing()
     {

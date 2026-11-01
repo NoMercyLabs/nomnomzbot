@@ -34,6 +34,19 @@ namespace NomNomzBot.Api.Hubs;
 public class OBSRelayHub : Hub<IOBSRelayClient>
 {
     private static readonly ConcurrentDictionary<string, Guid> ConnectionChannels = new();
+    private static readonly ConcurrentDictionary<string, DateTime> ConnectedAt = new();
+
+    /// <summary>The bridges connected to THIS node: connection id, channel and when each connected.</summary>
+    public static IReadOnlyList<(
+        string ConnectionId,
+        Guid BroadcasterId,
+        DateTime ConnectedAt
+    )> LiveBridges() =>
+        [
+            .. ConnectionChannels
+                .Where(pair => ConnectedAt.ContainsKey(pair.Key))
+                .Select(pair => (pair.Key, pair.Value, ConnectedAt[pair.Key])),
+        ];
 
     private readonly IApplicationDbContext _db;
     private readonly IObsBridgeRegistry _bridges;
@@ -82,11 +95,13 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
             return;
         }
 
+        DateTime connectedAt = _clock.GetUtcNow().UtcDateTime;
         ConnectionChannels[Context.ConnectionId] = connection.BroadcasterId;
+        ConnectedAt[Context.ConnectionId] = connectedAt;
         await _bridges.RegisterAsync(
             connection.BroadcasterId,
             Context.ConnectionId,
-            _clock.GetUtcNow().UtcDateTime,
+            connectedAt,
             Context.ConnectionAborted
         );
 
@@ -116,6 +131,7 @@ public class OBSRelayHub : Hub<IOBSRelayClient>
 
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
+        ConnectedAt.TryRemove(Context.ConnectionId, out _);
         if (ConnectionChannels.TryRemove(Context.ConnectionId, out Guid broadcasterId))
         {
             await _bridges.UnregisterAsync(broadcasterId, Context.ConnectionId);

@@ -47,7 +47,11 @@ public sealed class ObsBridgeRegistry : IObsBridgeRegistry
     )
     {
         List<BridgeEntry> entries = await LoadAsync(broadcasterId, ct);
-        entries.RemoveAll(e => e.ConnectionId == connectionId);
+        // A node lists its live bridges again on a timer (a command timeout on another node can evict one that is
+        // still connected), so a bridge already in the book is left alone: no write, no announcement.
+        if (entries.Any(e => e.ConnectionId == connectionId))
+            return;
+
         entries.Add(new(connectionId, connectedAt));
         await SaveAsync(broadcasterId, entries, ct);
         await PublishStateAsync(broadcasterId, entries, ct);
