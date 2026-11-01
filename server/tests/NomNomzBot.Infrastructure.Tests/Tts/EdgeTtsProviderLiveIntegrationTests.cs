@@ -60,4 +60,37 @@ public sealed class EdgeTtsProviderLiveIntegrationTests
         (result.AudioData[1] & 0xE0).Should().Be(0xE0);
         result.DurationMs.Should().BePositive();
     }
+
+    // Edge's read-aloud endpoint answers a request that names two voices with no audio at all (probed
+    // 2026-11-01), so a bot announcement plus a viewer's own words must reach it as one request per voice.
+    [EdgeTtsLiveFact]
+    public async Task SynthesizeSegmentsAsync_WithTwoVoices_ReturnsOneClipThatHoldsBothParts()
+    {
+        ServiceCollection services = new();
+        services.AddHttpClient("edge-tts", client => client.Timeout = TimeSpan.FromSeconds(15));
+        using ServiceProvider serviceProvider = services.BuildServiceProvider();
+        EdgeTtsProvider provider = new(
+            TimeProvider.System,
+            serviceProvider.GetRequiredService<IHttpClientFactory>(),
+            new ListLogger<EdgeTtsProvider>(),
+            Options.Create(new EdgeTtsOptions())
+        );
+
+        Domain.Tts.Interfaces.TtsSynthesisResult first = await provider.SynthesizeAsync(
+            "iFillz resubscribed for 15 months! They also said:",
+            "en-US-AnaNeural"
+        );
+        Domain.Tts.Interfaces.TtsSynthesisResult second = await provider.SynthesizeAsync(
+            "Yeah, party time!",
+            "en-US-SteffanNeural"
+        );
+        Domain.Tts.Interfaces.TtsSynthesisResult both = await provider.SynthesizeSegmentsAsync([
+            new("iFillz resubscribed for 15 months! They also said:", "en-US-AnaNeural"),
+            new("Yeah, party time!", "en-US-SteffanNeural"),
+        ]);
+
+        both.AudioData.Should().HaveCount(first.AudioData.Length + second.AudioData.Length);
+        both.VoiceId.Should().Be("en-US-AnaNeural");
+        both.DurationMs.Should().BeGreaterThan(first.DurationMs);
+    }
 }

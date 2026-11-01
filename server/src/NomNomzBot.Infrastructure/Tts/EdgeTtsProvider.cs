@@ -115,16 +115,68 @@ public sealed class EdgeTtsProvider : ITtsProvider
             cancellationToken
         );
 
-    public Task<TtsSynthesisResult> SynthesizeSegmentsAsync(
+    // The read-aloud endpoint answers a request that names two voices with no audio at all (probed 2026-11-01),
+    // so each run of one voice is its own request and the mp3 bytes are joined into one clip, as for ElevenLabs.
+    // A pause asked for between two different voices is not made: no silent frames are invented.
+    public async Task<TtsSynthesisResult> SynthesizeSegmentsAsync(
         IReadOnlyList<TtsSegment> segments,
         CancellationToken cancellationToken = default
-    ) =>
-        SynthesizeSsmlAsync(
-            BuildSsml(segments),
-            string.Join('\n', segments.Select(s => s.Text + s.VoiceId + s.BreakAfterMs)),
-            segments[0].VoiceId,
-            cancellationToken
+    )
+    {
+        string firstVoice = segments[0].VoiceId;
+        List<List<TtsSegment>> runs = VoiceRuns(segments);
+        string hashSource = string.Join(
+            '\n',
+            segments.Select(s => s.Text + s.VoiceId + s.BreakAfterMs)
         );
+        if (runs.Count == 1)
+            return await SynthesizeSsmlAsync(
+                BuildSsml(segments),
+                hashSource,
+                firstVoice,
+                cancellationToken
+            );
+
+        using MemoryStream joined = new();
+        foreach (List<TtsSegment> run in runs)
+        {
+            TtsSynthesisResult part = await SynthesizeSsmlAsync(
+                BuildSsml(run),
+                hashSource,
+                run[0].VoiceId,
+                cancellationToken
+            );
+            if (part.AudioData.Length == 0)
+                return EmptyResult(firstVoice);
+            joined.Write(part.AudioData);
+        }
+
+        byte[] audioData = joined.ToArray();
+
+        return new()
+        {
+            AudioData = audioData,
+            DurationMs = Mp3Duration.ToMilliseconds(audioData, 48),
+            Provider = ProviderName,
+            VoiceId = firstVoice,
+            ContentHash = Convert.ToHexString(
+                SHA256.HashData(Encoding.UTF8.GetBytes(hashSource + firstVoice))
+            )[..16],
+        };
+    }
+
+    /// <summary>The segments cut into runs of consecutive segments that share one voice.</summary>
+    internal static List<List<TtsSegment>> VoiceRuns(IReadOnlyList<TtsSegment> segments)
+    {
+        List<List<TtsSegment>> runs = [];
+        foreach (TtsSegment segment in segments)
+            if (runs.Count > 0 && runs[^1][0].VoiceId == segment.VoiceId)
+                runs[^1].Add(segment);
+            else
+                runs.Add([segment]);
+
+        return runs;
+    }
 
     private async Task<TtsSynthesisResult> SynthesizeSsmlAsync(
         string ssml,

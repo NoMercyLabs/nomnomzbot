@@ -68,6 +68,20 @@ public sealed class TtsSegmentSynthesisTests
         AssertOneSpeakTwoVoicesAndABreakBetween(AzureTtsProvider.BuildSsml(TwoVoices));
 
     [Fact]
+    public void Edge_VoiceRuns_KeepsConsecutiveSegmentsOfOneVoiceTogether_AndSplitsWhereTheVoiceChanges()
+    {
+        List<List<TtsSegment>> runs = EdgeTtsProvider.VoiceRuns([
+            new("a", "bot"),
+            new("b", "bot"),
+            new("c", "viewer"),
+            new("d", "bot"),
+        ]);
+
+        runs.Select(r => string.Concat(r.Select(s => s.Text))).Should().Equal("ab", "c", "d");
+        runs.Select(r => r[0].VoiceId).Should().Equal("bot", "viewer", "bot");
+    }
+
+    [Fact]
     public void BuildSsml_Segments_ZeroGapAddsNoBreak_AndNoBreakFollowsTheLastSegment()
     {
         IReadOnlyList<TtsSegment> segments =
