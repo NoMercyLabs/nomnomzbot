@@ -11,6 +11,7 @@
 
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Identifiers;
+using NomNomzBot.Api.Pagination;
 using NomNomzBot.Api.RateLimiting;
 
 namespace NomNomzBot.Api.Extensions;
@@ -37,6 +38,8 @@ public static class ApiControllerExtensions
                 options.Conventions.Add(new RateLimitReadTierConvention());
                 // Gate-2 pass -> the sanction the Helix transport demands for any outbound write.
                 options.Filters.Add<OutboundSanctionFilter>();
+                // Every list endpoint lets the client choose its own page (?take=&page=).
+                options.Filters.Add<ListPaginationFilter>();
             })
             .AddJsonOptions(o => o.UseApiJsonConventions());
 

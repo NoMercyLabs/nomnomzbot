@@ -951,7 +951,6 @@ const smallIconButtonAllowlist = [
   'views/dashboard/chat/components/EmotePicker.vue',
   'views/dashboard/commands/components/RandomReplyList.vue',
   'views/dashboard/discord/DiscordView.vue',
-  'views/dashboard/home/components/HappeningPanel.vue',
   'views/dashboard/music/MusicView.vue',
   'views/dashboard/pipelines/WorkbenchView.vue',
   'views/dashboard/pipelines/components/StepPalette.vue',

@@ -292,6 +292,9 @@ try
         options.AddSchemaTransformer(new UlidGuidSchemaTransformer());
         options.AddSchemaTransformer(new OpenMapSchemaTransformer());
         options.AddSchemaTransformer(new OmitNullableRequiredSchemaTransformer());
+        options.AddOperationTransformer(
+            new NomNomzBot.Api.Pagination.ListPaginationOpenApiTransformer()
+        );
     });
 
     // CORS
@@ -307,7 +310,13 @@ try
                 )
                 .AllowAnyHeader()
                 .AllowAnyMethod()
-                .AllowCredentials();
+                .AllowCredentials()
+                // A browser on another origin can read the paging totals only when they are exposed.
+                .WithExposedHeaders(
+                    NomNomzBot.Api.Pagination.ListPaginationFilter.TotalHeader,
+                    NomNomzBot.Api.Pagination.ListPaginationFilter.PageHeader,
+                    NomNomzBot.Api.Pagination.ListPaginationFilter.TakeHeader
+                );
         });
         NomNomzBot.Api.Controllers.ReadAloudCors.Configure(options);
     });

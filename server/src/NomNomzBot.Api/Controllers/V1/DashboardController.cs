@@ -17,6 +17,7 @@ using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.Pagination;
 using NomNomzBot.Api.RateLimiting;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
@@ -327,8 +328,11 @@ public class DashboardController : BaseController
         return ResultResponse(await recaps.BuildAsync(tenantId, streamId, null, ct));
     }
 
+    private const int MaxActivityStreams = 3;
+    private const int StreamActivityCap = 1000;
+
     /// <summary>
-    /// Returns recent channel activity events.
+    /// Returns recent channel activity events, or every event of the newest <c>streams</c> streams.
     /// </summary>
     [HttpGet("{channelId}/activity")]
     [RequireAction("dashboard:read")]
@@ -336,6 +340,9 @@ public class DashboardController : BaseController
     public async Task<IActionResult> GetActivity(
         string channelId,
         [FromQuery] string? types,
+        [FromQuery] int? streams,
+        [FromQuery] int? take,
+        [FromQuery] int? page,
         CancellationToken ct
     )
     {
@@ -343,10 +350,34 @@ public class DashboardController : BaseController
             return BadRequestResponse("Invalid channel id.");
 
         // A page that wants only some kinds (Supporters: subs, gifts, cheers) names them in `types` and gets a
-        // deeper window of just those; the home feed passes none and keeps its newest-20 behavior.
+        // deeper window of just those; a caller that names no `streams` keeps the newest-20 behavior.
         List<string>? wantedTypes = ParseActivityTypes(types);
         int windowSize = wantedTypes is null ? 40 : 200;
         int feedSize = wantedTypes is null ? 20 : 100;
+
+        // `streams` asks for every event of the newest N streams (the home panel: 1, the Events page: 2), bounded
+        // by those streams instead of a row count; the cap only guards a runaway journal.
+        DateTime? since = null;
+        if (streams is > 0)
+        {
+            since = StreamWindowStart(
+                _db.Streams,
+                tenantId,
+                Math.Min(streams.Value, MaxActivityStreams)
+            );
+            windowSize = StreamActivityCap + 200;
+            feedSize = StreamActivityCap;
+        }
+
+        // The client chooses its own page: `take` rows from page `page` (1-based), whatever the defaults above say.
+        // The window grows with the page, with slack for the duplicate follows collapsed below.
+        int skip = 0;
+        if (take is > 0 || page is > 0)
+        {
+            feedSize = Math.Clamp(take ?? feedSize, 1, ListPaginationFilter.MaxTake);
+            skip = (Math.Max(page ?? 1, 1) - 1) * feedSize;
+            windowSize = skip + feedSize + 200;
+        }
 
         // Chat messages (channel.chat.message) are excluded — they live in the Chat page.
         // Activity shows stream milestones only: follows, subs, raids, cheers, redemptions, etc.
@@ -355,7 +386,8 @@ public class DashboardController : BaseController
                 _db.ChannelEvents,
                 tenantId,
                 wantedTypes,
-                windowSize
+                windowSize,
+                since
             )
             .ToListAsync(ct);
 
@@ -371,9 +403,11 @@ public class DashboardController : BaseController
             if (isFollow && e.UserId is { } followerId && !seenFollowers.Add(followerId))
                 continue;
             events.Add(e);
-            if (events.Count >= feedSize)
+            if (events.Count >= skip + feedSize)
                 break;
         }
+
+        events = [.. events.Skip(skip)];
 
         List<Guid> userIds =
         [
@@ -565,12 +599,15 @@ public class DashboardController : BaseController
         IQueryable<ChannelEvent> source,
         Guid tenantId,
         IReadOnlyCollection<string>? types,
-        int take
+        int take,
+        DateTime? since = null
     )
     {
         IQueryable<ChannelEvent> channelRows = source.Where(e =>
             e.ChannelId == tenantId && e.Type != "channel.chat.message"
         );
+        if (since is { } windowStart)
+            channelRows = channelRows.Where(e => e.CreatedAt >= windowStart);
         if (types is { Count: > 0 })
         {
             // Legacy imported rows carry the short names the feed normalizes; keep them in the window.
@@ -583,6 +620,26 @@ public class DashboardController : BaseController
         }
 
         return channelRows.OrderByDescending(e => e.CreatedAt).Take(take);
+    }
+
+    /// <summary>
+    /// When the window of the newest <paramref name="streams"/> streams opens: the start of the Nth newest stream
+    /// that recorded a start. Fewer streams than asked open it at the oldest one; no stream gives null.
+    /// </summary>
+    internal static DateTime? StreamWindowStart(
+        IQueryable<NomNomzBot.Domain.Stream.Entities.Stream> source,
+        Guid tenantId,
+        int streams
+    )
+    {
+        List<DateTimeOffset?> starts = source
+            .Where(s => s.ChannelId == tenantId && s.StartedAt != null)
+            .OrderByDescending(s => s.StartedAt)
+            .Take(streams)
+            .Select(s => s.StartedAt)
+            .ToList();
+
+        return starts.Count == 0 ? null : starts[^1]!.Value.UtcDateTime;
     }
 
     private static readonly Dictionary<string, string> LegacyActivityTypes = new()

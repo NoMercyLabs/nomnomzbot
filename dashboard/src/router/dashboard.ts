@@ -64,6 +64,7 @@ import { scaffoldRoutes } from '@/views/dashboard/scaffold/route';
 import { dashboardStreamRoute } from '@/views/dashboard/stream/route';
 import { dashboardSupportersRoute } from '@/views/dashboard/supporters/route';
 import { dashboardEventResponsesRoute } from '@/views/dashboard/event-responses/route';
+import { dashboardEventsRoute } from '@/views/dashboard/events/route';
 import { dashboardTimersRoute } from '@/views/dashboard/timers/route';
 import { dashboardTtsRoute } from '@/views/dashboard/tts/route';
 import { dashboardVoiceTriggersRoute } from '@/views/dashboard/voice-triggers/route';
@@ -72,6 +73,7 @@ import { dashboardVtsRoute } from '@/views/dashboard/vts/route';
 // The pages that are built.
 const builtRoutes: RouteRecordRaw[] = [
   dashboardHomeRoute,
+  dashboardEventsRoute,
   dashboardChatRoute,
   dashboardViewerChatRoute,
   dashboardCommandsRoute,

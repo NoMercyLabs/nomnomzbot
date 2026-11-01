@@ -1,0 +1,13 @@
+{
+  "dashboard": {
+    "events": {
+      "title": "Gebeurtenissen",
+      "thisStream": "Deze stream",
+      "lastStream": "Vorige stream",
+      "streamBefore": "De stream daarvoor",
+      "empty": "Nog geen gebeurtenissen.",
+      "emptyEarlier": "Geen gebeurtenissen van een eerdere stream.",
+      "error": "De gebeurtenissen konden niet laden."
+    }
+  }
+}

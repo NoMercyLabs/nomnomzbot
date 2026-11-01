@@ -128,11 +128,12 @@ async function readBotStatus(id: string): Promise<BotStatus | null> {
   return data?.data ?? null;
 }
 
-async function readActivity(id: string): Promise<ActivityEvent[]> {
+// Every event of the newest `streams` streams, not a fixed row count.
+async function readStreamActivity(id: string, streams: number): Promise<ActivityEvent[]> {
   const { data, error, response } = await client.GET(
     '/api/v{version}/dashboard/{channelId}/activity',
     {
-      params: { path: { version, channelId: id } },
+      params: { path: { version, channelId: id }, query: { streams } },
     },
   );
 
@@ -141,6 +142,9 @@ async function readActivity(id: string): Promise<ActivityEvent[]> {
 
   return data?.data ?? [];
 }
+
+// The home feed: the current stream (the last one while offline).
+const readActivity = (id: string): Promise<ActivityEvent[]> => readStreamActivity(id, 1);
 
 // The home page reads these five; the intent prefetch warms the same entries with the same readers.
 export const homeStatsOptions = (id: string) => channelOptions(homeStatsKey, readHomeStats, id);
@@ -182,6 +186,24 @@ export function useActivity(
   channelId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<ActivityEvent[], Error> {
   return channelQuery(channelId, activityKey, readActivity);
+}
+
+// The Events page: this stream and the one before it. It sits under activityKey, so the live refresh reaches it too.
+export const streamsActivityKey = (channelId: string | null): KeyParts => [
+  ...activityKey(channelId),
+  'two-streams',
+];
+
+const readTwoStreamsActivity = (id: string): Promise<ActivityEvent[]> =>
+  readStreamActivity(id, 2);
+
+export const streamsActivityOptions = (id: string) =>
+  channelOptions(streamsActivityKey, readTwoStreamsActivity, id);
+
+export function useTwoStreamsActivity(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<ActivityEvent[], Error> {
+  return channelQuery(channelId, streamsActivityKey, readTwoStreamsActivity);
 }
 
 export const supporterActivityKey = (channelId: string | null): KeyParts => [

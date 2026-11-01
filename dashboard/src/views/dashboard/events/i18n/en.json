@@ -1,0 +1,13 @@
+{
+  "dashboard": {
+    "events": {
+      "title": "Events",
+      "thisStream": "This stream",
+      "lastStream": "Last stream",
+      "streamBefore": "The stream before",
+      "empty": "No events yet.",
+      "emptyEarlier": "No events from an earlier stream.",
+      "error": "Events could not load."
+    }
+  }
+}

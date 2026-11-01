@@ -26,6 +26,7 @@ import {
   connectionsOptions,
   homeStatsOptions,
   reviewQueueOptions,
+  streamsActivityOptions,
   supporterActivityOptions,
 } from './home';
 import { pollHistoryOptions } from './liveOps';
@@ -138,6 +139,11 @@ const routeWarmers = {
     read(rewardsOptions),
     read(redemptionsOptions),
     read(pipelinesOptions),
+  ),
+  'dashboard-events': reads(
+    read(activityOptions),
+    read(streamsActivityOptions),
+    read(homeStatsOptions),
   ),
   'dashboard-supporters': reads(
     read(supporterEventsOptions),

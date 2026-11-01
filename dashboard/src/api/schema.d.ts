@@ -94,7 +94,12 @@ export interface paths {
         /** Every gateable action with its shipped, platform and effective default level. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -383,7 +388,12 @@ export interface paths {
         /** Read the channel's full action-permission matrix (defaults plus overrides). */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -636,7 +646,12 @@ export interface paths {
         /** List every tier — public and internal — for the admin tier editor. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -1440,7 +1455,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     broadcasterId: string;
@@ -1621,7 +1641,12 @@ export interface paths {
         /** Every LIVE comp/entitlement grant (S-ADMIN-4b) for a channel, newest first. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     broadcasterId: string;
@@ -1995,7 +2020,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -2865,7 +2895,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -3341,7 +3376,12 @@ export interface paths {
         /** Returns service health list (for dashboard health panel). */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -3433,7 +3473,12 @@ export interface paths {
         /** Returns recent platform events for the admin dashboard. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -4370,7 +4415,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -5385,6 +5435,10 @@ export interface paths {
             parameters: {
                 query?: {
                     justification?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -5873,6 +5927,10 @@ export interface paths {
             parameters: {
                 query?: {
                     justification?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -6152,6 +6210,10 @@ export interface paths {
                 query?: {
                     from?: string;
                     to?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -6344,6 +6406,10 @@ export interface paths {
                 query?: {
                     from?: string;
                     to?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -6537,6 +6603,10 @@ export interface paths {
                     from?: string;
                     to?: string;
                     top?: number | string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -6635,6 +6705,10 @@ export interface paths {
                     from?: string;
                     to?: string;
                     top?: number | string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -7133,6 +7207,10 @@ export interface paths {
                 query?: {
                     from?: string;
                     to?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -8224,7 +8302,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -9252,7 +9335,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -11156,7 +11244,12 @@ export interface paths {
         /** Invocable pipelines (scope `read`; honors the token's allowlist). */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -11246,7 +11339,12 @@ export interface paths {
         /** The channel's enabled chat commands (scope `read`). */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -11712,7 +11810,12 @@ export interface paths {
         /** The broadcaster's playback devices on the active music provider (scope `read`). */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -11805,6 +11908,10 @@ export interface paths {
                 query?: {
                     limit?: number | string;
                     offset?: number | string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path?: never;
@@ -11898,7 +12005,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -11991,7 +12103,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -12086,6 +12203,10 @@ export interface paths {
             parameters: {
                 query?: {
                     sceneName?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path?: never;
@@ -12179,7 +12300,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path?: never;
                 cookie?: never;
@@ -12275,6 +12401,10 @@ export interface paths {
             parameters: {
                 query?: {
                     sourceName?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path?: never;
@@ -13013,7 +13143,12 @@ export interface paths {
         /** The subscribable public event catalog — the wire names an events-scoped token may stream. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -13293,7 +13428,12 @@ export interface paths {
         /** List the publicly offered billing tiers (channel-independent catalogue). */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -13479,7 +13619,12 @@ export interface paths {
         /** Get the channel's current metered usage across billed metrics. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -13578,7 +13723,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -14607,7 +14757,12 @@ export interface paths {
         /** Every editable built-in reply slot with its shipped and platform wording. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -14899,7 +15054,12 @@ export interface paths {
         /** Lists all built-in commands for the channel, with their enabled state and defaults. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -15362,7 +15522,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -16020,7 +16185,12 @@ export interface paths {
         /** List the channel's installed bundles. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -17584,7 +17754,12 @@ export interface paths {
         /** List the channel's federation opt-ins. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -18144,7 +18319,12 @@ export interface paths {
         /** Get all Twitch channels the current user moderates (from Twitch API, not just DB). */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -19803,6 +19983,10 @@ export interface paths {
             parameters: {
                 query?: {
                     limit?: number | string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -20188,6 +20372,10 @@ export interface paths {
             parameters: {
                 query?: {
                     senderIdentity?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -21473,7 +21661,12 @@ export interface paths {
         /** The channel's polls: the open one (live tallies) first, then recent history. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -21837,7 +22030,12 @@ export interface paths {
         /** List the channel's keyword triggers. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -23159,7 +23357,12 @@ export interface paths {
         /** The trigger samples a test run can fire (`trigger` on the test-run body), sorted by response key. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -23441,7 +23644,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -24278,7 +24486,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -24383,6 +24596,10 @@ export interface paths {
                     q?: string;
                     limit?: number | string;
                     scope?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -26275,7 +26492,12 @@ export interface paths {
         /** List the channel's currency earning rules. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -27399,6 +27621,10 @@ export interface paths {
                 query?: {
                     q?: string;
                     limit?: number | string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -27491,7 +27717,12 @@ export interface paths {
         /** List available custom data source presets. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -28604,11 +28835,14 @@ export interface paths {
             path?: never;
             cookie?: never;
         };
-        /** Returns recent channel activity events. */
+        /** Returns recent channel activity events, or every event of the newest `streams` streams. */
         get: {
             parameters: {
                 query?: {
                     types?: string;
+                    streams?: number | string;
+                    take?: number | string;
+                    page?: number | string;
                 };
                 header?: never;
                 path: {
@@ -28802,7 +29036,12 @@ export interface paths {
         /** List the channel's linked Discord guild connections. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -29636,7 +29875,12 @@ export interface paths {
         /** List the linked guild's live roles, for the notify-role picker. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -29730,7 +29974,12 @@ export interface paths {
         /** List the linked guild's live channels, for the target/button channel pickers. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -29828,7 +30077,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -29926,7 +30180,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -30020,7 +30279,12 @@ export interface paths {
         /** List the events the server can post to Discord for, with each one's message placeholders. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -30113,7 +30377,12 @@ export interface paths {
         /** List the notification rules configured on a guild connection. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -30563,7 +30832,12 @@ export interface paths {
         /** Read the "currently live" role rule of a guild connection (empty when none is set). */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -30903,7 +31177,12 @@ export interface paths {
         /** List the self-assign notify roles defined on a guild connection. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -31884,7 +32163,12 @@ export interface paths {
         /** List the channel's leaderboard configurations. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -32238,6 +32522,10 @@ export interface paths {
             parameters: {
                 query?: {
                     top?: number | string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -33335,7 +33623,12 @@ export interface paths {
         /** Every event type with its platform default and how many channels follow it. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -33934,7 +34227,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -35286,7 +35584,12 @@ export interface paths {
         /** The caller's favorite emotes, newest first. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -35554,7 +35857,12 @@ export interface paths {
         /** List all feature-flag definitions. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -35728,7 +36036,12 @@ export interface paths {
         /** Every per-channel override on every flag — the console's read-back of what is forced where. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -36086,7 +36399,12 @@ export interface paths {
         /** List all features and their current enabled state for the channel. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -36894,7 +37212,12 @@ export interface paths {
         /** List the channel's mini-game configurations. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -37965,7 +38288,12 @@ export interface paths {
         /** Every discovered live game's manifest — what the dashboard can start. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -38634,7 +38962,12 @@ export interface paths {
         /** List the caller's own consent ledger (every channel + platform-wide rows). */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -40816,7 +41149,12 @@ export interface paths {
         /** The integrations screen read model: per provider — connected?, account, granted scope-sets, capabilities. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -41944,7 +42282,12 @@ export interface paths {
         /** List the registered IPC keys — metadata only, never key material. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -42321,7 +42664,12 @@ export interface paths {
         /** List active and ended polls for the channel. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -42597,7 +42945,12 @@ export interface paths {
         /** List active and ended predictions for the channel. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -46132,6 +46485,10 @@ export interface paths {
                 query?: {
                     attacked?: string[];
                     excluded?: string[];
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -46228,7 +46585,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -46321,7 +46683,12 @@ export interface paths {
         /** The channels this operator opted into their mass bans on the streamer's word. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -47347,7 +47714,12 @@ export interface paths {
         /** List users currently banned in the channel, via the Twitch moderation API. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -47534,7 +47906,12 @@ export interface paths {
         /** List the channel's current Twitch moderators, live from the Twitch moderation API. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -48600,7 +48977,12 @@ export interface paths {
         /** List the channel's blocked terms, live from the Twitch moderation API. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -49069,6 +49451,10 @@ export interface paths {
             parameters: {
                 query?: {
                     status?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -50760,7 +51146,12 @@ export interface paths {
         /** List the moderator notes about a viewer (pinned first, then most recent). */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -51118,6 +51509,10 @@ export interface paths {
             parameters: {
                 query?: {
                     status?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -51580,6 +51975,10 @@ export interface paths {
             parameters: {
                 query?: {
                     status?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -52174,7 +52573,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -53082,7 +53486,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -54585,6 +54994,10 @@ export interface paths {
             parameters: {
                 query?: {
                     limit?: number | string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -54680,6 +55093,10 @@ export interface paths {
             parameters: {
                 query?: {
                     limit?: number | string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -55869,7 +56286,12 @@ export interface paths {
         /** List the playback devices available on the channel's active music provider. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -56073,6 +56495,10 @@ export interface paths {
                 query?: {
                     offset?: number | string;
                     limit?: number | string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -56367,7 +56793,12 @@ export interface paths {
         /** Lists the channel's current action-required items, newest first. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -56750,7 +57181,12 @@ export interface paths {
         /** The scene list (current one flagged). */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -56843,7 +57279,12 @@ export interface paths {
         /** The input list. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -56941,6 +57382,10 @@ export interface paths {
             parameters: {
                 query?: {
                     sceneName?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -57220,7 +57665,12 @@ export interface paths {
         /** The scene transitions OBS knows about, with the currently active one flagged. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -57313,7 +57763,12 @@ export interface paths {
         /** The scene collections OBS knows about, with the loaded one flagged. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -57406,7 +57861,12 @@ export interface paths {
         /** The OBS profiles, with the active one flagged. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -57501,6 +57961,10 @@ export interface paths {
             parameters: {
                 query?: {
                     sourceName?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -57773,7 +58237,12 @@ export interface paths {
         /** The hotkey names OBS knows about — the enumeration a hotkey-trigger picker needs. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -61317,6 +61786,10 @@ export interface paths {
             parameters: {
                 query?: {
                     token?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -61510,7 +61983,12 @@ export interface paths {
         /** List all permissions granted for the channel. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -61782,7 +62260,12 @@ export interface paths {
         /** List the channel's active permit grants. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -65121,7 +65604,12 @@ export interface paths {
         /** Every LIVE per-tenant quota override. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     broadcasterId: string;
@@ -67154,7 +67642,12 @@ export interface paths {
         /** The channel event catalogue the `event_response` template form picks its event from. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -67246,7 +67739,12 @@ export interface paths {
         /** The role catalog with each role's permission bundle — the role picker. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -67338,7 +67836,12 @@ export interface paths {
         /** Every principal with its active role assignments — the IAM screen's principal list. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -67518,6 +68021,10 @@ export interface paths {
             parameters: {
                 query?: {
                     scopeChannelId?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -67967,6 +68474,10 @@ export interface paths {
             parameters: {
                 query?: {
                     kind?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -68363,7 +68874,12 @@ export interface paths {
         /** The channel's pinned player buttons, in display order. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -68539,7 +69055,12 @@ export interface paths {
         /** The channel's polls and predictions from the event journal, newest first. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -68632,7 +69153,12 @@ export interface paths {
         /** Full pronoun catalog — anonymous, same data as `GET /system/pronouns` but namespaced here. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -70448,7 +70974,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -71686,7 +72217,12 @@ export interface paths {
         /** Top-50 chatter leaderboard ranked by message count, with resolved display names. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -72231,7 +72767,12 @@ export interface paths {
         /** List the savings jars this channel is a member of. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -73402,6 +73943,10 @@ export interface paths {
             parameters: {
                 query?: {
                     context?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -74518,6 +75063,8 @@ export interface paths {
                 query?: {
                     page?: number | string;
                     pageSize?: number | string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
                 };
                 header?: never;
                 path: {
@@ -74617,6 +75164,8 @@ export interface paths {
                 query?: {
                     page?: number | string;
                     pageSize?: number | string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
                 };
                 header?: never;
                 path: {
@@ -74713,6 +75262,8 @@ export interface paths {
                 query?: {
                     page?: number | string;
                     pageSize?: number | string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
                 };
                 header?: never;
                 path: {
@@ -75003,7 +75554,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -75855,6 +76411,10 @@ export interface paths {
             parameters: {
                 query?: {
                     query?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -75953,6 +76513,10 @@ export interface paths {
             parameters: {
                 query?: {
                     query?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -76046,7 +76610,12 @@ export interface paths {
         /** The channel's supporter connections (which providers, ingress mode, live state). */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -77483,7 +78052,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -77585,6 +78159,10 @@ export interface paths {
                 query?: {
                     context?: string;
                     eventType?: string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -80104,7 +80682,12 @@ export interface paths {
         /** All pronunciation rules for the channel (phrase → what TTS speaks instead). */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -81807,7 +82390,12 @@ export interface paths {
         /** The voices the platform default may be set to. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -82662,7 +83250,12 @@ export interface paths {
         /** Get all channels a user appears in (as broadcaster or moderation role). */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     userId: string;
@@ -82850,6 +83443,10 @@ export interface paths {
             parameters: {
                 query?: {
                     limit?: number | string;
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
                 };
                 header?: never;
                 path: {
@@ -83026,7 +83623,12 @@ export interface paths {
         /** The emotes you can use in this channel: Twitch global + channel, your own, and BTTV/FFZ/7TV. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -83119,7 +83721,12 @@ export interface paths {
         /** The viewer's full custom-data map for this channel. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     viewerId: string;
@@ -83484,7 +84091,12 @@ export interface paths {
         /** Channels where the caller has viewer activity (never their own), newest activity first. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     version: string;
@@ -83775,7 +84387,12 @@ export interface paths {
         /** The channel's commands the caller may run, by name, with the caller's own last use. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -84058,7 +84675,12 @@ export interface paths {
         /** List the channel's voice triggers, with their live counts. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -85575,7 +86197,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -87402,7 +88029,12 @@ export interface paths {
         /** List the starter templates offered when creating a new custom widget. */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
@@ -87499,7 +88131,12 @@ export interface paths {
          */
         get: {
             parameters: {
-                query?: never;
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
                 header?: never;
                 path: {
                     channelId: string;
