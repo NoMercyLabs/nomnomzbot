@@ -24,9 +24,8 @@ namespace NomNomzBot.Infrastructure.Content.Commands;
 ///
 /// <para>The platform default row is one chat line and no steps, and its text-to-speech flag would speak the
 /// whole line in the bot's voice. This seeder wires the channel's own row to a two-step pipeline instead:
-/// the chat thank-you (with the <c>{also_said}</c> quote) and a <c>play_tts</c> of <c>{message}</c> with no
-/// <c>as</c>, which is the viewer's own voice. The spoken step carries a condition so a cheer without a
-/// message says nothing.</para>
+/// the chat thank-you (with the <c>{also_said}</c> quote) and a <c>play_tts</c> of the same line. The
+/// announcement is spoken in the bot's voice and the viewer's message in the viewer's own voice.</para>
 /// </summary>
 /// <remarks>
 /// The pipeline cannot reach the tone catalogue at run time, so the chat line is picked from the catalogue
@@ -121,26 +120,16 @@ public sealed class CheerResponseFlowSeeder(IApplicationDbContext db) : ISeeder
             "send_message",
             $$"""{"message":"{{line}}"}"""
         );
+        // The whole thank-you is spoken: the announcement in the bot's voice and the viewer's message, which
+        // play_tts finds by its variable, in the viewer's own voice. A cheer without a message just has no
+        // viewer part.
         PipelineStep spoken = NewStep(
             pipelineId,
             channelId,
             1,
             "play_tts",
-            """{"text":"{message}"}"""
+            $$"""{"text":"{{line}}"}"""
         );
-        spoken.Conditions =
-        [
-            new()
-            {
-                PipelineStepId = spoken.Id,
-                BroadcasterId = channelId,
-                ConditionType = "comparison",
-                LeftOperand = "{message}",
-                Operator = "ne",
-                RightOperand = "",
-                Order = 0,
-            },
-        ];
         return [thanks, spoken];
     }
 

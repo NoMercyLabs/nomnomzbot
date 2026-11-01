@@ -319,13 +319,14 @@ public sealed class TtsDispatchService : ITtsDispatchService
         List<TtsSegment> segments = [];
         List<string> originals = [];
         bool wasCensored = false;
-        string? requestVoice = null;
+        // The voice of a part that names none, kept per speaker so a line of bot and viewer parts resolves each once.
+        Dictionary<(TtsSpeaker, string), string?> resolvedVoices = [];
         foreach (TtsSpeakSegment part in parts)
         {
             string text = part.Text.Trim();
             if (text.Length == 0)
                 continue;
-            if (request.Speaker == TtsSpeaker.Bot)
+            if (request.Speaker == TtsSpeaker.Bot || part.Speaker is not null)
                 text = CutToCap(text, cap);
             if (text.Length > cap)
                 return await RejectRequestAsync(
@@ -349,16 +350,24 @@ public sealed class TtsDispatchService : ITtsDispatchService
             string? named = string.IsNullOrWhiteSpace(part.VoiceId)
                 ? request.VoiceIdOverride
                 : part.VoiceId;
-            string? voiceId = string.IsNullOrWhiteSpace(named) ? requestVoice : named;
-            voiceId ??= requestVoice = await ResolveVoiceAsync(
-                request.BroadcasterId,
-                request.RequestedByTwitchUserId,
-                null,
-                config,
-                request.AssignVoiceIfMissing,
-                request.Speaker,
-                ct
-            );
+            string? voiceId = string.IsNullOrWhiteSpace(named) ? null : named;
+            if (voiceId is null)
+            {
+                TtsSpeaker speaker = part.Speaker ?? request.Speaker;
+                string owner = string.IsNullOrWhiteSpace(part.SpeakerTwitchUserId)
+                    ? request.RequestedByTwitchUserId
+                    : part.SpeakerTwitchUserId;
+                if (!resolvedVoices.TryGetValue((speaker, owner), out voiceId))
+                    resolvedVoices[(speaker, owner)] = voiceId = await ResolveVoiceAsync(
+                        request.BroadcasterId,
+                        owner,
+                        null,
+                        config,
+                        request.AssignVoiceIfMissing,
+                        speaker,
+                        ct
+                    );
+            }
             if (string.IsNullOrWhiteSpace(voiceId))
                 return await RejectRequestAsync(
                     request,

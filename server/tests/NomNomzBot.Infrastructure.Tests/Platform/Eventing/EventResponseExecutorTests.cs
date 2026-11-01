@@ -49,7 +49,8 @@ public sealed class EventResponseExecutorTests
     ) Build(
         ITtsDispatchService? tts = null,
         IChatOverlayLineSender? lineSender = null,
-        IOutboundSanctionAccessor? sanctions = null
+        IOutboundSanctionAccessor? sanctions = null,
+        bool substituteVariables = false
     )
     {
         SupporterTestDbContext db = SupporterTestDbContext.New();
@@ -62,7 +63,21 @@ public sealed class EventResponseExecutorTests
                 Arg.Any<Guid?>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(callInfo => Task.FromResult($"resolved:{callInfo.ArgAt<string>(0)}"));
+            .Returns(callInfo =>
+            {
+                string template = callInfo.ArgAt<string>(0);
+                if (!substituteVariables)
+                    return Task.FromResult($"resolved:{template}");
+
+                foreach (
+                    KeyValuePair<string, string> pair in callInfo.ArgAt<
+                        IDictionary<string, string>
+                    >(1)
+                )
+                    template = template.Replace("{" + pair.Key + "}", pair.Value);
+
+                return Task.FromResult(template);
+            });
 
         IChatProvider chat = Substitute.For<IChatProvider>();
         chat.SendMessageAsync(Arg.Any<Guid>(), Arg.Any<string>(), Arg.Any<CancellationToken>())
@@ -290,6 +305,64 @@ public sealed class EventResponseExecutorTests
                     && r.CommunityStanding == "broadcaster"
                     && r.SpokenNames != null
                     && r.SpokenNames.Contains("Gifter")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_resub_with_a_message_speaks_the_announcement_in_the_bot_voice_and_the_message_in_the_chatters_voice()
+    {
+        ITtsDispatchService tts = Substitute.For<ITtsDispatchService>();
+        tts.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        "voice",
+                        "edge",
+                        10,
+                        1000,
+                        null
+                    )
+                )
+            );
+        (EventResponseExecutor executor, SupporterTestDbContext db, _, _, _) = Build(
+            tts,
+            substituteVariables: true
+        );
+        await SeedResponseAsync(
+            db,
+            "channel.subscription.message",
+            "chat_message",
+            message: "{user} resubscribed for {months} months!{also_said}",
+            speakWithTts: true
+        );
+
+        await executor.ExecuteAsync(
+            Tenant,
+            "channel.subscription.message",
+            userId: "ifillz-1",
+            userDisplayName: "iFillz",
+            new()
+            {
+                ["user"] = "iFillz",
+                ["months"] = "55",
+                ["message"] = "hype train",
+                ["also_said"] = " They also said: \"hype train\"",
+            }
+        );
+
+        await tts.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r =>
+                    r.Segments != null
+                    && r.Segments.Count == 2
+                    && r.Segments[0].Text == "iFillz resubscribed for 55 months! They also said:"
+                    && r.Segments[0].Speaker == TtsSpeaker.Bot
+                    && r.Segments[1].Text == "hype train"
+                    && r.Segments[1].Speaker == TtsSpeaker.Viewer
+                    && r.Segments[1].SpeakerTwitchUserId == "ifillz-1"
                 ),
                 Arg.Any<CancellationToken>()
             );

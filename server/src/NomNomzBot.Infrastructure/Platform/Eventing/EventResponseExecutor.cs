@@ -196,6 +196,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                     config.SpeakWithTts,
                     config.Delivery ?? ReplyDelivery.ChatOnly,
                     variables,
+                    userId,
                     cancellationToken
                 ),
                 "pipeline" when config.Target is { Kind: not BindingTargetKind.Pipeline } =>
@@ -304,6 +305,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         bool speakWithTts,
         ReplyDelivery delivery,
         Dictionary<string, string> variables,
+        string? viewerUserId,
         CancellationToken ct
     )
     {
@@ -348,7 +350,21 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
         bool spoken =
             speakWithTts
             && outcome.SentToChat
-            && await SpeakAsync(broadcasterId, eventTypeKey, rendered.ChatText, variables, ct);
+            && await SpeakAsync(
+                broadcasterId,
+                eventTypeKey,
+                rendered.ChatText,
+                await ViewerPartsAsync(
+                    messageTemplate,
+                    variables,
+                    broadcasterId,
+                    delivery,
+                    viewerUserId,
+                    ct
+                ),
+                variables,
+                ct
+            );
         return EventResponseOutcome.None with
         {
             ChatMessagesSent = outcome.SentToChat ? 1 : 0,
@@ -357,17 +373,47 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
     }
 
     /// <summary>
-    /// Hands the resolved chat line to the channel's TTS. The line is the channel's own announcement, so it
-    /// reads in the channel's default voice (no viewer named) with the broadcaster's standing — the same
-    /// choice the shoutout announcement makes. Every other gate (TTS enabled, bits, character cap, censor,
-    /// moderator approval) belongs to the dispatch service, exactly as for a pipeline's play_tts step. A
-    /// rejection or an exception is logged and never escapes; whether anything could PLAY the line is
-    /// reported by the tts_speak broadcaster, so nothing here claims it was heard.
+    /// The spoken line cut into the bot's announcement and what the viewer wrote (a resub or cheer message), the
+    /// template rendered once more with the viewer's words marked. Null when the viewer wrote nothing.
+    /// </summary>
+    private async Task<List<TtsSpeakSegment>?> ViewerPartsAsync(
+        string messageTemplate,
+        Dictionary<string, string> variables,
+        Guid broadcasterId,
+        ReplyDelivery delivery,
+        string? viewerUserId,
+        CancellationToken ct
+    )
+    {
+        if (TtsViewerWords.Words(variables).Count == 0)
+            return null;
+
+        RenderedReply marked = await ReplyTemplateRenderer.RenderAsync(
+            _templateResolver,
+            messageTemplate,
+            TtsViewerWords.Mark(variables),
+            broadcasterId,
+            delivery,
+            ct
+        );
+
+        return TtsViewerWords.Split(marked.ChatText, viewerUserId ?? string.Empty);
+    }
+
+    /// <summary>
+    /// Hands the resolved chat line to the channel's TTS. The announcement is the channel's own, so it reads in
+    /// the channel's default voice with the broadcaster's standing — the same choice the shoutout announcement
+    /// makes — and what the viewer wrote reads in the viewer's own saved voice, in the same clip. Every other
+    /// gate (TTS enabled, bits, character cap, censor, moderator approval) belongs to the dispatch service,
+    /// exactly as for a pipeline's play_tts step. A rejection or an exception is logged and never escapes;
+    /// whether anything could PLAY the line is reported by the tts_speak broadcaster, so nothing here claims it
+    /// was heard.
     /// </summary>
     private async Task<bool> SpeakAsync(
         Guid broadcasterId,
         string eventTypeKey,
         string text,
+        List<TtsSpeakSegment>? parts,
         Dictionary<string, string> variables,
         CancellationToken ct
     )
@@ -382,6 +428,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                     RequestedByDisplayName: string.Empty,
                     Text: text,
                     VoiceIdOverride: null,
+                    Segments: parts,
                     BitsAmount: variables.TryGetValue("user.bits", out string? bits)
                     && int.TryParse(bits, out int bitsAmount)
                         ? bitsAmount

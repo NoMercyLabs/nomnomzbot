@@ -87,6 +87,7 @@ public sealed class PlayTtsAction : ICommandAction
         List<TtsSpeakSegment>? segments = null;
         string text;
         bool speaksViewerWords;
+        string? markedText = null;
         if (action.Parameters?.TryGetValue("segments", out JsonElement rawSegments) == true)
         {
             (List<TtsSpeakSegment>? parsed, string? segmentError) = await ResolveSegmentsAsync(
@@ -114,6 +115,15 @@ public sealed class PlayTtsAction : ICommandAction
             );
             if (string.IsNullOrWhiteSpace(text))
                 return ActionResult.Failure("play_tts resolved to empty text.");
+
+            // The same template again with the viewer's words marked, to tell them from the bot's own words.
+            if (TtsViewerWords.Words(ctx.Variables).Count > 0)
+                markedText = await _resolver.ResolveAsync(
+                    template,
+                    TtsViewerWords.Mark(ctx.Variables),
+                    ctx.BroadcasterId,
+                    ctx.CancellationToken
+                );
         }
 
         string voiceTemplate = action.GetString("voice") ?? string.Empty;
@@ -145,9 +155,22 @@ public sealed class PlayTtsAction : ICommandAction
                     ctx.CancellationToken
                 )
             ).Trim();
-        // A blank `as` is the bot's own line, unless the text is built from the viewer's typed words (a TTS
-        // reward's {input}): then the viewer is the speaker. An explicit `as` always wins.
-        if (asField.Length == 0 && speaksViewerWords)
+        // A blank `as` is the bot's own line, unless the text carries the viewer's typed words. The announcement
+        // around them is the bot's, read in the channel's voice; the words are the viewer's, read in their own
+        // voice, in one clip. A line that is only the viewer's words (a TTS reward's {input}) is the viewer's
+        // alone. An explicit `as` always wins and speaks the whole line.
+        if (asField.Length == 0 && segments is null && markedText is not null)
+        {
+            List<TtsSpeakSegment>? mixed =
+                TtsViewerWords.Split(markedText, ctx.TriggeredByUserId)
+                ?? TtsViewerWords.SplitRendered(text, ctx.Variables, ctx.TriggeredByUserId);
+            if (mixed is { Count: 1 } && mixed[0].Speaker == TtsSpeaker.Viewer)
+                asField = "viewer";
+            else if (mixed is not null)
+                segments = mixed;
+        }
+
+        if (asField.Length == 0 && speaksViewerWords && segments is null)
             asField = "viewer";
         string speaker = await ResolveSpeakerAsync(asField, ctx);
 

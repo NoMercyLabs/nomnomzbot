@@ -90,16 +90,16 @@ public sealed class CheerResponseFlowSeederTests
             .Should()
             .BeOneOf(EventResponseToneCatalog.Get(PersonalityTone.Informative, EventType))
             .And.EndWith("{also_said}");
-        Prop(steps[1], "text").Should().Be("{message}");
-        JsonDocument
-            .Parse(steps[1].ConfigJson)
-            .RootElement.TryGetProperty("as", out JsonElement _)
+        Prop(steps[1], "text")
             .Should()
-            .BeFalse("a blank 'as' with {message} is the viewer's own voice");
+            .Be(
+                Prop(steps[0], "message"),
+                "the whole thank-you is spoken, not only the viewer's message"
+            );
     }
 
     [Fact]
-    public async Task The_spoken_step_runs_only_when_the_cheer_has_a_message()
+    public async Task The_spoken_step_always_runs_so_the_announcement_is_heard_with_or_without_a_message()
     {
         (CheerResponseFlowSeeder seeder, SeedTestDbContext db) = Build();
         db.EventResponses.Add(FreshStub());
@@ -115,10 +115,7 @@ public sealed class CheerResponseFlowSeederTests
             .EnumerateArray()
             .ToList();
         steps[0].GetProperty("condition").ValueKind.Should().Be(JsonValueKind.Null);
-        JsonElement condition = steps[1].GetProperty("condition");
-        condition.GetProperty("left").GetString().Should().Be("{message}");
-        condition.GetProperty("operator").GetString().Should().Be("ne");
-        condition.GetProperty("right").GetString().Should().BeEmpty();
+        steps[1].GetProperty("condition").ValueKind.Should().Be(JsonValueKind.Null);
     }
 
     [Fact]

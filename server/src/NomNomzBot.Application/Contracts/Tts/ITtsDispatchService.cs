@@ -173,12 +173,22 @@ public sealed record TtsSpeakRequest(
 /// <param name="RatePercent">Optional speaking-rate override (percent, clamped by the provider).</param>
 /// <param name="PitchPercent">Optional pitch override (percent, clamped by the provider).</param>
 /// <param name="BreakAfterMs">Silence after this part in milliseconds; <c>0</c> none. Ignored after the last part.</param>
+/// <param name="Speaker">
+/// Whose words this part carries when it names no <paramref name="VoiceId"/>: <see cref="TtsSpeaker.Viewer"/> reads
+/// it in the voice saved for <paramref name="SpeakerTwitchUserId"/>, <see cref="TtsSpeaker.Bot"/> in the channel's
+/// voice. <c>null</c> follows the request's own speaker. This is how one line carries the bot's announcement and the
+/// viewer's own words in their own voice. A part with a speaker is cut to the length cap instead of rejected: an
+/// event announcement never goes silent because a viewer wrote a long message.
+/// </param>
+/// <param name="SpeakerTwitchUserId">The platform user id whose saved voice a <see cref="TtsSpeaker.Viewer"/> part uses.</param>
 public sealed record TtsSpeakSegment(
     string Text,
     string? VoiceId = null,
     double? RatePercent = null,
     double? PitchPercent = null,
-    int BreakAfterMs = 0
+    int BreakAfterMs = 0,
+    TtsSpeaker? Speaker = null,
+    string? SpeakerTwitchUserId = null
 );
 
 /// <summary>Whose words a TTS line carries; picks the voice (see <see cref="TtsSpeakRequest.Speaker"/>).</summary>
