@@ -115,6 +115,81 @@ public sealed class SongRetractionSkipTests
         SkipCalls(music).Should().Be(1);
     }
 
+    // 2026-11-01: Spotify refused the skip at the instant the track changed ("not in a state where that
+    // control applies"), the marker was already spent, and the wrong song played to the end.
+    [Fact]
+    public async Task A_skip_the_provider_refuses_at_the_moment_of_the_change_is_tried_again_until_it_lands()
+    {
+        SongRequestQueueStore store = new();
+        string channel = ChannelId.ToString();
+        SongRequestEntry entry = Entry(TrackUri);
+        store.GetOrCreate(channel).Enqueue("viewer", entry);
+        store.SetInFlight(channel, entry);
+        MusicService service = BuildService(store);
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .SkipAsync(
+                ChannelId.ToString(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Failure("not in a state where that control applies"),
+                Result.Failure("not in a state where that control applies"),
+                Result.Success()
+            );
+        List<TimeSpan> waits = [];
+        SongRetractionSkipHandler sut = new(
+            store,
+            music,
+            NullLogger<SongRetractionSkipHandler>.Instance,
+            (wait, _) =>
+            {
+                waits.Add(wait);
+
+                return Task.CompletedTask;
+            }
+        );
+
+        (await service.RemoveFromQueueAsync(channel, 0)).Should().BeTrue();
+        await sut.HandleAsync(PlaybackOf(TrackUri));
+
+        SkipCalls(music).Should().Be(3);
+        waits.Should().HaveCount(2, "the bot waits between tries, not after the skip that landed");
+    }
+
+    [Fact]
+    public async Task A_skip_the_provider_always_refuses_stops_after_a_few_tries_and_says_so()
+    {
+        SongRequestQueueStore store = new();
+        string channel = ChannelId.ToString();
+        SongRequestEntry entry = Entry(TrackUri);
+        store.GetOrCreate(channel).Enqueue("viewer", entry);
+        store.SetInFlight(channel, entry);
+        MusicService service = BuildService(store);
+        IMusicService music = Substitute.For<IMusicService>();
+        music
+            .SkipAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Failure("not in a state where that control applies"));
+        SongRetractionSkipHandler sut = new(
+            store,
+            music,
+            NullLogger<SongRetractionSkipHandler>.Instance,
+            (_, _) => Task.CompletedTask
+        );
+
+        (await service.RemoveFromQueueAsync(channel, 0)).Should().BeTrue();
+        await sut.HandleAsync(PlaybackOf(TrackUri));
+
+        SkipCalls(music).Should().Be(4, "one try and three more, then it gives up");
+    }
+
     [Fact]
     public async Task A_second_play_of_the_same_song_after_the_marker_was_consumed_is_not_skipped()
     {

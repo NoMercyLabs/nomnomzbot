@@ -28,16 +28,23 @@ public sealed class SongRetractionSkipHandler : IEventHandler<PlaybackStateChang
     private readonly ISongRequestQueueStore _queueStore;
     private readonly IMusicService _music;
     private readonly ILogger<SongRetractionSkipHandler> _logger;
+    private readonly Func<TimeSpan, CancellationToken, Task> _wait;
+
+    // Spotify refuses a skip for a moment while the player changes track, so a refused skip is tried again.
+    private const int MaxTries = 4;
+    private static readonly TimeSpan RetryWait = TimeSpan.FromMilliseconds(1500);
 
     public SongRetractionSkipHandler(
         ISongRequestQueueStore queueStore,
         IMusicService music,
-        ILogger<SongRetractionSkipHandler> logger
+        ILogger<SongRetractionSkipHandler> logger,
+        Func<TimeSpan, CancellationToken, Task>? wait = null
     )
     {
         _queueStore = queueStore;
         _music = music;
         _logger = logger;
+        _wait = wait ?? Task.Delay;
     }
 
     public async Task HandleAsync(
@@ -57,6 +64,16 @@ public sealed class SongRetractionSkipHandler : IEventHandler<PlaybackStateChang
             string.Empty,
             cancellationToken: cancellationToken
         );
+        for (int attempt = 1; !skipped.IsSuccess && attempt < MaxTries; attempt++)
+        {
+            await _wait(RetryWait, cancellationToken);
+            skipped = await _music.SkipAsync(
+                broadcasterId,
+                string.Empty,
+                cancellationToken: cancellationToken
+            );
+        }
+
         if (!skipped.IsSuccess)
             _logger.LogWarning(
                 "Retracted track {TrackUri} started for {BroadcasterId} but the skip failed: {Error}",
