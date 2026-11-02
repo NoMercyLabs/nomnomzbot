@@ -10,7 +10,14 @@
 // -----------------------------------------------------------------------------
 
 import type { ChatTrigger, ChatTriggerChange } from '@/api/chatTriggers';
-import { noPipelineId, type ReplyMode } from '@/components/layout/replyMode';
+import {
+  deliveryOf,
+  deliveryToSave,
+  noPipelineId,
+  sameDelivery,
+  type ReplyDelivery,
+  type ReplyMode,
+} from '@/components/layout/replyMode';
 import { boundTarget, sameTarget, targetToWire, type PickedTarget } from '@/lib/bindingTarget';
 
 export const matchTypes = ['contains', 'exact', 'starts_with', 'regex'] as const;
@@ -22,6 +29,7 @@ export interface ChatTriggerDraft {
   caseSensitive: boolean;
   mode: ReplyMode;
   response: string;
+  replyDelivery: ReplyDelivery;
   target: PickedTarget | null;
   cooldownSeconds: number;
   minPermissionLevel: string;
@@ -36,6 +44,7 @@ export function draftOf(trigger: ChatTrigger) {
       ? 'simple'
       : 'full',
     response: trigger.response ?? '',
+    replyDelivery: deliveryOf(trigger.replyDelivery),
     target: boundTarget(trigger.target, trigger.pipelineId),
     cooldownSeconds: Number(trigger.cooldownSeconds),
     minPermissionLevel: trigger.minPermissionLevel,
@@ -62,6 +71,11 @@ export function changeOf(draft: ChatTriggerDraft, trigger: ChatTrigger): ChatTri
   // The reply text stays on the trigger when a pipeline answers; the bot runs the pipeline first.
   if (draft.mode === 'simple' && draft.response !== saved.response) {
     change.response = draft.response;
+  }
+
+  // Going back to plain Twitch chat travels as chat itself: the bot reads no delivery as "unchanged".
+  if (!sameDelivery(draft.replyDelivery, saved.replyDelivery)) {
+    change.replyDelivery = deliveryToSave(draft.replyDelivery);
   }
 
   if (draft.mode === 'simple' && saved.target !== null) {

@@ -21,13 +21,21 @@ import UserAdd from '~icons/nnz/user-add';
 import UsersSwap from '~icons/nnz/users-swap';
 
 import type { EventResponseChange, EventResponseDetail } from '@/api/eventResponses';
-import { noPipelineId, type ReplyMode } from '@/components/layout/replyMode';
+import {
+  deliveryOf,
+  deliveryToSave,
+  noPipelineId,
+  sameDelivery,
+  type ReplyDelivery,
+  type ReplyMode,
+} from '@/components/layout/replyMode';
 import { boundTarget, sameTarget, targetToWire, type PickedTarget } from '@/lib/bindingTarget';
 
 // What the editor form holds. The switch for "enabled" is not here: it saves at once.
 export interface EventDraft {
   mode: ReplyMode;
   message: string;
+  replyDelivery: ReplyDelivery;
   target: PickedTarget | null;
   speakWithTts: boolean;
 }
@@ -38,6 +46,7 @@ export function draftOf(saved: EventResponseDetail) {
       ? 'full'
       : 'simple',
     message: saved.message ?? '',
+    replyDelivery: deliveryOf(saved.replyDelivery),
     target: boundTarget(saved.target, saved.pipelineId),
     speakWithTts: saved.speakWithTts,
   } as const satisfies EventDraft;
@@ -47,6 +56,7 @@ export function sameDraft(left: EventDraft, right: EventDraft): boolean {
   return (
     left.mode === right.mode &&
     left.message === right.message &&
+    sameDelivery(left.replyDelivery, right.replyDelivery) &&
     sameTarget(left.target, right.target) &&
     left.speakWithTts === right.speakWithTts
   );
@@ -60,6 +70,11 @@ export function changeOf(draft: EventDraft, saved: EventResponseDetail): EventRe
   // The message stays on the response when a pipeline answers; only the response type says which one runs.
   if (draft.mode === 'simple' && draft.message !== base.message) {
     change.message = draft.message;
+  }
+
+  // Going back to plain Twitch chat travels as chat itself: the bot reads no delivery as "unchanged".
+  if (!sameDelivery(draft.replyDelivery, base.replyDelivery)) {
+    change.replyDelivery = deliveryToSave(draft.replyDelivery);
   }
 
   if (draft.mode === 'simple' && base.mode === 'full') {

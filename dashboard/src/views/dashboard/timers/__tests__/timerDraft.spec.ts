@@ -24,6 +24,7 @@ const fine = {
   minChatActivity: 0,
   fireOnce: false,
   speakWithTts: false,
+  replyDelivery: { target: 'chat' as const, html: false },
   target: null,
 };
 

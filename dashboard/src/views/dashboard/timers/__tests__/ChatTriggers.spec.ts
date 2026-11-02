@@ -278,6 +278,66 @@ describe('Chat triggers tab', () => {
   });
 });
 
+describe('Chat trigger reply delivery', () => {
+  const chosen = (): string | undefined =>
+    document.body
+      .querySelector('[data-trigger-editor] [data-reply-delivery] [data-state="on"]')
+      ?.textContent?.trim();
+
+  it('shows the reply delivery field next to the reply of a trigger', async () => {
+    await open();
+    await click(rowOf('words a'));
+
+    expect(document.body.querySelector('[data-trigger-editor] [data-reply-delivery]')).not.toBeNull();
+  });
+
+  it('shows Twitch chat for a trigger that has no stored delivery, and saves nothing for it', async () => {
+    await open();
+    await click(rowOf('words a'));
+
+    expect(chosen()).toBe('Twitch chat');
+    expect(buttonByText('Save changes').disabled).toBe(true);
+    expect(calls.filter((call) => call.method === 'PATCH')).toHaveLength(0);
+  });
+
+  it('shows the stored target of a trigger when it opens', async () => {
+    rows = [trigger('a', { replyDelivery: { target: 'both', html: false } })];
+
+    await open();
+    await click(rowOf('words a'));
+
+    expect(chosen()).toBe('Both');
+  });
+
+  it('sends the new delivery when the target changes, and no other field', async () => {
+    await open();
+    await click(rowOf('words a'));
+
+    await click(
+      [...document.body.querySelectorAll<HTMLButtonElement>('[data-reply-delivery] button')].find(
+        (b) => b.textContent?.trim() === 'Chat overlay',
+      )!,
+    );
+
+    await click(buttonByText('Save changes'));
+
+    expect(calls.filter((call) => call.method === 'PATCH')[0]!.body).toEqual({
+      replyDelivery: { target: 'overlay', html: false },
+    });
+  });
+
+  it('keeps the stored delivery when another field changes', async () => {
+    rows = [trigger('a', { replyDelivery: { target: 'overlay', html: true } })];
+
+    await open();
+    await click(rowOf('words a'));
+    await type(field('Seconds between replies'), '90');
+    await click(buttonByText('Save changes'));
+
+    expect(calls.filter((call) => call.method === 'PATCH')[0]!.body).toEqual({ cooldownSeconds: 90 });
+  });
+});
+
 describe('Chat triggers permission gating', () => {
   it('shows a reader the trigger list, a New trigger that is in place but off, no editor on a picked row', async () => {
     held = ['timers:read', 'chattriggers:read'];

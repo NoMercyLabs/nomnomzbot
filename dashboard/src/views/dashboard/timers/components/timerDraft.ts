@@ -10,7 +10,13 @@
 // -----------------------------------------------------------------------------
 
 import type { Timer, TimerChange } from '@/api/timers';
-import type { ReplyMode } from '@/components/layout/replyMode';
+import {
+  deliveryOf,
+  deliveryToSave,
+  sameDelivery,
+  type ReplyDelivery,
+  type ReplyMode,
+} from '@/components/layout/replyMode';
 import { boundTarget, sameTarget, targetToWire, type PickedTarget } from '@/lib/bindingTarget';
 
 // What the editor form holds. The messages are one text, one message per line. The mode says which
@@ -23,6 +29,7 @@ export interface TimerDraft {
   minChatActivity: number;
   fireOnce: boolean;
   speakWithTts: boolean;
+  replyDelivery: ReplyDelivery;
   target: PickedTarget | null;
 }
 
@@ -79,6 +86,7 @@ export function draftOf(timer: Timer) {
     minChatActivity: Number(timer.minChatActivity),
     fireOnce: timer.fireOnce,
     speakWithTts: timer.speakWithTts ?? false,
+    replyDelivery: deliveryOf(timer.replyDelivery),
     target,
   } as const satisfies TimerDraft;
 }
@@ -119,6 +127,11 @@ export function changeOf(draft: TimerDraft, timer: Timer): TimerChange {
 
   if (draft.speakWithTts !== saved.speakWithTts) {
     change.speakWithTts = draft.speakWithTts;
+  }
+
+  // Going back to plain Twitch chat travels as chat itself: the bot reads no delivery as "unchanged".
+  if (!sameDelivery(draft.replyDelivery, saved.replyDelivery)) {
+    change.replyDelivery = deliveryToSave(draft.replyDelivery);
   }
 
   // A cleared binding is sent as the empty target; a left-alone one is not sent at all.

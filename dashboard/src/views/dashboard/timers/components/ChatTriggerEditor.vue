@@ -17,6 +17,7 @@ import { useI18n } from 'vue-i18n';
 import { useUpdateChatTrigger, type ChatTrigger } from '@/api/chatTriggers';
 import EditorFooter from '@/components/layout/EditorFooter.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import ReplyDeliveryField from '@/components/layout/ReplyDeliveryField.vue';
 import ReplyModeField from '@/components/layout/ReplyModeField.vue';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
@@ -143,6 +144,7 @@ function remove(): void {
           :maxlength="500"
           :label="$t('dashboard.timers.triggers.editor.response')"
         />
+        <ReplyDeliveryField v-model="draft.replyDelivery" />
       </ReplyModeField>
 
       <div class="grid gap-4 md:grid-cols-2">

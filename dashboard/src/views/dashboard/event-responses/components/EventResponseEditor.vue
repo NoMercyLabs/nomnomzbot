@@ -33,6 +33,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { boundTarget } from '@/lib/bindingTarget';
 import { errorText } from '@/lib/errors';
 
+import ReplyDeliveryField from '@/components/layout/ReplyDeliveryField.vue';
 import ReplyModeField from '@/components/layout/ReplyModeField.vue';
 
 import DefaultLineList from './DefaultLineList.vue';
@@ -229,6 +230,7 @@ async function useDefault(): Promise<void> {
             :event-type="row.eventType"
           />
         </section>
+        <ReplyDeliveryField v-model="draft.replyDelivery" />
         <!-- Speech belongs to a text reply; a pipeline speaks through its own step. -->
         <LabeledSwitch
           v-model="draft.speakWithTts"

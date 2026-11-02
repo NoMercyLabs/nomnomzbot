@@ -22,6 +22,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import type { PanelState } from '@/composables/usePanelState';
 import LabeledSwitch from '@/components/layout/LabeledSwitch.vue';
 import { Button } from '@/components/ui/button';
+import ReplyDeliveryField from '@/components/layout/ReplyDeliveryField.vue';
 import ReplyModeField from '@/components/layout/ReplyModeField.vue';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
@@ -151,6 +152,7 @@ async function duplicate(): Promise<void> {
         isEnabled: false,
         fireOnce: saved.fireOnce,
         speakWithTts: saved.speakWithTts,
+        replyDelivery: saved.replyDelivery,
         target: saved.target,
       }),
     );
@@ -219,6 +221,8 @@ function remove(): void {
           :help="$t('dashboard.timers.editor.messagesHelp')"
           :placeholder="$t('dashboard.timers.editor.messagesPlaceholder')"
         />
+        <!-- Where the lines go belongs to the lines; a pipeline or a command posts through its own step. -->
+        <ReplyDeliveryField v-model="draft.replyDelivery" />
       </ReplyModeField>
 
       <!-- When it runs: how often, and how busy chat must be. -->

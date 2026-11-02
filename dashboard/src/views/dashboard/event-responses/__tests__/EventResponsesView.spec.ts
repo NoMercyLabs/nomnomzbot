@@ -428,6 +428,62 @@ describe('Event responses page', () => {
   });
 });
 
+describe('Event response reply delivery', () => {
+  const chosen = (): string | undefined =>
+    editor()!.querySelector('[data-reply-delivery] [data-state="on"]')?.textContent?.trim();
+
+  it('shows the reply delivery field next to the message of an event response', async () => {
+    await open();
+    await click(rowOf('channel.follow'));
+
+    expect(editor()!.querySelector('[data-reply-delivery]')).not.toBeNull();
+  });
+
+  it('shows Twitch chat for a response that has no stored delivery, and saves nothing for it', async () => {
+    await open();
+    await click(rowOf('channel.follow'));
+
+    expect(chosen()).toBe('Twitch chat');
+    expect(buttonByText('Save changes').disabled).toBe(true);
+    expect(writes('PUT')).toHaveLength(0);
+  });
+
+  it('shows the stored target of a response when it opens', async () => {
+    rows = [response('channel.follow', { replyDelivery: { target: 'both', html: false } })];
+
+    await open();
+    await click(rowOf('channel.follow'));
+
+    expect(chosen()).toBe('Both');
+  });
+
+  it('sends the new delivery when the target changes, and no other field', async () => {
+    await open();
+    await click(rowOf('channel.follow'));
+
+    await click(
+      [...editor()!.querySelectorAll<HTMLButtonElement>('[data-reply-delivery] button')].find(
+        (b) => b.textContent?.trim() === 'Chat overlay',
+      )!,
+    );
+
+    await click(buttonByText('Save changes'));
+
+    expect(writes('PUT')[0]!.body).toEqual({ replyDelivery: { target: 'overlay', html: false } });
+  });
+
+  it('keeps the stored delivery when another field changes', async () => {
+    rows = [response('channel.follow', { replyDelivery: { target: 'overlay', html: true } })];
+
+    await open();
+    await click(rowOf('channel.follow'));
+    await type(messageBox(), 'Hi {user}, welcome in');
+    await click(buttonByText('Save changes'));
+
+    expect(writes('PUT')[0]!.body).toEqual({ message: 'Hi {user}, welcome in' });
+  });
+});
+
 describe('Event responses permission gating', () => {
   it('shows a reader the event list and no editor for the open event', async () => {
     held = ['eventresponses:read'];

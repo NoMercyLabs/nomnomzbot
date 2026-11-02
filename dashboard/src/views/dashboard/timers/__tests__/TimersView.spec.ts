@@ -423,6 +423,73 @@ describe('Triggers and timers page', () => {
   });
 });
 
+describe('Timer reply delivery', () => {
+  const chosen = (): string | undefined =>
+    editor()!.querySelector('[data-reply-delivery] [data-state="on"]')?.textContent?.trim();
+
+  it('shows the reply delivery field next to the messages of a timer', async () => {
+    await open();
+    await click(rowOf('Follow reminder'));
+
+    expect(editor()!.querySelector('[data-reply-delivery]')).not.toBeNull();
+    expect(editor()!.textContent).toContain('Send the reply to');
+  });
+
+  it('shows Twitch chat for a timer that has no stored delivery, and saves nothing for it', async () => {
+    await open();
+    await click(rowOf('Follow reminder'));
+
+    expect(chosen()).toBe('Twitch chat');
+    expect(buttonByText('Save changes').disabled).toBe(true);
+    expect(writes('PUT')).toHaveLength(0);
+  });
+
+  it('shows the stored target of a timer when it opens', async () => {
+    rows = [timer('t1', { name: 'Follow reminder', replyDelivery: { target: 'both', html: false } })];
+
+    await open();
+    await click(rowOf('Follow reminder'));
+
+    expect(chosen()).toBe('Both');
+  });
+
+  it('sends the new delivery when the target changes, and no other field', async () => {
+    await open();
+    await click(rowOf('Follow reminder'));
+
+    await click(
+      [...editor()!.querySelectorAll<HTMLButtonElement>('[data-reply-delivery] button')].find(
+        (b) => b.textContent?.trim() === 'Chat overlay',
+      )!,
+    );
+
+    await click(buttonByText('Save changes'));
+
+    expect(writes('PUT')[0]!.body).toEqual({ replyDelivery: { target: 'overlay', html: false } });
+  });
+
+  it('keeps the stored delivery when another field changes', async () => {
+    rows = [timer('t1', { name: 'Follow reminder', replyDelivery: { target: 'overlay', html: true } })];
+
+    await open();
+    await click(rowOf('Follow reminder'));
+    await type(field('Minutes between posts'), '30');
+    await click(buttonByText('Save changes'));
+
+    expect(writes('PUT')[0]!.body).toEqual({ intervalMinutes: 30 });
+  });
+
+  it('carries the delivery into a duplicate', async () => {
+    rows = [timer('t1', { name: 'Follow reminder', replyDelivery: { target: 'both', html: false } })];
+
+    await open();
+    await click(rowOf('Follow reminder'));
+    await click(buttonByText('Duplicate'));
+
+    expect(writes('POST')[0]!.body).toMatchObject({ replyDelivery: { target: 'both', html: false } });
+  });
+});
+
 describe('Triggers and timers permission gating', () => {
   it('shows a timers reader the list, a New timer that is in place but off, no editor, no Chat triggers tab', async () => {
     held = ['timers:read'];
