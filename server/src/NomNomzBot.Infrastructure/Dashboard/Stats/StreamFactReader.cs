@@ -63,6 +63,7 @@ public sealed class StreamFactReader(IApplicationDbContext db, StreamBanFilter b
         "channel.subscribe",
         "channel.subscription.message",
         "channel.subscription.gift",
+        "channel.subscription.gift.received",
         "channel.cheer",
         "channel.raid",
         "channel.hype_train.end",
@@ -136,11 +137,15 @@ public static class StreamRanking
 
     public static List<StreamStatsNamedCountDto> Top(
         IEnumerable<(string Name, int Count)> counted
+    ) => All(counted).Take(ListCap).ToList();
+
+    /// <summary>The same order as <see cref="Top"/>, without the cap: every counted name stays.</summary>
+    public static List<StreamStatsNamedCountDto> All(
+        IEnumerable<(string Name, int Count)> counted
     ) =>
         counted
             .OrderByDescending(c => c.Count)
             .ThenBy(c => c.Name, StringComparer.Ordinal)
-            .Take(ListCap)
             .Select(c => new StreamStatsNamedCountDto { Name = c.Name, Count = c.Count })
             .ToList();
 

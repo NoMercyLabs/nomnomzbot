@@ -478,6 +478,91 @@ public sealed class StreamStatsServiceTests
         stats.SelfSubs.Should().Equal("NewOne", "NewTwo", "Returning");
     }
 
+    private static ChannelEvent GiftNotice(
+        DateTimeOffset at,
+        string gifterId,
+        string gifter,
+        string recipient
+    ) =>
+        Fact(
+            Broadcaster,
+            "channel.subscription.gift.received",
+            at,
+            new
+            {
+                recipientUserId = $"r-{recipient}",
+                recipientDisplayName = recipient,
+                gifterUserId = gifterId,
+                gifterDisplayName = gifter,
+                tier = "1000",
+            }
+        );
+
+    [Fact]
+    public async Task Every_gifter_is_listed_including_one_known_only_from_its_gift_notices()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Streams.Add(NewStream("s-gifts", Started, Ended));
+        DateTimeOffset at = Started.AddHours(1);
+        db.ChannelEvents.AddRange(
+            Fact(
+                Broadcaster,
+                "channel.subscription.gift",
+                at,
+                new
+                {
+                    gifterUserId = "g1",
+                    gifterDisplayName = "GifterOne",
+                    giftCount = 3,
+                }
+            ),
+            GiftNotice(at, "g1", "GifterOne", "RecipA"),
+            GiftNotice(at, "g1", "GifterOne", "RecipB"),
+            GiftNotice(at, "g1", "GifterOne", "RecipC"),
+            Fact(
+                Broadcaster,
+                "channel.subscription.gift",
+                at.AddMinutes(1),
+                new
+                {
+                    gifterUserId = "g2",
+                    gifterDisplayName = "GifterTwo",
+                    giftCount = 2,
+                }
+            ),
+            GiftNotice(at.AddMinutes(1), "g2", "GifterTwo", "RecipD"),
+            GiftNotice(at.AddMinutes(1), "g2", "GifterTwo", "RecipE"),
+            GiftNotice(at.AddMinutes(2), "g3", "GifterThree", "RecipF"),
+            GiftNotice(at.AddMinutes(3), "g4", "GifterFour", "RecipG")
+        );
+        await db.SaveChangesAsync();
+
+        Result<StreamStatsDto> result = await NewService(db, Ended.AddHours(1))
+            .GetAsync(Broadcaster, "s-gifts", ["gifters"]);
+
+        result.IsSuccess.Should().BeTrue();
+        result
+            .Value.Gifters!.Select(g => (g.Name, g.Count))
+            .Should()
+            .Equal(("GifterOne", 3), ("GifterTwo", 2), ("GifterFour", 1), ("GifterThree", 1));
+    }
+
+    [Fact]
+    public async Task More_than_the_usual_list_cap_of_gifters_are_all_listed()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        db.Streams.Add(NewStream("s-many", Started, Ended));
+        DateTimeOffset at = Started.AddHours(1);
+        for (int i = 1; i <= 7; i++)
+            db.ChannelEvents.Add(GiftNotice(at.AddMinutes(i), $"g{i}", $"Gifter{i}", $"Recip{i}"));
+        await db.SaveChangesAsync();
+
+        Result<StreamStatsDto> result = await NewService(db, Ended.AddHours(1))
+            .GetAsync(Broadcaster, "s-many", ["gifters"]);
+
+        result.Value.Gifters!.Select(g => g.Name).Should().HaveCount(7);
+    }
+
     [Fact]
     public async Task New_followers_lists_the_names_inside_the_window_oldest_first()
     {

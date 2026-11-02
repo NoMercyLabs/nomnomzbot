@@ -24,11 +24,34 @@ public sealed class GiftersMetric(StreamFactReader facts)
         CancellationToken ct
     )
     {
-        List<StreamFact> gifts = await facts.OfTypeAsync(window, "channel.subscription.gift", ct);
-        return StreamRanking.Top(
-            gifts
-                .GroupBy(f => f.NameOf("gifterDisplayName"))
-                .Select(g => (g.Key, g.Sum(f => f.Int("giftCount"))))
+        List<StreamFact> batches = await facts.OfTypeAsync(window, "channel.subscription.gift", ct);
+        List<StreamFact> notices = await facts.OfTypeAsync(
+            window,
+            "channel.subscription.gift.received",
+            ct
+        );
+
+        // A gift batch event and its per-recipient notices describe the same gifts, so a gifter counts the larger
+        // of the two. A single gift may arrive as a notice only, and a notice may be missing from a batch.
+        Dictionary<string, int> fromBatches = batches
+            .GroupBy(f => f.NameOf("gifterDisplayName"))
+            .ToDictionary(g => g.Key, g => g.Sum(f => f.Int("giftCount")));
+        Dictionary<string, int> fromNotices = notices
+            .GroupBy(f => f.NameOf("gifterDisplayName"))
+            .ToDictionary(g => g.Key, g => g.Count());
+
+        return StreamRanking.All(
+            fromBatches
+                .Keys.Union(fromNotices.Keys)
+                .Select(name =>
+                    (
+                        name,
+                        Math.Max(
+                            fromBatches.GetValueOrDefault(name),
+                            fromNotices.GetValueOrDefault(name)
+                        )
+                    )
+                )
         );
     }
 
