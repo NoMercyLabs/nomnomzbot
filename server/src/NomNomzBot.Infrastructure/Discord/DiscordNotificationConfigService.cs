@@ -416,9 +416,12 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
     private static Dictionary<string, string> SampleVariables(string triggerType) =>
         new(StringComparer.OrdinalIgnoreCase)
         {
+            ["broadcaster"] = "SampleStreamer",
             ["channel.name"] = "SampleStreamer",
             ["channel.title"] = "Sample stream title",
             ["channel.game"] = "Just Chatting",
+            ["title"] = "Sample stream title",
+            ["game"] = "Just Chatting",
             ["channel.url"] = "https://www.twitch.tv/SampleStreamer",
             ["stream.url"] = "https://www.twitch.tv/SampleStreamer",
             ["channel.login"] = "samplestreamer",
@@ -450,9 +453,7 @@ public sealed class DiscordNotificationConfigService : IDiscordNotificationConfi
     /// <see cref="CurrentEmbedConfigVersion"/> = 1 and Newtonsoft tolerating additive changes, no upcast step
     /// is needed yet; the chain is the anchor for the first breaking reshape.
     /// </summary>
-    private static Domain.Discord.ValueObjects.DiscordEmbedConfig? UpcastEmbed(
-        DiscordNotificationConfig c
-    )
+    private static DiscordEmbedConfig? UpcastEmbed(DiscordNotificationConfig c)
     {
         // No breaking version exists yet (v1 is current). When one lands, chain per-version upcast steps here
         // from c.ConfigSchemaVersion up to CurrentEmbedConfigVersion before returning.

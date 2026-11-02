@@ -129,7 +129,7 @@ public sealed class DiscordEmbedModelTests
                 .CreateConfigAsync(
                     channel,
                     connection,
-                    new("go_live", "chan-1", null, "live", dto, null, null, true)
+                    new("go_live", "chan-1", null, "live", dto, null, null)
                 );
             created.IsSuccess.Should().BeTrue(created.ErrorMessage);
             created.Value.EmbedConfig.Should().BeEquivalentTo(dto);
@@ -204,7 +204,7 @@ public sealed class DiscordEmbedModelTests
             .CreateConfigAsync(
                 channel,
                 connection,
-                new("go_live", "chan-1", null, "live", embed, null, null, true)
+                new("go_live", "chan-1", null, "live", embed, null, null)
             );
 
         result.IsFailure.Should().BeTrue($"{field} holds a placeholder the bot does not know");
@@ -229,8 +229,7 @@ public sealed class DiscordEmbedModelTests
                 "live",
                 DiscordEmbedMapper.ToDto(FullEmbed()),
                 null,
-                null,
-                true
+                null
             )
         );
 
@@ -249,6 +248,34 @@ public sealed class DiscordEmbedModelTests
         shown.ButtonUrl.Should().Be("https://www.twitch.tv/SampleStreamer");
         shown.ButtonLabel.Should().Be("Watch Stream");
         shown.ShowTimestamp.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task Preview_OfTheReadyGoLiveRule_LeavesNoPlaceholderUnfilled()
+    {
+        using DiscordSqliteTestDatabase database = DiscordSqliteTestDatabase.Open();
+        Guid channel = await DiscordTestHarness.SeedChannelAsync(database);
+        Guid connection = await DiscordTestHarness.SeedActiveConnectionAsync(database, channel);
+        await using DiscordTestDbContext db = database.NewContext();
+        DiscordNotificationConfigService service = NewService(db);
+        Result<DiscordNotificationConfigDto> created = await service.CreateConfigAsync(
+            channel,
+            connection,
+            new("go_live", "chan-1", null, null, null, null, null)
+        );
+
+        Result<DiscordNotificationPreviewDto> preview = await service.PreviewAsync(
+            channel,
+            created.Value.Id
+        );
+
+        // The live post fills {title} and {game} from the stream-start event, so the preview must show a sample
+        // for them too, never the raw braces.
+        preview.Value.RenderedContent.Should().NotContain("{").And.NotContain("}");
+        preview.Value.RenderedContent.Should().Contain("Just Chatting");
+        DiscordEmbedDto shown = preview.Value.RenderedEmbed!;
+        shown.Title.Should().Be("Sample stream title");
+        shown.Fields!.Single().Value.Should().Be("Just Chatting");
     }
 
     [Fact]
@@ -319,7 +346,7 @@ public sealed class DiscordEmbedModelTests
             .CreateConfigAsync(
                 channel,
                 connection,
-                new("go_live", "chan-1", null, null, null, null, null, true)
+                new("go_live", "chan-1", null, null, null, null, null)
             );
 
         created.IsSuccess.Should().BeTrue(created.ErrorMessage);
@@ -345,12 +372,12 @@ public sealed class DiscordEmbedModelTests
         await service.CreateConfigAsync(
             channel,
             connection,
-            new("go_live", "chan-1", null, "mine", null, null, null, true)
+            new("go_live", "chan-1", null, "mine", null, null, null)
         );
         await service.CreateConfigAsync(
             channel,
             connection,
-            new("follow", "chan-1", null, null, null, null, null, true)
+            new("follow", "chan-1", null, null, null, null, null)
         );
 
         List<DiscordNotificationConfig> rows = await db
