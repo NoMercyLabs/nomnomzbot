@@ -72,6 +72,53 @@ describe('exportRecapPng', () => {
     expect(capture.mock.calls[0]![1].pixelRatio).toBe(1);
   });
 
+  it('hands the capture logo paints that are already resolved, because the captured copy has no stylesheet', async () => {
+    const frame = document.createElement('div');
+
+    frame.innerHTML = [
+      '<svg class="logo"><path id="a" style="fill: var(--color-600)"/><path id="b" style="fill: var(--color-200)"/></svg>',
+      '<svg><path id="plain" fill="red"/></svg>',
+    ].join('');
+
+    // jsdom has no engine for custom properties; the browser resolves var() to the shade the stylesheet defines.
+    const shades = new Map([
+      ['a', 'rgb(204, 0, 118)'],
+      ['b', 'rgb(255, 153, 211)'],
+    ]);
+    const real = window.getComputedStyle.bind(window);
+
+    vi.spyOn(window, 'getComputedStyle').mockImplementation((el, pseudo) => {
+      const style = real(el, pseudo);
+
+      return new Proxy(style, {
+        get: (target, key) =>
+          key === 'fill'
+            ? (shades.get((el as Element).id) ?? '')
+            : Reflect.get(target, key),
+      });
+    });
+
+    const seen: Record<string, string> = {};
+
+    capture.mockImplementation(async (node) => {
+      node.querySelectorAll<SVGElement>('path').forEach((path) => {
+        seen[path.id] = path.getAttribute('style') ?? '';
+      });
+
+      return pngOf(100, 50);
+    });
+
+    await exportRecapPng(frame, { width: 100, height: 50 });
+
+    expect(seen.a).toContain('rgb(204, 0, 118)');
+    expect(seen.a).not.toContain('var(');
+    expect(seen.b).toContain('rgb(255, 153, 211)');
+    expect(seen.plain).toBe('');
+    expect(frame.querySelector('#a')?.getAttribute('style')).toBe('fill: var(--color-600)');
+    expect(frame.querySelector('#b')?.getAttribute('style')).toBe('fill: var(--color-200)');
+    vi.restoreAllMocks();
+  });
+
   it('refuses a capture whose size differs from the resolution', async () => {
     capture.mockResolvedValue(pngOf(1000, 500));
 

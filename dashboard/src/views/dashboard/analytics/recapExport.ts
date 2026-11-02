@@ -50,15 +50,30 @@ export function pngSize(dataUrl: string) {
   return { width, height } as const satisfies RecapSize;
 }
 
+// The capture draws a copy of the node with no stylesheet, so a paint on an svg path that reads a CSS variable has
+// nothing to resolve against and the path comes out unpainted (the logo vanished). Each such paint is set to its resolved color
+// for the capture; the returned function puts the original style back.
+function resolveSvgPaints(node: HTMLElement): () => void {
+  const paths = Array.from(node.querySelectorAll<SVGElement>('svg [style*="var("]'));
+  const originals = paths.map((path) => path.getAttribute('style') ?? '');
+
+  paths.forEach((path) => {
+    path.style.fill = getComputedStyle(path).fill;
+  });
+
+  return () => paths.forEach((path, i) => path.setAttribute('style', originals[i] ?? ''));
+}
+
 // Captures the node at exactly `size` pixels (one image pixel per CSS pixel) and checks the PNG that came back.
 export async function exportRecapPng(node: HTMLElement, size: RecapSize): Promise<string> {
+  const restore = resolveSvgPaints(node);
   const url = await toPng(node, {
     width: size.width,
     height: size.height,
     pixelRatio: 1,
     cacheBust: true,
     style: { transform: 'none' },
-  });
+  }).finally(restore);
   const got = pngSize(url);
 
   if (got.width !== size.width || got.height !== size.height)
