@@ -259,6 +259,7 @@ describe('Chat triggers tab', () => {
     expect(calls.filter((call) => call.method === 'POST')[0]!.body).toEqual({
       pattern: 'hello bot',
       response: 'Hi!',
+      replyDelivery: { target: 'chat', html: false },
     });
 
     expect(patterns()).toContain('hello bot');
@@ -322,6 +323,41 @@ describe('Chat trigger reply delivery', () => {
     await click(buttonByText('Save changes'));
 
     expect(calls.filter((call) => call.method === 'PATCH')[0]!.body).toEqual({
+      replyDelivery: { target: 'overlay', html: false },
+    });
+  });
+
+  const dialogTarget = (label: string): HTMLButtonElement =>
+    [...document.body.querySelectorAll<HTMLButtonElement>('[role="dialog"] [data-reply-delivery] button')].find(
+      (b) => b.textContent?.trim() === label,
+    ) as HTMLButtonElement;
+
+  it('shows the reply delivery field in the new trigger dialog and sends chat when untouched', async () => {
+    await open();
+    await click(buttonByText('New trigger'));
+
+    expect(document.body.querySelector('[role="dialog"] [data-reply-delivery]')).not.toBeNull();
+
+    await type(field('Words to watch for'), 'hello bot');
+    await type(field('Reply'), 'Hi!');
+    await click(buttonByText('Create trigger'));
+
+    expect(calls.filter((call) => call.method === 'POST')[0]!.body).toEqual({
+      pattern: 'hello bot',
+      response: 'Hi!',
+      replyDelivery: { target: 'chat', html: false },
+    });
+  });
+
+  it('sends the chosen delivery from the new trigger dialog', async () => {
+    await open();
+    await click(buttonByText('New trigger'));
+    await type(field('Words to watch for'), 'hello bot');
+    await type(field('Reply'), 'Hi!');
+    await click(dialogTarget('Chat overlay'));
+    await click(buttonByText('Create trigger'));
+
+    expect(calls.filter((call) => call.method === 'POST')[0]!.body).toMatchObject({
       replyDelivery: { target: 'overlay', html: false },
     });
   });

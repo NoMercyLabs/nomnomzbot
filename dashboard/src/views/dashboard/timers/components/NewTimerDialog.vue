@@ -17,7 +17,13 @@ import { useI18n } from 'vue-i18n';
 import { useCreateTimer } from '@/api/timers';
 import FormDialog from '@/components/layout/FormDialog.vue';
 import ReplyModeField from '@/components/layout/ReplyModeField.vue';
-import type { ReplyMode } from '@/components/layout/replyMode';
+import ReplyDeliveryField from '@/components/layout/ReplyDeliveryField.vue';
+import {
+  deliveryToSave,
+  plainDelivery,
+  type ReplyDelivery,
+  type ReplyMode,
+} from '@/components/layout/replyMode';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Field, FieldInfo, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -38,6 +44,7 @@ const messages = ref('');
 const minutes = ref(defaultMinutes);
 const target = ref<PickedTarget | null>(null);
 const mode = ref<ReplyMode>('simple');
+const delivery = ref<ReplyDelivery>({ ...plainDelivery });
 const error = ref<string | undefined>(undefined);
 
 watch(open, (isOpen: boolean): void => {
@@ -48,6 +55,7 @@ watch(open, (isOpen: boolean): void => {
   minutes.value = defaultMinutes;
   target.value = null;
   mode.value = 'simple';
+  delivery.value = { ...plainDelivery };
   error.value = undefined;
 });
 
@@ -92,6 +100,9 @@ async function submit(): Promise<void> {
       name: name.value.trim(),
       messages: lines,
       intervalMinutes: minutes.value,
+      ...(simple
+        ? { replyDelivery: deliveryToSave(delivery.value) }
+        : {}),
       ...(!simple && target.value
         ? { target: targetToWire(target.value) }
         : {}),
@@ -140,6 +151,7 @@ async function submit(): Promise<void> {
         :label="$t('dashboard.timers.editor.messages')"
         :placeholder="$t('dashboard.timers.editor.messagesPlaceholder')"
       />
+      <ReplyDeliveryField v-model="delivery" />
     </ReplyModeField>
     <Field>
       <FieldLabel for="new-timer-interval">{{ $t("dashboard.timers.editor.interval") }}</FieldLabel>

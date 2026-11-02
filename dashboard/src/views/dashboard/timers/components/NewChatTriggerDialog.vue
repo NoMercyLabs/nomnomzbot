@@ -16,6 +16,8 @@ import { useI18n } from 'vue-i18n';
 
 import { useCreateChatTrigger } from '@/api/chatTriggers';
 import FormDialog from '@/components/layout/FormDialog.vue';
+import ReplyDeliveryField from '@/components/layout/ReplyDeliveryField.vue';
+import { deliveryToSave, plainDelivery, type ReplyDelivery } from '@/components/layout/replyMode';
 import TemplateField from '@/components/layout/TemplateField.vue';
 import { Field, FieldLabel } from '@/components/ui/field';
 import { Input } from '@/components/ui/input';
@@ -30,6 +32,7 @@ const create = useCreateChatTrigger(channelId);
 
 const pattern = ref('');
 const response = ref('');
+const delivery = ref<ReplyDelivery>({ ...plainDelivery });
 const error = ref<string | undefined>(undefined);
 
 watch(open, (isOpen: boolean): void => {
@@ -37,6 +40,7 @@ watch(open, (isOpen: boolean): void => {
 
   pattern.value = '';
   response.value = '';
+  delivery.value = { ...plainDelivery };
   error.value = undefined;
 });
 
@@ -56,7 +60,11 @@ async function submit(): Promise<void> {
   error.value = undefined;
 
   try {
-    await create.mutateAsync({ pattern: pattern.value.trim(), response: response.value.trim() });
+    await create.mutateAsync({
+      pattern: pattern.value.trim(),
+      response: response.value.trim(),
+      replyDelivery: deliveryToSave(delivery.value),
+    });
   } catch (failure) {
     error.value = [errorText(failure, t), ...fieldErrorLines(failure)].join(' ');
 
@@ -94,5 +102,6 @@ async function submit(): Promise<void> {
       :maxlength="500"
       :label="$t('dashboard.timers.triggers.editor.response')"
     />
+    <ReplyDeliveryField v-model="delivery" />
   </FormDialog>
 </template>

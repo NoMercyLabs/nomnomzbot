@@ -479,6 +479,39 @@ describe('Timer reply delivery', () => {
     expect(writes('PUT')[0]!.body).toEqual({ intervalMinutes: 30 });
   });
 
+  const dialog = (): HTMLElement => document.body.querySelector('[role="dialog"]') as HTMLElement;
+  const dialogTarget = (label: string): HTMLButtonElement =>
+    [...dialog().querySelectorAll<HTMLButtonElement>('[data-reply-delivery] button')].find(
+      (b) => b.textContent?.trim() === label,
+    ) as HTMLButtonElement;
+
+  it('shows the reply delivery field in the new timer dialog and sends chat when untouched', async () => {
+    await open();
+    await click(buttonByText('New timer'));
+
+    expect(dialog().querySelector('[data-reply-delivery]')).not.toBeNull();
+
+    await type(field('Name'), 'Hydrate');
+    await type(field('Messages'), 'Drink water');
+    await click(buttonByText('Create timer'));
+
+    expect(writes('POST')[0]!.body).toMatchObject({
+      name: 'Hydrate',
+      replyDelivery: { target: 'chat', html: false },
+    });
+  });
+
+  it('sends the chosen delivery from the new timer dialog', async () => {
+    await open();
+    await click(buttonByText('New timer'));
+    await type(field('Name'), 'Hydrate');
+    await type(field('Messages'), 'Drink water');
+    await click(dialogTarget('Both'));
+    await click(buttonByText('Create timer'));
+
+    expect(writes('POST')[0]!.body).toMatchObject({ replyDelivery: { target: 'both', html: false } });
+  });
+
   it('carries the delivery into a duplicate', async () => {
     rows = [timer('t1', { name: 'Follow reminder', replyDelivery: { target: 'both', html: false } })];
 
