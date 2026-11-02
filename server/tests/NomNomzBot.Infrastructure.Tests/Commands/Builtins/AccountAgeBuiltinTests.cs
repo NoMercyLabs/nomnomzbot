@@ -266,7 +266,7 @@ public sealed class AccountAgeBuiltinTests
         result.IsSuccess.Should().BeTrue();
         result
             .Value.Should()
-            .Be("Your account was created on May 31, 2025 (1 year, 3 months, 2 days ago).");
+            .Be("Your account was created on May 31, 2025 (1 year, 3 months ago).");
         // The point of the fallback: the row now carries the resolved date so next time is free.
         db.Users.Single(u => u.TwitchUserId == TwitchId)
             .AccountCreatedAt.Should()

@@ -140,7 +140,8 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
 
         DateTime createdAt = row.AccountCreatedAt.Value;
         string age = LegacyAgeText.AccountAge(
-            TimeSpan.FromTicks(Math.Max(0, (_clock.GetUtcNow().UtcDateTime - createdAt).Ticks))
+            new DateTimeOffset(DateTime.SpecifyKind(createdAt, DateTimeKind.Utc)),
+            _clock.GetUtcNow()
         );
         string reply = await ReplyAsync(
             context,

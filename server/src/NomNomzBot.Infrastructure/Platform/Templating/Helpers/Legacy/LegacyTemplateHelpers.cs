@@ -735,7 +735,10 @@ public sealed partial class LegacyTemplateHelpers
                     : user.AccountCreatedAt;
                 if (accountCreatedAt is { } created)
                     vars["user.accountAge"] = FormatAge(
-                        _timeProvider.GetUtcNow().UtcDateTime - created
+                        CalendarAge.Between(
+                            new DateTimeOffset(DateTime.SpecifyKind(created, DateTimeKind.Utc)),
+                            _timeProvider.GetUtcNow()
+                        )
                     );
             }
 
@@ -810,9 +813,7 @@ public sealed partial class LegacyTemplateHelpers
                 return "unknown";
             if (follower.Value is null)
                 return "not following";
-            return LegacyAgeText.FollowAge(
-                _timeProvider.GetUtcNow().UtcDateTime - follower.Value.FollowedAt.UtcDateTime
-            );
+            return LegacyAgeText.FollowAge(follower.Value.FollowedAt, _timeProvider.GetUtcNow());
         }
         catch (Exception ex)
         {
@@ -1710,17 +1711,15 @@ public sealed partial class LegacyTemplateHelpers
         return $"{uptime.Seconds}s";
     }
 
-    private static string FormatAge(TimeSpan age)
+    private static string FormatAge(CalendarAge age)
     {
-        int years = (int)(age.TotalDays / 365);
-        int months = (int)((age.TotalDays % 365) / 30);
-        if (years > 0)
-            return months > 0
-                ? $"{years} year{(years == 1 ? "" : "s")}, {months} month{(months == 1 ? "" : "s")}"
-                : $"{years} year{(years == 1 ? "" : "s")}";
-        if (months > 0)
-            return $"{months} month{(months == 1 ? "" : "s")}";
-        int days = (int)age.TotalDays;
+        if (age.Years > 0)
+            return age.Months > 0
+                ? $"{age.Years} year{(age.Years == 1 ? "" : "s")}, {age.Months} month{(age.Months == 1 ? "" : "s")}"
+                : $"{age.Years} year{(age.Years == 1 ? "" : "s")}";
+        if (age.Months > 0)
+            return $"{age.Months} month{(age.Months == 1 ? "" : "s")}";
+        int days = (int)age.Span.TotalDays;
         return days > 0 ? $"{days} day{(days == 1 ? "" : "s")}" : "less than a day";
     }
 

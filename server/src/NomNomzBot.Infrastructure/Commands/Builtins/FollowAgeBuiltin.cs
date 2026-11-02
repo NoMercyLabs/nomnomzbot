@@ -79,9 +79,7 @@ public sealed class FollowAgeBuiltin : IBuiltinCommand
                 )
             );
 
-        string age = LegacyAgeText.FollowAge(
-            TimeSpan.FromTicks(Math.Max(0, (_clock.GetUtcNow() - lookup.Value.FollowedAt).Ticks))
-        );
+        string age = LegacyAgeText.FollowAge(lookup.Value.FollowedAt, _clock.GetUtcNow());
         return Result.Success(
             await ReplyAsync(
                 context,

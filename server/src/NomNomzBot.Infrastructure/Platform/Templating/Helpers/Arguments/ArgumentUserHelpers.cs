@@ -171,7 +171,7 @@ internal sealed class ArgumentUserHelpers
         PeopleRow.Live(
             "followAge",
             ViewerSides.Both,
-            "9 months and 24 days",
+            "9 months and 21 days",
             "follow",
             PeopleRow.Map(
                 d => d.FollowAsync(),
@@ -179,7 +179,7 @@ internal sealed class ArgumentUserHelpers
                     follow switch
                     {
                         { State: FollowState.Following, FollowedAt: { } at } =>
-                            LegacyAgeText.FollowAge(call.Now - at),
+                            LegacyAgeText.FollowAge(at, call.Now),
                         { State: FollowState.NotFollowing } => "not following",
                         _ => "unknown",
                     }

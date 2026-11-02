@@ -12,49 +12,38 @@
 namespace NomNomzBot.Application.Commands.Builtin;
 
 /// <summary>
-/// The duration wording of the old bot's <c>!accountage</c> and <c>!followage</c> replies. The two commands
-/// word the same span differently (legacy parity), so each keeps its own format.
+/// The duration wording of the old bot's <c>!accountage</c> and <c>!followage</c> replies, counted on the calendar
+/// (<see cref="CalendarAge"/>), not in flat 30-day months. The two commands word the same span differently
+/// (legacy parity), so each keeps its own format.
 /// </summary>
 public static class LegacyAgeText
 {
     /// <summary>"1 year, 3 months, 2 days" — the old <c>!accountage</c> wording (comma-joined parts).</summary>
-    public static string AccountAge(TimeSpan span)
+    public static string AccountAge(DateTimeOffset since, DateTimeOffset now)
     {
-        if (span.TotalDays >= 365)
-        {
-            int years = (int)(span.TotalDays / 365);
-            int remainingDays = (int)(span.TotalDays % 365);
-            string text = Plural(years, "year");
-            return text
-                + Remainder(remainingDays / 30, "month")
-                + Remainder(remainingDays % 30, "day");
-        }
+        CalendarAge age = CalendarAge.Between(since, now);
+        if (age.Years > 0)
+            return Plural(age.Years, "year")
+                + Remainder(age.Months, "month")
+                + Remainder(age.Days, "day");
 
-        if (span.TotalDays >= 30)
-        {
-            int months = (int)(span.TotalDays / 30);
-            return Plural(months, "month") + Remainder((int)(span.TotalDays % 30), "day");
-        }
+        if (age.Months > 0)
+            return Plural(age.Months, "month") + Remainder(age.Days, "day");
 
-        return ShortSpan(span);
+        return ShortSpan(age.Span);
     }
 
     /// <summary>"1 year and 20 days" — the old <c>!followage</c> wording (the remainder is always days).</summary>
-    public static string FollowAge(TimeSpan span)
+    public static string FollowAge(DateTimeOffset since, DateTimeOffset now)
     {
-        if (span.TotalDays >= 365)
-        {
-            int years = (int)(span.TotalDays / 365);
-            return Plural(years, "year") + AndDays((int)(span.TotalDays % 365));
-        }
+        CalendarAge age = CalendarAge.Between(since, now);
+        if (age.Years > 0)
+            return Plural(age.Years, "year") + AndDays(age.DaysAfterYears);
 
-        if (span.TotalDays >= 30)
-        {
-            int months = (int)(span.TotalDays / 30);
-            return Plural(months, "month") + AndDays((int)(span.TotalDays % 30));
-        }
+        if (age.Months > 0)
+            return Plural(age.Months, "month") + AndDays(age.Days);
 
-        return ShortSpan(span);
+        return ShortSpan(age.Span);
     }
 
     private static string ShortSpan(TimeSpan span)

@@ -56,7 +56,7 @@ public sealed class ArgumentUserHelpersTableTests
             { Fixture, "{args.1.user.stats.watchTime.hours}", "1" },
             { Fixture, "{args.1.user.followedAt}", "2026-01-05" },
             { Fixture, "{args.1.user.followAge.days}", "294" },
-            { Fixture, "{args.1.user.followAge}", "9 months and 24 days" },
+            { Fixture, "{args.1.user.followAge}", "9 months and 21 days" },
             { Fixture, "{if:{args.1.user.isFollower}|follows|does not follow}", "follows" },
             { Fixture, "{if:{args.1.user.isSub}|sub|not a sub}", "not a sub" },
             { Fixture, "{if:{args.1.user.isLive}|live now|offline}", "offline" },
