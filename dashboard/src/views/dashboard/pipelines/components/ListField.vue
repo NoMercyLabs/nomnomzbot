@@ -16,13 +16,25 @@ import Add from '~icons/nnz/add';
 import Cross from '~icons/nnz/cross';
 import { nextTick, ref, useTemplateRef, watch } from 'vue';
 
+import TemplateField from '@/components/layout/TemplateField.vue';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Textarea } from '@/components/ui/textarea';
 
 import { itemText, jsonOf, listItem } from './stepFields';
 
-const props = defineProps<{ id: string; value: JsonValue | undefined }>();
+const props = withDefaults(defineProps<{
+  id: string;
+  value: JsonValue | undefined;
+  // A templated setting: each item is a template field, so a brace suggests the helpers and the variables.
+  templated?: boolean;
+  variables?: string[];
+  eventType?: string;
+}>(), {
+  templated: false,
+  variables: () => [],
+  eventType: undefined,
+});
 
 const emit = defineEmits<{ change: [value: JsonValue[] | undefined] }>();
 
@@ -54,14 +66,20 @@ function isBlock(text: string): boolean {
   return typeof listItem(text) === 'object' || text.includes('\n');
 }
 
-function save(): void {
+// The rows that hold text, as the setting would save them.
+function handedOver(): JsonValue[] | undefined {
   const kept = items.value
     .filter((text) =>
       text.trim() !== '')
     .map(listItem);
-  const value = kept.length === 0
+
+  return kept.length === 0
     ? undefined
     : kept;
+}
+
+function save(): void {
+  const value = handedOver();
 
   sent = jsonOf(value);
   emit('change', value);
@@ -70,6 +88,23 @@ function save(): void {
 function typed(index: number, event: Event): void {
   items.value[index] = (event.target as HTMLInputElement | HTMLTextAreaElement).value;
   save();
+}
+
+// A template item changes while it is typed; it is handed over when focus leaves it, so one typed value is
+// one undo step.
+function written(index: number, text: string): void {
+  items.value[index] = text;
+}
+
+function leave(event: FocusEvent): void {
+  const next = event.relatedTarget;
+  const row = event.currentTarget;
+
+  if (next instanceof Node && row instanceof Node && row.contains(next)) return;
+
+  if (jsonOf(props.value) !== jsonOf(handedOver())) {
+    save();
+  }
 }
 
 function remove(index: number): void {
@@ -89,9 +124,28 @@ async function add(): Promise<void> {
 
 <template>
   <div :id="id" ref="root" data-list-field class="flex flex-col gap-2">
-    <div v-for="(item, index) in items" :key="index" data-list-item class="flex items-start gap-2">
+    <div
+      v-for="(item, index) in items"
+      :key="index"
+      data-list-item
+      class="flex items-start gap-2"
+      @focusout="templated && leave($event)"
+    >
+      <TemplateField
+        v-if="templated"
+        class="min-w-0 flex-1"
+        :model-value="item"
+        context="pipeline"
+        :event-type="eventType"
+        :label="$t('dashboard.pipelines.workbench.list.item', { number: index + 1 })"
+        label-hidden
+        :panel="false"
+        :rows="isBlock(item) ? 4 : 1"
+        :local-names="variables"
+        @update:model-value="written(index, $event)"
+      />
       <Textarea
-        v-if="isBlock(item)"
+        v-else-if="isBlock(item)"
         :model-value="item"
         :aria-label="$t('dashboard.pipelines.workbench.list.item', { number: index + 1 })"
         rows="4"

@@ -76,7 +76,7 @@ export const permissionAllowlist = [
       'overlays/components/StringListEditor.vue': 4,
       'pipelines/components/ListField.vue': 2,
       'pipelines/components/MapField.vue': 2,
-      'pipelines/components/StepField.vue': 3,
+      'pipelines/components/StepField.vue': 4,
       'pipelines/components/StepInspector.vue': 2,
       'settings/custom-event-feeds/components/FieldMapEditor.vue': 2,
     },

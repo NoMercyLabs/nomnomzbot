@@ -192,7 +192,8 @@
     "field": {
       "unknown": "Hier geen bekende helper: {names}",
       "showHelpers": "Toon alle helpers",
-      "hideHelpers": "Verberg helpers"
+      "hideHelpers": "Verberg helpers",
+      "variable": "Variabele"
     },
     "panel": {
       "search": "Zoek helpers",

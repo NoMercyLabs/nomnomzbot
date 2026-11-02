@@ -192,7 +192,8 @@
     "field": {
       "unknown": "Not a known helper here: {names}",
       "showHelpers": "Show all helpers",
-      "hideHelpers": "Hide helpers"
+      "hideHelpers": "Hide helpers",
+      "variable": "Variable"
     },
     "panel": {
       "search": "Search helpers",

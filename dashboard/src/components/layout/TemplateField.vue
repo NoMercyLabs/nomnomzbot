@@ -25,6 +25,7 @@ import { useI18n } from 'vue-i18n';
 import AlertTriangle from '~icons/nnz/alert-triangle';
 
 import { useTemplateHelpers, type TemplateContext, type TemplateHelper } from '@/api/templates';
+import { merge } from '@/lib/array';
 import { Command, CommandGroup, CommandItem, CommandList } from '@/components/ui/command';
 import { Button } from '@/components/ui/button';
 import { Field, FieldCount, FieldInfo, FieldLabel } from '@/components/ui/field';
@@ -54,6 +55,9 @@ const props = withDefaults(
     dataField?: string;
     disabled?: boolean;
     panel?: boolean;
+    // The label stays for screen readers only, for a field inside a list that has its own heading.
+    labelHidden?: boolean;
+    // Names only the place knows (the variables of earlier steps): suggested after a brace, never flagged unknown.
     localNames?: readonly string[];
   }>(),
   {
@@ -66,6 +70,7 @@ const props = withDefaults(
     dataField: undefined,
     disabled: false,
     panel: true,
+    labelHidden: false,
     localNames: () => [],
   },
 );
@@ -92,11 +97,33 @@ const caret = ref<{ start: number; end: number }>({
 const open = ref<OpenPlaceholder | null>(null);
 const active = ref(0);
 
+// The names in scope (the variables of earlier steps) join the bot's helpers in the suggestions, unless a
+// helper already has that name.
+const variableHelpers = computed<TemplateHelper[]>(() =>
+  props.localNames
+    .filter((name) =>
+      !known.value.some((helper) =>
+        helper.key === name))
+    .map((name) =>
+      ({
+        key: name,
+        descriptionKey: '',
+        sample: '',
+      })));
+const suggestions = computed(() =>
+  merge(known.value, variableHelpers.value));
 const matches = computed(() =>
   open.value
-    ? filterHelpers(known.value, open.value.query)
+    ? filterHelpers(suggestions.value, open.value.query)
     : [] as const satisfies readonly TemplateHelper[],
 );
+
+function describeRow(helper: TemplateHelper): string {
+  return variableHelpers.value.includes(helper)
+    ? t('template.field.variable')
+    : describe(helper);
+}
+
 const showing = computed<boolean>(() => matches.value.length > 0);
 // A field can add names only it knows, such as the variables of one built-in reply.
 const unknown = computed<string[]>(() =>
@@ -190,7 +217,7 @@ defineExpose({ insert });
   <!-- The helper toggle sits in the label row, always visible at the 36px control size. -->
   <Field>
     <div class="flex items-center gap-1.5">
-      <FieldLabel :for="id">{{ label }}</FieldLabel>
+      <FieldLabel :for="id" :class="labelHidden && 'sr-only'">{{ label }}</FieldLabel>
       <FieldInfo v-if="help">{{ help }}</FieldInfo>
       <Button
         v-if="panel && !disabled"
@@ -250,7 +277,7 @@ defineExpose({ insert });
               >
                 <span class="font-mono font-medium">{{ braced(helper.key) }}</span>
                 <span class="min-w-0 flex-1 truncate text-muted-foreground">{{
-                  describe(helper)
+                  describeRow(helper)
                 }}</span>
               </CommandItem>
             </CommandGroup>

@@ -166,7 +166,9 @@
           "useTyped": "Use \"{text}\"",
           "clear": "Clear this setting",
           "editScript": "Edit script",
-          "missing": "Not in the list"
+          "missing": "Not in the list",
+          "typeTemplate": "Type a template",
+          "chooseItem": "Choose from the list"
         },
         "run": {
           "start": "Test run",

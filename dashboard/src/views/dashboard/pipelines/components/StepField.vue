@@ -53,10 +53,13 @@ const props = withDefaults(defineProps<{
   context?: OptionContext;
   earlier?: EarlierOption[];
   variables?: string[];
+  // What starts the pipeline, so the template helpers narrow to that trigger.
+  eventType?: string;
 }>(), {
   context: undefined,
   earlier: () => [],
   variables: () => [],
+  eventType: undefined,
 });
 
 function useEarlier(option: EarlierOption): void {
@@ -75,8 +78,15 @@ const text = computed(() => valueText(props.row.value) ?? '');
 // A templated text field edits a local draft and hands it over when focus leaves the field.
 const draft = ref(text.value);
 
+// A setting that names a thing and also takes a template shows the list for an item and the template field
+// for a template (a value with a brace); the switch beside it overrides that until the value changes.
+const chosenMode = ref<boolean | null>(null);
+const asTemplate = computed(() =>
+  chosenMode.value ?? text.value.includes('{'));
+
 watch(text, (value: string): void => {
   draft.value = value;
+  chosenMode.value = null;
 });
 
 function commitDraft(event: FocusEvent): void {
@@ -138,6 +148,7 @@ function typed(event: Event): void {
       :rows="row.control === 'lines' ? 3 : 1"
       :label="row.label"
       :help="row.help"
+      :event-type="eventType"
       :local-names="variables"
     />
     <DropdownMenu v-if="earlier.length > 0">
@@ -168,6 +179,49 @@ function typed(event: Event): void {
         </DropdownMenuItem>
       </DropdownMenuContent>
     </DropdownMenu>
+  </div>
+  <div
+    v-else-if="row.templated && row.control === 'pick'"
+    :data-step-field="row.name"
+    class="flex flex-col items-start gap-1"
+    @focusout="commitDraft"
+  >
+    <TemplateField
+      v-if="asTemplate"
+      v-model="draft"
+      class="w-full"
+      context="pipeline"
+      :rows="1"
+      :label="row.label"
+      :help="row.help"
+      :event-type="eventType"
+      :local-names="variables"
+    />
+    <Field v-else class="w-full gap-1.5">
+      <div class="flex items-center gap-1.5">
+        <FieldLabel :for="id">{{ row.label }}</FieldLabel>
+        <FieldInfo v-if="row.help">{{ row.help }}</FieldInfo>
+      </div>
+      <StepPicker
+        :id="id"
+        :kind="row.kind as PickerKind"
+        :value="text"
+        :required="row.required"
+        :context="context"
+        @change="emit('change', $event)"
+      />
+    </Field>
+    <Button
+      data-pick-mode
+      type="button"
+      variant="ghost"
+      size="sm"
+      @click="chosenMode = !asTemplate"
+    >
+      {{ $t(asTemplate
+        ? 'dashboard.pipelines.workbench.picker.chooseItem'
+        : 'dashboard.pipelines.workbench.picker.typeTemplate') }}
+    </Button>
   </div>
   <Field v-else :data-step-field="row.name" class="gap-1.5">
     <div class="flex items-center gap-1.5">
@@ -204,6 +258,9 @@ function typed(event: Event): void {
       v-else-if="row.control === 'list'"
       :id="id"
       :value="row.value"
+      :templated="row.templated"
+      :variables="variables"
+      :event-type="eventType"
       @change="emit('change', $event)"
     />
     <MapField

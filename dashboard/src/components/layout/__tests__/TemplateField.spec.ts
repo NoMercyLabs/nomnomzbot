@@ -99,6 +99,7 @@ afterEach(() => {
 async function host(
   initial: string = '',
   withPanel: boolean = false,
+  localNames: string[] = [],
 ): Promise<HTMLTextAreaElement> {
   text = ref(initial);
   const fieldRef = ref<InstanceType<typeof TemplateField> | null>(null);
@@ -111,6 +112,7 @@ async function host(
           'onUpdate:modelValue': (value: string) => (text.value = value),
           label: 'Reply',
           context: 'command',
+          localNames,
         }),
         withPanel
           ? h(HelperPanel, { target: fieldRef.value, context: 'command' })
@@ -263,6 +265,43 @@ describe('the template field', () => {
     await type(area, 'Hi {user} {args.2}');
 
     expect(document.body.querySelector('[data-template-warning]')).toBeNull();
+  });
+});
+
+describe('the variables of the place', () => {
+  const rowText = (name: string): string =>
+    document.body.querySelector(`[data-helper="${name}"]`)?.textContent ?? '';
+
+  it('lists the variable names beside the bot helpers, labeled as variables', async () => {
+    const area = await host('', false, ['greeting', 'tally']);
+
+    await type(area, 'Hi {');
+
+    expect(options()).toEqual(['user', 'user.name', 'channel', 'args.<n>', 'greeting', 'tally']);
+    expect(rowText('greeting')).toContain('{greeting}');
+    expect(rowText('greeting')).toContain(i18n.global.t('template.field.variable'));
+    expect(rowText('user')).not.toContain(i18n.global.t('template.field.variable'));
+  });
+
+  it('narrows the variables as the person types and inserts the chosen one as {name}', async () => {
+    const area = await host('', false, ['greeting', 'tally']);
+
+    await type(area, 'Say {gr');
+
+    expect(options()).toEqual(['greeting']);
+
+    await press(area, 'Enter');
+
+    expect(text.value).toBe('Say {greeting}');
+    expect(area.selectionStart).toBe('Say {greeting}'.length);
+  });
+
+  it('lists a name once when a variable has the name of a bot helper', async () => {
+    const area = await host('', false, ['channel']);
+
+    await type(area, '{ch');
+
+    expect(options()).toEqual(['channel']);
   });
 });
 

@@ -166,7 +166,9 @@
           "useTyped": "\"{text}\" gebruiken",
           "clear": "Deze instelling leegmaken",
           "editScript": "Script bewerken",
-          "missing": "Niet in de lijst"
+          "missing": "Niet in de lijst",
+          "typeTemplate": "Sjabloon typen",
+          "chooseItem": "Uit de lijst kiezen"
         },
         "run": {
           "start": "Testrun",

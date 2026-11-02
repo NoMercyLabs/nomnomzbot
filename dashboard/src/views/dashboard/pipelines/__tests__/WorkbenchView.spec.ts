@@ -681,6 +681,18 @@ async function typeInto(selector: string, value: string): Promise<void> {
   await flushPromises();
 }
 
+// Focus leaving a template field hands its typed text over.
+async function leave(selector: string): Promise<void> {
+  const field = document.body.querySelector(selector)!;
+
+  field.dispatchEvent(new FocusEvent('focusout', {
+    bubbles: true,
+    relatedTarget: null,
+  }));
+
+  await flushPromises();
+}
+
 // Searches in the open picker and waits past its pause, so the bot is asked.
 async function find(text: string): Promise<void> {
   const search = document.body.querySelector<HTMLInputElement>(
@@ -971,8 +983,10 @@ describe('changing the steps', () => {
     await press('[data-step-field="args"] [data-list-add]');
     await press('[data-step-field="args"] [data-list-add]');
     await press('[data-step-field="args"] [data-list-add]');
-    await typeInto('[data-step-field="args"] [data-list-item]:nth-child(1) input', '{user}');
-    await typeInto('[data-step-field="args"] [data-list-item]:nth-child(3) input', '{"level": 2}');
+    await typeInto('[data-step-field="args"] [data-list-item]:nth-child(1) textarea', '{user}');
+    await leave('[data-step-field="args"] [data-list-item]:nth-child(1) textarea');
+    await typeInto('[data-step-field="args"] [data-list-item]:nth-child(3) textarea', '{"level": 2}');
+    await leave('[data-step-field="args"] [data-list-item]:nth-child(3) textarea');
     await press('[data-workbench-save]');
 
     expect(save.mutateAsync.mock.calls[0]?.[0].graph?.steps[3]?.action).toEqual({
