@@ -165,7 +165,8 @@
           "unavailable": "De bot kan deze lijst nu niet lezen.",
           "useTyped": "\"{text}\" gebruiken",
           "clear": "Deze instelling leegmaken",
-          "editScript": "Script bewerken"
+          "editScript": "Script bewerken",
+          "missing": "Niet in de lijst"
         },
         "run": {
           "start": "Testrun",

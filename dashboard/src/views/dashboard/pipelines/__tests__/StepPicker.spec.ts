@@ -14,15 +14,20 @@ import { afterEach, describe, expect, it, vi } from 'vitest';
 import { computed, ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
-import type { PickerKind, PipelineOptionList } from '@/api/pipelines';
+import type { PickerKind, PipelineOptionList, PipelineStep } from '@/api/pipelines';
 import { i18n } from '@/i18n';
 
 import en from '../i18n/en.json';
+import StepField from '../components/StepField.vue';
 import StepPicker from '../components/StepPicker.vue';
-import { actionRows } from '../components/stepFields';
+import { actionRows, choiceContext } from '../components/stepFields';
 
 // A list is keyed by its kind, or by `kind:provider` when the step's context names a provider.
-const lists = vi.hoisted(() => ({ byKind: {} as Record<string, unknown> }));
+const lists = vi.hoisted(() => ({
+  byKind: {} as Record<string, unknown>,
+  // The context each list was asked with, newest last.
+  asked: [] as Record<string, string>[],
+}));
 
 vi.mock('@/api/pipelines', async (importOriginal) => ({
   ...(await importOriginal<typeof import('@/api/pipelines')>()),
@@ -30,10 +35,13 @@ vi.mock('@/api/pipelines', async (importOriginal) => ({
     _channel: unknown,
     kind: () => string,
     _search: unknown,
-    context?: { value: { provider?: string } },
+    context?: { value: Record<string, string> },
   ) => ({
-    data: computed(() =>
-      lists.byKind[`${kind()}:${context?.value.provider}`] ?? lists.byKind[kind()]),
+    data: computed(() => {
+      lists.asked.push({ ...context?.value });
+
+      return lists.byKind[`${kind()}:${context?.value.provider}`] ?? lists.byKind[kind()];
+    }),
     isPending: ref(false),
     isFetching: ref(false),
   }),
@@ -96,11 +104,7 @@ const playlists: PipelineOptionList = {
 
 let router: Router;
 
-async function openPicker(
-  kind: PickerKind,
-  value = '',
-  context?: Record<string, string>,
-): Promise<VueWrapper> {
+async function openRouter(): Promise<void> {
   const blank = { template: '<div />' };
 
   router = createRouter({
@@ -120,6 +124,14 @@ async function openPicker(
   });
 
   await router.push('/app/pipelines/p1?step=s9');
+}
+
+async function openPicker(
+  kind: PickerKind,
+  value = '',
+  context?: Record<string, string>,
+): Promise<VueWrapper> {
+  await openRouter();
 
   mounted = mount(StepPicker, {
     attachTo: document.body,
@@ -302,5 +314,165 @@ describe('the step form for script and playlist settings', () => {
       'code_script_id:pick:abc',
       'playlist_id:pick:6Ga',
     ]);
+  });
+});
+
+describe('the OBS name settings of a step', () => {
+  const scenes: PipelineOptionList = {
+    sourceAvailable: true,
+    items: [
+      {
+        value: 'Gameplay',
+        label: 'Gameplay',
+        secondaryText: 'live',
+        state: 0,
+      },
+      {
+        value: 'Starting',
+        label: 'Starting',
+        state: 0,
+      },
+    ],
+    totalCount: 2,
+  };
+
+  const sources: PipelineOptionList = {
+    sourceAvailable: true,
+    items: [{
+      value: 'Webcam',
+      label: 'Webcam',
+      secondaryText: 'visible',
+      state: 0,
+    }],
+    totalCount: 1,
+  };
+
+  const words = {
+    t: (key: string) =>
+      key,
+    te: () =>
+      false,
+    text: (_text: unknown, fallback: string) =>
+      fallback,
+  };
+
+  const field = (name: string, kind: string) => ({
+    name,
+    kind,
+    required: true,
+    repeatable: false,
+    description: null,
+    templated: false,
+    declaresVariable: false,
+  }) as const satisfies Record<string, unknown>;
+
+  const setSource = {
+    type: 'obs_set_source',
+    category: { key: 'c' },
+    description: { key: 'd' },
+    fields: [field('scene', 'obs_scene'), field('source', 'obs_scene_item')],
+  } as never;
+
+  function stepWith(action: Record<string, string>): PipelineStep {
+    return {
+      id: 's1',
+      parent_step_id: null,
+      branch: null,
+      block_kind: null,
+      block_config: null,
+      order: 0,
+      action: { type: 'obs_set_source', ...action },
+      condition: null,
+      continue_on_error: false,
+      stop_on_match: false,
+    };
+  }
+
+  // The step form as the inspector builds it: rows from the catalog, context from the rows.
+  async function openStepField(name: string, action: Record<string, string>): Promise<VueWrapper> {
+    const rows = actionRows(stepWith(action), setSource, words);
+    const row = rows.find((candidate) =>
+      candidate.name === name)!;
+
+    await openRouter();
+    lists.asked.length = 0;
+
+    mounted = mount(StepField, {
+      attachTo: document.body,
+      props: { row, context: choiceContext(rows) },
+      global: { plugins: [i18n, router] },
+    });
+
+    document.body.querySelector<HTMLButtonElement>('button[role="combobox"]')!.click();
+    await flushPromises();
+
+    return mounted;
+  }
+
+  it('shows the scene and source settings as dropdowns of what OBS lists, not text boxes', async () => {
+    i18n.global.mergeLocaleMessage('en', en);
+    lists.byKind.obs_scene = scenes;
+    lists.byKind.obs_scene_item = sources;
+
+    const form = await openStepField('scene', {});
+
+    expect(form.element.querySelector('input, textarea')).toBeNull();
+    expect(document.body.querySelector('[data-picker-option="Gameplay"]')?.textContent).toContain('live');
+    expect(document.body.querySelector('[data-picker-option="Starting"]')).not.toBeNull();
+  });
+
+  it('asks for the sources of the scene the step saved, and saves the plain source name', async () => {
+    lists.byKind.obs_scene_item = sources;
+    const form = await openStepField('source', { scene: 'Gameplay' });
+
+    expect(lists.asked.at(-1)).toEqual({ scene: 'Gameplay' });
+
+    document.body.querySelector<HTMLElement>('[data-picker-option="Webcam"]')!.click();
+    await flushPromises();
+
+    expect(form.emitted('change')).toEqual([['Webcam']]);
+  });
+
+  it('asks for every source while no scene is saved', async () => {
+    lists.byKind.obs_scene_item = sources;
+    await openStepField('source', {});
+
+    expect(lists.asked.at(-1)).toEqual({});
+  });
+
+  it('keeps a saved scene that OBS no longer has, shows its name and flags it as missing', async () => {
+    lists.byKind.obs_scene = scenes;
+    await openStepField('scene', { scene: 'Old BRB scene' });
+
+    const button = document.body.querySelector<HTMLElement>('button[role="combobox"]')!;
+
+    expect(button.textContent).toContain('Old BRB scene');
+    expect(button.querySelector('[data-picker-missing]')?.textContent?.trim()).toBe('Not in the list');
+  });
+
+  it('does not flag a saved scene that OBS lists, a template, or a list that could not be read', async () => {
+    lists.byKind.obs_scene = scenes;
+    await openStepField('scene', { scene: 'Gameplay' });
+
+    expect(document.body.querySelector('[data-picker-missing]')).toBeNull();
+
+    mounted?.unmount();
+    await openStepField('scene', { scene: '{{user.name}}' });
+
+    expect(document.body.querySelector('[data-picker-missing]')).toBeNull();
+
+    mounted?.unmount();
+
+    lists.byKind.obs_scene = {
+      sourceAvailable: false,
+      unavailableReason: 'OBS is not connected.',
+      items: [],
+      totalCount: 0,
+    } as const satisfies PipelineOptionList;
+
+    await openStepField('scene', { scene: 'Old BRB scene' });
+
+    expect(document.body.querySelector('[data-picker-missing]')).toBeNull();
+    expect(document.body.querySelector('[data-picker-unavailable]')?.textContent?.trim()).toBe('OBS is not connected.');
   });
 });

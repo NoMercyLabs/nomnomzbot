@@ -364,6 +364,12 @@ export const PICKER_KINDS = [
   'music_playlist',
   'twitch_reward',
   'obs_audio_input',
+  'obs_scene',
+  'obs_scene_item',
+  'obs_filter',
+  'obs_transition',
+  'obs_input',
+  'obs_hotkey',
   'discord_user',
 ] as const satisfies string[];
 

@@ -63468,8 +63468,9 @@ export interface paths {
         };
         /**
          * The option list for one resource-picker kind (`reward`, `widget`, `voice`,
-         *     `sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`, `script`, `music_playlist`, `twitch_reward`, `obs_audio_input`, `discord_user`), paged
-         *     and optionally search-filtered. With `value` set, only the option whose stored value equals it
+         *     `sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`, `script`, `music_playlist`, `twitch_reward`, `obs_audio_input`, `obs_scene`, `obs_scene_item`, `obs_filter`, `obs_transition`, `obs_input`, `obs_hotkey`, `discord_user`), paged
+         *     and optionally search-filtered. The OBS kinds list what the channel's connected OBS reports; a sibling
+         *     setting sent in the query context narrows them (`scene` for `obs_scene_item`, `source` for `obs_filter`). With `value` set, only the option whose stored value equals it
          *     exactly comes back (search is ignored), so the dashboard can label a saved value that is not on the
          *     first page. A source that is not connected or could not be read comes back with
          *     `sourceAvailable: false` and a `unavailableReason` — never collapsed into an empty list.

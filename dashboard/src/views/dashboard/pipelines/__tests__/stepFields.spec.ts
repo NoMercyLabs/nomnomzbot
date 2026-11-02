@@ -106,6 +106,49 @@ describe('the choices a picker narrows by', () => {
   });
 });
 
+describe('the picks a picker narrows by', () => {
+  const obsDescriptor = {
+    type: 'obs_filter',
+    fields: [
+      field({ name: 'scene', kind: 'obs_scene' }),
+      field({ name: 'source', kind: 'obs_scene_item' }),
+      field({ name: 'filter', kind: 'obs_filter' }),
+      field({ name: 'code_script_id', kind: 'script' }),
+    ],
+  } as unknown as PipelineActionDescriptor;
+
+  it('gives the pickers of OBS names a pick control', () => {
+    const rows = actionRows(step({ action: { type: 'obs_filter' } }), obsDescriptor, words);
+
+    expect(rows.map((row) =>
+      row.control)).toEqual(['pick', 'pick', 'pick', 'pick']);
+  });
+
+  it('holds the saved scene and source, so the source list narrows by the scene and the filter list by the source', () => {
+    const rows = actionRows(
+      step({
+        action: {
+          type: 'obs_filter',
+          scene: 'Gameplay',
+          source: 'Webcam',
+          filter: 'Chroma Key',
+          code_script_id: 'abc',
+        },
+      }),
+      obsDescriptor,
+      words,
+    );
+
+    expect(choiceContext(rows)).toEqual({ scene: 'Gameplay', source: 'Webcam' });
+  });
+
+  it('leaves out a parent that is not saved yet, so the list shows everything it can', () => {
+    const rows = actionRows(step({ action: { type: 'obs_filter', source: '' } }), obsDescriptor, words);
+
+    expect(choiceContext(rows)).toEqual({});
+  });
+});
+
 describe('the settings an edit writes', () => {
   const descriptor = {
     type: 'playlist_add',

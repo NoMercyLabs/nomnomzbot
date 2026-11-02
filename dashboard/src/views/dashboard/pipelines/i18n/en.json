@@ -165,7 +165,8 @@
           "unavailable": "The bot cannot read this list right now.",
           "useTyped": "Use \"{text}\"",
           "clear": "Clear this setting",
-          "editScript": "Edit script"
+          "editScript": "Edit script",
+          "missing": "Not in the list"
         },
         "run": {
           "start": "Test run",

@@ -118,10 +118,21 @@ export function itemText(item: JsonValue | undefined): string {
     : String(item ?? '');
 }
 
-// The step's closed choices that are set (provider = youtube): what a picker's list can narrow by.
+// The picks that name a parent in OBS: the sources of a scene and the filters of a source.
+const PARENT_PICKS = ['obs_scene', 'obs_scene_item'] as const satisfies PickerKind[];
+
+function narrows(row: FieldRow): boolean {
+  if (row.control === 'choice')
+    return true;
+
+  return row.control === 'pick' && (PARENT_PICKS as readonly string[]).includes(row.kind);
+}
+
+// The step's closed choices that are set (provider = youtube) and its saved parent picks (scene = Gameplay):
+// what a picker's list can narrow by.
 export function choiceContext(rows: FieldRow[]): Record<string, string> {
   const set = rows.filter((row) =>
-    row.control === 'choice' && typeof row.value === 'string' && row.value !== '');
+    narrows(row) && typeof row.value === 'string' && row.value !== '');
 
   return Object.fromEntries(set.map((row) =>
     [row.name, String(row.value)]));

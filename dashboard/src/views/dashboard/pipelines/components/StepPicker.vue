@@ -77,6 +77,14 @@ const named = usePipelineOption(channelId, () =>
     : props.value, asking);
 const chosen = computed(() =>
   listed.value ?? named.data.value ?? undefined);
+// A saved name the bot could read the list for but did not find in it (a scene removed from OBS). It stays as
+// saved; a word that fills in from the run ({{user.name}}) is never flagged.
+const missing = computed(() =>
+  list.value?.sourceAvailable === true &&
+  props.value !== '' &&
+  !props.value.includes('{{') &&
+  named.data.value === null &&
+  !chosen.value);
 // The bot searches, so the answer decides "nothing matches": the Command only recounts when the text changes,
 // before the bot's rows arrive.
 const noMatch = computed(() =>
@@ -123,6 +131,9 @@ function choose(value: string | undefined): void {
             </Avatar>
             <span class="truncate" :class="value === '' && 'text-muted-foreground'">
               {{ chosen?.label ?? (value || $t('dashboard.pipelines.workbench.inspector.notSet')) }}
+            </span>
+            <span v-if="missing" data-picker-missing class="shrink-0 text-xs text-muted-foreground">
+              {{ $t('dashboard.pipelines.workbench.picker.missing') }}
             </span>
           </span>
           <ChevronDown
