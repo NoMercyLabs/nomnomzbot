@@ -27,8 +27,10 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { chatDisplayDefaults, type ChatDisplay } from '../chatDisplay';
 
 type SwitchName =
-  'badges' | 'avatars' | 'platform' | 'commands' | 'alternating' | 'narrow' | 'mentions' | 'htmlAsText';
-type SegmentName = 'timestamps' | 'nameColors' | 'spacing' | 'rows' | 'emoteSize' | 'deleted';
+  | 'badges' | 'avatars' | 'platform' | 'commands' | 'alternating' | 'narrow' | 'mentions' | 'htmlAsText' |
+  'hintFirstEver' | 'hintFirstOfDay' | 'hintFirstOfStream' | 'hintNewAccount' | 'hintMessageType';
+type SegmentName =
+  'timestamps' | 'nameColors' | 'spacing' | 'rows' | 'emoteSize' | 'deleted' | 'newAccountDays';
 
 const display = defineModel<ChatDisplay>({ required: true });
 
@@ -67,6 +69,12 @@ const segmentKeys = {
     strike: 'strike',
     show: 'show',
   },
+  newAccountDays: {
+    1: 'days1',
+    7: 'days7',
+    30: 'days30',
+    90: 'days90',
+  },
 } as const satisfies Record<SegmentName, Record<string, string>>;
 
 const sections = [
@@ -79,6 +87,11 @@ const sections = [
     key: 'layout',
     switches: ['alternating', 'narrow'],
     segments: ['rows', 'spacing'],
+  },
+  {
+    key: 'hints',
+    switches: ['hintFirstEver', 'hintFirstOfDay', 'hintFirstOfStream', 'hintNewAccount', 'hintMessageType'],
+    segments: ['newAccountDays'],
   },
   {
     key: 'emotes',
@@ -112,6 +125,7 @@ const segmentChoices = computed(() => ({
   rows: choices('rows'),
   emoteSize: choices('emoteSize'),
   deleted: choices('deleted'),
+  newAccountDays: choices('newAccountDays'),
 }));
 
 // Three or more options do not fit beside their label in a 320px drawer: the control goes

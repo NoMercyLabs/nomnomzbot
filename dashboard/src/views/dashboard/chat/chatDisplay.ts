@@ -23,8 +23,16 @@ export type Spacing = 'tight' | 'normal' | 'roomy';
 export type EmoteSize = 's' | 'm' | 'l';
 export type RowLayout = 'one' | 'two';
 export type DeletedLook = 'hide' | 'strike' | 'show';
+// How many days old an account still counts as new.
+export type NewAccountDays = '1' | '7' | '30' | '90';
 
 export type ChatDisplay = {
+  hintFirstEver: boolean;
+  hintFirstOfDay: boolean;
+  hintFirstOfStream: boolean;
+  hintNewAccount: boolean;
+  hintMessageType: boolean;
+  newAccountDays: NewAccountDays;
   timestamps: TimestampStyle;
   badges: boolean;
   avatars: boolean;
@@ -42,6 +50,13 @@ export type ChatDisplay = {
 };
 
 export const chatDisplayDefaults = {
+  // The first message of a day or a stream is every chatter's, every day: off until asked for.
+  hintFirstEver: true,
+  hintFirstOfDay: false,
+  hintFirstOfStream: false,
+  hintNewAccount: true,
+  hintMessageType: true,
+  newAccountDays: '7',
   timestamps: '24',
   badges: true,
   avatars: false,
@@ -57,6 +72,64 @@ export const chatDisplayDefaults = {
   deleted: 'strike',
   htmlAsText: false,
 } as const satisfies ChatDisplay;
+
+// A hint on a line: its i18n key under dashboard.chat.hint, and the account age in days for a new account.
+export type LineHint = { key: string; days?: number };
+
+const messageTypeHints = {
+  channel_points_highlighted: 'highlighted',
+  channel_points_sub_only: 'subOnly',
+  user_intro: 'intro',
+} as const satisfies Record<string, string>;
+
+const dayMs = 86_400_000;
+
+// The hints a line shows under this viewer's Display choices. First ever already says first of the day and of the
+// stream, so only the most specific "first" shows.
+export function lineHints(
+  line: Pick<ChatLine, 'hints' | 'messageType'>,
+  display: Pick<
+    ChatDisplay,
+    | 'hintFirstEver' |
+    'hintFirstOfDay' |
+    'hintFirstOfStream' |
+    'hintNewAccount' |
+    'hintMessageType' |
+    'newAccountDays'
+  >,
+  now: Date,
+): LineHint[] {
+  const found: LineHint[] = [];
+  const facts = line.hints;
+
+  if (facts) {
+    if (facts.firstEver && display.hintFirstEver) {
+      found.push({ key: 'firstEver' });
+    } else if (!facts.firstEver) {
+      if (facts.firstOfStream && display.hintFirstOfStream) {
+        found.push({ key: 'firstOfStream' });
+      } else if (facts.firstOfDay && display.hintFirstOfDay) {
+        found.push({ key: 'firstOfDay' });
+      }
+    }
+
+    if (display.hintNewAccount && facts.accountCreatedAt) {
+      const days = Math.floor((now.getTime() - Date.parse(facts.accountCreatedAt)) / dayMs);
+
+      if (days >= 0 && days < Number(display.newAccountDays)) {
+        found.push({ key: 'newAccount', days });
+      }
+    }
+  }
+
+  const byType = (messageTypeHints as Record<string, string | undefined>)[line.messageType];
+
+  if (display.hintMessageType && byType) {
+    found.push({ key: byType });
+  }
+
+  return found;
+}
 
 export const emoteHeights = {
   s: '1.2em',

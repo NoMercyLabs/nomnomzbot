@@ -88,8 +88,7 @@ internal sealed class ChatControllerTestDbContext : DbContext, IApplicationDbCon
     }
 
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
-    public DbSet<NomNomzBot.Domain.Chat.Entities.FavoriteEmote> FavoriteEmotes =>
-        throw new NotSupportedException();
+    public DbSet<FavoriteEmote> FavoriteEmotes => throw new NotSupportedException();
     public DbSet<ChatterAssignedColor> ChatterAssignedColors => throw new NotSupportedException();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => Set<YouTubeLiveChatBan>();
     public DbSet<Domain.Giveaways.Entities.Giveaway> Giveaways => throw new NotSupportedException();
@@ -120,6 +119,13 @@ internal sealed class ChatControllerTestDbContext : DbContext, IApplicationDbCon
             e.HasKey(m => m.Id);
             e.Ignore(m => m.Channel);
             e.Ignore(m => m.Stream);
+        });
+
+        // Streams are real here: chat history places each line in the stream it was sent in (chat hints).
+        b.Entity<NomNomzBot.Domain.Stream.Entities.Stream>(e =>
+        {
+            e.HasKey(s => s.Id);
+            e.Ignore(s => s.Channel);
         });
 
         b.Entity<Channel>(e =>
@@ -154,6 +160,7 @@ internal sealed class ChatControllerTestDbContext : DbContext, IApplicationDbCon
         typeof(ChatMessage),
         typeof(Channel),
         typeof(User),
+        typeof(NomNomzBot.Domain.Stream.Entities.Stream),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -257,7 +264,7 @@ internal sealed class ChatControllerTestDbContext : DbContext, IApplicationDbCon
     public DbSet<IdempotencyKey> IdempotencyKeys => throw new NotSupportedException();
     public DbSet<ChannelEvent> ChannelEvents => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.Stream> Streams =>
-        throw new NotSupportedException();
+        Set<NomNomzBot.Domain.Stream.Entities.Stream>();
     public DbSet<NomNomzBot.Domain.Stream.Entities.StreamRecap> StreamRecaps =>
         throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Platform.Entities.Configuration> Configurations =>

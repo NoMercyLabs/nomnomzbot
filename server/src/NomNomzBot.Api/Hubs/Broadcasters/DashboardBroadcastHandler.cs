@@ -39,6 +39,7 @@ public sealed class ChatMessageBroadcastHandler
     private readonly IApplicationDbContext _db;
     private readonly TimeProvider _timeProvider;
     private readonly IChannelRegistry _registry;
+    private readonly IChatHintService _hints;
 
     public ChatMessageBroadcastHandler(
         IDashboardNotifier notifier,
@@ -48,9 +49,11 @@ public sealed class ChatMessageBroadcastHandler
         IWidgetNotifier widgets,
         IApplicationDbContext db,
         TimeProvider timeProvider,
-        IChannelRegistry registry
+        IChannelRegistry registry,
+        IChatHintService hints
     )
     {
+        _hints = hints;
         _notifier = notifier;
         _decorator = decorator;
         _enricher = enricher;
@@ -128,7 +131,8 @@ public sealed class ChatMessageBroadcastHandler
             Pronouns: enrichment?.Pronouns,
             Provider: evt.Provider,
             Paint: paint,
-            IsArtist: evt.IsArtist
+            IsArtist: evt.IsArtist,
+            Hints: await ResolveHintsAsync(evt, ct)
         );
 
         await _notifier.SendChatMessageAsync(evt.BroadcasterId.ToString(), dto, ct);
@@ -166,6 +170,41 @@ public sealed class ChatMessageBroadcastHandler
     // Same channel-wide prefix ChatMessageHandler's hot-path command parse checks (Channel.CommandPrefix,
     // default "!") — was hardcoded false here, so chat_box.vue's hideCommands fell back to a literal "!"
     // check that missed every channel running a custom prefix.
+    // The live line's hints come from the same service as history, so the two always agree. A failed lookup must
+    // never cost the chat line itself, so it degrades to "no hints".
+    private async Task<ChatHintsDto?> ResolveHintsAsync(
+        ChatMessageReceivedEvent evt,
+        CancellationToken ct
+    )
+    {
+        ChannelContext? ctx = _registry.Get(evt.BroadcasterId);
+        try
+        {
+            IReadOnlyDictionary<string, ChatHints> hints = await _hints.ResolveAsync(
+                evt.BroadcasterId,
+                ctx?.Timezone,
+                [
+                    new(
+                        evt.MessageId,
+                        evt.Provider,
+                        evt.UserId,
+                        evt.OccurredAt.UtcDateTime,
+                        ctx is { IsLive: true } ? ctx.LastStreamStartedAt?.UtcDateTime : null
+                    ),
+                ],
+                ct
+            );
+
+            return hints.TryGetValue(evt.MessageId, out ChatHints? found)
+                ? ChatHintsDto.From(found)
+                : null;
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            return null;
+        }
+    }
+
     private bool IsCommandMessage(Guid broadcasterId, string message) =>
         !string.IsNullOrEmpty(message)
         && message.StartsWith(

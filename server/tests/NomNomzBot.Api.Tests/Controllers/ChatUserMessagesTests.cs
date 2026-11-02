@@ -96,7 +96,8 @@ public sealed class ChatUserMessagesTests
             Substitute.For<IOperatorMessageDeleter>(),
             Substitute.For<IChatEmoteCatalogue>(),
             Substitute.For<IHubUserEnricher>(),
-            new ChatSearchService(db)
+            new ChatSearchService(db),
+            new ChatHintService(db)
         );
     }
 
@@ -138,7 +139,7 @@ public sealed class ChatUserMessagesTests
         await db.SaveChangesAsync();
 
         IActionResult result = await Build(db)
-            .GetUserMessages(Broadcaster.ToString(), GuidUlidCodec.Encode(internalId), 50, null);
+            .GetUserMessages(Broadcaster.ToString(), GuidUlidCodec.Encode(internalId));
 
         OkObjectResult ok = result.Should().BeOfType<OkObjectResult>().Subject;
         ChatController.ChatSearchResultDto page = (

@@ -46,7 +46,7 @@ import {
   badgeCard as cardOfBadge,
   smallestUrl,
 } from '@/lib/assetCards';
-import { emoteVars, shownNameColor, spacingPadding, splitMentions, type ChatDisplay } from '../chatDisplay';
+import { emoteVars, lineHints, shownNameColor, spacingPadding, splitMentions, type ChatDisplay } from '../chatDisplay';
 import ChatFragments from './ChatFragments.vue';
 
 const props = defineProps<{
@@ -210,6 +210,13 @@ const powerUp = computed<string | null>(() => {
     : null;
 });
 
+// What is notable about the chatter or the message (first message, new account, highlighted), as the Display drawer allows.
+const hints = computed<string[]>(() =>
+  lineHints(props.line, props.display, new Date()).map((hint) =>
+    hint.key === 'newAccount'
+      ? t('dashboard.chat.hint.newAccount', { age: t('dashboard.chat.hint.age', { count: hint.days ?? 0 }) })
+      : t(`dashboard.chat.hint.${hint.key}`)));
+
 // A timeout or ban says what happened, with the timeout's length; other removals only strike the line.
 const removal = computed<string | null>(() => {
   const { removed, timeoutSeconds } = props.line;
@@ -328,6 +335,11 @@ function pick(event: MouseEvent): void {
         <EmailReply class="size-3.5 flex-none" aria-hidden="true" />
         <span class="truncate">{{ replyParent }}</span>
       </p>
+      <p
+        v-if="hints.length > 0"
+        data-hints
+        class="text-xs leading-5 text-muted-foreground"
+      >{{ hints.join(' · ') }}</p>
       <p
         v-if="powerUp"
         data-power-up

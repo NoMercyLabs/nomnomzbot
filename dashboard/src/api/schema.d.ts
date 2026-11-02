@@ -91794,6 +91794,17 @@ export interface components {
             url: string;
         };
         /**
+         * @description The facts behind a chat line's hints. The client decides what each one looks like and whether it shows, so a
+         *     threshold such as "account younger than N days" is never baked in here. `AccountCreatedAt` is an ISO 8601
+         *     UTC time, null when the platform account date is unknown.
+         */
+        ChatHints: {
+            firstEver: boolean;
+            firstOfDay: boolean;
+            firstOfStream: boolean;
+            accountCreatedAt?: null | string;
+        };
+        /**
          * @description One non-empty cell of the "when chat is busy" grid: stored chat messages on this weekday and local hour.
          *     int ChatHourCellDto.DayOfWeek is 0 (Sunday) to 6 (Saturday); int ChatHourCellDto.Hour is 0 to 23.
          */
@@ -92982,6 +92993,7 @@ export interface components {
             /** @default false */
             isArtist: boolean;
             overlayLine?: null | components["schemas"]["OverlayLine"];
+            hints?: null | components["schemas"]["ChatHints"];
         };
         /**
          * @description Snapshot of a channel's current state, returned by GET /api/v1/dashboard/{broadcasterId}/stats.

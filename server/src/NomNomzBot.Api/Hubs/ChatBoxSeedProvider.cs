@@ -30,6 +30,7 @@ public sealed class ChatBoxSeedProvider(
     IApplicationDbContext db,
     IChatMessageDecorator decorator,
     IHubUserEnricher enricher,
+    IChatHintService hints,
     TimeProvider clock
 ) : IWidgetSeedProvider
 {
@@ -60,6 +61,7 @@ public sealed class ChatBoxSeedProvider(
             db,
             decorator,
             enricher,
+            hints,
             broadcasterId,
             broadcasterId.ToString(),
             rows,

@@ -12,6 +12,7 @@
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Api.Tests.Controllers;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.Events;
@@ -19,6 +20,7 @@ using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Chat;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -56,7 +58,8 @@ public sealed class ChatMessageBroadcastHandlerTests
             widgets,
             db,
             TimeProvider.System,
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            new ChatHintService(db)
         );
 
         await handler.HandleAsync(Event(channel));
@@ -68,6 +71,115 @@ public sealed class ChatMessageBroadcastHandlerTests
                 Arg.Is<DashboardChatMessageDto>(dto =>
                     dto.AvatarUrl == "https://cdn/avatar.png" && dto.Pronouns == "they/them"
                 ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_chatters_first_line_carries_first_ever_and_a_later_line_does_not()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
+        decorator
+            .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(new DecoratedChatMessage { Fragments = [] });
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        await using ChatControllerTestDbContext chatDb = ChatControllerTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+        DateTimeOffset now = DateTimeOffset.UtcNow;
+        chatDb.ChatMessages.Add(
+            new()
+            {
+                Id = "older",
+                BroadcasterId = channel,
+                UserId = "veteran",
+                Username = "veteran",
+                DisplayName = "Veteran",
+                UserType = "viewer",
+                Message = "hi",
+                Fragments = [],
+                Badges = [],
+                CreatedAt = now.UtcDateTime.AddDays(-3),
+            }
+        );
+        await chatDb.SaveChangesAsync();
+
+        ChatMessageBroadcastHandler handler = new(
+            notifier,
+            decorator,
+            Substitute.For<IHubUserEnricher>(),
+            Substitute.For<ISevenTvUserPaintResolver>(),
+            Substitute.For<IWidgetNotifier>(),
+            db,
+            TimeProvider.System,
+            Substitute.For<IChannelRegistry>(),
+            new ChatHintService(chatDb)
+        );
+
+        await handler.HandleAsync(Event(channel, messageId: "n1", userId: "newcomer"));
+        await handler.HandleAsync(Event(channel, messageId: "v1", userId: "veteran"));
+
+        await notifier
+            .Received(1)
+            .SendChatMessageAsync(
+                channel.ToString(),
+                Arg.Is<DashboardChatMessageDto>(dto =>
+                    dto.Id == "n1" && dto.Hints != null && dto.Hints.FirstEver
+                ),
+                Arg.Any<CancellationToken>()
+            );
+        await notifier
+            .Received(1)
+            .SendChatMessageAsync(
+                channel.ToString(),
+                Arg.Is<DashboardChatMessageDto>(dto =>
+                    dto.Id == "v1" && dto.Hints != null && !dto.Hints.FirstEver
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_failed_hint_lookup_never_costs_the_chat_line()
+    {
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
+        decorator
+            .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(new DecoratedChatMessage { Fragments = [] });
+        IChatHintService failing = Substitute.For<IChatHintService>();
+        failing
+            .ResolveAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string?>(),
+                Arg.Any<IReadOnlyList<ChatHintRequest>>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns<Task<IReadOnlyDictionary<string, ChatHints>>>(_ =>
+                throw new InvalidOperationException("history is down")
+            );
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid channel = Guid.CreateVersion7();
+
+        ChatMessageBroadcastHandler handler = new(
+            notifier,
+            decorator,
+            Substitute.For<IHubUserEnricher>(),
+            Substitute.For<ISevenTvUserPaintResolver>(),
+            Substitute.For<IWidgetNotifier>(),
+            db,
+            TimeProvider.System,
+            Substitute.For<IChannelRegistry>(),
+            failing
+        );
+
+        await handler.HandleAsync(Event(channel));
+
+        await notifier
+            .Received(1)
+            .SendChatMessageAsync(
+                channel.ToString(),
+                Arg.Is<DashboardChatMessageDto>(dto => dto.Id == "m1" && dto.Hints == null),
                 Arg.Any<CancellationToken>()
             );
     }
@@ -98,7 +210,8 @@ public sealed class ChatMessageBroadcastHandlerTests
             widgets,
             db,
             TimeProvider.System,
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            new ChatHintService(db)
         );
 
         await handler.HandleAsync(Event(channel));
@@ -153,7 +266,8 @@ public sealed class ChatMessageBroadcastHandlerTests
             widgets,
             db,
             TimeProvider.System,
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            new ChatHintService(db)
         );
 
         await handler.HandleAsync(Event(channel));
@@ -215,7 +329,8 @@ public sealed class ChatMessageBroadcastHandlerTests
             widgets,
             db,
             TimeProvider.System,
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            new ChatHintService(db)
         );
 
         await handler.HandleAsync(Event(channel));
@@ -260,7 +375,8 @@ public sealed class ChatMessageBroadcastHandlerTests
             widgets,
             db,
             TimeProvider.System,
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            new ChatHintService(db)
         );
 
         ChatMessageReceivedEvent evt = new()
@@ -324,7 +440,8 @@ public sealed class ChatMessageBroadcastHandlerTests
             Substitute.For<IWidgetNotifier>(),
             db,
             TimeProvider.System,
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            new ChatHintService(db)
         );
 
         await handler.HandleAsync(
@@ -383,7 +500,8 @@ public sealed class ChatMessageBroadcastHandlerTests
             widgets,
             db,
             TimeProvider.System,
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            new ChatHintService(db)
         );
 
         await handler.HandleAsync(Event(channel));
@@ -451,7 +569,8 @@ public sealed class ChatMessageBroadcastHandlerTests
             widgets,
             db,
             TimeProvider.System,
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            new ChatHintService(db)
         );
 
         await handler.HandleAsync(Event(channel));
@@ -506,7 +625,8 @@ public sealed class ChatMessageBroadcastHandlerTests
             widgets,
             db,
             TimeProvider.System,
-            Substitute.For<IChannelRegistry>()
+            Substitute.For<IChannelRegistry>(),
+            new ChatHintService(db)
         );
 
         await handler.HandleAsync(Event(channel, "!raid"));
@@ -556,7 +676,8 @@ public sealed class ChatMessageBroadcastHandlerTests
             widgets,
             db,
             TimeProvider.System,
-            registry
+            registry,
+            new ChatHintService(db)
         );
 
         // A leading "!" no longer marks a command once the channel has moved to a custom prefix — the
@@ -580,13 +701,18 @@ public sealed class ChatMessageBroadcastHandlerTests
             );
     }
 
-    private static ChatMessageReceivedEvent Event(Guid channel, string message = "hello") =>
+    private static ChatMessageReceivedEvent Event(
+        Guid channel,
+        string message = "hello",
+        string messageId = "m1",
+        string userId = "u1"
+    ) =>
         new()
         {
             BroadcasterId = channel,
-            MessageId = "m1",
+            MessageId = messageId,
             TwitchBroadcasterId = "123",
-            UserId = "u1",
+            UserId = userId,
             UserDisplayName = "Stoney",
             UserLogin = "stoney_eagle",
             Message = message,

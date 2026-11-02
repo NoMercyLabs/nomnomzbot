@@ -113433,6 +113433,32 @@
         },
         "description": "Twitch's native chat GIF fragment data (GIPHY-backed, Tier 2+ subscriber feature): the wire payload already\r\ncarries a directly-fetchable url, so — unlike emotes/cheermotes/badges — there is no separate resolve step."
       },
+      "ChatHints": {
+        "required": [
+          "firstEver",
+          "firstOfDay",
+          "firstOfStream"
+        ],
+        "type": "object",
+        "properties": {
+          "firstEver": {
+            "type": "boolean"
+          },
+          "firstOfDay": {
+            "type": "boolean"
+          },
+          "firstOfStream": {
+            "type": "boolean"
+          },
+          "accountCreatedAt": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "The facts behind a chat line's hints. The client decides what each one looks like and whether it shows, so a\r\nthreshold such as \"account younger than N days\" is never baked in here. `AccountCreatedAt` is an ISO 8601\r\nUTC time, null when the platform account date is unknown."
+      },
       "ChatHourCell": {
         "required": [
           "dayOfWeek",
@@ -117159,6 +117185,16 @@
               },
               {
                 "$ref": "#/components/schemas/OverlayLine"
+              }
+            ]
+          },
+          "hints": {
+            "oneOf": [
+              {
+                "type": "null"
+              },
+              {
+                "$ref": "#/components/schemas/ChatHints"
               }
             ]
           }

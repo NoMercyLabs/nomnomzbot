@@ -57,7 +57,8 @@
           "show": "Show",
           "layout": "Layout",
           "emotes": "Emotes",
-          "deleted": "Mentions and deleted messages"
+          "deleted": "Mentions and deleted messages",
+          "hints": "Hints on messages"
         },
         "option": {
           "badges": "Badges",
@@ -73,7 +74,13 @@
           "emoteSize": "Emote size",
           "mentions": "Highlight mentions of me",
           "deleted": "Deleted messages",
-          "htmlAsText": "Show HTML as plain text"
+          "htmlAsText": "Show HTML as plain text",
+          "hintFirstEver": "First message ever",
+          "hintFirstOfDay": "First message of the day",
+          "hintFirstOfStream": "First message of the stream",
+          "hintNewAccount": "Chatters new to Twitch",
+          "newAccountDays": "New to Twitch means joined less than",
+          "hintMessageType": "Twitch highlighted, sub-only and intro messages"
         },
         "help": {
           "htmlAsText": "Shows the code of an HTML message instead of drawing it."
@@ -94,7 +101,21 @@
         "hide": "Hide",
         "strike": "Strike",
         "show": "Show",
-        "deletedTag": "(deleted)"
+        "deletedTag": "(deleted)",
+        "days1": "1 day",
+        "days7": "7 days",
+        "days30": "30 days",
+        "days90": "90 days"
+      },
+      "hint": {
+        "firstEver": "First message ever",
+        "firstOfDay": "First message of the day",
+        "firstOfStream": "First message of the stream",
+        "newAccount": "New to Twitch ({age})",
+        "age": "joined today | joined 1 day ago | joined {count} days ago",
+        "highlighted": "Highlighted message",
+        "subOnly": "Sent in Twitch sub-only mode",
+        "intro": "First message in this channel"
       },
       "redemption": {
         "redeemed": "redeemed",

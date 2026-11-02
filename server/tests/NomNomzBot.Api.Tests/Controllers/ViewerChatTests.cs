@@ -32,6 +32,7 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Chat;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -65,7 +66,8 @@ public sealed class ViewerChatTests
             Substitute.For<IHubUserEnricher>(),
             currentUser,
             sender,
-            Substitute.For<IChatEmoteCatalogue>()
+            Substitute.For<IChatEmoteCatalogue>(),
+            new ChatHintService(db)
         );
     }
 

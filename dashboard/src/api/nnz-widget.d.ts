@@ -230,6 +230,7 @@ interface NnzDashboardChatMessageDto {
   paint?: NnzChatPaintDto | null;
   isArtist: boolean;
   overlayLine?: NnzOverlayLineDto | null;
+  hints?: NnzChatHintsDto | null;
 }
 
 interface NnzChatClearedDto {
@@ -793,6 +794,14 @@ interface NnzOverlayLineDto {
   size: string;
   /** How long the line stays before it fades; null = the widget's own show time. */
   durationSeconds?: number | null;
+}
+
+/** The facts behind a chat line's hints. The client decides what each one looks like and whether it shows, so a threshold such as "account younger than N days" is never baked in here. AccountCreatedAt is an ISO 8601 UTC time, null when the platform account date is unknown. */
+interface NnzChatHintsDto {
+  firstEver: boolean;
+  firstOfDay: boolean;
+  firstOfStream: boolean;
+  accountCreatedAt?: string | null;
 }
 
 interface NnzHypeTrainContributionDto {

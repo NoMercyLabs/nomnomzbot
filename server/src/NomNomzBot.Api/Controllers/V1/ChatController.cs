@@ -54,6 +54,7 @@ public class ChatController : BaseController
     private readonly IChatEmoteCatalogue _emoteCatalogue;
     private readonly IHubUserEnricher _enricher;
     private readonly IChatSearchService _search;
+    private readonly IChatHintService _hints;
 
     public ChatController(
         IApplicationDbContext db,
@@ -65,9 +66,11 @@ public class ChatController : BaseController
         IOperatorMessageDeleter operatorDeleter,
         IChatEmoteCatalogue emoteCatalogue,
         IHubUserEnricher enricher,
-        IChatSearchService search
+        IChatSearchService search,
+        IChatHintService hints
     )
     {
+        _hints = hints;
         _db = db;
         _chat = chat;
         _chatApi = chatApi;
@@ -369,7 +372,17 @@ public class ChatController : BaseController
         string channelId,
         IReadOnlyList<ChatMessage> rows,
         CancellationToken ct
-    ) => ChatHistoryMapper.MapAsync(_db, _decorator, _enricher, broadcasterId, channelId, rows, ct);
+    ) =>
+        ChatHistoryMapper.MapAsync(
+            _db,
+            _decorator,
+            _enricher,
+            _hints,
+            broadcasterId,
+            channelId,
+            rows,
+            ct
+        );
 
     // ── POST message (send as the operator, or the bot) ────────────────────────
     // The dashboard's REST send path — the same Helix Send Chat Message that DashboardHub.SendChatMessage

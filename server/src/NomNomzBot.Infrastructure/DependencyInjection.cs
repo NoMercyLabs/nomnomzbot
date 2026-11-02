@@ -500,6 +500,7 @@ public static class DependencyInjection
         // Composer emote catalogue (scoped — reads the warm decoration cache + fetches Twitch emotes; chat-client.md §3.2).
         services.AddScoped<ChatEmoteOwnerDirectory>();
         services.AddScoped<Application.Chat.Services.IChatEmoteCatalogue, ChatEmoteCatalogue>();
+        services.AddScoped<Application.Chat.Services.IChatHintService, ChatHintService>();
         // The out-of-process CLI runner behind the widget build service (esbuild). Not an I<X>Service, so it is
         // registered explicitly; IWidgetBuildService -> EsbuildWidgetBuildService is convention-bound.
         services.AddScoped<Widgets.Bundling.IProcessRunner, Widgets.Bundling.ProcessRunner>();

@@ -29,6 +29,7 @@ using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Identity.Enums;
+using NomNomzBot.Infrastructure.Chat;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -72,7 +73,8 @@ public sealed class ChatControllerTests
             operatorDeleter ?? Substitute.For<IOperatorMessageDeleter>(),
             emoteCatalogue ?? Substitute.For<IChatEmoteCatalogue>(),
             enricher ?? Substitute.For<IHubUserEnricher>(),
-            search ?? Substitute.For<IChatSearchService>()
+            search ?? Substitute.For<IChatSearchService>(),
+            new ChatHintService(db)
         );
 
     [Fact]
@@ -1019,9 +1021,12 @@ public sealed class ChatControllerTests
 
     // ── chat-mode settings — genuinely wired to Helix Update/Get Chat Settings (S066d) ──────────
 
-    private static ChatController BuildWithChatApi(ITwitchChatApi chatApi) =>
-        new(
-            ChatControllerTestDbContext.New(),
+    private static ChatController BuildWithChatApi(ITwitchChatApi chatApi)
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+
+        return new(
+            db,
             Substitute.For<IChatProvider>(),
             chatApi,
             Substitute.For<IChatMessageDecorator>(),
@@ -1030,8 +1035,10 @@ public sealed class ChatControllerTests
             Substitute.For<IOperatorMessageDeleter>(),
             Substitute.For<IChatEmoteCatalogue>(),
             Substitute.For<IHubUserEnricher>(),
-            Substitute.For<IChatSearchService>()
+            Substitute.For<IChatSearchService>(),
+            new ChatHintService(db)
         );
+    }
 
     [Fact]
     public async Task GetSettings_maps_the_real_Helix_response_including_unique_and_nonmod_delay()

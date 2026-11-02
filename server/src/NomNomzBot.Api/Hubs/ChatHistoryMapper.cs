@@ -30,12 +30,20 @@ public static class ChatHistoryMapper
         IApplicationDbContext db,
         IChatMessageDecorator decorator,
         IHubUserEnricher enricher,
+        IChatHintService hintService,
         Guid broadcasterId,
         string channelId,
         IReadOnlyList<ChatMessage> rows,
         CancellationToken ct
     )
     {
+        IReadOnlyDictionary<string, ChatHints> hints = await ResolveHintsAsync(
+            db,
+            hintService,
+            broadcasterId,
+            rows,
+            ct
+        );
         // One lookup for the channel's Twitch id so the third-party emote adapters match this channel's OWN emote
         // set (chat-decoration spec §3.2). Empty when the channel row is missing: decoration then falls back to
         // global-only sets, like the live hub path on an unknown channel.
@@ -91,12 +99,70 @@ public static class ChatHistoryMapper
                     AvatarUrl: enrichment?.AvatarUrl,
                     Pronouns: enrichment?.Pronouns,
                     Provider: row.Provider,
-                    IsArtist: row.Badges.Any(b => b.IsArtist)
+                    IsArtist: row.Badges.Any(b => b.IsArtist),
+                    Hints: hints.TryGetValue(row.Id, out ChatHints? found)
+                        ? ChatHintsDto.From(found)
+                        : null
                 )
             );
         }
 
         return messages;
+    }
+
+    // The hints of a whole page in one batch: the channel's timezone (its owner's) places the day boundary, and the
+    // streams that overlap the page tell which stream each row was sent in (stored rows carry no stream id).
+    private static async Task<IReadOnlyDictionary<string, ChatHints>> ResolveHintsAsync(
+        IApplicationDbContext db,
+        IChatHintService hintService,
+        Guid broadcasterId,
+        IReadOnlyList<ChatMessage> rows,
+        CancellationToken ct
+    )
+    {
+        if (rows.Count == 0)
+            return new Dictionary<string, ChatHints>();
+
+        string? timezone = await db
+            .Channels.Where(c => c.Id == broadcasterId)
+            .Join(db.Users, c => c.OwnerUserId, u => u.Id, (_, u) => u.Timezone)
+            .FirstOrDefaultAsync(ct);
+        DateTime first = rows.Min(r => r.CreatedAt);
+        DateTime last = rows.Max(r => r.CreatedAt);
+        List<(DateTime Start, DateTime? End)> streams = (
+            await db
+                .Streams.IgnoreQueryFilters()
+                .Where(s =>
+                    s.ChannelId == broadcasterId
+                    && s.StartedAt != null
+                    && s.StartedAt <= last
+                    && (s.EndedAt == null || s.EndedAt >= first)
+                )
+                .Select(s => new { s.StartedAt, s.EndedAt })
+                .ToListAsync(ct)
+        )
+            .Select(s => (s.StartedAt!.Value.UtcDateTime, s.EndedAt?.UtcDateTime))
+            .ToList();
+
+        return await hintService.ResolveAsync(
+            broadcasterId,
+            timezone,
+            [
+                .. rows.Select(r => new ChatHintRequest(
+                    r.Id,
+                    r.Provider,
+                    r.UserId,
+                    r.CreatedAt,
+                    streams
+                        .Where(s =>
+                            s.Start <= r.CreatedAt && (s.End is null || s.End >= r.CreatedAt)
+                        )
+                        .Select(s => (DateTime?)s.Start)
+                        .FirstOrDefault()
+                )),
+            ],
+            ct
+        );
     }
 
     // Rebuilds the minimal ChatMessageReceivedEvent the decorator needs from a persisted (raw, un-enriched) row, so

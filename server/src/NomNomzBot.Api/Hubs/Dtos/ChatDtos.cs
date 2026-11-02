@@ -9,6 +9,8 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Chat.Services;
+
 namespace NomNomzBot.Api.Hubs.Dtos;
 
 /// <summary>
@@ -58,8 +60,34 @@ public record DashboardChatMessageDto(
     bool IsArtist = false,
     // Set only on a bot overlay line (MessageType overlay_line): who asked for it and how to draw it. Null on every
     // ordinary chat message, so no other widget or client sees a change.
-    OverlayLineDto? OverlayLine = null
+    OverlayLineDto? OverlayLine = null,
+    // The facts a chat client turns into hints on the line (first message ever / of the day / of the stream, and
+    // when the account was made). Null when they could not be worked out, so no other client sees a change.
+    ChatHintsDto? Hints = null
 );
+
+/// <summary>
+/// The facts behind a chat line's hints. The client decides what each one looks like and whether it shows, so a
+/// threshold such as "account younger than N days" is never baked in here. <c>AccountCreatedAt</c> is an ISO 8601
+/// UTC time, null when the platform account date is unknown.
+/// </summary>
+public record ChatHintsDto(
+    bool FirstEver,
+    bool FirstOfDay,
+    bool FirstOfStream,
+    string? AccountCreatedAt
+)
+{
+    public static ChatHintsDto From(ChatHints hints) =>
+        new(
+            hints.FirstEver,
+            hints.FirstOfDay,
+            hints.FirstOfStream,
+            hints.AccountCreatedAtUtc is { } created
+                ? DateTime.SpecifyKind(created, DateTimeKind.Utc).ToString("O")
+                : null
+        );
+}
 
 /// <summary>
 /// What a chat widget needs to draw a bot overlay line beyond its text: the viewer who asked for it (drawn as

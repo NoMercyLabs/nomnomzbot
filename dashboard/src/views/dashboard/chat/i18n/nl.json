@@ -57,7 +57,8 @@
           "show": "Tonen",
           "layout": "Opmaak",
           "emotes": "Emotes",
-          "deleted": "Vermeldingen en verwijderde berichten"
+          "deleted": "Vermeldingen en verwijderde berichten",
+          "hints": "Hints bij berichten"
         },
         "option": {
           "badges": "Badges",
@@ -73,7 +74,13 @@
           "emoteSize": "Emotegrootte",
           "mentions": "Vermeldingen van mij markeren",
           "deleted": "Verwijderde berichten",
-          "htmlAsText": "HTML als gewone tekst tonen"
+          "htmlAsText": "HTML als gewone tekst tonen",
+          "hintFirstEver": "Eerste bericht ooit",
+          "hintFirstOfDay": "Eerste bericht van de dag",
+          "hintFirstOfStream": "Eerste bericht van de stream",
+          "hintNewAccount": "Chatters nieuw op Twitch",
+          "newAccountDays": "Nieuw op Twitch betekent minder dan",
+          "hintMessageType": "Twitch-berichten: gemarkeerd, alleen-subs en intro's"
         },
         "help": {
           "htmlAsText": "Toont de code van een HTML-bericht in plaats van het te tekenen."
@@ -94,7 +101,21 @@
         "hide": "Verberg",
         "strike": "Doorhalen",
         "show": "Toon",
-        "deletedTag": "(verwijderd)"
+        "deletedTag": "(verwijderd)",
+        "days1": "1 dag",
+        "days7": "7 dagen",
+        "days30": "30 dagen",
+        "days90": "90 dagen"
+      },
+      "hint": {
+        "firstEver": "Eerste bericht ooit",
+        "firstOfDay": "Eerste bericht van de dag",
+        "firstOfStream": "Eerste bericht van de stream",
+        "newAccount": "Nieuw op Twitch ({age})",
+        "age": "vandaag aangemeld | 1 dag geleden aangemeld | {count} dagen geleden aangemeld",
+        "highlighted": "Gemarkeerd bericht",
+        "subOnly": "Verstuurd in Twitch alleen-subs-modus",
+        "intro": "Eerste bericht in dit kanaal"
       },
       "redemption": {
         "redeemed": "heeft ingewisseld:",

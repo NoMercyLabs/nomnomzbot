@@ -48,6 +48,7 @@ public class ViewerChatController : BaseController
     private readonly ICurrentUserService _currentUser;
     private readonly IOperatorChatSender _sender;
     private readonly IChatEmoteCatalogue _emoteCatalogue;
+    private readonly IChatHintService _hints;
 
     public ViewerChatController(
         IApplicationDbContext db,
@@ -55,12 +56,14 @@ public class ViewerChatController : BaseController
         IHubUserEnricher enricher,
         ICurrentUserService currentUser,
         IOperatorChatSender sender,
-        IChatEmoteCatalogue emoteCatalogue
+        IChatEmoteCatalogue emoteCatalogue,
+        IChatHintService hints
     )
     {
         _db = db;
         _decorator = decorator;
         _enricher = enricher;
+        _hints = hints;
         _currentUser = currentUser;
         _sender = sender;
         _emoteCatalogue = emoteCatalogue;
@@ -97,6 +100,7 @@ public class ViewerChatController : BaseController
             _db,
             _decorator,
             _enricher,
+            _hints,
             broadcasterId,
             channelId,
             rows,
@@ -120,7 +124,7 @@ public class ViewerChatController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
-        string message = request.Message?.Trim() ?? string.Empty;
+        string message = request.Message.Trim();
         if (message.Length == 0)
             return BadRequestResponse("Message cannot be empty.");
         if (message.Length > MaxMessageLength)

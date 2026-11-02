@@ -20,6 +20,7 @@ using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Chat;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Hubs;
@@ -87,6 +88,7 @@ public sealed class ChatBoxSeedProviderTests
             db,
             decorator,
             Substitute.For<IHubUserEnricher>(),
+            new ChatHintService(db),
             new FakeTimeProvider(Now)
         );
 
