@@ -25,6 +25,9 @@ internal static class TwitchEmoteMapper
     /// <summary>The type a global emote carries; Get Global Emotes has no type field of its own.</summary>
     public const string GlobalType = "globals";
 
+    /// <summary>The type of a follower emote, which works only in the chat of the channel that owns it.</summary>
+    public const string FollowerType = "follower";
+
     private const string SubscriptionType = "subscriptions";
 
     // Twitch emote CDN v2: /{id}/{format}/{theme}/{scale}. Dark theme + the three offered scales.

@@ -48,6 +48,7 @@ public sealed class ChatEmoteCacheKeysTests
 
         ChatEmoteCacheKeys.Global(EmoteProvider.Twitch).Should().Contain(shape);
         ChatEmoteCacheKeys.Channel(EmoteProvider.SevenTv, "1").Should().Contain(shape);
-        ChatEmoteCacheKeys.TwitchUser("1").Should().Contain(shape);
+        ChatEmoteCacheKeys.TwitchUser("1", "2").Should().Contain(shape);
+        ChatEmoteCacheKeys.TwitchUser("1", null).Should().Contain(shape);
     }
 }

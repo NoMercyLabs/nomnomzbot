@@ -49,12 +49,14 @@ internal static class ChatEmoteCacheKeys
         $"chat:emotes:{EmoteShape}:{Token(provider)}:channel:{twitchBroadcasterId}";
 
     /// <summary>
-    /// <c>chat:emotes:twitch:user:{twitchUserId}</c> — the signed-in user's cross-channel Twitch emotes
-    /// (Get User Emotes). Keyed to the resolved Twitch user id, never the viewed channel, so one user's
-    /// subscription emotes never leak into another user's composer.
+    /// <c>chat:emotes:twitch:user:{twitchUserId}:channel:{viewedTwitchChannelId}</c> — the signed-in user's Twitch
+    /// emotes as Get User Emotes returns them for one viewed channel (a channel's follower emotes come back only
+    /// for the channel passed as broadcaster_id, so each channel has its own list). Keyed to the resolved Twitch
+    /// user id, so one user's subscription emotes never leak into another user's composer. A null channel is the
+    /// list fetched with no channel at all.
     /// </summary>
-    public static string TwitchUser(string twitchUserId) =>
-        $"chat:emotes:{EmoteShape}:twitch:user:{twitchUserId}";
+    public static string TwitchUser(string twitchUserId, string? viewedTwitchChannelId) =>
+        $"chat:emotes:{EmoteShape}:twitch:user:{twitchUserId}:channel:{viewedTwitchChannelId ?? "none"}";
 
     /// <summary>
     /// <c>chat:emotes:twitch:owner:{twitchUserId}</c> — a Twitch emote owner's login and display name, fetched once per

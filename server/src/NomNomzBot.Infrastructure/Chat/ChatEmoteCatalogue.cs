@@ -47,11 +47,6 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
     // hitting it is logged at WARNING (see below), never silent.
     private const int MaxUserEmotePages = 50;
 
-    // The cross-channel follower pass makes one Get Channel Emotes call per DISTINCT other channel the operator has
-    // emotes from; bound the fan-out so a pathological account (following thousands of channels) can never spin the
-    // catalogue. Beyond this cap the pass is truncated (logged, never silent).
-    private const int MaxFollowerEmoteChannels = 60;
-
     // Precedence low-to-high is applied by add order below (first-wins dedup): Twitch native before third-party.
     private static readonly EmoteProvider[] ThirdParty =
     [
@@ -302,26 +297,34 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
         );
 
     // A Twitch emote is global (type "globals"), the operator's own, the viewed channel's, or another channel's.
+    // A follower emote works only in the chat of the channel that owns it, so one owned by another channel is not
+    // offered at all: the operator's personal set is cached across channels and can carry it.
     private static IEnumerable<ChatEmote> TagTwitch(
         IEnumerable<ChatEmote> emotes,
         string? viewedTwitchId,
         string? operatorTwitchId
     ) =>
-        emotes.Select(e =>
-        {
-            if (e.Type == TwitchEmoteMapper.GlobalType || string.IsNullOrEmpty(e.OwnerId))
-                return e with { Origin = ChatEmoteOrigin.Global, OwnerChannel = null };
-
-            ChatEmoteOrigin origin =
-                e.OwnerId == operatorTwitchId ? ChatEmoteOrigin.Own
-                : e.OwnerId == viewedTwitchId ? ChatEmoteOrigin.Channel
-                : ChatEmoteOrigin.Other;
-            return e with
+        emotes
+            .Where(e => !IsFollowerEmoteOfAnotherChannel(e, viewedTwitchId))
+            .Select(e =>
             {
-                Origin = origin,
-                OwnerChannel = new ChatEmoteOwner(e.OwnerId, null, null),
-            };
-        });
+                if (e.Type == TwitchEmoteMapper.GlobalType || string.IsNullOrEmpty(e.OwnerId))
+                    return e with { Origin = ChatEmoteOrigin.Global, OwnerChannel = null };
+
+                ChatEmoteOrigin origin =
+                    e.OwnerId == operatorTwitchId ? ChatEmoteOrigin.Own
+                    : e.OwnerId == viewedTwitchId ? ChatEmoteOrigin.Channel
+                    : ChatEmoteOrigin.Other;
+                return e with
+                {
+                    Origin = origin,
+                    OwnerChannel = new ChatEmoteOwner(e.OwnerId, null, null),
+                };
+            });
+
+    private static bool IsFollowerEmoteOfAnotherChannel(ChatEmote emote, string? viewedTwitchId) =>
+        emote.Type == TwitchEmoteMapper.FollowerType
+        && !string.Equals(emote.OwnerId, viewedTwitchId, StringComparison.Ordinal);
 
     // Names every owner channel in one batched lookup; an owner that cannot be named keeps its bare id.
     private async Task<IReadOnlyList<ChatEmote>> WithOwnerChannelsAsync(
@@ -420,18 +423,12 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
         if (string.IsNullOrEmpty(operatorTwitchId))
             return [];
 
-        string key = ChatEmoteCacheKeys.TwitchUser(operatorTwitchId);
+        string key = ChatEmoteCacheKeys.TwitchUser(operatorTwitchId, broadcasterTwitchId);
         IReadOnlyList<ChatEmote>? cached = await _cache.GetAsync<IReadOnlyList<ChatEmote>>(key, ct);
         if (cached is not null)
             return cached;
 
         List<ChatEmote> mapped = [];
-
-        // Every OTHER channel the operator already has emotes from. Get User Emotes returns a channel's FOLLOWER
-        // emotes only when THAT channel is passed as broadcaster_id, so cross-channel follower emotes are absent
-        // from the base walk — they are back-filled per channel below (Twitch's own picker fetches follower emotes
-        // per channel). The current channel is excluded (its follower emotes already came through broadcaster_id).
-        HashSet<string> otherOwnerIds = new(StringComparer.Ordinal);
         string? cursor = null;
         int page = 0;
 
@@ -453,16 +450,7 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
                 return [];
             }
 
-            foreach (TwitchUserEmote emote in fetched.Value.Items)
-            {
-                mapped.Add(TwitchEmoteMapper.FromUser(emote));
-
-                if (
-                    !string.IsNullOrEmpty(emote.OwnerId)
-                    && !string.Equals(emote.OwnerId, broadcasterTwitchId, StringComparison.Ordinal)
-                )
-                    otherOwnerIds.Add(emote.OwnerId);
-            }
+            mapped.AddRange(fetched.Value.Items.Select(TwitchEmoteMapper.FromUser));
 
             cursor = fetched.Value.NextCursor;
             page++;
@@ -476,52 +464,8 @@ public sealed class ChatEmoteCatalogue : IChatEmoteCatalogue
                 MaxUserEmotePages * 100
             );
 
-        await AddCrossChannelFollowerEmotesAsync(mapped, otherOwnerIds, ct);
-
         await _cache.SetAsync<IReadOnlyList<ChatEmote>>(key, mapped, TwitchUserTtl, ct);
         return mapped;
-    }
-
-    // Back-fills the operator's FOLLOWER emotes from every OTHER channel they have emotes from. Get User Emotes only
-    // surfaces a channel's follower emotes when that channel is the broadcaster_id, so for each distinct other owner
-    // we fetch that channel's emotes (Get Channel Emotes — App token, one call, no pagination) and keep only the
-    // follower-type ones. Bounded to MaxFollowerEmoteChannels; a per-channel failure degrades to skipping that
-    // channel, never failing the whole source. These are part of the operator's usable set, so they cache together
-    // with the base user emotes under the same key; the catalogue-level Dedup resolves any code collisions.
-    private async Task AddCrossChannelFollowerEmotesAsync(
-        List<ChatEmote> mapped,
-        IReadOnlyCollection<string> otherOwnerIds,
-        CancellationToken ct
-    )
-    {
-        IEnumerable<string> channels = otherOwnerIds;
-        if (otherOwnerIds.Count > MaxFollowerEmoteChannels)
-        {
-            _logger.LogDebug(
-                "ChatEmoteCatalogue: operator has emotes from {Count} channels; bounding the follower pass to the first {Max}",
-                otherOwnerIds.Count,
-                MaxFollowerEmoteChannels
-            );
-            channels = otherOwnerIds.Take(MaxFollowerEmoteChannels);
-        }
-
-        foreach (string ownerId in channels)
-        {
-            Result<IReadOnlyList<TwitchChannelEmote>> fetched =
-                await _assets.GetChannelEmotesByTwitchIdAsync(ownerId, ct);
-            if (fetched.IsFailure)
-            {
-                _logger.LogDebug(
-                    "ChatEmoteCatalogue: channel emotes fetch failed for {OwnerId}, skipping its follower emotes",
-                    ownerId
-                );
-                continue;
-            }
-
-            foreach (TwitchChannelEmote emote in fetched.Value)
-                if (string.Equals(emote.EmoteType, "follower", StringComparison.Ordinal))
-                    mapped.Add(TwitchEmoteMapper.FromChannel(emote, ownerId, null));
-        }
     }
 
     // Dedup by code, CASE-SENSITIVE, first-wins. Emote codes are case-sensitive everywhere — Twitch "Kappa", and

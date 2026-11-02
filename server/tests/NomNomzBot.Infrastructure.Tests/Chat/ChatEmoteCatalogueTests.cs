@@ -603,7 +603,7 @@ public sealed class ChatEmoteCatalogueTests
         // The assembled set is cached against the OPERATOR's Twitch id (98765), NOT the viewed channel's (12345),
         // so operator A's subscription emotes can never leak into operator B's composer on the same channel.
         IReadOnlyList<ChatEmote>? operatorCached = await cache.GetAsync<IReadOnlyList<ChatEmote>>(
-            ChatEmoteCacheKeys.TwitchUser(OperatorTwitchId)
+            ChatEmoteCacheKeys.TwitchUser(OperatorTwitchId, TwitchId)
         );
         operatorCached.Should().NotBeNull();
         operatorCached
@@ -612,13 +612,17 @@ public sealed class ChatEmoteCatalogueTests
             .BeEquivalentTo(["subFromFriendA", "subFromFriendB"]);
 
         // Nothing is cached under the CHANNEL's id — proving the key is the operator's, not the tenant's.
-        (await cache.GetAsync<IReadOnlyList<ChatEmote>>(ChatEmoteCacheKeys.TwitchUser(TwitchId)))
+        (
+            await cache.GetAsync<IReadOnlyList<ChatEmote>>(
+                ChatEmoteCacheKeys.TwitchUser(TwitchId, TwitchId)
+            )
+        )
             .Should()
             .BeNull();
     }
 
     [Fact]
-    public async Task Back_fills_cross_channel_follower_emotes_but_not_the_other_channels_sub_emotes()
+    public async Task A_follower_emote_of_another_channel_is_not_offered_but_a_sub_emote_of_it_is()
     {
         FakeCache cache = new();
         ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
@@ -629,34 +633,24 @@ public sealed class ChatEmoteCatalogueTests
             .GetChannelEmotesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
             .Returns(Result.Success<IReadOnlyList<TwitchChannelEmote>>([]));
 
-        // Base Get User Emotes: a sub emote from the CURRENT channel (owner 12345) and a sub emote from ANOTHER
-        // channel the operator follows (owner 111). Twitch returns the operator's sub emotes for every channel, but
-        // a channel's FOLLOWER emotes only for the one passed as broadcaster_id — so channel 111's follower emote is
-        // absent from this page and must be back-filled per channel.
+        // Twitch lets a follower emote work only in the chat of the channel that owns it, while a subscription
+        // emote works in every chat. The operator has a follower emote and a sub emote from channel 111 (a cached
+        // personal set is shared between channels, so the other channel's follower emote can ride in it), and a
+        // follower emote of the CURRENT channel (12345).
         assets
             .GetUserEmotesAsOperatorAsync(Operator, TwitchId, null, Arg.Any<CancellationToken>())
             .Returns(
                 Result.Success(
                     new TwitchPage<TwitchUserEmote>(
                         [
-                            UserEmoteOwned("homeSub", "10", TwitchId, "subscriptions"),
+                            UserEmoteOwned("homeFollower", "10", TwitchId, "follower"),
                             UserEmoteOwned("verosSub", "11", "111", "subscriptions"),
+                            UserEmoteOwned("verosWaving", "12", "111", "follower"),
                         ],
                         NextCursor: null,
                         Total: 0
                     )
                 )
-            );
-
-        // Get Channel Emotes for the OTHER channel (111): a follower emote (the operator's via the follower reward —
-        // must be added) and a sub emote (NOT the operator's to use — must be dropped).
-        assets
-            .GetChannelEmotesByTwitchIdAsync("111", Arg.Any<CancellationToken>())
-            .Returns(
-                Result.Success<IReadOnlyList<TwitchChannelEmote>>([
-                    ChannelTyped("verosWaving", "12", "follower"),
-                    ChannelTyped("verosOtherSub", "13", "subscriptions"),
-                ])
             );
 
         Result<IReadOnlyList<ChatEmote>> result = await Build(cache, assets, Identity())
@@ -665,26 +659,129 @@ public sealed class ChatEmoteCatalogueTests
         result.IsSuccess.Should().BeTrue();
         List<string> codes = [.. result.Value.Select(e => e.Code)];
 
-        // The operator's own sub emotes (home + cross-channel) still come through the base walk.
-        codes.Should().Contain(["homeSub", "verosSub"]);
-        // The cross-channel FOLLOWER emote is back-filled from the other channel...
-        codes.Should().Contain("verosWaving");
-        // ...but the other channel's SUB emote (which the operator does not own) is NOT.
-        codes.Should().NotContain("verosOtherSub");
+        codes.Should().Contain(["homeFollower", "verosSub"]);
+        codes.Should().NotContain("verosWaving");
 
-        // The back-filled follower emote is a Twitch-native ChatEmote carrying that channel's set id.
-        ChatEmote waving = result.Value.Single(e => e.Code == "verosWaving");
-        waving.Provider.Should().Be(EmoteProvider.Twitch);
-        waving.SetId.Should().Be("12");
+        // The picker no longer reaches out to another channel to collect its follower emotes.
+        await assets.DidNotReceiveWithAnyArgs().GetChannelEmotesByTwitchIdAsync(default!);
+    }
 
-        // The follower pass fetched the OTHER channel exactly once...
+    [Fact]
+    public async Task On_a_channel_the_bot_is_not_on_only_that_channels_follower_emotes_are_offered()
+    {
+        FakeCache cache = new();
+        ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
+        assets
+            .GetGlobalEmotesAsync(Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchGlobalEmote>>([]));
+        assets
+            .GetChannelEmotesByTwitchIdAsync(PersonTwitchId, Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchChannelEmote>>([]));
+        assets
+            .GetUserEmotesAsOperatorAsync(
+                Operator,
+                PersonTwitchId,
+                null,
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchUserEmote>(
+                        [
+                            UserEmoteOwned("viewedFollower", "20", PersonTwitchId, "follower"),
+                            UserEmoteOwned("otherFollower", "21", "111", "follower"),
+                            UserEmoteOwned("otherSub", "22", "111", "subscriptions"),
+                        ],
+                        NextCursor: null,
+                        Total: 0
+                    )
+                )
+            );
+
+        Result<IReadOnlyList<ChatEmote>> result = await Build(
+                cache,
+                assets,
+                Identity(),
+                PersonUsers(),
+                Registry(EmoteProvider.SevenTv, Result.Success<IReadOnlyList<ChatEmote>>([]))
+            )
+            .GetForTwitchChannelAsync(PersonTwitchId, Operator);
+
+        result.IsSuccess.Should().BeTrue();
+        List<string> codes = [.. result.Value.Select(e => e.Code)];
+
+        codes.Should().Contain(["viewedFollower", "otherSub"]);
+        codes.Should().NotContain("otherFollower");
+    }
+
+    [Fact]
+    public async Task Switching_to_another_channel_offers_that_channels_follower_emotes_and_back_again()
+    {
+        Guid otherBroadcaster = Guid.Parse("0197b2c0-0000-7000-8000-0000000000c4");
+        FakeCache cache = new();
+        ITwitchChatAssetsApi assets = Substitute.For<ITwitchChatAssetsApi>();
+        assets
+            .GetGlobalEmotesAsync(Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchGlobalEmote>>([]));
+        assets
+            .GetChannelEmotesAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchChannelEmote>>([]));
+
+        // Twitch returns a channel's follower emotes only for the channel passed as broadcaster_id, so each
+        // channel's page carries its own follower emote.
+        assets
+            .GetUserEmotesAsOperatorAsync(Operator, TwitchId, null, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchUserEmote>(
+                        [
+                            UserEmoteOwned("homeFollower", "10", TwitchId, "follower"),
+                            UserEmoteOwned("verosSub", "11", "111", "subscriptions"),
+                        ],
+                        NextCursor: null,
+                        Total: 0
+                    )
+                )
+            );
+        assets
+            .GetUserEmotesAsOperatorAsync(Operator, "111", null, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TwitchPage<TwitchUserEmote>(
+                        [
+                            UserEmoteOwned("verosSub", "11", "111", "subscriptions"),
+                            UserEmoteOwned("verosWaving", "12", "111", "follower"),
+                        ],
+                        NextCursor: null,
+                        Total: 0
+                    )
+                )
+            );
+
+        ITwitchIdentityResolver identity = Identity();
+        identity
+            .GetTwitchChannelIdAsync(otherBroadcaster, Arg.Any<CancellationToken>())
+            .Returns("111");
+        ChatEmoteCatalogue sut = Build(cache, assets, identity);
+
+        async Task<List<string>> CodesAsync(Guid channel) =>
+            [.. (await sut.GetForChannelAsync(channel, Operator)).Value.Select(e => e.Code)];
+
+        List<string> home = await CodesAsync(Broadcaster);
+        List<string> other = await CodesAsync(otherBroadcaster);
+        List<string> homeAgain = await CodesAsync(Broadcaster);
+
+        home.Should().Contain(["homeFollower", "verosSub"]).And.NotContain("verosWaving");
+        other.Should().Contain(["verosWaving", "verosSub"]).And.NotContain("homeFollower");
+        homeAgain.Should().Contain(["homeFollower", "verosSub"]).And.NotContain("verosWaving");
+
+        // Each channel's personal set is fetched once and then served from the cache.
         await assets
             .Received(1)
-            .GetChannelEmotesByTwitchIdAsync("111", Arg.Any<CancellationToken>());
-        // ...and NEVER the current channel — its follower emotes already arrived through broadcaster_id.
+            .GetUserEmotesAsOperatorAsync(Operator, TwitchId, null, Arg.Any<CancellationToken>());
         await assets
-            .DidNotReceive()
-            .GetChannelEmotesByTwitchIdAsync(TwitchId, Arg.Any<CancellationToken>());
+            .Received(1)
+            .GetUserEmotesAsOperatorAsync(Operator, "111", null, Arg.Any<CancellationToken>());
     }
 
     [Fact]
@@ -960,7 +1057,7 @@ public sealed class ChatEmoteCatalogueTests
 
         result.IsSuccess.Should().BeTrue();
         result.Value.Should().BeEmpty();
-        await assets.DidNotReceiveWithAnyArgs().GetChannelEmotesByTwitchIdAsync(default!, default);
+        await assets.DidNotReceiveWithAnyArgs().GetChannelEmotesByTwitchIdAsync(default!);
     }
 
     [Fact]
