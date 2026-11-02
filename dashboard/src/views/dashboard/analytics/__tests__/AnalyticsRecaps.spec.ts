@@ -318,11 +318,13 @@ describe('the Recaps tab', () => {
     expect(frame.style.width).toBe('2560px');
     expect(frame.style.height).toBe('1440px');
     expect(frame.querySelector('.recap')).not.toBeNull();
-    expect(frame.textContent).toContain('Peak viewers');
-    expect(frame.textContent).toContain('87');
+    expect(frame.querySelector('.recap')?.getAttribute('data-layout')).toBe('credits');
+    expect(frame.querySelector('.recap')?.getAttribute('data-motion')).toBe('still');
+    expect(frame.querySelector('header.top .live')?.textContent).toContain('Time live');
+    expect(frame.querySelectorAll('.roll .track')).toHaveLength(1);
     expect(frame.querySelector('[data-block="streamer"]')).toBeNull();
 
-    expect(frame.querySelector('.grid > .block img.watermark')?.getAttribute('src')).toBe(
+    expect(frame.querySelector('header.top img.avatar')?.getAttribute('src')).toBe(
       'https://cdn.example/stoney.png',
     );
   });
@@ -340,8 +342,8 @@ describe('the Recaps tab', () => {
     const frame = document.body.querySelector('[data-recap-frame]')!;
 
     expect(frame.querySelector('[data-block="streamer"]')).toBeNull();
-    expect(frame.querySelector('img.watermark')?.getAttribute('src')).toBe('https://cdn.example/current.png');
-    expect(frame.querySelector('.sub')?.textContent).toContain('Stoney_Eagle');
+    expect(frame.querySelector('img.avatar')?.getAttribute('src')).toBe('https://cdn.example/current.png');
+    expect(frame.querySelector('.channel')?.textContent).toContain('Stoney_Eagle');
   });
 
   it('saves the PNG at the stored resolution, and 1920 x 1080 for an old recap', async () => {

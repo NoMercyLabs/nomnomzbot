@@ -3203,9 +3203,21 @@
       "holdSeconds": {
         "label": "Show time (seconds)"
       },
+      "hueByDay": {
+        "help": "When on, the color follows the day of the month, one color for each of 31 days. When off, the recap uses the accent color, or a calm default.",
+        "label": "Color by day"
+      },
       "labels": {
         "help": "The words on the screen, as JSON. Keys such as title, kpi.duration and block.subs.",
         "label": "Texts"
+      },
+      "layout": {
+        "help": "Credits rolls a list up the screen and loops, like an end screen. Cards shows the recap as a grid of cards.",
+        "label": "Layout",
+        "option": {
+          "credits": "Credits",
+          "grid": "Cards"
+        }
       },
       "metrics": {
         "label": "Stream numbers to read",
@@ -3225,6 +3237,14 @@
           "subs": "Subscription counts",
           "topChatters": "Top chatters"
         }
+      },
+      "roll": {
+        "help": "Turn this off to hold the top of the list still. Viewers who prefer less motion always get a still list.",
+        "label": "Roll the credits"
+      },
+      "rollSeconds": {
+        "help": "How long one pass of the credits takes, from 10 to 300 seconds. A longer time rolls slower.",
+        "label": "Roll time (seconds)"
       },
       "showBits": {
         "label": "Show bits"
@@ -3249,6 +3269,10 @@
       },
       "showTopCommands": {
         "label": "Show top commands"
+      },
+      "timeZone": {
+        "help": "A time zone name such as Europe/Amsterdam or America/New_York. Leave it empty to use the time zone of the viewer.",
+        "label": "Time zone"
       }
     },
     "recent_followers": {

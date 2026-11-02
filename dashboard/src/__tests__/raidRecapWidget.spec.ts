@@ -77,7 +77,8 @@ const fixture = {
 
 const wrappers: VueWrapper[] = [];
 
-function show(data: unknown, settings: Record<string, unknown> = {}): VueWrapper {
+// Shows the recap with exactly the given settings, so a test sees what a channel with those stored settings sees.
+function showWith(data: unknown, settings: Record<string, unknown> = {}): VueWrapper {
   sdk.data.streamStats.mockResolvedValue(data);
   const wrapper = mount(RaidRecap);
 
@@ -86,6 +87,16 @@ function show(data: unknown, settings: Record<string, unknown> = {}): VueWrapper
   handlers['raid_recap.show']!({ stream: { id: 's1' } });
 
   return wrapper;
+}
+
+// The card grid is Stoney's personal look, kept as the `grid` layout: these tests pin it.
+function show(data: unknown, settings: Record<string, unknown> = {}): VueWrapper {
+  return showWith(data, {
+    layout: 'grid',
+    hueByDay: true,
+    timeZone: 'Europe/Amsterdam',
+    ...settings,
+  });
 }
 
 const LABEL_PAIR = /^\s*(?:\["([^"]+)"\]|'([^']+)'|(\w+))\s*[=:]\s*["']([^"']*)["']/;
@@ -563,7 +574,7 @@ describe('raid_recap widget', () => {
       await flushPromises();
 
       expect(wrapper.find('header .thanks').text()).toBe(
-        'Thank you for 9 hours of coding, tunes and vibes.',
+        'Thanks for watching! You spent 9 hours with us.',
       );
 
       expect(wrapper.text()).toContain('chatters');
@@ -649,6 +660,357 @@ describe('raid_recap widget', () => {
 
       await flushPromises();
       expect(wrapper.find('[data-block="chatters"] .big').text()).toBe('3chatters');
+    });
+  });
+
+  describe('the credits layout, the general default (Stoney, 2026-11-02: a scrolling list like many streamers have as their end screen)', () => {
+    const channel = { name: 'Quinn_Demo', avatarUrl: 'https://cdn.example/quinn.png' };
+    const full = {
+      ...fixture,
+      channel,
+      hypeTrain: { level: 4, trains: 1 },
+    };
+    const sectionKeys = (wrapper: VueWrapper): string[] =>
+      wrapper
+        .findAll('.track:first-child [data-section]')
+        .map((s) => s.attributes('data-section') ?? '');
+
+    it('is the layout of a stored widget that has no layout key', async () => {
+      const wrapper = showWith(full);
+
+      await flushPromises();
+
+      expect(wrapper.find('.recap').attributes('data-layout')).toBe('credits');
+      expect(wrapper.find('.grid').exists()).toBe(false);
+      expect(wrapper.find('.roll').exists()).toBe(true);
+    });
+
+    it('rolls one continuous column of sections, each a heading and a list of names', async () => {
+      const wrapper = showWith(full);
+
+      await flushPromises();
+
+      expect(sectionKeys(wrapper)).toEqual([
+        'chatters',
+        'subs',
+        'followers',
+        'raids',
+        'redemptions',
+        'songs',
+        'bits',
+        'topCommands',
+      ]);
+
+      const subs = wrapper.find('.track:first-child [data-section="subs"]');
+
+      expect(subs.find('h2').text()).toBe('Subscriptions');
+      expect(subs.text()).toContain('Gifted');
+      expect(subs.text()).toContain('Subscribed');
+      expect(subs.text().indexOf('iFiLLz')).toBeLessThan(subs.text().indexOf('kani_dev'));
+      expect(subs.find('.entry .v').text()).toBe('11');
+
+      const raids = wrapper.find('.track:first-child [data-section="raids"]');
+
+      expect(raids.text()).toContain('MayaRainer');
+      expect(raids.text()).toContain('49');
+      expect(wrapper.find('.track:first-child .hype').text()).toBe('Hype train reached level 4.');
+    });
+
+    it('drops a section that has no data and the hype line without a train', async () => {
+      const quiet = {
+        ...fixture,
+        gifters: [],
+        selfSubs: [],
+        subs: {
+          new: 0,
+          resub: 0,
+          gift: 0,
+          total: 0,
+        },
+        raidsIn: [],
+        bits: { total: 0, top: [] },
+        hypeTrain: null,
+      };
+      const wrapper = showWith(quiet);
+
+      await flushPromises();
+
+      expect(sectionKeys(wrapper)).toEqual([
+        'chatters',
+        'followers',
+        'redemptions',
+        'songs',
+        'topCommands',
+      ]);
+
+      expect(wrapper.find('.hype').exists()).toBe(false);
+    });
+
+    it('honors the section switches of the settings', async () => {
+      const wrapper = showWith(full, { showSubs: false, showBits: false });
+
+      await flushPromises();
+
+      expect(sectionKeys(wrapper)).not.toContain('subs');
+      expect(sectionKeys(wrapper)).not.toContain('bits');
+      expect(wrapper.find('.hype').exists()).toBe(false);
+    });
+
+    it('keeps a fixed header: avatar, title, channel, date and time live', async () => {
+      const wrapper = showWith(full, { timeZone: 'Europe/Amsterdam' });
+
+      await flushPromises();
+      const header = wrapper.find('header.top');
+
+      expect(header.find('img.avatar').attributes('src')).toBe('https://cdn.example/quinn.png');
+      expect(header.find('img.avatar').attributes('crossorigin')).toBe('anonymous');
+      expect(header.find('h1').text()).toBe('Stream recap');
+      expect(header.find('.channel').text()).toBe('Quinn_Demo');
+      expect(header.find('.date').text()).toBe('Oct 15, 2026');
+      expect(header.find('.live').text()).toBe('Time live 14h 01m');
+      expect(wrapper.findAll('header.top')).toHaveLength(1);
+      expect(wrapper.find('.roll header').exists()).toBe(false);
+    });
+
+    it('draws no avatar when the channel has none, and never the NomNomz logo', async () => {
+      const wrapper = showWith({ ...full, channel: { name: 'Quinn_Demo', avatarUrl: null } });
+
+      await flushPromises();
+
+      expect(wrapper.findAll('img')).toHaveLength(0);
+      expect(wrapper.find('svg.logo').exists()).toBe(false);
+    });
+
+    it('rolls the column with the rollSeconds duration and loops it with a second copy', async () => {
+      const wrapper = showWith(full, { rollSeconds: 25 });
+
+      await flushPromises();
+      const roll = wrapper.find('.roll');
+
+      expect(wrapper.find('.recap').attributes('data-motion')).toBe('roll');
+      expect(roll.attributes('style')).toContain('--roll-seconds: 25s');
+
+      const tracks = roll.findAll('.track');
+
+      expect(tracks).toHaveLength(2);
+      expect(tracks.at(0)?.attributes('aria-hidden')).toBeUndefined();
+      expect(tracks.at(1)?.attributes('aria-hidden')).toBe('true');
+      expect(tracks.at(1)?.text()).toBe(tracks.at(0)?.text());
+    });
+
+    it('rolls 40 seconds a pass by default and clamps the setting to 10 through 300', async () => {
+      const seconds = async (setting: unknown): Promise<string> => {
+        const wrapper = showWith(full, setting === undefined
+          ? {}
+          : { rollSeconds: setting });
+
+        await flushPromises();
+
+        return /--roll-seconds: (\d+)s/.exec(wrapper.find('.roll').attributes('style') ?? '')?.[1] ?? '';
+      };
+
+      expect(await seconds(undefined)).toBe('40');
+      expect(await seconds(2)).toBe('10');
+      expect(await seconds(900)).toBe('300');
+      expect(await seconds('not a number')).toBe('40');
+    });
+
+    it('still rolls a short list, with a gap before the loop', async () => {
+      const short = {
+        stream: fixture.stream,
+        duration: 600,
+        topChatters: [{ name: 'kani_dev', count: 3 }],
+      };
+      const wrapper = showWith(short);
+
+      await flushPromises();
+
+      expect(sectionKeys(wrapper)).toEqual(['chatters']);
+      expect(wrapper.find('.recap').attributes('data-motion')).toBe('roll');
+      expect(wrapper.findAll('.roll .track')).toHaveLength(2);
+    });
+
+    it('stops the roll and shows a plain list for prefers-reduced-motion', async () => {
+      vi.stubGlobal('matchMedia', (media: string) => ({
+        matches: true,
+        media,
+        addEventListener: () => {},
+        removeEventListener: () => {},
+      }));
+
+      const wrapper = showWith(full);
+
+      await flushPromises();
+
+      expect(wrapper.find('.recap').attributes('data-motion')).toBe('reduced');
+      expect(wrapper.find('.roll').attributes('style') ?? '').not.toContain('--roll-seconds');
+      expect(wrapper.findAll('.roll .track')).toHaveLength(1);
+      expect(sectionKeys(wrapper)).toContain('chatters');
+    });
+
+    it('holds still for a still image when roll is off, showing the header and the top of the list', async () => {
+      const wrapper = showWith(full, { roll: false });
+
+      await flushPromises();
+
+      expect(wrapper.find('.recap').attributes('data-motion')).toBe('still');
+      expect(wrapper.find('.roll').attributes('style') ?? '').not.toContain('--roll-seconds');
+      expect(wrapper.findAll('.roll .track')).toHaveLength(1);
+      expect(sectionKeys(wrapper)[0]).toBe('chatters');
+    });
+
+    it('closes each pass with the general thank-you line', async () => {
+      const wrapper = showWith(full);
+
+      await flushPromises();
+
+      expect(wrapper.find('.track:first-child .thanks').text()).toBe(
+        'Thanks for watching! You spent 14 hours with us.',
+      );
+
+      expect(wrapper.text()).not.toContain('coding, tunes and vibes');
+    });
+
+    it('lets a channel keep its own thank-you line through the thanks label', async () => {
+      const wrapper = showWith(full, {
+        labels: { thanks: 'Thank you for {duration} of coding, tunes and vibes.' },
+      });
+
+      await flushPromises();
+
+      expect(wrapper.find('.track:first-child .thanks').text()).toBe(
+        'Thank you for 14 hours of coding, tunes and vibes.',
+      );
+    });
+
+    it('never asks anyone to subscribe or follow', async () => {
+      const wrapper = showWith(full);
+
+      await flushPromises();
+
+      expect(wrapper.text()).not.toMatch(/subscribe now|follow us|follow me|don't forget to/i);
+    });
+
+    it('switches to the card grid with layout grid, with every old card from the same recap', async () => {
+      const wrapper = showWith(full, { layout: 'grid' });
+
+      await flushPromises();
+      const blocks: string[] = wrapper
+        .findAll('.grid [data-block]')
+        .map((b) => b.attributes('data-block') ?? '');
+
+      expect(wrapper.find('.recap').attributes('data-layout')).toBe('grid');
+      expect(wrapper.find('.roll').exists()).toBe(false);
+      expect(wrapper.find('svg.logo').exists()).toBe(true);
+
+      expect(blocks).toEqual([
+        'subs',
+        'raids',
+        'chatters',
+        'songs',
+        'bits',
+        'followers',
+        'redemptions',
+        'topCommands',
+      ]);
+
+      expect(wrapper.findAll('img.watermark')).toHaveLength(1);
+
+      expect(wrapper.find('header .thanks').text()).toBe(
+        'Thanks for watching! You spent 14 hours with us.',
+      );
+    });
+
+    it('keeps the default layout when the layout setting is not one of the two', async () => {
+      const wrapper = showWith(full, { layout: 'carousel' });
+
+      await flushPromises();
+
+      expect(wrapper.find('.recap').attributes('data-layout')).toBe('credits');
+    });
+  });
+
+  describe('look settings of the same widget (hueByDay, accentColor, timeZone)', () => {
+    const base = (wrapper: VueWrapper): string =>
+      /--base: ([^;]+)/.exec(wrapper.find('.recap').attributes('style') ?? '')?.[1] ?? '';
+    const day = (iso: string) => ({ ...fixture, stream: { ...fixture.stream, startedAt: iso } });
+
+    it('uses one neutral hue every day when hueByDay is off, and the day rainbow when it is on', async () => {
+      const first = showWith(day('2026-10-01T10:00:00Z'));
+      const fifteenth = showWith(day('2026-10-15T10:00:00Z'));
+
+      await flushPromises();
+      expect(base(first)).toBe(base(fifteenth));
+
+      const rainbowFirst = showWith(day('2026-10-01T10:00:00Z'), { hueByDay: true });
+      const rainbowFifteenth = showWith(day('2026-10-15T10:00:00Z'), { hueByDay: true });
+
+      await flushPromises();
+      expect(base(rainbowFirst)).not.toBe(base(rainbowFifteenth));
+      expect(base(rainbowFirst)).not.toBe(base(first));
+    });
+
+    it('colors the accent from accentColor and leaves the neutral accent when it is empty', async () => {
+      const own = showWith(fixture, { accentColor: '#22aa66' });
+      const neutral = showWith(fixture);
+
+      await flushPromises();
+
+      expect(own.find('.recap').attributes('style')).toContain('--accent: #22aa66');
+      expect(neutral.find('.recap').attributes('style')).not.toContain('--accent');
+    });
+
+    it('reads the date in the time zone of the setting', async () => {
+      const lateEvening = day('2026-10-15T23:30:00Z');
+      const tokyo = showWith(lateEvening, { timeZone: 'Asia/Tokyo' });
+      const losAngeles = showWith(lateEvening, { timeZone: 'America/Los_Angeles' });
+
+      await flushPromises();
+
+      expect(tokyo.find('.date').text()).toBe('Oct 16, 2026');
+      expect(losAngeles.find('.date').text()).toBe('Oct 15, 2026');
+    });
+
+    it('reads the date in the browser time zone when the setting is empty or not a zone', async () => {
+      const lateEvening = day('2026-10-15T23:30:00Z');
+      const here = new Intl.DateTimeFormat('en-US', { dateStyle: 'medium' }).format(
+        new Date(lateEvening.stream.startedAt),
+      );
+      const empty = showWith(lateEvening, { timeZone: '' });
+      const broken = showWith(lateEvening, { timeZone: 'Mars/Olympus' });
+
+      await flushPromises();
+
+      expect(empty.find('.date').text()).toBe(here);
+      expect(broken.find('.date').text()).toBe(here);
+    });
+
+    it('moves the roll up by one column per pass, and only while the motion is roll', () => {
+      const source = readFileSync(
+        resolve(
+          __dirname,
+          '../../../server/src/NomNomzBot.Infrastructure/Content/Widgets/Assets/raid_recap.vue',
+        ),
+        'utf8',
+      );
+      const rolling = /\.recap\[data-motion='roll'\] \.roll\s*\{([^}]*)\}/.exec(source)?.[1] ?? '';
+      const keyframes = /@keyframes roll\s*\{(.*)\}\s*\n/.exec(source)?.[1] ?? '';
+
+      expect(rolling).toContain('animation: roll var(--roll-seconds) linear infinite');
+      expect(keyframes).toContain('translateY(-50%)');
+      expect(source.match(/animation:/g)).toHaveLength(1);
+    });
+
+    it('no longer fixes the recap to Europe/Amsterdam', () => {
+      const source = readFileSync(
+        resolve(
+          __dirname,
+          '../../../server/src/NomNomzBot.Infrastructure/Content/Widgets/Assets/raid_recap.vue',
+        ),
+        'utf8',
+      );
+
+      expect(source).not.toContain('Europe/Amsterdam');
     });
   });
 

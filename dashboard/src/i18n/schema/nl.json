@@ -3203,9 +3203,21 @@
       "holdSeconds": {
         "label": "Toontijd (seconden)"
       },
+      "hueByDay": {
+        "help": "Aan: de kleur volgt de dag van de maand, een kleur voor elk van de 31 dagen. Uit: het overzicht gebruikt de accentkleur, of een rustige standaardkleur.",
+        "label": "Kleur per dag"
+      },
       "labels": {
         "help": "De woorden op het scherm, als JSON. Sleutels zoals title, kpi.duration en block.subs.",
         "label": "Teksten"
+      },
+      "layout": {
+        "help": "Aftiteling laat een lijst omhoog rollen en herhaalt, zoals een eindscherm. Kaarten toont het overzicht als een raster van kaarten.",
+        "label": "Indeling",
+        "option": {
+          "credits": "Aftiteling",
+          "grid": "Kaarten"
+        }
       },
       "metrics": {
         "label": "Streamcijfers om te lezen",
@@ -3225,6 +3237,14 @@
           "subs": "Abonnementen",
           "topChatters": "Meeste chatters"
         }
+      },
+      "roll": {
+        "help": "Zet dit uit om de bovenkant van de lijst stil te houden. Kijkers die minder beweging willen, krijgen altijd een stilstaande lijst.",
+        "label": "Aftiteling laten rollen"
+      },
+      "rollSeconds": {
+        "help": "Hoe lang één ronde van de aftiteling duurt, van 10 tot 300 seconden. Een langere tijd rolt langzamer.",
+        "label": "Rolltijd (seconden)"
       },
       "showBits": {
         "label": "Bits tonen"
@@ -3249,6 +3269,10 @@
       },
       "showTopCommands": {
         "label": "Meest gebruikte commando's tonen"
+      },
+      "timeZone": {
+        "help": "Een tijdzonenaam zoals Europe/Amsterdam of America/New_York. Laat leeg om de tijdzone van de kijker te gebruiken.",
+        "label": "Tijdzone"
       }
     },
     "recent_followers": {

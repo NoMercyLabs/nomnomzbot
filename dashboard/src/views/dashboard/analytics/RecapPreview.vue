@@ -26,7 +26,7 @@ type Handler = (data: { stream: { id: string } }) => void;
 
 // The part of the overlay host's `NomNomz` this widget uses.
 type Host = {
-  onSettings: (callback: (settings: { holdSeconds: number }) => void) => void;
+  onSettings: (callback: (settings: { holdSeconds: number; roll: boolean }) => void) => void;
   on: (type: string, callback: Handler) => void;
   off: (type: string) => void;
   data: { streamStats: () => Promise<StreamRecap['stats']> };
@@ -38,8 +38,9 @@ const previous = scope.NomNomz;
 // The widget hides itself after its hold; a saved recap stays up for as long as the page is open.
 const HOLD_SECONDS = 86_400;
 
+// A preview and its PNG are a still: the credits layout holds the header and the top of the list instead of rolling.
 scope.NomNomz = {
-  onSettings: (callback) => callback({ holdSeconds: HOLD_SECONDS }),
+  onSettings: (callback) => callback({ holdSeconds: HOLD_SECONDS, roll: false }),
   on: (type, callback) => {
     handlers[type] = callback;
   },

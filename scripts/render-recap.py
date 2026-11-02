@@ -12,7 +12,7 @@
 """The only way to make a recap image, and it refuses to write one that breaks the spec.
 
 Steps: read the stored recap from the box, render the committed raid_recap.vue with exactly that payload in
-headless Chrome, check the rendered page against .claude/docs/design/spec/raid-recap.md section 4.1, and write
+headless Chrome, check the rendered page against .claude/docs/design/spec/raid-recap.md section 4.4 and 4.5 (the grid layout, Stoney's own look), and write
 the PNG only when every check passes. Otherwise it prints each failed check and exits 1.
 
   python scripts/render-recap.py --out recap.png                    newest stored recap
@@ -187,7 +187,7 @@ let settingsCb: (s: unknown) => void = () => {}
 }
 
 createApp(Recap).mount('#app')
-settingsCb({ labels: payload.labels, holdSeconds: 600 })
+settingsCb({ labels: payload.labels, holdSeconds: 600, layout: 'grid', hueByDay: true, timeZone: 'Europe/Amsterdam' })
 handlers['raid_recap.show']({ stream: { id: payload.stats.stream.id } })
 """
 

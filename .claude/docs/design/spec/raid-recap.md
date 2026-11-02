@@ -78,21 +78,88 @@ Privacy: chatter names appear only for people who gave a public Twitch name in c
 
 ## 4. Design
 
-One system widget, `raid_recap`, shown full scene (1920x1080 browser source). Stat cards in a fixed grid, grouped by importance:
+One system widget, `raid_recap`, shown full scene (1920x1080 browser source). It has two layouts. The `layout` setting picks one. Both layouts show the same data from the same API call.
 
-1. Headline row: duration, peak viewers, new followers, new subs (all kinds), bits.
-2. Thanks row: gifters (name and count), top cheerers, raiders in, top chatters.
-3. Channel row: redemptions, songs played, chat messages, unique chatters.
+Stoney, verbatim, 2026-11-02: "this is an issue tho, both because we have my personal after stream report being forced upon everyone and also that my logo does not show in the downloaded image. this needs to be a more general default with a scrolling list like many streamers have as their end screen. this should be an easy to edit default overlay."
 
-Rules for the card look: shadcn new-york tokens, concentric radius, one accent only on the headline row. No buttons (it is an overlay). The sleak skill is loaded before S3 (UI slice).
+Benchmark rows 1, 2 and 4 (Streamlabs End Credits, Streamer.bot Credits, StreamElements) all show a vertical list of names by group. The default layout now does the same.
+
+### 4.1 The default: `credits`
+
+The screen has two parts.
+
+1. A fixed header. It shows the channel avatar (if the channel has one), the title, the channel name, the date and the time live.
+2. A credits roll below it. The roll is one column of sections. Each section is a heading and a list of names.
+
+The sections, in this order. A section with no data is gone.
+
+1. Top chatters, with counts.
+2. Subscriptions: gifters with their counts, then people who subscribed themselves.
+3. New followers.
+4. Raids in, with viewers.
+5. Redemptions.
+6. Song requests.
+7. Bits.
+8. Top commands.
+9. The hype train line, only when a train ended during the stream.
+10. The thank-you line, which closes every pass.
+
+How it moves:
+- The column rolls upward at a steady speed and loops. The loop is the same column twice, so no jump shows.
+- `rollSeconds` sets the time of one pass. Default 40. The value is held between 10 and 300.
+- A short list still rolls. A gap follows the list before the loop starts. The screen is never static.
+- `prefers-reduced-motion` stops the roll. The sections show as a plain list that the viewer scrolls by hand.
+- `roll` turned off holds the top of the list still. The dashboard preview and the downloaded PNG use this. The PNG is a still of the header and the first screenful.
+
+How it looks:
+- A neutral dark background. White text. No cards.
+- One accent color, on one line: the time live. Nothing else uses it.
+- The avatar is a circle. No rounded box sits inside another, so the concentric radius rule has nothing to break.
+- No buttons. The overlay is not interactive.
+
+### 4.2 Settings
+
+Every visible word is a label key. Every look knob is a setting with a default in the catalogue and a title in the settings editor. No number is hidden in the code.
+
+| Setting | Default | What it does |
+|---|---|---|
+| `layout` | `credits` | `credits` is the rolling list. `grid` is the card grid of section 4.4. |
+| `holdSeconds` | 60 | How long the recap stays, then it fades. |
+| `rollSeconds` | 40 | One pass of the roll, 10 to 300 seconds. |
+| `roll` | on | Off holds the first screenful still. |
+| `hueByDay` | off | On: the color is the day-of-month rainbow (31 steps). Off: one neutral color. |
+| `accentColor` | empty | The accent color. Empty uses the neutral color. |
+| `timeZone` | empty | An IANA zone name. Empty uses the viewer's own time zone. |
+| `showSubs`, `showRaids`, `showChatters`, `showSongs`, `showBits`, `showFollowers`, `showRedemptions`, `showTopCommands` | on | One switch per section. |
+| `metrics` | all | The numbers the widget reads. |
+| `labels` | English words | The words on the screen. |
+
+The default `thanks` line is general: "Thanks for watching! You spent {duration} with us." A channel that wants its own words sets the `thanks` label in its own settings. The words "coding, tunes and vibes" belong to Stoney's channel only.
+
+A stored widget with no `layout` key gets `credits`. This is the intended new default for every channel.
+
+### 4.3 How to edit it
+
+The widget file is small and has five parts, each with one short comment: settings, data, sections, cards, styles. To change the words, change a label. To change the look, change a setting. To change the type sizes, change the variables at the top of the credits styles.
+
+### 4.4 The `grid` layout (Stoney's personal look)
+
+Stoney's own recap stays available as `layout: grid`, with `hueByDay` on and `timeZone` set to `Europe/Amsterdam`. Nothing in it was removed. Stat cards sit in a 12-column grid, grouped by importance:
+
+1. Headline row: duration, peak viewers, messages, commands run.
+2. Data cards: subscriptions, raids, chatters, songs, bits, followers, redemptions, top commands.
+
+Rules for the card look: shadcn new-york tokens, concentric radius, one accent only on the headline row. No buttons (it is an overlay).
 
 An empty card is hidden, not shown as zero with a made-up note. A stat the bot could not read shows a dash.
 
-Timing: appears on the "Raid committed" signal. Holds `holdSeconds` (default 20, setting). Then fades. A new stream clears it.
+Timing: appears on the "Raid committed" signal. Holds `holdSeconds`. Then fades. A new stream clears it.
 
 Nothing on the screen asks to subscribe or follow.
 
-### 4.1 Owner feedback on the preview (2026-10-16)
+### 4.5 Owner feedback on the preview (2026-10-16)
+
+This history shaped the `grid` layout.
 
 Stoney, verbatim: "Some small changes for the end credits like who subbed themselves, a top leader board for what commands and such bit it's nice. It does not need to be static, so use scrolling lists that repeat to your hearts content"
 
@@ -173,6 +240,6 @@ Each slice is one vertical piece with a test that can fail for the right reason.
 - S3 The widget. `raid_recap.vue`, catalogue entry, system-surface key, settings schema, translation keys in English and Dutch, empty-block hiding. Done when: a Vitest mount test renders every block from a fixture DTO, hides empty blocks, shows a dash for a missing stat, contains no subscribe text, and honors `holdSeconds`; `compileKotlinWasmJs` not needed (server widget).
 - S4 Pipeline action and seeder. `show_raid_recap` action, first step in `RaidCommitFlowSeeder`, platform content version bump. Done when: a test runs the action and asserts the exact `raid_recap.show` event and payload reach the notifier; the seeder test asserts the new step is first, and that a customized pipeline is left unchanged.
 - S5 Live proof on the dev box. A throwaway channel row (never a real channel), one fake raid-out event through the real hub, a screenshot of the browser source. Done when: the screenshot shows the real numbers matching the endpoint; the throwaway row is deleted and the delete confirmed by a read.
-- S6 Ending scene (decided 2026-10-16, §4.1): `!raid` shows the recap as the ending scene. Covered by S4; the open point in §7 (hold before the OBS stop) is answered by the streamer's own wait step.
+- S6 Ending scene (decided 2026-10-16, §4.5): `!raid` shows the recap as the ending scene. Covered by S4; the open point in §7 (hold before the OBS stop) is answered by the streamer's own wait step.
 
 Not checked in this run: whether `MusicHistoryReader.GetRecentAsync` takes a time window; the exact current widget event names in `NnzWidgetEventMap`; the Streamer.bot and StreamElements page bodies in a real browser.
