@@ -42,37 +42,14 @@ internal sealed class ObsAudioInputOptionProvider : IPipelineOptionProvider
     {
         Result<IReadOnlyList<ObsInputDto>> inputs = await _obs.GetInputsAsync(broadcasterId, ct);
         if (inputs.IsFailure)
-            return Result.Success(PipelineOptionListResult.Unavailable(inputs.ErrorMessage!));
+            return ObsOptionPage.Unavailable(inputs.ErrorMessage!);
 
-        IEnumerable<ObsInputDto> audio = inputs.Value.Where(i => i.Muted is not null);
-        if (request.IsValueLookup)
-            audio = audio.Where(i => i.Name == request.Value);
-        else if (!string.IsNullOrWhiteSpace(request.Search))
-            audio = audio.Where(i =>
-                i.Name.Contains(request.Search, StringComparison.OrdinalIgnoreCase)
-            );
-
-        List<ObsInputDto> matches =
-        [
-            .. audio.OrderBy(i => i.Name, StringComparer.OrdinalIgnoreCase),
-        ];
-        List<PipelineOption> page =
-        [
-            .. matches
-                .Skip((request.Pagination.Page - 1) * request.Pagination.PageSize)
-                .Take(request.Pagination.PageSize)
-                .Select(ToOption),
-        ];
-
-        return Result.Success(PipelineOptionListResult.Of(page, matches.Count));
+        return ObsOptionPage.Of(
+            inputs.Value.Where(i => i.Muted is not null).Select(ToOption),
+            request
+        );
     }
 
     private static PipelineOption ToOption(ObsInputDto input) =>
-        new(
-            input.Name,
-            input.Name,
-            input.Muted == true ? "muted" : "live",
-            ImageUrl: null,
-            PipelineOptionState.Selectable
-        );
+        ObsOptionPage.Named(input.Name, input.Muted == true ? "muted" : "live");
 }

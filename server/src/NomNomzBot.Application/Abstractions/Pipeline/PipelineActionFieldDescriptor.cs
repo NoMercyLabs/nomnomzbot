@@ -48,6 +48,24 @@ public enum PipelineActionFieldKind
     /// <summary>One audio input of the connected OBS (an input that has a mute state), picked by name; the saved value is the input name OBS addresses it by.</summary>
     ObsAudioInput,
 
+    /// <summary>One scene of the connected OBS, picked by name; the saved value is the scene name OBS addresses it by.</summary>
+    ObsScene,
+
+    /// <summary>One source placed in a scene of the connected OBS, picked by name. A sibling <c>scene</c> field narrows the list to that scene; the saved value is the source name.</summary>
+    ObsSceneItem,
+
+    /// <summary>One filter on a source of the connected OBS, picked by name. A sibling <c>source</c> field narrows the list to that source; the saved value is the filter name.</summary>
+    ObsFilter,
+
+    /// <summary>One scene transition of the connected OBS, picked by name; the saved value is the transition name.</summary>
+    ObsTransition,
+
+    /// <summary>Any input of the connected OBS (audio, media, browser, image), picked by name; the saved value is the input name.</summary>
+    ObsInput,
+
+    /// <summary>One hotkey OBS knows about, picked by name; the saved value is the hotkey name OBS fires it by.</summary>
+    ObsHotkey,
+
     /// <summary>
     /// A labelled name→value map (S-PIPE-TREE-d2b(a)) — the builder renders one labelled field per
     /// declared name instead of an unlabelled positional list. Used by <c>run_pipeline</c>'s
@@ -139,6 +157,12 @@ public static class PipelineActionFieldKindExtensions
             PipelineActionFieldKind.KeyValueMap => "key_value_map",
             PipelineActionFieldKind.TwitchReward => "twitch_reward",
             PipelineActionFieldKind.ObsAudioInput => "obs_audio_input",
+            PipelineActionFieldKind.ObsScene => "obs_scene",
+            PipelineActionFieldKind.ObsSceneItem => "obs_scene_item",
+            PipelineActionFieldKind.ObsFilter => "obs_filter",
+            PipelineActionFieldKind.ObsTransition => "obs_transition",
+            PipelineActionFieldKind.ObsInput => "obs_input",
+            PipelineActionFieldKind.ObsHotkey => "obs_hotkey",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, message: null),
         };
 
