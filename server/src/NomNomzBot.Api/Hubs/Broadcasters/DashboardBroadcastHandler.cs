@@ -137,6 +137,13 @@ public sealed class ChatMessageBroadcastHandler
 
         await _notifier.SendChatMessageAsync(evt.BroadcasterId.ToString(), dto, ct);
 
+        // Hints are for the streamer's and moderators' dashboard only: an OBS browser source is a public link, and
+        // a viewer must never see how the streamer's tools mark a chatter.
+        DashboardChatMessageDto publicDto = dto with
+        {
+            Hints = null,
+        };
+
         // Overlays (OBS browser sources) subscribe to the generic overlay feed, which otherwise carries the
         // RAW journaled ChatMessageReceivedEvent — a receive-side event with none of the render data a chat
         // widget needs (resolved emote/badge image urls, structured fragments, colour, avatar, pronouns). Push
@@ -144,7 +151,7 @@ public sealed class ChatMessageBroadcastHandler
         // build a fully-styled bubble. OverlayEventFilter drops the raw duplicate so the widget sees only this.
         await _widgets.BroadcastOverlayEventAsync(
             evt.BroadcasterId.ToString(),
-            new("ChatMessage", JsonSerializer.Serialize(dto, OverlayWireJson.Options)),
+            new("ChatMessage", JsonSerializer.Serialize(publicDto, OverlayWireJson.Options)),
             ct
         );
 
@@ -157,7 +164,7 @@ public sealed class ChatMessageBroadcastHandler
             _widgets,
             evt.BroadcasterId,
             "ChatMessage",
-            dto,
+            publicDto,
             // Never routes to the alert queue — chat volume is excluded from CaptureAsync already; it was
             // never a candidate for the on-air alert queue either.
             excludeWidgetId: null,
@@ -167,9 +174,6 @@ public sealed class ChatMessageBroadcastHandler
         );
     }
 
-    // Same channel-wide prefix ChatMessageHandler's hot-path command parse checks (Channel.CommandPrefix,
-    // default "!") — was hardcoded false here, so chat_box.vue's hideCommands fell back to a literal "!"
-    // check that missed every channel running a custom prefix.
     // The live line's hints come from the same service as history, so the two always agree. A failed lookup must
     // never cost the chat line itself, so it degrades to "no hints".
     private async Task<ChatHintsDto?> ResolveHintsAsync(
@@ -205,6 +209,9 @@ public sealed class ChatMessageBroadcastHandler
         }
     }
 
+    // Same channel-wide prefix ChatMessageHandler's hot-path command parse checks (Channel.CommandPrefix,
+    // default "!") — was hardcoded false here, so chat_box.vue's hideCommands fell back to a literal "!"
+    // check that missed every channel running a custom prefix.
     private bool IsCommandMessage(Guid broadcasterId, string message) =>
         !string.IsNullOrEmpty(message)
         && message.StartsWith(

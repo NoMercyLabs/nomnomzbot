@@ -30,20 +30,17 @@ public static class ChatHistoryMapper
         IApplicationDbContext db,
         IChatMessageDecorator decorator,
         IHubUserEnricher enricher,
-        IChatHintService hintService,
+        IChatHintService? hintService,
         Guid broadcasterId,
         string channelId,
         IReadOnlyList<ChatMessage> rows,
         CancellationToken ct
     )
     {
-        IReadOnlyDictionary<string, ChatHints> hints = await ResolveHintsAsync(
-            db,
-            hintService,
-            broadcasterId,
-            rows,
-            ct
-        );
+        // Null for a viewer or an overlay: hints are for the streamer's and moderators' dashboard only.
+        IReadOnlyDictionary<string, ChatHints> hints = hintService is null
+            ? new Dictionary<string, ChatHints>()
+            : await ResolveHintsAsync(db, hintService, broadcasterId, rows, ct);
         // One lookup for the channel's Twitch id so the third-party emote adapters match this channel's OWN emote
         // set (chat-decoration spec §3.2). Empty when the channel row is missing: decoration then falls back to
         // global-only sets, like the live hub path on an unknown channel.

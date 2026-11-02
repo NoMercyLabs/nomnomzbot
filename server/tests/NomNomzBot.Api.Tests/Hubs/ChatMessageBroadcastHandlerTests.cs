@@ -84,6 +84,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>())
             .Returns(new DecoratedChatMessage { Fragments = [] });
         await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
         await using ChatControllerTestDbContext chatDb = ChatControllerTestDbContext.New();
         Guid channel = Guid.CreateVersion7();
         DateTimeOffset now = DateTimeOffset.UtcNow;
@@ -109,7 +110,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             decorator,
             Substitute.For<IHubUserEnricher>(),
             Substitute.For<ISevenTvUserPaintResolver>(),
-            Substitute.For<IWidgetNotifier>(),
+            widgets,
             db,
             TimeProvider.System,
             Substitute.For<IChannelRegistry>(),
@@ -118,6 +119,18 @@ public sealed class ChatMessageBroadcastHandlerTests
 
         await handler.HandleAsync(Event(channel, messageId: "n1", userId: "newcomer"));
         await handler.HandleAsync(Event(channel, messageId: "v1", userId: "veteran"));
+
+        // The OBS overlay feed is a public link: it never carries the streamer's hints.
+        await widgets
+            .Received(2)
+            .BroadcastOverlayEventAsync(
+                channel.ToString(),
+                Arg.Is<OverlayEventDto>(e =>
+                    e.Type == "ChatMessage"
+                    && !e.Payload.Contains("firstEver", StringComparison.OrdinalIgnoreCase)
+                ),
+                Arg.Any<CancellationToken>()
+            );
 
         await notifier
             .Received(1)

@@ -32,7 +32,6 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
-using NomNomzBot.Infrastructure.Chat;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -66,8 +65,7 @@ public sealed class ViewerChatTests
             Substitute.For<IHubUserEnricher>(),
             currentUser,
             sender,
-            Substitute.For<IChatEmoteCatalogue>(),
-            new ChatHintService(db)
+            Substitute.For<IChatEmoteCatalogue>()
         );
     }
 
@@ -160,6 +158,24 @@ public sealed class ViewerChatTests
         StatusResponseDto<List<DashboardChatMessageDto>> body =
             (StatusResponseDto<List<DashboardChatMessageDto>>)((OkObjectResult)result).Value!;
         body.Data!.Select(m => m.Id).Should().Equal("m1", "m3");
+    }
+
+    [Fact]
+    public async Task Recent_chat_carries_no_hints_for_a_viewer()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        db.ChatMessages.Add(Row("m1", 0, deleted: false));
+        await db.SaveChangesAsync();
+        ViewerChatController controller = BuildController(
+            db,
+            Substitute.For<IOperatorChatSender>()
+        );
+
+        IActionResult result = await controller.GetMessages(Channel.ToString());
+
+        StatusResponseDto<List<DashboardChatMessageDto>> body =
+            (StatusResponseDto<List<DashboardChatMessageDto>>)((OkObjectResult)result).Value!;
+        body.Data!.Single().Hints.Should().BeNull();
     }
 
     private static Domain.Chat.Entities.ChatMessage Row(string id, int second, bool deleted) =>
@@ -392,5 +408,60 @@ public sealed class ViewerChatTests
         await notifier.SendChatMessageAsync(Channel.ToString(), line);
 
         await viewer.Received(1).ChatMessage(line);
+    }
+
+    [Fact]
+    public async Task A_chat_line_keeps_its_hints_for_operators_and_loses_them_for_viewers()
+    {
+        IHubContext<DashboardHub, IDashboardClient> hub = Substitute.For<
+            IHubContext<DashboardHub, IDashboardClient>
+        >();
+        IHubClients<IDashboardClient> clients = Substitute.For<IHubClients<IDashboardClient>>();
+        IDashboardClient operatorClient = Substitute.For<IDashboardClient>();
+        IDashboardClient viewer = Substitute.For<IDashboardClient>();
+        clients
+            .Group(DashboardEventClasses.ClassGroup(Channel.ToString(), "chat"))
+            .Returns(operatorClient);
+        clients.Group($"viewer-chat:{Channel}").Returns(viewer);
+        hub.Clients.Returns(clients);
+        DashboardNotifier notifier = new(hub, TimeProvider.System);
+        DashboardChatMessageDto line = new(
+            "m1",
+            Channel.ToString(),
+            "u1",
+            "Viewer1",
+            "viewer1",
+            "hi",
+            [],
+            "viewer",
+            false,
+            false,
+            false,
+            false,
+            false,
+            false,
+            [],
+            0,
+            null,
+            "text",
+            null,
+            null,
+            null,
+            "2026-10-16T12:00:00Z",
+            Hints: new(true, true, true, "2026-10-30T08:00:00.0000000Z")
+        );
+
+        await notifier.SendChatMessageAsync(Channel.ToString(), line);
+
+        await operatorClient
+            .Received(1)
+            .ChatMessage(
+                Arg.Is<DashboardChatMessageDto>(dto => dto.Hints != null && dto.Hints.FirstEver)
+            );
+        await viewer
+            .Received(1)
+            .ChatMessage(
+                Arg.Is<DashboardChatMessageDto>(dto => dto.Hints == null && dto.Id == "m1")
+            );
     }
 }

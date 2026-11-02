@@ -48,7 +48,6 @@ public class ViewerChatController : BaseController
     private readonly ICurrentUserService _currentUser;
     private readonly IOperatorChatSender _sender;
     private readonly IChatEmoteCatalogue _emoteCatalogue;
-    private readonly IChatHintService _hints;
 
     public ViewerChatController(
         IApplicationDbContext db,
@@ -56,14 +55,12 @@ public class ViewerChatController : BaseController
         IHubUserEnricher enricher,
         ICurrentUserService currentUser,
         IOperatorChatSender sender,
-        IChatEmoteCatalogue emoteCatalogue,
-        IChatHintService hints
+        IChatEmoteCatalogue emoteCatalogue
     )
     {
         _db = db;
         _decorator = decorator;
         _enricher = enricher;
-        _hints = hints;
         _currentUser = currentUser;
         _sender = sender;
         _emoteCatalogue = emoteCatalogue;
@@ -100,7 +97,7 @@ public class ViewerChatController : BaseController
             _db,
             _decorator,
             _enricher,
-            _hints,
+            null,
             broadcasterId,
             channelId,
             rows,

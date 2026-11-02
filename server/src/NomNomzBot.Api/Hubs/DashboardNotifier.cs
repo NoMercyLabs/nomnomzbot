@@ -178,7 +178,9 @@ public class DashboardNotifier : IDashboardNotifier
     ) =>
         Task.WhenAll(
             ClassGroup(broadcasterId, DashboardEventClasses.Chat).ChatMessage(dto),
-            _hub.Clients.Group(ViewerChatEvents.Group(broadcasterId)).ChatMessage(dto)
+            // Hints are for the streamer and moderators only, never for viewers (Twitch's own rule for chat highlights).
+            _hub.Clients.Group(ViewerChatEvents.Group(broadcasterId))
+                .ChatMessage(dto with { Hints = null })
         );
 
     public Task SendCommandExecutedAsync(
