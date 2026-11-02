@@ -1194,6 +1194,50 @@ describe('CommandsView new command', () => {
     expect(document.body.querySelector('[role="dialog"]')).toBeNull();
   });
 
+  async function fillTemplate(): Promise<void> {
+    await open();
+    await openDialog();
+
+    await type(document.body.querySelector<HTMLInputElement>('[data-new-name]')!, 'welcome');
+
+    await type(
+      document.body.querySelector<HTMLTextAreaElement>('[role="dialog"] textarea')!,
+      'Welcome in',
+    );
+  }
+
+  it('shows the reply delivery field in the new command dialog for a text reply', async () => {
+    await open();
+    await openDialog();
+
+    expect(document.body.querySelector('[role="dialog"] [data-reply-delivery]')).not.toBeNull();
+  });
+
+  it('sends plain Twitch chat as the delivery when the new command dialog leaves it untouched', async () => {
+    await fillTemplate();
+
+    document.body.querySelector<HTMLButtonElement>('[data-form-action]')!.click();
+    await settle();
+
+    expect(writes('POST')[0]!.body).toMatchObject({
+      tier: 'template',
+      replyDelivery: { target: 'chat', html: false },
+    });
+  });
+
+  it('sends the chosen delivery from the new command dialog', async () => {
+    await fillTemplate();
+
+    buttonByText('Chat overlay', document.body.querySelector('[role="dialog"]')!).click();
+    await settle();
+    document.body.querySelector<HTMLButtonElement>('[data-form-action]')!.click();
+    await settle();
+
+    expect(writes('POST')[0]!.body).toMatchObject({
+      replyDelivery: { target: 'overlay', html: false },
+    });
+  });
+
   it('keeps the dialog open and shows the bot message when the name is taken', async () => {
     refusePost = 'A command named hello already exists';
     await open();

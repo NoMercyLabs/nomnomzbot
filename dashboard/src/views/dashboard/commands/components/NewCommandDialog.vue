@@ -14,6 +14,12 @@ import { computed, ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useCreateCommand, type NewCommand } from '@/api/commands';
+import ReplyDeliveryField from '@/components/layout/ReplyDeliveryField.vue';
+import {
+  deliveryToSave,
+  plainDelivery,
+  type ReplyDelivery,
+} from '@/components/layout/replyMode';
 import TargetPicker from '@/components/layout/TargetPicker.vue';
 import type { PickedTarget } from '@/lib/bindingTarget';
 import FormDialog from '@/components/layout/FormDialog.vue';
@@ -50,6 +56,7 @@ const reply = ref('');
 const replies = ref<string[]>(['']);
 const pipelineTarget = ref<PickedTarget | null>(null);
 const codeScriptId = ref('');
+const delivery = ref<ReplyDelivery>({ ...plainDelivery });
 const prefixMode = ref<PrefixMode>('Default');
 const customPrefix = ref('');
 const matchMode = ref<MatchMode>('StartsWith');
@@ -65,12 +72,16 @@ watch(open, (isOpen: boolean): void => {
   replies.value = [''];
   pipelineTarget.value = null;
   codeScriptId.value = '';
+  delivery.value = { ...plainDelivery };
   prefixMode.value = 'Default';
   customPrefix.value = '';
   matchMode.value = 'StartsWith';
   matchPattern.value = '';
   error.value = undefined;
 });
+
+// Where the reply goes belongs to a text reply; a pipeline or a script sends through its own step.
+const textReply = computed<boolean>(() => kind.value === 'template' || kind.value === 'random');
 
 const triggerOk = computed<boolean>(
   () =>
@@ -117,6 +128,9 @@ function bodyOf(clean: string) {
   return {
     name: clean,
     ...replyOf(),
+    ...(textReply.value
+      ? { replyDelivery: deliveryToSave(delivery.value) }
+      : {}),
     ...triggerOf(),
   } as const satisfies NewCommand;
 }
@@ -216,6 +230,7 @@ async function submit(): Promise<void> {
         :label="$t('dashboard.commands.editor.pipeline')"
       />
     </Field>
+    <ReplyDeliveryField v-if="textReply" v-model="delivery" />
     <TriggerFields
       v-model:prefix-mode="prefixMode"
       v-model:custom-prefix="customPrefix"
