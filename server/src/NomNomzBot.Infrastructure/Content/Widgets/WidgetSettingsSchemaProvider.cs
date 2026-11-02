@@ -280,7 +280,18 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
             ],
             "raid_recap" =>
             [
+                SelectField(
+                    d,
+                    "layout",
+                    Appearance,
+                    Opts(d, "layout", "credits", "grid"),
+                    help: true
+                ),
                 NumberField(d, "holdSeconds", Behaviour, min: 1, max: 600, step: 1),
+                NumberField(d, "rollSeconds", Behaviour, min: 10, max: 300, step: 1, help: true),
+                Bool(d, "roll", Behaviour, help: true),
+                Bool(d, "hueByDay", Appearance, help: true),
+                Text(d, "timeZone", Content, help: true),
                 Bool(d, "showSubs", Content),
                 Bool(d, "showRaids", Content),
                 Bool(d, "showChatters", Content),
@@ -338,8 +349,10 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
     private static WidgetSettingsField Bool(
         FirstPartyWidgetDefinition d,
         string key,
-        LocalizedText group
-    ) => new(key, LabelKey(d, key), "bool", group, DefaultOf(d, key));
+        LocalizedText group,
+        bool help = false
+    ) =>
+        new(key, LabelKey(d, key), "bool", group, DefaultOf(d, key), help ? HelpKey(d, key) : null);
 
     private static WidgetSettingsField NumberField(
         FirstPartyWidgetDefinition d,
@@ -393,8 +406,18 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
         FirstPartyWidgetDefinition d,
         string key,
         LocalizedText group,
-        IReadOnlyList<WidgetSettingsFieldOption> options
-    ) => new(key, LabelKey(d, key), Select, group, DefaultOf(d, key), null, options);
+        IReadOnlyList<WidgetSettingsFieldOption> options,
+        bool help = false
+    ) =>
+        new(
+            key,
+            LabelKey(d, key),
+            Select,
+            group,
+            DefaultOf(d, key),
+            help ? HelpKey(d, key) : null,
+            options
+        );
 
     private static WidgetSettingsField Multi(
         FirstPartyWidgetDefinition d,

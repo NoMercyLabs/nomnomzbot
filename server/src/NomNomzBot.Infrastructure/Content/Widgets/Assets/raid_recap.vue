@@ -7,6 +7,127 @@ import { ref, reactive, computed, watch, nextTick, onMounted, onUnmounted } from
 // anything itself and its numbers cannot drift from the API. When the read fails it shows the event payload.
 // Every visible word comes from the `labels` setting (translated in the dashboard). A key the installed settings lack
 // falls back to DEFAULT_LABELS, the English words of the catalogue (a spec test keeps the two lists equal).
+//
+// Two layouts share the data: `credits` (the default: a header and a rolling list, like an end screen) and `grid`
+// (cards; Stoney's own look). The file reads top to bottom: settings, data, sections (credits), cards (grid), styles.
+
+// ── Settings: every look knob is a setting; its default is in the catalogue and the settings schema ──────────────
+
+type Layout = 'credits' | 'grid';
+
+const LAYOUTS = ['credits', 'grid'] as const satisfies readonly Layout[];
+const ROLL_SECONDS_MIN = 10;
+const ROLL_SECONDS_MAX = 300;
+// The neutral hue when hueByDay is off: the hue of the dashboard's brand color (--primary, tokens.css), about 262 in hsl.
+const NEUTRAL_HUE = 262;
+const REDUCED_MOTION = '(prefers-reduced-motion: reduce)';
+
+const DASH = '—';
+
+const DEFAULT_LABELS: Record<string, string> = {
+  title: 'Stream recap',
+  'kpi.duration': 'Time live',
+  'kpi.peak': 'Peak viewers',
+  'kpi.messages': 'Chat messages',
+  'kpi.commands': 'Commands run',
+  'block.subs': 'Subscriptions',
+  'block.raids': 'Raids in',
+  'block.chatters': 'Top chatters',
+  'block.songs': 'Song requests',
+  'block.bits': 'Bits',
+  'block.followers': 'New followers',
+  'block.redemptions': 'Redemptions',
+  'block.topCommands': 'Top commands',
+  'subs.gifted': 'Gifted',
+  'subs.own': 'Subscribed',
+  'raids.unit.one': 'raid',
+  'raids.unit.other': 'raids',
+  'viewers.unit.one': 'viewer',
+  'viewers.unit.other': 'viewers',
+  'chatters.unit.one': 'chatter',
+  'chatters.unit.other': 'chatters',
+  'songs.unit.one': 'request',
+  'songs.unit.other': 'requests',
+  'redemptions.unit': 'redeemed',
+  thanks: 'Thanks for watching! You spent {duration} with us.',
+  'hours.unit.one': 'hour',
+  'hours.unit.other': 'hours',
+  hypeTrain: 'Hype train reached level {level}.',
+};
+
+// Every metric the recap can show; the `metrics` setting picks a subset.
+const ALL_METRICS = [
+  'duration',
+  'peakViewers',
+  'followers',
+  'newFollowers',
+  'subs',
+  'gifters',
+  'selfSubs',
+  'bits',
+  'raidsIn',
+  'redemptions',
+  'songRequesters',
+  'chat',
+  'topChatters',
+  'commandsRun',
+] as const satisfies readonly NnzStreamMetricKey[];
+
+const cfg = reactive({
+  layout: 'credits' as Layout,
+  holdSeconds: 60,
+  hueByDay: false,
+  accentColor: '',
+  timeZone: '',
+  rollSeconds: 40,
+  roll: true,
+  showSubs: true,
+  showRaids: true,
+  showChatters: true,
+  showSongs: true,
+  showBits: true,
+  showFollowers: true,
+  showRedemptions: true,
+  showTopCommands: true,
+  metrics: [...ALL_METRICS] as NnzStreamMetricKey[],
+  labels: {} as Record<string, string>,
+});
+
+// An empty or unknown zone means the viewer's own browser time zone.
+function knownZone(value: string): string {
+  try {
+    new Intl.DateTimeFormat('en-US', { timeZone: value });
+    return value;
+  } catch {
+    return '';
+  }
+}
+
+function applySettings(s: Record<string, unknown>): void {
+  if (isFinite(Number(s.holdSeconds)) && Number(s.holdSeconds) > 0) cfg.holdSeconds = Number(s.holdSeconds);
+  if (LAYOUTS.some((layout) => layout === s.layout)) cfg.layout = s.layout as Layout;
+  if (typeof s.hueByDay === 'boolean') cfg.hueByDay = s.hueByDay;
+  if (typeof s.roll === 'boolean') cfg.roll = s.roll;
+  if (typeof s.accentColor === 'string') cfg.accentColor = s.accentColor;
+  if (typeof s.timeZone === 'string') cfg.timeZone = knownZone(s.timeZone);
+  if (typeof s.rollSeconds === 'number' && isFinite(s.rollSeconds)) {
+    cfg.rollSeconds = Math.min(ROLL_SECONDS_MAX, Math.max(ROLL_SECONDS_MIN, s.rollSeconds));
+  }
+  const flags = ['showSubs', 'showRaids', 'showChatters', 'showSongs', 'showBits', 'showFollowers', 'showRedemptions', 'showTopCommands'] as const;
+  flags.forEach((flag) => {
+    const value = s[flag];
+
+    if (typeof value === 'boolean') cfg[flag] = value;
+  });
+  if (Array.isArray(s.metrics)) {
+    const known: readonly string[] = ALL_METRICS;
+    const picked = s.metrics.filter((m): m is NnzStreamMetricKey => typeof m === 'string' && known.includes(m));
+    if (picked.length) cfg.metrics = picked;
+  }
+  if (s.labels && typeof s.labels === 'object') cfg.labels = { ...(s.labels as Record<string, string>) };
+}
+
+// ── Data: the recap, the words and the formats both layouts share ────────────────────────────────────────────────
 
 interface NamedCount { name: string; count: number }
 interface Ranked { total?: number | null; top?: NamedCount[] | null }
@@ -36,80 +157,11 @@ interface RecapDto {
   hypeTrain?: { level: number; trains: number } | null;
 }
 
-// Every metric the recap can show; the `metrics` setting picks a subset.
-const ALL_METRICS = [
-  'duration',
-  'peakViewers',
-  'followers',
-  'newFollowers',
-  'subs',
-  'gifters',
-  'selfSubs',
-  'bits',
-  'raidsIn',
-  'redemptions',
-  'songRequesters',
-  'chat',
-  'topChatters',
-  'commandsRun',
-] as const satisfies readonly NnzStreamMetricKey[];
-
 interface Row { kind: 'row' | 'heading'; name: string; value: string; rank: number }
 interface Card { key: string; big: string; unit: string; rows: Row[]; note?: string }
 
-const DASH = '—';
-const TIME_ZONE = 'Europe/Amsterdam';
-
-const DEFAULT_LABELS: Record<string, string> = {
-  title: 'Stream recap',
-  'kpi.duration': 'Time live',
-  'kpi.peak': 'Peak viewers',
-  'kpi.messages': 'Chat messages',
-  'kpi.commands': 'Commands run',
-  'block.subs': 'Subscriptions',
-  'block.raids': 'Raids in',
-  'block.chatters': 'Top chatters',
-  'block.songs': 'Song requests',
-  'block.bits': 'Bits',
-  'block.followers': 'New followers',
-  'block.redemptions': 'Redemptions',
-  'block.topCommands': 'Top commands',
-  'subs.gifted': 'Gifted',
-  'subs.own': 'Subscribed',
-  'raids.unit.one': 'raid',
-  'raids.unit.other': 'raids',
-  'viewers.unit.one': 'viewer',
-  'viewers.unit.other': 'viewers',
-  'chatters.unit.one': 'chatter',
-  'chatters.unit.other': 'chatters',
-  'songs.unit.one': 'request',
-  'songs.unit.other': 'requests',
-  'redemptions.unit': 'redeemed',
-  thanks: 'Thank you for {duration} of coding, tunes and vibes.',
-  'hours.unit.one': 'hour',
-  'hours.unit.other': 'hours',
-  hypeTrain: 'Hype train reached level {level}.',
-};
-
-const cfg = reactive({
-  holdSeconds: 60,
-  accentColor: '',
-  showSubs: true,
-  showRaids: true,
-  showChatters: true,
-  showSongs: true,
-  showBits: true,
-  showFollowers: true,
-  showRedemptions: true,
-  showTopCommands: true,
-  metrics: [...ALL_METRICS] as NnzStreamMetricKey[],
-  labels: {} as Record<string, string>,
-});
-
 const recap = ref<RecapDto | null>(null);
 const visible = ref(false);
-// How many rows of each card fit whole; a card not measured yet shows all of its rows.
-const shown = ref<Record<string, number>>({});
 const root = ref<HTMLElement | null>(null);
 let hideTimer: ReturnType<typeof setTimeout> | undefined;
 
@@ -133,12 +185,14 @@ function formatDuration(seconds: number | null | undefined): string {
   return `${hours}h ${String(minutes).padStart(2, '0')}m`;
 }
 
+const zone = computed<string | undefined>(() => cfg.timeZone || undefined);
+
 function clock(iso: string | null | undefined, withZone: boolean): string {
   if (!iso) return '';
   const date = new Date(iso);
   if (isNaN(date.getTime())) return '';
   return new Intl.DateTimeFormat('en-GB', {
-    timeZone: TIME_ZONE,
+    timeZone: zone.value,
     hour: '2-digit',
     minute: '2-digit',
     hourCycle: 'h23',
@@ -146,48 +200,38 @@ function clock(iso: string | null | undefined, withZone: boolean): string {
   }).format(date);
 }
 
-// One colour per day of the month: 31 steps around the wheel, by the day the stream started (Amsterdam).
+const dateText = computed<string>(() => {
+  const start = recap.value?.stream?.startedAt;
+  if (!start) return '';
+  return new Intl.DateTimeFormat('en-US', { timeZone: zone.value, dateStyle: 'medium' }).format(new Date(start));
+});
+
+// The hue of the whole recap: one fixed neutral hue, or (hueByDay) one color per day of the month, 31 steps around
+// the wheel, by the day the stream started in the shown time zone.
 const baseHue = computed<number>(() => {
+  if (!cfg.hueByDay) return NEUTRAL_HUE;
   const start = recap.value?.stream?.startedAt;
   const date = start ? new Date(start) : null;
   if (!date || isNaN(date.getTime())) return 0;
-  const day = Number(new Intl.DateTimeFormat('en-GB', { timeZone: TIME_ZONE, day: 'numeric' }).format(date));
+  const day = Number(new Intl.DateTimeFormat('en-GB', { timeZone: zone.value, day: 'numeric' }).format(date));
   return ((day - 1) * 360) / 31;
 });
 
-const avatarUrl = computed<string>(() => recap.value?.channel?.avatarUrl || '');
-
-const subtitle = computed<string>(() => {
-  const s = recap.value?.stream;
-  const date = s?.startedAt
-    ? new Intl.DateTimeFormat('en-US', { timeZone: TIME_ZONE, dateStyle: 'medium' }).format(new Date(s.startedAt))
-    : '';
-  return [recap.value?.channel?.name, s?.game, date].filter(Boolean).join(' · ');
+const rootStyle = computed<Record<string, string>>(() => {
+  const style: Record<string, string> = { '--base': `${baseHue.value}deg` };
+  if (cfg.accentColor) style['--accent'] = cfg.accentColor;
+  return style;
 });
 
-// "Thank you for 14 hours ..." : the label carries the words, the widget fills {duration} with whole hours.
+const avatarUrl = computed<string>(() => recap.value?.channel?.avatarUrl || '');
+const channelName = computed<string>(() => recap.value?.channel?.name || '');
+
+// "Thanks for watching! You spent 14 hours ..." : the label carries the words, the widget fills {duration} with whole hours.
 const thanks = computed<string>(() => {
   const seconds = recap.value?.duration;
   if (typeof seconds !== 'number' || !isFinite(seconds)) return '';
   const hours = Math.max(1, Math.round(seconds / 3600));
   return label('thanks').replace('{duration}', `${hours} ${counted('hours.unit', hours)}`);
-});
-
-const timeRange = computed<string>(() => {
-  const s = recap.value?.stream;
-  const from = clock(s?.startedAt, false);
-  const to = clock(s?.endedAt, true);
-  return from && to ? `${from} to ${to}` : '';
-});
-
-const kpis = computed(() => {
-  const r = recap.value;
-  return [
-    { key: 'duration', value: formatDuration(r?.duration), note: timeRange.value, lead: true },
-    { key: 'peak', value: stat(r?.peakViewers), note: '', lead: false },
-    { key: 'messages', value: stat(r?.chat?.messages), note: '', lead: false },
-    { key: 'commands', value: stat(r?.commandsRun?.total), note: '', lead: false },
-  ];
 });
 
 function rowsOf(items: NamedCount[] | null | undefined, ranked: boolean): Row[] {
@@ -221,6 +265,7 @@ function hypeLine(r: RecapDto): string {
   return r.hypeTrain ? label('hypeTrain').replace('{level}', String(r.hypeTrain.level)) : '';
 }
 
+// One card per topic, switched by the show* settings; a topic with no data is left out.
 function buildCards(r: RecapDto): Card[] {
   const raids = r.raidsIn || [];
   const raiders = raids.reduce((sum, x) => sum + (Number(x.viewers) || 0), 0);
@@ -268,6 +313,74 @@ function buildCards(r: RecapDto): Card[] {
 
 const cards = computed<Card[]>(() => (recap.value ? buildCards(recap.value) : []));
 
+// ── Sections (credits layout): one column of sections, each a heading and a list of names ────────────────────────
+
+interface Section { key: string; heading: string; rows: Row[] }
+
+// The order the sections roll in; a section with no rows is left out.
+const SECTION_ORDER = ['chatters', 'subs', 'followers', 'raids', 'redemptions', 'songs', 'bits', 'topCommands'] as const;
+
+const sections = computed<Section[]>(() =>
+  SECTION_ORDER.flatMap((key) => {
+    const card = cards.value.find((c) => c.key === key);
+
+    return card?.rows.length ? [{ key, heading: label(`block.${key}`), rows: card.rows }] : [];
+  }),
+);
+
+const hype = computed<string>(() => (recap.value && cfg.showSubs ? hypeLine(recap.value) : ''));
+
+const liveText = computed<string>(() => `${label('kpi.duration')} ${formatDuration(recap.value?.duration)}`);
+
+// The roll: `roll` moves the column, `still` holds the first screenful (a still image), `reduced` follows the viewer's
+// prefers-reduced-motion and shows the sections as a plain list that scrolls by hand.
+type Motion = 'roll' | 'still' | 'reduced';
+
+const reducedMotion = ref(false);
+let motionQuery: MediaQueryList | undefined;
+
+function syncMotion(): void {
+  reducedMotion.value = !!motionQuery?.matches;
+}
+
+const motion = computed<Motion>(() => {
+  if (reducedMotion.value) return 'reduced';
+
+  return cfg.roll ? 'roll' : 'still';
+});
+
+// The loop is the same column twice, and the roll moves up by one column.
+const copies = computed<number[]>(() => (motion.value === 'roll' ? [0, 1] : [0]));
+
+const rollStyle = computed<Record<string, string>>(() => (motion.value === 'roll' ? { '--roll-seconds': `${cfg.rollSeconds}s` } : {}));
+
+// ── Cards (grid layout): Stoney's own look, kept as it was ───────────────────────────────────────────────────────
+
+// How many rows of each card fit whole; a card not measured yet shows all of its rows.
+const shown = ref<Record<string, number>>({});
+
+const timeRange = computed<string>(() => {
+  const s = recap.value?.stream;
+  const from = clock(s?.startedAt, false);
+  const to = clock(s?.endedAt, true);
+  return from && to ? `${from} to ${to}` : '';
+});
+
+const subtitle = computed<string>(() => {
+  const s = recap.value?.stream;
+  return [channelName.value, s?.game, dateText.value].filter(Boolean).join(' · ');
+});
+
+const kpis = computed(() => {
+  const r = recap.value;
+  return [
+    { key: 'duration', value: formatDuration(r?.duration), note: timeRange.value, lead: true },
+    { key: 'peak', value: stat(r?.peakViewers), note: '', lead: false },
+    { key: 'messages', value: stat(r?.chat?.messages), note: '', lead: false },
+    { key: 'commands', value: stat(r?.commandsRun?.total), note: '', lead: false },
+  ];
+});
+
 // One grid for every block: 12 columns, so any row of 1 to 4 blocks adds up to the full width and every card edge
 // lines up with the top row. Blocks without data are gone. Up to 3 blocks share one row, 4 are 2 over 2, 5 are 3 over 2,
 // 6 are 3 over 3, 7 are 4 over 3, 8 are 4 over 4, and 9 to 12 are three rows (9 are 3/3/3, 12 are 4/4/4). The channel
@@ -313,12 +426,6 @@ function cellStyle(p: Placed): Record<string, string> {
   return style;
 }
 
-const rootStyle = computed<Record<string, string>>(() => {
-  const style: Record<string, string> = { '--base': `${baseHue.value}deg` };
-  if (cfg.accentColor) style['--accent'] = cfg.accentColor;
-  return style;
-});
-
 // A list shows only whole rows. Every row is drawn once, the rows whose bottom edge passes the card's edge are cut from
 // the list, and a heading left at the end of a list goes with them.
 function fitRows(box: HTMLElement): number {
@@ -349,6 +456,8 @@ async function refit(): Promise<void> {
 
 watch(recap, refit);
 
+// ── Show: read the numbers, show the recap, hide it after holdSeconds ────────────────────────────────────────────
+
 async function read(shown: RecapDto): Promise<RecapDto> {
   const stream = shown.stream?.id || undefined;
   try {
@@ -368,24 +477,12 @@ async function onShow(data: RecapDto | null | undefined): Promise<void> {
   }, Math.max(1, cfg.holdSeconds) * 1000);
 }
 
-function applySettings(s: Record<string, unknown>): void {
-  if (isFinite(Number(s.holdSeconds)) && Number(s.holdSeconds) > 0) cfg.holdSeconds = Number(s.holdSeconds);
-  if (typeof s.accentColor === 'string') cfg.accentColor = s.accentColor;
-  const flags = ['showSubs', 'showRaids', 'showChatters', 'showSongs', 'showBits', 'showFollowers', 'showRedemptions', 'showTopCommands'] as const;
-  flags.forEach((flag) => {
-    const value = s[flag];
-
-    if (typeof value === 'boolean') cfg[flag] = value;
-  });
-  if (Array.isArray(s.metrics)) {
-    const known: readonly string[] = ALL_METRICS;
-    const picked = s.metrics.filter((m): m is NnzStreamMetricKey => typeof m === 'string' && known.includes(m));
-    if (picked.length) cfg.metrics = picked;
-  }
-  if (s.labels && typeof s.labels === 'object') cfg.labels = { ...(s.labels as Record<string, string>) };
-}
-
 onMounted(() => {
+  if (typeof matchMedia === 'function') {
+    motionQuery = matchMedia(REDUCED_MOTION);
+    syncMotion();
+    motionQuery.addEventListener('change', syncMotion);
+  }
   if (typeof NomNomz === 'undefined') return;
   NomNomz.onSettings((s: NnzWidgetSettings) => {
     if (s && typeof s === 'object') applySettings({ ...s });
@@ -397,6 +494,7 @@ onMounted(() => {
 
 onUnmounted(() => {
   clearTimeout(hideTimer);
+  motionQuery?.removeEventListener('change', syncMotion);
   window.removeEventListener('resize', refit);
   if (typeof NomNomz === 'undefined') return;
   NomNomz.off('raid_recap.show' as keyof NnzWidgetEventMap, onShow as never);
@@ -404,8 +502,41 @@ onUnmounted(() => {
 </script>
 
 <template>
-  <div v-if="recap" ref="root" class="recap" :data-visible="visible ? 'true' : 'false'" :style="rootStyle">
-    <div class="wrap">
+  <div v-if="recap" ref="root" class="recap" :data-visible="visible ? 'true' : 'false'" :data-layout="cfg.layout" :data-motion="motion" :style="rootStyle">
+    <div v-if="cfg.layout === 'credits'" class="credits">
+      <header class="top">
+        <img v-if="avatarUrl" class="avatar" :src="avatarUrl" crossorigin="anonymous" alt="" />
+        <div class="who">
+          <h1 class="title">{{ label('title') }}</h1>
+          <div v-if="channelName" class="channel">{{ channelName }}</div>
+          <div class="meta">
+            <span class="date">{{ dateText }}</span>
+            <span class="live">{{ liveText }}</span>
+          </div>
+        </div>
+      </header>
+
+      <div class="stage">
+        <div class="roll" :style="rollStyle">
+          <div v-for="copy in copies" :key="copy" class="track" :aria-hidden="copy > 0 ? 'true' : undefined">
+            <section v-for="s in sections" :key="s.key" class="credit" :data-section="s.key">
+              <h2>{{ s.heading }}</h2>
+              <template v-for="(r, ri) in s.rows" :key="ri">
+                <h3 v-if="r.kind === 'heading'" class="group">{{ r.name }}</h3>
+                <div v-else class="entry">
+                  <span class="n">{{ r.name }}</span>
+                  <span v-if="r.value" class="v">{{ r.value }}</span>
+                </div>
+              </template>
+            </section>
+            <p v-if="hype" class="hype">{{ hype }}</p>
+            <p v-if="thanks" class="thanks">{{ thanks }}</p>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <div v-else class="wrap">
       <header>
         <div class="brand">
           <svg class="logo" viewBox="0 0 130 130" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
@@ -453,8 +584,8 @@ onUnmounted(() => {
 </template>
 
 <style scoped>
+/* Shared: the hue engine (one hue --base, five shades), the full-screen frame and the fade in. */
 .recap {
-  /* One hue (--base) with five shades, the same engine as the channel's Leaderboard and Logo widgets. */
   --base: 0deg;
   --color-100: hsl(var(--base), 100%, 90%);
   --color-200: hsl(var(--base), 100%, 80%);
@@ -473,6 +604,44 @@ onUnmounted(() => {
   transition: opacity 0.8s ease;
 }
 .recap[data-visible='true'] { opacity: 1; }
+.hype { font-weight: 500; color: var(--mute); }
+
+/* Credits layout: the look knobs are the variables below; the type sizes follow the 1920 x 1080 scene. */
+.recap[data-layout='credits'] {
+  --page-pad: 64px;
+  --column: 900px;
+  --gap: 56px;
+  --fade: 120px;
+  --avatar: 128px;
+  --title-size: 64px;
+  --name-size: 38px;
+  --heading-size: 22px;
+  background: hsl(from var(--color-900) h 18% 6%);
+}
+.credits { position: absolute; inset: var(--page-pad); display: grid; grid-template-rows: auto minmax(0, 1fr); gap: 32px; }
+.top { justify-content: flex-start; align-items: center; gap: 32px; }
+.avatar { width: var(--avatar); height: var(--avatar); border-radius: 50%; object-fit: cover; flex: none; }
+.title { font-size: var(--title-size); color: #fff; }
+.channel { margin-top: 10px; font-size: 30px; font-weight: 600; }
+.meta { margin-top: 8px; display: flex; gap: 24px; font-size: 24px; font-weight: 500; color: var(--mute); }
+.meta .live { color: var(--accent); font-weight: 800; }
+.stage { position: relative; overflow: hidden; container-type: size; mask-image: linear-gradient(to bottom, transparent 0, #000 var(--fade), #000 calc(100% - var(--fade)), transparent 100%); }
+.roll { display: flex; flex-direction: column; align-items: center; }
+.track { width: min(100%, var(--column)); min-height: 100cqh; padding-bottom: var(--gap); display: flex; flex-direction: column; align-items: stretch; }
+.credit { text-align: center; margin-bottom: var(--gap); }
+.credit h2 { margin: 0 0 20px; font-size: var(--heading-size); font-weight: 800; letter-spacing: 3px; text-transform: uppercase; color: var(--mute); }
+.group { margin: 20px 0 8px; font-size: 18px; font-weight: 700; letter-spacing: 2px; text-transform: uppercase; color: var(--mute); }
+.entry { display: flex; justify-content: center; align-items: baseline; gap: 16px; font-size: var(--name-size); font-weight: 700; line-height: 1.5; }
+.entry .n { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.entry .v { font-weight: 500; font-variant-numeric: tabular-nums; color: var(--mute); }
+.credits .hype { text-align: center; font-size: 26px; margin: 0 0 var(--gap); }
+.credits .thanks { text-align: center; font-size: 34px; font-weight: 700; margin: 0; }
+.recap[data-motion='roll'] .roll { animation: roll var(--roll-seconds) linear infinite; will-change: transform; }
+.recap[data-motion='still'] .stage { mask-image: linear-gradient(to bottom, #000 calc(100% - var(--fade)), transparent 100%); }
+.recap[data-motion='reduced'] .stage { overflow-y: auto; mask-image: none; }
+@keyframes roll { from { transform: translateY(0); } to { transform: translateY(-50%); } }
+
+/* Grid layout (Stoney's own look): the five-shade cards in a 12-column grid. */
 .wrap { position: absolute; inset: 48px 64px; display: grid; grid-template-columns: minmax(0, 1fr); grid-template-rows: auto auto 1fr; gap: 24px; }
 header { display: flex; align-items: flex-end; justify-content: space-between; }
 .brand { display: flex; align-items: center; gap: 24px; }
@@ -511,8 +680,8 @@ h1 { font-size: 64px; font-weight: 900; letter-spacing: -1px; line-height: 1; co
 .sect { font-size: 15px; font-weight: 800; letter-spacing: 1.4px; text-transform: uppercase; color: var(--mute); margin: 14px 0 8px; }
 .scroll { flex: 1; min-height: 0; overflow: hidden; }
 .scroll.fit { flex: 0 1 auto; }
-.hype { margin-top: 12px; font-size: 19px; font-weight: 500; color: var(--mute); }
-.thanks { max-width: 760px; text-align: right; font-size: 26px; font-weight: 600; color: #fff; }
+.wrap .hype { margin-top: 12px; font-size: 19px; }
+.wrap .thanks { max-width: 760px; text-align: right; font-size: 26px; font-weight: 600; color: #fff; }
 /* A card with three rows or fewer would sit mostly empty at the list size, so its type grows to fill it. */
 .sparse .big { font-size: 64px; }
 .sparse .row { font-size: 28px; padding: 10px 14px; }

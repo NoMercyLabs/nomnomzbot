@@ -497,12 +497,18 @@ public static class FirstPartyWidgetCatalogue
             ObsSetup: FullCanvas,
             Name: "Raid Recap",
             Description: "The stream recap shown as the ending scene when the raid pipeline commits. The widget reads "
-                + "the stream's numbers (the metrics setting) when the bot shows it; blocks with no data are left out and the rest grow to fill "
-                + "the screen. Holds for a configurable time, then fades.",
+                + "the stream's numbers (the metrics setting) when the bot shows it. By default it rolls a credits list "
+                + "up the screen and loops; the card grid is the other layout. Sections with no data are left out. "
+                + "Holds for a configurable time, then fades.",
             DefaultSettings: new()
             {
+                ["layout"] = "credits",
                 ["holdSeconds"] = 60,
+                ["hueByDay"] = false,
                 ["accentColor"] = "",
+                ["timeZone"] = "",
+                ["rollSeconds"] = 40,
+                ["roll"] = true,
                 ["showSubs"] = true,
                 ["showRaids"] = true,
                 ["showChatters"] = true,
@@ -554,7 +560,7 @@ public static class FirstPartyWidgetCatalogue
                     ["songs.unit.one"] = "request",
                     ["songs.unit.other"] = "requests",
                     ["redemptions.unit"] = "redeemed",
-                    ["thanks"] = "Thank you for {duration} of coding, tunes and vibes.",
+                    ["thanks"] = "Thanks for watching! You spent {duration} with us.",
                     ["hours.unit.one"] = "hour",
                     ["hours.unit.other"] = "hours",
                     ["hypeTrain"] = "Hype train reached level {level}.",
