@@ -352,7 +352,11 @@ const motion = computed<Motion>(() => {
 // The loop is the same column twice, and the roll moves up by one column.
 const copies = computed<number[]>(() => (motion.value === 'roll' ? [0, 1] : [0]));
 
-const rollStyle = computed<Record<string, string>>(() => (motion.value === 'roll' ? { '--roll-seconds': `${cfg.rollSeconds}s` } : {}));
+const rollStyle = computed<Record<string, string>>(() => {
+  const style: Record<string, string> = {};
+  if (motion.value === 'roll') style['--roll-seconds'] = `${cfg.rollSeconds}s`;
+  return style;
+});
 
 // ── Cards (grid layout): Stoney's own look, kept as it was ───────────────────────────────────────────────────────
 
