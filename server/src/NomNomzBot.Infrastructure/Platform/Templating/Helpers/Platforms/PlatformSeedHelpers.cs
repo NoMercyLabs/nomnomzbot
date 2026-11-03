@@ -9,22 +9,26 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Templating;
+
 namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Platforms;
 
 /// <summary>The platform of the viewer and of the event, read from the render's seeds.</summary>
 internal sealed class PlatformSeedHelpers()
     : PlatformHelperGroup(
-        PlatformRow.Seed("platform.user", "twitch", data => Key(data.UserProvider)),
-        PlatformRow.Seed(
-            "platform.user.name",
-            "Twitch",
-            data => PlatformNames.Find(data.UserProvider)?.Name
-        ),
-        PlatformRow.Seed(
-            "platform.user.icon",
-            "🟣",
-            data => PlatformNames.Find(data.UserProvider)?.Icon
-        ),
+        PlatformRow
+            .Seed("platform.user", "twitch", data => Key(data.UserProvider))
+            .For(TemplateHelperContexts.WithTriggerViewer, eventScoped: true),
+        PlatformRow
+            .Seed(
+                "platform.user.name",
+                "Twitch",
+                data => PlatformNames.Find(data.UserProvider)?.Name
+            )
+            .For(TemplateHelperContexts.WithTriggerViewer, eventScoped: true),
+        PlatformRow
+            .Seed("platform.user.icon", "🟣", data => PlatformNames.Find(data.UserProvider)?.Icon)
+            .For(TemplateHelperContexts.WithTriggerViewer, eventScoped: true),
         PlatformRow.Seed("platform.event", "twitch", data => Key(data.EventProvider))
     )
 {

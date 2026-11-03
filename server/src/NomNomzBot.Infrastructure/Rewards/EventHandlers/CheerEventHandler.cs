@@ -46,6 +46,8 @@ public sealed class CheerEventHandler
         {
             ["user.id"] = e.IsAnonymous ? string.Empty : e.UserId,
             ["bits"] = e.Bits.ToString(),
+            // The bits of the message, the key {chat.message.bits} reads (a chat line seeds it the same way).
+            ["user.bits"] = e.Bits.ToString(),
             ["message"] = message,
             ["also_said"] = AlsoSaidClause.From(message),
             ["anonymous"] = e.IsAnonymous ? "true" : "false",

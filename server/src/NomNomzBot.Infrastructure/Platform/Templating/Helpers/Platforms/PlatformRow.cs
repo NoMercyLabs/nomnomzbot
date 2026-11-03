@@ -43,6 +43,24 @@ internal sealed record PlatformRow(
             ? TemplateHelperFreshness.Seed
             : TemplateHelperFreshness.Cached;
 
+    /// <summary>The surfaces that declare the form; all but the viewer surface unless the form narrows it.</summary>
+    public IReadOnlyList<TemplateHelperContext> Contexts { get; init; } =
+        TemplateHelperContexts.Standard;
+
+    /// <summary>True when only some events seed the value, so an event response declares it for those events only.</summary>
+    public bool EventScoped { get; init; }
+
+    /// <summary>The form declared only where a viewer's trigger can seed it (see <see cref="TemplateHelperContexts"/>).</summary>
+    public PlatformRow For(
+        IReadOnlyList<TemplateHelperContext> contexts,
+        bool eventScoped = false
+    ) =>
+        this with
+        {
+            Contexts = contexts,
+            EventScoped = eventScoped,
+        };
+
     /// <summary>A form that reads a seed variable only.</summary>
     public static PlatformRow Seed(string key, string sample, Func<PlatformData, string?> print) =>
         new(key, sample, PlatformSources.None, 0, 0, call => Task.FromResult(print(call.Data)));
@@ -80,7 +98,12 @@ internal sealed record PlatformRow(
             : Render(call);
 
     public TemplateHelperEntry ToEntry() =>
-        new(Key, TemplateHelperContexts.Standard, new LocalizedText("template.helper." + Key))
+        new(
+            Key,
+            Contexts,
+            new LocalizedText("template.helper." + Key),
+            EventScoped: EventScoped
+        )
         {
             Sample = Sample,
             Source = Sources == PlatformSources.None ? null : Sources.ToString().ToLowerInvariant(),

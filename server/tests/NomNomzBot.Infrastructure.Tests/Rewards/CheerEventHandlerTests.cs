@@ -72,6 +72,15 @@ public sealed class CheerEventHandlerTests
     }
 
     [Fact]
+    public async Task The_cheer_seeds_the_viewer_platform_and_the_bits_of_the_message()
+    {
+        Dictionary<string, string> variables = await VariablesForAsync("Cheer100 hi");
+
+        variables["user.provider"].Should().Be("twitch");
+        variables["user.bits"].Should().Be("100");
+    }
+
+    [Fact]
     public async Task A_message_with_only_cheermotes_becomes_empty_so_nothing_is_spoken()
     {
         Dictionary<string, string> variables = await VariablesForAsync("Cheer100 Cheer100");

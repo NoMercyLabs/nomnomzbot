@@ -82,6 +82,7 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
             GetUserLogin(@event),
             GetUserDisplayName(@event)
         );
+        TemplateSubject.SeedUserPlatform(variables);
         return variables;
     }
 

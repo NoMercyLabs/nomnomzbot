@@ -41,16 +41,47 @@ public static class EventResponsePresetCatalog
         "supporter.message",
     ];
 
+    /// <summary>
+    /// The viewer's platform, seeded by the events that carry a provider and a known viewer
+    /// (<c>TemplateSubject.SeedUserPlatform</c>): follow, subscribe, resub, gift, gift received and cheer.
+    /// </summary>
+    private static readonly string[] ViewerPlatformVariables =
+    [
+        "user.provider",
+        "platform.user",
+        "platform.user.name",
+        "platform.user.icon",
+    ];
+
     /// <summary>Ordered as the event-responses page groups them: Twitch alerts, stream lifecycle, engagement, supporters.</summary>
     public static IReadOnlyList<EventResponsePresetDto> Presets { get; } =
     [
-        Preset("channel.follow", ["user", "user.id", "user.name", "followed_at"]),
-        Preset("channel.subscribe", ["user", "user.id", "tier"]),
+        Preset(
+            "channel.follow",
+            ["user", "user.id", "user.name", .. ViewerPlatformVariables, "followed_at"]
+        ),
+        Preset("channel.subscribe", ["user", "user.id", .. ViewerPlatformVariables, "tier"]),
+        // chat.message* read the resub text; the key `message` stays beside them for older templates.
         Preset(
             "channel.subscription.message",
-            ["user", "user.id", "tier", "months", "streak", "message", "also_said"]
+            [
+                "user",
+                "user.id",
+                .. ViewerPlatformVariables,
+                "tier",
+                "months",
+                "streak",
+                "message",
+                "chat.message",
+                "chat.message.length",
+                "chat.message.noCommand",
+                "also_said",
+            ]
         ),
-        Preset("channel.subscription.gift", ["user", "user.id", "tier", "count", "anonymous"]),
+        Preset(
+            "channel.subscription.gift",
+            ["user", "user.id", .. ViewerPlatformVariables, "tier", "count", "anonymous"]
+        ),
         // A gift batch from an anonymous gifter — the wording differs, so it is its own response.
         Preset("channel.subscription.gift.anonymous", ["user", "tier", "count", "anonymous"]),
         // One gift RECIPIENT paired with their gifter — {user} is the recipient, {gifter} who gave the sub.
@@ -62,7 +93,22 @@ public static class EventResponsePresetCatalog
             "channel.subscription.gift.received.anonymous",
             ["user", "user.id", "tier", "anonymous"]
         ),
-        Preset("channel.cheer", ["user", "user.id", "bits", "message", "also_said", "anonymous"]),
+        Preset(
+            "channel.cheer",
+            [
+                "user",
+                "user.id",
+                .. ViewerPlatformVariables,
+                "bits",
+                "message",
+                "chat.message",
+                "chat.message.length",
+                "chat.message.noCommand",
+                "chat.message.bits",
+                "also_said",
+                "anonymous",
+            ]
+        ),
         Preset("channel.raid", ["user", "user.id", "user.name", "viewers"]),
         Preset(
             "channel.poll.end",

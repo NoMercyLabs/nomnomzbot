@@ -48,6 +48,21 @@ internal sealed record ChatRow(
     /// <summary>Whose data the row reads (the viewer who typed the command, or the channel).</summary>
     public TemplateHelperScope Scope { get; init; } = TemplateHelperScope.Global;
 
+    /// <summary>The surfaces that declare the row; all but the viewer surface unless the row narrows it.</summary>
+    public IReadOnlyList<TemplateHelperContext> Contexts { get; init; } =
+        TemplateHelperContexts.Standard;
+
+    /// <summary>True when only some events seed the value, so an event response declares it for those events only.</summary>
+    public bool EventScoped { get; init; }
+
+    /// <summary>The row declared only where a viewer's trigger can seed it (see <see cref="TemplateHelperContexts"/>).</summary>
+    public ChatRow For(IReadOnlyList<TemplateHelperContext> contexts, bool eventScoped = false) =>
+        this with
+        {
+            Contexts = contexts,
+            EventScoped = eventScoped,
+        };
+
     /// <summary>A row computed from its arguments alone; it needs no channel.</summary>
     public static ChatRow Pure(
         string key,
@@ -104,7 +119,12 @@ internal sealed record ChatRow(
     public string Namespace => HelperNode.NamespaceOf(Key);
 
     public TemplateHelperEntry ToEntry() =>
-        new(Key, TemplateHelperContexts.Standard, new LocalizedText("template.helper." + Key))
+        new(
+            Key,
+            Contexts,
+            new LocalizedText("template.helper." + Key),
+            EventScoped: EventScoped
+        )
         {
             Sample = Sample,
             Source = Sources == ChatSources.None ? null : Sources.ToString().ToLowerInvariant(),

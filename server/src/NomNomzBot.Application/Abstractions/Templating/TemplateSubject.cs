@@ -42,6 +42,21 @@ public static class TemplateSubject
     }
 
     /// <summary>
+    /// Adds <c>user.provider</c>, the platform the viewer is on, from the event's own <c>provider</c> key. Only an
+    /// event that names a viewer (a non-empty <c>user.id</c>) and its platform gets it; an anonymous actor has no platform.
+    /// </summary>
+    public static void SeedUserPlatform(IDictionary<string, string> variables)
+    {
+        if (
+            variables.TryGetValue("provider", out string? provider)
+            && !string.IsNullOrWhiteSpace(provider)
+            && variables.TryGetValue("user.id", out string? id)
+            && !string.IsNullOrWhiteSpace(id)
+        )
+            variables.TryAdd("user.provider", provider);
+    }
+
+    /// <summary>
     /// Adds the <c>target</c> identity keys that are not already in <paramref name="variables"/>, copied from the
     /// <c>user</c> keys: an event has no command argument, so the person it is about is the target.
     /// </summary>

@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Chat.Services;
 
 namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Chat;
@@ -27,7 +28,9 @@ internal sealed class ChatMentionHelpers()
             "V​iewerTwo",
             (name, _) => Soft(ChatText.BareName(name))
         ),
-        ChatRow.Seeded("chat.mention.user", "@ViewerOne", MentionUser),
+        ChatRow
+            .Seeded("chat.mention.user", "@ViewerOne", MentionUser)
+            .For(TemplateHelperContexts.WithTriggerViewerAndDiscord),
         ChatRow.OfText("chat.me", "/me dances", (text, call) => Action(text, call.Provider))
     )
 {

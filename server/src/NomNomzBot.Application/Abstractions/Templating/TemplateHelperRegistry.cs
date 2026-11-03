@@ -669,7 +669,12 @@ public static class TemplateHelperRegistry
                 [.. ViewerOwnContexts, TemplateHelperContext.Discord],
                 "template.helper.user_id"
             ),
-            Literal("user.provider", TriggerContexts, "template.helper.user_provider"),
+            Literal(
+                "user.provider",
+                TriggerContexts,
+                "template.helper.user_provider",
+                eventScoped: true
+            ),
             Literal("user.accountAge", ViewerOwnContexts, "template.helper.user_account_age"),
             Literal("user.followAge", ViewerOwnContexts, "template.helper.user_follow_age"),
             Literal("user.pronouns", ViewerOwnContexts, "template.helper.user_pronouns"),

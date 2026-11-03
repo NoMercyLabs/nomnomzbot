@@ -18,7 +18,10 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.Events;
+using NomNomzBot.Domain.Identity.Entities;
+using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Commands.Jobs;
@@ -79,6 +82,11 @@ public sealed class TemplateSurfaceMatrixTests
     [
         (
             TemplateHelperContext.Discord,
+            "chat.mention.user",
+            "The go-live post has no viewer; a follow-style trigger seeds the viewer through DiscordTriggerNotificationHandler.ViewerData."
+        ),
+        (
+            TemplateHelperContext.Discord,
             "user",
             "The go-live post has no viewer; a follow-style trigger seeds it through DiscordTriggerNotificationHandler.ViewerData."
         ),
@@ -100,49 +108,10 @@ public sealed class TemplateSurfaceMatrixTests
     /// </summary>
     private static readonly (TemplateHelperContext Surface, string Key)[] KnownGap =
     [
-        // Cause: the command seed has no target.name / target.id (only target); an unknown viewer has no lookup.
-        (TemplateHelperContext.Command, "target.name"),
-        (TemplateHelperContext.Command, "target.id"),
-        (TemplateHelperContext.Pipeline, "target.name"),
-        (TemplateHelperContext.Pipeline, "target.id"),
-        // Cause: declared on EventResponse but the shared alert seed never carries it; only some events do.
-        (TemplateHelperContext.EventResponse, "user.provider"),
-        (TemplateHelperContext.EventResponse, "platform.user"),
-        (TemplateHelperContext.EventResponse, "platform.user.name"),
-        (TemplateHelperContext.EventResponse, "platform.user.icon"),
-        (TemplateHelperContext.EventResponse, "chat.message"),
-        (TemplateHelperContext.EventResponse, "chat.message.length"),
-        (TemplateHelperContext.EventResponse, "chat.message.noCommand"),
-        (TemplateHelperContext.EventResponse, "chat.message.bits"),
-        // Cause: a webhook body gets the same alert seed as an event response, which never carries these.
-        (TemplateHelperContext.Webhook, "user.provider"),
-        (TemplateHelperContext.Webhook, "platform.user"),
-        (TemplateHelperContext.Webhook, "platform.user.name"),
-        (TemplateHelperContext.Webhook, "platform.user.icon"),
-        (TemplateHelperContext.Webhook, "chat.message"),
-        (TemplateHelperContext.Webhook, "chat.message.length"),
-        (TemplateHelperContext.Webhook, "chat.message.noCommand"),
-        (TemplateHelperContext.Webhook, "chat.message.bits"),
-        // Cause: declared on Timer but a timer fire seeds only timer.name and timer.message.
-        (TemplateHelperContext.Timer, "platform.user"),
-        (TemplateHelperContext.Timer, "platform.user.name"),
-        (TemplateHelperContext.Timer, "platform.user.icon"),
+        // Cause: music.queue.target.count is declared on Timer and Discord, which seed no target. Its row lives in
+        // Helpers/Music, which this slice does not touch; the music owner narrows the row and deletes these two.
         (TemplateHelperContext.Timer, "music.queue.target.count"),
-        (TemplateHelperContext.Timer, "chat.mention.user"),
-        (TemplateHelperContext.Timer, "chat.message"),
-        (TemplateHelperContext.Timer, "chat.message.length"),
-        (TemplateHelperContext.Timer, "chat.message.noCommand"),
-        (TemplateHelperContext.Timer, "chat.message.bits"),
-        // Cause: declared on Discord but the go-live seed and links carry no viewer or chat data.
-        (TemplateHelperContext.Discord, "platform.user"),
-        (TemplateHelperContext.Discord, "platform.user.name"),
-        (TemplateHelperContext.Discord, "platform.user.icon"),
         (TemplateHelperContext.Discord, "music.queue.target.count"),
-        (TemplateHelperContext.Discord, "chat.mention.user"),
-        (TemplateHelperContext.Discord, "chat.message"),
-        (TemplateHelperContext.Discord, "chat.message.length"),
-        (TemplateHelperContext.Discord, "chat.message.noCommand"),
-        (TemplateHelperContext.Discord, "chat.message.bits"),
     ];
 
     private enum CellState
@@ -180,7 +149,9 @@ public sealed class TemplateSurfaceMatrixTests
         foreach (
             TemplateHelperEntry entry in registry
                 .ForContext(surface)
-                .Where(e => e.Prefix is null && !e.EventScoped)
+                .Where(e =>
+                    e.Prefix is null && (!e.EventScoped || surface == TemplateHelperContext.Command)
+                )
         )
             cells.Add(await RenderCellAsync(resolver, surface, entry.Key));
 
@@ -388,7 +359,20 @@ public sealed class TemplateSurfaceMatrixTests
 
         ServiceCollection services = new();
         services.AddSingleton(channels);
-        services.AddSingleton<IApplicationDbContext>(ViewerDataTestDbContext.New());
+        // A command's {target.*} resolves through the real mention resolver against a user the database knows.
+        ViewerDataTestDbContext db = ViewerDataTestDbContext.New();
+        db.Users.Add(
+            new User
+            {
+                TwitchUserId = "100000077",
+                Username = "samplefriend",
+                UsernameNormalized = "samplefriend",
+                DisplayName = "SampleFriend",
+            }
+        );
+        db.SaveChanges();
+        services.AddSingleton<IApplicationDbContext>(db);
+        services.AddScoped<IMentionTargetResolver, MentionTargetResolver>();
         services.AddSingleton<TimeProvider>(new FakeTimeProvider(Now));
         services.AddSingleton(new Random(1));
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));

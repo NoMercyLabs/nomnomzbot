@@ -24,4 +24,23 @@ public static class TemplateHelperContexts
     /// <summary><see cref="Standard"/> plus the viewer surface, for a helper that is safe in a viewer's own text.</summary>
     public static IReadOnlyList<TemplateHelperContext> StandardAndViewer { get; } =
     [.. Enum.GetValues<TemplateHelperContext>()];
+
+    /// <summary>
+    /// The surfaces whose trigger names a viewer: a chat command, an event, a pipeline and a webhook body. A timer
+    /// has no viewer and no chat message, and a Discord post names one only for the triggers that carry one.
+    /// </summary>
+    public static IReadOnlyList<TemplateHelperContext> WithTriggerViewer { get; } =
+    [
+        TemplateHelperContext.Command,
+        TemplateHelperContext.EventResponse,
+        TemplateHelperContext.Pipeline,
+        TemplateHelperContext.Webhook,
+    ];
+
+    /// <summary>
+    /// <see cref="WithTriggerViewer"/> plus Discord, for a value the follow, sub, raid and cheer posts of Discord also
+    /// seed (the viewer's name, the message). The go-live post has no viewer, so it leaves that value empty.
+    /// </summary>
+    public static IReadOnlyList<TemplateHelperContext> WithTriggerViewerAndDiscord { get; } =
+    [.. WithTriggerViewer, TemplateHelperContext.Discord];
 }

@@ -10,27 +10,37 @@
 // -----------------------------------------------------------------------------
 
 using System.Globalization;
+using NomNomzBot.Application.Abstractions.Templating;
 
 namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Chat;
 
 /// <summary>The message that triggered the template, read from the trigger seeds.</summary>
 internal sealed class ChatMessageHelpers()
     : ChatHelperGroup(
-        ChatRow.Seeded("chat.message", "hello big world", call => call.Seed("message")),
-        ChatRow.Seeded(
-            "chat.message.length",
-            "15",
-            call =>
-                call.Seed("message") is { } message
-                    ? ChatText.Elements(message).Count.ToString(CultureInfo.InvariantCulture)
-                    : null
-        ),
-        ChatRow.Seeded(
-            "chat.message.noCommand",
-            "hello big world",
-            call => call.Seed("message") is { } message ? WithoutCommandWord(message, call) : null
-        ),
-        ChatRow.Seeded("chat.message.bits", "0", call => call.Seed("user.bits"))
+        ChatRow
+            .Seeded("chat.message", "hello big world", call => call.Seed("message"))
+            .For(TemplateHelperContexts.WithTriggerViewerAndDiscord, eventScoped: true),
+        ChatRow
+            .Seeded(
+                "chat.message.length",
+                "15",
+                call =>
+                    call.Seed("message") is { } message
+                        ? ChatText.Elements(message).Count.ToString(CultureInfo.InvariantCulture)
+                        : null
+            )
+            .For(TemplateHelperContexts.WithTriggerViewerAndDiscord, eventScoped: true),
+        ChatRow
+            .Seeded(
+                "chat.message.noCommand",
+                "hello big world",
+                call =>
+                    call.Seed("message") is { } message ? WithoutCommandWord(message, call) : null
+            )
+            .For(TemplateHelperContexts.WithTriggerViewerAndDiscord, eventScoped: true),
+        ChatRow
+            .Seeded("chat.message.bits", "0", call => call.Seed("user.bits"))
+            .For(TemplateHelperContexts.WithTriggerViewer, eventScoped: true)
     )
 {
     /// <summary>
