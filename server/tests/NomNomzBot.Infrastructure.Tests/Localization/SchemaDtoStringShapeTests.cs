@@ -109,6 +109,8 @@ public sealed class SchemaDtoStringShapeTests
             nameof(TemplateHelperEntry.Sample),
             // Source is the provider's fetch-group id (one fetch per group per render), never shown to a user.
             nameof(TemplateHelperEntry.Source),
+            // SeedKey is the literal seed variable an event preset lists for this row, never shown to a user.
+            nameof(TemplateHelperEntry.SeedKey),
         },
     };
 
