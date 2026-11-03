@@ -75,19 +75,26 @@ public sealed class TemplateHelperValidator(ITemplateHelperRegistry registry)
 
         List<string> messages =
         [
-            .. unknownKeys.Select(key => DescribeUnknownKey(key, validForContext, extraKeys)),
+            .. unknownKeys.Select(key =>
+                DescribeUnknownKey(key, context, validForContext, extraKeys)
+            ),
         ];
         return Errors.ValidationFailed(
             $"Unknown template helper(s): {string.Join("; ", messages)}."
         );
     }
 
-    private static string DescribeUnknownKey(
+    private string DescribeUnknownKey(
         string key,
+        TemplateHelperContext context,
         IReadOnlyList<TemplateHelperEntry> validForContext,
         IReadOnlyCollection<string> extraKeys
     )
     {
+        List<TemplateHelperEntry> declaredElsewhere = [.. registry.All.Where(e => e.Matches(key))];
+        if (declaredElsewhere.Count > 0)
+            return TemplateSurfaceAvailability.DescribeMissing(key, context, declaredElsewhere);
+
         string? nearest = FindNearestKey(
             key,
             [.. extraKeys, .. validForContext.Where(e => e.Prefix is null).Select(e => e.Key)]

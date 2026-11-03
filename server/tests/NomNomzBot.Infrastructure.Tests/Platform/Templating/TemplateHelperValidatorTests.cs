@@ -9,12 +9,21 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Reflection;
 using FluentAssertions;
+using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Templating;
+using NomNomzBot.Infrastructure.Tests.ViewerData;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Platform.Templating;
 
@@ -169,4 +178,139 @@ public sealed class TemplateHelperValidatorTests
 
     public static IEnumerable<object[]> AllPresetEventTypes() =>
         EventResponsePresetCatalog.Presets.Select(p => new object[] { p.EventType });
+
+    [Fact]
+    public void Key_valid_on_other_surfaces_is_rejected_naming_the_surfaces_and_the_reason()
+    {
+        Result result = _sut.Validate("Arg is {args.1}", TemplateHelperContext.Timer);
+
+        result.IsFailure.Should().BeTrue();
+        result
+            .ErrorMessage.Should()
+            .Contain(
+                "'{args.1}' is not available in timers because it needs a chat command, and only commands and pipelines carry one."
+            )
+            .And.Contain("It works in: commands, pipelines");
+        result.ErrorMessage.Should().NotContain("not a recognized template helper");
+    }
+
+    [Fact]
+    public void Viewer_only_gap_names_the_opt_in_rule_and_the_surfaces_that_have_the_key()
+    {
+        Result result = _sut.Validate("{user.name}", TemplateHelperContext.Timer);
+
+        result.IsFailure.Should().BeTrue();
+        result
+            .ErrorMessage.Should()
+            .Contain(
+                "'{user.name}' is not available in timers because it needs a trigger that carries a viewer or a chat message"
+            )
+            .And.Contain("It works in: commands, event responses");
+    }
+
+    [Fact]
+    public void Typo_key_that_exists_nowhere_keeps_the_unrecognized_message()
+    {
+        Result result = _sut.Validate("{zzzz.nothing}", TemplateHelperContext.Timer);
+
+        result
+            .ErrorMessage.Should()
+            .Contain("'{zzzz.nothing}' is not a recognized template helper");
+    }
+
+    [Fact]
+    public void Surface_matrix_document_matches_the_registry()
+    {
+        using ServiceProvider services = FullRegistryServices();
+        ITemplateHelperRegistry registry = services.GetRequiredService<ITemplateHelperRegistry>();
+
+        string generated = TemplateSurfaceAvailability.RenderMarkdown(registry);
+
+        string documentPath = LocateSurfacesDocument();
+        string committed = File.Exists(documentPath)
+            ? File.ReadAllText(documentPath).Replace("\r\n", "\n")
+            : string.Empty;
+        string scratchPath = Path.Combine(Path.GetTempPath(), "surfaces.generated.md");
+        if (committed != generated)
+            File.WriteAllText(scratchPath, generated);
+
+        committed
+            .Should()
+            .Be(
+                generated,
+                $"docs/templates/surfaces.md is generated from the helper registry. The generated text is in '{scratchPath}'. "
+                    + "Regenerate with: dotnet test server/tests/NomNomzBot.Infrastructure.Tests --filter Surface_matrix_document_matches_the_registry, "
+                    + $"then copy '{scratchPath}' to '{documentPath}'"
+            );
+    }
+
+    [Fact]
+    public void Every_absent_cell_has_a_reason_that_the_document_legend_prints()
+    {
+        using ServiceProvider services = FullRegistryServices();
+        ITemplateHelperRegistry registry = services.GetRequiredService<ITemplateHelperRegistry>();
+        string document = TemplateSurfaceAvailability.RenderMarkdown(registry);
+
+        int absent = 0;
+        foreach (TemplateHelperEntry entry in registry.All)
+        foreach (TemplateHelperContext surface in Enum.GetValues<TemplateHelperContext>())
+        {
+            if (entry.Contexts.Contains(surface))
+                continue;
+            absent++;
+            TemplateSurfaceCell cell = TemplateSurfaceAvailability.Describe(entry, surface);
+            cell.Available.Should().BeFalse($"{entry.Key} is not declared for {surface}");
+            cell.Code.Should().NotBeNullOrWhiteSpace($"{entry.Key} on {surface} needs a code");
+            cell.Reason.Should().NotBeNullOrWhiteSpace($"{entry.Key} on {surface} needs a reason");
+            document.Should().Contain($"| `{cell.Code}` | {cell.Reason}");
+        }
+
+        absent.Should().BeGreaterThan(0);
+    }
+
+    private static string LocateSurfacesDocument()
+    {
+        DirectoryInfo? dir = new(AppContext.BaseDirectory);
+        while (dir is not null)
+        {
+            string templates = Path.Combine(dir.FullName, "docs", "templates");
+            if (Directory.Exists(templates))
+                return Path.Combine(templates, "surfaces.md");
+            dir = dir.Parent;
+        }
+        throw new DirectoryNotFoundException(
+            $"Could not locate docs/templates above '{AppContext.BaseDirectory}'."
+        );
+    }
+
+    /// <summary>The live registry: every real provider, with fakes only for the outside world.</summary>
+    private static ServiceProvider FullRegistryServices()
+    {
+        ServiceCollection services = new();
+        services.AddSingleton(Substitute.For<IChannelRegistry>());
+        services.AddSingleton<IApplicationDbContext>(ViewerDataTestDbContext.New());
+        services.AddSingleton<TimeProvider>(new FakeTimeProvider());
+        services.AddSingleton(new Random(1));
+        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
+        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
+        services.AddTemplateHelpers(typeof(TemplateResolver).Assembly);
+
+        HashSet<Type> known = [.. services.Select(d => d.ServiceType)];
+        Assembly[] assemblies =
+        [
+            typeof(ITemplateResolver).Assembly,
+            typeof(IChannelRegistry).Assembly,
+            typeof(TemplateResolver).Assembly,
+        ];
+        foreach (
+            Type type in assemblies
+                .SelectMany(a => a.GetTypes())
+                .Where(t => t.IsInterface && !t.IsGenericType && !known.Contains(t))
+        )
+            services.AddSingleton(
+                type,
+                _ => type.IsVisible ? Substitute.For([type], []) : EmptyServiceFake.Create(type)
+            );
+        return services.BuildServiceProvider();
+    }
 }

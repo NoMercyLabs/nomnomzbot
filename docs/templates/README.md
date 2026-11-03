@@ -14,6 +14,8 @@ Output:    Chris has been here for 12 days and has sent 348 messages.
 Where a helper works is listed under it:
 **commands**, **event responses**, **timers**, **pipelines**, **Discord** notifications, **webhooks**.
 
+[surfaces.md](surfaces.md) lists every helper against every surface, with the reason for each surface where it is missing, and a test generates it from the helper registry.
+
 Some helpers need a trigger (a chat message or an event) to know who "the user" is. Those do not work in timers.
 
 Every example below uses the same people:
