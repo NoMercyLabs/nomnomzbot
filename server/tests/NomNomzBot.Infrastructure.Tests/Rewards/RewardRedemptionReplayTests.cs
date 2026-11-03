@@ -21,6 +21,7 @@ using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Dashboard.Dtos;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Application.Services;
@@ -66,7 +67,8 @@ public sealed class RewardRedemptionReplayTests
         IEventResponseExecutor Executor,
         IRedemptionTimerService Timers,
         IRewardService Rewards,
-        RecordingEventBus Bus
+        RecordingEventBus Bus,
+        IHeldTextService Held
     );
 
     private static Harness Build(int viewerLevel = 0)
@@ -148,12 +150,14 @@ public sealed class RewardRedemptionReplayTests
             )
             .Returns(Result.Success(viewerLevel));
 
+        IHeldTextService held = Substitute.For<IHeldTextService>();
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton<IApplicationDbContext>(db)
             .AddSingleton(executor)
             .AddSingleton(timers)
             .AddSingleton(rewards)
             .AddSingleton(roles)
+            .AddSingleton(held)
             .BuildServiceProvider();
 
         RecordingEventBus bus = new();
@@ -183,7 +187,7 @@ public sealed class RewardRedemptionReplayTests
                 NullLogger<ShoutoutReplayPresenter>.Instance
             )
         );
-        return new(replay, handler, db, engine, executor, timers, rewards, bus);
+        return new(replay, handler, db, engine, executor, timers, rewards, bus, held);
     }
 
     private static StepExecutionLog Step(int index, string actionType, bool succeeded) =>
@@ -195,7 +199,10 @@ public sealed class RewardRedemptionReplayTests
             Duration = TimeSpan.Zero,
         };
 
-    private static RewardRedeemedEvent Redemption(string rewardId = BsodRewardId) =>
+    private static RewardRedeemedEvent Redemption(
+        string rewardId = BsodRewardId,
+        string? input = null
+    ) =>
         new()
         {
             BroadcasterId = Channel,
@@ -206,6 +213,7 @@ public sealed class RewardRedemptionReplayTests
             UserLogin = "viewer",
             UserDisplayName = "Viewer",
             Cost = 500,
+            UserInput = input,
         };
 
     private static void Journal(AuthDbContext db, RewardRedeemedEvent redemption)
@@ -277,6 +285,35 @@ public sealed class RewardRedemptionReplayTests
         ];
 
         presenters.Should().Contain(typeof(RewardRedeemedHandler));
+    }
+
+    [Fact]
+    public async Task Replay_checks_held_input_at_the_journaled_redemption_time()
+    {
+        Harness h = Build();
+        AddBsodReward(h);
+        RewardRedeemedEvent redemption = Redemption(input: "held words");
+        Journal(h.Db, redemption);
+        h.Held.IsTextHeldAsync(
+                Channel,
+                ViewerTwitchId,
+                "held words",
+                Arg.Any<CancellationToken>(),
+                new DateTimeOffset(RedeemedAt, TimeSpan.Zero)
+            )
+            .Returns(true);
+
+        await h.Replay.ReplayAsync(Channel, redemption.EventId.ToString());
+
+        await h
+            .Engine.Received(1)
+            .ExecuteAsync(
+                Arg.Is<PipelineRequest>(request =>
+                    request.InitialVariables["input"] == "held words"
+                    && request.InitialVariables["input.held"] == "true"
+                ),
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -373,10 +410,10 @@ public sealed class RewardRedemptionReplayTests
 
         await h
             .Timers.DidNotReceiveWithAnyArgs()
-            .StartAsync(default, default!, default!, default!, default!, default, default);
+            .StartAsync(default, default!, default!, default!, default!, default);
         await h
             .Rewards.DidNotReceiveWithAnyArgs()
-            .SetRedemptionStatusAsync(default!, default!, default!, default, default);
+            .SetRedemptionStatusAsync(default!, default!, default!);
         h.Bus.Published.Should().BeEmpty();
     }
 
@@ -424,7 +461,7 @@ public sealed class RewardRedemptionReplayTests
         await h.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
         await h
             .Rewards.DidNotReceiveWithAnyArgs()
-            .SetRedemptionStatusAsync(default!, default!, default!, default, default);
+            .SetRedemptionStatusAsync(default!, default!, default!);
     }
 
     [Fact]

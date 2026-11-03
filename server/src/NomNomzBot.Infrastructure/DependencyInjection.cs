@@ -33,6 +33,7 @@ using NomNomzBot.Application.Contracts.Platform;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Application.Dashboard.Stats;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Services;
 using NomNomzBot.Application.Tts.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
@@ -472,7 +473,7 @@ public static class DependencyInjection
         // live in the singleton state so they outlive one request.
         services.AddSingleton<Stream.ShoutoutSuggestions.ShoutoutSuggestionState>();
         services.AddScoped<
-            Application.Moderation.Services.IShoutoutSuggestionService,
+            IShoutoutSuggestionService,
             Stream.ShoutoutSuggestions.ShoutoutSuggestionService
         >();
         // An ad break waits here for its duration to pass; the worker then tells chat the break ended.
@@ -488,15 +489,9 @@ public static class DependencyInjection
         services.AddScoped<Application.Chat.Services.IOperatorChatSender, OperatorChatSender>();
         // Operator message deleter (scoped — deletes AS the operator so Twitch attributes it to them; chat-client.md §3.5).
         // Not an I<X>Service, so it is registered explicitly rather than by AddServicesByConvention.
-        services.AddScoped<
-            Application.Moderation.Services.IOperatorMessageDeleter,
-            OperatorMessageDeleter
-        >();
+        services.AddScoped<IOperatorMessageDeleter, OperatorMessageDeleter>();
         // "Every channel I moderate" for the network ban fan-out and the mass-ban consent sweep (chat-client.md §3.5).
-        services.AddScoped<
-            Application.Moderation.Services.IOperatorModeratedChannelResolver,
-            OperatorModeratedChannelResolver
-        >();
+        services.AddScoped<IOperatorModeratedChannelResolver, OperatorModeratedChannelResolver>();
         // Composer emote catalogue (scoped — reads the warm decoration cache + fetches Twitch emotes; chat-client.md §3.2).
         services.AddScoped<ChatEmoteOwnerDirectory>();
         services.AddScoped<Application.Chat.Services.IChatEmoteCatalogue, ChatEmoteCatalogue>();
@@ -916,6 +911,7 @@ public static class DependencyInjection
 
         // Service impls bound by their I<X>Service interface (scoped); the exclusions live in the method.
         services.AddInfrastructureServicesByConvention();
+        services.AddScoped<IHeldTextService, HeldTextService>();
 
         // Ambient outbound-sanction scope. Singleton because the AsyncLocal it wraps is process-wide state,
         // and a scoped instance would hand each DI scope its own empty view of a flow already in progress.
@@ -1256,7 +1252,7 @@ public static class DependencyInjection
         // The chat safety meter holds each channel's 60-second windows in memory; the handlers that feed
         // it are found by the IEventHandler<> scan, the reader seam is the same instance.
         services.AddSingleton<Moderation.ChatSafety.ChatSafetyMeter>();
-        services.AddSingleton<Application.Moderation.Services.IChatSafetyMeter>(sp =>
+        services.AddSingleton<IChatSafetyMeter>(sp =>
             sp.GetRequiredService<Moderation.ChatSafety.ChatSafetyMeter>()
         );
         services.AddScoped<FollowBotSweepService>();
@@ -1666,10 +1662,7 @@ public static class DependencyInjection
         // [RegisteredByHand]: it must start after the ChannelRegistry hosted service above.
         services.AddHostedService<ChannelRegistryBootstrapService>();
 
-        services.AddSingleton<
-            Application.Moderation.Services.IBotModerationMarks,
-            BotModerationMarks
-        >();
+        services.AddSingleton<IBotModerationMarks, BotModerationMarks>();
         // BotSelfEchoGuard (S009) — singleton so its per-tenant bot-identity cache survives across the
         // scoped DbContext each of the three chat ingests runs under; registered under both its query
         // surface and its cache-invalidation seam so the one instance serves both.
@@ -2128,6 +2121,7 @@ public static class DependencyInjection
             typeof(IJwtTokenService), // singleton crypto
             typeof(ICacheService), // deployment-variant: Redis vs in-memory (ambiguity)
             typeof(ITtsService), // singleton — stateful TTS queues
+            typeof(IHeldTextService), // required by every reward handler host
             typeof(ITwitchEventSubService), // singleton + hosted (shared TwitchEventSubHostedService instance)
             typeof(ISubjectKeyService), // crypto envelope — wired explicitly below
             typeof(IDeploymentProfileService), // singleton — boot detector + Current accessor (wired explicitly above)

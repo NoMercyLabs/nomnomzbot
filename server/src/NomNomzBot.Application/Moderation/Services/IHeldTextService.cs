@@ -28,6 +28,7 @@ public interface IHeldTextService
         Guid broadcasterId,
         string twitchUserId,
         string text,
-        CancellationToken ct = default
+        CancellationToken ct = default,
+        DateTimeOffset? occurredAt = null
     );
 }

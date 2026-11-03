@@ -178,7 +178,28 @@ public sealed class ActivityReplayService : IActivityReplayService
         {
             Result<IDomainEvent> read = await _reader.ReadAsync(row, ct);
             if (read.IsSuccess)
+            {
+                if (read.Value is RewardRedeemedEvent redemption)
+                    return (
+                        new RewardRedeemedEvent
+                        {
+                            EventId = redemption.EventId,
+                            OccurredAt = new DateTimeOffset(row.OccurredAt, TimeSpan.Zero),
+                            BroadcasterId = redemption.BroadcasterId,
+                            IsChannelIngress = redemption.IsChannelIngress,
+                            RewardId = redemption.RewardId,
+                            RewardTitle = redemption.RewardTitle,
+                            RedemptionId = redemption.RedemptionId,
+                            UserId = redemption.UserId,
+                            UserDisplayName = redemption.UserDisplayName,
+                            UserLogin = redemption.UserLogin,
+                            Cost = redemption.Cost,
+                            UserInput = redemption.UserInput,
+                        },
+                        row.OccurredAt
+                    );
                 return (read.Value, row.OccurredAt);
+            }
         }
 
         return null;

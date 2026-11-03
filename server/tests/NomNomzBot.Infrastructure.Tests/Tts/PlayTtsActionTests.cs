@@ -27,6 +27,26 @@ namespace NomNomzBot.Infrastructure.Tests.Tts;
 /// </summary>
 public sealed class PlayTtsActionTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Held_redemption_input_is_never_dispatched(bool segments)
+    {
+        (PlayTtsAction action, ITtsDispatchService dispatch) = Build("dangerous words");
+        PipelineExecutionContext context = Context();
+        context.Variables["input"] = "dangerous words";
+        context.Variables["input.held"] = "true";
+
+        ActionDefinition definition = segments
+            ? Action(("segments", new[] { new { text = "{input}" } }))
+            : Action(("text", "{input}"));
+        ActionResult result = await action.ExecuteAsync(context, definition);
+
+        result.Succeeded.Should().BeFalse();
+        result.ErrorMessage.Should().Contain("held by AutoMod");
+        dispatch.ReceivedCalls().Should().BeEmpty();
+    }
+
     private static readonly Guid Channel = Guid.Parse("019f2a00-1111-7000-8000-000000000001");
 
     private static PipelineExecutionContext Context() =>

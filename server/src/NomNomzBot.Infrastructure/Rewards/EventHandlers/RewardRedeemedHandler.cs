@@ -144,8 +144,19 @@ public sealed class RewardRedeemedHandler
 
         // The viewer's own text, resolved once for every use below: the spoken line, the {input} variable and the
         // text a bound command receives. It stays as typed unless the channel and the viewer allow templates.
+        IHeldTextService heldText = scope.ServiceProvider.GetRequiredService<IHeldTextService>();
+        bool inputHeld =
+            !string.IsNullOrWhiteSpace(@event.UserInput)
+            && await heldText.IsTextHeldAsync(
+                broadcasterId,
+                @event.UserId,
+                @event.UserInput,
+                cancellationToken,
+                replay ? @event.OccurredAt : null
+            );
         @event = await WithResolvedInputAsync(scope, @event, reward, replay, cancellationToken);
         Dictionary<string, string> variables = BuildVariables(@event);
+        variables["input.held"] = inputHeld ? "true" : "false";
 
         // A time-limited reward starts its countdown the moment it's redeemed (idempotent per
         // redemption — an EventSub redelivery returns the existing timer). Orthogonal to the response, and
@@ -174,7 +185,11 @@ public sealed class RewardRedeemedHandler
 
         // A reward that speaks reads the viewer's text aloud in their own voice. Orthogonal to the response.
         EventResponseOutcome outcome = EventResponseOutcome.None;
-        if (reward is { SpeaksViaTts: true } && !string.IsNullOrWhiteSpace(@event.UserInput))
+        if (
+            reward is { SpeaksViaTts: true }
+            && !inputHeld
+            && !string.IsNullOrWhiteSpace(@event.UserInput)
+        )
         {
             bool spoken = await SpeakRedemptionTextAsync(
                 scope,
@@ -368,29 +383,6 @@ public sealed class RewardRedeemedHandler
         ITtsDispatchService? tts = scope.ServiceProvider.GetService<ITtsDispatchService>();
         if (tts is null)
             return false;
-
-        // Text the moderation queue holds (AutoMod) or a moderator denied is never read aloud. Only an approved
-        // or never-held text is spoken.
-        IHeldTextService? heldText = scope.ServiceProvider.GetService<IHeldTextService>();
-        if (
-            heldText is not null
-            && await heldText.IsTextHeldAsync(
-                broadcasterId,
-                @event.UserId,
-                @event.UserInput!,
-                cancellationToken
-            )
-        )
-        {
-            _logger.LogWarning(
-                "Reward {RewardTitle} ({RewardId}) in {Channel} did not speak the redemption text of {Viewer}: held by AutoMod",
-                @event.RewardTitle,
-                @event.RewardId,
-                broadcasterId,
-                @event.UserId
-            );
-            return false;
-        }
 
         Guid viewerUserId = await db
             .Users.Where(u => u.TwitchUserId == @event.UserId)
