@@ -48,6 +48,13 @@ public sealed record TemplateHelperEntry(
     bool EventScoped = false
 )
 {
+    /// <summary>
+    /// For an <see cref="EventScoped"/> helper that reads a seed under another name (<c>chat.message</c> reads
+    /// <c>message</c>): the seed key an event preset lists when the event seeds it. The helper is then declared for
+    /// the events whose preset lists this key, so a preset never has to advertise a derived helper as a seed.
+    /// </summary>
+    public string? SeedKey { get; init; }
+
     /// <summary>A plain, realistic example value for this helper, shown in the variable picker.</summary>
     public string Sample { get; init; } = string.Empty;
 

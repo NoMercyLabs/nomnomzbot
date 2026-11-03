@@ -20,9 +20,8 @@ using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Domain.Chat.Events;
-using NomNomzBot.Domain.Identity.Entities;
-using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Chat;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Commands.Jobs;
 using NomNomzBot.Infrastructure.Discord;
@@ -359,19 +358,9 @@ public sealed class TemplateSurfaceMatrixTests
 
         ServiceCollection services = new();
         services.AddSingleton(channels);
-        // A command's {target.*} resolves through the real mention resolver against a user the database knows.
-        ViewerDataTestDbContext db = ViewerDataTestDbContext.New();
-        db.Users.Add(
-            new User
-            {
-                TwitchUserId = "100000077",
-                Username = "samplefriend",
-                UsernameNormalized = "samplefriend",
-                DisplayName = "SampleFriend",
-            }
-        );
-        db.SaveChanges();
-        services.AddSingleton<IApplicationDbContext>(db);
+        // A command's {target.*} resolves through the real mention resolver; the typed target is not a stored
+        // user, so the lookup takes the unseen-target path (the platform fake finds nothing).
+        services.AddSingleton<IApplicationDbContext>(ViewerDataTestDbContext.New());
         services.AddScoped<IMentionTargetResolver, MentionTargetResolver>();
         services.AddSingleton<TimeProvider>(new FakeTimeProvider(Now));
         services.AddSingleton(new Random(1));

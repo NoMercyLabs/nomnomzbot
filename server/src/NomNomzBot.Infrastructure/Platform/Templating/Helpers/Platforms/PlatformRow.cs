@@ -53,13 +53,12 @@ internal sealed record PlatformRow(
     /// <summary>The form declared only where a viewer's trigger can seed it (see <see cref="TemplateHelperContexts"/>).</summary>
     public PlatformRow For(
         IReadOnlyList<TemplateHelperContext> contexts,
-        bool eventScoped = false
-    ) =>
-        this with
-        {
-            Contexts = contexts,
-            EventScoped = eventScoped,
-        };
+        bool eventScoped = false,
+        string? seedKey = null
+    ) => this with { Contexts = contexts, EventScoped = eventScoped, SeedKey = seedKey };
+
+    /// <summary>The seed key an event preset lists when the event seeds this form's value (see <see cref="TemplateHelperEntry.SeedKey"/>).</summary>
+    public string? SeedKey { get; init; }
 
     /// <summary>A form that reads a seed variable only.</summary>
     public static PlatformRow Seed(string key, string sample, Func<PlatformData, string?> print) =>
@@ -98,15 +97,11 @@ internal sealed record PlatformRow(
             : Render(call);
 
     public TemplateHelperEntry ToEntry() =>
-        new(
-            Key,
-            Contexts,
-            new LocalizedText("template.helper." + Key),
-            EventScoped: EventScoped
-        )
+        new(Key, Contexts, new LocalizedText("template.helper." + Key), EventScoped: EventScoped)
         {
             Sample = Sample,
             Source = Sources == PlatformSources.None ? null : Sources.ToString().ToLowerInvariant(),
             Freshness = Freshness,
+            SeedKey = SeedKey,
         };
 }

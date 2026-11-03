@@ -19,7 +19,7 @@ internal sealed class ChatMessageHelpers()
     : ChatHelperGroup(
         ChatRow
             .Seeded("chat.message", "hello big world", call => call.Seed("message"))
-            .For(TemplateHelperContexts.WithTriggerViewerAndDiscord, eventScoped: true),
+            .For(MessageContexts, eventScoped: true, seedKey: "message"),
         ChatRow
             .Seeded(
                 "chat.message.length",
@@ -29,7 +29,7 @@ internal sealed class ChatMessageHelpers()
                         ? ChatText.Elements(message).Count.ToString(CultureInfo.InvariantCulture)
                         : null
             )
-            .For(TemplateHelperContexts.WithTriggerViewerAndDiscord, eventScoped: true),
+            .For(MessageContexts, eventScoped: true, seedKey: "message"),
         ChatRow
             .Seeded(
                 "chat.message.noCommand",
@@ -37,12 +37,15 @@ internal sealed class ChatMessageHelpers()
                 call =>
                     call.Seed("message") is { } message ? WithoutCommandWord(message, call) : null
             )
-            .For(TemplateHelperContexts.WithTriggerViewerAndDiscord, eventScoped: true),
+            .For(MessageContexts, eventScoped: true, seedKey: "message"),
         ChatRow
             .Seeded("chat.message.bits", "0", call => call.Seed("user.bits"))
-            .For(TemplateHelperContexts.WithTriggerViewer, eventScoped: true)
+            .For(TemplateHelperContexts.WithTriggerViewer, eventScoped: true, seedKey: "bits")
     )
 {
+    private static readonly IReadOnlyList<TemplateHelperContext> MessageContexts =
+        TemplateHelperContexts.WithTriggerViewerAndDiscord;
+
     /// <summary>
     /// The message without its command word: when the first word starts with the channel's command prefix, that
     /// word and the spaces after it are dropped; any other message stays whole.

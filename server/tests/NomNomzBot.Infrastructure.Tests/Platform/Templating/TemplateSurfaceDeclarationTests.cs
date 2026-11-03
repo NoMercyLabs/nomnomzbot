@@ -78,11 +78,15 @@ public sealed class TemplateSurfaceDeclarationTests
 
         List<string> cheer =
         [
-            .. registry.ForContext(TemplateHelperContext.EventResponse, "channel.cheer").Select(e => e.Key),
+            .. registry
+                .ForContext(TemplateHelperContext.EventResponse, "channel.cheer")
+                .Select(e => e.Key),
         ];
         List<string> raid =
         [
-            .. registry.ForContext(TemplateHelperContext.EventResponse, "channel.raid").Select(e => e.Key),
+            .. registry
+                .ForContext(TemplateHelperContext.EventResponse, "channel.raid")
+                .Select(e => e.Key),
         ];
 
         cheer.Should().Contain(keys);
@@ -106,11 +110,7 @@ public sealed class TemplateSurfaceDeclarationTests
     [Fact]
     public void The_viewer_platform_is_seeded_only_for_an_event_that_names_a_viewer_and_its_platform()
     {
-        Dictionary<string, string> follow = new()
-        {
-            ["provider"] = "kick",
-            ["user.id"] = "9",
-        };
+        Dictionary<string, string> follow = new() { ["provider"] = "kick", ["user.id"] = "9" };
         Dictionary<string, string> anonymous = new() { ["provider"] = "twitch", ["user.id"] = "" };
         Dictionary<string, string> noPlatform = new() { ["user.id"] = "9" };
 

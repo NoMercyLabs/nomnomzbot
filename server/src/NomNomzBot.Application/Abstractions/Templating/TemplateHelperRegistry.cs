@@ -159,7 +159,17 @@ public static class TemplateHelperRegistry
             EventResponsePresetCatalog.Presets.FirstOrDefault(p => p.EventType == eventType)
             ?? throw new ArgumentException($"Unknown event type '{eventType}'.", nameof(eventType));
 
-        return [.. entries.Where(e => !e.EventScoped || preset.Variables.Any(e.Matches))];
+        return
+        [
+            .. entries.Where(e =>
+                !e.EventScoped
+                || preset.Variables.Any(e.Matches)
+                || (
+                    e.SeedKey is not null
+                    && preset.Variables.Contains(e.SeedKey, StringComparer.OrdinalIgnoreCase)
+                )
+            ),
+        ];
     }
 
     private static TemplateHelperEntry Literal(

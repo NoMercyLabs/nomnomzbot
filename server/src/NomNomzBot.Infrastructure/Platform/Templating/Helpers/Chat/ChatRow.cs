@@ -56,12 +56,14 @@ internal sealed record ChatRow(
     public bool EventScoped { get; init; }
 
     /// <summary>The row declared only where a viewer's trigger can seed it (see <see cref="TemplateHelperContexts"/>).</summary>
-    public ChatRow For(IReadOnlyList<TemplateHelperContext> contexts, bool eventScoped = false) =>
-        this with
-        {
-            Contexts = contexts,
-            EventScoped = eventScoped,
-        };
+    public ChatRow For(
+        IReadOnlyList<TemplateHelperContext> contexts,
+        bool eventScoped = false,
+        string? seedKey = null
+    ) => this with { Contexts = contexts, EventScoped = eventScoped, SeedKey = seedKey };
+
+    /// <summary>The seed key an event preset lists when the event seeds this row's value (see <see cref="TemplateHelperEntry.SeedKey"/>).</summary>
+    public string? SeedKey { get; init; }
 
     /// <summary>A row computed from its arguments alone; it needs no channel.</summary>
     public static ChatRow Pure(
@@ -119,17 +121,13 @@ internal sealed record ChatRow(
     public string Namespace => HelperNode.NamespaceOf(Key);
 
     public TemplateHelperEntry ToEntry() =>
-        new(
-            Key,
-            Contexts,
-            new LocalizedText("template.helper." + Key),
-            EventScoped: EventScoped
-        )
+        new(Key, Contexts, new LocalizedText("template.helper." + Key), EventScoped: EventScoped)
         {
             Sample = Sample,
             Source = Sources == ChatSources.None ? null : Sources.ToString().ToLowerInvariant(),
             Freshness = Freshness,
             Scope = Scope,
+            SeedKey = SeedKey,
         };
 
     private static Func<ChatCall, Task<string?>> WithData(

@@ -33,6 +33,7 @@ using NomNomzBot.Domain.Tts.Entities;
 using NomNomzBot.Domain.ViewerData.Entities;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Domain.Widgets.Entities;
+using NomNomzBot.Infrastructure.Identity.Persistence;
 using NomNomzBot.Infrastructure.Platform.Persistence.Extensions;
 using DomainTimer = NomNomzBot.Domain.Commands.Entities.Timer;
 using RecordEntity = NomNomzBot.Domain.Platform.Entities.Record;
@@ -145,9 +146,11 @@ internal sealed class ViewerDataTestDbContext : DbContext, IApplicationDbContext
         {
             e.HasKey(x => x.Id);
             e.Ignore(x => x.Channel);
-            e.Ignore(x => x.Pronoun);
             e.Ignore(x => x.AltPronoun);
         });
+
+        // A user's pronoun is read by the {target.*} template lookup (Include), so it is mapped for real.
+        b.ApplyConfiguration(new PronounConfiguration());
 
         b.Entity<UserIdentity>(e =>
         {
@@ -192,6 +195,7 @@ internal sealed class ViewerDataTestDbContext : DbContext, IApplicationDbContext
         typeof(User),
         typeof(UserIdentity),
         typeof(CurrencyAccount),
+        typeof(Pronoun),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -360,7 +364,7 @@ internal sealed class ViewerDataTestDbContext : DbContext, IApplicationDbContext
     public DbSet<TtsLexiconEntry> TtsLexiconEntries => throw new NotSupportedException();
     public DbSet<TtsApprovalQueueEntry> TtsApprovalQueueEntries =>
         throw new NotSupportedException();
-    public DbSet<Pronoun> Pronouns => throw new NotSupportedException();
+    public DbSet<Pronoun> Pronouns => Set<Pronoun>();
     public DbSet<DeletionAuditLog> DeletionAuditLogs => throw new NotSupportedException();
     public DbSet<NomNomzBot.Domain.Stream.Entities.ShoutoutOverride> ShoutoutOverrides =>
         throw new NotSupportedException();

@@ -43,15 +43,10 @@ public static class EventResponsePresetCatalog
 
     /// <summary>
     /// The viewer's platform, seeded by the events that carry a provider and a known viewer
-    /// (<c>TemplateSubject.SeedUserPlatform</c>): follow, subscribe, resub, gift, gift received and cheer.
+    /// (<c>TemplateSubject.SeedUserPlatform</c>): follow, subscribe, resub, gift, gift received and cheer. The
+    /// <c>platform.user*</c> helpers read it, so they are declared for exactly these events.
     /// </summary>
-    private static readonly string[] ViewerPlatformVariables =
-    [
-        "user.provider",
-        "platform.user",
-        "platform.user.name",
-        "platform.user.icon",
-    ];
+    private static readonly string[] ViewerPlatformVariables = ["user.provider"];
 
     /// <summary>Ordered as the event-responses page groups them: Twitch alerts, stream lifecycle, engagement, supporters.</summary>
     public static IReadOnlyList<EventResponsePresetDto> Presets { get; } =
@@ -61,7 +56,6 @@ public static class EventResponsePresetCatalog
             ["user", "user.id", "user.name", .. ViewerPlatformVariables, "followed_at"]
         ),
         Preset("channel.subscribe", ["user", "user.id", .. ViewerPlatformVariables, "tier"]),
-        // chat.message* read the resub text; the key `message` stays beside them for older templates.
         Preset(
             "channel.subscription.message",
             [
@@ -72,9 +66,6 @@ public static class EventResponsePresetCatalog
                 "months",
                 "streak",
                 "message",
-                "chat.message",
-                "chat.message.length",
-                "chat.message.noCommand",
                 "also_said",
             ]
         ),
@@ -101,10 +92,6 @@ public static class EventResponsePresetCatalog
                 .. ViewerPlatformVariables,
                 "bits",
                 "message",
-                "chat.message",
-                "chat.message.length",
-                "chat.message.noCommand",
-                "chat.message.bits",
                 "also_said",
                 "anonymous",
             ]

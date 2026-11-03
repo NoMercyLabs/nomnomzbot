@@ -18,17 +18,29 @@ internal sealed class PlatformSeedHelpers()
     : PlatformHelperGroup(
         PlatformRow
             .Seed("platform.user", "twitch", data => Key(data.UserProvider))
-            .For(TemplateHelperContexts.WithTriggerViewer, eventScoped: true),
+            .For(
+                TemplateHelperContexts.WithTriggerViewer,
+                eventScoped: true,
+                seedKey: "user.provider"
+            ),
         PlatformRow
             .Seed(
                 "platform.user.name",
                 "Twitch",
                 data => PlatformNames.Find(data.UserProvider)?.Name
             )
-            .For(TemplateHelperContexts.WithTriggerViewer, eventScoped: true),
+            .For(
+                TemplateHelperContexts.WithTriggerViewer,
+                eventScoped: true,
+                seedKey: "user.provider"
+            ),
         PlatformRow
             .Seed("platform.user.icon", "🟣", data => PlatformNames.Find(data.UserProvider)?.Icon)
-            .For(TemplateHelperContexts.WithTriggerViewer, eventScoped: true),
+            .For(
+                TemplateHelperContexts.WithTriggerViewer,
+                eventScoped: true,
+                seedKey: "user.provider"
+            ),
         PlatformRow.Seed("platform.event", "twitch", data => Key(data.EventProvider))
     )
 {
