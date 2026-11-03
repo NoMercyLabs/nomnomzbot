@@ -629,6 +629,8 @@ public static class DependencyInjection
             Sound.ChannelAudioMixService
         >();
         services.AddScoped<Application.Sound.Services.ISoundClipStore, Sound.DiskSoundClipStore>();
+        // The one-time re-measure of stored MP3 clips; its hosted gate rides the AddHostedWorkers scan.
+        services.AddScoped<Sound.SoundClipDurationRepair>();
 
         // Channel media asset library (images/audio for overlay widgets — sound-clip twin).
         services.AddScoped<
