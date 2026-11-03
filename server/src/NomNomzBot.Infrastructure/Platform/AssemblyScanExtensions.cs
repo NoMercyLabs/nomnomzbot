@@ -99,7 +99,10 @@ public static class AssemblyScanExtensions
     {
         Dictionary<Type, Type> bindings = [];
 
-        foreach (Type implementation in ConcreteTypes(assembly))
+        foreach (
+            Type implementation in ConcreteTypes(assembly)
+                .Where(t => !t.IsDefined(typeof(RegisteredByHandAttribute), inherit: false))
+        )
         {
             foreach (Type serviceInterface in ServiceInterfacesOf(implementation))
             {
