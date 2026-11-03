@@ -13,8 +13,11 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createMemoryHistory, createRouter, type Router } from 'vue-router';
+import { defineComponent, h } from 'vue';
+import { createMemoryHistory, createRouter, createWebHistory, type Router, type RouterHistory } from 'vue-router';
 
+import { BackHost, position, pressBack, steps } from '@/__tests__/backHistory';
+import { setWidth } from '@/__tests__/viewport';
 import { queryClient } from '@/api/queryClient';
 import { i18n } from '@/i18n';
 
@@ -172,14 +175,18 @@ const settle = async (): Promise<void> => {
   await flushPromises();
 };
 
-async function open(start: string = '/app/admin/tenants'): Promise<void> {
+async function open(
+  start: string = '/app/admin/tenants',
+  history: RouterHistory = createMemoryHistory(),
+  before?: string,
+): Promise<void> {
   // The frame's sticky footer, where a phone-width page moves its pager.
   document.body.insertAdjacentHTML('beforeend', '<div data-slot="frame-action-footer"></div>');
 
   const blank = { template: '<div />' };
 
   router = createRouter({
-    history: createMemoryHistory(),
+    history,
     routes: [
       {
         path: '/app/admin/tenants',
@@ -191,12 +198,21 @@ async function open(start: string = '/app/admin/tenants'): Promise<void> {
         name: 'dashboard-admin-channels-console',
         component: blank,
       },
+      { path: '/home', component: blank },
     ],
   });
 
+  if (before) {
+    await router.push(before);
+  }
+
   await router.push(start);
 
-  mounted = mount(AdminTenantsView, {
+  // The back watcher runs beside the page, as it does in the app shell.
+  const page = defineComponent({ render: () => h(BackHost, () =>
+    h(AdminTenantsView)) });
+
+  mounted = mount(page, {
     attachTo: document.body,
     global: {
       plugins: [
@@ -479,5 +495,66 @@ describe('AdminTenantsView', () => {
 
     expect(calls.length).toBeGreaterThan(before);
     expect(rows()).toHaveLength(2);
+  });
+});
+
+// Stoney 2026-11-03: "a close is a history pop". The detail is a layer (a drawer on a phone, a panel beside the
+// list on a laptop) and a route-query pane at once; it still takes ONE step, and its X pops it.
+describe.each([
+  ['a drawer on a phone', 412],
+  ['a panel beside the list on a laptop', 1440],
+])('AdminTenantsView detail as %s', (_label, width) => {
+  const page = '/app/admin/tenants';
+  const closeButton = (): HTMLElement =>
+    document.body.querySelector<HTMLElement>('[data-drawer-close]')!;
+
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/');
+    setWidth(width);
+    rowsOnPage = [viewer('u-vwr', 'Quiet_One')];
+  });
+
+  it('opens with one history step, not two', async () => {
+    await open(page, createWebHistory(), '/home');
+    const start = position();
+
+    rows()[0]!.click();
+    await settle();
+
+    expect(document.body.querySelector('[data-tenant-detail]')).not.toBeNull();
+    expect(router.currentRoute.value.fullPath).toBe(`${page}?user=u-vwr`);
+    expect(position()).toBe(start + 1);
+    expect(steps()).toBe(1);
+  });
+
+  it('closes by its X, leaves the start position, and one more Back leaves the page', async () => {
+    await open(page, createWebHistory(), '/home');
+    const start = position();
+
+    rows()[0]!.click();
+    await settle();
+    closeButton().click();
+    await settle();
+
+    expect(document.body.querySelector('[data-tenant-detail]')).toBeNull();
+    expect(position()).toBe(start);
+    expect(steps()).toBe(0);
+    expect(router.currentRoute.value.fullPath).toBe(page);
+
+    await pressBack();
+    expect(router.currentRoute.value.fullPath).toBe('/home');
+  });
+
+  it('closes a pasted link by its X without bringing it back, then Back leaves the page', async () => {
+    await open(`${page}?user=u-vwr`, createWebHistory(), '/home');
+
+    closeButton().click();
+    await settle();
+
+    expect(document.body.querySelector('[data-tenant-detail]')).toBeNull();
+    expect(router.currentRoute.value.fullPath).toBe(page);
+
+    await pressBack();
+    expect(router.currentRoute.value.fullPath).toBe('/home');
   });
 });

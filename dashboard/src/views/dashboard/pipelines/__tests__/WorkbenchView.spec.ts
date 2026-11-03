@@ -12,8 +12,8 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import Sortable from 'sortablejs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { computed, reactive, ref, type Ref } from 'vue';
-import { createMemoryHistory, createRouter, RouterView, type Router } from 'vue-router';
+import { computed, defineComponent, h, reactive, ref, type Ref } from 'vue';
+import { createMemoryHistory, createRouter, createWebHistory, RouterView, type Router, type RouterHistory } from 'vue-router';
 
 import type {
   Pipeline,
@@ -24,6 +24,7 @@ import type {
   PipelineStep,
   PipelineTestRun,
 } from '@/api/pipelines';
+import { BackHost, position, pressBack, settle, steps as layerSteps } from '@/__tests__/backHistory';
 import { setWidth } from '@/__tests__/viewport';
 import { i18n } from '@/i18n';
 import schemaEn from '@/i18n/schema/en.json';
@@ -454,11 +455,19 @@ afterEach(() => {
 
 let router: Router;
 
-async function open(url = '/app/pipelines/p1'): Promise<void> {
+// The back watcher beside the routed page, as the app shell runs it.
+const BackedRouterView = defineComponent({ render: () => h(BackHost, () =>
+  h(RouterView)) });
+
+async function open(
+  url = '/app/pipelines/p1',
+  history: RouterHistory = createMemoryHistory(),
+  before?: string,
+): Promise<void> {
   const blank = { template: '<div />' };
 
   router = createRouter({
-    history: createMemoryHistory(),
+    history,
     routes: [
       {
         path: '/app/pipelines',
@@ -470,12 +479,21 @@ async function open(url = '/app/pipelines/p1'): Promise<void> {
         name: 'dashboard-pipeline',
         component: WorkbenchView,
       },
+      { path: '/home', component: blank },
     ],
   });
 
+  if (before) {
+    await router.push(before);
+  }
+
   await router.push(url);
+
   // Routed as in the app: the leave guard only binds inside a RouterView.
-  mounted = mount(RouterView, { attachTo: document.body, global: { plugins: [i18n, router] } });
+  mounted = mount(before
+    ? BackedRouterView
+    : RouterView, { attachTo: document.body, global: { plugins: [i18n, router] } });
+
   await flushPromises();
 }
 
@@ -653,6 +671,83 @@ describe('the step inspector', () => {
     card('hi').querySelector<HTMLButtonElement>('button')!.click();
     await flushPromises();
 
+    expect(document.body.querySelector('[data-step-inspector]')).toBeNull();
+  });
+});
+
+// Stoney 2026-11-03: "a close is a history pop". The open step is a pane in the address and its drawer a layer:
+// one step. The real router and history, with the real back watcher.
+describe.each([
+  ['a drawer on a phone', 412],
+  ['a panel beside the steps on a laptop', 1400],
+])('the open step in history as %s', (_label, width) => {
+  const page = '/app/pipelines/p1';
+  const saved = window.matchMedia;
+
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/');
+    setWidth(width);
+  });
+
+  afterEach(() => {
+    window.matchMedia = saved;
+  });
+
+  it('opens by one pushed step, and one Back closes it before the next leaves the page', async () => {
+    await open(page, createWebHistory(), '/home');
+    const start = position();
+
+    card('hi').querySelector<HTMLButtonElement>('button')!.click();
+    await settle();
+    expect(document.body.querySelector('[data-step-inspector]')).not.toBeNull();
+    expect(router.currentRoute.value.fullPath).toBe(`${page}?step=hi`);
+    expect(position()).toBe(start + 1);
+    expect(layerSteps()).toBe(1);
+
+    await pressBack();
+    expect(document.body.querySelector('[data-step-inspector]')).toBeNull();
+    expect(position()).toBe(start);
+    expect(router.currentRoute.value.fullPath).toBe(page);
+
+    await pressBack();
+    expect(router.currentRoute.value.fullPath).toBe('/home');
+  });
+
+  it('closes by picking the same step again with a pop, not a new step', async () => {
+    await open(page, createWebHistory(), '/home');
+    const start = position();
+
+    card('hi').querySelector<HTMLButtonElement>('button')!.click();
+    await settle();
+    card('hi').querySelector<HTMLButtonElement>('button')!.click();
+    await settle();
+    expect(document.body.querySelector('[data-step-inspector]')).toBeNull();
+    expect(position()).toBe(start);
+    expect(layerSteps()).toBe(0);
+    expect(router.currentRoute.value.fullPath).toBe(page);
+  });
+
+  it('closes a pasted link by replacing, so Back leaves the page', async () => {
+    await open(`${page}?step=hi`, createWebHistory(), '/home');
+
+    card('hi').querySelector<HTMLButtonElement>('button')!.click();
+    await settle();
+    expect(document.body.querySelector('[data-step-inspector]')).toBeNull();
+    expect(router.currentRoute.value.fullPath).toBe(page);
+
+    await pressBack();
+    expect(router.currentRoute.value.fullPath).toBe('/home');
+  });
+
+  it('closes the step when Runs opens beside it, and leaves one entry for the page', async () => {
+    await open(page, createWebHistory(), '/home');
+
+    card('hi').querySelector<HTMLButtonElement>('button')!.click();
+    await settle();
+    document.body.querySelector<HTMLElement>('[data-workbench-runs]')!.click();
+    await settle();
+    expect(router.currentRoute.value.query.step).toBeUndefined();
+    expect(router.currentRoute.value.query.view).toBe('runs');
     expect(document.body.querySelector('[data-step-inspector]')).toBeNull();
   });
 });

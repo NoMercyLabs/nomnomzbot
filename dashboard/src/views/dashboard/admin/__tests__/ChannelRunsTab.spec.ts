@@ -13,8 +13,10 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createMemoryHistory, createRouter, type Router } from 'vue-router';
+import { defineComponent, h } from 'vue';
+import { createMemoryHistory, createRouter, createWebHistory, type Router, type RouterHistory } from 'vue-router';
 
+import { BackHost, position, pressBack, steps } from '@/__tests__/backHistory';
 import { queryClient } from '@/api/queryClient';
 import { i18n } from '@/i18n';
 
@@ -232,11 +234,15 @@ const settle = async (): Promise<void> => {
   await flushPromises();
 };
 
-async function open(start: string): Promise<void> {
+async function open(
+  start: string,
+  history: RouterHistory = createMemoryHistory(),
+  before?: string,
+): Promise<void> {
   const blank = { template: '<div />' };
 
   router = createRouter({
-    history: createMemoryHistory(),
+    history,
     routes: [
       {
         path: '/app/admin/tenants',
@@ -248,12 +254,21 @@ async function open(start: string): Promise<void> {
         name: 'dashboard-admin-channels-console',
         component: AdminChannelConsoleView,
       },
+      { path: '/home', component: blank },
     ],
   });
 
+  if (before) {
+    await router.push(before);
+  }
+
   await router.push(start);
 
-  mounted = mount(AdminChannelConsoleView, {
+  // The back watcher runs beside the page, as it does in the app shell.
+  const page = defineComponent({ render: () => h(BackHost, () =>
+    h(AdminChannelConsoleView)) });
+
+  mounted = mount(page, {
     attachTo: document.body,
     global: {
       plugins: [
@@ -416,6 +431,49 @@ describe('Run detail sheet', () => {
 
     expect(router.currentRoute.value.query.run).toBeUndefined();
     expect(sheet()).toBeNull();
+  });
+
+  // Stoney 2026-11-03: "a close is a history pop". The sheet is a layer and the run id a pane: one step.
+  describe('history', () => {
+    const tab = '/app/admin/channels/t1/runs';
+
+    beforeEach(() => {
+      window.history.replaceState(null, '', '/');
+    });
+
+    it('opens a run with one step and the X pops it, then Back leaves the page', async () => {
+      await open(tab, createWebHistory(), '/home');
+      const start = position();
+
+      rows()[0]!.click();
+      await settle();
+      expect(sheet()).not.toBeNull();
+      expect(router.currentRoute.value.fullPath).toBe(`${tab}?run=101`);
+      expect(position()).toBe(start + 1);
+      expect(steps()).toBe(1);
+
+      document.body.querySelector<HTMLElement>('[data-run-close]')!.click();
+      await settle();
+      expect(sheet()).toBeNull();
+      expect(position()).toBe(start);
+      expect(steps()).toBe(0);
+      expect(router.currentRoute.value.fullPath).toBe(tab);
+
+      await pressBack();
+      expect(router.currentRoute.value.fullPath).toBe('/home');
+    });
+
+    it('closes a pasted link by its X without bringing it back, then Back leaves the page', async () => {
+      await open(`${tab}?run=101`, createWebHistory(), '/home');
+
+      document.body.querySelector<HTMLElement>('[data-run-close]')!.click();
+      await settle();
+      expect(sheet()).toBeNull();
+      expect(router.currentRoute.value.fullPath).toBe(tab);
+
+      await pressBack();
+      expect(router.currentRoute.value.fullPath).toBe('/home');
+    });
   });
 
   it('says which limit stopped the run and shows the failure kind', async () => {

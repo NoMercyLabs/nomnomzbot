@@ -14,8 +14,9 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
-import { createMemoryHistory, createRouter, type Router } from 'vue-router';
+import { createMemoryHistory, createRouter, createWebHistory, type Router, type RouterHistory } from 'vue-router';
 
+import { position, pressBack } from '@/__tests__/backHistory';
 import { timersKey } from '@/api/liveOps';
 import { chooseTarget, openTargetPicker } from '@/components/layout/__tests__/targetPickerDom';
 import { i18n } from '@/i18n';
@@ -176,17 +177,26 @@ async function settle(): Promise<void> {
   await flushPromises();
 }
 
-async function open(url: string = '/app/triggers-timers'): Promise<void> {
+async function open(
+  url: string = '/app/triggers-timers',
+  history: RouterHistory = createMemoryHistory(),
+  before?: string,
+): Promise<void> {
   router = createRouter({
-    history: createMemoryHistory(),
+    history,
     routes: [
       {
         path: '/app/triggers-timers',
         name: 'dashboard-triggers-timers',
         component: { template: '<div />' },
       },
+      { path: '/home', component: { template: '<div />' } },
     ],
   });
+
+  if (before) {
+    await router.push(before);
+  }
 
   await router.push(url);
 
@@ -556,5 +566,46 @@ describe('Triggers and timers permission gating', () => {
     await open();
 
     expect(buttonByText('Make the first timer')).toBeUndefined();
+  });
+});
+
+// Stoney 2026-11-03: "a close is a history pop". The real router on the real history.
+describe('Triggers and timers page history', () => {
+  const page = '/app/triggers-timers';
+  const backLink = (): HTMLElement =>
+    document.body.querySelector<HTMLElement>('[data-detail-back]')!;
+
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('opens a timer with one step and closes it by popping, then Back leaves the page', async () => {
+    await open(page, createWebHistory(), '/home');
+    const start = position();
+
+    await click(rowOf('Discord invite'));
+    expect(position()).toBe(start + 1);
+    expect(router.currentRoute.value.query.timer).toBe('t2');
+    expect(editor()).not.toBeNull();
+
+    await click(backLink());
+    expect(position()).toBe(start);
+    expect(router.currentRoute.value.fullPath).toBe(page);
+    expect(editor()).toBeNull();
+
+    await pressBack();
+    expect(router.currentRoute.value.fullPath).toBe('/home');
+  });
+
+  it('closes a pasted link by replacing, so Back leaves the page', async () => {
+    await open(`${page}?timer=t2`, createWebHistory(), '/home');
+    const start = position();
+
+    await click(backLink());
+    expect(position()).toBe(start);
+    expect(router.currentRoute.value.fullPath).toBe(page);
+
+    await pressBack();
+    expect(router.currentRoute.value.fullPath).toBe('/home');
   });
 });

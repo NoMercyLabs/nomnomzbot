@@ -12,9 +12,10 @@
 // Stoney 2026-11-03: "a close is a history pop". These tests run the real router and the real history.
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it } from 'vitest';
-import { defineComponent } from 'vue';
+import { defineComponent, type WritableComputedRef } from 'vue';
 import { createRouter, createWebHistory, type Router } from 'vue-router';
 
+import { usePageView } from '@/composables/usePageView';
 import { useQueryPane, type QueryPane } from '@/composables/useQueryPane';
 
 let router: Router;
@@ -162,5 +163,85 @@ describe('useQueryPane', () => {
     pane.close();
     await settle();
     expect(router.currentRoute.value.query).toEqual({});
+  });
+});
+
+// The tab strip and the pane share one history: a tab pushed before the pane is what a close pops back to,
+// and a tab changed inside the open pane replaces its entry instead of stacking another.
+describe('useQueryPane with a tab strip', () => {
+  let tab: WritableComputedRef<'stats' | 'notes'>;
+
+  function mountBoth(companions: readonly string[], tabKey: string): void {
+    wrapper = mount(
+      defineComponent({
+        setup() {
+          pane = useQueryPane('user', companions);
+          tab = usePageView(['stats', 'notes'], tabKey);
+
+          return () => null;
+        },
+      }),
+      { global: { plugins: [router] } },
+    );
+  }
+
+  it('pops back to the tab entry that was there before the pane opened', async () => {
+    mountBoth([], 'view');
+    await router.isReady();
+    tab.value = 'notes';
+    await settle();
+    const start = position();
+
+    pane.open('a');
+    await settle();
+    expect(position()).toBe(start + 1);
+
+    pane.close();
+    await settle();
+    expect(position()).toBe(start);
+    expect(router.currentRoute.value.fullPath).toBe('/chat?view=notes');
+
+    await goBack();
+    expect(router.currentRoute.value.fullPath).toBe('/chat');
+  });
+
+  it('keeps a filter changed inside the pane by popping the pane and taking the filter in place', async () => {
+    mountBoth([], 'view');
+    await router.isReady();
+    const start = position();
+
+    pane.open('a');
+    await settle();
+    await router.replace({ query: { user: 'a', sort: 'name' } });
+    await settle();
+
+    pane.close();
+    await settle();
+    expect(position()).toBe(start);
+    expect(router.currentRoute.value.fullPath).toBe('/chat?sort=name');
+
+    await goBack();
+    expect(router.currentRoute.value.fullPath).toBe('/home');
+  });
+
+  it('replaces the entry when a companion tab changes inside the open pane, so a close leaves the start position', async () => {
+    mountBoth(['tab'], 'tab');
+    await router.isReady();
+    const start = position();
+
+    pane.open('a');
+    await settle();
+    tab.value = 'notes';
+    await settle();
+    expect(position()).toBe(start + 1);
+    expect(router.currentRoute.value.fullPath).toBe('/chat?user=a&tab=notes');
+
+    pane.close();
+    await settle();
+    expect(position()).toBe(start);
+    expect(router.currentRoute.value.fullPath).toBe('/chat');
+
+    await goBack();
+    expect(router.currentRoute.value.fullPath).toBe('/home');
   });
 });

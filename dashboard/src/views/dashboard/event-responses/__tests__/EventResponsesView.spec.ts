@@ -14,8 +14,9 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
-import { createMemoryHistory, createRouter, type Router } from 'vue-router';
+import { createMemoryHistory, createRouter, createWebHistory, type Router, type RouterHistory } from 'vue-router';
 
+import { position, pressBack } from '@/__tests__/backHistory';
 import { eventResponsesKey } from '@/api/eventResponses';
 import { chooseTarget, openTargetPicker } from '@/components/layout/__tests__/targetPickerDom';
 import { i18n } from '@/i18n';
@@ -180,17 +181,26 @@ async function settle(): Promise<void> {
   await flushPromises();
 }
 
-async function open(url: string = '/app/event-responses'): Promise<void> {
+async function open(
+  url: string = '/app/event-responses',
+  history: RouterHistory = createMemoryHistory(),
+  before?: string,
+): Promise<void> {
   router = createRouter({
-    history: createMemoryHistory(),
+    history,
     routes: [
       {
         path: '/app/event-responses',
         name: 'dashboard-event-responses',
         component: { template: '<div />' },
       },
+      { path: '/home', component: { template: '<div />' } },
     ],
   });
+
+  if (before) {
+    await router.push(before);
+  }
 
   await router.push(url);
 
@@ -572,5 +582,45 @@ describe('Event responses permission gating', () => {
     expect(replyLines()).toEqual([]);
     expect(messageBox().value).toBe('Welcome {user}!');
     expect(editor()!.querySelector('[data-reply-source]')?.textContent).toContain('Your own text');
+  });
+});
+
+// Stoney 2026-11-03: "a close is a history pop". The real router on the real history.
+describe('Event responses page history', () => {
+  const page = '/app/event-responses';
+  const backLink = (): HTMLElement =>
+    document.body.querySelector<HTMLElement>('[data-detail-back]')!;
+
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('opens an event with one step and closes it by popping, then Back leaves the page', async () => {
+    await open(page, createWebHistory(), '/home');
+    const start = position();
+
+    await click(rowOf('channel.raid'));
+    expect(position()).toBe(start + 1);
+    expect(router.currentRoute.value.fullPath).toBe(`${page}?event=channel.raid`);
+
+    await click(backLink());
+    expect(position()).toBe(start);
+    expect(router.currentRoute.value.fullPath).toBe(page);
+    expect(editor()).toBeNull();
+
+    await pressBack();
+    expect(router.currentRoute.value.fullPath).toBe('/home');
+  });
+
+  it('closes a pasted link by replacing, so Back leaves the page', async () => {
+    await open(`${page}?event=channel.raid`, createWebHistory(), '/home');
+    const start = position();
+
+    await click(backLink());
+    expect(position()).toBe(start);
+    expect(router.currentRoute.value.fullPath).toBe(page);
+
+    await pressBack();
+    expect(router.currentRoute.value.fullPath).toBe('/home');
   });
 });

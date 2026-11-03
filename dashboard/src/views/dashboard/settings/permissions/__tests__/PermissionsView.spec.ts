@@ -16,8 +16,9 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
-import { createMemoryHistory, createRouter, type Router } from 'vue-router';
+import { createMemoryHistory, createRouter, createWebHistory, type Router, type RouterHistory } from 'vue-router';
 
+import { position, pressBack } from '@/__tests__/backHistory';
 import { i18n } from '@/i18n';
 import { settingsNav } from '@/layouts/dashboard/settingsNavigation';
 
@@ -245,13 +246,25 @@ async function settle(): Promise<void> {
 let router: Router;
 
 // The page opens on the tab (and area) in the address, as a link or the Back button would land on it.
-async function open(view?: string, area?: string): Promise<VueWrapper> {
+async function open(
+  view?: string,
+  area?: string,
+  history: RouterHistory = createMemoryHistory(),
+  before?: string,
+): Promise<VueWrapper> {
   const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
   router = createRouter({
-    history: createMemoryHistory(),
-    routes: [{ path: '/app/settings/permissions', component: PermissionsView }],
+    history,
+    routes: [
+      { path: '/app/settings/permissions', component: PermissionsView },
+      { path: '/home', component: { template: '<div />' } },
+    ],
   });
+
+  if (before) {
+    await router.push(before);
+  }
 
   await router.push({ path: '/app/settings/permissions', query: { view, area } });
   await router.isReady();
@@ -603,6 +616,46 @@ describe('Permissions layout', () => {
 
     expect(router.currentRoute.value.query).toMatchObject({ view: 'actions', area: 'obs' });
     expect(texts('[data-action] [data-slot="summary-row-title"]')).toEqual(['Switch scenes and sources in OBS']);
+  });
+
+  // Stoney 2026-11-03: "a close is a history pop". The real router on the real history.
+  describe('history', () => {
+    const page = '/app/settings/permissions';
+    const backLink = (): HTMLElement => q('[data-detail-back]');
+
+    beforeEach(() => {
+      window.history.replaceState(null, '', '/');
+    });
+
+    it('opens an area with one step, switching areas adds none, and a close pops it', async () => {
+      await open('actions', undefined, createWebHistory(), '/home');
+      const start = position();
+
+      await click(q('[data-area="obs"]'));
+      expect(position()).toBe(start + 1);
+      await click(q('[data-area="chat"]'));
+      expect(position()).toBe(start + 1);
+      expect(router.currentRoute.value.fullPath).toBe(`${page}?view=actions&area=chat`);
+
+      await click(backLink());
+      expect(position()).toBe(start);
+      expect(router.currentRoute.value.fullPath).toBe(`${page}?view=actions`);
+
+      await pressBack();
+      expect(router.currentRoute.value.fullPath).toBe('/home');
+    });
+
+    it('closes a pasted link by replacing, so Back leaves the page', async () => {
+      await open('actions', 'obs', createWebHistory(), '/home');
+      const start = position();
+
+      await click(backLink());
+      expect(position()).toBe(start);
+      expect(router.currentRoute.value.fullPath).toBe(`${page}?view=actions`);
+
+      await pressBack();
+      expect(router.currentRoute.value.fullPath).toBe('/home');
+    });
   });
 
   it('names each action in plain words with the bot description below, never the key or the floor again', async () => {

@@ -15,7 +15,6 @@
 // What the caller may change follows the bot's own gate (roles:manage); a reader sees the page without the controls.
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
 
 import { useChannelAccess } from '@/api/access';
 import { useActionMatrix, useMembers, usePersonGrants } from '@/api/permissions';
@@ -27,6 +26,7 @@ import PageTabs from '@/components/layout/PageTabs.vue';
 import type { PageTab } from '@/components/layout/pageTab';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
+import { useQueryPane } from '@/composables/useQueryPane';
 
 import { groupByArea, matchesSearch, useActionName, useAreaLabel } from './actionArea';
 import ActionAreaList from './components/ActionAreaList.vue';
@@ -36,8 +36,6 @@ import TeamRolesPanel from './components/TeamRolesPanel.vue';
 import { isAllowedGrant } from './personGrant';
 
 const { t } = useI18n();
-const route = useRoute();
-const router = useRouter();
 const { channelId } = useCurrentChannel();
 const access = useChannelAccess(channelId);
 const members = useMembers(channelId);
@@ -77,13 +75,8 @@ const area = usePageView(
 );
 
 // On a phone the list and the area take turns: an area in the address opens it over the list.
-const areaOpen = computed<boolean>(() => typeof route.query.area === 'string');
-
-function closeArea(): void {
-  const { area: _closed, ...kept } = route.query;
-
-  void router.push({ query: kept });
-}
+const pane = useQueryPane('area');
+const areaOpen = computed<boolean>(() => pane.id.value !== null);
 </script>
 
 <template>
@@ -97,7 +90,7 @@ function closeArea(): void {
         v-model:search="search"
         :areas="areas"
         :selected="area"
-        @pick="area = $event"
+        @pick="pane.open"
       />
     </template>
     <template v-if="area" #detail>
@@ -107,7 +100,7 @@ function closeArea(): void {
           data-page-inset
           class="self-start md:hidden"
           :label="$t('dashboard.settings.permissions.areas.back')"
-          @click="closeArea"
+          @click="pane.close"
         />
         <ActionMatrixPanel :can-manage="access.can('roles:manage')" :area="area" :search="search" />
       </div>

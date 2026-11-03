@@ -47,6 +47,7 @@ import { useScreenFrom } from '@/composables/useLayout';
 import { usePageView } from '@/composables/usePageView';
 import { errorText } from '@/lib/errors';
 import { usePanelState } from '@/composables/usePanelState';
+import { useQueryPane } from '@/composables/useQueryPane';
 import { useShortcut } from '@/composables/useShortcut';
 
 import { newAction, newBlock, type AddableBlock } from './components/newSteps';
@@ -149,71 +150,44 @@ const starts = computed(() => {
   return t('dashboard.pipelines.workbench.starts.sentence', { sources: named.join(', ') });
 });
 
-const selectedKey = ref<string | null>(null);
-const selected = computed(() =>
-  selectedKey.value === null
+// The open step lives in the address (?step=<step id>) as a pane: opening it is one history step, so Back closes
+// it, and a page that sends the person away for one step's sake (the script editor) can bring them back to it.
+// The drawer is a layer, so the pane and the layer share that step.
+const pane = useQueryPane('step', [], { inLayer: true });
+const selected = computed(() => {
+  const open = pane.id.value;
+
+  return open === null
     ? undefined
-    : findNode(tree.value, selectedKey.value),
-);
+    : findStepNode(tree.value, open);
+});
+const selectedKey = computed(() => selected.value?.key ?? null);
 
 // The drawer closes by back, a tap outside or Escape; closing it lets go of the step.
 const inspecting = computed<boolean>({
   get: () => selected.value !== undefined,
   set: (open: boolean) => {
     if (!open) {
-      selectedKey.value = null;
+      pane.close();
     }
   },
 });
 
-// The open step lives in the address (?step=<step id>), so a page that sends the person away for one step's
-// sake (the script editor) can bring them back to it. The address is read once, when the steps first arrive.
-let stepRestored = false;
-
-watch(
-  tree,
-  (nodes) => {
-    const asked = route.query.step;
-
-    if (stepRestored || nodes.length === 0) return;
-
-    stepRestored = true;
-
-    if (typeof asked === 'string') {
-      selectedKey.value = findStepNode(nodes, asked)?.key ?? null;
-    }
-  },
-  { immediate: true },
-);
-
-watch(
-  () => selected.value?.step.id,
-  (stepId) => {
-    if (!stepRestored || route.query.step === (stepId ?? undefined)) return;
-
-    const { step, ...rest } = route.query;
-
-    void step;
-
-    void router.replace({ query: stepId
-      ? { ...rest, step: stepId }
-      : rest });
-  },
-);
-
 // Runs and the step details share the right side, so one opening closes the other.
 watch(runsOpen, (open: boolean) => {
-  if (open) {
-    selectedKey.value = null;
+  if (open && pane.id.value !== null) {
+    pane.close();
   }
 });
 
 function pick(key: string): void {
   runsOpen.value = false;
 
-  selectedKey.value = key === selectedKey.value
+  const step = findNode(tree.value, key)?.step;
+
+  pane.select(key === selectedKey.value
     ? null
-    : key;
+    : step?.id);
 }
 
 function duplicate(): void {
@@ -236,13 +210,7 @@ function patch(change: StepPatch): void {
 const moved = ref('');
 
 async function moveTo(stepId: string, to: Spot): Promise<void> {
-  const open = selected.value?.step.id;
-
   draft.move(stepId, to);
-
-  if (open) {
-    selectedKey.value = findStepNode(tree.value, open)?.key ?? null;
-  }
 
   const place = locateStep(tree.value, stepId);
 
@@ -267,7 +235,7 @@ function remove(): void {
 
   if (!step?.id) return;
 
-  selectedKey.value = null;
+  pane.close();
   draft.remove(step.id);
   toast(t(`${page}.removed`), { action: { label: t(`${page}.undo`), onClick: draft.undo } });
 }
@@ -328,7 +296,7 @@ function added(id: string | null): void {
 
   paletteOpen.value = false;
   target.value = null;
-  selectedKey.value = node?.key ?? null;
+  pane.select(node?.step.id);
 }
 
 function addAction(type: string): void {

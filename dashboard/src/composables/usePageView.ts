@@ -12,6 +12,8 @@
 import { computed, toValue, type MaybeRefOrGetter, type WritableComputedRef } from 'vue';
 import { useRoute, useRouter } from 'vue-router';
 
+import { paneOwnsKey } from '@/composables/useQueryPane';
+
 // The open tab of a page lives in the route query (?view=), so a link opens a tab and Back returns to the last one.
 // A missing or unknown value falls back to the first tab; the query stays clean until a person picks another tab.
 // A second tab row on the same page (the phone board) keeps its own query key.
@@ -53,7 +55,16 @@ export function usePageView<View extends string>(
         ? route.query
         : kept;
 
-      void router.push({ query: { ...query, [key]: view } });
+      const next = { query: { ...query, [key]: view } };
+
+      // A tab of an open pane (its companion key) belongs to the pane's entry, so it replaces it instead of stacking.
+      if (paneOwnsKey(route.query, key)) {
+        void router.replace(next);
+
+        return;
+      }
+
+      void router.push(next);
     },
   });
 }

@@ -14,8 +14,9 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
-import { createMemoryHistory, createRouter } from 'vue-router';
+import { createMemoryHistory, createRouter, createWebHistory, type Router, type RouterHistory } from 'vue-router';
 
+import { position, pressBack } from '@/__tests__/backHistory';
 import { i18n } from '@/i18n';
 
 import en from '../i18n/en.json';
@@ -112,6 +113,7 @@ vi.mock('@/composables/useCurrentChannel', () => ({
 
 let mounted: VueWrapper | null = null;
 let pinia: Pinia;
+let router: Router;
 
 beforeEach(() => {
   calls.length = 0;
@@ -135,13 +137,24 @@ async function settle(): Promise<void> {
   await flushPromises();
 }
 
-async function open(): Promise<void> {
-  const router = createRouter({
-    history: createMemoryHistory(),
-    routes: [{ path: '/app/triggers-timers', component: { template: '<div />' } }],
+async function open(
+  history: RouterHistory = createMemoryHistory(),
+  url: string = '/app/triggers-timers?view=triggers',
+  before?: string,
+): Promise<void> {
+  router = createRouter({
+    history,
+    routes: [
+      { path: '/app/triggers-timers', component: { template: '<div />' } },
+      { path: '/home', component: { template: '<div />' } },
+    ],
   });
 
-  await router.push('/app/triggers-timers?view=triggers');
+  if (before) {
+    await router.push(before);
+  }
+
+  await router.push(url);
 
   const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
 
@@ -276,6 +289,47 @@ describe('Chat triggers tab', () => {
 
     expect(calls.filter((call) => call.method === 'DELETE').map((call) => call.id)).toEqual(['a']);
     expect(patterns()).toEqual(['words b']);
+  });
+});
+
+// Stoney 2026-11-03: "a close is a history pop". The real router on the real history.
+describe('Chat triggers tab history', () => {
+  const tab = '/app/triggers-timers?view=triggers';
+  const editorOpen = (): boolean => document.body.querySelector('[data-trigger-editor]') !== null;
+
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('opens a trigger with one step, and Back closes it before it leaves the page', async () => {
+    await open(createWebHistory(), tab, '/home');
+    const start = position();
+
+    await click(rowOf('words b'));
+    expect(position()).toBe(start + 1);
+    expect(router.currentRoute.value.fullPath).toBe(`${tab}&trigger=b`);
+    expect(editorOpen()).toBe(true);
+
+    await pressBack();
+    expect(position()).toBe(start);
+    expect(router.currentRoute.value.fullPath).toBe(tab);
+    expect(editorOpen()).toBe(false);
+
+    await pressBack();
+    expect(router.currentRoute.value.fullPath).toBe('/home');
+  });
+
+  it('closes a deleted pasted-link trigger by replacing, so Back leaves the page', async () => {
+    await open(createWebHistory(), `${tab}&trigger=a`, '/home');
+    const start = position();
+
+    await click(buttonByText('Delete'));
+    await click(buttonByText('Delete trigger'));
+    expect(position()).toBe(start);
+    expect(router.currentRoute.value.fullPath).toBe(tab);
+
+    await pressBack();
+    expect(router.currentRoute.value.fullPath).toBe('/home');
   });
 });
 

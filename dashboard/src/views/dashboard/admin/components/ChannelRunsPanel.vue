@@ -23,6 +23,7 @@ import type { FilterOption } from '@/components/layout/filterOption';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { Input } from '@/components/ui/input';
 import { usePanelState } from '@/composables/usePanelState';
+import { useQueryPane } from '@/composables/useQueryPane';
 
 import AdminPager from './AdminPager.vue';
 import ChannelRunsTable from './ChannelRunsTable.vue';
@@ -84,8 +85,11 @@ function applyPipeline(): void {
   change({ pipelineId: pipeline.value.trim(), page: 1 });
 }
 
+// The run sheet is a layer, so the pane and the layer share one step.
+const pane = useQueryPane('run', [], { inLayer: true });
+
 function openRun(run: ChannelRun): void {
-  void router.push({ query: runsQuery(route.query, { runId: Number(run.id) }) });
+  pane.open(String(run.id));
 }
 </script>
 
@@ -120,5 +124,5 @@ function openRun(run: ChannelRun): void {
       />
     </template>
   </PanelCard>
-  <RunDetailSheet :channel-id="channelId" :run-id="view.runId" @close="change({ runId: null })" />
+  <RunDetailSheet :channel-id="channelId" :run-id="view.runId" @close="pane.close" />
 </template>

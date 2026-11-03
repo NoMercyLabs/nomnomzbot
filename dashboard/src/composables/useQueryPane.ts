@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+import { tryOnScopeDispose } from '@vueuse/core';
 import { computed, type ComputedRef } from 'vue';
 import { useRoute, useRouter, type LocationQuery } from 'vue-router';
 
@@ -24,6 +25,20 @@ export interface QueryPane {
   id: ComputedRef<string | null>;
   open: (id: string) => void;
   close: () => void;
+  select: (id: string | null | undefined) => void;
+}
+
+interface MountedPane {
+  key: string;
+  companions: readonly string[];
+}
+
+// The panes mounted now, so a tab strip (usePageView) can tell that its key belongs to a pane that is open.
+const mountedPanes: MountedPane[] = [];
+
+export function paneOwnsKey(query: LocationQuery, tabKey: string): boolean {
+  return mountedPanes.some((pane) =>
+    pane.companions.includes(tabKey) && typeof query[pane.key] === 'string');
 }
 
 function omit(query: LocationQuery, keys: readonly string[]): LocationQuery {
@@ -38,10 +53,24 @@ function signature(query: LocationQuery): string {
   return JSON.stringify(entries);
 }
 
-export function useQueryPane(key: string, companions: readonly string[] = []) {
+// `inLayer` is for a pane the page shows in a drawer or a sheet. That layer takes a history step of its own (see
+// useBackCloses), so the push that opens the pane carries it and the two are one step.
+export function useQueryPane(
+  key: string,
+  companions: readonly string[] = [],
+  { inLayer = false }: { inLayer?: boolean } = {},
+) {
   const route = useRoute();
   const router = useRouter();
   const names = merge([key], companions);
+
+  const mounted: MountedPane = { key, companions };
+
+  mountedPanes.push(mounted);
+
+  tryOnScopeDispose(() => {
+    mountedPanes.splice(mountedPanes.indexOf(mounted), 1);
+  });
 
   const id = computed<string | null>(() => {
     const value = route.query[key];
@@ -64,36 +93,72 @@ export function useQueryPane(key: string, companions: readonly string[] = []) {
       return;
     }
 
-    void router.push({ query });
+    void router.push(inLayer
+      ? { query, state: { backLayers: 1 } }
+      : { query });
   }
 
-  // The step before this one is ours only when it is this page without the pane.
-  function cameFromPage(rest: LocationQuery): boolean {
-    const back = router.options.history.state.back;
+  // The step before this one is ours only when it is this page; it is the page without the pane, or (for a pasted
+  // link shown in a layer) the pasted entry itself, under the layer step that useBackCloses added on top of it.
+  function earlierQuery(): LocationQuery | null {
+    const { back, backLayers } = router.options.history.state;
 
     if (typeof back !== 'string')
-      return false;
+      return null;
 
     const earlier = router.resolve(back);
 
-    return earlier.path === route.path && signature(earlier.query) === signature(rest);
+    if (earlier.path !== route.path)
+      return null;
+
+    const holdsPane = names.some((name) => name in earlier.query);
+    const onLayerStep = inLayer && Number(backLayers ?? 0) > 0;
+
+    return holdsPane && !onLayerStep
+      ? null
+      : earlier.query;
+  }
+
+  // A tab changed inside the pane left the earlier entry on the old tab: land on it, then take the new one in place.
+  function keepAfterPop(rest: LocationQuery): void {
+    const stop = router.afterEach(() => {
+      stop();
+      void router.replace({ query: rest });
+    });
   }
 
   function close(): void {
     const rest = omit(route.query, names);
+    const earlier = earlierQuery();
 
-    if (cameFromPage(rest)) {
-      router.back();
+    if (earlier === null) {
+      void router.replace({ query: rest });
 
       return;
     }
 
-    void router.replace({ query: rest });
+    if (signature(earlier) !== signature(rest)) {
+      keepAfterPop(rest);
+    }
+
+    router.back();
+  }
+
+  // For a picker that hands back an id, or nothing when the choice is cleared.
+  function select(next: string | null | undefined): void {
+    if (typeof next === 'string') {
+      open(next);
+
+      return;
+    }
+
+    close();
   }
 
   return {
     id,
     open,
     close,
+    select,
   } as const satisfies QueryPane;
 }

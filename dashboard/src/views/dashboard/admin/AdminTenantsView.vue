@@ -102,7 +102,7 @@ const listError = computed<string>(() =>
     : t('dashboard.admin.tenants.list.error'),
 );
 
-const pane = useQueryPane('user');
+const pane = useQueryPane('user', [], { inLayer: true });
 const selectedId = computed<string>(() => pane.id.value ?? '');
 const selected = computed<AdminTenant | null>(() =>
   rows.value.find((row) => row.userId === selectedId.value) ?? null);

@@ -12,7 +12,6 @@
 // The Triggers and Timers page: the channel's timers on the left, the open timer on the right.
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
 
 import { useTimers, type Timer } from '@/api/liveOps';
 import { useDeleteTimer } from '@/api/timers';
@@ -26,6 +25,7 @@ import PanelCard from '@/components/layout/PanelCard.vue';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
+import { useQueryPane } from '@/composables/useQueryPane';
 import { keysOf } from '@/lib/array';
 
 import ChatTriggersPanel from './components/ChatTriggersPanel.vue';
@@ -34,29 +34,20 @@ import TimerEditor from './components/TimerEditor.vue';
 import TimerList from './components/TimerList.vue';
 
 const { t } = useI18n();
-const route = useRoute();
-const router = useRouter();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const timers = useTimers(channelId);
 const remove = useDeleteTimer(channelId);
 
 // The open timer lives in the address (?timer=), so a refresh or a link keeps it.
-const selected = computed<string | null>(() =>
-  typeof route.query.timer === 'string'
-    ? route.query.timer
-    : null,
-);
+const pane = useQueryPane('timer');
+const selected = pane.id;
 const row = computed<Timer | undefined>(() =>
   (timers.data.value ?? []).find((item): boolean => item.id === selected.value),
 );
 
-function select(id: string | undefined): void {
-  void router.push({ query: { ...route.query, timer: id } });
-}
-
 function removeTimer(item: Timer): void {
-  select(undefined);
+  pane.close();
   remove.mutate({ timerId: item.id, name: item.name });
 }
 
@@ -117,7 +108,7 @@ function create(): void {
   <ChatTriggersPanel v-if="view === 'triggers'" v-model:creating="creatingTrigger" />
   <ListDetail v-else :show-detail="row !== undefined">
     <template #list>
-      <TimerList :selected="selected" @pick="select" @create="creating = true" />
+      <TimerList :selected="selected" @pick="pane.open" @create="creating = true" />
     </template>
     <template v-if="can('timers:write')" #detail>
       <div v-if="row" class="flex flex-1 flex-col gap-2 md:min-h-0">
@@ -126,13 +117,13 @@ function create(): void {
           data-page-inset
           class="self-start md:hidden"
           :label="$t('dashboard.timers.back')"
-          @click="select(undefined)"
+          @click="pane.close"
         />
         <TimerEditor
           :key="row.id"
           :row="row"
           @remove="removeTimer"
-          @duplicated="select($event ?? undefined)"
+          @duplicated="pane.select"
         />
       </div>
       <PanelCard

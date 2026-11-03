@@ -11,7 +11,6 @@
 <script setup lang="ts">
 // The Event responses page: the channel's event types on the left, the open event's reply on the right.
 import { computed } from 'vue';
-import { useRoute, useRouter } from 'vue-router';
 
 import { useEventResponses, type EventResponse } from '@/api/eventResponses';
 import BackLink from '@/components/layout/BackLink.vue';
@@ -20,31 +19,24 @@ import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useQueryPane } from '@/composables/useQueryPane';
 
 import EventResponseEditor from './components/EventResponseEditor.vue';
 import EventResponseList from './components/EventResponseList.vue';
 
-const route = useRoute();
-const router = useRouter();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const responses = useEventResponses(channelId);
 
 // The open event lives in the address (?event=), so a refresh or a link keeps it.
-const selected = computed<string | null>(() =>
-  typeof route.query.event === 'string'
-    ? route.query.event
-    : null,
-);
+const pane = useQueryPane('event');
+const selected = pane.id;
 const row = computed<EventResponse | undefined>(() =>
   (responses.data.value ?? []).find(
     (item): boolean => item.eventType === selected.value,
   ),
 );
 
-function select(eventType: string | undefined): void {
-  void router.push({ query: { ...route.query, event: eventType } });
-}
 </script>
 
 <template>
@@ -54,7 +46,7 @@ function select(eventType: string | undefined): void {
   />
   <ListDetail :show-detail="row !== undefined">
     <template #list>
-      <EventResponseList :selected="selected" @pick="select" />
+      <EventResponseList :selected="selected" @pick="pane.open" />
     </template>
     <template v-if="can('eventresponses:write')" #detail>
       <div v-if="row" class="flex flex-1 flex-col gap-2 md:min-h-0">
@@ -63,7 +55,7 @@ function select(eventType: string | undefined): void {
           data-page-inset
           class="self-start md:hidden"
           :label="$t('dashboard.eventResponses.back')"
-          @click="select(undefined)"
+          @click="pane.close"
         />
         <EventResponseEditor :key="row.eventType" :row="row" />
       </div>

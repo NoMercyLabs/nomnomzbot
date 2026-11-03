@@ -28,6 +28,7 @@ import { Button } from '@/components/ui/button';
 import { useCan } from '@/composables/useCan';
 import { usePageView } from '@/composables/usePageView';
 import { usePanelState } from '@/composables/usePanelState';
+import { useQueryPane } from '@/composables/useQueryPane';
 import { keysOf } from '@/lib/array';
 import { errorText } from '@/lib/errors';
 import { dashboardReturn } from '@/router/returnTarget';
@@ -122,27 +123,13 @@ const count = computed<string | undefined>(() =>
     : undefined,
 );
 
-const asked = computed<string>(() =>
-  typeof route.query.script === 'string'
-    ? route.query.script
-    : '',
-);
+const pane = useQueryPane('script');
+const asked = computed<string>(() => pane.id.value ?? '');
 const selectedId = asked;
 
 // A page that sent the person here for one script (a pipeline step) names the way back in ?back=.
 const backTo = computed(() =>
   dashboardReturn(router, route.query.back));
-
-function pick(script: CodeScriptSummary): void {
-  void router.push({ query: { ...route.query, script: script.id } });
-}
-
-function back(): void {
-  const { script, ...rest } = route.query;
-
-  void script;
-  void router.push({ query: rest });
-}
 
 const newOpen = ref(false);
 
@@ -162,9 +149,10 @@ function ran(run: Omit<SessionRun, 'id'>): void {
   }
 }
 
+// A new or duplicated script opens in place; a cleared id (nothing was made) opens nothing.
 function opened(id: string | null): void {
   if (id !== null) {
-    void router.push({ query: { ...route.query, script: id } });
+    pane.open(id);
   }
 }
 </script>
@@ -226,7 +214,7 @@ function opened(id: string | null): void {
           :key="script.id"
           :script="script"
           :selected="script.id === selectedId"
-          @pick="pick(script)"
+          @pick="pane.open(script.id)"
         />
       </ListPanel>
     </template>
@@ -236,8 +224,8 @@ function opened(id: string | null): void {
         :key="asked"
         :script-id="asked"
         :summary="loaded?.find((one: CodeScriptSummary) => one.id === asked)"
-        @back="back"
-        @deleted="back"
+        @back="pane.close"
+        @deleted="pane.close"
         @duplicated="opened"
         @ran="ran"
       />

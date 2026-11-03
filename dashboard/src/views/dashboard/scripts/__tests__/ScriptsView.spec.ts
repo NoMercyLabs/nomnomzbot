@@ -14,8 +14,9 @@ import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
-import { createMemoryHistory, createRouter, type Router } from 'vue-router';
+import { createMemoryHistory, createRouter, createWebHistory, type Router, type RouterHistory } from 'vue-router';
 
+import { position, pressBack } from '@/__tests__/backHistory';
 import { Select, SelectItem } from '@/components/ui/select';
 import { i18n } from '@/i18n';
 
@@ -351,11 +352,15 @@ const settle = async (): Promise<void> => {
   await flushPromises();
 };
 
-async function open(url: string = '/app/scripts'): Promise<void> {
+async function open(
+  url: string = '/app/scripts',
+  history: RouterHistory = createMemoryHistory(),
+  before?: string,
+): Promise<void> {
   const blank = { template: '<div />' };
 
   router = createRouter({
-    history: createMemoryHistory(),
+    history,
     routes: [
       {
         path: '/app/scripts',
@@ -367,8 +372,13 @@ async function open(url: string = '/app/scripts'): Promise<void> {
         name: 'dashboard-pipeline',
         component: blank,
       },
+      { path: '/home', component: blank },
     ],
   });
+
+  if (before) {
+    await router.push(before);
+  }
 
   await router.push(url);
 
@@ -416,6 +426,50 @@ const typeSearch = async (value: string): Promise<void> => {
   input.dispatchEvent(new Event('input', { bubbles: true }));
   await settle();
 };
+
+// Stoney 2026-11-03: "a close is a history pop". The real router on the real history.
+describe('ScriptsView history', () => {
+  const page = '/app/scripts';
+  const backLink = (): HTMLElement =>
+    document.body.querySelector<HTMLElement>('[data-slot="script-back"]')!;
+
+  beforeEach(() => {
+    window.history.replaceState(null, '', '/');
+  });
+
+  it('opens a script with one step and closes it by popping, then Back leaves the page', async () => {
+    await open(page, createWebHistory(), '/home');
+    const start = position();
+
+    rows()[0]!.querySelector<HTMLElement>('[aria-pressed]')!.click();
+    await settle();
+    expect(position()).toBe(start + 1);
+    expect(router.currentRoute.value.query.script).toBeTypeOf('string');
+    expect(backLink()).not.toBeNull();
+
+    backLink().click();
+    await settle();
+    expect(position()).toBe(start);
+    expect(router.currentRoute.value.fullPath).toBe(page);
+    expect(document.body.querySelector('[data-slot="script-detail"]')).toBeNull();
+
+    await pressBack();
+    expect(router.currentRoute.value.fullPath).toBe('/home');
+  });
+
+  it('closes a pasted link by replacing, so Back leaves the page', async () => {
+    await open(`${page}?script=s1`, createWebHistory(), '/home');
+    const start = position();
+
+    backLink().click();
+    await settle();
+    expect(position()).toBe(start);
+    expect(router.currentRoute.value.fullPath).toBe(page);
+
+    await pressBack();
+    expect(router.currentRoute.value.fullPath).toBe('/home');
+  });
+});
 
 describe('ScriptsView', () => {
   it('counts each tab from the list, with Failed as the rows that have a runtime error', async () => {
