@@ -155,6 +155,19 @@ public sealed class PlayTtsAction : ICommandAction
                 );
         }
 
+        if (
+            ctx.Variables.TryGetValue("input.held", out string? held)
+            && held.Equals("true", StringComparison.OrdinalIgnoreCase)
+            && ctx.Variables.TryGetValue("input", out string? input)
+            && !string.IsNullOrWhiteSpace(input)
+            && (
+                text.Contains(input, StringComparison.Ordinal)
+                || segments?.Any(segment => segment.Text.Contains(input, StringComparison.Ordinal))
+                    == true
+            )
+        )
+            return ActionResult.Failure("Redemption text is held by AutoMod.");
+
         string voiceTemplate = action.GetString("voice") ?? string.Empty;
         string? voiceOverride = null;
         if (!string.IsNullOrWhiteSpace(voiceTemplate))
