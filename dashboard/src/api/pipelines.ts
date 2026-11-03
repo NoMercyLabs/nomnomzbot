@@ -371,6 +371,22 @@ export const PICKER_KINDS = [
   'obs_input',
   'obs_hotkey',
   'discord_user',
+  'vts_model',
+  'vts_hotkey',
+  'vts_expression',
+  'game_type',
+  'live_game_type',
+  'pronoun',
+  'music_device',
+  'music_track',
+  'pipeline',
+  'pipeline_name',
+  'command_name',
+  'action_type',
+  'savings_jar',
+  'giveaway',
+  'quote',
+  'webhook_endpoint',
 ] as const satisfies string[];
 
 export type PickerKind = (typeof PICKER_KINDS)[number];
