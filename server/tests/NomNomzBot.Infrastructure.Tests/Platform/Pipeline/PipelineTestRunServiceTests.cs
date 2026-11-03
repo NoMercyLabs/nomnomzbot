@@ -20,6 +20,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -104,7 +105,9 @@ public sealed class PipelineTestRunServiceTests
                 resolver,
                 NullLogger<PipelineEngine>.Instance,
                 TimeProvider.System,
-                pipelines ?? EchoPipelines()
+                pipelines ?? EchoPipelines(),
+                Substitute.For<ICurrentUserService>(),
+                Substitute.For<IOverlayPresenceRegistry>()
             ),
             chat,
             moderation,

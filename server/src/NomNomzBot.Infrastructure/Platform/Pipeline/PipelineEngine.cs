@@ -2447,7 +2447,7 @@ public sealed class PipelineEngine : IPipelineEngine
     private static string TriggerKindOf(PipelineRequest request)
     {
         if (request.TestRunOfPipelineId.HasValue)
-            return "test_run";
+            return request.LiveTestRun ? "manual_live" : "test_run";
 
         return request.PipelineId.HasValue ? "pipeline" : "inline_json";
     }

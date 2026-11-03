@@ -20,19 +20,34 @@ namespace NomNomzBot.Application.Commands.Services;
 /// one action object (<c>{"type":"send_message", ...params}</c>); when set, only that action runs, through the
 /// same capture engine, instead of the saved pipeline's graph. <paramref name="Graph"/> is optional too: the draft
 /// graph a person is editing (the same JSON the save takes); when set it is validated like a save and runs
-/// instead of the saved graph, flat or tree. Nothing is stored.
+/// instead of the saved graph, flat or tree. <paramref name="Mode"/> is <see cref="PipelineTestRunModes.Dry"/> when
+/// absent (the capture run, unchanged) or <see cref="PipelineTestRunModes.Live"/> (the real actions run, with the
+/// variables as the start values; the trigger user defaults to the caller).
 /// </summary>
 public sealed record PipelineTestRunRequest(
     IReadOnlyDictionary<string, string> Variables,
     JsonElement? Step = null,
-    JsonElement? Graph = null
+    JsonElement? Graph = null,
+    string? Mode = null
 );
+
+/// <summary>The two ways a pipeline test run can go. The wire value of <see cref="PipelineTestRunRequest.Mode"/>.</summary>
+public static class PipelineTestRunModes
+{
+    /// <summary>Every side-effecting action is captured, nothing outward happens. The default.</summary>
+    public const string Dry = "dry";
+
+    /// <summary>The real actions run for real, as if the trigger had fired.</summary>
+    public const string Live = "live";
+}
 
 /// <summary>
 /// Executes a saved pipeline through the real engine in CAPTURE mode (commands-pipelines.md): reads, conditions,
 /// pick-list draws and variable math run for real, but every side-effecting action (chat/tts/widget/moderation/
 /// economy-write/reward/schedule/run_code/…) is RECORDED rather than performed. A captured action reports success so
-/// downstream branches are exercised as the happy path. Never touches an external surface or persists anything.
+/// downstream branches are exercised as the happy path. A dry run never touches an external surface. A
+/// <see cref="PipelineTestRunModes.Live"/> run is the opposite: the real actions run, and the run is filed in the
+/// pipeline's run history as <c>manual_live</c>.
 /// </summary>
 public interface IPipelineTestRunService
 {

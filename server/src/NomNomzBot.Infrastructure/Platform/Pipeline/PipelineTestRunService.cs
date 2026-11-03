@@ -19,6 +19,7 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.TestRun;
 
@@ -41,7 +42,9 @@ public sealed class PipelineTestRunService(
     ITemplateResolver resolver,
     ILogger<PipelineEngine> logger,
     TimeProvider timeProvider,
-    IPipelineService pipelines
+    IPipelineService pipelines,
+    ICurrentUserService currentUser,
+    IOverlayPresenceRegistry overlays
 ) : IPipelineTestRunService
 {
     // The only actions run for real: side-effect-free, and each contributes to realistic branching. Everything else
@@ -64,6 +67,19 @@ public sealed class PipelineTestRunService(
     {
         if (tenant.BroadcasterId is not { } broadcasterId)
             return Result.Failure<TestRunResultDto>("No tenant.", "NO_TENANT");
+
+        string mode = request.Mode?.Trim().ToLowerInvariant() ?? PipelineTestRunModes.Dry;
+        if (mode is not (PipelineTestRunModes.Dry or PipelineTestRunModes.Live))
+            return Result.Failure<TestRunResultDto>(
+                $"Unknown test run mode '{request.Mode}'. Use 'dry' or 'live'.",
+                "VALIDATION_FAILED"
+            );
+        bool live = mode == PipelineTestRunModes.Live;
+        if (live && string.IsNullOrWhiteSpace(currentUser.UserId))
+            return Result.Failure<TestRunResultDto>(
+                "A live run needs a signed-in caller.",
+                "UNAUTHENTICATED"
+            );
 
         // Load the graph document, exactly like the real dispatch (reward/command/timer all read
         // GraphJsonCache into PipelineRequest.PipelineJson). Pipelines are stored graph-only — there are no
@@ -114,27 +130,42 @@ public sealed class PipelineTestRunService(
             runPipelineId = null;
         }
 
-        CaptureSink sink = new();
-        List<ICommandAction> captureActions =
-        [
-            .. actions.Select(a =>
-                PassthroughActionTypes.Contains(a.ActionType)
-                    ? a
-                    : new CapturingCommandAction(a, sink, resolver)
-            ),
-        ];
+        // A live run does real things: one at a time per pipeline, so a double click never fires it twice.
+        using IDisposable? liveLease = live ? LivePipelineRunGate.TryEnter(pipelineId) : null;
+        if (live && liveLease is null)
+            return Result.Failure<TestRunResultDto>(
+                "A live run of this pipeline is already running. Wait for it to finish.",
+                "LIVE_RUN_IN_PROGRESS"
+            );
 
-        // A fresh engine over the SAME real dependencies but the capture action-set — the real engine logic
+        CaptureSink sink = new();
+        // Dry: every side-effecting action is captured. Live: the real action set runs, unchanged.
+        List<ICommandAction> runActions = live
+            ? [.. actions]
+            :
+            [
+                .. actions.Select(a =>
+                    PassthroughActionTypes.Contains(a.ActionType)
+                        ? a
+                        : new CapturingCommandAction(a, sink, resolver)
+                ),
+            ];
+
+        // A fresh engine over the SAME real dependencies but the chosen action-set — the real engine logic
         // (step order, conditions, {last.*} wiring, concurrency/timeout) is exercised unchanged.
         PipelineEngine engine = new(
             db,
             registry,
-            captureActions,
+            runActions,
             conditions,
             resolver,
             logger,
             timeProvider
         );
+
+        TestRunTrigger trigger = live
+            ? TestRunTrigger.Live(request.Variables, currentUser)
+            : TestRunTrigger.Dry(request.Variables, broadcasterId);
 
         // Pass BOTH the id and the graph: the engine uses PipelineStep rows when they exist and falls back
         // to PipelineJson otherwise (its own resolution order). Real pipelines are graph-only, so the graph
@@ -144,14 +175,15 @@ public sealed class PipelineTestRunService(
             BroadcasterId = broadcasterId,
             PipelineId = runPipelineId,
             PipelineJson = graphJson,
-            TriggeredByUserId = broadcasterId.ToString(),
-            TriggeredByDisplayName = "Test Run",
+            TriggeredByUserId = trigger.UserId,
+            TriggeredByDisplayName = trigger.DisplayName,
             MessageId = null,
             RawMessage = string.Empty,
-            InitialVariables = new(request.Variables, StringComparer.OrdinalIgnoreCase),
+            InitialVariables = trigger.Variables,
             CollectTrace = true,
             RunInlineGraphAsTree = request.Graph is not null,
             TestRunOfPipelineId = pipelineId,
+            LiveTestRun = live,
         };
 
         PipelineExecutionResult result = await engine.ExecuteAsync(
@@ -197,6 +229,14 @@ public sealed class PipelineTestRunService(
             )
             {
                 Trace = result.Trace,
+                Mode = mode,
+                RealSteps = live ? [.. result.StepLogs.Select(l => l.ActionType)] : [],
+                Warnings = live
+                    ? LiveRunOverlayWarnings.For(
+                        result.StepLogs,
+                        overlays.IsOverlayConnected(broadcasterId)
+                    )
+                    : [],
             }
         );
     }

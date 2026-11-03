@@ -131,6 +131,10 @@ public class PipelineRequest
     /// <summary>The pipeline a dashboard test run belongs to. A draft runs with <see cref="PipelineId"/>
     /// null, so this is what files its execution row under the pipeline's Runs.</summary>
     public Guid? TestRunOfPipelineId { get; init; }
+
+    /// <summary>True when a test run ran the real actions (a live test run). Its execution row then carries the
+    /// trigger kind <c>manual_live</c> instead of <c>test_run</c>. Only meaningful with <see cref="TestRunOfPipelineId"/>.</summary>
+    public bool LiveTestRun { get; init; }
 }
 
 public class PipelineExecutionResult

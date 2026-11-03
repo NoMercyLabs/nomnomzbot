@@ -259,12 +259,16 @@ public class PipelinesController : BaseController
     /// DRY-RUN a saved pipeline with sample variables (commands-pipelines.md). The real engine runs the real steps —
     /// conditions, variable math, pick-list draws and balance reads execute live — but every side-effecting action
     /// (chat, TTS, widgets, moderation, economy writes, rewards, schedules, run_code) is CAPTURED and returned rather
-    /// than performed, and reports success so downstream branches are exercised. Nothing is dispatched or persisted.
+    /// than performed, and reports success so downstream branches are exercised. Nothing is dispatched.
+    /// With <c>mode: "live"</c> the real actions run instead, as the caller (or the trigger user the request names),
+    /// and the run is filed in the run history as <c>manual_live</c>. Live needs the same <c>pipelines:write</c>
+    /// permission as editing, and one live run of a pipeline goes at a time: a second start is a 409.
     /// </summary>
     [RequireAction("pipelines:write")]
     [HttpPost("{id:guid}/test-run")]
     [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
     [ProducesResponseType<StatusResponseDto<TestRunResultDto>>(StatusCodes.Status200OK)]
+    [ProducesResponseType<StatusResponseDto<object>>(StatusCodes.Status409Conflict)]
     public async Task<IActionResult> TestRunPipeline(
         string channelId,
         Guid id,
@@ -273,6 +277,8 @@ public class PipelinesController : BaseController
     )
     {
         Result<TestRunResultDto> result = await _testRunService.RunAsync(id, request, ct);
+        if (result.ErrorCode == "LIVE_RUN_IN_PROGRESS")
+            return ConflictResponse(result.ErrorMessage, result.ErrorCode);
         return ResultResponse(result);
     }
 

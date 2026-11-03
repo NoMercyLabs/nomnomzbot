@@ -74,6 +74,15 @@ public sealed record TestRunResultDto(
     /// <summary>What each executed step did, in run order (pipeline test-runs only; empty for scripts).</summary>
     public IReadOnlyList<PipelineTraceStepDto> Trace { get; init; } = [];
 
+    /// <summary>Pipeline test-runs only: <c>dry</c> (every outward action captured) or <c>live</c> (the real actions ran). Null for a script run.</summary>
+    public string? Mode { get; init; }
+
+    /// <summary>Live pipeline runs only: the action type of every step that ran for real, in run order. Empty for a dry run.</summary>
+    public IReadOnlyList<string> RealSteps { get; init; } = [];
+
+    /// <summary>Live pipeline runs only: output that could not be seen, such as an overlay or sound step with no browser source attached. Never a silent success.</summary>
+    public IReadOnlyList<string> Warnings { get; init; } = [];
+
     /// <summary>Where in the author's own file a failed script run threw; null when the run passed or the place is unknown.</summary>
     public ScriptSourcePosition? ErrorPosition { get; init; }
 }
