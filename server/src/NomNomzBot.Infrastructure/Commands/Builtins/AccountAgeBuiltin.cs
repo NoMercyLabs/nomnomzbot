@@ -12,6 +12,7 @@
 using System.Globalization;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -37,6 +38,7 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
     private readonly IUserService _users;
     private readonly IApplicationDbContext _db;
     private readonly IUserIdentityService _identities;
+    private readonly IMentionTargetResolver _mentionTargets;
     private readonly IBuiltinResponseComposer _composer;
     private readonly TimeProvider _clock;
 
@@ -45,6 +47,7 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
         IUserService users,
         IApplicationDbContext db,
         IUserIdentityService identities,
+        IMentionTargetResolver mentionTargets,
         IBuiltinResponseComposer composer,
         TimeProvider clock
     )
@@ -53,6 +56,7 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
         _users = users;
         _db = db;
         _identities = identities;
+        _mentionTargets = mentionTargets;
         _composer = composer;
         _clock = clock;
     }
@@ -67,6 +71,10 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
         CancellationToken ct = default
     )
     {
+        string? targetLogin = await TargetArgument.ResolveLoginAsync(context, _mentionTargets, ct);
+        if (targetLogin is not null)
+            return await ExecuteForTargetAsync(context, targetLogin, ct);
+
         await _users.GetOrCreateAsync(
             context.TriggeringUserId,
             context.TriggeringUserLogin,
@@ -152,6 +160,77 @@ public sealed class AccountAgeBuiltin : IBuiltinCommand
             ("age", age)
         );
         return Result.Success(reply);
+    }
+
+    /// <summary>
+    /// Public data only and read-only: a local row is used when it already holds the date, otherwise one Helix
+    /// lookup by login answers. No row is created or changed for someone who never chatted here.
+    /// </summary>
+    private async Task<Result<string>> ExecuteForTargetAsync(
+        BuiltinCommandContext context,
+        string targetLogin,
+        CancellationToken ct
+    )
+    {
+        var local = await _db
+            .Users.AsNoTracking()
+            .Where(u => u.Username == targetLogin && u.AccountCreatedAt != null)
+            .Select(u => new { u.DisplayName, u.AccountCreatedAt })
+            .FirstOrDefaultAsync(ct);
+
+        string displayName;
+        DateTimeOffset createdAt;
+        if (local is not null)
+        {
+            displayName = local.DisplayName;
+            createdAt = new(DateTime.SpecifyKind(local.AccountCreatedAt!.Value, DateTimeKind.Utc));
+        }
+        else
+        {
+            Result<IReadOnlyList<TwitchUser>> lookup = await _twitchUsers.GetUsersByLoginsAsync(
+                [targetLogin],
+                ct
+            );
+            if (lookup.IsFailure)
+                return Result.Success(
+                    await ReplyAsync(
+                        context,
+                        BuiltinResponseSlots.AccountAge.TwitchUnavailable,
+                        $"@{context.TriggeringUserChatName} Twitch did not answer just now — try again in a moment.",
+                        ct
+                    )
+                );
+
+            TwitchUser? twitchUser = lookup.Value.FirstOrDefault();
+            if (twitchUser is null)
+                return Result.Success(
+                    await ReplyAsync(
+                        context,
+                        BuiltinResponseSlots.AccountAge.UserNotFound,
+                        $"@{context.TriggeringUserChatName} Twitch has no user called {targetLogin}.",
+                        ct,
+                        ("target", targetLogin)
+                    )
+                );
+
+            displayName = twitchUser.DisplayName;
+            createdAt = twitchUser.CreatedAt;
+        }
+
+        return Result.Success(
+            await ReplyAsync(
+                context,
+                BuiltinResponseSlots.AccountAge.AgeOther,
+                "{target}'s account was created on {date} ({age} ago).",
+                ct,
+                ("target", displayName),
+                (
+                    "date",
+                    createdAt.UtcDateTime.ToString("MMMM d, yyyy", CultureInfo.InvariantCulture)
+                ),
+                ("age", LegacyAgeText.AccountAge(createdAt, _clock.GetUtcNow()))
+            )
+        );
     }
 
     /// <summary>Composes one reply slot; {user} is always the caller, extra adds the rest.</summary>

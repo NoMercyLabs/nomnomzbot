@@ -134,6 +134,10 @@
     <string name="builtin_reply_accountage_notfound_description">Twitch heeft geen account voor de kijker.</string>
     <string name="builtin_reply_accountage_undetermined_label">Leeftijd onbekend</string>
     <string name="builtin_reply_accountage_undetermined_description">Het account heeft geen bekende aanmaakdatum.</string>
+    <string name="builtin_reply_accountage_ageother_label">Accountleeftijd van een andere kijker</string>
+    <string name="builtin_reply_accountage_ageother_description">Een kijker vraagt hoe oud het Twitch-account van een andere kijker is.</string>
+    <string name="builtin_reply_accountage_usernotfound_label">Kijker niet op Twitch</string>
+    <string name="builtin_reply_accountage_usernotfound_description">Een kijker vraagt naar een naam die Twitch niet kent.</string>
     <string name="builtin_reply_var_date">De datum waarop het account is gemaakt</string>
     <string name="builtin_reply_followage_age_label">Volgduur</string>
     <string name="builtin_reply_followage_age_description">Een kijker vraagt hoe lang ze al volgen.</string>
@@ -141,6 +145,12 @@
     <string name="builtin_reply_followage_notfollowing_description">Een kijker vraagt hoe lang ze volgen, maar volgt het kanaal niet.</string>
     <string name="builtin_reply_followage_twitchunavailable_label">Twitch gaf geen antwoord</string>
     <string name="builtin_reply_followage_twitchunavailable_description">Twitch gaf geen antwoord op de volger-opzoeking.</string>
+    <string name="builtin_reply_followage_ageother_label">Volgduur van een andere kijker</string>
+    <string name="builtin_reply_followage_ageother_description">Een kijker vraagt hoe lang een andere kijker al volgt.</string>
+    <string name="builtin_reply_followage_notfollowingother_label">Andere kijker volgt niet</string>
+    <string name="builtin_reply_followage_notfollowingother_description">Een kijker vraagt hoe lang een andere kijker volgt, maar die kijker volgt het kanaal niet.</string>
+    <string name="builtin_reply_followage_usernotfound_label">Kijker niet op Twitch</string>
+    <string name="builtin_reply_followage_usernotfound_description">Een kijker vraagt naar een naam die Twitch niet kent.</string>
     <string name="builtin_reply_whisper_sent_label">Fluistering verstuurd</string>
     <string name="builtin_reply_whisper_sent_description">De fluistering is verstuurd.</string>
     <string name="builtin_reply_whisper_sendfailed_label">Fluistering mislukt</string>

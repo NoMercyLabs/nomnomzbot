@@ -91,6 +91,36 @@ public static partial class ToneTemplateCatalog
             hype: ["@{user} ACCOUNT AGE UNKNOWN. THE MYSTERY DEEPENS."],
             chill: ["@{user} couldn't work out your account age."]
         );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.AccountAge.Key,
+            BuiltinResponseSlots.AccountAge.AgeOther,
+            variables: ["age", "date", "target", "user"],
+            informative: ["{target}'s account was created on {date} ({age} ago)."],
+            friendly: ["{target}'s account has been around since {date} — that's {age}!"],
+            sassy:
+            [
+                "{target}'s account was created on {date}. That's {age} of questionable choices.",
+            ],
+            hype: ["{target}'S ACCOUNT IS FROM {date}! THAT'S {age} OF GREATNESS!"],
+            chill: ["{target}'s account is from {date}, so about {age}."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.AccountAge.Key,
+            BuiltinResponseSlots.AccountAge.UserNotFound,
+            variables: ["target", "user"],
+            informative: ["@{user} Twitch has no user called {target}."],
+            friendly:
+            [
+                "@{user} I couldn't find anyone called {target} on Twitch — check the spelling?",
+            ],
+            sassy: ["@{user} Twitch has never heard of {target}. Spelling is hard."],
+            hype: ["@{user} NO ONE CALLED {target} ON TWITCH. CHECK THE NAME!"],
+            chill: ["@{user} no one called {target} on twitch."]
+        );
     }
 
     private static void AddFollowAgeSlots(Dictionary<(string, string), SlotEntry> catalog)
@@ -129,6 +159,48 @@ public static partial class ToneTemplateCatalog
             sassy: ["Twitch didn't answer. Not my fault. Try again in a moment."],
             hype: ["TWITCH WENT QUIET. TRY AGAIN IN A MOMENT."],
             chill: ["twitch didn't answer — try again in a bit."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.FollowAge.Key,
+            BuiltinResponseSlots.FollowAge.AgeOther,
+            variables: ["age", "target", "user"],
+            informative: ["{target} has been following for {age}!"],
+            friendly: ["{target} has been following for {age} — thank you for sticking around!"],
+            sassy:
+            [
+                "{target} has been following for {age}. That's a long time to keep showing up.",
+            ],
+            hype: ["{target} HAS BEEN FOLLOWING FOR {age}! LEGEND STATUS!"],
+            chill: ["{target} has been following for {age}."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.FollowAge.Key,
+            BuiltinResponseSlots.FollowAge.NotFollowingOther,
+            variables: ["target", "user"],
+            informative: ["{target} is not following!"],
+            friendly: ["{target} isn't following yet — the follow button is waiting!"],
+            sassy: ["{target} is not following. The button is right there."],
+            hype: ["{target} IS NOT FOLLOWING! FIX THAT RIGHT NOW!"],
+            chill: ["{target} isn't following yet."]
+        );
+
+        Add(
+            catalog,
+            BuiltinResponseSlots.FollowAge.Key,
+            BuiltinResponseSlots.FollowAge.UserNotFound,
+            variables: ["target", "user"],
+            informative: ["@{user} Twitch has no user called {target}."],
+            friendly:
+            [
+                "@{user} I couldn't find anyone called {target} on Twitch — check the spelling?",
+            ],
+            sassy: ["@{user} Twitch has never heard of {target}. Spelling is hard."],
+            hype: ["@{user} NO ONE CALLED {target} ON TWITCH. CHECK THE NAME!"],
+            chill: ["@{user} no one called {target} on twitch."]
         );
     }
 

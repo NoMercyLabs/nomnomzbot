@@ -134,6 +134,10 @@
     <string name="builtin_reply_accountage_notfound_description">Twitch has no account for the viewer.</string>
     <string name="builtin_reply_accountage_undetermined_label">Age unknown</string>
     <string name="builtin_reply_accountage_undetermined_description">The account has no known creation date.</string>
+    <string name="builtin_reply_accountage_ageother_label">Account age of another viewer</string>
+    <string name="builtin_reply_accountage_ageother_description">A viewer asks how old another viewer's Twitch account is.</string>
+    <string name="builtin_reply_accountage_usernotfound_label">Viewer not on Twitch</string>
+    <string name="builtin_reply_accountage_usernotfound_description">A viewer asks about a name that Twitch does not know.</string>
     <string name="builtin_reply_var_date">The date the account was created</string>
     <string name="builtin_reply_followage_age_label">Follow age</string>
     <string name="builtin_reply_followage_age_description">A viewer asks how long they have followed.</string>
@@ -141,6 +145,12 @@
     <string name="builtin_reply_followage_notfollowing_description">A viewer asks how long they follow, but they do not follow the channel.</string>
     <string name="builtin_reply_followage_twitchunavailable_label">Twitch did not answer</string>
     <string name="builtin_reply_followage_twitchunavailable_description">Twitch did not answer the follower lookup.</string>
+    <string name="builtin_reply_followage_ageother_label">Follow age of another viewer</string>
+    <string name="builtin_reply_followage_ageother_description">A viewer asks how long another viewer has followed.</string>
+    <string name="builtin_reply_followage_notfollowingother_label">Other viewer not following</string>
+    <string name="builtin_reply_followage_notfollowingother_description">A viewer asks how long another viewer follows, but that viewer does not follow the channel.</string>
+    <string name="builtin_reply_followage_usernotfound_label">Viewer not on Twitch</string>
+    <string name="builtin_reply_followage_usernotfound_description">A viewer asks about a name that Twitch does not know.</string>
     <string name="builtin_reply_whisper_sent_label">Whisper sent</string>
     <string name="builtin_reply_whisper_sent_description">The whisper was sent.</string>
     <string name="builtin_reply_whisper_sendfailed_label">Whisper failed</string>

@@ -20,6 +20,7 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Commands.Builtins;
+using NomNomzBot.Infrastructure.Tests.Chat;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Commands.Builtins;
@@ -38,7 +39,8 @@ public sealed class AccountAgeBuiltinTests
 
     private static BuiltinCommandContext Context(
         string personality = PersonalityTone.Informative,
-        string? platform = null
+        string? platform = null,
+        string args = ""
     ) =>
         new()
         {
@@ -48,6 +50,7 @@ public sealed class AccountAgeBuiltinTests
             TriggeringUserLogin = Login,
             Personality = personality,
             TriggeringPlatform = platform,
+            Args = args,
         };
 
     private static IUserService FakeUsers()
@@ -75,6 +78,166 @@ public sealed class AccountAgeBuiltinTests
                 )
             );
         return users;
+    }
+
+    private static TwitchUser TwitchUserOf(
+        string id,
+        string login,
+        string display,
+        DateTimeOffset at
+    ) =>
+        new(
+            Id: id,
+            Login: login,
+            DisplayName: display,
+            Type: "",
+            BroadcasterType: "",
+            Description: "",
+            ProfileImageUrl: "",
+            OfflineImageUrl: "",
+            ViewCount: 0,
+            CreatedAt: at
+        );
+
+    private static AccountAgeBuiltin BuiltinFor(
+        CommandsTestDbContext db,
+        ITwitchUsersApi twitch,
+        IUserService users
+    ) =>
+        new(
+            twitch,
+            users,
+            db,
+            BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
+            TestMentionTargets.LoginsOnly(),
+            TestBuiltinComposer.Create(),
+            new FakeTimeProvider(Now)
+        );
+
+    [Fact]
+    public async Task A_target_with_no_local_row_is_read_from_Helix_by_login_and_no_row_is_written()
+    {
+        await using CommandsTestDbContext db = CommandsTestDbContext.New();
+        ITwitchUsersApi twitch = Substitute.For<ITwitchUsersApi>();
+        twitch
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success<IReadOnlyList<TwitchUser>>([
+                    TwitchUserOf("777", "ifillz", "iFiLLz", Now.AddYears(-2)),
+                ])
+            );
+        IUserService users = FakeUsers();
+
+        Result<string> result = await BuiltinFor(db, twitch, users)
+            .ExecuteAsync(Context(args: "@iFiLLz"));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be("iFiLLz's account was created on August 31, 2024 (2 years ago).");
+        await twitch
+            .Received(1)
+            .GetUsersByLoginsAsync(
+                Arg.Is<IReadOnlyList<string>>(l => l.Count == 1 && l[0] == "ifillz"),
+                Arg.Any<CancellationToken>()
+            );
+        await twitch
+            .DidNotReceive()
+            .GetUsersByIdsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+        db.Users.Count().Should().Be(0, "a target who never chatted here gets no row");
+        await users
+            .DidNotReceive()
+            .GetOrCreateAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_target_with_a_hydrated_local_row_is_answered_from_the_row_without_Helix()
+    {
+        await using CommandsTestDbContext db = CommandsTestDbContext.New();
+        db.Users.Add(
+            new User
+            {
+                TwitchUserId = "777",
+                Username = "ifillz",
+                UsernameNormalized = "ifillz",
+                DisplayName = "iFiLLz",
+                AccountCreatedAt = Now.UtcDateTime.AddYears(-5),
+            }
+        );
+        await db.SaveChangesAsync();
+        ITwitchUsersApi twitch = Substitute.For<ITwitchUsersApi>();
+
+        Result<string> result = await BuiltinFor(db, twitch, FakeUsers())
+            .ExecuteAsync(Context(args: "ifillz"));
+
+        result.Value.Should().Be("iFiLLz's account was created on August 31, 2021 (5 years ago).");
+        await twitch
+            .DidNotReceive()
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task An_unknown_login_gets_the_not_found_reply()
+    {
+        await using CommandsTestDbContext db = CommandsTestDbContext.New();
+        ITwitchUsersApi twitch = Substitute.For<ITwitchUsersApi>();
+        twitch
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Success<IReadOnlyList<TwitchUser>>([]));
+
+        Result<string> result = await BuiltinFor(db, twitch, FakeUsers())
+            .ExecuteAsync(Context(args: "@nobody_here"));
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Should().Be("@Stoney_Eagle Twitch has no user called nobody_here.");
+        db.Users.Count().Should().Be(0);
+    }
+
+    [Fact]
+    public async Task A_viewer_who_names_themselves_gets_the_caller_reply()
+    {
+        await using CommandsTestDbContext db = CommandsTestDbContext.New();
+        db.Users.Add(
+            new User
+            {
+                TwitchUserId = TwitchId,
+                Username = Login,
+                UsernameNormalized = Login,
+                DisplayName = "Stoney_Eagle",
+                AccountCreatedAt = Now.UtcDateTime.AddYears(-2),
+            }
+        );
+        await db.SaveChangesAsync();
+        ITwitchUsersApi twitch = Substitute.For<ITwitchUsersApi>();
+
+        Result<string> result = await BuiltinFor(db, twitch, FakeUsers())
+            .ExecuteAsync(Context(args: "@Stoney_Eagle"));
+
+        result.Value.Should().Be("Your account was created on August 31, 2024 (2 years ago).");
+        await twitch
+            .DidNotReceive()
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_failed_target_lookup_gets_the_twitch_unavailable_reply()
+    {
+        await using CommandsTestDbContext db = CommandsTestDbContext.New();
+        ITwitchUsersApi twitch = Substitute.For<ITwitchUsersApi>();
+        twitch
+            .GetUsersByLoginsAsync(Arg.Any<IReadOnlyList<string>>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<IReadOnlyList<TwitchUser>>("timeout", "TIMEOUT"));
+
+        Result<string> result = await BuiltinFor(db, twitch, FakeUsers())
+            .ExecuteAsync(Context(args: "@ifillz"));
+
+        result
+            .Value.Should()
+            .Be("@Stoney_Eagle Twitch did not answer just now — try again in a moment.");
     }
 
     [Fact]
@@ -108,6 +271,7 @@ public sealed class AccountAgeBuiltinTests
             users,
             db,
             identities,
+            TestMentionTargets.LoginsOnly(),
             TestBuiltinComposer.Create(),
             new FakeTimeProvider(Now)
         );
@@ -154,6 +318,7 @@ public sealed class AccountAgeBuiltinTests
             FakeUsers(),
             db,
             BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
+            TestMentionTargets.LoginsOnly(),
             TestBuiltinComposer.Create(),
             new FakeTimeProvider(Now)
         );
@@ -185,6 +350,7 @@ public sealed class AccountAgeBuiltinTests
             FakeUsers(),
             db,
             BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
+            TestMentionTargets.LoginsOnly(),
             TestBuiltinComposer.Create(),
             new FakeTimeProvider(Now)
         );
@@ -257,6 +423,7 @@ public sealed class AccountAgeBuiltinTests
             FakeUsers(),
             db,
             BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
+            TestMentionTargets.LoginsOnly(),
             TestBuiltinComposer.Create(),
             new FakeTimeProvider(Now)
         );
@@ -304,6 +471,7 @@ public sealed class AccountAgeBuiltinTests
             FakeUsers(),
             db,
             BuiltinTestIdentities.ResolvingTwitchUsersOf(db),
+            TestMentionTargets.LoginsOnly(),
             TestBuiltinComposer.Create(),
             new FakeTimeProvider(Now)
         );

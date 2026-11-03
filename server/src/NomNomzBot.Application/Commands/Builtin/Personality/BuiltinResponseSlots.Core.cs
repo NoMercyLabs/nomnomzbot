@@ -100,6 +100,12 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>The account was found but carries no creation date; <c>{user}</c> is set.</summary>
         public const string Undetermined = "undetermined";
+
+        /// <summary>The age of another Twitch user was resolved; <c>{user}</c>, <c>{target}</c>, <c>{date}</c> and <c>{age}</c> are set.</summary>
+        public const string AgeOther = "ageother";
+
+        /// <summary>Twitch has no user with the login the caller asked about; <c>{user}</c> and <c>{target}</c> (the typed name) are set.</summary>
+        public const string UserNotFound = "usernotfound";
     }
 
     /// <summary><c>!followage</c> — how long the caller has followed the channel.</summary>
@@ -115,6 +121,15 @@ public static partial class BuiltinResponseSlots
 
         /// <summary>The live Twitch follower lookup failed; <c>{user}</c> is set.</summary>
         public const string TwitchUnavailable = "twitchunavailable";
+
+        /// <summary>Another Twitch user follows; <c>{user}</c>, <c>{target}</c> and <c>{age}</c> are set.</summary>
+        public const string AgeOther = "ageother";
+
+        /// <summary>Another Twitch user does not follow the channel; <c>{user}</c> and <c>{target}</c> are set.</summary>
+        public const string NotFollowingOther = "notfollowingother";
+
+        /// <summary>Twitch has no user with the login the caller asked about; <c>{user}</c> and <c>{target}</c> (the typed name) are set.</summary>
+        public const string UserNotFound = "usernotfound";
     }
 
     /// <summary><c>!whisper &lt;user&gt; &lt;message&gt;</c> — usage/error tone slots (S069h).</summary>

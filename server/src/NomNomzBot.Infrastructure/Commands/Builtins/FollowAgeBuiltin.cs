@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
@@ -26,16 +27,22 @@ namespace NomNomzBot.Infrastructure.Commands.Builtins;
 public sealed class FollowAgeBuiltin : IBuiltinCommand
 {
     private readonly ITwitchChannelsApi _channels;
+    private readonly ITwitchUsersApi _twitchUsers;
+    private readonly IMentionTargetResolver _mentionTargets;
     private readonly IBuiltinResponseComposer _composer;
     private readonly TimeProvider _clock;
 
     public FollowAgeBuiltin(
         ITwitchChannelsApi channels,
+        ITwitchUsersApi twitchUsers,
+        IMentionTargetResolver mentionTargets,
         IBuiltinResponseComposer composer,
         TimeProvider clock
     )
     {
         _channels = channels;
+        _twitchUsers = twitchUsers;
+        _mentionTargets = mentionTargets;
         _composer = composer;
         _clock = clock;
     }
@@ -53,6 +60,10 @@ public sealed class FollowAgeBuiltin : IBuiltinCommand
         // The chat id of a non-Twitch chatter means nothing to Helix: never send it there.
         if ((context.TriggeringPlatform ?? AuthEnums.Platform.Twitch) != AuthEnums.Platform.Twitch)
             return Result.Success(string.Empty);
+
+        string? targetLogin = await TargetArgument.ResolveLoginAsync(context, _mentionTargets, ct);
+        if (targetLogin is not null)
+            return await ExecuteForTargetAsync(context, targetLogin, ct);
 
         Result<TwitchChannelFollower?> lookup = await _channels.GetChannelFollowerAsync(
             context.BroadcasterId,
@@ -86,6 +97,78 @@ public sealed class FollowAgeBuiltin : IBuiltinCommand
                 BuiltinResponseSlots.FollowAge.Age,
                 "You have been following for {age}!",
                 ct,
+                ("age", age)
+            )
+        );
+    }
+
+    /// <summary>Public data only: the target's Twitch id comes from Helix, and nothing is written for them.</summary>
+    private async Task<Result<string>> ExecuteForTargetAsync(
+        BuiltinCommandContext context,
+        string targetLogin,
+        CancellationToken ct
+    )
+    {
+        Result<IReadOnlyList<TwitchUser>> users = await _twitchUsers.GetUsersByLoginsAsync(
+            [targetLogin],
+            ct
+        );
+        if (users.IsFailure)
+            return Result.Success(
+                await ReplyAsync(
+                    context,
+                    BuiltinResponseSlots.FollowAge.TwitchUnavailable,
+                    "Twitch did not answer just now — try again in a moment.",
+                    ct
+                )
+            );
+
+        TwitchUser? target = users.Value.FirstOrDefault();
+        if (target is null)
+            return Result.Success(
+                await ReplyAsync(
+                    context,
+                    BuiltinResponseSlots.FollowAge.UserNotFound,
+                    $"@{context.TriggeringUserChatName} Twitch has no user called {targetLogin}.",
+                    ct,
+                    ("target", targetLogin)
+                )
+            );
+
+        Result<TwitchChannelFollower?> lookup = await _channels.GetChannelFollowerAsync(
+            context.BroadcasterId,
+            target.Id,
+            ct
+        );
+        if (lookup.IsFailure)
+            return Result.Success(
+                await ReplyAsync(
+                    context,
+                    BuiltinResponseSlots.FollowAge.TwitchUnavailable,
+                    "Twitch did not answer just now — try again in a moment.",
+                    ct
+                )
+            );
+
+        if (lookup.Value is null)
+            return Result.Success(
+                await ReplyAsync(
+                    context,
+                    BuiltinResponseSlots.FollowAge.NotFollowingOther,
+                    $"{target.DisplayName} is not following!",
+                    ct,
+                    ("target", target.DisplayName)
+                )
+            );
+
+        string age = LegacyAgeText.FollowAge(lookup.Value.FollowedAt, _clock.GetUtcNow());
+        return Result.Success(
+            await ReplyAsync(
+                context,
+                BuiltinResponseSlots.FollowAge.AgeOther,
+                "{target} has been following for {age}!",
+                ct,
+                ("target", target.DisplayName),
                 ("age", age)
             )
         );
