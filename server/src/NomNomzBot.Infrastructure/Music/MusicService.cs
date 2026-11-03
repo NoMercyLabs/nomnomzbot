@@ -1627,6 +1627,7 @@ public sealed class MusicService : IMusicService
             // must stay retryable the moment it recovers.
             if (await GetActiveProviderAuthStatusAsync(broadcasterId, cancellationToken) is null)
                 _nowPlayingCache.SetEmpty(tenantId, DateTimeOffset.UtcNow);
+            _queueStore.TryGet(broadcasterId)?.SetNowPlayingOwner(null);
             return null;
         }
 
@@ -1676,13 +1677,19 @@ public sealed class MusicService : IMusicService
         return SongCode.NextAvailable(taken) ?? string.Empty;
     }
 
-    private string? RequesterOfPlayingTrack(Guid tenantId, string? playingTrackUri) =>
-        PlayingRequester.Of(
+    /// <summary>Also tells the fair queue whose song plays, so that owner's next request ranks one
+    /// deeper while it plays; a track nobody requested (or none at all) clears it.</summary>
+    private string? RequesterOfPlayingTrack(Guid tenantId, string? playingTrackUri)
+    {
+        string? requester = PlayingRequester.Of(
             _queueStore,
             _playbackState.StateOf(tenantId),
             tenantId.ToString(),
             playingTrackUri
         );
+        _queueStore.TryGet(tenantId.ToString())?.SetNowPlayingOwner(requester);
+        return requester;
+    }
 
     public async Task<bool?> TryGetCachedIsPlayingAsync(
         string broadcasterId,

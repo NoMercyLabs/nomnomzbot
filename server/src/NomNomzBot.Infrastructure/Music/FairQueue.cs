@@ -27,6 +27,7 @@ public sealed class FairQueue<T> : IFairQueue<T>
 {
     private readonly List<QueueEntry> _queue = [];
     private readonly Lock _lock = new();
+    private string? _nowPlayingKey;
 
     public int Count
     {
@@ -80,9 +81,9 @@ public sealed class FairQueue<T> : IFairQueue<T>
     /// one place.</summary>
     private void EnqueueUnderLock(string ownerKey, T item)
     {
-        // Rank = number of items this owner already has in the queue + 1
+        // Rank = number of items this owner already has in the queue + 1, plus one while their song plays
         int ownerCount = _queue.Count(e => e.Key == KeyOf(ownerKey));
-        int rank = ownerCount + 1;
+        int rank = ownerCount + 1 + NowPlayingExtra(KeyOf(ownerKey));
 
         QueueEntry entry = new(ownerKey, item, rank);
 
@@ -106,10 +107,7 @@ public sealed class FairQueue<T> : IFairQueue<T>
             QueueEntry entry = _queue[0];
             _queue.RemoveAt(0);
 
-            // Recalculate ranks for remaining items by this owner
-            int newRank = 1;
-            foreach (QueueEntry e in _queue.Where(e => e.Key == entry.Key))
-                e.Rank = newRank++;
+            RankOwner(entry.Key);
 
             SettleAfterPlayedSongsLeave();
 
@@ -137,14 +135,7 @@ public sealed class FairQueue<T> : IFairQueue<T>
         {
             int removed = _queue.RemoveAll(e => e.Key == KeyOf(ownerKey));
 
-            // Recalculate ranks for all remaining owners after removal
-            List<string> owners = [.. _queue.Select(e => e.Key).Distinct()];
-            foreach (string owner in owners)
-            {
-                int rank = 1;
-                foreach (QueueEntry e in _queue.Where(e => e.Key == owner))
-                    e.Rank = rank++;
-            }
+            RecalculateRanks();
 
             return removed;
         }
@@ -161,10 +152,7 @@ public sealed class FairQueue<T> : IFairQueue<T>
             QueueEntry removed = _queue[index];
             _queue.RemoveAt(index);
 
-            // Recalculate ranks for the removed owner's remaining items
-            int rank = 1;
-            foreach (QueueEntry e in _queue.Where(e => e.Key == removed.Key))
-                e.Rank = rank++;
+            RankOwner(removed.Key);
 
             return true;
         }
@@ -180,10 +168,7 @@ public sealed class FairQueue<T> : IFairQueue<T>
             QueueEntry removed = _queue[position];
             _queue.RemoveAt(position);
 
-            // Recalculate ranks for the removed owner's remaining items
-            int rank = 1;
-            foreach (QueueEntry e in _queue.Where(e => e.Key == removed.Key))
-                e.Rank = rank++;
+            RankOwner(removed.Key);
 
             return true;
         }
@@ -223,8 +208,22 @@ public sealed class FairQueue<T> : IFairQueue<T>
     {
         lock (_lock)
         {
-            int rank = _queue.Count(e => e.Key == KeyOf(ownerKey)) + 1;
+            int rank =
+                _queue.Count(e => e.Key == KeyOf(ownerKey)) + 1 + NowPlayingExtra(KeyOf(ownerKey));
             _queue.Add(new(ownerKey, item, rank));
+        }
+    }
+
+    public void SetNowPlayingOwner(string? ownerKey)
+    {
+        lock (_lock)
+        {
+            string? key = ownerKey is null ? null : KeyOf(ownerKey);
+            if (key == _nowPlayingKey)
+                return;
+
+            _nowPlayingKey = key;
+            RecalculateRanks();
         }
     }
 
@@ -260,13 +259,20 @@ public sealed class FairQueue<T> : IFairQueue<T>
     /// removal has to restore (rank = that owner's 1-based position among their own remaining items).</summary>
     private void RecalculateRanks()
     {
-        foreach (IGrouping<string, QueueEntry> owned in _queue.GroupBy(e => e.Key))
-        {
-            int rank = 1;
-            foreach (QueueEntry e in owned)
-                e.Rank = rank++;
-        }
+        foreach (string key in _queue.Select(e => e.Key).Distinct().ToList())
+            RankOwner(key);
     }
+
+    /// <summary>Ranks one owner's items by position, 1-based, starting one deeper while their song plays.</summary>
+    private void RankOwner(string key)
+    {
+        int rank = 1 + NowPlayingExtra(key);
+        foreach (QueueEntry e in _queue.Where(e => e.Key == key))
+            e.Rank = rank++;
+    }
+
+    /// <summary>The song playing now left the queue but still counts in its owner's share.</summary>
+    private int NowPlayingExtra(string key) => key == _nowPlayingKey ? 1 : 0;
 
     /// <summary>
     /// A song that played counted toward its owner's rank while it sat in the queue, so that owner's later

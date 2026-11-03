@@ -333,6 +333,119 @@ public class FairQueueTests
             .HaveCount(1, "the queue must hold exactly one copy of the track");
     }
 
+    // ─── The song now playing counts in its owner's share ────────────────────
+
+    [Fact]
+    public void NowPlayingOwner_next_request_ranks_second_and_plays_after_other_viewers_first_request()
+    {
+        FairQueue<string> q = new();
+        q.Enqueue("bob", "b1");
+        q.SetNowPlayingOwner("alice");
+
+        q.Enqueue("alice", "a2");
+
+        q.GetSnapshot().Select(e => (e.Item, e.Rank)).Should().Equal(("b1", 1), ("a2", 2));
+        q.Dequeue().Should().Be("b1");
+        q.Dequeue().Should().Be("a2");
+    }
+
+    [Fact]
+    public void NowPlayingOwner_request_lands_behind_a_first_request_that_arrives_later()
+    {
+        FairQueue<string> q = new();
+        q.SetNowPlayingOwner("alice");
+        q.Enqueue("alice", "a2");
+
+        q.Enqueue("bob", "b1");
+
+        q.GetSnapshot().Select(e => e.Item).Should().Equal("b1", "a2");
+    }
+
+    [Fact]
+    public void NowPlayingOwner_cleared_returns_the_owners_queued_rank_to_one()
+    {
+        FairQueue<string> q = new();
+        q.Enqueue("bob", "b1");
+        q.SetNowPlayingOwner("alice");
+        q.Enqueue("alice", "a2");
+
+        q.SetNowPlayingOwner(null);
+
+        q.GetSnapshot().Select(e => (e.Item, e.Rank)).Should().Equal(("b1", 1), ("a2", 1));
+        q.Enqueue("alice", "a3");
+        q.GetSnapshot().Single(e => e.Item == "a3").Rank.Should().Be(2);
+    }
+
+    [Fact]
+    public void NowPlayingOwner_cleared_gives_the_next_request_rank_one_again()
+    {
+        FairQueue<string> q = new();
+        q.SetNowPlayingOwner("alice");
+        q.SetNowPlayingOwner(null);
+
+        q.Enqueue("alice", "a2");
+
+        q.GetSnapshot().Single().Rank.Should().Be(1);
+    }
+
+    [Fact]
+    public void NowPlayingOwner_is_matched_ignoring_case()
+    {
+        FairQueue<string> q = new();
+        q.SetNowPlayingOwner("Alice");
+
+        q.Enqueue("ALICE", "a2");
+
+        q.GetSnapshot().Single().Rank.Should().Be(2);
+    }
+
+    [Fact]
+    public void NowPlayingOwner_other_owners_are_unchanged()
+    {
+        FairQueue<string> q = new();
+        q.SetNowPlayingOwner("alice");
+
+        q.Enqueue("bob", "b1");
+        q.Enqueue("bob", "b2");
+
+        q.GetSnapshot().Select(e => (e.Item, e.Rank)).Should().Equal(("b1", 1), ("b2", 2));
+    }
+
+    [Fact]
+    public void NowPlayingOwner_ranks_stay_positional_after_a_skip_and_after_MoveToFront()
+    {
+        FairQueue<string> q = new();
+        q.SetNowPlayingOwner("alice");
+        q.Enqueue("alice", "a2");
+        q.Enqueue("alice", "a3");
+        q.Enqueue("bob", "b1");
+
+        q.GetSnapshot().Select(e => e.Item).Should().Equal("b1", "a2", "a3");
+        q.RemoveAt(1).Should().BeTrue();
+        q.GetSnapshot().Select(e => (e.Item, e.Rank)).Should().Equal(("b1", 1), ("a3", 2));
+
+        q.MoveToFront(1).Should().BeTrue();
+        q.GetSnapshot().Select(e => (e.Item, e.Rank)).Should().Equal(("a3", 2), ("b1", 1));
+
+        q.SetNowPlayingOwner(null);
+        q.GetSnapshot().Select(e => e.Rank).Should().Equal(1, 1);
+    }
+
+    [Fact]
+    public void NowPlayingOwner_without_one_set_leaves_ranks_unchanged()
+    {
+        FairQueue<string> q = new();
+
+        q.Enqueue("alice", "a1");
+        q.Enqueue("alice", "a2");
+        q.Enqueue("bob", "b1");
+
+        q.GetSnapshot()
+            .Select(e => (e.Item, e.Rank))
+            .Should()
+            .Equal(("a1", 1), ("b1", 1), ("a2", 2));
+    }
+
     [Fact]
     public void TryEnqueueUnique_admits_a_genuinely_different_track()
     {

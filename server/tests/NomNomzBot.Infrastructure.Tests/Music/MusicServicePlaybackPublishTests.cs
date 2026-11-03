@@ -142,6 +142,54 @@ public sealed class MusicServicePlaybackPublishTests
         bus.Published.OfType<PlaybackStateChangedEvent>().Single().RequestedBy.Should().BeNull();
     }
 
+    /// <summary>The fair queue learns whose song plays: that viewer's next request ranks second, behind
+    /// other viewers' first requests, so nobody gets a back-to-back play.</summary>
+    [Fact]
+    public async Task PlayAsync_makes_the_requester_of_the_playing_song_rank_second_in_the_fair_queue()
+    {
+        SongRequestQueueStore queueStore = new();
+        queueStore.SetInFlight(
+            ChannelId.ToString(),
+            new("spotify:track:x", "Song A", "Artist", null, 200000, "viewer1", 0, null, "")
+        );
+        FairQueue<SongRequestEntry> queue = queueStore.GetOrCreate(ChannelId.ToString());
+        (MusicService sut, _, _, _) = await BuildOwnerMusicAsync(
+            TrackJson("Song A", isPlaying: true),
+            paused: true,
+            queueStore: queueStore
+        );
+
+        (await sut.PlayAsync(ChannelId.ToString())).IsSuccess.Should().BeTrue();
+        queue.Enqueue(
+            "viewer1",
+            new("spotify:track:next", "Song B", "Artist", null, 1000, "viewer1", 0, null, "")
+        );
+
+        queue.GetSnapshot().Single().Rank.Should().Be(2);
+    }
+
+    /// <summary>A playing song nobody requested clears the extra rank again.</summary>
+    [Fact]
+    public async Task PlayAsync_gives_no_extra_rank_when_the_playing_song_was_not_requested()
+    {
+        SongRequestQueueStore queueStore = new();
+        FairQueue<SongRequestEntry> queue = queueStore.GetOrCreate(ChannelId.ToString());
+        queue.SetNowPlayingOwner("viewer1");
+        (MusicService sut, _, _, _) = await BuildOwnerMusicAsync(
+            TrackJson("Song A", isPlaying: true),
+            paused: true,
+            queueStore: queueStore
+        );
+
+        (await sut.PlayAsync(ChannelId.ToString())).IsSuccess.Should().BeTrue();
+        queue.Enqueue(
+            "viewer1",
+            new("spotify:track:next", "Song B", "Artist", null, 1000, "viewer1", 0, null, "")
+        );
+
+        queue.GetSnapshot().Single().Rank.Should().Be(1);
+    }
+
     [Fact]
     public async Task PauseAsync_publishes_state_reflecting_paused()
     {

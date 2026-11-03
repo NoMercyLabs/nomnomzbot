@@ -72,6 +72,14 @@ public interface IFairQueue<T>
     /// </summary>
     bool MoveTo(int from, int to, Func<T, bool>? isPinnedHead = null);
 
+    /// <summary>
+    /// Names the owner whose song is playing right now (null when none). That song already left the
+    /// queue, but it still counts in its owner's share: while it plays, the owner's next request ranks
+    /// one deeper, so nobody gets a back-to-back play. Setting a different owner, or null, takes the
+    /// extra rank away and re-ranks the previous owner's queued items. The queue is not re-sorted.
+    /// </summary>
+    void SetNowPlayingOwner(string? ownerKey);
+
     /// <summary>Returns a snapshot of all items in fair-schedule order.</summary>
     IReadOnlyList<(T Item, int Rank, string OwnerKey)> GetSnapshot();
 }
