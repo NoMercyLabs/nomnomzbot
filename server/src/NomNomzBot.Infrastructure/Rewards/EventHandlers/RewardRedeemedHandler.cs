@@ -19,6 +19,7 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Tts;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Commands.Enums;
@@ -367,6 +368,29 @@ public sealed class RewardRedeemedHandler
         ITtsDispatchService? tts = scope.ServiceProvider.GetService<ITtsDispatchService>();
         if (tts is null)
             return false;
+
+        // Text the moderation queue holds (AutoMod) or a moderator denied is never read aloud. Only an approved
+        // or never-held text is spoken.
+        IHeldTextService? heldText = scope.ServiceProvider.GetService<IHeldTextService>();
+        if (
+            heldText is not null
+            && await heldText.IsTextHeldAsync(
+                broadcasterId,
+                @event.UserId,
+                @event.UserInput!,
+                cancellationToken
+            )
+        )
+        {
+            _logger.LogWarning(
+                "Reward {RewardTitle} ({RewardId}) in {Channel} did not speak the redemption text of {Viewer}: held by AutoMod",
+                @event.RewardTitle,
+                @event.RewardId,
+                broadcasterId,
+                @event.UserId
+            );
+            return false;
+        }
 
         Guid viewerUserId = await db
             .Users.Where(u => u.TwitchUserId == @event.UserId)
