@@ -10,6 +10,10 @@
           "description": "A viewer asks how old their account is.",
           "label": "Account age"
         },
+        "ageother": {
+          "description": "A viewer asks how old another viewer's Twitch account is.",
+          "label": "Account age of another viewer"
+        },
         "notfound": {
           "description": "Twitch has no account for the viewer.",
           "label": "Not on Twitch"
@@ -21,6 +25,10 @@
         "undetermined": {
           "description": "The account has no known creation date.",
           "label": "Age unknown"
+        },
+        "usernotfound": {
+          "description": "A viewer asks about a name that Twitch does not know.",
+          "label": "Viewer not on Twitch"
         }
       },
       "allow": {
@@ -286,13 +294,25 @@
           "description": "A viewer asks how long they have followed.",
           "label": "Follow age"
         },
+        "ageother": {
+          "description": "A viewer asks how long another viewer has followed.",
+          "label": "Follow age of another viewer"
+        },
         "notfollowing": {
           "description": "A viewer asks how long they follow, but they do not follow the channel.",
           "label": "Not following"
         },
+        "notfollowingother": {
+          "description": "A viewer asks how long another viewer follows, but that viewer does not follow the channel.",
+          "label": "Other viewer not following"
+        },
         "twitchunavailable": {
           "description": "Twitch did not answer the follower lookup.",
           "label": "Twitch did not answer"
+        },
+        "usernotfound": {
+          "description": "A viewer asks about a name that Twitch does not know.",
+          "label": "Viewer not on Twitch"
         }
       },
       "forgetme": {

@@ -10,6 +10,10 @@
           "description": "Een kijker vraagt hoe oud hun account is.",
           "label": "Accountleeftijd"
         },
+        "ageother": {
+          "description": "Een kijker vraagt hoe oud het Twitch-account van een andere kijker is.",
+          "label": "Accountleeftijd van een andere kijker"
+        },
         "notfound": {
           "description": "Twitch heeft geen account voor de kijker.",
           "label": "Niet op Twitch"
@@ -21,6 +25,10 @@
         "undetermined": {
           "description": "Het account heeft geen bekende aanmaakdatum.",
           "label": "Leeftijd onbekend"
+        },
+        "usernotfound": {
+          "description": "Een kijker vraagt naar een naam die Twitch niet kent.",
+          "label": "Kijker niet op Twitch"
         }
       },
       "allow": {
@@ -286,13 +294,25 @@
           "description": "Een kijker vraagt hoe lang ze al volgen.",
           "label": "Volgduur"
         },
+        "ageother": {
+          "description": "Een kijker vraagt hoe lang een andere kijker al volgt.",
+          "label": "Volgduur van een andere kijker"
+        },
         "notfollowing": {
           "description": "Een kijker vraagt hoe lang ze volgen, maar volgt het kanaal niet.",
           "label": "Volgt niet"
         },
+        "notfollowingother": {
+          "description": "Een kijker vraagt hoe lang een andere kijker volgt, maar die kijker volgt het kanaal niet.",
+          "label": "Andere kijker volgt niet"
+        },
         "twitchunavailable": {
           "description": "Twitch gaf geen antwoord op de volger-opzoeking.",
           "label": "Twitch gaf geen antwoord"
+        },
+        "usernotfound": {
+          "description": "Een kijker vraagt naar een naam die Twitch niet kent.",
+          "label": "Kijker niet op Twitch"
         }
       },
       "forgetme": {
