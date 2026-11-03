@@ -24,6 +24,7 @@ import type {
   PipelineStep,
   PipelineTestRun,
 } from '@/api/pipelines';
+import { ApiError } from '@/api/errors';
 import { BackHost, position, pressBack, settle, steps as layerSteps } from '@/__tests__/backHistory';
 import { setWidth } from '@/__tests__/viewport';
 import { i18n } from '@/i18n';
@@ -226,6 +227,7 @@ type TestRunAsk = {
   id: string;
   variables: Record<string, string>;
   graph: { steps: PipelineStep[] };
+  mode?: 'dry' | 'live';
 };
 
 const testing = vi.hoisted(() => ({
@@ -1445,6 +1447,203 @@ describe('a test run', () => {
     expect(document.body.querySelector('[data-run-summary]')?.textContent?.trim()).toContain(
       'Test run 2: 2 steps ran.',
     );
+  });
+});
+
+describe('a live test run', () => {
+  const liveRan = {
+    ...ran,
+    mode: 'live',
+    realSteps: ['send_message'],
+    warnings: ['No browser source is open to show the alert.'],
+  } as unknown as PipelineTestRun;
+
+  async function chooseMode(label: string): Promise<void> {
+    const item = [...document.body.querySelectorAll<HTMLElement>('[data-run-mode] [data-segment]')].find(
+      (segment) => segment.textContent?.trim() === label,
+    );
+
+    item!.click();
+    await flushPromises();
+  }
+
+  const dialog = (): HTMLElement | null => document.body.querySelector<HTMLElement>('[data-live-dialog]');
+
+  it('sends a dry run by default, with no live mode', async () => {
+    await open();
+    await press('[data-workbench-test]');
+
+    expect(testing.mutateAsync).toHaveBeenCalledTimes(1);
+    expect(testing.mutateAsync.mock.calls[0]![0].mode ?? 'dry').toBe('dry');
+    expect(dialog()).toBeNull();
+  });
+
+  it('opens the confirm on Run live and sends nothing until Run now', async () => {
+    await open();
+    await chooseMode('Run live');
+    await press('[data-workbench-test]');
+
+    expect(dialog()).not.toBeNull();
+    expect(testing.mutateAsync).not.toHaveBeenCalled();
+
+    await press('[data-live-confirm]');
+
+    expect(testing.mutateAsync).toHaveBeenCalledTimes(1);
+    expect(testing.mutateAsync.mock.calls[0]![0].mode).toBe('live');
+
+    expect(testing.mutateAsync.mock.calls[0]![0].graph.steps.map((item) => item.id)).toEqual([
+      'check',
+      'hi',
+      'pause',
+    ]);
+
+    expect(dialog()).toBeNull();
+  });
+
+  it('sends nothing when the confirm is canceled', async () => {
+    await open();
+    await chooseMode('Run live');
+    await press('[data-workbench-test]');
+    await press('[data-live-cancel]');
+
+    expect(testing.mutateAsync).not.toHaveBeenCalled();
+    expect(dialog()).toBeNull();
+    expect(document.body.querySelector('[data-run-summary]')).toBeNull();
+  });
+
+  it('lists the draft steps of this pipeline in the confirm', async () => {
+    await open();
+    await chooseMode('Run live');
+    await press('[data-workbench-test]');
+
+    const chat = dialog()!.querySelector('[data-live-group="chat"]');
+
+    expect(chat?.textContent).toContain('Send message');
+    expect(dialog()!.querySelector('[data-live-group="other"]')?.textContent).toContain('Wait');
+  });
+
+  it('shows what ran for real, every warning, and the step trace after the run', async () => {
+    testing.mutateAsync.mockResolvedValue(liveRan);
+
+    await open();
+    await chooseMode('Run live');
+    await press('[data-workbench-test]');
+    await press('[data-live-confirm]');
+
+    const result = document.body.querySelector<HTMLElement>('[data-live-result]')!;
+
+    expect(result.querySelector('[data-live-real-steps]')?.textContent).toContain('Send message');
+
+    const warnings = [...result.querySelectorAll('[data-live-warning]')].map(
+      (line) => line.textContent?.trim(),
+    );
+
+    expect(warnings).toEqual(['No browser source is open to show the alert.']);
+    expect(mark('hi', 'output')).toBe('Would say: hi there');
+    expect(stateOf('check')).toBe('done');
+  });
+
+  it('shows no live result after a dry run', async () => {
+    await open();
+    await press('[data-workbench-test]');
+
+    expect(document.body.querySelector('[data-live-result]')).toBeNull();
+  });
+
+  it('says plainly that a live run of this pipeline is already running on a 409', async () => {
+    testing.mutateAsync.mockRejectedValue(new ApiError('pipeline test run', 409));
+
+    await open();
+    await chooseMode('Run live');
+    await press('[data-workbench-test]');
+    await press('[data-live-confirm]');
+
+    expect(document.body.querySelector('[data-live-error]')?.textContent?.trim()).toBe(
+      'A live run of this pipeline is already running. Wait for it to finish.',
+    );
+
+    expect(document.body.querySelector('[data-live-result]')).toBeNull();
+  });
+
+  it('says plainly that the person may not run it live on a 403', async () => {
+    testing.mutateAsync.mockRejectedValue(new ApiError('pipeline test run', 403));
+
+    await open();
+    await chooseMode('Run live');
+    await press('[data-workbench-test]');
+    await press('[data-live-confirm]');
+
+    expect(document.body.querySelector('[data-live-error]')?.textContent?.trim()).toBe(
+      'You may not run this pipeline live.',
+    );
+  });
+
+  it('clears the error line on the next try', async () => {
+    testing.mutateAsync.mockRejectedValueOnce(new ApiError('pipeline test run', 409));
+    testing.mutateAsync.mockResolvedValue(liveRan);
+
+    await open();
+    await chooseMode('Run live');
+    await press('[data-workbench-test]');
+    await press('[data-live-confirm]');
+
+    expect(document.body.querySelector('[data-live-error]')).not.toBeNull();
+
+    await press('[data-workbench-test]');
+    await press('[data-live-confirm]');
+
+    expect(document.body.querySelector('[data-live-error]')).toBeNull();
+    expect(document.body.querySelector('[data-live-result]')).not.toBeNull();
+  });
+
+  it('asks again before Run again repeats a live run', async () => {
+    testing.mutateAsync.mockResolvedValue(liveRan);
+
+    await open();
+    await chooseMode('Run live');
+    await press('[data-workbench-test]');
+    await press('[data-live-confirm]');
+    await press('[data-run-again]');
+
+    expect(dialog()).not.toBeNull();
+    expect(testing.mutateAsync).toHaveBeenCalledTimes(1);
+  });
+
+  it('does not offer Run live to a person who can only view the pipeline', async () => {
+    held.value = ['pipelines:read'];
+    await open();
+
+    expect(document.body.querySelector('[data-run-mode]')).toBeNull();
+    expect(document.body.textContent).not.toContain('Run live');
+  });
+});
+
+describe('the Runs view, live runs', () => {
+  it('labels a live run as a manual live run', async () => {
+    stored.runs.push({
+      id: 8,
+      pipelineId: 'p1',
+      triggerKind: 'manual_live',
+      status: 'success',
+      hostCallCount: 1,
+      durationMs: 100,
+      errorMessage: null,
+      startedAt: '2026-10-12T10:00:00Z',
+      completedAt: '2026-10-12T10:00:00Z',
+    });
+
+    try {
+      await open();
+      await press('[data-workbench-runs]');
+
+      const labels = [...document.body.querySelectorAll<HTMLElement>('[data-run]')].map(
+        (row) => row.querySelector('[data-run-live]')?.textContent?.trim() ?? null,
+      );
+
+      expect(labels).toEqual([null, null, 'Live run']);
+    } finally {
+      stored.runs.pop();
+    }
   });
 });
 

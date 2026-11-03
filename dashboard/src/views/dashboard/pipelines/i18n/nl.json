@@ -177,6 +177,12 @@
         },
         "run": {
           "start": "Testrun",
+          "startLive": "Live draaien",
+          "mode": {
+            "label": "Hoe draaien",
+            "dry": "Proefrun",
+            "live": "Live draaien"
+          },
           "clear": "Testrun wissen",
           "again": "Opnieuw draaien",
           "summary": "Testrun {number}: geen stappen gedraaid. | Testrun {number}: 1 stap gedraaid. | Testrun {number}: {ran} stappen gedraaid.",
@@ -189,6 +195,28 @@
           "took": "Deze run: {lane}",
           "rounds": "Geen rondes gedraaid | Eén keer gedraaid | {count} keer gedraaid"
         },
+        "live": {
+          "title": "Deze pipeline live draaien?",
+          "description": "Elke stap hieronder draait echt, zonder iets tegen te houden. Bekijk eerst wat elke groep doet.",
+          "groups": {
+            "chat": "Chat",
+            "overlay": "Overlay en geluid",
+            "moderation": "Moderatie",
+            "economy": "Economie",
+            "other": "Overig"
+          },
+          "real": {
+            "moderation": "Deze stappen werken op echte kijkers. Een ban of timeout gebeurt echt.",
+            "economy": "Deze stappen verplaatsen echte valuta. Saldo's veranderen echt."
+          },
+          "hits": "Raakt wie {name} aanwijst als de pipeline start.",
+          "as": "De run start als jij, de persoon die op Nu draaien drukt.",
+          "confirm": "Nu draaien",
+          "ran": "Echt gedraaid: {steps}",
+          "ranNone": "Geen stap draaide echt.",
+          "inProgress": "Een live run van deze pipeline draait al. Wacht tot hij klaar is.",
+          "forbidden": "Je mag deze pipeline niet live draaien."
+        },
         "views": {
           "steps": "Stappen",
           "runs": "Runs"
@@ -197,6 +225,7 @@
           "title": "Runs",
           "description": "Elke keer dat chat, een event of een timer deze pipeline startte, nieuwste eerst, met je testruns gemarkeerd.",
           "testRun": "Testrun",
+          "manualLive": "Live run",
           "empty": "Deze pipeline heeft nog niet gedraaid.",
           "error": "De runs konden niet laden.",
           "older": "Oudere runs tonen",

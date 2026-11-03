@@ -318,4 +318,48 @@ describe('useTestRunPipeline', () => {
     expect(result.chatOutput).toEqual(['rich']);
     expect(result.trace).toEqual(trace);
   });
+
+  it('sends mode live in the body for a live run, and returns what ran for real and the warnings', async () => {
+    http.POST.mockResolvedValue({
+      data: { data: onTheWire({
+        success: true,
+        durationMs: '12',
+        hostCallCount: 1,
+        capturedEffects: [],
+        chatOutput: [],
+        log: [],
+        mode: 'live',
+        realSteps: ['send_message'],
+        warnings: ['No browser source is open.'],
+      }) },
+      response: ok,
+    });
+
+    const { hook } = mount(() => useTestRunPipeline(channel));
+    const result = await hook.mutateAsync({
+      id: 'p1',
+      variables: {},
+      mode: 'live',
+    });
+
+    expect(http.POST.mock.calls[0]![1]).toMatchObject({ body: { variables: {}, mode: 'live' } });
+    expect(result.mode).toBe('live');
+    expect(result.realSteps).toEqual(['send_message']);
+    expect(result.warnings).toEqual(['No browser source is open.']);
+  });
+
+  it('keeps the status of a refused live run, so the screen can tell a running one from a denied one', async () => {
+    http.POST.mockResolvedValue({
+      error: { code: 'LIVE_RUN_IN_PROGRESS' },
+      response: { ok: false, status: 409 },
+    });
+
+    const { hook } = mount(() => useTestRunPipeline(channel));
+
+    await expect(hook.mutateAsync({
+      id: 'p1',
+      variables: {},
+      mode: 'live',
+    })).rejects.toMatchObject({ status: 409 });
+  });
 });

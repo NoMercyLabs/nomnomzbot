@@ -25,6 +25,7 @@ import { useI18n } from 'vue-i18n';
 import { onBeforeRouteLeave, useRoute, useRouter } from 'vue-router';
 
 import { useChannelAccess } from '@/api/access';
+import { ApiError } from '@/api/errors';
 import {
   useBlastRadius,
   usePipeline,
@@ -38,6 +39,7 @@ import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import DateTime from '@/components/layout/DateTime.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import SegmentedControl from '@/components/layout/SegmentedControl.vue';
 import SidePanel from '@/components/layout/SidePanel.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
@@ -51,6 +53,8 @@ import { useQueryPane } from '@/composables/useQueryPane';
 import { useShortcut } from '@/composables/useShortcut';
 
 import { newAction, newBlock, type AddableBlock } from './components/newSteps';
+import LiveRunConfirm from './components/LiveRunConfirm.vue';
+import LiveRunResult from './components/LiveRunResult.vue';
 import PipelineDeleteButton from './components/PipelineDeleteButton.vue';
 import PipelinePowerSwitch from './components/PipelinePowerSwitch.vue';
 import RunsPanel from './components/RunsPanel.vue';
@@ -330,27 +334,89 @@ const summary = computed(() =>
 
 watch(draft.steps, () => {
   lastRun.value = null;
+  liveError.value = null;
 });
 
+// A live run runs the real actions, so it asks first. Dry stays the default, and nothing remembers a live choice.
+const RUN_MODES = ['dry', 'live'] as const satisfies readonly string[];
+
+type RunMode = (typeof RUN_MODES)[number];
+
+const runMode = ref<RunMode>('dry');
+const liveOpen = ref(false);
+const liveError = ref<string | null>(null);
+const modeOptions = computed(() =>
+  RUN_MODES.map((value) =>
+    ({ value, label: t(`${page}.run.mode.${value}`) })));
+
+const testLabel = computed(() => {
+  if (lastRun.value !== null)
+    return t(`${page}.run.clear`);
+
+  return runMode.value === 'live'
+    ? t(`${page}.run.startLive`)
+    : t(`${page}.run.start`);
+});
+
+// 409: one live run of this pipeline is still going. 403: the person may not run it live.
+const LIVE_ERRORS = {
+  409: 'inProgress',
+  403: 'forbidden',
+} as const satisfies Record<number, string>;
+
+function liveErrorOf(error: Error): string | null {
+  const key = error instanceof ApiError && error.status !== undefined
+    ? (LIVE_ERRORS as Record<number, string | undefined>)[error.status]
+    : undefined;
+
+  return key === undefined
+    ? null
+    : t(`${page}.live.${key}`);
+}
+
 async function testRun(): Promise<void> {
+  liveError.value = null;
+  liveOpen.value = false;
+
   try {
     lastRun.value = await testing.mutateAsync({
       id: id.value,
       variables: runInput.value,
       graph: { steps: draft.steps.value },
+      mode: runMode.value === 'live'
+        ? 'live'
+        : undefined,
     });
 
     runCount.value += 1;
   } catch (error: unknown) {
+    const line = runMode.value === 'live' && error instanceof Error
+      ? liveErrorOf(error)
+      : null;
+
+    if (line !== null) {
+      liveError.value = line;
+
+      return;
+    }
+
     toast.error(error instanceof Error
       ? errorText(error, t)
       : t(`${page}.run.failedToStart`));
   }
 }
 
+function startRun(): void {
+  if (runMode.value === 'live') {
+    liveOpen.value = true;
+  } else {
+    void testRun();
+  }
+}
+
 function toggleRun(): void {
   if (lastRun.value === null) {
-    void testRun();
+    startRun();
   } else {
     lastRun.value = null;
   }
@@ -515,16 +581,25 @@ const leaveOpen = computed<boolean>({
         >
           <Redo aria-hidden="true" />
         </Button>
+        <SegmentedControl
+          v-if="canWrite"
+          v-model="runMode"
+          data-run-mode
+          :label="$t(`${page}.run.mode.label`)"
+          :options="modeOptions"
+          :disabled="testing.isPending.value"
+        />
+        <!-- A live run has real effects, so its button takes the destructive variant, never the accent. -->
         <Button
           data-workbench-test
           type="button"
-          variant="outline"
+          :variant="runMode === 'live' ? 'destructive' : 'outline'"
           size="sm"
           :disabled="!canWrite || testing.isPending.value || stepCount === 0"
           @click="toggleRun"
         >
           <Play aria-hidden="true" />
-          {{ lastRun ? $t(`${page}.run.clear`) : $t(`${page}.run.start`) }}
+          {{ testLabel }}
         </Button>
         <Button
           data-workbench-save
@@ -581,7 +656,7 @@ const leaveOpen = computed<boolean>({
             variant="ghost"
             size="sm"
             :disabled="testing.isPending.value"
-            @click="testRun"
+            @click="startRun"
           >
             <Play aria-hidden="true" />
             {{ $t(`${page}.run.again`) }}
@@ -626,6 +701,15 @@ const leaveOpen = computed<boolean>({
             </Button>
           </span>
         </div>
+        <p
+          v-if="liveError"
+          data-live-error
+          role="alert"
+          class="m-0 rounded-lg border border-destructive/50 px-4 py-3 text-sm text-destructive"
+        >
+          {{ liveError }}
+        </p>
+        <LiveRunResult v-if="lastRun?.mode === 'live'" :run="lastRun" />
         <p
           data-workbench-start
           class="flex w-fit items-center gap-2 rounded-full border bg-muted px-3 py-1.5 text-sm"
@@ -721,6 +805,13 @@ const leaveOpen = computed<boolean>({
       <RunsPanel :channel-id="channelId" :pipeline-id="id" />
     </SidePanel>
   </div>
+  <LiveRunConfirm
+    v-if="canWrite"
+    v-model:open="liveOpen"
+    :steps="draft.steps.value"
+    :descriptors="descriptors"
+    @confirm="testRun"
+  />
   <ConfirmDialog
     v-model:open="leaveOpen"
     :title="$t('dashboard.pipelines.workbench.leave.title')"

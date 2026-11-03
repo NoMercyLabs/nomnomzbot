@@ -177,6 +177,12 @@
         },
         "run": {
           "start": "Test run",
+          "startLive": "Run live",
+          "mode": {
+            "label": "How to run",
+            "dry": "Dry run",
+            "live": "Run live"
+          },
           "clear": "Clear test run",
           "again": "Run again",
           "summary": "Test run {number}: no steps ran. | Test run {number}: 1 step ran. | Test run {number}: {ran} steps ran.",
@@ -189,6 +195,28 @@
           "took": "This run: {lane}",
           "rounds": "Ran no rounds | Ran once | Ran {count} times"
         },
+        "live": {
+          "title": "Run this pipeline live?",
+          "description": "Every step below runs for real, with nothing held back. Check what each group does first.",
+          "groups": {
+            "chat": "Chat",
+            "overlay": "Overlay and sound",
+            "moderation": "Moderation",
+            "economy": "Economy",
+            "other": "Other"
+          },
+          "real": {
+            "moderation": "These steps act on real viewers. A ban or timeout really happens.",
+            "economy": "These steps move real currency. Balances really change."
+          },
+          "hits": "Hits whoever {name} names when the pipeline starts.",
+          "as": "The run starts as you, the person pressing Run now.",
+          "confirm": "Run now",
+          "ran": "Ran for real: {steps}",
+          "ranNone": "No step ran for real.",
+          "inProgress": "A live run of this pipeline is already running. Wait for it to finish.",
+          "forbidden": "You may not run this pipeline live."
+        },
         "views": {
           "steps": "Steps",
           "runs": "Runs"
@@ -197,6 +225,7 @@
           "title": "Runs",
           "description": "Each time chat, an event or a timer started this pipeline, newest first, with your test runs marked.",
           "testRun": "Test run",
+          "manualLive": "Live run",
           "empty": "This pipeline has not run yet.",
           "error": "The runs could not load.",
           "older": "Show older runs",

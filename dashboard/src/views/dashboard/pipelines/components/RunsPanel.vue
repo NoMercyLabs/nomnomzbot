@@ -115,6 +115,9 @@ function toggle(id: string, isOpen: boolean): void {
             <Badge v-if="run.triggerKind === 'test_run'" data-run-test variant="outline" class="text-xs">
               {{ $t(`${page}.runs.testRun`) }}
             </Badge>
+            <Badge v-if="run.triggerKind === 'manual_live'" data-run-live variant="outline" class="text-xs">
+              {{ $t(`${page}.runs.manualLive`) }}
+            </Badge>
             <span class="grid min-w-0 flex-1">
               <span class="truncate text-sm text-muted-foreground">{{ whenText(run) }}</span>
               <span v-if="run.errorMessage" class="truncate text-xs text-destructive">{{ run.errorMessage }}</span>

@@ -495,10 +495,13 @@ export type TestRunRequest = {
   id: string;
   variables: Record<string, string>;
   graph?: PipelineGraph;
+  // Left out for a dry run; live runs the real actions as the caller.
+  mode?: 'dry' | 'live';
 };
 
 // The bot runs the graph without real side effects and returns what each step did: the draft on the canvas
-// when one is sent, the saved graph otherwise.
+// when one is sent, the saved graph otherwise. Mode live runs the real actions, and the bot answers with the
+// action types that ran for real and what could not be seen (409: one is running; 403: no edit right).
 export function useTestRunPipeline(
   channelId: MaybeRefOrGetter<string | null>,
 ) {
@@ -508,7 +511,8 @@ export function useTestRunPipeline(
     // The bot keeps every test run under its pipeline's Runs, so the list shows it at once.
     onSuccess: (_run: PipelineTestRun, { id }: TestRunRequest) =>
       queries.invalidateQueries({ queryKey: pipelineRunsKey(toValue(channelId), id) }),
-    mutationFn: async ({ id, variables, graph }: TestRunRequest): Promise<PipelineTestRun> => {
+    mutationFn: async (request: TestRunRequest): Promise<PipelineTestRun> => {
+      const { id, variables, graph, mode } = request;
       const { data, error, response } = await client.POST(
         '/api/v{version}/channels/{channelId}/pipelines/{id}/test-run',
         {
@@ -517,7 +521,11 @@ export function useTestRunPipeline(
             channelId: toValue(channelId) as string,
             id,
           } },
-          body: { variables, graph },
+          body: {
+            variables,
+            graph,
+            mode,
+          },
         },
       );
 
