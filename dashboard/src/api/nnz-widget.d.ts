@@ -1714,6 +1714,7 @@ interface NnzActionParams {
     voice?: string;
     as?: string;
     rate?: string;
+    mode?: 'async' | 'sync';
   };
   'playlist_add': {
     playlist_id: string;

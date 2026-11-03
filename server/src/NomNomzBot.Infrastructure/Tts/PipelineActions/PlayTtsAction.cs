@@ -29,13 +29,28 @@ public sealed class PlayTtsAction : ICommandAction
     private const double MinRatePercent = -50;
     private const double MaxRatePercent = 50;
 
+    private const string ModeAsync = "async";
+    private const string ModeSync = "sync";
+
+    /// <summary>The longest a <c>sync</c> step waits for one clip; a longer clip waits this long.</summary>
+    private const int MaxSyncWaitMs = 60_000;
+
+    /// <summary>Time for the overlay to fetch and start the clip, added to the clip's own length.</summary>
+    private const int OverlayStartAllowanceMs = 250;
+
     private readonly ITemplateResolver _resolver;
     private readonly ITtsDispatchService _dispatch;
+    private readonly TimeProvider _time;
 
-    public PlayTtsAction(ITemplateResolver resolver, ITtsDispatchService dispatch)
+    public PlayTtsAction(
+        ITemplateResolver resolver,
+        ITtsDispatchService dispatch,
+        TimeProvider? time = null
+    )
     {
         _resolver = resolver;
         _dispatch = dispatch;
+        _time = time ?? TimeProvider.System;
     }
 
     public string ActionType => "play_tts";
@@ -77,6 +92,12 @@ public sealed class PlayTtsAction : ICommandAction
                 Templated: true,
                 Description: new("pipeline.play_tts.rate.help")
             ),
+            new(
+                "mode",
+                PipelineActionFieldKind.Enum,
+                Options: [ModeAsync, ModeSync],
+                Description: new("pipeline.play_tts.mode.help")
+            ),
         ];
 
     public async Task<ActionResult> ExecuteAsync(
@@ -84,6 +105,14 @@ public sealed class PlayTtsAction : ICommandAction
         ActionDefinition action
     )
     {
+        string mode = (action.GetString("mode") ?? string.Empty).Trim().ToLowerInvariant();
+        if (mode.Length == 0)
+            mode = ModeAsync;
+        if (mode is not (ModeAsync or ModeSync))
+            return ActionResult.Failure(
+                $"play_tts 'mode' must be '{ModeAsync}' or '{ModeSync}', got '{mode}'."
+            );
+
         List<TtsSpeakSegment>? segments = null;
         string text;
         bool speaksViewerWords;
@@ -228,6 +257,22 @@ public sealed class PlayTtsAction : ICommandAction
         );
         if (result.IsFailure)
             return ActionResult.Failure(result.ErrorMessage ?? "TTS dispatch failed.");
+
+        TtsDispatchOutcome outcome = result.Value;
+        ctx.Variables["tts.durationMs"] = outcome.DurationMs.ToString(
+            System.Globalization.CultureInfo.InvariantCulture
+        );
+        ctx.Variables["tts.voiceId"] = outcome.VoiceId;
+
+        // A queued line (held for approval) plays nothing now, so there is nothing to wait for.
+        if (mode == ModeSync && outcome.Disposition == TtsDispatchDisposition.Dispatched)
+            await Task.Delay(
+                TimeSpan.FromMilliseconds(
+                    Math.Clamp(outcome.DurationMs, 0, MaxSyncWaitMs) + OverlayStartAllowanceMs
+                ),
+                _time,
+                ctx.CancellationToken
+            );
 
         return ActionResult.Success(
             $"play_tts:{result.Value.VoiceId} chars={result.Value.CharacterCount}"

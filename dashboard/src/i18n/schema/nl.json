@@ -2082,6 +2082,9 @@
         "help": "Wiens stem de regel spreekt: leeg (of bot/channel) is de eigen stem van de bot voor tekst die de bot zelf schreef. Zet het op viewer (of user) alleen als de regel de eigen woorden van die kijker zijn, zoals een TTS-beloning. broadcaster gebruikt de eigen stem van de streamer, of een platform-gebruikers-id spreekt als hen."
       },
       "description": "Spreek tekst uit via tekst-naar-spraak",
+      "mode": {
+        "help": "async (standaard) gaat door zodra de regel naar de overlay is gestuurd. sync wacht tot het fragment klaar is met afspelen (de echte lengte, maximaal 60 seconden, plus een kwart seconde zodat de overlay kan starten), zodat een latere stap, zoals het herstellen van het muziekvolume, pas na het einde van de spraak draait. Beide modi zetten {'{'}tts.durationMs{'}'} en {'{'}tts.voiceId{'}'}."
+      },
       "rate": {
         "help": "Hoe snel de regel wordt gesproken, als percentage van de normale snelheid: +30% sneller, -20% langzamer. Leeg houdt de normale snelheid. Waarden zijn beperkt tot -50% tot +50%."
       },
