@@ -75,7 +75,43 @@ public sealed class PickerFieldKindsTests
             { "enter_giveaway", "giveaway_id", PipelineActionFieldKind.Giveaway },
             { "post_quote", "number", PipelineActionFieldKind.Quote },
             { "send_webhook", "endpoint", PipelineActionFieldKind.WebhookEndpoint },
+            { "send_webhook", "event_type", PipelineActionFieldKind.WebhookEventType },
+            { "set_counter", "key", PipelineActionFieldKind.CounterKey },
+            { "adjust_counter", "key", PipelineActionFieldKind.CounterKey },
+            { "set_viewer_data", "key", PipelineActionFieldKind.ViewerDataKey },
+            { "adjust_viewer_data", "key", PipelineActionFieldKind.ViewerDataKey },
+            { "clear_viewer_data", "key", PipelineActionFieldKind.ViewerDataKey },
+            { "permit", "role_or_capability", PipelineActionFieldKind.PermitToken },
+            { "unpermit", "role_or_capability", PipelineActionFieldKind.PermitToken },
+            { "vts_request", "request_type", PipelineActionFieldKind.VtsRequestType },
+            { "vts_color_tint", "art_mesh_tag", PipelineActionFieldKind.VtsArtMeshTag },
         };
+
+    /// <summary>Fields that name a thing and also accept a template: the step form shows a picker or a template.</summary>
+    public static TheoryData<string, string, PipelineActionFieldKind> TemplatedPickerFields =>
+        new()
+        {
+            { "send_whisper", "recipient", PipelineActionFieldKind.TwitchUser },
+            { "play_tts", "as", PipelineActionFieldKind.TtsSpeaker },
+            { "playlist_add", "track_uri", PipelineActionFieldKind.MusicTrack },
+            { "wait_for_event", "event_name", PipelineActionFieldKind.EventName },
+            { "widget_event", "event_type", PipelineActionFieldKind.WidgetEventType },
+        };
+
+    [Theory]
+    [MemberData(nameof(TemplatedPickerFields))]
+    public void The_templated_field_declares_its_picker_kind_and_stays_templated(
+        string actionType,
+        string field,
+        PipelineActionFieldKind kind
+    )
+    {
+        PipelineActionFieldDescriptor descriptor = ActionsByType[actionType]
+            .Fields.Single(f => f.Name == field);
+
+        Assert.Equal(kind, descriptor.Kind);
+        Assert.True(descriptor.Templated);
+    }
 
     [Theory]
     [MemberData(nameof(PickerFields))]
@@ -93,16 +129,13 @@ public sealed class PickerFieldKindsTests
     }
 
     [Fact]
-    public void A_new_picker_kind_never_sits_on_a_templated_field()
+    public void A_field_listed_as_plain_picker_is_never_templated()
     {
-        HashSet<PipelineActionFieldKind> newKinds =
-        [
-            .. PickerFields.Select(r => (PipelineActionFieldKind)r[2]),
-        ];
+        HashSet<string> plain = [.. PickerFields.Select(r => $"{r[0]}.{r[1]}")];
         List<string> templatedPickers =
         [
             .. ActionsByType.Values.SelectMany(a =>
-                a.Fields.Where(f => f.Templated && newKinds.Contains(f.Kind))
+                a.Fields.Where(f => f.Templated && plain.Contains($"{a.ActionType}.{f.Name}"))
                     .Select(f => $"{a.ActionType}.{f.Name}")
             ),
         ];

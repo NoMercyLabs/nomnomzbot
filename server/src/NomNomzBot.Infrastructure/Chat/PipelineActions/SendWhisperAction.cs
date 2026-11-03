@@ -47,7 +47,7 @@ public sealed class SendWhisperAction : ICommandAction
         [
             new(
                 "recipient",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.TwitchUser,
                 Required: true,
                 Templated: true,
                 Description: new("pipeline.send_whisper.recipient.help")

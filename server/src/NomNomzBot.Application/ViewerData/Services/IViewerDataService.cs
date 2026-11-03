@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.ViewerData.Dtos;
 
 namespace NomNomzBot.Application.ViewerData.Services;
 
@@ -21,6 +22,18 @@ namespace NomNomzBot.Application.ViewerData.Services;
 /// </summary>
 public interface IViewerDataService
 {
+    /// <summary>
+    /// The distinct keys that at least one live row of this channel holds, with how many viewers hold each,
+    /// ordered by key. <paramref name="search"/> keeps the keys that contain it (case-insensitive); null or blank
+    /// keeps every key. Another channel's keys never appear.
+    /// </summary>
+    Task<Result<PagedList<ViewerDataKeySummary>>> ListKeysAsync(
+        Guid broadcasterId,
+        string? search,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    );
+
     Task<Result<string?>> GetAsync(
         Guid broadcasterId,
         Guid viewerUserId,

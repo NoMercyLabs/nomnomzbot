@@ -48,7 +48,7 @@ public sealed class SetViewerDataAction(
         [
             new(
                 "key",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.ViewerDataKey,
                 Required: true,
                 Description: new("pipeline.set_viewer_data.key.help")
             ),
@@ -129,7 +129,7 @@ public sealed class AdjustViewerDataAction(
         [
             new(
                 "key",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.ViewerDataKey,
                 Required: true,
                 Description: new("pipeline.adjust_viewer_data.key.help")
             ),
@@ -212,7 +212,7 @@ public sealed class ClearViewerDataAction(IViewerDataService viewerData) : IComm
         [
             new(
                 "key",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.ViewerDataKey,
                 Required: true,
                 Description: new("pipeline.clear_viewer_data.key.help")
             ),

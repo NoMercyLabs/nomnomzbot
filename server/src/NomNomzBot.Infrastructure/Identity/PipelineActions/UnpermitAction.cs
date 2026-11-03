@@ -44,7 +44,7 @@ public sealed class UnpermitAction : ICommandAction
             ),
             new(
                 "role_or_capability",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.PermitToken,
                 Description: new("pipeline.unpermit.role_or_capability.help")
             ),
         ];

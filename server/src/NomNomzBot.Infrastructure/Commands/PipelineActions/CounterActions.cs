@@ -33,7 +33,7 @@ public sealed class SetCounterAction(INamedCounterService counters) : ICommandAc
         [
             new(
                 "key",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.CounterKey,
                 Required: true,
                 Description: new("pipeline.set_counter.key.help")
             ),
@@ -89,7 +89,7 @@ public sealed class AdjustCounterAction(INamedCounterService counters) : IComman
         [
             new(
                 "key",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.CounterKey,
                 Required: true,
                 Description: new("pipeline.adjust_counter.key.help")
             ),

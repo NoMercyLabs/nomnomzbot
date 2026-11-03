@@ -301,7 +301,7 @@ public sealed class VtsColorTintAction(IVtsControlService vts) : VtsActionBase(v
             ),
             new(
                 "art_mesh_tag",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.VtsArtMeshTag,
                 Description: new("pipeline.vts_color_tint.art_mesh_tag.help")
             ),
         ];
@@ -336,7 +336,7 @@ public sealed class VtsRequestAction(IVtsControlService vts) : VtsActionBase(vts
         [
             new(
                 "request_type",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.VtsRequestType,
                 Required: true,
                 Description: new("pipeline.vts_request.request_type.help")
             ),

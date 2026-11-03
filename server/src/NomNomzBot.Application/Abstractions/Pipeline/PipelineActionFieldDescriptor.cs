@@ -114,6 +114,33 @@ public enum PipelineActionFieldKind
     /// <summary>One outbound webhook endpoint of the channel, saved by its id.</summary>
     WebhookEndpoint,
 
+    /// <summary>One named counter of the channel; the saved value is the counter key.</summary>
+    CounterKey,
+
+    /// <summary>One viewer-data key some viewer of the channel holds; the saved value is the key.</summary>
+    ViewerDataKey,
+
+    /// <summary>A management role or a grantable capability the channel can permit; the saved value is the role name or the capability action key.</summary>
+    PermitToken,
+
+    /// <summary>One event name a waiting run can resume on; the saved value is the event name.</summary>
+    EventName,
+
+    /// <summary>One event type the chosen widget listens to; the saved value is the event type.</summary>
+    WidgetEventType,
+
+    /// <summary>One subscribable outbound webhook event type; the saved value is the event type.</summary>
+    WebhookEventType,
+
+    /// <summary>One request name of the VTube Studio API; the saved value is the request name.</summary>
+    VtsRequestType,
+
+    /// <summary>One art mesh tag of the model loaded in VTube Studio; the saved value is the tag.</summary>
+    VtsArtMeshTag,
+
+    /// <summary>Who speaks a TTS line: one of the closed words (bot, viewer, user, broadcaster) or a known viewer, saved as the Twitch user id.</summary>
+    TtsSpeaker,
+
     /// <summary>
     /// A labelled name→value map (S-PIPE-TREE-d2b(a)) — the builder renders one labelled field per
     /// declared name instead of an unlabelled positional list. Used by <c>run_pipeline</c>'s
@@ -227,6 +254,15 @@ public static class PipelineActionFieldKindExtensions
             PipelineActionFieldKind.Giveaway => "giveaway",
             PipelineActionFieldKind.Quote => "quote",
             PipelineActionFieldKind.WebhookEndpoint => "webhook_endpoint",
+            PipelineActionFieldKind.CounterKey => "counter_key",
+            PipelineActionFieldKind.ViewerDataKey => "viewer_data_key",
+            PipelineActionFieldKind.PermitToken => "permit_token",
+            PipelineActionFieldKind.EventName => "event_name",
+            PipelineActionFieldKind.WidgetEventType => "widget_event_type",
+            PipelineActionFieldKind.WebhookEventType => "webhook_event_type",
+            PipelineActionFieldKind.VtsRequestType => "vts_request_type",
+            PipelineActionFieldKind.VtsArtMeshTag => "vts_art_mesh_tag",
+            PipelineActionFieldKind.TtsSpeaker => "tts_speaker",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, message: null),
         };
 

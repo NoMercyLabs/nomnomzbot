@@ -1,0 +1,17 @@
+// -----------------------------------------------------------------------------
+//  Copyright (c) NoMercy Labs.
+//
+//  This file is part of NomNomzBot. You may use, change and share it for free,
+//  for any noncommercial purpose, under the PolyForm Noncommercial License
+//  1.0.0. You may not earn money with it. Distributed WITHOUT ANY WARRANTY.
+//  See LICENSE for details, and TRADEMARKS.md for the name and logo.
+//
+//  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// -----------------------------------------------------------------------------
+
+namespace NomNomzBot.Application.Commands.Dtos;
+
+/// <summary>One named counter of a channel with the value it holds now.</summary>
+/// <param name="Key">The counter key (a lowercase slug).</param>
+/// <param name="Value">The value the counter holds.</param>
+public sealed record NamedCounterSummary(string Key, long Value);

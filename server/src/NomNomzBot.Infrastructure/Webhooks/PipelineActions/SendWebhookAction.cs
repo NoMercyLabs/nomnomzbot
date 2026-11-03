@@ -51,7 +51,7 @@ public sealed class SendWebhookAction : ICommandAction
             // than being silently run through the resolver.
             new(
                 "event_type",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.WebhookEventType,
                 Templated: false,
                 Description: new("pipeline.send_webhook.event_type.help")
             ),

@@ -60,7 +60,7 @@ public sealed class WaitForEventAction : ICommandAction
         [
             new(
                 "event_name",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.EventName,
                 Required: true,
                 Templated: true,
                 Description: new("pipeline.wait_for_event.event_name.help")

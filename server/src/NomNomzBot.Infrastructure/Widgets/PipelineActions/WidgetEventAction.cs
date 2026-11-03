@@ -48,7 +48,7 @@ public sealed class WidgetEventAction : ICommandAction
             ),
             new(
                 "event_type",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.WidgetEventType,
                 Required: true,
                 Templated: true,
                 Description: new("pipeline.widget_event.event_type.help")

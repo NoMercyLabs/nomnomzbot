@@ -12,6 +12,7 @@
 using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Domain.Commands.Entities;
@@ -32,6 +33,35 @@ public sealed partial class NamedCounterService : INamedCounterService
     public NamedCounterService(IApplicationDbContext db)
     {
         _db = db;
+    }
+
+    public async Task<Result<PagedList<NamedCounterSummary>>> ListAsync(
+        Guid broadcasterId,
+        string? search,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    )
+    {
+        IQueryable<NamedCounter> query = _db
+            .NamedCounters.AsNoTracking()
+            .Where(c => c.BroadcasterId == broadcasterId && c.DeletedAt == null);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string term = search.Trim().ToLowerInvariant();
+            query = query.Where(c => c.Key.ToLower().Contains(term));
+        }
+
+        int total = await query.CountAsync(ct);
+        List<NamedCounterSummary> page = await query
+            .OrderBy(c => c.Key)
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .Select(c => new NamedCounterSummary(c.Key, c.Value))
+            .ToListAsync(ct);
+
+        return Result.Success(
+            new PagedList<NamedCounterSummary>(page, pagination.Page, pagination.PageSize, total)
+        );
     }
 
     public async Task<Result> SetAsync(

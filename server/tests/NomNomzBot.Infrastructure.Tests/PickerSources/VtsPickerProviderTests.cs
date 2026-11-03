@@ -40,7 +40,8 @@ public sealed class VtsPickerProviderTests
                             new("h-1", "Wave", "TriggerAnimation"),
                             new("h-2", "Blush", "ToggleExpression"),
                         ],
-                        ["smile.exp3.json", "angry.exp3.json"]
+                        ["smile.exp3.json", "angry.exp3.json"],
+                        ["Hair", "Cheeks", "Accessory"]
                     )
                 )
             );
@@ -163,7 +164,9 @@ public sealed class VtsPickerProviderTests
         IVtsControlService vts = Connected();
         vts.GetInventoryAsync(other, Arg.Any<CancellationToken>())
             .Returns(
-                Result.Success(new VtsModelInventory([new("other-model", "Other", false)], [], []))
+                Result.Success(
+                    new VtsModelInventory([new("other-model", "Other", false)], [], [], [])
+                )
             );
 
         Result<PipelineOptionListResult> result = await new VtsModelOptionProvider(

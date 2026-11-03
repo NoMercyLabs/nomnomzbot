@@ -67,7 +67,7 @@ public sealed class PlayTtsAction : ICommandAction
             ),
             new(
                 "as",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.TtsSpeaker,
                 Templated: true,
                 Description: new("pipeline.play_tts.as.help")
             ),

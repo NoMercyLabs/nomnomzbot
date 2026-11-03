@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Commands.Dtos;
 using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Application.Commands.Services;
@@ -20,6 +21,17 @@ namespace NomNomzBot.Application.Commands.Services;
 /// </summary>
 public interface INamedCounterService
 {
+    /// <summary>
+    /// The channel's counters with their values, ordered by key. <paramref name="search"/> keeps the keys that
+    /// contain it (case-insensitive); null or blank keeps every key. Another channel's counters never appear.
+    /// </summary>
+    Task<Result<PagedList<NamedCounterSummary>>> ListAsync(
+        Guid broadcasterId,
+        string? search,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    );
+
     /// <summary>Upsert the counter to an absolute value.</summary>
     Task<Result> SetAsync(
         Guid broadcasterId,

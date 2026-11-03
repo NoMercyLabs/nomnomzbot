@@ -74,7 +74,8 @@ public sealed class PipelinesControllerCatalogueSendWhisperTests
         whisper.Fields.Select(f => f.Name).Should().Equal("recipient", "message");
         foreach (PipelineActionFieldDto field in whisper.Fields)
         {
-            field.Kind.Should().Be("text");
+            // The recipient is a picked Twitch user that can still be a template; the message is free text.
+            field.Kind.Should().Be(field.Name == "recipient" ? "twitch_user" : "text");
             field.Required.Should().BeTrue();
             field.Templated.Should().BeTrue();
             field.Description!.Key.Should().Be($"pipeline.send_whisper.{field.Name}.help");

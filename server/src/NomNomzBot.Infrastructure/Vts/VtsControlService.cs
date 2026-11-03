@@ -170,13 +170,35 @@ public class VtsControlService : IVtsControlService
             ct
         );
 
+        Result<string> artMeshes = await _transport.RequestAsync(
+            broadcasterId,
+            "ArtMeshListRequest",
+            null,
+            ct
+        );
+
         return Result.Success(
             new VtsModelInventory(
                 ParseModels(models.Value),
                 hotkeys.IsSuccess ? ParseHotkeys(hotkeys.Value) : [],
-                expressions.IsSuccess ? ParseExpressions(expressions.Value) : []
+                expressions.IsSuccess ? ParseExpressions(expressions.Value) : [],
+                artMeshes.IsSuccess ? ParseArtMeshTags(artMeshes.Value) : []
             )
         );
+    }
+
+    private static IReadOnlyList<string> ParseArtMeshTags(string dataJson)
+    {
+        List<string> tags = [];
+        using JsonDocument doc = JsonDocument.Parse(dataJson);
+        if (
+            doc.RootElement.TryGetProperty("artMeshTags", out JsonElement items)
+            && items.ValueKind == JsonValueKind.Array
+        )
+            foreach (JsonElement item in items.EnumerateArray())
+                if (item.GetString() is { Length: > 0 } tag)
+                    tags.Add(tag);
+        return tags;
     }
 
     private static IReadOnlyList<VtsModelRef> ParseModels(string dataJson)

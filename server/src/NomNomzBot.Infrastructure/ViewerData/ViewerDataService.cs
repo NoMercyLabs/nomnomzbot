@@ -14,6 +14,7 @@ using System.Text.RegularExpressions;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.ViewerData.Dtos;
 using NomNomzBot.Application.ViewerData.Services;
 using NomNomzBot.Domain.ViewerData.Entities;
 
@@ -42,6 +43,35 @@ public sealed partial class ViewerDataService : IViewerDataService
     {
         _db = db;
         _clock = clock;
+    }
+
+    public async Task<Result<PagedList<ViewerDataKeySummary>>> ListKeysAsync(
+        Guid broadcasterId,
+        string? search,
+        PaginationParams pagination,
+        CancellationToken ct = default
+    )
+    {
+        IQueryable<ViewerDatum> rows = _db
+            .ViewerData.AsNoTracking()
+            .Where(d => d.BroadcasterId == broadcasterId && d.DeletedAt == null);
+        if (!string.IsNullOrWhiteSpace(search))
+        {
+            string term = search.Trim().ToLowerInvariant();
+            rows = rows.Where(d => d.Key.ToLower().Contains(term));
+        }
+
+        IQueryable<IGrouping<string, ViewerDatum>> keys = rows.GroupBy(d => d.Key);
+        int total = await keys.CountAsync(ct);
+        List<ViewerDataKeySummary> page = await keys.OrderBy(g => g.Key)
+            .Skip((pagination.Page - 1) * pagination.PageSize)
+            .Take(pagination.PageSize)
+            .Select(g => new ViewerDataKeySummary(g.Key, g.Count()))
+            .ToListAsync(ct);
+
+        return Result.Success(
+            new PagedList<ViewerDataKeySummary>(page, pagination.Page, pagination.PageSize, total)
+        );
     }
 
     public async Task<Result<string?>> GetAsync(

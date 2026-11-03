@@ -83,7 +83,7 @@ public sealed class PlaylistAddAction : ICommandAction
             PlaylistProviderChoice.Field(),
             new(
                 "track_uri",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.MusicTrack,
                 Templated: true,
                 Description: new("pipeline.playlist_add.track_uri.help")
             ),

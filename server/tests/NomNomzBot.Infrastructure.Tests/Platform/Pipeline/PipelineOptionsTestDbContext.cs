@@ -134,6 +134,15 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
 
         b.Entity<OutboundWebhookEndpoint>(e => e.HasKey(w => w.Id));
 
+        b.Entity<EventResponse>(e =>
+        {
+            e.HasKey(r => r.Id);
+            e.Ignore(r => r.Channel);
+            e.Ignore(r => r.Pipeline);
+            e.Ignore(r => r.ReplyDelivery);
+            e.Ignore(r => r.MetadataJson);
+        });
+
         b.Entity<ViewerProfile>(e => e.HasKey(p => p.Id));
 
         b.Entity<User>(e => e.HasKey(u => u.Id));
@@ -170,6 +179,7 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
         typeof(User),
         typeof(Channel),
         typeof(OutboundWebhookEndpoint),
+        typeof(EventResponse),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =

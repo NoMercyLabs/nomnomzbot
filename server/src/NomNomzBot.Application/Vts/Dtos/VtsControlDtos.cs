@@ -45,7 +45,8 @@ public sealed record VtsHotkeyRef(string Id, string Name, string Type);
 public sealed record VtsModelInventory(
     IReadOnlyList<VtsModelRef> Models,
     IReadOnlyList<VtsHotkeyRef> Hotkeys,
-    IReadOnlyList<string> Expressions
+    IReadOnlyList<string> Expressions,
+    IReadOnlyList<string> ArtMeshTags
 );
 
 /// <summary>REST body for the raw control route.</summary>
