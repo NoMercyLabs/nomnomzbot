@@ -387,6 +387,15 @@ export const PICKER_KINDS = [
   'giveaway',
   'quote',
   'webhook_endpoint',
+  'counter_key',
+  'viewer_data_key',
+  'permit_token',
+  'event_name',
+  'widget_event_type',
+  'webhook_event_type',
+  'vts_request_type',
+  'vts_art_mesh_tag',
+  'tts_speaker',
 ] as const satisfies string[];
 
 export type PickerKind = (typeof PICKER_KINDS)[number];

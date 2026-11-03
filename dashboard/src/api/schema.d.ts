@@ -63468,7 +63468,7 @@ export interface paths {
         };
         /**
          * The option list for one resource-picker kind (`reward`, `widget`, `voice`,
-         *     `sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`, `script`, `music_playlist`, `twitch_reward`, `obs_audio_input`, `obs_scene`, `obs_scene_item`, `obs_filter`, `obs_transition`, `obs_input`, `obs_hotkey`, `discord_user`, `vts_model`, `vts_hotkey`, `vts_expression`, `game_type`, `live_game_type`, `pronoun`, `music_device`, `music_track`, `pipeline`, `pipeline_name`, `command_name`, `action_type`, `savings_jar`, `giveaway`, `quote`, `webhook_endpoint`), paged
+         *     `sound_clip`, `discord_channel`, `discord_role`, `twitch_user`, `asset`, `script`, `music_playlist`, `twitch_reward`, `obs_audio_input`, `obs_scene`, `obs_scene_item`, `obs_filter`, `obs_transition`, `obs_input`, `obs_hotkey`, `discord_user`, `vts_model`, `vts_hotkey`, `vts_expression`, `game_type`, `live_game_type`, `pronoun`, `music_device`, `music_track`, `pipeline`, `pipeline_name`, `command_name`, `action_type`, `savings_jar`, `giveaway`, `quote`, `webhook_endpoint`, `counter_key`, `viewer_data_key`, `permit_token`, `event_name`, `widget_event_type`, `webhook_event_type`, `vts_request_type`, `vts_art_mesh_tag`, `tts_speaker`), paged
          *     and optionally search-filtered. The OBS kinds list what the channel's connected OBS reports; a sibling
          *     setting sent in the query context narrows them (`scene` for `obs_scene_item`, `source` for `obs_filter`). With `value` set, only the option whose stored value equals it
          *     exactly comes back (search is ignored), so the dashboard can label a saved value that is not on the
@@ -107421,6 +107421,7 @@ export interface components {
             models: components["schemas"]["VtsModelRef"][];
             hotkeys: components["schemas"]["VtsHotkeyRef"][];
             expressions: string[];
+            artMeshTags: string[];
         };
         /** @description One available VTS model. */
         VtsModelRef: {
