@@ -105,13 +105,7 @@ public sealed class TemplateSurfaceMatrixTests
     /// Cells that fail today, one row per failing cell, grouped by cause. A later slice deletes the rows with
     /// its fix. The test fails when a row renders, so a row cannot go stale.
     /// </summary>
-    private static readonly (TemplateHelperContext Surface, string Key)[] KnownGap =
-    [
-        // Cause: music.queue.target.count is declared on Timer and Discord, which seed no target. Its row lives in
-        // Helpers/Music, which this slice does not touch; the music owner narrows the row and deletes these two.
-        (TemplateHelperContext.Timer, "music.queue.target.count"),
-        (TemplateHelperContext.Discord, "music.queue.target.count"),
-    ];
+    private static readonly (TemplateHelperContext Surface, string Key)[] KnownGap = [];
 
     private enum CellState
     {

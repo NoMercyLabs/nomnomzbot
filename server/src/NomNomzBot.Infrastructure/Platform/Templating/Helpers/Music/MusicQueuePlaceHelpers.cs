@@ -109,6 +109,12 @@ internal sealed class MusicQueuePlaceHelpers()
                         : null
             )
             .ForViewer(TemplateHelperScope.Viewer)
+            .OnlyIn(
+                TemplateHelperContext.Command,
+                TemplateHelperContext.EventResponse,
+                TemplateHelperContext.Pipeline,
+                TemplateHelperContext.Webhook
+            )
     )
 {
     /// <summary>Half a minute: added before the clock text drops the seconds, it rounds to the nearest minute.</summary>

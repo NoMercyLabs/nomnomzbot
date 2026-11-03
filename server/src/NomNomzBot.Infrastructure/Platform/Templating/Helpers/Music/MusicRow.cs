@@ -143,13 +143,24 @@ internal sealed record MusicRow(
 
     public MusicRow ForViewer(TemplateHelperScope scope) => this with { Scope = scope };
 
+    /// <summary>The surfaces that declare the row; all but the viewer surface unless the row narrows it.</summary>
+    public IReadOnlyList<TemplateHelperContext> Contexts { get; init; } =
+        TemplateHelperContexts.Standard;
+
+    /// <summary>The row declared only on the surfaces whose caller seeds the person it reads.</summary>
+    public MusicRow OnlyIn(params TemplateHelperContext[] contexts) =>
+        this with
+        {
+            Contexts = contexts,
+        };
+
     public Task<string?> RenderAsync(MusicCall call) =>
         call.Args.Count < MinArgs || call.Args.Count > MaxArgs
             ? Task.FromResult<string?>(null)
             : Render(call);
 
     public TemplateHelperEntry ToEntry() =>
-        new(Key, TemplateHelperContexts.Standard, new LocalizedText("template.helper." + Key))
+        new(Key, Contexts, new LocalizedText("template.helper." + Key))
         {
             Sample = Sample,
             Source = Sources == MusicSources.None ? null : Sources.ToString().ToLowerInvariant(),
