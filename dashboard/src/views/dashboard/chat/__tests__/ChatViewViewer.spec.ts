@@ -17,6 +17,15 @@ import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { defineComponent, h, ref } from 'vue';
 import { createMemoryHistory, createRouter } from 'vue-router';
 
+import {
+  BackHost,
+  expectStepAdded,
+  expectStepPopped,
+  position,
+  pressBack,
+  settle as settleHistory,
+  startHistory,
+} from '@/__tests__/backHistory';
 import type { ChatLine } from '@/api/chat';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
@@ -236,5 +245,60 @@ describe('the viewer chat page', () => {
 
     expect(posts[0]!.body).toMatchObject({ message: 'hello chat' });
     expect(posts[0]!.body).not.toHaveProperty('senderIdentity');
+  });
+
+  // Stoney 2026-11-03: "i want EVERYTHING to have a history state, and a close is a history pop". A viewer has no
+  // side panel, so the focus on one chatter is the layer there; for a moderator the Viewer panel is.
+  describe('in the history', () => {
+    async function openInHistory() {
+      const router = await startHistory();
+      const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+      mounted = mount(BackHost, {
+        attachTo: document.body,
+        global: {
+          plugins: [i18n, createPinia(), router, [VueQueryPlugin, { queryClient: queries }]],
+        },
+        slots: {
+          default: () =>
+            h(TooltipProvider, () => [h(ChatView), h(Toaster)]),
+        },
+      });
+
+      await router.isReady();
+      await settle();
+
+      return { router, start: position() };
+    }
+
+    const focusOn = (): HTMLElement | null =>
+      document.body.querySelector('[data-focus="on"]');
+
+    it('takes a step for the focus on a chatter and Back clears it on the same route', async () => {
+      const { router, start } = await openInHistory();
+
+      rows()[0]!.click();
+      await settleHistory();
+      expect(focusOn()).not.toBeNull();
+      expectStepAdded(router, start);
+
+      await pressBack();
+      expect(focusOn()).toBeNull();
+      expect(position()).toBe(start);
+      expect(router.currentRoute.value.fullPath).toBe('/chat');
+    });
+
+    it('pops the step when its own clear button ends the focus', async () => {
+      const { router, start } = await openInHistory();
+
+      rows()[0]!.click();
+      await settleHistory();
+      expectStepAdded(router, start);
+
+      document.body.querySelector<HTMLElement>('[data-focus-clear]')!.click();
+      await settleHistory();
+      expect(focusOn()).toBeNull();
+      await expectStepPopped(router, start);
+    });
   });
 });

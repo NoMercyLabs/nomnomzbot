@@ -24,6 +24,7 @@ import PlatformLogo from '@/components/layout/PlatformLogo.vue';
 import RowGroup from '@/components/layout/RowGroup.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
 import { Button } from '@/components/ui/button';
+import { useBackLayer } from '@/composables/useBackCloses';
 import { officialOrigin, servedOrigin } from '@/lib/botAddress';
 import { returnPath } from '@/router/guard';
 
@@ -34,6 +35,14 @@ const route = useRoute();
 const { t, locale } = useI18n();
 const providers = useQuery(providersQuery);
 const mode = ref<'options' | 'device' | 'bots'>('options');
+
+// The bot list and the code sign-in replace the options in place, so each takes a history step; Back returns to
+// the options like their own back buttons.
+useBackLayer(computed(() =>
+  mode.value !== 'options'), () => {
+  mode.value = 'options';
+});
+
 const botHost = computed(() => new URL(activeBot.value).host);
 const botDetail = computed<string>(() => {
   if (activeBot.value === officialOrigin)

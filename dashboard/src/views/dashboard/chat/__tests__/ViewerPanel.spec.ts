@@ -13,7 +13,17 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { h } from 'vue';
 
+import {
+  BackHost,
+  expectStepAdded,
+  expectStepPopped,
+  position,
+  pressBack,
+  settle,
+  startHistory,
+} from '@/__tests__/backHistory';
 import type { ChatLine } from '@/api/chat';
 import { i18n } from '@/i18n';
 
@@ -378,5 +388,77 @@ describe('ViewerPanel', () => {
     await show('u1');
 
     expect(document.body.querySelector('[data-viewer-close]')).toBeNull();
+  });
+
+  // Stoney 2026-11-03: "i want EVERYTHING to have a history state, and a close is a history pop". The length
+  // choice and the ban question replace the actions in place, so each takes a step.
+  describe('in the history', () => {
+    async function showInHistory() {
+      const router = await startHistory();
+      const queries = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+      mounted = mount(BackHost, {
+        attachTo: document.body,
+        global: {
+          plugins: [router, i18n, createPinia(), [VueQueryPlugin, { queryClient: queries }]],
+        },
+        slots: {
+          default: () =>
+            h(ViewerPanel, {
+              userId: 'u1',
+              channelId: 'c1',
+              channelLogin,
+              lines: feed,
+              hour12: false,
+            }),
+        },
+      });
+
+      await router.isReady();
+      await settle();
+
+      return { router, start: position() };
+    }
+
+    it('takes a step for the length choice and Back returns to the actions on the same route', async () => {
+      const { router, start } = await showInHistory();
+
+      await press('Timeout');
+      await settle();
+      expect(button('Timeout')).toBeUndefined();
+      expectStepAdded(router, start);
+
+      await pressBack();
+      expect(button('Timeout')).toBeDefined();
+      expect(position()).toBe(start);
+      expect(router.currentRoute.value.fullPath).toBe('/chat');
+    });
+
+    it('pops the step when the ban question closes with its own cancel button', async () => {
+      const { router, start } = await showInHistory();
+
+      await press('Ban');
+      await settle();
+      expect(text()).toContain('Ban DukaSoft?');
+      expectStepAdded(router, start);
+
+      await press('Cancel');
+      await settle();
+      expect(button('Timeout')).toBeDefined();
+      await expectStepPopped(router, start);
+    });
+
+    it('pops the step when the ban is confirmed and the result takes the question place', async () => {
+      const { router, start } = await showInHistory();
+
+      await press('Ban');
+      await settle();
+      expectStepAdded(router, start);
+
+      document.body.querySelector<HTMLElement>('[data-viewer-ban-confirm]')?.click();
+      await settle();
+      expect(text()).toContain('DukaSoft is banned');
+      await expectStepPopped(router, start);
+    });
   });
 });

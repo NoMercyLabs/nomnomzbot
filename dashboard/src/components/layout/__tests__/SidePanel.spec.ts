@@ -11,8 +11,18 @@
 
 import { mount, flushPromises, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it } from 'vitest';
-import { h, nextTick } from 'vue';
+import { h, nextTick, ref } from 'vue';
 
+import {
+  BackHost,
+  expectStepAdded,
+  expectStepPopped,
+  position,
+  pressBack,
+  settle,
+  startHistory,
+  steps,
+} from '@/__tests__/backHistory';
 import { setWidth } from '@/__tests__/viewport';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SidePanel from '@/components/layout/SidePanel.vue';
@@ -211,5 +221,93 @@ describe('the side panel', () => {
     mounted!.unmount();
     await panelAt(412, false);
     expect(document.body.querySelector('[data-display-panel]')).toBeNull();
+  });
+});
+
+// Stoney 2026-11-03: "i want EVERYTHING to have a history state, and a close is a history pop". The drawer is a
+// reka layer; the panel beside the content is not, so it signs up itself.
+describe('the panel beside the content in the history', () => {
+  async function beside() {
+    setWidth(1440);
+
+    const router = await startHistory();
+    const open = ref(false);
+
+    mounted = mount(BackHost, {
+      attachTo: document.body,
+      global: { plugins: [router, i18n] },
+      slots: {
+        default: () =>
+          h(SidePanel, {
+            label: 'Display',
+            open: open.value,
+            'onUpdate:open': (value: boolean) => {
+              open.value = value;
+            },
+          }, () =>
+            h(PanelCard, { title: 'Display' })),
+      },
+    }) as never;
+
+    await router.isReady();
+
+    return {
+      router,
+      open,
+      start: position(),
+    };
+  }
+
+  it('takes a step when it opens and Back closes it on the same route', async () => {
+    const { router, open, start } = await beside();
+
+    open.value = true;
+    await settle();
+    expect(document.body.querySelector('aside[data-slot="side-panel"]')).not.toBeNull();
+    expectStepAdded(router, start);
+
+    await pressBack();
+    expect(open.value).toBe(false);
+    expect(document.body.querySelector('aside[data-slot="side-panel"]')).toBeNull();
+    expect(position()).toBe(start);
+    expect(router.currentRoute.value.fullPath).toBe('/chat');
+  });
+
+  it('pops its step when its own close button closes it', async () => {
+    const { router, open, start } = await beside();
+
+    open.value = true;
+    await settle();
+    expectStepAdded(router, start);
+
+    document.body.querySelector<HTMLElement>('[data-drawer-close]')?.click();
+    await settle();
+    expect(open.value).toBe(false);
+    await expectStepPopped(router, start);
+  });
+
+  it('takes no step while a pinned panel stays open', async () => {
+    setWidth(1440);
+
+    const router = await startHistory();
+    const start = position();
+
+    mounted = mount(BackHost, {
+      attachTo: document.body,
+      global: { plugins: [router, i18n] },
+      slots: {
+        default: () =>
+          h(SidePanel, {
+            label: 'Pinned',
+            open: true,
+            pinned: true,
+          }, () =>
+            h('p', 'pinned')),
+      },
+    }) as never;
+
+    await settle();
+    expect(position()).toBe(start);
+    expect(steps()).toBe(0);
   });
 });

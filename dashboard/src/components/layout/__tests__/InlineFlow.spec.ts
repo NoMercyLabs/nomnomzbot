@@ -11,7 +11,18 @@
 
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { afterEach, describe, expect, it, vi } from 'vitest';
+import { h } from 'vue';
 
+import {
+  BackHost,
+  expectStepAdded,
+  expectStepPopped,
+  position,
+  pressBack,
+  settle,
+  startHistory,
+  steps,
+} from '@/__tests__/backHistory';
 import InlineFlow from '@/components/layout/InlineFlow.vue';
 import type { InlineFlowKind } from '@/composables/useInlineFlow';
 import { i18n } from '@/i18n';
@@ -316,5 +327,93 @@ describe('the inline flow', () => {
     press('back');
     await flushPromises();
     expect(step()).toBe('idle');
+  });
+});
+
+// Stoney 2026-11-03: "i want EVERYTHING to have a history state, and a close is a history pop". The question and
+// the wait are layers over the page; the opener, the result and a failure are not.
+describe('the inline flow in the history', () => {
+  async function flowInHistory(props: Record<string, unknown>) {
+    const router = await startHistory();
+
+    mounted = mount(BackHost, {
+      attachTo: document.body,
+      global: { plugins: [router, i18n] },
+      slots: {
+        default: () =>
+          h(InlineFlow, {
+            label: 'Clear the queue',
+            kind: 'confirm',
+            ...props,
+          }, {
+            default: () => h('button', { type: 'button', 'data-opener': '' }, 'Clear queue'),
+          }),
+      },
+    }) as never;
+
+    await router.isReady();
+
+    return { router, start: position() };
+  }
+
+  it('takes a step for the question and Back backs out of it on the same route', async () => {
+    const { router, start } = await flowInHistory({});
+
+    opener().click();
+    await settle();
+    expect(step()).toBe('ask');
+    expectStepAdded(router, start);
+
+    await pressBack();
+    expect(step()).toBe('idle');
+    expect(position()).toBe(start);
+    expect(router.currentRoute.value.fullPath).toBe('/chat');
+  });
+
+  it('pops the step when its own cancel button backs out', async () => {
+    const { router, start } = await flowInHistory({});
+
+    opener().click();
+    await settle();
+    expectStepAdded(router, start);
+
+    press('back');
+    await settle();
+    expect(step()).toBe('idle');
+    await expectStepPopped(router, start);
+  });
+
+  it('keeps the step while the work runs and pops it when the work is done', async () => {
+    let finish = (): void => {};
+
+    const action = (): Promise<void> =>
+      new Promise((resolve) => {
+        finish = resolve;
+      });
+
+    const { router, start } = await flowInHistory({ action });
+
+    opener().click();
+    await settle();
+    press('ok');
+    await settle();
+    expect(step()).toBe('pending');
+    expectStepAdded(router, start);
+
+    finish();
+    await settle();
+    expect(step()).toBe('done');
+    expect(steps()).toBe(0);
+    expect(position()).toBe(start);
+  });
+
+  it('takes no step for a plain action that never asks', async () => {
+    const { start } = await flowInHistory({ kind: 'note', text: 'Opens Spotify.' });
+
+    opener().click();
+    await settle();
+    expect(step()).toBe('done');
+    expect(steps()).toBe(0);
+    expect(position()).toBe(start);
   });
 });

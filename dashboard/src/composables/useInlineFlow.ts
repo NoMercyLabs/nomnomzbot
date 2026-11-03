@@ -16,6 +16,8 @@
 import { useTimeoutFn } from '@vueuse/core';
 import { computed, ref, toValue, type ComputedRef, type MaybeRefOrGetter, type Ref } from 'vue';
 
+import { useBackLayer } from '@/composables/useBackCloses';
+
 export type InlineFlowKind = 'confirm' | 'apply' | 'run' | 'note';
 export type InlineFlowStep = 'idle' | 'ask' | 'pending' | 'done' | 'failed';
 type Work = () => void | Promise<void>;
@@ -116,6 +118,10 @@ export function useInlineFlow(options: InlineFlowOptions) {
     undoWindow.stop();
     step.value = 'idle';
   }
+
+  // The question and the wait cover the page's own control, so the back button backs out like Cancel does.
+  useBackLayer(computed(() =>
+    step.value === 'ask' || step.value === 'pending'), back);
 
   return {
     step,

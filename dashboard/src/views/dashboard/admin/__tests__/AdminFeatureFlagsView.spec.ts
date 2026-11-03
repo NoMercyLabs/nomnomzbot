@@ -13,7 +13,17 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { h } from 'vue';
 
+import {
+  BackHost,
+  expectStepAdded,
+  position,
+  pressBack,
+  settle as settleHistory,
+  startHistory,
+  steps,
+} from '@/__tests__/backHistory';
 import { queryClient } from '@/api/queryClient';
 import { i18n } from '@/i18n';
 
@@ -313,6 +323,79 @@ describe('AdminFeatureFlagsView', () => {
 
     expect(document.body.textContent).toContain('You may not see the feature flags.');
     expect(document.body.querySelectorAll('[data-flag]')).toHaveLength(0);
+  });
+
+  // Stoney 2026-11-03: "i want EVERYTHING to have a history state, and a close is a history pop". The editor card
+  // and the review under it open over the list in place, so each takes a step.
+  describe('in the history', () => {
+    async function openInHistory() {
+      const router = await startHistory();
+
+      mounted = mount(BackHost, {
+        attachTo: document.body,
+        global: {
+          plugins: [
+            router,
+            i18n,
+            pinia,
+            [
+              VueQueryPlugin,
+              { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+            ],
+          ],
+        },
+        slots: {
+          default: () =>
+            h(AdminFeatureFlagsView),
+        },
+      });
+
+      await router.isReady();
+      await settle();
+
+      return { router, start: position() };
+    }
+
+    it('takes a step for the editor and Back closes it on the same route', async () => {
+      const { router, start } = await openInHistory();
+
+      await click('[data-flag="beta-widgets"] [data-edit]');
+      await settleHistory();
+      expect(document.body.querySelector('[data-editor]')).not.toBeNull();
+      expectStepAdded(router, start);
+
+      await pressBack();
+      expect(document.body.querySelector('[data-editor]')).toBeNull();
+      expect(position()).toBe(start);
+      expect(router.currentRoute.value.fullPath).toBe('/chat');
+    });
+
+    it('closes the review first on Back, then the editor, and the review back button pops its step', async () => {
+      const { router, start } = await openInHistory();
+
+      await click('[data-flag="beta-widgets"] [data-edit]');
+      await click('[data-review]');
+      await settleHistory();
+      expect(document.body.querySelector('[data-confirm-panel]')).not.toBeNull();
+      expect(steps()).toBe(2);
+
+      await pressBack();
+      expect(document.body.querySelector('[data-confirm-panel]')).toBeNull();
+      expect(document.body.querySelector('[data-editor]')).not.toBeNull();
+      expectStepAdded(router, start);
+
+      await click('[data-review]');
+      await settleHistory();
+      expect(steps()).toBe(2);
+
+      const back = [...document.body.querySelectorAll<HTMLElement>('[data-editor] button')]
+        .find((button) => button.textContent?.trim() === en.dashboard.admin.featureFlags.back);
+
+      back?.click();
+      await settleHistory();
+      expect(document.body.querySelector('[data-confirm-panel]')).toBeNull();
+      expectStepAdded(router, start);
+    });
   });
 
   it('is a registered admin route with copy in both locales', () => {

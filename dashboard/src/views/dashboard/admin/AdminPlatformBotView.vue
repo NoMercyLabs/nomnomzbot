@@ -30,6 +30,7 @@ import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { useBackLayer } from '@/composables/useBackCloses';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 
@@ -66,6 +67,12 @@ const failed = computed(
     poll.isError.value ||
     outcome.value !== null,
 );
+
+// The counted preview waits for a yes, so it takes a history step until the reconnect starts; Back dismisses it.
+useBackLayer(computed(() =>
+  previewed.value !== null && !code.value), () => {
+  previewed.value = null;
+});
 
 const timer = useIntervalFn(checkApproval, intervalMs, { immediate: false });
 

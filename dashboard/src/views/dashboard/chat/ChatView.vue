@@ -43,6 +43,7 @@ import VirtualList from '@/components/layout/VirtualList.vue';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
 import CopyLinkButton from '@/components/layout/CopyLinkButton.vue';
 import { Button } from '@/components/ui/button';
+import { useBackLayer } from '@/composables/useBackCloses';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePhone, useScreenFrom } from '@/composables/useLayout';
 import { usePanelState } from '@/composables/usePanelState';
@@ -280,6 +281,10 @@ const focusedName = computed<string>(() =>
 function closeViewer(): void {
   focusedUserId.value = null;
 }
+
+// A viewer has no Viewer panel, so the focus itself takes the history step; for a moderator the panel does.
+useBackLayer(computed(() =>
+  viewerMode.value && focusedUserId.value !== null), closeViewer);
 
 // The viewer panel is open while a chatter is in focus; closing the drawer ends the focus.
 const viewerOpen = computed<boolean>({

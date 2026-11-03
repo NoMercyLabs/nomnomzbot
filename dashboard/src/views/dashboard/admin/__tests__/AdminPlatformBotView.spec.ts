@@ -13,7 +13,17 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
+import { h } from 'vue';
 
+import {
+  BackHost,
+  expectStepAdded,
+  expectStepPopped,
+  position,
+  pressBack,
+  settle as settleHistory,
+  startHistory,
+} from '@/__tests__/backHistory';
 import { queryClient } from '@/api/queryClient';
 import { i18n } from '@/i18n';
 import { adminHandlers } from '@/realtime/admin';
@@ -176,6 +186,67 @@ describe('AdminPlatformBotView', () => {
     });
 
     expect(document.body.querySelector('[data-user-code]')?.textContent).toContain('ABCD-EFGH');
+  });
+
+  // Stoney 2026-11-03: "i want EVERYTHING to have a history state, and a close is a history pop". The counted
+  // preview waits for a yes, so it is a step over the page until the reconnect starts.
+  describe('in the history', () => {
+    async function openInHistory() {
+      const router = await startHistory();
+
+      mounted = mount(BackHost, {
+        attachTo: document.body,
+        global: {
+          plugins: [
+            router,
+            i18n,
+            pinia,
+            [
+              VueQueryPlugin,
+              { queryClient: new QueryClient({ defaultOptions: { queries: { retry: false } } }) },
+            ],
+          ],
+        },
+        slots: {
+          default: () =>
+            h(AdminPlatformBotView),
+        },
+      });
+
+      await router.isReady();
+      await settle();
+      await type('[data-field-reason]', 'rotate the credential');
+
+      const start = position();
+
+      document.body.querySelector<HTMLButtonElement>('[data-action-preview]')!.click();
+      await settleHistory();
+
+      return { router, start };
+    }
+
+    it('takes a step for the preview and Back dismisses it on the same route', async () => {
+      const { router, start } = await openInHistory();
+
+      expect(document.body.querySelector('[data-preview]')).not.toBeNull();
+      expectStepAdded(router, start);
+
+      await pressBack();
+      expect(document.body.querySelector('[data-preview]')).toBeNull();
+      expect(document.body.querySelector('[data-action-preview]')).not.toBeNull();
+      expect(position()).toBe(start);
+      expect(router.currentRoute.value.fullPath).toBe('/chat');
+    });
+
+    it('pops the step when the reconnect starts and the preview gives way to the code', async () => {
+      const { router, start } = await openInHistory();
+
+      expectStepAdded(router, start);
+      document.body.querySelector<HTMLButtonElement>('[data-action-start]')!.click();
+      await settleHistory();
+      expect(document.body.querySelector('[data-user-code]')).not.toBeNull();
+      await expectStepPopped(router, start);
+    });
   });
 
   it('reloads the state when the hub says the platform bot changed', () => {

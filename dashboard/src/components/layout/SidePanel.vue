@@ -16,6 +16,7 @@ import { onKeyStroke } from '@vueuse/core';
 import { computed } from 'vue';
 
 import { Sheet, SheetContent, SheetDescription, SheetTitle } from '@/components/ui/sheet';
+import { useBackLayer } from '@/composables/useBackCloses';
 import { provideDrawerClose } from '@/composables/useDrawerClose';
 import { useFrameRail } from '@/composables/useFrameRail';
 import { useScreenFrom } from '@/composables/useLayout';
@@ -55,6 +56,12 @@ provideDrawerClose(() => {
   open.value = false;
 }, computed(() =>
   !roomy.value || !props.pinned));
+
+// Beside the content the panel is no reka layer, so it takes its own history step; the drawer has one already.
+useBackLayer(computed(() =>
+  roomy.value && open.value && !props.pinned), () => {
+  open.value = false;
+});
 
 // Beside the content the panel has no dialog, so Escape closes it here; the drawer closes itself.
 onKeyStroke('Escape', (event: KeyboardEvent) => {

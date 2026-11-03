@@ -25,6 +25,7 @@ import { useCommunityMember } from '@/api/community';
 import { useCurrencyConfig } from '@/api/economy';
 import { useViewerProfile } from '@/api/people';
 import PanelCard from '@/components/layout/PanelCard.vue';
+import { useBackLayer } from '@/composables/useBackCloses';
 import type { PanelState } from '@/composables/usePanelState';
 import ProfileHeader from '@/components/layout/profile/ProfileHeader.vue';
 import { canSanction, roleKeys, type RoleKey } from '@/components/layout/profile/profileRoles';
@@ -82,6 +83,12 @@ const me = computed<string | null>(() => currentUser.data.value?.username ?? nul
 const step = ref<Step>('idle');
 const done = ref<Done | null>(null);
 const failed = ref(false);
+
+// The length choice and the ban question replace the actions in place, so Back cancels them like Cancel does.
+useBackLayer(computed(() =>
+  step.value === 'pick' || step.value === 'ban'), () => {
+  go('idle');
+});
 
 const person = computed(() => member.data.value ?? null);
 

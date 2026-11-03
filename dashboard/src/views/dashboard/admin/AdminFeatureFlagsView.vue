@@ -37,6 +37,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Switch } from '@/components/ui/switch';
+import { useBackLayer } from '@/composables/useBackCloses';
 import { usePanelState } from '@/composables/usePanelState';
 import { usePlatformCan } from '@/composables/usePlatformCan';
 import { useTime } from '@/composables/useTime';
@@ -78,6 +79,17 @@ const draft = ref(blankDraft());
 const editing = ref<string | null>(null);
 const editorOpen = ref(false);
 const confirming = ref(false);
+
+// The editor and its review open over the list in place, so each takes a history step; Back closes the review first.
+const editorShown = computed<boolean>(() => editorOpen.value && can('featureflag:write'));
+
+useBackLayer(editorShown, () => {
+  editorOpen.value = false;
+});
+
+useBackLayer(computed(() => editorShown.value && confirming.value), () => {
+  confirming.value = false;
+});
 
 const overrideChannel = ref('');
 const overrideEnabled = ref(false);
