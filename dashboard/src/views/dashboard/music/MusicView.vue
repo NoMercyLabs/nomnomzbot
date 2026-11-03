@@ -130,9 +130,11 @@ function dropped(event: SortableEvent): void {
   });
 }
 
+// The queue list is drawn only once the queue has loaded, after the page mounted: watch for the element.
 useSortable(queueList, rows, {
   handle: '[data-drag-handle]',
   animation: 150,
+  watchElement: true,
   onUpdate: dropped,
 });
 

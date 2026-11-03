@@ -12,6 +12,7 @@
 import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
+import Sortable from 'sortablejs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { ref } from 'vue';
 import { createMemoryHistory, createRouter, type Router } from 'vue-router';
@@ -173,13 +174,23 @@ let sortable: {
   onUpdate?: (event: { oldIndex?: number; newIndex?: number }) => void;
 } = {};
 
-vi.mock('@vueuse/integrations/useSortable', () => ({
-  useSortable: (_target: unknown, _list: unknown, options: typeof sortable) => {
-    if (options.handle !== undefined) {
-      sortable = options;
-    }
-  },
-}));
+// The real library still runs, so a test can see whether it bound to the list element.
+vi.mock('@vueuse/integrations/useSortable', async (importOriginal) => {
+  const actual = await importOriginal<typeof import('@vueuse/integrations/useSortable')>();
+
+  return {
+    ...actual,
+    useSortable: (...args: Parameters<typeof actual.useSortable>) => {
+      const options = args[2] as typeof sortable | undefined;
+
+      if (options?.handle !== undefined) {
+        sortable = options;
+      }
+
+      return actual.useSortable(...args);
+    },
+  };
+});
 
 function write(method: string, path: string, options?: Options): Answer {
   calls.push({
@@ -606,6 +617,17 @@ describe('MusicView', () => {
     );
 
     expect(titles).toEqual(['Opus', 'Lose Yourself', 'Strobe']);
+  });
+
+  // Stoney 2026-11-03: "the queue drag handle stopped working in the ui". The queue arrives after the page
+  // mounted, so its list element is not there at mount; the drag library must still bind to it.
+  it('binds the drag library to the queue list that appears after the page mounted', async () => {
+    await open();
+
+    const list = panel('Request queue').querySelector('[data-queue-list]') as HTMLElement;
+
+    expect(list.querySelectorAll('[data-queue-item]').length).toBeGreaterThan(0);
+    expect(Sortable.get(list)).toBeTruthy();
   });
 
   // Sortable moves the dragged node itself. The page must put it back so Vue, not the library, owns the
