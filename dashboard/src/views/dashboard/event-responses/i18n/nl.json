@@ -73,6 +73,31 @@
           "action": "De actie die dit event draait wordt losgekoppeld: {action}"
         },
         "error": "Het event kon niet laden."
+      },
+      "test": {
+        "button": "Test",
+        "title": "Test: {event}",
+        "description": "Een voorbeeld-event gaat door deze reactie. De test stuurt niets naar je chat.",
+        "running": "De test loopt",
+        "error": "De test kon niet draaien.",
+        "close": "Sluiten",
+        "chat": "Chatregel",
+        "chatNone": "Geen chatregel. De reactie zegt niets in de chat.",
+        "tts": "Spraak",
+        "ttsNone": "Geen spraak. Er wordt niets voorgelezen.",
+        "alerts": "Overlay-meldingen",
+        "alertsNone": "Geen meldingen naar de overlay gestuurd.",
+        "steps": "Pipeline-stappen",
+        "stepsNone": "Er liep geen pipeline-stap.",
+        "stepRan": "gelopen",
+        "stepFailed": "mislukt: {reason}",
+        "economy": "Deze test draait {steps} echt. Dit kan de punten veranderen van wie de test draait.",
+        "warnings": {
+          "no_overlay_source": "Open je overlay in OBS of een browser om de melding te zien. Er is geen overlay open, dus de melding kan nergens verschijnen.",
+          "response_disabled": "Deze reactie staat uit, dus er is niets getoond. Zet Ingeschakeld aan om hem te gebruiken.",
+          "no_pipeline": "Deze reactie heeft geen pipeline om te draaien. Kies een pipeline, of schakel over naar een simpel antwoord."
+        },
+        "warningOther": "De test gaf een waarschuwing: {code}"
       }
     }
   }

@@ -27,6 +27,7 @@ export type EventResponse = components['schemas']['EventResponseListItem'];
 export type EventResponseDetail = components['schemas']['EventResponse'];
 export type EventResponsePreset = components['schemas']['EventResponsePreset'];
 export type EventResponseChange = components['schemas']['UpdateEventResponse'];
+export type EventResponseTestResult = components['schemas']['EventResponseTestResult'];
 
 const version = '1';
 // One response per event type; the event catalog stays well under this.
@@ -147,6 +148,36 @@ export function useUpdateEventResponse(
     },
     onSuccess: async (): Promise<void> => {
       await queries.invalidateQueries({ queryKey: eventResponsesKey(toValue(channelId)) });
+    },
+  });
+}
+
+// Fires a sample event through the response and reports what it presented. Nothing is saved, so nothing is
+// invalidated; a pipeline with a currency step still runs that step for real.
+export function useTestEventResponse(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseMutationReturnType<EventResponseTestResult, Error, string, undefined> {
+  return useMutation<EventResponseTestResult, Error, string, undefined>({
+    mutationFn: async (eventType: string): Promise<EventResponseTestResult> => {
+      const { data, error, response } = await client.POST(
+        '/api/v{version}/channels/{channelId}/event-responses/{eventType}/test',
+        {
+          params: { path: {
+            version,
+            channelId: toValue(channelId) as string,
+            eventType,
+          } },
+        },
+      );
+      const found = data?.data;
+
+      if (error !== undefined)
+        throw refusal('event response', error, response.status);
+
+      if (found === undefined || found === null)
+        throw failed('event response', response.status);
+
+      return found;
     },
   });
 }

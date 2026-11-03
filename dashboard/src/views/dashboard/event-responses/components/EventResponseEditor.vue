@@ -38,6 +38,7 @@ import ReplyModeField from '@/components/layout/ReplyModeField.vue';
 
 import DefaultLineList from './DefaultLineList.vue';
 import { changeOf, draftOf, sameDraft, type EventDraft } from './eventResponseDraft';
+import EventResponseTestButton from './EventResponseTestButton.vue';
 import { useEventName } from './useEventName';
 
 const props = defineProps<{ row: EventResponse }>();
@@ -196,6 +197,7 @@ async function useDefault(): Promise<void> {
     @retry="response.refetch()"
   >
     <template #actions>
+      <EventResponseTestButton :event-type="row.eventType" />
       <LabeledSwitch
         :label="$t('dashboard.eventResponses.editor.enabled')"
         :help="$t('dashboard.eventResponses.editor.enabledHelp')"

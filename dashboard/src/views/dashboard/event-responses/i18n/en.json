@@ -73,6 +73,31 @@
           "action": "The action this event runs is unbound: {action}"
         },
         "error": "The event could not load."
+      },
+      "test": {
+        "button": "Test",
+        "title": "Test: {event}",
+        "description": "A sample event fires through this response. The test sends nothing to your chat.",
+        "running": "Running the test",
+        "error": "The test could not run.",
+        "close": "Close",
+        "chat": "Chat line",
+        "chatNone": "No chat line. The response says nothing in chat.",
+        "tts": "Speech",
+        "ttsNone": "No speech. Nothing is read aloud.",
+        "alerts": "Overlay alerts",
+        "alertsNone": "No alerts sent to the overlay.",
+        "steps": "Pipeline steps",
+        "stepsNone": "No pipeline steps ran.",
+        "stepRan": "ran",
+        "stepFailed": "failed: {reason}",
+        "economy": "This test runs {steps} for real. It can change the points of the person who runs the test.",
+        "warnings": {
+          "no_overlay_source": "Open your overlay in OBS or a browser to see the alert. No overlay is open, so the alert has nowhere to show.",
+          "response_disabled": "This response is switched off, so nothing was presented. Turn on Enabled to use it.",
+          "no_pipeline": "This response has no pipeline to run. Pick a pipeline, or switch to a simple reply."
+        },
+        "warningOther": "The test raised a warning: {code}"
       }
     }
   }

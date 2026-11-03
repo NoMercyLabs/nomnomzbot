@@ -17,16 +17,19 @@ import { useEventResponses, type EventResponse } from '@/api/eventResponses';
 import ListPanel from '@/components/layout/ListPanel.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import SummaryRow from '@/components/layout/SummaryRow.vue';
+import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePanelState } from '@/composables/usePanelState';
 
 import { iconOf } from './eventResponseDraft';
+import EventResponseTestButton from './EventResponseTestButton.vue';
 import { useEventName } from './useEventName';
 
 defineProps<{ selected: string | null }>();
 const emit = defineEmits<{ pick: [eventType: string] }>();
 
 const { t } = useI18n();
+const { can } = useCan();
 const eventName = useEventName();
 const { channelId } = useCurrentChannel();
 const responses = useEventResponses(channelId);
@@ -82,6 +85,9 @@ function detailOf(row: EventResponse): string {
         </template>
         <template v-if="!row.isEnabled" #end>
           <StatusBadge tone="off" :label="$t('dashboard.eventResponses.list.off')" />
+        </template>
+        <template #trailing>
+          <EventResponseTestButton v-if="can('eventresponses:write')" :event-type="row.eventType" />
         </template>
       </SummaryRow>
     </ListPanel>
