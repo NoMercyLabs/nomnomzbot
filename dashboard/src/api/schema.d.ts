@@ -34493,6 +34493,106 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/event-responses/{eventType}/test": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Fires a sample event of this type through the channel's response and its pipeline, with the caller as the
+         *     acting user and the viewers and other fields from the sample tables, and reports what was presented: the chat
+         *     line, the speech, the overlay alerts and the pipeline steps. Presentation-only like an activity replay: it
+         *     never grants currency or loyalty, moves a counter, stat or hype state, or writes an activity or journal row.
+         *     Warns (codes) when the response is disabled, has no pipeline, or no overlay browser source is attached.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    eventType: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfEventResponseTestResult"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/event-responses/{eventType}/reset": {
         parameters: {
             query?: never;
@@ -64423,7 +64523,10 @@ export interface paths {
          * DRY-RUN a saved pipeline with sample variables (commands-pipelines.md). The real engine runs the real steps —
          *     conditions, variable math, pick-list draws and balance reads execute live — but every side-effecting action
          *     (chat, TTS, widgets, moderation, economy writes, rewards, schedules, run_code) is CAPTURED and returned rather
-         *     than performed, and reports success so downstream branches are exercised. Nothing is dispatched or persisted.
+         *     than performed, and reports success so downstream branches are exercised. Nothing is dispatched.
+         *     With `mode: "live"` the real actions run instead, as the caller (or the trigger user the request names),
+         *     and the run is filed in the run history as `manual_live`. Live needs the same `pipelines:write`
+         *     permission as editing, and one live run of a pipeline goes at a time: a second start is a 409.
          */
         post: {
             parameters: {
@@ -64482,6 +64585,15 @@ export interface paths {
                 };
                 /** @description Not Found */
                 404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Conflict */
+                409: {
                     headers: {
                         [name: string]: unknown;
                     };
@@ -93835,6 +93947,42 @@ export interface components {
             defaultTemplate: components["schemas"]["LocalizedText"];
             variables: string[];
         };
+        /**
+         * @description What a test fire of an event response put in front of viewers. Every field is something that really went
+         *     out; zero and empty are truthful answers. IReadOnlyList&lt;string&gt; EventResponseTestResult.Warnings holds the codes of
+         *     `EventResponseTestWarnings`.
+         */
+        EventResponseTestResult: {
+            /** @description The event type that was fired. */
+            eventType: string;
+            /** @description The sample variables the response was given. */
+            variables: {
+                [key: string]: string;
+            };
+            /** @description The resolved line the response sent, or null when it sent none. */
+            chatLine?: null | string;
+            /** @description The text queued for speech, or null when none was queued from the response's own line. */
+            ttsText?: null | string;
+            /** @description The resolved overlay alerts sent, in order. */
+            alerts: string[];
+            /** @description The pipeline steps that ran, in order. */
+            pipelineSteps: components["schemas"]["EventResponseTestStep"][];
+            /** Format: int32 */
+            chatMessagesSent: number | string;
+            /** Format: int32 */
+            ttsQueued: number | string;
+            /** Format: int32 */
+            overlaysShown: number | string;
+            warnings: string[];
+        };
+        /** @description One pipeline step a test fire ran. */
+        EventResponseTestStep: {
+            /** Format: int32 */
+            index: number | string;
+            actionType: string;
+            succeeded: boolean;
+            errorMessage?: null | string;
+        };
         /** @description The outcome of a registry reconcile pass (twitch-eventsub §4.4). */
         EventSubReconcileReport: {
             /** Format: int32 */
@@ -97313,7 +97461,9 @@ export interface components {
          *     one action object (`{"type":"send_message", ...params}`); when set, only that action runs, through the
          *     same capture engine, instead of the saved pipeline's graph. Graph is optional too: the draft
          *     graph a person is editing (the same JSON the save takes); when set it is validated like a save and runs
-         *     instead of the saved graph, flat or tree. Nothing is stored.
+         *     instead of the saved graph, flat or tree. Mode is string PipelineTestRunModes.Dry when
+         *     absent (the capture run, unchanged) or string PipelineTestRunModes.Live (the real actions run, with the
+         *     variables as the start values; the trigger user defaults to the caller).
          */
         PipelineTestRunRequest: {
             variables: {
@@ -97321,6 +97471,7 @@ export interface components {
             };
             step?: unknown;
             graph?: unknown;
+            mode?: null | string;
         };
         /**
          * @description One row of a pipeline test-run trace: what one executed step did. `Branch` names the arm an `if` took
@@ -100398,6 +100549,19 @@ export interface components {
         StatusResponseOfEventResponseDefault: {
             status?: string;
             data?: null | components["schemas"]["EventResponseDefault"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfEventResponseTestResult: {
+            status?: string;
+            data?: null | components["schemas"]["EventResponseTestResult"];
             message?: null | string;
             /**
              * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
@@ -105311,6 +105475,12 @@ export interface components {
             timeline?: components["schemas"]["TimelineEntry"][];
             /** @description What each executed step did, in run order (pipeline test-runs only; empty for scripts). */
             trace?: components["schemas"]["PipelineTraceStep"][];
+            /** @description Pipeline test-runs only: `dry` (every outward action captured) or `live` (the real actions ran). Null for a script run. */
+            mode?: null | string;
+            /** @description Live pipeline runs only: the action type of every step that ran for real, in run order. Empty for a dry run. */
+            realSteps?: string[];
+            /** @description Live pipeline runs only: output that could not be seen, such as an overlay or sound step with no browser source attached. Never a silent success. */
+            warnings?: string[];
             errorPosition?: null | components["schemas"]["ScriptSourcePosition"];
         };
         /** @description One trigger sample the editor offers for a test run (`GET code-scripts/test-triggers`). */
