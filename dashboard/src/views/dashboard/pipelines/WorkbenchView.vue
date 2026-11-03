@@ -35,12 +35,14 @@ import {
   type PipelineTestRun,
 } from '@/api/pipelines';
 import ConfirmDialog from '@/components/layout/ConfirmDialog.vue';
+import DateTime from '@/components/layout/DateTime.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
 import PanelCard from '@/components/layout/PanelCard.vue';
 import SidePanel from '@/components/layout/SidePanel.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
+import { useDraftStorage } from '@/composables/useDraftStorage';
 import { useScreenFrom } from '@/composables/useLayout';
 import { usePageView } from '@/composables/usePageView';
 import { errorText } from '@/lib/errors';
@@ -101,6 +103,25 @@ const access = useChannelAccess(channelId);
 const canWrite = computed(() => access.can('pipelines:write'));
 
 const draft = useStepDraft(pipeline.data);
+
+// Unsaved steps survive a reload in this browser, one entry per channel and pipeline.
+const stored = useDraftStorage<PipelineStep[]>(
+  () =>
+    channelId.value && `${channelId.value}.${id.value}`,
+  draft.steps,
+  draft.dirty,
+  () =>
+    pipeline.data.value?.updatedAt,
+);
+
+function restoreDraft(): void {
+  const restored = stored.restore();
+
+  if (restored) {
+    draft.replace(restored);
+  }
+}
+
 const state = usePanelState(pipeline);
 const tree = computed(() => buildStepTree(draft.steps.value));
 const stepCount = computed(() => draft.steps.value.length);
@@ -606,6 +627,37 @@ const leaveOpen = computed<boolean>({
         />
       </template>
       <div data-workbench-canvas class="mx-auto flex w-full max-w-3xl flex-col gap-3 p-4">
+        <!-- One primary action (Restore); Discard is outline. The banner is a tinted card, not accent-filled. -->
+        <div
+          v-if="canWrite && stored.stored.value"
+          data-draft-banner
+          role="status"
+          class="flex flex-wrap items-center justify-between gap-3 rounded-lg border bg-muted px-4 py-3 text-sm"
+        >
+          <p class="min-w-0 flex-1">
+            <i18n-t keypath="dashboard.pipelines.workbench.draft.message" scope="global">
+              <template #time>
+                <DateTime :value="stored.stored.value.savedAt" variant="dateTime" />
+              </template>
+            </i18n-t>
+            <span v-if="stored.stale.value" data-draft-stale class="block text-muted-foreground">
+              {{ $t('dashboard.pipelines.workbench.draft.stale') }}
+            </span>
+          </p>
+          <span class="flex shrink-0 items-center gap-2">
+            <Button data-draft-discard
+                    type="button"
+                    variant="outline"
+                    size="sm"
+                    @click="stored.discard()"
+            >
+              {{ $t('dashboard.pipelines.workbench.draft.discard') }}
+            </Button>
+            <Button data-draft-restore type="button" size="sm" @click="restoreDraft">
+              {{ $t('dashboard.pipelines.workbench.draft.restore') }}
+            </Button>
+          </span>
+        </div>
         <p
           data-workbench-start
           class="flex w-fit items-center gap-2 rounded-full border bg-muted px-3 py-1.5 text-sm"

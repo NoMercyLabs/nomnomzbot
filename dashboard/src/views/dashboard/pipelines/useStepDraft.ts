@@ -40,6 +40,7 @@ export type StepDraft = {
   canRedo: Ref<boolean>;
   undo: () => void;
   redo: () => void;
+  replace: (restored: PipelineStep[]) => void;
   remove: (id: string) => void;
   duplicate: (id: string) => void;
   patch: (id: string, patch: StepPatch) => void;
@@ -80,6 +81,10 @@ export function useStepDraft(saved: Ref<Pipeline | undefined>) {
     canRedo: history.canRedo,
     undo: history.undo,
     redo: history.redo,
+    // Puts a restored draft in as one edit, so one Undo returns to the steps before it.
+    replace: (restored: PipelineStep[]) => {
+      steps.value = restored;
+    },
     remove: (id: string) => {
       steps.value = removeStep(steps.value, id);
     },

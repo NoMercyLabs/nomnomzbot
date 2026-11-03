@@ -12,7 +12,7 @@
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import Sortable from 'sortablejs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { computed, ref, type Ref } from 'vue';
+import { computed, reactive, ref, type Ref } from 'vue';
 import { createMemoryHistory, createRouter, RouterView, type Router } from 'vue-router';
 
 import type {
@@ -1463,5 +1463,160 @@ describe('moving a step', () => {
 
     expect(card('check').querySelector('[data-lane-kind="no"]')?.contains(card('pause'))).toBe(true);
     expect(await savedShape()).toEqual(['check@-/-:0', 'hi@check/then:0', 'pause@check/else:0']);
+  });
+});
+
+type Live = { updatedAt?: string; graph: { steps: PipelineStep[] } };
+
+describe('the unsaved draft in this browser', () => {
+  const draftKey = 'nomnomz.draft.c1.p1';
+  const live = reactive(pipeline) as unknown as Live;
+  const later = (): Promise<void> =>
+    new Promise((done) => setTimeout(done, 450));
+  const stored = () =>
+    JSON.parse(localStorage.getItem(draftKey) ?? 'null');
+  const banner = (): HTMLElement | null =>
+    document.body.querySelector<HTMLElement>('[data-draft-banner]');
+
+  async function removePause(): Promise<void> {
+    await press('[data-step-id="pause"] button');
+    await press('[data-step-remove]');
+  }
+
+  async function editThenReopen(): Promise<void> {
+    await open();
+    await removePause();
+    await later();
+    mounted?.unmount();
+    mounted = null;
+    await open();
+  }
+
+  beforeEach(() => {
+    localStorage.clear();
+    live.updatedAt = 'v1';
+  });
+
+  afterEach(() => {
+    delete live.updatedAt;
+    live.graph = { steps };
+    localStorage.clear();
+    vi.restoreAllMocks();
+  });
+
+  it('writes the edited steps with the saved version, and drops them when the edit is undone', async () => {
+    await open();
+    await removePause();
+    await later();
+
+    expect(stored().version).toBe('v1');
+    expect(stored().value.map((item: PipelineStep) => item.id)).toEqual(['check', 'hi']);
+
+    await press('[data-workbench-undo]');
+    await later();
+
+    expect(localStorage.getItem(draftKey)).toBeNull();
+  });
+
+  it('offers the stored draft on the next open, and Restore is one undo step', async () => {
+    await editThenReopen();
+
+    expect(banner()?.textContent).toContain('You have unsaved changes from');
+    expect(numbers()).toEqual(['1', '1.1', '2']);
+
+    await press('[data-draft-restore]');
+
+    expect(numbers()).toEqual(['1', '1.1']);
+    expect(banner()).toBeNull();
+
+    await press('[data-workbench-undo]');
+
+    expect(numbers()).toEqual(['1', '1.1', '2']);
+    expect(document.body.querySelector<HTMLButtonElement>('[data-workbench-undo]')?.disabled).toBe(true);
+  });
+
+  it('removes the entry on Discard and keeps the saved steps', async () => {
+    await editThenReopen();
+    await press('[data-draft-discard]');
+
+    expect(banner()).toBeNull();
+    expect(numbers()).toEqual(['1', '1.1', '2']);
+    expect(localStorage.getItem(draftKey)).toBeNull();
+  });
+
+  it('says the saved pipeline changed when the draft started from an older version', async () => {
+    await editThenReopen();
+    mounted?.unmount();
+    mounted = null;
+    live.updatedAt = 'v2';
+    await open();
+
+    expect(banner()?.textContent).toContain('The saved pipeline changed since');
+    expect(numbers()).toEqual(['1', '1.1', '2']);
+  });
+
+  it('shows no offer for a draft of another pipeline', async () => {
+    localStorage.setItem(
+      'nomnomz.draft.c1.p2',
+      JSON.stringify({
+        version: 'v1',
+        savedAt: 5,
+        value: [],
+      }),
+    );
+
+    await open();
+
+    expect(banner()).toBeNull();
+  });
+
+  it('removes the entry when the draft is saved', async () => {
+    await open();
+    await removePause();
+    await later();
+    expect(stored()).not.toBeNull();
+
+    await press('[data-workbench-save]');
+
+    // The bot answers the save: the saved pipeline now holds the edit.
+    live.graph = { steps: save.mutateAsync.mock.calls[0]?.[0].graph?.steps ?? [] };
+    live.updatedAt = 'v2';
+    await flushPromises();
+    await later();
+
+    expect(localStorage.getItem(draftKey)).toBeNull();
+  });
+
+  it('keeps working when storage throws on read and on write', async () => {
+    vi.spyOn(Storage.prototype, 'getItem').mockImplementation(() => {
+      throw new Error('blocked');
+    });
+
+    vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => {
+      throw new Error('quota');
+    });
+
+    await open();
+    await removePause();
+    await later();
+
+    expect(banner()).toBeNull();
+    expect(numbers()).toEqual(['1', '1.1']);
+  });
+
+  it('warns before the tab closes while changes are unsaved, and not when clean', async () => {
+    await open();
+
+    const clean = new Event('beforeunload', { cancelable: true });
+
+    window.dispatchEvent(clean);
+    expect(clean.defaultPrevented).toBe(false);
+
+    await removePause();
+
+    const dirty = new Event('beforeunload', { cancelable: true });
+
+    window.dispatchEvent(dirty);
+    expect(dirty.defaultPrevented).toBe(true);
   });
 });

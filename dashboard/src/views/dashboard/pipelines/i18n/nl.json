@@ -236,6 +236,12 @@
           "target": "Voegt toe aan {lane} van stap {number}",
           "release": "Toch aan het eind toevoegen"
         },
+        "draft": {
+          "message": "Je hebt niet-opgeslagen wijzigingen van {time}. Herstellen of weggooien?",
+          "stale": "De opgeslagen pipeline is sindsdien veranderd. Herstellen vervangt die nieuwere stappen door je concept.",
+          "restore": "Herstellen",
+          "discard": "Weggooien"
+        },
         "leave": {
           "title": "Weggaan zonder opslaan?",
           "description": "Je wijzigingen aan deze pipeline zijn nog niet opgeslagen. Ze gaan verloren als je weggaat.",

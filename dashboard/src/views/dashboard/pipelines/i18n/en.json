@@ -236,6 +236,12 @@
           "target": "Adds to {lane} of step {number}",
           "release": "Add at the end instead"
         },
+        "draft": {
+          "message": "You have unsaved changes from {time}. Restore or discard?",
+          "stale": "The saved pipeline changed since. Restoring replaces those newer steps with your draft.",
+          "restore": "Restore",
+          "discard": "Discard"
+        },
         "leave": {
           "title": "Leave without saving?",
           "description": "Your changes to this pipeline are not saved yet. They are lost when you leave.",
