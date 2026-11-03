@@ -234,13 +234,24 @@ async function readCodePools(): Promise<CodePool[]> {
   return [...(data?.data ?? [])];
 }
 
+// A per-giveaway query waits like a channel query waits: no channel id, no request, until a giveaway is chosen.
+function whenGiveawayChosen(
+  channelId: MaybeRefOrGetter<string | null>,
+  giveawayId: MaybeRefOrGetter<string | null>,
+): () => string | null {
+  return () =>
+    toValue(giveawayId)
+      ? toValue(channelId)
+      : null;
+}
+
 // The entries of one giveaway, newest first.
 export function useGiveawayEntries(
   channelId: MaybeRefOrGetter<string | null>,
   giveawayId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<GiveawayEntry[], Error> {
   return channelQuery(
-    channelId,
+    whenGiveawayChosen(channelId, giveawayId),
     (id) => [...giveawaysKey(id), toValue(giveawayId), 'entries'],
     () => readEntries(toValue(giveawayId) as string),
   );
@@ -447,7 +458,7 @@ export function useGiveawayWinners(
   giveawayId: MaybeRefOrGetter<string | null>,
 ): UseQueryReturnType<GiveawayWinner[], Error> {
   return channelQuery(
-    channelId,
+    whenGiveawayChosen(channelId, giveawayId),
     (id) => giveawayWinnersKey(id, toValue(giveawayId)),
     () => readWinners(toValue(giveawayId) as string),
   );
