@@ -9,13 +9,14 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-// On a phone every open menu, dialog, drawer and picker is a step in the history, as in a native app: the back
-// button closes the top one instead of leaving the page. Stoney 2026-10-14: "Can we capture all menu's as
-// navigation and closes as history back for mobile for the native feeling?"
+// Every open menu, dialog, drawer and picker is a step in the history on every width, as in a native app: the
+// back button closes the top one instead of leaving the page, and a close that did not come from the back
+// button pops its step. Stoney 2026-10-14: "Can we capture all menu's as navigation and closes as history back
+// for mobile for the native feeling?" Stoney 2026-11-03: "i want EVERYTHING to have a history state, and a close
+// is a history pop".
 // Every reka layer carries [data-dismissable-layer], so one watcher here covers them all.
-// A layer closed by a tap never moves the history itself: a history move then races the navigation or the send
-// that closed it ("Clicking send redirects after sending"). Its step stays behind as a dead step instead; the
-// next page replaces it, and a back press that lands on one keeps going.
+// A pop races a navigation that the same tap caused ("Clicking send redirects after sending"), so a navigation
+// that starts while a pop is pending waits for the pop to land, and one that starts on a layer step replaces it.
 // Chrome's back button skips an entry added without a user gesture, so a step is only added inside one.
 import {
   tryOnScopeDispose,
@@ -26,14 +27,10 @@ import {
 import { watch, type Ref } from 'vue';
 import { useRouter } from 'vue-router';
 
-import { useNarrowScreen } from '@/composables/useLayout';
-
 const openLayers = '[data-dismissable-layer]:not([data-state="closed"])';
 
-// Past the phone width only dialogs and side panels take a step: a hover menu or a select list on a desktop
-// closes by Escape or a click, and Back there means "leave". Stoney 2026-10-19: Escape and Back close every
-// dialog and side panel.
-const dialogLayers = `${openLayers}:is([role="dialog"], [role="alertdialog"])`;
+// A pop that never raises its popstate (nothing to go back to) must not hold a navigation forever.
+const popTimeout = 300;
 
 // Panels that are not reka layers (a suggestion list, a reply bar, a full-screen editor), newest last.
 const panels: (() => void)[] = [];
@@ -63,16 +60,14 @@ export function useBackLayer(open: Readonly<Ref<boolean>>, close: () => void): v
   tryOnScopeDispose(leave);
 }
 
-function rekaLayerCount(everyLayer: boolean): number {
-  return [...document.querySelectorAll(everyLayer
-    ? openLayers
-    : dialogLayers)].filter(
+function rekaLayerCount(): number {
+  return [...document.querySelectorAll(openLayers)].filter(
     (layer) => layer.querySelector('[role="tooltip"]') === null,
   ).length;
 }
 
-function layerCount(everyLayer: boolean): number {
-  return rekaLayerCount(everyLayer) + panels.length;
+function layerCount(): number {
+  return rekaLayerCount() + panels.length;
 }
 
 // How many layer steps the current history entry stands on.
@@ -111,8 +106,8 @@ function afterLift(run: () => void): AbortController {
 }
 
 // A reka layer opens over the page, so it is above any panel and closes first.
-function closeTopLayer(everyLayer: boolean): void {
-  if (rekaLayerCount(everyLayer) > 0) {
+function closeTopLayer(): void {
+  if (rekaLayerCount() > 0) {
     window.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
 
     return;
@@ -122,19 +117,52 @@ function closeTopLayer(everyLayer: boolean): void {
 }
 
 export function useBackCloses(): void {
-  const phone = useNarrowScreen();
   const router = useRouter();
   let navigating = false;
   let popping = false;
   let lastPosition = position();
   let lastPage = page();
-  // The entry on screen holds the step of a layer that a tap already closed.
+  // The entry on screen holds the step of a layer that closed without a pop (the fallback).
   let onDeadStep = false;
+  // Layers open at the last check: a drop below it is a close, and a close pops its step.
+  let lastOpen = 0;
+  // The pop of ours in flight. A navigation waits on it; the popstate it raises ends it.
+  let pendingPop: Promise<void> | null = null;
+  let landPop: (() => void) | null = null;
 
-  const stopBefore = router.beforeEach((to, from) => {
+  function startPop(count: number): Promise<void> {
+    const popped = new Promise<void>((resolve) => {
+      const timer = setTimeout(() => landPop?.(), popTimeout);
+
+      landPop = () => {
+        clearTimeout(timer);
+        landPop = null;
+        pendingPop = null;
+        resolve();
+      };
+    });
+
+    pendingPop = popped;
+    window.history.go(-count);
+
+    return popped;
+  }
+
+  const stopBefore = router.beforeEach(async (to, from) => {
     navigating = true;
 
-    const leaving = to.path !== from.path && !to.redirectedFrom;
+    // The pop moves the entry under the navigation, so the navigation restarts on the clean entry once it landed.
+    if (pendingPop) {
+      await pendingPop;
+
+      return {
+        path: to.path,
+        query: to.query,
+        hash: to.hash,
+      };
+    }
+
+    const leaving = to.fullPath !== from.fullPath && !to.redirectedFrom;
 
     if (popping || steps() === 0 || !leaving) return;
 
@@ -144,6 +172,8 @@ export function useBackCloses(): void {
       query: to.query,
       hash: to.hash,
       replace: true,
+      // The router merges the old state into a replaced entry, so the step count is cleared by hand.
+      state: { backLayers: 0 },
     };
   });
 
@@ -151,12 +181,17 @@ export function useBackCloses(): void {
   function remember(): void {
     lastPosition = position();
     lastPage = page();
+    lastOpen = layerCount();
   }
 
   const stopAfter = router.afterEach(() => {
     navigating = false;
     popping = false;
-    setTimeout(remember, 0);
+
+    setTimeout(() => {
+      remember();
+      void reconcile();
+    }, 0);
   });
 
   // The wait for the finger to lift, while a layer opened before the tap counted.
@@ -171,10 +206,27 @@ export function useBackCloses(): void {
   const reconcile = useDebounceFn(async (): Promise<void> => {
     if (navigating) return;
 
-    const open = layerCount(phone.value);
-    const current = steps();
+    if (pendingPop) {
+      await pendingPop;
+      void reconcile();
 
+      return;
+    }
+
+    const open = layerCount();
+    const current = steps();
+    const closed = lastOpen > open && current > open;
+
+    lastOpen = open;
     onDeadStep = current > open;
+
+    // A close that did not come from Back: the layers that went away take their steps with them.
+    if (closed) {
+      await startPop(current - open);
+      onDeadStep = steps() > layerCount();
+
+      return;
+    }
 
     if (open <= current) return;
 
@@ -204,6 +256,15 @@ export function useBackCloses(): void {
   useEventListener(window, 'popstate', () => {
     popping = true;
 
+    // The popstate of our own pop: it closes no layer and leaves no page.
+    if (landPop) {
+      lastPosition = position();
+      onDeadStep = false;
+      landPop();
+
+      return;
+    }
+
     const wentBack = position() < lastPosition && page() === lastPage;
     const leftDeadStep = onDeadStep;
 
@@ -212,8 +273,8 @@ export function useBackCloses(): void {
 
     if (!wentBack) return;
 
-    if (layerCount(phone.value) > 0) {
-      closeTopLayer(phone.value);
+    if (layerCount() > 0) {
+      closeTopLayer();
 
       return;
     }

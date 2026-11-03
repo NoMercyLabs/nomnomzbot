@@ -116,23 +116,24 @@ describe('a menu on a phone', () => {
   });
 
   // Stoney 2026-10-14: "Clicking send redirects after sending". Send closed the picker by a tap, and the back
-  // step that took the picker's step away reloaded the chat.
-  it('stays put when a tap closes it, and the next back leaves the page', async () => {
+  // step that took the picker's step away reloaded the chat. The pop of the step is awaited now, so it cannot race.
+  it('pops its step when a tap closes it, and the next back leaves the page', async () => {
     setWidth(400);
     await router.push('/home');
     await router.push('/chat');
 
     const { open } = await mountPage();
+    const start = window.history.state?.position;
 
     open.value = true;
     await settle();
     expect(window.history.state?.backLayers).toBe(1);
-
-    const position = window.history.state?.position;
+    expect(window.history.state?.position).toBe(start + 1);
 
     open.value = false;
     await settle();
-    expect(window.history.state?.position).toBe(position);
+    expect(window.history.state?.position).toBe(start);
+    expect(window.history.state?.backLayers ?? 0).toBe(0);
     expect(router.currentRoute.value.fullPath).toBe('/chat');
 
     await goBack();
