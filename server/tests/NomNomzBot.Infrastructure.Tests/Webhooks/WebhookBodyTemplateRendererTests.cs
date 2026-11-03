@@ -12,11 +12,14 @@
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
 using Newtonsoft.Json.Linq;
+using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Platform.Templating;
+using NomNomzBot.Infrastructure.Tests.ViewerData;
 using NomNomzBot.Infrastructure.Webhooks;
 using NSubstitute;
 
@@ -43,15 +46,91 @@ public sealed class WebhookBodyTemplateRendererTests
         return new WebhookBodyTemplateRenderer(resolver);
     }
 
+    private static readonly Guid Channel = Guid.Parse("0192b400-0000-7000-8000-00000000f003");
+
+    /// <summary>The real helper registry and resolver, with a channel the registry knows.</summary>
+    private static ServiceProvider RegistryServices()
+    {
+        IChannelRegistry channels = Substitute.For<IChannelRegistry>();
+        channels
+            .Get(Channel)
+            .Returns(
+                new ChannelContext
+                {
+                    BroadcasterId = Channel,
+                    TwitchChannelId = "555003",
+                    ChannelName = "samplestreamer",
+                    DisplayName = "SampleStreamer",
+                    CurrentTitle = "Sample title",
+                }
+            );
+        ServiceCollection services = new();
+        services.AddSingleton(channels);
+        services.AddSingleton<IApplicationDbContext>(ViewerDataTestDbContext.New());
+        services.AddSingleton<TimeProvider>(new FakeTimeProvider(Now));
+        services.AddSingleton(new Random(1));
+        services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
+        services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
+        services.AddTemplateHelpers(typeof(TemplateResolver).Assembly);
+        return services.BuildServiceProvider();
+    }
+
+    private static WebhookBodyTemplateRenderer BuildRegistrySut(ServiceProvider services) =>
+        new(
+            new TemplateResolver(
+                services.GetRequiredService<IServiceScopeFactory>(),
+                services.GetRequiredService<IChannelRegistry>(),
+                NullLogger<TemplateResolver>.Instance,
+                new FakeTimeProvider(Now),
+                services.GetRequiredService<ITemplateHelperRegistry>()
+            )
+        );
+
     [Fact]
-    public void A_template_with_literal_JSON_braces_and_a_helper_renders_valid_parseable_JSON()
+    public async Task A_JSON_body_resolves_registry_helpers_for_the_channel()
+    {
+        await using ServiceProvider services = RegistryServices();
+        WebhookBodyTemplateRenderer sut = BuildRegistrySut(services);
+        const string template = /*lang=json,strict*/
+            """{"channel":"{channel}","title":"{stream.title}"}""";
+
+        string rendered = await sut.RenderAsync(
+            template,
+            new Dictionary<string, string>(),
+            true,
+            Channel
+        );
+
+        JObject parsed = JObject.Parse(rendered);
+        parsed["channel"]!.Value<string>().Should().Be("samplestreamer");
+        parsed["title"]!.Value<string>().Should().Be("Sample title");
+    }
+
+    [Fact]
+    public async Task A_plain_text_body_resolves_registry_helpers_for_the_channel()
+    {
+        await using ServiceProvider services = RegistryServices();
+        WebhookBodyTemplateRenderer sut = BuildRegistrySut(services);
+
+        string rendered = await sut.RenderAsync(
+            "live: {channel}",
+            new Dictionary<string, string>(),
+            false,
+            Channel
+        );
+
+        rendered.Should().Be("live: samplestreamer");
+    }
+
+    [Fact]
+    public async Task A_template_with_literal_JSON_braces_and_a_helper_renders_valid_parseable_JSON()
     {
         WebhookBodyTemplateRenderer sut = BuildSut();
         const string template = /*lang=json,strict*/
             """{"event":"follow","nested":{"literal":"has {{braces}} inside"},"user":"{user}"}""";
         Dictionary<string, string> variables = new() { ["user"] = "Stoney_Eagle" };
 
-        string rendered = sut.Render(template, variables, bodyIsJson: true);
+        string rendered = await sut.RenderAsync(template, variables, true, Channel);
 
         JObject parsed = JObject.Parse(rendered); // throws if the JSON is not valid — this IS the assertion
         parsed["event"]!.Value<string>().Should().Be("follow");
@@ -60,7 +139,7 @@ public sealed class WebhookBodyTemplateRendererTests
     }
 
     [Fact]
-    public void Every_variable_seeded_by_the_dispatcher_still_resolves_inside_JSON_string_values()
+    public async Task Every_variable_seeded_by_the_dispatcher_still_resolves_inside_JSON_string_values()
     {
         WebhookBodyTemplateRenderer sut = BuildSut();
         const string template = /*lang=json,strict*/
@@ -72,7 +151,7 @@ public sealed class WebhookBodyTemplateRendererTests
             ["amount"] = "500",
         };
 
-        JObject parsed = JObject.Parse(sut.Render(template, variables, bodyIsJson: true));
+        JObject parsed = JObject.Parse(await sut.RenderAsync(template, variables, true, Channel));
 
         parsed["type"]!.Value<string>().Should().Be("channel.cheer");
         parsed["x"]!.Value<string>().Should().Be("1");
@@ -80,7 +159,7 @@ public sealed class WebhookBodyTemplateRendererTests
     }
 
     [Fact]
-    public void A_viewer_supplied_value_with_hostile_characters_is_JSON_escaped_not_injected()
+    public async Task A_viewer_supplied_value_with_hostile_characters_is_JSON_escaped_not_injected()
     {
         WebhookBodyTemplateRenderer sut = BuildSut();
         const string template = /*lang=json,strict*/
@@ -88,7 +167,7 @@ public sealed class WebhookBodyTemplateRendererTests
         const string hostileName = "Sto\"ney\\Eagle\n🔥";
         Dictionary<string, string> variables = new() { ["user"] = hostileName };
 
-        string rendered = sut.Render(template, variables, bodyIsJson: true);
+        string rendered = await sut.RenderAsync(template, variables, true, Channel);
 
         JObject parsed = JObject.Parse(rendered); // fails if the quote/backslash/newline broke the structure
         parsed["greeting"]!.Value<string>().Should().Be($"Hi {hostileName}!");
@@ -98,29 +177,34 @@ public sealed class WebhookBodyTemplateRendererTests
     }
 
     [Fact]
-    public void A_null_template_renders_the_variables_as_a_JSON_object()
+    public async Task A_null_template_renders_the_variables_as_a_JSON_object()
     {
         WebhookBodyTemplateRenderer sut = BuildSut();
         Dictionary<string, string> variables = new() { ["a"] = "1" };
 
-        JObject parsed = JObject.Parse(sut.Render(null, variables, bodyIsJson: true));
+        JObject parsed = JObject.Parse(await sut.RenderAsync(null, variables, true, Channel));
 
         parsed["a"]!.Value<string>().Should().Be("1");
     }
 
     [Fact]
-    public void A_template_declared_as_non_JSON_renders_through_the_plain_text_path()
+    public async Task A_template_declared_as_non_JSON_renders_through_the_plain_text_path()
     {
         WebhookBodyTemplateRenderer sut = BuildSut();
         Dictionary<string, string> variables = new() { ["user"] = "Stoney_Eagle" };
 
-        string rendered = sut.Render("user={user}&event={event}", variables, bodyIsJson: false);
+        string rendered = await sut.RenderAsync(
+            "user={user}&event={event}",
+            variables,
+            false,
+            Channel
+        );
 
         rendered.Should().Be("user=Stoney_Eagle&event={event}");
     }
 
     [Fact]
-    public void A_template_declared_as_JSON_that_fails_to_parse_throws_naming_the_position()
+    public async Task A_template_declared_as_JSON_that_fails_to_parse_throws_naming_the_position()
     {
         WebhookBodyTemplateRenderer sut = BuildSut();
         Dictionary<string, string> variables = new() { ["user"] = "Stoney_Eagle" };
@@ -129,13 +213,15 @@ public sealed class WebhookBodyTemplateRendererTests
         const string brokenJson = /*lang=json,strict*/
             """{"who" "{user}"}""";
 
-        Action act = () => sut.Render(brokenJson, variables, bodyIsJson: true);
+        Func<Task> act = () => sut.RenderAsync(brokenJson, variables, true, Channel);
 
-        act.Should().Throw<WebhookBodyTemplateInvalidJsonException>().WithMessage("*line*");
+        await act.Should()
+            .ThrowAsync<WebhookBodyTemplateInvalidJsonException>()
+            .WithMessage("*line*");
     }
 
     [Fact]
-    public void A_template_that_merely_looks_like_JSON_but_is_declared_non_JSON_never_attempts_to_parse()
+    public async Task A_template_that_merely_looks_like_JSON_but_is_declared_non_JSON_never_attempts_to_parse()
     {
         WebhookBodyTemplateRenderer sut = BuildSut();
         Dictionary<string, string> variables = new() { ["user"] = "Stoney_Eagle" };
@@ -144,8 +230,8 @@ public sealed class WebhookBodyTemplateRendererTests
         const string brokenLookingJson = /*lang=json,strict*/
             """{"who" "{user}"}""";
 
-        Action act = () => sut.Render(brokenLookingJson, variables, bodyIsJson: false);
+        Func<Task> act = () => sut.RenderAsync(brokenLookingJson, variables, false, Channel);
 
-        act.Should().NotThrow<WebhookBodyTemplateInvalidJsonException>();
+        await act.Should().NotThrowAsync<WebhookBodyTemplateInvalidJsonException>();
     }
 }

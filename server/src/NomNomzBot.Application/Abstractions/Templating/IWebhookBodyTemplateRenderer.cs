@@ -36,9 +36,16 @@ public interface IWebhookBodyTemplateRenderer
     /// <exception cref="WebhookBodyTemplateInvalidJsonException">
     /// <paramref name="bodyIsJson"/> is true and <paramref name="bodyTemplate"/> does not parse as JSON.
     /// </exception>
-    string Render(
+    /// <param name="broadcasterId">
+    /// The channel the webhook belongs to. Placeholders resolve through
+    /// <see cref="ITemplateResolver.ResolveAsync"/> with it, so every helper the Webhook surface declares
+    /// renders with that channel's data.
+    /// </param>
+    Task<string> RenderAsync(
         string? bodyTemplate,
         IReadOnlyDictionary<string, string> variables,
-        bool bodyIsJson
+        bool bodyIsJson,
+        Guid broadcasterId,
+        CancellationToken ct = default
     );
 }

@@ -27,10 +27,12 @@ namespace NomNomzBot.Infrastructure.Webhooks;
 public sealed class WebhookBodyTemplateRenderer(ITemplateResolver templateResolver)
     : IWebhookBodyTemplateRenderer
 {
-    public string Render(
+    public async Task<string> RenderAsync(
         string? bodyTemplate,
         IReadOnlyDictionary<string, string> variables,
-        bool bodyIsJson
+        bool bodyIsJson,
+        Guid broadcasterId,
+        CancellationToken ct = default
     )
     {
         if (bodyTemplate is null)
@@ -39,7 +41,7 @@ public sealed class WebhookBodyTemplateRenderer(ITemplateResolver templateResolv
         Dictionary<string, string> vars = new(variables, StringComparer.OrdinalIgnoreCase);
 
         if (!bodyIsJson)
-            return templateResolver.Resolve(bodyTemplate, vars);
+            return await templateResolver.ResolveAsync(bodyTemplate, vars, broadcasterId, ct);
 
         JToken parsed;
         try
@@ -54,24 +56,34 @@ public sealed class WebhookBodyTemplateRenderer(ITemplateResolver templateResolv
             );
         }
 
-        ResolveStringLeaves(parsed, vars);
+        await ResolveStringLeavesAsync(parsed, vars, broadcasterId, ct);
         return parsed.ToString(Formatting.None);
     }
 
-    private void ResolveStringLeaves(JToken token, Dictionary<string, string> vars)
+    private async Task ResolveStringLeavesAsync(
+        JToken token,
+        Dictionary<string, string> vars,
+        Guid broadcasterId,
+        CancellationToken ct
+    )
     {
         switch (token)
         {
             case JValue { Type: JTokenType.String } stringValue:
-                stringValue.Value = templateResolver.Resolve((string)stringValue.Value!, vars);
+                stringValue.Value = await templateResolver.ResolveAsync(
+                    (string)stringValue.Value!,
+                    vars,
+                    broadcasterId,
+                    ct
+                );
                 break;
             case JObject jsonObject:
                 foreach (JProperty property in jsonObject.Properties())
-                    ResolveStringLeaves(property.Value, vars);
+                    await ResolveStringLeavesAsync(property.Value, vars, broadcasterId, ct);
                 break;
             case JArray jsonArray:
                 foreach (JToken item in jsonArray)
-                    ResolveStringLeaves(item, vars);
+                    await ResolveStringLeavesAsync(item, vars, broadcasterId, ct);
                 break;
         }
     }

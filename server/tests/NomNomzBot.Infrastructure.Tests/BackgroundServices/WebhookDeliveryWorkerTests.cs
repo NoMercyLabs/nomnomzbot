@@ -78,12 +78,14 @@ public sealed class WebhookDeliveryWorkerTests
             .Returns("whsec_secret");
         IWebhookBodyTemplateRenderer template = Substitute.For<IWebhookBodyTemplateRenderer>();
         template
-            .Render(
+            .RenderAsync(
                 Arg.Any<string?>(),
                 Arg.Any<IReadOnlyDictionary<string, string>>(),
-                Arg.Any<bool>()
+                Arg.Any<bool>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
             )
-            .Returns(ci => ci.ArgAt<string?>(0) ?? string.Empty);
+            .Returns(ci => Task.FromResult(ci.ArgAt<string?>(0) ?? string.Empty));
         IHttpClientFactory httpClientFactory = Substitute.For<IHttpClientFactory>();
         httpClientFactory.CreateClient(Arg.Any<string>()).Returns(_ => new(handler));
 

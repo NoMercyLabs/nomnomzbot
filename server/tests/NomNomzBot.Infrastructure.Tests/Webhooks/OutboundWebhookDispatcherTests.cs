@@ -63,12 +63,14 @@ public sealed class OutboundWebhookDispatcherTests
             .Returns("whsec_secret");
         IWebhookBodyTemplateRenderer template = Substitute.For<IWebhookBodyTemplateRenderer>();
         template
-            .Render(
+            .RenderAsync(
                 Arg.Any<string?>(),
                 Arg.Any<IReadOnlyDictionary<string, string>>(),
-                Arg.Any<bool>()
+                Arg.Any<bool>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
             )
-            .Returns(ci => ci.ArgAt<string?>(0) ?? string.Empty);
+            .Returns(ci => Task.FromResult(ci.ArgAt<string?>(0) ?? string.Empty));
         IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient(Arg.Any<string>()).Returns(_ => new(new StubHandler(status)));
         RecordingEventBus bus = new();
@@ -209,12 +211,14 @@ public sealed class OutboundWebhookDispatcherTests
             .Returns("whsec_secret");
         IWebhookBodyTemplateRenderer template = Substitute.For<IWebhookBodyTemplateRenderer>();
         template
-            .Render(
+            .RenderAsync(
                 Arg.Any<string?>(),
                 Arg.Any<IReadOnlyDictionary<string, string>>(),
-                Arg.Any<bool>()
+                Arg.Any<bool>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
             )
-            .Returns(ci => ci.ArgAt<string?>(0) ?? string.Empty);
+            .Returns(ci => Task.FromResult(ci.ArgAt<string?>(0) ?? string.Empty));
         IHttpClientFactory factory = Substitute.For<IHttpClientFactory>();
         factory.CreateClient(Arg.Any<string>()).Returns(_ => new(new UnreachableHandler()));
         OutboundWebhookDispatcher sut = new(

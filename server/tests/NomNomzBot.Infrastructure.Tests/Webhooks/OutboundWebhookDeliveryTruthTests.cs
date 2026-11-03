@@ -127,12 +127,14 @@ public sealed class OutboundWebhookDeliveryTruthTests
             .Returns("whsec_secret");
         IWebhookBodyTemplateRenderer template = Substitute.For<IWebhookBodyTemplateRenderer>();
         template
-            .Render(
+            .RenderAsync(
                 Arg.Any<string?>(),
                 Arg.Any<IReadOnlyDictionary<string, string>>(),
-                Arg.Any<bool>()
+                Arg.Any<bool>(),
+                Arg.Any<Guid>(),
+                Arg.Any<CancellationToken>()
             )
-            .Returns(ci => ci.ArgAt<string?>(0) ?? string.Empty);
+            .Returns(ci => Task.FromResult(ci.ArgAt<string?>(0) ?? string.Empty));
 
         // A fresh IServiceScopeFactory whose scopes each hand back a fresh context/connection against the
         // SAME shared-cache database — mirrors the production DI graph the fanout handler's background

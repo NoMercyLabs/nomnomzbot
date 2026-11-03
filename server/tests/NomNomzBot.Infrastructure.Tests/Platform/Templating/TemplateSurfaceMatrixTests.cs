@@ -96,8 +96,7 @@ public sealed class TemplateSurfaceMatrixTests
 
     /// <summary>
     /// Cells that fail today, one row per failing cell, grouped by cause. A later slice deletes the rows with
-    /// its fix. The test fails when a row renders, so a row cannot go stale. Every Webhook cell is covered by
-    /// <see cref="WebhookHelpersNeverResolve"/> instead of one row each.
+    /// its fix. The test fails when a row renders, so a row cannot go stale.
     /// </summary>
     private static readonly (TemplateHelperContext Surface, string Key)[] KnownGap =
     [
@@ -115,6 +114,15 @@ public sealed class TemplateSurfaceMatrixTests
         (TemplateHelperContext.EventResponse, "chat.message.length"),
         (TemplateHelperContext.EventResponse, "chat.message.noCommand"),
         (TemplateHelperContext.EventResponse, "chat.message.bits"),
+        // Cause: a webhook body gets the same alert seed as an event response, which never carries these.
+        (TemplateHelperContext.Webhook, "user.provider"),
+        (TemplateHelperContext.Webhook, "platform.user"),
+        (TemplateHelperContext.Webhook, "platform.user.name"),
+        (TemplateHelperContext.Webhook, "platform.user.icon"),
+        (TemplateHelperContext.Webhook, "chat.message"),
+        (TemplateHelperContext.Webhook, "chat.message.length"),
+        (TemplateHelperContext.Webhook, "chat.message.noCommand"),
+        (TemplateHelperContext.Webhook, "chat.message.bits"),
         // Cause: declared on Timer but a timer fire seeds only timer.name and timer.message.
         (TemplateHelperContext.Timer, "platform.user"),
         (TemplateHelperContext.Timer, "platform.user.name"),
@@ -136,14 +144,6 @@ public sealed class TemplateSurfaceMatrixTests
         (TemplateHelperContext.Discord, "chat.message.noCommand"),
         (TemplateHelperContext.Discord, "chat.message.bits"),
     ];
-
-    /// <summary>
-    /// The one cause behind every Webhook gap: <c>WebhookBodyTemplateRenderer</c> calls the synchronous
-    /// <c>ITemplateResolver.Resolve</c>, which fills only seed variables and date expressions, so no registry
-    /// helper renders in a webhook body. The test fails when <c>channel</c> starts to render, so the row is
-    /// deleted with the fix.
-    /// </summary>
-    private const string WebhookHelpersNeverResolve = "channel";
 
     private enum CellState
     {
@@ -194,9 +194,7 @@ public sealed class TemplateSurfaceMatrixTests
         foreach (Cell cell in cells.Where(c => Failed(c) && workingKeys.Contains(c.Key)))
         {
             bool absent = DataAbsent.Any(a => a.Surface == cell.Surface && a.Key == cell.Key);
-            bool known =
-                cell.Surface == TemplateHelperContext.Webhook
-                || KnownGap.Any(g => g.Surface == cell.Surface && g.Key == cell.Key);
+            bool known = KnownGap.Any(g => g.Surface == cell.Surface && g.Key == cell.Key);
             if (!absent && !known)
                 unexplained.Add($"{cell.Surface}\t{cell.Key}\t{cell.State}\t{cell.Detail}");
         }
@@ -206,13 +204,6 @@ public sealed class TemplateSurfaceMatrixTests
             .. KnownGap
                 .Where(g => cells.Any(c => c.Surface == g.Surface && c.Key == g.Key && !Failed(c)))
                 .Select(g => $"{g.Surface}\t{g.Key}"),
-            .. cells
-                .Where(c =>
-                    c.Surface == TemplateHelperContext.Webhook
-                    && c.Key == WebhookHelpersNeverResolve
-                    && !Failed(c)
-                )
-                .Select(_ => "Webhook\tall helpers (WebhookHelpersNeverResolve now renders)"),
             .. DataAbsent
                 .Where(a => cells.Any(c => c.Surface == a.Surface && c.Key == a.Key && !Failed(c)))
                 .Select(a => $"{a.Surface}\t{a.Key} (DataAbsent)"),
@@ -292,11 +283,9 @@ public sealed class TemplateSurfaceMatrixTests
                     ViewerTemplateLimits.WithOutputCap(500)
                 )
             ).Text,
-            TemplateHelperContext.Webhook => new WebhookBodyTemplateRenderer(resolver).Render(
-                template,
-                seeds,
-                bodyIsJson: false
-            ),
+            TemplateHelperContext.Webhook => await new WebhookBodyTemplateRenderer(
+                resolver
+            ).RenderAsync(template, seeds, false, Channel),
             _ => await resolver.ResolveAsync(template, seeds, Channel),
         };
     }

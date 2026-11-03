@@ -157,10 +157,12 @@ public sealed class OutboundWebhookDispatcher(
         string body;
         try
         {
-            body = bodyTemplateRenderer.Render(
+            body = await bodyTemplateRenderer.RenderAsync(
                 endpoint.BodyTemplate,
                 variables,
-                endpoint.BodyIsJson
+                endpoint.BodyIsJson,
+                endpoint.BroadcasterId,
+                ct
             );
         }
         catch (WebhookBodyTemplateInvalidJsonException ex)
