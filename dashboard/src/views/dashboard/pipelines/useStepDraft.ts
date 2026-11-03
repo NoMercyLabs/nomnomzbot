@@ -20,6 +20,7 @@ import {
   duplicateStep,
   insertSteps,
   laneEnd,
+  moveStep,
   numberLanes,
   patchStep,
   removeStep,
@@ -42,6 +43,8 @@ export type StepDraft = {
   remove: (id: string) => void;
   duplicate: (id: string) => void;
   patch: (id: string, patch: StepPatch) => void;
+  // Moves the step with everything inside it to the spot.
+  move: (id: string, spot: Spot) => void;
   // Adds at the spot, or at the end of the top level; gives the new step's id.
   add: (make: MakeSteps, spot?: Spot) => string | null;
 };
@@ -85,6 +88,14 @@ export function useStepDraft(saved: Ref<Pipeline | undefined>) {
     },
     patch: (id: string, patch: StepPatch) => {
       steps.value = patchStep(steps.value, id, patch);
+    },
+    move: (id: string, spot: Spot) => {
+      const moved = moveStep(steps.value, id, spot);
+
+      // A refused or same-place move is no change, so it is no undo step either.
+      if (JSON.stringify(moved) === JSON.stringify(steps.value)) return;
+
+      steps.value = moved;
     },
     add: (make: MakeSteps, spot?: Spot) => {
       const added = make(mint);

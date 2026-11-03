@@ -14,6 +14,7 @@
 // and each lane ends in a button that adds a step to it.
 import Add from '~icons/nnz/add';
 import CornerDownRight from '~icons/nnz/arrow-forward-down';
+import GrabDots from '~icons/nnz/grab-dots';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
@@ -22,9 +23,11 @@ import StatusBadge, { type StatusTone } from '@/components/layout/StatusBadge.vu
 import { Button } from '@/components/ui/button';
 import { useLocalizedText } from '@/composables/useLocalizedText';
 
+import type { Spot } from './stepEdits';
 import { actionIcon, blockIcon } from './stepIcons';
 import { runOf, type RunMarks, type StepRunState } from './stepRun';
-import type { StepLane, StepNode } from './stepTree';
+import type { MoveDirection, StepLane, StepNode } from './stepTree';
+import { vLaneDrag, type LaneDrag } from './useStepDrag';
 import { conditionSentence, laneTitle, missingFields, stepSentence, stepTitle } from './stepWords';
 
 const props = defineProps<{
@@ -37,7 +40,12 @@ const props = defineProps<{
 }>();
 
 // addTo names the lane in words, so the palette can say where the step goes.
-const emit = defineEmits<{ select: [key: string]; addTo: [lane: StepLane, label: string] }>();
+const emit = defineEmits<{
+  select: [key: string];
+  addTo: [lane: StepLane, label: string];
+  move: [id: string, spot: Spot];
+  nudge: [id: string, direction: MoveDirection];
+}>();
 
 const { t, te } = useI18n();
 const text = useLocalizedText();
@@ -91,6 +99,23 @@ function laneName(lane: StepLane, index: number): string {
   return laneTitle(lane, index, { t, te });
 }
 
+// Each lane takes drops; a viewer without write access has none.
+function dragOf(lane: StepLane) {
+  return {
+    parentId: lane.parentId,
+    branch: lane.branch,
+    enabled: !props.readOnly,
+    onMove: (id: string, spot: Spot) =>
+      emit('move', id, spot),
+  } as const satisfies LaneDrag;
+}
+
+function nudge(direction: MoveDirection): void {
+  if (step.value.id) {
+    emit('nudge', step.value.id, direction);
+  }
+}
+
 function addTo(lane: StepLane, index: number): void {
   emit(
     'addTo',
@@ -105,81 +130,101 @@ function addTo(lane: StepLane, index: number): void {
 
 <template>
   <li data-step :data-step-id="step.id" :data-step-number="node.number" class="flex flex-col gap-2">
-    <button
-      type="button"
-      class="flex w-full items-start gap-3 rounded-lg border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-      :class="[
-        selected
-          ? 'border-ring bg-sidebar-accent text-sidebar-accent-foreground'
-          : 'bg-card hover:bg-muted/50',
-        run?.state === 'skipped' && 'border-dashed border-input',
-      ]"
-      :aria-pressed="selected"
-      @click="emit('select', node.key)"
-    >
-      <span
-        class="grid size-8 shrink-0 place-items-center bg-muted"
-        :class="isBlock ? 'rotate-45 rounded-sm' : 'rounded-full'"
-        aria-hidden="true"
+    <div class="flex items-start gap-1">
+      <button
+        type="button"
+        class="flex min-w-0 flex-1 items-start gap-3 rounded-lg border p-3 text-left transition-colors focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+        :class="[
+          selected
+            ? 'border-ring bg-sidebar-accent text-sidebar-accent-foreground'
+            : 'bg-card hover:bg-muted/50',
+          run?.state === 'skipped' && 'border-dashed border-input',
+        ]"
+        :aria-pressed="selected"
+        @click="emit('select', node.key)"
       >
-        <component :is="icon" class="size-4" :class="isBlock && '-rotate-45'" />
-      </span>
-      <span class="flex min-w-0 flex-1 flex-col gap-0.5">
-        <span class="flex items-baseline gap-2">
-          <span class="min-w-5 text-xs text-muted-foreground tabular-nums">{{ node.number }}</span>
-          <span data-step-title class="font-medium">{{ title }}</span>
-        </span>
-        <span v-if="sentence" class="text-sm text-muted-foreground">{{ sentence }}</span>
-        <span v-if="condition" data-step-condition class="text-xs text-muted-foreground">
-          {{ condition }}
-        </span>
         <span
-          v-if="missing.length > 0"
-          data-step-missing
-          class="text-xs font-medium text-destructive"
+          class="grid size-8 shrink-0 place-items-center bg-muted"
+          :class="isBlock ? 'rotate-45 rounded-sm' : 'rounded-full'"
+          aria-hidden="true"
         >
-          {{
-            $t(
-              "dashboard.pipelines.workbench.notSetUp",
-              { fields: missing.join(", ") },
-              missing.length,
-            )
-          }}
+          <component :is="icon" class="size-4" :class="isBlock && '-rotate-45'" />
         </span>
-        <template v-if="run">
-          <span v-if="run.error" data-run-error class="text-xs wrap-break-word text-destructive">{{
-            run.error
-          }}</span>
-          <span v-else-if="run.output" data-run-output class="text-xs wrap-break-word">{{
-            run.output
-          }}</span>
-          <span v-if="taken" data-run-taken class="text-xs text-muted-foreground">
-            {{ $t("dashboard.pipelines.workbench.run.took", { lane: taken }) }}
+        <span class="flex min-w-0 flex-1 flex-col gap-0.5">
+          <span class="flex items-baseline gap-2">
+            <span class="min-w-5 text-xs text-muted-foreground tabular-nums">{{ node.number }}</span>
+            <span data-step-title class="font-medium">{{ title }}</span>
+          </span>
+          <span v-if="sentence" class="text-sm text-muted-foreground">{{ sentence }}</span>
+          <span v-if="condition" data-step-condition class="text-xs text-muted-foreground">
+            {{ condition }}
           </span>
           <span
-            v-if="run.iterations !== null"
-            data-run-rounds
-            class="text-xs text-muted-foreground"
+            v-if="missing.length > 0"
+            data-step-missing
+            class="text-xs font-medium text-destructive"
           >
             {{
               $t(
-                "dashboard.pipelines.workbench.run.rounds",
-                { count: run.iterations },
-                run.iterations,
+                "dashboard.pipelines.workbench.notSetUp",
+                { fields: missing.join(", ") },
+                missing.length,
               )
             }}
           </span>
-        </template>
-      </span>
-      <StatusBadge
-        v-if="run"
-        data-run-state
-        :data-state="run.state"
-        :tone="runTone[run.state]"
-        :label="$t(`dashboard.pipelines.workbench.run.${run.state}`)"
-        class="text-xs"
-      />
-    </button>
+          <template v-if="run">
+            <span v-if="run.error" data-run-error class="text-xs wrap-break-word text-destructive">{{
+              run.error
+            }}</span>
+            <span v-else-if="run.output" data-run-output class="text-xs wrap-break-word">{{
+              run.output
+            }}</span>
+            <span v-if="taken" data-run-taken class="text-xs text-muted-foreground">
+              {{ $t("dashboard.pipelines.workbench.run.took", { lane: taken }) }}
+            </span>
+            <span
+              v-if="run.iterations !== null"
+              data-run-rounds
+              class="text-xs text-muted-foreground"
+            >
+              {{
+                $t(
+                  "dashboard.pipelines.workbench.run.rounds",
+                  { count: run.iterations },
+                  run.iterations,
+                )
+              }}
+            </span>
+          </template>
+        </span>
+        <StatusBadge
+          v-if="run"
+          data-run-state
+          :data-state="run.state"
+          :tone="runTone[run.state]"
+          :label="$t(`dashboard.pipelines.workbench.run.${run.state}`)"
+          class="text-xs"
+        />
+      </button>
+      <!-- The only drag source, so the fields and buttons on a card keep working. Alt and the arrows move it. -->
+      <Button
+        v-if="!readOnly"
+        data-step-handle
+        type="button"
+        variant="ghost"
+        size="icon"
+        class="cursor-grab touch-none text-muted-foreground active:cursor-grabbing"
+        :aria-label="$t('dashboard.pipelines.workbench.drag.handle', { number: node.number })"
+        :title="$t('dashboard.pipelines.workbench.drag.hint')"
+        aria-keyshortcuts="Alt+ArrowUp Alt+ArrowDown Alt+ArrowLeft Alt+ArrowRight"
+        @keydown.alt.up.prevent="nudge('up')"
+        @keydown.alt.down.prevent="nudge('down')"
+        @keydown.alt.left.prevent="nudge('left')"
+        @keydown.alt.right.prevent="nudge('right')"
+      >
+        <GrabDots class="size-5" aria-hidden="true" />
+      </Button>
+    </div>
     <div
       v-for="(lane, index) in node.lanes"
       :key="index"
@@ -190,7 +235,8 @@ function addTo(lane: StepLane, index: number): void {
       <span class="w-fit rounded-full bg-muted px-2.5 py-0.5 text-xs font-semibold">
         {{ laneName(lane, index) }}
       </span>
-      <ol v-if="lane.nodes.length > 0" class="flex flex-col gap-2">
+      <!-- Always rendered, so a step can be dropped into a lane that has none yet. -->
+      <ol v-lane-drag="dragOf(lane)" class="flex flex-col gap-2">
         <StepCard
           v-for="child in lane.nodes"
           :key="child.key"
@@ -201,12 +247,18 @@ function addTo(lane: StepLane, index: number): void {
           :marks="marks"
           @select="emit('select', $event)"
           @add-to="(lane, label) => emit('addTo', lane, label)"
+          @move="(id, spot) => emit('move', id, spot)"
+          @nudge="(id, direction) => emit('nudge', id, direction)"
         />
+        <li
+          v-if="lane.nodes.length === 0"
+          data-lane-empty
+          class="flex items-center gap-2 text-xs text-muted-foreground"
+        >
+          <CornerDownRight class="size-4" aria-hidden="true" />
+          {{ $t("dashboard.pipelines.workbench.lane.empty") }}
+        </li>
       </ol>
-      <p v-else class="flex items-center gap-2 text-xs text-muted-foreground">
-        <CornerDownRight class="size-4" aria-hidden="true" />
-        {{ $t("dashboard.pipelines.workbench.lane.empty") }}
-      </p>
       <Button
         v-if="!readOnly"
         data-lane-add
@@ -222,3 +274,21 @@ function addTo(lane: StepLane, index: number): void {
     </div>
   </li>
 </template>
+
+<style scoped>
+/* The drop marker: the card being dragged shrinks to one line at the place it would land, in the one accent. */
+.step-ghost {
+  block-size: 0.25rem;
+  overflow: hidden;
+  border-radius: 9999px;
+  background: var(--ring);
+}
+
+.step-ghost > * {
+  visibility: hidden;
+}
+
+.step-chosen {
+  opacity: 0.6;
+}
+</style>

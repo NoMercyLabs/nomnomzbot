@@ -58,8 +58,17 @@ import { laneEnd, type MintId, type Spot, type StepPatch } from './components/st
 import StepPalette from './components/StepPalette.vue';
 import { runMarks, runSummary } from './components/stepRun';
 import TestRunInput from './components/TestRunInput.vue';
-import { buildStepTree, findNode, findStepNode, type StepLane } from './components/stepTree';
+import {
+  buildStepTree,
+  findNode,
+  findStepNode,
+  keyboardSpot,
+  locateStep,
+  type MoveDirection,
+  type StepLane,
+} from './components/stepTree';
 import { startSources } from './components/stepWords';
+import { vLaneDrag } from './components/useStepDrag';
 import { useStepDraft } from './useStepDraft';
 
 const { t } = useI18n();
@@ -199,6 +208,36 @@ function patch(change: StepPatch): void {
 
   if (step?.id) {
     draft.patch(step.id, change);
+  }
+}
+
+// Cards are keyed by their place, so after a move the open step and the focus follow the step by its id.
+const moved = ref('');
+
+async function moveTo(stepId: string, to: Spot): Promise<void> {
+  const open = selected.value?.step.id;
+
+  draft.move(stepId, to);
+
+  if (open) {
+    selectedKey.value = findStepNode(tree.value, open)?.key ?? null;
+  }
+
+  const place = locateStep(tree.value, stepId);
+
+  moved.value = place
+    ? t(`${page}.drag.moved`, place)
+    : '';
+
+  await nextTick();
+  document.querySelector<HTMLElement>(`[data-step-id="${stepId}"] [data-step-handle]`)?.focus();
+}
+
+function nudge(stepId: string, direction: MoveDirection): void {
+  const to = keyboardSpot(tree.value, stepId, direction);
+
+  if (to) {
+    void moveTo(stepId, to);
   }
 }
 
@@ -574,7 +613,11 @@ const leaveOpen = computed<boolean>({
           <Lightning class="size-4 shrink-0" aria-hidden="true" />
           {{ starts }}
         </p>
-        <ol v-if="tree.length > 0" class="flex flex-col gap-2">
+        <ol
+          v-if="tree.length > 0"
+          v-lane-drag="{ parentId: null, branch: null, enabled: canWrite, onMove: moveTo }"
+          class="flex flex-col gap-2"
+        >
           <StepCard
             v-for="node in tree"
             :key="node.key"
@@ -585,11 +628,15 @@ const leaveOpen = computed<boolean>({
             :marks="marks"
             @select="pick"
             @add-to="addTo"
+            @move="moveTo"
+            @nudge="nudge"
           />
         </ol>
         <p v-else class="text-sm text-muted-foreground">
           {{ $t("dashboard.pipelines.workbench.empty") }}
         </p>
+        <!-- Tells a screen reader where a keyboard move put the step. -->
+        <p data-move-announcer class="sr-only" role="status" aria-live="polite">{{ moved }}</p>
         <Button
           v-if="canWrite"
           data-workbench-add

@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
+import Sortable from 'sortablejs';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { computed, ref, type Ref } from 'vue';
 import { createMemoryHistory, createRouter, RouterView, type Router } from 'vue-router';
@@ -1166,9 +1167,9 @@ describe('changing the steps', () => {
 });
 
 const mark = (id: string, part: string): string | undefined =>
-  card(id).querySelector<HTMLElement>(`:scope > button [data-run-${part}]`)?.textContent?.trim();
+  card(id).querySelector<HTMLElement>(`:scope > div > button [data-run-${part}]`)?.textContent?.trim();
 const stateOf = (id: string): string | undefined =>
-  card(id).querySelector<HTMLElement>(':scope > button [data-run-state]')?.dataset.state;
+  card(id).querySelector<HTMLElement>(':scope > div > button [data-run-state]')?.dataset.state;
 
 describe('the pipeline actions in the bar', () => {
   const powerSwitch = (): HTMLButtonElement =>
@@ -1296,7 +1297,7 @@ describe('a test run', () => {
 
     expect(mark('check', 'taken')).toBe('This run: Yes');
     expect(mark('hi', 'output')).toBe('Would say: hi there');
-    expect(card('pause').querySelector(':scope > button')?.className).toContain('border-dashed');
+    expect(card('pause').querySelector(':scope > div > button')?.className).toContain('border-dashed');
 
     expect(document.body.querySelector('[data-run-summary]')?.textContent?.trim()).toContain(
       'Test run 1: 2 steps ran.',
@@ -1349,5 +1350,118 @@ describe('a test run', () => {
     expect(document.body.querySelector('[data-run-summary]')?.textContent?.trim()).toContain(
       'Test run 2: 2 steps ran.',
     );
+  });
+});
+
+const handleOf = (id: string): HTMLButtonElement =>
+  card(id).querySelector<HTMLButtonElement>('[data-step-handle]')!;
+
+async function altKey(id: string, key: string): Promise<void> {
+  handleOf(id).dispatchEvent(new KeyboardEvent('keydown', {
+    key,
+    altKey: true,
+    bubbles: true,
+    cancelable: true,
+  }));
+
+  await flushPromises();
+}
+
+// What Save sends for the moved steps: where each one sits and in which order.
+async function savedShape(): Promise<string[]> {
+  await press('[data-workbench-save]');
+
+  const sent = save.mutateAsync.mock.calls.at(-1)?.[0].graph?.steps ?? [];
+
+  return sent
+    .map((item) =>
+      `${item.id}@${item.parent_step_id ?? '-'}/${item.branch ?? '-'}:${item.order}`)
+    .sort();
+}
+
+describe('moving a step', () => {
+  it('gives each handle a name that says which step it moves', async () => {
+    await open();
+
+    expect(handleOf('pause').getAttribute('aria-label')).toBe('Move step 2');
+    expect(handleOf('hi').getAttribute('aria-label')).toBe('Move step 1.1');
+  });
+
+  it('shows no handle to someone who may not change the pipeline', async () => {
+    held.value = ['pipelines:read'];
+    await open();
+
+    expect(document.body.querySelector('[data-step-handle]')).toBeNull();
+  });
+
+  it('moves a step up with Alt and the arrow, says so, saves it and undoes it as one step', async () => {
+    await open();
+    await altKey('pause', 'ArrowUp');
+
+    expect(card('pause').dataset.stepNumber).toBe('1');
+
+    expect(document.body.querySelector('[data-move-announcer]')?.textContent).toBe(
+      'Moved step 1 of 2',
+    );
+
+    expect(document.activeElement).toBe(handleOf('pause'));
+
+    expect(await savedShape()).toEqual(['check@-/-:1', 'hi@check/then:0', 'pause@-/-:0']);
+
+    await press('[data-workbench-undo]');
+
+    expect(card('pause').dataset.stepNumber).toBe('2');
+
+    expect(document.body.querySelector<HTMLButtonElement>('[data-workbench-undo]')?.disabled).toBe(
+      true,
+    );
+  });
+
+  it('puts a step into the block above it and takes it out again to just after the block', async () => {
+    await open();
+    await altKey('pause', 'ArrowRight');
+
+    expect(card('check').contains(card('pause'))).toBe(true);
+    expect(await savedShape()).toEqual(['check@-/-:0', 'hi@check/then:0', 'pause@check/then:1']);
+
+    await altKey('pause', 'ArrowLeft');
+
+    expect(card('check').contains(card('pause'))).toBe(false);
+    expect(card('pause').dataset.stepNumber).toBe('2');
+
+    // Back where it began, so the draft is the saved pipeline again and there is nothing to save.
+    expect(saveButton().disabled).toBe(true);
+  });
+
+  it('does nothing at the end of the lane', async () => {
+    await open();
+    await altKey('pause', 'ArrowDown');
+
+    expect(document.body.querySelector<HTMLButtonElement>('[data-workbench-undo]')?.disabled).toBe(
+      true,
+    );
+  });
+
+  it('takes a drop from the drag library into another lane, and puts the card back for Vue', async () => {
+    await open();
+
+    const top = card('pause').parentElement!;
+    const yes = card('hi').parentElement!;
+    const no = card('check').querySelector<HTMLElement>('[data-lane-kind="no"] ol')!;
+
+    yes.append(card('pause'));
+
+    Sortable.get(top)!.option('onEnd')!({
+      item: card('pause'),
+      from: top,
+      to: no,
+      oldIndex: 1,
+      newIndex: 0,
+    } as unknown as Sortable.SortableEvent);
+
+    await flushPromises();
+
+    expect(card('check').querySelector('[data-lane-kind="no"]')?.contains(card('pause'))).toBe(true);
+    expect(await savedShape()).toEqual(['check@-/-:0', 'hi@check/then:0', 'pause@check/else:0']);
   });
 });

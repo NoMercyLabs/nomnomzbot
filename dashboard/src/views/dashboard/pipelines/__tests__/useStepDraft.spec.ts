@@ -69,4 +69,31 @@ describe('the step draft', () => {
     expect(draft.dirty.value).toBe(false);
     expect(draft.canUndo.value).toBe(false);
   });
+
+  it('makes a move one undo step, and redo applies it again', () => {
+    const draft = useStepDraft(shallowRef<Pipeline | undefined>(pipeline));
+    const before = JSON.stringify(draft.steps.value);
+
+    draft.move('a', {
+      parentId: null,
+      branch: null,
+      order: 1,
+    });
+
+    const moved = JSON.stringify(draft.steps.value);
+
+    expect(draft.steps.value.map((item) =>
+      `${item.id}:${item.order}`)).toEqual(['a:1', 'b:0']);
+
+    expect(draft.dirty.value).toBe(true);
+
+    draft.undo();
+
+    expect(JSON.stringify(draft.steps.value)).toBe(before);
+    expect(draft.canUndo.value).toBe(false);
+
+    draft.redo();
+
+    expect(JSON.stringify(draft.steps.value)).toBe(moved);
+  });
 });

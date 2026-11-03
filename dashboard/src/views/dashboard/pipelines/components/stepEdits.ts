@@ -146,6 +146,58 @@ export function insertSteps(
   return [...merge(shifted, [placed], inner)];
 }
 
+// The ids of one lane in run order, without the step that is leaving it.
+function laneIds(steps: PipelineStep[], lane: string, leaving: string): string[] {
+  return steps
+    .filter((step) =>
+      laneOf(step) === lane && step.id !== leaving)
+    .sort((left, right) =>
+      left.order - right.order)
+    .map((step) =>
+      step.id ?? '');
+}
+
+// The step, with everything inside it, taken out and put at the spot. The spot order is the place the step
+// ends up at in that lane. Both lanes are numbered again; a spot inside the step itself changes nothing.
+export function moveStep(steps: PipelineStep[], id: string, spot: Spot): PipelineStep[] {
+  const target = steps.find((step) =>
+    step.id === id);
+
+  if (!target || subtreeIds(steps, id).has(spot.parentId ?? ''))
+    return steps;
+
+  const destination = laneIds(
+    steps,
+    laneOf({ parent_step_id: spot.parentId, branch: spot.branch }),
+    id,
+  );
+  const origin = laneIds(steps, laneOf(target), id);
+
+  const place = Math.max(spot.order, 0);
+
+  destination.splice(Math.min(place, destination.length), 0, id);
+
+  const orders = new Map<string, number>();
+
+  for (const lane of [origin, destination]) {
+    lane.forEach((stepId, index) =>
+      orders.set(stepId, index));
+  }
+
+  return steps.map((step) => {
+    const order = orders.get(step.id ?? '') ?? step.order;
+
+    return step.id === id
+      ? {
+          ...step,
+          parent_step_id: spot.parentId,
+          branch: spot.branch,
+          order,
+        }
+      : { ...step, order };
+  });
+}
+
 // Settings to change on one step: the named action and block settings change, a cleared one (undefined) goes.
 export type StepPatch = {
   action?: JsonObject;

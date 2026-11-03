@@ -61,6 +61,11 @@
           "path": "Path {letter}",
           "empty": "Nothing extra. Goes on to the next step."
         },
+        "drag": {
+          "handle": "Move step {number}",
+          "hint": "Drag to move. Or press Alt with an arrow key.",
+          "moved": "Moved step {position} of {total}"
+        },
         "onlyIf": "Only if {left} {operator} {right}",
         "onlyIfNot": "Only if not: {left} {operator} {right}",
         "operator": {

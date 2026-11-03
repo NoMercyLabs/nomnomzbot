@@ -61,6 +61,11 @@
           "path": "Pad {letter}",
           "empty": "Niets extra. Gaat door naar de volgende stap."
         },
+        "drag": {
+          "handle": "Stap {number} verplaatsen",
+          "hint": "Sleep om te verplaatsen. Of druk op Alt met een pijltoets.",
+          "moved": "Stap {position} van {total} verplaatst"
+        },
         "onlyIf": "Alleen als {left} {operator} {right}",
         "onlyIfNot": "Alleen als niet: {left} {operator} {right}",
         "operator": {

@@ -14,6 +14,8 @@
 // lane, and loop and detached_step run all their children as one lane.
 import type { BlockKind, PipelineStep } from '@/api/pipelines';
 
+import type { Spot } from './stepEdits';
+
 export type LaneKind = 'yes' | 'no' | 'works' | 'fails' | 'each' | 'case' | 'path' | 'alone';
 
 export type StepLane = {
@@ -174,4 +176,99 @@ export function findNode(nodes: StepNode[], key: string): StepNode | undefined {
 export function findStepNode(nodes: StepNode[], id: string): StepNode | undefined {
   return findWhere(nodes, (node: StepNode) =>
     node.step.id === id);
+}
+
+export type MoveDirection = 'up' | 'down' | 'left' | 'right';
+
+// Where a step sits: its lane, its place in it, and the same for the block that holds that lane.
+type Where = {
+  siblings: StepNode[];
+  index: number;
+  lane: Pick<StepLane, 'parentId' | 'branch'>;
+  owner: Where | null;
+};
+
+const TOP_LANE = { parentId: null, branch: null } as const satisfies Pick<StepLane, 'parentId' | 'branch'>;
+
+function locate(
+  nodes: StepNode[],
+  lane: Where['lane'],
+  id: string,
+  owner: Where | null,
+): Where | undefined {
+  for (const [index, node] of nodes.entries()) {
+    const here = {
+      siblings: nodes,
+      index,
+      lane,
+      owner,
+    } as const satisfies Where;
+
+    if (node.step.id === id)
+      return here;
+
+    for (const inner of node.lanes) {
+      const found = locate(inner.nodes, inner, id, here);
+
+      if (found)
+        return found;
+    }
+  }
+
+  return undefined;
+}
+
+// The place a keyboard move takes the step to, or null when that move has nowhere to go. Up and down step one
+// place in the lane, left leaves the block to just after it, right enters the block above at the end of its
+// first lane.
+export function keyboardSpot(nodes: StepNode[], id: string, direction: MoveDirection) {
+  const where = locate(nodes, TOP_LANE, id, null);
+
+  if (!where)
+    return null;
+
+  const { index, lane, owner, siblings } = where;
+
+  if (direction === 'up' || direction === 'down') {
+    const order = direction === 'up'
+      ? index - 1
+      : index + 1;
+
+    return order < 0 || order >= siblings.length
+      ? null
+      : {
+        parentId: lane.parentId,
+        branch: lane.branch,
+        order,
+      } as const satisfies Spot;
+  }
+
+  if (direction === 'left') {
+    return owner
+      ? {
+        parentId: owner.lane.parentId,
+        branch: owner.lane.branch,
+        order: owner.index + 1,
+      } as const satisfies Spot
+      : null;
+  }
+
+  const inner = siblings[index - 1]?.lanes[0];
+
+  return inner
+    ? {
+      parentId: inner.parentId,
+      branch: inner.branch,
+      order: inner.nodes.length,
+    } as const satisfies Spot
+    : null;
+}
+
+// "Step 3 of 5": the step's place among the steps of its lane.
+export function locateStep(nodes: StepNode[], id: string) {
+  const where = locate(nodes, TOP_LANE, id, null);
+
+  return where
+    ? { position: where.index + 1, total: where.siblings.length } as const
+    : null;
 }
