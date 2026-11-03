@@ -122,4 +122,36 @@ describe('OptionSelect', () => {
     await flushPromises();
     expect(wrapper.emitted('update:modelValue')?.at(-1)).toEqual(['team']);
   });
+
+  // The default is the full width of the row; a width the page asks for (w-40 beside a label) must win, or the
+  // control takes the whole row and squeezes the label to one letter per line.
+  it.each([
+    ['plain', false],
+    ['searchable', true],
+  ])('keeps the width a page asks for on a %s select', (_name, searchable) => {
+    mount(OptionSelect, {
+      attachTo: document.body,
+      props: {
+        options,
+        modelValue: 'pro',
+        searchable,
+      },
+      attrs: { 'data-hook': '', class: 'w-40' },
+    });
+
+    const trigger = document.body.querySelector<HTMLElement>('[data-hook]')!;
+
+    expect(trigger.classList.contains('w-40')).toBe(true);
+    expect(trigger.classList.contains('w-full')).toBe(false);
+  });
+
+  it('is the full row width when the page asks for no width', () => {
+    mount(OptionSelect, {
+      attachTo: document.body,
+      props: { options, modelValue: 'pro' },
+      attrs: { 'data-hook': '' },
+    });
+
+    expect(document.body.querySelector('[data-hook]')!.classList.contains('w-full')).toBe(true);
+  });
 });

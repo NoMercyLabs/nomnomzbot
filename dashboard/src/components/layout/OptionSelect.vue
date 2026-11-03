@@ -96,13 +96,13 @@ function pickFromSearch(key: string): void {
   <Popover v-if="searchable" v-model:open="open">
     <PopoverTrigger as-child>
       <Button
+        class="group w-full justify-between font-normal"
         v-bind="$attrs"
         type="button"
         variant="outline"
         role="combobox"
         :aria-expanded="open"
         :disabled="disabled"
-        class="group w-full justify-between font-normal"
       >
         <span class="truncate" :class="!current && 'text-muted-foreground'">
           {{ current?.label ?? placeholder }}
@@ -140,7 +140,7 @@ function pickFromSearch(key: string): void {
     :disabled="disabled"
     @update:model-value="pick(String($event ?? ''))"
   >
-    <SelectTrigger v-bind="$attrs" class="w-full">
+    <SelectTrigger class="w-full" v-bind="$attrs">
       <SelectValue v-if="current">
         {{ current.label }}
       </SelectValue>
