@@ -9,7 +9,6 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using System.Collections.Concurrent;
 using System.Text.Json;
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
@@ -38,7 +37,6 @@ public sealed class ShoutoutSuggestionService(
     private const int WindowDays = 30;
     private const int MaxSuggestions = 10;
     private const int MaxVideoPages = 3;
-    private const int ParallelLookups = 4;
     private const string ShoutoutSentEventType = "bot.shoutout.sent";
 
     public async Task<Result<IReadOnlyList<ShoutoutSuggestionDto>>> GetAsync(
@@ -209,7 +207,7 @@ public sealed class ShoutoutSuggestionService(
         CancellationToken cancellationToken
     )
     {
-        ConcurrentDictionary<string, int> streams = new();
+        Dictionary<string, int> streams = [];
         List<string> missing = [];
         foreach (string id in candidates)
         {
@@ -220,23 +218,18 @@ public sealed class ShoutoutSuggestionService(
         }
 
         DateTimeOffset cutoff = now.AddDays(-WindowDays);
-        await Parallel.ForEachAsync(
-            missing,
-            new ParallelOptions
-            {
-                MaxDegreeOfParallelism = ParallelLookups,
-                CancellationToken = cancellationToken,
-            },
-            async (id, ct) =>
-            {
-                int? count = await CountArchivesSinceAsync(id, cutoff, ct);
-                if (count is null)
-                    return;
-                streams[id] = count.Value;
-                state.SetStreams(id, count.Value, now);
-            }
-        );
-        return streams.ToDictionary(p => p.Key, p => p.Value);
+        // One after another: every lookup reads the bot token through the one scoped DbContext, which is not
+        // thread-safe.
+        foreach (string id in missing)
+        {
+            int? count = await CountArchivesSinceAsync(id, cutoff, cancellationToken);
+            if (count is null)
+                continue;
+            streams[id] = count.Value;
+            state.SetStreams(id, count.Value, now);
+        }
+
+        return streams;
     }
 
     /// <summary>Archives created at or after <paramref name="cutoff"/>, newest first; null when Twitch fails.</summary>
