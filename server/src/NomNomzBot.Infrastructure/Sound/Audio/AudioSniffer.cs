@@ -227,7 +227,8 @@ internal static class AudioSniffer
                     continue;
 
                 long fileSize = stream.Length - id3Offset;
-                int durationMs = (int)(fileSize * 8L / bitrate); // bitrate in bps
+                // bytes * 8 bits / bits-per-second is seconds, so scale to milliseconds.
+                int durationMs = (int)(fileSize * 8L * 1000L / bitrate);
                 return durationMs;
             }
 
