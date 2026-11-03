@@ -131,7 +131,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
         );
         if (runs.Count == 1)
             return await SynthesizeSsmlAsync(
-                BuildSsml(segments),
+                BuildRunSsml(segments),
                 hashSource,
                 firstVoice,
                 cancellationToken
@@ -141,7 +141,7 @@ public sealed class EdgeTtsProvider : ITtsProvider
         foreach (List<TtsSegment> run in runs)
         {
             TtsSynthesisResult part = await SynthesizeSsmlAsync(
-                BuildSsml(run),
+                BuildRunSsml(run),
                 hashSource,
                 run[0].VoiceId,
                 cancellationToken
@@ -773,6 +773,42 @@ public sealed class EdgeTtsProvider : ITtsProvider
     /// <summary>One <c>&lt;speak&gt;</c> with one <c>&lt;voice&gt;</c> per segment and a <c>&lt;break&gt;</c> between them.</summary>
     internal static string BuildSsml(IReadOnlyList<TtsSegment> segments) =>
         TtsSegmentSsml.Build(segments);
+
+    /// <summary>
+    /// The SSML for one run of segments that share a voice: one <c>&lt;voice&gt;</c> element holding one
+    /// <c>&lt;prosody&gt;</c> per segment. Edge answers a document with two <c>&lt;voice&gt;</c> elements with
+    /// no audio, even when both name the same voice (probed 2026-11-03).
+    /// </summary>
+    internal static string BuildRunSsml(IReadOnlyList<TtsSegment> run)
+    {
+        StringBuilder ssml = new();
+        ssml.Append(
+                "<speak version='1.0' xmlns='http://www.w3.org/2001/10/synthesis' xml:lang='en-US'>"
+            )
+            .Append("<voice name='")
+            .Append(System.Security.SecurityElement.Escape(run[0].VoiceId))
+            .Append("'>");
+        for (int i = 0; i < run.Count; i++)
+        {
+            TtsSegment segment = run[i];
+            ssml.Append("<prosody rate='")
+                .Append(TtsProsody.FormatPercent(segment.RatePercent))
+                .Append("' pitch='")
+                .Append(TtsProsody.FormatPercent(segment.PitchPercent))
+                .Append("'>")
+                .Append(System.Security.SecurityElement.Escape(segment.Text))
+                .Append("</prosody>");
+            if (i < run.Count - 1 && segment.BreakAfterMs > 0)
+                ssml.Append("<break time='")
+                    .Append(
+                        Math.Min(segment.BreakAfterMs, TtsProsody.MaxBreakMs)
+                            .ToString(System.Globalization.CultureInfo.InvariantCulture)
+                    )
+                    .Append("ms'/>");
+        }
+
+        return ssml.Append("</voice></speak>").ToString();
+    }
 
     private static async Task SendTextAsync(
         ClientWebSocket ws,

@@ -81,6 +81,30 @@ public sealed class TtsSegmentSynthesisTests
         runs.Select(r => r[0].VoiceId).Should().Equal("bot", "viewer", "bot");
     }
 
+    // Edge returns no audio for a document with two <voice> elements, even when both name the same voice.
+    [Fact]
+    public void Edge_BuildRunSsml_TwoSegmentsOfOneVoice_EmitsOneVoiceElementWithOneProsodyEach()
+    {
+        string ssml = EdgeTtsProvider.BuildRunSsml([
+            new("Stoney_Eagle threw 100 bits our way. They also said:", "en-US-AnaNeural"),
+            new("Great <stream> & more!", "en-US-AnaNeural", RatePercent: 10, BreakAfterMs: 300),
+        ]);
+
+        XDocument doc = XDocument.Parse(ssml);
+        doc.Descendants().Count(e => e.Name.LocalName == "voice").Should().Be(1);
+        XElement voice = doc.Root!.Elements().Single();
+        voice.Attribute("name")!.Value.Should().Be("en-US-AnaNeural");
+        voice.Elements().Select(e => e.Name.LocalName).Should().Equal("prosody", "prosody");
+        voice
+            .Elements()
+            .Select(e => e.Value)
+            .Should()
+            .Equal(
+                "Stoney_Eagle threw 100 bits our way. They also said:",
+                "Great <stream> & more!"
+            );
+    }
+
     [Fact]
     public void BuildSsml_Segments_ZeroGapAddsNoBreak_AndNoBreakFollowsTheLastSegment()
     {

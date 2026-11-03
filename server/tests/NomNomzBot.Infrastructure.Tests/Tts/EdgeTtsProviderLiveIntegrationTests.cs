@@ -93,4 +93,36 @@ public sealed class EdgeTtsProviderLiveIntegrationTests
         both.VoiceId.Should().Be("en-US-AnaNeural");
         both.DurationMs.Should().BeGreaterThan(first.DurationMs);
     }
+
+    // The sample Cheer line: the bot's announcement and the cheerer's words, both in one voice (the channel
+    // voice is also the cheerer's saved voice). Edge answers a request that holds two <voice> elements with no
+    // audio even when both name the same voice, so a run of one voice must go out as ONE <voice> element.
+    [EdgeTtsLiveFact]
+    public async Task SynthesizeSegmentsAsync_WithTwoSegmentsOfOneVoice_ReturnsAudio()
+    {
+        ServiceCollection services = new();
+        services.AddHttpClient("edge-tts", client => client.Timeout = TimeSpan.FromSeconds(15));
+        using ServiceProvider serviceProvider = services.BuildServiceProvider();
+        ListLogger<EdgeTtsProvider> log = new();
+        EdgeTtsProvider provider = new(
+            TimeProvider.System,
+            serviceProvider.GetRequiredService<IHttpClientFactory>(),
+            log,
+            Options.Create(new EdgeTtsOptions())
+        );
+
+        Domain.Tts.Interfaces.TtsSynthesisResult both = await provider.SynthesizeSegmentsAsync([
+            new(
+                "Stoney_Eagle threw 100 bits our way. Correct behaviour. Thanks! They also said:",
+                "en-US-AnaNeural"
+            ),
+            new("Great stream!", "en-US-AnaNeural"),
+        ]);
+
+        both.AudioData.Should()
+            .NotBeEmpty(
+                "the provider logged: {0}",
+                string.Join(" || ", log.Entries.Select(e => $"{e.Level} {e.Message}"))
+            );
+    }
 }
