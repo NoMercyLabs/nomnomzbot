@@ -264,7 +264,7 @@ public sealed class MusicPlayTrackOnceAction : ICommandAction
         [
             new(
                 "track_uri",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.MusicTrack,
                 Required: true,
                 Description: new("pipeline.play_track_once.track_uri.help")
             ),
@@ -794,7 +794,7 @@ public sealed class MusicTransferDeviceAction : ICommandAction
         [
             new(
                 "deviceId",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.MusicDevice,
                 Required: true,
                 Description: new("pipeline.music_transfer_device.deviceId.help")
             ),

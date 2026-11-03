@@ -111,7 +111,7 @@ public sealed class VtsLoadModelAction(IVtsControlService vts) : VtsActionBase(v
         [
             new(
                 "model",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.VtsModel,
                 Required: true,
                 Description: new("pipeline.vts_load_model.model.help")
             ),
@@ -142,7 +142,7 @@ public sealed class VtsTriggerHotkeyAction(IVtsControlService vts) : VtsActionBa
         [
             new(
                 "hotkey",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.VtsHotkey,
                 Required: true,
                 Description: new("pipeline.vts_trigger_hotkey.hotkey.help")
             ),
@@ -173,7 +173,7 @@ public sealed class VtsSetExpressionAction(IVtsControlService vts) : VtsActionBa
         [
             new(
                 "expression",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.VtsExpression,
                 Required: true,
                 Description: new("pipeline.vts_set_expression.expression.help")
             ),

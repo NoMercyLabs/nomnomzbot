@@ -35,7 +35,7 @@ public sealed class PlayGameAction(IGameService games, IRoleResolver roles) : IC
         [
             new(
                 "game_type",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.GameType,
                 Required: true,
                 Description: new("pipeline.play_game.game_type.help")
             ),

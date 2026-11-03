@@ -34,7 +34,7 @@ public sealed class JarContributeAction(ISavingsJarService jars) : ICommandActio
         [
             new(
                 "jar_id",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.SavingsJar,
                 Required: true,
                 Description: new("pipeline.jar_contribute.jar_id.help")
             ),

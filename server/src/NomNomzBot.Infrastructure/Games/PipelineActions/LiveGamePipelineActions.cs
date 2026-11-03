@@ -34,7 +34,7 @@ public sealed class StartLiveGameAction(ILiveGameEngine engine) : ICommandAction
         [
             new(
                 "game_type",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.LiveGameType,
                 Required: true,
                 Description: new("pipeline.start_live_game.game_type.help")
             ),

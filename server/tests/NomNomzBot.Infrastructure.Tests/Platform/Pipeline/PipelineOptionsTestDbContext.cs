@@ -132,6 +132,8 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
 
         b.Entity<CodeScript>(e => e.HasKey(s => s.Id));
 
+        b.Entity<OutboundWebhookEndpoint>(e => e.HasKey(w => w.Id));
+
         b.Entity<ViewerProfile>(e => e.HasKey(p => p.Id));
 
         b.Entity<User>(e => e.HasKey(u => u.Id));
@@ -167,6 +169,7 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
         typeof(ViewerProfile),
         typeof(User),
         typeof(Channel),
+        typeof(OutboundWebhookEndpoint),
     ];
 
     private static readonly IReadOnlyList<Type> UnmappedEntities =
@@ -283,8 +286,7 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
     public DbSet<EventSubConduitShard> EventSubConduitShards => Set<EventSubConduitShard>();
     public DbSet<IdempotencyKey> IdempotencyKeys => Set<IdempotencyKey>();
     public DbSet<ChatMessage> ChatMessages => Set<ChatMessage>();
-    public DbSet<NomNomzBot.Domain.Chat.Entities.FavoriteEmote> FavoriteEmotes =>
-        throw new NotSupportedException();
+    public DbSet<FavoriteEmote> FavoriteEmotes => throw new NotSupportedException();
     public DbSet<ChatterAssignedColor> ChatterAssignedColors => throw new NotSupportedException();
     public DbSet<YouTubeLiveChatBan> YouTubeLiveChatBans => Set<YouTubeLiveChatBan>();
     public DbSet<ChannelEvent> ChannelEvents => Set<ChannelEvent>();

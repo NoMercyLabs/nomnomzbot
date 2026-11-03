@@ -53,6 +53,10 @@ public sealed class CommandConfigValidator : ICommandConfigValidator
         PipelineActionFieldKind.Script,
         PipelineActionFieldKind.SoundClip,
         PipelineActionFieldKind.Asset,
+        PipelineActionFieldKind.Pipeline,
+        PipelineActionFieldKind.SavingsJar,
+        PipelineActionFieldKind.Giveaway,
+        PipelineActionFieldKind.WebhookEndpoint,
     };
 
     // Patterns that indicate a value looks like a URL or credential (heuristic).

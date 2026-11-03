@@ -48,17 +48,17 @@ public sealed class SchedulePipelineAction : ICommandAction
         [
             new(
                 "pipeline",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.PipelineName,
                 Description: new("pipeline.schedule_pipeline.pipeline.help")
             ),
             new(
                 "command",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.CommandName,
                 Description: new("pipeline.schedule_pipeline.command.help")
             ),
             new(
                 "action_type",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.ActionType,
                 Description: new("pipeline.schedule_pipeline.action_type.help")
             ),
             new(
@@ -102,7 +102,7 @@ public sealed class SchedulePipelineAction : ICommandAction
                 "schedule_pipeline needs exactly one of 'pipeline', 'command' or 'action_type'"
             );
 
-        int delaySeconds = action.GetInt("delay_seconds", 0);
+        int delaySeconds = action.GetInt("delay_seconds");
         if (delaySeconds <= 0)
             return ActionResult.Failure("schedule_pipeline requires a positive 'delay_seconds'");
 

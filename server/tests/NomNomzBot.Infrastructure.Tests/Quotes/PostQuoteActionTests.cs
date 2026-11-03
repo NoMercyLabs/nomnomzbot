@@ -13,12 +13,15 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Quotes.Dtos;
 using NomNomzBot.Application.Quotes.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Infrastructure.EventStore;
 using NomNomzBot.Infrastructure.Quotes;
 using NomNomzBot.Infrastructure.Quotes.PipelineActions;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NSubstitute;
 using ActionDefinition = NomNomzBot.Application.Abstractions.Pipeline.ActionDefinition;
 
 namespace NomNomzBot.Infrastructure.Tests.Quotes;
@@ -209,6 +212,32 @@ public sealed class PostQuoteActionTests
         ctx.Variables["args.1"] = "2";
 
         ActionResult result = await action.ExecuteAsync(ctx, Action(null));
+
+        result.Succeeded.Should().BeTrue(result.ErrorMessage);
+        result.Output.Should().Be("#2: \"second\"");
+        chat.Sent.Should().ContainSingle().Which.Message.Should().Be("#2: \"second\"");
+    }
+
+    [Fact]
+    public async Task PostQuote_PostsTheQuoteNumberThePickerSavedAsText()
+    {
+        Guid channel = Guid.NewGuid();
+        QuoteDto second = new(Guid.NewGuid(), 2, "second", null, null, null, DateTime.UtcNow);
+        IQuoteService quotes = Substitute.For<IQuoteService>();
+        quotes.GetAsync(channel, 2, Arg.Any<CancellationToken>()).Returns(Result.Success(second));
+        quotes
+            .GetRandomAsync(channel, Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<QuoteDto>("random must not be used", "X"));
+
+        RecordingChatProvider chat = new();
+        PostQuoteAction action = new(quotes, chat);
+        ActionDefinition picked = new()
+        {
+            Type = "post_quote",
+            Parameters = new() { ["number"] = JsonSerializer.SerializeToElement("2") },
+        };
+
+        ActionResult result = await action.ExecuteAsync(Context(channel), picked);
 
         result.Succeeded.Should().BeTrue(result.ErrorMessage);
         result.Output.Should().Be("#2: \"second\"");

@@ -39,7 +39,7 @@ public sealed class PostQuoteAction : ICommandAction
         [
             new(
                 "number",
-                PipelineActionFieldKind.Number,
+                PipelineActionFieldKind.Quote,
                 Description: new("pipeline.post_quote.number.help")
             ),
         ];
@@ -88,8 +88,7 @@ public sealed class PostQuoteAction : ICommandAction
         if (
             action.Parameters is not null
             && action.Parameters.TryGetValue("number", out JsonElement element)
-            && element.ValueKind == JsonValueKind.Number
-            && element.TryGetInt32(out int configured)
+            && TryReadConfigured(element, out int configured)
         )
             return configured;
 
@@ -100,5 +99,17 @@ public sealed class PostQuoteAction : ICommandAction
             return fromArg;
 
         return null;
+    }
+
+    // The quote picker saves the number as text, while a hand-written step holds a JSON number: both are read.
+    private static bool TryReadConfigured(JsonElement element, out int number)
+    {
+        number = 0;
+        return element.ValueKind switch
+        {
+            JsonValueKind.Number => element.TryGetInt32(out number),
+            JsonValueKind.String => int.TryParse(element.GetString(), out number),
+            _ => false,
+        };
     }
 }

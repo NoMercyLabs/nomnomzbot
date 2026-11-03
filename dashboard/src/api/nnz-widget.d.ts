@@ -1723,7 +1723,7 @@ interface NnzActionParams {
     already_message?: string;
   };
   'post_quote': {
-    number?: number;
+    number?: string;
   };
   'redemption_fulfill': {
   };

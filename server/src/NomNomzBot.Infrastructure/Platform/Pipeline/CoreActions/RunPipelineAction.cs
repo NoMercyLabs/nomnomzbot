@@ -63,7 +63,7 @@ public sealed class RunPipelineAction : ICommandAction
         [
             new(
                 "pipeline",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Pipeline,
                 Required: true,
                 Description: new("pipeline.run_pipeline.pipeline.help")
             ),

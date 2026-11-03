@@ -41,7 +41,7 @@ public sealed class SendWebhookAction : ICommandAction
         [
             new(
                 "endpoint",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.WebhookEndpoint,
                 Required: true,
                 Description: new("pipeline.send_webhook.endpoint.help")
             ),

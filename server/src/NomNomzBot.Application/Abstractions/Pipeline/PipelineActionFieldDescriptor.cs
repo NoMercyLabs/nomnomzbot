@@ -66,6 +66,54 @@ public enum PipelineActionFieldKind
     /// <summary>One hotkey OBS knows about, picked by name; the saved value is the hotkey name OBS fires it by.</summary>
     ObsHotkey,
 
+    /// <summary>One model of the connected VTube Studio, picked by name; the saved value is the VTS model id.</summary>
+    VtsModel,
+
+    /// <summary>One hotkey of the model loaded in VTube Studio, picked by name; the saved value is the VTS hotkey id.</summary>
+    VtsHotkey,
+
+    /// <summary>One expression file of the model loaded in VTube Studio; the saved value is the expression file name.</summary>
+    VtsExpression,
+
+    /// <summary>One economy game of the channel; the saved value is the game type key.</summary>
+    GameType,
+
+    /// <summary>One live game the platform ships (for example a drop game); the saved value is the game key.</summary>
+    LiveGameType,
+
+    /// <summary>One pronoun from the pronoun catalogue, or the choice to clear the override; the saved value is the pronoun name or <c>clear</c>.</summary>
+    Pronoun,
+
+    /// <summary>One playback device of the channel's music provider; the saved value is the provider's device id.</summary>
+    MusicDevice,
+
+    /// <summary>One track found by searching the channel's music provider; the saved value is the track URI.</summary>
+    MusicTrack,
+
+    /// <summary>One of the channel's pipelines, saved by its id (the form <c>run_pipeline</c> runs).</summary>
+    Pipeline,
+
+    /// <summary>One of the channel's pipelines, saved by its name (the form <c>schedule_pipeline</c> looks up).</summary>
+    PipelineName,
+
+    /// <summary>One of the channel's commands, saved by its name.</summary>
+    CommandName,
+
+    /// <summary>One registered pipeline action type; the saved value is the action type key.</summary>
+    ActionType,
+
+    /// <summary>One savings jar the channel owns or has joined, saved by its id.</summary>
+    SavingsJar,
+
+    /// <summary>One of the channel's giveaways, saved by its id.</summary>
+    Giveaway,
+
+    /// <summary>One of the channel's quotes; the saved value is the quote number.</summary>
+    Quote,
+
+    /// <summary>One outbound webhook endpoint of the channel, saved by its id.</summary>
+    WebhookEndpoint,
+
     /// <summary>
     /// A labelled name→value map (S-PIPE-TREE-d2b(a)) — the builder renders one labelled field per
     /// declared name instead of an unlabelled positional list. Used by <c>run_pipeline</c>'s
@@ -163,6 +211,22 @@ public static class PipelineActionFieldKindExtensions
             PipelineActionFieldKind.ObsTransition => "obs_transition",
             PipelineActionFieldKind.ObsInput => "obs_input",
             PipelineActionFieldKind.ObsHotkey => "obs_hotkey",
+            PipelineActionFieldKind.VtsModel => "vts_model",
+            PipelineActionFieldKind.VtsHotkey => "vts_hotkey",
+            PipelineActionFieldKind.VtsExpression => "vts_expression",
+            PipelineActionFieldKind.GameType => "game_type",
+            PipelineActionFieldKind.LiveGameType => "live_game_type",
+            PipelineActionFieldKind.Pronoun => "pronoun",
+            PipelineActionFieldKind.MusicDevice => "music_device",
+            PipelineActionFieldKind.MusicTrack => "music_track",
+            PipelineActionFieldKind.Pipeline => "pipeline",
+            PipelineActionFieldKind.PipelineName => "pipeline_name",
+            PipelineActionFieldKind.CommandName => "command_name",
+            PipelineActionFieldKind.ActionType => "action_type",
+            PipelineActionFieldKind.SavingsJar => "savings_jar",
+            PipelineActionFieldKind.Giveaway => "giveaway",
+            PipelineActionFieldKind.Quote => "quote",
+            PipelineActionFieldKind.WebhookEndpoint => "webhook_endpoint",
             _ => throw new ArgumentOutOfRangeException(nameof(kind), kind, message: null),
         };
 

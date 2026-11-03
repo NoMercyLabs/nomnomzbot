@@ -61,7 +61,7 @@ public sealed class SetPronounAction : ICommandAction
             ),
             new(
                 "pronoun",
-                PipelineActionFieldKind.Text,
+                PipelineActionFieldKind.Pronoun,
                 Required: true,
                 Description: new("pipeline.set_pronoun.pronoun.help")
             ),

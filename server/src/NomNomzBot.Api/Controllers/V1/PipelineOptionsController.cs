@@ -47,7 +47,7 @@ public sealed class PipelineOptionsController : BaseController
 
     /// <summary>
     /// The option list for one resource-picker kind (<c>reward</c>, <c>widget</c>, <c>voice</c>,
-    /// <c>sound_clip</c>, <c>discord_channel</c>, <c>discord_role</c>, <c>twitch_user</c>, <c>asset</c>, <c>script</c>, <c>music_playlist</c>, <c>twitch_reward</c>, <c>obs_audio_input</c>, <c>obs_scene</c>, <c>obs_scene_item</c>, <c>obs_filter</c>, <c>obs_transition</c>, <c>obs_input</c>, <c>obs_hotkey</c>, <c>discord_user</c>), paged
+    /// <c>sound_clip</c>, <c>discord_channel</c>, <c>discord_role</c>, <c>twitch_user</c>, <c>asset</c>, <c>script</c>, <c>music_playlist</c>, <c>twitch_reward</c>, <c>obs_audio_input</c>, <c>obs_scene</c>, <c>obs_scene_item</c>, <c>obs_filter</c>, <c>obs_transition</c>, <c>obs_input</c>, <c>obs_hotkey</c>, <c>discord_user</c>, <c>vts_model</c>, <c>vts_hotkey</c>, <c>vts_expression</c>, <c>game_type</c>, <c>live_game_type</c>, <c>pronoun</c>, <c>music_device</c>, <c>music_track</c>, <c>pipeline</c>, <c>pipeline_name</c>, <c>command_name</c>, <c>action_type</c>, <c>savings_jar</c>, <c>giveaway</c>, <c>quote</c>, <c>webhook_endpoint</c>), paged
     /// and optionally search-filtered. The OBS kinds list what the channel's connected OBS reports; a sibling
     /// setting sent in the query context narrows them (<c>scene</c> for <c>obs_scene_item</c>, <c>source</c> for <c>obs_filter</c>). With <c>value</c> set, only the option whose stored value equals it
     /// exactly comes back (search is ignored), so the dashboard can label a saved value that is not on the

@@ -37,7 +37,7 @@ public sealed class OpenGiveawayAction(IGiveawayService giveaways) : ICommandAct
         [
             new(
                 "giveaway_id",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Giveaway,
                 Required: true,
                 Description: new("pipeline.open_giveaway.giveaway_id.help")
             ),
@@ -78,7 +78,7 @@ public sealed class DrawGiveawayAction(IGiveawayService giveaways, IApplicationD
         [
             new(
                 "giveaway_id",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Giveaway,
                 Description: new("pipeline.draw_giveaway.giveaway_id.help")
             ),
         ];
@@ -129,7 +129,7 @@ public sealed class EnterGiveawayAction(IGiveawayService giveaways, IApplication
         [
             new(
                 "giveaway_id",
-                PipelineActionFieldKind.ResourceId,
+                PipelineActionFieldKind.Giveaway,
                 Description: new("pipeline.enter_giveaway.giveaway_id.help")
             ),
         ];
