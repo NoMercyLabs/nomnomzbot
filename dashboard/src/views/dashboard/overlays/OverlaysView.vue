@@ -16,7 +16,6 @@
 import VolumeTwo from '~icons/nnz/volume-two';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
 
 import { useRequiredOverlays, useWidgets, withoutRequired, type Widget } from '@/api/widgets';
 import ListDetail from '@/components/layout/ListDetail.vue';
@@ -34,6 +33,7 @@ import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
 import { keysOf } from '@/lib/array';
 import { usePanelState } from '@/composables/usePanelState';
+import { useQueryPane } from '@/composables/useQueryPane';
 
 import AudioMixPanel from './components/AudioMixPanel.vue';
 import NewOverlayDialog from './components/NewOverlayDialog.vue';
@@ -51,8 +51,6 @@ const TAB_VALUES = keysOf(FILTERS);
 type OverlayTab = (typeof TAB_VALUES)[number];
 
 const { t } = useI18n();
-const route = useRoute();
-const router = useRouter();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 
@@ -119,10 +117,8 @@ const count = computed<string | undefined>(() =>
     : undefined,
 );
 
-const asked = computed<string>(() =>
-  typeof route.query.id === 'string'
-    ? route.query.id
-    : '');
+const pane = useQueryPane('id');
+const asked = computed<string>(() => pane.id.value ?? '');
 // An id in the address looks in every overlay, so a switched-off one stays open on the On tab.
 const selected = computed<Widget | null>(() => {
   if (asked.value === '')
@@ -133,21 +129,14 @@ const selected = computed<Widget | null>(() => {
 const selectedId = computed<string>(() => selected.value?.id ?? '');
 
 function pick(widget: Widget): void {
-  void router.push({ query: { ...route.query, id: widget.id } });
+  pane.open(widget.id);
 }
 
 // A new overlay opens at once, so the person can start on its code.
 function open(id: string | null): void {
   if (id !== null) {
-    void router.push({ query: { ...route.query, id } });
+    pane.open(id);
   }
-}
-
-function back(): void {
-  const { id, ...rest } = route.query;
-
-  void id;
-  void router.push({ query: rest });
 }
 </script>
 
@@ -196,8 +185,8 @@ function back(): void {
         <OverlayDetail
           v-if="selected && can('widget:read')"
           :widget="selected"
-          @back="back"
-          @deleted="back"
+          @back="pane.close()"
+          @deleted="pane.close()"
           @duplicated="open"
         />
         <PanelCard

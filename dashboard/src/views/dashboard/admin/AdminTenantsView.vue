@@ -31,6 +31,7 @@ import SearchField from '@/components/layout/SearchField.vue';
 import SidePanel from '@/components/layout/SidePanel.vue';
 import { useScreenFrom } from '@/composables/useLayout';
 import { usePanelState } from '@/composables/usePanelState';
+import { useQueryPane } from '@/composables/useQueryPane';
 
 import AdminPager from './components/AdminPager.vue';
 import SupportContactPanel from './components/SupportContactPanel.vue';
@@ -101,11 +102,8 @@ const listError = computed<string>(() =>
     : t('dashboard.admin.tenants.list.error'),
 );
 
-const selectedId = computed<string>(() =>
-  typeof route.query.user === 'string'
-    ? route.query.user
-    : '',
-);
+const pane = useQueryPane('user');
+const selectedId = computed<string>(() => pane.id.value ?? '');
 const selected = computed<AdminTenant | null>(() =>
   rows.value.find((row) => row.userId === selectedId.value) ?? null);
 
@@ -114,7 +112,7 @@ const detailOpen = computed<boolean>({
   get: () => selected.value !== null,
   set: (open) => {
     if (!open) {
-      void router.push({ query: { ...route.query, user: undefined } });
+      pane.close();
     }
   },
 });
@@ -130,7 +128,7 @@ function open({ userId, channel }: AdminTenant): void {
     return;
   }
 
-  void router.push({ query: { ...route.query, user: userId } });
+  pane.open(userId);
 }
 </script>
 

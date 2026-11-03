@@ -12,7 +12,6 @@
 import { useEventListener, useLocalStorage } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
 
 import {
   triggerWord,
@@ -34,6 +33,7 @@ import { useCan } from '@/composables/useCan';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { useScreenFrom } from '@/composables/useLayout';
 import { usePageView } from '@/composables/usePageView';
+import { useQueryPane } from '@/composables/useQueryPane';
 import { isTyping } from '@/composables/useShortcut';
 
 import BuiltinEditor from './components/BuiltinEditor.vue';
@@ -43,8 +43,6 @@ import CommandList, { type CommandSort } from './components/CommandList.vue';
 import NewCommandDialog from './components/NewCommandDialog.vue';
 
 const { t } = useI18n();
-const route = useRoute();
-const router = useRouter();
 const { channelId } = useCurrentChannel();
 const { can } = useCan();
 const tablet = useScreenFrom('tablet');
@@ -79,44 +77,32 @@ const sortOptions = computed(
 );
 
 // The open command lives in the address (?command=), so a refresh or a link keeps it.
-const selected = computed<string | null>(() =>
-  typeof route.query.command === 'string'
-    ? route.query.command
-    : null,
-);
+const commandPane = useQueryPane('command', ['builtin']);
+const selected = commandPane.id;
 const row = computed<CommandListItem | undefined>(() =>
   (commands.data.value ?? []).find((item): boolean => item.name === selected.value),
 );
 
 // A built-in command opens by its name under ?builtin=, beside a custom one under ?command=.
-const selectedBuiltin = computed<string | null>(() =>
-  typeof route.query.builtin === 'string'
-    ? route.query.builtin
-    : null,
-);
+const builtinPane = useQueryPane('builtin', ['command']);
+const selectedBuiltin = builtinPane.id;
 const builtin = computed<BuiltinCommand | undefined>(() =>
   (builtins.data.value ?? []).find((item): boolean => triggerWord(item) === selectedBuiltin.value),
 );
 const open = computed<boolean>(() => row.value !== undefined || builtin.value !== undefined);
 
 function select(name: string | undefined): void {
-  void router.push({
-    query: {
-      ...route.query,
-      command: name,
-      builtin: undefined,
-    },
-  });
+  if (name === undefined) {
+    commandPane.close();
+
+    return;
+  }
+
+  commandPane.open(name);
 }
 
 function selectBuiltin(name: string): void {
-  void router.push({
-    query: {
-      ...route.query,
-      command: undefined,
-      builtin: name,
-    },
-  });
+  builtinPane.open(name);
 }
 
 function removeCommand(name: string): void {

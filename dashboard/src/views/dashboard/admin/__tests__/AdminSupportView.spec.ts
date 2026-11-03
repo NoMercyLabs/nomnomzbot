@@ -13,7 +13,7 @@ import { QueryClient, VueQueryPlugin } from '@tanstack/vue-query';
 import { flushPromises, mount, type VueWrapper } from '@vue/test-utils';
 import { createPinia, setActivePinia, type Pinia } from 'pinia';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { createMemoryHistory, createRouter } from 'vue-router';
+import { createMemoryHistory, createRouter, type Router } from 'vue-router';
 
 import { queryClient } from '@/api/queryClient';
 import { i18n } from '@/i18n';
@@ -141,6 +141,7 @@ vi.mock('@/api/client', () => ({
   },
 }));
 
+let router: Router;
 let mounted: VueWrapper | null = null;
 let pinia: Pinia;
 
@@ -167,7 +168,7 @@ const settle = async (): Promise<void> => {
 };
 
 async function open(personId = ''): Promise<void> {
-  const router = createRouter({
+  router = createRouter({
     history: createMemoryHistory(),
     routes: [
       {
@@ -267,6 +268,18 @@ describe('AdminSupportView', () => {
     expect(document.body.querySelector('[data-pipeline-row]')!.textContent).toContain(
       'Raid welcome',
     );
+  });
+
+  it('closes the open person with the Back link and leaves the rest of the query', async () => {
+    await open('u1&tab=x');
+    await type('[data-justification]', 'Ticket 41');
+    expect(router.currentRoute.value.query).toEqual({ person: 'u1', tab: 'x' });
+
+    document.body.querySelector<HTMLElement>('[data-detail-back]')!.click();
+    await settle();
+
+    expect(router.currentRoute.value.query).toEqual({ tab: 'x' });
+    expect(document.body.querySelector('[data-detail-back]')).toBeNull();
   });
 
   it('shows the forbidden message when the bot refuses', async () => {

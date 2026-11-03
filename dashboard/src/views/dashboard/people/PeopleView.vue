@@ -18,7 +18,6 @@
 import { refDebounced, useEventListener, useLocalStorage } from '@vueuse/core';
 import { computed, ref, watchEffect } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
 
 import {
   TwitchUserNotFoundError,
@@ -48,6 +47,7 @@ import { Button } from '@/components/ui/button';
 import { useCurrentChannel } from '@/composables/useCurrentChannel';
 import { usePageView } from '@/composables/usePageView';
 import { usePanelState } from '@/composables/usePanelState';
+import { useQueryPane } from '@/composables/useQueryPane';
 
 import Cross from '~icons/nnz/cross';
 
@@ -73,8 +73,6 @@ type PeopleSort = 'recent' | 'alphabetical';
 const CLIENT_SORTED = ['vip', 'subscriber'] as const satisfies readonly PeopleTab[];
 
 const { t } = useI18n();
-const route = useRoute();
-const router = useRouter();
 const { channelId } = useCurrentChannel();
 
 // The bot hands rows over last seen first; A to Z asks the bot for name order.
@@ -288,10 +286,8 @@ const count = computed<string | undefined>(() => {
 });
 
 // The person in ?u= can sit in any loaded list (a moderator is also in All), so look in every loaded one.
-const asked = computed<string>(() =>
-  typeof route.query.u === 'string'
-    ? route.query.u
-    : '');
+const pane = useQueryPane('u', ['tab']);
+const asked = computed<string>(() => pane.id.value ?? '');
 const loadedRow = computed<CommunityRow | null>(() => {
   const login = asked.value.toLowerCase();
 
@@ -338,23 +334,13 @@ const preview = computed<ProfilePreview | null>(() => {
 });
 
 // Another person opens on their Overview: the tab of the last one belongs to them.
-function show(login: string): void {
-  void router.push({
-    query: {
-      ...route.query,
-      u: login,
-      tab: undefined,
-    },
-  });
-}
-
 function pick(row: CommunityRow): void {
-  show(row.username);
+  pane.open(row.username);
 }
 
 function open(from: Seed): void {
   seed.value = from;
-  show(from.login);
+  pane.open(from.login);
 }
 
 function openOption(option: ViewerOption): void {
@@ -395,14 +381,6 @@ async function lookUp(): Promise<void> {
   }
 }
 
-function back(): void {
-  const { u, tab, ...rest } = route.query;
-
-  void u;
-  void tab;
-  void router.push({ query: rest });
-}
-
 function isTyping(target: EventTarget | null): boolean {
   return (
     target instanceof HTMLElement && target.matches('input, textarea, select, [contenteditable]')
@@ -428,7 +406,7 @@ function closeOnEscape(event: KeyboardEvent): void {
     asked.value === ''
   ) return;
 
-  back();
+  pane.close();
 }
 
 useEventListener(document, 'keydown', closeOnEscape);
@@ -515,7 +493,7 @@ useEventListener(document, 'keydown', closeOnEscape);
           data-page-inset
           class="self-start md:hidden"
           :label="$t('dashboard.people.back')"
-          @click="back"
+          @click="pane.close()"
         />
         <div
           class="relative flex flex-1 flex-col border-y bg-card md:min-h-0 md:overflow-hidden md:rounded-xl md:border"
@@ -527,7 +505,7 @@ useEventListener(document, 'keydown', closeOnEscape);
             size="icon"
             class="absolute top-2 right-2 z-10 max-md:hidden"
             :aria-label="$t('common.close')"
-            @click="back"
+            @click="pane.close()"
           >
             <Cross class="size-5" aria-hidden="true" />
           </Button>

@@ -15,10 +15,10 @@
 import { refDebounced } from '@vueuse/core';
 import { computed, ref } from 'vue';
 import { useI18n } from 'vue-i18n';
-import { useRoute, useRouter } from 'vue-router';
 
 import { useSupportPeople, type SupportPerson } from '@/api/adminSupport';
 import { ApiError } from '@/api/errors';
+import BackLink from '@/components/layout/BackLink.vue';
 import DetailPane from '@/components/layout/DetailPane.vue';
 import ListDetail from '@/components/layout/ListDetail.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -27,13 +27,12 @@ import type { PanelState } from '@/composables/usePanelState';
 import SearchField from '@/components/layout/SearchField.vue';
 import { Input } from '@/components/ui/input';
 import { usePanelState } from '@/composables/usePanelState';
+import { useQueryPane } from '@/composables/useQueryPane';
 
 import SupportActivityPanels from './components/SupportActivityPanels.vue';
 import SupportPersonPanels from './components/SupportPersonPanels.vue';
 
 const { t } = useI18n();
-const route = useRoute();
-const router = useRouter();
 
 const reason = ref('');
 const search = ref('');
@@ -63,15 +62,12 @@ const listError = computed<string>(() =>
     : t('dashboard.admin.support.list.error'),
 );
 
-const selectedId = computed<string | null>(() =>
-  typeof route.query.person === 'string'
-    ? route.query.person
-    : null,
-);
+const pane = useQueryPane('person');
+const selectedId = pane.id;
 const selected = computed(() => rows.value.find((row) => row.userId === selectedId.value));
 
 function pick(row: SupportPerson): void {
-  void router.push({ query: { ...route.query, person: row.userId } });
+  pane.open(row.userId);
 }
 </script>
 
@@ -135,6 +131,11 @@ function pick(row: SupportPerson): void {
       />
       <DetailPane v-else>
         <template #header>
+          <BackLink
+            data-detail-back
+            class="-ms-2 md:hidden"
+            @click="pane.close()"
+          />
           <h2 class="text-lg font-semibold">{{ selected?.displayName }}</h2>
         </template>
         <SupportPersonPanels :person-id="selectedId" :justification="justification" />
