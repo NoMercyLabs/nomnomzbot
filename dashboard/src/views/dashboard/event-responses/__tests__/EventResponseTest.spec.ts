@@ -52,6 +52,7 @@ const sample = (overrides: Row = {}): Row => ({
   variables: { user: 'Stoney_Eagle', viewers: '25' },
   chatLine: 'Raid from Stoney_Eagle with 25 viewers!',
   ttsText: 'Stoney Eagle raids with 25 viewers',
+  speechLines: [{ text: 'Stoney Eagle raids with 25 viewers', refusedReason: null }],
   alerts: ['Stoney_Eagle is raiding'],
   pipelineSteps: [],
   chatMessagesSent: 1,
@@ -241,6 +242,7 @@ describe('Event response test button', () => {
     result = sample({
       chatLine: null,
       ttsText: null,
+      speechLines: [],
       alerts: [],
     });
 
@@ -251,6 +253,64 @@ describe('Event response test button', () => {
     expect(resultBox()!.textContent).toContain('No chat line');
     expect(resultBox()!.textContent).toContain('No speech');
     expect(resultBox()!.textContent).toContain('No alerts');
+  });
+
+  it('shows the reason under a speech line the speech service refused', async () => {
+    result = sample({
+      speechLines: [{ text: 'Raid by Stoney_Eagle', refusedReason: 'TTS on this channel needs at least 500 bits.' }],
+    });
+
+    await open('/app/event-responses?event=channel.raid');
+    await press(editorButton());
+
+    expect(lines('[data-test-tts]')).toEqual(['Raid by Stoney_Eagle']);
+    expect(lines('[data-test-tts-refused]')).toEqual(['TTS on this channel needs at least 500 bits.']);
+    expect(resultBox()!.textContent).not.toContain('No speech');
+  });
+
+  it('shows no refusal line for a speech line that was accepted', async () => {
+    await open('/app/event-responses?event=channel.raid');
+    await press(editorButton());
+
+    expect(lines('[data-test-tts]')).toEqual(['Stoney Eagle raids with 25 viewers']);
+    expect(lines('[data-test-tts-refused]')).toEqual([]);
+  });
+
+  it('lists the lines the send_message steps sent and the speech of a pipeline response', async () => {
+    result = sample({
+      chatLine: null,
+      speechLines: [{ text: null, refusedReason: 'The TTS provider returned no audio.' }],
+      pipelineSteps: [
+        {
+          index: 0,
+          actionType: 'send_message',
+          succeeded: true,
+          output: 'Stoney_Eagle just followed!',
+        },
+        {
+          index: 1,
+          actionType: 'play_tts',
+          succeeded: false,
+          errorMessage: 'The TTS provider returned no audio.',
+        },
+      ],
+    });
+
+    await open('/app/event-responses?event=channel.raid');
+    await press(editorButton());
+
+    expect(lines('[data-test-chat]')).toEqual(['Stoney_Eagle just followed!']);
+    expect(lines('[data-test-tts]')).toEqual(['A pipeline step read a line aloud.']);
+    expect(lines('[data-test-tts-refused]')).toEqual(['The TTS provider returned no audio.']);
+    expect(resultBox()!.textContent).not.toContain('No chat line');
+  });
+
+  it('says the line goes to chat and is read aloud, not that nothing is sent', async () => {
+    await open('/app/event-responses?event=channel.raid');
+    await press(editorButton());
+
+    expect(document.body.textContent).toContain('sent to your chat and read aloud');
+    expect(document.body.textContent).not.toContain('sends nothing to your chat');
   });
 
   it('shows a visible line for each warning, before the result', async () => {

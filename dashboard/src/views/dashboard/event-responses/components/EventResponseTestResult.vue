@@ -45,6 +45,16 @@ const economySteps = computed<string[]>(() => {
     .filter((type): boolean => economyTypes.has(type));
 });
 
+// A pipeline response does its chat inside its steps, so the lines its send_message steps sent are the chat line.
+const chatLines = computed<string[]>(() => {
+  if (props.result.chatLine)
+    return [props.result.chatLine];
+
+  return props.result.pipelineSteps
+    .filter((step): boolean => step.actionType === 'send_message' && Boolean(step.output))
+    .map((step): string => step.output ?? '');
+});
+
 function stepText(step: EventResponseTestResult['pipelineSteps'][number]): string {
   const outcome = step.succeeded
     ? t('dashboard.eventResponses.test.stepRan')
@@ -76,19 +86,29 @@ function stepText(step: EventResponseTestResult['pipelineSteps'][number]): strin
 
     <section class="grid gap-2">
       <h3 class="text-sm font-medium">{{ $t('dashboard.eventResponses.test.chat') }}</h3>
-      <p
-        v-if="result.chatLine"
-        data-test-chat
-        class="w-fit max-w-full rounded-[8px] bg-muted px-3 py-2 text-sm wrap-break-word"
-      >
-        {{ result.chatLine }}
-      </p>
+      <template v-if="chatLines.length > 0">
+        <p
+          v-for="(line, index) in chatLines"
+          :key="index"
+          data-test-chat
+          class="w-fit max-w-full rounded-[8px] bg-muted px-3 py-2 text-sm wrap-break-word"
+        >
+          {{ line }}
+        </p>
+      </template>
       <p v-else class="text-sm text-muted-foreground">{{ $t('dashboard.eventResponses.test.chatNone') }}</p>
     </section>
 
     <section class="grid gap-2">
       <h3 class="text-sm font-medium">{{ $t('dashboard.eventResponses.test.tts') }}</h3>
-      <p v-if="result.ttsText" data-test-tts class="text-sm wrap-break-word">{{ result.ttsText }}</p>
+      <ul v-if="result.speechLines.length > 0" class="grid gap-1 text-sm">
+        <li v-for="(line, index) in result.speechLines" :key="index" class="wrap-break-word">
+          <span data-test-tts>{{ line.text ?? $t('dashboard.eventResponses.test.ttsStep') }}</span>
+          <span v-if="line.refusedReason" data-test-tts-refused class="block text-muted-foreground">
+            {{ line.refusedReason }}
+          </span>
+        </li>
+      </ul>
       <p v-else class="text-sm text-muted-foreground">{{ $t('dashboard.eventResponses.test.ttsNone') }}</p>
     </section>
 

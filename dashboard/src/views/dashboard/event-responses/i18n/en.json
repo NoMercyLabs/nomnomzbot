@@ -77,7 +77,7 @@
       "test": {
         "button": "Test",
         "title": "Test: {event}",
-        "description": "A sample event fires through this response. The test sends nothing to your chat.",
+        "description": "A sample event fires through this response. The line is sent to your chat and read aloud like a real event. Nothing is granted or counted.",
         "running": "Running the test",
         "error": "The test could not run.",
         "close": "Close",
@@ -85,6 +85,7 @@
         "chatNone": "No chat line. The response says nothing in chat.",
         "tts": "Speech",
         "ttsNone": "No speech. Nothing is read aloud.",
+        "ttsStep": "A pipeline step read a line aloud.",
         "alerts": "Overlay alerts",
         "alertsNone": "No alerts sent to the overlay.",
         "steps": "Pipeline steps",

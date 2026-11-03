@@ -106,7 +106,8 @@ public sealed class EventResponseTestEndpointTests : IAsyncLifetime
             1,
             0,
             0,
-            ["no_overlay_source"]
+            ["no_overlay_source"],
+            []
         );
         IEventResponseTestService service = Substitute.For<IEventResponseTestService>();
         service

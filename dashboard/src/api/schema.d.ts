@@ -93974,14 +93974,26 @@ export interface components {
             /** Format: int32 */
             overlaysShown: number | string;
             warnings: string[];
+            /** @description Every request to read a line aloud, from the response itself and from its pipeline steps, with the reason when one was refused. */
+            speechLines: components["schemas"]["EventResponseTestSpeechLine"][];
         };
-        /** @description One pipeline step a test fire ran. */
+        /**
+         * @description One request to read a line aloud during a test fire. Text is the text that was asked for, or
+         *     null when a pipeline step asked and its text is not known. RefusedReason is why the request
+         *     was refused, or null when it was accepted.
+         */
+        EventResponseTestSpeechLine: {
+            text?: null | string;
+            refusedReason?: null | string;
+        };
+        /** @description One pipeline step a test fire ran. Output is what the step produced, such as the line a send_message step sent. */
         EventResponseTestStep: {
             /** Format: int32 */
             index: number | string;
             actionType: string;
             succeeded: boolean;
             errorMessage?: null | string;
+            output?: null | string;
         };
         /** @description The outcome of a registry reconcile pass (twitch-eventsub §4.4). */
         EventSubReconcileReport: {

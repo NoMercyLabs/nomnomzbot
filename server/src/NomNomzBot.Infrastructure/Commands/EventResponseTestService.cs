@@ -102,6 +102,7 @@ public sealed class EventResponseTestService : IEventResponseTestService
                 $"'{eventType}' is not an event type with a response.",
                 "NOT_FOUND"
             );
+        UseRealAlsoSaidClause(sample);
 
         List<string> warnings = [];
         if (!_presence.IsOverlayConnected(broadcasterId))
@@ -140,6 +141,7 @@ public sealed class EventResponseTestService : IEventResponseTestService
         RecordingPipelineEngine engine = new(_pipeline);
         RecordingReplyDispatcher replies = new(_replies);
         RecordingOverlayNotifier overlay = new(_overlayNotifier);
+        RecordingTtsDispatch tts = new(_tts);
         EventResponseExecutor executor = new(
             _db,
             engine,
@@ -147,7 +149,7 @@ public sealed class EventResponseTestService : IEventResponseTestService
             replies,
             _sanctions,
             overlay,
-            _tts,
+            tts,
             _invoker,
             _logger
         );
@@ -168,8 +170,33 @@ public sealed class EventResponseTestService : IEventResponseTestService
             overlay.Alerts,
             engine.Steps,
             outcome,
-            warnings
+            warnings,
+            [.. tts.Lines, .. PlayTtsStepLines(engine.Steps)]
         );
+    }
+
+    /// <summary>
+    /// A play_tts step calls the speech service itself, out of reach of the recorder, so its step log is the record:
+    /// the text is not known, and a failed step carries the refusal.
+    /// </summary>
+    private static IEnumerable<EventResponseTestSpeechLine> PlayTtsStepLines(
+        IReadOnlyList<StepExecutionLog> steps
+    ) =>
+        steps
+            .Where(s => s.ActionType == "play_tts")
+            .Select(s => new EventResponseTestSpeechLine(
+                null,
+                s.Succeeded ? null : s.ErrorMessage ?? "The speech step failed."
+            ));
+
+    /// <summary>A real event carries <c>{also_said}</c> as the ready-made clause, not the bare message the sample table holds.</summary>
+    private static void UseRealAlsoSaidClause(Dictionary<string, string> sample)
+    {
+        if (!sample.ContainsKey("also_said"))
+            return;
+
+        sample.TryGetValue("message", out string? message);
+        sample["also_said"] = AlsoSaidClause.From(message);
     }
 
     /// <summary>The result of a fire that presented nothing: only the sample and the warnings.</summary>
@@ -177,7 +204,7 @@ public sealed class EventResponseTestService : IEventResponseTestService
         string eventType,
         Dictionary<string, string> sample,
         List<string> warnings
-    ) => new(eventType, sample, null, null, [], [], 0, 0, 0, warnings);
+    ) => new(eventType, sample, null, null, [], [], 0, 0, 0, warnings, []);
 
     private static EventResponseTestResult Presented(
         string eventType,
@@ -186,7 +213,8 @@ public sealed class EventResponseTestService : IEventResponseTestService
         IReadOnlyList<string> alerts,
         IReadOnlyList<StepExecutionLog> steps,
         EventResponseOutcome outcome,
-        List<string> warnings
+        List<string> warnings,
+        IReadOnlyList<EventResponseTestSpeechLine> speechLines
     ) =>
         new(
             eventType,
@@ -199,13 +227,15 @@ public sealed class EventResponseTestService : IEventResponseTestService
                     s.StepIndex,
                     s.ActionType,
                     s.Succeeded,
-                    s.ErrorMessage
+                    s.ErrorMessage,
+                    s.Output
                 )),
             ],
             outcome.ChatMessagesSent,
             outcome.TtsQueued,
             outcome.OverlaysShown,
-            warnings
+            warnings,
+            speechLines
         );
 
     /// <summary>A channel's own row is enabled by its flag; a row that follows the platform default is as enabled as that default.</summary>

@@ -194,6 +194,204 @@ public sealed class EventResponseTestServiceTests
     }
 
     [Fact]
+    public async Task A_refused_speech_request_carries_the_refusal_reason_in_the_result()
+    {
+        Rig rig = await BuildAsync();
+        rig.Tts.RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<TtsDispatchOutcome>(
+                    "TTS on this channel needs at least 500 bits.",
+                    "FORBIDDEN"
+                )
+            );
+        await SeedResponseAsync(
+            rig.Db,
+            "channel.raid",
+            "chat_message",
+            "Raid by {user}",
+            speakWithTts: true
+        );
+
+        Result<EventResponseTestResult> result = await rig.Service.FireAsync(
+            Tenant,
+            "channel.raid",
+            Caller
+        );
+
+        result.Value.TtsQueued.Should().Be(0);
+        result.Value.TtsText.Should().BeNull();
+        result
+            .Value.SpeechLines.Should()
+            .Equal(
+                new EventResponseTestSpeechLine(
+                    "Raid by Stoney_Eagle",
+                    "TTS on this channel needs at least 500 bits."
+                )
+            );
+    }
+
+    [Fact]
+    public async Task A_cheer_response_gives_the_speech_gate_the_bits_of_the_cheer()
+    {
+        Rig rig = await BuildAsync();
+        await SeedResponseAsync(
+            rig.Db,
+            "channel.cheer",
+            "chat_message",
+            "{user} cheered {bits} bits!",
+            speakWithTts: true
+        );
+
+        Result<EventResponseTestResult> result = await rig.Service.FireAsync(
+            Tenant,
+            "channel.cheer",
+            Caller
+        );
+
+        result.Value.Variables["bits"].Should().Be("100");
+        await rig
+            .Tts.Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(r => r.BitsAmount == 100),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task A_pipeline_response_reports_the_line_its_send_message_step_sent_and_its_speech_request()
+    {
+        Rig rig = await BuildAsync();
+        await SeedPipelineResponseAsync(
+            rig,
+            new()
+            {
+                StepIndex = 0,
+                ActionType = "send_message",
+                Succeeded = true,
+                Duration = TimeSpan.Zero,
+                Output = "Stoney_Eagle just followed!",
+            },
+            new()
+            {
+                StepIndex = 1,
+                ActionType = "play_tts",
+                Succeeded = true,
+                Duration = TimeSpan.Zero,
+            }
+        );
+
+        Result<EventResponseTestResult> result = await rig.Service.FireAsync(
+            Tenant,
+            "channel.raid",
+            Caller
+        );
+
+        result.Value.PipelineSteps[0].Output.Should().Be("Stoney_Eagle just followed!");
+        result.Value.SpeechLines.Should().Equal(new EventResponseTestSpeechLine(null, null));
+    }
+
+    [Fact]
+    public async Task A_refused_play_tts_step_carries_its_failure_message_as_the_refusal_reason()
+    {
+        Rig rig = await BuildAsync();
+        await SeedPipelineResponseAsync(
+            rig,
+            new StepExecutionLog
+            {
+                StepIndex = 0,
+                ActionType = "play_tts",
+                Succeeded = false,
+                Duration = TimeSpan.Zero,
+                ErrorMessage = "The TTS provider returned no audio.",
+            }
+        );
+
+        Result<EventResponseTestResult> result = await rig.Service.FireAsync(
+            Tenant,
+            "channel.raid",
+            Caller
+        );
+
+        result
+            .Value.SpeechLines.Should()
+            .Equal(new EventResponseTestSpeechLine(null, "The TTS provider returned no audio."));
+    }
+
+    private static async Task SeedPipelineResponseAsync(Rig rig, params StepExecutionLog[] logs)
+    {
+        Guid pipelineId = Guid.CreateVersion7();
+        rig.Db.Pipelines.Add(
+            new()
+            {
+                Id = pipelineId,
+                BroadcasterId = Tenant,
+                Name = "Incoming Raid",
+                GraphJsonCache = """{"steps":[]}""",
+            }
+        );
+        await rig.Db.SaveChangesAsync();
+        await SeedResponseAsync(rig.Db, "channel.raid", "pipeline", pipelineId: pipelineId);
+        rig.Engine.ExecuteAsync(Arg.Any<PipelineRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Task.FromResult(
+                    new PipelineExecutionResult
+                    {
+                        ExecutionId = "x",
+                        Outcome = PipelineOutcome.Completed,
+                        Duration = TimeSpan.Zero,
+                        StepLogs = logs,
+                    }
+                )
+            );
+    }
+
+    [Fact]
+    public async Task A_spoken_response_has_one_accepted_speech_line()
+    {
+        Rig rig = await BuildAsync();
+        await SeedResponseAsync(
+            rig.Db,
+            "channel.raid",
+            "chat_message",
+            "Raid by {user}",
+            speakWithTts: true
+        );
+
+        Result<EventResponseTestResult> result = await rig.Service.FireAsync(
+            Tenant,
+            "channel.raid",
+            Caller
+        );
+
+        result.Value.TtsQueued.Should().Be(1);
+        result
+            .Value.SpeechLines.Should()
+            .Equal(new EventResponseTestSpeechLine("Raid by Stoney_Eagle", null));
+    }
+
+    [Fact]
+    public async Task A_cheer_sample_with_a_message_reads_the_also_said_clause_like_a_real_event()
+    {
+        Rig rig = await BuildAsync();
+        await SeedResponseAsync(
+            rig.Db,
+            "channel.cheer",
+            "chat_message",
+            "{user} cheered {bits} bits! Thanks!{also_said}"
+        );
+
+        Result<EventResponseTestResult> result = await rig.Service.FireAsync(
+            Tenant,
+            "channel.cheer",
+            Caller
+        );
+
+        result.Value.Variables["message"].Should().Be("Great stream!");
+        result.Value.Variables["also_said"].Should().Be(" They also said: \"Great stream!\"");
+        result.Value.ChatLine.Should().EndWith("Thanks! They also said: \"Great stream!\"");
+    }
+
+    [Fact]
     public async Task A_disabled_response_returns_the_warning_and_presents_nothing()
     {
         Rig rig = await BuildAsync();
@@ -372,7 +570,7 @@ public sealed class EventResponseTestServiceTests
 
         result.Value.Warnings.Should().Contain(EventResponseTestWarnings.NoPipeline);
         result.Value.PipelineSteps.Should().BeEmpty();
-        await rig.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!, default);
+        await rig.Engine.DidNotReceiveWithAnyArgs().ExecuteAsync(default!);
     }
 
     [Fact]
@@ -392,7 +590,7 @@ public sealed class EventResponseTestServiceTests
             .BeEmpty();
         await rig
             .Engine.DidNotReceiveWithAnyArgs()
-            .ResumeSuspendedRunsForEventAsync(default, default!, default!, default);
+            .ResumeSuspendedRunsForEventAsync(default, default!, default!);
     }
 
     [Fact]

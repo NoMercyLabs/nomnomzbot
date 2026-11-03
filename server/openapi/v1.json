@@ -119693,7 +119693,8 @@
           "chatMessagesSent",
           "ttsQueued",
           "overlaysShown",
-          "warnings"
+          "warnings",
+          "speechLines"
         ],
         "type": "object",
         "properties": {
@@ -119765,9 +119766,34 @@
             "items": {
               "type": "string"
             }
+          },
+          "speechLines": {
+            "type": "array",
+            "items": {
+              "$ref": "#/components/schemas/EventResponseTestSpeechLine"
+            },
+            "description": "Every request to read a line aloud, from the response itself and from its pipeline steps, with the reason when one was refused."
           }
         },
         "description": "What a test fire of an event response put in front of viewers. Every field is something that really went\r\nout; zero and empty are truthful answers. IReadOnlyList&lt;string&gt; EventResponseTestResult.Warnings holds the codes of\r\n`EventResponseTestWarnings`."
+      },
+      "EventResponseTestSpeechLine": {
+        "type": "object",
+        "properties": {
+          "text": {
+            "type": [
+              "null",
+              "string"
+            ]
+          },
+          "refusedReason": {
+            "type": [
+              "null",
+              "string"
+            ]
+          }
+        },
+        "description": "One request to read a line aloud during a test fire. Text is the text that was asked for, or\r\nnull when a pipeline step asked and its text is not known. RefusedReason is why the request\r\nwas refused, or null when it was accepted."
       },
       "EventResponseTestStep": {
         "required": [
@@ -119796,9 +119822,15 @@
               "null",
               "string"
             ]
+          },
+          "output": {
+            "type": [
+              "null",
+              "string"
+            ]
           }
         },
-        "description": "One pipeline step a test fire ran."
+        "description": "One pipeline step a test fire ran. Output is what the step produced, such as the line a send_message step sent."
       },
       "EventSubReconcileReport": {
         "required": [

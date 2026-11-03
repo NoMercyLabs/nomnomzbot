@@ -409,6 +409,13 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
     /// whether anything could PLAY the line is reported by the tts_speak broadcaster, so nothing here claims it
     /// was heard.
     /// </summary>
+    private static int BitsOf(Dictionary<string, string> variables)
+    {
+        string? bits =
+            variables.GetValueOrDefault("user.bits") ?? variables.GetValueOrDefault("bits");
+        return int.TryParse(bits, out int amount) ? amount : 0;
+    }
+
     private async Task<bool> SpeakAsync(
         Guid broadcasterId,
         string eventTypeKey,
@@ -429,10 +436,7 @@ public sealed class EventResponseExecutor : IEventResponseExecutor
                     Text: text,
                     VoiceIdOverride: null,
                     Segments: parts,
-                    BitsAmount: variables.TryGetValue("user.bits", out string? bits)
-                    && int.TryParse(bits, out int bitsAmount)
-                        ? bitsAmount
-                        : 0,
+                    BitsAmount: BitsOf(variables),
                     CommunityStanding: "broadcaster",
                     SourceMessageId: null,
                     StreamId: null,

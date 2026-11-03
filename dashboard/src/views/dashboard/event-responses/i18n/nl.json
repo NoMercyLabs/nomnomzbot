@@ -77,7 +77,7 @@
       "test": {
         "button": "Test",
         "title": "Test: {event}",
-        "description": "Een voorbeeld-event gaat door deze reactie. De test stuurt niets naar je chat.",
+        "description": "Een voorbeeld-event gaat door deze reactie. De regel gaat naar je chat en wordt voorgelezen zoals bij een echt event. Er wordt niets uitgekeerd of geteld.",
         "running": "De test loopt",
         "error": "De test kon niet draaien.",
         "close": "Sluiten",
@@ -85,6 +85,7 @@
         "chatNone": "Geen chatregel. De reactie zegt niets in de chat.",
         "tts": "Spraak",
         "ttsNone": "Geen spraak. Er wordt niets voorgelezen.",
+        "ttsStep": "Een pipeline-stap las een regel voor.",
         "alerts": "Overlay-meldingen",
         "alertsNone": "Geen meldingen naar de overlay gestuurd.",
         "steps": "Pipeline-stappen",
