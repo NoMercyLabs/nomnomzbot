@@ -12,8 +12,11 @@
 using Asp.Versioning;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.AspNetCore.RateLimiting;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Api.RateLimiting;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Alerts.Dtos;
 using NomNomzBot.Application.Alerts.Services;
 using NomNomzBot.Application.Commands.Dtos;
@@ -37,16 +40,22 @@ public class EventResponsesController : BaseController
     private readonly IEventResponseService _eventResponseService;
     private readonly IWidgetService _widgetService;
     private readonly IAlertQueueService _alertQueue;
+    private readonly IEventResponseTestService _eventResponseTest;
+    private readonly ICurrentUserService _currentUser;
 
     public EventResponsesController(
         IEventResponseService eventResponseService,
         IWidgetService widgetService,
-        IAlertQueueService alertQueue
+        IAlertQueueService alertQueue,
+        IEventResponseTestService eventResponseTest,
+        ICurrentUserService currentUser
     )
     {
         _eventResponseService = eventResponseService;
         _widgetService = widgetService;
         _alertQueue = alertQueue;
+        _eventResponseTest = eventResponseTest;
+        _currentUser = currentUser;
     }
 
     /// <summary>
@@ -180,6 +189,39 @@ public class EventResponsesController : BaseController
         if (result.IsFailure)
             return ResultResponse(result);
         return Ok(new StatusResponseDto<EventResponseDto> { Data = result.Value });
+    }
+
+    /// <summary>
+    /// Fires a sample event of this type through the channel's response and its pipeline, with the caller as the
+    /// acting user and the viewers and other fields from the sample tables, and reports what was presented: the chat
+    /// line, the speech, the overlay alerts and the pipeline steps. Presentation-only like an activity replay: it
+    /// never grants currency or loyalty, moves a counter, stat or hype state, or writes an activity or journal row.
+    /// Warns (codes) when the response is disabled, has no pipeline, or no overlay browser source is attached.
+    /// </summary>
+    [RequireAction("eventresponses:write")]
+    [EnableRateLimiting(RateLimitPolicyNames.WriteExpensive)]
+    [HttpPost("{eventType}/test")]
+    [ProducesResponseType<StatusResponseDto<EventResponseTestResult>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> TestEventResponse(
+        string channelId,
+        string eventType,
+        CancellationToken ct
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return ResultResponse(Errors.ChannelNotFound<EventResponseTestResult>(channelId));
+        if (!Guid.TryParse(_currentUser.UserId, out Guid callerId))
+            return UnauthenticatedResponse();
+
+        Result<EventResponseTestResult> result = await _eventResponseTest.FireAsync(
+            broadcasterId,
+            eventType,
+            callerId,
+            ct
+        );
+        if (result.IsFailure)
+            return ResultResponse(result);
+        return Ok(new StatusResponseDto<EventResponseTestResult> { Data = result.Value });
     }
 
     /// <summary>
