@@ -46,6 +46,10 @@ internal sealed record EmoteRow(
     /// <summary>Whose data the row reads (the viewer who typed the command, or the channel).</summary>
     public TemplateHelperScope Scope { get; init; } = TemplateHelperScope.Channel;
 
+    public bool LazyArguments { get; init; }
+
+    public bool ViewerText { get; init; }
+
     public TemplateHelperFreshness Freshness =>
         Sources == EmoteSources.None
             ? TemplateHelperFreshness.Pure
@@ -70,7 +74,15 @@ internal sealed record EmoteRow(
         int maxArgs = 0
     ) => new(key, sample, sources, minArgs, maxArgs, render);
 
-    public EmoteRow ForViewer() => this with { Scope = TemplateHelperScope.Viewer };
+    public IReadOnlyList<TemplateHelperContext> Contexts { get; init; } =
+        TemplateHelperContexts.Standard;
+
+    public EmoteRow ForViewer() =>
+        this with
+        {
+            Scope = TemplateHelperScope.Viewer,
+            Contexts = TemplateHelperContexts.WithTriggerViewerAndDiscord,
+        };
 
     public Task<string?> RenderAsync(EmoteCall call) =>
         call.Args.Count < MinArgs || call.Args.Count > MaxArgs
@@ -78,11 +90,16 @@ internal sealed record EmoteRow(
             : Render(call);
 
     public TemplateHelperEntry ToEntry() =>
-        new(Key, TemplateHelperContexts.Standard, new LocalizedText("template.helper." + Key))
+        new(
+            Key,
+            ViewerText ? [.. Contexts, TemplateHelperContext.Viewer] : Contexts,
+            new LocalizedText("template.helper." + Key)
+        )
         {
             Sample = Sample,
             Source = Sources == EmoteSources.None ? null : Sources.ToString().ToLowerInvariant(),
             Freshness = Freshness,
             Scope = Scope,
+            LazyArguments = LazyArguments,
         };
 }

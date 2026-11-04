@@ -323,8 +323,8 @@ This page is generated from the helper registry by `TemplateSurfaceAvailability.
 | `emote.list.bttv` | Y | Y | Y | Y | Y | Y | V |
 | `emote.list.channel` | Y | Y | Y | Y | Y | Y | V |
 | `emote.list.ffz` | Y | Y | Y | Y | Y | Y | V |
-| `emote.message.count` | Y | Y | Y | Y | Y | Y | V |
-| `emote.message.first` | Y | Y | Y | Y | Y | Y | V |
+| `emote.message.count` | Y | Y | M | Y | Y | Y | V |
+| `emote.message.first` | Y | Y | M | Y | Y | Y | V |
 | `emote.provider` | Y | Y | Y | Y | Y | Y | V |
 | `emote.random` | Y | Y | Y | Y | Y | Y | V |
 | `emote.random.7tv` | Y | Y | Y | Y | Y | Y | V |
@@ -335,10 +335,10 @@ This page is generated from the helper registry by `TemplateSurfaceAvailability.
 | `emote.random.follower` | Y | Y | Y | Y | Y | Y | V |
 | `emote.random.global` | Y | Y | Y | Y | Y | Y | V |
 | `emote.random.sub` | Y | Y | Y | Y | Y | Y | V |
-| `emote.repeat` | Y | Y | Y | Y | Y | Y | V |
+| `emote.repeat` | Y | Y | Y | Y | Y | Y | Y |
 | `emote.user.favorite` | Y | Y | Y | Y | Y | Y | V |
-| `emote.user.top` | Y | Y | Y | Y | Y | Y | V |
-| `emote.user.top.count` | Y | Y | Y | Y | Y | Y | V |
+| `emote.user.top` | Y | Y | Vw | Y | Y | Y | V |
+| `emote.user.top.count` | Y | Y | Vw | Y | Y | Y | V |
 | `emote.wall` | Y | Y | Y | Y | Y | Y | V |
 
 ## engagement
@@ -366,7 +366,7 @@ This page is generated from the helper registry by `TemplateSurfaceAvailability.
 | `fun.lenny` | Y | Y | Y | Y | Y | Y | Y |
 | `fun.love` | Y | Y | Y | Y | Y | Y | Y |
 | `fun.meter` | Y | Y | Y | Y | Y | Y | Y |
-| `fun.percent` | Y | Y | Y | Y | Y | Y | Y |
+| `fun.percent` | Y | Y | Vw | Y | Vw | Y | Y |
 | `fun.random.animal` | Y | Y | Y | Y | Y | Y | Y |
 | `fun.random.color.name` | Y | Y | Y | Y | Y | Y | Y |
 | `fun.random.emoji` | Y | Y | Y | Y | Y | Y | Y |
@@ -503,7 +503,7 @@ This page is generated from the helper registry by `TemplateSurfaceAvailability.
 | `lookup.game.top` | Y | Y | Y | Y | Y | Y | V |
 | `lookup.time` | Y | Y | Y | Y | Y | Y | V |
 | `lookup.translate` | Y | Y | Y | Y | Y | Y | V |
-| `lookup.translate.chat` | Y | Y | Y | Y | Y | Y | V |
+| `lookup.translate.chat` | Y | Y | M | Y | Y | Y | V |
 | `lookup.twitch` | Y | Y | Y | Y | Y | Y | V |
 | `lookup.weather` | Y | Y | Y | Y | Y | Y | V |
 
@@ -570,26 +570,26 @@ This page is generated from the helper registry by `TemplateSurfaceAvailability.
 | `music.queue.item` | Y | Y | Y | Y | Y | Y | V |
 | `music.queue.length` | Y | Y | Y | Y | Y | Y | V |
 | `music.queue.list` | Y | Y | Y | Y | Y | Y | V |
-| `music.queue.mine.code` | Y | Y | Y | Y | Y | Y | V |
-| `music.queue.mine.count` | Y | Y | Y | Y | Y | Y | V |
-| `music.queue.mine.next` | Y | Y | Y | Y | Y | Y | V |
-| `music.queue.mine.titles` | Y | Y | Y | Y | Y | Y | V |
+| `music.queue.mine.code` | Y | Y | Vw | Y | Vw | Y | V |
+| `music.queue.mine.count` | Y | Y | Vw | Y | Vw | Y | V |
+| `music.queue.mine.next` | Y | Y | Vw | Y | Vw | Y | V |
+| `music.queue.mine.titles` | Y | Y | Vw | Y | Vw | Y | V |
 | `music.queue.next` | Y | Y | Y | Y | Y | Y | V |
 | `music.queue.next.requester` | Y | Y | Y | Y | Y | Y | V |
-| `music.queue.position` | Y | Y | Y | Y | Y | Y | V |
-| `music.queue.position.ordinal` | Y | Y | Y | Y | Y | Y | V |
+| `music.queue.position` | Y | Y | Vw | Y | Vw | Y | V |
+| `music.queue.position.ordinal` | Y | Y | Vw | Y | Vw | Y | V |
 | `music.queue.requesters` | Y | Y | Y | Y | Y | Y | V |
 | `music.queue.target.count` | Y | Y | N | Y | N | Y | V |
-| `music.queue.wait` | Y | Y | Y | Y | Y | Y | V |
-| `music.queue.wait.at` | Y | Y | Y | Y | Y | Y | V |
+| `music.queue.wait` | Y | Y | Vw | Y | Vw | Y | V |
+| `music.queue.wait.at` | Y | Y | Vw | Y | Vw | Y | V |
 | `music.repeat` | Y | Y | Y | Y | Y | Y | V |
 | `music.requests.maxDuration` | Y | Y | Y | Y | Y | Y | V |
 | `music.requests.maxPerUser` | Y | Y | Y | Y | Y | Y | V |
 | `music.requests.open` | Y | Y | Y | Y | Y | Y | V |
 | `music.shuffle` | Y | Y | Y | Y | Y | Y | V |
-| `music.user.lastRequest` | Y | Y | Y | Y | Y | Y | V |
-| `music.user.requests.stream` | Y | Y | Y | Y | Y | Y | V |
-| `music.user.requests.total` | Y | Y | Y | Y | Y | Y | V |
+| `music.user.lastRequest` | Y | Y | Vw | Y | Vw | Y | V |
+| `music.user.requests.stream` | Y | Y | Vw | Y | Vw | Y | V |
+| `music.user.requests.total` | Y | Y | Vw | Y | Vw | Y | V |
 | `music.volume` | Y | Y | Y | Y | Y | Y | V |
 
 ## num
@@ -655,7 +655,7 @@ This page is generated from the helper registry by `TemplateSurfaceAvailability.
 | `platform.chatters.stream` | Y | Y | Y | Y | Y | Y | V |
 | `platform.connected` | Y | Y | Y | Y | Y | Y | V |
 | `platform.count` | Y | Y | Y | Y | Y | Y | V |
-| `platform.event` | Y | Y | Y | Y | Y | Y | V |
+| `platform.event` | Y | Y | P | Y | Y | Y | V |
 | `platform.followers.twitch` | Y | Y | Y | Y | Y | Y | V |
 | `platform.isLive` | Y | Y | Y | Y | Y | Y | V |
 | `platform.link.kick` | Y | Y | Y | Y | Y | Y | V |
@@ -1171,5 +1171,8 @@ This page is generated from the helper registry by `TemplateSurfaceAvailability.
 | --- | --- |
 | `A` | it needs a chat command, and only commands and pipelines carry one |
 | `U` | it needs a trigger that carries a viewer or a chat message, and timers and Discord notifications have none |
+| `P` | it needs an originating platform event, and scheduled timers have none |
+| `M` | it needs a triggering chat message, and scheduled timers have none |
+| `Vw` | it needs a viewer identity, which scheduled timers and go-live posts do not carry |
 | `V` | viewer text allows only the helpers whose registry row lists it, and this row does not |
 | `N` | the registry row of this helper does not list this surface, and no general rule explains it |

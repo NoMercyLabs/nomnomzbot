@@ -67,6 +67,31 @@ public static class TemplateSurfaceAvailability
             "it needs a trigger that carries a viewer or a chat message, and timers and Discord notifications have none"
         ),
         new(
+            "P",
+            ["platform.event"],
+            [TemplateHelperContext.Timer],
+            "it needs an originating platform event, and scheduled timers have none"
+        ),
+        new(
+            "M",
+            ["lookup.translate.chat", "emote.message."],
+            [TemplateHelperContext.Timer],
+            "it needs a triggering chat message, and scheduled timers have none"
+        ),
+        new(
+            "Vw",
+            [
+                "music.user.",
+                "music.queue.mine.",
+                "music.queue.position",
+                "music.queue.wait",
+                "emote.user.top",
+                "fun.percent",
+            ],
+            [TemplateHelperContext.Timer, TemplateHelperContext.Discord],
+            "it needs a viewer identity, which scheduled timers and go-live posts do not carry"
+        ),
+        new(
             "V",
             [],
             [TemplateHelperContext.Viewer],

@@ -9,10 +9,20 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using NomNomzBot.Application.Abstractions.Templating;
+
 namespace NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Chat;
 
-/// <summary>The go-live Discord trigger has no incoming chat message.</summary>
+/// <summary>A pipeline Discord post carries the raw chat message from its trigger.</summary>
 internal static class RawSurfaceFixture
 {
-    public const string DiscordMessageAbsence = "The go-live post has no incoming chat message.";
+    public static void Seed(
+        TemplateHelperContext surface,
+        string key,
+        Dictionary<string, string> seeds
+    )
+    {
+        if (surface == TemplateHelperContext.Discord && key == "raw.message")
+            seeds["raw.message"] = "sampleHype";
+    }
 }

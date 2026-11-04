@@ -41,7 +41,9 @@ internal sealed class PlatformSeedHelpers()
                 eventScoped: true,
                 seedKey: "user.provider"
             ),
-        PlatformRow.Seed("platform.event", "twitch", data => Key(data.EventProvider))
+        PlatformRow
+            .Seed("platform.event", "twitch", data => Key(data.EventProvider))
+            .For(TemplateHelperContexts.WithTriggerViewerAndDiscord)
     )
 {
     private static string? Key(string seed) =>

@@ -16,6 +16,10 @@ Where a helper works is listed under it:
 
 [surfaces.md](surfaces.md) lists every helper against every surface, with the reason for each surface where it is missing, and a test generates it from the helper registry.
 
+## Viewer text
+
+`{emote.repeat:catJAM|3}` repeats an emote in viewer text only when its name is a known, plain text emote code. A missing emote or an argument containing markup, another helper or a URL stays as written. The count must be from 1 to 50.
+
 Some helpers need a trigger (a chat message or an event) to know who "the user" is. Those do not work in timers.
 
 Every example below uses the same people:

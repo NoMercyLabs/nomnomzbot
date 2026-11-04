@@ -53,13 +53,16 @@ internal sealed record LookupRow(
     Func<LookupCall, Task<string?>> Render
 )
 {
+    public IReadOnlyList<TemplateHelperContext> Contexts { get; init; } =
+        TemplateHelperContexts.Standard;
+
     public Task<string?> RenderAsync(LookupCall call) =>
         call.Args.Count < MinArgs || call.Args.Count > MaxArgs
             ? Task.FromResult<string?>(null)
             : Render(call);
 
     public TemplateHelperEntry ToEntry() =>
-        new(Key, TemplateHelperContexts.Standard, new LocalizedText("template.helper." + Key))
+        new(Key, Contexts, new LocalizedText("template.helper." + Key))
         {
             Sample = Sample,
             Source = Source,
