@@ -380,7 +380,8 @@ public sealed class ChatTranslatorsTests
                         "parent_message_body": "original message",
                         "parent_user_id": "100",
                         "parent_user_name": "Streamer",
-                        "parent_user_login": "streamer"
+                        "parent_user_login": "streamer",
+                        "thread_parent_message_id": "root-11"
                     }
                 }
                 """
@@ -393,6 +394,7 @@ public sealed class ChatTranslatorsTests
             .Subject;
 
         published.ReplyParentMessageId.Should().Be("parent-77");
+        published.ReplyThreadParentMessageId.Should().Be("root-11");
         published.ReplyParentMessageBody.Should().Be("original message");
         published.ReplyParentUserName.Should().Be("Streamer");
         published.ReplyParentUserLogin.Should().Be("streamer");
@@ -766,6 +768,38 @@ public sealed class ChatTranslatorsTests
         published.IsAnonymous.Should().BeTrue();
         published.NoticeType.Should().Be("community_sub_gift");
         published.MessageText.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task ChatNotification_SharedCommunityGift_PreservesCountAndSource()
+    {
+        CapturingEventBus bus = new();
+        ChannelChatNotificationTranslator translator = new(bus, Clock);
+
+        await translator.TranslateAsync(
+            Notification(
+                "channel.chat.notification",
+                """
+                {
+                    "chatter_user_id": "42",
+                    "chatter_user_login": "viewer",
+                    "chatter_user_name": "Viewer",
+                    "notice_type": "shared_chat_community_sub_gift",
+                    "system_message": "Viewer gifted 5 subs",
+                    "message_id": "gift-5",
+                    "message": { "text": "", "fragments": [] },
+                    "shared_chat_community_sub_gift": { "cumulative_total": 5 },
+                    "source_broadcaster_user_id": "source-1",
+                    "source_broadcaster_user_name": "Other Stream"
+                }
+                """
+            )
+        );
+
+        ChatNotificationEvent notice = bus.EventsOf<ChatNotificationEvent>().Single();
+        notice.GiftCount.Should().Be(5);
+        notice.SourceChannelId.Should().Be("source-1");
+        notice.SourceChannelName.Should().Be("Other Stream");
     }
 
     [Fact]

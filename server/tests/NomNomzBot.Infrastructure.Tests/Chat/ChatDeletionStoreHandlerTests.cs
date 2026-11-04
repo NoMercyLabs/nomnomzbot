@@ -93,6 +93,33 @@ public sealed class ChatDeletionStoreHandlerTests
     }
 
     [Fact]
+    public async Task Chat_clear_preserves_native_notice_and_moderation_feed_rows()
+    {
+        AuthDbContext db = await SeedAsync();
+        ChatMessage notice = Row(ChannelA, "notice:1", "u-1");
+        notice.Kind = "notice";
+        ChatMessage clearLine = Row(ChannelA, "moderation:1", "mod-1");
+        clearLine.Kind = "moderation";
+        db.ChatMessages.AddRange(notice, clearLine);
+        await db.SaveChangesAsync();
+        ChatDeletionStoreHandler handler = new(db, Clock);
+
+        await handler.HandleAsync(
+            new ChatClearedEvent
+            {
+                BroadcasterId = ChannelA,
+                ClearedByUserId = "mod-1",
+                OccurredAt = Clock.GetUtcNow(),
+            }
+        );
+
+        List<ChatMessage> rows = await AllAsync(db);
+        rows.Single(r => r.Id == "notice:1").DeletedAt.Should().BeNull();
+        rows.Single(r => r.Id == "moderation:1").DeletedAt.Should().BeNull();
+        rows.Single(r => r.Id == "a-1").DeletedAt.Should().NotBeNull();
+    }
+
+    [Fact]
     public async Task Chat_clear_keeps_the_first_deleted_time_of_an_already_deleted_row()
     {
         AuthDbContext db = await SeedAsync();

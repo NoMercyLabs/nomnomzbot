@@ -48,6 +48,7 @@ public class ViewerChatController : BaseController
     private readonly ICurrentUserService _currentUser;
     private readonly IOperatorChatSender _sender;
     private readonly IChatEmoteCatalogue _emoteCatalogue;
+    private readonly IChatThreadService _threads;
 
     public ViewerChatController(
         IApplicationDbContext db,
@@ -55,7 +56,8 @@ public class ViewerChatController : BaseController
         IHubUserEnricher enricher,
         ICurrentUserService currentUser,
         IOperatorChatSender sender,
-        IChatEmoteCatalogue emoteCatalogue
+        IChatEmoteCatalogue emoteCatalogue,
+        IChatThreadService threads
     )
     {
         _db = db;
@@ -64,6 +66,7 @@ public class ViewerChatController : BaseController
         _currentUser = currentUser;
         _sender = sender;
         _emoteCatalogue = emoteCatalogue;
+        _threads = threads;
     }
 
     // No sender choice on purpose: a viewer only ever speaks as themselves.
@@ -87,7 +90,9 @@ public class ViewerChatController : BaseController
             return BadRequestResponse("Invalid channel id.");
 
         List<ChatMessage> rows = await _db
-            .ChatMessages.Where(m => m.BroadcasterId == broadcasterId && m.DeletedAt == null)
+            .ChatMessages.Where(m =>
+                m.BroadcasterId == broadcasterId && m.DeletedAt == null && m.Kind != "held"
+            )
             .OrderByDescending(m => m.CreatedAt)
             .Take(limit)
             .ToListAsync(ct);
@@ -104,6 +109,46 @@ public class ViewerChatController : BaseController
             ct
         );
 
+        return Ok(new StatusResponseDto<List<DashboardChatMessageDto>> { Data = messages });
+    }
+
+    /// <summary>The visible messages in a reply thread, oldest first.</summary>
+    [RequireAction("chat:viewer:read")]
+    [HttpGet("messages/{messageId}/thread")]
+    [ProducesResponseType<StatusResponseDto<List<DashboardChatMessageDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetThread(
+        string channelId,
+        string messageId,
+        CancellationToken ct = default
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result<IReadOnlyList<ChatMessage>> result = await _threads.ReadAsync(
+            broadcasterId,
+            messageId,
+            ct
+        );
+        if (result.IsFailure)
+            return NotFoundResponse(result.ErrorMessage, result.ErrorCode);
+
+        if (result.Value.Any(row => row.Id == messageId && row.DeletedAt is not null))
+            return NotFoundResponse("Chat message not found.");
+
+        List<ChatMessage> visible = result.Value.Where(row => row.DeletedAt is null).ToList();
+        List<DashboardChatMessageDto> messages = await ChatHistoryMapper.MapAsync(
+            _db,
+            _decorator,
+            _enricher,
+            null,
+            broadcasterId,
+            channelId,
+            visible,
+            ct
+        );
         return Ok(new StatusResponseDto<List<DashboardChatMessageDto>> { Data = messages });
     }
 

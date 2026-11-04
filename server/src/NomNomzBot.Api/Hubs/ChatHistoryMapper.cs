@@ -56,6 +56,12 @@ public static class ChatHistoryMapper
         List<DashboardChatMessageDto> messages = new(rows.Count);
         foreach (ChatMessage row in rows)
         {
+            if (row.Kind != "message")
+            {
+                messages.Add(MapNativeRow(row, channelId));
+                continue;
+            }
+
             DecoratedChatMessage decorated = await decorator.DecorateAsync(
                 ToDecorationEvent(row, twitchBroadcasterId),
                 ct
@@ -90,13 +96,17 @@ public static class ChatHistoryMapper
                     Color: row.ColorHex,
                     MessageType: row.MessageType,
                     ReplyToMessageId: row.ReplyToMessageId,
-                    ReplyParentMessageBody: null,
-                    ReplyParentUserName: null,
+                    ReplyThreadParentMessageId: row.ReplyThreadParentMessageId,
+                    ReplyParentMessageBody: row.ReplyParentMessageBody,
+                    ReplyParentUserName: row.ReplyParentUserName,
                     Timestamp: row.CreatedAt.ToString("O"),
                     AvatarUrl: enrichment?.AvatarUrl,
                     Pronouns: enrichment?.Pronouns,
                     Provider: row.Provider,
                     IsArtist: row.Badges.Any(b => b.IsArtist),
+                    SourceChannelId: row.SourceChannelId,
+                    SourceChannelName: row.SourceChannelName,
+                    Removed: row.DeletedAt is null ? null : "deleted",
                     Hints: hints.TryGetValue(row.Id, out ChatHints? found)
                         ? ChatHintsDto.From(found)
                         : null
@@ -106,6 +116,47 @@ public static class ChatHistoryMapper
 
         return messages;
     }
+
+    public static DashboardChatMessageDto MapNativeRow(ChatMessage row, string channelId) =>
+        new(
+            Id: row.Id,
+            ChannelId: channelId,
+            UserId: row.UserId,
+            DisplayName: row.DisplayName,
+            Username: row.Username,
+            Message: row.Message,
+            Fragments: [],
+            UserType: row.UserType,
+            IsSubscriber: false,
+            IsVip: false,
+            IsModerator: false,
+            IsBroadcaster: false,
+            IsCheer: false,
+            IsCommand: false,
+            Badges: [],
+            BitsAmount: 0,
+            Color: row.ColorHex,
+            MessageType: row.MessageType,
+            ReplyToMessageId: null,
+            ReplyThreadParentMessageId: null,
+            ReplyParentMessageBody: null,
+            ReplyParentUserName: null,
+            Timestamp: row.CreatedAt.ToString("O"),
+            Provider: row.Provider,
+            Kind: row.Kind,
+            NoticeType: row.NoticeType,
+            SystemText: row.SystemText,
+            AnnouncementColor: row.AnnouncementColor,
+            SourceChannelId: row.SourceChannelId,
+            SourceChannelName: row.SourceChannelName,
+            SubTier: row.SubTier,
+            CumulativeMonths: row.CumulativeMonths,
+            GiftCount: row.GiftCount,
+            RaidViewerCount: row.RaidViewerCount,
+            RecipientUserId: row.RecipientUserId,
+            RecipientDisplayName: row.RecipientDisplayName,
+            HeldStatus: row.HeldStatus
+        );
 
     // The hints of a whole page in one batch: the channel's timezone (its owner's) places the day boundary, and the
     // streams that overlap the page tell which stream each row was sent in (stored rows carry no stream id).

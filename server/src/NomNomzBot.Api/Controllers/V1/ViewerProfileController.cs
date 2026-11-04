@@ -98,6 +98,7 @@ public class ViewerProfileController : BaseController
                 m.BroadcasterId == broadcasterId
                 && m.UserId == twitchId
                 && m.DeletedAt == null
+                && m.Kind == "message"
                 && !m.IsCommand
             )
             .OrderByDescending(m => m.CreatedAt)

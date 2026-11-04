@@ -48,4 +48,14 @@ public sealed class ChatNotificationEvent : DomainEventBase
 
     /// <summary>The id of the chat message that carries the notice.</summary>
     public required string MessageId { get; init; }
+
+    public string? AnnouncementColor { get; init; }
+    public string? SourceChannelId { get; init; }
+    public string? SourceChannelName { get; init; }
+    public string? SubTier { get; init; }
+    public int? CumulativeMonths { get; init; }
+    public int? GiftCount { get; init; }
+    public int? RaidViewerCount { get; init; }
+    public string? RecipientUserId { get; init; }
+    public string? RecipientDisplayName { get; init; }
 }

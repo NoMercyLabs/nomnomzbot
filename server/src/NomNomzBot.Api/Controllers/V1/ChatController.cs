@@ -23,6 +23,7 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
@@ -54,7 +55,9 @@ public class ChatController : BaseController
     private readonly IChatEmoteCatalogue _emoteCatalogue;
     private readonly IHubUserEnricher _enricher;
     private readonly IChatSearchService _search;
+    private readonly IChatThreadService _threads;
     private readonly IChatHintService _hints;
+    private readonly IActionAuthorizationService _authorization;
 
     public ChatController(
         IApplicationDbContext db,
@@ -67,7 +70,9 @@ public class ChatController : BaseController
         IChatEmoteCatalogue emoteCatalogue,
         IHubUserEnricher enricher,
         IChatSearchService search,
-        IChatHintService hints
+        IChatThreadService threads,
+        IChatHintService hints,
+        IActionAuthorizationService authorization
     )
     {
         _hints = hints;
@@ -81,6 +86,8 @@ public class ChatController : BaseController
         _emoteCatalogue = emoteCatalogue;
         _enricher = enricher;
         _search = search;
+        _threads = threads;
+        _authorization = authorization;
     }
 
     // ── DTOs ──────────────────────────────────────────────────────────────────
@@ -222,8 +229,10 @@ public class ChatController : BaseController
         if (!Guid.TryParse(channelId, out Guid broadcasterId))
             return BadRequestResponse("Invalid channel id.");
 
+        bool canReadHeld = await CanReadHeldAsync(broadcasterId, ct);
         List<ChatMessage> rows = await _db
-            .ChatMessages.Where(m => m.BroadcasterId == broadcasterId && m.DeletedAt == null)
+            .ChatMessages.IgnoreQueryFilters()
+            .Where(m => m.BroadcasterId == broadcasterId && (m.Kind != "held" || canReadHeld))
             .OrderByDescending(m => m.CreatedAt)
             .Take(limit)
             .ToListAsync(ct);
@@ -238,6 +247,40 @@ public class ChatController : BaseController
             ct
         );
 
+        return Ok(new StatusResponseDto<List<DashboardChatMessageDto>> { Data = messages });
+    }
+
+    // ── GET thread ────────────────────────────────────────────────────────────
+
+    /// <summary>Get the complete stored reply thread containing this message, oldest first.</summary>
+    [RequireAction("chat:read")]
+    [HttpGet("messages/{messageId}/thread")]
+    [ProducesResponseType<StatusResponseDto<List<DashboardChatMessageDto>>>(
+        StatusCodes.Status200OK
+    )]
+    public async Task<IActionResult> GetThread(
+        string channelId,
+        string messageId,
+        CancellationToken ct = default
+    )
+    {
+        if (!Guid.TryParse(channelId, out Guid broadcasterId))
+            return BadRequestResponse("Invalid channel id.");
+
+        Result<IReadOnlyList<ChatMessage>> result = await _threads.ReadAsync(
+            broadcasterId,
+            messageId,
+            ct
+        );
+        if (result.IsFailure)
+            return NotFoundResponse(result.ErrorMessage, result.ErrorCode);
+
+        List<DashboardChatMessageDto> messages = await MapToDtosAsync(
+            broadcasterId,
+            channelId,
+            result.Value.ToList(),
+            ct
+        );
         return Ok(new StatusResponseDto<List<DashboardChatMessageDto>> { Data = messages });
     }
 
@@ -273,10 +316,11 @@ public class ChatController : BaseController
         if (result.IsFailure)
             return BadRequestResponse(result.ErrorMessage, result.ErrorCode);
 
+        bool canReadHeld = await CanReadHeldAsync(broadcasterId, ct);
         List<DashboardChatMessageDto> messages = await MapToDtosAsync(
             broadcasterId,
             channelId,
-            result.Value.Messages,
+            result.Value.Messages.Where(m => m.Kind != "held" || canReadHeld).ToList(),
             ct
         );
 
@@ -325,8 +369,12 @@ public class ChatController : BaseController
         if (platformUserId is null)
             return NotFoundResponse("User not found.");
 
+        bool canReadHeld = await CanReadHeldAsync(broadcasterId, ct);
         IQueryable<ChatMessage> rows = _db.ChatMessages.Where(m =>
-            m.BroadcasterId == broadcasterId && m.UserId == platformUserId && m.DeletedAt == null
+            m.BroadcasterId == broadcasterId
+            && m.UserId == platformUserId
+            && m.DeletedAt == null
+            && (m.Kind != "held" || canReadHeld)
         );
 
         if (position is { } at)
@@ -365,6 +413,20 @@ public class ChatController : BaseController
                 .Select(u => u.TwitchUserId)
                 .FirstOrDefaultAsync(ct)
             : userId;
+
+    private async Task<bool> CanReadHeldAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        if (!Guid.TryParse(_currentUser.UserId, out Guid callerId))
+            return false;
+
+        Result<bool> allowed = await _authorization.AuthorizeActionAsync(
+            callerId,
+            broadcasterId,
+            "moderation:read",
+            ct
+        );
+        return allowed is { IsSuccess: true, Value: true };
+    }
 
     // Maps persisted rows to the SAME DashboardChatMessageDto the live hub emits (shared with viewer chat).
     private Task<List<DashboardChatMessageDto>> MapToDtosAsync(

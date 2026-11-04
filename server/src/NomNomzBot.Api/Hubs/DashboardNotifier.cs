@@ -35,6 +35,11 @@ public interface IDashboardNotifier
         DashboardChatMessageDto dto,
         CancellationToken ct = default
     );
+    Task SendHeldChatMessageAsync(
+        string broadcasterId,
+        DashboardChatMessageDto dto,
+        CancellationToken ct = default
+    );
     Task SendStreamStatusAsync(
         string broadcasterId,
         StreamStatusDto dto,
@@ -182,6 +187,12 @@ public class DashboardNotifier : IDashboardNotifier
             _hub.Clients.Group(ViewerChatEvents.Group(broadcasterId))
                 .ChatMessage(dto with { Hints = null })
         );
+
+    public Task SendHeldChatMessageAsync(
+        string broadcasterId,
+        DashboardChatMessageDto dto,
+        CancellationToken ct = default
+    ) => ClassGroup(broadcasterId, DashboardEventClasses.Moderation).ChatMessage(dto);
 
     public Task SendCommandExecutedAsync(
         string broadcasterId,

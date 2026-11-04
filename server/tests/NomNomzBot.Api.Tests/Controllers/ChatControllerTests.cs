@@ -21,6 +21,7 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Entities;
@@ -61,7 +62,8 @@ public sealed class ChatControllerTests
         ICurrentUserService? currentUser = null,
         IChatEmoteCatalogue? emoteCatalogue = null,
         IHubUserEnricher? enricher = null,
-        IChatSearchService? search = null
+        IChatSearchService? search = null,
+        IActionAuthorizationService? authorization = null
     ) =>
         new(
             db,
@@ -74,8 +76,153 @@ public sealed class ChatControllerTests
             emoteCatalogue ?? Substitute.For<IChatEmoteCatalogue>(),
             enricher ?? Substitute.For<IHubUserEnricher>(),
             search ?? Substitute.For<IChatSearchService>(),
-            new ChatHintService(db)
+            new ChatThreadService(db),
+            new ChatHintService(db),
+            authorization ?? Substitute.For<IActionAuthorizationService>()
         );
+
+    [Theory]
+    [InlineData(false, 1)]
+    [InlineData(true, 2)]
+    public async Task GetMessages_exposes_held_line_only_with_moderation_permission(
+        bool canModerate,
+        int expectedCount
+    )
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        db.ChatMessages.AddRange(
+            new ChatMessage
+            {
+                Id = "notice:1",
+                BroadcasterId = Broadcaster,
+                UserId = "u1",
+                Username = "viewer",
+                DisplayName = "Viewer",
+                UserType = "viewer",
+                Kind = "notice",
+                NoticeType = "announcement",
+                AnnouncementColor = "PURPLE",
+                SystemText = "Announcement",
+                Message = "Welcome",
+                CreatedAt = DateTime.UtcNow,
+            },
+            new ChatMessage
+            {
+                Id = "held:1",
+                BroadcasterId = Broadcaster,
+                UserId = "u2",
+                Username = "another",
+                DisplayName = "Another",
+                UserType = "viewer",
+                Kind = "held",
+                HeldStatus = "held",
+                Message = "private",
+                CreatedAt = DateTime.UtcNow,
+            }
+        );
+        await db.SaveChangesAsync();
+        IActionAuthorizationService authorization = Substitute.For<IActionAuthorizationService>();
+        authorization
+            .AuthorizeActionAsync(
+                OperatorUserId,
+                Broadcaster,
+                "moderation:read",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result<bool>.Success(canModerate));
+        IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
+        ChatController controller = Build(db, decorator, authorization: authorization);
+
+        List<DashboardChatMessageDto> lines = Data(
+            await controller.GetMessages(Broadcaster.ToString())
+        );
+
+        lines.Should().HaveCount(expectedCount);
+        lines.Should().ContainSingle(m => m.Kind == "notice" && m.AnnouncementColor == "PURPLE");
+        if (canModerate)
+            lines.Should().ContainSingle(m => m.Kind == "held" && m.Message == "private");
+        else
+            lines.Should().NotContain(m => m.Kind == "held");
+    }
+
+    [Fact]
+    public async Task GetMessages_returns_deleted_line_marked_for_strike_through()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        db.ChatMessages.Add(
+            new ChatMessage
+            {
+                Id = "deleted-1",
+                BroadcasterId = Broadcaster,
+                UserId = "u1",
+                Username = "viewer",
+                DisplayName = "Viewer",
+                UserType = "viewer",
+                Message = "removed text",
+                CreatedAt = DateTime.UtcNow,
+                DeletedAt = DateTime.UtcNow,
+            }
+        );
+        await db.SaveChangesAsync();
+        IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
+        decorator
+            .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(new DecoratedChatMessage { Fragments = [], Badges = [] });
+        ChatController controller = Build(db, decorator);
+
+        List<DashboardChatMessageDto> lines = Data(
+            await controller.GetMessages(Broadcaster.ToString())
+        );
+
+        lines.Should().ContainSingle(m => m.Id == "deleted-1" && m.Removed == "deleted");
+    }
+
+    [Fact]
+    public async Task GetThread_returns_decorated_root_and_replies_with_thread_ids_in_order()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        db.ChatMessages.AddRange(
+            new ChatMessage
+            {
+                Id = "root",
+                BroadcasterId = Broadcaster,
+                UserId = "u1",
+                Username = "alice",
+                DisplayName = "Alice",
+                UserType = "viewer",
+                Message = "first",
+                CreatedAt = new DateTime(2026, 11, 4, 12, 0, 0, DateTimeKind.Utc),
+            },
+            new ChatMessage
+            {
+                Id = "reply",
+                BroadcasterId = Broadcaster,
+                UserId = "u2",
+                Username = "bob",
+                DisplayName = "Bob",
+                UserType = "viewer",
+                Message = "second",
+                ReplyToMessageId = "root",
+                ReplyThreadParentMessageId = "root",
+                CreatedAt = new DateTime(2026, 11, 4, 12, 1, 0, DateTimeKind.Utc),
+            }
+        );
+        await db.SaveChangesAsync();
+        IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
+        decorator
+            .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(new DecoratedChatMessage { Fragments = [], Badges = [] });
+        ChatController controller = Build(db, decorator);
+
+        List<DashboardChatMessageDto> lines = Data(
+            await controller.GetThread(Broadcaster.ToString(), "reply")
+        );
+
+        lines.Select(line => line.Id).Should().Equal("root", "reply");
+        lines[1].ReplyToMessageId.Should().Be("root");
+        lines[1].ReplyThreadParentMessageId.Should().Be("root");
+        lines[1].DisplayName.Should().Be("Bob");
+    }
 
     [Fact]
     public async Task GetMessages_returns_the_decorators_output_not_the_raw_persisted_fragment()
@@ -1036,7 +1183,9 @@ public sealed class ChatControllerTests
             Substitute.For<IChatEmoteCatalogue>(),
             Substitute.For<IHubUserEnricher>(),
             Substitute.For<IChatSearchService>(),
-            new ChatHintService(db)
+            new ChatThreadService(db),
+            new ChatHintService(db),
+            Substitute.For<IActionAuthorizationService>()
         );
     }
 

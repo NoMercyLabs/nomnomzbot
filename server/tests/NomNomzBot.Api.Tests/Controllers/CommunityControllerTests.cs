@@ -24,6 +24,7 @@ using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Analytics.Entities;
+using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Chat.Enums;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using NSubstitute;
@@ -2042,6 +2043,25 @@ public sealed class CommunityControllerTests
         return (
             (StatusResponseDto<CommunityController.UserDetailDto>)((OkObjectResult)result).Value!
         ).Data!;
+    }
+
+    [Fact]
+    public async Task GetUserDetail_excludes_held_text_from_community_activity()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        AddUser(db, "twitch-kana", "kana", "Kana");
+        AddChat(db, "twitch-kana", OldChatAt);
+        DateTime heldAt = OldChatAt.AddSeconds(1);
+        AddChat(db, "twitch-kana", heldAt);
+        ChatMessage held = db.ChatMessages.Local.Single(m => m.CreatedAt == heldAt);
+        held.Kind = "held";
+        held.Message = "private held text";
+        await db.SaveChangesAsync();
+
+        CommunityController.UserDetailDto detail = await GetDetailAsync(db, "twitch-kana");
+
+        detail.MessageCount.Should().Be(1);
+        detail.RecentActivity.Select(a => a.Content).Should().NotContain("private held text");
     }
 
     [Fact]

@@ -50,6 +50,39 @@ public class ChatMessage : SoftDeletableEntity, ITenantScoped
 
     public string Message { get; set; } = null!;
 
+    [MaxLength(20)]
+    public string Kind { get; set; } = "message";
+
+    [MaxLength(80)]
+    public string? NoticeType { get; set; }
+
+    public string? SystemText { get; set; }
+
+    [MaxLength(20)]
+    public string? AnnouncementColor { get; set; }
+
+    [MaxLength(50)]
+    public string? SourceChannelId { get; set; }
+
+    [MaxLength(255)]
+    public string? SourceChannelName { get; set; }
+
+    [MaxLength(50)]
+    public string? SubTier { get; set; }
+
+    public int? CumulativeMonths { get; set; }
+    public int? GiftCount { get; set; }
+    public int? RaidViewerCount { get; set; }
+
+    [MaxLength(50)]
+    public string? RecipientUserId { get; set; }
+
+    [MaxLength(255)]
+    public string? RecipientDisplayName { get; set; }
+
+    [MaxLength(50)]
+    public string? HeldStatus { get; set; }
+
     public List<ChatMessageFragment> Fragments { get; set; } = [];
     public List<ChatBadge> Badges { get; set; } = [];
 
@@ -63,6 +96,14 @@ public class ChatMessage : SoftDeletableEntity, ITenantScoped
 
     [MaxLength(255)]
     public string? ReplyToMessageId { get; set; }
+
+    [MaxLength(255)]
+    public string? ReplyThreadParentMessageId { get; set; }
+
+    public string? ReplyParentMessageBody { get; set; }
+
+    [MaxLength(255)]
+    public string? ReplyParentUserName { get; set; }
 
     [MaxLength(50)]
     public string? StreamId { get; set; }

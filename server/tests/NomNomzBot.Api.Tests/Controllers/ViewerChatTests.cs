@@ -32,6 +32,7 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Chat;
 using NSubstitute;
 
 namespace NomNomzBot.Api.Tests.Controllers;
@@ -65,7 +66,8 @@ public sealed class ViewerChatTests
             Substitute.For<IHubUserEnricher>(),
             currentUser,
             sender,
-            Substitute.For<IChatEmoteCatalogue>()
+            Substitute.For<IChatEmoteCatalogue>(),
+            new ChatThreadService(db)
         );
     }
 
@@ -178,6 +180,31 @@ public sealed class ViewerChatTests
         body.Data!.Single().Hints.Should().BeNull();
     }
 
+    [Fact]
+    public async Task Viewer_thread_keeps_order_and_excludes_deleted_text()
+    {
+        ChatControllerTestDbContext db = ChatControllerTestDbContext.New();
+        Domain.Chat.Entities.ChatMessage reply = Row("reply", 2, deleted: false);
+        reply.ReplyToMessageId = "root";
+        reply.ReplyThreadParentMessageId = "root";
+        Domain.Chat.Entities.ChatMessage removed = Row("removed", 1, deleted: true);
+        removed.ReplyToMessageId = "root";
+        removed.ReplyThreadParentMessageId = "root";
+        db.ChatMessages.AddRange(Row("root", 0, deleted: false), removed, reply);
+        await db.SaveChangesAsync();
+        ViewerChatController controller = BuildController(
+            db,
+            Substitute.For<IOperatorChatSender>()
+        );
+
+        IActionResult result = await controller.GetThread(Channel.ToString(), "reply");
+
+        StatusResponseDto<List<DashboardChatMessageDto>> body =
+            (StatusResponseDto<List<DashboardChatMessageDto>>)((OkObjectResult)result).Value!;
+        body.Data!.Select(message => message.Id).Should().Equal("root", "reply");
+        body.Data![1].ReplyThreadParentMessageId.Should().Be("root");
+    }
+
     private static Domain.Chat.Entities.ChatMessage Row(string id, int second, bool deleted) =>
         new()
         {
@@ -198,6 +225,7 @@ public sealed class ViewerChatTests
 
     [Theory]
     [InlineData(nameof(ViewerChatController.GetMessages), "chat:viewer:read")]
+    [InlineData(nameof(ViewerChatController.GetThread), "chat:viewer:read")]
     [InlineData(nameof(ViewerChatController.GetEmotes), "chat:viewer:read")]
     [InlineData(nameof(ViewerChatController.SendMessage), "chat:viewer:send")]
     public void Each_endpoint_is_gated_on_its_viewer_key(string method, string actionKey)

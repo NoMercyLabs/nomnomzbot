@@ -62,14 +62,17 @@ public sealed class ChatMessageBroadcastHandlerTests
             new ChatHintService(db)
         );
 
-        await handler.HandleAsync(Event(channel));
+        await handler.HandleAsync(Event(channel, parentMessageId: "middle", rootMessageId: "root"));
 
         await notifier
             .Received(1)
             .SendChatMessageAsync(
                 channel.ToString(),
                 Arg.Is<DashboardChatMessageDto>(dto =>
-                    dto.AvatarUrl == "https://cdn/avatar.png" && dto.Pronouns == "they/them"
+                    dto.AvatarUrl == "https://cdn/avatar.png"
+                    && dto.Pronouns == "they/them"
+                    && dto.ReplyToMessageId == "middle"
+                    && dto.ReplyThreadParentMessageId == "root"
                 ),
                 Arg.Any<CancellationToken>()
             );
@@ -718,7 +721,9 @@ public sealed class ChatMessageBroadcastHandlerTests
         Guid channel,
         string message = "hello",
         string messageId = "m1",
-        string userId = "u1"
+        string userId = "u1",
+        string? parentMessageId = null,
+        string? rootMessageId = null
     ) =>
         new()
         {
@@ -735,5 +740,7 @@ public sealed class ChatMessageBroadcastHandlerTests
             IsVip = false,
             IsModerator = false,
             IsBroadcaster = false,
+            ReplyParentMessageId = parentMessageId,
+            ReplyThreadParentMessageId = rootMessageId,
         };
 }

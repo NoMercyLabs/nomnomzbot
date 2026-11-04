@@ -1095,6 +1095,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("AnnouncementColor")
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Badges")
                         .IsRequired()
                         .HasColumnType("TEXT");
@@ -1113,6 +1117,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("CumulativeMonths")
+                        .HasColumnType("INTEGER");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("TEXT");
 
@@ -1129,6 +1136,13 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .IsRequired()
                         .HasColumnType("TEXT");
 
+                    b.Property<int?>("GiftCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("HeldStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
                     b.Property<bool>("IsCheer")
                         .HasColumnType("INTEGER");
 
@@ -1137,6 +1151,13 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.Property<bool>("IsHighlighted")
                         .HasColumnType("INTEGER");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("TEXT")
+                        .HasDefaultValue("message");
 
                     b.Property<string>("Message")
                         .IsRequired()
@@ -1149,6 +1170,10 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValue("text");
 
+                    b.Property<string>("NoticeType")
+                        .HasMaxLength(80)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("Provider")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1156,12 +1181,49 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasColumnType("TEXT")
                         .HasDefaultValue("twitch");
 
+                    b.Property<int?>("RaidViewerCount")
+                        .HasColumnType("INTEGER");
+
+                    b.Property<string>("RecipientDisplayName")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("RecipientUserId")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReplyParentMessageBody")
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReplyParentUserName")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("ReplyThreadParentMessageId")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("ReplyToMessageId")
+                        .HasMaxLength(255)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceChannelId")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SourceChannelName")
                         .HasMaxLength(255)
                         .HasColumnType("TEXT");
 
                     b.Property<string>("StreamId")
                         .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SubTier")
+                        .HasMaxLength(50)
+                        .HasColumnType("TEXT");
+
+                    b.Property<string>("SystemText")
                         .HasColumnType("TEXT");
 
                     b.Property<DateTime>("UpdatedAt")
@@ -1191,6 +1253,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
 
                     b.HasIndex("BroadcasterId", "CreatedAt")
                         .HasDatabaseName("IX_ChatMessage_BroadcasterId_CreatedAt");
+
+                    b.HasIndex("BroadcasterId", "ReplyThreadParentMessageId")
+                        .HasDatabaseName("IX_ChatMessage_BroadcasterId_ReplyThreadParentMessageId");
 
                     b.ToTable("ChatMessages");
                 });

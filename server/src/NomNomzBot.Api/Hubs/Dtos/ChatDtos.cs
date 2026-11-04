@@ -46,6 +46,7 @@ public record DashboardChatMessageDto(
     string? ReplyParentMessageBody,
     string? ReplyParentUserName,
     string Timestamp,
+    string? ReplyThreadParentMessageId = null,
     string? AvatarUrl = null,
     string? Pronouns = null,
     // The platform the message arrived on (twitch | kick | youtube) — lets a merged multi-platform chat
@@ -63,7 +64,21 @@ public record DashboardChatMessageDto(
     OverlayLineDto? OverlayLine = null,
     // The facts a chat client turns into hints on the line (first message ever / of the day / of the stream, and
     // when the account was made). Null when they could not be worked out, so no other client sees a change.
-    ChatHintsDto? Hints = null
+    ChatHintsDto? Hints = null,
+    string Kind = "message",
+    string? NoticeType = null,
+    string? SystemText = null,
+    string? AnnouncementColor = null,
+    string? SourceChannelId = null,
+    string? SourceChannelName = null,
+    string? SubTier = null,
+    int? CumulativeMonths = null,
+    int? GiftCount = null,
+    int? RaidViewerCount = null,
+    string? RecipientUserId = null,
+    string? RecipientDisplayName = null,
+    string? HeldStatus = null,
+    string? Removed = null
 );
 
 /// <summary>

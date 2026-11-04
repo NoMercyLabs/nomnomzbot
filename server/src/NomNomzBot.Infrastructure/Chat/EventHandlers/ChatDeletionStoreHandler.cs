@@ -77,7 +77,7 @@ public sealed class ChatDeletionStoreHandler(IApplicationDbContext db, TimeProvi
         List<ChatMessage> rows = await db
             .ChatMessages.IgnoreQueryFilters()
             .Where(scope)
-            .Where(m => m.DeletedAt == null)
+            .Where(m => m.Kind == "message" && m.DeletedAt == null)
             .ToListAsync(cancellationToken);
 
         if (rows.Count == 0)

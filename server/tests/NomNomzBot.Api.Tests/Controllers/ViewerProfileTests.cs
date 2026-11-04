@@ -152,6 +152,24 @@ public sealed class ViewerProfileTests
     }
 
     [Fact]
+    public async Task Public_profile_never_returns_a_held_message()
+    {
+        CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();
+        AddPerson(db);
+        ChatMessage held = Line("held-1", 1);
+        held.Kind = "held";
+        held.Message = "private message";
+        db.ChatMessages.AddRange(Line("normal-1", 0), held);
+        await db.SaveChangesAsync();
+
+        ViewerProfileController.PublicProfileDto body = Body(
+            await Build(db).GetProfile(Channel.ToString(), "t-42")
+        );
+
+        body.RecentMessages.Select(m => m.Message).Should().Equal("normal-1");
+    }
+
+    [Fact]
     public async Task The_profile_carries_no_moderator_or_bot_counter_field()
     {
         CommunityControllerTestDbContext db = CommunityControllerTestDbContext.New();

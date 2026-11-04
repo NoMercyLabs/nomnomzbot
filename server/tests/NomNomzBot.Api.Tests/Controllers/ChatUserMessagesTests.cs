@@ -18,6 +18,7 @@ using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Entities;
@@ -97,7 +98,9 @@ public sealed class ChatUserMessagesTests
             Substitute.For<IChatEmoteCatalogue>(),
             Substitute.For<IHubUserEnricher>(),
             new ChatSearchService(db),
-            new ChatHintService(db)
+            new ChatThreadService(db),
+            new ChatHintService(db),
+            Substitute.For<IActionAuthorizationService>()
         );
     }
 

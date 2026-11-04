@@ -1188,7 +1188,9 @@ public partial class CommunityController : BaseController
         userId = user.TwitchUserId;
 
         var messageStats = await _db
-            .ChatMessages.Where(m => m.BroadcasterId == broadcasterId && m.UserId == userId)
+            .ChatMessages.Where(m =>
+                m.BroadcasterId == broadcasterId && m.UserId == userId && m.Kind == "message"
+            )
             .GroupBy(m => 1)
             .Select(g => new
             {
@@ -1199,7 +1201,9 @@ public partial class CommunityController : BaseController
             .FirstOrDefaultAsync(ct);
 
         List<ActivityDto> recentMessages = await _db
-            .ChatMessages.Where(m => m.BroadcasterId == broadcasterId && m.UserId == userId)
+            .ChatMessages.Where(m =>
+                m.BroadcasterId == broadcasterId && m.UserId == userId && m.Kind == "message"
+            )
             .OrderByDescending(m => m.CreatedAt)
             .Take(10)
             .Select(m => new ActivityDto(

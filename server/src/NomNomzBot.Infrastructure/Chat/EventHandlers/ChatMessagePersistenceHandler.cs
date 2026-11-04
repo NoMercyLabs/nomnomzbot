@@ -55,6 +55,8 @@ public sealed class ChatMessagePersistenceHandler(IApplicationDbContext db)
             UserType = ResolveUserType(@event),
             ColorHex = @event.ColorHex,
             Message = @event.Message,
+            SourceChannelId = @event.SourceChannelId,
+            SourceChannelName = @event.SourceChannelName,
             Fragments = [.. @event.Fragments],
             Badges = [.. @event.Badges],
             MessageType = @event.MessageType,
@@ -67,6 +69,9 @@ public sealed class ChatMessagePersistenceHandler(IApplicationDbContext db)
                 StringComparison.OrdinalIgnoreCase
             ),
             ReplyToMessageId = @event.ReplyParentMessageId,
+            ReplyThreadParentMessageId = @event.ReplyThreadParentMessageId,
+            ReplyParentMessageBody = @event.ReplyParentMessageBody,
+            ReplyParentUserName = @event.ReplyParentUserName,
             CreatedAt = @event.OccurredAt.UtcDateTime,
         };
 

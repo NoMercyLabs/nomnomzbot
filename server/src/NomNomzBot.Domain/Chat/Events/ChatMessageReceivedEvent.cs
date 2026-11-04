@@ -94,6 +94,9 @@ public sealed class ChatMessageReceivedEvent : DomainEventBase, IProviderScopedE
     /// <summary>If this is a reply, the parent message ID.</summary>
     public string? ReplyParentMessageId { get; init; }
 
+    /// <summary>If this is a reply, the first message ID in its thread.</summary>
+    public string? ReplyThreadParentMessageId { get; init; }
+
     /// <summary>The parent reply message text (for display in the UI thread).</summary>
     public string? ReplyParentMessageBody { get; init; }
 
@@ -105,4 +108,7 @@ public sealed class ChatMessageReceivedEvent : DomainEventBase, IProviderScopedE
 
     /// <summary>Display name of the user who started the reply thread (Twitch <c>thread_user_name</c>). For a reply to the bot's own answer, this is the viewer the bot answered.</summary>
     public string? ReplyThreadUserName { get; init; }
+
+    public string? SourceChannelId { get; init; }
+    public string? SourceChannelName { get; init; }
 }

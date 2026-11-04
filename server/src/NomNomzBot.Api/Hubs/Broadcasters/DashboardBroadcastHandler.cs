@@ -124,6 +124,7 @@ public sealed class ChatMessageBroadcastHandler
             Color: evt.ColorHex,
             MessageType: evt.MessageType,
             ReplyToMessageId: evt.ReplyParentMessageId,
+            ReplyThreadParentMessageId: evt.ReplyThreadParentMessageId,
             ReplyParentMessageBody: evt.ReplyParentMessageBody,
             ReplyParentUserName: evt.ReplyParentUserName,
             Timestamp: _timeProvider.GetUtcNow().ToString("O"),
@@ -132,7 +133,9 @@ public sealed class ChatMessageBroadcastHandler
             Provider: evt.Provider,
             Paint: paint,
             IsArtist: evt.IsArtist,
-            Hints: await ResolveHintsAsync(evt, ct)
+            Hints: await ResolveHintsAsync(evt, ct),
+            SourceChannelId: evt.SourceChannelId,
+            SourceChannelName: evt.SourceChannelName
         );
 
         await _notifier.SendChatMessageAsync(evt.BroadcasterId.ToString(), dto, ct);

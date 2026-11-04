@@ -14,6 +14,7 @@ using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Viewer;
+using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Infrastructure.Services.Viewer;
 using NomNomzBot.Infrastructure.Tests.Identity;
@@ -169,6 +170,27 @@ public sealed class ViewerSelfActivityServiceTests
             );
         result.Value.Items.Should().OnlyContain(m => !string.IsNullOrEmpty(m.Id));
         result.Value.TotalCount.Should().Be(3);
+    }
+
+    [Fact]
+    public async Task Own_messages_do_not_return_a_held_line_without_moderation_permission()
+    {
+        Harness h = Build();
+        Say(h.Db, ChannelOne, "9001", "normal", At(1));
+        Say(h.Db, ChannelOne, "9001", "private held", At(2));
+        ChatMessage held = h.Db.ChatMessages.Single(m => m.Message == "private held");
+        held.Kind = "held";
+        await h.Db.SaveChangesAsync();
+
+        Result<PagedList<ViewerMessageDto>> result = await h.Sut.ListMessagesAsync(
+            ChannelOne,
+            Caller,
+            1,
+            25
+        );
+
+        result.Value.Items.Select(m => m.Text).Should().Equal("normal");
+        result.Value.TotalCount.Should().Be(1);
     }
 
     [Fact]

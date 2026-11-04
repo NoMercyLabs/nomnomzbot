@@ -41,6 +41,8 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
 
         builder.Property(e => e.Message).IsRequired();
 
+        builder.Property(e => e.Kind).IsRequired().HasMaxLength(20).HasDefaultValue("message");
+
         builder.Property(e => e.Fragments).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb");
 
         builder.Property(e => e.Badges).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb");
@@ -54,6 +56,12 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
         builder.Property(e => e.IsHighlighted).IsRequired();
 
         builder.Property(e => e.ReplyToMessageId).HasMaxLength(255);
+
+        builder.Property(e => e.ReplyThreadParentMessageId).HasMaxLength(255);
+
+        builder
+            .HasIndex(e => new { e.BroadcasterId, e.ReplyThreadParentMessageId })
+            .HasDatabaseName("IX_ChatMessage_BroadcasterId_ReplyThreadParentMessageId");
 
         builder.Property(e => e.StreamId).HasMaxLength(50);
 

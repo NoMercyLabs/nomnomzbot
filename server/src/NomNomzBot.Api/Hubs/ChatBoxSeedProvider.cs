@@ -49,7 +49,10 @@ public sealed class ChatBoxSeedProvider(
         List<ChatMessage> rows = await db
             .ChatMessages.AsNoTracking()
             .Where(m =>
-                m.BroadcasterId == broadcasterId && m.DeletedAt == null && m.CreatedAt >= from
+                m.BroadcasterId == broadcasterId
+                && m.DeletedAt == null
+                && m.Kind == "message"
+                && m.CreatedAt >= from
             )
             .OrderByDescending(m => m.CreatedAt)
             .Take(MaxMessages(widget))

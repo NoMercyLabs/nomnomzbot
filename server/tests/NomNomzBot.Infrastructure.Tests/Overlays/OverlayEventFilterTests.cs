@@ -44,6 +44,8 @@ public sealed class OverlayEventFilterTests
     [InlineData("DeploymentProfileResolvedEvent")]
     [InlineData("AuthorizationDeniedEvent")]
     [InlineData("ViewerTemplateRefusedEvent")] // the audit of a refused viewer text, never shown to viewers
+    [InlineData("ChatUserMessageHeldEvent")]
+    [InlineData("ChatUserMessageUpdatedEvent")]
     [InlineData("channel.chat.message")] // raw wire duplicate of ChatMessageReceivedEvent
     [InlineData("stream.online")]
     [InlineData("")]

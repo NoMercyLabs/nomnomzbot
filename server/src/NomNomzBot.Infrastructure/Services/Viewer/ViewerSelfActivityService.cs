@@ -53,6 +53,7 @@ public sealed class ViewerSelfActivityService(
                 m.BroadcasterId == channelId
                 && m.Provider == channel.Provider
                 && m.UserId == platformId
+                && m.Kind == "message"
             );
         int total = await own.CountAsync(ct);
         List<ViewerMessageDto> rows = await own.OrderByDescending(m => m.CreatedAt)

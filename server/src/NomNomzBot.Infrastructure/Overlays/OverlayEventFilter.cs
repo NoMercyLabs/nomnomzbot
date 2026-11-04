@@ -20,6 +20,12 @@ namespace NomNomzBot.Infrastructure.Overlays;
 /// </summary>
 public static class OverlayEventFilter
 {
+    private static readonly HashSet<string> PrivateEvents = new(StringComparer.Ordinal)
+    {
+        "ChatUserMessageHeldEvent",
+        "ChatUserMessageUpdatedEvent",
+    };
+
     // Internal event families an overlay could never render. Prefix match on the PascalCase domain-event type name.
     private static readonly string[] InternalPrefixes =
     [
@@ -78,6 +84,9 @@ public static class OverlayEventFilter
     /// </summary>
     public static bool IsInternalPlumbing(string eventType)
     {
+        if (PrivateEvents.Contains(eventType))
+            return true;
+
         foreach (string prefix in InternalPrefixes)
             if (eventType.StartsWith(prefix, StringComparison.Ordinal))
                 return true;

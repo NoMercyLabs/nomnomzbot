@@ -1057,6 +1057,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
+                    b.Property<string>("AnnouncementColor")
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)");
+
                     b.Property<List<ChatBadge>>("Badges")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1076,6 +1080,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                     b.Property<DateTime>("CreatedAt")
                         .HasColumnType("timestamp with time zone");
 
+                    b.Property<int?>("CumulativeMonths")
+                        .HasColumnType("integer");
+
                     b.Property<DateTime?>("DeletedAt")
                         .HasColumnType("timestamp with time zone");
 
@@ -1093,6 +1100,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("jsonb")
                         .HasDefaultValueSql("'[]'::jsonb");
 
+                    b.Property<int?>("GiftCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("HeldStatus")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
                     b.Property<bool>("IsCheer")
                         .HasColumnType("boolean");
 
@@ -1101,6 +1115,13 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.Property<bool>("IsHighlighted")
                         .HasColumnType("boolean");
+
+                    b.Property<string>("Kind")
+                        .IsRequired()
+                        .ValueGeneratedOnAdd()
+                        .HasMaxLength(20)
+                        .HasColumnType("character varying(20)")
+                        .HasDefaultValue("message");
 
                     b.Property<string>("Message")
                         .IsRequired()
@@ -1113,6 +1134,10 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("character varying(50)")
                         .HasDefaultValue("text");
 
+                    b.Property<string>("NoticeType")
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
                     b.Property<string>("Provider")
                         .IsRequired()
                         .ValueGeneratedOnAdd()
@@ -1120,13 +1145,50 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasColumnType("character varying(20)")
                         .HasDefaultValue("twitch");
 
+                    b.Property<int?>("RaidViewerCount")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("RecipientDisplayName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("RecipientUserId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("ReplyParentMessageBody")
+                        .HasColumnType("text");
+
+                    b.Property<string>("ReplyParentUserName")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("ReplyThreadParentMessageId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
                     b.Property<string>("ReplyToMessageId")
+                        .HasMaxLength(255)
+                        .HasColumnType("character varying(255)");
+
+                    b.Property<string>("SourceChannelId")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("SourceChannelName")
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
                     b.Property<string>("StreamId")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");
+
+                    b.Property<string>("SubTier")
+                        .HasMaxLength(50)
+                        .HasColumnType("character varying(50)");
+
+                    b.Property<string>("SystemText")
+                        .HasColumnType("text");
 
                     b.Property<DateTime>("UpdatedAt")
                         .HasColumnType("timestamp with time zone");
@@ -1155,6 +1217,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
 
                     b.HasIndex("BroadcasterId", "CreatedAt")
                         .HasDatabaseName("IX_ChatMessage_BroadcasterId_CreatedAt");
+
+                    b.HasIndex("BroadcasterId", "ReplyThreadParentMessageId")
+                        .HasDatabaseName("IX_ChatMessage_BroadcasterId_ReplyThreadParentMessageId");
 
                     b.ToTable("ChatMessages");
                 });

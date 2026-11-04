@@ -264,6 +264,8 @@ public sealed class ChannelChatMessageTranslator(
                 ct
             ),
             MessageType = payload.GetString("message_type") ?? "text",
+            SourceChannelId = payload.GetString("source_broadcaster_user_id"),
+            SourceChannelName = payload.GetString("source_broadcaster_user_name"),
             Badges = badges,
             IsSubscriber = ChatPayload.HasBadge(badges, "subscriber", "founder"),
             IsVip = ChatPayload.HasBadge(badges, "vip"),
@@ -276,6 +278,7 @@ public sealed class ChannelChatMessageTranslator(
             IsBroadcaster = ChatPayload.HasBadge(badges, "broadcaster"),
             Bits = cheer is { } c ? c.GetInt("bits") : 0,
             ReplyParentMessageId = reply?.GetString("parent_message_id"),
+            ReplyThreadParentMessageId = reply?.GetString("thread_parent_message_id"),
             ReplyParentMessageBody = reply?.GetString("parent_message_body"),
             ReplyParentUserName = reply?.GetString("parent_user_name"),
             ReplyParentUserLogin = reply?.GetString("parent_user_login"),
@@ -387,6 +390,7 @@ public sealed class ChannelChatNotificationTranslator(IEventBus bus, TimeProvide
         JsonElement payload = notification.Event;
         JsonElement? message = payload.GetObject("message");
         string noticeType = payload.GetRequiredString("notice_type");
+        JsonElement? detail = payload.GetObject(noticeType);
 
         ChatNotificationEvent notice = new()
         {
@@ -400,6 +404,16 @@ public sealed class ChannelChatNotificationTranslator(IEventBus bus, TimeProvide
             SystemMessage = payload.GetRequiredString("system_message"),
             MessageText = ChatPayload.ReadMessageText(message),
             MessageId = payload.GetRequiredString("message_id"),
+            AnnouncementColor = detail?.GetString("color"),
+            SourceChannelId = payload.GetString("source_broadcaster_user_id"),
+            SourceChannelName = payload.GetString("source_broadcaster_user_name"),
+            SubTier = detail?.GetString("sub_tier") ?? detail?.GetString("sub_plan"),
+            CumulativeMonths = ReadOptionalInt(detail, "cumulative_months"),
+            GiftCount =
+                ReadOptionalInt(detail, "total") ?? ReadOptionalInt(detail, "cumulative_total"),
+            RaidViewerCount = ReadOptionalInt(detail, "viewer_count"),
+            RecipientUserId = detail?.GetString("recipient_user_id"),
+            RecipientDisplayName = detail?.GetString("recipient_user_name"),
         };
         await PublishAsync(notice, ct);
 
@@ -478,6 +492,19 @@ public sealed class ChannelChatNotificationTranslator(IEventBus bus, TimeProvide
                 },
                 ct
             );
+    }
+
+    private static int? ReadOptionalInt(JsonElement? detail, string name)
+    {
+        if (
+            detail is not { } value
+            || !value.TryGetProperty(name, out JsonElement field)
+            || field.ValueKind != JsonValueKind.Number
+            || !field.TryGetInt32(out int number)
+        )
+            return null;
+
+        return number;
     }
 }
 
