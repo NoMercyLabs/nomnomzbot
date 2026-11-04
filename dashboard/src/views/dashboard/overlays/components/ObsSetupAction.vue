@@ -45,6 +45,9 @@ const props = withDefaults(
     primary?: boolean;
     disabled?: boolean;
     expected?: boolean;
+    // A row that already shows a health dot beside this action: the stranded sentence would only
+    // repeat what the dot already says, so it is dropped here and left full-length everywhere else.
+    compact?: boolean;
     resolveAddress: () => Promise<string | null | undefined>;
   }>(),
   {
@@ -52,6 +55,7 @@ const props = withDefaults(
     primary: false,
     disabled: false,
     expected: false,
+    compact: false,
   },
 );
 
@@ -133,7 +137,7 @@ async function copyAddress(): Promise<void> {
 
 <template>
   <span
-    v-if="stranded"
+    v-if="stranded && !compact"
     role="alert"
     data-obs-setup-warning
     class="font-medium text-destructive"

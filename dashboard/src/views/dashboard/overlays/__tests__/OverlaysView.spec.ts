@@ -419,13 +419,20 @@ describe('OverlaysView', () => {
     expect(wrapper.text()).toContain('Nothing attached');
   });
 
-  it('warns on an enabled overlay with no connection and never on a switched-off one', () => {
+  it('leaves the stranded sentence to the Connect dialog, not the row, since the dot already warns there', async () => {
     const enabled = mount(OverlayRow, {
       props: { widget: widget('w10', 'Emote Wall') as unknown as Widget, selected: false },
       global: { plugins: [i18n] },
+      attachTo: document.body,
     });
 
-    expect(enabled.find('[data-obs-setup-warning]').exists()).toBe(true);
+    expect(enabled.find('[data-obs-setup-warning]').exists()).toBe(false);
+
+    await enabled.find('[data-obs-setup-open]').trigger('click');
+    await flushPromises();
+
+    expect(document.body.textContent).toContain(en.dashboard.overlays.setup.notLoaded);
+    enabled.unmount();
 
     const off = mount(OverlayRow, {
       props: {

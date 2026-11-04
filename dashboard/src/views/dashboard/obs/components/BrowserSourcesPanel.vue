@@ -63,6 +63,7 @@ const state = computed<PanelState>(() =>
         </template>
         <template #trailing>
           <ObsSetupAction
+            compact
             :title="widget.name"
             :setup="widget.obsSetup"
             :connected="widget.isAttached"

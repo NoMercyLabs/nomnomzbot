@@ -48,7 +48,6 @@ const dotState = computed<HealthDot>(() => overlayHealth(props.widget));
     <SummaryRow
       pick
       truncate
-      wrap
       :selected="selected"
       :aria-pressed="selected"
       :title="widget.name"
@@ -75,6 +74,7 @@ const dotState = computed<HealthDot>(() => overlayHealth(props.widget));
       </template>
       <template #trailing>
         <ObsSetupAction
+          compact
           :title="widget.name"
           :setup="widget.obsSetup"
           :connected="widget.isAttached"

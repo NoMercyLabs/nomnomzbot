@@ -70,6 +70,7 @@ function show(
   connected: boolean,
   primary = false,
   expected = false,
+  compact = false,
 ): void {
   mounted = mount(ObsSetupAction, {
     attachTo: document.body,
@@ -79,6 +80,7 @@ function show(
       connected,
       primary,
       expected,
+      compact,
       resolveAddress: async () => ADDRESS,
     },
     global: { plugins: [i18n] },
@@ -143,6 +145,12 @@ describe('ObsSetupAction', () => {
     expect(warning?.getAttribute('role')).toBe('alert');
     expect(warning?.textContent).toContain(en.dashboard.overlays.setup.stranded);
     expect(warning?.getAttribute('title')).toBe(en.dashboard.overlays.setup.strandedHint);
+  });
+
+  it('stays quiet in a compact row even when stranded, since the row already shows a health dot', () => {
+    show(FULL, false, false, true, true);
+
+    expect(document.querySelector('[data-obs-setup-warning]')).toBeNull();
   });
 
   it('stays quiet when the bot controls OBS and reloads the source itself', () => {

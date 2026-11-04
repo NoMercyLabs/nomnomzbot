@@ -113,6 +113,7 @@ async function bridgeAddress(): Promise<string | null | undefined> {
         </template>
         <template #trailing>
           <ObsSetupAction
+            compact
             :title="$t(`dashboard.obs.required.surfaces.${overlay.key}.name`)"
             :setup="overlay.widget.obsSetup"
             :connected="overlay.widget.isAttached"
