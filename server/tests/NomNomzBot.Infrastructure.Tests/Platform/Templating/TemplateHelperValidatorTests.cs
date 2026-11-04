@@ -389,7 +389,7 @@ public sealed class TemplateHelperValidatorTests
         foreach (
             Type type in assemblies
                 .SelectMany(a => a.GetTypes())
-                .Where(t => t.IsInterface && !t.IsGenericType && !known.Contains(t))
+                .Where(t => t is { IsInterface: true, IsGenericType: false } && !known.Contains(t))
         )
             services.AddSingleton(
                 type,
