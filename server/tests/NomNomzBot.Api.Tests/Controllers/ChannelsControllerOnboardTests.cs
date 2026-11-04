@@ -15,6 +15,7 @@ using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Controllers.V1;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Identity.Dtos;
@@ -52,7 +53,8 @@ public sealed class ChannelsControllerOnboardTests
             Substitute.For<IUserService>(),
             Substitute.For<IChannelDeletePreviewService>(),
             Substitute.For<ICurrentUserService>(),
-            Substitute.For<Application.Abstractions.Auth.IViewAsScope>()
+            Substitute.For<IViewAsScope>(),
+            Substitute.For<IModeratorChatReaders>()
         )
         {
             ControllerContext = new()

@@ -18,6 +18,7 @@ using NomNomzBot.Api.Middleware;
 using NomNomzBot.Api.Models;
 using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -44,6 +45,7 @@ public class ChannelsController : BaseController
     private readonly IChannelDeletePreviewService _deletePreview;
     private readonly ICurrentUserService _currentUser;
     private readonly IViewAsScope _viewAs;
+    private readonly IModeratorChatReaders _moderatorChat;
 
     public ChannelsController(
         IChannelService channelService,
@@ -54,9 +56,11 @@ public class ChannelsController : BaseController
         IUserService users,
         IChannelDeletePreviewService deletePreview,
         ICurrentUserService currentUser,
-        IViewAsScope viewAs
+        IViewAsScope viewAs,
+        IModeratorChatReaders moderatorChat
     )
     {
+        _moderatorChat = moderatorChat;
         _channelService = channelService;
         _db = db;
         _moderators = moderators;
@@ -259,6 +263,11 @@ public class ChannelsController : BaseController
             ?? User.FindFirst("sub")?.Value;
         if (string.IsNullOrEmpty(userId))
             return UnauthenticatedResponse();
+
+        // The caller is using the dashboard, so their readers for the channels they moderate start now, on their
+        // own token. It runs in the background and at most once per five minutes.
+        if (Guid.TryParse(userId, out Guid caller))
+            _ = _moderatorChat.RequestSyncAsync(caller);
 
         // "Channels I moderate" is a property of the caller. Resolve the caller's OWN channel (the key the
         // moderators sub-client turns into the caller's Twitch user id) from their identity — the old code read

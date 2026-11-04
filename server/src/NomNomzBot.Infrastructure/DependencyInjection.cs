@@ -1992,7 +1992,8 @@ public static class DependencyInjection
                 sp.GetRequiredService<IViewerEventSubSessions>(),
                 sp.GetRequiredService<TwitchEventSubHostedService>(),
                 sp.GetRequiredService<IServiceScopeFactory>(),
-                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ModeratorChatCoordinator>>()
+                sp.GetRequiredService<Microsoft.Extensions.Logging.ILogger<ModeratorChatCoordinator>>(),
+                sp.GetRequiredService<TimeProvider>()
             )
         );
         services.AddSingleton<Application.Chat.Services.IModeratorChatReaders>(sp =>

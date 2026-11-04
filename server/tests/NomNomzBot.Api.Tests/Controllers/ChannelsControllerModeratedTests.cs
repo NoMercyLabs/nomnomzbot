@@ -112,6 +112,19 @@ public sealed class ChannelsControllerModeratedTests
     }
 
     [Fact]
+    public async Task GetModeratedChannels_starts_the_callers_moderator_chat_readers()
+    {
+        (ChannelsController controller, _, IChannelAccessService access, _) = Build();
+        access
+            .ResolveOwnChannelAsync(Caller.ToString(), Arg.Any<CancellationToken>())
+            .Returns(Guid.Empty);
+
+        await controller.GetModeratedChannels(default);
+
+        await _moderatorChat.Received(1).RequestSyncAsync(Caller);
+    }
+
+    [Fact]
     public async Task GetModeratedChannels_with_no_owned_channel_returns_empty_not_401()
     {
         (
@@ -137,7 +150,10 @@ public sealed class ChannelsControllerModeratedTests
         await moderators.DidNotReceiveWithAnyArgs().GetModeratedChannelsAsync(default, default!);
     }
 
-    private static (
+    private readonly Application.Chat.Services.IModeratorChatReaders _moderatorChat =
+        Substitute.For<Application.Chat.Services.IModeratorChatReaders>();
+
+    private (
         ChannelsController Controller,
         ITwitchModeratorsApi Moderators,
         IChannelAccessService Access,
@@ -158,7 +174,8 @@ public sealed class ChannelsControllerModeratedTests
             Substitute.For<IUserService>(),
             Substitute.For<IChannelDeletePreviewService>(),
             Substitute.For<ICurrentUserService>(),
-            Substitute.For<IViewAsScope>()
+            Substitute.For<IViewAsScope>(),
+            _moderatorChat
         )
         {
             ControllerContext = new()

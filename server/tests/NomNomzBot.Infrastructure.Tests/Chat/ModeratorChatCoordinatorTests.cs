@@ -14,6 +14,7 @@ using System.Text.Json;
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
@@ -48,6 +49,9 @@ public sealed class ModeratorChatCoordinatorTests
     private readonly Guid _alice = Guid.NewGuid();
     private readonly Guid _bob = Guid.NewGuid();
     private readonly FakeSessions _sessions = new();
+    private readonly FakeTimeProvider _time = new(
+        new DateTimeOffset(2026, 11, 4, 15, 0, 0, TimeSpan.Zero)
+    );
     private readonly CapturingPipeline _pipeline = new();
     private readonly Dictionary<Guid, Moderator> _moderators = [];
     private readonly Dictionary<string, Guid> _tenants = [];
@@ -132,7 +136,13 @@ public sealed class ModeratorChatCoordinatorTests
             .AddScoped(_ => _channels)
             .BuildServiceProvider()
             .GetRequiredService<IServiceScopeFactory>();
-        return new(_sessions, _pipeline, scopes, NullLogger<ModeratorChatCoordinator>.Instance);
+        return new(
+            _sessions,
+            _pipeline,
+            scopes,
+            NullLogger<ModeratorChatCoordinator>.Instance,
+            _time
+        );
     }
 
     private static Result<IReadOnlyList<TwitchModeratedChannel>> ListFor(Moderator mod)
@@ -234,6 +244,48 @@ public sealed class ModeratorChatCoordinatorTests
             JsonDocument.Parse("{}").RootElement,
             CancellationToken.None
         );
+
+    [Fact]
+    public async Task A_requested_sync_starts_reading_the_moderated_channel()
+    {
+        Guid alice = AddModerator("alice-tw", "ch-1");
+        ModeratorChatCoordinator coordinator = NewCoordinator();
+
+        await coordinator.RequestSyncAsync(alice);
+
+        _sessions
+            .Opened.Should()
+            .ContainSingle()
+            .Which.Should()
+            .Be(EventSubOwnerKeys.Moderator(alice));
+        coordinator
+            .Snapshot()
+            .Should()
+            .ContainSingle()
+            .Which.State.Should()
+            .Be(ModeratorChatReaderState.Reading);
+    }
+
+    [Fact]
+    public async Task A_second_request_within_five_minutes_does_not_sync_again_and_a_later_one_does()
+    {
+        Guid alice = AddModerator("alice-tw", "ch-1");
+        ModeratorChatCoordinator coordinator = NewCoordinator();
+        await coordinator.RequestSyncAsync(alice);
+        _moderators[alice].Channels.Add("ch-2");
+
+        _time.Advance(TimeSpan.FromMinutes(4));
+        await coordinator.RequestSyncAsync(alice);
+        coordinator.Snapshot().Select(s => s.TwitchBroadcasterId).Should().BeEquivalentTo(["ch-1"]);
+
+        _time.Advance(TimeSpan.FromMinutes(1));
+        await coordinator.RequestSyncAsync(alice);
+        coordinator
+            .Snapshot()
+            .Select(s => s.TwitchBroadcasterId)
+            .Should()
+            .BeEquivalentTo(["ch-1", "ch-2"]);
+    }
 
     [Fact]
     public async Task A_moderated_channel_gets_all_eight_chat_read_topics_with_the_moderator_as_user_id()

@@ -24,6 +24,12 @@ public interface IModeratorChatReaders
     /// </summary>
     Task SyncUserAsync(Guid userId, CancellationToken ct = default);
 
+    /// <summary>
+    /// Syncs the moderator unless a sync for them was requested in the last five minutes. The dashboard's list of
+    /// moderated channels calls this, so a moderator's readers start when they use the dashboard.
+    /// </summary>
+    Task RequestSyncAsync(Guid userId);
+
     /// <summary>The state of every channel the readers hold or could not hold.</summary>
     IReadOnlyList<ModeratorChatReaderStatus> Snapshot();
 }

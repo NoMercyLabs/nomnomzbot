@@ -45,7 +45,10 @@ public sealed class ModeratorChatCoordinator : IModeratorChatReaders
     private readonly IEventSubNotificationSink _pipeline;
     private readonly IServiceScopeFactory _scopes;
     private readonly ILogger<ModeratorChatCoordinator> _logger;
+    private readonly TimeProvider _time;
     private readonly SemaphoreSlim _sync = new(1, 1);
+    private static readonly TimeSpan RequestInterval = TimeSpan.FromMinutes(5);
+    private readonly Dictionary<Guid, DateTimeOffset> _lastRequested = [];
     private readonly Lock _state = new();
 
     private readonly Dictionary<Guid, ModeratorChatReader> _readers = [];
@@ -55,13 +58,31 @@ public sealed class ModeratorChatCoordinator : IModeratorChatReaders
         IViewerEventSubSessions sessions,
         IEventSubNotificationSink pipeline,
         IServiceScopeFactory scopes,
-        ILogger<ModeratorChatCoordinator> logger
+        ILogger<ModeratorChatCoordinator> logger,
+        TimeProvider time
     )
     {
         _sessions = sessions;
         _pipeline = pipeline;
         _scopes = scopes;
         _logger = logger;
+        _time = time;
+    }
+
+    public Task RequestSyncAsync(Guid userId)
+    {
+        DateTimeOffset now = _time.GetUtcNow();
+        lock (_state)
+        {
+            if (
+                _lastRequested.TryGetValue(userId, out DateTimeOffset last)
+                && now - last < RequestInterval
+            )
+                return Task.CompletedTask;
+            _lastRequested[userId] = now;
+        }
+
+        return SyncUserAsync(userId, CancellationToken.None);
     }
 
     public IReadOnlyList<ModeratorChatReaderStatus> Snapshot()
