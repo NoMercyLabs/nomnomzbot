@@ -74,7 +74,15 @@ internal sealed record EmoteRow(
         int maxArgs = 0
     ) => new(key, sample, sources, minArgs, maxArgs, render);
 
-    public EmoteRow ForViewer() => this with { Scope = TemplateHelperScope.Viewer };
+    public IReadOnlyList<TemplateHelperContext> Contexts { get; init; } =
+        TemplateHelperContexts.Standard;
+
+    public EmoteRow ForViewer() =>
+        this with
+        {
+            Scope = TemplateHelperScope.Viewer,
+            Contexts = TemplateHelperContexts.WithTriggerViewerAndDiscord,
+        };
 
     public Task<string?> RenderAsync(EmoteCall call) =>
         call.Args.Count < MinArgs || call.Args.Count > MaxArgs
@@ -84,7 +92,7 @@ internal sealed record EmoteRow(
     public TemplateHelperEntry ToEntry() =>
         new(
             Key,
-            ViewerText ? TemplateHelperContexts.StandardAndViewer : TemplateHelperContexts.Standard,
+            ViewerText ? [.. Contexts, TemplateHelperContext.Viewer] : Contexts,
             new LocalizedText("template.helper." + Key)
         )
         {

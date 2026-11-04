@@ -141,7 +141,12 @@ internal sealed record MusicRow(
         int maxArgs = 0
     ) => new(key, sample, sources, minArgs, maxArgs, render);
 
-    public MusicRow ForViewer(TemplateHelperScope scope) => this with { Scope = scope };
+    public MusicRow ForViewer(TemplateHelperScope scope) =>
+        this with
+        {
+            Scope = scope,
+            Contexts = TemplateHelperContexts.WithTriggerViewer,
+        };
 
     /// <summary>The surfaces that declare the row; all but the viewer surface unless the row narrows it.</summary>
     public IReadOnlyList<TemplateHelperContext> Contexts { get; init; } =

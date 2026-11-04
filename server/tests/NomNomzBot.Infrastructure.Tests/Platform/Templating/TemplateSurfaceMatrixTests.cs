@@ -66,9 +66,8 @@ namespace NomNomzBot.Infrastructure.Tests.Platform.Templating;
 /// with one, two and three placeholder arguments; the cell passes when any shape renders. A key that is not
 /// valid on a surface fails every shape.
 ///
-/// Two lists keep the gate honest. <see cref="DataAbsent"/> holds the cells that cannot render because the
-/// surface has no source for the data. <see cref="KnownGap"/> holds the cells that are failures today: each is
-/// work for a later slice, and the test fails when a row starts to render so the row is deleted with the fix.
+/// <see cref="KnownGap"/> holds the cells that are failures today: each is work for a later slice, and the test
+/// fails when a row starts to render so the row is deleted with the fix.
 /// </summary>
 public sealed class TemplateSurfaceMatrixTests
 {
@@ -88,90 +87,6 @@ public sealed class TemplateSurfaceMatrixTests
         .. new[] { "a", "2" }
             .SelectMany(x => new[] { "a", "2" }.Select(y => (x, y)))
             .SelectMany(p => new[] { "a", "2" }.Select(z => $":{p.x}|{p.y}|{z}")),
-    ];
-
-    /// <summary>The cells that have no source for the data on that surface. Every row names why.</summary>
-    private static readonly (
-        TemplateHelperContext Surface,
-        string Key,
-        string Reason
-    )[] DataAbsent =
-    [
-        (
-            TemplateHelperContext.Discord,
-            "chat.mention.user",
-            "The go-live post has no viewer; a follow-style trigger seeds the viewer through DiscordTriggerNotificationHandler.ViewerData."
-        ),
-        (
-            TemplateHelperContext.Discord,
-            "user",
-            "The go-live post has no viewer; a follow-style trigger seeds it through DiscordTriggerNotificationHandler.ViewerData."
-        ),
-        (
-            TemplateHelperContext.Discord,
-            "user.name",
-            "The go-live post has no viewer; a follow-style trigger seeds it through DiscordTriggerNotificationHandler.ViewerData."
-        ),
-        (
-            TemplateHelperContext.Discord,
-            "user.id",
-            "The go-live post has no viewer; a follow-style trigger seeds it through DiscordTriggerNotificationHandler.ViewerData."
-        ),
-        (
-            TemplateHelperContext.Timer,
-            "platform.event",
-            "A scheduled timer has no originating platform event."
-        ),
-        (TemplateHelperContext.Discord, "raw.message", RawSurfaceFixture.DiscordMessageAbsence),
-        .. new[]
-        {
-            TemplateHelperContext.EventResponse,
-            TemplateHelperContext.Timer,
-            TemplateHelperContext.Discord,
-            TemplateHelperContext.Webhook,
-        }.Select(surface =>
-            (
-                Surface: surface,
-                Key: "lookup.translate.chat",
-                Reason: "This matrix trigger carries no chat message or command arguments to translate."
-            )
-        ),
-        .. new[]
-        {
-            "music.user.requests.total",
-            "music.user.lastRequest",
-            "music.queue.position",
-            "music.queue.position.ordinal",
-            "music.queue.wait",
-            "music.queue.wait.at",
-            "music.queue.mine.titles",
-            "music.queue.mine.code",
-            "music.queue.mine.next",
-        }.Select(key =>
-            (
-                Surface: TemplateHelperContext.Timer,
-                Key: key,
-                Reason: "A timer has no viewer; these music values need a viewer identity."
-            )
-        ),
-        .. new[]
-        {
-            "music.user.requests.total",
-            "music.user.lastRequest",
-            "music.queue.position",
-            "music.queue.position.ordinal",
-            "music.queue.wait",
-            "music.queue.wait.at",
-            "music.queue.mine.titles",
-            "music.queue.mine.code",
-            "music.queue.mine.next",
-        }.Select(key =>
-            (
-                Surface: TemplateHelperContext.Discord,
-                Key: key,
-                Reason: "The Discord go-live post has no viewer; viewer-triggered posts can supply one."
-            )
-        ),
     ];
 
     /// <summary>
@@ -231,6 +146,64 @@ public sealed class TemplateSurfaceMatrixTests
 
     private static bool Failed(Cell cell) => cell.State is CellState.AsWritten or CellState.Threw;
 
+    [Theory]
+    [InlineData(TemplateHelperContext.Timer)]
+    [InlineData(TemplateHelperContext.Discord)]
+    public void Viewer_bound_helpers_are_not_listed_without_a_viewer(TemplateHelperContext surface)
+    {
+        ServiceCollection services = new();
+        services.AddTemplateHelpers(typeof(TemplateResolver).Assembly);
+        using ServiceProvider provider = services.BuildServiceProvider();
+        ITemplateHelperRegistry registry = provider.GetRequiredService<ITemplateHelperRegistry>();
+
+        string[] listed =
+        [
+            .. registry
+                .ForContext(surface)
+                .Where(entry =>
+                    entry.Key.StartsWith("music.user.", StringComparison.Ordinal)
+                    || entry.Key.StartsWith("music.queue.mine.", StringComparison.Ordinal)
+                    || entry.Key.StartsWith("music.queue.position", StringComparison.Ordinal)
+                    || entry.Key.StartsWith("music.queue.wait", StringComparison.Ordinal)
+                    || entry.Key == "fun.percent"
+                )
+                .Select(entry => entry.Key),
+        ];
+
+        listed.Should().BeEmpty($"{surface} has no viewer identity for these helpers");
+    }
+
+    [Fact]
+    public void A_timer_does_not_list_helpers_that_need_an_event_message_or_viewer()
+    {
+        ServiceCollection services = new();
+        services.AddTemplateHelpers(typeof(TemplateResolver).Assembly);
+        using ServiceProvider provider = services.BuildServiceProvider();
+        ITemplateHelperRegistry registry = provider.GetRequiredService<ITemplateHelperRegistry>();
+        string[] unavailable =
+        [
+            "platform.event",
+            "lookup.translate.chat",
+            "emote.message.count",
+            "emote.message.first",
+            "emote.user.top",
+            "emote.user.top.count",
+        ];
+
+        registry
+            .ForContext(TemplateHelperContext.Timer)
+            .Select(entry => entry.Key)
+            .Should()
+            .NotContain(unavailable);
+
+        registry
+            .ForContext(TemplateHelperContext.Timer)
+            .Where(entry => entry.Scope == TemplateHelperScope.Viewer)
+            .Select(entry => entry.Key)
+            .Should()
+            .BeEmpty("a scheduled timer carries no viewer identity");
+    }
+
     [Fact]
     public async Task Every_declared_helper_renders_on_the_surface_that_declares_it()
     {
@@ -267,9 +240,8 @@ public sealed class TemplateSurfaceMatrixTests
         List<string> unexplained = [];
         foreach (Cell cell in cells.Where(c => Failed(c) && !universal.Contains(c)))
         {
-            bool absent = DataAbsent.Any(a => a.Surface == cell.Surface && a.Key == cell.Key);
             bool known = KnownGap.Any(g => g.Surface == cell.Surface && g.Key == cell.Key);
-            if (!absent && !known)
+            if (!known)
                 unexplained.Add($"{cell.Surface}\t{cell.Key}\t{cell.State}\t{cell.Detail}");
         }
 
@@ -278,9 +250,6 @@ public sealed class TemplateSurfaceMatrixTests
             .. KnownGap
                 .Where(g => cells.Any(c => c.Surface == g.Surface && c.Key == g.Key && !Failed(c)))
                 .Select(g => $"{g.Surface}\t{g.Key}"),
-            .. DataAbsent
-                .Where(a => cells.Any(c => c.Surface == a.Surface && c.Key == a.Key && !Failed(c)))
-                .Select(a => $"{a.Surface}\t{a.Key} (DataAbsent)"),
         ];
 
         StringBuilder report = new();
@@ -370,6 +339,8 @@ public sealed class TemplateSurfaceMatrixTests
     {
         Dictionary<string, string> seeds = SeedsFor(surface);
         MusicSurfaceFixture.Seed(surface, seeds);
+        RawSurfaceFixture.Seed(surface, key, seeds);
+        SeedTriggerVariant(surface, key, seeds);
         ArgsSurfaceFixture.Seed(surface, key, seeds);
         return surface switch
         {
@@ -386,6 +357,32 @@ public sealed class TemplateSurfaceMatrixTests
             ).RenderAsync(template, seeds, false, Channel),
             _ => await resolver.ResolveAsync(template, seeds, Channel),
         };
+    }
+
+    /// <summary>Use a data-bearing trigger where the surface supports one but its default fixture does not.</summary>
+    private static void SeedTriggerVariant(
+        TemplateHelperContext surface,
+        string key,
+        Dictionary<string, string> seeds
+    )
+    {
+        if (surface == TemplateHelperContext.Discord)
+        {
+            if (
+                key is "chat.mention.user" or "user" or "user.name" or "user.id"
+                || key.StartsWith("emote.user.top", StringComparison.Ordinal)
+            )
+                TemplateSubject.SeedUser(seeds, "100000042", "sampleviewer", "SampleViewer");
+        }
+
+        if (
+            key is "lookup.translate.chat" or "emote.message.first" or "emote.message.count"
+            && surface
+                is TemplateHelperContext.EventResponse
+                    or TemplateHelperContext.Discord
+                    or TemplateHelperContext.Webhook
+        )
+            seeds["message"] = "sampleHype";
     }
 
     /// <summary>The seed variables the production caller of one surface builds.</summary>
