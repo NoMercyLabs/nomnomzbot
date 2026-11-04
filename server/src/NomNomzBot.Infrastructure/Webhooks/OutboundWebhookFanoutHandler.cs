@@ -19,15 +19,17 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.Contracts.Webhooks;
 using NomNomzBot.Application.DTOs.Webhooks;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Webhooks.Entities;
+using NomNomzBot.Infrastructure.Moderation;
+using NomNomzBot.Infrastructure.Overlays;
 
 namespace NomNomzBot.Infrastructure.Webhooks;
 
 /// <summary>
 /// Post-commit hook that fans-out to every enabled <see cref="OutboundWebhookEndpoint"/> subscribed to the
-/// journaled event type (webhooks.md §9). Runs after the journal row commits, before live bus handlers —
-/// synchronously, as part of the caller's <c>PublishAsync</c> (<c>JournalingEventBusDecorator</c> awaits every
-/// hook). The actual HTTP delivery can be slow or hang, so it is detached onto the thread pool with its own
+/// journaled event type (webhooks.md §9). Runs after the journal row commits. Chat-message hooks run after
+/// local moderation handlers. The actual HTTP delivery can be slow or hang, so it is detached onto the thread pool with its own
 /// DI scope (S099a — mirrors <c>EventBus.PublishFireAndForget</c>'s <c>Task.Run</c> pattern) instead of being
 /// awaited here: the event raiser must never block on a third party's webhook endpoint. The detached delivery's
 /// <see cref="Result"/> is still observed — a failure is logged, never silently dropped — even though the
@@ -45,6 +47,9 @@ public sealed class OutboundWebhookFanoutHandler(
         CancellationToken cancellationToken = default
     )
     {
+        if (OverlayEventFilter.IsPrivateModerationEvent(committed.EventType))
+            return Result.Success();
+
         if (committed.BroadcasterId is not { } broadcasterId)
             return Result.Success();
 
@@ -73,6 +78,17 @@ public sealed class OutboundWebhookFanoutHandler(
         LastDispatch = Task.Run(async () =>
         {
             await using AsyncServiceScope scope = scopeFactory.CreateAsyncScope();
+            IHeldTextService? heldText = scope.ServiceProvider.GetService<IHeldTextService>();
+            if (
+                heldText is not null
+                && await HeldJournalEventText.IsHeldAsync(
+                    heldText,
+                    committed,
+                    CancellationToken.None
+                )
+            )
+                return;
+
             IOutboundWebhookDispatcher scopedDispatcher =
                 scope.ServiceProvider.GetRequiredService<IOutboundWebhookDispatcher>();
             Result<IReadOnlyList<OutboundEnqueueResult>> fanout =
@@ -80,8 +96,7 @@ public sealed class OutboundWebhookFanoutHandler(
                     broadcasterId,
                     committed.EventType,
                     variables,
-                    committed.EventId,
-                    CancellationToken.None
+                    committed.EventId
                 );
 
             if (fanout.IsFailure)

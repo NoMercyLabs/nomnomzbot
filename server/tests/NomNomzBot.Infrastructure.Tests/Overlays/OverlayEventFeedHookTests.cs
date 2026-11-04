@@ -13,6 +13,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Overlays.Services;
 using NomNomzBot.Infrastructure.Overlays;
 using NSubstitute;
@@ -29,17 +30,79 @@ public sealed class OverlayEventFeedHookTests
 {
     private static readonly Guid Tenant = Guid.Parse("019f2a00-4444-7000-8000-000000000001");
 
-    private static (OverlayEventFeedHook Hook, IOverlayEventFeed Feed) Build()
+    private static (OverlayEventFeedHook Hook, IOverlayEventFeed Feed) Build(
+        IHeldTextService? heldText = null
+    )
     {
         IOverlayEventFeed feed = Substitute.For<IOverlayEventFeed>();
         return (
             new(
                 feed,
                 Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
-                NullLogger<OverlayEventFeedHook>.Instance
+                NullLogger<OverlayEventFeedHook>.Instance,
+                heldText
             ),
             feed
         );
+    }
+
+    [Theory]
+    [InlineData(true, "AutomaticRewardRedeemedEvent", "Message")]
+    [InlineData(false, "AutomaticRewardRedeemedEvent", "Message")]
+    [InlineData(true, "BitsUsedEvent", "MessageText")]
+    [InlineData(false, "BitsUsedEvent", "MessageText")]
+    [InlineData(true, "CustomPowerUpRedeemedEvent", "UserInput")]
+    [InlineData(false, "CustomPowerUpRedeemedEvent", "UserInput")]
+    public async Task Raw_viewer_text_event_reaches_overlay_only_when_input_is_released(
+        bool held,
+        string eventType,
+        string textKey
+    )
+    {
+        IHeldTextService heldText = Substitute.For<IHeldTextService>();
+        heldText
+            .IsTextHeldAsync(
+                Tenant,
+                "viewer-1",
+                "viewer secret",
+                Arg.Any<CancellationToken>(),
+                Arg.Any<DateTimeOffset?>()
+            )
+            .Returns(held);
+        heldText
+            .IsChatLineHeldAsync(
+                Tenant,
+                "viewer-1",
+                "viewer secret",
+                Arg.Any<DateTimeOffset>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(held);
+        (OverlayEventFeedHook hook, IOverlayEventFeed feed) = Build(heldText);
+        string payload = $"{{\"UserId\":\"viewer-1\",\"{textKey}\":\"viewer secret\"}}";
+
+        await hook.OnCommittedAsync(Record(Tenant, eventType, payload));
+
+        if (held)
+            feed.ReceivedCalls().Should().BeEmpty();
+        else
+            await feed.Received(1)
+                .BroadcastEventAsync(Tenant, eventType, payload, Arg.Any<CancellationToken>());
+    }
+
+    [Theory]
+    [InlineData("ChatUserMessageHeldEvent")]
+    [InlineData("AutoModMessageHeldEvent")]
+    [InlineData("ChatUserMessageUpdatedEvent")]
+    public async Task Raw_moderation_review_events_never_reach_public_overlays(string eventType)
+    {
+        (OverlayEventFeedHook hook, IOverlayEventFeed feed) = Build();
+
+        await hook.OnCommittedAsync(
+            Record(Tenant, eventType, "{\"UserId\":\"viewer-1\",\"Text\":\"viewer secret\"}")
+        );
+
+        feed.ReceivedCalls().Should().BeEmpty();
     }
 
     private static EventRecord Record(

@@ -12,7 +12,9 @@
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Events;
 
@@ -26,13 +28,15 @@ public sealed class CheerBroadcastHandler : IEventHandler<CheerEvent>
     private readonly IWidgetNotifier _widgets;
     private readonly IAlertQueueService _alertQueue;
     private readonly IWidgetService _widgetService;
+    private readonly IHeldTextService? _heldText;
 
     public CheerBroadcastHandler(
         IDashboardNotifier notifier,
         IApplicationDbContext db,
         IWidgetNotifier widgets,
         IAlertQueueService alertQueue,
-        IWidgetService widgetService
+        IWidgetService widgetService,
+        IHeldTextService? heldText = null
     )
     {
         _notifier = notifier;
@@ -40,6 +44,7 @@ public sealed class CheerBroadcastHandler : IEventHandler<CheerEvent>
         _widgets = widgets;
         _alertQueue = alertQueue;
         _widgetService = widgetService;
+        _heldText = heldText;
     }
 
     public async Task HandleAsync(CheerEvent @event, CancellationToken ct = default)
@@ -47,11 +52,24 @@ public sealed class CheerBroadcastHandler : IEventHandler<CheerEvent>
         if (@event.BroadcasterId == Guid.Empty)
             return;
 
+        bool messageHeld =
+            _heldText is not null
+            && @event.Provider == AuthEnums.Platform.Twitch
+            && !@event.IsAnonymous
+            && !string.IsNullOrWhiteSpace(@event.Message)
+            && await _heldText.IsTextHeldAsync(
+                @event.BroadcasterId,
+                @event.UserId,
+                @event.Message,
+                ct,
+                @event.OccurredAt
+            );
+
         CheerAlertDto dto = new(
             @event.IsAnonymous ? null : @event.UserId,
             @event.IsAnonymous ? "Anonymous" : @event.UserDisplayName,
             @event.Bits,
-            @event.Message,
+            messageHeld ? string.Empty : @event.Message,
             @event.IsAnonymous,
             @event.ImageUrl
         );

@@ -32,6 +32,7 @@ using NomNomzBot.Application.Games;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.MediaShare.Services;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Domain.Chat.Events;
@@ -73,6 +74,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     private readonly TimeProvider _timeProvider;
     private readonly IOutboundSanctionAccessor _sanctions;
     private readonly IBuiltinResponseComposer _composer;
+    private readonly IHeldTextService? _heldText;
     private const int MaxFirstChatChecked = 50_000;
     private const string DenialTtsCooldownKey = "tts:permission-denied";
     private static readonly TimeSpan DenialTtsCooldown = TimeSpan.FromSeconds(30);
@@ -92,7 +94,8 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         TimeProvider timeProvider,
         IOutboundSanctionAccessor sanctions,
         IBuiltinResponseComposer composer,
-        ILogger<ChatMessageHandler> logger
+        ILogger<ChatMessageHandler> logger,
+        IHeldTextService? heldText = null
     )
     {
         _registry = registry;
@@ -108,6 +111,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
         _sanctions = sanctions;
         _composer = composer;
         _logger = logger;
+        _heldText = heldText;
     }
 
     public async Task HandleAsync(
@@ -116,6 +120,20 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
     )
     {
         if (@event.BroadcasterId == Guid.Empty)
+            return;
+
+        if (
+            _heldText is not null
+            && @event.Provider == AuthEnums.Platform.Twitch
+            && !string.IsNullOrWhiteSpace(@event.Message)
+            && await _heldText.IsChatLineHeldAsync(
+                @event.BroadcasterId,
+                @event.UserId,
+                @event.Message,
+                @event.OccurredAt,
+                cancellationToken
+            )
+        )
             return;
 
         // Cooldown manager is keyed by a string channel id; use the tenant Guid's string form.

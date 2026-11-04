@@ -9,9 +9,11 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using FluentAssertions;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Rewards.Events;
 using NSubstitute;
 
@@ -23,6 +25,80 @@ namespace NomNomzBot.Api.Tests.Hubs;
 /// </summary>
 public sealed class RedemptionActivityBroadcastHandlersTests
 {
+    [Theory]
+    [InlineData(true, null)]
+    [InlineData(false, "viewer message")]
+    public async Task Activity_lines_exclude_held_text_and_keep_approved_text(
+        bool held,
+        string? expected
+    )
+    {
+        Guid channel = Guid.CreateVersion7();
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IHeldTextService heldText = Substitute.For<IHeldTextService>();
+        heldText
+            .IsTextHeldAsync(
+                channel,
+                "u1",
+                "viewer message",
+                Arg.Any<CancellationToken>(),
+                Arg.Any<DateTimeOffset?>()
+            )
+            .Returns(held);
+
+        await new AutomaticRewardBroadcastHandler(notifier, heldText).HandleAsync(
+            new AutomaticRewardRedeemedEvent
+            {
+                BroadcasterId = channel,
+                UserId = "u1",
+                UserLogin = "viewer",
+                UserDisplayName = "Viewer",
+                RedemptionId = "auto-1",
+                RewardType = "send_highlighted_message",
+                Cost = 50,
+                Message = "viewer message",
+            }
+        );
+        await new PowerUpBroadcastHandler(notifier, heldText).HandleAsync(
+            new BitsUsedEvent
+            {
+                BroadcasterId = channel,
+                UserId = "u1",
+                UserLogin = "viewer",
+                UserDisplayName = "Viewer",
+                Type = "power_up",
+                PowerUpType = "celebration",
+                Bits = 100,
+                MessageText = "viewer message",
+            }
+        );
+        await new CustomPowerUpBroadcastHandler(notifier, heldText).HandleAsync(
+            new CustomPowerUpRedeemedEvent
+            {
+                BroadcasterId = channel,
+                UserId = "u1",
+                UserLogin = "viewer",
+                UserDisplayName = "Viewer",
+                RedemptionId = "custom-1",
+                PowerUpId = "power-1",
+                PowerUpTitle = "Confetti",
+                Status = "unfulfilled",
+                Bits = 100,
+                UserInput = "viewer message",
+            }
+        );
+
+        List<RedemptionActivityDto> sent = notifier
+            .ReceivedCalls()
+            .Where(call =>
+                call.GetMethodInfo().Name == nameof(IDashboardNotifier.SendRedemptionActivityAsync)
+            )
+            .Select(call => (RedemptionActivityDto)call.GetArguments()[1]!)
+            .ToList();
+        sent.Should().HaveCount(3);
+        sent.Select(item => item.UserInput).Should().OnlyContain(input => input == expected);
+    }
+
     [Fact]
     public async Task Automatic_reward_is_forwarded_with_its_kind_cost_in_points_and_message()
     {

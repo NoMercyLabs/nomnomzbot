@@ -12,6 +12,7 @@
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Application.Contracts.Security;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Rewards.Events;
 
 namespace NomNomzBot.Infrastructure.Discord.EventHandlers;
@@ -27,11 +28,18 @@ public sealed class DiscordResubscriptionNotificationHandler
     public DiscordResubscriptionNotificationHandler(
         IDiscordNotificationDispatcher dispatcher,
         IOutboundSanctionAccessor sanctions,
-        ILogger<DiscordResubscriptionNotificationHandler> logger
+        ILogger<DiscordResubscriptionNotificationHandler> logger,
+        IHeldTextService? heldText = null
     )
-        : base(dispatcher, sanctions, logger) { }
+        : base(dispatcher, sanctions, logger, heldText) { }
 
     protected override string Trigger => "resubscription";
+
+    protected override string? HeldViewerIdOf(ResubscriptionEvent @event) => @event.UserId;
+
+    protected override string? HeldViewerTextOf(ResubscriptionEvent @event) => @event.Message;
+
+    protected override string? HeldViewerProviderOf(ResubscriptionEvent @event) => @event.Provider;
 
     protected override string DedupeKeyOf(ResubscriptionEvent @event) =>
         $"{Trigger}:{@event.Provider}:{@event.UserId}:{@event.OccurredAt.UtcDateTime:O}:{@event.CumulativeMonths}";

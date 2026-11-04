@@ -17,9 +17,12 @@ using Microsoft.Extensions.Hosting;
 using NomNomzBot.Application;
 using NomNomzBot.Application.Abstractions.Content;
 using NomNomzBot.Application.Abstractions.Pipeline;
+using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Music.Interfaces;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Chat.EventHandlers;
+using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NomNomzBot.Infrastructure.Platform.Deployment;
 using NomNomzBot.Infrastructure.Services.Ipc;
 
@@ -34,6 +37,39 @@ namespace NomNomzBot.Infrastructure.Tests.Platform;
 /// </summary>
 public class AssemblyScanDiscoveryTests
 {
+    [Fact]
+    public void Chat_hold_queue_writers_run_before_chat_output_handlers()
+    {
+        List<Type> order = BuildServices()
+            .Where(descriptor =>
+                descriptor.ServiceType == typeof(IEventHandler<ChatMessageReceivedEvent>)
+            )
+            .Select(descriptor => descriptor.ImplementationType!)
+            .ToList();
+
+        order.Should().Contain(typeof(ChatFilterExecutionHandler));
+        order.Should().Contain(typeof(SpamDefenseHandler));
+        order.Should().Contain(typeof(ChatMessageHandler));
+        order.Should().Contain(typeof(ChatMessagePersistenceHandler));
+
+        order
+            .IndexOf(typeof(ChatFilterExecutionHandler))
+            .Should()
+            .BeLessThan(order.IndexOf(typeof(ChatMessageHandler)));
+        order
+            .IndexOf(typeof(SpamDefenseHandler))
+            .Should()
+            .BeLessThan(order.IndexOf(typeof(ChatMessageHandler)));
+        order
+            .IndexOf(typeof(ChatFilterExecutionHandler))
+            .Should()
+            .BeLessThan(order.IndexOf(typeof(ChatMessagePersistenceHandler)));
+        order
+            .IndexOf(typeof(SpamDefenseHandler))
+            .Should()
+            .BeLessThan(order.IndexOf(typeof(ChatMessagePersistenceHandler)));
+    }
+
     private static readonly Assembly InfrastructureAssembly = typeof(DependencyInjection).Assembly;
 
     private static ServiceCollection BuildServices(string? deploymentMode = null)

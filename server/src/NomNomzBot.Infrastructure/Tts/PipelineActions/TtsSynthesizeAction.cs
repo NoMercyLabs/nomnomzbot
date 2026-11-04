@@ -136,6 +136,17 @@ public sealed class TtsSynthesizeAction : ICommandAction
         if (string.IsNullOrWhiteSpace(text))
             return ActionResult.Failure("tts_synthesize resolved to empty text.");
 
+        if (
+            ctx.Variables.TryGetValue("input.held", out string? held)
+            && held.Equals("true", StringComparison.OrdinalIgnoreCase)
+            && ctx.Variables.TryGetValue("input", out string? input)
+            && !string.IsNullOrWhiteSpace(input)
+            && (
+                ViewerWordsTemplate.IsIn(template) || text.Contains(input, StringComparison.Ordinal)
+            )
+        )
+            return ActionResult.Failure("Redemption text is held by AutoMod.");
+
         string voiceTemplate = action.GetString("voice") ?? string.Empty;
         string? voiceId = null;
         if (!string.IsNullOrWhiteSpace(voiceTemplate))

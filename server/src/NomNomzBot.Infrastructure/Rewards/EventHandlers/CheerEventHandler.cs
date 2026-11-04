@@ -39,6 +39,8 @@ public sealed class CheerEventHandler
 
     protected override string? GetUserLogin(CheerEvent e) => e.IsAnonymous ? null : e.UserLogin;
 
+    protected override string? HeldViewerText(CheerEvent e) => e.IsAnonymous ? null : e.Message;
+
     protected override Dictionary<string, string> BuildVariables(CheerEvent e)
     {
         string message = CheermoteText.Strip(e.Message);

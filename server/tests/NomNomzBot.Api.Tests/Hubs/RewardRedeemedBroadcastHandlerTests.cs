@@ -14,6 +14,7 @@ using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Alerts.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Rewards.Events;
@@ -31,7 +32,7 @@ namespace NomNomzBot.Api.Tests.Hubs;
 /// </summary>
 public sealed class RewardRedeemedBroadcastHandlerTests
 {
-    private static RewardRedeemedEvent Event(Guid channel) =>
+    private static RewardRedeemedEvent Event(Guid channel, string? input = null) =>
         new()
         {
             BroadcasterId = channel,
@@ -41,7 +42,63 @@ public sealed class RewardRedeemedBroadcastHandlerTests
             UserId = "u1",
             UserDisplayName = "Stoney",
             Cost = 100,
+            UserInput = input,
         };
+
+    [Theory]
+    [InlineData(true, null)]
+    [InlineData(false, "held viewer text")]
+    public async Task Redemption_broadcasts_only_released_input_to_dashboard_and_overlays(
+        bool held,
+        string? expected
+    )
+    {
+        Guid channel = Guid.CreateVersion7();
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        IHeldTextService heldText = Substitute.For<IHeldTextService>();
+        heldText
+            .IsTextHeldAsync(
+                channel,
+                "u1",
+                "held viewer text",
+                Arg.Any<CancellationToken>(),
+                Arg.Any<DateTimeOffset?>()
+            )
+            .Returns(held);
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        RewardRedeemedBroadcastHandler handler = new(
+            notifier,
+            Substitute.For<IHubUserEnricher>(),
+            db,
+            widgets,
+            Substitute.For<ISoundClipService>(),
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>(),
+            heldText
+        );
+
+        await handler.HandleAsync(Event(channel, "held viewer text"));
+
+        await notifier
+            .Received(1)
+            .SendRewardRedeemedAsync(
+                channel.ToString(),
+                Arg.Is<RewardRedeemedDto>(dto => dto.UserInput == expected),
+                Arg.Any<CancellationToken>()
+            );
+        await widgets
+            .Received(1)
+            .BroadcastOverlayEventAsync(
+                channel.ToString(),
+                Arg.Is<OverlayEventDto>(overlay =>
+                    held
+                        ? !overlay.Payload.Contains("held viewer text", StringComparison.Ordinal)
+                        : overlay.Payload.Contains("held viewer text", StringComparison.Ordinal)
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
 
     [Fact]
     public async Task Redemption_with_known_viewer_carries_the_enriched_fields()

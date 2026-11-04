@@ -21,6 +21,7 @@ using NomNomzBot.Application.Commands.Builtin;
 using NomNomzBot.Application.Commands.Builtin.Personality;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Games;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -46,6 +47,43 @@ namespace NomNomzBot.Infrastructure.Tests.Chat;
 /// </summary>
 public sealed class ChatMessageHandlerTests
 {
+    [Theory]
+    [InlineData(true, 0)]
+    [InlineData(false, 1)]
+    public async Task Held_chat_command_has_no_bot_output_or_channel_activity(bool held, int count)
+    {
+        ChannelContext ctx = NewChannelContext();
+        IHeldTextService heldText = Substitute.For<IHeldTextService>();
+        heldText
+            .IsChatLineHeldAsync(
+                Broadcaster,
+                "tw-viewer-1",
+                "!uptime",
+                Arg.Any<DateTimeOffset>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(held);
+        (ChatMessageHandler sut, IInboundOriginChatSender chat, _) = BuildWithBus(
+            ctx,
+            heldText: heldText
+        );
+
+        await sut.HandleAsync(MessageEvent("!uptime"), CancellationToken.None);
+
+        ctx.MessageCount.Should().Be(count);
+        if (held)
+            chat.ReceivedCalls().Should().BeEmpty();
+        else
+            await chat.Received(1)
+                .SendReplyAsync(
+                    Broadcaster,
+                    Arg.Any<string>(),
+                    "msg-1",
+                    BuiltinResponse,
+                    Arg.Any<CancellationToken>()
+                );
+    }
+
     /// <summary>
     /// S021: a substitute <see cref="IInboundOriginChatSender"/> that mirrors the pre-S021
     /// <c>IChatProvider</c> mock default — an unconfigured send is a FAILURE (never a null-dereferencing
@@ -2614,7 +2652,8 @@ public sealed class ChatMessageHandlerTests
     ) BuildWithBus(
         ChannelContext ctx,
         IBuiltinResponseComposer? composer = null,
-        ICooldownManager? cooldowns = null
+        ICooldownManager? cooldowns = null,
+        IHeldTextService? heldText = null
     )
     {
         IChannelRegistry registry = Substitute.For<IChannelRegistry>();
@@ -2658,7 +2697,8 @@ public sealed class ChatMessageHandlerTests
             TimeProvider.System,
             new OutboundSanctionAccessor(),
             composer ?? TestBuiltinComposer.Create(),
-            NullLogger<ChatMessageHandler>.Instance
+            NullLogger<ChatMessageHandler>.Instance,
+            heldText
         );
 
         return (sut, chat, bus);

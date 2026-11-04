@@ -33,6 +33,51 @@ namespace NomNomzBot.Infrastructure.Tests.Tts;
 /// </summary>
 public sealed class TtsSynthesizeActionTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Synthesis_excludes_transformed_held_input_and_accepts_approved_input(
+        bool held
+    )
+    {
+        (
+            TtsSynthesizeAction action,
+            ITtsService tts,
+            ITtsConfigService config,
+            ISoundClipStore store
+        ) = Build("DANGEROUS WORDS");
+        MockVoiceExists(config, "en-US-Guy");
+        tts.SynthesizeAsync(Arg.Any<string>(), "en-US-Guy", ct: Arg.Any<CancellationToken>())
+            .Returns(new TtsResult([1], 100, "en-US-Guy", "azure"));
+        store
+            .PutAsync(
+                Channel,
+                Arg.Any<string>(),
+                Arg.Any<System.IO.Stream>(),
+                "audio/mpeg",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success("clip"));
+        store
+            .GetPlaybackUrlAsync("clip", Arg.Any<CancellationToken>())
+            .Returns(Result.Success("https://bot.local/clip"));
+        PipelineExecutionContext ctx = Context();
+        ctx.Variables["input"] = "dangerous words";
+        ctx.Variables["input.held"] = held ? "true" : "false";
+
+        ActionResult result = await action.ExecuteAsync(
+            ctx,
+            Action(("text", "{{transform.upper:{input}}}"), ("voice", "en-US-Guy"))
+        );
+
+        result.Succeeded.Should().Be(!held);
+        if (held)
+            tts.ReceivedCalls().Should().BeEmpty();
+        else
+            await tts.Received(1)
+                .SynthesizeAsync("DANGEROUS WORDS", "en-US-Guy", ct: Arg.Any<CancellationToken>());
+    }
+
     private static readonly Guid Channel = Guid.Parse("019f2a00-2222-7000-8000-000000000002");
 
     private static PipelineExecutionContext Context() =>

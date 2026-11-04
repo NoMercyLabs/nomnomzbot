@@ -17,11 +17,13 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Moderation.Enums;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.Moderation;
+using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Moderation;
@@ -38,6 +40,203 @@ public sealed class ModerationQueueServiceTests
     private static readonly Guid Tenant = Guid.Parse("019f2802-5c77-7dc8-b6f6-b4b98e624b8a");
     private static string BroadcasterId => Tenant.ToString();
     private static readonly Guid SenderGuid = Guid.Parse("019f2900-0000-7000-8000-000000000002");
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ChannelChatHoldAndAutoModHold_ShareOneQueueRow_AndApprovalReleasesText(
+        bool chatFirst
+    )
+    {
+        (
+            ModerationQueueService service,
+            ModerationServiceTestDbContext db,
+            ITwitchModerationApi moderation
+        ) = await BuildAsync();
+        ChatUserMessageHeldQueueHandler chatHold = new(service);
+        AutoModMessageHeldQueueHandler autoModHold = new(service);
+        HeldTextService heldText = new(db, TimeProvider.System);
+        ChatUserMessageHeldEvent chatEvent = new()
+        {
+            BroadcasterId = Tenant,
+            UserId = "9001",
+            UserDisplayName = "chatter",
+            UserLogin = "chatter",
+            MessageId = "shared-message",
+            Text = "held viewer words",
+        };
+
+        AutoModMessageHeldEvent autoModEvent = new()
+        {
+            BroadcasterId = Tenant,
+            UserId = "9001",
+            UserDisplayName = "chatter",
+            UserLogin = "chatter",
+            MessageId = "shared-message",
+            Text = "held viewer words",
+            Category = "aggression",
+            Level = 1,
+            HeldAt = DateTimeOffset.UtcNow,
+        };
+        if (chatFirst)
+        {
+            await chatHold.HandleAsync(chatEvent);
+            await autoModHold.HandleAsync(autoModEvent);
+        }
+        else
+        {
+            await autoModHold.HandleAsync(autoModEvent);
+            await chatHold.HandleAsync(chatEvent);
+        }
+
+        ModerationQueueItem row = await db.ModerationQueueItems.SingleAsync();
+        row.Source.Should().Be(ModerationQueueSource.AutoMod);
+        row.CreatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        (await heldText.IsTextHeldAsync(Tenant, "9001", "held viewer words")).Should().BeTrue();
+
+        await service.ResolveAsync(
+            BroadcasterId,
+            row.Id,
+            new ResolveModerationQueueItemRequest { Action = "approve" },
+            Guid.NewGuid().ToString()
+        );
+
+        (await heldText.IsTextHeldAsync(Tenant, "9001", "held viewer words")).Should().BeFalse();
+        await moderation
+            .Received(1)
+            .ManageHeldAutoModMessageAsync(
+                Tenant,
+                "shared-message",
+                true,
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ChannelChatHoldAlone_UsesTheAutoModReviewEndpoint()
+    {
+        (
+            ModerationQueueService service,
+            ModerationServiceTestDbContext db,
+            ITwitchModerationApi moderation
+        ) = await BuildAsync();
+        ChatUserMessageHeldQueueHandler hold = new(service);
+        await hold.HandleAsync(
+            new ChatUserMessageHeldEvent
+            {
+                BroadcasterId = Tenant,
+                UserId = "9001",
+                UserDisplayName = "chatter",
+                UserLogin = "chatter",
+                MessageId = "chat-only-hold",
+                Text = "review this",
+            }
+        );
+        ModerationQueueItem row = await db.ModerationQueueItems.SingleAsync();
+        row.Source.Should().Be(ModerationQueueSource.AutoMod);
+
+        await service.ResolveAsync(
+            BroadcasterId,
+            row.Id,
+            new ResolveModerationQueueItemRequest { Action = "approve" },
+            Guid.NewGuid().ToString()
+        );
+
+        row.Status.Should().Be(ModerationQueueStatus.Approved);
+        await moderation
+            .Received(1)
+            .ManageHeldAutoModMessageAsync(
+                Tenant,
+                "chat-only-hold",
+                true,
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task ChannelChatUpdate_DenialKeepsTheMessageHeld()
+    {
+        (ModerationQueueService service, ModerationServiceTestDbContext db, _) = await BuildAsync();
+        ChatUserMessageHeldQueueHandler hold = new(service);
+        ChatUserMessageUpdatedQueueHandler update = new(service);
+        ChatUserMessageHeldEvent held = new()
+        {
+            BroadcasterId = Tenant,
+            UserId = "9001",
+            UserDisplayName = "chatter",
+            UserLogin = "chatter",
+            MessageId = "chat-hold-1",
+            Text = "denied words",
+        };
+        await hold.HandleAsync(held);
+        ModerationQueueItem row = await db.ModerationQueueItems.SingleAsync();
+        row.CreatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+
+        await update.HandleAsync(
+            new ChatUserMessageUpdatedEvent
+            {
+                BroadcasterId = Tenant,
+                UserId = "9001",
+                UserDisplayName = "chatter",
+                UserLogin = "chatter",
+                MessageId = "chat-hold-1",
+                Text = "denied words",
+                Status = "denied",
+            }
+        );
+
+        row.Status.Should().Be(ModerationQueueStatus.Denied);
+        HeldTextService heldText = new(db, TimeProvider.System);
+        (await heldText.IsTextHeldAsync(Tenant, "9001", "denied words")).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("approved", ModerationQueueStatus.Approved, false)]
+    [InlineData("denied", ModerationQueueStatus.Denied, true)]
+    public async Task ChannelChatUpdateBeforeHold_PreservesTheResolution(
+        string status,
+        ModerationQueueStatus expectedStatus,
+        bool expectedHeld
+    )
+    {
+        (ModerationQueueService service, ModerationServiceTestDbContext db, _) = await BuildAsync();
+        ChatUserMessageUpdatedQueueHandler update = new(service);
+        ChatUserMessageHeldQueueHandler hold = new(service);
+        await update.HandleAsync(
+            new ChatUserMessageUpdatedEvent
+            {
+                BroadcasterId = Tenant,
+                UserId = "9001",
+                UserDisplayName = "chatter",
+                UserLogin = "chatter",
+                MessageId = "update-first",
+                Text = "reviewed words",
+                Status = status,
+            }
+        );
+        await hold.HandleAsync(
+            new ChatUserMessageHeldEvent
+            {
+                BroadcasterId = Tenant,
+                UserId = "9001",
+                UserDisplayName = "chatter",
+                UserLogin = "chatter",
+                MessageId = "update-first",
+                Text = "reviewed words",
+            }
+        );
+
+        ModerationQueueItem row = await db.ModerationQueueItems.SingleAsync();
+        row.Status.Should().Be(expectedStatus);
+        row.CreatedAt = DateTime.UtcNow;
+        await db.SaveChangesAsync();
+        HeldTextService heldText = new(db, TimeProvider.System);
+        (await heldText.IsTextHeldAsync(Tenant, "9001", "reviewed words"))
+            .Should()
+            .Be(expectedHeld);
+    }
 
     private static async Task<(
         ModerationQueueService Service,

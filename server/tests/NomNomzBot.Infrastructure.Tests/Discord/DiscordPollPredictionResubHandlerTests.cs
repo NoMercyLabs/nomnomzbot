@@ -12,12 +12,14 @@
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Contracts.Discord;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Community.Events;
 using NomNomzBot.Domain.Discord;
 using NomNomzBot.Domain.Discord.Entities;
 using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Infrastructure.Discord.EventHandlers;
 using NomNomzBot.Infrastructure.Platform.Security;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Discord;
 
@@ -28,6 +30,81 @@ namespace NomNomzBot.Infrastructure.Tests.Discord;
 /// </summary>
 public sealed class DiscordPollPredictionResubHandlerTests
 {
+    [Theory]
+    [InlineData(true, "Renewal: ")]
+    [InlineData(false, "Renewal: still here")]
+    public async Task Resub_DiscordPostIncludesOnlyReleasedMessage(bool held, string expected)
+    {
+        using DiscordTriggerHandlerHarness harness =
+            await DiscordTriggerHandlerHarness.WithRuleAsync(
+                "resubscription",
+                "Renewal: {message}"
+            );
+        IHeldTextService heldText = Substitute.For<IHeldTextService>();
+        heldText
+            .IsTextHeldAsync(
+                harness.BroadcasterId,
+                "12",
+                "still here",
+                Arg.Any<CancellationToken>(),
+                Arg.Any<DateTimeOffset?>()
+            )
+            .Returns(held);
+
+        await harness.RaiseAsync(
+            dispatcher => new DiscordResubscriptionNotificationHandler(
+                dispatcher,
+                new OutboundSanctionAccessor(),
+                NullLogger<DiscordResubscriptionNotificationHandler>.Instance,
+                heldText
+            ),
+            ResubOf(harness.BroadcasterId)
+        );
+
+        harness.Gateway.Posts.Should().ContainSingle().Which.Message.Content.Should().Be(expected);
+    }
+
+    [Theory]
+    [InlineData(true, "Bits: ")]
+    [InlineData(false, "Bits: viewer words")]
+    public async Task Cheer_DiscordPostIncludesOnlyReleasedMessage(bool held, string expected)
+    {
+        using DiscordTriggerHandlerHarness harness =
+            await DiscordTriggerHandlerHarness.WithRuleAsync("cheer", "Bits: {message}");
+        IHeldTextService heldText = Substitute.For<IHeldTextService>();
+        heldText
+            .IsTextHeldAsync(
+                harness.BroadcasterId,
+                "12",
+                "viewer words",
+                Arg.Any<CancellationToken>(),
+                Arg.Any<DateTimeOffset?>()
+            )
+            .Returns(held);
+        CheerEvent cheer = new()
+        {
+            BroadcasterId = harness.BroadcasterId,
+            OccurredAt = At,
+            UserId = "12",
+            UserDisplayName = "Viewer",
+            Bits = 100,
+            Message = "viewer words",
+            IsAnonymous = false,
+        };
+
+        await harness.RaiseAsync(
+            dispatcher => new DiscordCheerNotificationHandler(
+                dispatcher,
+                new OutboundSanctionAccessor(),
+                NullLogger<DiscordCheerNotificationHandler>.Instance,
+                heldText
+            ),
+            cheer
+        );
+
+        harness.Gateway.Posts.Should().ContainSingle().Which.Message.Content.Should().Be(expected);
+    }
+
     private static readonly DateTimeOffset At = new(2026, 6, 22, 20, 0, 0, TimeSpan.Zero);
 
     private static DiscordPollEndNotificationHandler PollEnd(

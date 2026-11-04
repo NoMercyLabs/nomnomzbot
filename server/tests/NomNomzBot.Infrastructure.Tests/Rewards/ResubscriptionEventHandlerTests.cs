@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Events;
 using NomNomzBot.Infrastructure.Platform.Templating;
@@ -44,14 +45,25 @@ public sealed class ResubscriptionEventHandlerTests
         IEventResponseExecutor Executor
     );
 
-    private static Harness Build()
+    private static Harness Build(bool held = false)
     {
         AuthDbContext db = AuthTestBuilder.NewContext();
         IEventResponseExecutor executor = Substitute.For<IEventResponseExecutor>();
+        IHeldTextService heldText = Substitute.For<IHeldTextService>();
+        heldText
+            .IsTextHeldAsync(
+                Channel,
+                "tw-321",
+                "so hyped to be back!",
+                Arg.Any<CancellationToken>(),
+                Arg.Any<DateTimeOffset?>()
+            )
+            .Returns(held);
 
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton<IApplicationDbContext>(db)
             .AddSingleton(executor)
+            .AddSingleton(heldText)
             .BuildServiceProvider();
 
         ResubscriptionEventHandler handler = new(
@@ -61,6 +73,32 @@ public sealed class ResubscriptionEventHandlerTests
         );
 
         return new(handler, executor);
+    }
+
+    [Theory]
+    [InlineData(true, "")]
+    [InlineData(false, "so hyped to be back!")]
+    public async Task Resub_response_variables_exclude_held_viewer_words(bool held, string expected)
+    {
+        Harness h = Build(held);
+        await h.Handler.HandleAsync(
+            new ResubscriptionEvent
+            {
+                BroadcasterId = Channel,
+                UserId = "tw-321",
+                UserDisplayName = "LoyalViewer",
+                Tier = "1000",
+                CumulativeMonths = 6,
+                StreakMonths = 3,
+                Message = "so hyped to be back!",
+            }
+        );
+
+        Dictionary<string, string> variables = await CapturedVariablesAsync(h.Executor, Channel);
+        variables["message"].Should().Be(expected);
+        variables["also_said"]
+            .Should()
+            .Be(held ? string.Empty : " They also said: \"so hyped to be back!\"");
     }
 
     [Fact]

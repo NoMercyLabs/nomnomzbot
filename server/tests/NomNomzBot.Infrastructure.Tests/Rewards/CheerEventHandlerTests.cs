@@ -15,6 +15,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Infrastructure.Rewards.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NSubstitute;
@@ -30,12 +31,26 @@ public sealed class CheerEventHandlerTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-00000000d504");
 
-    private static async Task<Dictionary<string, string>> VariablesForAsync(string message)
+    private static async Task<Dictionary<string, string>> VariablesForAsync(
+        string message,
+        bool held = false
+    )
     {
         IEventResponseExecutor executor = Substitute.For<IEventResponseExecutor>();
+        IHeldTextService heldText = Substitute.For<IHeldTextService>();
+        heldText
+            .IsTextHeldAsync(
+                Channel,
+                "42",
+                message,
+                Arg.Any<CancellationToken>(),
+                Arg.Any<DateTimeOffset?>()
+            )
+            .Returns(held);
         ServiceProvider provider = new ServiceCollection()
             .AddSingleton<IApplicationDbContext>(AuthTestBuilder.NewContext())
             .AddSingleton(executor)
+            .AddSingleton(heldText)
             .BuildServiceProvider();
         CheerEventHandler handler = new(
             provider.GetRequiredService<IServiceScopeFactory>(),
@@ -57,6 +72,24 @@ public sealed class CheerEventHandlerTests
 
         ICall call = executor.ReceivedCalls().Single();
         return (Dictionary<string, string>)call.GetArguments()[4]!;
+    }
+
+    [Theory]
+    [InlineData(true, "", "")]
+    [InlineData(false, "hello everyone", " They also said: \"hello everyone\"")]
+    public async Task Cheer_response_variables_exclude_held_viewer_words(
+        bool held,
+        string expectedMessage,
+        string expectedClause
+    )
+    {
+        Dictionary<string, string> variables = await VariablesForAsync(
+            "Cheer100 hello everyone",
+            held
+        );
+
+        variables["message"].Should().Be(expectedMessage);
+        variables["also_said"].Should().Be(expectedClause);
     }
 
     [Fact]

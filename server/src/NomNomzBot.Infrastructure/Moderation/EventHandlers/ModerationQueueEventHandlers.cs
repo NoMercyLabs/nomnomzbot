@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Moderation.Services;
+using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -47,4 +48,48 @@ public sealed class AutoModMessageUpdatedQueueHandler(IModerationQueueService qu
             @event.Status,
             ct
         );
+}
+
+public sealed class ChatUserMessageHeldQueueHandler(IModerationQueueService queue)
+    : IEventHandler<ChatUserMessageHeldEvent>
+{
+    public async Task HandleAsync(
+        ChatUserMessageHeldEvent @event,
+        CancellationToken ct = default
+    ) =>
+        await queue.EnqueueHeldMessageAsync(
+            @event.BroadcasterId,
+            @event.MessageId,
+            @event.UserId,
+            @event.UserDisplayName,
+            @event.Text,
+            "channel_chat",
+            ct
+        );
+}
+
+public sealed class ChatUserMessageUpdatedQueueHandler(IModerationQueueService queue)
+    : IEventHandler<ChatUserMessageUpdatedEvent>
+{
+    public async Task HandleAsync(
+        ChatUserMessageUpdatedEvent @event,
+        CancellationToken ct = default
+    )
+    {
+        await queue.EnqueueHeldMessageAsync(
+            @event.BroadcasterId,
+            @event.MessageId,
+            @event.UserId,
+            @event.UserDisplayName,
+            @event.Text,
+            "channel_chat",
+            ct
+        );
+        await queue.ApplyExternalResolutionAsync(
+            @event.BroadcasterId,
+            @event.MessageId,
+            @event.Status,
+            ct
+        );
+    }
 }

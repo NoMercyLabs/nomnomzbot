@@ -11,8 +11,10 @@
 
 using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Chat.Events;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
 
 namespace NomNomzBot.Infrastructure.Chat.EventHandlers;
@@ -24,9 +26,10 @@ namespace NomNomzBot.Infrastructure.Chat.EventHandlers;
 /// hot path alongside <see cref="ChatColorRecorder"/> and <see cref="ChatMessageHandler"/> — it is intentionally
 /// lightweight: one read (duplicate check) + one insert, scoped to the caller's request lifetime.
 /// </summary>
-public sealed class ChatMessagePersistenceHandler(IApplicationDbContext db)
-    : IEventHandler<ChatMessageReceivedEvent>,
-        IOnboardingExemptHandler
+public sealed class ChatMessagePersistenceHandler(
+    IApplicationDbContext db,
+    IHeldTextService? heldText = null
+) : IEventHandler<ChatMessageReceivedEvent>, IOnboardingExemptHandler
 {
     public async Task HandleAsync(
         ChatMessageReceivedEvent @event,
@@ -34,6 +37,20 @@ public sealed class ChatMessagePersistenceHandler(IApplicationDbContext db)
     )
     {
         if (@event.BroadcasterId == Guid.Empty || string.IsNullOrEmpty(@event.MessageId))
+            return;
+
+        if (
+            heldText is not null
+            && @event.Provider == AuthEnums.Platform.Twitch
+            && !string.IsNullOrWhiteSpace(@event.Message)
+            && await heldText.IsChatLineHeldAsync(
+                @event.BroadcasterId,
+                @event.UserId,
+                @event.Message,
+                @event.OccurredAt,
+                cancellationToken
+            )
+        )
             return;
 
         bool exists = await db.ChatMessages.AnyAsync(

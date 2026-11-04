@@ -154,7 +154,9 @@ public sealed class RewardRedeemedHandler
                 cancellationToken,
                 replay ? @event.OccurredAt : null
             );
-        @event = await WithResolvedInputAsync(scope, @event, reward, replay, cancellationToken);
+        @event = inputHeld
+            ? WithInput(@event, null)
+            : await WithResolvedInputAsync(scope, @event, reward, replay, cancellationToken);
         Dictionary<string, string> variables = BuildVariables(@event);
         variables["input.held"] = inputHeld ? "true" : "false";
 
@@ -321,24 +323,25 @@ public sealed class RewardRedeemedHandler
             audit: !replay,
             ct
         );
-        return resolved == @event.UserInput
-            ? @event
-            : new RewardRedeemedEvent
-            {
-                EventId = @event.EventId,
-                OccurredAt = @event.OccurredAt,
-                BroadcasterId = @event.BroadcasterId,
-                IsChannelIngress = @event.IsChannelIngress,
-                RewardId = @event.RewardId,
-                RewardTitle = @event.RewardTitle,
-                RedemptionId = @event.RedemptionId,
-                UserId = @event.UserId,
-                UserDisplayName = @event.UserDisplayName,
-                UserLogin = @event.UserLogin,
-                Cost = @event.Cost,
-                UserInput = resolved,
-            };
+        return resolved == @event.UserInput ? @event : WithInput(@event, resolved);
     }
+
+    private static RewardRedeemedEvent WithInput(RewardRedeemedEvent @event, string? input) =>
+        new()
+        {
+            EventId = @event.EventId,
+            OccurredAt = @event.OccurredAt,
+            BroadcasterId = @event.BroadcasterId,
+            IsChannelIngress = @event.IsChannelIngress,
+            RewardId = @event.RewardId,
+            RewardTitle = @event.RewardTitle,
+            RedemptionId = @event.RedemptionId,
+            UserId = @event.UserId,
+            UserDisplayName = @event.UserDisplayName,
+            UserLogin = @event.UserLogin,
+            Cost = @event.Cost,
+            UserInput = input,
+        };
 
     private static async Task<EventResponseOutcome> RunGenericResponseAsync(
         IServiceScope scope,

@@ -12,6 +12,7 @@
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Events;
@@ -82,13 +83,15 @@ public sealed class ResubscriptionBroadcastHandler : IEventHandler<Resubscriptio
     private readonly IWidgetNotifier _widgets;
     private readonly IAlertQueueService _alertQueue;
     private readonly IWidgetService _widgetService;
+    private readonly IHeldTextService? _heldText;
 
     public ResubscriptionBroadcastHandler(
         IDashboardNotifier notifier,
         IApplicationDbContext db,
         IWidgetNotifier widgets,
         IAlertQueueService alertQueue,
-        IWidgetService widgetService
+        IWidgetService widgetService,
+        IHeldTextService? heldText = null
     )
     {
         _notifier = notifier;
@@ -96,6 +99,7 @@ public sealed class ResubscriptionBroadcastHandler : IEventHandler<Resubscriptio
         _widgets = widgets;
         _alertQueue = alertQueue;
         _widgetService = widgetService;
+        _heldText = heldText;
     }
 
     public async Task HandleAsync(ResubscriptionEvent @event, CancellationToken ct = default)
@@ -103,13 +107,24 @@ public sealed class ResubscriptionBroadcastHandler : IEventHandler<Resubscriptio
         if (@event.BroadcasterId == Guid.Empty)
             return;
 
+        bool messageHeld =
+            _heldText is not null
+            && !string.IsNullOrWhiteSpace(@event.Message)
+            && await _heldText.IsTextHeldAsync(
+                @event.BroadcasterId,
+                @event.UserId,
+                @event.Message,
+                ct,
+                @event.OccurredAt
+            );
+
         ResubAlertDto dto = new(
             @event.UserId,
             @event.UserDisplayName,
             @event.Tier,
             @event.CumulativeMonths,
             @event.StreakMonths,
-            @event.Message
+            messageHeld ? null : @event.Message
         );
 
         await _notifier.NotifyChannelAsync(

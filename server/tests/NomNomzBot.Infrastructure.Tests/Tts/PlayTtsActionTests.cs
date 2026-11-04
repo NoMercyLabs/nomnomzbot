@@ -47,6 +47,69 @@ public sealed class PlayTtsActionTests
         dispatch.ReceivedCalls().Should().BeEmpty();
     }
 
+    [Fact]
+    public async Task Transformed_held_input_is_not_dispatched()
+    {
+        (PlayTtsAction action, ITtsDispatchService dispatch) = Build("DANGEROUS WORDS");
+        dispatch
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        "v1",
+                        "edge",
+                        15,
+                        1000,
+                        null
+                    )
+                )
+            );
+        PipelineExecutionContext context = Context();
+        context.Variables["input"] = "dangerous words";
+        context.Variables["input.held"] = "true";
+
+        ActionResult result = await action.ExecuteAsync(
+            context,
+            Action(("text", "{transform.upper:{input}}"))
+        );
+
+        result.Succeeded.Should().BeFalse();
+        dispatch.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task Transformed_approved_input_is_dispatched()
+    {
+        (PlayTtsAction action, ITtsDispatchService dispatch) = Build("DANGEROUS WORDS");
+        dispatch
+            .RequestSpeakAsync(Arg.Any<TtsSpeakRequest>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Success(
+                    new TtsDispatchOutcome(
+                        TtsDispatchDisposition.Dispatched,
+                        "v1",
+                        "edge",
+                        15,
+                        1000,
+                        null
+                    )
+                )
+            );
+        PipelineExecutionContext context = Context();
+        context.Variables["input"] = "dangerous words";
+        context.Variables["input.held"] = "false";
+
+        await action.ExecuteAsync(context, Action(("text", "{transform.upper:{input}}")));
+
+        await dispatch
+            .Received(1)
+            .RequestSpeakAsync(
+                Arg.Is<TtsSpeakRequest>(request => request.Text == "DANGEROUS WORDS"),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     private static readonly Guid Channel = Guid.Parse("019f2a00-1111-7000-8000-000000000001");
 
     private static PipelineExecutionContext Context() =>

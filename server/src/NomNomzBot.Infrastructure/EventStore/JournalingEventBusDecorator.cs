@@ -13,6 +13,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
+using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -21,9 +22,9 @@ namespace NomNomzBot.Infrastructure.EventStore;
 /// <summary>
 /// Makes the event store a durable subscriber to the bus. On every publish it FIRST captures the event to the
 /// journal (in a fresh scope, mirroring how <c>EventBus</c> resolves scoped handlers), THEN invokes every
-/// registered <see cref="IJournalPostCommitHook"/> for the committed row (failures isolated and logged — a
-/// faulting hook never blocks the commit or delegation), and FINALLY delegates to the wrapped bus so live
-/// handlers still run. This is the single place that sees every event, so it is the only post-commit seam.
+/// registered <see cref="IJournalPostCommitHook"/> for the committed row (failures isolated and logged), then
+/// delegates to the wrapped bus. Chat-message hooks run after live handlers so local hold rules have recorded
+/// their queue rows before public journal outputs are sent. This is the single post-commit seam.
 /// <para>
 /// Capture failures do not throw: the journal is best-effort relative to live delivery (the event still reaches
 /// handlers). When capture fails there is no committed row, so no post-commit hook runs.
@@ -52,7 +53,14 @@ public sealed class JournalingEventBusDecorator : IEventBus
     )
         where TEvent : class, IDomainEvent
     {
-        await CaptureAndFireHooksAsync(@event, ReadActor(@event), cancellationToken);
+        JournalActor? actor = ReadActor(@event);
+        if (@event is ChatMessageReceivedEvent)
+        {
+            await PublishChatAsync(@event, actor, cancellationToken);
+            return;
+        }
+
+        await CaptureAndFireHooksAsync(@event, actor, cancellationToken);
         await _inner.PublishAsync(@event, cancellationToken);
     }
 
@@ -61,6 +69,12 @@ public sealed class JournalingEventBusDecorator : IEventBus
     {
         // The actor is read here, on the publishing flow, before the work moves to another task.
         JournalActor? actor = ReadActor(@event);
+        if (@event is ChatMessageReceivedEvent)
+        {
+            _ = Task.Run(() => PublishChatAsync(@event, actor, CancellationToken.None));
+            return;
+        }
+
         _ = Task.Run(async () =>
         {
             await CaptureAndFireHooksAsync(@event, actor, CancellationToken.None);
@@ -74,7 +88,38 @@ public sealed class JournalingEventBusDecorator : IEventBus
             ? _serviceProvider.GetService<IJournalActorAccessor>()?.Current
             : null;
 
+    private async Task PublishChatAsync<TEvent>(
+        TEvent @event,
+        JournalActor? actor,
+        CancellationToken cancellationToken
+    )
+        where TEvent : class, IDomainEvent
+    {
+        EventRecord? committed = await CaptureAsync(@event, actor, cancellationToken);
+        try
+        {
+            await _inner.PublishAsync(@event, cancellationToken);
+        }
+        finally
+        {
+            if (committed is not null)
+                await FireHooksAsync(committed, cancellationToken);
+        }
+    }
+
     private async Task CaptureAndFireHooksAsync<TEvent>(
+        TEvent @event,
+        JournalActor? actor,
+        CancellationToken cancellationToken
+    )
+        where TEvent : class, IDomainEvent
+    {
+        EventRecord? committed = await CaptureAsync(@event, actor, cancellationToken);
+        if (committed is not null)
+            await FireHooksAsync(committed, cancellationToken);
+    }
+
+    private async Task<EventRecord?> CaptureAsync<TEvent>(
         TEvent @event,
         JournalActor? actor,
         CancellationToken cancellationToken
@@ -103,7 +148,7 @@ public sealed class JournalingEventBusDecorator : IEventBus
                     @event.EventId,
                     capture.ErrorMessage
                 );
-                return;
+                return null;
             }
 
             committed = capture.Value;
@@ -116,9 +161,15 @@ public sealed class JournalingEventBusDecorator : IEventBus
                 typeof(TEvent).Name,
                 @event.EventId
             );
-            return;
+            return null;
         }
 
+        return committed;
+    }
+
+    private async Task FireHooksAsync(EventRecord committed, CancellationToken cancellationToken)
+    {
+        await using AsyncServiceScope scope = _serviceProvider.CreateAsyncScope();
         await InvokeHooksAsync(scope.ServiceProvider, committed, cancellationToken);
     }
 
