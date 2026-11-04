@@ -40,6 +40,9 @@ internal sealed partial class LookupTranslateHelpers()
             1,
             ChatAsync
         )
+        {
+            Contexts = TemplateHelperContexts.WithTriggerViewerAndDiscord,
+        }
     )
 {
     private static readonly string[] TriggerSeeds = ["args", "message"];

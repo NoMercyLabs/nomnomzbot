@@ -36,6 +36,12 @@ internal sealed record FunRow(
     TemplateHelperScope Scope
 )
 {
+    private static readonly IReadOnlyList<TemplateHelperContext> ViewerContexts =
+    [
+        .. TemplateHelperContexts.WithTriggerViewer,
+        TemplateHelperContext.Viewer,
+    ];
+
     /// <summary>A form that draws or computes from its own arguments and the clock only, so it works with no channel.</summary>
     public static FunRow Pure(
         string key,
@@ -66,8 +72,9 @@ internal sealed record FunRow(
     public TemplateHelperEntry ToEntry() =>
         new(
             Key,
-            Freshness == TemplateHelperFreshness.Pure
-                ? TemplateHelperContexts.StandardAndViewer
+            Scope == TemplateHelperScope.Viewer ? ViewerContexts
+                : Freshness == TemplateHelperFreshness.Pure
+                    ? TemplateHelperContexts.StandardAndViewer
                 : TemplateHelperContexts.Standard,
             new LocalizedText("template.helper." + Key)
         )
