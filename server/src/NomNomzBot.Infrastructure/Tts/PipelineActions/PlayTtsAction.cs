@@ -9,7 +9,9 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Collections.Concurrent;
 using System.Text.Json;
+using System.Text.RegularExpressions;
 using NomNomzBot.Application.Abstractions.Localization;
 using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
@@ -41,6 +43,10 @@ public sealed class PlayTtsAction : ICommandAction
     private readonly ITemplateResolver _resolver;
     private readonly ITtsDispatchService _dispatch;
     private readonly TimeProvider _time;
+    private readonly ConcurrentDictionary<
+        (string RunId, string StepId),
+        Task<Result<TtsPreparedClip?>>
+    > _prepared = new();
 
     public PlayTtsAction(
         ITemplateResolver resolver,
@@ -103,6 +109,121 @@ public sealed class PlayTtsAction : ICommandAction
     public async Task<ActionResult> ExecuteAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action
+    ) => await ExecuteCoreAsync(ctx, action, null);
+
+    public async Task<ActionResult> ExecutePreparedStepAsync(
+        PipelineExecutionContext ctx,
+        string stepId,
+        ActionDefinition action
+    )
+    {
+        if (
+            !_prepared.TryRemove(
+                (ctx.ExecutionId, stepId),
+                out Task<Result<TtsPreparedClip?>>? task
+            )
+        )
+            return await ExecuteAsync(ctx, action);
+        Result<TtsPreparedClip?> prepared = await task;
+        return await ExecuteCoreAsync(ctx, action, prepared);
+    }
+
+    public async Task StartPreparationAsync(
+        PipelineExecutionContext ctx,
+        string stepId,
+        ActionDefinition action,
+        CancellationToken ct
+    )
+    {
+        try
+        {
+            PipelineExecutionContext snapshot = new()
+            {
+                BroadcasterId = ctx.BroadcasterId,
+                TriggeredByUserId = ctx.TriggeredByUserId,
+                TriggeredByPlatform = ctx.TriggeredByPlatform,
+                TriggeredByDisplayName = ctx.TriggeredByDisplayName,
+                MessageId = ctx.MessageId,
+                RedemptionId = ctx.RedemptionId,
+                RewardId = ctx.RewardId,
+                ChannelEventId = ctx.ChannelEventId,
+                RawMessage = ctx.RawMessage,
+                CancellationToken = ct,
+            };
+            foreach ((string name, string value) in ctx.Variables)
+                snapshot.Variables[name] = value;
+            (TtsSpeakRequest? request, ActionResult? error) = await BuildRequestAsync(
+                snapshot,
+                action
+            );
+            if (request is null || error is not null)
+                return;
+            TtsPreparation preparation = await _dispatch.PrepareSpeakAsync(request, ct);
+            _prepared[(ctx.ExecutionId, stepId)] = preparation.Clip;
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception)
+        {
+            // Preparation is speculative. The step executes through the normal dispatch path at its turn.
+        }
+    }
+
+    public void DiscardRun(string runId)
+    {
+        foreach ((string run, string step) in _prepared.Keys)
+            if (run == runId)
+                _prepared.TryRemove((run, step), out _);
+    }
+
+    public static bool CanPrepare(ActionDefinition action, IReadOnlySet<string> knownVariables)
+    {
+        if (action.Parameters is null)
+            return false;
+        foreach (string field in new[] { "text", "voice", "as", "rate", "segments" })
+        {
+            if (!action.Parameters.TryGetValue(field, out JsonElement value))
+                continue;
+            if (!UsesOnlyKnownVariables(value, knownVariables))
+                return false;
+        }
+        return true;
+    }
+
+    private static bool UsesOnlyKnownVariables(JsonElement value, IReadOnlySet<string> known)
+    {
+        if (value.ValueKind == JsonValueKind.String)
+        {
+            string content = value.GetString() ?? string.Empty;
+            if (content.StartsWith('['))
+            {
+                try
+                {
+                    using JsonDocument document = JsonDocument.Parse(content);
+                    return UsesOnlyKnownVariables(document.RootElement, known);
+                }
+                catch (JsonException) { }
+            }
+            foreach (Match match in Regex.Matches(content, @"(?<!\\)\{([^{}]+)\}"))
+                if (!known.Contains(match.Groups[1].Value.Trim()))
+                    return false;
+            return true;
+        }
+        if (value.ValueKind == JsonValueKind.Object)
+            return value
+                .EnumerateObject()
+                .All(property => UsesOnlyKnownVariables(property.Value, known));
+        if (value.ValueKind == JsonValueKind.Array)
+            return value.EnumerateArray().All(item => UsesOnlyKnownVariables(item, known));
+        return true;
+    }
+
+    private async Task<ActionResult> ExecuteCoreAsync(
+        PipelineExecutionContext ctx,
+        ActionDefinition action,
+        Result<TtsPreparedClip?>? prepared
     )
     {
         string mode = (action.GetString("mode") ?? string.Empty).Trim().ToLowerInvariant();
@@ -113,6 +234,45 @@ public sealed class PlayTtsAction : ICommandAction
                 $"play_tts 'mode' must be '{ModeAsync}' or '{ModeSync}', got '{mode}'."
             );
 
+        (TtsSpeakRequest? request, ActionResult? error) = await BuildRequestAsync(ctx, action);
+        if (error is not null)
+            return error;
+        if (request is null)
+            return ActionResult.Failure("play_tts could not resolve its request.");
+
+        Result<TtsDispatchOutcome> result = prepared is { IsSuccess: true }
+            ? await _dispatch.RequestPreparedSpeakAsync(
+                request,
+                prepared.Value,
+                ctx.CancellationToken
+            )
+            : await _dispatch.RequestSpeakAsync(request, ctx.CancellationToken);
+        if (result.IsFailure)
+            return ActionResult.Failure(result.ErrorMessage ?? "TTS dispatch failed.");
+
+        TtsDispatchOutcome outcome = result.Value;
+        ctx.Variables["tts.durationMs"] = outcome.DurationMs.ToString(
+            System.Globalization.CultureInfo.InvariantCulture
+        );
+        ctx.Variables["tts.voiceId"] = outcome.VoiceId;
+
+        if (mode == ModeSync && outcome.Disposition == TtsDispatchDisposition.Dispatched)
+            await Task.Delay(
+                TimeSpan.FromMilliseconds(
+                    Math.Clamp(outcome.DurationMs, 0, MaxSyncWaitMs) + OverlayStartAllowanceMs
+                ),
+                _time,
+                ctx.CancellationToken
+            );
+
+        return ActionResult.Success($"play_tts:{outcome.VoiceId} chars={outcome.CharacterCount}");
+    }
+
+    private async Task<(TtsSpeakRequest? Request, ActionResult? Error)> BuildRequestAsync(
+        PipelineExecutionContext ctx,
+        ActionDefinition action
+    )
+    {
         List<TtsSpeakSegment>? segments = null;
         string text;
         bool speaksViewerWords;
@@ -124,7 +284,10 @@ public sealed class PlayTtsAction : ICommandAction
                 ctx
             );
             if (parsed is null)
-                return ActionResult.Failure(segmentError ?? "play_tts 'segments' is invalid.");
+                return (
+                    null,
+                    ActionResult.Failure(segmentError ?? "play_tts 'segments' is invalid.")
+                );
             segments = parsed;
             speaksViewerWords = ViewerWordsTemplate.IsIn(rawSegments.GetRawText());
             text = string.Join(' ', parsed.Select(p => p.Text));
@@ -134,7 +297,7 @@ public sealed class PlayTtsAction : ICommandAction
             string template = action.GetString("text") ?? string.Empty;
             speaksViewerWords = ViewerWordsTemplate.IsIn(template);
             if (string.IsNullOrWhiteSpace(template))
-                return ActionResult.Failure("play_tts requires a 'text' parameter.");
+                return (null, ActionResult.Failure("play_tts requires a 'text' parameter."));
 
             text = await _resolver.ResolveAsync(
                 template,
@@ -143,7 +306,7 @@ public sealed class PlayTtsAction : ICommandAction
                 ctx.CancellationToken
             );
             if (string.IsNullOrWhiteSpace(text))
-                return ActionResult.Failure("play_tts resolved to empty text.");
+                return (null, ActionResult.Failure("play_tts resolved to empty text."));
 
             // The same template again with the viewer's words marked, to tell them from the bot's own words.
             if (TtsViewerWords.Words(ctx.Variables).Count > 0)
@@ -214,8 +377,11 @@ public sealed class PlayTtsAction : ICommandAction
                 ctx.CancellationToken
             );
             if (!TryParseRate(resolvedRate, out ratePercent))
-                return ActionResult.Failure(
-                    $"play_tts 'rate' must be a percent like +30% or -20%, got '{resolvedRate}'."
+                return (
+                    null,
+                    ActionResult.Failure(
+                        $"play_tts 'rate' must be a percent like +30% or -20%, got '{resolvedRate}'."
+                    )
                 );
         }
 
@@ -251,32 +417,7 @@ public sealed class PlayTtsAction : ICommandAction
             Emotes: TtsViewerWords.EmotesIn(ctx.Variables, ctx.TriggeredByDisplayName)
         );
 
-        Result<TtsDispatchOutcome> result = await _dispatch.RequestSpeakAsync(
-            request,
-            ctx.CancellationToken
-        );
-        if (result.IsFailure)
-            return ActionResult.Failure(result.ErrorMessage ?? "TTS dispatch failed.");
-
-        TtsDispatchOutcome outcome = result.Value;
-        ctx.Variables["tts.durationMs"] = outcome.DurationMs.ToString(
-            System.Globalization.CultureInfo.InvariantCulture
-        );
-        ctx.Variables["tts.voiceId"] = outcome.VoiceId;
-
-        // A queued line (held for approval) plays nothing now, so there is nothing to wait for.
-        if (mode == ModeSync && outcome.Disposition == TtsDispatchDisposition.Dispatched)
-            await Task.Delay(
-                TimeSpan.FromMilliseconds(
-                    Math.Clamp(outcome.DurationMs, 0, MaxSyncWaitMs) + OverlayStartAllowanceMs
-                ),
-                _time,
-                ctx.CancellationToken
-            );
-
-        return ActionResult.Success(
-            $"play_tts:{result.Value.VoiceId} chars={result.Value.CharacterCount}"
-        );
+        return (request, null);
     }
 
     /// <summary>

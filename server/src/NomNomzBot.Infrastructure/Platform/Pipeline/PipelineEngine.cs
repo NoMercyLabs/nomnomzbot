@@ -22,6 +22,7 @@ using NomNomzBot.Application.Contracts.CustomCode;
 using NomNomzBot.Domain.Commands.Entities;
 using NomNomzBot.Domain.Commands.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Tts.PipelineActions;
 
 namespace NomNomzBot.Infrastructure.Platform.Pipeline;
 
@@ -359,6 +360,7 @@ public sealed class PipelineEngine : IPipelineEngine
         }
         finally
         {
+            _actions.OfType<PlayTtsAction>().FirstOrDefault()?.DiscardRun(execCtx.ExecutionId);
             channelCtx?.ActivePipelines.TryRemove(execCtx.ExecutionId, out _);
             _activeCount.AddOrUpdate(request.BroadcasterId, 0, (_, v) => Math.Max(0, v - 1));
         }
@@ -585,6 +587,10 @@ public sealed class PipelineEngine : IPipelineEngine
                 FailureShape = ExecutionTimeoutShape,
             };
         }
+        finally
+        {
+            _actions.OfType<PlayTtsAction>().FirstOrDefault()?.DiscardRun(execCtx.ExecutionId);
+        }
 
         int segmentMs = (int)(_timeProvider.GetUtcNow() - startedAt).TotalMilliseconds;
         runState.AccumulatedRuntimeMs += segmentMs;
@@ -710,6 +716,72 @@ public sealed class PipelineEngine : IPipelineEngine
 
     // ─── Execution loop ───────────────────────────────────────────────────────
 
+    private async Task PrepareFlatTtsAsync(
+        PipelineExecutionContext ctx,
+        PipelineDefinition definition,
+        CancellationToken ct
+    )
+    {
+        PlayTtsAction? action = _actions.OfType<PlayTtsAction>().FirstOrDefault();
+        if (action is null)
+            return;
+        HashSet<string> known = new(ctx.Variables.Keys, StringComparer.OrdinalIgnoreCase);
+        known.Remove(PipelineEngineVariables.LastOutput);
+        known.Remove(PipelineEngineVariables.LastSuccess);
+        known.Remove(PipelineEngineVariables.LastError);
+        for (int i = 0; i < definition.Steps.Count; i++)
+        {
+            ActionDefinition candidate = definition.Steps[i].Action;
+            if (candidate.Type == "play_tts" && PlayTtsAction.CanPrepare(candidate, known))
+                await action.StartPreparationAsync(ctx, $"flat:{i}", candidate, ct);
+            if (candidate.Type == "set_variable")
+            {
+                string? declared = candidate.GetString("name");
+                if (declared is not null)
+                    known.Remove(declared);
+            }
+        }
+    }
+
+    private async Task PrepareTreeTtsAsync(
+        PipelineExecutionContext ctx,
+        IReadOnlyList<PipelineStep> rows,
+        CancellationToken ct
+    )
+    {
+        PlayTtsAction? action = _actions.OfType<PlayTtsAction>().FirstOrDefault();
+        if (action is null)
+            return;
+        HashSet<string> known = new(ctx.Variables.Keys, StringComparer.OrdinalIgnoreCase);
+        known.Remove(PipelineEngineVariables.LastOutput);
+        known.Remove(PipelineEngineVariables.LastSuccess);
+        known.Remove(PipelineEngineVariables.LastError);
+        foreach (PipelineStep writerRow in rows.Where(r => r.ActionType == "set_variable"))
+        {
+            ActionDefinition? writer = ParseStepAction(writerRow.ConfigJson, writerRow.ActionType);
+            string? declared = writer?.GetString("name");
+            if (declared is not null)
+                known.Remove(declared);
+        }
+        foreach (PipelineStep row in rows.OrderBy(r => r.Order))
+        {
+            if (
+                row.ActionType == "play_tts"
+                && !rows.Any(parent =>
+                    parent.Id == row.ParentStepId && parent.BlockKind == "detached_step"
+                )
+            )
+            {
+                ActionDefinition? candidate = ParseStepAction(row.ConfigJson, row.ActionType);
+                if (candidate is not null && PlayTtsAction.CanPrepare(candidate, known))
+                    await action.StartPreparationAsync(ctx, TreeTtsKey(ctx, row.Id), candidate, ct);
+            }
+        }
+    }
+
+    private static string TreeTtsKey(PipelineExecutionContext ctx, Guid stepId) =>
+        $"tree:{ctx.CallDepth}:{stepId:N}";
+
     private async Task<PipelineExecutionResult> RunStepsAsync(
         PipelineExecutionContext ctx,
         PipelineDefinition definition,
@@ -717,6 +789,7 @@ public sealed class PipelineEngine : IPipelineEngine
         CancellationToken ct
     )
     {
+        await PrepareFlatTtsAsync(ctx, definition, ct);
         int executed = 0;
         int skipped = 0;
 
@@ -768,7 +841,7 @@ public sealed class PipelineEngine : IPipelineEngine
             ActionResult actionResult;
             try
             {
-                actionResult = await ExecuteActionAsync(ctx, step.Action, ct);
+                actionResult = await ExecuteActionAsync(ctx, step.Action, ct, $"flat:{i}");
             }
             catch (OperationCanceledException)
             {
@@ -894,7 +967,8 @@ public sealed class PipelineEngine : IPipelineEngine
     private async Task<ActionResult> ExecuteActionAsync(
         PipelineExecutionContext ctx,
         ActionDefinition action,
-        CancellationToken ct
+        CancellationToken ct,
+        string? stepKey = null
     )
     {
         // A play_tts step always runs: it is the instruction to speak, and no reply switch overrides it. The
@@ -911,7 +985,10 @@ public sealed class PipelineEngine : IPipelineEngine
         }
 
         ActionDefinition resolvedAction = await ResolveTemplatedFieldsAsync(executor, ctx, action);
-        ActionResult result = await executor.ExecuteAsync(ctx, resolvedAction);
+        ActionResult result =
+            executor is PlayTtsAction playTts && stepKey is not null
+                ? await playTts.ExecutePreparedStepAsync(ctx, stepKey, resolvedAction)
+                : await executor.ExecuteAsync(ctx, resolvedAction);
         if (
             result.Succeeded
             && ctx.AutoSpeakChatReplies
@@ -1212,6 +1289,7 @@ public sealed class PipelineEngine : IPipelineEngine
         PipelineResumeCursor? resume = null
     )
     {
+        await PrepareTreeTtsAsync(ctx, rows, ct);
         List<PipelineTreeNode> roots = BuildTree(rows);
         PipelineTreeRunState state = new();
         PipelineTreeWalk walk = new() { Resume = resume };
@@ -1333,6 +1411,7 @@ public sealed class PipelineEngine : IPipelineEngine
         callerCtx.ReturnValue = null;
         try
         {
+            await PrepareTreeTtsAsync(callerCtx, rows, ct);
             List<PipelineTreeNode> calleeRoots = BuildTree(rows);
             PipelineTreeRunState calleeState = new();
             PipelineTreeWalk calleeWalk = new();
@@ -1616,7 +1695,7 @@ public sealed class PipelineEngine : IPipelineEngine
         ActionResult actionResult;
         try
         {
-            actionResult = await ExecuteActionAsync(ctx, action, ct);
+            actionResult = await ExecuteActionAsync(ctx, action, ct, TreeTtsKey(ctx, step.Id));
         }
         catch (OperationCanceledException)
         {

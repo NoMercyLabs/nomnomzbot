@@ -219,6 +219,98 @@ public sealed class TtsDispatchServiceTests
             StreamId: streamId
         );
 
+    [Fact]
+    public async Task Prepared_audio_is_published_only_at_dispatch_and_still_passes_the_live_gates()
+    {
+        Harness h = Build();
+        int synthesisCount = 0;
+        h.Tts.SynthesizeAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<double?>(),
+                Arg.Any<double?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(call =>
+                Task.FromResult(
+                    new TtsResult([(byte)++synthesisCount], 1200, call.ArgAt<string>(1), "edge")
+                )
+            );
+        List<TtsUtteranceDispatchedEvent> played = [];
+        h.Bus.PublishAsync(Arg.Any<TtsUtteranceDispatchedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                played.Add(call.ArgAt<TtsUtteranceDispatchedEvent>(0));
+                return Task.CompletedTask;
+            });
+
+        TtsSpeakRequest request = Speak("prepared words");
+        TtsPreparation preparation = await h.Service.PrepareSpeakAsync(request);
+        Result<TtsPreparedClip?> prepared = await preparation.Clip;
+
+        prepared.IsSuccess.Should().BeTrue(prepared.ErrorMessage);
+        prepared.Value.Should().NotBeNull();
+        played.Should().BeEmpty();
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
+
+        TtsSpeakRequest refused = request with { BitsAmount = 0 };
+        Harness gated = Build(minBitsToTts: 10);
+        Result<TtsDispatchOutcome> denied = await gated.Service.RequestPreparedSpeakAsync(
+            refused,
+            prepared.Value
+        );
+        denied.IsFailure.Should().BeTrue();
+        denied.ErrorCode.Should().Be("VALIDATION_FAILED");
+        (await gated.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
+
+        Result<TtsDispatchOutcome> dispatched = await h.Service.RequestPreparedSpeakAsync(
+            request,
+            prepared.Value
+        );
+        dispatched.IsSuccess.Should().BeTrue(dispatched.ErrorMessage);
+        played.Should().ContainSingle();
+        played[0].Text.Should().Be("prepared words");
+        played[0].DurationMs.Should().Be(prepared.Value!.Audio.DurationMs);
+        played[0].AudioUrl.Should().Be("data:audio/mpeg;base64,AQ==");
+        synthesisCount.Should().Be(1);
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Prepared_segments_publish_one_clip_with_their_voices_and_breaks()
+    {
+        Harness h = Build();
+        List<TtsUtteranceDispatchedEvent> played = [];
+        h.Bus.PublishAsync(Arg.Any<TtsUtteranceDispatchedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+            {
+                played.Add(call.ArgAt<TtsUtteranceDispatchedEvent>(0));
+                return Task.CompletedTask;
+            });
+        TtsSpeakRequest request = Speak("unused") with
+        {
+            Segments = [new("hello", BreakAfterMs: 180), new("world")],
+        };
+
+        TtsPreparation preparation = await h.Service.PrepareSpeakAsync(request);
+        Result<TtsPreparedClip?> clip = await preparation.Clip;
+        clip.IsSuccess.Should().BeTrue(clip.ErrorMessage);
+        clip.Value!.Segments.Should().HaveCount(2);
+        clip.Value.Segments![0].VoiceId.Should().Be("default-voice");
+        clip.Value.Segments![0].BreakAfterMs.Should().Be(180);
+        played.Should().BeEmpty();
+
+        Result<TtsDispatchOutcome> outcome = await h.Service.RequestPreparedSpeakAsync(
+            request,
+            clip.Value
+        );
+        outcome.IsSuccess.Should().BeTrue(outcome.ErrorMessage);
+        played.Should().ContainSingle();
+        played[0].Text.Should().Be("hello world");
+        played[0].AudioUrl.Should().Be("data:audio/mpeg;base64,CQgH");
+        (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(1);
+    }
+
     // Every limit unlimited, the way a channel without a monthly TTS total is metered.
     private static IUsageMeteringService UnmeteredUsage()
     {
