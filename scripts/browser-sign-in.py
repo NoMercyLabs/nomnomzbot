@@ -19,7 +19,7 @@ and strips on boot. The secret and the token are never printed, written to disk 
 Only the hosts in ALLOWED_APPS are accepted.
 
 Usage:
-  python scripts/browser-sign-in.py [--app http://192.168.2.60:5080] [--channel stoney_eagle]
+  python scripts/browser-sign-in.py [--app http://192.168.2.34:5080] [--channel stoney_eagle]
                                     [--minutes 120] [--port 5799] [--check-only]
 """
 
@@ -34,10 +34,11 @@ import urllib.request
 from pathlib import Path
 
 # localhost is the dashboard dev server (Vite on 5090) that proxies to the box, so a worker checks its own tree.
-ALLOWED_APPS = {"192.168.2.60", "dev.nomnomz.bot", "vue.nomnomz.bot", "localhost", "127.0.0.1"}
+# nomnomzbot moved to its own isolated LXC (192.168.2.34) on 2026-11-04; .60 is now just a relay with no sshd.
+ALLOWED_APPS = {"192.168.2.34", "dev.nomnomz.bot", "vue.nomnomz.bot", "localhost", "127.0.0.1"}
 SSH = [
     "ssh", "-i", str(Path.home() / ".ssh" / "docker_proxmox"),
-    "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes", "root@192.168.2.60",
+    "-o", "IdentitiesOnly=yes", "-o", "BatchMode=yes", "root@192.168.2.34",
 ]
 MINT = Path(__file__).with_name("mint-jwt.py")
 FORWARD_DELAY_MS = 4000
@@ -129,7 +130,7 @@ def serve_once(port: int, target: str) -> None:
 
 def main() -> None:
     parser = argparse.ArgumentParser()
-    parser.add_argument("--app", default="http://192.168.2.60:5080")
+    parser.add_argument("--app", default="http://192.168.2.34:5080")
     parser.add_argument("--channel", default="stoney_eagle")
     parser.add_argument("--minutes", type=int, default=120)
     parser.add_argument("--port", type=int, default=5799)

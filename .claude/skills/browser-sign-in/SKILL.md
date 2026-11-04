@@ -1,6 +1,6 @@
 ---
 name: browser-sign-in
-description: Sign the agent's browser in to the Proxmox dev deployment (192.168.2.60:5080 or dev.nomnomz.bot) as Stoney's channel owner, with no Twitch click and no token in any tool call. Use when a check needs the authenticated dashboard there.
+description: Sign the agent's browser in to the Proxmox dev deployment (192.168.2.34:5080 or dev.nomnomz.bot) as Stoney's channel owner, with no Twitch click and no token in any tool call. Use when a check needs the authenticated dashboard there.
 ---
 
 <!--
