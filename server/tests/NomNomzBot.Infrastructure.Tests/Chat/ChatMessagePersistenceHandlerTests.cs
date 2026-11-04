@@ -11,11 +11,13 @@
 
 using FluentAssertions;
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Entities;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Tests.Identity;
+using NSubstitute;
 
 namespace NomNomzBot.Infrastructure.Tests.Chat;
 
@@ -26,6 +28,33 @@ namespace NomNomzBot.Infrastructure.Tests.Chat;
 /// </summary>
 public sealed class ChatMessagePersistenceHandlerTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task History_stores_only_released_chat_text(bool held)
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        IHeldTextService heldText = Substitute.For<IHeldTextService>();
+        heldText
+            .IsChatLineHeldAsync(
+                Broadcaster,
+                "u-1",
+                "hello chat",
+                Arg.Any<DateTimeOffset>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(held);
+        ChatMessagePersistenceHandler handler = new(db, heldText);
+
+        await handler.HandleAsync(Message(AuthEnums.Platform.Twitch, "held-history"));
+
+        List<ChatMessage> rows = await db.ChatMessages.ToListAsync();
+        if (held)
+            rows.Should().BeEmpty();
+        else
+            rows.Should().ContainSingle().Which.Message.Should().Be("hello chat");
+    }
+
     private static readonly Guid Broadcaster = Guid.CreateVersion7();
 
     private static ChatMessageReceivedEvent Message(

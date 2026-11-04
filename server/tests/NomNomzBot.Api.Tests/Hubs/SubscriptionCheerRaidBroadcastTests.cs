@@ -13,6 +13,7 @@ using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Widgets.Entities;
 using NSubstitute;
@@ -27,6 +28,106 @@ namespace NomNomzBot.Api.Tests.Hubs;
 /// </summary>
 public sealed class SubscriptionCheerRaidBroadcastTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Cheer_and_resub_alerts_exclude_held_text_from_dashboard_and_overlays(
+        bool held
+    )
+    {
+        (IDashboardNotifier notifier, IWidgetNotifier widgets, WidgetTestDbContext db) = Build();
+        await using WidgetTestDbContext _ = db;
+        Guid channel = Guid.CreateVersion7();
+        IHeldTextService heldText = Substitute.For<IHeldTextService>();
+        heldText
+            .IsTextHeldAsync(
+                channel,
+                "u1",
+                "viewer words",
+                Arg.Any<CancellationToken>(),
+                Arg.Any<DateTimeOffset?>()
+            )
+            .Returns(held);
+        CheerBroadcastHandler cheer = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>(),
+            heldText
+        );
+        ResubscriptionBroadcastHandler resub = new(
+            notifier,
+            db,
+            widgets,
+            Substitute.For<IAlertQueueService>(),
+            Substitute.For<IWidgetService>(),
+            heldText
+        );
+
+        await cheer.HandleAsync(
+            new()
+            {
+                BroadcasterId = channel,
+                UserId = "u1",
+                UserDisplayName = "Viewer",
+                Bits = 100,
+                Message = "viewer words",
+                IsAnonymous = false,
+            }
+        );
+        await resub.HandleAsync(
+            new()
+            {
+                BroadcasterId = channel,
+                UserId = "u1",
+                UserDisplayName = "Viewer",
+                Tier = "1000",
+                CumulativeMonths = 2,
+                StreakMonths = 2,
+                Message = "viewer words",
+            }
+        );
+
+        await notifier
+            .Received(1)
+            .NotifyChannelAsync(
+                channel.ToString(),
+                "cheer",
+                Arg.Is<object>(data =>
+                    data is CheerAlertDto
+                    && ((CheerAlertDto)data).Message == (held ? "" : "viewer words")
+                ),
+                Arg.Any<CancellationToken>(),
+                userId: "u1",
+                userDisplayName: "Viewer"
+            );
+        await notifier
+            .Received(1)
+            .NotifyChannelAsync(
+                channel.ToString(),
+                "resub",
+                Arg.Is<object>(data =>
+                    data is ResubAlertDto
+                    && ((ResubAlertDto)data).Message == (held ? null : "viewer words")
+                ),
+                Arg.Any<CancellationToken>(),
+                userId: "u1",
+                userDisplayName: "Viewer"
+            );
+        await widgets
+            .Received(2)
+            .BroadcastOverlayEventAsync(
+                channel.ToString(),
+                Arg.Is<OverlayEventDto>(overlay =>
+                    held
+                        ? !overlay.Payload.Contains("viewer words")
+                        : overlay.Payload.Contains("viewer words")
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     private static (
         IDashboardNotifier Notifier,
         IWidgetNotifier Widgets,
@@ -543,11 +644,7 @@ public sealed class SubscriptionCheerRaidBroadcastTests
             }
         );
 
-        await notifier
-            .DidNotReceiveWithAnyArgs()
-            .NotifyChannelAsync(default!, default!, default!, default);
-        await widgets
-            .DidNotReceiveWithAnyArgs()
-            .BroadcastOverlayEventAsync(default!, default!, default);
+        await notifier.DidNotReceiveWithAnyArgs().NotifyChannelAsync(default!, default!, default!);
+        await widgets.DidNotReceiveWithAnyArgs().BroadcastOverlayEventAsync(default!, default!);
     }
 }

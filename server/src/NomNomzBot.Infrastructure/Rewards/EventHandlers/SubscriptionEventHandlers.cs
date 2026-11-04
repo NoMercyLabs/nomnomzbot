@@ -151,6 +151,8 @@ public sealed class ResubscriptionEventHandler
 
     protected override string? GetUserLogin(ResubscriptionEvent e) => e.UserLogin;
 
+    protected override string? HeldViewerText(ResubscriptionEvent e) => e.Message;
+
     protected override Dictionary<string, string> BuildVariables(ResubscriptionEvent e) =>
         new(StringComparer.OrdinalIgnoreCase)
         {

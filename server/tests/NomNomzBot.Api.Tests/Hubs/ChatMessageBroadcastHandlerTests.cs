@@ -9,12 +9,14 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using FluentAssertions;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Tests.Controllers;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Identity.Enums;
@@ -32,6 +34,68 @@ namespace NomNomzBot.Api.Tests.Hubs;
 /// </summary>
 public sealed class ChatMessageBroadcastHandlerTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Live_chat_and_public_widgets_receive_only_released_text(bool held)
+    {
+        Guid channel = Guid.CreateVersion7();
+        IDashboardNotifier notifier = Substitute.For<IDashboardNotifier>();
+        IWidgetNotifier widgets = Substitute.For<IWidgetNotifier>();
+        IHeldTextService heldText = Substitute.For<IHeldTextService>();
+        heldText
+            .IsChatLineHeldAsync(
+                channel,
+                "u1",
+                "viewer secret",
+                Arg.Any<DateTimeOffset>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(held);
+        await using WidgetTestDbContext db = WidgetTestDbContext.New();
+        IChatMessageDecorator decorator = Substitute.For<IChatMessageDecorator>();
+        decorator
+            .DecorateAsync(Arg.Any<ChatMessageReceivedEvent>(), Arg.Any<CancellationToken>())
+            .Returns(new DecoratedChatMessage { Fragments = [] });
+        ChatMessageBroadcastHandler handler = new(
+            notifier,
+            decorator,
+            Substitute.For<IHubUserEnricher>(),
+            Substitute.For<ISevenTvUserPaintResolver>(),
+            widgets,
+            db,
+            TimeProvider.System,
+            Substitute.For<IChannelRegistry>(),
+            new ChatHintService(db),
+            heldText
+        );
+
+        await handler.HandleAsync(Event(channel, "viewer secret"));
+
+        if (held)
+        {
+            notifier.ReceivedCalls().Should().BeEmpty();
+            widgets.ReceivedCalls().Should().BeEmpty();
+        }
+        else
+        {
+            await notifier
+                .Received(1)
+                .SendChatMessageAsync(
+                    channel.ToString(),
+                    Arg.Is<DashboardChatMessageDto>(dto => dto.Message == "viewer secret"),
+                    Arg.Any<CancellationToken>()
+                );
+            await widgets
+                .Received(1)
+                .BroadcastOverlayEventAsync(
+                    channel.ToString(),
+                    Arg.Is<OverlayEventDto>(overlay => overlay.Payload.Contains("viewer secret")),
+                    Arg.Any<CancellationToken>()
+                );
+        }
+    }
+
     [Fact]
     public async Task Message_from_known_chatter_carries_the_enriched_fields()
     {

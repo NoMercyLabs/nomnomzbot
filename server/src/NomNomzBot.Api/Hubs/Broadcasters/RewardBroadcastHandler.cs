@@ -12,6 +12,7 @@
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Alerts.Services;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Sound.Services;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Enums;
@@ -35,6 +36,7 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
     private readonly ISoundClipService _soundClips;
     private readonly IAlertQueueService _alertQueue;
     private readonly IWidgetService _widgetService;
+    private readonly IHeldTextService? _heldText;
 
     public RewardRedeemedBroadcastHandler(
         IDashboardNotifier notifier,
@@ -43,7 +45,8 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
         IWidgetNotifier widgets,
         ISoundClipService soundClips,
         IAlertQueueService alertQueue,
-        IWidgetService widgetService
+        IWidgetService widgetService,
+        IHeldTextService? heldText = null
     )
     {
         _notifier = notifier;
@@ -53,12 +56,24 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
         _soundClips = soundClips;
         _alertQueue = alertQueue;
         _widgetService = widgetService;
+        _heldText = heldText;
     }
 
     public async Task HandleAsync(RewardRedeemedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
             return;
+
+        bool inputHeld =
+            _heldText is not null
+            && !string.IsNullOrWhiteSpace(@event.UserInput)
+            && await _heldText.IsTextHeldAsync(
+                @event.BroadcasterId,
+                @event.UserId,
+                @event.UserInput,
+                ct,
+                @event.OccurredAt
+            );
 
         HubUserEnrichment? enrichment = await _enricher.EnrichAsync(
             @event.BroadcasterId,
@@ -74,7 +89,7 @@ public sealed class RewardRedeemedBroadcastHandler : IEventHandler<RewardRedeeme
             UserId: @event.UserId,
             UserDisplayName: @event.UserDisplayName,
             Cost: @event.Cost,
-            UserInput: @event.UserInput,
+            UserInput: inputHeld ? null : @event.UserInput,
             Timestamp: @event.OccurredAt.ToString("O"),
             AvatarUrl: enrichment?.AvatarUrl,
             Pronouns: enrichment?.Pronouns,

@@ -14,6 +14,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 using Newtonsoft.Json;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Domain.EventStore.Entities;
 using NomNomzBot.Domain.Rewards.Entities;
@@ -33,13 +34,14 @@ public sealed class RewardServiceRedemptionsTests
 {
     private static readonly Guid Channel = Guid.Parse("0192a000-0000-7000-8000-00000000d701");
 
-    private static RewardService Build(AuthDbContext db) =>
+    private static RewardService Build(AuthDbContext db, IHeldTextService? heldText = null) =>
         new(
             db,
             Substitute.For<ITwitchChannelPointsApi>(),
             TimeProvider.System,
             NullLogger<RewardService>.Instance,
-            RewardServiceTestProvider.Create()
+            RewardServiceTestProvider.Create(),
+            heldText
         );
 
     private static Redemption Redeem(string id, string status, DateTime at) =>
@@ -56,6 +58,45 @@ public sealed class RewardServiceRedemptionsTests
             Status = status,
             RedeemedAt = at,
         };
+
+    [Fact]
+    public async Task Redemption_list_excludes_held_input_and_keeps_approved_input()
+    {
+        AuthDbContext db = AuthTestBuilder.NewContext();
+        Redemption held = Redeem(
+            "held",
+            "unfulfilled",
+            new(2026, 11, 4, 10, 0, 0, DateTimeKind.Utc)
+        );
+        held.UserInput = "held words";
+        Redemption approved = Redeem(
+            "approved",
+            "unfulfilled",
+            new(2026, 11, 4, 10, 1, 0, DateTimeKind.Utc)
+        );
+        approved.UserInput = "approved words";
+        db.Redemptions.AddRange(held, approved);
+        await db.SaveChangesAsync();
+        IHeldTextService heldText = Substitute.For<IHeldTextService>();
+        heldText
+            .IsTextHeldAsync(
+                Channel,
+                "u1",
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>(),
+                Arg.Any<DateTimeOffset?>()
+            )
+            .Returns(call => call.ArgAt<string>(2) == "held words");
+
+        Result<PagedList<RedemptionListItem>> result = await Build(db, heldText)
+            .ListRedemptionsAsync(Channel.ToString(), null, new());
+
+        result.Value.Items.Single(item => item.RedemptionId == "held").UserInput.Should().BeNull();
+        result
+            .Value.Items.Single(item => item.RedemptionId == "approved")
+            .UserInput.Should()
+            .Be("approved words");
+    }
 
     [Fact]
     public async Task ListRedemptions_filters_to_the_requested_status_newest_first()

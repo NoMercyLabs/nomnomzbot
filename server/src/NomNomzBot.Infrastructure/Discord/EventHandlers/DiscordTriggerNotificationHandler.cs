@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Application.Contracts.Security;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
 
@@ -34,16 +35,19 @@ public abstract class DiscordTriggerNotificationHandler<TEvent> : IEventHandler<
     private readonly IDiscordNotificationDispatcher _dispatcher;
     private readonly IOutboundSanctionAccessor _sanctions;
     private readonly ILogger _logger;
+    private readonly IHeldTextService? _heldText;
 
     protected DiscordTriggerNotificationHandler(
         IDiscordNotificationDispatcher dispatcher,
         IOutboundSanctionAccessor sanctions,
-        ILogger logger
+        ILogger logger,
+        IHeldTextService? heldText = null
     )
     {
         _dispatcher = dispatcher;
         _sanctions = sanctions;
         _logger = logger;
+        _heldText = heldText;
     }
 
     /// <summary>The stored trigger name the rule is saved under, for example <c>follow</c>.</summary>
@@ -57,6 +61,12 @@ public abstract class DiscordTriggerNotificationHandler<TEvent> : IEventHandler<
 
     /// <summary>The placeholder values for this event. The names must match the trigger's catalog entry.</summary>
     protected abstract Dictionary<string, string> TemplateDataOf(TEvent @event);
+
+    protected virtual string? HeldViewerIdOf(TEvent @event) => null;
+
+    protected virtual string? HeldViewerTextOf(TEvent @event) => null;
+
+    protected virtual string? HeldViewerProviderOf(TEvent @event) => null;
 
     /// <summary>
     /// A new template data bag holding the viewer the event is about: <c>user</c> the shown name,
@@ -82,6 +92,22 @@ public abstract class DiscordTriggerNotificationHandler<TEvent> : IEventHandler<
             return;
 
         Dictionary<string, string> templateData = TemplateDataOf(@event);
+        string? viewerId = HeldViewerIdOf(@event);
+        string? viewerText = HeldViewerTextOf(@event);
+        if (
+            _heldText is not null
+            && HeldViewerProviderOf(@event) == "twitch"
+            && viewerId is not null
+            && !string.IsNullOrWhiteSpace(viewerText)
+            && await _heldText.IsTextHeldAsync(
+                @event.BroadcasterId,
+                viewerId,
+                viewerText,
+                cancellationToken,
+                @event.OccurredAt
+            )
+        )
+            templateData["message"] = string.Empty;
 
         // Posting to the broadcaster's Discord server is allowed here because the broadcaster configured a
         // rule for this trigger; the sanction names that setting so the post is traceable to it.

@@ -46,6 +46,7 @@ import { lookup as tableEntry, merge } from '@/lib/array';
 import { ChatInput, EmoteNode, type EmoteImage } from '../chatEditor';
 import { emoteSuggestion, type Suggestion } from '../composerSuggest';
 import { useComposerSuggestions } from '../useComposerSuggestions';
+import { useSentHistory } from '../useSentHistory';
 import ComposerSuggestions from './ComposerSuggestions.vue';
 import ChatThreadPopup from './ChatThreadPopup.vue';
 import EmotePicker from './EmotePicker.vue';
@@ -98,6 +99,7 @@ const list = useComposerSuggestions(
   () => props.chatters,
 );
 const listOpen = computed(() => list.suggestions.value.length > 0 && threadTarget.value === null);
+const history = useSentHistory();
 
 // On a phone the back button closes the suggestion list first, then the reply, like a native app.
 useBackLayer(computed(() => replyTo.value !== null), () => {
@@ -240,6 +242,32 @@ const listKeys = {
     list.dismiss(),
 } as const satisfies Record<string, () => void>;
 
+// Up at the start of the box brings back an older sent message, Down at its end a newer one, as BTTV and FFZ do.
+function recall(key: string): string | null {
+  if (key === 'ArrowUp' && caret.value === 0)
+    return history.older(text.value);
+
+  if (key === 'ArrowDown' && caret.value === text.value.length)
+    return history.newer();
+
+  return null;
+}
+
+// A recalled message goes back in with its emotes as images, the caret at its end.
+function fill(message: string): void {
+  const content = message.split(/(\s+)/u).filter((part) =>
+    part !== '').map((part) => {
+    const emote = lookup(part);
+
+    return emote
+      ? { type: 'emote', attrs: emote }
+      : { type: 'text', text: part };
+  });
+
+  editor.value?.chain().setContent({ type: 'doc', content: [{ type: 'paragraph', content }] }, { emitUpdate: true })
+    .focus('end').run();
+}
+
 // An open list takes the arrows, Tab, Enter and Escape; else Enter sends and Escape ends a reply. Either way the
 // key stops here, so the page keeps its own Escape for the chatter focus.
 function onKey(event: KeyboardEvent): boolean {
@@ -263,6 +291,14 @@ function onKey(event: KeyboardEvent): boolean {
   if (event.key === 'Escape' && threadTarget.value) {
     event.stopPropagation();
     threadTarget.value = null;
+
+    return true;
+  }
+
+  const recalled = recall(event.key);
+
+  if (recalled !== null) {
+    fill(recalled);
 
     return true;
   }
@@ -342,6 +378,7 @@ async function submit(): Promise<void> {
       replyToMessageId: replyTo.value?.id ?? null,
     });
 
+    history.record(text.value);
     editor.value?.commands.clearContent(true);
     replyTo.value = null;
     threadTarget.value = null;

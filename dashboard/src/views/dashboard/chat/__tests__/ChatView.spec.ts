@@ -834,6 +834,35 @@ describe('ChatView', () => {
     expect(typed()).toBe('');
   });
 
+  it('brings back sent messages with Up at the start of the box and the draft with Down at its end', async () => {
+    const press = async (key: string): Promise<void> => {
+      const { view } = input().editor;
+
+      view.someProp('handleKeyDown', (handler) =>
+        handler(view, new KeyboardEvent('keydown', { key })));
+
+      await settle();
+    };
+
+    await open();
+    await type('first line');
+    await send();
+    await type('second line');
+    await send();
+
+    await press('ArrowUp');
+    expect(typed()).toBe('second line');
+
+    input().editor.commands.setTextSelection(1);
+    await press('ArrowUp');
+    expect(typed()).toBe('first line');
+
+    await press('ArrowDown');
+    expect(typed()).toBe('second line');
+    await press('ArrowDown');
+    expect(typed()).toBe('');
+  });
+
   it('blocks a message over 500 characters and says why', async () => {
     await open();
     await type('x'.repeat(501));

@@ -163,13 +163,14 @@ public sealed class ScriptHostWaitBudgetTests
             await sut.ExecuteAsync(
                 Request("bot.call('tts.speak', 'hi'); nnz.time.sleep(300);", budget),
                 Grant("tts.speak"),
-                new SlowBridge(2000)
+                new SlowBridge(5000)
             )
         ).Value;
 
+        // The 5 s host wait leaves a loaded runner 3.7 s of slack, while counting the wait would exceed 5.3 s.
         r.Outcome.Should().Be(ScriptExecutionOutcome.Success, r.ErrorMessage);
-        r.HostWaitMs.Should().BeGreaterThanOrEqualTo(1900);
-        r.ElapsedMs.Should().BeGreaterThanOrEqualTo(280).And.BeLessThan(1900);
+        r.HostWaitMs.Should().BeGreaterThanOrEqualTo(4900);
+        r.ElapsedMs.Should().BeGreaterThanOrEqualTo(280).And.BeLessThan(4000);
     }
 
     // The first call waits past any small deadline; every later call answers at once.

@@ -128,6 +128,14 @@ internal sealed class EmoteHelperFixture : IAsyncDisposable
     public Task<string> RenderAsync(string template, Dictionary<string, string>? seeds = null) =>
         _resolver.ResolveAsync(template, seeds ?? Seeds(), ChannelA);
 
+    public Task<ViewerTemplateResult> RenderViewerAsync(string text) =>
+        _resolver.ResolveViewerAsync(
+            text,
+            Seeds(),
+            ChannelA,
+            ViewerTemplateLimits.WithOutputCap(500)
+        );
+
     public ValueTask DisposeAsync() => _services.DisposeAsync();
 
     private static ChannelContext Context() =>
@@ -278,7 +286,7 @@ internal sealed class EmoteHelperFixture : IAsyncDisposable
             IReadOnlyDictionary<string, string> seeds,
             CancellationToken cancellationToken
         ) =>
-            Task.FromResult<ViewerRef?>(
+            Task.FromResult(
                 side == ViewerSide.User
                     ? new ViewerRef(
                         ViewerOneId,

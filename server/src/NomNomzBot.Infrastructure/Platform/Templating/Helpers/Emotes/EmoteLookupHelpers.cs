@@ -41,7 +41,11 @@ internal sealed class EmoteLookupHelpers()
             RepeatAsync,
             2,
             2
-        ),
+        ) with
+        {
+            LazyArguments = true,
+            ViewerText = true,
+        },
         EmoteRow.Custom(
             "emote.wall",
             "catJAM catJAM / catJAM catJAM",
@@ -73,7 +77,14 @@ internal sealed class EmoteLookupHelpers()
         if (!TryCount(call.Args[1], EmoteText.MaxRepeat, out int times))
             return null;
 
-        return await FieldAsync(call, e => string.Join(' ', Enumerable.Repeat(e.Code, times)));
+        if (call.Scope.IsViewerText && !EmoteText.IsPlainCode(call.Args[0]))
+            return null;
+
+        EmoteItem? found = EmoteText.Find(await call.Data.AllAsync(), call.Args[0]);
+        if (found is null)
+            return call.Scope.IsViewerText ? null : string.Empty;
+
+        return string.Join(' ', Enumerable.Repeat(found.Code, times));
     }
 
     private static async Task<string?> WallAsync(EmoteCall call)

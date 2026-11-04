@@ -77,4 +77,18 @@ public sealed class TemplateResolverParsingTests
 
         rendered.Should().Be("{TRANSFORM.UPPER:A}");
     }
+
+    [Fact]
+    public async Task Viewer_text_seed_is_inserted_as_data_without_a_second_template_pass()
+    {
+        Dictionary<string, string> seeds = new(Seeds, StringComparer.OrdinalIgnoreCase)
+        {
+            ["input"] = "hello {user} {transform.upper:secret}",
+        };
+
+        string rendered = await BuildResolver()
+            .ResolveAsync("Viewer said: {input}", seeds, broadcasterId: null);
+
+        rendered.Should().Be("Viewer said: hello {user} {transform.upper:secret}");
+    }
 }

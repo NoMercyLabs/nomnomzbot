@@ -19,6 +19,7 @@ using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Consequences;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Rewards.Dtos;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Commands.ValueObjects;
@@ -34,6 +35,7 @@ public class RewardService : IRewardService
     private readonly ITwitchChannelPointsApi _channelPoints;
     private readonly TimeProvider _clock;
     private readonly ILogger<RewardService> _logger;
+    private readonly IHeldTextService? _heldText;
 
     // Resolved per call, never captured: IEventResponseExecutor -> IPipelineEngine -> every ICommandAction
     // (redemption fulfil/refund take IRewardService), so injecting the executor directly is a DI cycle.
@@ -54,7 +56,8 @@ public class RewardService : IRewardService
         ITwitchChannelPointsApi channelPoints,
         TimeProvider clock,
         ILogger<RewardService> logger,
-        IServiceProvider services
+        IServiceProvider services,
+        IHeldTextService? heldText = null
     )
     {
         _db = db;
@@ -62,6 +65,7 @@ public class RewardService : IRewardService
         _clock = clock;
         _logger = logger;
         _services = services;
+        _heldText = heldText;
     }
 
     public async Task<Result<RewardDetail>> CreateAsync(
@@ -597,6 +601,25 @@ public class RewardService : IRewardService
                 x.User != null ? x.User.Color : null
             ))
             .ToListAsync(cancellationToken);
+
+        if (_heldText is not null)
+        {
+            for (int index = 0; index < items.Count; index++)
+            {
+                RedemptionListItem item = items[index];
+                if (
+                    !string.IsNullOrWhiteSpace(item.UserInput)
+                    && await _heldText.IsTextHeldAsync(
+                        broadcaster,
+                        item.UserId,
+                        item.UserInput,
+                        cancellationToken,
+                        new DateTimeOffset(DateTime.SpecifyKind(item.RedeemedAt, DateTimeKind.Utc))
+                    )
+                )
+                    items[index] = item with { UserInput = null };
+            }
+        }
 
         // PagedList has two ctors with DIFFERENT arg orders; a List<T> binds to the (items, page, pageSize,
         // totalCount) one, so pass in THAT order — (items, total, page, pageSize) silently sets TotalCount to the

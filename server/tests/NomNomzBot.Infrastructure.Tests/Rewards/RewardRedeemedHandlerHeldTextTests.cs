@@ -11,6 +11,7 @@
 
 using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
+using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Contracts.Tts;
 using NomNomzBot.Application.Moderation.Services;
@@ -149,7 +150,7 @@ public sealed class RewardRedeemedHandlerHeldTextTests
     }
 
     [Fact]
-    public async Task A_held_input_is_marked_on_the_generic_response()
+    public async Task A_held_input_is_removed_from_the_generic_response()
     {
         (RewardRedeemedHandlerTests.Harness h, _) = await BuildAsync(true);
 
@@ -163,7 +164,53 @@ public sealed class RewardRedeemedHandlerHeldTextTests
                 Arg.Any<string?>(),
                 Arg.Any<string?>(),
                 Arg.Is<Dictionary<string, string>>(variables =>
-                    variables["input"] == Typed && variables["input.held"] == "true"
+                    variables["input"] == string.Empty && variables["input.held"] == "true"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task An_approved_input_reaches_the_generic_response()
+    {
+        (RewardRedeemedHandlerTests.Harness h, _) = await BuildAsync(false);
+
+        await h.Handler.ReplayAsync(Redemption(), CancellationToken.None);
+
+        await h
+            .Executor.Received(1)
+            .ReplayAsync(
+                RewardRedeemedHandlerTests.Channel,
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Is<Dictionary<string, string>>(variables =>
+                    variables["input"] == Typed && variables["input.held"] == "false"
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Theory]
+    [InlineData(true, "")]
+    [InlineData(false, Typed)]
+    public async Task Reward_pipeline_receives_only_released_viewer_input(
+        bool held,
+        string expected
+    )
+    {
+        (RewardRedeemedHandlerTests.Harness h, _) = await BuildAsync(held);
+        h.Db.Rewards.Single().PipelineJson = "{\"steps\":[]}";
+        await h.Db.SaveChangesAsync();
+
+        await h.Handler.HandleAsync(Redemption());
+
+        await h
+            .Engine.Received(1)
+            .ExecuteAsync(
+                Arg.Is<PipelineRequest>(request =>
+                    request.InitialVariables["input"] == expected
+                    && request.InitialVariables["input.held"] == (held ? "true" : "false")
                 ),
                 Arg.Any<CancellationToken>()
             );

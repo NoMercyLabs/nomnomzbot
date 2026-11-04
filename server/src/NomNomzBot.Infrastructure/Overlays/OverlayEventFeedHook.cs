@@ -13,9 +13,11 @@ using System.Text.Json;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Overlays.Services;
 using NomNomzBot.Domain.Moderation.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
+using NomNomzBot.Infrastructure.Moderation;
 
 namespace NomNomzBot.Infrastructure.Overlays;
 
@@ -31,7 +33,8 @@ namespace NomNomzBot.Infrastructure.Overlays;
 public sealed class OverlayEventFeedHook(
     IOverlayEventFeed feed,
     IChannelRegistry registry,
-    ILogger<OverlayEventFeedHook> logger
+    ILogger<OverlayEventFeedHook> logger,
+    IHeldTextService? heldText = null
 ) : IJournalPostCommitHook
 {
     public async Task<Result> OnCommittedAsync(
@@ -50,6 +53,12 @@ public sealed class OverlayEventFeedHook(
         // Keep internal plumbing (EventSub lifecycle, token refresh, projections, raw wire topics) off the overlay
         // wire — overlays render user-facing facts only.
         if (!OverlayEventFilter.ShouldForward(committed.EventType))
+            return Result.Success();
+
+        if (
+            heldText is not null
+            && await HeldJournalEventText.IsHeldAsync(heldText, committed, cancellationToken)
+        )
             return Result.Success();
 
         if (IsFromShadowbannedUser(broadcasterId, committed.PayloadJson))

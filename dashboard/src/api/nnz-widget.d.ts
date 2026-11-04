@@ -42,6 +42,8 @@ interface NnzChatMessageReceived {
   bits: number;
   /** If this is a reply, the parent message ID. */
   replyParentMessageId?: string | null;
+  /** If this is a reply, the first message ID in its thread. */
+  replyThreadParentMessageId?: string | null;
   /** The parent reply message text (for display in the UI thread). */
   replyParentMessageBody?: string | null;
   /** Display name of the user being replied to. */
@@ -50,6 +52,8 @@ interface NnzChatMessageReceived {
   replyParentUserLogin?: string | null;
   /** Display name of the user who started the reply thread (Twitch thread_user_name). For a reply to the bot's own answer, this is the viewer the bot answered. */
   replyThreadUserName?: string | null;
+  sourceChannelId?: string | null;
+  sourceChannelName?: string | null;
 }
 
 /** Published when a channel's stream goes offline (EventSub stream.offline). */
@@ -224,6 +228,7 @@ interface NnzDashboardChatMessageDto {
   replyParentMessageBody?: string | null;
   replyParentUserName?: string | null;
   timestamp: string;
+  replyThreadParentMessageId?: string | null;
   avatarUrl?: string | null;
   pronouns?: string | null;
   provider: string;
@@ -231,6 +236,20 @@ interface NnzDashboardChatMessageDto {
   isArtist: boolean;
   overlayLine?: NnzOverlayLineDto | null;
   hints?: NnzChatHintsDto | null;
+  kind: string;
+  noticeType?: string | null;
+  systemText?: string | null;
+  announcementColor?: string | null;
+  sourceChannelId?: string | null;
+  sourceChannelName?: string | null;
+  subTier?: string | null;
+  cumulativeMonths?: number | null;
+  giftCount?: number | null;
+  raidViewerCount?: number | null;
+  recipientUserId?: string | null;
+  recipientDisplayName?: string | null;
+  heldStatus?: string | null;
+  removed?: string | null;
 }
 
 interface NnzChatClearedDto {

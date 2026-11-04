@@ -22,6 +22,7 @@ using NomNomzBot.Application.Common.Interfaces.Crypto;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
 using NomNomzBot.Application.Contracts.Webhooks;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Webhooks.Entities;
 using NomNomzBot.Infrastructure.Tests.Identity;
 using NomNomzBot.Infrastructure.Webhooks;
@@ -92,7 +93,8 @@ public sealed class OutboundWebhookDeliveryTruthTests
     }
 
     private static (OutboundWebhookFanoutHandler Handler, GatedHandler HttpHandler) Build(
-        string databaseName
+        string databaseName,
+        IHeldTextService? heldText = null
     )
     {
         AuthDbContext seedDb = AuthTestBuilder.NewContext(databaseName);
@@ -134,7 +136,12 @@ public sealed class OutboundWebhookDeliveryTruthTests
                 Arg.Any<Guid>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns(ci => Task.FromResult(ci.ArgAt<string?>(0) ?? string.Empty));
+            .Returns(ci =>
+                Task.FromResult(
+                    ci.ArgAt<IReadOnlyDictionary<string, string>>(1)
+                        .GetValueOrDefault("event.message", string.Empty)
+                )
+            );
 
         // A fresh IServiceScopeFactory whose scopes each hand back a fresh context/connection against the
         // SAME shared-cache database — mirrors the production DI graph the fanout handler's background
@@ -151,6 +158,8 @@ public sealed class OutboundWebhookDeliveryTruthTests
         );
         services.AddSingleton<TimeProvider>(new FakeTimeProvider(Now));
         services.AddScoped<IOutboundWebhookDispatcher, OutboundWebhookDispatcher>();
+        if (heldText is not null)
+            services.AddSingleton(heldText);
         ServiceProvider provider = services.BuildServiceProvider();
 
         OutboundWebhookFanoutHandler handler = new(
@@ -160,6 +169,109 @@ public sealed class OutboundWebhookDeliveryTruthTests
         );
 
         return (handler, gatedHandler);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Journal_fanout_keeps_held_chat_text_out_of_webhook_deliveries(bool held)
+    {
+        string databaseName = Guid.NewGuid().ToString();
+        IHeldTextService heldText = Substitute.For<IHeldTextService>();
+        heldText
+            .IsTextHeldAsync(
+                Channel,
+                "viewer-1",
+                "viewer secret",
+                Arg.Any<CancellationToken>(),
+                Arg.Any<DateTimeOffset?>()
+            )
+            .Returns(held);
+        heldText
+            .IsChatLineHeldAsync(
+                Channel,
+                "viewer-1",
+                "viewer secret",
+                Arg.Any<DateTimeOffset>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(held);
+        (OutboundWebhookFanoutHandler handler, GatedHandler http) = Build(databaseName, heldText);
+        EventRecord committed = new(
+            Id: 1,
+            EventId: Guid.CreateVersion7(),
+            BroadcasterId: Channel,
+            StreamPosition: 1,
+            EventType: "ChatMessageReceivedEvent",
+            EventVersion: 1,
+            Source: "test",
+            PayloadJson: "{\"UserId\":\"viewer-1\",\"Message\":\"viewer secret\"}",
+            PayloadIsEncrypted: false,
+            SubjectKeyId: null,
+            CorrelationId: null,
+            CausationId: null,
+            ActorUserId: null,
+            ActorExternalUserId: null,
+            ActorProvider: null,
+            MetadataJson: "{}",
+            OccurredAt: Now.UtcDateTime,
+            RecordedAt: Now.UtcDateTime
+        );
+
+        await handler.OnCommittedAsync(committed);
+
+        if (!held)
+        {
+            await http.RequestReceived.Task.WaitAsync(HangTimeout);
+        }
+        http.Release();
+        await handler.LastDispatch!.WaitAsync(HangTimeout);
+
+        AuthDbContext db = AuthTestBuilder.NewContext(databaseName);
+        List<OutboundWebhookDelivery> deliveries = await db.OutboundWebhookDeliveries.ToListAsync();
+        if (held)
+            deliveries.Should().BeEmpty();
+        else
+            deliveries.Should().ContainSingle().Which.RenderedBody.Should().Be("viewer secret");
+    }
+
+    [Theory]
+    [InlineData("ChatUserMessageHeldEvent")]
+    [InlineData("AutoModMessageHeldEvent")]
+    public async Task Moderation_hold_notices_are_not_delivered_to_webhooks(string eventType)
+    {
+        string databaseName = Guid.NewGuid().ToString();
+        (OutboundWebhookFanoutHandler handler, GatedHandler http) = Build(databaseName);
+        EventRecord committed = new(
+            Id: 1,
+            EventId: Guid.CreateVersion7(),
+            BroadcasterId: Channel,
+            StreamPosition: 1,
+            EventType: eventType,
+            EventVersion: 1,
+            Source: "test",
+            PayloadJson: "{\"UserId\":\"viewer-1\",\"Text\":\"viewer secret\"}",
+            PayloadIsEncrypted: false,
+            SubjectKeyId: null,
+            CorrelationId: null,
+            CausationId: null,
+            ActorUserId: null,
+            ActorExternalUserId: null,
+            ActorProvider: null,
+            MetadataJson: "{}",
+            OccurredAt: Now.UtcDateTime,
+            RecordedAt: Now.UtcDateTime
+        );
+
+        await handler.OnCommittedAsync(committed);
+        if (handler.LastDispatch is not null)
+        {
+            http.Release();
+            await handler.LastDispatch.WaitAsync(HangTimeout);
+        }
+
+        AuthDbContext db = AuthTestBuilder.NewContext(databaseName);
+        (await db.OutboundWebhookDeliveries.CountAsync()).Should().Be(0);
     }
 
     [Fact]

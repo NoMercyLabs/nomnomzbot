@@ -95,6 +95,37 @@ public sealed class HeldTextServiceTests
     }
 
     [Fact]
+    public async Task A_chat_line_with_no_row_is_released_at_once_without_the_bounded_wait()
+    {
+        (HeldTextService service, _, FakeTimeProvider time) = Build();
+
+        Task<bool> check = service.IsChatLineHeldAsync(Channel, Viewer, Text, Start);
+        await Task.Delay(50);
+
+        check
+            .IsCompleted.Should()
+            .BeTrue("Twitch sends a held line only after approval, so chat never waits");
+        (await check).Should().BeFalse();
+        time.GetUtcNow().Should().Be(Start);
+    }
+
+    [Theory]
+    [InlineData(ModerationQueueStatus.Pending, true)]
+    [InlineData(ModerationQueueStatus.Denied, true)]
+    [InlineData(ModerationQueueStatus.Approved, false)]
+    public async Task A_chat_line_follows_the_queue_row_the_bot_filters_wrote(
+        ModerationQueueStatus status,
+        bool expected
+    )
+    {
+        (HeldTextService service, _, _) = Build(Row(status));
+
+        bool held = await service.IsChatLineHeldAsync(Channel, Viewer, Text, Start);
+
+        held.Should().Be(expected);
+    }
+
+    [Fact]
     public async Task A_matching_approved_row_lets_the_text_through_without_waiting()
     {
         (HeldTextService service, _, FakeTimeProvider time) = Build(
@@ -121,6 +152,24 @@ public sealed class HeldTextServiceTests
     }
 
     [Fact]
+    public async Task Historical_text_without_a_queue_row_does_not_wait_for_a_new_hold_event()
+    {
+        (HeldTextService service, _, FakeTimeProvider time) = Build();
+
+        Task<bool> check = service.IsTextHeldAsync(
+            Channel,
+            Viewer,
+            Text,
+            occurredAt: Start.AddDays(-1)
+        );
+        await Task.Delay(50);
+
+        check.IsCompleted.Should().BeTrue();
+        (await check).Should().BeFalse();
+        time.GetUtcNow().Should().Be(Start);
+    }
+
+    [Fact]
     public async Task The_text_matches_after_trimming_and_collapsing_whitespace()
     {
         (HeldTextService service, _, _) = Build(
@@ -144,6 +193,24 @@ public sealed class HeldTextServiceTests
             .Should()
             .BeGreaterThanOrEqualTo(TimeSpan.FromSeconds(3))
             .And.BeLessThan(TimeSpan.FromSeconds(4));
+    }
+
+    [Fact]
+    public async Task One_event_uses_the_completed_no_hold_decision_across_output_handlers()
+    {
+        (HeldTextService service, _, FakeTimeProvider time) = Build();
+
+        bool first = await RunAsync(
+            service.IsTextHeldAsync(Channel, Viewer, Text, occurredAt: Start),
+            time
+        );
+        DateTimeOffset afterFirst = time.GetUtcNow();
+        Task<bool> second = service.IsTextHeldAsync(Channel, Viewer, Text, occurredAt: Start);
+
+        first.Should().BeFalse();
+        second.IsCompleted.Should().BeTrue();
+        (await second).Should().BeFalse();
+        time.GetUtcNow().Should().Be(afterFirst);
     }
 
     [Fact]

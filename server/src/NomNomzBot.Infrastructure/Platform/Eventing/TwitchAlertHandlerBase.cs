@@ -18,6 +18,7 @@ using NomNomzBot.Application.Abstractions.Pipeline;
 using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Contracts.CustomCode;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Platform;
 
 namespace NomNomzBot.Infrastructure.Platform.Eventing;
@@ -71,6 +72,37 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
     /// and <see cref="GetUserDisplayName"/>, so an override only adds what is specific to the event.
     /// </summary>
     protected abstract Dictionary<string, string> BuildVariables(TEvent @event);
+
+    protected virtual string? HeldViewerText(TEvent @event) => null;
+
+    private async Task<Dictionary<string, string>> OutputVariablesAsync(
+        IServiceScope scope,
+        TEvent @event,
+        CancellationToken ct
+    )
+    {
+        Dictionary<string, string> variables = ComposeVariables(@event);
+        string? viewerText = HeldViewerText(@event);
+        string? userId = GetUserId(@event);
+        IHeldTextService? heldText = scope.ServiceProvider.GetService<IHeldTextService>();
+        if (
+            heldText is not null
+            && userId is not null
+            && !string.IsNullOrWhiteSpace(viewerText)
+            && await heldText.IsTextHeldAsync(
+                @event.BroadcasterId,
+                userId,
+                viewerText,
+                ct,
+                @event.OccurredAt
+            )
+        )
+        {
+            variables["message"] = string.Empty;
+            variables["also_said"] = string.Empty;
+        }
+        return variables;
+    }
 
     /// <summary>Everything a template can use for one event: the event's own keys plus the viewer identity.</summary>
     private Dictionary<string, string> ComposeVariables(TEvent @event)
@@ -148,14 +180,15 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
         IApplicationDbContext db =
             scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
 
-        await LogChannelEventAsync(db, @event, broadcasterId, ct);
+        Dictionary<string, string> variables = await OutputVariablesAsync(scope, @event, ct);
+        await LogChannelEventAsync(db, @event, broadcasterId, ct, variables);
         if (!Responds(@event) || !RespondsLive(@event))
             return;
 
         // THE one execution path for configured responses — shared with every other trigger source.
         IEventResponseExecutor executor =
             scope.ServiceProvider.GetRequiredService<IEventResponseExecutor>();
-        ResponseTrigger trigger = TriggerFor(@event);
+        ResponseTrigger trigger = TriggerFor(@event, variables);
         await executor.ExecuteAsync(
             broadcasterId,
             trigger.ResponseKey,
@@ -179,7 +212,8 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
         using IServiceScope scope = ScopeFactory.CreateScope();
         IEventResponseExecutor executor =
             scope.ServiceProvider.GetRequiredService<IEventResponseExecutor>();
-        ResponseTrigger trigger = TriggerFor(typed);
+        Dictionary<string, string> variables = await OutputVariablesAsync(scope, typed, ct);
+        ResponseTrigger trigger = TriggerFor(typed, variables);
         return await executor.ReplayAsync(
             typed.BroadcasterId,
             trigger.ResponseKey,
@@ -190,12 +224,15 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
         );
     }
 
-    private ResponseTrigger TriggerFor(TEvent @event) =>
+    private ResponseTrigger TriggerFor(
+        TEvent @event,
+        Dictionary<string, string>? variables = null
+    ) =>
         new(
             ResponseKeyFor(@event),
             GetUserId(@event),
             GetUserDisplayName(@event),
-            SeedTargetAlias(ComposeVariables(@event))
+            SeedTargetAlias(variables ?? ComposeVariables(@event))
         );
 
     /// <summary>Everything the executor needs for one event — built once, so live and replay never drift.</summary>
@@ -228,7 +265,8 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
         IApplicationDbContext db,
         TEvent @event,
         Guid broadcasterId,
-        CancellationToken ct
+        CancellationToken ct,
+        Dictionary<string, string>? variables = null
     )
     {
         try
@@ -243,7 +281,7 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
             if (await db.ChannelEvents.AnyAsync(e => e.Id == eventId, ct))
                 return;
 
-            Dictionary<string, string> variables = ComposeVariables(@event);
+            variables ??= ComposeVariables(@event);
 
             // GetUserId returns the Twitch string id; ChannelEvent.UserId is the internal Users.Id Guid FK,
             // so resolve it (null when the event has no user or the user is not yet persisted).

@@ -324,7 +324,8 @@ public sealed class PlayTtsAction : ICommandAction
             && ctx.Variables.TryGetValue("input", out string? input)
             && !string.IsNullOrWhiteSpace(input)
             && (
-                text.Contains(input, StringComparison.Ordinal)
+                speaksViewerWords
+                || text.Contains(input, StringComparison.Ordinal)
                 || segments?.Any(segment => segment.Text.Contains(input, StringComparison.Ordinal))
                     == true
             )

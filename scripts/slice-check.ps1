@@ -125,6 +125,7 @@ if (-not $IsWindows) {
 }
 Start-Sleep -Seconds 2
 
+[bool]$gateFailed = $false
 Push-Location $server
 try {
     Write-Host '== build =='
@@ -292,7 +293,15 @@ try {
 
     Write-Host 'SLICE CHECK OK - safe to commit with: git commit --only -m "..." -- <paths>'
 }
+catch {
+    # A failed gate must exit 1 even when the cleanup below runs a script that ends with exit 0
+    # (2026-11-04: a ReSharper failure exited 0 and the slice landed with two gated issues).
+    Write-Host "SLICE CHECK FAILED: $_"
+    $gateFailed = $true
+}
 finally {
     Pop-Location
     if ($worktree) { & (Join-Path $PSScriptRoot 'remove-worktree.ps1') -Repo $repo $worktree }
 }
+if ($gateFailed) { exit 1 }
+exit 0

@@ -31,4 +31,17 @@ public interface IHeldTextService
         CancellationToken ct = default,
         DateTimeOffset? occurredAt = null
     );
+
+    /// <summary>
+    /// The same match for a chat line, read once with no wait. Twitch sends an AutoMod-held line only after a
+    /// moderator approves it, and the bot's own filters write their row before chat output runs, so a chat line
+    /// has no hold event still to come.
+    /// </summary>
+    Task<bool> IsChatLineHeldAsync(
+        Guid broadcasterId,
+        string twitchUserId,
+        string text,
+        DateTimeOffset occurredAt,
+        CancellationToken ct = default
+    );
 }

@@ -17,6 +17,7 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.EventStore;
+using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Platform;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Infrastructure.EventStore;
@@ -41,17 +42,61 @@ public sealed class JournalingEventBusDecoratorTests
     /// <summary>Records every event delegated to it so the test can assert the wrapped bus still ran.</summary>
     private sealed class RecordingInnerBus : IEventBus
     {
+        private readonly RecordingPostCommitHook? _hook;
+
+        public RecordingInnerBus(RecordingPostCommitHook? hook = null) => _hook = hook;
+
         public List<IDomainEvent> Delivered { get; } = [];
+
+        public List<int> HookCountsAtDelivery { get; } = [];
 
         public Task PublishAsync<TEvent>(TEvent @event, CancellationToken ct = default)
             where TEvent : class, IDomainEvent
         {
             Delivered.Add(@event);
+            if (_hook is not null)
+                HookCountsAtDelivery.Add(_hook.Committed.Count);
             return Task.CompletedTask;
         }
 
         public void PublishFireAndForget<TEvent>(TEvent @event)
             where TEvent : class, IDomainEvent => Delivered.Add(@event);
+    }
+
+    [Fact]
+    public async Task Chat_moderation_handlers_complete_before_post_commit_outputs()
+    {
+        using SqliteTestDatabase database = SqliteTestDatabase.Open();
+        RecordingPostCommitHook hook = new();
+        RecordingInnerBus inner = new(hook);
+        await using ServiceProvider provider = BuildProvider(database, hook);
+        JournalingEventBusDecorator decorator = new(
+            inner,
+            provider,
+            NullLogger<JournalingEventBusDecorator>.Instance
+        );
+        ChatMessageReceivedEvent chat = new()
+        {
+            BroadcasterId = Guid.NewGuid(),
+            MessageId = "chat-1",
+            TwitchBroadcasterId = "channel-1",
+            UserId = "viewer-1",
+            UserDisplayName = "Viewer",
+            UserLogin = "viewer",
+            Message = "held words",
+            Fragments = [],
+            Badges = [],
+            IsSubscriber = false,
+            IsVip = false,
+            IsModerator = false,
+            IsBroadcaster = false,
+        };
+
+        await decorator.PublishAsync(chat);
+
+        inner.Delivered.Should().ContainSingle().Which.Should().BeSameAs(chat);
+        inner.HookCountsAtDelivery.Should().ContainSingle().Which.Should().Be(0);
+        hook.Committed.Should().ContainSingle().Which.EventId.Should().Be(chat.EventId);
     }
 
     /// <summary>An IEventJournal whose append always fails — drives the capture-failure (best-effort) path.</summary>

@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Api.Hubs.Dtos;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Platform.Interfaces;
 using NomNomzBot.Domain.Rewards.Events;
 
@@ -22,13 +23,33 @@ namespace NomNomzBot.Api.Hubs.Broadcasters;
 public sealed class AutomaticRewardBroadcastHandler : IEventHandler<AutomaticRewardRedeemedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IHeldTextService? _heldText;
 
-    public AutomaticRewardBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public AutomaticRewardBroadcastHandler(
+        IDashboardNotifier notifier,
+        IHeldTextService? heldText = null
+    )
+    {
+        _notifier = notifier;
+        _heldText = heldText;
+    }
 
-    public Task HandleAsync(AutomaticRewardRedeemedEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(
+        AutomaticRewardRedeemedEvent @event,
+        CancellationToken ct = default
+    )
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
+
+        string? message = await RedemptionActivityText.ReleasedAsync(
+            _heldText,
+            @event.BroadcasterId,
+            @event.UserId,
+            @event.Message,
+            @event.OccurredAt,
+            ct
+        );
 
         RedemptionActivityDto dto = new(
             BroadcasterId: @event.BroadcasterId.ToString(),
@@ -40,11 +61,11 @@ public sealed class AutomaticRewardBroadcastHandler : IEventHandler<AutomaticRew
             UserDisplayName: @event.UserDisplayName,
             Cost: @event.Cost,
             CostUnit: "channel_points",
-            UserInput: @event.Message,
+            UserInput: message,
             Timestamp: @event.OccurredAt.ToString("O")
         );
 
-        return _notifier.SendRedemptionActivityAsync(@event.BroadcasterId.ToString(), dto, ct);
+        await _notifier.SendRedemptionActivityAsync(@event.BroadcasterId.ToString(), dto, ct);
     }
 }
 
@@ -63,17 +84,31 @@ public sealed class PowerUpBroadcastHandler : IEventHandler<BitsUsedEvent>
     };
 
     private readonly IDashboardNotifier _notifier;
+    private readonly IHeldTextService? _heldText;
 
-    public PowerUpBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public PowerUpBroadcastHandler(IDashboardNotifier notifier, IHeldTextService? heldText = null)
+    {
+        _notifier = notifier;
+        _heldText = heldText;
+    }
 
-    public Task HandleAsync(BitsUsedEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(BitsUsedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty || @event.Type != "power_up")
-            return Task.CompletedTask;
+            return;
 
         string powerUp = @event.PowerUpType ?? string.Empty;
         if (ChatMessagePowerUps.Contains(powerUp))
-            return Task.CompletedTask;
+            return;
+
+        string? message = await RedemptionActivityText.ReleasedAsync(
+            _heldText,
+            @event.BroadcasterId,
+            @event.UserId,
+            @event.MessageText,
+            @event.OccurredAt,
+            ct
+        );
 
         RedemptionActivityDto dto = new(
             BroadcasterId: @event.BroadcasterId.ToString(),
@@ -85,11 +120,11 @@ public sealed class PowerUpBroadcastHandler : IEventHandler<BitsUsedEvent>
             UserDisplayName: @event.UserDisplayName,
             Cost: @event.Bits,
             CostUnit: "bits",
-            UserInput: @event.MessageText,
+            UserInput: message,
             Timestamp: @event.OccurredAt.ToString("O")
         );
 
-        return _notifier.SendRedemptionActivityAsync(@event.BroadcasterId.ToString(), dto, ct);
+        await _notifier.SendRedemptionActivityAsync(@event.BroadcasterId.ToString(), dto, ct);
     }
 }
 
@@ -100,13 +135,30 @@ public sealed class PowerUpBroadcastHandler : IEventHandler<BitsUsedEvent>
 public sealed class CustomPowerUpBroadcastHandler : IEventHandler<CustomPowerUpRedeemedEvent>
 {
     private readonly IDashboardNotifier _notifier;
+    private readonly IHeldTextService? _heldText;
 
-    public CustomPowerUpBroadcastHandler(IDashboardNotifier notifier) => _notifier = notifier;
+    public CustomPowerUpBroadcastHandler(
+        IDashboardNotifier notifier,
+        IHeldTextService? heldText = null
+    )
+    {
+        _notifier = notifier;
+        _heldText = heldText;
+    }
 
-    public Task HandleAsync(CustomPowerUpRedeemedEvent @event, CancellationToken ct = default)
+    public async Task HandleAsync(CustomPowerUpRedeemedEvent @event, CancellationToken ct = default)
     {
         if (@event.BroadcasterId == Guid.Empty)
-            return Task.CompletedTask;
+            return;
+
+        string? input = await RedemptionActivityText.ReleasedAsync(
+            _heldText,
+            @event.BroadcasterId,
+            @event.UserId,
+            @event.UserInput,
+            @event.OccurredAt,
+            ct
+        );
 
         RedemptionActivityDto dto = new(
             BroadcasterId: @event.BroadcasterId.ToString(),
@@ -118,10 +170,27 @@ public sealed class CustomPowerUpBroadcastHandler : IEventHandler<CustomPowerUpR
             UserDisplayName: @event.UserDisplayName,
             Cost: @event.Bits,
             CostUnit: "bits",
-            UserInput: @event.UserInput,
+            UserInput: input,
             Timestamp: @event.OccurredAt.ToString("O")
         );
 
-        return _notifier.SendRedemptionActivityAsync(@event.BroadcasterId.ToString(), dto, ct);
+        await _notifier.SendRedemptionActivityAsync(@event.BroadcasterId.ToString(), dto, ct);
     }
+}
+
+internal static class RedemptionActivityText
+{
+    public static async Task<string?> ReleasedAsync(
+        IHeldTextService? heldText,
+        Guid broadcasterId,
+        string userId,
+        string? text,
+        DateTimeOffset occurredAt,
+        CancellationToken ct
+    ) =>
+        heldText is not null
+        && !string.IsNullOrWhiteSpace(text)
+        && await heldText.IsTextHeldAsync(broadcasterId, userId, text, ct, occurredAt)
+            ? null
+            : text;
 }

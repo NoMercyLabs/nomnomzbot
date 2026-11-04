@@ -309,7 +309,7 @@ public sealed class RewardRedemptionReplayTests
             .Engine.Received(1)
             .ExecuteAsync(
                 Arg.Is<PipelineRequest>(request =>
-                    request.InitialVariables["input"] == "held words"
+                    request.InitialVariables["input"] == string.Empty
                     && request.InitialVariables["input.held"] == "true"
                 ),
                 Arg.Any<CancellationToken>()

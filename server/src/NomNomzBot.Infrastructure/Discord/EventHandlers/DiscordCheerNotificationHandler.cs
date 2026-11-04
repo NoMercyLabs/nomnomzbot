@@ -12,6 +12,7 @@
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Contracts.Discord;
 using NomNomzBot.Application.Contracts.Security;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Rewards.Events;
 
 namespace NomNomzBot.Infrastructure.Discord.EventHandlers;
@@ -25,11 +26,20 @@ public sealed class DiscordCheerNotificationHandler : DiscordTriggerNotification
     public DiscordCheerNotificationHandler(
         IDiscordNotificationDispatcher dispatcher,
         IOutboundSanctionAccessor sanctions,
-        ILogger<DiscordCheerNotificationHandler> logger
+        ILogger<DiscordCheerNotificationHandler> logger,
+        IHeldTextService? heldText = null
     )
-        : base(dispatcher, sanctions, logger) { }
+        : base(dispatcher, sanctions, logger, heldText) { }
 
     protected override string Trigger => "cheer";
+
+    protected override string? HeldViewerIdOf(CheerEvent @event) =>
+        @event.IsAnonymous ? null : @event.UserId;
+
+    protected override string? HeldViewerTextOf(CheerEvent @event) =>
+        @event.IsAnonymous ? null : @event.Message;
+
+    protected override string? HeldViewerProviderOf(CheerEvent @event) => @event.Provider;
 
     protected override string DedupeKeyOf(CheerEvent @event) =>
         $"{Trigger}:{@event.Provider}:{@event.UserId}:{@event.OccurredAt.UtcDateTime:O}:{@event.Bits}";

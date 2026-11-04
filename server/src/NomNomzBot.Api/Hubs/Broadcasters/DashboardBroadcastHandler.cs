@@ -14,6 +14,7 @@ using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Chat.Decoration;
 using NomNomzBot.Application.Chat.Services;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Domain.Chat.Events;
 using NomNomzBot.Domain.Chat.ValueObjects;
 using NomNomzBot.Domain.Identity;
@@ -40,6 +41,7 @@ public sealed class ChatMessageBroadcastHandler
     private readonly TimeProvider _timeProvider;
     private readonly IChannelRegistry _registry;
     private readonly IChatHintService _hints;
+    private readonly IHeldTextService? _heldText;
 
     public ChatMessageBroadcastHandler(
         IDashboardNotifier notifier,
@@ -50,7 +52,8 @@ public sealed class ChatMessageBroadcastHandler
         IApplicationDbContext db,
         TimeProvider timeProvider,
         IChannelRegistry registry,
-        IChatHintService hints
+        IChatHintService hints,
+        IHeldTextService? heldText = null
     )
     {
         _hints = hints;
@@ -62,10 +65,25 @@ public sealed class ChatMessageBroadcastHandler
         _db = db;
         _timeProvider = timeProvider;
         _registry = registry;
+        _heldText = heldText;
     }
 
     public async Task HandleAsync(ChatMessageReceivedEvent evt, CancellationToken ct = default)
     {
+        if (
+            _heldText is not null
+            && evt.Provider == AuthEnums.Platform.Twitch
+            && !string.IsNullOrWhiteSpace(evt.Message)
+            && await _heldText.IsChatLineHeldAsync(
+                evt.BroadcasterId,
+                evt.UserId,
+                evt.Message,
+                evt.OccurredAt,
+                ct
+            )
+        )
+            return;
+
         // One resolution for the chatter's role (Lead Moderator included) — the same mapping the command gate uses.
         string userType = ChatRole.ToToken(
             ChatRole.Resolve(

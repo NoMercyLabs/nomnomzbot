@@ -335,7 +335,7 @@ This page is generated from the helper registry by `TemplateSurfaceAvailability.
 | `emote.random.follower` | Y | Y | Y | Y | Y | Y | V |
 | `emote.random.global` | Y | Y | Y | Y | Y | Y | V |
 | `emote.random.sub` | Y | Y | Y | Y | Y | Y | V |
-| `emote.repeat` | Y | Y | Y | Y | Y | Y | V |
+| `emote.repeat` | Y | Y | Y | Y | Y | Y | Y |
 | `emote.user.favorite` | Y | Y | Y | Y | Y | Y | V |
 | `emote.user.top` | Y | Y | Vw | Y | Y | Y | V |
 | `emote.user.top.count` | Y | Y | Vw | Y | Y | Y | V |
