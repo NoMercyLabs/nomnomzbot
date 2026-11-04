@@ -21,6 +21,26 @@ Slice IDs are stable; the order is the queue.
 
 ---
 
+## OWNER REQUEST 2026-11-04 — moderator mode works on every page, on the moderator's own token
+
+Owner, verbatim: "i am going to sound like a broken record... but i still can not use my own bot for moderating
+the channels i mod for", "remember that i said that the bot should act on the moderator's permissions when a
+broadcaster has not signed up?", "its not just chat!"
+
+Cause found 2026-11-04: the moderator chat reader (8fcb579e9) was never started by any caller; fixed by the
+moderated-channels endpoint requesting a sync. Live evidence on geennoob (not signed up): polls and predictions
+403 (our role gate; Twitch takes only the broadcaster token there), bot status 403, rewards and subscriber count
+fail on broadcaster scopes, unban requests fail with "No Twitch connection for this user".
+
+### S-MOD-EVERY-PAGE: every dashboard page of a moderated, not-signed-up channel works on the moderator's token
+Done when: a coverage table lists every page and endpoint with the token it uses, whether Twitch accepts a
+moderator token (moderator:* scope) and the outcome; every endpoint Twitch allows works on the moderator's token
+(chat, bans, timeouts, unban requests, shield, AutoMod, blocked terms, chat settings, announcements, shoutouts,
+warnings, chatters, followers); every broadcaster-only feature (polls, predictions, rewards, subscribers) says so
+in plain words on its page instead of failing; each one is proven live on geennoob as Stoney_Eagle.
+
+---
+
 ## OWNER REQUEST 2026-10-20 (afternoon) — the UI validation round, 21 items
 
 Stoney's checklist after validating the night run, verbatim per line (screenshots: OBS Live tab, source
