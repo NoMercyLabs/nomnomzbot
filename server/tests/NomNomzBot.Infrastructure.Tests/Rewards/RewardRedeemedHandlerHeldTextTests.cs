@@ -40,7 +40,8 @@ public sealed class RewardRedeemedHandlerHeldTextTests
                 RewardRedeemedHandlerTests.Channel,
                 RewardRedeemedHandlerTests.ViewerTwitchId,
                 Typed,
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<DateTimeOffset?>()
             )
             .Returns(held);
         RewardRedeemedHandlerTests.Harness h = RewardRedeemedHandlerTests.Build(
@@ -108,7 +109,8 @@ public sealed class RewardRedeemedHandlerHeldTextTests
                 RewardRedeemedHandlerTests.Channel,
                 RewardRedeemedHandlerTests.ViewerTwitchId,
                 Typed,
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<DateTimeOffset?>()
             );
     }
 
@@ -131,7 +133,8 @@ public sealed class RewardRedeemedHandlerHeldTextTests
                 RewardRedeemedHandlerTests.Channel,
                 RewardRedeemedHandlerTests.ViewerTwitchId,
                 Typed,
-                Arg.Any<CancellationToken>()
+                Arg.Any<CancellationToken>(),
+                Arg.Any<DateTimeOffset?>()
             );
     }
 
@@ -143,5 +146,26 @@ public sealed class RewardRedeemedHandlerHeldTextTests
         await h.Handler.HandleAsync(Redemption());
 
         Spoken(h).Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_held_input_is_marked_on_the_generic_response()
+    {
+        (RewardRedeemedHandlerTests.Harness h, _) = await BuildAsync(true);
+
+        await h.Handler.ReplayAsync(Redemption(), CancellationToken.None);
+
+        await h
+            .Executor.Received(1)
+            .ReplayAsync(
+                RewardRedeemedHandlerTests.Channel,
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Is<Dictionary<string, string>>(variables =>
+                    variables["input"] == Typed && variables["input.held"] == "true"
+                ),
+                Arg.Any<CancellationToken>()
+            );
     }
 }

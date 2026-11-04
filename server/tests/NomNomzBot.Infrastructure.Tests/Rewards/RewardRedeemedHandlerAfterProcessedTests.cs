@@ -60,6 +60,9 @@ public sealed class RewardRedeemedHandlerAfterProcessedTests
         await db.SaveChangesAsync();
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(db);
+        services.AddSingleton(
+            Substitute.For<NomNomzBot.Application.Moderation.Services.IHeldTextService>()
+        );
         IPipelineEngine engine = Substitute.For<IPipelineEngine>();
         arrange(engine);
         RecordingEventBus bus = new();

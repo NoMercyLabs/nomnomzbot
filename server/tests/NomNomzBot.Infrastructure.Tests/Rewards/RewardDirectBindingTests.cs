@@ -94,6 +94,9 @@ public sealed class RewardDirectBindingTests
             .AddSingleton(invoker)
             .AddSingleton(Substitute.For<IEventResponseExecutor>())
             .AddSingleton(Substitute.For<IRedemptionTimerService>())
+            .AddSingleton(
+                Substitute.For<NomNomzBot.Application.Moderation.Services.IHeldTextService>()
+            )
             .BuildServiceProvider();
 
         RewardRedeemedHandler handler = new(
@@ -184,7 +187,7 @@ public sealed class RewardDirectBindingTests
                 Arg.Is<PipelineRequest>(r => r.PipelineId == PipelineId),
                 Arg.Any<CancellationToken>()
             );
-        await invoker.DidNotReceiveWithAnyArgs().InvokeAsync(default, default!, default!, default);
+        await invoker.DidNotReceiveWithAnyArgs().InvokeAsync(default, default!, default!);
     }
 
     [Fact]
@@ -331,7 +334,7 @@ public sealed class RewardDirectBindingTests
 
         result.IsSuccess.Should().BeTrue();
         result
-            .Value!.Target.Should()
+            .Value.Target.Should()
             .Be(new BindingTarget(BindingTargetKind.Command, CommandId.ToString()));
         Reward stored = await db.Rewards.SingleAsync(r => r.Id == rewardId);
         stored.TargetKind.Should().Be(BindingTargetKind.Command);

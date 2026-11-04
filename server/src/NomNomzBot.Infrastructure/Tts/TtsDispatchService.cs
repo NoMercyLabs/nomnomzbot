@@ -57,6 +57,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
     private readonly TimeProvider _clock;
     private readonly Random _random;
     private readonly ILogger<TtsDispatchService> _logger;
+    private readonly SemaphoreSlim _preparationGate = new(1, 1);
 
     public TtsDispatchService(
         ITtsService tts,
@@ -93,9 +94,202 @@ public sealed class TtsDispatchService : ITtsDispatchService
         _random = random ?? Random.Shared;
     }
 
-    public async Task<Result<TtsDispatchOutcome>> RequestSpeakAsync(
+    public Task<Result<TtsDispatchOutcome>> RequestSpeakAsync(
         TtsSpeakRequest request,
         CancellationToken ct = default
+    ) => RequestSpeakCoreAsync(request, null, ct);
+
+    public async Task<Result<TtsDispatchOutcome>> RequestPreparedSpeakAsync(
+        TtsSpeakRequest request,
+        TtsPreparedClip? prepared,
+        CancellationToken ct = default
+    )
+    {
+        await _preparationGate.WaitAsync(ct);
+        try
+        {
+            return await RequestSpeakCoreAsync(request, prepared, ct);
+        }
+        finally
+        {
+            _preparationGate.Release();
+        }
+    }
+
+    public async Task<TtsPreparation> PrepareSpeakAsync(
+        TtsSpeakRequest request,
+        CancellationToken ct = default
+    )
+    {
+        request = WithEmotesSpoken(request);
+        string text;
+        string voiceId;
+        IReadOnlyList<TtsSegment>? segments = null;
+        TtsConfigDto config;
+        ITtsProvider? byokProvider = null;
+
+        // Planning touches scoped configuration, voice and lexicon stores. Finish that work before
+        // another preparation uses the same DbContext; provider synthesis runs outside this gate.
+        await _preparationGate.WaitAsync(ct);
+        try
+        {
+            Result<TtsConfigDto> configResult = await _config.GetConfigAsync(
+                request.BroadcasterId,
+                ct
+            );
+            if (configResult.IsFailure)
+                return TtsPreparation.Skipped;
+            config = configResult.Value;
+            if (config.Mode == "byok")
+            {
+                Result<ITtsProvider> provider = await _byokProviders.CreateForChannelAsync(
+                    request.BroadcasterId,
+                    config.DefaultProvider,
+                    ct
+                );
+                if (provider.IsFailure)
+                    return TtsPreparation.Skipped;
+                byokProvider = provider.Value;
+            }
+            int cap = await ResolveCapAsync(request.BroadcasterId, config, ct);
+            IReadOnlyList<string>? names = KnownNames(request);
+            if (request.Segments is { Count: > 0 } parts)
+            {
+                if (parts.Count > MaxSegments)
+                    return TtsPreparation.Skipped;
+                List<TtsSegment> preparedSegments = [];
+                foreach (TtsSpeakSegment part in parts)
+                {
+                    string partText = part.Text.Trim();
+                    if (partText.Length == 0)
+                        continue;
+                    if (request.Speaker == TtsSpeaker.Bot || part.Speaker is not null)
+                        partText = CutToCap(partText, cap);
+                    if (partText.Length > cap)
+                        return TtsPreparation.Skipped;
+                    if (config.ProfanityCensorEnabled)
+                        partText = _censor.Censor(partText).Text;
+                    if (string.IsNullOrWhiteSpace(partText))
+                        continue;
+                    string? named = string.IsNullOrWhiteSpace(part.VoiceId)
+                        ? request.VoiceIdOverride
+                        : part.VoiceId;
+                    string? partVoice = string.IsNullOrWhiteSpace(named)
+                        ? await ResolveVoiceAsync(
+                            request.BroadcasterId,
+                            part.SpeakerTwitchUserId ?? request.RequestedByTwitchUserId,
+                            null,
+                            config,
+                            false,
+                            part.Speaker ?? request.Speaker,
+                            ct
+                        )
+                        : named;
+                    if (string.IsNullOrWhiteSpace(partVoice))
+                        return TtsPreparation.Skipped;
+                    partText = _spokenNames.ApplyToText(
+                        await _lexicon.ApplyAsync(request.BroadcasterId, partText, ct),
+                        names
+                    );
+                    preparedSegments.Add(
+                        new(
+                            partText,
+                            partVoice,
+                            part.RatePercent,
+                            part.PitchPercent,
+                            Math.Max(0, part.BreakAfterMs)
+                        )
+                    );
+                }
+                if (preparedSegments.Count == 0)
+                    return TtsPreparation.Skipped;
+                segments = preparedSegments;
+                text = string.Join(' ', preparedSegments.Select(s => s.Text));
+                voiceId = preparedSegments[0].VoiceId;
+            }
+            else
+            {
+                text = request.Text.Trim();
+                if (request.Speaker == TtsSpeaker.Bot)
+                    text = CutToCap(text, cap);
+                if (text.Length == 0 || text.Length > cap)
+                    return TtsPreparation.Skipped;
+                if (config.ProfanityCensorEnabled)
+                    text = _censor.Censor(text).Text;
+                if (string.IsNullOrWhiteSpace(text))
+                    return TtsPreparation.Skipped;
+                string? resolvedVoice = await ResolveVoiceAsync(
+                    request.BroadcasterId,
+                    request.RequestedByTwitchUserId,
+                    request.VoiceIdOverride,
+                    config,
+                    false,
+                    request.Speaker,
+                    ct
+                );
+                if (string.IsNullOrWhiteSpace(resolvedVoice))
+                    return TtsPreparation.Skipped;
+                voiceId = resolvedVoice;
+                text = _spokenNames.ApplyToText(
+                    await _lexicon.ApplyAsync(request.BroadcasterId, text, ct),
+                    names
+                );
+            }
+        }
+        finally
+        {
+            _preparationGate.Release();
+        }
+
+        return new(
+            SynthesizePreparedAsync(request, config, text, voiceId, segments, byokProvider, ct)
+        );
+    }
+
+    private async Task<Result<TtsPreparedClip?>> SynthesizePreparedAsync(
+        TtsSpeakRequest request,
+        TtsConfigDto config,
+        string text,
+        string voiceId,
+        IReadOnlyList<TtsSegment>? segments,
+        ITtsProvider? byokProvider,
+        CancellationToken ct
+    )
+    {
+        long started = _clock.GetTimestamp();
+        Result<TtsResult> audio = await SynthesizeAudioAsync(
+            request.BroadcasterId,
+            config,
+            text,
+            voiceId,
+            request.RatePercent,
+            request.PitchPercent,
+            segments,
+            ct,
+            byokProvider
+        );
+        return audio.IsFailure
+            ? Result.Failure<TtsPreparedClip?>(audio.ErrorMessage!, audio.ErrorCode!)
+            : Result.Success<TtsPreparedClip?>(
+                new(
+                    request.BroadcasterId,
+                    text,
+                    voiceId,
+                    config.Mode,
+                    config.DefaultProvider,
+                    request.RatePercent,
+                    request.PitchPercent,
+                    segments,
+                    audio.Value,
+                    ElapsedMs(started)
+                )
+            );
+    }
+
+    private async Task<Result<TtsDispatchOutcome>> RequestSpeakCoreAsync(
+        TtsSpeakRequest request,
+        TtsPreparedClip? prepared,
+        CancellationToken ct
     )
     {
         request = WithEmotesSpoken(request);
@@ -156,7 +350,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             );
 
         if (request.Segments is { Count: > 0 })
-            return await RequestSegmentsAsync(request, config, ct);
+            return await RequestSegmentsAsync(request, config, ct, prepared);
 
         string text = request.Text.Trim();
         if (text.Length == 0)
@@ -265,7 +459,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
             request.PitchPercent,
             segments: null,
             KnownNames(request),
-            ct
+            ct,
+            prepared
         );
     }
 
@@ -303,7 +498,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
     private async Task<Result<TtsDispatchOutcome>> RequestSegmentsAsync(
         TtsSpeakRequest request,
         TtsConfigDto config,
-        CancellationToken ct
+        CancellationToken ct,
+        TtsPreparedClip? prepared
     )
     {
         IReadOnlyList<TtsSpeakSegment> parts = request.Segments!;
@@ -436,7 +632,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
             pitchPercent: null,
             segments,
             KnownNames(request),
-            ct
+            ct,
+            prepared
         );
     }
 
@@ -662,6 +859,71 @@ public sealed class TtsDispatchService : ITtsDispatchService
         );
     }
 
+    private async Task<Result<TtsResult>> SynthesizeAudioAsync(
+        Guid broadcasterId,
+        TtsConfigDto config,
+        string text,
+        string voiceId,
+        double? ratePercent,
+        double? pitchPercent,
+        IReadOnlyList<TtsSegment>? segments,
+        CancellationToken ct,
+        ITtsProvider? preparedProvider = null
+    )
+    {
+        try
+        {
+            if (config.Mode == "byok")
+            {
+                ITtsProvider provider;
+                if (preparedProvider is not null)
+                    provider = preparedProvider;
+                else
+                {
+                    Result<ITtsProvider> created = await _byokProviders.CreateForChannelAsync(
+                        broadcasterId,
+                        config.DefaultProvider,
+                        ct
+                    );
+                    if (created.IsFailure)
+                        return Result.Failure<TtsResult>(
+                            $"The channel's {config.DefaultProvider} key is not usable: {created.ErrorMessage}",
+                            "BYOK_UNAVAILABLE"
+                        );
+                    provider = created.Value;
+                }
+                TtsSynthesisResult result = segments is null
+                    ? await provider.SynthesizeAsync(text, voiceId, ratePercent, pitchPercent, ct)
+                    : await provider.SynthesizeSegmentsAsync(segments, ct);
+                return Result.Success(
+                    new TtsResult(
+                        result.AudioData,
+                        result.DurationMs,
+                        result.VoiceId,
+                        result.Provider
+                    )
+                );
+            }
+
+            TtsResult audio = segments is null
+                ? await _tts.SynthesizeAsync(text, voiceId, ratePercent, pitchPercent, ct)
+                : await _tts.SynthesizeSegmentsAsync(segments, ct);
+            return Result.Success(audio);
+        }
+        catch (OperationCanceledException) when (ct.IsCancellationRequested)
+        {
+            throw;
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "TTS synthesis failed for channel {Channel}.", broadcasterId);
+            return Result.Failure<TtsResult>(
+                "The TTS provider could not synthesize this utterance.",
+                "SERVICE_UNAVAILABLE"
+            );
+        }
+    }
+
     /// <summary>
     /// Routes a passing utterance to server-side synthesis: the audio always comes from the server, never the browser.
     /// Shared by direct dispatch and post-approval so both planes obey the channel's <c>Mode</c>.
@@ -683,7 +945,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
         double? pitchPercent,
         IReadOnlyList<TtsSegment>? segments,
         IReadOnlyList<string>? spokenNames,
-        CancellationToken ct
+        CancellationToken ct,
+        TtsPreparedClip? prepared = null
     )
     {
         if (segments is not null)
@@ -724,7 +987,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 ratePercent,
                 pitchPercent,
                 segments,
-                ct
+                ct,
+                prepared
             )
         );
     }
@@ -743,7 +1007,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
         double? ratePercent,
         double? pitchPercent,
         IReadOnlyList<TtsSegment>? segments,
-        CancellationToken ct
+        CancellationToken ct,
+        TtsPreparedClip? prepared
     )
     {
         // The plan's monthly total counts the shared voices only; a byok channel pays its own provider.
@@ -760,77 +1025,75 @@ public sealed class TtsDispatchService : ITtsDispatchService
 
         TtsResult synth;
         long synthesisStartedAt = _clock.GetTimestamp();
-        try
-        {
-            // byok runs on the channel's own vault-decrypted provider key (tts.md §3.2); every other
-            // mode synthesizes through the shared operator-configured service.
-            if (config.Mode == "byok")
-            {
-                Result<ITtsProvider> provider = await _byokProviders.CreateForChannelAsync(
-                    broadcasterId,
-                    config.DefaultProvider,
-                    ct
-                );
-                if (provider.IsFailure)
-                    return await PublishRejectAsync(
-                        broadcasterId,
-                        requestedByTwitchUserId,
-                        "byok_unavailable",
-                        $"The channel's {config.DefaultProvider} key is not usable: {provider.ErrorMessage}",
-                        "SERVICE_UNAVAILABLE",
-                        ct
-                    );
-                TtsSynthesisResult byokSynth = segments is null
-                    ? await provider.Value.SynthesizeAsync(
-                        text,
-                        voiceId,
-                        ratePercent,
-                        pitchPercent,
-                        ct
-                    )
-                    : await provider.Value.SynthesizeSegmentsAsync(segments, ct);
-                synth = new(
-                    byokSynth.AudioData,
-                    byokSynth.DurationMs,
-                    byokSynth.VoiceId,
-                    byokSynth.Provider
-                );
-            }
-            else
-            {
-                synth = segments is null
-                    ? await _tts.SynthesizeAsync(text, voiceId, ratePercent, pitchPercent, ct)
-                    : await _tts.SynthesizeSegmentsAsync(segments, ct);
-            }
-        }
-        catch (Exception ex)
-        {
-            _logger.LogWarning(ex, "TTS synthesis failed for channel {Channel}.", broadcasterId);
-            await RecordFailedClipAsync(
-                NewLedgerRow(
-                    broadcasterId,
-                    requestedByTwitchUserId,
-                    config.DefaultProvider,
-                    voiceId,
-                    text,
-                    wasCensored,
-                    wasModApproved,
-                    streamId,
-                    synthesisMs: ElapsedMs(synthesisStartedAt),
-                    failed: true
+        bool matchesPreparation =
+            prepared is not null
+            && prepared.BroadcasterId == broadcasterId
+            && prepared.Text == text
+            && prepared.VoiceId == voiceId
+            && prepared.Mode == config.Mode
+            && prepared.DefaultProvider == config.DefaultProvider
+            && prepared.RatePercent == ratePercent
+            && prepared.PitchPercent == pitchPercent
+            && (
+                (segments is null && prepared.Segments is null)
+                || (
+                    segments is not null
+                    && prepared.Segments is not null
+                    && segments.SequenceEqual(prepared.Segments)
                 )
             );
-            return await PublishRejectAsync(
+        if (matchesPreparation)
+        {
+            synth = prepared!.Audio;
+        }
+        else
+        {
+            Result<TtsResult> synthesized = await SynthesizeAudioAsync(
                 broadcasterId,
-                requestedByTwitchUserId,
-                "synthesis_failed",
-                "The TTS provider could not synthesize this utterance.",
-                "SERVICE_UNAVAILABLE",
+                config,
+                text,
+                voiceId,
+                ratePercent,
+                pitchPercent,
+                segments,
                 ct
             );
+            if (synthesized.IsSuccess)
+                synth = synthesized.Value;
+            else
+            {
+                if (synthesized.ErrorCode != "BYOK_UNAVAILABLE")
+                    await RecordFailedClipAsync(
+                        NewLedgerRow(
+                            broadcasterId,
+                            requestedByTwitchUserId,
+                            config.DefaultProvider,
+                            voiceId,
+                            text,
+                            wasCensored,
+                            wasModApproved,
+                            streamId,
+                            synthesisMs: ElapsedMs(synthesisStartedAt),
+                            failed: true
+                        )
+                    );
+                return await PublishRejectAsync(
+                    broadcasterId,
+                    requestedByTwitchUserId,
+                    synthesized.ErrorCode == "BYOK_UNAVAILABLE"
+                        ? "byok_unavailable"
+                        : "synthesis_failed",
+                    synthesized.ErrorMessage
+                        ?? "The TTS provider could not synthesize this utterance.",
+                    "SERVICE_UNAVAILABLE",
+                    ct
+                );
+            }
         }
 
-        int synthesisMs = ElapsedMs(synthesisStartedAt);
+        int synthesisMs = matchesPreparation
+            ? prepared!.SynthesisMs
+            : ElapsedMs(synthesisStartedAt);
         if (synth.AudioData.Length == 0)
         {
             await RecordFailedClipAsync(

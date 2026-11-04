@@ -108,6 +108,19 @@ public sealed class HeldTextServiceTests
     }
 
     [Fact]
+    public async Task Replay_matches_a_denied_row_at_the_original_redemption_time()
+    {
+        (HeldTextService service, _, FakeTimeProvider time) = Build(
+            Row(ModerationQueueStatus.Denied)
+        );
+        time.Advance(TimeSpan.FromDays(7));
+
+        bool held = await service.IsTextHeldAsync(Channel, Viewer, Text, occurredAt: Start);
+
+        held.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task The_text_matches_after_trimming_and_collapsing_whitespace()
     {
         (HeldTextService service, _, _) = Build(

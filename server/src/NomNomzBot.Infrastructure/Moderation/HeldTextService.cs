@@ -41,12 +41,14 @@ public sealed partial class HeldTextService : IHeldTextService
         Guid broadcasterId,
         string twitchUserId,
         string text,
-        CancellationToken ct = default
+        CancellationToken ct = default,
+        DateTimeOffset? occurredAt = null
     )
     {
         DateTimeOffset startedAt = _timeProvider.GetUtcNow();
-        DateTime from = (startedAt - MatchWindow).UtcDateTime;
-        DateTime to = (startedAt + MatchWindow).UtcDateTime;
+        DateTimeOffset matchAt = occurredAt ?? startedAt;
+        DateTime from = (matchAt - MatchWindow).UtcDateTime;
+        DateTime to = (matchAt + MatchWindow).UtcDateTime;
         string wanted = Normalize(text);
 
         while (true)

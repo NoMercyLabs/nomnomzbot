@@ -26,6 +26,7 @@ using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Commands.Jobs;
 using NomNomzBot.Infrastructure.Discord;
 using NomNomzBot.Infrastructure.Platform.Templating;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Music;
 using NomNomzBot.Infrastructure.Tests.ViewerData;
 using NomNomzBot.Infrastructure.Webhooks;
 using NSubstitute;
@@ -99,6 +100,42 @@ public sealed class TemplateSurfaceMatrixTests
             "user.id",
             "The go-live post has no viewer; a follow-style trigger seeds it through DiscordTriggerNotificationHandler.ViewerData."
         ),
+        .. new[]
+        {
+            "music.user.requests.total",
+            "music.user.lastRequest",
+            "music.queue.position",
+            "music.queue.position.ordinal",
+            "music.queue.wait",
+            "music.queue.wait.at",
+            "music.queue.mine.titles",
+            "music.queue.mine.code",
+            "music.queue.mine.next",
+        }.Select(key =>
+            (
+                Surface: TemplateHelperContext.Timer,
+                Key: key,
+                Reason: "A timer has no viewer; these music values need a viewer identity."
+            )
+        ),
+        .. new[]
+        {
+            "music.user.requests.total",
+            "music.user.lastRequest",
+            "music.queue.position",
+            "music.queue.position.ordinal",
+            "music.queue.wait",
+            "music.queue.wait.at",
+            "music.queue.mine.titles",
+            "music.queue.mine.code",
+            "music.queue.mine.next",
+        }.Select(key =>
+            (
+                Surface: TemplateHelperContext.Discord,
+                Key: key,
+                Reason: "The Discord go-live post has no viewer; viewer-triggered posts can supply one."
+            )
+        ),
     ];
 
     /// <summary>
@@ -106,6 +143,10 @@ public sealed class TemplateSurfaceMatrixTests
     /// its fix. The test fails when a row renders, so a row cannot go stale.
     /// </summary>
     private static readonly (TemplateHelperContext Surface, string Key)[] KnownGap = [];
+
+    // A namespace joins this set when its outside-world fixture is registered below. Its cells then
+    // remain in the assertion even if none of its keys happens to render on another surface.
+    private static readonly HashSet<string> FixtureNamespaces = ["music"];
 
     private enum CellState
     {
@@ -152,10 +193,13 @@ public sealed class TemplateSurfaceMatrixTests
         // data, or the argument shape is unknown), not at one surface. Only a key that renders somewhere
         // and fails elsewhere is a surface gap: a missing seed or a missing context declaration.
         HashSet<string> workingKeys = [.. cells.Where(c => !Failed(c)).Select(c => c.Key)];
-        List<Cell> universal = [.. cells.Where(c => Failed(c) && !workingKeys.Contains(c.Key))];
+        List<Cell> universal =
+        [
+            .. cells.Where(c => Failed(c) && !workingKeys.Contains(c.Key) && !HasFixture(c.Key)),
+        ];
 
         List<string> unexplained = [];
-        foreach (Cell cell in cells.Where(c => Failed(c) && workingKeys.Contains(c.Key)))
+        foreach (Cell cell in cells.Where(c => Failed(c) && !universal.Contains(c)))
         {
             bool absent = DataAbsent.Any(a => a.Surface == cell.Surface && a.Key == cell.Key);
             bool known = KnownGap.Any(g => g.Surface == cell.Surface && g.Key == cell.Key);
@@ -195,6 +239,11 @@ public sealed class TemplateSurfaceMatrixTests
 
         (unexplained.Count + stale.Count).Should().Be(0, report.ToString());
     }
+
+    private static bool HasFixture(string key) =>
+        FixtureNamespaces.Any(name =>
+            key.StartsWith(name + ".", StringComparison.OrdinalIgnoreCase)
+        );
 
     private static async Task<Cell> RenderCellAsync(
         TemplateResolver resolver,
@@ -237,6 +286,7 @@ public sealed class TemplateSurfaceMatrixTests
     )
     {
         Dictionary<string, string> seeds = SeedsFor(surface);
+        MusicSurfaceFixture.Seed(surface, seeds);
         return surface switch
         {
             TemplateHelperContext.Viewer => (
@@ -361,8 +411,14 @@ public sealed class TemplateSurfaceMatrixTests
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
         services.AddTemplateHelpers(typeof(TemplateResolver).Assembly);
+        ConfigureFixtures(services);
         FakeOutsideWorldServices(services);
         return services.BuildServiceProvider();
+    }
+
+    private static void ConfigureFixtures(ServiceCollection services)
+    {
+        MusicSurfaceFixture.Configure(services, Channel);
     }
 
     /// <summary>
@@ -382,7 +438,7 @@ public sealed class TemplateSurfaceMatrixTests
         foreach (
             Type type in assemblies
                 .SelectMany(a => a.GetTypes())
-                .Where(t => t.IsInterface && !t.IsGenericType && !known.Contains(t))
+                .Where(t => t is { IsInterface: true, IsGenericType: false } && !known.Contains(t))
         )
             services.AddSingleton(
                 type,

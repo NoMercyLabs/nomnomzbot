@@ -19,6 +19,7 @@ using NomNomzBot.Application.Commands.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Authorization;
 using NomNomzBot.Application.Contracts.Tts;
+using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Rewards.Services;
 using NomNomzBot.Domain.Chat.Interfaces;
 using NomNomzBot.Domain.Identity.Enums;
@@ -131,7 +132,8 @@ public sealed partial class RewardRedeemedHandlerTests
             .AddSingleton(chat)
             .AddSingleton(composer)
             .AddSingleton(roles)
-            .AddSingleton(tts);
+            .AddSingleton(tts)
+            .AddSingleton(Substitute.For<IHeldTextService>());
         configure?.Invoke(services);
         ServiceProvider provider = services.BuildServiceProvider();
 
