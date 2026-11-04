@@ -11,12 +11,16 @@
 #
 # free-disk-and-recover.ps1 - the disk-full / Postgres-crash-loop recovery, made deterministic.
 #
-# Incident shape this fixes (seen more than once): the Proxmox host's root disk fills up, Postgres
+# Incident shape this fixes (seen more than once): the box's root disk fills up, Postgres
 # panics mid-checkpoint ("could not write to file pg_logical/replorigin_checkpoint.tmp: No space
 # left on device") and crash-loops in a sub-second restart cycle, which blocks every deploy - not
 # just the one whose image happened to fill the disk. Root cause of the disk usage is almost always
 # accumulated dangling/untagged Docker image layers from repeated CI builds (the tagged, in-use
 # image is never touched by this script).
+#
+# Since the 2026-11-04 migration, nomnomzbot's own Docker daemon (and its image cache) lives in its
+# own isolated LXC (192.168.2.34), not the shared docker-staging box (192.168.2.60) it used to run
+# alongside the media server and CI runners. Target the box that actually holds nomnomzbot's images.
 #
 # Replaces the ad-hoc "ssh df -> ssh docker -> ssh docker" sequence that was being re-derived by
 # hand during every incident. Mutates exactly one thing - `docker image prune -f`, which only ever
@@ -29,7 +33,7 @@
 
 [CmdletBinding()]
 param(
-    [string] $ServerHost = '192.168.2.60',
+    [string] $ServerHost = '192.168.2.34',
     [string] $SshKey     = "$env:USERPROFILE\.ssh\docker_proxmox",
     [switch] $WhatIf
 )

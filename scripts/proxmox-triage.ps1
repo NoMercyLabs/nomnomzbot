@@ -19,9 +19,11 @@
 #   .\scripts\proxmox-triage.ps1 -Since 30m       # narrow the log window
 #
 # Verification altitude: the reachability probe runs from THIS machine against the LAN origin
-# (192.168.2.60:5080) and the public origin, not from inside the container. A container-local
-# /health/ready cannot fail the way the owner's browser fails, so it is reported separately and
-# never on its own.
+# (192.168.2.34:5080 - nomnomzbot's own isolated LXC since the 2026-11-04 migration off the shared
+# docker-staging box; 192.168.2.60 still answers HTTP via a relay, but SSHing there now reaches the
+# WRONG container for docker ps/logs) and the public origin, not from inside the container. A
+# container-local /health/ready cannot fail the way the owner's browser fails, so it is reported
+# separately and never on its own.
 
 #requires -Version 7
 # (Invoke-WebRequest -SkipHttpErrorCheck below is PowerShell 7+ only.)
@@ -31,7 +33,7 @@
 
 [CmdletBinding()]
 param(
-    [string] $ServerHost = $(if ($env:NOMNOMZ_DEPLOY_SSH) { ($env:NOMNOMZ_DEPLOY_SSH -split '@')[-1] } else { '192.168.2.60' }),
+    [string] $ServerHost = $(if ($env:NOMNOMZ_DEPLOY_SSH) { ($env:NOMNOMZ_DEPLOY_SSH -split '@')[-1] } else { '192.168.2.34' }),
     [string] $SshKey     = $(if ($env:NOMNOMZ_DEPLOY_KEY) { $env:NOMNOMZ_DEPLOY_KEY } else { "$env:USERPROFILE\.ssh\docker_proxmox" }),
     [string] $StackDir   = '/opt/nomnomzbot',
     [string] $PublicUrl  = 'https://dev.nomnomz.bot',

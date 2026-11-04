@@ -56,6 +56,6 @@ The bot **types** in chat via each platform's API (Twitch = Helix + EventSub; IR
 
 | Purpose | Domain |
 |---|---|
-| Deployed dev (Proxmox) dashboard + API | `https://dev.nomnomz.bot` (LAN `http://192.168.2.60:5080`) |
+| Deployed dev (Proxmox) dashboard + API | `https://dev.nomnomz.bot` (LAN `http://192.168.2.34:5080`; its own isolated LXC since 2026-11-04 — `192.168.2.60` still answers via a TCP relay for the tunnel's sake, but SSH/docker commands must target `.34`) |
 | Local-dev tunnel (owner's machine, OAuth redirects) | `https://bot-dev-api.nomercy.tv` — dev convenience only; self-host needs no NoMercy domain |
 | Planned production | `https://api.nomnomz.bot` |

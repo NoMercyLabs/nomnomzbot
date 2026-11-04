@@ -193,7 +193,7 @@ try {
         # Probe the LAN origin first, the public tunnel second. The tunnel can answer 530 while the box is
         # healthy and already serving the new commit; a probe of the tunnel alone reported such a landed
         # deploy as NOT DEPLOYED. The LAN host comes from NOMNOMZ_DEPLOY_SSH (user@host) when set.
-        [string]$lanHost = if ($env:NOMNOMZ_DEPLOY_SSH) { ($env:NOMNOMZ_DEPLOY_SSH -split '@')[-1] } else { '192.168.2.60' }
+        [string]$lanHost = if ($env:NOMNOMZ_DEPLOY_SSH) { ($env:NOMNOMZ_DEPLOY_SSH -split '@')[-1] } else { '192.168.2.34' }
         [string[]]$origins = @("http://${lanHost}:5080", 'https://dev.nomnomz.bot')
         [string]$live = ''
         [bool]$reachable = $false

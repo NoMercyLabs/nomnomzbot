@@ -41,6 +41,24 @@ in plain words on its page instead of failing; each one is proven live on geenno
 
 ---
 
+## OWNER REQUEST 2026-11-04 (evening) — usage metrics for a real-user evaluation
+
+Owner, verbatim: "i like you to pay attention to the metrics of usage so we can make a usage evaluation for
+real users." Context: same evening as the nomercy-mediaserver incident and the nomnomzbot isolation migration
+(see PRODUCT-ALIGNMENT.md domain table note) — infra-level sampling (CPU/mem/IO/health latency/Postgres size,
+every 5 min via cron into `/opt/nomnomzbot/usage-metrics.jsonl` on the new container) is already running as a
+stopgap; this slice is the real app-level telemetry the codebase has none of today (grep for
+Prometheus/OpenTelemetry/IMetrics across `server/src` returns nothing).
+
+### S-USAGE-TELEMETRY: app-level usage metrics, not just host resource sampling
+Done when: the API exposes real usage signals — concurrent active channels, requests/sec by endpoint group,
+EventSub connection count, chat messages/sec, pipeline executions/sec, per-channel resource attribution (so one
+tenant's load is distinguishable from another's, same shape as the `Scaling:*` backpressure knobs already read) —
+on a scrape-able or dashboard-visible surface (Admin console candidate), persisted long enough to build a
+usage-vs-tier evaluation, not just an instantaneous snapshot.
+
+---
+
 ## OWNER REQUEST 2026-10-20 (afternoon) — the UI validation round, 21 items
 
 Stoney's checklist after validating the night run, verbatim per line (screenshots: OBS Live tab, source
