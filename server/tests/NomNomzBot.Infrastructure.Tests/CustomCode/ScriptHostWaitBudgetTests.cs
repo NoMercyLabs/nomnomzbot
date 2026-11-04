@@ -84,13 +84,14 @@ public sealed class ScriptHostWaitBudgetTests
             await sut.ExecuteAsync(
                 Request("bot.call('tts.speak', 'hi'); bot.send('spoke'); while (true) {}", budget),
                 Grant("tts.speak"),
-                new SlowBridge(1500)
+                new SlowBridge(5000)
             )
         ).Value;
 
+        // Counting the 5 s host wait would exceed 5 s; a loaded runner still stays well under 4 s.
         r.Outcome.Should().Be(ScriptExecutionOutcome.Timeout);
         r.ChatOutput.Should().Be("spoke");
-        r.ElapsedMs.Should().BeLessThan(1500);
+        r.ElapsedMs.Should().BeLessThan(4000);
     }
 
     [Fact]
@@ -121,7 +122,8 @@ public sealed class ScriptHostWaitBudgetTests
         r.VariablesOut["r"].Should().Be("null");
         r.VariablesOut["code"].Should().Be(ScriptHostErrorCodes.UpstreamFailed);
         r.ChatOutput.Should().Be("went on");
-        r.HostWaitMs.Should().BeLessThan(2000);
+        // A missed 300 ms deadline would wait the full 5 s; 4 s leaves a loaded runner room.
+        r.HostWaitMs.Should().BeLessThan(4000);
     }
 
     [Fact]
