@@ -286,7 +286,7 @@ internal sealed class EmoteHelperFixture : IAsyncDisposable
             IReadOnlyDictionary<string, string> seeds,
             CancellationToken cancellationToken
         ) =>
-            Task.FromResult<ViewerRef?>(
+            Task.FromResult(
                 side == ViewerSide.User
                     ? new ViewerRef(
                         ViewerOneId,
