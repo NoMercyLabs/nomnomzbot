@@ -47,6 +47,8 @@ const dotState = computed<HealthDot>(() => overlayHealth(props.widget));
   <div data-overlay-row class="px-1 py-0.5">
     <SummaryRow
       pick
+      truncate
+      wrap
       :selected="selected"
       :aria-pressed="selected"
       :title="widget.name"
