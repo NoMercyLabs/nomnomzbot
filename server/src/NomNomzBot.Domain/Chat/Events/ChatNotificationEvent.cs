@@ -49,13 +49,30 @@ public sealed class ChatNotificationEvent : DomainEventBase
     /// <summary>The id of the chat message that carries the notice.</summary>
     public required string MessageId { get; init; }
 
+    /// <summary>The color of an announcement: <c>PRIMARY</c>, <c>BLUE</c>, <c>GREEN</c>, <c>ORANGE</c> or <c>PURPLE</c>. Empty for other notices.</summary>
     public string? AnnouncementColor { get; init; }
+
+    /// <summary>The Twitch id of the channel the notice came from in shared chat. Empty when it came from this channel.</summary>
     public string? SourceChannelId { get; init; }
+
+    /// <summary>The name of the channel the notice came from in shared chat. Empty when it came from this channel.</summary>
     public string? SourceChannelName { get; init; }
+
+    /// <summary>The sub tier of a sub, resub or gift notice: <c>1000</c>, <c>2000</c> or <c>3000</c>. Empty for other notices.</summary>
     public string? SubTier { get; init; }
+
+    /// <summary>The total months the viewer has subscribed, for a resub notice. Empty for other notices.</summary>
     public int? CumulativeMonths { get; init; }
+
+    /// <summary>The number of subs given in a community gift notice. Empty for other notices.</summary>
     public int? GiftCount { get; init; }
+
+    /// <summary>The number of viewers a raid brought. Empty for other notices.</summary>
     public int? RaidViewerCount { get; init; }
+
+    /// <summary>The Twitch id of the viewer who received a gifted sub. Empty for other notices.</summary>
     public string? RecipientUserId { get; init; }
+
+    /// <summary>The name of the viewer who received a gifted sub, as shown in chat. Empty for other notices.</summary>
     public string? RecipientDisplayName { get; init; }
 }

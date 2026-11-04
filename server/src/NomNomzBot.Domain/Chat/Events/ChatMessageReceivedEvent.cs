@@ -109,6 +109,9 @@ public sealed class ChatMessageReceivedEvent : DomainEventBase, IProviderScopedE
     /// <summary>Display name of the user who started the reply thread (Twitch <c>thread_user_name</c>). For a reply to the bot's own answer, this is the viewer the bot answered.</summary>
     public string? ReplyThreadUserName { get; init; }
 
+    /// <summary>The Twitch id of the channel the line came from in shared chat. Empty when it came from this channel.</summary>
     public string? SourceChannelId { get; init; }
+
+    /// <summary>The name of the channel the line came from in shared chat. Empty when it came from this channel.</summary>
     public string? SourceChannelName { get; init; }
 }

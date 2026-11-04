@@ -52,7 +52,9 @@ interface NnzChatMessageReceived {
   replyParentUserLogin?: string | null;
   /** Display name of the user who started the reply thread (Twitch thread_user_name). For a reply to the bot's own answer, this is the viewer the bot answered. */
   replyThreadUserName?: string | null;
+  /** The Twitch id of the channel the line came from in shared chat. Empty when it came from this channel. */
   sourceChannelId?: string | null;
+  /** The name of the channel the line came from in shared chat. Empty when it came from this channel. */
   sourceChannelName?: string | null;
 }
 
