@@ -123,8 +123,7 @@ internal static class UserSurfaceFixture
                         true,
                         false,
                         null,
-                        false,
-                        0
+                        false
                     )
                 )
             );
