@@ -43,7 +43,7 @@ export const permissionAllowlist = [
       'chat/components/ChatDisplayPanel.vue': 2,
       'chat/components/ChatDockHeader.vue': 6,
       'chat/ChatView.vue': 7,
-      'chat/components/ChatLine.vue': 1,
+      'chat/components/ChatLine.vue': 2,
       'home/components/PollDialog.vue': 1,
       'home/components/PredictionDialog.vue': 1,
       'scripts/ScriptsView.vue': 1,

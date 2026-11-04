@@ -42,7 +42,7 @@ const display = useChatDisplay();
       <Button
         type="button"
         variant="ghost"
-        size="icon-sm"
+        size="icon"
         :aria-label="$t('dashboard.chat.reply.closeThread')"
         @click="emit('close')"
       >
