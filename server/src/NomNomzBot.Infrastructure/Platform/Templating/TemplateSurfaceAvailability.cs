@@ -10,7 +10,9 @@
 // -----------------------------------------------------------------------------
 
 using System.Text;
+using System.Text.RegularExpressions;
 using NomNomzBot.Application.Abstractions.Templating;
+using NomNomzBot.Application.Common.Models;
 
 namespace NomNomzBot.Infrastructure.Platform.Templating;
 
@@ -29,6 +31,8 @@ public sealed record TemplateSurfaceCell(bool Available, string Code, string Rea
 public static class TemplateSurfaceAvailability
 {
     private const string AvailableCode = "Y";
+    private static readonly Regex ReadmeWorksInLine = new(@"(?m)^Works in:[^\r\n]*");
+    private static readonly Regex ReadmeHelperKey = new(@"`\{([^{}]+)\}`");
 
     /// <param name="Code">The short code printed in a matrix cell.</param>
     /// <param name="KeyPrefixes">The rule applies to a key that starts with one of these; empty means any key.</param>
@@ -135,7 +139,8 @@ public static class TemplateSurfaceAvailability
         text.Append("# Template helpers by surface\n\n");
         text.Append(
             "This page is generated from the helper registry by `TemplateSurfaceAvailability.RenderMarkdown`. "
-                + "Do not edit it by hand: a test fails when it differs from the registry. "
+                + "The `Works in:` lines in [README.md](README.md) come from the same registry. "
+                + "Do not edit this page by hand: a test fails when it differs from the registry. "
                 + "`Y` means the helper works on that surface. A code means it does not, and the legend at the end gives the reason.\n\n"
         );
 
@@ -168,6 +173,86 @@ public static class TemplateSurfaceAvailability
             text.Append($"| `{rule.Code}` | {rule.Reason} |\n");
         return text.ToString();
     }
+
+    /// <summary>Replace only README surface lines, using the keys named in the closest preceding helper description.</summary>
+    internal static Result<string> RenderReadmeWorksIn(
+        string readme,
+        ITemplateHelperRegistry registry
+    )
+    {
+        StringBuilder generated = new();
+        int copiedThrough = 0;
+        foreach (Match line in ReadmeWorksInLine.Matches(readme))
+        {
+            Result<string> replacement = RenderReadmeWorksInLine(readme, line.Index, registry);
+            if (replacement.IsFailure)
+                return replacement;
+
+            generated.Append(readme, copiedThrough, line.Index - copiedThrough);
+            generated.Append(replacement.Value);
+            copiedThrough = line.Index + line.Length;
+        }
+
+        generated.Append(readme, copiedThrough, readme.Length - copiedThrough);
+        return Result<string>.Success(generated.ToString());
+    }
+
+    private static Result<string> RenderReadmeWorksInLine(
+        string readme,
+        int lineStart,
+        ITemplateHelperRegistry registry
+    )
+    {
+        string[] precedingLines = readme[..lineStart].Split('\n');
+        for (int index = precedingLines.Length - 1; index >= 0; index--)
+        {
+            MatchCollection keys = ReadmeHelperKey.Matches(precedingLines[index]);
+            if (keys.Count == 0)
+                continue;
+
+            List<TemplateHelperEntry> entries = [];
+            foreach (Match key in keys)
+            {
+                TemplateHelperEntry[] matches =
+                [
+                    .. EntriesForReadmeKey(key.Groups[1].Value, registry),
+                ];
+                if (matches.Length == 0)
+                    return Result<string>.Failure(
+                        $"README helper '{key.Groups[1].Value}' has no registry entry.",
+                        "TEMPLATE_README_INVALID"
+                    );
+                entries.AddRange(matches);
+            }
+
+            string surfaces = string.Join(
+                ", ",
+                AllSurfaces
+                    .Where(surface => entries.All(entry => entry.Contexts.Contains(surface)))
+                    .Select(surface =>
+                        surface == TemplateHelperContext.Discord
+                            ? "Discord posts"
+                            : SurfaceName(surface)
+                    )
+            );
+            return Result<string>.Success($"Works in: {surfaces}.");
+        }
+
+        return Result<string>.Failure(
+            "A README Works in: line has no preceding helper key.",
+            "TEMPLATE_README_INVALID"
+        );
+    }
+
+    private static IEnumerable<TemplateHelperEntry> EntriesForReadmeKey(
+        string key,
+        ITemplateHelperRegistry registry
+    ) =>
+        key.EndsWith(".*", StringComparison.Ordinal)
+            ? registry.All.Where(entry =>
+                entry.Key.StartsWith(key[..^1], StringComparison.OrdinalIgnoreCase)
+            )
+            : registry.All.Where(entry => entry.Matches(key));
 
     private static bool Applies(Rule rule, string key, TemplateHelperContext surface) =>
         (rule.Surfaces.Length == 0 || rule.Surfaces.Contains(surface))
