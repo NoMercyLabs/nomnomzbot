@@ -64,6 +64,7 @@ public sealed class DiscordGoLiveNotificationHandler : IEventHandler<ChannelOnli
             ["channel.game"] = @event.GameName,
             ["title"] = @event.StreamTitle,
             ["game"] = @event.GameName,
+            ["provider"] = @event.Provider,
         };
 
         // Posting to the broadcaster's Discord server is the same class of act as the live-role assignment

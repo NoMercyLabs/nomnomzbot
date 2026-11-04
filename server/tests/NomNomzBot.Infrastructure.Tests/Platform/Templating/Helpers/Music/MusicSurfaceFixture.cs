@@ -38,6 +38,9 @@ internal static class MusicSurfaceFixture
         seeds["music.favorite.artist"] = "Artist A";
         seeds["music.favorite.count"] = "1";
         seeds["music.favorite.outcome"] = "added";
+        // PlaylistAddAction publishes these aliases after the playlist step.
+        seeds["playlist_id"] = "37i9dQZF1DX";
+        seeds["track_name"] = "Song A";
     }
 
     public static void Configure(ServiceCollection services, Guid channel)

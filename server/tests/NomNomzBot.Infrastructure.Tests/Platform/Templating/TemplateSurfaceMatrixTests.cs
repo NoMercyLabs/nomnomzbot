@@ -26,7 +26,24 @@ using NomNomzBot.Infrastructure.Chat.EventHandlers;
 using NomNomzBot.Infrastructure.Commands.Jobs;
 using NomNomzBot.Infrastructure.Discord;
 using NomNomzBot.Infrastructure.Platform.Templating;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Arguments;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Bot;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Broadcast;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Chat;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Composing;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Counters;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Emotes;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Fun;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Include;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.LiveEvents;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Logic;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Lookups;
 using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Music;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Numbers;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.People;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Platforms;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Stream;
+using NomNomzBot.Infrastructure.Tests.Platform.Templating.Helpers.Text;
 using NomNomzBot.Infrastructure.Tests.ViewerData;
 using NomNomzBot.Infrastructure.Webhooks;
 using NSubstitute;
@@ -100,6 +117,25 @@ public sealed class TemplateSurfaceMatrixTests
             "user.id",
             "The go-live post has no viewer; a follow-style trigger seeds it through DiscordTriggerNotificationHandler.ViewerData."
         ),
+        (
+            TemplateHelperContext.Timer,
+            "platform.event",
+            "A scheduled timer has no originating platform event."
+        ),
+        (TemplateHelperContext.Discord, "raw.message", RawSurfaceFixture.DiscordMessageAbsence),
+        .. new[]
+        {
+            TemplateHelperContext.EventResponse,
+            TemplateHelperContext.Timer,
+            TemplateHelperContext.Discord,
+            TemplateHelperContext.Webhook,
+        }.Select(surface =>
+            (
+                Surface: surface,
+                Key: "lookup.translate.chat",
+                Reason: "This matrix trigger carries no chat message or command arguments to translate."
+            )
+        ),
         .. new[]
         {
             "music.user.requests.total",
@@ -146,7 +182,37 @@ public sealed class TemplateSurfaceMatrixTests
 
     // A namespace joins this set when its outside-world fixture is registered below. Its cells then
     // remain in the assertion even if none of its keys happens to render on another surface.
-    private static readonly HashSet<string> FixtureNamespaces = ["music"];
+    private static readonly HashSet<string> FixtureNamespaces =
+    [
+        "music",
+        "stream",
+        "user",
+        "emote",
+        "channel",
+        "schedule",
+        "goal",
+        "target",
+        "hypetrain",
+        "list",
+        "ad",
+        "activity",
+        "charity",
+        "bot",
+        "chat",
+        "quote",
+        "platform",
+        "lookup",
+        "num",
+        "include",
+        "text",
+        "fun",
+        "pick",
+        "link",
+        "random",
+        "tts",
+        "args",
+        "raw",
+    ];
 
     private enum CellState
     {
@@ -168,7 +234,7 @@ public sealed class TemplateSurfaceMatrixTests
     [Fact]
     public async Task Every_declared_helper_renders_on_the_surface_that_declares_it()
     {
-        await using ServiceProvider services = Services();
+        await using ServiceProvider services = await ServicesAsync();
         ITemplateHelperRegistry registry = services.GetRequiredService<ITemplateHelperRegistry>();
         TemplateResolver resolver = new(
             services.GetRequiredService<IServiceScopeFactory>(),
@@ -225,7 +291,7 @@ public sealed class TemplateSurfaceMatrixTests
                 + $"threw {cells.Count(c => c.State == CellState.Threw)}"
         );
         report.AppendLine(
-            $"fixture-limited (fails on every surface, not asserted): {universal.Count} cells, "
+            $"fixture-limited (fails on every surface): {universal.Count} cells, "
                 + $"{universal.Select(c => c.Key).Distinct().Count()} keys"
         );
         foreach (Cell cell in universal)
@@ -237,7 +303,7 @@ public sealed class TemplateSurfaceMatrixTests
         foreach (string row in stale)
             report.AppendLine(row);
 
-        (unexplained.Count + stale.Count).Should().Be(0, report.ToString());
+        (unexplained.Count + stale.Count + universal.Count).Should().Be(0, report.ToString());
     }
 
     private static bool HasFixture(string key) =>
@@ -253,13 +319,28 @@ public sealed class TemplateSurfaceMatrixTests
     {
         CellState best = CellState.AsWritten;
         string thrown = string.Empty;
-        foreach (string shape in ArgumentShapes)
+        IEnumerable<string> shapes = ArgumentShapes
+            .Concat(key == "schedule.next.viewerTime" ? [":UTC"] : [])
+            .Concat(
+                key.StartsWith("platform.", StringComparison.OrdinalIgnoreCase) ? [":twitch"] : []
+            )
+            .Concat(LookupSurfaceFixture.ShapesFor(key))
+            .Concat(NumberSurfaceFixture.ShapesFor(key))
+            .Concat(TextSurfaceFixture.ShapesFor(key))
+            .Concat(PickSurfaceFixture.ShapesFor(key))
+            .Concat(LinkSurfaceFixture.ShapesFor(key))
+            .Concat(FunSurfaceFixture.ShapesFor(key))
+            .Concat(IncludeSurfaceFixture.ShapesFor(key))
+            .Concat(ArgsSurfaceFixture.ShapesFor(key))
+            .Concat(VariableSurfaceFixture.ShapesFor(key))
+            .Concat(TtsSurfaceFixture.ShapesFor(key));
+        foreach (string shape in shapes)
         {
             string token = "{" + key + shape + "}";
             string rendered;
             try
             {
-                rendered = await RenderOnAsync(resolver, surface, token);
+                rendered = await RenderOnAsync(resolver, surface, key, token);
             }
             catch (Exception ex)
             {
@@ -282,11 +363,13 @@ public sealed class TemplateSurfaceMatrixTests
     private static async Task<string> RenderOnAsync(
         TemplateResolver resolver,
         TemplateHelperContext surface,
+        string key,
         string template
     )
     {
         Dictionary<string, string> seeds = SeedsFor(surface);
         MusicSurfaceFixture.Seed(surface, seeds);
+        ArgsSurfaceFixture.Seed(surface, key, seeds);
         return surface switch
         {
             TemplateHelperContext.Viewer => (
@@ -349,6 +432,7 @@ public sealed class TemplateSurfaceMatrixTests
                     ["channel.game"] = "Just Chatting",
                     ["title"] = "Cozy coding night",
                     ["game"] = "Just Chatting",
+                    ["provider"] = "twitch",
                     [DiscordChannelLinks.ChannelUrl] = "https://www.twitch.tv/samplestreamer",
                     [DiscordChannelLinks.StreamUrl] = "https://www.twitch.tv/samplestreamer",
                     [DiscordChannelLinks.ChannelLogin] = "samplestreamer",
@@ -369,6 +453,7 @@ public sealed class TemplateSurfaceMatrixTests
                 // EventResponse and Webhook: the alert handlers add the event's own keys, then the viewer
                 // identity and the target copy of it (TwitchAlertHandlerBase.ComposeVariables).
                 Dictionary<string, string> alert = new(StringComparer.OrdinalIgnoreCase);
+                alert["provider"] = "twitch";
                 TemplateSubject.SeedUser(alert, "100000042", "sampleviewer", "SampleViewer");
                 TemplateSubject.SeedTargetFromUser(alert);
                 return alert;
@@ -380,7 +465,7 @@ public sealed class TemplateSurfaceMatrixTests
     /// The real helper registry and every real provider, with an NSubstitute fake for each outside-world
     /// service a provider asks for and an in-memory database.
     /// </summary>
-    private static ServiceProvider Services()
+    private static async Task<ServiceProvider> ServicesAsync()
     {
         IChannelRegistry channels = Substitute.For<IChannelRegistry>();
         channels
@@ -394,6 +479,9 @@ public sealed class TemplateSurfaceMatrixTests
                     DisplayName = "SampleStreamer",
                     IsLive = true,
                     CurrentStreamId = "stream-1",
+                    CurrentTitle = "Cozy coding night",
+                    CurrentGame = "Just Chatting",
+                    ViewerCount = 42,
                     WentLiveAt = Now.AddHours(-2),
                     Timezone = "Europe/Amsterdam",
                     Language = "en",
@@ -404,14 +492,18 @@ public sealed class TemplateSurfaceMatrixTests
         services.AddSingleton(channels);
         // A command's {target.*} resolves through the real mention resolver; the typed target is not a stored
         // user, so the lookup takes the unseen-target path (the platform fake finds nothing).
-        services.AddSingleton<IApplicationDbContext>(ViewerDataTestDbContext.New());
+        ViewerDataTestDbContext database = ViewerDataTestDbContext.New();
+        await UserSurfaceFixture.SeedDbAsync(database);
+        services.AddSingleton<IApplicationDbContext>(database);
         services.AddScoped<IMentionTargetResolver, MentionTargetResolver>();
         services.AddSingleton<TimeProvider>(new FakeTimeProvider(Now));
-        services.AddSingleton(new Random(1));
+        RandomSurfaceFixture.Configure(services);
         services.AddSingleton(typeof(ILogger<>), typeof(NullLogger<>));
         services.AddSingleton<ILoggerFactory>(NullLoggerFactory.Instance);
         services.AddTemplateHelpers(typeof(TemplateResolver).Assembly);
+        services.AddSingleton<ITemplateResolver, TemplateResolver>();
         ConfigureFixtures(services);
+        IncludeSurfaceFixture.Configure(services, channels.Get(Channel)!);
         FakeOutsideWorldServices(services);
         return services.BuildServiceProvider();
     }
@@ -419,6 +511,24 @@ public sealed class TemplateSurfaceMatrixTests
     private static void ConfigureFixtures(ServiceCollection services)
     {
         MusicSurfaceFixture.Configure(services, Channel);
+        StreamSurfaceFixture.Configure(services, Channel);
+        UserSurfaceFixture.Configure(services, Channel);
+        EmoteSurfaceFixture.Configure(services, Channel);
+        ChannelSurfaceFixture.Configure(services, Channel);
+        ScheduleSurfaceFixture.Configure(services, Channel);
+        AdSurfaceFixture.Configure(services, Channel);
+        ActivitySurfaceFixture.Configure(services, Channel);
+        BotSurfaceFixture.Configure(services, Channel);
+        ChatSurfaceFixture.Configure(services, Channel);
+        QuoteSurfaceFixture.Configure(services, Channel);
+        PlatformSurfaceFixture.Configure(services, Channel);
+        LookupSurfaceFixture.Configure(services);
+        GoalSurfaceFixture.Configure(services, Channel);
+        HypeTrainSurfaceFixture.Configure(services, Channel);
+        CharitySurfaceFixture.Configure(services, Channel);
+        TargetSurfaceFixture.Configure(services);
+        ListSurfaceFixture.Configure(services, Channel);
+        FunSurfaceFixture.Configure(services, Channel);
     }
 
     /// <summary>

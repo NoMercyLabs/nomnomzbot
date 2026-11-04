@@ -146,7 +146,7 @@ internal sealed class ViewerDataTestDbContext : DbContext, IApplicationDbContext
         {
             e.HasKey(x => x.Id);
             e.Ignore(x => x.Channel);
-            e.Ignore(x => x.AltPronoun);
+            e.HasOne(x => x.AltPronoun).WithMany().HasForeignKey(x => x.AltPronounId);
         });
 
         // A user's pronoun is read by the {target.*} template lookup (Include), so it is mapped for real.

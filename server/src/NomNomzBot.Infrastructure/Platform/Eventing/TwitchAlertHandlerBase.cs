@@ -76,6 +76,7 @@ public abstract class TwitchAlertHandlerBase<TEvent> : IEventResponsePresenter, 
     private Dictionary<string, string> ComposeVariables(TEvent @event)
     {
         Dictionary<string, string> variables = BuildVariables(@event);
+        variables.TryAdd("provider", "twitch");
         TemplateSubject.SeedUser(
             variables,
             GetUserId(@event),

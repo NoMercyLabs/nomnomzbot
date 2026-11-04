@@ -1843,6 +1843,7 @@ public sealed class ChatMessageHandler : IEventHandler<ChatMessageReceivedEvent>
             // Which platform user.id belongs to — lets the template layer resolve the viewer
             // identity-correctly for non-Twitch chatters ({viewer.data.*}, {viewer.*} stats).
             ["user.provider"] = @event.Provider,
+            ["provider"] = @event.Provider,
             ["user.role"] = GetUserRole(@event),
             // Bits carried by THIS message — the TTS bits gate (MinBitsToTts) and any cheer-conditioned
             // flow need the real number; without it every pipeline-dispatched utterance looked like 0 bits.

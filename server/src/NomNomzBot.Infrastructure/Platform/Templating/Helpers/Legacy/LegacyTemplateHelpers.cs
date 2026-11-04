@@ -440,6 +440,12 @@ public sealed partial class LegacyTemplateHelpers
                 vars.TryAdd("streamer", channelCtx.DisplayName ?? channelCtx.ChannelName);
                 vars.TryAdd("stream.title", channelCtx.CurrentTitle ?? string.Empty);
                 vars.TryAdd("stream.game", channelCtx.CurrentGame ?? string.Empty);
+                vars.TryAdd(
+                    "stream.viewers",
+                    channelCtx.IsLive
+                        ? channelCtx.ViewerCount.ToString(CultureInfo.InvariantCulture)
+                        : "0"
+                );
                 vars.TryAdd("stream.isLive", channelCtx.IsLive ? "true" : "false");
                 vars.TryAdd(
                     "stream.startedAt",
