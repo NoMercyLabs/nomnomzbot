@@ -27,6 +27,7 @@ internal static class ChatCommandVariableKeys
         "args.${number}",
         "args.count",
         "message",
+        "provider",
         "target",
         "user",
         "user.bits",
