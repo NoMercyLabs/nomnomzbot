@@ -646,9 +646,9 @@ public sealed class SubscriptionCheerRaidBroadcastTests
 
         await notifier
             .DidNotReceiveWithAnyArgs()
-            .NotifyChannelAsync(default!, default!, default!, default);
+            .NotifyChannelAsync(default!, default!, default!);
         await widgets
             .DidNotReceiveWithAnyArgs()
-            .BroadcastOverlayEventAsync(default!, default!, default);
+            .BroadcastOverlayEventAsync(default!, default!);
     }
 }

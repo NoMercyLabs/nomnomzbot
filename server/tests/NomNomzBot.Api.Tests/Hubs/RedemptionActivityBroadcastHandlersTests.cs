@@ -245,7 +245,7 @@ public sealed class RedemptionActivityBroadcastHandlersTests
 
         await notifier
             .DidNotReceiveWithAnyArgs()
-            .SendRedemptionActivityAsync(default!, default!, default);
+            .SendRedemptionActivityAsync(default!, default!);
     }
 
     [Fact]
@@ -271,6 +271,6 @@ public sealed class RedemptionActivityBroadcastHandlersTests
 
         await notifier
             .DidNotReceiveWithAnyArgs()
-            .SendRedemptionActivityAsync(default!, default!, default);
+            .SendRedemptionActivityAsync(default!, default!);
     }
 }

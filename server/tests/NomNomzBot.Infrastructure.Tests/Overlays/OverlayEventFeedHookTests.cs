@@ -216,7 +216,7 @@ public sealed class OverlayEventFeedHookTests
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
-            .Returns<Task>(_ => throw new InvalidOperationException("hub down"));
+            .Returns(_ => throw new InvalidOperationException("hub down"));
 
         Result result = await hook.OnCommittedAsync(Record(Tenant));
 

@@ -102,7 +102,9 @@ public sealed class HeldTextServiceTests
         Task<bool> check = service.IsChatLineHeldAsync(Channel, Viewer, Text, Start);
         await Task.Delay(50);
 
-        check.IsCompleted.Should().BeTrue("Twitch sends a held line only after approval, so chat never waits");
+        check
+            .IsCompleted.Should()
+            .BeTrue("Twitch sends a held line only after approval, so chat never waits");
         (await check).Should().BeFalse();
         time.GetUtcNow().Should().Be(Start);
     }

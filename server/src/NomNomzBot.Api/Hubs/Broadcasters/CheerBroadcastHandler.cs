@@ -54,8 +54,7 @@ public sealed class CheerBroadcastHandler : IEventHandler<CheerEvent>
 
         bool messageHeld =
             _heldText is not null
-            && @event.Provider == AuthEnums.Platform.Twitch
-            && !@event.IsAnonymous
+            && @event is { Provider: AuthEnums.Platform.Twitch, IsAnonymous: false }
             && !string.IsNullOrWhiteSpace(@event.Message)
             && await _heldText.IsTextHeldAsync(
                 @event.BroadcasterId,
