@@ -219,6 +219,67 @@ public sealed class TemplateHelperValidatorTests
     }
 
     [Fact]
+    public void Readme_user_surface_line_matches_the_registry()
+    {
+        using ServiceProvider services = FullRegistryServices();
+        ITemplateHelperRegistry registry = services.GetRequiredService<ITemplateHelperRegistry>();
+        TemplateHelperEntry user = registry.All.Single(entry => entry.Key == "user");
+        string readme = File.ReadAllText(LocateReadmeDocument()).Replace("\r\n", "\n");
+
+        user.Contexts.Should().Contain(TemplateHelperContext.Viewer);
+        readme
+            .Should()
+            .Contain(
+                "`{user}`\nThe display name of the person who triggered it, as the platform shows it.\n"
+                    + "Works in: commands, event responses, pipelines, Discord posts, webhooks, viewer text."
+            );
+    }
+
+    [Fact]
+    public void Readme_generator_rewrites_only_surface_lines_for_literal_family_and_grouped_helpers()
+    {
+        using ServiceProvider services = FullRegistryServices();
+        ITemplateHelperRegistry registry = services.GetRequiredService<ITemplateHelperRegistry>();
+        string source =
+            "`{user}`\r\nA description.\r\nWorks in: stale.\r\n\r\n"
+            + "For `{viewer.*}` and `{target.*}`.\nWorks in: stale.\n"
+            + "`{args.N}` — arguments.\nWorks in: stale.\n"
+            + "An inline Works in: phrase stays.\n";
+
+        Result<string> generated = TemplateSurfaceAvailability.RenderReadmeWorksIn(
+            source,
+            registry
+        );
+
+        generated.IsSuccess.Should().BeTrue(generated.ErrorMessage);
+        generated
+            .Value.Should()
+            .Be(
+                "`{user}`\r\nA description.\r\nWorks in: commands, event responses, pipelines, Discord posts, webhooks, viewer text.\r\n\r\n"
+                    + "For `{viewer.*}` and `{target.*}`.\nWorks in: event responses, pipelines.\n"
+                    + "`{args.N}` — arguments.\nWorks in: commands, pipelines.\n"
+                    + "An inline Works in: phrase stays.\n"
+            );
+    }
+
+    [Fact]
+    public void Readme_generator_reports_an_unknown_key_in_a_group()
+    {
+        using ServiceProvider services = FullRegistryServices();
+        ITemplateHelperRegistry registry = services.GetRequiredService<ITemplateHelperRegistry>();
+        string source = "`{user}` and `{missing.helper}`\nWorks in: stale.\n";
+
+        Result<string> generated = TemplateSurfaceAvailability.RenderReadmeWorksIn(
+            source,
+            registry
+        );
+
+        generated.IsFailure.Should().BeTrue();
+        generated.ErrorCode.Should().Be("TEMPLATE_README_INVALID");
+        generated.ErrorMessage.Should().Contain("missing.helper");
+    }
+
+    [Fact]
     public void Surface_matrix_document_matches_the_registry()
     {
         using ServiceProvider services = FullRegistryServices();
@@ -241,6 +302,26 @@ public sealed class TemplateHelperValidatorTests
                 $"docs/templates/surfaces.md is generated from the helper registry. The generated text is in '{scratchPath}'. "
                     + "Regenerate with: dotnet test server/tests/NomNomzBot.Infrastructure.Tests --filter Surface_matrix_document_matches_the_registry, "
                     + $"then copy '{scratchPath}' to '{documentPath}'"
+            );
+
+        string readmePath = LocateReadmeDocument();
+        string readme = File.ReadAllText(readmePath);
+        Result<string> generatedReadme = TemplateSurfaceAvailability.RenderReadmeWorksIn(
+            readme,
+            registry
+        );
+        generatedReadme.IsSuccess.Should().BeTrue(generatedReadme.ErrorMessage);
+        string readmeScratchPath = Path.Combine(Path.GetTempPath(), "README.generated.md");
+        if (readme != generatedReadme.Value)
+            File.WriteAllText(readmeScratchPath, generatedReadme.Value);
+
+        readme
+            .Should()
+            .Be(
+                generatedReadme.Value,
+                $"docs/templates/README.md Works in: lines are generated from the helper registry. The generated text is in '{readmeScratchPath}'. "
+                    + "Regenerate with: dotnet test server/tests/NomNomzBot.Infrastructure.Tests --filter Surface_matrix_document_matches_the_registry, "
+                    + $"then copy '{readmeScratchPath}' to '{readmePath}'"
             );
     }
 
@@ -282,6 +363,9 @@ public sealed class TemplateHelperValidatorTests
             $"Could not locate docs/templates above '{AppContext.BaseDirectory}'."
         );
     }
+
+    private static string LocateReadmeDocument() =>
+        Path.Combine(Path.GetDirectoryName(LocateSurfacesDocument())!, "README.md");
 
     /// <summary>The live registry: every real provider, with fakes only for the outside world.</summary>
     private static ServiceProvider FullRegistryServices()

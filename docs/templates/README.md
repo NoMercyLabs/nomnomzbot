@@ -31,7 +31,7 @@ One rule for every name: a key without a suffix is the name as people read it. A
 
 `{user}`
 The display name of the person who triggered it, as the platform shows it.
-Works in: commands, event responses, pipelines, webhooks, Discord posts.
+Works in: commands, event responses, pipelines, Discord posts, webhooks, viewer text.
 ```
 Thanks for the command, {user}!
 Thanks for the command, Stoney_Eagle!
@@ -214,7 +214,7 @@ Live for 2 hours 15 minutes already!
 
 `{broadcaster}`, `{title}`, `{game}`
 Short names used by the stream online/offline events and Discord go-live posts.
-Works in: event responses, pipelines, Discord.
+Works in: event responses, pipelines, Discord posts.
 ```
 {broadcaster} just went live with {game}: {title}
 Stoney_Eagle just went live with Minecraft: Chill building night
@@ -245,7 +245,7 @@ Today is 5 October 2026.
 ## Viewer stats
 
 For the person who typed: `{viewer.*}`. For the @mentioned person: `{target.*}`.
-Works in: commands, event responses, pipelines, webhooks.
+Works in: event responses, pipelines.
 
 `{viewer.messages}` / `{target.messages}` — total chat messages.
 ```

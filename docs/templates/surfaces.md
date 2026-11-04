@@ -1,6 +1,6 @@
 # Template helpers by surface
 
-This page is generated from the helper registry by `TemplateSurfaceAvailability.RenderMarkdown`. Do not edit it by hand: a test fails when it differs from the registry. `Y` means the helper works on that surface. A code means it does not, and the legend at the end gives the reason.
+This page is generated from the helper registry by `TemplateSurfaceAvailability.RenderMarkdown`. The `Works in:` lines in [README.md](README.md) come from the same registry. Do not edit this page by hand: a test fails when it differs from the registry. `Y` means the helper works on that surface. A code means it does not, and the legend at the end gives the reason.
 
 ## Keys without a dot
 
