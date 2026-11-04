@@ -46,6 +46,10 @@ internal sealed record EmoteRow(
     /// <summary>Whose data the row reads (the viewer who typed the command, or the channel).</summary>
     public TemplateHelperScope Scope { get; init; } = TemplateHelperScope.Channel;
 
+    public bool LazyArguments { get; init; }
+
+    public bool ViewerText { get; init; }
+
     public TemplateHelperFreshness Freshness =>
         Sources == EmoteSources.None
             ? TemplateHelperFreshness.Pure
@@ -78,11 +82,16 @@ internal sealed record EmoteRow(
             : Render(call);
 
     public TemplateHelperEntry ToEntry() =>
-        new(Key, TemplateHelperContexts.Standard, new LocalizedText("template.helper." + Key))
+        new(
+            Key,
+            ViewerText ? TemplateHelperContexts.StandardAndViewer : TemplateHelperContexts.Standard,
+            new LocalizedText("template.helper." + Key)
+        )
         {
             Sample = Sample,
             Source = Sources == EmoteSources.None ? null : Sources.ToString().ToLowerInvariant(),
             Freshness = Freshness,
             Scope = Scope,
+            LazyArguments = LazyArguments,
         };
 }

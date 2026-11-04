@@ -78,10 +78,22 @@ internal sealed class EmoteTemplateHelpers : ITemplateHelperProvider
         TemplateRenderScope scope,
         HelperNode node,
         CancellationToken cancellationToken
-    ) =>
-        _rows.TryGetValue(node.Key, out EmoteRow? row) && DataFor(scope) is { } data
-            ? await row.RenderAsync(new EmoteCall(data, node.Arguments, scope, _random))
-            : null;
+    )
+    {
+        if (!_rows.TryGetValue(node.Key, out EmoteRow? row) || DataFor(scope) is not { } data)
+            return null;
+
+        IReadOnlyList<string> arguments = node.Arguments;
+        if (!scope.IsViewerText && node.RenderArgumentAsync is not null)
+        {
+            List<string> rendered = [];
+            for (int index = 0; index < arguments.Count; index++)
+                rendered.Add(await node.RenderArgumentAsync(index, cancellationToken));
+            arguments = rendered;
+        }
+
+        return await row.RenderAsync(new EmoteCall(data, arguments, scope, _random));
+    }
 
     private EmoteData? DataFor(TemplateRenderScope scope) =>
         EmoteData.For(scope, _scopes, _directory, _chat);

@@ -37,6 +37,17 @@ internal static class EmoteText
             );
     }
 
+    /// <summary>A viewer may repeat a plain emote code, never markup, a nested helper or a URL.</summary>
+    public static bool IsPlainCode(string argument)
+    {
+        string code = ParsedArgument.Word(argument);
+        return code.Length > 0
+            && !code.Any(char.IsWhiteSpace)
+            && code.IndexOfAny(['<', '>', '{', '}']) < 0
+            && !code.StartsWith("www.", StringComparison.OrdinalIgnoreCase)
+            && !Uri.TryCreate(code, UriKind.Absolute, out _);
+    }
+
     /// <summary>
     /// How often each known emote code appears in the texts. A word counts when it is exactly a code of
     /// <paramref name="known"/>; emote codes are case-sensitive on every network.

@@ -187,6 +187,47 @@ public sealed class EmoteTemplateHelpersTests
     }
 
     [Fact]
+    public async Task Viewer_text_repeats_a_known_text_emote_code()
+    {
+        await using EmoteHelperFixture fixture = new();
+
+        ViewerTemplateResult result = await fixture.RenderViewerAsync("{emote.repeat:catJAM|3}");
+
+        result.Refusal.Should().Be(ViewerTemplateRefusal.None);
+        result.Text.Should().Be("catJAM catJAM catJAM");
+    }
+
+    [Theory]
+    [InlineData("{emote.repeat:Nope|3}")]
+    [InlineData("{emote.repeat:<b>catJAM</b>|3}")]
+    [InlineData("{emote.repeat:{emote:catJAM}|3}")]
+    [InlineData("{emote.repeat:{text.upper:catjam}|3}")]
+    [InlineData("{emote.repeat:https://cdn.7tv.app/catJAM|3}")]
+    public async Task Viewer_text_keeps_a_non_text_emote_repeat_literal(string text)
+    {
+        await using EmoteHelperFixture fixture = new();
+
+        ViewerTemplateResult result = await fixture.RenderViewerAsync(text);
+
+        result.Refusal.Should().Be(ViewerTemplateRefusal.None);
+        result.Text.Should().Be(text);
+    }
+
+    [Fact]
+    public async Task Viewer_text_repeat_keeps_the_fifty_emote_cap()
+    {
+        await using EmoteHelperFixture fixture = new();
+
+        ViewerTemplateResult atCap = await fixture.RenderViewerAsync("{emote.repeat:catJAM|50}");
+        ViewerTemplateResult overCap = await fixture.RenderViewerAsync("{emote.repeat:catJAM|51}");
+
+        atCap.Refusal.Should().Be(ViewerTemplateRefusal.None);
+        atCap.Text.Should().Be(string.Join(' ', Enumerable.Repeat("catJAM", 50)));
+        overCap.Refusal.Should().Be(ViewerTemplateRefusal.None);
+        overCap.Text.Should().Be("{emote.repeat:catJAM|51}");
+    }
+
+    [Fact]
     public async Task When_twitch_cannot_be_reached_the_twitch_rows_read_as_empty_and_count_zero()
     {
         await using EmoteHelperFixture fixture = new(assetsFail: true);

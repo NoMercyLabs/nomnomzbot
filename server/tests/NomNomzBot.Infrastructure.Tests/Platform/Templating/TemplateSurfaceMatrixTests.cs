@@ -320,6 +320,7 @@ public sealed class TemplateSurfaceMatrixTests
         CellState best = CellState.AsWritten;
         string thrown = string.Empty;
         IEnumerable<string> shapes = ArgumentShapes
+            .Concat(key == "emote.repeat" ? [":catJAM|2"] : [])
             .Concat(key == "schedule.next.viewerTime" ? [":UTC"] : [])
             .Concat(
                 key.StartsWith("platform.", StringComparison.OrdinalIgnoreCase) ? [":twitch"] : []
