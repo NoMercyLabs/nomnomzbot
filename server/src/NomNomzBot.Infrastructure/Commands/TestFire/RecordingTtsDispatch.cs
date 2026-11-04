@@ -38,6 +38,26 @@ internal sealed class RecordingTtsDispatch(ITtsDispatchService inner) : ITtsDisp
         return result;
     }
 
+    public Task<TtsPreparation> PrepareSpeakAsync(
+        TtsSpeakRequest request,
+        CancellationToken ct = default
+    ) => inner.PrepareSpeakAsync(request, ct);
+
+    public async Task<Result<TtsDispatchOutcome>> RequestPreparedSpeakAsync(
+        TtsSpeakRequest request,
+        TtsPreparedClip? prepared,
+        CancellationToken ct = default
+    )
+    {
+        Result<TtsDispatchOutcome> result = await inner.RequestPreparedSpeakAsync(
+            request,
+            prepared,
+            ct
+        );
+        _lines.Add(new(request.Text, result.IsFailure ? result.ErrorMessage : null));
+        return result;
+    }
+
     public Task<string?> ResolveVoiceAsync(
         Guid broadcasterId,
         string requestedByTwitchUserId,

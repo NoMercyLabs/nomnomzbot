@@ -10,6 +10,8 @@
 // -----------------------------------------------------------------------------
 
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Application.Tts.Services;
+using NomNomzBot.Domain.Tts.Interfaces;
 
 namespace NomNomzBot.Application.Contracts.Tts;
 
@@ -34,6 +36,16 @@ public interface ITtsDispatchService
     /// </summary>
     Task<Result<TtsDispatchOutcome>> RequestSpeakAsync(
         TtsSpeakRequest request,
+        CancellationToken ct = default
+    );
+
+    /// <summary>Synthesizes a pipeline clip without queueing, publishing, or charging it.</summary>
+    Task<TtsPreparation> PrepareSpeakAsync(TtsSpeakRequest request, CancellationToken ct = default);
+
+    /// <summary>Applies the live gates and queues a matching prepared clip in request order.</summary>
+    Task<Result<TtsDispatchOutcome>> RequestPreparedSpeakAsync(
+        TtsSpeakRequest request,
+        TtsPreparedClip? prepared,
         CancellationToken ct = default
     );
 
@@ -225,3 +237,24 @@ public sealed record TtsDispatchOutcome(
     int DurationMs,
     string? PlaybackUrl
 );
+
+/// <summary>Audio made before a pipeline reaches its TTS step. The dispatch path verifies its inputs.</summary>
+public sealed record TtsPreparedClip(
+    Guid BroadcasterId,
+    string Text,
+    string VoiceId,
+    string Mode,
+    string DefaultProvider,
+    double? RatePercent,
+    double? PitchPercent,
+    IReadOnlyList<TtsSegment>? Segments,
+    TtsResult Audio,
+    int SynthesisMs
+);
+
+/// <summary>The planning phase is complete; synthesis continues while the pipeline runs.</summary>
+public sealed record TtsPreparation(Task<Result<TtsPreparedClip?>> Clip)
+{
+    public static TtsPreparation Skipped { get; } =
+        new(Task.FromResult(Result.Success<TtsPreparedClip?>(null)));
+}
