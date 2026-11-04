@@ -329,7 +329,7 @@ public sealed class PlayTtsAction : ICommandAction
                     == true
             )
         )
-            return ActionResult.Failure("Redemption text is held by AutoMod.");
+            return (null, ActionResult.Failure("Redemption text is held by AutoMod."));
 
         string voiceTemplate = action.GetString("voice") ?? string.Empty;
         string? voiceOverride = null;
