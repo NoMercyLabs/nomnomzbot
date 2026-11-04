@@ -56,6 +56,12 @@ const emoteCards = computed<(AssetCard | null)[]>(() =>
 function emoteUrl(emote: EmoteImages): string | undefined {
   return smallestUrl(emoteFrames(emote));
 }
+
+function cheermoteUrl(fragment: ChatLine['fragments'][number]): string | undefined {
+  return fragment.cheermote?.urls
+    ? smallestUrl(fragment.cheermote.urls)
+    : undefined;
+}
 </script>
 
 <template>
@@ -77,6 +83,13 @@ function emoteUrl(emote: EmoteImages): string | undefined {
         class="inline-block h-(--emote-h)"
       />
     </AssetCardPopover>
+    <img
+      v-else-if="cheermoteUrl(fragment)"
+      data-cheermote
+      :src="cheermoteUrl(fragment)"
+      :alt="fragment.text"
+      class="mx-0.5 inline-block h-(--emote-h) align-middle"
+    />
     <span
       v-else-if="fragment.type === 'html' && display.htmlAsText"
       data-html

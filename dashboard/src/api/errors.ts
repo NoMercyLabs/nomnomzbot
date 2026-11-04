@@ -160,6 +160,7 @@ export const apiOperations = {
   'analytics streams': 'analytics',
   'chat emotes': 'chat',
   'chat search': 'chat',
+  'chat thread': 'chat',
   'user chat': 'chat',
   'chat send': 'chat',
   'viewer chat': 'chat',

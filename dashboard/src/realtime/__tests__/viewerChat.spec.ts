@@ -25,6 +25,7 @@ type Hub = typeof import('../dashboardHub');
 const line = (id: string, channelId: string): ChatMessagePayload => ({
   id,
   channelId,
+  kind: 'message',
   userId: 'u1',
   displayName: 'U1',
   username: 'u1',

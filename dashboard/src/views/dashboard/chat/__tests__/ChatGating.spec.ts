@@ -171,6 +171,15 @@ const buttonNames = (): string[] =>
   [...document.body.querySelectorAll('button')].map((item) => item.textContent?.trim() ?? '');
 
 describe('Chat line actions', () => {
+  it('shows the source channel on a shared chat message', async () => {
+    await show(ChatLine, {
+      ...lineProps,
+      line: { ...chatter, sourceChannelName: 'Other Stream' },
+    });
+
+    expect(document.body.querySelector('[data-source-channel]')?.textContent).toContain('Other Stream');
+  });
+
   it('shows no tray at all when the person holds no action key', async () => {
     await show(ChatLine, lineProps);
 

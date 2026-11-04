@@ -20153,6 +20153,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/chat/messages/{messageId}/thread": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** Get the complete stored reply thread containing this message, oldest first. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
+                header?: never;
+                path: {
+                    channelId: string;
+                    messageId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfListOfDashboardChatMessage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/chat/search": {
         parameters: {
             query?: never;
@@ -83726,6 +83825,105 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/chat/viewer/messages/{messageId}/thread": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** The visible messages in a reply thread, oldest first. */
+        get: {
+            parameters: {
+                query?: {
+                    /** @description Page size, 1 to 1000. */
+                    take?: number;
+                    /** @description Page number, starting at 1. */
+                    page?: number;
+                };
+                header?: never;
+                path: {
+                    channelId: string;
+                    messageId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfListOfDashboardChatMessage"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/channels/{channelId}/chat/viewer/emotes": {
         parameters: {
             query?: never;
@@ -93098,6 +93296,7 @@ export interface components {
             replyParentMessageBody?: null | string;
             replyParentUserName?: null | string;
             timestamp: string;
+            replyThreadParentMessageId?: null | string;
             avatarUrl?: null | string;
             pronouns?: null | string;
             /** @default twitch */
@@ -93107,6 +93306,24 @@ export interface components {
             isArtist: boolean;
             overlayLine?: null | components["schemas"]["OverlayLine"];
             hints?: null | components["schemas"]["ChatHints"];
+            /** @default message */
+            kind: string;
+            noticeType?: null | string;
+            systemText?: null | string;
+            announcementColor?: null | string;
+            sourceChannelId?: null | string;
+            sourceChannelName?: null | string;
+            subTier?: null | string;
+            /** Format: int32 */
+            cumulativeMonths?: null | number | string;
+            /** Format: int32 */
+            giftCount?: null | number | string;
+            /** Format: int32 */
+            raidViewerCount?: null | number | string;
+            recipientUserId?: null | string;
+            recipientDisplayName?: null | string;
+            heldStatus?: null | string;
+            removed?: null | string;
         };
         /**
          * @description Snapshot of a channel's current state, returned by GET /api/v1/dashboard/{broadcasterId}/stats.

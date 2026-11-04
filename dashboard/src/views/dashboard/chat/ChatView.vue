@@ -29,6 +29,7 @@ import {
   useBanUser,
   useChatHistory,
   useChatSearch,
+  useChatThread,
   useViewerChatHistory,
   type ChatLine as ChatLineData,
 } from '@/api/chat';
@@ -167,6 +168,13 @@ const me = computed<string | null>(() => currentUser.data.value?.username ?? nul
 const banTarget = ref<ChatLineData | null>(null);
 const banFailed = ref(false);
 const replyTo = ref<ChatLineData | null>(null);
+const threadTarget = ref<ChatLineData | null>(null);
+const thread = useChatThread(channelId, () => threadTarget.value?.id ?? null, viewerMode);
+
+function startReply(line: ChatLineData): void {
+  replyTo.value = line;
+  threadTarget.value = line;
+}
 
 const lines = computed<ChatLineData[]>(() => history.data.value ?? []);
 const linesById = computed(() =>
@@ -189,7 +197,7 @@ const visible = computed<ChatLineData[]>(() =>
     (line) =>
       !(!display.value.commands && line.isCommand) &&
       !(display.value.deleted === 'hide' && line.removed === 'deleted') &&
-      !(viewerRoute && line.removed !== undefined),
+      !(viewerRoute && Boolean(line.removed)),
   ));
 
 const panelState = usePanelState(history, () =>
@@ -533,7 +541,8 @@ async function confirmBan(): Promise<void> {
                 :viewer="viewerMode"
                 @ban="askBan"
                 @focus="pickChatter"
-                @reply="replyTo = $event"
+                @reply="startReply"
+                @thread="threadTarget = $event"
               />
             </template>
           </VirtualList>
@@ -557,9 +566,13 @@ async function confirmBan(): Promise<void> {
           <ChatComposer
             v-else
             v-model:reply-to="replyTo"
+            v-model:thread-target="threadTarget"
             :channel-id="channelId"
             :chatters="chatters"
             :viewer="viewerMode"
+            :thread-lines="thread.data.value ?? []"
+            :thread-pending="thread.isPending.value"
+            :thread-failed="thread.isError.value"
           />
         </template>
       </PanelCard>

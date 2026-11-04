@@ -201,6 +201,17 @@ afterEach(() => {
 });
 
 describe('the viewer chat page', () => {
+  it('shows a history line with a null removal mark and hides a deleted line', async () => {
+    history = [
+      { ...line('m1', 'Alice', 'first words'), removed: null },
+      { ...line('m2', 'Bob', 'second words'), removed: 'deleted' },
+    ];
+
+    await open();
+
+    expect(rows().map((row) => row.dataset.lineId)).toEqual(['m1']);
+  });
+
   it('reads the viewer history and shows its lines in order', async () => {
     await open();
 
@@ -299,6 +310,25 @@ describe('the viewer chat page', () => {
       await settleHistory();
       expect(focusOn()).toBeNull();
       await expectStepPopped(router, start);
+    });
+
+    it('Back closes the reply thread before the reply target', async () => {
+      const { router } = await openInHistory();
+
+      rows()[1]!.querySelector<HTMLButtonElement>('[data-line-action="reply"]')!.click();
+      await settleHistory();
+
+      expect(document.body.querySelector('[data-thread-popup]')).not.toBeNull();
+      expect(document.body.querySelector('[data-reply-banner]')).not.toBeNull();
+
+      await pressBack();
+      expect(document.body.querySelector('[data-thread-popup]')).toBeNull();
+      expect(document.body.querySelector('[data-reply-banner]')).not.toBeNull();
+      expect(router.currentRoute.value.fullPath).toBe('/chat');
+
+      await pressBack();
+      expect(document.body.querySelector('[data-reply-banner]')).toBeNull();
+      expect(router.currentRoute.value.fullPath).toBe('/chat');
     });
   });
 });

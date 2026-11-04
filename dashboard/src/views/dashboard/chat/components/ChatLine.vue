@@ -48,6 +48,7 @@ import {
 } from '@/lib/assetCards';
 import { emoteVars, lineHints, shownNameColor, spacingPadding, splitMentions, type ChatDisplay } from '../chatDisplay';
 import ChatFragments from './ChatFragments.vue';
+import ChatNativeLine from './ChatNativeLine.vue';
 
 const props = defineProps<{
   line: ChatLine;
@@ -69,6 +70,7 @@ const emit = defineEmits<{
   ban: [line: ChatLine];
   focus: [line: ChatLine];
   reply: [line: ChatLine];
+  thread: [line: ChatLine];
 }>();
 
 const { t, te, locale } = useI18n();
@@ -294,7 +296,9 @@ function pick(event: MouseEvent): void {
 </script>
 
 <template>
+  <ChatNativeLine v-if="line.kind && line.kind !== 'message'" :line="line" :display="display" />
   <div
+    v-else
     :data-line-id="line.id"
     :data-removed="line.removed"
     :data-rows="display.rows"
@@ -327,14 +331,17 @@ function pick(event: MouseEvent): void {
       />
     </span>
     <div class="min-w-0 flex-1">
-      <p
+      <button
         v-if="replyParent"
         data-reply-parent
-        class="flex items-center gap-1 truncate text-xs leading-5 text-muted-foreground"
+        type="button"
+        :aria-label="$t('dashboard.chat.reply.openThread')"
+        class="flex max-w-full items-center gap-1 truncate text-start text-xs leading-5 text-muted-foreground hover:text-foreground focus-visible:ring-2 focus-visible:ring-ring"
+        @click="emit('thread', line)"
       >
         <EmailReply class="size-3.5 flex-none" aria-hidden="true" />
         <span class="truncate">{{ replyParent }}</span>
-      </p>
+      </button>
       <p
         v-if="hints.length > 0"
         data-hints
@@ -379,6 +386,11 @@ function pick(event: MouseEvent): void {
               </AssetCardPopover>
             </template>
           </span>
+          <span
+            v-if="line.sourceChannelName"
+            data-source-channel
+            class="rounded-sm border border-border px-1.5 text-xs text-muted-foreground"
+          >{{ $t('dashboard.chat.native.source', { name: line.sourceChannelName }) }}</span>
           <UserName
             :user-id="line.userId"
             :name="line.displayName"

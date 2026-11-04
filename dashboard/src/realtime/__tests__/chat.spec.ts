@@ -25,6 +25,7 @@ type Hub = typeof import('../dashboardHub');
 const line = (id: string, channelId: string, userId: string = 'u1'): ChatMessagePayload => ({
   id,
   channelId,
+  kind: 'message',
   userId,
   displayName: userId,
   username: userId,
@@ -139,6 +140,32 @@ const channelEvent = (type: string, broadcasterId: string, data: unknown): unkno
 });
 
 describe('chat moderation events', () => {
+  it('chat_cleared keeps native feed events visible while marking message rows', async () => {
+    const [, queries, connection] = await started();
+
+    queries.setQueryData<ChatLine[]>(chatKey('A'), [
+      line('m1', 'A'),
+      {
+        ...line('notice:1', 'A'),
+        kind: 'notice',
+        noticeType: 'announcement',
+      },
+      {
+        ...line('moderation:1', 'A'),
+        kind: 'moderation',
+        noticeType: 'chat_clear',
+      },
+    ]);
+
+    connection.receive('ChannelEvent', channelEvent('chat_cleared', 'A', {}));
+
+    expect(lines(queries, 'A')?.map((item) => [item.id, item.removed])).toEqual([
+      ['m1', 'cleared'],
+      ['notice:1', undefined],
+      ['moderation:1', undefined],
+    ]);
+  });
+
   it('message_deleted marks exactly the line with that id and leaves the others', async () => {
     const [, queries, connection] = await started();
 
@@ -205,6 +232,23 @@ describe('chat moderation events', () => {
     ]);
 
     expect(lines(queries, 'B')?.[0]?.removed).toBeUndefined();
+  });
+
+  it('purges a history message whose removal field is null', async () => {
+    const [, queries, connection] = await started();
+
+    queries.setQueryData<ChatLine[]>(chatKey('A'), [{ ...line('m1', 'A', 'u1'), removed: null }]);
+
+    connection.receive(
+      'ChannelEvent',
+      channelEvent('user_messages_cleared', 'A', {
+        targetUserId: 'u1',
+        targetUserDisplayName: 'U1',
+        targetUserLogin: 'u1',
+      }),
+    );
+
+    expect(lines(queries, 'A')?.[0]?.removed).toBe('purged');
   });
 
   it.each([

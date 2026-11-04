@@ -197,6 +197,39 @@
         "profile": "Open profile of {name}",
         "profileTip": "Open profile"
       },
+      "native": {
+        "by": "by {name}",
+        "source": "From {name}",
+        "notice": {
+          "sub": "Twitch subscription",
+          "resub": "Twitch resubscription",
+          "sub_gift": "Twitch gift subscription",
+          "community_sub_gift": "Twitch community gifts",
+          "gift_paid_upgrade": "Gift upgrade",
+          "prime_paid_upgrade": "Prime upgrade",
+          "pay_it_forward": "Pay it forward",
+          "raid": "Raid",
+          "unraid": "Raid ended",
+          "announcement": "Announcement",
+          "bits_badge_tier": "Bits badge",
+          "charity_donation": "Charity donation",
+          "watch_streak": "Watch streak",
+          "modiversary": "Moderator anniversary",
+          "gifted_drops_summary": "Gifted Drops",
+          "unknown": "Chat event"
+        },
+        "moderation": {
+          "chat_clear": "Chat was cleared",
+          "chat_clear_user": "Messages from {name} were cleared"
+        },
+        "held": {
+          "held": "Held for review",
+          "approved": "Held message approved",
+          "denied": "Held message denied",
+          "invalid": "Held message invalid",
+          "unknown": "Held message updated"
+        }
+      },
       "image": {
         "title": "Image posted by {name}",
         "untitled": "Posted image"
@@ -207,7 +240,13 @@
         "to": "Replying to {name}",
         "cancel": "Cancel reply",
         "parent": "Replying to {name}: {message}",
-        "earlier": "Replying to an earlier message"
+          "earlier": "Replying to an earlier message",
+          "threadTitle": "Reply thread",
+          "closeThread": "Close reply thread",
+          "openThread": "Open reply thread",
+          "threadLoading": "Loading thread…",
+          "threadError": "Could not load this thread.",
+          "threadEmpty": "No messages in this thread."
       },
       "timeout": {
         "label": "Timeout {name}",

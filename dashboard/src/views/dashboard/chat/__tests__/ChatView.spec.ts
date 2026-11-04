@@ -51,6 +51,7 @@ Range.prototype.getBoundingClientRect = () =>
 
 const calls: Call[] = [];
 let history: ChatLine[] = [];
+let threadHistory: ChatLine[] | null = null;
 let sendOk: boolean = true;
 // Who is signed in; the channel belongs to stoney_eagle.
 let signedInAs: string = 'stoney_eagle';
@@ -160,6 +161,9 @@ vi.mock('@/api/client', () => ({
 
       if (path.endsWith('/chat/search'))
         return searchAnswer(options);
+
+      if (path.endsWith('/thread'))
+        return { data: { data: threadHistory ?? history }, response: { status: 200, ok: true } };
 
       if (path.endsWith('/chat-identity')) {
         return {
@@ -344,6 +348,8 @@ beforeEach(() => {
     line('m2', 'u2', 'Bob', 'second words'),
     line('m3', 'u1', 'Alice', '!sr some song', { isCommand: true }),
   ];
+
+  threadHistory = null;
 
   pinia = createPinia();
   setActivePinia(pinia);
@@ -1679,11 +1685,68 @@ describe('ChatView emote and badge cards', () => {
 describe('ChatView reply', () => {
   const reply = en.dashboard.chat.reply;
   const banner = (): HTMLElement | null => document.body.querySelector('[data-reply-banner]');
+  const popup = (): HTMLElement | null => document.body.querySelector('[data-thread-popup]');
+  const threadIds = (): string[] => [...document.body.querySelectorAll<HTMLElement>('[data-thread-line]')]
+    .map((row) => row.dataset.threadLine ?? '');
 
   async function replyTo(id: string): Promise<void> {
     action(id, 'reply').click();
     await settle();
   }
+
+  it('opens the complete chronological thread when the reply context is clicked', async () => {
+    history = [line('leaf', 'u3', 'Cara', 'last', {
+      replyToMessageId: 'middle', replyThreadParentMessageId: 'root',
+    })];
+
+    threadHistory = [
+      line('root', 'u1', 'Alice', 'first', { fragments: [], timestamp: '2026-11-04T12:00:00Z' }),
+      line('middle', 'u2', 'Bob', 'next', {
+        replyToMessageId: 'root',
+        replyThreadParentMessageId: 'root',
+        timestamp: '2026-11-04T12:01:00Z',
+      }),
+      line('leaf', 'u3', 'Cara', 'last', {
+        replyToMessageId: 'middle',
+        replyThreadParentMessageId: 'root',
+        timestamp: '2026-11-04T12:02:00Z',
+      }),
+    ];
+
+    await open();
+
+    rowOf('leaf').querySelector<HTMLButtonElement>('[data-reply-parent]')!.click();
+    await settle();
+
+    expect(threadIds()).toEqual(['root', 'middle', 'leaf']);
+    expect(popup()!.textContent).toContain('Alice');
+    expect(popup()!.textContent).toContain('first');
+    expect(popup()!.textContent).toContain('Bob');
+    expect(popup()!.textContent).toContain('next');
+    expect(banner()).toBeNull();
+    expect(calls.some((call) => call.path.endsWith('/thread'))).toBe(true);
+  });
+
+  it('opens the thread and sets the reply target from the tray', async () => {
+    threadHistory = [line('m2', 'u2', 'Bob', 'second words')];
+    await open();
+    await replyTo('m2');
+
+    expect(threadIds()).toEqual(['m2']);
+    expect(banner()!.textContent).toContain('Bob');
+    expect(popup()!.textContent).toContain('second words');
+  });
+
+  it('closes the thread with its button while keeping the reply target', async () => {
+    await open();
+    await replyTo('m2');
+
+    popup()!.querySelector<HTMLButtonElement>('button')!.click();
+    await settle();
+
+    expect(popup()).toBeNull();
+    expect(banner()!.textContent).toContain('Bob');
+  });
 
   it('names the answered line above the composer and moves the cursor into the box', async () => {
     await open();
@@ -1728,6 +1791,11 @@ describe('ChatView reply', () => {
   it('cancels the reply with Escape in the box', async () => {
     await open();
     await replyTo('m2');
+    input().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
+    await settle();
+    expect(document.body.querySelector('[data-thread-popup]')).toBeNull();
+    expect(banner()).not.toBeNull();
+
     input().dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true }));
     await settle();
     expect(banner()).toBeNull();

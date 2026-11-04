@@ -47,6 +47,7 @@ import { ChatInput, EmoteNode, type EmoteImage } from '../chatEditor';
 import { emoteSuggestion, type Suggestion } from '../composerSuggest';
 import { useComposerSuggestions } from '../useComposerSuggestions';
 import ComposerSuggestions from './ComposerSuggestions.vue';
+import ChatThreadPopup from './ChatThreadPopup.vue';
 import EmotePicker from './EmotePicker.vue';
 
 const COUNT_FROM: number = 400;
@@ -56,8 +57,12 @@ const props = defineProps<{
   chatters: readonly string[];
   // The viewer chat: send through the participant endpoint, with the viewer's own emotes.
   viewer?: boolean;
+  threadLines?: readonly ChatLine[];
+  threadPending?: boolean;
+  threadFailed?: boolean;
 }>();
 const replyTo = defineModel<ChatLine | null>('replyTo', { default: null });
+const threadTarget = defineModel<ChatLine | null>('threadTarget', { default: null });
 
 const { t } = useI18n();
 const access = useChannelAccess(() => props.channelId);
@@ -92,7 +97,7 @@ const list = useComposerSuggestions(
   () => emotes.data.value ?? [],
   () => props.chatters,
 );
-const listOpen = computed(() => list.suggestions.value.length > 0);
+const listOpen = computed(() => list.suggestions.value.length > 0 && threadTarget.value === null);
 
 // On a phone the back button closes the suggestion list first, then the reply, like a native app.
 useBackLayer(computed(() => replyTo.value !== null), () => {
@@ -100,6 +105,10 @@ useBackLayer(computed(() => replyTo.value !== null), () => {
 });
 
 useBackLayer(listOpen, list.dismiss);
+
+useBackLayer(computed(() => threadTarget.value !== null), () => {
+  threadTarget.value = null;
+});
 
 // Every emote this sender can use, by code, with the image the box shows for it.
 const images = computed(() =>
@@ -125,7 +134,13 @@ function textUpTo(editor: Editor, position: number): string {
 }
 
 function sync({ editor }: { editor: Editor }): void {
-  text.value = textUpTo(editor, editor.state.doc.content.size);
+  const nextText = textUpTo(editor, editor.state.doc.content.size);
+
+  if (nextText !== text.value) {
+    threadTarget.value = null;
+  }
+
+  text.value = nextText;
   caret.value = textUpTo(editor, editor.state.selection.from).length;
 }
 
@@ -245,9 +260,17 @@ function onKey(event: KeyboardEvent): boolean {
     return true;
   }
 
+  if (event.key === 'Escape' && threadTarget.value) {
+    event.stopPropagation();
+    threadTarget.value = null;
+
+    return true;
+  }
+
   if (event.key === 'Escape' && replyTo.value) {
     event.stopPropagation();
     replyTo.value = null;
+    threadTarget.value = null;
 
     return true;
   }
@@ -321,6 +344,7 @@ async function submit(): Promise<void> {
 
     editor.value?.commands.clearContent(true);
     replyTo.value = null;
+    threadTarget.value = null;
   } catch {
     failed.value = true;
   }
@@ -328,7 +352,14 @@ async function submit(): Promise<void> {
 </script>
 
 <template>
-  <form v-if="canSendChat" class="flex w-full flex-col gap-2" @submit.prevent="submit">
+  <form v-if="canSendChat" class="relative flex w-full flex-col gap-2" @submit.prevent="submit">
+    <ChatThreadPopup
+      v-if="threadTarget"
+      :lines="threadLines ?? []"
+      :pending="threadPending ?? false"
+      :failed="threadFailed ?? false"
+      @close="threadTarget = null"
+    />
     <div
       v-if="replyTo"
       data-reply-banner

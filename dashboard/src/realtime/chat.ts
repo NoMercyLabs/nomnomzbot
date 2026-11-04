@@ -148,13 +148,14 @@ export const chatHandlers: [
       }
 
       if (event.type === 'chat_cleared') {
-        markLines(queries, event.broadcasterId, { removed: 'cleared' }, () => true);
+        markLines(queries, event.broadcasterId, { removed: 'cleared' },
+          (line) => !line.kind || line.kind === 'message');
       }
 
       if (event.type === 'user_messages_cleared') {
         const { targetUserId } = event.data as UserMessagesClearedPayload;
         const isUnmarkedLineOf = (line: ChatLine): boolean =>
-          line.userId === targetUserId && line.removed === undefined;
+          (!line.kind || line.kind === 'message') && line.userId === targetUserId && line.removed == null;
 
         markLines(queries, event.broadcasterId, { removed: 'purged' }, isUnmarkedLineOf);
       }

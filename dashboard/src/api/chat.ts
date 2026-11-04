@@ -52,7 +52,11 @@ export type ChatLineRedemption = {
   };
 };
 
-export type ChatLine = ChatMessagePayload & Partial<ChatLineMark> & Partial<ChatLineRedemption>;
+export type ChatLine =
+  Omit<ChatMessagePayload, 'kind' | 'removed'> &
+  Partial<Pick<ChatMessagePayload, 'kind' | 'removed'>> &
+  Partial<Pick<ChatLineMark, 'timeoutSeconds'>> &
+  Partial<ChatLineRedemption>;
 
 export const chatMessageMaxLength = 500;
 
@@ -133,6 +137,47 @@ export function useChatHistory(
     queryFn: () => readChatHistory(queries, toValue(channelId) as string),
     enabled: computed(() => toValue(channelId) !== null),
     staleTime: Infinity,
+  });
+}
+
+async function readChatThread(
+  channelId: string,
+  messageId: string,
+  viewer: boolean,
+): Promise<ChatLine[]> {
+  const path = {
+    version: '1',
+    channelId,
+    messageId,
+  };
+  const { data, error, response } = viewer
+    ? await client.GET('/api/v{version}/channels/{channelId}/chat/viewer/messages/{messageId}/thread', {
+        params: { path },
+      })
+    : await client.GET('/api/v{version}/channels/{channelId}/chat/messages/{messageId}/thread', {
+        params: { path },
+      });
+
+  ensureOk(response, 'chat thread', error);
+
+  return data?.data ?? [];
+}
+
+export function useChatThread(
+  channelId: MaybeRefOrGetter<string | null>,
+  messageId: MaybeRefOrGetter<string | null>,
+  viewer: MaybeRefOrGetter<boolean>,
+): UseQueryReturnType<ChatLine[], Error> {
+  return useQuery({
+    queryKey: computed(() => [
+      ...chatKey(toValue(channelId)), 'thread', toValue(viewer), toValue(messageId),
+    ]),
+    queryFn: () => readChatThread(
+      toValue(channelId) as string,
+      toValue(messageId) as string,
+      toValue(viewer),
+    ),
+    enabled: computed(() => toValue(channelId) !== null && toValue(messageId) !== null),
   });
 }
 
