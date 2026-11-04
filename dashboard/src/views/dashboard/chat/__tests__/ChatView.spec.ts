@@ -2577,7 +2577,8 @@ describe('ChatView emote picker', () => {
     await settle();
 
     expect(picker()).toBeNull();
-    expect(document.activeElement?.closest('[data-composer]')).not.toBeNull();
+    // The popover gives the focus back on its own timer, which a loaded runner reaches after settle().
+    await vi.waitFor(() => expect(document.activeElement?.closest('[data-composer]')).not.toBeNull());
   });
 });
 
