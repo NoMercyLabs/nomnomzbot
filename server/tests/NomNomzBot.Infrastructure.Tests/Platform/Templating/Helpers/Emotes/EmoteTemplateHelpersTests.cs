@@ -90,7 +90,7 @@ public sealed class EmoteTemplateHelpersTests
         ITemplateHelperProvider? provider = fixture.Registry.ProviderFor("emote.random.sub");
 
         provider.Should().NotBeNull();
-        provider!.Namespace.Should().Be("emote");
+        provider.Namespace.Should().Be("emote");
         fixture.Registry.ProviderFor("emote").Should().BeSameAs(provider);
         fixture.Registry.ProviderFor("emote.cheermote").Should().BeSameAs(provider);
         fixture.Registry.ProviderFor("emote.nope").Should().BeNull();
