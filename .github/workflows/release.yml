@@ -15,8 +15,10 @@
 #   beta     every Monday      nightly                -> beta
 #   stable   the Run button    beta                   -> stable
 #
-# Self-hosters pick a channel by image tag (ghcr.io/nomercylabs/nomnomzbot:stable|beta|nightly). Each run also
-# writes a GitHub release with the notes since the last one of that channel. Use "Run workflow" for any channel.
+# Self-hosters pick a channel by image tag (ghcr.io/nomercylabs/nomnomzbot:stable|beta|nightly). Only stable
+# writes a visible GitHub release (with notes since the last stable, and the self-contained lite binaries,
+# §binaries job); nightly/beta mint a plain git tag so the releases page isn't flooded with pre-release noise.
+# Use "Run workflow" for any channel.
 name: Release
 
 on:
@@ -45,6 +47,7 @@ jobs:
     outputs:
       channel: ${{ steps.ch.outputs.channel }}
       version: ${{ steps.tag.outputs.version }}
+      sha: ${{ steps.src.outputs.sha }}
     steps:
       - name: Pick the channel
         id: ch
@@ -113,8 +116,19 @@ jobs:
             "${image}:${{ steps.ch.outputs.from }}"
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
-      - name: Write the GitHub release
-        if: steps.same.outputs.skip == 'false'
+      # Nightly/beta only need the git tag the "Skip when nothing changed" dedup reads back next run — a
+      # full Release row for every nightly/beta would flood the releases page with entries nobody pins to.
+      - name: Tag nightly/beta (no release page entry)
+        if: steps.same.outputs.skip == 'false' && steps.ch.outputs.channel != 'stable'
+        run: |
+          set -eu
+          version="${{ steps.tag.outputs.version }}"
+          sha="${{ steps.src.outputs.sha }}"
+          git tag "$version" "$sha"
+          git push origin "$version"
+
+      - name: Write the stable GitHub release
+        if: steps.same.outputs.skip == 'false' && steps.ch.outputs.channel == 'stable'
         env:
           GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
@@ -133,14 +147,13 @@ jobs:
             echo "- **Docker, full stack:** set \`API_IMAGE=ghcr.io/nomercylabs/nomnomzbot:${ch}\` in \`.env\`, then run"
             echo "  \`scripts/switchover.ps1\`. The new version starts next to the old one; no downtime."
             echo "- **Docker, lite:** \`docker compose -f docker-compose.lite.yml pull && docker compose -f docker-compose.lite.yml up -d\`."
+            echo "- **No Docker:** download the single-file binary for your OS below, and run it."
             echo "- Your data stays in place. Pin \`:${version}\` instead to stay on exactly this release."
             echo
             echo "## Changes"
             git log --no-merges --format='- %s (%h)' "$range" | head -200
           } > notes.md
-          flag="--prerelease"
-          [ "$ch" = "stable" ] && flag="--latest"
-          gh release create "$version" --target "$sha" --title "$version" --notes-file notes.md $flag
+          gh release create "$version" --target "$sha" --title "$version" --notes-file notes.md --latest
 
   # The hosted server runs stable only, so only a new stable release reaches it.
   deploy:
@@ -150,3 +163,57 @@ jobs:
     with:
       tag: ${{ needs.promote.outputs.version }}
     secrets: inherit
+
+  # Self-contained, single-file, per-OS binaries for self_host_lite (deployment-distribution.md §1.1) — no
+  # Docker, no .NET runtime install. Stable only: nightly/beta ship as images for iteration, not as downloads
+  # someone runs on their own machine.
+  binaries:
+    needs: promote
+    if: needs.promote.outputs.channel == 'stable' && needs.promote.outputs.version != ''
+    runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        rid: [win-x64, linux-x64, linux-arm64, osx-x64, osx-arm64]
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ needs.promote.outputs.sha }}
+
+      - uses: actions/setup-dotnet@v4
+        with:
+          dotnet-version: '10.0.x'
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+
+      - name: Publish the self-contained binary
+        run: |
+          set -eu
+          dotnet publish server/src/NomNomzBot.Api -c Release -r ${{ matrix.rid }} \
+            --self-contained true -p:BundleDashboard=true
+
+      - name: Package the archive
+        id: pkg
+        run: |
+          set -eu
+          version="${{ needs.promote.outputs.version }}"
+          rid="${{ matrix.rid }}"
+          publish="server/src/NomNomzBot.Api/bin/Release/net10.0/${rid}/publish"
+          stage="nomnomz-${version}-${rid}"
+          mkdir -p "$stage"
+          if [[ "$rid" == win-* ]]; then
+            cp "$publish/nomnomz.exe" "$stage/"
+            name="${stage}.zip"
+            zip -qr "$name" "$stage"
+          else
+            cp "$publish/nomnomz" "$stage/"
+            name="${stage}.tar.gz"
+            tar -czf "$name" "$stage"
+          fi
+          echo "name=$name" >> "$GITHUB_OUTPUT"
+
+      - name: Attach to the stable release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: gh release upload "${{ needs.promote.outputs.version }}" "${{ steps.pkg.outputs.name }}" --clobber

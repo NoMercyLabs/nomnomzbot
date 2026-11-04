@@ -47,6 +47,12 @@ database, encryption keys, logs) in **one per-user folder**: `%LOCALAPPDATA%\Nom
 Windows, `~/.local/share/NomNomzBot` on Linux, `~/Library/Application Support/NomNomzBot` on
 macOS. Back up that folder and you've backed up the bot; set `NOMNOMZ_DATA_DIR` to relocate it.
 
+**Easiest: download the prebuilt binary.** Every [stable release](https://github.com/NoMercyLabs/nomnomzbot/releases/latest)
+includes a ready-to-run archive for your OS (`nomnomz-<version>-<win-x64|linux-x64|linux-arm64|osx-x64|osx-arm64>`).
+Download it, unzip/untar, and run `nomnomz` (`nomnomz.exe` on Windows) — no build step, no SDK needed.
+
+**Or build it yourself**, if you want a specific commit or to make local changes.
+
 **Requirements:** the [.NET 10 SDK](https://dot.net) and [Node.js 22](https://nodejs.org) (build only — the
 produced binary needs nothing; Node builds the Vue dashboard that the binary bundles).
 
@@ -79,8 +85,8 @@ Copy-Item server\src\NomNomzBot.Api\bin\Release\net10.0\win-x64\publish\nomnomz.
 ```
 
 First start creates the data folder and walks you through setup in the dashboard — open
-**http://localhost:5080** in a browser. **Update** by re-running the scenario and replacing the binary; your data stays in
-place. There are no prebuilt binaries yet — this scenario is the build.
+**http://localhost:5080** in a browser. **Update** by downloading the newer release (or re-running the build) and
+replacing the binary; your data stays in place.
 
 ## Scenario: docker — `self_host_full`
 

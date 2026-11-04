@@ -63,19 +63,23 @@ ignored, so `self_host_full` = `SelfHostFull`; the compose maps `DEPLOYMENT_MODE
 These are the deliverables this spec governs. The actual files are produced by the build/release pipeline; this
 spec is their contract, not their source.
 
-- **Self-host `lite` binary — single-file, self-contained, per-OS, built locally.**
-  Produced by `deploy.sh desktop` (`deploy.ps1 desktop` on Windows), which runs
+- **Self-host `lite` binary — single-file, self-contained, per-OS.** Buildable locally (`deploy.sh desktop` /
+  `deploy.ps1 desktop`) and, since the `binaries` job in `.github/workflows/release.yml`, also published as
+  **GitHub Release assets on every `stable` release** (`nomnomz-<version>-<rid>.zip`/`.tar.gz` for `win-x64`,
+  `linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`) — a self-hoster can download and run one with no build step.
+  Both paths run
   `dotnet publish server/src/NomNomzBot.Api -c Release -r <rid> --self-contained true`; the csproj sets
-  `PublishSingleFile` for a self-contained RID publish and names the output `nomnomz`. The script derives the RID
-  from `uname` (`linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`; `win-x64` on Windows) and prints where the file
-  landed (`server/src/NomNomzBot.Api/bin/Release/net10.0/<rid>/publish/nomnomz`). One file, **no .NET runtime
-  install required**, **no Docker** (the .NET SDK is needed only to *build* it). There is **no GitHub Release
-  asset** and no CI job that publishes the binary. It carries the in-process scaling adapters
+  `PublishSingleFile` for a self-contained RID publish and names the output `nomnomz`. The local script derives the
+  RID from `uname` (`linux-x64`, `linux-arm64`, `osx-x64`, `osx-arm64`; `win-x64` on Windows) and prints where the
+  file landed (`server/src/NomNomzBot.Api/bin/Release/net10.0/<rid>/publish/nomnomz`). One file, **no .NET runtime
+  install required**, **no Docker** (the .NET SDK is needed only to *build* it; the CI job builds it for you). It
+  carries the in-process scaling adapters
   (`InProcessRateLimiter`, `InProcessFairWorkScheduler`, in-memory `ICache`/`IEventBus`, WebSocket EventSub; chat
   sends via the per-platform chat provider behind `IChatProvider` — Twitch = `HelixChatProvider` (Helix Send Chat
-  Message), IRC retired on every profile) and the embedded SQLite migration set. The wasmJs dashboard is **not**
-  embedded in the exe: it is copied into a `wwwroot/` folder beside it by the `BundleWasmDashboard` publish target,
-  which runs only when the publish passes `-p:BundleWasm=true` (§5.1). First run creates the per-user data folder
+  Message), IRC retired on every profile) and the embedded SQLite migration set. The Vue dashboard is **not**
+  embedded in the exe: it is built (`npm ci` + `vite build`) and copied into a `wwwroot/` folder beside it by the
+  `BundleDashboard` publish target, which runs only when the publish passes `-p:BundleDashboard=true` (§5.1; both
+  the local script and the CI job pass it). First run creates the per-user data folder
   (`SelfHostDataPaths`: `%LOCALAPPDATA%\NomNomzBot` / `~/.local/share/NomNomzBot` /
   `~/Library/Application Support/NomNomzBot`; `NOMNOMZ_DATA_DIR` overrides) holding `nomnomz.db` (SQLite), the
   `keys/` folder (KEK + generated JWT secret, §7), and logs; everything is one folder, trivially backed up.
@@ -442,7 +446,8 @@ by an existing spec and only **composed** here.
 ## 10. Decisions (resolved)
 
 1. **Three artifacts, two packaging strategies, one codebase.** `self_host_lite` = a **single self-contained per-OS
-   binary** built locally by `deploy.sh desktop` (`./nomnomz`, no Docker, no runtime install, no release asset);
+   binary** built locally by `deploy.sh desktop` (`./nomnomz`, no Docker, no runtime install) **or downloaded as a
+   GitHub Release asset on `stable`** (the `binaries` job in `release.yml`, one archive per RID);
    `self_host_full` = the **Docker image** (built locally, or `ghcr.io/nomercylabs/nomnomzbot` via `API_IMAGE`) +
    bundled root `docker-compose.yml` (caddy + api-blue/api-green + postgres + redis + adminer) + `.env.example` +
    `deploy.sh`/`deploy.ps1` + `scripts/switchover.ps1`; `saas` (**RESTRICTED** — NoMercy Labs only) = the **same
