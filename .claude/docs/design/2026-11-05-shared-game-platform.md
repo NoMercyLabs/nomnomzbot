@@ -436,7 +436,18 @@ viewer already has, giving them their own personal view into the game (their own
 state) for free. This resolves §10's "confirm or correct Claude's three-tier read model" open question:
 **confirmed as proposed**, public link / signed-in-via-existing-login / credentialed-write.
 
-## 24. Next step
+## 24. Round 14, same day — MVP: internal first, kittE's hairball-hot-potato idea
+
+Stoney: check what kittE is already doing — she had the idea of a cat-hairball as the "hot potato" item,
+not sure if she's already built anything. Proposed shape: **start internal-only** (Stoney + kittE,
+own system, no external clients), prove the entity/referee/hook mechanics end to end with her hairball
+idea, **then extend outward** to let an external participant (the kani example, §12) join. This confirms
+§6/§10's "no MVP chosen" question: **internal-first with kittE's hairball Hot Potato, open-ecosystem
+join added as the next step after that, not day one.** Not yet checked: whether kittE has already built
+something for this — Claude cannot see kittE's own systems, so this needs Stoney (or kittE directly) to
+say what exists, if anything, before scoping the first slice further.
+
+## 25. Next step
 
 Resume the interview from §10 and the proposal in §15. Do not start implementation, a spec in
 `.claude/docs/design/spec/`, or any schema/entity work from this document — it is discovery notes, not a
