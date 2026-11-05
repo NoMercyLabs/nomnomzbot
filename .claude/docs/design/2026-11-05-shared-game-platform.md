@@ -447,7 +447,41 @@ join added as the next step after that, not day one.** Not yet checked: whether 
 something for this — Claude cannot see kittE's own systems, so this needs Stoney (or kittE directly) to
 say what exists, if anything, before scoping the first slice further.
 
-## 25. Next step
+## 25. Round 15, same day — kittE's game, checked directly against the dev database, not guessed at
+
+Stoney: check the real database instead of asking kittE first. Done — read `qtkitte`'s channel
+(`Id 019f292e-7327-741f-85e1-44ff086a42e8`) on the dev Postgres box via the custom-code tables.
+
+**She has already built it, and it is live today, single-channel.** Two active `CodeScript`s, both
+iterated heavily (29 and 6 versions, last edited 2026-10-26):
+
+- **"Ball Lifecycle"** — fires on Twitch channel-point reward pause/resume/enable/disable. Explicitly
+  commented as a port of the **legacy `LuckyFeatherChange.cs`** system. Two items share the same
+  lifecycle: "Throw the hairball" (bad item) and "Steal the ball of yarn" (good item). Announces in
+  chat + TTS, rewrites the reward's prompt to name the current holder, and emits to a "Kitty Alert"
+  overlay widget.
+- **"Steal ball of yarn"** — fires on the steal redemption. Reads the current holder from script storage
+  (`nnz.api.storage.get('yarn:holder')`, defaulting to the channel itself), blocks stealing from
+  yourself (with a 25-line joke pool for trying), otherwise moves it to the thief, bumps the reward's
+  cost by 1 per steal (an escalating price — a real anti-runaway-loop mechanic already in production,
+  independently of anything in §9's discussion), updates a per-user leaderboard counter, resolves real
+  Twitch profile pictures for the overlay, and emits `kitty.steal` to the same widget.
+
+**What this concretely tells us about the MVP (§24):** this is not a blank slate to design from — it is
+the actual game this whole conversation has been using as its running example, already live, already
+proven out with viewers today. It runs entirely on the *existing* custom-code + Twitch-reward +
+script-storage stack (the Jint-based system from §16) and is **single-channel only today**: "holder" is
+a plain string in that script's own key-value storage, defaulting to her own channel — it has no concept
+of a cross-channel entity yet, because the platform doesn't have one yet.
+
+**This sharpens the MVP to something concrete, not abstract:** the first slice isn't "build Hot Potato
+from zero" — it's "take kittE's already-working hairball/yarn item and give its holder a real portable-
+entity identity (§4) that can move to Stoney's channel and back," reusing her existing reward/widget/
+chat-announcement wiring rather than replacing it. The entry point (§18), the two lifecycle hooks (§19:
+host-offline isn't exercised by this single-channel version yet, but revoke/steal already is), and the
+referee model (§3) all have a real, running example to be checked against instead of a hypothetical one.
+
+## 26. Next step
 
 Resume the interview from §10 and the proposal in §15. Do not start implementation, a spec in
 `.claude/docs/design/spec/`, or any schema/entity work from this document — it is discovery notes, not a
