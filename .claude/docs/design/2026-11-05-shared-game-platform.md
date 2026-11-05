@@ -394,7 +394,22 @@ cases go unhandled? Stoney: **yes, worth having as separate named hooks.** So th
 needs at least: an action-request handler, a host-offline hook, and a participant-revoked hook — three
 distinct moments, not one generic callback.
 
-## 20. Next step
+## 20. Round 10, same day — credential scope: per client, Keycloak-shaped
+
+Asked: should the credential represent the connecting bot itself, or an individual viewer? Stoney:
+**per-viewer credentials aren't workable at scale — it has to be a client.** His own comparison: like
+Keycloak, a registered **client** connects to the bot and is granted its own access, with our system's
+permission. This resolves §10's "per channel or per viewer" open question: **the credential boundary is
+the client (the connecting bot/system), not the individual viewer.**
+
+This sharpens, but doesn't resolve, §14's finding (the feather's holder is a specific person on Kani's
+channel, not Kani's channel itself): a client authenticates once, but then **asserts** which person an
+action is for ("this request is from viewer X on my platform") on a per-request basis — the client-level
+credential and the per-action person reference are two different layers. Not yet asked: how much the
+platform should trust that per-person assertion at face value versus require some proof — flagged for
+the next round.
+
+## 21. Next step
 
 Resume the interview from §10 and the proposal in §15. Do not start implementation, a spec in
 `.claude/docs/design/spec/`, or any schema/entity work from this document — it is discovery notes, not a
