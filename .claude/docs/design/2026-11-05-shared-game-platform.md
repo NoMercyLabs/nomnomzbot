@@ -127,7 +127,95 @@ here instead of re-deriving it.
   doesn't force a reshape. A first concrete slice (earlier suggestion: Hot Potato between Stoney, aaoa,
   kitte only, no open ecosystem) was proposed but not confirmed as the actual starting point.
 
-## 7. Next step
+## 8. Round 2, same day — Claude's gaps + Stoney's answers
 
-Resume the interview from §6. Do not start implementation, a spec in `.claude/docs/design/spec/`, or any
+Asked "what would you add?" Claude flagged six gaps; Stoney answered all of them, plus added a scope
+decision that reframes §6's first open question.
+
+- **Cross-deployment / open ecosystem — decided.** Stoney, verbatim-ish: "I don't want to limit myself
+  to just the 6 [channels] or other NomNomzBot instances. I want an open system anyone can join, hooking
+  up their own systems — we become a game provider others can build on." This resolves §6's first open
+  question: **yes, cross-deployment, open to anyone, not just other NomNomzBot instances.** This makes
+  the Federation-style signed cross-instance trust pattern (§2) the right starting reference, though
+  likely needs to be lighter/more self-service than federation's manual peer-trust ceremony, since
+  "anyone can join" implies low-friction registration, not a hand-approved peer list. Exact trust
+  ceremony for an open, self-service, cross-deployment join is now the new open question (§10).
+- **Offline-channel behavior is game logic, not platform logic — decided.** What happens when the
+  channel currently holding an entity goes offline is for **that game's own rules to decide**, not a
+  platform-wide fixed rule (e.g. not a hardcoded "auto-return after N minutes"). The platform's job is to
+  give the game's logic a hook/event to react to ("host went offline") and let the game decide. This
+  raises the bar on §5.4 (game logic in Scripts/Pipelines): it must be able to express lifecycle rules
+  like this, not just validate individual actions.
+- **Simultaneous conflicting actions — decided.** First-come-first-serve.
+- **Revocation mid-game — decided, same pattern as offline-handling.** When a joined participant
+  ("client") is kicked, the platform reclaims the entity it was holding. What happens to it next — hand
+  it to another live channel, or return it to the game's owner — **is the game maker's choice, not a
+  fixed platform rule.** Same shape as the offline-channel answer: platform provides the reclaim
+  mechanism, game logic decides the policy.
+- **Audit trail — decided, and wants it richer than a log.** Not just "who did what, when." Stoney wants
+  real analytics for the game owner: who participates, how often each action happens, full insight into
+  "what your viewers are up to in your game" — explicitly compared to Twitch analytics (which he
+  separately thinks need expanding too, noted but out of scope here). So: the `EventJournal` + new
+  `Source` value from §5 point 5 is the raw feed: build a participation/frequency analytics layer on top
+  of it for the game owner, not just a raw audit log viewer.
+- **Read-only tier — Stoney asked Claude for the concrete shape; Claude's answer, not yet confirmed by
+  Stoney:** reuse the pattern the overlay system already has twice, instead of inventing a new one.
+  - *Public/link-based read* (no Twitch sign-in): current-state snapshot only, same trust level as an
+    overlay URL — unauthenticated but secret, revocable by the game owner. Good enough for a public
+    leaderboard embed or companion site.
+  - *Signed-in read* (Twitch OAuth, no write scope): same data, but the game can answer "for you
+    specifically" — your own cooldown, your own inventory, whether you personally can act right now —
+    without needing write access.
+  - *Credentialed write* (the join-flow, §5.8): can actually propose actions.
+
+  This needs Stoney's confirmation, not just Claude's proposal — flagged in §10.
+
+## 9. Design philosophy (pin this — it decides every future scope question)
+
+Stoney, 2026-11-05, in his own words (translated, kept close to verbatim because the tone is load-bearing):
+"This is a pretty big scope, and thinking this far ahead already makes me a little crazy. But that's just
+what I do. Everything I do is NoMercy. Fuck it, we just do it. If it doesn't go the way it should, it has
+to go the way it goes. I'm not sane, but I love it. I love my bot, I love streaming. The fair-queue music
+system is genuinely amazing — it has the highest interaction of my whole stream, just because people get
+to put their own music taste into it, and that keeps them coming back. Hugging, spanking, all those silly
+things — people love it and I love it too. So I want more shenanigans. I want to go deep, I don't want to
+take the easy shortcut every other company takes because it doesn't pay off enough ROI. That's not how I
+see this. I want to think further than others, just because I enjoy it."
+
+**What this means for every open question below and every future one:** when a choice is between the
+safe/minimal version and the ambitious/generous version, and there's no hard technical or security reason
+to pick the safe one, **default to the ambitious one.** The fair-queue system and the shenanigans commands
+are cited as proof this isn't naive — depth and generosity already measurably drive this product's best
+engagement. The one hard constraint that does NOT bend for this philosophy is §6's blast-radius
+containment requirement (a leaked/malicious credential must stay contained to one game) — ambition on
+scope, not on the security wall.
+
+## 10. Updated open questions (supersedes the resolved parts of §6)
+
+Still open, now sharper:
+
+- **Exact trust/registration ceremony for an open, self-service, cross-deployment join.** "Anyone can
+  join" (§8) plus "blast radius must stay contained" (§6/§9) together mean: low-friction registration
+  (not a manually-approved peer list like Federation today) but still hard per-game scope containment.
+  What does signing up as a "game provider" participant actually look like end to end?
+  - Stoney, 2026-11-05 (new, answers part of this): "I was thinking of a client-credentials flow where
+    any Twitch streamer can register as a developer and get the user's permission for what they're
+    allowed to do" — but he flagged his own doubt via the feather/hot-potato cheat scenarios (§3), which
+    is what produced the referee model. So: client-credentials-style registration for the *developer*,
+    but the resulting token can still only ever *propose* actions, never write state directly — the
+    registration flow and the referee model are not in tension, they answer different questions (who can
+    ask to participate vs. what they're allowed to do once in).
+- **How far Scripts/Pipelines can really go** for a streamer to author full game rules, including the
+  lifecycle hooks now required by §8 (host-offline, participant-revoked) — unanswered.
+- **The "game-creator only" lighter onboarding tier** (§5.6) — still unconfirmed as a real thing or not.
+- **Credential scope: per participating channel, or per individual viewer across channels** (§6) — still
+  open; the avatar/presence idea needs this answered.
+- **Confirm or correct Claude's three-tier read model** (§8) before it's treated as decided.
+- **Still no MVP chosen** — if anything, less likely to be "Hot Potato between 3 channels only" now that
+  open-ecosystem is the explicit target from day one; the first slice should probably still be small, but
+  needs re-proposing against the now-wider confirmed shape.
+
+## 11. Next step
+
+Resume the interview from §10. Do not start implementation, a spec in `.claude/docs/design/spec/`, or any
 schema/entity work from this document — it is discovery notes, not a locked design.
