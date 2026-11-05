@@ -428,7 +428,15 @@ lighter tier. This resolves §10's "game-creator only lighter tier" open questio
 hosting a game requires the same full onboarding as everything else NomNomzBot already does, same
 footing as Commands, Pipelines, Overlays (§5.1).
 
-## 23. Next step
+## 23. Round 13, same day — three-tier read model confirmed
+
+Asked whether the public/signed-in/credentialed-write split still holds. Stoney: **yes, confirmed** —
+and the signed-in tier needs no new mechanism, it just rides the existing viewer/user login a normal
+viewer already has, giving them their own personal view into the game (their own cooldown, their own
+state) for free. This resolves §10's "confirm or correct Claude's three-tier read model" open question:
+**confirmed as proposed**, public link / signed-in-via-existing-login / credentialed-write.
+
+## 24. Next step
 
 Resume the interview from §10 and the proposal in §15. Do not start implementation, a spec in
 `.claude/docs/design/spec/`, or any schema/entity work from this document — it is discovery notes, not a
