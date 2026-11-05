@@ -386,7 +386,15 @@ right shape, not one script per action. He does not yet have an opinion on what 
 internal shape (named exports per event vs. one dispatch function, etc.) should look like — flagged as
 still open, not avoided.
 
-## 19. Next step
+## 19. Round 9, same day — lifecycle hooks confirmed
+
+Asked: should "host went offline" and "participant was revoked" be separate named moments the entry
+point can react to, on top of "an action was requested" — or keep it simpler for now even if those two
+cases go unhandled? Stoney: **yes, worth having as separate named hooks.** So the entry point's shape
+needs at least: an action-request handler, a host-offline hook, and a participant-revoked hook — three
+distinct moments, not one generic callback.
+
+## 20. Next step
 
 Resume the interview from §10 and the proposal in §15. Do not start implementation, a spec in
 `.claude/docs/design/spec/`, or any schema/entity work from this document — it is discovery notes, not a
