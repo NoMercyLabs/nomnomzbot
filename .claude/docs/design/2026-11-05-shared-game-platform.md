@@ -378,7 +378,15 @@ plain voice-friendly language (no AskUserQuestion, per §13), grounded in `Wasmt
 In one line: Jint is a lock on a door inside the house; Wasmtime is a separate sealed room with no door
 to the rest of the house at all.
 
-## 18. Next step
+## 18. Round 8, same day — resuming the interview from §10, game logic shape
+
+Asked: should a provider's game rules live as one script per action type, or one script that owns the
+whole game? Stoney: **one entry point where everything is defined** — a single module/script is the
+right shape, not one script per action. He does not yet have an opinion on what that entry point's
+internal shape (named exports per event vs. one dispatch function, etc.) should look like — flagged as
+still open, not avoided.
+
+## 19. Next step
 
 Resume the interview from §10 and the proposal in §15. Do not start implementation, a spec in
 `.claude/docs/design/spec/`, or any schema/entity work from this document — it is discovery notes, not a
