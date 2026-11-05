@@ -1122,6 +1122,11 @@ public static class DependencyInjection
 
         // PipelineEngine (scoped — IPipelineEngine is not an I<X>Service, registered explicitly)
         services.AddScoped<IPipelineEngine, PipelineEngine>();
+        // Tiered/resource-aware per-channel pipeline concurrency cap (S-CONCURRENCY-DRAIN). Scoped: it reads
+        // IBillingTierService (DbContext-backed) for SaaS. Explicit: …Provider does not match the I<X>Service
+        // scan.
+        services.Configure<ScalingOptions>(configuration.GetSection(ScalingOptions.SectionName));
+        services.AddScoped<IPipelineConcurrencyLimitProvider, PipelineConcurrencyLimitProvider>();
         // Read-only H.4 PipelineExecution history (S008c) — also matches the I<X>Service convention and
         // would be picked up by AddServicesByConvention below; registered explicitly for clarity here
         // alongside its sibling IPipelineService/IPipelineEngine.

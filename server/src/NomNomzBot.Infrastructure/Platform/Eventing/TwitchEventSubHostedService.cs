@@ -15,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Options;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Abstractions.Transport;
 using NomNomzBot.Application.Common.Interfaces;
@@ -22,6 +23,7 @@ using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Platform;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
+using NomNomzBot.Domain.Enums.Deployment;
 using NomNomzBot.Domain.Platform.Entities;
 using NomNomzBot.Domain.Platform.Enums;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -144,6 +146,12 @@ public sealed class TwitchEventSubHostedService
     private Task? _drainLoop;
     private const int InboxBatchSize = 50;
 
+    // Bounds how many inbox notifications this instance dispatches at once (S-CONCURRENCY-DRAIN): a slow
+    // command (a long TTS line, a Spotify call) must not hold up every other queued chat message/command
+    // behind it, but unlimited parallel dispatch would open unbounded concurrent DB scopes. Sized once at
+    // construction from deployment profile + host capability; an explicit Scaling:* config value always wins.
+    private readonly SemaphoreSlim _notificationDispatchGate;
+
     // A standby's notifications reach the active instance only through the database, so the drain also
     // polls; the active instance's own notifications wake it at once through _inboxSignal.
     private static readonly TimeSpan InboxPollInterval = TimeSpan.FromMilliseconds(250);
@@ -197,7 +205,9 @@ public sealed class TwitchEventSubHostedService
         TimeProvider clock,
         ILogger<TwitchEventSubHostedService> logger,
         IEventSubConduitShardCoordinator? conduits = null,
-        IEventSubInbox? inbox = null
+        IEventSubInbox? inbox = null,
+        IDeploymentProfileService? deploymentProfile = null,
+        IOptions<ScalingOptions>? scalingOptions = null
     )
     {
         _inbox = inbox;
@@ -209,9 +219,60 @@ public sealed class TwitchEventSubHostedService
         _clock = clock;
         _logger = logger;
         _conduits = conduits;
+        _notificationDispatchGate = new SemaphoreSlim(
+            ResolveNotificationDispatchConcurrency(
+                deploymentProfile,
+                scalingOptions?.Value ?? new()
+            )
+        );
 
         if (_transport is WebSocketEventSubTransport ws)
             ws.BindSink(this);
+    }
+
+    /// <summary>
+    /// SaaS scales with the shared Postgres + Redis tier's real headroom; self-host derives its bound from
+    /// the host's own hardware and database engine, four notifications deep per allowed concurrent pipeline
+    /// (a notification spends most of its time waiting on I/O — TTS synthesis, a Helix call — not CPU, so a
+    /// wider dispatch bound than the per-channel pipeline cap is safe and keeps unrelated channels from
+    /// queueing behind each other).
+    /// </summary>
+    private static int ResolveNotificationDispatchConcurrency(
+        IDeploymentProfileService? deploymentProfile,
+        ScalingOptions options
+    )
+    {
+        DeploymentProfileSnapshot? profile = TryReadDeploymentProfile(deploymentProfile);
+        if (profile is { Mode: DeploymentMode.Saas })
+            return Math.Max(1, options.SaasMaxConcurrentNotificationDispatch);
+
+        if (options.SelfHostMaxConcurrentNotificationDispatch is { } overridden)
+            return Math.Max(1, overridden);
+
+        int perChannel = ScalingDefaults.ResolveSelfHostMaxConcurrentPerChannel(
+            profile?.DbProvider,
+            options.SelfHostMaxConcurrentPerChannel
+        );
+        return Math.Max(1, perChannel * 4);
+    }
+
+    private static DeploymentProfileSnapshot? TryReadDeploymentProfile(
+        IDeploymentProfileService? deploymentProfile
+    )
+    {
+        if (deploymentProfile is null)
+            return null;
+
+        try
+        {
+            return deploymentProfile.Current;
+        }
+        catch (InvalidOperationException)
+        {
+            // Read before DetectAndPersistAsync resolved it — this runs at construction time, before boot
+            // has necessarily finished. Fall back to the conservative self-host-lite default.
+            return null;
+        }
     }
 
     public string Provider => "twitch";
@@ -1031,38 +1092,96 @@ public sealed class TwitchEventSubHostedService
         }
     }
 
-    /// <summary>Dispatches every waiting notification in arrival order; the stop token is honoured between
-    /// notifications, never in the middle of one.</summary>
+    /// <summary>
+    /// Dispatches every waiting notification, bounded but CONCURRENT (S-CONCURRENCY-DRAIN) — a plain
+    /// sequential await-per-message here meant one slow chat command (a long TTS line, a Spotify call still
+    /// waiting on an API) held up every other queued message, across every channel this instance leases,
+    /// until it finished. The stop token is honoured between notifications; every notification already
+    /// dispatched is awaited to completion before this returns, so nothing is left half-processed when the
+    /// lease is released (<see cref="StopInboxDrainAsync"/> relies on that).
+    /// </summary>
     internal async Task DrainBatchAsync(CancellationToken stop)
     {
-        while (!stop.IsCancellationRequested)
+        List<Task> inFlight = [];
+        // A message already dispatched is NOT yet removed from the inbox until its dispatch completes, so
+        // re-peeking while it is still running would otherwise see it again and start it a second time —
+        // tracked here, never by removal timing.
+        HashSet<Guid> inFlightIds = [];
+
+        try
         {
-            IReadOnlyList<EventSubInboxMessage> batch = await _inbox!.PeekAsync(
-                InboxBatchSize,
-                CancellationToken.None
-            );
-            if (batch.Count == 0)
-                return;
-
-            foreach (EventSubInboxMessage message in batch)
+            while (!stop.IsCancellationRequested)
             {
-                if (stop.IsCancellationRequested)
-                    return;
-
-                using JsonDocument document = JsonDocument.Parse(message.EventJson);
-                await ProcessNotificationAsync(
-                    message.MessageId,
-                    new DateTimeOffset(
-                        DateTime.SpecifyKind(message.MessageTimestamp, DateTimeKind.Utc)
-                    ),
-                    message.SubscriptionType,
-                    message.SubscriptionVersion,
-                    message.TwitchBroadcasterUserId,
-                    document.RootElement.Clone(),
+                IReadOnlyList<EventSubInboxMessage> batch = await _inbox!.PeekAsync(
+                    InboxBatchSize,
                     CancellationToken.None
                 );
-                await _inbox.RemoveAsync(message.Id, CancellationToken.None);
+                if (batch.Count == 0)
+                    break;
+
+                bool startedAny = false;
+                foreach (EventSubInboxMessage message in batch)
+                {
+                    if (stop.IsCancellationRequested)
+                        break;
+
+                    if (!inFlightIds.Add(message.Id))
+                        continue;
+
+                    startedAny = true;
+                    // Honours stop while waiting for a free slot too — a shutdown must never start a NEW
+                    // dispatch, only finish ones already in flight (awaited below regardless of how this
+                    // loop exits).
+                    await _notificationDispatchGate.WaitAsync(stop);
+                    inFlight.Add(DispatchOneAsync(message));
+                    inFlight.RemoveAll(t => t.IsCompleted);
+                }
+
+                // Every peeked message is already running (none new) — re-peeking immediately would just
+                // spin on the same not-yet-removed rows. Let the outer poll cadence back off instead.
+                if (!startedAny)
+                    break;
             }
+        }
+        catch (OperationCanceledException) when (stop.IsCancellationRequested)
+        {
+            // Stopped while waiting for a dispatch slot — fall through and await what's already running.
+        }
+
+        await Task.WhenAll(inFlight);
+    }
+
+    /// <summary>Processes and removes one inbox message on its own task, releasing the dispatch gate (and
+    /// logging) whatever the outcome — a fault here must never leave the gate permanently down a slot.</summary>
+    private async Task DispatchOneAsync(EventSubInboxMessage message)
+    {
+        try
+        {
+            using JsonDocument document = JsonDocument.Parse(message.EventJson);
+            await ProcessNotificationAsync(
+                message.MessageId,
+                new DateTimeOffset(
+                    DateTime.SpecifyKind(message.MessageTimestamp, DateTimeKind.Utc)
+                ),
+                message.SubscriptionType,
+                message.SubscriptionVersion,
+                message.TwitchBroadcasterUserId,
+                document.RootElement.Clone(),
+                CancellationToken.None
+            );
+            await _inbox!.RemoveAsync(message.Id, CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(
+                ex,
+                "EventSub notification dispatch failed for message {MessageId}",
+                message.MessageId
+            );
+        }
+        finally
+        {
+            _notificationDispatchGate.Release();
         }
     }
 

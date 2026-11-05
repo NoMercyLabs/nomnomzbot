@@ -35,7 +35,8 @@ namespace NomNomzBot.Infrastructure.Platform.Pipeline;
 ///   2. When PipelineId is null: parse PipelineRequest.PipelineJson directly.
 ///
 /// Limits:
-///   - Max 5 concurrent pipelines per channel
+///   - Concurrent pipelines per channel, capped by IPipelineConcurrencyLimitProvider (tiered on SaaS,
+///     host/engine-derived on self-host; falls back to a fixed 5 when none is supplied)
 ///   - Max 5-minute execution timeout per pipeline
 ///   - Cancelled when channel goes offline
 /// </summary>
@@ -50,6 +51,9 @@ public sealed class PipelineEngine : IPipelineEngine
         (long)ExecutionTimeout.TotalMilliseconds
     );
 
+    // Fallback only — used when no IPipelineConcurrencyLimitProvider is supplied (older tests). Production
+    // DI always supplies one so the real cap is tiered/resource-aware (S-CONCURRENCY-DRAIN); see
+    // PipelineConcurrencyLimitProvider.
     private const int MaxConcurrentPerChannel = 5;
 
     // Tree-execution safety caps (pipeline-control-flow.md D6, pipeline-tree-and-editor.md §2.4/§2.6).
@@ -92,6 +96,7 @@ public sealed class PipelineEngine : IPipelineEngine
     private readonly ConcurrentDictionary<Guid, int> _activeCount = new();
 
     private readonly NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor? _sanctions;
+    private readonly IPipelineConcurrencyLimitProvider? _concurrencyLimit;
 
     public PipelineEngine(
         IApplicationDbContext db,
@@ -102,7 +107,8 @@ public sealed class PipelineEngine : IPipelineEngine
         ILogger<PipelineEngine> logger,
         TimeProvider timeProvider,
         NomNomzBot.Application.Contracts.Security.IOutboundSanctionAccessor? sanctions = null,
-        Func<double>? randomSource = null
+        Func<double>? randomSource = null,
+        IPipelineConcurrencyLimitProvider? concurrencyLimit = null
     )
     {
         _sanctions = sanctions;
@@ -114,6 +120,7 @@ public sealed class PipelineEngine : IPipelineEngine
         _logger = logger;
         _timeProvider = timeProvider;
         _randomSource = randomSource ?? Random.Shared.NextDouble;
+        _concurrencyLimit = concurrencyLimit;
     }
 
     public int GetActiveCountForChannel(Guid broadcasterId) =>
@@ -186,9 +193,17 @@ public sealed class PipelineEngine : IPipelineEngine
 
         DateTimeOffset startedAt = _timeProvider.GetUtcNow();
 
-        // Concurrency gate
+        // Concurrency gate — tiered/resource-aware when a provider is wired in (S-CONCURRENCY-DRAIN),
+        // falling back to the fixed default for callers (mostly tests) that don't supply one.
+        int maxConcurrentPerChannel = _concurrencyLimit is null
+            ? MaxConcurrentPerChannel
+            : await _concurrencyLimit.ResolveMaxConcurrentPerChannelAsync(
+                request.BroadcasterId,
+                ct
+            );
+
         int current = _activeCount.AddOrUpdate(request.BroadcasterId, 1, (_, v) => v + 1);
-        if (current > MaxConcurrentPerChannel)
+        if (current > maxConcurrentPerChannel)
         {
             _activeCount.AddOrUpdate(request.BroadcasterId, 0, (_, v) => Math.Max(0, v - 1));
             PipelineExecutionResult throttled = new()
@@ -197,11 +212,11 @@ public sealed class PipelineEngine : IPipelineEngine
                 Outcome = PipelineOutcome.Failed,
                 Duration = TimeSpan.Zero,
                 ErrorMessage =
-                    $"Channel {request.BroadcasterId} has too many active pipelines ({MaxConcurrentPerChannel} max)",
+                    $"Channel {request.BroadcasterId} has too many active pipelines ({maxConcurrentPerChannel} max)",
                 FailureShape = new(
                     RunFailureKind.Limit,
                     "pipeline.max_concurrent_runs",
-                    MaxConcurrentPerChannel
+                    maxConcurrentPerChannel
                 ),
             };
             await PersistExecutionAsync(request, null, startedAt, throttled);
