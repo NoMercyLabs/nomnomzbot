@@ -215,7 +215,65 @@ Still open, now sharper:
   open-ecosystem is the explicit target from day one; the first slice should probably still be small, but
   needs re-proposing against the now-wider confirmed shape.
 
-## 11. Next step
+## 12. Round 3, same day — provider vs. participant, and the toolkit-not-opinion rule
+
+Stoney, asked to walk through becoming a "game provider" as if he were a streamer friend: **"game
+provider" and "participant" are two different roles, not one.**
+
+- **Provider** = creates/owns a game. Must already be a known NomNomzBot entity — self-hosted or SaaS,
+  doesn't matter which, that distinction shouldn't matter to this system.
+- **Participant** = joins a game someone else created. Can be **anyone, running anything** — no
+  NomNomzBot relationship required at all.
+
+This is not a reversal of §8's "open ecosystem" decision, it's the precise shape of it: only onboarded
+providers host games; literally anyone can join one.
+
+**The grounding example is real, not hypothetical.** Kani runs a Godot game engine as his entire stream
+environment — his code editor is composited into a live 3D scene, his avatar does things, and there's a
+running bit where Kani jokes about having "stolen" a lucky feather from Stoney, hanging on his character's
+belt, origin unknown (in-joke). **This is where the feather example throughout this document actually
+comes from.** Separately, Kani and another streamer already do a manual, bespoke version of cross-stream
+presence: when they're talking together, each one's character appears live in the other's stream, audio
+routes between them, and a shoutout on one side automatically triggers the same shoutout on the other
+side. Stoney wants to build the generic, reusable version of this category of interaction — not just
+formalize the feather bit, but make "two streamers' systems play off each other live" a thing any
+provider/participant pair can build, without either needing the other's bot.
+
+**Why this matters, in Stoney's words (translated):** "I want to create the freedom to do fun things with
+other channels that have their own bot" — explicitly for community/social reasons: the software &
+game-dev streaming category is unusually open and social, everyone nerds out together, and he wants
+NomNomzBot to be part of enabling more of that, not just a game-state sync mechanism in the abstract.
+
+**Resolved: presence/shoutout-echo is NOT a separate system from the portable-entity game idea.** Asked
+directly, Stoney said he isn't sure he wants automatic "echo everything" behavior between linked channels
+— but he does want the *freedom* to build things like it. Conclusion: **the platform never hardcodes
+cross-channel behavior.** "When X happens on channel A, mirror it on channel B" is itself just a
+provider-authored rule-set built on the same core primitive (entity + action-request + subscription), not
+a platform feature everyone gets by default.
+
+**This is now a repeating, explicit design rule, confirmed across three separate answers** (offline-
+channel handling, §8; revocation handling, §8; echo/presence, this section): **the platform stays a
+toolkit. It provides mechanics and hooks. It never bakes in an opinion about what should happen.** Every
+future design question should be checked against this rule before being treated as a platform-level
+decision.
+
+**Open legal question, flagged honestly, not resolved by Claude:** Stoney wants to prevent third parties
+profiting from this without NoMercy Labs also benefiting, "that's part of why we have the license"
+(PolyForm Noncommercial). The license clearly covers shipping/redistributing NomNomzBot or code built from
+it. Whether it also covers a fully separate product that merely *calls* this API is a greyer case —
+API-consumption terms are not automatically the same thing as a code license. This needs real legal
+consideration before the open-ecosystem participant flow ships, not an assumption that the existing
+license already handles it.
+
+## 13. How this conversation is being run (operational note, not design content)
+
+Stoney, 2026-11-05: write discoveries to this file proactively, without asking permission first, whenever
+something important lands — don't wait to be told. Also: for this interview specifically, use plain single
+questions in normal text, **not** the structured multi-choice question tool — he's answering by voice
+(TTS read-aloud, speech-to-text reply), and a multi-part structured question doesn't work well read aloud.
+One clear question at a time.
+
+## 14. Next step
 
 Resume the interview from §10. Do not start implementation, a spec in `.claude/docs/design/spec/`, or any
 schema/entity work from this document — it is discovery notes, not a locked design.
