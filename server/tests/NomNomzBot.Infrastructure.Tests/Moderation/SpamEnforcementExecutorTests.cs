@@ -39,12 +39,16 @@ public class SpamEnforcementExecutorTests : IDisposable
 {
     private static readonly Guid Channel = Guid.Parse("0199c000-0000-7000-8000-0000000000e1");
     private static readonly Guid Owner = Guid.Parse("0199c000-0000-7000-8000-0000000000e2");
+    private static readonly Guid LiveModerator = Guid.Parse("0199c000-0000-7000-8000-0000000000e3");
+    private const string BroadcasterTwitchId = "700100";
 
     private readonly SqliteConnection _connection;
     private readonly IModerationService _moderation = Substitute.For<IModerationService>();
     private readonly ITwitchModerationApi _twitch = Substitute.For<ITwitchModerationApi>();
     private readonly IInboundOriginModerator _origin = Substitute.For<IInboundOriginModerator>();
+    private readonly IModeratorChatReaders _readers = Substitute.For<IModeratorChatReaders>();
     private int _heatTimeoutSeconds = 600;
+    private bool _isOnboarded = true;
 
     public SpamEnforcementExecutorTests()
     {
@@ -70,25 +74,12 @@ public class SpamEnforcementExecutorTests : IDisposable
         _connection = new SqliteConnection("DataSource=:memory:");
         _connection.Open();
 
-        using AppDbContext db = NewDbContext();
-        db.Database.EnsureCreated();
-        db.Database.ExecuteSqlRaw("PRAGMA foreign_keys = OFF;");
-        db.Channels.Add(
-            new Channel
-            {
-                Id = Channel,
-                OwnerUserId = Owner,
-                Provider = AuthEnums.Platform.Twitch,
-                ExternalChannelId = "chan-ext",
-                Name = "chan",
-                NameNormalized = "chan",
-            }
-        );
-        db.SaveChanges();
+        _readers.Snapshot().Returns(_ => []);
 
         _twitch
-            .DeleteChatMessageAsync(
+            .DeleteChatMessageAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
@@ -126,15 +117,44 @@ public class SpamEnforcementExecutorTests : IDisposable
     private AppDbContext NewDbContext() =>
         new(new DbContextOptionsBuilder<AppDbContext>().UseSqlite(_connection).Options);
 
+    private bool _channelSeeded;
+
+    private void SeedChannelIfNeeded()
+    {
+        if (_channelSeeded)
+            return;
+        _channelSeeded = true;
+
+        using AppDbContext db = NewDbContext();
+        db.Database.EnsureCreated();
+        db.Database.ExecuteSqlRaw("PRAGMA foreign_keys = OFF;");
+        db.Channels.Add(
+            new Channel
+            {
+                Id = Channel,
+                OwnerUserId = Owner,
+                Provider = AuthEnums.Platform.Twitch,
+                ExternalChannelId = "chan-ext",
+                TwitchChannelId = BroadcasterTwitchId,
+                IsOnboarded = _isOnboarded,
+                Name = "chan",
+                NameNormalized = "chan",
+            }
+        );
+        db.SaveChanges();
+    }
+
     private async Task<SpamEnforcementOutcome> ExecuteAsync(
         SpamDecision decision,
         string provider = AuthEnums.Platform.Twitch,
         IViolationEscalationService? escalation = null
     )
     {
+        SeedChannelIfNeeded();
         using AppDbContext db = NewDbContext();
+        ActingModeratorResolverService actingModerator = new(db, _readers);
         SpamEnforcementExecutor executor = new(
-            db,
+            actingModerator,
             _moderation,
             _twitch,
             _origin,
@@ -170,8 +190,9 @@ public class SpamEnforcementExecutorTests : IDisposable
     private async Task AssertNoDeleteIssued() =>
         await _twitch
             .DidNotReceive()
-            .DeleteChatMessageAsync(
+            .DeleteChatMessageAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             );
@@ -382,7 +403,12 @@ public class SpamEnforcementExecutorTests : IDisposable
         outcome.Skipped.Should().BeNull();
         await _twitch
             .Received(1)
-            .DeleteChatMessageAsync(Channel, "msg-1", Arg.Any<CancellationToken>());
+            .DeleteChatMessageAsOperatorAsync(
+                Owner,
+                BroadcasterTwitchId,
+                "msg-1",
+                Arg.Any<CancellationToken>()
+            );
         _origin.ReceivedCalls().Should().BeEmpty();
     }
 
@@ -477,7 +503,12 @@ public class SpamEnforcementExecutorTests : IDisposable
         outcome.TimedOutAccount.Should().BeTrue();
         await _twitch
             .Received(1)
-            .DeleteChatMessageAsync(Channel, "msg-1", Arg.Any<CancellationToken>());
+            .DeleteChatMessageAsOperatorAsync(
+                Owner,
+                BroadcasterTwitchId,
+                "msg-1",
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -613,8 +644,9 @@ public class SpamEnforcementExecutorTests : IDisposable
         // "It spoke with nothing attached" — an enforcement path that reports success when the platform
         // refused is how an operator believes the room is covered when it is not.
         _twitch
-            .DeleteChatMessageAsync(
+            .DeleteChatMessageAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
@@ -625,6 +657,81 @@ public class SpamEnforcementExecutorTests : IDisposable
         );
 
         outcome.DeletedMessage.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task WhenNotOnboarded_TheTimeoutIsSignedByTheLiveModerator_NotTheMissingOwner()
+    {
+        // The standing instruction (Stoney, 2026-11-05): a channel with no owner token on file still
+        // gets automated protection — acting as whichever signed-in moderator is actually live on its
+        // chat right now, never silently nothing. Before the fix this handler resolved only
+        // Channel.OwnerUserId with no fallback, so a non-onboarded channel's spam timeout always failed.
+        _isOnboarded = false;
+        _readers
+            .Snapshot()
+            .Returns(_ =>
+                [
+                    new ModeratorChatReaderStatus(
+                        BroadcasterTwitchId,
+                        ModeratorChatReaderState.Reading,
+                        LiveModerator,
+                        null
+                    ),
+                ]
+            );
+
+        SpamEnforcementOutcome outcome = await ExecuteAsync(
+            SpamEnforcement.Decide(SpamConfidence.High, SpamTrustTier.Untrusted, dryRun: false)
+        );
+
+        outcome.DeletedMessage.Should().BeTrue();
+        outcome.TimedOutAccount.Should().BeTrue();
+        await _moderation
+            .Received(1)
+            .TimeoutAsync(
+                Channel.ToString(),
+                LiveModerator,
+                "viewer-1",
+                Arg.Any<int>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        await _twitch
+            .Received(1)
+            .DeleteChatMessageAsOperatorAsync(
+                LiveModerator,
+                BroadcasterTwitchId,
+                "msg-1",
+                Arg.Any<CancellationToken>()
+            );
+        await _moderation
+            .DidNotReceive()
+            .TimeoutAsync(
+                Arg.Any<string>(),
+                Owner,
+                Arg.Any<string>(),
+                Arg.Any<int>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task WhenNotOnboardedAndNoModeratorIsLive_NothingIsActioned_AndTheOutcomeSaysWhy()
+    {
+        _isOnboarded = false;
+        _readers.Snapshot().Returns(_ => []);
+
+        SpamEnforcementOutcome outcome = await ExecuteAsync(
+            SpamEnforcement.Decide(SpamConfidence.High, SpamTrustTier.Untrusted, dryRun: false)
+        );
+
+        outcome.DeletedMessage.Should().BeFalse();
+        outcome.TimedOutAccount.Should().BeFalse();
+        await AssertNoDeleteIssued();
+        await AssertNoTimeoutIssued();
     }
 
     public void Dispose() => _connection.Dispose();

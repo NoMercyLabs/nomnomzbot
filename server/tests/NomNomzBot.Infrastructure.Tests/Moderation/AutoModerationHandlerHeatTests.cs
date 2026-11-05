@@ -12,6 +12,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
@@ -51,7 +52,8 @@ public sealed class AutoModerationHandlerHeatTests
         string action,
         int? durationSeconds = null,
         bool withOwner = true,
-        IViolationEscalationService? escalation = null
+        IViolationEscalationService? escalation = null,
+        IReadOnlyList<ModeratorChatReaderStatus>? liveModerators = null
     )
     {
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
@@ -61,6 +63,7 @@ public sealed class AutoModerationHandlerHeatTests
                 Id = Channel,
                 TwitchChannelId = "700777",
                 OwnerUserId = withOwner ? OwnerUserId : Guid.Empty,
+                IsOnboarded = withOwner,
                 Name = "c",
                 NameNormalized = "c",
             }
@@ -110,17 +113,26 @@ public sealed class AutoModerationHandlerHeatTests
 
         ITwitchModerationApi twitch = Substitute.For<ITwitchModerationApi>();
         twitch
-            .DeleteChatMessageAsync(
+            .DeleteChatMessageAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
             .Returns(Result.Success());
 
+        IModeratorChatReaders moderatorReaders = Substitute.For<IModeratorChatReaders>();
+        moderatorReaders.Snapshot().Returns(_ => liveModerators ?? []);
+        IActingModeratorResolverService actingModerator = new ActingModeratorResolverService(
+            db,
+            moderatorReaders
+        );
+
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(db);
         services.AddSingleton(moderation);
         services.AddSingleton(twitch);
+        services.AddSingleton(actingModerator);
         services.AddSingleton(escalation ?? ViolationEscalationDoubles.NotHandled());
         ServiceProvider provider = services.BuildServiceProvider();
 
@@ -341,7 +353,12 @@ public sealed class AutoModerationHandlerHeatTests
 
         await twitch
             .Received(1)
-            .DeleteChatMessageAsync(Channel, "m-1", Arg.Any<CancellationToken>());
+            .DeleteChatMessageAsOperatorAsync(
+                OwnerUserId,
+                "700777",
+                "m-1",
+                Arg.Any<CancellationToken>()
+            );
         await escalation
             .DidNotReceive()
             .TryEscalateAsync(
@@ -369,7 +386,12 @@ public sealed class AutoModerationHandlerHeatTests
 
         await twitch
             .Received(1)
-            .DeleteChatMessageAsync(Channel, "m-1", Arg.Any<CancellationToken>());
+            .DeleteChatMessageAsOperatorAsync(
+                OwnerUserId,
+                "700777",
+                "m-1",
+                Arg.Any<CancellationToken>()
+            );
 
         await moderation
             .DidNotReceive()
@@ -385,10 +407,11 @@ public sealed class AutoModerationHandlerHeatTests
     }
 
     [Fact]
-    public async Task AChannelWithNoResolvableOwnerActionsNobody()
+    public async Task AChannelThatIsNotOnboardedAndHasNoLiveModerator_ActionsNobody()
     {
-        // Without an owner there is no token to sign the action with. Falling back to the direct Helix
-        // call would "work" and silently reopen the hole this class exists to close.
+        // Not onboarded and nobody is currently moderating the channel's chat: there is no identity to
+        // sign the action with, and falling back to the direct Helix call would "work" and silently
+        // reopen the hole this class exists to close.
         (
             AutoModerationHandler handler,
             IModerationService moderation,
@@ -415,6 +438,42 @@ public sealed class AutoModerationHandlerHeatTests
                 Arg.Any<string>(),
                 Arg.Any<int>(),
                 Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task AChannelThatIsNotOnboardedButHasALiveModerator_ActsInTheModeratorsName()
+    {
+        // Stoney, 2026-11-05: a channel with no owner token on file still gets automated protection —
+        // signed as whichever signed-in moderator is actually live on its chat right now.
+        Guid liveModerator = Guid.Parse("0192d000-0000-7000-8000-0000000000a9");
+        (AutoModerationHandler handler, IModerationService moderation, _) = await BuildAsync(
+            "timeout",
+            durationSeconds: 300,
+            withOwner: false,
+            liveModerators:
+            [
+                new ModeratorChatReaderStatus(
+                    "700777",
+                    ModeratorChatReaderState.Reading,
+                    liveModerator,
+                    null
+                ),
+            ]
+        );
+
+        await handler.HandleAsync(LinkMessage(), CancellationToken.None);
+
+        await moderation
+            .Received(1)
+            .TimeoutAsync(
+                Channel.ToString(),
+                liveModerator,
+                OffenderTwitchId,
+                300,
+                "links are not allowed here",
+                null,
                 Arg.Any<CancellationToken>()
             );
     }

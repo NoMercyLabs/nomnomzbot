@@ -55,7 +55,8 @@ public sealed class HeatThresholdAutoTimeoutHandlerTests
         int timeoutSeconds = 600,
         bool subjectIsModerator = false,
         bool timeoutFails = false,
-        IInboundOriginModerator? origin = null
+        IInboundOriginModerator? origin = null,
+        Result<ActingModerator>? actingModeratorResult = null
     )
     {
         ModerationServiceTestDbContext db = ModerationServiceTestDbContext.New();
@@ -65,6 +66,7 @@ public sealed class HeatThresholdAutoTimeoutHandlerTests
                 Id = Channel,
                 TwitchChannelId = BroadcasterTwitchId,
                 OwnerUserId = OwnerUserId,
+                IsOnboarded = true,
                 Name = "c",
                 NameNormalized = "c",
             }
@@ -134,9 +136,19 @@ public sealed class HeatThresholdAutoTimeoutHandlerTests
             TimeProvider.System,
             NullLogger<ModerationQueueService>.Instance
         );
+        IActingModeratorResolverService actingModerator =
+            Substitute.For<IActingModeratorResolverService>();
+        actingModerator
+            .ResolveAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns(
+                actingModeratorResult
+                    ?? Result.Success(new ActingModerator(OwnerUserId, BroadcasterTwitchId))
+            );
+
         RecordingEventBus bus = new();
         HeatThresholdAutoTimeoutHandler handler = new(
             db,
+            actingModerator,
             moderation,
             queue,
             origin ?? Substitute.For<IInboundOriginModerator>(),
@@ -516,6 +528,65 @@ public sealed class HeatThresholdAutoTimeoutHandlerTests
                 600,
                 Arg.Any<string?>(),
                 Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
+    public async Task WhenNoActingIdentityResolves_TheFailureIsPublishedForTheInbox_NotSilentlyDropped()
+    {
+        // A non-onboarded channel with no live moderator reader has no identity to sign the Helix call
+        // with — the handler must report this like any other platform refusal, never silently return.
+        (
+            HeatThresholdAutoTimeoutHandler handler,
+            IModerationService moderation,
+            ModerationServiceTestDbContext db,
+            RecordingEventBus bus
+        ) = await BuildWithStateAsync(
+            autoTimeoutOn: true,
+            actingModeratorResult: Result.Failure<ActingModerator>(
+                "This channel is not onboarded and no signed-in moderator is currently reading its chat.",
+                "NO_ACTING_IDENTITY"
+            )
+        );
+
+        await handler.HandleAsync(Crossing(ViewerTwitchId, ViewerUserId));
+
+        UserHeatAutoTimeoutFailedEvent failed = bus
+            .Published.OfType<UserHeatAutoTimeoutFailedEvent>()
+            .Single();
+        failed.Error.Should().Contain("not onboarded");
+        await moderation
+            .DidNotReceiveWithAnyArgs()
+            .TimeoutAsync(default!, default, default!, default);
+        (await db.ModerationQueueItems.CountAsync()).Should().Be(0);
+    }
+
+    [Fact]
+    public async Task WhenNotOnboarded_TheTimeoutIsSignedByTheLiveModerator_NotTheMissingOwner()
+    {
+        // The standing instruction (Stoney, 2026-11-05): a channel with no owner token on file still
+        // gets automated protection, acting as whichever signed-in moderator is live on its chat.
+        Guid liveModerator = Guid.Parse("0192c000-0000-7000-8000-0000000000c9");
+        (HeatThresholdAutoTimeoutHandler handler, IModerationService moderation, _, _) =
+            await BuildWithStateAsync(
+                autoTimeoutOn: true,
+                actingModeratorResult: Result.Success(
+                    new ActingModerator(liveModerator, BroadcasterTwitchId)
+                )
+            );
+
+        await handler.HandleAsync(Crossing(ViewerTwitchId, ViewerUserId));
+
+        await moderation
+            .Received(1)
+            .TimeoutAsync(
+                Channel.ToString(),
+                liveModerator,
+                ViewerTwitchId,
+                600,
+                Arg.Any<string?>(),
+                null,
                 Arg.Any<CancellationToken>()
             );
     }

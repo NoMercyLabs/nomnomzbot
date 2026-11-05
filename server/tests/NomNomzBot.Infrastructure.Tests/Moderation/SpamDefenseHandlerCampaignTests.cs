@@ -44,12 +44,14 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
     private static readonly Guid Owner = Guid.Parse("0199c000-0000-7000-8000-0000000000d2");
     private static readonly DateTimeOffset T0 = new(2026, 9, 3, 23, 0, 0, TimeSpan.Zero);
     private const string Skeleton = "bestviewersonbigfollowscom";
+    private const string BroadcasterTwitchId = "700200";
 
     private readonly SqliteConnection _connection;
     private readonly FakeTimeProvider _time = new(T0);
     private readonly IModerationService _moderation = Substitute.For<IModerationService>();
     private readonly ITwitchModerationApi _twitch = Substitute.For<ITwitchModerationApi>();
     private readonly ISpamDefenseService _spamDefense = Substitute.For<ISpamDefenseService>();
+    private readonly IModeratorChatReaders _readers = Substitute.For<IModeratorChatReaders>();
     private readonly ServiceProvider _services;
     private readonly SpamDefenseHandler _handler;
 
@@ -73,6 +75,8 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
                     OwnerUserId = Owner,
                     Provider = AuthEnums.Platform.Twitch,
                     ExternalChannelId = "chan-ext",
+                    TwitchChannelId = BroadcasterTwitchId,
+                    IsOnboarded = true,
                     Name = "chan",
                     NameNormalized = "chan",
                 }
@@ -80,9 +84,12 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
             db.SaveChanges();
         }
 
+        _readers.Snapshot().Returns(_ => []);
+
         _twitch
-            .DeleteChatMessageAsync(
+            .DeleteChatMessageAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
@@ -156,9 +163,11 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
         services.AddSingleton(Substitute.For<IInboundOriginModerator>());
         services.AddSingleton(ViolationEscalationDoubles.NotHandled());
         services.AddSingleton(_spamDefense);
+        services.AddSingleton(_readers);
         services.AddSingleton<Infrastructure.Moderation.ChatSafety.ChatSafetyMeter>();
         services.AddDbContext<AppDbContext>(o => o.UseSqlite(_connection));
         services.AddScoped<IApplicationDbContext>(sp => sp.GetRequiredService<AppDbContext>());
+        services.AddScoped<IActingModeratorResolverService, ActingModeratorResolverService>();
         services.AddScoped<SpamCampaignReversalExecutor>();
         services.AddScoped<SpamEnforcementExecutor>();
         services.AddScoped<SpamCorrelationService>();
@@ -325,7 +334,12 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
             );
         await _twitch
             .Received(1)
-            .DeleteChatMessageAsync(Arg.Any<Guid>(), "msg-stranger0", Arg.Any<CancellationToken>());
+            .DeleteChatMessageAsOperatorAsync(
+                Owner,
+                BroadcasterTwitchId,
+                "msg-stranger0",
+                Arg.Any<CancellationToken>()
+            );
         Stored().ActionedAccountIds.Should().Be("stranger0");
         await _spamDefense
             .Received(1)
@@ -364,7 +378,12 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
             );
         await _twitch
             .DidNotReceive()
-            .DeleteChatMessageAsync(Arg.Any<Guid>(), "msg-regular0", Arg.Any<CancellationToken>());
+            .DeleteChatMessageAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                "msg-regular0",
+                Arg.Any<CancellationToken>()
+            );
         await _spamDefense
             .DidNotReceive()
             .RecordCampaignEscalationAsync(
@@ -396,7 +415,12 @@ public class SpamDefenseHandlerCampaignTests : IDisposable
             );
         await _twitch
             .DidNotReceive()
-            .DeleteChatMessageAsync(Arg.Any<Guid>(), "msg-stranger0", Arg.Any<CancellationToken>());
+            .DeleteChatMessageAsOperatorAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                "msg-stranger0",
+                Arg.Any<CancellationToken>()
+            );
         Stored().ActionedAccountIds.Should().BeEmpty();
         await _spamDefense
             .Received(1)

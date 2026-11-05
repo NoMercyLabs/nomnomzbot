@@ -51,6 +51,7 @@ public sealed class HeatThresholdAutoTimeoutHandler : IEventHandler<UserHeatThre
     private const int DefaultTimeoutSeconds = 600;
 
     private readonly IApplicationDbContext _db;
+    private readonly IActingModeratorResolverService _actingModerator;
     private readonly IModerationService _moderation;
     private readonly IModerationQueueService _queue;
     private readonly IInboundOriginModerator _origin;
@@ -59,6 +60,7 @@ public sealed class HeatThresholdAutoTimeoutHandler : IEventHandler<UserHeatThre
 
     public HeatThresholdAutoTimeoutHandler(
         IApplicationDbContext db,
+        IActingModeratorResolverService actingModerator,
         IModerationService moderation,
         IModerationQueueService queue,
         IInboundOriginModerator origin,
@@ -67,6 +69,7 @@ public sealed class HeatThresholdAutoTimeoutHandler : IEventHandler<UserHeatThre
     )
     {
         _db = db;
+        _actingModerator = actingModerator;
         _moderation = moderation;
         _queue = queue;
         _origin = origin;
@@ -134,27 +137,28 @@ public sealed class HeatThresholdAutoTimeoutHandler : IEventHandler<UserHeatThre
             )
         )
         {
-            // Issued as the broadcaster (operatorUserId = the channel owner): this is the channel's own
-            // automation, not a moderator's personal action, and no dashboard user is in the loop.
-            Guid ownerUserId = await _db
-                .Channels.Where(c => c.Id == broadcasterId)
-                .Select(c => c.OwnerUserId)
-                .FirstOrDefaultAsync(ct);
-            if (ownerUserId == Guid.Empty)
-                return;
-
-            Result<ModerationActionResult> result = await _moderation.TimeoutAsync(
-                broadcasterId.ToString(),
-                ownerUserId,
-                @event.SubjectTwitchUserId,
-                seconds,
-                reason,
-                null,
-                ct
-            );
-            error = result.IsFailure
-                ? result.ErrorMessage ?? "The platform refused the timeout."
-                : null;
+            // Signed as the channel owner when the channel is onboarded, otherwise as whichever signed-in
+            // moderator is live on the channel right now — this is the channel's own automation, so no
+            // dashboard user needs to be in the loop, but it must never silently do nothing when the owner
+            // has no token on file (Stoney 2026-11-05).
+            Result<ActingModerator> actor = await _actingModerator.ResolveAsync(broadcasterId, ct);
+            if (actor.IsFailure)
+                error = actor.ErrorMessage ?? "No acting identity is available for this channel.";
+            else
+            {
+                Result<ModerationActionResult> result = await _moderation.TimeoutAsync(
+                    broadcasterId.ToString(),
+                    actor.Value.OperatorUserId,
+                    @event.SubjectTwitchUserId,
+                    seconds,
+                    reason,
+                    null,
+                    ct
+                );
+                error = result.IsFailure
+                    ? result.ErrorMessage ?? "The platform refused the timeout."
+                    : null;
+            }
         }
         else
             error = await TimeoutViaOriginAsync(@event, seconds, reason, ct);

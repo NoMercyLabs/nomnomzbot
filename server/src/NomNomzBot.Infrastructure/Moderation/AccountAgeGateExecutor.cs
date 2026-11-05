@@ -31,18 +31,21 @@ namespace NomNomzBot.Infrastructure.Moderation;
 public sealed class AccountAgeGateExecutor
 {
     private readonly ITwitchModerationApi _twitch;
+    private readonly IActingModeratorResolverService _actingModerator;
     private readonly IModerationQueueService _queue;
     private readonly IInboundOriginModerator _origin;
     private readonly ILogger<AccountAgeGateExecutor> _logger;
 
     public AccountAgeGateExecutor(
         ITwitchModerationApi twitch,
+        IActingModeratorResolverService actingModerator,
         IModerationQueueService queue,
         IInboundOriginModerator origin,
         ILogger<AccountAgeGateExecutor> logger
     )
     {
         _twitch = twitch;
+        _actingModerator = actingModerator;
         _queue = queue;
         _origin = origin;
         _logger = logger;
@@ -134,7 +137,27 @@ public sealed class AccountAgeGateExecutor
         if (string.IsNullOrWhiteSpace(messageId))
             return false;
 
-        Result result = await _twitch.DeleteChatMessageAsync(broadcasterId, messageId, ct);
+        // Signed as the channel owner when the channel is onboarded, otherwise as whichever signed-in
+        // moderator is live on the channel right now (Stoney 2026-11-05: a non-onboarded channel's
+        // automated actions act in the present moderator's own name, never silently nothing).
+        Result<ActingModerator> actor = await _actingModerator.ResolveAsync(broadcasterId, ct);
+        if (actor.IsFailure)
+        {
+            _logger.LogWarning(
+                "Newcomer gate could not delete message {MessageId} in {BroadcasterId}: {Error}",
+                messageId,
+                broadcasterId,
+                actor.ErrorMessage
+            );
+            return false;
+        }
+
+        Result result = await _twitch.DeleteChatMessageAsOperatorAsync(
+            actor.Value.OperatorUserId,
+            actor.Value.BroadcasterTwitchId,
+            messageId,
+            ct
+        );
         if (result.IsFailure)
             _logger.LogWarning(
                 "Newcomer gate could not delete message {MessageId} in {BroadcasterId}: {Error}",

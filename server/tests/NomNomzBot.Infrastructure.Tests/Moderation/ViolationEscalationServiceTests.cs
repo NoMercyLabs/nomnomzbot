@@ -15,6 +15,7 @@ using Microsoft.Data.Sqlite;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging.Abstractions;
 using Microsoft.Extensions.Time.Testing;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -39,10 +40,12 @@ public sealed class ViolationEscalationServiceTests : IDisposable
     private static readonly Guid Channel = Guid.Parse("0199c000-0000-7000-8000-0000000000f1");
     private static readonly Guid Owner = Guid.Parse("0199c000-0000-7000-8000-0000000000f2");
     private static readonly Guid Viewer = Guid.Parse("0199c000-0000-7000-8000-0000000000f3");
+    private const string BroadcasterTwitchId = "700002";
 
     private readonly SqliteConnection _connection;
     private readonly IModerationService _moderation = Substitute.For<IModerationService>();
     private readonly IUserService _users = Substitute.For<IUserService>();
+    private readonly IModeratorChatReaders _readers = Substitute.For<IModeratorChatReaders>();
 
     public ViolationEscalationServiceTests()
     {
@@ -59,6 +62,8 @@ public sealed class ViolationEscalationServiceTests : IDisposable
                 OwnerUserId = Owner,
                 Provider = AuthEnums.Platform.Twitch,
                 ExternalChannelId = "chan-ext",
+                TwitchChannelId = BroadcasterTwitchId,
+                IsOnboarded = true,
                 Name = "chan",
                 NameNormalized = "chan",
             }
@@ -119,6 +124,8 @@ public sealed class ViolationEscalationServiceTests : IDisposable
                 Arg.Any<CancellationToken>()
             )
             .Returns(_ => Task.FromResult(Result.Success(new ModerationActionResult(true, null))));
+
+        _readers.Snapshot().Returns(_ => []);
     }
 
     public void Dispose() => _connection.Dispose();
@@ -157,11 +164,12 @@ public sealed class ViolationEscalationServiceTests : IDisposable
             db,
             new FakeTimeProvider(new DateTimeOffset(2026, 10, 8, 12, 0, 0, TimeSpan.Zero))
         );
+        ActingModeratorResolverService actingModerator = new(db, _readers);
         ViolationEscalationService sut = new(
-            db,
             escalation,
             _users,
             _moderation,
+            actingModerator,
             NullLogger<ViolationEscalationService>.Instance
         );
         return await sut.TryEscalateAsync(
@@ -337,5 +345,91 @@ public sealed class ViolationEscalationServiceTests : IDisposable
         outcome.Handled.Should().BeTrue();
         outcome.Applied.Should().BeFalse();
         StoredOffenseCount().Should().Be(1);
+    }
+
+    [Fact]
+    public async Task WhenNotOnboarded_TheEscalationIsSignedByTheLiveModerator_NotTheMissingOwner()
+    {
+        // Stoney, 2026-11-05: a channel with no owner token on file still gets its ladder enforced —
+        // signed as whichever signed-in moderator is actually live on its chat right now.
+        Guid liveModerator = Guid.Parse("0199c000-0000-7000-8000-0000000000f9");
+        Guid notOnboardedChannel = Guid.Parse("0199c000-0000-7000-8000-0000000000fa");
+        const string notOnboardedTwitchId = "700003";
+
+        using (AppDbContext seed = NewDbContext())
+        {
+            seed.Channels.Add(
+                new Channel
+                {
+                    Id = notOnboardedChannel,
+                    OwnerUserId = Guid.Empty,
+                    Provider = AuthEnums.Platform.Twitch,
+                    ExternalChannelId = "chan-ext-2",
+                    TwitchChannelId = notOnboardedTwitchId,
+                    IsOnboarded = false,
+                    Name = "chan2",
+                    NameNormalized = "chan2",
+                }
+            );
+            seed.ModerationEscalationPolicies.Add(
+                new ModerationEscalationPolicy
+                {
+                    BroadcasterId = notOnboardedChannel,
+                    IsEnabled = true,
+                    CountAutoModViolations = true,
+                    LadderJson = JsonSerializer.Serialize(Ladder()),
+                    DefaultTimeoutSeconds = 600,
+                }
+            );
+            seed.SaveChanges();
+        }
+        _readers
+            .Snapshot()
+            .Returns(_ =>
+                [
+                    new ModeratorChatReaderStatus(
+                        notOnboardedTwitchId,
+                        ModeratorChatReaderState.Reading,
+                        liveModerator,
+                        null
+                    ),
+                ]
+            );
+
+        using AppDbContext db = NewDbContext();
+        ModerationEscalationService escalation = new(
+            db,
+            new FakeTimeProvider(new DateTimeOffset(2026, 10, 8, 12, 0, 0, TimeSpan.Zero))
+        );
+        ActingModeratorResolverService actingModerator = new(db, _readers);
+        ViolationEscalationService sut = new(
+            escalation,
+            _users,
+            _moderation,
+            actingModerator,
+            NullLogger<ViolationEscalationService>.Instance
+        );
+
+        ViolationEscalationOutcome outcome = await sut.TryEscalateAsync(
+            notOnboardedChannel,
+            "viewer-1",
+            "viewer",
+            "Viewer",
+            "Link posted",
+            CancellationToken.None
+        );
+
+        outcome.Handled.Should().BeTrue();
+        outcome.Action.Should().Be("warn");
+        await _moderation
+            .Received(1)
+            .WarnUserAsync(
+                notOnboardedChannel.ToString(),
+                liveModerator,
+                "viewer-1",
+                "Link posted",
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
     }
 }

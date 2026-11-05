@@ -12,6 +12,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
@@ -54,6 +55,7 @@ public sealed class AutoModerationRuleCapabilityTests
                 Id = Channel,
                 TwitchChannelId = "700888",
                 OwnerUserId = OwnerUserId,
+                IsOnboarded = true,
                 Name = "c",
                 NameNormalized = "c",
             }
@@ -82,11 +84,16 @@ public sealed class AutoModerationRuleCapabilityTests
             )
             .Returns(Result.Success(new ModerationActionResult(true, null)));
 
+        IModeratorChatReaders readers = Substitute.For<IModeratorChatReaders>();
+        readers.Snapshot().Returns(_ => []);
+
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(db);
         services.AddSingleton(moderation);
         services.AddSingleton(Substitute.For<ITwitchModerationApi>());
         services.AddSingleton(ViolationEscalationDoubles.NotHandled());
+        services.AddSingleton(readers);
+        services.AddScoped<IActingModeratorResolverService, ActingModeratorResolverService>();
         ServiceProvider provider = services.BuildServiceProvider();
 
         IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();

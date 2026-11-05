@@ -62,6 +62,7 @@ public sealed class AutoModerationOriginPlatformTests
                 Id = Channel,
                 TwitchChannelId = "700888",
                 OwnerUserId = OwnerUserId,
+                IsOnboarded = true,
                 Name = "c",
                 NameNormalized = "c",
             }
@@ -140,8 +141,9 @@ public sealed class AutoModerationOriginPlatformTests
             .Returns(Result.Success(new ModerationActionResult(true, null)));
         ITwitchModerationApi twitch = Substitute.For<ITwitchModerationApi>();
         twitch
-            .DeleteChatMessageAsync(
+            .DeleteChatMessageAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
@@ -149,6 +151,8 @@ public sealed class AutoModerationOriginPlatformTests
         IViolationEscalationService escalation = ViolationEscalationDoubles.NotHandled();
         IEventBus bus = Substitute.For<IEventBus>();
         ILogger<AutoModerationHandler> logger = Substitute.For<ILogger<AutoModerationHandler>>();
+        IModeratorChatReaders readers = Substitute.For<IModeratorChatReaders>();
+        readers.Snapshot().Returns(_ => []);
 
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(db);
@@ -157,6 +161,8 @@ public sealed class AutoModerationOriginPlatformTests
         services.AddSingleton(twitch);
         services.AddSingleton(escalation);
         services.AddSingleton(bus);
+        services.AddSingleton(readers);
+        services.AddScoped<IActingModeratorResolverService, ActingModeratorResolverService>();
         ServiceProvider provider = services.BuildServiceProvider();
 
         IServiceScopeFactory scopeFactory = provider.GetRequiredService<IServiceScopeFactory>();
@@ -197,8 +203,9 @@ public sealed class AutoModerationOriginPlatformTests
     {
         await h
             .Twitch.DidNotReceive()
-            .DeleteChatMessageAsync(
+            .DeleteChatMessageAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             );
@@ -366,7 +373,12 @@ public sealed class AutoModerationOriginPlatformTests
 
         await h
             .Twitch.Received(1)
-            .DeleteChatMessageAsync(Channel, "m-1", Arg.Any<CancellationToken>());
+            .DeleteChatMessageAsOperatorAsync(
+                OwnerUserId,
+                "700888",
+                "m-1",
+                Arg.Any<CancellationToken>()
+            );
         Assert.Empty(h.Origin.ReceivedCalls());
     }
 

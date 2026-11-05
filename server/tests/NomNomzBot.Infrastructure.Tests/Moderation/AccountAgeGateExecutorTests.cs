@@ -30,15 +30,29 @@ namespace NomNomzBot.Infrastructure.Tests.Moderation;
 public class AccountAgeGateExecutorTests
 {
     private static readonly Guid Channel = Guid.Parse("0199c000-0000-7000-8000-0000000000e1");
+    private static readonly Guid OperatorUserId = Guid.Parse(
+        "0199c000-0000-7000-8000-0000000000e2"
+    );
+    private const string BroadcasterTwitchId = "700100";
 
     private readonly ITwitchModerationApi _twitch = Substitute.For<ITwitchModerationApi>();
+    private readonly IActingModeratorResolverService _actingModerator =
+        Substitute.For<IActingModeratorResolverService>();
     private readonly IModerationQueueService _queue = Substitute.For<IModerationQueueService>();
     private readonly IInboundOriginModerator _origin = Substitute.For<IInboundOriginModerator>();
 
     public AccountAgeGateExecutorTests()
     {
+        _actingModerator
+            .ResolveAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new ActingModerator(OperatorUserId, BroadcasterTwitchId)));
         _twitch
-            .DeleteChatMessageAsync(Channel, "msg-1", Arg.Any<CancellationToken>())
+            .DeleteChatMessageAsOperatorAsync(
+                OperatorUserId,
+                BroadcasterTwitchId,
+                "msg-1",
+                Arg.Any<CancellationToken>()
+            )
             .Returns(Result.Success());
         _queue
             .EnqueueHeldMessageAsync(
@@ -55,7 +69,13 @@ public class AccountAgeGateExecutorTests
     }
 
     private AccountAgeGateExecutor NewExecutor() =>
-        new(_twitch, _queue, _origin, NullLogger<AccountAgeGateExecutor>.Instance);
+        new(
+            _twitch,
+            _actingModerator,
+            _queue,
+            _origin,
+            NullLogger<AccountAgeGateExecutor>.Instance
+        );
 
     private static SpamDecision Decision(bool dryRun) =>
         new(
@@ -93,7 +113,12 @@ public class AccountAgeGateExecutorTests
         outcome.DeletedMessage.Should().BeTrue();
         await _twitch
             .Received(1)
-            .DeleteChatMessageAsync(Channel, "msg-1", Arg.Any<CancellationToken>());
+            .DeleteChatMessageAsOperatorAsync(
+                OperatorUserId,
+                BroadcasterTwitchId,
+                "msg-1",
+                Arg.Any<CancellationToken>()
+            );
         await _queue
             .Received(1)
             .EnqueueHeldMessageAsync(
@@ -126,7 +151,9 @@ public class AccountAgeGateExecutorTests
 
         outcome.DeletedMessage.Should().BeFalse();
         outcome.Skipped.Should().Be("dry run");
-        await _twitch.DidNotReceiveWithAnyArgs().DeleteChatMessageAsync(default, default!);
+        await _twitch
+            .DidNotReceiveWithAnyArgs()
+            .DeleteChatMessageAsOperatorAsync(default, default!, default!);
         await _queue
             .DidNotReceiveWithAnyArgs()
             .EnqueueHeldMessageAsync(default, default!, default!, default!, default!, default!);
@@ -155,7 +182,9 @@ public class AccountAgeGateExecutorTests
             .DidNotReceiveWithAnyArgs()
             .TimeoutUserAsync(default, default!, default!, default);
         await _origin.DidNotReceiveWithAnyArgs().BanUserAsync(default, default!, default!);
-        await _twitch.DidNotReceiveWithAnyArgs().DeleteChatMessageAsync(default, default!);
+        await _twitch
+            .DidNotReceiveWithAnyArgs()
+            .DeleteChatMessageAsOperatorAsync(default, default!, default!);
         await _queue
             .Received(1)
             .EnqueueHeldMessageAsync(
@@ -208,7 +237,9 @@ public class AccountAgeGateExecutorTests
         outcome.DeletedMessage.Should().BeFalse();
         outcome.TimedOutAccount.Should().BeFalse();
         outcome.Skipped.Should().Be("youtube cannot delete here");
-        await _twitch.DidNotReceiveWithAnyArgs().DeleteChatMessageAsync(default, default!);
+        await _twitch
+            .DidNotReceiveWithAnyArgs()
+            .DeleteChatMessageAsOperatorAsync(default, default!, default!);
         await _queue
             .DidNotReceiveWithAnyArgs()
             .EnqueueHeldMessageAsync(default, default!, default!, default!, default!, default!);
@@ -232,5 +263,28 @@ public class AccountAgeGateExecutorTests
         outcome.DeletedMessage.Should().BeFalse();
         outcome.Skipped.Should().Be("no message id to delete");
         await _origin.DidNotReceiveWithAnyArgs().DeleteMessageAsync(default, default!, default!);
+    }
+
+    [Fact]
+    public async Task WhenNoActingIdentityResolves_NothingIsDeleted_RatherThanFailingTheHelixCall()
+    {
+        // A non-onboarded channel with no live moderator reader has no identity to sign a delete with.
+        // The gate must report "nothing deleted" instead of attempting a Helix call that cannot succeed.
+        _actingModerator
+            .ResolveAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<ActingModerator>(
+                    "This channel is not onboarded and no signed-in moderator is currently reading "
+                        + "its chat, so there is no identity to moderate as.",
+                    "NO_ACTING_IDENTITY"
+                )
+            );
+
+        SpamEnforcementOutcome outcome = await RunAsync(Decision(false), Verdict(holds: true));
+
+        outcome.DeletedMessage.Should().BeFalse();
+        await _twitch
+            .DidNotReceiveWithAnyArgs()
+            .DeleteChatMessageAsOperatorAsync(default, default!, default!);
     }
 }

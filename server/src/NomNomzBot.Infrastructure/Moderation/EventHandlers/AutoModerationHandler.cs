@@ -11,10 +11,8 @@
 
 using System.Text.Json;
 using System.Text.RegularExpressions;
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging;
-using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Security;
@@ -420,9 +418,27 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
     )
     {
         if (provider == AuthEnums.Platform.Twitch)
+        {
+            // Signed as the channel owner when the channel is onboarded, otherwise as whichever signed-in
+            // moderator is live on the channel right now (Stoney 2026-11-05: a non-onboarded channel's
+            // automated actions act in the present moderator's own name, never silently nothing).
+            Result<ActingModerator> actor = await scope
+                .ServiceProvider.GetRequiredService<IActingModeratorResolverService>()
+                .ResolveAsync(broadcasterId, ct);
+            if (actor.IsFailure)
+                return Result.Failure(
+                    actor.ErrorMessage ?? "No acting identity is available for this channel."
+                );
+
             return await scope
                 .ServiceProvider.GetRequiredService<ITwitchModerationApi>()
-                .DeleteChatMessageAsync(broadcasterId, messageId, ct);
+                .DeleteChatMessageAsOperatorAsync(
+                    actor.Value.OperatorUserId,
+                    actor.Value.BroadcasterTwitchId,
+                    messageId,
+                    ct
+                );
+        }
 
         InboundModerationOutcome outcome = await scope
             .ServiceProvider.GetRequiredService<IInboundOriginModerator>()
@@ -549,20 +565,21 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
         if (escalated.Handled)
             return;
 
-        IApplicationDbContext db =
-            scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
+        // Signed as the channel owner when the channel is onboarded, otherwise as whichever signed-in
+        // moderator is live on the channel right now — this is the channel's own automation, so no
+        // dashboard user needs to be in the loop, but it must never silently do nothing when the owner
+        // has no token on file (Stoney 2026-11-05).
+        Result<ActingModerator> actor = await scope
+            .ServiceProvider.GetRequiredService<IActingModeratorResolverService>()
+            .ResolveAsync(broadcasterId, ct);
 
-        Guid ownerUserId = await db
-            .Channels.Where(c => c.Id == broadcasterId)
-            .Select(c => c.OwnerUserId)
-            .FirstOrDefaultAsync(ct);
-
-        if (ownerUserId == Guid.Empty)
+        if (actor.IsFailure)
         {
             _logger.LogWarning(
-                "Auto-mod could not resolve the owner of channel {BroadcasterId}; '{Action}' not applied",
+                "Auto-mod could not resolve an acting identity for channel {BroadcasterId}; '{Action}' not applied: {Error}",
                 broadcasterId,
-                rule.Action
+                rule.Action,
+                actor.ErrorMessage
             );
             return;
         }
@@ -576,7 +593,7 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
             rule.Action.ToLowerInvariant() == "ban"
                 ? await moderation.BanAsync(
                     broadcasterId.ToString(),
-                    ownerUserId,
+                    actor.Value.OperatorUserId,
                     userId,
                     reason,
                     null,
@@ -584,7 +601,7 @@ public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEve
                 )
                 : await moderation.TimeoutAsync(
                     broadcasterId.ToString(),
-                    ownerUserId,
+                    actor.Value.OperatorUserId,
                     userId,
                     rule.DurationSeconds ?? DefaultTimeoutSeconds,
                     reason,

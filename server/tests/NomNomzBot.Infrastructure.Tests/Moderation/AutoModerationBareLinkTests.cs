@@ -12,6 +12,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
@@ -55,6 +56,7 @@ public sealed class AutoModerationBareLinkTests
                 Id = Channel,
                 TwitchChannelId = "700888",
                 OwnerUserId = OwnerUserId,
+                IsOnboarded = true,
                 Name = "c",
                 NameNormalized = "c",
             }
@@ -93,8 +95,9 @@ public sealed class AutoModerationBareLinkTests
 
         ITwitchModerationApi twitch = Substitute.For<ITwitchModerationApi>();
         twitch
-            .DeleteChatMessageAsync(
+            .DeleteChatMessageAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
@@ -102,10 +105,18 @@ public sealed class AutoModerationBareLinkTests
 
         IEventBus bus = Substitute.For<IEventBus>();
 
+        IModeratorChatReaders moderatorReaders = Substitute.For<IModeratorChatReaders>();
+        moderatorReaders.Snapshot().Returns(_ => []);
+        IActingModeratorResolverService actingModerator = new ActingModeratorResolverService(
+            db,
+            moderatorReaders
+        );
+
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(db);
         services.AddSingleton(moderation);
         services.AddSingleton(twitch);
+        services.AddSingleton(actingModerator);
         services.AddSingleton(ViolationEscalationDoubles.NotHandled());
         services.AddSingleton(bus);
         ServiceProvider provider = services.BuildServiceProvider();
@@ -158,7 +169,12 @@ public sealed class AutoModerationBareLinkTests
 
         await h
             .Twitch.Received(1)
-            .DeleteChatMessageAsync(Channel, "m-1", Arg.Any<CancellationToken>());
+            .DeleteChatMessageAsOperatorAsync(
+                OwnerUserId,
+                "700888",
+                "m-1",
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Theory]
@@ -174,8 +190,9 @@ public sealed class AutoModerationBareLinkTests
 
         await h
             .Twitch.DidNotReceive()
-            .DeleteChatMessageAsync(
+            .DeleteChatMessageAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             );
@@ -189,8 +206,9 @@ public sealed class AutoModerationBareLinkTests
         await h.Handler.HandleAsync(Message("see www.example.com/a"), CancellationToken.None);
         await h
             .Twitch.DidNotReceive()
-            .DeleteChatMessageAsync(
+            .DeleteChatMessageAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             );
@@ -201,7 +219,12 @@ public sealed class AutoModerationBareLinkTests
         );
         await h
             .Twitch.Received(1)
-            .DeleteChatMessageAsync(Channel, "m-1", Arg.Any<CancellationToken>());
+            .DeleteChatMessageAsOperatorAsync(
+                OwnerUserId,
+                "700888",
+                "m-1",
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]
@@ -213,7 +236,12 @@ public sealed class AutoModerationBareLinkTests
 
         await h
             .Twitch.Received(1)
-            .DeleteChatMessageAsync(Channel, "m-1", Arg.Any<CancellationToken>());
+            .DeleteChatMessageAsOperatorAsync(
+                OwnerUserId,
+                "700888",
+                "m-1",
+                Arg.Any<CancellationToken>()
+            );
     }
 
     [Fact]

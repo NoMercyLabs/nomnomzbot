@@ -9,9 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -51,7 +49,7 @@ public sealed class SpamEnforcementExecutor
     /// <summary>Used when the channel has not configured its own automatic timeout length.</summary>
     private const int FallbackTimeoutSeconds = 600;
 
-    private readonly IApplicationDbContext _db;
+    private readonly IActingModeratorResolverService _actingModerator;
     private readonly IModerationService _moderation;
     private readonly ITwitchModerationApi _twitch;
     private readonly IInboundOriginModerator _origin;
@@ -59,7 +57,7 @@ public sealed class SpamEnforcementExecutor
     private readonly ILogger<SpamEnforcementExecutor> _logger;
 
     public SpamEnforcementExecutor(
-        IApplicationDbContext db,
+        IActingModeratorResolverService actingModerator,
         IModerationService moderation,
         ITwitchModerationApi twitch,
         IInboundOriginModerator origin,
@@ -67,7 +65,7 @@ public sealed class SpamEnforcementExecutor
         ILogger<SpamEnforcementExecutor> logger
     )
     {
-        _db = db;
+        _actingModerator = actingModerator;
         _moderation = moderation;
         _twitch = twitch;
         _origin = origin;
@@ -233,7 +231,27 @@ public sealed class SpamEnforcementExecutor
         if (string.IsNullOrWhiteSpace(messageId))
             return false;
 
-        Result result = await _twitch.DeleteChatMessageAsync(broadcasterId, messageId, ct);
+        // Signed as the channel owner when the channel is onboarded, otherwise as whichever signed-in
+        // moderator is live on the channel right now (Stoney 2026-11-05: a non-onboarded channel's
+        // automated actions act in the present moderator's own name, never silently nothing).
+        Result<ActingModerator> actor = await _actingModerator.ResolveAsync(broadcasterId, ct);
+        if (actor.IsFailure)
+        {
+            _logger.LogWarning(
+                "Spam defence could not delete message {MessageId} in {BroadcasterId}: {Error}",
+                messageId,
+                broadcasterId,
+                actor.ErrorMessage
+            );
+            return false;
+        }
+
+        Result result = await _twitch.DeleteChatMessageAsOperatorAsync(
+            actor.Value.OperatorUserId,
+            actor.Value.BroadcasterTwitchId,
+            messageId,
+            ct
+        );
         if (result.IsFailure)
             _logger.LogWarning(
                 "Spam defence could not delete message {MessageId} in {BroadcasterId}: {Error}",
@@ -252,19 +270,25 @@ public sealed class SpamEnforcementExecutor
         CancellationToken ct
     )
     {
-        // Issued as the broadcaster: this is the channel's own automation, not a moderator's personal
-        // action, and no dashboard user is in the loop.
-        Guid ownerUserId = await _db
-            .Channels.Where(c => c.Id == broadcasterId)
-            .Select(c => c.OwnerUserId)
-            .FirstOrDefaultAsync(ct);
-
-        if (ownerUserId == Guid.Empty)
+        // Signed as the channel owner when the channel is onboarded, otherwise as whichever signed-in
+        // moderator is live on the channel right now — this is the channel's own automation, so no
+        // dashboard user needs to be in the loop, but it must never silently do nothing when the owner
+        // has no token on file (Stoney 2026-11-05).
+        Result<ActingModerator> actor = await _actingModerator.ResolveAsync(broadcasterId, ct);
+        if (actor.IsFailure)
+        {
+            _logger.LogWarning(
+                "Spam defence could not time out {User} in {BroadcasterId}: {Error}",
+                subjectPlatformUserId,
+                broadcasterId,
+                actor.ErrorMessage
+            );
             return false;
+        }
 
         Result<ModerationActionResult> result = await _moderation.TimeoutAsync(
             broadcasterId.ToString(),
-            ownerUserId,
+            actor.Value.OperatorUserId,
             subjectPlatformUserId,
             await ResolveTimeoutSecondsAsync(broadcasterId, ct),
             // The decision's own explanation, verbatim (SD7). A viewer reading their timeout reason sees

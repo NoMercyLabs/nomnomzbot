@@ -12,6 +12,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.Moderation.Dtos;
@@ -55,6 +56,7 @@ public sealed class AutoModerationSavedConfigTests
                 Id = Channel,
                 TwitchChannelId = "700999",
                 OwnerUserId = OwnerUserId,
+                IsOnboarded = true,
                 Name = "c",
                 NameNormalized = "c",
             }
@@ -63,8 +65,9 @@ public sealed class AutoModerationSavedConfigTests
 
         ITwitchModerationApi twitch = Substitute.For<ITwitchModerationApi>();
         twitch
-            .DeleteChatMessageAsync(
+            .DeleteChatMessageAsOperatorAsync(
                 Arg.Any<Guid>(),
+                Arg.Any<string>(),
                 Arg.Any<string>(),
                 Arg.Any<CancellationToken>()
             )
@@ -83,10 +86,18 @@ public sealed class AutoModerationSavedConfigTests
             )
             .Returns(Result.Success(new ModerationActionResult(true, null)));
 
+        IModeratorChatReaders moderatorReaders = Substitute.For<IModeratorChatReaders>();
+        moderatorReaders.Snapshot().Returns(_ => []);
+        IActingModeratorResolverService actingModerator = new ActingModeratorResolverService(
+            db,
+            moderatorReaders
+        );
+
         ServiceCollection services = new();
         services.AddSingleton<IApplicationDbContext>(db);
         services.AddSingleton(moderation);
         services.AddSingleton(twitch);
+        services.AddSingleton(actingModerator);
         services.AddSingleton(ViolationEscalationDoubles.NotHandled());
         services.AddSingleton(Substitute.For<IEventBus>());
         ServiceProvider provider = services.BuildServiceProvider();
@@ -144,7 +155,7 @@ public sealed class AutoModerationSavedConfigTests
 
         return h
             .Twitch.ReceivedCalls()
-            .Count(call => call.GetMethodInfo().Name == "DeleteChatMessageAsync");
+            .Count(call => call.GetMethodInfo().Name == "DeleteChatMessageAsOperatorAsync");
     }
 
     [Fact]

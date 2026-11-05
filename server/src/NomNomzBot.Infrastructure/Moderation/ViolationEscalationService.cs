@@ -9,9 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
-using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
@@ -23,10 +21,10 @@ namespace NomNomzBot.Infrastructure.Moderation;
 
 /// <inheritdoc cref="IViolationEscalationService" />
 public sealed class ViolationEscalationService(
-    IApplicationDbContext db,
     IModerationEscalationService escalation,
     IUserService users,
     IModerationService moderation,
+    IActingModeratorResolverService actingModerator,
     ILogger<ViolationEscalationService> logger
 ) : IViolationEscalationService
 {
@@ -52,13 +50,14 @@ public sealed class ViolationEscalationService(
         )
             return ViolationEscalationOutcome.NotHandled;
 
-        // Issued as the channel owner, like every other automation: no dashboard user is in the loop.
-        Guid ownerUserId = await db
-            .Channels.Where(c => c.Id == broadcasterId)
-            .Select(c => c.OwnerUserId)
-            .FirstOrDefaultAsync(ct);
-        if (ownerUserId == Guid.Empty)
+        // Signed as the channel owner when the channel is onboarded, otherwise as whichever signed-in
+        // moderator is live on the channel right now — this is the channel's own automation, so no
+        // dashboard user needs to be in the loop, but it must never silently do nothing when the owner
+        // has no token on file (Stoney 2026-11-05).
+        Result<ActingModerator> actor = await actingModerator.ResolveAsync(broadcasterId, ct);
+        if (actor.IsFailure)
             return ViolationEscalationOutcome.NotHandled;
+        Guid ownerUserId = actor.Value.OperatorUserId;
 
         Result<UserDto> user = await users.GetOrCreateAsync(
             platformUserId,
