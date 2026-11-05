@@ -409,7 +409,18 @@ credential and the per-action person reference are two different layers. Not yet
 platform should trust that per-person assertion at face value versus require some proof — flagged for
 the next round.
 
-## 21. Next step
+## 21. Round 11, same day — per-viewer identity assertion: trust, scoped by blast radius
+
+Asked whether a client's claim about which viewer an action is for needs proof, or can be trusted as-is.
+Stoney: in principle yes, a client could lie, but **how much harm that can actually do depends on what
+that specific game can do and who's allowed to join it** — and that's exactly what the per-game
+permission system (§6/§9's blast-radius containment, §5.8's per-game scoped credential) is for.
+**Decided: trust the client's per-viewer claim at face value; rely on the permission/scope system to
+bound the damage, not on verifying each identity claim.** Consistent with the existing rule that ambition
+is fine everywhere except the blast-radius wall (§9) — this isn't a new exception, it's that wall doing
+its job: a lying client is contained to the one game its credential can touch, same as a malicious one.
+
+## 22. Next step
 
 Resume the interview from §10 and the proposal in §15. Do not start implementation, a spec in
 `.claude/docs/design/spec/`, or any schema/entity work from this document — it is discovery notes, not a
