@@ -481,7 +481,43 @@ chat-announcement wiring rather than replacing it. The entry point (§18), the t
 host-offline isn't exercised by this single-channel version yet, but revoke/steal already is), and the
 referee model (§3) all have a real, running example to be checked against instead of a hypothetical one.
 
-## 26. Next step
+## 26. Round 16, same day — Stoney corrects the framing: a real scaffolded runtime, specced for WASM, not a hand-migration
+
+Stoney: not interested in hand-migrating kittE's scripts case by case. He wants to **define the runtime
+itself** — create-a-game gives a scaffolded starting point with entry/exit points, config options, and a
+lifecycle system built in, and that runtime contract needs to be fully spec'd so it can run inside WASM
+(tying back to §16/§17's Wasmtime finding). This is the TBD idea referenced earlier (§4).
+
+**Checked `dev-platform.md` before answering — found the project already has a real answer to half of
+this, but for a different, narrower thing than what this conversation has been designing.**
+`dev-platform.md` §6/§9 already specs a **"Scripted games"** phase (phase 5, status **Open**, not yet
+built): `nnz.manifest.json` already supports `kind: widget|game|script` today, a project is already a
+file-set + manifest + multi-file build (esbuild, typed editor, forkable-from-gallery — all **already
+built** for scripts and widgets), and the **planned** `kind: game` shape is `ILiveGame` gaining a
+`ScriptedGame` implementation that delegates `onJoin/onTick/onResolve` to a sandboxed script. That is
+real, designed, scaffolding-ready infrastructure — but it is explicitly built **on top of the existing
+single-channel `GameSession`/`LiveGameRunner`** (round 15's D7 wall), with the existing 3-phase hook
+set (`onJoin/onTick/onResolve`), not the cross-channel portable-entity system this conversation has been
+designing (whose hooks are `onAction`/`onHostOffline`/`onParticipantRevoked`, round 18/19).
+
+**So there are now two "scripted game" ideas on the table, not one, and they need to be reconciled, not
+silently merged:**
+
+1. **dev-platform.md's existing plan** — scripted single-channel games (Drop Game-style), forkable from
+   a first-party gallery, scaffolded via the existing manifest/project/build pipeline. Already designed.
+2. **This conversation's cross-channel portable-entity games** (kittE's hairball/yarn, Hot Potato) — a
+   new sibling engine (round 15), new hook set, new credential/trust model (rounds 20-22) layered on top.
+
+**The right move, not yet confirmed by Stoney:** reuse the *scaffolding machinery* from (1) — the
+manifest shape, multi-file project model, typed SDK, build pipeline, forkable gallery — for (2) as well,
+rather than building a second, separate scaffolding system. Concretely: a new manifest `kind` (e.g.
+`kind: shared-game`, name TBD) alongside the existing `widget|game|script`, whose "entry point" contract
+is the three hooks from round 18/19 instead of `onJoin/onTick/onResolve`. Same create-a-game scaffold
+experience Stoney is asking for, same WASM-hosted execution path (round 16/17's Wasmtime prerequisite
+applies identically to both), different hook contract because the underlying session model is genuinely
+different (round 15).
+
+## 27. Next step
 
 Resume the interview from §10 and the proposal in §15. Do not start implementation, a spec in
 `.claude/docs/design/spec/`, or any schema/entity work from this document — it is discovery notes, not a
