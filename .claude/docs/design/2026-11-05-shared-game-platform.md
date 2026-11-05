@@ -273,7 +273,21 @@ questions in normal text, **not** the structured multi-choice question tool — 
 (TTS read-aloud, speech-to-text reply), and a multi-part structured question doesn't work well read aloud.
 One clear question at a time.
 
-## 14. Next step
+## 14. Round 4, same day — the holder can be a person, not just a channel
+
+Asked directly, using the feather example: when Kani "has" the feather, is the holder Kani's channel, or a
+specific viewer who happens to be on Kani's channel? Stoney: **this is itself a game-logic answer, and for
+the feather specifically, the holder is the viewer on Kani's channel, not the channel itself.**
+
+Confirms and sharpens §10/§6's open "credential scope: per channel or per viewer" question, in line with
+the toolkit-not-opinion rule (§12): **the platform's "current holder" concept must support either a
+channel or a (person, channel) pair, chosen per game — not one fixed shape.** This is not a new identity
+primitive to build: a `User` is already a platform-wide identity distinct from a `Channel` (confirmed
+earlier the same day investigating the admin console), so "this is the same person across channels" is
+already solvable with what exists; the new part is letting a game's state reference a person as the
+holder, not just a channel.
+
+## 15. Next step
 
 Resume the interview from §10. Do not start implementation, a spec in `.claude/docs/design/spec/`, or any
 schema/entity work from this document — it is discovery notes, not a locked design.
