@@ -420,7 +420,15 @@ bound the damage, not on verifying each identity claim.** Consistent with the ex
 is fine everywhere except the blast-radius wall (§9) — this isn't a new exception, it's that wall doing
 its job: a lying client is contained to the one game its credential can touch, same as a malicious one.
 
-## 22. Next step
+## 22. Round 12, same day — no lighter onboarding tier; hosting is a broadcaster feature
+
+Asked whether becoming a provider needs the full existing onboarding or a lighter "just host a game"
+signup. Stoney: **this should just be a feature of being a NomNomzBot broadcaster** — no separate
+lighter tier. This resolves §10's "game-creator only lighter tier" open question: **it does not exist**;
+hosting a game requires the same full onboarding as everything else NomNomzBot already does, same
+footing as Commands, Pipelines, Overlays (§5.1).
+
+## 23. Next step
 
 Resume the interview from §10 and the proposal in §15. Do not start implementation, a spec in
 `.claude/docs/design/spec/`, or any schema/entity work from this document — it is discovery notes, not a
