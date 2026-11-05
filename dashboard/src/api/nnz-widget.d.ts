@@ -1834,6 +1834,9 @@ interface NnzActionParams {
   'song_ban': {
     reason?: string;
   };
+  'song_clear_requester': {
+    requester: string;
+  };
   'song_current': {
   };
   'song_pause': {
@@ -1842,6 +1845,10 @@ interface NnzActionParams {
   };
   'song_queue': {
     max?: number;
+  };
+  'song_queue_close': {
+  };
+  'song_queue_open': {
   };
   'song_request': {
     query: string;
@@ -1887,6 +1894,13 @@ interface NnzActionParams {
     duration: number;
     reason?: string;
   };
+  'tts_clear_voice': {
+    target_variable?: string;
+  };
+  'tts_set_voice': {
+    voice_id: string;
+    target_variable?: string;
+  };
   'tts_synthesize': {
     text: string;
     voice?: string;
@@ -1897,6 +1911,9 @@ interface NnzActionParams {
   'unpermit': {
     target_variable?: string;
     role_or_capability?: string;
+  };
+  'unwhitelist': {
+    target_variable?: string;
   };
   'vts_color_tint': {
     r: number;
@@ -1936,6 +1953,10 @@ interface NnzActionParams {
     timeout_seconds?: number;
   };
   'wait_until_raid_fires': {
+  };
+  'whitelist': {
+    target_variable?: string;
+    standing: 'subscriber' | 'vip' | 'artist' | 'moderator';
   };
   'widget_event': {
     widget_id: string;

@@ -5628,6 +5628,7 @@
     <string name="pipeline_shoutout_tts_help">Also reads the shoutout out loud through text-to-speech. It is off unless you turn it on, also on a raid.</string>
     <string name="pipeline_shoutout_user_id_help">The viewer to shout out.</string>
     <string name="pipeline_song_ban_reason_help">The reason the track is blocked, shown in the block list. Leave blank for no reason recorded.</string>
+    <string name="pipeline_song_clear_requester_requester_help">The requester name to match against the queue. Supports template variables (e.g. {user.name}).</string>
     <string name="pipeline_song_queue_max_help">How many upcoming tracks to list. Defaults to 5.</string>
     <string name="pipeline_song_request_query_help">The song search text or link the viewer requested.</string>
     <string name="pipeline_song_request_favorite_user_id_help">Whose request history to read. Leave empty for the viewer who triggered this.</string>
@@ -5644,8 +5645,12 @@
     <string name="pipeline_tts_synthesize_rate_help">Speaking speed as a percentage, from -50 (slower) to 50 (faster). Leave blank for normal speed.</string>
     <string name="pipeline_tts_synthesize_pitch_help">Voice pitch as a percentage, from -50 (lower) to 50 (higher). Leave blank for the normal pitch.</string>
     <string name="pipeline_tts_synthesize_play_on_audio_help">Also play the speech on the Audio overlay, the browser source that OBS mixes. The step fails when no Audio overlay is connected.</string>
+    <string name="pipeline_tts_set_voice_voice_id_help">The catalogue voice id to assign.</string>
+    <string name="pipeline_tts_set_voice_target_variable_help">The variable holding the target viewer's platform user id. Blank assigns the voice of the user who triggered this pipeline.</string>
+    <string name="pipeline_tts_clear_voice_target_variable_help">The variable holding the target viewer's platform user id. Blank clears the voice of the user who triggered this pipeline.</string>
     <string name="pipeline_unpermit_role_or_capability_help">The role or capability being revoked from the target. Leave blank to revoke every permit the target holds.</string>
     <string name="pipeline_unpermit_target_variable_help">The variable holding the viewer to revoke the permit from. Blank targets the user who triggered this pipeline.</string>
+    <string name="pipeline_unwhitelist_target_variable_help">The variable holding the viewer to remove the override from. Blank targets the user who triggered this pipeline.</string>
     <string name="pipeline_vts_color_tint_a_help">The tint's alpha (opacity) channel, 0-255. Leave blank for fully opaque.</string>
     <string name="pipeline_vts_color_tint_art_mesh_tag_help">Limits the tint to art meshes matching this tag. Leave blank to tint the whole model.</string>
     <string name="pipeline_vts_color_tint_b_help">The tint's blue channel, 0-255.</string>
@@ -5657,6 +5662,8 @@
     <string name="pipeline_vts_move_model_size_help">The model's scale. Leave blank to leave the size unchanged.</string>
     <string name="pipeline_vts_move_model_time_seconds_help">How long the move animates over, in seconds. Defaults to a short animation.</string>
     <string name="pipeline_vts_move_model_x_help">The model's horizontal position. Leave blank to leave the x position unchanged.</string>
+    <string name="pipeline_whitelist_target_variable_help">The variable holding the viewer to grant the override to. Blank targets the user who triggered this pipeline.</string>
+    <string name="pipeline_whitelist_standing_help">The community standing to grant: subscriber, vip, artist or moderator.</string>
     <string name="pipeline_vts_move_model_y_help">The model's vertical position. Leave blank to leave the y position unchanged.</string>
     <string name="pipeline_vts_request_payload_json_help">The JSON payload for the raw VTube Studio API request. Leave blank for requests that need no data.</string>
     <string name="pipeline_vts_request_request_type_help">The raw VTube Studio API request type to send. Use it for advanced control not covered by a dedicated VTS action.</string>
@@ -5778,10 +5785,13 @@
     <string name="pipeline_shoutout_description">Give another channel a shoutout</string>
     <string name="pipeline_show_raid_recap_description">Show the stream recap on the raid recap widget</string>
     <string name="pipeline_song_ban_description">Block the currently playing track from requests and skip it</string>
+    <string name="pipeline_song_clear_requester_description">Remove every queued song requested by one name</string>
     <string name="pipeline_song_current_description">Show the currently playing track</string>
     <string name="pipeline_song_pause_description">Pause music playback</string>
     <string name="pipeline_song_previous_description">Jump back to the previous track</string>
     <string name="pipeline_song_queue_description">Show the current song request queue</string>
+    <string name="pipeline_song_queue_close_description">Close the song queue to new requests</string>
+    <string name="pipeline_song_queue_open_description">Open the song queue to new requests</string>
     <string name="pipeline_song_request_description">Request a song to be queued</string>
     <string name="pipeline_song_request_favorite_description">Queue a viewer’s most-requested song</string>
     <string name="pipeline_song_resume_description">Resume music playback</string>
@@ -5797,8 +5807,11 @@
     <string name="pipeline_media_playback_command_help">What the media-share player does: play, pause, stop, skip, seek, volume, replay or play_now.</string>
     <string name="pipeline_media_playback_value_help">The number for seek (seconds) or volume (0 to 100), or the item id for play_now and replay. Supports template variables.</string>
     <string name="pipeline_timeout_description">Time out a viewer in chat</string>
+    <string name="pipeline_tts_clear_voice_description">Reset a viewer's TTS voice back to the channel default</string>
+    <string name="pipeline_tts_set_voice_description">Assign a viewer's TTS voice</string>
     <string name="pipeline_tts_synthesize_description">Synthesize text-to-speech audio without playing it</string>
     <string name="pipeline_unpermit_description">Revoke a viewer&apos;s active permit</string>
+    <string name="pipeline_unwhitelist_description">Remove a viewer&apos;s manual community-standing override</string>
     <string name="pipeline_vts_color_tint_description">Apply a color tint to the VTube Studio model</string>
     <string name="pipeline_vts_load_model_description">Load a VTube Studio model</string>
     <string name="pipeline_vts_move_model_description">Move, rotate, or resize the VTube Studio model</string>
@@ -5810,6 +5823,7 @@
     <string name="pipeline_wait_for_event_event_name_help">The name of the event this step waits for. A matching event resumes the pipeline; any other event is ignored.</string>
     <string name="pipeline_wait_for_event_timeout_seconds_help">How long to wait before giving up, in seconds (default 300, max 86400). On timeout the pipeline continues with event.timed_out set to true.</string>
     <string name="pipeline_wait_until_raid_fires_description">Wait for whatever time remains until a prior Start raid step actually fires, correcting for any delay from the steps in between</string>
+    <string name="pipeline_whitelist_description">Grant a viewer a manual community-standing override</string>
     <string name="pipeline_widget_event_description">Push an event to a widget overlay</string>
     <string name="pipeline_stage_effect_description">Play a one-off effect on the Stage overlay: run across the screen, confetti, shake or flash</string>
     <string name="pipeline_stage_effect_preset_help">Which effect to play.</string>

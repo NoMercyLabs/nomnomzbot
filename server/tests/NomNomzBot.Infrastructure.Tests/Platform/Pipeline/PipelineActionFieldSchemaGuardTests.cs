@@ -202,13 +202,19 @@ internal static class PipelineActionParameterSurfaceScanner
     /// (per-viewer-data.md §4) read <c>"target"</c> via <c>ViewerDataActionSupport.ResolveSubjectAsync</c>
     /// (same file, different class); <c>PermitAction</c>/<c>UnpermitAction</c> (roles-permissions §3.6) read
     /// <c>"target_variable"</c> via <c>PermitCommandSupport.ResolveTargetAsync</c> (different file entirely —
-    /// <c>PermitCommandSupport.cs</c>). Hand-verified — there is no other cross-class parameter read in the
-    /// action catalogue (S045b).
+    /// <c>PermitCommandSupport.cs</c>); <c>WhitelistAction</c>/<c>UnwhitelistAction</c> read
+    /// <c>"target_variable"</c> via <c>WhitelistCommandSupport.ResolveTargetAsync</c> (different file —
+    /// <c>WhitelistActions.cs</c>); <c>TtsSetVoiceAction</c>/<c>TtsClearVoiceAction</c> read
+    /// <c>"target_variable"</c> via <c>TtsVoiceTargetSupport.ResolveTargetUserId</c> (same file, different
+    /// class — <c>TtsVoiceAssignmentActions.cs</c>). Hand-verified — there is no other cross-class parameter
+    /// read in the action catalogue (S045b).
     /// </summary>
     private static readonly (Regex Call, string ImpliedKey)[] CrossClassHelperReads =
     [
         (new Regex(@"\bViewerDataActionSupport\.ResolveSubjectAsync\s*\("), "target"),
         (new Regex(@"\bPermitCommandSupport\.ResolveTargetAsync\s*\("), "target_variable"),
+        (new Regex(@"\bWhitelistCommandSupport\.ResolveTargetAsync\s*\("), "target_variable"),
+        (new Regex(@"\bTtsVoiceTargetSupport\.ResolveTargetUserId\s*\("), "target_variable"),
     ];
 
     /// <summary>

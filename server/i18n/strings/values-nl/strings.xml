@@ -5612,6 +5612,7 @@
     <string name="pipeline_shoutout_tts_help">Leest de shoutout ook hardop voor via tekst-naar-spraak. Het staat uit tot je het aanzet, ook bij een raid.</string>
     <string name="pipeline_shoutout_user_id_help">De kijker die wordt uitgelicht.</string>
     <string name="pipeline_song_ban_reason_help">De reden waarom het nummer wordt geblokkeerd, getoond in de blokkeerlijst. Leeg laten voor geen vastgelegde reden.</string>
+    <string name="pipeline_song_clear_requester_requester_help">De naam van de aanvrager om te matchen tegen de wachtrij. Ondersteunt sjabloonvariabelen (bijv. {user.name}).</string>
     <string name="pipeline_song_queue_max_help">Hoeveel aankomende nummers worden vermeld. Standaard 5.</string>
     <string name="pipeline_song_request_query_help">De zoektekst of link van het nummer dat de kijker heeft aangevraagd.</string>
     <string name="pipeline_song_request_favorite_user_id_help">Van wie de aanvraaggeschiedenis wordt gelezen. Laat leeg voor de kijker die dit activeerde.</string>
@@ -5628,8 +5629,12 @@
     <string name="pipeline_tts_synthesize_rate_help">Spreeksnelheid als percentage, van -50 (langzamer) tot 50 (sneller). Leeg laten voor de normale snelheid.</string>
     <string name="pipeline_tts_synthesize_pitch_help">Toonhoogte als percentage, van -50 (lager) tot 50 (hoger). Leeg laten voor de normale toonhoogte.</string>
     <string name="pipeline_tts_synthesize_play_on_audio_help">Speel de spraak ook af op de Audio-overlay, de browserbron die OBS mixt. De stap mislukt als er geen Audio-overlay verbonden is.</string>
+    <string name="pipeline_tts_set_voice_voice_id_help">De catalogusstem-id om toe te wijzen.</string>
+    <string name="pipeline_tts_set_voice_target_variable_help">De variabele met het platform-gebruikers-id van de doelkijker. Leeg wijst de stem toe van de gebruiker die deze pipeline activeerde.</string>
+    <string name="pipeline_tts_clear_voice_target_variable_help">De variabele met het platform-gebruikers-id van de doelkijker. Leeg wist de stem van de gebruiker die deze pipeline activeerde.</string>
     <string name="pipeline_unpermit_role_or_capability_help">De rol of bevoegdheid die van het doel wordt ingetrokken. Leeg laten om elke toestemming van het doel in te trekken.</string>
     <string name="pipeline_unpermit_target_variable_help">De variabele met de kijker van wie de toestemming wordt ingetrokken. Leeg richt zich op de gebruiker die deze pipeline activeerde.</string>
+    <string name="pipeline_unwhitelist_target_variable_help">De variabele met de kijker van wie de uitzondering wordt verwijderd. Leeg richt zich op de gebruiker die deze pipeline activeerde.</string>
     <string name="pipeline_vts_color_tint_a_help">Het alfakanaal (dekking) van de tint, 0-255. Leeg laten voor volledig dekkend.</string>
     <string name="pipeline_vts_color_tint_art_mesh_tag_help">Beperkt de tint tot art-meshes die overeenkomen met deze tag. Leeg laten om het hele model te tinten.</string>
     <string name="pipeline_vts_color_tint_b_help">Het blauwkanaal van de tint, 0-255.</string>
@@ -5641,6 +5646,8 @@
     <string name="pipeline_vts_move_model_size_help">De schaal van het model. Leeg laten om de grootte ongewijzigd te laten.</string>
     <string name="pipeline_vts_move_model_time_seconds_help">Hoe lang de beweging duurt, in seconden. Standaard een korte animatie.</string>
     <string name="pipeline_vts_move_model_x_help">De horizontale positie van het model. Leeg laten om de x-positie ongewijzigd te laten.</string>
+    <string name="pipeline_whitelist_target_variable_help">De variabele met de kijker aan wie de uitzondering wordt toegekend. Leeg richt zich op de gebruiker die deze pipeline activeerde.</string>
+    <string name="pipeline_whitelist_standing_help">De community-status om toe te kennen: subscriber, vip, artist of moderator.</string>
     <string name="pipeline_vts_move_model_y_help">De verticale positie van het model. Leeg laten om de y-positie ongewijzigd te laten.</string>
     <string name="pipeline_vts_request_payload_json_help">De JSON-gegevens voor het onbewerkte VTube Studio API-verzoek. Laat leeg voor verzoeken die geen gegevens nodig hebben.</string>
     <string name="pipeline_vts_request_request_type_help">Het onbewerkte VTube Studio API-verzoektype dat wordt verzonden. Bedoeld voor geavanceerde besturing die niet door een specifieke VTS-actie wordt gedekt.</string>
@@ -5762,10 +5769,13 @@
     <string name="pipeline_shoutout_description">Geef een shoutout aan een ander kanaal</string>
     <string name="pipeline_show_raid_recap_description">Toon het streamoverzicht op de raid-recap-widget</string>
     <string name="pipeline_song_ban_description">Blokkeer het nu afgespeelde nummer voor verzoeken en sla het over</string>
+    <string name="pipeline_song_clear_requester_description">Verwijder elk in de wachtrij staand nummer dat door één naam is aangevraagd</string>
     <string name="pipeline_song_current_description">Toon het nu afgespeelde nummer</string>
     <string name="pipeline_song_pause_description">Pauzeer het afspelen van muziek</string>
     <string name="pipeline_song_previous_description">Spring terug naar het vorige nummer</string>
     <string name="pipeline_song_queue_description">Toon de huidige wachtrij van nummerverzoeken</string>
+    <string name="pipeline_song_queue_close_description">Sluit de nummerwachtrij voor nieuwe verzoeken</string>
+    <string name="pipeline_song_queue_open_description">Open de nummerwachtrij voor nieuwe verzoeken</string>
     <string name="pipeline_song_request_description">Vraag een nummer aan voor de wachtrij</string>
     <string name="pipeline_song_request_favorite_description">Zet het meest aangevraagde nummer van een kijker in de wachtrij</string>
     <string name="pipeline_song_resume_description">Hervat het afspelen van muziek</string>
@@ -5781,8 +5791,11 @@
     <string name="pipeline_media_playback_command_help">Wat de media-speler doet: play, pause, stop, skip, seek, volume, replay of play_now.</string>
     <string name="pipeline_media_playback_value_help">Het getal voor seek (seconden) of volume (0 tot 100), of het item-id voor play_now en replay. Ondersteunt sjabloonvariabelen.</string>
     <string name="pipeline_timeout_description">Zet een kijker tijdelijk in de timeout</string>
+    <string name="pipeline_tts_clear_voice_description">Zet de TTS-stem van een kijker terug naar de standaard van het kanaal</string>
+    <string name="pipeline_tts_set_voice_description">Wijs een TTS-stem toe aan een kijker</string>
     <string name="pipeline_tts_synthesize_description">Synthetiseer tekst-naar-spraak-audio zonder het af te spelen</string>
     <string name="pipeline_unpermit_description">Trek de actieve toestemming van een kijker in</string>
+    <string name="pipeline_unwhitelist_description">Verwijder de handmatige community-status-uitzondering van een kijker</string>
     <string name="pipeline_vts_color_tint_description">Pas een kleurtint toe op het VTube Studio-model</string>
     <string name="pipeline_vts_load_model_description">Laad een VTube Studio-model</string>
     <string name="pipeline_vts_move_model_description">Verplaats, roteer of schaal het VTube Studio-model</string>
@@ -5794,6 +5807,7 @@
     <string name="pipeline_wait_for_event_event_name_help">De naam van de gebeurtenis waarop deze stap wacht. Een overeenkomende gebeurtenis hervat de pipeline; elke andere gebeurtenis wordt genegeerd.</string>
     <string name="pipeline_wait_for_event_timeout_seconds_help">Hoelang wachten voordat wordt opgegeven, in seconden (standaard 300, maximaal 86400). Bij time-out gaat de pipeline verder met event.timed_out ingesteld op true.</string>
     <string name="pipeline_wait_until_raid_fires_description">Wacht de resterende tijd af tot een eerdere Start raid-stap daadwerkelijk afgaat, met correctie voor vertraging door de stappen ertussen</string>
+    <string name="pipeline_whitelist_description">Geef een kijker een handmatige community-status-uitzondering</string>
     <string name="pipeline_widget_event_description">Stuur een gebeurtenis naar een widget-overlay</string>
     <string name="pipeline_stage_effect_description">Speel een eenmalig effect af op de Stage-overlay: over het scherm rennen, confetti, schudden of flitsen</string>
     <string name="pipeline_stage_effect_preset_help">Welk effect wordt afgespeeld.</string>
