@@ -287,7 +287,42 @@ earlier the same day investigating the admin console), so "this is the same pers
 already solvable with what exists; the new part is letting a game's state reference a person as the
 holder, not just a channel.
 
-## 15. Next step
+## 15. Round 5, same day — the existing Live Games engine, checked, not guessed at
 
-Resume the interview from §10. Do not start implementation, a spec in `.claude/docs/design/spec/`, or any
-schema/entity work from this document — it is discovery notes, not a locked design.
+Stoney pushed back on being asked another game-logic question and asked Claude to actually investigate
+whether the "million dollar question" (reuse the existing engine, or build new?) has a real answer.
+Claude read the engine contract and the full spec it's built from
+(`.claude/docs/design/spec/live-games.md`) before answering.
+
+**What already exists:** `ILiveGame` (pure-logic drop-in class: `OnStartAsync`/`OnInputAsync`/
+`OnTickAsync`/`OnResolveAsync`), one generic `ILiveGameEngine` + `LiveGameRunner` that runs every game, a
+`GameSession` entity, crash-safe JSON state snapshotting, auto-discovery (a new game is one class + one
+widget, zero engine edits). Drop Game, Raffle, Heist, Crash are built on it today.
+
+**Why it cannot just be extended — two decisions in the spec are hard, deliberate walls, not gaps:**
+
+- **D7: "At most one non-terminal session per channel."** A session belongs to exactly one channel. No
+  concept of a session spanning channels exists.
+- **Every session is built to end.** Lifecycle is `lobby → running → resolving → settled/cancelled` —
+  resolve-and-finish, not exist-indefinitely-and-sleep.
+
+Also: input is routed from exactly one source, the session's own channel's chat (one keyword match), and
+payouts are wired directly into the currency ledger (`SourceType=live_game`). None of this is a small
+patch — single-channel scope and a terminal lifecycle are foundational to the schema (`GameSession` has a
+single tenant `BroadcasterId` FK) and the runner's model, not an oversight.
+
+**What IS worth reusing — the pattern, not the engine:** pure-logic drop-in class, the engine (not the
+game) owns every side effect, auto-discovery so adding a game is zero engine edits, crash-safe JSON state
+snapshots. These are good ideas independent of the single-channel/terminal-session assumptions.
+
+**Claude's recommendation:** build a **second, new kind of game next to this one, not inside it.** Same
+spirit (pure logic, engine does the plumbing, drop-in, zero engine edits to add one) but its own entity
+that is not locked to one channel, does not have to end, and accepts input from outside the channel's own
+chat — not a workaround bolted onto `GameSession`'s rules, which were written specifically to rule this
+out. Not yet confirmed by Stoney as the final answer — proposed, pending his read.
+
+## 16. Next step
+
+Resume the interview from §10 and the proposal in §15. Do not start implementation, a spec in
+`.claude/docs/design/spec/`, or any schema/entity work from this document — it is discovery notes, not a
+locked design.
