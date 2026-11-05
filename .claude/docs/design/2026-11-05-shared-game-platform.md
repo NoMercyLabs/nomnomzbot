@@ -349,7 +349,36 @@ is precisely the untrusted-multi-tenant case Wasmtime was built for and Jint exp
 server-side game logic broadly — not a new invention, a known, already-half-finished piece of work that
 needs finishing before this ships.**
 
-## 17. Next step
+## 17. Round 7, same day — Stoney agrees turning on Wasmtime is a good idea, asked how it actually works
+
+Stoney: turning it on quickly sounds like a good idea, but wants to understand, in plain terms, how it
+actually works and how it concretely stops someone doing something nasty on his system. Answered in
+plain voice-friendly language (no AskUserQuestion, per §13), grounded in `WasmtimeScriptExecutor.cs` and
+`custom-code.md`, not generic sandboxing claims:
+
+- **Jint today is not a wall.** It runs in the same memory space as the rest of the bot. It protects a
+  channel owner from their own mistake, not from hostile code. We only ever use it for scripts we or a
+  trusted owner wrote.
+- **WASM (Wasmtime) is an actual isolation boundary, not a setting.** The code runs in its own memory
+  block, enforced by the processor itself. That code physically cannot reach the bot's memory, the
+  filesystem, the network, or another tenant's data — not because a check denies it, but because there
+  is no path there to deny.
+- **Three resource limits on top of the memory wall:** a fuel budget (every step the script takes costs
+  fuel; out of fuel, it stops — no infinite loop can hang the bot), an independent wall-clock watchdog
+  (cuts the script off on time even if fuel accounting itself were broken), and a hard memory cap (the
+  script's memory block cannot grow past it).
+- **The only way out is a narrow, capability-gated bridge.** The script can't act directly — it can only
+  call specific host functions we expose ("what's player X's score"), each checked against a
+  per-execution allow-list (deny-by-default). Never a raw credential, URL, or another tenant's data —
+  only plain values in, plain values out.
+- **One deliberate constraint to keep intact:** Wasmtime only runs through Cranelift on x86_64. Winch and
+  aarch64-Cranelift stay disabled — a known, unpatched escape risk — so this is one proven path, not
+  several, and that must not change casually later.
+
+In one line: Jint is a lock on a door inside the house; Wasmtime is a separate sealed room with no door
+to the rest of the house at all.
+
+## 18. Next step
 
 Resume the interview from §10 and the proposal in §15. Do not start implementation, a spec in
 `.claude/docs/design/spec/`, or any schema/entity work from this document — it is discovery notes, not a
