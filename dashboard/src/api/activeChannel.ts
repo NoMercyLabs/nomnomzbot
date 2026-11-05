@@ -9,6 +9,7 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+import type { QueryKey } from '@tanstack/vue-query';
 import { ref } from 'vue';
 
 import { queryClient } from './queryClient';
@@ -21,8 +22,20 @@ export const channelHeader = 'X-Channel-Id';
 
 export const activeChannelId = ref<string | null>(null);
 
-// Follows the channel of the page being opened. A change drops every cached answer: the cache holds the last
-// channel's data, and a page must never show it for the new one. The first channel known has nothing to drop.
+// The person's own + moderated channel lists (useCurrentChannel's `channels`) never change with which
+// channel is being managed, so a switch must never drop them: useCurrentChannel resolves the picked
+// channel's id from this same cache, and an empty cache resolves to no channel at all for the moment it
+// takes to refetch. A query still enabled at that moment then runs with a null channel id, and the bot's
+// OpenAPI client leaves an unresolved path like "/channels/{channelId}/..." literal instead of skipping
+// the call (Stoney 2026-11-05: picking CheeseTheKenku fired a burst of literal-"{channelId}" requests,
+// then fell back to his own channel once the lists came back under the still-old chosen channel).
+function isChannelIdentityQuery(queryKey: QueryKey): boolean {
+  return queryKey.length === 2 && queryKey[0] === 'channels';
+}
+
+// Follows the channel of the page being opened. A change drops every cached answer but the channel
+// lists themselves: the cache holds the last channel's data, and a page must never show it for the new
+// one. The first channel known has nothing to drop.
 export async function followChannel(channelId: string | null): Promise<void> {
   if (channelId === activeChannelId.value) return;
 
@@ -31,6 +44,8 @@ export async function followChannel(channelId: string | null): Promise<void> {
   activeChannelId.value = channelId;
 
   if (switched) {
-    await queryClient.resetQueries();
+    await queryClient.resetQueries({
+      predicate: (query) => !isChannelIdentityQuery(query.queryKey),
+    });
   }
 }
