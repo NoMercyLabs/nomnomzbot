@@ -54,6 +54,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
     private readonly IBillingTierService _tiers;
     private readonly IUsageMeteringService _usage;
     private readonly ITtsChannelSerializer _serializer;
+    private readonly ITtsSceneReservation _sceneReservation;
     private readonly TimeProvider _clock;
     private readonly Random _random;
     private readonly ILogger<TtsDispatchService> _logger;
@@ -72,6 +73,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         IBillingTierService tiers,
         IUsageMeteringService usage,
         ITtsChannelSerializer serializer,
+        ITtsSceneReservation sceneReservation,
         TimeProvider clock,
         ILogger<TtsDispatchService> logger,
         Random? random = null
@@ -89,6 +91,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
         _tiers = tiers;
         _usage = usage;
         _serializer = serializer;
+        _sceneReservation = sceneReservation;
         _clock = clock;
         _logger = logger;
         _random = random ?? Random.Shared;
@@ -438,6 +441,11 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 ct
             );
 
+        // A scripted sequence holding the channel's scene reservation (see ITtsSceneReservation) gets its
+        // remaining lines played back to back; anything else waits for it to clear before even entering the
+        // ordering gate below, so it can never insert its clip ahead of or between that sequence's own lines.
+        await _sceneReservation.WaitForClearAsync(request.BroadcasterId, request.SceneToken, ct);
+
         // Serialized per channel so this utterance synthesizes/pushes to the overlay strictly in the
         // order it was requested — never in whatever order concurrent providers' network calls happen
         // to resolve (see ITtsChannelSerializer).
@@ -614,6 +622,8 @@ public sealed class TtsDispatchService : ITtsDispatchService
                 ct
             );
 
+        await _sceneReservation.WaitForClearAsync(request.BroadcasterId, request.SceneToken, ct);
+
         await using IAsyncDisposable gate = await _serializer.AcquireAsync(
             request.BroadcasterId,
             ct
@@ -660,6 +670,7 @@ public sealed class TtsDispatchService : ITtsDispatchService
             return Result.Failure(configResult.ErrorMessage!, configResult.ErrorCode!);
 
         string spokenText = entry.CensoredText ?? entry.OriginalText;
+        await _sceneReservation.WaitForClearAsync(broadcasterId, callerToken: null, ct);
         await using IAsyncDisposable gate = await _serializer.AcquireAsync(broadcasterId, ct);
         // Approval-queue entries have no ChannelEventId of their own — a ModApprovalRequired channel only
         // ever queues chat-triggered utterances (a reward-pipeline play_tts speaks directly), so there is

@@ -1736,6 +1736,7 @@ interface NnzActionParams {
     as?: string;
     rate?: string;
     mode?: 'async' | 'sync';
+    scene_token?: string;
   };
   'playlist_add': {
     playlist_id: string;
@@ -1767,6 +1768,12 @@ interface NnzActionParams {
     args?: string[];
     named_args?: Record<string, string>;
     wait?: boolean;
+  };
+  'scene_release': {
+    scene_token: string;
+  };
+  'scene_reserve': {
+    max_hold_seconds?: number;
   };
   'schedule_pipeline': {
     pipeline?: string;

@@ -62,6 +62,7 @@ public sealed class TtsDispatchServiceTests
         public required ITtsLexiconService Lexicon { get; init; }
         public required FakeTimeProvider Clock { get; init; }
         public required IChannelNamePronunciationService ChannelNames { get; init; }
+        public required ITtsSceneReservation SceneReservation { get; init; }
     }
 
     private static Harness Build(
@@ -77,7 +78,8 @@ public sealed class TtsDispatchServiceTests
         IBillingTierService? tiers = null,
         Random? random = null,
         int cooldownSeconds = 0,
-        IUsageMeteringService? usage = null
+        IUsageMeteringService? usage = null,
+        ITtsSceneReservation? sceneReservation = null
     )
     {
         TtsTestDbContext db = TtsTestDbContext.New();
@@ -170,6 +172,7 @@ public sealed class TtsDispatchServiceTests
         );
 
         FakeTimeProvider clock = new(new(T0));
+        ITtsSceneReservation reservation = sceneReservation ?? new TtsSceneReservation(clock);
         TtsDispatchService service = new(
             tts,
             byokProviders,
@@ -183,6 +186,7 @@ public sealed class TtsDispatchServiceTests
             tiers ?? Billing.TestTiers.Unlimited(),
             usage ?? UnmeteredUsage(),
             new TtsChannelSerializer(),
+            reservation,
             clock,
             NullLogger<TtsDispatchService>.Instance,
             random
@@ -198,6 +202,7 @@ public sealed class TtsDispatchServiceTests
             Lexicon = lexicon,
             ChannelNames = channelNames,
             Clock = clock,
+            SceneReservation = reservation,
         };
     }
 
@@ -2470,5 +2475,66 @@ public sealed class TtsDispatchServiceTests
         result.IsFailure.Should().BeTrue();
         result.ErrorMessage.Should().Contain("not-a-real-voice");
         (await h.Db.TtsUsageRecords.CountAsync()).Should().Be(0);
+    }
+
+    // ── Scene reservation (S-CONCURRENCY-DRAIN follow-on): a scripted sequence (BSOD) must not have an
+    // unrelated request (a shoutout) insert its clip ahead of or between the sequence's own remaining lines.
+
+    [Fact]
+    public async Task RequestSpeakAsync_NoActiveReservation_DispatchesImmediately()
+    {
+        Harness h = Build();
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_CarryingTheActiveReservationsToken_DispatchesImmediately()
+    {
+        ITtsSceneReservation reservation = new TtsSceneReservation();
+        string token = await reservation.ReserveAsync(Tenant, TimeSpan.FromSeconds(30));
+        Harness h = Build(sceneReservation: reservation);
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(
+            Speak("hello") with
+            {
+                SceneToken = token,
+            }
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_WhileAnotherSequenceHoldsTheReservation_WaitsUntilReleased()
+    {
+        ITtsSceneReservation reservation = new TtsSceneReservation();
+        string token = await reservation.ReserveAsync(Tenant, TimeSpan.FromSeconds(30));
+        Harness h = Build(sceneReservation: reservation);
+
+        Task<Result<TtsDispatchOutcome>> pending = h.Service.RequestSpeakAsync(Speak("shoutout"));
+
+        // Give the waiting call every chance to (wrongly) dispatch before the sequence releases.
+        await Task.Delay(50);
+        pending.IsCompleted.Should().BeFalse("an unrelated request must wait for the active scene");
+
+        await reservation.ReleaseAsync(Tenant, token);
+
+        Result<TtsDispatchOutcome> result = await pending.WaitAsync(TimeSpan.FromSeconds(5));
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+    }
+
+    [Fact]
+    public async Task RequestSpeakAsync_WhileAnotherChannelsSequenceIsActive_DispatchesImmediately()
+    {
+        ITtsSceneReservation reservation = new TtsSceneReservation();
+        await reservation.ReserveAsync(Guid.NewGuid(), TimeSpan.FromSeconds(30));
+        Harness h = Build(sceneReservation: reservation);
+
+        Result<TtsDispatchOutcome> result = await h.Service.RequestSpeakAsync(Speak("hello"));
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
     }
 }

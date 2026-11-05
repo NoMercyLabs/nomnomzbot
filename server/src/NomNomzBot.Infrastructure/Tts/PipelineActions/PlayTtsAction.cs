@@ -104,6 +104,12 @@ public sealed class PlayTtsAction : ICommandAction
                 Options: [ModeAsync, ModeSync],
                 Description: new("pipeline.play_tts.mode.help")
             ),
+            new(
+                "scene_token",
+                PipelineActionFieldKind.Text,
+                Templated: true,
+                Description: new("pipeline.play_tts.scene_token.help")
+            ),
         ];
 
     public async Task<ActionResult> ExecuteAsync(
@@ -399,6 +405,19 @@ public sealed class PlayTtsAction : ICommandAction
                 );
         }
 
+        string sceneTokenTemplate = action.GetString("scene_token") ?? string.Empty;
+        string? sceneToken = null;
+        if (!string.IsNullOrWhiteSpace(sceneTokenTemplate))
+        {
+            string resolvedSceneToken = await _resolver.ResolveAsync(
+                sceneTokenTemplate,
+                ctx.Variables,
+                ctx.BroadcasterId,
+                ctx.CancellationToken
+            );
+            sceneToken = string.IsNullOrWhiteSpace(resolvedSceneToken) ? null : resolvedSceneToken;
+        }
+
         TtsSpeakRequest request = new(
             BroadcasterId: ctx.BroadcasterId,
             RequestedByUserId: Guid.Empty,
@@ -428,7 +447,8 @@ public sealed class PlayTtsAction : ICommandAction
             Segments: segments,
             Speaker: IsBotSpeaker(asField) ? TtsSpeaker.Bot : TtsSpeaker.Viewer,
             SpokenNames: SpokenNameVariables.From(ctx.Variables, ctx.TriggeredByDisplayName),
-            Emotes: TtsViewerWords.EmotesIn(ctx.Variables, ctx.TriggeredByDisplayName)
+            Emotes: TtsViewerWords.EmotesIn(ctx.Variables, ctx.TriggeredByDisplayName),
+            SceneToken: sceneToken
         );
 
         return (request, null);

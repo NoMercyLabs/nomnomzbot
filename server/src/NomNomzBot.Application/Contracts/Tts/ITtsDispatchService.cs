@@ -158,6 +158,14 @@ public sealed record TtsQueueEntryDto(
 /// not apply: the bits floor (<c>MinBitsToTts</c>), the role floor (<c>MinPermission</c>) and the per-viewer
 /// cooldown (<c>CooldownSeconds</c>). TTS being off, the length cap, the censor and mod approval still apply.
 /// </param>
+/// <param name="SceneToken">
+/// The <see cref="ITtsSceneReservation"/> token of the scripted sequence this line belongs to (a BSOD-style
+/// takeover's own <c>play_tts</c> calls), if any. A request carrying the token that currently holds the
+/// channel's reservation dispatches immediately, same as before the reservation existed; one carrying no
+/// token, or a stale one, waits for the active reservation (if any) to clear first — so an unrelated TTS
+/// request (a shoutout, a chat <c>!tts</c>) can never insert its clip ahead of or between the sequence's
+/// own remaining lines.
+/// </param>
 public sealed record TtsSpeakRequest(
     Guid BroadcasterId,
     Guid RequestedByUserId,
@@ -177,7 +185,8 @@ public sealed record TtsSpeakRequest(
     TtsSpeaker Speaker = TtsSpeaker.Bot,
     IReadOnlyList<string>? SpokenNames = null,
     bool AlreadyPaid = false,
-    TtsSpokenEmotes? Emotes = null
+    TtsSpokenEmotes? Emotes = null,
+    string? SceneToken = null
 );
 
 /// <summary>

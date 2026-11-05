@@ -1414,6 +1414,13 @@ public static class DependencyInjection
             TtsChannelSerializer
         >();
 
+        // Per-channel TTS scene reservation (scene_reserve/scene_release) — singleton for the same reason
+        // as the serializer above: one shared reservation per channel, not a fresh one per scope.
+        services.AddSingleton<
+            Application.Contracts.Tts.ITtsSceneReservation,
+            TtsSceneReservation
+        >();
+
         // BYOK provider factory (tts.md §3.2) — scoped (reads TtsConfig + decrypts through the vault);
         // not convention-scanned (does not end in "Service").
         services.AddScoped<

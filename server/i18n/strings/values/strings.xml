@@ -5280,6 +5280,11 @@
     <string name="pipeline_play_tts_mode_help">async (default) moves on as soon as the line is sent to the overlay. sync waits until the clip has finished playing (its real length, at most 60 seconds, plus a quarter second for the overlay to start it), so a later step, such as restoring the music volume, runs after the speech ends. Both modes set {tts.durationMs} and {tts.voiceId}.</string>
     <string name="pipeline_play_tts_rate_help">How fast the line is spoken, as a percent of normal speed: +30% faster, -20% slower. Blank keeps the normal speed. Values are limited to -50% to +50%.</string>
     <string name="pipeline_play_tts_as_help">Whose voice speaks the line: blank (or bot/channel) is the bot's own voice for text the bot wrote. Set it to viewer (or user) only when the line is that viewer's own words, such as a TTS reward. broadcaster uses the broadcaster's own voice, or a platform user id speaks as them.</string>
+    <string name="pipeline_play_tts_scene_token_help">The scene_reserve token ({scene.token}) this line belongs to, if any. Lets this line play immediately even while that reservation is active; a blank value waits its turn like any other request.</string>
+    <string name="pipeline_scene_reserve_description">Reserve the channel's TTS playback order for a scripted sequence, so nothing else can speak ahead of or between its lines</string>
+    <string name="pipeline_scene_reserve_max_hold_seconds_help">The longest this reservation is held even if scene_release is never called, so a failed sequence cannot mute the channel's TTS forever. Default 60 seconds.</string>
+    <string name="pipeline_scene_release_description">Release a reservation started by scene_reserve, letting other TTS requests speak again</string>
+    <string name="pipeline_scene_release_scene_token_help">The token scene_reserve returned ({scene.token}). A missing or mismatched token is ignored rather than releasing someone else's reservation.</string>
     <string name="pipeline_send_webhook_endpoint_help">The webhook endpoint to deliver this event to.</string>
     <string name="pipeline_send_webhook_event_type_help">The event type string the endpoint's subscription matches. Sent verbatim, not resolved as a template, even if it contains {{ }}.</string>
     <string name="widget_group_content">Content</string>
