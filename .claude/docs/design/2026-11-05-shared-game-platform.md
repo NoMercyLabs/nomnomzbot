@@ -321,7 +321,35 @@ that is not locked to one channel, does not have to end, and accepts input from 
 chat — not a workaround bolted onto `GameSession`'s rules, which were written specifically to rule this
 out. Not yet confirmed by Stoney as the final answer — proposed, pending his read.
 
-## 16. Next step
+Stoney confirmed the §15 proposal ("sounds great") and asked: how far can we let someone build a
+complicated game in JavaScript, thinking of real web-based JS games and game platforms that exist today?
+
+## 16. Round 6, same day — JavaScript game logic: two different questions, checked against the real sandbox spec
+
+Read `.claude/docs/design/spec/custom-code.md` in full before answering. Splits into two separable
+questions with very different ceilings:
+
+- **The visual/client side has no real ceiling.** A game's overlay is already just a browser page — same
+  as every overlay today. A provider can build a genuinely rich game there with any web game tech
+  (Canvas, WebGL, Phaser, …), same as any real standalone web game. Nothing in this system limits that.
+- **The server-side rule logic (the referee, §3) already has a real foundation.** Custom scripts today are
+  authored as TypeScript, compiled to JS, and run in a sandbox that is deny-by-default: a script only ever
+  gets specific granted capabilities, never a raw credential, URL, or another tenant's data, and every run
+  is resource-budgeted (wall-clock time, memory, host-call count, output size). That shape is exactly what
+  a game's action-validation logic needs.
+
+**The one real gap, found in the spec, not guessed at:** the sandbox actually running today everywhere
+(`JintScriptExecutor`, Jint) is explicitly documented in its own spec as **"NOT a security boundary —
+single-operator threat model only."** It protects a channel owner from their own mistake, not from a
+hostile third party's code. A real isolation sandbox (`WasmtimeScriptExecutor` — fuel/memory/time limits,
+a genuine boundary) **already exists as a built, tested class but is not registered/wired up anywhere.**
+For an open ecosystem where many unrelated providers each author game logic that runs on our server, that
+is precisely the untrusted-multi-tenant case Wasmtime was built for and Jint explicitly was not.
+**Conclusion: turning on the existing Wasmtime path is a prerequisite for letting providers author real
+server-side game logic broadly — not a new invention, a known, already-half-finished piece of work that
+needs finishing before this ships.**
+
+## 17. Next step
 
 Resume the interview from §10 and the proposal in §15. Do not start implementation, a spec in
 `.claude/docs/design/spec/`, or any schema/entity work from this document — it is discovery notes, not a
