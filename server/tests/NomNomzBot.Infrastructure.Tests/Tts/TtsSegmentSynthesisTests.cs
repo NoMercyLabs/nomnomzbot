@@ -81,6 +81,27 @@ public sealed class TtsSegmentSynthesisTests
         runs.Select(r => r[0].VoiceId).Should().Equal("bot", "viewer", "bot");
     }
 
+    // Edge returns no audio for a one-voice request carrying 3 or more segments (probed 2026-11-05:
+    // 1-2 segments synthesize fine, 3 reliably returns nothing), so a run longer than the proven-safe
+    // size is cut into same-voice chunks the caller sends as separate requests.
+    [Fact]
+    public void Edge_ChunkRuns_SplitsARunLongerThanTheSafeSize_AndLeavesShorterRunsAlone()
+    {
+        List<List<TtsSegment>> runs = EdgeTtsProvider.ChunkRuns(
+            EdgeTtsProvider.VoiceRuns([
+                new("a", "bot"),
+                new("b", "bot"),
+                new("c", "bot"),
+                new("d", "bot"),
+                new("e", "bot"),
+                new("f", "viewer"),
+            ])
+        );
+
+        runs.Select(r => string.Concat(r.Select(s => s.Text))).Should().Equal("ab", "cd", "e", "f");
+        runs.Should().OnlyContain(r => r.Count <= EdgeTtsProvider.MaxSegmentsPerRequest);
+    }
+
     // Edge returns no audio for a document with two <voice> elements, even when both name the same voice.
     [Fact]
     public void Edge_BuildRunSsml_TwoSegmentsOfOneVoice_EmitsOneVoiceElementWithOneProsodyEach()

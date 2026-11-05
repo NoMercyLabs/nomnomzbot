@@ -118,20 +118,26 @@ public sealed class EdgeTtsProvider : ITtsProvider
     // The read-aloud endpoint answers a request that names two voices with no audio at all (probed 2026-11-01),
     // so each run of one voice is its own request and the mp3 bytes are joined into one clip, as for ElevenLabs.
     // A pause asked for between two different voices is not made: no silent frames are invented.
+    //
+    // It also answers a one-voice request carrying 3 or more <prosody> segments with no audio at all (probed
+    // 2026-11-05: 1-2 segments synthesize fine, 3 reliably returns nothing) — so a voice run longer than
+    // MaxSegmentsPerRequest is chunked the same way a multi-voice request already is: one request per chunk,
+    // the mp3 bytes joined. A pause between two chunks is lost the same way a pause between two voices already
+    // is — no silent frames are invented there either.
     public async Task<TtsSynthesisResult> SynthesizeSegmentsAsync(
         IReadOnlyList<TtsSegment> segments,
         CancellationToken cancellationToken = default
     )
     {
         string firstVoice = segments[0].VoiceId;
-        List<List<TtsSegment>> runs = VoiceRuns(segments);
+        List<List<TtsSegment>> runs = ChunkRuns(VoiceRuns(segments));
         string hashSource = string.Join(
             '\n',
             segments.Select(s => s.Text + s.VoiceId + s.BreakAfterMs)
         );
         if (runs.Count == 1)
             return await SynthesizeSsmlAsync(
-                BuildRunSsml(segments),
+                BuildRunSsml(runs[0]),
                 hashSource,
                 firstVoice,
                 cancellationToken
@@ -176,6 +182,21 @@ public sealed class EdgeTtsProvider : ITtsProvider
                 runs.Add([segment]);
 
         return runs;
+    }
+
+    /// <summary>The longest one-voice request the read-aloud endpoint answers with audio (probed 2026-11-05).</summary>
+    internal const int MaxSegmentsPerRequest = 2;
+
+    /// <summary>Cuts every run longer than <see cref="MaxSegmentsPerRequest"/> into same-voice chunks of
+    /// that size, so each becomes its own request below.</summary>
+    internal static List<List<TtsSegment>> ChunkRuns(List<List<TtsSegment>> runs)
+    {
+        List<List<TtsSegment>> chunked = [];
+        foreach (List<TtsSegment> run in runs)
+            for (int i = 0; i < run.Count; i += MaxSegmentsPerRequest)
+                chunked.Add(run.GetRange(i, Math.Min(MaxSegmentsPerRequest, run.Count - i)));
+
+        return chunked;
     }
 
     private async Task<TtsSynthesisResult> SynthesizeSsmlAsync(
