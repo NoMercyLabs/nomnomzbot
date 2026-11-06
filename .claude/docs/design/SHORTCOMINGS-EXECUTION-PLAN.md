@@ -39,6 +39,28 @@ moderator token (moderator:* scope) and the outcome; every endpoint Twitch allow
 warnings, chatters, followers); every broadcaster-only feature (polls, predictions, rewards, subscribers) says so
 in plain words on its page instead of failing; each one is proven live on geennoob as Stoney_Eagle.
 
+Progress 2026-11-06: a moderator now holds the Moderator role on every moderated channel, onboarded or not
+(2dfefbb0c), and unban requests read as the acting moderator (a3a7a62cf, `ActingModeratorResolverService` now
+prefers the signed-in moderator). Still open: the other owner-token callers (about 15 files use
+`Channel.OwnerUserId` as the operator), and the broadcaster-only cards (ad schedule, polls, predictions) render as
+empty boxes on Home instead of a plain "needs the broadcaster" line.
+
+### S-MOD-EVENTSUB-FLOOR: the bot subscribes to every moderator-plane topic on a not-signed-up channel, as the moderator
+Owner, 2026-11-06, verbatim: "a moderator needs to be able to access anything they could do if a channel was
+onboarded that is possible to do with their user access on the streaming platforms. this is the floor, once a
+channel onboards it is elevated to a full onboarding with the broadcasters access", and "subscribing to all twitch
+events that are available to a moderator".
+Cause: `BotLifecycleService` sweeps only `IsOnboarded` channels, and `EventSubConditionBuilder` fills
+`moderator_user_id` with the broadcaster, so a channel with no broadcaster token gets no moderator-plane topics
+(`EventSubTokenOwnerKind.Moderator` exists but nothing uses it). Twitch accepts an app-token (conduit) create for a
+moderator topic when the user in `moderator_user_id` authorized the scope and moderates the channel (automod.message.hold
+page, checked 2026-11-06); the other topics still need checking one by one.
+Done when: for each of the 20 `ModeratorPlaneEvents` a table says whether Twitch allows the moderator path and with
+which scope; a not-onboarded channel that the bot serves gets every allowed topic created on the conduit with the
+acting moderator's id and their granted scopes; the events reach the channel's own pipeline; when the moderator's grant
+or moderator status ends the topics move to another eligible moderator or park with a plain reason; onboarding the
+channel replaces them with the broadcaster-owned set without a gap; proven live on cheesethekenku as Stoney_Eagle.
+
 ---
 
 ## OWNER REQUEST 2026-11-04 (evening) — usage metrics for a real-user evaluation
