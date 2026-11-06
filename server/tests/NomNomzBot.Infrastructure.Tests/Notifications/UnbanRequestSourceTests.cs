@@ -20,6 +20,7 @@ using NomNomzBot.Application.Notifications.Dtos;
 using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Domain.Moderation.Events;
 using NomNomzBot.Domain.Platform.Events;
+using NomNomzBot.Infrastructure.Moderation;
 using NomNomzBot.Infrastructure.Moderation.EventHandlers;
 using NomNomzBot.Infrastructure.Notifications;
 using NomNomzBot.Infrastructure.Notifications.Sources;
@@ -68,6 +69,20 @@ public sealed class UnbanRequestSourceTests
         return (db, moderation);
     }
 
+    // Resolves the test channel to the given operator; any other channel has no acting identity.
+    private static IActingModeratorResolverService ActingAs(Guid operatorUserId)
+    {
+        IActingModeratorResolverService resolver =
+            Substitute.For<IActingModeratorResolverService>();
+        resolver
+            .ResolveAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<ActingModerator>("No acting identity.", "NO_ACTING_IDENTITY"));
+        resolver
+            .ResolveAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(new ActingModerator(operatorUserId, "100")));
+        return resolver;
+    }
+
     private static UnbanRequestDto Request(
         string id,
         string status = "pending",
@@ -95,7 +110,7 @@ public sealed class UnbanRequestSourceTests
         );
 
         Result<List<ActionRequiredItemDto>> items = await new UnbanRequestSource(
-            db,
+            ActingAs(Owner),
             moderation
         ).GetItemsAsync(Channel, new HashSet<string>());
 
@@ -123,6 +138,38 @@ public sealed class UnbanRequestSourceTests
     }
 
     [Fact]
+    public async Task A_channel_that_is_not_onboarded_reads_appeals_as_the_acting_moderator()
+    {
+        Guid moderator = Guid.Parse("0192b000-0000-7000-8000-0000000000e3");
+        (ActionRequiredInboxServiceTestDbContext db, IModerationService moderation) = Seed(
+            Result.Success<List<UnbanRequestDto>>([])
+        );
+        moderation
+            .GetUnbanRequestsAsync(
+                Channel.ToString(),
+                moderator,
+                "pending",
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success<List<UnbanRequestDto>>([Request("req-mod")]));
+
+        Result<List<ActionRequiredItemDto>> items = await new UnbanRequestSource(
+            ActingAs(moderator),
+            moderation
+        ).GetItemsAsync(Channel, new HashSet<string>());
+
+        items.Value.Select(i => i.Id).Should().Equal("unban:req-mod");
+        await moderation
+            .DidNotReceive()
+            .GetUnbanRequestsAsync(
+                Channel.ToString(),
+                Owner,
+                "pending",
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    [Fact]
     public async Task Resolved_appeals_and_dismissed_keys_are_left_out()
     {
         (ActionRequiredInboxServiceTestDbContext db, IModerationService moderation) = Seed(
@@ -134,7 +181,7 @@ public sealed class UnbanRequestSourceTests
         );
 
         Result<List<ActionRequiredItemDto>> items = await new UnbanRequestSource(
-            db,
+            ActingAs(Owner),
             moderation
         ).GetItemsAsync(Channel, new HashSet<string> { "unban:req-dismissed" });
 
@@ -149,7 +196,7 @@ public sealed class UnbanRequestSourceTests
         );
 
         Result<List<ActionRequiredItemDto>> items = await new UnbanRequestSource(
-            db,
+            ActingAs(Owner),
             moderation
         ).GetItemsAsync(Channel, new HashSet<string>());
 
@@ -164,7 +211,7 @@ public sealed class UnbanRequestSourceTests
             Result.Failure<List<UnbanRequestDto>>("Helix down.", "TWITCH_ERROR")
         );
         ActionRequiredInboxService inbox = new(
-            [new UnbanRequestSource(db, moderation)],
+            [new UnbanRequestSource(ActingAs(Owner), moderation)],
             db,
             new FakeTimeProvider(new DateTimeOffset(2026, 10, 8, 12, 0, 0, TimeSpan.Zero)),
             new RecordingChangeNotifier(),
@@ -191,7 +238,7 @@ public sealed class UnbanRequestSourceTests
         );
 
         Result<List<ActionRequiredItemDto>> items = await new UnbanRequestSource(
-            db,
+            ActingAs(Owner),
             moderation
         ).GetItemsAsync(Guid.NewGuid(), new HashSet<string>());
 
@@ -206,7 +253,7 @@ public sealed class UnbanRequestSourceTests
         );
 
         Result<List<string>> keys = await new UnbanRequestSource(
-            db,
+            ActingAs(Owner),
             moderation
         ).ResolveDismissalKeysAsync(Channel, "unban:req-1");
 
@@ -220,7 +267,7 @@ public sealed class UnbanRequestSourceTests
             Result.Success<List<UnbanRequestDto>>([])
         );
 
-        IActionRequiredSource source = new UnbanRequestSource(db, moderation);
+        IActionRequiredSource source = new UnbanRequestSource(ActingAs(Owner), moderation);
 
         source.KeyPrefixes.Should().Equal("unban:");
         source
@@ -238,7 +285,7 @@ public sealed class UnbanRequestSourceTests
         );
         RecordingChangeNotifier notifier = new();
         ActionRequiredInvalidationHook hook = new(
-            [new UnbanRequestSource(db, moderation)],
+            [new UnbanRequestSource(ActingAs(Owner), moderation)],
             notifier
         );
 

@@ -95,6 +95,8 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
 
         b.Entity<TtsVoice>(e => e.HasKey(v => v.Id));
 
+        b.Entity<ChannelMembership>(e => e.HasKey(m => m.Id));
+
         b.Entity<ChannelAudioMix>(e => e.HasKey(m => m.Id));
 
         b.Entity<PickList>(e =>
@@ -166,6 +168,7 @@ internal sealed class PipelineOptionsTestDbContext : DbContext, IApplicationDbCo
 
     private static readonly HashSet<Type> Mapped =
     [
+        typeof(ChannelMembership),
         typeof(Reward),
         typeof(TtsVoice),
         typeof(SoundClip),

@@ -10,9 +10,11 @@
 // -----------------------------------------------------------------------------
 
 using Microsoft.EntityFrameworkCore;
+using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
+using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Moderation;
 
@@ -54,7 +56,8 @@ public interface IActingModeratorResolverService
 /// <inheritdoc cref="IActingModeratorResolverService" />
 public sealed class ActingModeratorResolverService(
     IApplicationDbContext db,
-    IModeratorChatReaders moderatorChatReaders
+    IModeratorChatReaders moderatorChatReaders,
+    ICurrentUserService? currentUser = null
 ) : IActingModeratorResolverService
 {
     public async Task<Result<ActingModerator>> ResolveAsync(
@@ -80,8 +83,13 @@ public sealed class ActingModeratorResolverService(
                 new ActingModerator(channel.OwnerUserId, channel.TwitchChannelId)
             );
 
-        // Not onboarded: there is no owner token to sign with. Act as whoever is actually live-moderating
-        // this channel's chat right now, on their own token — never silently do nothing.
+        // Not onboarded: there is no owner token to sign with. The signed-in moderator who is asking acts as
+        // themself, on their own Twitch access — the floor for every channel they moderate.
+        if (await SignedInModeratorAsync(broadcasterId, ct) is { } asking)
+            return Result.Success(new ActingModerator(asking, channel.TwitchChannelId));
+
+        // Otherwise act as whoever is actually live-moderating this channel's chat right now, on their own
+        // token — never silently do nothing.
         ModeratorChatReaderStatus? reading = moderatorChatReaders
             .Snapshot()
             .FirstOrDefault(status =>
@@ -100,6 +108,30 @@ public sealed class ActingModeratorResolverService(
                     + "chat, so there is no identity to moderate as.",
                 "NO_ACTING_IDENTITY"
             );
+    }
+
+    // The request's own user, when they hold a management role on the channel. An impersonated request never
+    // signs as its subject: a support session may not act on Twitch in someone else's name.
+    private async Task<Guid?> SignedInModeratorAsync(Guid broadcasterId, CancellationToken ct)
+    {
+        if (
+            currentUser is not { IsAuthenticated: true, Impersonation: null }
+            || !Guid.TryParse(currentUser.UserId, out Guid userId)
+        )
+            return null;
+
+        // IgnoreQueryFilters: the membership belongs to the channel being moderated, not the request's tenant.
+        bool holdsRole = await db
+            .ChannelMemberships.IgnoreQueryFilters()
+            .AnyAsync(
+                m =>
+                    m.BroadcasterId == broadcasterId
+                    && m.UserId == userId
+                    && m.DeletedAt == null
+                    && m.ManagementRole >= ManagementRole.Moderator,
+                ct
+            );
+        return holdsRole ? userId : null;
     }
 
     private sealed record ChannelActingIdentity(

@@ -9,25 +9,26 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
-using Microsoft.EntityFrameworkCore;
-using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Moderation.Dtos;
 using NomNomzBot.Application.Moderation.Services;
 using NomNomzBot.Application.Notifications.Dtos;
 using NomNomzBot.Application.Notifications.Services;
 using NomNomzBot.Domain.Moderation.Events;
+using NomNomzBot.Infrastructure.Moderation;
 
 namespace NomNomzBot.Infrastructure.Notifications.Sources;
 
 /// <summary>
 /// Pending Twitch unban requests (appeals), one item per request. Appeals live only on Twitch, so each read asks
-/// Twitch as the channel owner; a failed read (missing scope, Helix down) is returned as a failure and never as an
+/// Twitch as the channel owner, or as the asking moderator when the channel is not onboarded; a failed read (missing scope, Helix down) is returned as a failure and never as an
 /// empty list. A request leaves the inbox when Twitch resolves it, since the item is derived from the pending
 /// list. The EventSub create and resolve events refresh this source live.
 /// </summary>
-public sealed class UnbanRequestSource(IApplicationDbContext db, IModerationService moderation)
-    : IActionRequiredSource
+public sealed class UnbanRequestSource(
+    IActingModeratorResolverService actingModerator,
+    IModerationService moderation
+) : IActionRequiredSource
 {
     private const string KeyPrefix = "unban:";
     private const string PendingStatus = "pending";
@@ -45,17 +46,17 @@ public sealed class UnbanRequestSource(IApplicationDbContext db, IModerationServ
         CancellationToken cancellationToken = default
     )
     {
-        Guid? ownerUserId = await db
-            .Channels.AsNoTracking()
-            .Where(c => c.Id == channelId)
-            .Select(c => (Guid?)c.OwnerUserId)
-            .FirstOrDefaultAsync(cancellationToken);
-        if (ownerUserId is null)
-            return Errors.ChannelNotFound<List<ActionRequiredItemDto>>(channelId.ToString());
+        // The owner's token on an onboarded channel; the asking moderator's own access on one that is not.
+        Result<ActingModerator> acting = await actingModerator.ResolveAsync(
+            channelId,
+            cancellationToken
+        );
+        if (acting.IsFailure)
+            return acting.WithValue<List<ActionRequiredItemDto>>([]);
 
         Result<List<UnbanRequestDto>> pending = await moderation.GetUnbanRequestsAsync(
             channelId.ToString(),
-            ownerUserId.Value,
+            acting.Value.OperatorUserId,
             PendingStatus,
             cancellationToken
         );
