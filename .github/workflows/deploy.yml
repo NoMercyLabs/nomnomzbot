@@ -81,7 +81,10 @@ jobs:
             ( crontab -l 2>/dev/null | grep -vF 'guard-single-color.sh' ; echo "*/5 * * * * /opt/nomnomzbot/guard-single-color.sh >> /opt/nomnomzbot/guard-single-color.log 2>&1" ) | crontab -
             # The Caddyfile is a bind mount: `up -d caddy` recreates only on a service change, the reload applies it.
             docker compose up -d --no-deps caddy >/dev/null 2>&1
-            docker exec nomnomzbot-caddy caddy reload --config /etc/caddy/Caddyfile
+            # Bounded and non-fatal (2026-11-06): `localhost` resolved to ::1 where Caddy's admin API does not listen, and a
+            # reload that hung held the deploy for 5 minutes. The running config keeps serving; a stale Caddyfile is a warning.
+            timeout 60 docker exec nomnomzbot-caddy caddy reload --config /etc/caddy/Caddyfile --address 127.0.0.1:2019 \
+              || echo "WARNING: caddy reload did not finish; the running Caddy config stays in place"
             echo "Stack files synced at $sha"
 
             # Ask docker which colour is live, so a re-run after a failed attempt converges.
