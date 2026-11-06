@@ -39,7 +39,11 @@ namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 /// Rules are loaded from the DB per-channel and cached for 5 minutes to avoid hot-path DB hits.
 /// Exemptions: moderators and the broadcaster are never auto-moderated.
 /// </summary>
-public sealed class AutoModerationHandler : IEventHandler<ChatMessageReceivedEvent>
+public sealed class AutoModerationHandler
+    : IEventHandler<ChatMessageReceivedEvent>,
+        // Exempt from the onboarding gate on purpose: its deletes and timeouts already run as the acting
+        // moderator, so a channel that never onboarded is still moderated by the moderator watching it.
+        IOnboardingExemptHandler
 {
     /// <summary>Used when a timeout rule carries no duration of its own.</summary>
     private const int DefaultTimeoutSeconds = 60;

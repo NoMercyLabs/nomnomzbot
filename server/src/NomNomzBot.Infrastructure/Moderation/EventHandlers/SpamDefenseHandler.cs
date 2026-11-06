@@ -30,7 +30,11 @@ namespace NomNomzBot.Infrastructure.Moderation.EventHandlers;
 /// lives in <see cref="ISpamDefenseService"/>, so there is one place to look when asking why somebody
 /// was actioned.</para>
 /// </summary>
-public sealed class SpamDefenseHandler : IEventHandler<ChatMessageReceivedEvent>
+public sealed class SpamDefenseHandler
+    : IEventHandler<ChatMessageReceivedEvent>,
+        // Exempt from the onboarding gate on purpose: a moderator watching a channel that never onboarded
+        // still moderates it, and the enforcement executor carries the verdict out as that moderator.
+        IOnboardingExemptHandler
 {
     private readonly IServiceScopeFactory _scopeFactory;
     private readonly ILogger<SpamDefenseHandler> _logger;
