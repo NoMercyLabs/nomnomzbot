@@ -237,6 +237,11 @@ public sealed class BotLifecycleService : BackgroundService
         ITwitchEventSubService eventSub =
             scope.ServiceProvider.GetRequiredService<ITwitchEventSubService>();
 
+        // FIRST, before the slow per-channel EventSub setup below: a channel that never onboarded is deaf until
+        // its moderator's reader is up, and the setup below took over a minute after every deploy.
+        // It runs beside that setup, on its own scope, so neither waits for the other.
+        Task readersTask = KeepModeratorChatReadersAliveAsync(ct);
+
         // Get all currently enabled, onboarded, ACTIVE channels — a suspended / platform-banned tenant
         // (stream-admin.md §3.2) drops out of the bot's working set on the next reconcile sweep. Live channels
         // come first: after a deploy they are the ones whose viewers notice a deaf bot.
@@ -328,7 +333,7 @@ public sealed class BotLifecycleService : BackgroundService
             (channel, token) => new ValueTask(SyncModeratedChannelAsync(channel, token))
         );
 
-        await KeepModeratorChatReadersAliveAsync(scope.ServiceProvider, db, ct);
+        await readersTask;
 
         // Tear down subscriptions for channels that are no longer active.
         foreach (Guid channelId in toUnsubscribe)
@@ -360,18 +365,18 @@ public sealed class BotLifecycleService : BackgroundService
     // went deaf there whenever nobody was looking (Stoney, 2026-11-06: "I NEED the bot to act on every channel
     // as soon as the message comes in"). Every sweep now asks for the reader of each moderator who holds a
     // role on such a channel; the coordinator's own five-minute throttle keeps repeat asks cheap.
-    private async Task KeepModeratorChatReadersAliveAsync(
-        IServiceProvider services,
-        IApplicationDbContext db,
-        CancellationToken ct
-    )
+    private async Task KeepModeratorChatReadersAliveAsync(CancellationToken ct)
     {
-        IModeratorChatReaders? readers = services.GetService<IModeratorChatReaders>();
-        if (readers is null)
-            return;
-
         try
         {
+            using IServiceScope scope = _serviceProvider.CreateScope();
+            IModeratorChatReaders? readers =
+                scope.ServiceProvider.GetService<IModeratorChatReaders>();
+            if (readers is null)
+                return;
+
+            IApplicationDbContext db =
+                scope.ServiceProvider.GetRequiredService<IApplicationDbContext>();
             List<Guid> moderatorIds = await db
                 .ChannelMemberships.IgnoreQueryFilters()
                 .Where(m =>
