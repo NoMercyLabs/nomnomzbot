@@ -382,6 +382,10 @@ public sealed class BotLifecycleService : BackgroundService
                 .Distinct()
                 .ToListAsync(ct);
 
+            _logger.LogInformation(
+                "BotLifecycleService: Keeping chat readers alive for {Count} moderator(s) of channels that never onboarded",
+                moderatorIds.Count
+            );
             foreach (Guid moderatorId in moderatorIds)
                 await readers.RequestSyncAsync(moderatorId);
         }

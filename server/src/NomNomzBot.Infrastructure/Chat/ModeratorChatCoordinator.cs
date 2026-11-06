@@ -161,6 +161,18 @@ public sealed class ModeratorChatCoordinator : IModeratorChatReaders
         await ReleaseLostAsync(userId, candidates);
         foreach (TwitchModeratedChannel channel in candidates)
             await ReadChannelAsync(userId, moderatorTwitchId, channel, services, ct);
+
+        int reading;
+        lock (_state)
+            reading = _statuses.Values.Count(status =>
+                status.ModeratorUserId == userId && status.State == ModeratorChatReaderState.Reading
+            );
+        _logger.LogInformation(
+            "Moderator chat: {UserId} reads {Reading} of {Total} moderated channels",
+            userId,
+            reading,
+            candidates.Count
+        );
     }
 
     private async Task ReadChannelAsync(
