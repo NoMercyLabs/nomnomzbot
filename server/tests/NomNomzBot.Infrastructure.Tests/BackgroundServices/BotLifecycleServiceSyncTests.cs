@@ -14,6 +14,7 @@ using FluentAssertions;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -227,6 +228,45 @@ public sealed class BotLifecycleServiceSyncTests
             );
     }
 
+    [Fact]
+    public async Task Every_moderator_of_a_channel_that_is_not_onboarded_gets_a_chat_reader_without_the_dashboard()
+    {
+        string database = Guid.NewGuid().ToString();
+        Guid kenku = SeedChannel(database, "kenku", isLive: false, onboarded: false);
+        Guid onboardedChannel = SeedChannel(database, "regular", isLive: false, onboarded: true);
+        Guid moderator = Guid.NewGuid();
+        Guid secondModerator = Guid.NewGuid();
+        Guid onboardedOnly = Guid.NewGuid();
+        SeedMembership(database, kenku, moderator);
+        SeedMembership(database, kenku, secondModerator);
+        SeedMembership(database, onboardedChannel, moderator);
+        SeedMembership(database, onboardedChannel, onboardedOnly);
+        IModeratorChatReaders readers = Substitute.For<IModeratorChatReaders>();
+
+        await Build(database, SubscribingEventSub(), readers: readers)
+            .SyncChannelsAsync(CancellationToken.None, reconcileStale: false);
+
+        await readers.Received(1).RequestSyncAsync(moderator);
+        await readers.Received(1).RequestSyncAsync(secondModerator);
+        await readers.DidNotReceive().RequestSyncAsync(onboardedOnly);
+    }
+
+    private static void SeedMembership(string database, Guid channel, Guid user)
+    {
+        using SeedTestDbContext db = SeedTestDbContext.New(database);
+        db.ChannelMemberships.Add(
+            new ChannelMembership
+            {
+                BroadcasterId = channel,
+                UserId = user,
+                ManagementRole = ManagementRole.Moderator,
+                Source = MembershipSource.TwitchBadge,
+                GrantedAt = DateTime.UtcNow,
+            }
+        );
+        db.SaveChanges();
+    }
+
     private static async Task AssertSyncedAsync(
         ITwitchEventSubService eventSub,
         IBotModeratorStatusService moderator,
@@ -298,7 +338,8 @@ public sealed class BotLifecycleServiceSyncTests
         ITwitchEventSubService eventSub,
         IBotModeratorStatusService? moderator = null,
         IActiveInstanceGate? instanceGate = null,
-        IEventSubActingModeratorSelector? selector = null
+        IEventSubActingModeratorSelector? selector = null,
+        IModeratorChatReaders? readers = null
     )
     {
         ITwitchStreamsApi streams = Substitute.For<ITwitchStreamsApi>();
@@ -315,6 +356,8 @@ public sealed class BotLifecycleServiceSyncTests
             services.AddSingleton(instanceGate);
         if (selector is not null)
             services.AddSingleton(selector);
+        if (readers is not null)
+            services.AddSingleton(readers);
 
         return new BotLifecycleService(
             services.BuildServiceProvider(),

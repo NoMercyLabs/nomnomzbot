@@ -14,6 +14,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Abstractions.Persistence;
+using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
@@ -327,6 +328,8 @@ public sealed class BotLifecycleService : BackgroundService
             (channel, token) => new ValueTask(SyncModeratedChannelAsync(channel, token))
         );
 
+        await KeepModeratorChatReadersAliveAsync(scope.ServiceProvider, db, ct);
+
         // Tear down subscriptions for channels that are no longer active.
         foreach (Guid channelId in toUnsubscribe)
         {
@@ -349,6 +352,42 @@ public sealed class BotLifecycleService : BackgroundService
                     channelId
                 );
             }
+        }
+    }
+
+    // Chat of a channel that never onboarded reaches the bot only through a moderator's own chat reader.
+    // Readers used to start when a moderator opened the dashboard and were lost on every restart, so the bot
+    // went deaf there whenever nobody was looking (Stoney, 2026-11-06: "I NEED the bot to act on every channel
+    // as soon as the message comes in"). Every sweep now asks for the reader of each moderator who holds a
+    // role on such a channel; the coordinator's own five-minute throttle keeps repeat asks cheap.
+    private async Task KeepModeratorChatReadersAliveAsync(
+        IServiceProvider services,
+        IApplicationDbContext db,
+        CancellationToken ct
+    )
+    {
+        IModeratorChatReaders? readers = services.GetService<IModeratorChatReaders>();
+        if (readers is null)
+            return;
+
+        try
+        {
+            List<Guid> moderatorIds = await db
+                .ChannelMemberships.IgnoreQueryFilters()
+                .Where(m =>
+                    m.DeletedAt == null
+                    && db.Channels.Any(c => c.Id == m.BroadcasterId && !c.IsOnboarded && c.Enabled)
+                )
+                .Select(m => m.UserId)
+                .Distinct()
+                .ToListAsync(ct);
+
+            foreach (Guid moderatorId in moderatorIds)
+                await readers.RequestSyncAsync(moderatorId);
+        }
+        catch (Exception ex) when (!ct.IsCancellationRequested)
+        {
+            _logger.LogError(ex, "BotLifecycleService: Failed to start moderator chat readers");
         }
     }
 
