@@ -75,8 +75,31 @@ public sealed class ChannelsControllerImpersonationTests
             );
     }
 
+    [Fact]
+    public async Task ListChannels_grants_the_moderator_membership_on_a_channel_that_is_not_onboarded()
+    {
+        (ChannelsController controller, IMembershipService memberships) = await BuildAsync(
+            null,
+            onboarded: false
+        );
+
+        await controller.ListChannels(new(), default);
+
+        await memberships
+            .Received(1)
+            .SetManagementRoleAsync(
+                ModeratedChannel,
+                Target,
+                ManagementRole.Moderator,
+                MembershipSource.TwitchBadge,
+                null,
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     private static async Task<(ChannelsController, IMembershipService)> BuildAsync(
-        ImpersonationContext? impersonation
+        ImpersonationContext? impersonation,
+        bool onboarded = true
     )
     {
         ApiTestDbContext db = ApiTestDbContext.New();
@@ -88,7 +111,7 @@ public sealed class ChannelsControllerImpersonationTests
                 TwitchChannelId = "tw-moderated",
                 Name = "moderated",
                 NameNormalized = "moderated",
-                IsOnboarded = true,
+                IsOnboarded = onboarded,
             }
         );
         await db.SaveChangesAsync();

@@ -200,7 +200,7 @@ public class ChannelsController : BaseController
         return new PagedList<ChannelSummaryDto>(items, page.Page, page.PageSize, page.TotalCount);
     }
 
-    // A caller who moderates an onboarded channel on Twitch should hold the Moderator management role there
+    // A caller who moderates a channel on Twitch (onboarded or not) should hold the Moderator management role there
     // (roles-permissions §0 — Twitch's own role rules are the baseline). Idempotently grants a TwitchBadge
     // Moderator membership only where the caller has NONE, so an existing / higher role is never downgraded.
     private async Task EnsureModeratorMembershipsAsync(
@@ -213,9 +213,7 @@ public class ChannelsController : BaseController
             return;
 
         List<Guid> onboardedModerated = await _db
-            .Channels.Where(c =>
-                moderatedTwitchChannelIds.Contains(c.TwitchChannelId) && c.IsOnboarded
-            )
+            .Channels.Where(c => moderatedTwitchChannelIds.Contains(c.TwitchChannelId))
             .Select(c => c.Id)
             .ToListAsync(ct);
         if (onboardedModerated.Count == 0)

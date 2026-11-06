@@ -22,7 +22,7 @@ namespace NomNomzBot.Infrastructure.Identity;
 
 /// <summary>
 /// Default <see cref="IActAsMembershipOverlay"/>: the same rule the channel list applies to a user's own login
-/// (an onboarded channel they moderate on Twitch earns the Moderator role), evaluated with the impersonated
+/// (any channel they moderate on Twitch earns the Moderator role), evaluated with the impersonated
 /// user's own Twitch token and never written. Scoped: the Twitch moderated list is fetched at most once per
 /// request, however many authorization checks ask.
 /// </summary>
@@ -45,7 +45,7 @@ public sealed class ActAsMembershipOverlay(
             return null;
 
         string? twitchChannelId = await db
-            .Channels.Where(c => c.Id == broadcasterId && c.IsOnboarded)
+            .Channels.Where(c => c.Id == broadcasterId)
             .Select(c => c.TwitchChannelId)
             .FirstOrDefaultAsync(cancellationToken);
         if (twitchChannelId is null)
