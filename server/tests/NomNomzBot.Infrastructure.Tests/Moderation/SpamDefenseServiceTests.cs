@@ -239,6 +239,41 @@ public class SpamDefenseServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task AViewerSellerAdvert_OnAChannelNeverConfigured_IsActedOnAtOnce_NotObservedForAWeek()
+    {
+        // The streamboo campaign: an audience for sale next to a storefront link. Nothing about it is
+        // ambiguous, so the new-channel observation week must not hold the bot back from it.
+        using AppDbContext db = NewDbContext();
+        SpamEvaluationResult? result = await NewService(db)
+            .EvaluateAsync(Message("Best viewers with streamboo .com"));
+
+        result!.Decision.IsDryRun.Should().BeFalse();
+        result.Decision.Outcome.Should().Be(SpamOutcome.DeleteAndEscalate);
+        result.Decision.Certain.Should().BeTrue();
+
+        using AppDbContext read = NewDbContext();
+        SpamDetection stored = await read.SpamDetections.SingleAsync();
+        stored.WasDryRun.Should().BeFalse();
+        stored.Signals.Should().Contain(nameof(ContentSignal.SellingAudience));
+    }
+
+    [Fact]
+    public async Task AViewerSellerAdvert_StillObservesOnly_WhenTheChannelItselfChoseDryRun()
+    {
+        // A channel that saved dry run on purpose keeps it: the certain rule overrides the untouched
+        // default, never a choice the streamer made.
+        await ConfigureAsync(new SpamDefenseSettings { DryRun = true });
+
+        SpamEvaluationResult result = await EvaluateAsync(
+            Message("Best viewers with streamboo .com")
+        );
+
+        result.Decision.IsDryRun.Should().BeTrue();
+        result.Decision.Outcome.Should().Be(SpamOutcome.None);
+        result.Decision.Certain.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task OrdinaryChat_WritesNoRowAtAll()
     {
         // The detection log is for verdicts a human might review, not a second copy of chat. A row per

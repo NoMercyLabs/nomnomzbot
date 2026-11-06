@@ -251,6 +251,46 @@ public class SpamEnforcementExecutorTests : IDisposable
     }
 
     [Fact]
+    public async Task ACertainSpamVerdict_BansTheAccountAsTheActingModerator_AndNeverJustTimesItOut()
+    {
+        _moderation
+            .BanAsync(
+                Arg.Any<string>(),
+                Arg.Any<Guid>(),
+                Arg.Any<string>(),
+                Arg.Any<string?>(),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(_ => Task.FromResult(Result.Success(new ModerationActionResult(true, null))));
+
+        SpamEnforcementOutcome outcome = await ExecuteAsync(
+            SpamEnforcement.Decide(
+                SpamConfidence.High,
+                SpamTrustTier.Untrusted,
+                dryRun: false,
+                certain: true
+            )
+        );
+
+        outcome.DeletedMessage.Should().BeTrue();
+        outcome
+            .TimedOutAccount.Should()
+            .BeTrue("a confirmed ban counts as the account being actioned");
+        await _moderation
+            .Received(1)
+            .BanAsync(
+                Channel.ToString(),
+                Owner,
+                "viewer-1",
+                Arg.Is<string?>(reason => !string.IsNullOrWhiteSpace(reason)),
+                Arg.Any<string?>(),
+                Arg.Any<CancellationToken>()
+            );
+        await AssertNoTimeoutIssued();
+    }
+
+    [Fact]
     public async Task ANonTwitchMessage_IsRemovedAndTimedOutOnItsOwnPlatformThroughTheSeam_NeverHelix()
     {
         _heatTimeoutSeconds = 900;

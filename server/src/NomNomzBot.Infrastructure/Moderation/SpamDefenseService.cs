@@ -438,8 +438,16 @@ public sealed class SpamDefenseService : ISpamDefenseService
         (SpamTrustTier tier, AccountFacts facts) = await ResolveTierAsync(request, settings, ct);
         // Enforcement switched on inside the observation window still only observes: the window is the
         // safety story (§6.2), so turning dry run off early cannot skip it.
+        // A viewer-seller advert next to a storefront link is unmistakable, so it is acted on at once, even
+        // inside the observation week and on a channel that never saved settings (Stoney, 2026-11-06). A
+        // channel that saved dry run ON PURPOSE keeps it: this overrides the untouched default only.
+        bool certain =
+            content.Confidence == SpamConfidence.High
+            && content.Signals.Contains(ContentSignal.SellingAudience)
+            && !await ChannelChoseDryRunAsync(request.BroadcasterId, ct);
         bool observing =
-            settings.DryRun || await IsInObservationWindowAsync(request.BroadcasterId, ct);
+            !certain
+            && (settings.DryRun || await IsInObservationWindowAsync(request.BroadcasterId, ct));
 
         // The capability floor (§L4). Established is immune (SD8): the check is not run for them at all,
         // so nothing a floor says can reach them. For everyone else an unearned capability lifts the
@@ -458,7 +466,7 @@ public sealed class SpamDefenseService : ISpamDefenseService
                 ? content.Signals
                 : [.. content.Signals, ContentSignal.UnearnedCapability];
 
-        SpamDecision decision = SpamEnforcement.Decide(confidence, tier, observing);
+        SpamDecision decision = SpamEnforcement.Decide(confidence, tier, observing, certain);
         if (unearned.Count > 0)
             decision = decision with
             {
@@ -829,6 +837,9 @@ public sealed class SpamDefenseService : ISpamDefenseService
     /// </summary>
     private Task<DateTime?> EnforcementEligibleAtAsync(Guid broadcasterId, CancellationToken ct) =>
         SpamObservationWindow.EligibleAtAsync(_db, broadcasterId, ct);
+
+    private async Task<bool> ChannelChoseDryRunAsync(Guid broadcasterId, CancellationToken ct) =>
+        await LoadPolicyAsync(broadcasterId, track: false, ct) is { DryRun: true };
 
     private Task<bool> IsInObservationWindowAsync(Guid broadcasterId, CancellationToken ct) =>
         SpamObservationWindow.IsActiveAsync(_db, _time, broadcasterId, ct);

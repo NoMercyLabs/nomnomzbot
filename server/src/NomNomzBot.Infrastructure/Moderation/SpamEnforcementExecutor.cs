@@ -117,6 +117,15 @@ public sealed class SpamEnforcementExecutor
         if (decision.Outcome != SpamOutcome.DeleteAndEscalate)
             return new SpamEnforcementOutcome(deleted, false, null);
 
+        // An unmistakable advert (a viewer seller with a storefront link) is a bot account: it is banned,
+        // not timed out, and the ladder is skipped because there is no offence history worth climbing.
+        if (decision.Certain)
+            return new SpamEnforcementOutcome(
+                deleted,
+                await BanAsync(broadcasterId, subjectPlatformUserId, decision, ct),
+                null
+            );
+
         // A channel that counts AutoMod violations as ladder offenses lets the ladder pick the punishment
         // INSTEAD of the heat timeout below, so the account is never actioned twice for one message.
         ViolationEscalationOutcome escalated = await _escalation.TryEscalateAsync(
@@ -256,6 +265,47 @@ public sealed class SpamEnforcementExecutor
             _logger.LogWarning(
                 "Spam defence could not delete message {MessageId} in {BroadcasterId}: {Error}",
                 messageId,
+                broadcasterId,
+                result.ErrorMessage
+            );
+
+        return result.IsSuccess;
+    }
+
+    private async Task<bool> BanAsync(
+        Guid broadcasterId,
+        string subjectPlatformUserId,
+        SpamDecision decision,
+        CancellationToken ct
+    )
+    {
+        // Same signer rule as the delete and the timeout: the channel owner when onboarded, otherwise the
+        // moderator who is live on the channel, in that moderator's own name.
+        Result<ActingModerator> actor = await _actingModerator.ResolveAsync(broadcasterId, ct);
+        if (actor.IsFailure)
+        {
+            _logger.LogWarning(
+                "Spam defence could not ban {User} in {BroadcasterId}: {Error}",
+                subjectPlatformUserId,
+                broadcasterId,
+                actor.ErrorMessage
+            );
+            return false;
+        }
+
+        Result<ModerationActionResult> result = await _moderation.BanAsync(
+            broadcasterId.ToString(),
+            actor.Value.OperatorUserId,
+            subjectPlatformUserId,
+            decision.Reason,
+            null,
+            ct
+        );
+
+        if (result.IsFailure)
+            _logger.LogWarning(
+                "Spam defence could not ban {User} in {BroadcasterId}: {Error}",
+                subjectPlatformUserId,
                 broadcasterId,
                 result.ErrorMessage
             );

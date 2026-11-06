@@ -69,6 +69,13 @@ public sealed record SpamDecision(
 {
     /// <summary>True when the engine looked and deliberately did nothing to the account.</summary>
     public bool TouchesAccount => Outcome == SpamOutcome.DeleteAndEscalate;
+
+    /// <summary>
+    /// True when the message is unmistakable spam (a viewer-seller advert next to a storefront link). A
+    /// certain verdict is carried out as a ban, not a timeout, and it is not held back by the new-channel
+    /// observation week.
+    /// </summary>
+    public bool Certain { get; init; }
 }
 
 /// <summary>
@@ -94,7 +101,8 @@ public static class SpamEnforcement
     public static SpamDecision Decide(
         SpamConfidence confidence,
         SpamTrustTier tier,
-        bool dryRun = true
+        bool dryRun = true,
+        bool certain = false
     )
     {
         // SD8, first and unconditionally. Not a lower score — a short-circuit.
@@ -140,7 +148,13 @@ public static class SpamEnforcement
             _ => SpamOutcome.None,
         };
 
-        return Build(outcome, dryRun, ReasonFor(confidence, outcome));
+        SpamDecision decision = Build(outcome, dryRun, ReasonFor(confidence, outcome));
+        return certain && outcome == SpamOutcome.DeleteAndEscalate
+            ? decision with
+            {
+                Certain = true,
+            }
+            : decision;
     }
 
     /// <summary>
