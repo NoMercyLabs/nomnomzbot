@@ -2108,6 +2108,9 @@
       "rate": {
         "help": "How fast the line is spoken, as a percent of normal speed: +30% faster, -20% slower. Blank keeps the normal speed. Values are limited to -50% to +50%."
       },
+      "scene_token": {
+        "help": "The scene_reserve token ({'{'}scene.token{'}'}) this line belongs to, if any. Lets this line play immediately even while that reservation is active; a blank value waits its turn like any other request."
+      },
       "segments": {
         "help": "Several voices in one clip. A JSON list of parts, each with text, and optionally voice, rate, pitch and breakAfterMs (silence after the part, up to 5000 ms). When set, it replaces Text. Supports template variables."
       },
@@ -2182,6 +2185,18 @@
       },
       "wait": {
         "help": "For a detached run, waits for it to finish before continuing this pipeline instead of firing it and moving on."
+      }
+    },
+    "scene_release": {
+      "description": "Release a reservation started by scene_reserve, letting other TTS requests speak again",
+      "scene_token": {
+        "help": "The token scene_reserve returned ({'{'}scene.token{'}'}). A missing or mismatched token is ignored rather than releasing someone else's reservation."
+      }
+    },
+    "scene_reserve": {
+      "description": "Reserve the channel's TTS playback order for a scripted sequence, so nothing else can speak ahead of or between its lines",
+      "max_hold_seconds": {
+        "help": "The longest this reservation is held even if scene_release is never called, so a failed sequence cannot mute the channel's TTS forever. Default 60 seconds."
       }
     },
     "schedule_pipeline": {
@@ -2322,6 +2337,12 @@
         "help": "The reason the track is blocked, shown in the block list. Leave blank for no reason recorded."
       }
     },
+    "song_clear_requester": {
+      "description": "Remove every queued song requested by one name",
+      "requester": {
+        "help": "The requester name to match against the queue. Supports template variables (e.g. {'{'}user.name{'}'})."
+      }
+    },
     "song_current": {
       "description": "Show the currently playing track"
     },
@@ -2336,6 +2357,12 @@
       "max": {
         "help": "How many upcoming tracks to list. Defaults to 5."
       }
+    },
+    "song_queue_close": {
+      "description": "Close the song queue to new requests"
+    },
+    "song_queue_open": {
+      "description": "Open the song queue to new requests"
     },
     "song_request": {
       "description": "Request a song to be queued",
@@ -2430,6 +2457,21 @@
         "help": "The viewer to time out. Blank targets the user who triggered this pipeline."
       }
     },
+    "tts_clear_voice": {
+      "description": "Reset a viewer's TTS voice back to the channel default",
+      "target_variable": {
+        "help": "The variable holding the target viewer's platform user id. Blank clears the voice of the user who triggered this pipeline."
+      }
+    },
+    "tts_set_voice": {
+      "description": "Assign a viewer's TTS voice",
+      "target_variable": {
+        "help": "The variable holding the target viewer's platform user id. Blank assigns the voice of the user who triggered this pipeline."
+      },
+      "voice_id": {
+        "help": "The catalogue voice id to assign."
+      }
+    },
     "tts_synthesize": {
       "description": "Synthesize text-to-speech audio without playing it",
       "pitch": {
@@ -2455,6 +2497,12 @@
       },
       "target_variable": {
         "help": "The variable holding the viewer to revoke the permit from. Blank targets the user who triggered this pipeline."
+      }
+    },
+    "unwhitelist": {
+      "description": "Remove a viewer's manual community-standing override",
+      "target_variable": {
+        "help": "The variable holding the viewer to remove the override from. Blank targets the user who triggered this pipeline."
       }
     },
     "vts_color_tint": {
@@ -2546,6 +2594,15 @@
     },
     "wait_until_raid_fires": {
       "description": "Wait for whatever time remains until a prior Start raid step actually fires, correcting for any delay from the steps in between"
+    },
+    "whitelist": {
+      "description": "Grant a viewer a manual community-standing override",
+      "standing": {
+        "help": "The community standing to grant: subscriber, vip, artist or moderator."
+      },
+      "target_variable": {
+        "help": "The variable holding the viewer to grant the override to. Blank targets the user who triggered this pipeline."
+      }
     },
     "widget_event": {
       "data": {

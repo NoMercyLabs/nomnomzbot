@@ -2108,6 +2108,9 @@
       "rate": {
         "help": "Hoe snel de regel wordt gesproken, als percentage van de normale snelheid: +30% sneller, -20% langzamer. Leeg houdt de normale snelheid. Waarden zijn beperkt tot -50% tot +50%."
       },
+      "scene_token": {
+        "help": "Het scene_reserve-token ({'{'}scene.token{'}'}) waartoe deze regel behoort, indien van toepassing. Laat deze regel meteen spelen, zelfs terwijl die reservering actief is; een lege waarde wacht gewoon op haar beurt zoals elk ander verzoek."
+      },
       "segments": {
         "help": "Meerdere stemmen in een fragment. Een JSON-lijst met delen, elk met text en optioneel voice, rate, pitch en breakAfterMs (stilte na het deel, tot 5000 ms). Als dit is ingevuld, vervangt het Tekst. Ondersteunt sjabloonvariabelen."
       },
@@ -2182,6 +2185,18 @@
       },
       "wait": {
         "help": "Voor een losse uitvoering wordt gewacht tot deze is voltooid voordat deze pipeline doorgaat, in plaats van hem te starten en verder te gaan."
+      }
+    },
+    "scene_release": {
+      "description": "Maak een reservering vrij die door scene_reserve is gestart, zodat andere TTS-verzoeken weer kunnen spreken",
+      "scene_token": {
+        "help": "Het token dat scene_reserve teruggaf ({'{'}scene.token{'}'}). Een ontbrekend of niet-overeenkomend token wordt genegeerd in plaats van de reservering van iemand anders vrij te geven."
+      }
+    },
+    "scene_reserve": {
+      "description": "Reserveer de afspeelvolgorde van TTS voor een gescripte sequentie, zodat niets anders vóór of tussen de eigen regels kan spreken",
+      "max_hold_seconds": {
+        "help": "De langste tijd dat deze reservering wordt vastgehouden, zelfs als scene_release nooit wordt aangeroepen, zodat een mislukte sequentie de TTS van het kanaal niet voor altijd kan dempen. Standaard 60 seconden."
       }
     },
     "schedule_pipeline": {
@@ -2322,6 +2337,12 @@
         "help": "De reden waarom het nummer wordt geblokkeerd, getoond in de blokkeerlijst. Leeg laten voor geen vastgelegde reden."
       }
     },
+    "song_clear_requester": {
+      "description": "Verwijder elk in de wachtrij staand nummer dat door één naam is aangevraagd",
+      "requester": {
+        "help": "De naam van de aanvrager om te matchen tegen de wachtrij. Ondersteunt sjabloonvariabelen (bijv. {'{'}user.name{'}'})."
+      }
+    },
     "song_current": {
       "description": "Toon het nu afgespeelde nummer"
     },
@@ -2336,6 +2357,12 @@
       "max": {
         "help": "Hoeveel aankomende nummers worden vermeld. Standaard 5."
       }
+    },
+    "song_queue_close": {
+      "description": "Sluit de nummerwachtrij voor nieuwe verzoeken"
+    },
+    "song_queue_open": {
+      "description": "Open de nummerwachtrij voor nieuwe verzoeken"
     },
     "song_request": {
       "description": "Vraag een nummer aan voor de wachtrij",
@@ -2430,6 +2457,21 @@
         "help": "De kijker die een timeout krijgt. Leeg richt zich op de gebruiker die deze pipeline activeerde."
       }
     },
+    "tts_clear_voice": {
+      "description": "Zet de TTS-stem van een kijker terug naar de standaard van het kanaal",
+      "target_variable": {
+        "help": "De variabele met het platform-gebruikers-id van de doelkijker. Leeg wist de stem van de gebruiker die deze pipeline activeerde."
+      }
+    },
+    "tts_set_voice": {
+      "description": "Wijs een TTS-stem toe aan een kijker",
+      "target_variable": {
+        "help": "De variabele met het platform-gebruikers-id van de doelkijker. Leeg wijst de stem toe van de gebruiker die deze pipeline activeerde."
+      },
+      "voice_id": {
+        "help": "De catalogusstem-id om toe te wijzen."
+      }
+    },
     "tts_synthesize": {
       "description": "Synthetiseer tekst-naar-spraak-audio zonder het af te spelen",
       "pitch": {
@@ -2455,6 +2497,12 @@
       },
       "target_variable": {
         "help": "De variabele met de kijker van wie de toestemming wordt ingetrokken. Leeg richt zich op de gebruiker die deze pipeline activeerde."
+      }
+    },
+    "unwhitelist": {
+      "description": "Verwijder de handmatige community-status-uitzondering van een kijker",
+      "target_variable": {
+        "help": "De variabele met de kijker van wie de uitzondering wordt verwijderd. Leeg richt zich op de gebruiker die deze pipeline activeerde."
       }
     },
     "vts_color_tint": {
@@ -2546,6 +2594,15 @@
     },
     "wait_until_raid_fires": {
       "description": "Wacht de resterende tijd af tot een eerdere Start raid-stap daadwerkelijk afgaat, met correctie voor vertraging door de stappen ertussen"
+    },
+    "whitelist": {
+      "description": "Geef een kijker een handmatige community-status-uitzondering",
+      "standing": {
+        "help": "De community-status om toe te kennen: subscriber, vip, artist of moderator."
+      },
+      "target_variable": {
+        "help": "De variabele met de kijker aan wie de uitzondering wordt toegekend. Leeg richt zich op de gebruiker die deze pipeline activeerde."
+      }
     },
     "widget_event": {
       "data": {
