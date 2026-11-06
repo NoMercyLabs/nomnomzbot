@@ -120,6 +120,58 @@ public sealed class EventSubConditionBuilderTests
             );
     }
 
+    [Theory]
+    [InlineData("channel.follow")]
+    [InlineData("channel.moderate")]
+    [InlineData("automod.message.hold")]
+    [InlineData("channel.shield_mode.begin")]
+    public void BuildCondition_ModeratorPlaneTopic_NamesTheActingModerator_WhenOneAuthorizesIt(
+        string eventType
+    )
+    {
+        // A channel with no broadcaster token: the highest-ranked moderator authorizes the create, so their id
+        // (not the broadcaster's) fills moderator_user_id while the broadcaster stays the channel.
+        IReadOnlyDictionary<string, string> condition = Builder.BuildCondition(
+            eventType,
+            BroadcasterTwitchId,
+            BotTwitchId,
+            actingModeratorTwitchUserId: "twitch-moderator-5"
+        );
+
+        condition
+            .Should()
+            .BeEquivalentTo(
+                new Dictionary<string, string>
+                {
+                    ["broadcaster_user_id"] = BroadcasterTwitchId,
+                    ["moderator_user_id"] = "twitch-moderator-5",
+                }
+            );
+    }
+
+    [Theory]
+    [InlineData("channel.update")]
+    [InlineData("channel.chat.message")]
+    [InlineData("channel.raid")]
+    public void BuildCondition_TopicsOutsideTheModeratorPlane_IgnoreTheActingModerator(
+        string eventType
+    )
+    {
+        IReadOnlyDictionary<string, string> withModerator = Builder.BuildCondition(
+            eventType,
+            BroadcasterTwitchId,
+            BotTwitchId,
+            actingModeratorTwitchUserId: "twitch-moderator-5"
+        );
+        IReadOnlyDictionary<string, string> without = Builder.BuildCondition(
+            eventType,
+            BroadcasterTwitchId,
+            BotTwitchId
+        );
+
+        withModerator.Should().BeEquivalentTo(without);
+    }
+
     [Fact]
     public void BuildCondition_ModeratorPlaneTopic_UsesBroadcasterId_WhenNoDedicatedBot()
     {

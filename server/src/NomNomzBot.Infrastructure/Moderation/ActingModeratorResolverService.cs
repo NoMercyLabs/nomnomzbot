@@ -14,7 +14,6 @@ using NomNomzBot.Application.Abstractions.Auth;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Chat.Services;
 using NomNomzBot.Application.Common.Models;
-using NomNomzBot.Domain.Identity.Enums;
 
 namespace NomNomzBot.Infrastructure.Moderation;
 
@@ -110,7 +109,8 @@ public sealed class ActingModeratorResolverService(
             );
     }
 
-    // The request's own user, when they hold a management role on the channel. An impersonated request never
+    // The request's own user, when they hold a management role on the channel (every ManagementRole is at least
+    // Moderator, and the column is a string in the database, so there is no rank comparison to make here). An impersonated request never
     // signs as its subject: a support session may not act on Twitch in someone else's name.
     private async Task<Guid?> SignedInModeratorAsync(Guid broadcasterId, CancellationToken ct)
     {
@@ -124,11 +124,7 @@ public sealed class ActingModeratorResolverService(
         bool holdsRole = await db
             .ChannelMemberships.IgnoreQueryFilters()
             .AnyAsync(
-                m =>
-                    m.BroadcasterId == broadcasterId
-                    && m.UserId == userId
-                    && m.DeletedAt == null
-                    && m.ManagementRole >= ManagementRole.Moderator,
+                m => m.BroadcasterId == broadcasterId && m.UserId == userId && m.DeletedAt == null,
                 ct
             );
         return holdsRole ? userId : null;

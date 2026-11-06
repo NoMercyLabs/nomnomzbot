@@ -1478,6 +1478,13 @@ public sealed class TwitchEventSubHostedService
         string version = _conditionBuilder.GetVersion(eventType);
         EventSubTokenOwnerKind tokenOwner = TokenOwnerFor(eventType);
 
+        // A moderator-plane topic on a channel with no broadcaster token is authorized by the highest-ranked
+        // moderator who holds their own Twitch grant. The system uses the highest authority it has; what each
+        // person may see and change stays decided by their own role.
+        EventSubActingModerator? acting = isPlatformTenant
+            ? null
+            : await ActingModeratorForAsync(scope.ServiceProvider, broadcasterId, eventType, ct);
+
         // IgnoreQueryFilters: a row retired by UnsubscribeAllAsync (suspend) is soft-deleted but still holds its
         // key in the unique index, which ignores DeletedAt. Missing it here would INSERT a duplicate (23505).
         // The explicit BroadcasterId match keeps the lookup tenant-bound without the filter.
@@ -1513,11 +1520,20 @@ public sealed class TwitchEventSubHostedService
                 twitchId,
                 tokenOwner,
                 conduitId,
+                acting?.TwitchUserId,
                 ct
             );
             if (onConduit is not null)
                 return onConduit;
         }
+
+        // A moderator's grant creates its topics on the conduit only: a WebSocket session belongs to one user, and
+        // the broadcaster's or bot's session cannot carry a topic the moderator authorized.
+        if (acting is not null)
+            return Result.Failure<EventSubSubscriptionDto>(
+                "A moderator's topic needs conduit mode, and the conduit did not take it.",
+                "MODERATOR_TOPIC_NEEDS_CONDUIT"
+            );
 
         // Ensure the WebSocket session this topic must ride is live, and post the create onto it. A topic rides
         // its token owner's session: bot-owned topics (chat-read) ride the bot's session; a broadcaster's
@@ -1791,6 +1807,23 @@ public sealed class TwitchEventSubHostedService
         );
     }
 
+    // The moderator who authorizes a moderator-plane topic on a channel with no broadcaster token; null for an
+    // onboarded channel (the broadcaster authorizes), for any other topic, and where no selector is registered.
+    private async Task<EventSubActingModerator?> ActingModeratorForAsync(
+        IServiceProvider services,
+        Guid broadcasterId,
+        string eventType,
+        CancellationToken ct
+    )
+    {
+        if (!_conditionBuilder.IsModeratorPlaneTopic(eventType))
+            return null;
+
+        IEventSubActingModeratorSelector? selector =
+            services.GetService<IEventSubActingModeratorSelector>();
+        return selector is null ? null : await selector.SelectAsync(broadcasterId, ct);
+    }
+
     /// <summary>
     /// Subscribes one topic on the conduit. Returns a null outcome when the conduit refused it for want of a
     /// grant (the app-token path needs e.g. the broadcaster's <c>channel:bot</c> or the bot's <c>user:bot</c>):
@@ -1808,6 +1841,7 @@ public sealed class TwitchEventSubHostedService
         string? twitchId,
         EventSubTokenOwnerKind tokenOwner,
         string conduitId,
+        string? actingModeratorTwitchUserId,
         CancellationToken ct
     )
     {
@@ -1817,7 +1851,10 @@ public sealed class TwitchEventSubHostedService
 
         // A topic the conduit already refused under this very grant set stays on its WebSocket session: no POST,
         // and no retire of the live WebSocket subscription (that delete + re-create is a gap in which chat is lost).
-        string grantFingerprint = await ConduitGrantFingerprintAsync(db, broadcasterId, ct);
+        // The acting moderator is part of the grant: a different moderator is a new grant set.
+        string grantFingerprint =
+            await ConduitGrantFingerprintAsync(db, broadcasterId, ct)
+            + $"|moderator:{actingModeratorTwitchUserId}";
         if (
             row is { ConduitId: null }
             && _conduitRefusals.TryGetValue((broadcasterId, eventType), out string? refusedUnder)
@@ -1829,7 +1866,8 @@ public sealed class TwitchEventSubHostedService
         IReadOnlyDictionary<string, string> condition = _conditionBuilder.BuildCondition(
             eventType,
             twitchId ?? botTwitchUserId!,
-            botTwitchUserId
+            botTwitchUserId,
+            actingModeratorTwitchUserId
         );
         row = await UpsertRowAsync(db, row, broadcasterId, eventType, version, condition, ct);
         string oldStatus = isNew ? "none" : row.Status;
@@ -1852,7 +1890,9 @@ public sealed class TwitchEventSubHostedService
             EventType = _conditionBuilder.GetWireType(eventType),
             Version = version,
             Condition = condition,
-            UserAccessTokenOwner = tokenOwner,
+            UserAccessTokenOwner = actingModeratorTwitchUserId is null
+                ? tokenOwner
+                : EventSubTokenOwnerKind.Moderator,
         };
         Result<TwitchSubscriptionResult> created = await CreateOnConduitAsync(
             request,

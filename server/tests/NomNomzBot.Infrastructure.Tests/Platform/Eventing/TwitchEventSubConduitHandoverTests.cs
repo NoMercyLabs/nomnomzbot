@@ -22,6 +22,7 @@ using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
 using NomNomzBot.Application.DTOs.Twitch.EventSub;
+using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Domain.Integrations.Entities;
 using NomNomzBot.Domain.Integrations.Events;
 using NomNomzBot.Domain.Platform.Entities;
@@ -61,7 +62,8 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
         Func<EventSubTransportHandle, Result<TwitchSubscriptionResult>>? onCreate = null,
         RecordingDispatcher? dispatcher = null,
         bool sharedInbox = true,
-        TimeProvider? serviceClock = null
+        TimeProvider? serviceClock = null,
+        IEventSubActingModeratorSelector? actingModerators = null
     )
     {
         ITwitchIdentityResolver resolver = Substitute.For<ITwitchIdentityResolver>();
@@ -73,14 +75,17 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
         gate.IsPlatformBotConfiguredAsync(Arg.Any<CancellationToken>()).Returns(true);
         RecordingDispatcher processed = dispatcher ?? new RecordingDispatcher();
 
-        ServiceProvider provider = new ServiceCollection()
+        ServiceCollection services = new();
+        services
             .AddScoped<IApplicationDbContext>(_ => EventSubTestDbContext.Shared(_dbName))
             .AddSingleton<ITwitchEventSubConduitsApi>(_twitch)
             .AddScoped<IRunOnceGuard>(_ => new SharedLeaseStore(_leases))
             .AddScoped(_ => resolver)
             .AddScoped(_ => gate)
-            .AddScoped<INotificationDispatcher>(_ => processed)
-            .BuildServiceProvider();
+            .AddScoped<INotificationDispatcher>(_ => processed);
+        if (actingModerators is not null)
+            services.AddScoped(_ => actingModerators);
+        ServiceProvider provider = services.BuildServiceProvider();
         IServiceScopeFactory scopes = provider.GetRequiredService<IServiceScopeFactory>();
 
         ShardTransport transport = new(name, _twitch, onCreate);
@@ -201,6 +206,54 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
         EventSubSubscription after = await _db.EventSubSubscriptions.AsNoTracking().SingleAsync();
         after.TwitchSubscriptionId.Should().NotBe(before.TwitchSubscriptionId);
         (after.Status, after.ConduitId).Should().Be(("enabled", ConduitId));
+        await service.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task A_moderator_topic_on_a_channel_without_a_broadcaster_token_is_created_as_the_acting_moderator()
+    {
+        IEventSubActingModeratorSelector selector =
+            Substitute.For<IEventSubActingModeratorSelector>();
+        selector
+            .SelectAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns(new EventSubActingModerator(Guid.NewGuid(), "777", ManagementRole.Editor));
+        (TwitchEventSubHostedService service, ShardTransport wire) = NewInstance(
+            "solo",
+            actingModerators: selector
+        );
+        await StartAsync(service);
+
+        Result<EventSubSubscriptionDto> result = await service.SubscribeAsync(
+            Channel,
+            "channel.follow"
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        EventSubSubscriptionRequest created = wire.Requests.Should().ContainSingle().Subject;
+        created.Condition["broadcaster_user_id"].Should().Be("1234");
+        created.Condition["moderator_user_id"].Should().Be("777");
+        wire.Creates.Should().Equal($"channel.follow on conduit {ConduitId}");
+        await service.StopAsync(CancellationToken.None);
+    }
+
+    [Fact]
+    public async Task A_moderator_topic_on_an_onboarded_channel_is_still_created_as_the_broadcaster()
+    {
+        IEventSubActingModeratorSelector selector =
+            Substitute.For<IEventSubActingModeratorSelector>();
+        selector
+            .SelectAsync(Channel, Arg.Any<CancellationToken>())
+            .Returns((EventSubActingModerator?)null);
+        (TwitchEventSubHostedService service, ShardTransport wire) = NewInstance(
+            "solo",
+            actingModerators: selector
+        );
+        await StartAsync(service);
+
+        await service.SubscribeAsync(Channel, "channel.follow");
+
+        EventSubSubscriptionRequest created = wire.Requests.Should().ContainSingle().Subject;
+        created.Condition["moderator_user_id"].Should().Be("1234");
         await service.StopAsync(CancellationToken.None);
     }
 
@@ -913,6 +966,7 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
 
         public TwitchEventSubHostedService? Service { get; set; }
         public List<string> Creates { get; } = [];
+        public List<EventSubSubscriptionRequest> Requests { get; } = [];
         public List<string> Steps { get; } = [];
         public List<string> EnsuredOwners { get; } = [];
 
@@ -965,6 +1019,7 @@ public sealed class TwitchEventSubConduitHandoverTests : IDisposable
                     ? $"conduit {handle.ConduitId}"
                     : $"session {handle.SessionId}";
             Result<TwitchSubscriptionResult> result = onCreate?.Invoke(handle) ?? Created(handle);
+            Requests.Add(request);
             if (result.IsSuccess)
                 Creates.Add($"{request.EventType} on {where}");
             Steps.Add($"create {request.EventType} on {where}");

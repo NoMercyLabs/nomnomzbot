@@ -21,6 +21,7 @@ using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Identity.Enums;
 using NomNomzBot.Infrastructure.BackgroundServices;
+using NomNomzBot.Infrastructure.Platform.Eventing;
 using NomNomzBot.Infrastructure.Tests.Content;
 using NomNomzBot.Infrastructure.Tests.Platform.Deployment;
 using NSubstitute;
@@ -160,6 +161,72 @@ public sealed class BotLifecycleServiceSyncTests
         await deployment.StopAsync();
     }
 
+    [Fact]
+    public async Task A_channel_that_is_not_onboarded_gets_only_the_moderator_authorizable_topics()
+    {
+        string database = Guid.NewGuid().ToString();
+        Guid channel = SeedChannel(database, "kenku", isLive: false, onboarded: false);
+        IEventSubActingModeratorSelector selector =
+            Substitute.For<IEventSubActingModeratorSelector>();
+        selector
+            .SelectAsync(channel, Arg.Any<CancellationToken>())
+            .Returns(new EventSubActingModerator(Guid.NewGuid(), "777", ManagementRole.Editor));
+        ITwitchEventSubService eventSub = SubscribingEventSub();
+
+        await Build(database, eventSub, selector: selector)
+            .SyncChannelsAsync(CancellationToken.None, reconcileStale: false);
+
+        IReadOnlyCollection<string> topics =
+            (IReadOnlyCollection<string>)
+                eventSub
+                    .ReceivedCalls()
+                    .Single(call =>
+                        call.GetMethodInfo().Name
+                            == nameof(ITwitchEventSubService.EnsureSubscribedAsync)
+                        && (Guid)call.GetArguments()[0]! == channel
+                    )
+                    .GetArguments()[1]!;
+        topics.Should().BeEquivalentTo(BotLifecycleService.ModeratedChannelEventTypes);
+        topics
+            .Should()
+            .Contain([
+                "channel.follow",
+                "channel.moderate",
+                "automod.message.hold",
+                "stream.online",
+            ]);
+        topics
+            .Should()
+            .NotContain(
+                ["channel.subscribe", "channel.channel_points_custom_reward_redemption.add"],
+                "those need the broadcaster's own grant"
+            );
+    }
+
+    [Fact]
+    public async Task A_channel_that_is_not_onboarded_and_has_no_connected_moderator_is_left_alone()
+    {
+        string database = Guid.NewGuid().ToString();
+        Guid channel = SeedChannel(database, "kenku", isLive: false, onboarded: false);
+        IEventSubActingModeratorSelector selector =
+            Substitute.For<IEventSubActingModeratorSelector>();
+        selector
+            .SelectAsync(channel, Arg.Any<CancellationToken>())
+            .Returns((EventSubActingModerator?)null);
+        ITwitchEventSubService eventSub = SubscribingEventSub();
+
+        await Build(database, eventSub, selector: selector)
+            .SyncChannelsAsync(CancellationToken.None, reconcileStale: false);
+
+        await eventSub
+            .DidNotReceive()
+            .EnsureSubscribedAsync(
+                channel,
+                Arg.Any<IReadOnlyCollection<string>>(),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     private static async Task AssertSyncedAsync(
         ITwitchEventSubService eventSub,
         IBotModeratorStatusService moderator,
@@ -199,7 +266,12 @@ public sealed class BotLifecycleServiceSyncTests
         return eventSub;
     }
 
-    private static Guid SeedChannel(string database, string name, bool isLive)
+    private static Guid SeedChannel(
+        string database,
+        string name,
+        bool isLive,
+        bool onboarded = true
+    )
     {
         Guid id = Guid.NewGuid();
         using SeedTestDbContext db = SeedTestDbContext.New(database);
@@ -212,7 +284,7 @@ public sealed class BotLifecycleServiceSyncTests
                 NameNormalized = name,
                 ExternalChannelId = id.ToString(),
                 Enabled = true,
-                IsOnboarded = true,
+                IsOnboarded = onboarded,
                 Status = AuthEnums.ChannelStatus.Active,
                 IsLive = isLive,
             }
@@ -225,7 +297,8 @@ public sealed class BotLifecycleServiceSyncTests
         string database,
         ITwitchEventSubService eventSub,
         IBotModeratorStatusService? moderator = null,
-        IActiveInstanceGate? instanceGate = null
+        IActiveInstanceGate? instanceGate = null,
+        IEventSubActingModeratorSelector? selector = null
     )
     {
         ITwitchStreamsApi streams = Substitute.For<ITwitchStreamsApi>();
@@ -240,6 +313,8 @@ public sealed class BotLifecycleServiceSyncTests
         services.AddSingleton(moderator ?? Substitute.For<IBotModeratorStatusService>());
         if (instanceGate is not null)
             services.AddSingleton(instanceGate);
+        if (selector is not null)
+            services.AddSingleton(selector);
 
         return new BotLifecycleService(
             services.BuildServiceProvider(),

@@ -418,6 +418,8 @@ internal sealed class AuthDbContext : DbContext, IApplicationDbContext
         b.Entity<RefreshToken>().HasKey(e => e.Id);
         b.Entity<RefreshToken>().Ignore(e => e.Session).Ignore(e => e.User);
 
+        b.Entity<ChannelMembership>().HasKey(e => e.Id);
+
         b.Entity<IntegrationConnection>().HasKey(e => e.Id);
         b.Entity<IntegrationConnection>().Ignore(e => e.Channel);
         // Mirrors IntegrationConnectionConfiguration's DB-enforced half of the vault's upsert: one LIVE

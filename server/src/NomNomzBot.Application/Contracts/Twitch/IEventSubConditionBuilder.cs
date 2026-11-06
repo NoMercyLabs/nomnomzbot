@@ -26,12 +26,19 @@ public interface IEventSubConditionBuilder
     /// Twitch user (the bot) regardless of which channel is being subscribed.
     /// When <paramref name="botTwitchUserId"/> is null, those slots fall back to the broadcaster id (single-user
     /// self-host where the streamer IS the bot identity).
+    /// <paramref name="actingModeratorTwitchUserId"/> is the highest-ranked moderator who authorizes a
+    /// moderator-plane topic on a channel with no broadcaster token; it fills <c>moderator_user_id</c> for those
+    /// topics and is ignored for every other topic.
     /// </summary>
     IReadOnlyDictionary<string, string> BuildCondition(
         string eventType,
         string twitchBroadcasterUserId,
-        string? botTwitchUserId = null
+        string? botTwitchUserId = null,
+        string? actingModeratorTwitchUserId = null
     );
+
+    /// <summary>True when the topic's condition carries <c>moderator_user_id</c>, so a moderator can authorize it.</summary>
+    bool IsModeratorPlaneTopic(string eventType);
 
     /// <summary>The topic version (e.g. <c>2</c> for <c>channel.follow</c> / <c>channel.update</c>, else <c>1</c>).</summary>
     string GetVersion(string eventType);

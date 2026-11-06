@@ -53,7 +53,8 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
     public IReadOnlyDictionary<string, string> BuildCondition(
         string eventType,
         string twitchBroadcasterUserId,
-        string? botTwitchUserId = null
+        string? botTwitchUserId = null,
+        string? actingModeratorTwitchUserId = null
     )
     {
         // The user_id / moderator_user_id slot is filled by the identity whose token authorizes the create:
@@ -63,9 +64,14 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
         //  - every other topic rides the BROADCASTER's own token (it holds the channel/moderator scopes and gets
         //    its own per-token cost budget), so the broadcaster fills the moderator_user_id / user_id slot too
         //    (the broadcaster is implicitly a moderator of their own channel).
-        string slotUserId = IsBotOwnedTopic(eventType)
-            ? botTwitchUserId ?? twitchBroadcasterUserId
-            : twitchBroadcasterUserId;
+        //  - a moderator-plane topic on a channel with no broadcaster token is authorized by the highest-ranked
+        //    moderator instead, whose id fills moderator_user_id (Twitch: the moderator must match the grant).
+        string slotUserId = SlotUserId(
+            eventType,
+            twitchBroadcasterUserId,
+            botTwitchUserId,
+            actingModeratorTwitchUserId
+        );
         return ShapeOf(eventType) switch
         {
             ConditionShape.BroadcasterAndModerator => new Dictionary<string, string>
@@ -98,6 +104,22 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
         };
     }
 
+    private string SlotUserId(
+        string eventType,
+        string twitchBroadcasterUserId,
+        string? botTwitchUserId,
+        string? actingModeratorTwitchUserId
+    )
+    {
+        if (IsBotOwnedTopic(eventType))
+            return botTwitchUserId ?? twitchBroadcasterUserId;
+
+        if (IsModeratorPlaneTopic(eventType) && actingModeratorTwitchUserId is not null)
+            return actingModeratorTwitchUserId;
+
+        return twitchBroadcasterUserId;
+    }
+
     /// <summary>
     /// Our catalogue key for the outgoing half of <c>channel.raid</c>. It is NOT a Twitch topic name —
     /// <see cref="GetWireType"/> maps it back to <c>channel.raid</c> at subscribe time — but it needs its
@@ -106,6 +128,8 @@ public sealed class EventSubConditionBuilder : IEventSubConditionBuilder
     /// Deliberately NOT "channel.raid.out": that string is the EVENT-RESPONSE key streamers configure, and
     /// two different catalogues sharing one name is how someone later wires the wrong one.
     public const string OutgoingRaidTopic = "channel.raid.outgoing";
+
+    public bool IsModeratorPlaneTopic(string eventType) => ModeratorPlaneEvents.Contains(eventType);
 
     public string GetWireType(string eventType) =>
         eventType == OutgoingRaidTopic ? "channel.raid" : eventType;

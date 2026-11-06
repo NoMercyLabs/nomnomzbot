@@ -490,6 +490,12 @@ public static class DependencyInjection
         // Operator message deleter (scoped — deletes AS the operator so Twitch attributes it to them; chat-client.md §3.5).
         // Not an I<X>Service, so it is registered explicitly rather than by AddServicesByConvention.
         services.AddScoped<IOperatorMessageDeleter, OperatorMessageDeleter>();
+        // Who authorizes the system's EventSub topics on a channel with no broadcaster token: the highest-ranked
+        // connected team member. Not an I<X>Service, so it is registered explicitly.
+        services.AddScoped<
+            Platform.Eventing.IEventSubActingModeratorSelector,
+            Platform.Eventing.EventSubActingModeratorSelector
+        >();
         // "Every channel I moderate" for the network ban fan-out and the mass-ban consent sweep (chat-client.md §3.5).
         services.AddScoped<IOperatorModeratedChannelResolver, OperatorModeratedChannelResolver>();
         // Composer emote catalogue (scoped — reads the warm decoration cache + fetches Twitch emotes; chat-client.md §3.2).
