@@ -2469,7 +2469,7 @@
         "help": "The variable holding the target viewer's platform user id. Blank assigns the voice of the user who triggered this pipeline."
       },
       "voice_id": {
-        "help": "The catalogue voice id to assign."
+        "help": "The catalog voice id to assign."
       }
     },
     "tts_synthesize": {

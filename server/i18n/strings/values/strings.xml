@@ -5645,7 +5645,7 @@
     <string name="pipeline_tts_synthesize_rate_help">Speaking speed as a percentage, from -50 (slower) to 50 (faster). Leave blank for normal speed.</string>
     <string name="pipeline_tts_synthesize_pitch_help">Voice pitch as a percentage, from -50 (lower) to 50 (higher). Leave blank for the normal pitch.</string>
     <string name="pipeline_tts_synthesize_play_on_audio_help">Also play the speech on the Audio overlay, the browser source that OBS mixes. The step fails when no Audio overlay is connected.</string>
-    <string name="pipeline_tts_set_voice_voice_id_help">The catalogue voice id to assign.</string>
+    <string name="pipeline_tts_set_voice_voice_id_help">The catalog voice id to assign.</string>
     <string name="pipeline_tts_set_voice_target_variable_help">The variable holding the target viewer's platform user id. Blank assigns the voice of the user who triggered this pipeline.</string>
     <string name="pipeline_tts_clear_voice_target_variable_help">The variable holding the target viewer's platform user id. Blank clears the voice of the user who triggered this pipeline.</string>
     <string name="pipeline_unpermit_role_or_capability_help">The role or capability being revoked from the target. Leave blank to revoke every permit the target holds.</string>
