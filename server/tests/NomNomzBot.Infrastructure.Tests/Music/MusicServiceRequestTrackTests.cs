@@ -526,6 +526,52 @@ public sealed class MusicServiceRequestTrackTests
         result.Value.Uri.Should().Be("spotify:track:barbie");
     }
 
+    [Fact]
+    public async Task A_song_only_the_exact_title_and_artist_search_finds_is_queued_from_artist_first_text()
+    {
+        // The live miss of 2026-11-08: Spotify's plain search never lists this song, in any wording.
+        (MusicService sut, RecordingHttpHandler handler, _) = Build();
+        const string wrongSong =
+            """{"tracks":{"items":[{"id":"electric","name":"Electric City","uri":"spotify:track:electric","duration_ms":200000,"artists":[{"name":"Hidde van Wee"}],"album":{"name":"Single","images":[]}}]}}""";
+        handler.RespondWhen(
+            r =>
+                SearchFor(
+                    r,
+                    "track%3A%22Syncopated%20City%22%20artist%3A%22London%20Elektricity%22"
+                ),
+            HttpStatusCode.OK,
+            """{"tracks":{"items":[{"id":"sync","name":"Syncopated City","uri":"spotify:track:sync","duration_ms":200000,"artists":[{"name":"London Elektricity"}],"album":{"name":"Billion Dollar Gravy","images":[]}}]}}"""
+        );
+        handler.RespondWhen(
+            r => r.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal),
+            HttpStatusCode.OK,
+            wrongSong
+        );
+        handler.RespondWhen(
+            r =>
+                r.Method == HttpMethod.Post
+                && r.RequestUri!.AbsolutePath.EndsWith(
+                    "/me/player/queue",
+                    StringComparison.Ordinal
+                ),
+            HttpStatusCode.NoContent
+        );
+
+        Result<MusicTrack> result = await sut.RequestTrackAsync(
+            ChannelId.ToString(),
+            "London Elektricity - Syncopated City",
+            "Bamo16"
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        result.Value.Uri.Should().Be("spotify:track:sync");
+        (await sut.GetQueueAsync(ChannelId.ToString()))
+            .Queue.Should()
+            .ContainSingle()
+            .Which.TrackName.Should()
+            .Be("Syncopated City");
+    }
+
     private static bool SearchFor(HttpRequestMessage request, string escapedQuery) =>
         request.RequestUri!.AbsolutePath.EndsWith("/search", StringComparison.Ordinal)
         && request.RequestUri.Query.Contains($"q={escapedQuery}&", StringComparison.Ordinal);

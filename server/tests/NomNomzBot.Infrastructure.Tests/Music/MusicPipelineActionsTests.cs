@@ -1501,6 +1501,9 @@ public sealed class MusicPipelineActionsTests
         // Without this, the retracted request would linger in the caller's history although it never played.
         MusicTestDbContext db = MusicTestDbContext.New();
         db.Records.Add(HistoryRow("twitch-42", "Mine", "A"));
+        Domain.Platform.Entities.Record queued = HistoryRow("twitch-42", "Mine", "A");
+        queued.RecordType = Domain.Music.ValueObjects.SongRequestHistory.PendingRecordType;
+        db.Records.Add(queued);
         await db.SaveChangesAsync();
         IMusicService music = Substitute.For<IMusicService>();
         music
@@ -1524,7 +1527,10 @@ public sealed class MusicPipelineActionsTests
         );
 
         result.Output.Should().Be("removed: Mine");
-        db.Records.Count().Should().Be(0);
+        // Only the waiting request goes: the earlier time this song really played stays counted.
+        db.Records.Single()
+            .RecordType.Should()
+            .Be(Domain.Music.ValueObjects.SongRequestHistory.RecordType);
     }
 
     // ─── song_ban (!bansong) ──────────────────────────────────────────────────

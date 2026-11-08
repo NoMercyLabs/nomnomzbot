@@ -974,11 +974,29 @@ public sealed class MusicService : IMusicService
         if (parts.Length < 2)
             return MusicProviderFailureReason.None;
 
-        foreach (string part in parts)
+        // A viewer writes either "title - artist" or "artist - title", so both readings are tried. The exact
+        // searches go first: a hit found earlier wins a tie in the ranker.
+        List<string> queries =
+        [
+            .. parts.Length == 2
+                ? provider
+                    .ExactSearchQueries(parts[0], parts[1])
+                    .Concat(provider.ExactSearchQueries(parts[1], parts[0]))
+                : [],
+            .. parts,
+        ];
+
+        foreach (string query in queries)
         {
             (IReadOnlyList<TrackInfo> partHits, MusicProviderFailureReason failure) =
-                await provider.SearchAsync(tenantId, part, SearchCandidateCount, cancellationToken);
-            if (failure != MusicProviderFailureReason.None)
+                await provider.SearchAsync(
+                    tenantId,
+                    query,
+                    SearchCandidateCount,
+                    cancellationToken
+                );
+            // An exact search only adds a chance: when it fails, the plain halves still decide.
+            if (failure != MusicProviderFailureReason.None && parts.Contains(query))
                 return failure;
 
             admitted.AddRange(
@@ -1333,6 +1351,7 @@ public sealed class MusicService : IMusicService
             broadcasterId,
             trackInfo,
             requestedBy,
+            SongRequestPlaybackQueue.IdOf(entry),
             cancellationToken,
             requesterUserId
         );
@@ -1498,11 +1517,18 @@ public sealed class MusicService : IMusicService
         string broadcasterId,
         TrackInfo trackInfo,
         string? requestedBy,
+        string queueItemId,
         CancellationToken cancellationToken,
         string? requesterUserId = null
     )
     {
-        await RecordRequestHistoryAsync(tenantId, trackInfo, requesterUserId, cancellationToken);
+        await RecordRequestHistoryAsync(
+            tenantId,
+            trackInfo,
+            queueItemId,
+            requesterUserId,
+            cancellationToken
+        );
 
         _logger.LogInformation(
             "Queued track '{Track}' for {BroadcasterId} (requested by {RequestedBy})",
@@ -2878,6 +2904,7 @@ public sealed class MusicService : IMusicService
     private async Task RecordRequestHistoryAsync(
         Guid tenantId,
         TrackInfo trackInfo,
+        string queueItemId,
         string? requesterUserId,
         CancellationToken cancellationToken
     )
@@ -2892,14 +2919,16 @@ public sealed class MusicService : IMusicService
                 {
                     BroadcasterId = tenantId,
                     UserId = requesterUserId,
-                    RecordType = SongRequestHistory.RecordType,
+                    // Counted only once it plays: see SongRequestPlayedHistoryWriter.
+                    RecordType = SongRequestHistory.PendingRecordType,
                     Data = System.Text.Json.JsonSerializer.Serialize(
                         new SongRequestHistory(
                             trackInfo.TrackUri,
                             trackInfo.TrackName,
                             trackInfo.Artist,
                             trackInfo.AlbumArtUrl,
-                            trackInfo.Provider
+                            trackInfo.Provider,
+                            queueItemId
                         ),
                         HistoryJson
                     ),

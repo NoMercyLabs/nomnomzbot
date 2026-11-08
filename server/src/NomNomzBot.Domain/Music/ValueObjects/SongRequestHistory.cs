@@ -52,4 +52,8 @@ public sealed record SongRequestHistory(
 {
     /// <summary>The <c>Record.RecordType</c> discriminator every song-request history row carries.</summary>
     public const string RecordType = "SongRequest";
+
+    /// <summary>A request that has not played yet. No reader counts it; its row becomes
+    /// <see cref="RecordType"/> when the song plays, and <c>SourceRef</c> holds the queue row's id until then.</summary>
+    public const string PendingRecordType = "SongRequestPending";
 }

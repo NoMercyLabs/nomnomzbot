@@ -54,7 +54,7 @@ public sealed class SongRequestPlaybackQueue(FairQueue<SongRequestEntry> queue) 
         queue.MoveToFront(queue.Count - 1);
     }
 
-    private static string IdOf(SongRequestEntry entry) =>
+    internal static string IdOf(SongRequestEntry entry) =>
         entry.Code.Length > 0 ? entry.Code : $"{entry.TrackUri}|{entry.RequestedBy}";
 
     private static PlaybackItem ToItem(SongRequestEntry entry, string ownerKey) =>

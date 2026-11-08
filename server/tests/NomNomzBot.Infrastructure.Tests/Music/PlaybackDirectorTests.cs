@@ -13,6 +13,7 @@ using FluentAssertions;
 using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.ValueObjects;
+using NomNomzBot.Infrastructure.Music;
 using NomNomzBot.Infrastructure.Music.Playback;
 using static NomNomzBot.Infrastructure.Tests.Music.PlaybackDirectorTestKit;
 
@@ -22,8 +23,9 @@ public sealed partial class PlaybackDirectorTests
 {
     private sealed class Rig
     {
-        public Rig()
+        public Rig(FairQueue<PlaybackItem>? fairQueue = null)
         {
+            Queue = fairQueue is null ? new() : new(fairQueue);
             Clock = NewClock();
             Director = new(Channel, [Spotify, YouTube], Queue, Clock, Bus);
         }
@@ -32,7 +34,7 @@ public sealed partial class PlaybackDirectorTests
 
         public FakeEngine YouTube { get; } = new(EngineKind.YouTube);
 
-        public FairPlaybackQueue Queue { get; } = new();
+        public FairPlaybackQueue Queue { get; }
 
         public RecordingBus Bus { get; } = new();
 

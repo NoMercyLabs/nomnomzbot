@@ -168,7 +168,12 @@ public sealed class SongWrongAction : ICommandAction
         if (retraction == RequestRetraction.NotRemoved)
             return ActionResult.Failure("failed to remove the request from the queue");
 
-        await RemoveNewestHistoryAsync(ctx, item.TrackName, item.Artist);
+        await RemoveNewestHistoryAsync(
+            ctx,
+            item.TrackName,
+            item.Artist,
+            SongRequestHistory.PendingRecordType
+        );
         string removedText = retraction switch
         {
             RequestRetraction.RemovedAndSkippedNow =>
@@ -242,7 +247,12 @@ public sealed class SongWrongAction : ICommandAction
         if (retraction == RequestRetraction.NotRemoved)
             return ActionResult.Failure("failed to remove the request from the queue");
 
-        await RemoveNewestHistoryAsync(ctx, item.TrackName, item.Artist);
+        await RemoveNewestHistoryAsync(
+            ctx,
+            item.TrackName,
+            item.Artist,
+            SongRequestHistory.PendingRecordType
+        );
         variables["track.name"] = item.TrackName;
         variables["track.artist"] = item.Artist;
         if (retraction == RequestRetraction.RemovedAndSkippedNow)
@@ -317,14 +327,15 @@ public sealed class SongWrongAction : ICommandAction
     private async Task<SongRequestHistory?> RemoveNewestHistoryAsync(
         PipelineExecutionContext ctx,
         string? trackName,
-        string? artist
+        string? artist,
+        string recordType
     )
     {
         List<Domain.Platform.Entities.Record> rows = await _db
             .Records.Where(r =>
                 r.BroadcasterId == ctx.BroadcasterId
                 && r.UserId == ctx.TriggeredByUserId
-                && r.RecordType == SongRequestHistory.RecordType
+                && r.RecordType == recordType
             )
             .OrderByDescending(r => r.Id)
             .Take(HistoryScanLimit)
@@ -412,7 +423,12 @@ public sealed class SongWrongAction : ICommandAction
             return ActionResult.Failure("failed to skip the playing request");
         }
 
-        await RemoveNewestHistoryAsync(ctx, playing!.TrackName, playing.Artist);
+        await RemoveNewestHistoryAsync(
+            ctx,
+            playing!.TrackName,
+            playing.Artist,
+            SongRequestHistory.RecordType
+        );
         await SendAsync(
             ctx,
             $"@{ctx.TriggeredByChatName} Skipped {playing.TrackName} by {playing.Artist}."

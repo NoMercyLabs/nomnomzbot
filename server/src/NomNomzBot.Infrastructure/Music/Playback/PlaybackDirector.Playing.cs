@@ -257,6 +257,9 @@ public sealed partial class PlaybackDirector
             await AnnouncePassedOverAsync(_queue.Head!, ct);
         }
 
+        if (await StartsFairHeadInsteadAsync(report, ct))
+            return;
+
         // A queued row that plays on its own leaves the queue first, even when another engine holds
         // the owner's music: the row was seen playing, so it is no longer waiting.
         if (FindRow(report) is { } row)
@@ -306,7 +309,7 @@ public sealed partial class PlaybackDirector
 
         if (_queue.Head is { } next)
         {
-            await BeginStartAsync(next, nameof(TrackEnded), "next_item", null, ct);
+            await BeginStartAsync(LinedUpOr(next), nameof(TrackEnded), "next_item", null, ct);
             return;
         }
 

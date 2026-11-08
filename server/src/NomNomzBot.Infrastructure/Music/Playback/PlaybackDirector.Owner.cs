@@ -125,6 +125,7 @@ public sealed partial class PlaybackDirector
     /// </summary>
     private async Task SkipToHeadAsync(PlaybackItem head, string inputName, CancellationToken ct)
     {
+        head = LinedUpOr(head);
         if (!_queuedAhead.Contains(head.Id))
         {
             await BeginStartAsync(head, inputName, "owner_skip", null, ct);
