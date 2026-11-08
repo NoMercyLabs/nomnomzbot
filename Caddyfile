@@ -22,6 +22,16 @@
 # it never has to touch this file or reload Caddy: starting the idle colour and stopping the old
 # one is enough, because Caddy's own health poller notices both transitions on its own.
 
+# A tunnel connector (cloudflared) on this host or LAN terminates HTTPS and sends X-Forwarded-Proto: https.
+# Caddy replaces that header with its own "http" unless the sender is trusted, and the bot then sees
+# "http://<host>": a sign-in started on a listed https dashboard origin no longer matches and returns to the
+# bot's base address instead (Stoney, 2026-11-08: signed in on nomnomz.bot, landed on api.nomnomz.bot).
+{
+	servers {
+		trusted_proxies static private_ranges
+	}
+}
+
 :80 {
 	reverse_proxy api-blue:5000 api-green:5000 {
 		lb_policy first
