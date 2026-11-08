@@ -15,12 +15,12 @@
 import { inject, type Component } from 'vue';
 import Cross from '~icons/nnz/cross';
 import MenuDotsHorizontal from '~icons/nnz/menu-dots-horizontal';
-import SearchMagnifyingGlass from '~icons/nnz/search-magnifying-glass';
 import Settings from '~icons/nnz/settings';
 import SettingsFader from '~icons/nnz/settings-fader';
 import UserCircle from '~icons/nnz/user-circle';
 
 import { frameActionsKey } from '@/components/layout/frameActions';
+import SearchIcon from '@/components/layout/SearchIcon.vue';
 import StatusBadge from '@/components/layout/StatusBadge.vue';
 import { Button } from '@/components/ui/button';
 import {
@@ -80,7 +80,7 @@ const frameActions: Component | null = inject(frameActionsKey, null);
         :aria-label="$t('dashboard.chat.dock.search')"
         @click="searchOpen = !searchOpen"
       >
-        <SearchMagnifyingGlass class="size-5" aria-hidden="true" />
+        <SearchIcon :size="5" aria-hidden="true" />
       </Button>
       <div class="hidden items-center gap-1 @md:flex">
         <Button
