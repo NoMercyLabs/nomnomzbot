@@ -282,6 +282,10 @@ public interface IMusicProvider
     /// provider, so a mixed song-request queue plays each item on its own engine.</summary>
     bool OwnsTrackUri(string trackUri) => OwnsLink(trackUri);
 
+    /// <summary>Search queries that name one exact title by one exact artist, for a provider whose search
+    /// can do that. A provider without such a search has none.</summary>
+    IReadOnlyList<string> ExactSearchQueries(string title, string artist) => [];
+
     Task<bool> AddToQueueAsync(
         Guid broadcasterId,
         string trackUri,

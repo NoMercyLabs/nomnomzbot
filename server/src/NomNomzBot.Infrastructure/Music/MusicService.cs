@@ -974,11 +974,29 @@ public sealed class MusicService : IMusicService
         if (parts.Length < 2)
             return MusicProviderFailureReason.None;
 
-        foreach (string part in parts)
+        // A viewer writes either "title - artist" or "artist - title", so both readings are tried. The exact
+        // searches go first: a hit found earlier wins a tie in the ranker.
+        List<string> queries =
+        [
+            .. parts.Length == 2
+                ? provider
+                    .ExactSearchQueries(parts[0], parts[1])
+                    .Concat(provider.ExactSearchQueries(parts[1], parts[0]))
+                : [],
+            .. parts,
+        ];
+
+        foreach (string query in queries)
         {
             (IReadOnlyList<TrackInfo> partHits, MusicProviderFailureReason failure) =
-                await provider.SearchAsync(tenantId, part, SearchCandidateCount, cancellationToken);
-            if (failure != MusicProviderFailureReason.None)
+                await provider.SearchAsync(
+                    tenantId,
+                    query,
+                    SearchCandidateCount,
+                    cancellationToken
+                );
+            // An exact search only adds a chance: when it fails, the plain halves still decide.
+            if (failure != MusicProviderFailureReason.None && parts.Contains(query))
                 return failure;
 
             admitted.AddRange(

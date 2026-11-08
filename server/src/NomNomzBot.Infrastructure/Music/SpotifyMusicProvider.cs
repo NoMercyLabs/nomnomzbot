@@ -434,6 +434,11 @@ public sealed class SpotifyMusicProvider
         );
     }
 
+    /// <summary>Spotify's plain search can leave a song out of its first page when it ranks the artist's other
+    /// songs higher; its field filters find it (live 2026-11-08).</summary>
+    public IReadOnlyList<string> ExactSearchQueries(string title, string artist) =>
+        [$"track:\"{title.Replace("\"", "")}\" artist:\"{artist.Replace("\"", "")}\""];
+
     public bool OwnsLink(string link) =>
         Uri.TryCreate(link.Trim(), UriKind.Absolute, out Uri? url)
         && url.Host.EndsWith("open.spotify.com", StringComparison.OrdinalIgnoreCase);
