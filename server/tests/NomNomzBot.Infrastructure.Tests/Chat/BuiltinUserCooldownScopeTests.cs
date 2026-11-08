@@ -135,6 +135,7 @@ public sealed class BuiltinUserCooldownScopeTests
     private static readonly Dictionary<Type, (int Global, int User)> OtherSharedBuiltins = new()
     {
         [typeof(SkipBuiltin)] = (0, PerPerson),
+        [typeof(PlayBuiltin)] = (0, 0),
         [typeof(PermitBuiltin)] = (0, 0),
         [typeof(UnpermitBuiltin)] = (0, 0),
         [typeof(WhitelistBuiltin)] = (0, 0),

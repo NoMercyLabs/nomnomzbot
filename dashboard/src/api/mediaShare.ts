@@ -135,9 +135,18 @@ export type MediaSharePlayerState = {
   volume: number;
 };
 
-export type MediaPlaybackCommand = 'play' | 'pause' | 'stop' | 'skip' | 'seek' | 'volume';
+export type MediaPlaybackCommand =
+  | 'play' |
+  'pause' |
+  'stop' |
+  'skip' |
+  'seek' |
+  'volume' |
+  'replay' |
+  'play_now';
 
-export type MediaPlaybackRequest = { command: MediaPlaybackCommand; value?: number };
+// A number for seek and volume; the queue item id for replay and play_now.
+export type MediaPlaybackRequest = { command: MediaPlaybackCommand; value?: number | string };
 
 export const mediaSharePlayerKey = (channelId: string | null): KeyParts => [
   'channels',
@@ -204,7 +213,7 @@ export function useMediaSharePlayback(
     onSuccess: async (_data, request): Promise<void> => {
       const key = mediaSharePlayerKey(toValue(channelId));
 
-      if (request.command === 'volume' && request.value !== undefined) {
+      if (request.command === 'volume' && typeof request.value === 'number') {
         const volume = request.value;
 
         queries.setQueryData<MediaSharePlayerState | null>(key, (player) =>

@@ -10,8 +10,8 @@
 -->
 <script setup lang="ts">
 // One shared item, with the one primary action its state allows (sleak: one primary per group).
-// Pending: Approve (primary) and Reject. Approved: Play now (not on the first item), Skip, Remove and a menu to
-// move it one place. The playing item lives in the player card. A finished item (played, rejected, skipped) has no controls.
+// Pending: Approve (primary) and Reject. Approved: Play now, Skip, Remove and a menu to move it one place.
+// The playing item lives in the player card. A played or skipped item can be replayed; a rejected one has no controls.
 import ArrowDown from '~icons/nnz/arrow-forward-down';
 import ArrowUp from '~icons/nnz/arrow-forward-up';
 import Check from '~icons/nnz/check';
@@ -19,6 +19,7 @@ import Cross from '~icons/nnz/cross';
 import MenuDotsHorizontal from '~icons/nnz/menu-dots-horizontal';
 import Next from '~icons/nnz/next';
 import Play from '~icons/nnz/play';
+import RotateLeft from '~icons/nnz/rotate-left';
 import Trash from '~icons/nnz/trash';
 import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
@@ -48,6 +49,7 @@ defineEmits<{
   decide: [action: MediaShareAction];
   move: [step: number];
   playNow: [];
+  replay: [];
   remove: [];
 }>();
 
@@ -56,6 +58,7 @@ const { locale, t, te } = useI18n();
 
 const pending = computed<boolean>(() => props.row.status === 'pending');
 const approved = computed<boolean>(() => props.row.status === 'approved');
+const replayable = computed<boolean>(() => props.row.status === 'played' || props.row.status === 'skipped');
 const movable = computed<boolean>(() => props.canMoveUp || props.canMoveDown);
 
 const meta = computed<string>(() => {
@@ -94,7 +97,16 @@ const meta = computed<string>(() => {
         class="size-14 flex-none rounded-md object-cover"
       />
     </template>
-    <template v-if="can('media:moderate') && (pending || approved)" #trailing>
+    <template v-if="can('media:moderate') && (pending || approved || replayable)" #trailing>
+      <Button
+        v-if="replayable"
+        variant="outline"
+        data-action="replay"
+        @click="$emit('replay')"
+      >
+        <RotateLeft aria-hidden="true" />
+        {{ $t("dashboard.mediaShare.queue.replay") }}
+      </Button>
       <Button v-if="pending" data-action="approve" @click="$emit('decide', 'approve')">
         <Check aria-hidden="true" />
         {{ $t("dashboard.mediaShare.queue.approve") }}
@@ -109,7 +121,7 @@ const meta = computed<string>(() => {
         {{ $t("dashboard.mediaShare.queue.reject") }}
       </Button>
       <Button
-        v-if="approved && canMoveUp"
+        v-if="approved"
         variant="outline"
         data-action="play-now"
         @click="$emit('playNow')"

@@ -889,6 +889,24 @@ public static partial class ToneTemplateCatalog
         Add(
             catalog,
             key,
+            BuiltinResponseSlots.Media.PlayUsage,
+            variables: [],
+            informative:
+            [
+                "Usage: reply to a message that holds a twitch clip or youtube link with !play, or !play <link>",
+            ],
+            friendly:
+            [
+                "Reply to a message with a Twitch clip or YouTube link and type !play, or add the link after !play!",
+            ],
+            sassy: ["Play what? Reply to a link with !play, or give me one: !play <link>"],
+            hype: ["REPLY TO A LINK WITH !PLAY, OR DROP ONE: !PLAY <LINK>"],
+            chill: ["reply to a link with !play, or !play <link>"]
+        );
+
+        Add(
+            catalog,
+            key,
             BuiltinResponseSlots.Media.AccountUnresolved,
             variables: [],
             informative: ["Your account could not be resolved."],

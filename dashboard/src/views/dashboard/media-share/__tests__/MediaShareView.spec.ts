@@ -225,7 +225,7 @@ describe('Media share page', () => {
     ]);
   });
 
-  it('plays the second approved item now: first in line, then a skip ends what plays', async () => {
+  it('plays an approved item now with one play_now command carrying its id', async () => {
     await open();
     await press(rowOf('c'), '[data-action="play-now"]');
     await settle();
@@ -233,15 +233,32 @@ describe('Media share page', () => {
     expect(calls).toEqual([
       {
         method: 'POST',
-        path: '/api/v{version}/media-share/{id}/reorder',
-        body: { position: 1 },
+        path: '/api/v{version}/channels/{channelId}/actions/run',
+        body: { actionType: 'media_playback', parameters: { command: 'play_now', value: 'c' } },
       },
+    ]);
+  });
+
+  it('replays a played item with one replay command carrying its id', async () => {
+    await open();
+    await press(rowOf('h'), '[data-action="replay"]');
+    await settle();
+
+    expect(calls).toEqual([
       {
         method: 'POST',
         path: '/api/v{version}/channels/{channelId}/actions/run',
-        body: { actionType: 'media_playback', parameters: { command: 'skip', value: '' } },
+        body: { actionType: 'media_playback', parameters: { command: 'replay', value: 'h' } },
       },
     ]);
+  });
+
+  it('offers Replay on skipped history rows but nothing on rejected ones', async () => {
+    queue = [item('s', 'skipped'), item('r', 'rejected')];
+    await open();
+
+    expect(rowOf('s').querySelector('[data-action="replay"]')).not.toBeNull();
+    expect(rowOf('r').querySelectorAll('button')).toHaveLength(0);
   });
 
   it('shows the playing item in the player card, and Pause, Skip and Stop drive the overlay', async () => {
@@ -355,10 +372,10 @@ describe('Media share page', () => {
     expect(player.querySelector('[data-player-reason]')?.textContent).toContain('Approve an item');
   });
 
-  it('offers no play now on the first approved item and no approve on an approved one', async () => {
+  it('offers play now on the first approved item too and no approve on an approved one', async () => {
     await open();
 
-    expect(rowOf('b').querySelector('[data-action="play-now"]')).toBeNull();
+    expect(rowOf('b').querySelector('[data-action="play-now"]')).not.toBeNull();
     expect(rowOf('b').querySelector('[data-action="approve"]')).toBeNull();
   });
 
@@ -392,7 +409,7 @@ describe('Media share page', () => {
     ]);
   });
 
-  it('groups the queue into waiting, up next and history, and history has no controls', async () => {
+  it('groups the queue into waiting, up next and history, and a played row offers only Replay', async () => {
     await open();
 
     const sections = [...document.body.querySelectorAll<HTMLElement>('[data-queue-section]')];
@@ -405,7 +422,7 @@ describe('Media share page', () => {
       'history',
     ]);
 
-    expect(rowOf('h').querySelectorAll('button')).toHaveLength(0);
+    expect(rowOf('h').querySelectorAll('button')).toHaveLength(1);
   });
 
   it('keeps the settings out of the page until the Settings button opens them', async () => {

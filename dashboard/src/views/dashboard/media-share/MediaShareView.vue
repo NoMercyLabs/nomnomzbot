@@ -97,18 +97,18 @@ function move(row: MediaShareRequest, step: number): void {
   reorder.mutate({ id: row.id, position: position(row) + step });
 }
 
-function command(name: MediaPlaybackCommand, value?: number): void {
+function command(name: MediaPlaybackCommand, value?: number | string): void {
   playback.mutate({ command: name, value });
 }
 
-// Play now puts the item first, then the player takes it: a skip ends what plays, a play starts an idle player.
+// The bot puts the item first, ends what plays and loads it.
 function playNow(row: MediaShareRequest): void {
-  reorder.mutate({ id: row.id, position: 1 }, {
-    onSuccess: () =>
-      command(current.value
-        ? 'skip'
-        : 'play'),
-  });
+  command('play_now', row.id);
+}
+
+// A played or skipped item goes back to the front of the queue, and plays when nothing else does.
+function replay(row: MediaShareRequest): void {
+  command('replay', row.id);
 }
 
 function askRemove(row: MediaShareRequest): void {
@@ -180,6 +180,7 @@ function confirmRemove(): void {
             @decide="(action) => decide.mutate({ id: row.id, action })"
             @move="(step) => move(row, step)"
             @play-now="playNow(row)"
+            @replay="replay(row)"
             @remove="askRemove(row)"
           />
         </MediaShareQueueSection>

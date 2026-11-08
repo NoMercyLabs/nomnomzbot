@@ -37,6 +37,7 @@ public static partial class ToneTemplateCatalog
             ("unlurk", "— Marks you as no longer lurking."),
             ("openqueue", "— (Mod) Opens the song queue to new requests again."),
             ("pause", "— (Mod) Pauses the music."),
+            ("play", "[link] — (Mod) Reply to a clip or YouTube link to put it on stream."),
             ("playlist", "— Gives you the Spotify link to the bangers playlist."),
             ("quote", "[add <text> | #number] — View or add stream quotes."),
             ("resume", "— (Mod) Resumes the paused music."),
