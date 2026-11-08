@@ -14,7 +14,7 @@
 </script>
 
 <template>
-  <div data-slot="page-body" class="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-6 max-md:p-4 *:shrink-0">
+  <div data-slot="page-body" class="flex min-h-0 min-w-0 flex-1 flex-col gap-4 overflow-y-auto p-6 pr-[calc(1.5rem-var(--scrollbar-width))] [scrollbar-gutter:stable] max-md:p-4 max-md:pr-[calc(1rem-var(--scrollbar-width))] *:shrink-0">
     <slot />
   </div>
 </template>

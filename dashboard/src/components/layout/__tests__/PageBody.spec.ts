@@ -24,4 +24,14 @@ describe('the page body', () => {
     expect(classes).toContain('*:shrink-0');
     expect(classes).not.toContain('max-md:*:shrink-0');
   });
+
+  // The scrollbar takes its own width from the right edge. Reserving the gutter and shrinking the right padding by
+  // that width keeps the content inset equal on the left and right, with or without a scrollbar.
+  it('reserves the scrollbar gutter and takes its width off the right padding', () => {
+    const body = mount(PageBody);
+    const classes = body.classes();
+
+    expect(classes).toContain('[scrollbar-gutter:stable]');
+    expect(classes).toContain('pr-[calc(1.5rem-var(--scrollbar-width))]');
+  });
 });

@@ -237,10 +237,17 @@ html[data-density='touch'] {
 
 /* One scrollbar for every scroll area, so no OS default ever shows (owner 2026-10-12). A touch screen keeps
    the phone's own thin bar that fades after a scroll: a fixed 10px bar there took width from every page. */
+:root {
+  --scrollbar-width: 0px;
+}
+
 @media (pointer: fine) {
+  :root {
+    --scrollbar-width: 10px;
+  }
   ::-webkit-scrollbar {
-    width: 10px;
-    height: 10px;
+    width: var(--scrollbar-width);
+    height: var(--scrollbar-width);
   }
   ::-webkit-scrollbar-track,
   ::-webkit-scrollbar-corner {
