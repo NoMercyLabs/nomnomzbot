@@ -102,6 +102,8 @@ public sealed class ChatMessageBroadcastHandler
 
         IReadOnlyList<ChatFragmentDto> fragments;
         IReadOnlyList<ChatBadgeDto> badges;
+        IReadOnlyList<ChatBadgeDto>? sourceBadges = null;
+        string? sourceAvatarUrl = null;
         HubUserEnrichment? enrichment = null;
         ChatPaintDto? paint = null;
         if (isTwitch)
@@ -113,6 +115,8 @@ public sealed class ChatMessageBroadcastHandler
             paint = MapPaint(await _paintResolver.ResolveAsync(evt.UserId, ct));
             fragments = [.. decorated.Fragments.Select(ChatFragmentMapper.MapFragment)];
             badges = [.. decorated.Badges.Select(ChatFragmentMapper.MapBadge)];
+            sourceBadges = decorated.SourceBadges?.Select(ChatFragmentMapper.MapBadge).ToList();
+            sourceAvatarUrl = await ResolveSourceAvatarAsync(evt, ct);
         }
         else
         {
@@ -153,7 +157,9 @@ public sealed class ChatMessageBroadcastHandler
             IsArtist: evt.IsArtist,
             Hints: await ResolveHintsAsync(evt, ct),
             SourceChannelId: evt.SourceChannelId,
-            SourceChannelName: evt.SourceChannelName
+            SourceChannelName: evt.SourceChannelName,
+            SourceBadges: sourceBadges,
+            SourceChannelAvatarUrl: sourceAvatarUrl
         );
 
         await _notifier.SendChatMessageAsync(evt.BroadcasterId.ToString(), dto, ct);
@@ -193,6 +199,24 @@ public sealed class ChatMessageBroadcastHandler
             evt.EventId.ToString(),
             ct
         );
+    }
+
+    // The source channel is a Twitch user too, so its avatar comes from the same enrichment as a chatter's.
+    private async Task<string?> ResolveSourceAvatarAsync(
+        ChatMessageReceivedEvent evt,
+        CancellationToken ct
+    )
+    {
+        if (string.IsNullOrEmpty(evt.SourceChannelId))
+            return null;
+
+        HubUserEnrichment? source = await _enricher.EnrichAsync(
+            evt.BroadcasterId,
+            evt.SourceChannelId,
+            ct
+        );
+
+        return source?.AvatarUrl;
     }
 
     // The live line's hints come from the same service as history, so the two always agree. A failed lookup must

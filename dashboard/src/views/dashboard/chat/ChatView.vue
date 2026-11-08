@@ -236,6 +236,9 @@ const feedLines = computed<ChatLineData[]>(() =>
     ? foundLines.value
     : visible.value);
 
+const sharedSession = computed<boolean>(() =>
+  feedLines.value.some((line) => Boolean(line.sourceChannelName)));
+
 const feedPanel = computed(() =>
   searching.value
     ? {
@@ -539,6 +542,7 @@ async function confirmBan(): Promise<void> {
                 :focus="focusOf(item)"
                 :parent="parentOf(item)"
                 :viewer="viewerMode"
+                :shared="sharedSession"
                 @ban="askBan"
                 @focus="pickChatter"
                 @reply="startReply"

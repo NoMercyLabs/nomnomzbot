@@ -199,7 +199,6 @@
       },
       "native": {
         "by": "by {name}",
-        "source": "From {name}",
         "notice": {
           "sub": "Twitch subscription",
           "resub": "Twitch resubscription",

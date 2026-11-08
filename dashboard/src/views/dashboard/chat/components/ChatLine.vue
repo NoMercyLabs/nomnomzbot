@@ -49,6 +49,7 @@ import {
 import { emoteVars, lineHints, shownNameColor, spacingPadding, splitMentions, type ChatDisplay } from '../chatDisplay';
 import ChatFragments from './ChatFragments.vue';
 import ChatNativeLine from './ChatNativeLine.vue';
+import ChatSourceAvatar from './ChatSourceAvatar.vue';
 
 const props = defineProps<{
   line: ChatLine;
@@ -64,6 +65,8 @@ const props = defineProps<{
   compact?: boolean;
   // The viewer chat: a participant's line carries no moderation and no profile (the profile dialog reads operator data), only reply.
   viewer?: boolean;
+  // The list on screen holds lines from another channel (a shared session), so this channel's own lines are tinted.
+  shared?: boolean;
 }>();
 
 const emit = defineEmits<{
@@ -104,6 +107,9 @@ const mentionsMe = computed<boolean>(() => {
   });
 });
 
+const ownChannel = computed<boolean>(() =>
+  props.shared === true && !props.line.sourceChannelName);
+
 const rowClass = computed<string[]>(() => {
   const classes: string[] = [
     spacingPadding[props.display.spacing],
@@ -127,6 +133,8 @@ const rowClass = computed<string[]>(() => {
     classes.push('bg-primary/8');
   } else if (mentionsMe.value && props.focus !== 'dim') {
     classes.push('bg-primary/10');
+  } else if (ownChannel.value) {
+    classes.push('bg-muted/70');
   } else if (props.display.alternating && props.index % 2 === 1) {
     classes.push('bg-muted/40');
   }
@@ -170,9 +178,10 @@ const canOpenProfile = computed<boolean>(() =>
 const hasActions = computed<boolean>(() =>
   canReply.value || canTimeout.value || canDelete.value || canOpenProfile.value);
 
-// A badge the server could not resolve has no image, so it is left out rather than shown broken.
+// A shared-chat line shows the badges the chatter wears where they typed; a badge the server could not resolve
+// has no image, so it is left out rather than shown broken.
 const badges = computed(() =>
-  props.line.badges.flatMap((badge) => {
+  (props.line.sourceBadges ?? props.line.badges).flatMap((badge) => {
     const src = smallestUrl(badge.urls);
     const card = cardOfBadge(badge, t);
 
@@ -184,6 +193,13 @@ const badges = computed(() =>
         }]
       : [];
   }));
+
+const showMarks = computed<boolean>(() => {
+  const { display, line } = props;
+  const hasBadges = display.badges && badges.value.length > 0;
+
+  return Boolean(display.platform || line.sourceChannelName || hasBadges);
+});
 
 const lineStyle = computed(() =>
   emoteVars(props.line, props.display));
@@ -305,6 +321,7 @@ function pick(event: MouseEvent): void {
     :data-alt="display.alternating && index % 2 === 1 ? 'on' : 'off'"
     :data-mention="mentionsMe ? 'true' : undefined"
     :data-focus="focus"
+    :data-own-channel="ownChannel ? 'true' : undefined"
     class="group/line relative flex cursor-pointer gap-2 rounded-lg text-sm leading-(--line-h) hover:bg-muted focus-within:bg-muted"
     :class="rowClass"
     :style="lineStyle"
@@ -363,7 +380,7 @@ function pick(event: MouseEvent): void {
           :class="display.rows === 'two' ? 'flex' : 'me-2 inline-flex'"
         >
           <span
-            v-if="display.platform || (display.badges && badges.length > 0)"
+            v-if="showMarks"
             class="flex items-center gap-1"
           >
             <PlatformLogo
@@ -371,6 +388,11 @@ function pick(event: MouseEvent): void {
               data-platform
               :platform="line.provider"
               class="size-4 flex-none"
+            />
+            <ChatSourceAvatar
+              v-if="line.sourceChannelName"
+              :name="line.sourceChannelName"
+              :avatar-url="line.sourceChannelAvatarUrl"
             />
             <template v-if="display.badges">
               <AssetCardPopover
@@ -386,11 +408,6 @@ function pick(event: MouseEvent): void {
               </AssetCardPopover>
             </template>
           </span>
-          <span
-            v-if="line.sourceChannelName"
-            data-source-channel
-            class="rounded-sm border border-border px-1.5 text-xs text-muted-foreground"
-          >{{ $t('dashboard.chat.native.source', { name: line.sourceChannelName }) }}</span>
           <UserName
             :user-id="line.userId"
             :name="line.displayName"

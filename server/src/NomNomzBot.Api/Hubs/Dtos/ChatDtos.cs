@@ -78,7 +78,12 @@ public record DashboardChatMessageDto(
     string? RecipientUserId = null,
     string? RecipientDisplayName = null,
     string? HeldStatus = null,
-    string? Removed = null
+    string? Removed = null,
+    // Shared chat only: the badges the chatter wears in the channel they typed in, for display. Null for a line typed
+    // here. Never read for a role or identity: Badges is the only source for those.
+    IReadOnlyList<ChatBadgeDto>? SourceBadges = null,
+    // Shared chat only: the avatar of the channel the line came from, null when that channel has no known avatar.
+    string? SourceChannelAvatarUrl = null
 );
 
 /// <summary>
