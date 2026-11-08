@@ -12,8 +12,8 @@
 // The search box of a list. The key "/" focuses it from anywhere on the page, unless
 // the person is already typing in a field.
 import { useTemplateRef, type HTMLAttributes } from 'vue';
-import SearchMagnifyingGlass from '~icons/nnz/search-magnifying-glass';
 
+import SearchIcon from '@/components/layout/SearchIcon.vue';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Kbd } from '@/components/ui/kbd';
 import { useShortcut } from '@/composables/useShortcut';
@@ -34,7 +34,7 @@ useShortcut(shortcut, () => {
 <template>
   <InputGroup data-slot="search-field" :class="cn('w-full', props.class)">
     <InputGroupAddon>
-      <SearchMagnifyingGlass />
+      <SearchIcon />
     </InputGroupAddon>
     <InputGroupInput
       ref="input"

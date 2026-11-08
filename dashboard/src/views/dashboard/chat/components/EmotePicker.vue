@@ -18,7 +18,6 @@ import { computed, nextTick, ref, shallowRef, useTemplateRef, watch } from 'vue'
 import { useI18n } from 'vue-i18n';
 import ChevronDown from '~icons/nnz/chevron-down';
 import ClockBackward from '~icons/nnz/clock-backward';
-import SearchMagnifyingGlass from '~icons/nnz/search-magnifying-glass';
 import Smile from '~icons/nnz/smile';
 import Star from '~icons/nnz/star';
 import StarFilled from '~icons/nnz/star-filled';
@@ -26,6 +25,7 @@ import StarFilled from '~icons/nnz/star-filled';
 import { useCurrentUser } from '@/api/auth';
 import type { ChatEmoteEntry } from '@/api/chat';
 import { useFavoriteEmoteChange, useFavoriteEmotes } from '@/api/favoriteEmotes';
+import SearchIcon from '@/components/layout/SearchIcon.vue';
 import { Button } from '@/components/ui/button';
 import { InputGroup, InputGroupAddon, InputGroupInput } from '@/components/ui/input-group';
 import { Popover, PopoverAnchor, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
@@ -543,7 +543,7 @@ function closeTones(isOpen: boolean): void {
       <div v-if="!phone" class="flex items-center gap-2">
         <InputGroup data-picker-search class="flex-1 rounded-[calc(var(--radius-md)-8px)]">
           <InputGroupAddon>
-            <SearchMagnifyingGlass />
+            <SearchIcon />
           </InputGroupAddon>
           <InputGroupInput
             v-model="query"

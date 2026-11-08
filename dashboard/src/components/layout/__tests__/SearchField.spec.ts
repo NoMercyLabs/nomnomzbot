@@ -79,6 +79,16 @@ describe('the search field', () => {
     expect(event.defaultPrevented).toBe(false);
   });
 
+  // aaoa, stream 2026-11-04 (Whisper text): "the icon of search isn't like a two point line".
+  // The designer icon is a 24 box with a 1.5 stroke; at 16px that draws 1px, so the stroke is 3 (2px).
+  it('draws the search icon as a 2px line at its 16px size', () => {
+    field();
+
+    const icon: SVGElement = mounted!.find('svg').element;
+
+    expect(icon.getAttribute('class')).toContain('[&_path]:stroke-3');
+  });
+
   it('emits what is typed', async () => {
     field();
 
