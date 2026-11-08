@@ -134,7 +134,7 @@ public sealed class MediaShareService : IMediaShareService
                 "QUEUE_FULL"
             );
 
-        bool autoApproved = !config.RequireApproval;
+        bool autoApproved = !config.RequireApproval || request.ApproveWithoutReview;
         Guid requestId = Guid.CreateVersion7();
 
         // Debit the entry cost up front against the pre-allocated request id, so a failed debit needs no

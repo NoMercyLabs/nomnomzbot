@@ -9,10 +9,20 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Text.Json.Serialization;
+
 namespace NomNomzBot.Application.MediaShare.Dtos;
 
 /// <summary>Submit body — a Twitch-clip or YouTube URL (media-share.md §3).</summary>
-public sealed record SubmitMediaRequest(string Url);
+public sealed record SubmitMediaRequest(string Url)
+{
+    /// <summary>
+    /// Set by the server for a moderator or broadcaster submitting from chat: the item is approved at once,
+    /// whatever the channel's RequireApproval says. Never read from a client body.
+    /// </summary>
+    [JsonIgnore]
+    public bool ApproveWithoutReview { get; init; }
+}
 
 /// <summary>One media-share queue item (media-share.md §3).</summary>
 public sealed record MediaShareRequestDto(

@@ -101,8 +101,8 @@ public static class FirstPartyWidgetCatalogue
     private static readonly ObsBrowserSource SoundOnly = new(1, 1, true, false);
 
     /// <summary>
-    /// The one overlay that draws and plays sound: the TTS Caption shows the words on the full canvas and plays the
-    /// spoken message itself, so OBS audio control is ticked. Shutdown stays off for the same reason as the rest.
+    /// The overlays that draw and play sound: the TTS Caption shows the words on the full canvas and plays the
+    /// spoken message itself, and Media Share plays the video's own sound, so OBS audio control is ticked. Shutdown stays off for the same reason as the rest.
     /// </summary>
     private static readonly ObsBrowserSource FullCanvasWithSound = new(1920, 1080, true, false);
 
@@ -287,7 +287,7 @@ public static class FirstPartyWidgetCatalogue
         ),
         new(
             Key: "media_share",
-            ObsSetup: FullCanvas,
+            ObsSetup: FullCanvasWithSound,
             Name: "Media Share",
             Description: "Plays the approved viewer-shared Twitch clips and YouTube videos on stream. The server sends "
                 + "load, play, pause, stop, seek and volume commands and this overlay reports its player state back, "

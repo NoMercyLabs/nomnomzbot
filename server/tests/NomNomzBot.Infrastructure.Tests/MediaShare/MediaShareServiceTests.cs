@@ -245,6 +245,37 @@ public sealed class MediaShareServiceTests
     }
 
     [Fact]
+    public async Task Submit_ApproveWithoutReview_EnqueuesApproved_EvenWhenTheChannelRequiresApproval()
+    {
+        Harness h = Build();
+        SeedConfig(h.Db, requireApproval: true);
+
+        Result<MediaShareRequestDto> result = await h.Sut.SubmitAsync(
+            Channel,
+            Mod,
+            new(Req().Url) { ApproveWithoutReview = true }
+        );
+
+        result.Value.Status.Should().Be(MediaShareStatus.Approved);
+        result.Value.QueuePosition.Should().Be(1);
+        h.Bus.Published.OfType<MediaSharePlaybackChangedEvent>()
+            .Should()
+            .ContainSingle(e => e.Status == MediaShareStatus.Approved);
+    }
+
+    [Fact]
+    public async Task Submit_WithoutTheFlag_StillWaitsForReview_WhenTheChannelRequiresApproval()
+    {
+        Harness h = Build();
+        SeedConfig(h.Db, requireApproval: true);
+
+        Result<MediaShareRequestDto> result = await h.Sut.SubmitAsync(Channel, Viewer, Req());
+
+        result.Value.Status.Should().Be(MediaShareStatus.Pending);
+        result.Value.QueuePosition.Should().BeNull();
+    }
+
+    [Fact]
     public async Task Submit_OverCap_RejectsDurationExceeded_NoWrite()
     {
         Harness h = Build(new(MediaShareSourceType.TwitchClip, "long", "Long", 240, null));

@@ -59,6 +59,7 @@ interface YouTubeWindow extends Window {
 const YT_STATE_NAMES: Record<number, PlayerState> = { 0: 'ended', 1: 'playing', 2: 'paused' }
 const REPORT_INTERVAL_MS: number = 2000
 const CLIP_END_GRACE_MS: number = 1000
+const CLIP_FALLBACK_SECONDS: number = 60
 
 const title = ref<string>('')
 const sourceType = ref<string>('')
@@ -121,6 +122,7 @@ function onYouTubeState(e: YouTubeEvent): void {
   const next: PlayerState | undefined = YT_STATE_NAMES[e.data]
   if (!next) return
   if (next === 'playing') makeAudible(e.target)
+  if (next === 'ended') { finish('ended'); return }
   report(next)
 }
 
@@ -163,8 +165,9 @@ function playClip(clip: string): void {
     + '&parent=' + encodeURIComponent(window.location.hostname) + '&autoplay=true&muted=false'
   clipStartedAt = Date.now()
   window.clearTimeout(clipEndTimer)
-  if (durationSeconds > 0)
-    clipEndTimer = window.setTimeout(() => finish('ended'), durationSeconds * 1000 + CLIP_END_GRACE_MS)
+  // A clip with an unknown length (0) still ends: a Twitch clip is at most 60 seconds long.
+  const lengthSeconds: number = durationSeconds > 0 ? durationSeconds : CLIP_FALLBACK_SECONDS
+  clipEndTimer = window.setTimeout(() => finish('ended'), lengthSeconds * 1000 + CLIP_END_GRACE_MS)
   report('playing')
 }
 

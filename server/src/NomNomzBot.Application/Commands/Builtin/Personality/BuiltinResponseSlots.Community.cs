@@ -203,6 +203,9 @@ public static partial class BuiltinResponseSlots
         /// <summary><c>!media</c> without a link.</summary>
         public const string Usage = "usage";
 
+        /// <summary><c>!play</c> without a link and without a replied-to message that holds one.</summary>
+        public const string PlayUsage = "playusage";
+
         /// <summary>The caller's account could not be resolved.</summary>
         public const string AccountUnresolved = "accountunresolved";
 

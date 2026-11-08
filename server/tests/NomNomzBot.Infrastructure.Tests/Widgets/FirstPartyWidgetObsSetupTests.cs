@@ -28,6 +28,7 @@ public sealed class FirstPartyWidgetObsSetupTests
         WidgetKeyAliases.Audio,
         WidgetKeyAliases.MusicPlayer,
         "tts_caption",
+        "media_share",
     ];
 
     private static readonly string[] MustKeepRunningKeys =
@@ -77,6 +78,15 @@ public sealed class FirstPartyWidgetObsSetupTests
 
         caption.ObsSetup.Should().Be(new ObsBrowserSource(1920, 1080, true, false));
         caption.Description.Should().Contain("keep \"Control audio via OBS\" ON");
+    }
+
+    [Fact]
+    public void The_media_share_player_is_a_full_canvas_source_that_ticks_obs_audio_control_because_the_video_has_sound()
+    {
+        FirstPartyWidgetCatalogue
+            .Find("media_share")!
+            .ObsSetup.Should()
+            .Be(new ObsBrowserSource(1920, 1080, true, false));
     }
 
     [Fact]

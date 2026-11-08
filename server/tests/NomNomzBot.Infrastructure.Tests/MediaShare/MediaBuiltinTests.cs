@@ -142,6 +142,70 @@ public sealed class MediaBuiltinTests
         reply.Value.Should().Be(expected);
     }
 
+    [Theory]
+    [InlineData(0, false)]
+    [InlineData(4, false)]
+    [InlineData(10, true)]
+    [InlineData(40, true)]
+    public async Task Only_a_moderator_or_the_broadcaster_is_submitted_without_review(
+        int roleLevel,
+        bool expected
+    )
+    {
+        IMediaShareService media = Substitute.For<IMediaShareService>();
+        media
+            .SubmitAsync(
+                Arg.Any<Guid>(),
+                Arg.Any<Guid>(),
+                Arg.Any<SubmitMediaRequest>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(Result.Success(Request(MediaShareStatus.Approved)));
+        IUserService users = Substitute.For<IUserService>();
+        users
+            .GetOrCreateAsync(
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<string>(),
+                Arg.Any<CancellationToken>()
+            )
+            .Returns(
+                Result.Success(
+                    new UserDto(
+                        Viewer.ToString(),
+                        "viewer",
+                        "Viewer",
+                        null,
+                        null,
+                        DateTime.UnixEpoch,
+                        DateTime.UnixEpoch
+                    )
+                )
+            );
+        MediaBuiltin sut = new(media, users, TestBuiltinComposer.Create());
+        BuiltinCommandContext context = new()
+        {
+            BroadcasterId = Channel,
+            TriggeringUserId = "tw-viewer",
+            TriggeringUserLogin = "viewer",
+            TriggeringUserDisplayName = "Viewer",
+            RoleLevel = roleLevel,
+            Args = "https://clips.twitch.tv/x",
+        };
+
+        await sut.ExecuteAsync(context);
+
+        await media
+            .Received(1)
+            .SubmitAsync(
+                Channel,
+                Viewer,
+                Arg.Is<SubmitMediaRequest>(r => r.ApproveWithoutReview == expected),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
     [Fact]
     public async Task No_link_speaks_the_usage_slot()
     {

@@ -16,22 +16,22 @@ using NomNomzBot.Application.Identity.Dtos;
 using NomNomzBot.Application.Identity.Services;
 using NomNomzBot.Application.MediaShare.Dtos;
 using NomNomzBot.Application.MediaShare.Services;
-using NomNomzBot.Domain.MediaShare.Entities;
-using NomNomzBot.Infrastructure.Commands.Builtins;
 
 namespace NomNomzBot.Infrastructure.MediaShare.Builtins;
 
 /// <summary>
 /// Chat builtin <c>!media &lt;url&gt;</c> (media-share.md §4) — submits a Twitch clip / YouTube video for
 /// the caller and replies with the queued / needs-approval / rejection status. Everyone by default (the
-/// service enforces enablement, eligibility, cost, and cooldown). Every reply is a slot of the <c>media</c>
-/// group; the service's error CODE picks the slot, its message stays for logs and the API.
+/// service enforces enablement, eligibility, cost, and cooldown). A moderator or the broadcaster is approved
+/// without review. Every reply is a slot of the <c>media</c> group; the service's error CODE picks the slot.
 /// </summary>
 public sealed class MediaBuiltin : IBuiltinCommand
 {
+    private const int ModeratorLevel = 10; // Moderator on the unified ladder.
+
     private readonly IMediaShareService _media;
     private readonly IUserService _users;
-    private readonly IBuiltinResponseComposer _composer;
+    private readonly MediaSubmitReplies _replies;
 
     public MediaBuiltin(
         IMediaShareService media,
@@ -41,7 +41,7 @@ public sealed class MediaBuiltin : IBuiltinCommand
     {
         _media = media;
         _users = users;
-        _composer = composer;
+        _replies = new(composer);
     }
 
     public string BuiltinKey => "media";
@@ -55,7 +55,7 @@ public sealed class MediaBuiltin : IBuiltinCommand
     {
         string url = context.Args.Trim();
         if (url.Length == 0)
-            return await ReplyAsync(
+            return await _replies.ReplyAsync(
                 context,
                 BuiltinResponseSlots.Media.Usage,
                 "Usage: !media <twitch clip or youtube url>",
@@ -70,7 +70,7 @@ public sealed class MediaBuiltin : IBuiltinCommand
             cancellationToken: ct
         );
         if (caller.IsFailure || !Guid.TryParse(caller.Value.Id, out Guid viewerUserId))
-            return await ReplyAsync(
+            return await _replies.ReplyAsync(
                 context,
                 BuiltinResponseSlots.Media.AccountUnresolved,
                 "Your account could not be resolved.",
@@ -81,121 +81,11 @@ public sealed class MediaBuiltin : IBuiltinCommand
         Result<MediaShareRequestDto> result = await _media.SubmitAsync(
             context.BroadcasterId,
             viewerUserId,
-            new(url),
+            new(url) { ApproveWithoutReview = context.RoleLevel >= ModeratorLevel },
             ct
         );
-        if (result.IsFailure)
-            return await FailureAsync(context, result.ErrorCode, ct);
-
-        Dictionary<string, string> vars = new(StringComparer.OrdinalIgnoreCase)
-        {
-            ["media.title"] = result.Value.Title ?? "your clip",
-        };
-        return result.Value.Status == MediaShareStatus.Approved
-            ? await ReplyAsync(
-                context,
-                BuiltinResponseSlots.Media.Queued,
-                "Added {media.title} to the queue!",
-                vars,
-                ct
-            )
-            : await ReplyAsync(
-                context,
-                BuiltinResponseSlots.Media.Pending,
-                "Submitted {media.title} — a mod will review it shortly.",
-                vars,
-                ct
-            );
+        return result.IsFailure
+            ? await _replies.FailureAsync(context, result.ErrorCode, ct)
+            : await _replies.SubmittedAsync(context, result.Value, ct);
     }
-
-    /// <summary>Maps the service's error code to the slot that words it; an unlisted code gets the generic slot.</summary>
-    private Task<Result<string>> FailureAsync(
-        BuiltinCommandContext context,
-        string? errorCode,
-        CancellationToken ct
-    ) =>
-        errorCode switch
-        {
-            "DISABLED" => ReplyAsync(
-                context,
-                BuiltinResponseSlots.Media.Disabled,
-                "Media share is not enabled on this channel.",
-                null,
-                ct
-            ),
-            "SOURCE_NOT_ALLOWED" or "VALIDATION_FAILED" => ReplyAsync(
-                context,
-                BuiltinResponseSlots.Media.SourceNotAllowed,
-                "Only Twitch clips and YouTube videos that this channel accepts can be queued.",
-                null,
-                ct
-            ),
-            "NOT_FOUND" => ReplyAsync(
-                context,
-                BuiltinResponseSlots.Media.NotFound,
-                "I couldn't find that clip or video.",
-                null,
-                ct
-            ),
-            "DURATION_EXCEEDED" => ReplyAsync(
-                context,
-                BuiltinResponseSlots.Media.TooLong,
-                "That clip is longer than this channel allows.",
-                null,
-                ct
-            ),
-            "NOT_ELIGIBLE" => ReplyAsync(
-                context,
-                BuiltinResponseSlots.Media.NotEligible,
-                "You can't submit media on this channel right now.",
-                null,
-                ct
-            ),
-            "COOLDOWN" => ReplyAsync(
-                context,
-                BuiltinResponseSlots.Media.Cooldown,
-                "You're submitting too fast — wait a moment before the next one.",
-                null,
-                ct
-            ),
-            "QUEUE_FULL" => ReplyAsync(
-                context,
-                BuiltinResponseSlots.Media.QueueFull,
-                "The media queue is full — try again after some items play.",
-                null,
-                ct
-            ),
-            "SERVICE_UNAVAILABLE" => ReplyAsync(
-                context,
-                BuiltinResponseSlots.Media.Unavailable,
-                "I couldn't look that up right now — try again in a moment.",
-                null,
-                ct
-            ),
-            _ => ReplyAsync(
-                context,
-                BuiltinResponseSlots.Media.Failed,
-                "I couldn't submit that. Check your points and try again.",
-                null,
-                ct
-            ),
-        };
-
-    private async Task<Result<string>> ReplyAsync(
-        BuiltinCommandContext context,
-        string slot,
-        string neutralFallback,
-        IReadOnlyDictionary<string, string>? variables,
-        CancellationToken ct
-    ) =>
-        Result.Success(
-            await _composer.ComposeAsync(
-                context,
-                BuiltinResponseSlots.Media.Key,
-                slot,
-                neutralFallback,
-                variables,
-                ct
-            )
-        );
 }
