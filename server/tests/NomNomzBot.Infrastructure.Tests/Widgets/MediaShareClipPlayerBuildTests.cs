@@ -40,7 +40,7 @@ public sealed class MediaShareClipPlayerBuildTests : IClassFixture<VueSfcCompile
             "NomNomzBot.Infrastructure.Content.Widgets.Assets.media_share.vue"
         );
         stream.Should().NotBeNull();
-        using StreamReader reader = new(stream!);
+        using StreamReader reader = new(stream);
         return reader.ReadToEnd();
     }
 

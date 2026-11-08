@@ -378,6 +378,10 @@
           "description": "Someone asks what !pause does.",
           "label": "Help for !pause"
         },
+        "lineplay": {
+          "description": "Someone asks what !play does.",
+          "label": "Help for !play"
+        },
         "lineplaylist": {
           "description": "Someone asks what !playlist does.",
           "label": "Help for !playlist"
@@ -509,6 +513,10 @@
         "pending": {
           "description": "A clip or video waits for a moderator.",
           "label": "Media waiting"
+        },
+        "playusage": {
+          "description": "Someone uses !play without a clip or video link.",
+          "label": "How to use !play"
         },
         "queued": {
           "description": "A clip or video goes straight into the queue.",

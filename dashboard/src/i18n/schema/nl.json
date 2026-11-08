@@ -378,6 +378,10 @@
           "description": "Iemand vraagt wat !pause doet.",
           "label": "Uitleg over !pause"
         },
+        "lineplay": {
+          "description": "Iemand vraagt wat !play doet.",
+          "label": "Uitleg over !play"
+        },
         "lineplaylist": {
           "description": "Iemand vraagt wat !playlist doet.",
           "label": "Uitleg over !playlist"
@@ -509,6 +513,10 @@
         "pending": {
           "description": "Een clip of video wacht op een moderator.",
           "label": "Media wacht"
+        },
+        "playusage": {
+          "description": "Iemand gebruikt !play zonder link naar een clip of video.",
+          "label": "Zo gebruik je !play"
         },
         "queued": {
           "description": "Een clip of video gaat direct de wachtrij in.",
