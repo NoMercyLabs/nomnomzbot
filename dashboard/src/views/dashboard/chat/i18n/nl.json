@@ -75,7 +75,7 @@
           "mentions": "Vermeldingen van mij markeren",
           "deleted": "Verwijderde berichten",
           "htmlAsText": "HTML als gewone tekst tonen",
-          "hintFirstEver": "Eerste bericht ooit",
+          "hintFirstEver": "Eerste keer dat de bot deze kijker ziet",
           "hintFirstOfDay": "Eerste bericht van de dag",
           "hintFirstOfStream": "Eerste bericht van de stream",
           "hintNewAccount": "Chatters nieuw op Twitch",
@@ -108,7 +108,7 @@
         "days90": "90 dagen"
       },
       "hint": {
-        "firstEver": "Eerste bericht ooit",
+        "firstEver": "Eerste keer dat de bot deze kijker ziet",
         "firstOfDay": "Eerste bericht van de dag",
         "firstOfStream": "Eerste bericht van de stream",
         "newAccount": "Nieuw op Twitch ({age})",

@@ -141,7 +141,7 @@ describe('Greetings and streaks', () => {
   it('shows the saved config and keeps Save off until something changes', async () => {
     await open();
 
-    expect(switchFor('First message ever').getAttribute('aria-checked')).toBe('true');
+    expect(switchFor('First time the bot sees a viewer').getAttribute('aria-checked')).toBe('true');
     expect(switchFor('Back after a break').getAttribute('aria-checked')).toBe('false');
     expect(q<HTMLInputElement>('[data-cooldown]').value).toBe('30');
     expect(milestoneInputs().map((input) => input.value)).toEqual(['5', '10']);
@@ -152,8 +152,8 @@ describe('Greetings and streaks', () => {
     held = ['engagement:read'];
     await open();
 
-    expect(switchFor('First message ever').getAttribute('aria-checked')).toBe('true');
-    expect(switchFor('First message ever').hasAttribute('disabled')).toBe(true);
+    expect(switchFor('First time the bot sees a viewer').getAttribute('aria-checked')).toBe('true');
+    expect(switchFor('First time the bot sees a viewer').hasAttribute('disabled')).toBe(true);
     expect(q<HTMLInputElement>('[data-cooldown]').disabled).toBe(true);
     expect(document.body.querySelector('button[form="engagement-form"]')).toBeNull();
     expect(document.body.querySelector('[data-add-milestone]')).toBeNull();
@@ -232,7 +232,7 @@ describe('Greetings and streaks', () => {
     await click(q('[data-reset-defaults]'));
 
     expect(saved).toEqual([]);
-    expect(switchFor('First message ever').getAttribute('aria-checked')).toBe('false');
+    expect(switchFor('First time the bot sees a viewer').getAttribute('aria-checked')).toBe('false');
     expect(switchFor('Back after a break').getAttribute('aria-checked')).toBe('true');
     expect(q<HTMLInputElement>('[data-cooldown]').value).toBe('7');
     expect(milestoneInputs().map((input) => input.value)).toEqual(['3']);

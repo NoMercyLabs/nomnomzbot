@@ -184,7 +184,7 @@
   "webhook_event_chat_message_received_event_label": "Chat message",
   "webhook_event_whisper_received_event_label": "Whisper received",
   "webhook_event_chat_notification_event_label": "Chat notification",
-  "webhook_event_first_time_chatter_detected_event_label": "First-time chatter",
+  "webhook_event_first_time_chatter_detected_event_label": "First time the bot sees this viewer",
   "webhook_event_user_banned_event_label": "User banned",
   "webhook_event_user_timed_out_event_label": "User timed out",
   "webhook_event_user_unbanned_event_label": "User unbanned",

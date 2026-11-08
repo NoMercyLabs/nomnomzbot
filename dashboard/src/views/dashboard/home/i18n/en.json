@@ -173,7 +173,7 @@
           "channel_prediction_lock": "Prediction locked",
           "channel_prediction_end": "Prediction ended",
           "channel_ad_break_begin": "Ad break started",
-          "engagement_first_time_chatter": "First message",
+          "engagement_first_time_chatter": "First seen by the bot",
           "engagement_returning_chatter": "Came back to chat",
           "engagement_watch_streak": "Watch streak",
           "engagement_modiversary": "Moderator anniversary",
