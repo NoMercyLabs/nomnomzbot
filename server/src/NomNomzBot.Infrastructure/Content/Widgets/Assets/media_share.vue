@@ -8,7 +8,7 @@ import { ref, reactive, onMounted, onUnmounted } from 'vue'
 // The MEDIA SHARE widget: plays the approved viewer-shared items (Twitch clips and YouTube videos) on
 // stream. The server drives it with `media_share_command` events (load, play, pause, stop, seek, volume)
 // and this page reports its player state back, so an ended or failed item moves the queue on.
-// Display-only: no controls. Hidden while nothing plays.
+// Display-only: no controls. Hidden while nothing plays. Clips play in the NoMercy video player.
 interface MediaShareConfig {
   showTitle: boolean
   accentColor: string
@@ -55,15 +55,38 @@ interface YouTubeWindow extends Window {
   onYouTubeIframeAPIReady?: () => void
 }
 
+// A Twitch clip plays in the published NoMercy video player, vendored at build time and served by the bot
+// itself (no third-party CDN). It always picks the highest quality the clip has.
+interface ClipItem { id: string, title: string, url: string }
+interface ClipPlayer {
+  addPlugin(plugin: unknown, options: Record<string, unknown>): ClipPlayer
+  setup(config: { playlist: ClipItem[] }): ClipPlayer
+  on(event: string, handler: () => void): void
+  queue(items: ClipItem[]): void
+  play(): Promise<void>
+  pause(): Promise<void>
+  stop(): Promise<void>
+  time(): number
+  time(seconds: number): Promise<void>
+  duration(): number
+  volume(): number
+  volume(level: number): Promise<void>
+}
+interface PlayerModule {
+  nmplayer(containerId: string): ClipPlayer
+  TwitchPlugin: unknown
+}
+interface PlayerWindow extends Window { NomNomzPlayer?: PlayerModule }
+
 // IFrame API state codes: 0 ended, 1 playing, 2 paused.
 const YT_STATE_NAMES: Record<number, PlayerState> = { 0: 'ended', 1: 'playing', 2: 'paused' }
 const REPORT_INTERVAL_MS: number = 2000
-const CLIP_END_GRACE_MS: number = 1000
-const CLIP_FALLBACK_SECONDS: number = 60
+const PLAYER_SCRIPT_URL: string = '/vendor/nomercy-player.js'
+const CLIP_CONTAINER_ID: string = 'nnz-clip-player'
+const CLIP_URL_BASE: string = 'https://clips.twitch.tv/'
 
 const title = ref<string>('')
 const sourceType = ref<string>('')
-const clipUrl = ref<string>('')
 const visible = ref<boolean>(false)
 const ytMount = ref<HTMLElement | null>(null)
 
@@ -76,19 +99,39 @@ let ytApiPromise: Promise<void> | null = null
 let ytStarting: boolean = false
 let ytPendingId: string | null = null
 let reportTimer: number | undefined
-let clipEndTimer: number | undefined
-let clipStartedAt: number = 0
+let clipPlayer: ClipPlayer | null = null
+let playerModulePromise: Promise<PlayerModule> | null = null
+let clipLoadCount: number = 0
+let clipArmed: boolean = false
+
+function isClip(): boolean {
+  return sourceType.value === 'twitch_clip'
+}
 
 function positionSeconds(): number {
   if (sourceType.value === 'youtube' && ytPlayer) return ytPlayer.getCurrentTime()
-  if (sourceType.value === 'twitch_clip' && clipStartedAt) return (Date.now() - clipStartedAt) / 1000
+  if (isClip() && clipPlayer) return clipPlayer.time()
   return 0
+}
+
+function reportedDuration(): number {
+  const playerSeconds: number = isClip() && clipPlayer ? clipPlayer.duration() : 0
+  return playerSeconds > 0 ? playerSeconds : durationSeconds
+}
+
+// The player takes the command's own 0-100 scale, so the value is passed through unscaled (rounded, clamped).
+function reportedVolume(): number {
+  return isClip() && clipPlayer ? Math.round(clipPlayer.volume()) : volume
 }
 
 function report(next: PlayerState): void {
   state = next
-  NomNomz.reportMediaSharePlayerState(requestId, next, Math.round(positionSeconds()), Math.round(durationSeconds), volume)
+  NomNomz.reportMediaSharePlayerState(requestId, next, Math.round(positionSeconds()), Math.round(reportedDuration()), reportedVolume())
     .catch(() => { /* offline: the next report tells the server again */ })
+}
+
+function quiet(action: Promise<void> | undefined): void {
+  action?.catch(() => { /* a stopped or unloaded player may refuse; the next command tells it again */ })
 }
 
 function startReporting(): void {
@@ -118,11 +161,18 @@ function makeAudible(player: YouTubePlayerHandle): void {
   player.unMute()
 }
 
+// The frame and title show only once the item can really play; a failed item never shows them.
+function showAndReport(): void {
+  visible.value = true
+  report('playing')
+}
+
 function onYouTubeState(e: YouTubeEvent): void {
   const next: PlayerState | undefined = YT_STATE_NAMES[e.data]
   if (!next) return
   if (next === 'playing') makeAudible(e.target)
   if (next === 'ended') { finish('ended'); return }
+  if (next === 'playing') { showAndReport(); return }
   report(next)
 }
 
@@ -154,35 +204,84 @@ async function playYouTube(videoId: string): Promise<void> {
         if (ytPendingId && ytPendingId !== startedWith) e.target.loadVideoById(ytPendingId)
       },
       onStateChange: onYouTubeState,
-      onError: () => report('error'),
+      onError: () => finish('error'),
     },
   })
 }
 
-// A clip iframe has no control API: playing is reported on load, ended by a timer of the clip length.
-function playClip(clip: string): void {
-  clipUrl.value = 'https://clips.twitch.tv/embed?clip=' + encodeURIComponent(clip)
-    + '&parent=' + encodeURIComponent(window.location.hostname) + '&autoplay=true&muted=false'
-  clipStartedAt = Date.now()
-  window.clearTimeout(clipEndTimer)
-  // A clip with an unknown length (0) still ends: a Twitch clip is at most 60 seconds long.
-  const lengthSeconds: number = durationSeconds > 0 ? durationSeconds : CLIP_FALLBACK_SECONDS
-  clipEndTimer = window.setTimeout(() => finish('ended'), lengthSeconds * 1000 + CLIP_END_GRACE_MS)
-  report('playing')
+// The player script sets window.NomNomzPlayer; it is added once, from the bot's own origin.
+function loadPlayerModule(): Promise<PlayerModule> {
+  if (playerModulePromise) return playerModulePromise
+  playerModulePromise = new Promise((resolve, reject) => {
+    const w: PlayerWindow = window
+    if (w.NomNomzPlayer) { resolve(w.NomNomzPlayer); return }
+    const script: HTMLScriptElement = document.createElement('script')
+    script.src = PLAYER_SCRIPT_URL
+    script.onload = () => {
+      if (w.NomNomzPlayer) resolve(w.NomNomzPlayer)
+      else { playerModulePromise = null; reject(new Error('The clip player script did not define the player')) }
+    }
+    script.onerror = () => { playerModulePromise = null; reject(new Error('The clip player script failed to load')) }
+    document.head.appendChild(script)
+  })
+  return playerModulePromise
+}
+
+// A pause that comes with the clip reaching its end is the end, not a pause.
+function isAtEnd(): boolean {
+  const length: number = reportedDuration()
+  return length > 0 && positionSeconds() >= length - 0.25
+}
+
+async function ensureClipPlayer(): Promise<ClipPlayer> {
+  if (clipPlayer) return clipPlayer
+  const module: PlayerModule = await loadPlayerModule()
+  const created: ClipPlayer = module.nmplayer(CLIP_CONTAINER_ID)
+    .addPlugin(module.TwitchPlugin, {})
+    .setup({ playlist: [] })
+  created.on('playing', () => { if (clipArmed) showAndReport() })
+  created.on('pause', () => { if (clipArmed && !isAtEnd()) report('paused') })
+  created.on('ended', () => { if (clipArmed) finish('ended') })
+  created.on('error', () => { if (clipArmed) finish('error') })
+  clipPlayer = created
+  return created
+}
+
+// Each load queues a fresh item (a new id), so a clip that already played starts again from the top. The
+// previous clip is stopped first, and its events are ignored until the new one plays: one ended per clip.
+async function playClip(slug: string): Promise<void> {
+  clipLoadCount += 1
+  const loadNumber: number = clipLoadCount
+  clipArmed = false
+  try {
+    const player: ClipPlayer = await ensureClipPlayer()
+    if (loadNumber !== clipLoadCount) return
+    await player.stop()
+    if (loadNumber !== clipLoadCount) return
+    player.queue([{ id: `${requestId ?? slug}:${loadNumber}`, title: title.value, url: CLIP_URL_BASE + encodeURIComponent(slug) }])
+    clipArmed = true
+    await player.volume(volume)
+    await player.play()
+  } catch (e) {
+    console.error('[media_share]', e)
+    if (loadNumber === clipLoadCount) finish('error')
+  }
 }
 
 function finish(next: 'ended' | 'error'): void {
-  window.clearTimeout(clipEndTimer)
   report(next)
   clearItem()
 }
 
 function clearItem(): void {
   visible.value = false
-  clipUrl.value = ''
-  clipStartedAt = 0
   ytPendingId = null
   ytPlayer?.stopVideo()
+  clipArmed = false
+  if (clipPlayer) {
+    clipLoadCount += 1
+    quiet(clipPlayer.stop())
+  }
   title.value = ''
 }
 
@@ -191,16 +290,18 @@ function onLoad(d: MediaShareCommand): void {
   sourceType.value = d.sourceType || ''
   title.value = d.title || ''
   durationSeconds = Number(d.durationSeconds) || 0
-  if (typeof d.volume === 'number') volume = d.volume
+  if (typeof d.volume === 'number') volume = Math.min(100, Math.max(0, Math.round(d.volume)))
   const mediaRef: string = d.mediaRef || ''
   if (!mediaRef) { report('error'); return }
-  visible.value = true
+  visible.value = false
   if (sourceType.value === 'youtube') {
-    clipUrl.value = ''
+    clipLoadCount += 1
+    quiet(clipPlayer?.stop())
     playYouTube(mediaRef)
     return
   }
-  if (sourceType.value === 'twitch_clip') {
+  if (isClip()) {
+    ytPlayer?.stopVideo()
     playClip(mediaRef)
     return
   }
@@ -210,20 +311,30 @@ function onLoad(d: MediaShareCommand): void {
 function onCommand(d: MediaShareCommand | null | undefined): void {
   if (!d) return
   if (d.command === 'load') { onLoad(d); return }
-  if (d.command === 'play') { ytPlayer?.playVideo(); if (!ytPlayer && clipUrl.value) report('playing'); return }
-  if (d.command === 'pause') { ytPlayer?.pauseVideo(); return }
+  if (d.command === 'play') {
+    ytPlayer?.playVideo()
+    if (isClip()) quiet(clipPlayer?.play())
+    return
+  }
+  if (d.command === 'pause') {
+    ytPlayer?.pauseVideo()
+    if (isClip()) quiet(clipPlayer?.pause())
+    return
+  }
   if (d.command === 'seek') {
-    if (typeof d.positionSeconds === 'number') ytPlayer?.seekTo(d.positionSeconds, true)
+    if (typeof d.positionSeconds !== 'number') return
+    ytPlayer?.seekTo(d.positionSeconds, true)
+    if (isClip()) quiet(clipPlayer?.time(d.positionSeconds))
     return
   }
   if (d.command === 'volume') {
     if (typeof d.volume !== 'number') return
     volume = Math.min(100, Math.max(0, Math.round(d.volume)))
     ytPlayer?.setVolume(volume)
+    if (isClip()) quiet(clipPlayer?.volume(volume))
     return
   }
   if (d.command === 'stop') {
-    window.clearTimeout(clipEndTimer)
     report('ended')
     clearItem()
   }
@@ -242,22 +353,15 @@ onMounted(() => {
 
 onUnmounted(() => {
   window.clearInterval(reportTimer)
-  window.clearTimeout(clipEndTimer)
   if (typeof NomNomz === 'undefined') return
   NomNomz.off('media_share_command', onCommand)
 })
 </script>
 
 <template>
-  <div v-show="visible" class="nnz-mediashare" :style="{ '--accent': cfg.accentColor }">
+  <div class="nnz-mediashare" :class="{ 'is-hidden': !visible }" :style="{ '--accent': cfg.accentColor }">
     <div class="frame">
-      <iframe
-        v-if="sourceType === 'twitch_clip' && clipUrl"
-        class="player"
-        :src="clipUrl"
-        allow="autoplay; fullscreen"
-        @error="finish('error')"
-      />
+      <div v-show="sourceType === 'twitch_clip'" id="nnz-clip-player" class="player" />
       <div v-show="sourceType === 'youtube'" ref="ytMount" class="player" />
     </div>
     <div v-if="cfg.showTitle && title" class="title">{{ title }}</div>
@@ -280,6 +384,10 @@ onUnmounted(() => {
   color: #fff;
   font-family: system-ui, sans-serif;
 }
+/* Hidden, not display:none, so a YouTube iframe still loads and plays while the frame is not shown. */
+.is-hidden {
+  visibility: hidden;
+}
 .frame {
   flex: 1;
   min-height: 0;
@@ -292,6 +400,11 @@ onUnmounted(() => {
   height: 100%;
   border: 0;
   display: block;
+}
+.player :deep(video) {
+  width: 100%;
+  height: 100%;
+  object-fit: contain;
 }
 .title {
   flex: none;
