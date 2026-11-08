@@ -67,3 +67,7 @@ server/src/NomNomzBot.Migrations.Sqlite/nomnomz.db-wal
 # dashboard (Vue)
 dashboard/node_modules
 dashboard/dist
+
+
+# doc (documentation files)
+docs/community-safety-feedback.md
