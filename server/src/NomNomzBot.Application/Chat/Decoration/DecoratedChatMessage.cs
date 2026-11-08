@@ -25,4 +25,7 @@ public sealed class DecoratedChatMessage
 
     /// <summary>The message's badges resolved to image urls (chat-decoration spec §3.3).</summary>
     public IReadOnlyList<ResolvedChatBadge> Badges { get; init; } = [];
+
+    /// <summary>The shared-chat source channel's badges for the chatter, resolved like <see cref="Badges"/>; null for a line typed here.</summary>
+    public IReadOnlyList<ResolvedChatBadge>? SourceBadges { get; init; }
 }

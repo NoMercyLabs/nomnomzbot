@@ -86,6 +86,9 @@ public class ChatMessage : SoftDeletableEntity, ITenantScoped
     public List<ChatMessageFragment> Fragments { get; set; } = [];
     public List<ChatBadge> Badges { get; set; } = [];
 
+    /// <summary>Display-only badges the chatter wears in the shared-chat channel they typed in; null for a line typed here.</summary>
+    public List<ChatBadge>? SourceBadges { get; set; }
+
     [MaxLength(50)]
     public string MessageType { get; set; } = "text";
 

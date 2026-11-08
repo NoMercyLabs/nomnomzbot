@@ -118,17 +118,24 @@ internal static class ChatPayload
     }
 
     /// <summary>Builds the badge list from a <c>badges</c> array (empty when absent).</summary>
-    public static IReadOnlyList<ChatBadge> ReadBadges(JsonElement payload)
+    public static IReadOnlyList<ChatBadge> ReadBadges(JsonElement payload) =>
+        ReadBadgeArray(payload, "badges") ?? [];
+
+    /// <summary>The <c>source_badges</c> array of a shared-chat line, or null when Twitch sent none (a line typed here).</summary>
+    public static IReadOnlyList<ChatBadge>? ReadSourceBadges(JsonElement payload) =>
+        ReadBadgeArray(payload, "source_badges");
+
+    private static List<ChatBadge>? ReadBadgeArray(JsonElement payload, string property)
     {
-        List<ChatBadge> badges = [];
         if (
-            !payload.TryGetProperty("badges", out JsonElement array)
+            !payload.TryGetProperty(property, out JsonElement array)
             || array.ValueKind != JsonValueKind.Array
         )
         {
-            return badges;
+            return null;
         }
 
+        List<ChatBadge> badges = [];
         foreach (JsonElement badge in array.EnumerateArray())
         {
             badges.Add(
@@ -267,6 +274,7 @@ public sealed class ChannelChatMessageTranslator(
             SourceChannelId = payload.GetString("source_broadcaster_user_id"),
             SourceChannelName = payload.GetString("source_broadcaster_user_name"),
             Badges = badges,
+            SourceBadges = ChatPayload.ReadSourceBadges(payload),
             IsSubscriber = ChatPayload.HasBadge(badges, "subscriber", "founder"),
             IsVip = ChatPayload.HasBadge(badges, "vip"),
             IsArtist = ChatPayload.HasBadge(badges, ChatBadge.ArtistSetId),

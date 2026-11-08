@@ -17,6 +17,7 @@ import type { ChatLine } from '@/api/chat';
 import { useTime } from '@/composables/useTime';
 import { keysOf, oneOf } from '@/lib/array';
 import type { ChatDisplay } from '../chatDisplay';
+import ChatSourceAvatar from './ChatSourceAvatar.vue';
 
 const props = defineProps<{ line: ChatLine; display?: ChatDisplay }>();
 const { t, te } = useI18n();
@@ -84,11 +85,11 @@ const time = computed(() =>
           <span v-if="isAnnouncement && line.displayName" class="text-muted-foreground">
             {{ $t('dashboard.chat.native.by', { name: line.displayName }) }}
           </span>
-          <span
+          <ChatSourceAvatar
             v-if="line.sourceChannelName"
-            data-source-channel
-            class="rounded-sm border border-border px-1.5 text-xs text-muted-foreground"
-          >{{ $t('dashboard.chat.native.source', { name: line.sourceChannelName }) }}</span>
+            :name="line.sourceChannelName"
+            :avatar-url="line.sourceChannelAvatarUrl"
+          />
           <time
             v-if="display?.timestamps !== 'off'"
             class="text-xs tabular-nums text-muted-foreground"

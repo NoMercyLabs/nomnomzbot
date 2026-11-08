@@ -199,7 +199,6 @@
       },
       "native": {
         "by": "van {name}",
-        "source": "Uit {name}",
         "notice": {
           "sub": "Twitch-abonnement",
           "resub": "Twitch-abonnement verlengd",

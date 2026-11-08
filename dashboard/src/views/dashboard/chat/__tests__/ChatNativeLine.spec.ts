@@ -121,7 +121,7 @@ describe('Twitch native feed lines', () => {
       global: { plugins: [i18n] },
     });
 
-    expect(wrapper.find('[data-source-channel]').text()).toContain('Other Stream');
+    expect(wrapper.find('[data-source-channel]').attributes('aria-label')).toBe('Other Stream');
     expect(wrapper.text()).toContain('Twitch subscription');
     expect(wrapper.text()).toContain('Viewer subscribed');
   });

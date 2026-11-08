@@ -1207,6 +1207,9 @@ namespace NomNomzBot.Migrations.Sqlite.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("TEXT");
 
+                    b.Property<string>("SourceBadges")
+                        .HasColumnType("TEXT");
+
                     b.Property<string>("SourceChannelId")
                         .HasMaxLength(50)
                         .HasColumnType("TEXT");

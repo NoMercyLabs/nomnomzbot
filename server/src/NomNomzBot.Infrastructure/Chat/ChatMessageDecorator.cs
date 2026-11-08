@@ -59,6 +59,7 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
     private readonly IRoleResolver _roles;
     private readonly IChatLinkAllowlist _linkAllowlist;
     private readonly ILogger<ChatMessageDecorator> _logger;
+    private readonly IChatBadgeResolver? _badgeResolver;
 
     public ChatMessageDecorator(
         IEnumerable<IChatDecorationAdapter> adapters,
@@ -67,9 +68,11 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
         IUserService users,
         IRoleResolver roles,
         IChatLinkAllowlist linkAllowlist,
-        ILogger<ChatMessageDecorator> logger
+        ILogger<ChatMessageDecorator> logger,
+        IChatBadgeResolver? badgeResolver = null
     )
     {
+        _badgeResolver = badgeResolver;
         _adapters = [.. adapters.OrderBy(adapter => adapter.Order)];
         _features = features;
         _cache = cache;
@@ -123,7 +126,40 @@ public sealed class ChatMessageDecorator : IChatMessageDecorator
             }
         }
 
-        return new() { Fragments = context.Fragments, Badges = context.ResolvedBadges };
+        return new()
+        {
+            Fragments = context.Fragments,
+            Badges = context.ResolvedBadges,
+            SourceBadges = await ResolveSourceBadgesAsync(message, ct),
+        };
+    }
+
+    // The source channel's badges are looked up in that channel's own set (a sub badge there is not this channel's).
+    private async Task<IReadOnlyList<ResolvedChatBadge>?> ResolveSourceBadgesAsync(
+        ChatMessageReceivedEvent message,
+        CancellationToken ct
+    )
+    {
+        if (message.SourceBadges is not { } sourceBadges)
+            return null;
+
+        if (_badgeResolver is null || string.IsNullOrEmpty(message.SourceChannelId))
+            return [];
+
+        try
+        {
+            return await _badgeResolver.ResolveByTwitchIdAsync(
+                message.SourceChannelId,
+                sourceBadges,
+                ct
+            );
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Source badge lookup failed; showing the line without images.");
+
+            return [];
+        }
     }
 
     private readonly record struct SenderStanding(
