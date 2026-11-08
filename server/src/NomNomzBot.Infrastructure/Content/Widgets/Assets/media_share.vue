@@ -63,6 +63,7 @@ interface ClipPlayer {
   setup(config: { playlist: ClipItem[] }): ClipPlayer
   on(event: string, handler: () => void): void
   queue(items: ClipItem[]): void
+  playItem(index: number): void
   play(): Promise<void>
   pause(): Promise<void>
   stop(): Promise<void>
@@ -82,6 +83,7 @@ interface PlayerWindow extends Window { NomNomzPlayer?: PlayerModule }
 const YT_STATE_NAMES: Record<number, PlayerState> = { 0: 'ended', 1: 'playing', 2: 'paused' }
 const REPORT_INTERVAL_MS: number = 2000
 const PLAYER_SCRIPT_URL: string = '/vendor/nomercy-player.js'
+const CLIP_START_TIMEOUT_MS: number = 20000
 const CLIP_CONTAINER_ID: string = 'nnz-clip-player'
 const CLIP_URL_BASE: string = 'https://clips.twitch.tv/'
 
@@ -103,6 +105,8 @@ let clipPlayer: ClipPlayer | null = null
 let playerModulePromise: Promise<PlayerModule> | null = null
 let clipLoadCount: number = 0
 let clipArmed: boolean = false
+let clipEverLoaded: boolean = false
+let clipFirstPlayPending: boolean = false
 
 function isClip(): boolean {
   return sourceType.value === 'twitch_clip'
@@ -239,6 +243,12 @@ async function ensureClipPlayer(): Promise<ClipPlayer> {
   const created: ClipPlayer = module.nmplayer(CLIP_CONTAINER_ID)
     .addPlugin(module.TwitchPlugin, {})
     .setup({ playlist: [] })
+  // On a new player queue() already selects the first item, so playItem only loads it: play once it can.
+  created.on('canplay', () => {
+    if (!clipFirstPlayPending) return
+    clipFirstPlayPending = false
+    quiet(created.play())
+  })
   created.on('playing', () => { if (clipArmed) showAndReport() })
   created.on('pause', () => { if (clipArmed && !isAtEnd()) report('paused') })
   created.on('ended', () => { if (clipArmed) finish('ended') })
@@ -261,7 +271,10 @@ async function playClip(slug: string): Promise<void> {
     player.queue([{ id: `${requestId ?? slug}:${loadNumber}`, title: title.value, url: CLIP_URL_BASE + encodeURIComponent(slug) }])
     clipArmed = true
     await player.volume(volume)
-    await player.play()
+    clipFirstPlayPending = !clipEverLoaded
+    clipEverLoaded = true
+    player.playItem(0)
+    setTimeout(() => { if (loadNumber === clipLoadCount && !visible.value) finish('error') }, CLIP_START_TIMEOUT_MS)
   } catch (e) {
     console.error('[media_share]', e)
     if (loadNumber === clipLoadCount) finish('error')

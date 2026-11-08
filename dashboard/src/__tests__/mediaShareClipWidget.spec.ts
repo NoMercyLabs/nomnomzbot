@@ -53,6 +53,8 @@ class StubPlayer {
   plugins: unknown[] = [];
   endOnStop = false;
   playsAtOnce = true;
+  ready = false;
+  loads = 0;
 
   addPlugin(plugin: unknown): this {
     this.plugins.push(plugin);
@@ -83,7 +85,29 @@ class StubPlayer {
     return this.queued.at(-1)?.[0];
   }
 
+  // The real player: queue() alone never swaps the video, and on the first item playItem() is a no-op that
+  // only loads it, so nothing plays until play() runs after canplay. A play() before that is interrupted.
+  playItem(_index: number): void {
+    this.calls.push('playItem');
+    this.loads += 1;
+
+    if (this.loads === 1) {
+      this.ready = true;
+      this.emit('canplay');
+
+      return;
+    }
+
+    if (this.playsAtOnce) {
+      this.emit('playing');
+    }
+  }
+
   play(): Promise<void> {
+    if (!this.ready) {
+      return Promise.reject(new Error('The play() request was interrupted by a call to pause().'));
+    }
+
     this.calls.push('play');
 
     if (this.playsAtOnce) {
@@ -255,7 +279,8 @@ describe('media share widget: Twitch clip through the player', () => {
     loadClip('req-2', 'SecondMadeUpClip', 45);
     await flushPromises();
 
-    expect(player.calls.indexOf('stop')).toBeLessThan(player.calls.indexOf('play'));
+    expect(player.calls.indexOf('stop')).toBeGreaterThanOrEqual(0);
+    expect(player.calls.indexOf('stop')).toBeLessThan(player.calls.indexOf('playItem'));
     expect(player.item()?.url).toBe('https://clips.twitch.tv/SecondMadeUpClip');
     expect(player.level).toBe(45);
     expect(reports.some((r) => r[1] === 'ended')).toBe(false);
@@ -368,6 +393,31 @@ describe('media share widget: Twitch clip through the player', () => {
     expect(frameHidden()).toBe(false);
   });
 
+  it('starts the first clip only once it can play, and does not report an error', async () => {
+    loadClip('req-1', 'MadeUpClipSlug-abc');
+    await flushPromises();
+
+    expect(player.calls.indexOf('playItem')).toBeLessThan(player.calls.indexOf('play'));
+    expect(reports.some((r) => r[1] === 'error')).toBe(false);
+    expect(lastReport()?.[1]).toBe('playing');
+    expect(frameHidden()).toBe(false);
+  });
+
+  it('a clip that never starts reports error after the start timeout, so the queue moves on', async () => {
+    player.playsAtOnce = false;
+    loadClip('req-1', 'MadeUpClipSlug-abc');
+    await flushPromises();
+    await vi.advanceTimersByTimeAsync(19_000);
+
+    expect(reports.some((r) => r[1] === 'error')).toBe(false);
+
+    await vi.advanceTimersByTimeAsync(2_000);
+
+    expect(lastReport()?.[0]).toBe('req-1');
+    expect(lastReport()?.[1]).toBe('error');
+    expect(frameHidden()).toBe(true);
+  });
+
   it('reports ended only from the player ended event, never from a timer', async () => {
     loadClip('req-1', 'MadeUpClipSlug-abc');
     await flushPromises();
@@ -402,7 +452,7 @@ describe('media share widget: Twitch clip through the player', () => {
 
     expect(player.queued).toHaveLength(2);
     expect(player.item()?.url).toBe('https://clips.twitch.tv/MadeUpClipSlug-abc');
-    expect(player.calls).toContain('play');
+    expect(player.calls).toContain('playItem');
     expect(player.level).toBe(55);
 
     send({ command: 'pause' });
