@@ -24,6 +24,9 @@ public sealed partial class PlaybackDirector
     /// <summary>The one request lined up in Spotify's own queue and not yet seen playing; null when none.</summary>
     private string? _linedUpId;
 
+    /// <summary>The song the fair head just replaced; a poll that still names it is not a play.</summary>
+    private string? _displacedUri;
+
     /// <summary>True while Spotify is paused by the director for a YouTube run; it resumes at the run's end.</summary>
     private bool _spotifyHeldForYouTube;
 
@@ -86,6 +89,30 @@ public sealed partial class PlaybackDirector
     /// </summary>
     private PlaybackItem LinedUpOr(PlaybackItem head) =>
         head.Engine == EngineKind.Spotify && LinedUpRow() is { } linedUp ? linedUp : head;
+
+    /// <summary>
+    /// The fair order wins (Stoney, 2026-11-08). Spotify reached the lined-up song while a request ranked above
+    /// it: the head starts now, and the lined-up song stays queued in its fair place, uncounted, to be lined up
+    /// again. Spotify's own queue cannot be reordered, so this can only happen once Spotify has reached the song.
+    /// </summary>
+    private async Task<bool> StartsFairHeadInsteadAsync(EngineReport report, CancellationToken ct)
+    {
+        if (
+            report is not { Engine: EngineKind.Spotify, IsPlaying: true }
+            || LinedUpRow() is not { } linedUp
+            || linedUp.Uri != report.Uri
+            || _queue.Head is not { Engine: EngineKind.Spotify } head
+            || head.Id == linedUp.Id
+        )
+            return false;
+
+        _linedUpId = null;
+        _queuedAhead.Remove(linedUp.Id);
+        _displacedUri = linedUp.Uri;
+        await BeginStartAsync(head, nameof(EngineReport), "fair_order_first", null, ct);
+
+        return true;
+    }
 
     /// <summary>Spotify plays and its next track just started while a YouTube request is the head.</summary>
     private bool SpotifyMovedOnUnderYouTubeHead(EngineReport report) =>

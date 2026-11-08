@@ -54,53 +54,79 @@ public sealed partial class PlaybackDirectorTests
     }
 
     [Fact]
-    public async Task OwnerHandOver_TrackEnd_ARequestRankedAheadOfTheLinedUpOneNeverSkipsIt()
+    public async Task OwnerHandOver_TrackEnd_TheFairHeadPlaysFirstAndTheLinedUpSongKeepsItsPlace()
     {
         (Rig rig, PlaybackItem linedUp, PlaybackItem newHead) = await FairInsertAheadOfLinedUp();
 
         await SpotifyMovesOn(rig, OwnTrack, linedUp.Uri);
 
         rig.Spotify.Calls.Should()
-            .Equal(new EngineCall("QueueNext", "bob2"), new EngineCall("QueueNext", "stoney1"));
-        rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, linedUp));
-        rig.Director.LastPlayed!.Id.Should().Be("bob2");
-        rig.QueueIds.Should().Equal("stoney1");
+            .Equal(new EngineCall("QueueNext", "bob2"), new EngineCall("Start", "stoney1"));
+        rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.Spotify, newHead));
+        rig.QueueIds.Should().Equal("stoney1", "bob2");
 
-        await SpotifyMovesOn(rig, linedUp.Uri, newHead.Uri);
+        // The next poll can still name the displaced song before Spotify has moved on.
+        await rig.OwnerPlays(rig.Spotify, linedUp.Uri, 3_000);
+        rig.QueueIds.Should().Equal("stoney1", "bob2");
+
+        await rig.OwnerPlays(rig.Spotify, newHead.Uri, 1_000);
 
         rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, newHead));
+        rig.QueueIds.Should().Equal("bob2");
+        rig.Spotify.Calls.Should()
+            .Equal(
+                new EngineCall("QueueNext", "bob2"),
+                new EngineCall("Start", "stoney1"),
+                new EngineCall("QueueNext", "bob2")
+            );
+
+        await SpotifyMovesOn(rig, newHead.Uri, linedUp.Uri);
+
+        rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, linedUp));
         rig.QueueIds.Should().BeEmpty();
     }
 
     [Fact]
-    public async Task A_row_seen_playing_is_reported_as_played_and_a_waiting_row_is_not()
+    public async Task A_displaced_song_counts_as_played_only_when_it_really_plays()
     {
-        (Rig rig, PlaybackItem linedUp, _) = await FairInsertAheadOfLinedUp();
-
-        rig.Bus.Published.OfType<SongRequestPlayedEvent>().Should().BeEmpty();
+        (Rig rig, PlaybackItem linedUp, PlaybackItem newHead) = await FairInsertAheadOfLinedUp();
 
         await SpotifyMovesOn(rig, OwnTrack, linedUp.Uri);
 
-        SongRequestPlayedEvent played = rig
-            .Bus.Published.OfType<SongRequestPlayedEvent>()
-            .Should()
-            .ContainSingle()
-            .Subject;
-        played.ItemId.Should().Be("bob2");
-        played.TrackUri.Should().Be(linedUp.Uri);
-        played.BroadcasterId.Should().Be(Channel);
+        rig.Bus.Published.OfType<SongRequestPlayedEvent>().Should().BeEmpty();
+
+        await rig.OwnerPlays(rig.Spotify, newHead.Uri, 1_000);
+        await SpotifyMovesOn(rig, newHead.Uri, linedUp.Uri);
+
+        List<SongRequestPlayedEvent> played =
+        [
+            .. rig.Bus.Published.OfType<SongRequestPlayedEvent>(),
+        ];
+        played.Select(e => e.ItemId).Should().Equal("stoney1", "bob2");
+        played[1].TrackUri.Should().Be(linedUp.Uri);
+        played[1].BroadcasterId.Should().Be(Channel);
     }
 
     [Fact]
-    public async Task OwnerHandOver_OwnerSkip_ARequestRankedAheadOfTheLinedUpOneSkipsToTheLinedUpOne()
+    public async Task OwnerHandOver_OwnerSkip_MovesOntoTheLinedUpSongThenStartsTheFairHead()
     {
-        (Rig rig, PlaybackItem linedUp, _) = await FairInsertAheadOfLinedUp();
+        (Rig rig, PlaybackItem linedUp, PlaybackItem newHead) = await FairInsertAheadOfLinedUp();
 
         await rig.Director.HandleAsync(new OwnerSkip());
 
         rig.Spotify.Calls.Should()
             .Equal(new EngineCall("QueueNext", "bob2"), new EngineCall("Skip"));
         rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.Spotify, linedUp));
+
+        await rig.OwnerPlays(rig.Spotify, linedUp.Uri, 1_000);
+
+        rig.Spotify.Calls.Should()
+            .Equal(
+                new EngineCall("QueueNext", "bob2"),
+                new EngineCall("Skip"),
+                new EngineCall("Start", "stoney1")
+            );
+        rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.Spotify, newHead));
         rig.QueueIds.Should().Equal("stoney1", "bob2");
     }
 

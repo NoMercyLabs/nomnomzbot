@@ -169,11 +169,17 @@ public sealed partial class PlaybackDirector
             return;
         }
 
+        if (input is EngineReport reached && await StartsFairHeadInsteadAsync(reached, ct))
+            return;
+
         switch (input)
         {
             case EngineReport { IsPlaying: true } r
                 when r.Engine == item.Engine && r.Uri == item.Uri:
                 await PlayRowAsync(item, r, "started");
+                break;
+            case EngineReport { IsPlaying: true } r when r.Uri == _displacedUri:
+                await IgnoreAsync(input);
                 break;
             case EngineReport { IsPlaying: true } r when FindRow(r) is { } row:
                 await PlayRowAsync(row, r, "played_out_of_order");
@@ -246,6 +252,7 @@ public sealed partial class PlaybackDirector
     private async Task PlayRowAsync(PlaybackItem row, EngineReport report, string reason)
     {
         _queue.Remove(row.Id);
+        _displacedUri = null;
         await _bus.PublishAsync(
             new SongRequestPlayedEvent
             {
