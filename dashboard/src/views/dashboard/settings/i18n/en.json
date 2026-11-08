@@ -40,8 +40,8 @@
           "title": "Moments"
         },
         "firstTime": {
-          "title": "First message ever",
-          "description": "Greet a viewer the first time they chat in your channel."
+          "title": "First time the bot sees a viewer",
+          "description": "Greet a viewer the first time the bot sees them chat in your channel."
         },
         "returning": {
           "title": "Back after a break",

@@ -184,7 +184,7 @@
   "webhook_event_chat_message_received_event_label": "Chatbericht",
   "webhook_event_whisper_received_event_label": "Fluisterbericht ontvangen",
   "webhook_event_chat_notification_event_label": "Chatmelding",
-  "webhook_event_first_time_chatter_detected_event_label": "Eerste keer in de chat",
+  "webhook_event_first_time_chatter_detected_event_label": "Eerste keer dat de bot deze kijker ziet",
   "webhook_event_user_banned_event_label": "Gebruiker verbannen",
   "webhook_event_user_timed_out_event_label": "Gebruiker time-out gegeven",
   "webhook_event_user_unbanned_event_label": "Ban opgeheven",

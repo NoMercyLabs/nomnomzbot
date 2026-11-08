@@ -40,8 +40,8 @@
           "title": "Momenten"
         },
         "firstTime": {
-          "title": "Allereerste bericht",
-          "description": "Begroet een kijker de eerste keer dat die in je kanaal chat."
+          "title": "Eerste keer dat de bot een kijker ziet",
+          "description": "Begroet een kijker de eerste keer dat de bot die in je kanaal ziet chatten."
         },
         "returning": {
           "title": "Terug na een pauze",

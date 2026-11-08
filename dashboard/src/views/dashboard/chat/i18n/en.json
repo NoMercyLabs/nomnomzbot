@@ -75,7 +75,7 @@
           "mentions": "Highlight mentions of me",
           "deleted": "Deleted messages",
           "htmlAsText": "Show HTML as plain text",
-          "hintFirstEver": "First message ever",
+          "hintFirstEver": "First time the bot sees this viewer",
           "hintFirstOfDay": "First message of the day",
           "hintFirstOfStream": "First message of the stream",
           "hintNewAccount": "Chatters new to Twitch",
@@ -108,7 +108,7 @@
         "days90": "90 days"
       },
       "hint": {
-        "firstEver": "First message ever",
+        "firstEver": "First time the bot sees this viewer",
         "firstOfDay": "First message of the day",
         "firstOfStream": "First message of the stream",
         "newAccount": "New to Twitch ({age})",
