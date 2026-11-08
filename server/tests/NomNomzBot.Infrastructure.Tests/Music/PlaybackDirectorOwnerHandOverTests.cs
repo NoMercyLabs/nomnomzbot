@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using FluentAssertions;
+using NomNomzBot.Domain.Music.Events;
 using NomNomzBot.Domain.Music.ValueObjects;
 using NomNomzBot.Infrastructure.Music;
 using static NomNomzBot.Infrastructure.Tests.Music.PlaybackDirectorTestKit;
@@ -69,6 +70,25 @@ public sealed partial class PlaybackDirectorTests
 
         rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, newHead));
         rig.QueueIds.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_row_seen_playing_is_reported_as_played_and_a_waiting_row_is_not()
+    {
+        (Rig rig, PlaybackItem linedUp, _) = await FairInsertAheadOfLinedUp();
+
+        rig.Bus.Published.OfType<SongRequestPlayedEvent>().Should().BeEmpty();
+
+        await SpotifyMovesOn(rig, OwnTrack, linedUp.Uri);
+
+        SongRequestPlayedEvent played = rig
+            .Bus.Published.OfType<SongRequestPlayedEvent>()
+            .Should()
+            .ContainSingle()
+            .Subject;
+        played.ItemId.Should().Be("bob2");
+        played.TrackUri.Should().Be(linedUp.Uri);
+        played.BroadcasterId.Should().Be(Channel);
     }
 
     [Fact]

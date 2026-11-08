@@ -58,7 +58,8 @@ public sealed class MusicServiceRequestHistoryTests
         requested.IsSuccess.Should().BeTrue();
 
         RequestRecord row = await db.Records.SingleAsync();
-        row.RecordType.Should().Be("SongRequest");
+        // Requested is not played: no leaderboard counts this row until the song plays.
+        row.RecordType.Should().Be("SongRequestPending");
         // Keyed on the TWITCH id, not the display name: a modiversary notice identifies the mod by
         // chatter_user_id, and a display name can change under the history it is supposed to own.
         row.UserId.Should().Be("42660213");
@@ -104,7 +105,7 @@ public sealed class MusicServiceRequestHistoryTests
         List<RequestRecord> rows = await db.Records.ToListAsync();
         rows.Should().ContainSingle("only the accepted request is history; the refusal is not");
         rows[0].UserId.Should().Be("42660213");
-        rows[0].RecordType.Should().Be("SongRequest");
+        rows[0].RecordType.Should().Be("SongRequestPending");
     }
 
     [Fact]

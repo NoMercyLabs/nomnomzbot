@@ -246,6 +246,15 @@ public sealed partial class PlaybackDirector
     private async Task PlayRowAsync(PlaybackItem row, EngineReport report, string reason)
     {
         _queue.Remove(row.Id);
+        await _bus.PublishAsync(
+            new SongRequestPlayedEvent
+            {
+                BroadcasterId = _broadcasterId,
+                OccurredAt = _time.GetUtcNow(),
+                ItemId = row.Id,
+                TrackUri = row.Uri,
+            }
+        );
         _failedStarts.Remove(row.Id);
         _queuedAhead.Remove(row.Id);
         _passedOver.Remove(row.Id);

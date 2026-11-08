@@ -1351,6 +1351,7 @@ public sealed class MusicService : IMusicService
             broadcasterId,
             trackInfo,
             requestedBy,
+            SongRequestPlaybackQueue.IdOf(entry),
             cancellationToken,
             requesterUserId
         );
@@ -1516,11 +1517,18 @@ public sealed class MusicService : IMusicService
         string broadcasterId,
         TrackInfo trackInfo,
         string? requestedBy,
+        string queueItemId,
         CancellationToken cancellationToken,
         string? requesterUserId = null
     )
     {
-        await RecordRequestHistoryAsync(tenantId, trackInfo, requesterUserId, cancellationToken);
+        await RecordRequestHistoryAsync(
+            tenantId,
+            trackInfo,
+            queueItemId,
+            requesterUserId,
+            cancellationToken
+        );
 
         _logger.LogInformation(
             "Queued track '{Track}' for {BroadcasterId} (requested by {RequestedBy})",
@@ -2896,6 +2904,7 @@ public sealed class MusicService : IMusicService
     private async Task RecordRequestHistoryAsync(
         Guid tenantId,
         TrackInfo trackInfo,
+        string queueItemId,
         string? requesterUserId,
         CancellationToken cancellationToken
     )
@@ -2910,14 +2919,16 @@ public sealed class MusicService : IMusicService
                 {
                     BroadcasterId = tenantId,
                     UserId = requesterUserId,
-                    RecordType = SongRequestHistory.RecordType,
+                    // Counted only once it plays: see SongRequestPlayedHistoryWriter.
+                    RecordType = SongRequestHistory.PendingRecordType,
                     Data = System.Text.Json.JsonSerializer.Serialize(
                         new SongRequestHistory(
                             trackInfo.TrackUri,
                             trackInfo.TrackName,
                             trackInfo.Artist,
                             trackInfo.AlbumArtUrl,
-                            trackInfo.Provider
+                            trackInfo.Provider,
+                            queueItemId
                         ),
                         HistoryJson
                     ),
