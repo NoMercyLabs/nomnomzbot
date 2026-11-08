@@ -47,6 +47,8 @@ public class ChatMessageConfiguration : IEntityTypeConfiguration<ChatMessage>
 
         builder.Property(e => e.Badges).HasColumnType("jsonb").HasDefaultValueSql("'[]'::jsonb");
 
+        builder.Property(e => e.SourceBadges).HasColumnType("jsonb");
+
         builder.Property(e => e.MessageType).IsRequired().HasMaxLength(50).HasDefaultValue("text");
 
         builder.Property(e => e.IsCommand).IsRequired();

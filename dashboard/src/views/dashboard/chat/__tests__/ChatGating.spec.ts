@@ -177,7 +177,7 @@ describe('Chat line actions', () => {
       line: { ...chatter, sourceChannelName: 'Other Stream' },
     });
 
-    expect(document.body.querySelector('[data-source-channel]')?.textContent).toContain('Other Stream');
+    expect(document.body.querySelector('[data-source-channel]')?.getAttribute('aria-label')).toBe('Other Stream');
   });
 
   it('shows no tray at all when the person holds no action key', async () => {

@@ -74,6 +74,9 @@ public static class ChatHistoryMapper
             (bool isBroadcaster, bool isModerator, bool isVip, bool isSubscriber) = ParseUserType(
                 row.UserType
             );
+            HubUserEnrichment? sourceChannel = string.IsNullOrEmpty(row.SourceChannelId)
+                ? null
+                : await enricher.EnrichAsync(broadcasterId, row.SourceChannelId, ct);
 
             messages.Add(
                 new(
@@ -109,7 +112,11 @@ public static class ChatHistoryMapper
                     Removed: row.DeletedAt is null ? null : "deleted",
                     Hints: hints.TryGetValue(row.Id, out ChatHints? found)
                         ? ChatHintsDto.From(found)
-                        : null
+                        : null,
+                    SourceBadges: decorated
+                        .SourceBadges?.Select(ChatFragmentMapper.MapBadge)
+                        .ToList(),
+                    SourceChannelAvatarUrl: sourceChannel?.AvatarUrl
                 )
             );
         }
@@ -235,6 +242,8 @@ public static class ChatHistoryMapper
             Message = row.Message,
             Fragments = row.Fragments,
             Badges = row.Badges,
+            SourceChannelId = row.SourceChannelId,
+            SourceBadges = row.SourceBadges,
             ColorHex = row.ColorHex,
             MessageType = row.MessageType,
             IsSubscriber = isSubscriber,

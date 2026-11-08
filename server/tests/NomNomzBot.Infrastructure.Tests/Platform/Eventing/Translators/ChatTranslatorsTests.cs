@@ -229,6 +229,81 @@ public sealed class ChatTranslatorsTests
     }
 
     [Fact]
+    public async Task ChatMessage_SharedChat_KeepsThisChannelsRolesAndCarriesSourceBadges()
+    {
+        CapturingEventBus bus = new();
+        ChannelChatMessageTranslator translator = new(
+            bus,
+            Clock,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            NeverSuppressGuard(),
+            PassThroughChatColors.Create()
+        );
+
+        await translator.TranslateAsync(
+            Notification(
+                "channel.chat.message",
+                """
+                {
+                    "broadcaster_user_id": "broadcaster-99",
+                    "source_broadcaster_user_id": "other-7",
+                    "source_broadcaster_user_name": "Other_Channel",
+                    "chatter_user_id": "555",
+                    "chatter_user_login": "shared_viewer",
+                    "chatter_user_name": "Shared_Viewer",
+                    "message_id": "shared-1",
+                    "message_type": "text",
+                    "message": { "text": "hi", "fragments": [ { "type": "text", "text": "hi" } ] },
+                    "badges": [ { "set_id": "moderator", "id": "1", "info": "" } ],
+                    "source_badges": [ { "set_id": "vip", "id": "1", "info": "" } ]
+                }
+                """
+            )
+        );
+
+        ChatMessageReceivedEvent published = bus.EventsOf<ChatMessageReceivedEvent>().Single();
+        published.IsModerator.Should().BeTrue();
+        published.IsVip.Should().BeFalse();
+        published.Badges.Select(b => b.SetId).Should().Equal("moderator");
+        published.SourceBadges.Should().NotBeNull();
+        published.SourceBadges!.Select(b => b.SetId).Should().Equal("vip");
+    }
+
+    [Fact]
+    public async Task ChatMessage_NullSourceBadges_LeavesSourceBadgesNull()
+    {
+        CapturingEventBus bus = new();
+        ChannelChatMessageTranslator translator = new(
+            bus,
+            Clock,
+            Substitute.For<NomNomzBot.Domain.Platform.Interfaces.IChannelRegistry>(),
+            NeverSuppressGuard(),
+            PassThroughChatColors.Create()
+        );
+
+        await translator.TranslateAsync(
+            Notification(
+                "channel.chat.message",
+                """
+                {
+                    "broadcaster_user_id": "broadcaster-99",
+                    "chatter_user_id": "555",
+                    "chatter_user_login": "plain_viewer",
+                    "chatter_user_name": "Plain_Viewer",
+                    "message_id": "plain-1",
+                    "message_type": "text",
+                    "message": { "text": "hi", "fragments": [ { "type": "text", "text": "hi" } ] },
+                    "badges": [ { "set_id": "subscriber", "id": "1", "info": "3" } ],
+                    "source_badges": null
+                }
+                """
+            )
+        );
+
+        bus.EventsOf<ChatMessageReceivedEvent>().Single().SourceBadges.Should().BeNull();
+    }
+
+    [Fact]
     public async Task ChatMessage_DerivesRoleFlags_FromBadgeSetIds()
     {
         CapturingEventBus bus = new();

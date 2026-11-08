@@ -1171,6 +1171,9 @@ namespace NomNomzBot.Infrastructure.Platform.Persistence.Migrations
                         .HasMaxLength(255)
                         .HasColumnType("character varying(255)");
 
+                    b.Property<List<ChatBadge>>("SourceBadges")
+                        .HasColumnType("jsonb");
+
                     b.Property<string>("SourceChannelId")
                         .HasMaxLength(50)
                         .HasColumnType("character varying(50)");

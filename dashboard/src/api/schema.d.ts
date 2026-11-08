@@ -93324,6 +93324,8 @@ export interface components {
             recipientDisplayName?: null | string;
             heldStatus?: null | string;
             removed?: null | string;
+            sourceBadges?: null | components["schemas"]["ChatBadge"][];
+            sourceChannelAvatarUrl?: null | string;
         };
         /**
          * @description Snapshot of a channel's current state, returned by GET /api/v1/dashboard/{broadcasterId}/stats.

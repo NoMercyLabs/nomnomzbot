@@ -114,4 +114,10 @@ public sealed class ChatMessageReceivedEvent : DomainEventBase, IProviderScopedE
 
     /// <summary>The name of the channel the line came from in shared chat. Empty when it came from this channel.</summary>
     public string? SourceChannelName { get; init; }
+
+    /// <summary>
+    /// The badges the chatter wears in the channel they typed in (Twitch <c>source_badges</c>), for display only.
+    /// Null when the line was typed here. Never a source for a role, identity or community read: <see cref="Badges"/> is.
+    /// </summary>
+    public IReadOnlyList<ChatBadge>? SourceBadges { get; init; }
 }
