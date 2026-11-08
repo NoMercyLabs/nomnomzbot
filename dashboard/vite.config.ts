@@ -87,8 +87,9 @@ export default defineConfig({
         description: 'Run your stream bot: commands, events, overlays and chat in one dashboard.',
         start_url: '/',
         scope: '/',
+        // standalone, not fullscreen: the phone's status bar and navigation buttons stay visible (Stoney,
+        // 2026-11-08). Fullscreen stays one tap away in the profile menu.
         display: 'standalone',
-        display_override: ['fullscreen', 'standalone'],
         theme_color: '#121212',
         background_color: '#121212',
         icons: [
