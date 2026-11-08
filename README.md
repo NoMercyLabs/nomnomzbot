@@ -144,7 +144,8 @@ NomNomzBot is pre-release software. Expect changes.
 - How to contribute, and the checks a pull request must pass: [CONTRIBUTING.md](CONTRIBUTING.md).
 - All deployment options and settings: [DEPLOY.md](DEPLOY.md) and [.env.example](.env.example).
 - The backend is in `server/` (.NET). The dashboard is in `dashboard/` (Vue).
-- The running bot shows its API docs at `http://localhost:5080/scalar`.
+- Script, widget and integration references begin at [Developer documentation](https://docs.nomnomz.bot/reference/code/overview); [the repository developer guide](docs/developer-guide.md) links the relevant source contracts.
+- On a Development instance, Scalar is at `/scalar` and the schema is at `/openapi/v1.json` (for example `http://localhost:5080/scalar`). Other environments expose them only when the operator sets `Api:ExposeDocs=true`; production keeps them off by default.
 
 ## License
 

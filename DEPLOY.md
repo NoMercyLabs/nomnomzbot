@@ -175,7 +175,7 @@ The same Docker stack switched to `saas` mode (`DEPLOYMENT_MODE=saas`) — multi
 behind **your** HTTPS reverse proxy. A single streamer never needs it.
 
 **Requirements:** Docker, a public domain, and a reverse proxy terminating TLS (Caddy, nginx, or a
-Cloudflare Tunnel — see the [README's production deployment section](README.md#production-deployment)).
+Cloudflare Tunnel). Set the public origin and trusted proxy networks as described below.
 
 **Linux / macOS**
 

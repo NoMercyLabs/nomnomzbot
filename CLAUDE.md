@@ -9,6 +9,11 @@ and integrations (Spotify, Discord, YouTube, TTS).
 **Binding product statement:** `.claude/docs/design/PRODUCT-ALIGNMENT.md` (decisions D1–D12, glossary,
 domain table) — it wins over any older sentence in this file or any spec.
 
+**The real, user-facing docs site is a separate repo: `C:\Projects\NoMercyLabs\nomnomzbot-docs`**
+(Astro, `src/content/reference/en/**.mdx` + `docs-work/` review notes). `.claude/docs/` and `docs/` in
+*this* repo are internal design/planning notes, not the published docs — never confuse the two. Any ask
+about "the docs" / "the documentation site" means `nomnomzbot-docs`; check that repo first.
+
 Licensed under the **PolyForm Noncommercial License 1.0.0** (`LICENSE`). Copyright (C) NoMercy Labs. The code is public. You may use, change and share NomNomzBot for free, and run it for yourself, your friends and your community. You may not earn money with it: no selling it, and no paid hosting or paid service built on it. That right is reserved to NoMercy Labs. The names and logos are covered in `TRADEMARKS.md`.
 
 ---

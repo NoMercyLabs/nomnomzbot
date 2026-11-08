@@ -142,7 +142,7 @@ is / are, matching the pronoun. "they" takes "are".
 {name} {presentTense} the best.
 Chris is the best.
 ```
-With they/them pronouns the same template gives: `Sam are the best.` See Known gaps.
+With they/them pronouns the same template gives: `Sam are the best.` See Grammar choices.
 
 `{verb:singular|plural}`, `{user.verb:...}`, `{target.verb:...}`
 Pick the verb form that matches the person. Write the singular form first, then a pipe, then the plural form.
@@ -549,13 +549,14 @@ Stoney_Eagle is live on Twitch streaming Minecraft, Chill building night. Come h
 
 ---
 
-## Known gaps
+## Grammar choices
 
-These are things the bot cannot do yet. They are listed here so you do not get surprised.
+Number agreement, name possessives and English articles have helpers:
 
-- **No plural helper for numbers.** `{months} months` gives `1 months` when it is one month. Only `{verb:...}` handles agreement, and only for people.
-- **No name possessive helper.** Write `{name}'s` yourself. For a name ending in s, like Chris, that gives `Chris's`.
-- **No a/an helper.** Write the article yourself.
+- `{text.plural.count:1|month|months}` gives `1 month`; replace 1 with a number helper when the count is dynamic.
+- `{text.possessive:Chris}` gives `Chris'`.
+- `{text.article:apple}` gives `an apple` in an English-language channel; other languages return the word unchanged.
 - **`{presentTense}` with they/them gives "are".** `{name} {presentTense} here` gives `Sam are here.` Use `{verb:is|are}` only when the sentence reads well both ways, or rewrite the sentence.
 
-These four get helpers next. This page is checked by a test against the real bot, so it stays correct when helpers change.
+The registry check verifies helper availability and generated surface lines; it does not validate every prose explanation.
+See the [full helper reference](https://docs.nomnomz.bot/reference/commands/variables-and-templates) for the broader catalog.

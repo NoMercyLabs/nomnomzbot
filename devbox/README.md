@@ -95,9 +95,18 @@ passwordless sudo); on a Linux host the entrypoint joins the socket's group and 
 works:
 
 ```bash
-sudo docker compose up -d postgres redis adminer   # from /workspace
-cd server/src/NomNomzBot.Api && dotnet run      # API on 5080, published to the host
-cd dashboard && npm ci && npm run dev           # 5090
+cd /workspace
+sudo docker compose up -d postgres redis adminer
+cd /workspace/server/src/NomNomzBot.Api
+dotnet run                                    # API on 5080; keep this terminal open
+```
+
+In a second terminal in the container:
+
+```bash
+cd /workspace/dashboard
+npm ci
+npm run dev                                  # dashboard on 5090
 ```
 
 Both ports are published by the devbox itself, so `http://localhost:5080` and `:5090` work on

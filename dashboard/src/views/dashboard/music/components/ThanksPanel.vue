@@ -52,12 +52,15 @@ function songs(count: number | string): number {
   >
     <ul class="flex flex-col gap-3">
       <li
-        v-for="item in query.data.value"
+        v-for="(item, index) in query.data.value"
         :key="item.userId"
         data-top-requester
         class="flex items-center gap-3 text-sm"
       >
         <span class="min-w-0 flex-1">
+          <span class="font-medium mr-1">
+            {{ '#' + (index + 1) }}
+          </span>
           <UserName :user-id="item.userId" :name="item.displayName" :color="item.color" />
           <span class="mt-1 block h-1.5 rounded-full bg-muted">
             <span
@@ -72,7 +75,7 @@ function songs(count: number | string): number {
         </span>
       </li>
     </ul>
-    <template #footer>
+    <template #actions>
       <Button as-child variant="ghost" size="sm" class="ml-auto">
         <RouterLink to="/app/people">
           {{ $t('dashboard.music.thanks.openPeople') }}

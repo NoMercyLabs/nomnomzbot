@@ -1,6 +1,13 @@
-# dashboard
+# NomNomzBot dashboard
 
-This template should help get you started developing with Vue 3 in Vite.
+The Vue dashboard controls a running NomNomzBot backend.
+For installation, use [DEPLOY.md](../DEPLOY.md); for API and SDK contracts, start with [Developer documentation](../docs/developer-guide.md).
+
+Use Node.js 22 and run the commands below from `dashboard/`.
+The development server listens on port 5090 and proxies bot routes to `http://localhost:5080`.
+Start the [backend](../server/README.md#manual-development) separately.
+The `NNZ_API` environment variable can select another backend, but saves then affect that backend's real data.
+The public marketing build is a separate `npm run build-site` target; see [Site hosting](../docs/site-hosting.md).
 
 ## Recommended IDE Setup
 
@@ -26,7 +33,7 @@ See [Vite Configuration Reference](https://vite.dev/config/).
 ## Project Setup
 
 ```sh
-npm install
+npm ci
 ```
 
 ### Compile and Hot-Reload for Development
@@ -48,6 +55,11 @@ npm run test:unit
 ```
 
 ### Run End-to-End Tests with [Playwright](https://playwright.dev)
+
+The current Playwright configuration still waits for local port 5173, while Vite uses 5090.
+The local command below is therefore not a working default until those settings agree.
+The CI configuration uses preview on 4173.
+Check this configuration before using the end-to-end command; unit tests do not start the backend.
 
 ```sh
 # Install browsers for the first run

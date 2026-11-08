@@ -680,8 +680,8 @@ export function useMusicDevices(
 export type SongHistoryItem = components['schemas']['SongHistoryItem'];
 export type TopRequester = components['schemas']['TopRequester'];
 
-const historyLimit = 12;
-const topRequesterLimit = 8;
+const historyLimit = 50;
+const topRequesterLimit = 10;
 
 // Both panels read the stored request rows, so the realtime layer marks them stale together.
 export const musicHistoryKey = (channelId: string | null): KeyParts => [

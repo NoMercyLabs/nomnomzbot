@@ -222,7 +222,8 @@
         "empty": "Nog niet vastgelegd. De beste aanvragers verschijnen hier.",
         "error": "De beste aanvragers konden niet laden.",
         "songs": "{count} nummers | {count} nummer | {count} nummers",
-        "openPeople": "Open mensen"
+        "openPeople": "Open mensen",
+        "#": "#"
       }
     }
   }

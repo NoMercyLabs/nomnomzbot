@@ -4,49 +4,38 @@
   SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 -->
 
-# API contract — server ↔ app schema sync
+# API contract: server and Vue dashboard
 
-`v1.json` is a committed snapshot of the backend's OpenAPI document — the **single source of truth** for
-every DTO the API returns. It exists so the hand-written Kotlin DTOs in the KMP app can be guarded against
-silent drift instead of vetted by eye on every change.
+The committed [v1.json](v1.json) is a generated snapshot of the server's HTTP contract.
+The current client is the Vue dashboard, not the removed Kotlin application.
+Its generated types are [dashboard/src/api/schema.d.ts](../../dashboard/src/api/schema.d.ts).
+The source controllers and DTOs define behavior; a snapshot can lag behind them.
 
-## How drift is caught
+## Read the contract
 
-The backend C# DTOs (`*Dto`) and the app's typed Kotlin DTOs are written by hand on both sides. When a C#
-DTO gains, loses, or renames a field, the Kotlin DTO would normally drift out of sync **silently** — the
-mismatched field just deserializes to its default, and nothing fails.
+No running service is needed to open the snapshot.
+A Development instance also serves `/openapi/v1.json` and Scalar at `/scalar`.
+Production exposes these only when the operator opts in with `Api:ExposeDocs=true`.
+The public read-aloud endpoint is explicitly excluded, and HTTP OpenAPI does not describe the complete WebSocket protocol.
+See [Developer documentation](../../docs/developer-guide.md) for those surfaces.
 
-The frontend test
-[`ApiContractTest`](../../app/composeApp/src/jvmTest/kotlin/bot/nomnomz/dashboard/core/network/ApiContractTest.kt)
-closes that gap. For every typed DTO it checks the *serialized field names* (from the
-kotlinx.serialization descriptor — the exact names that go on the wire) against this document's matching
-schema. A Kotlin field that no longer exists on the backend schema **fails the build** — that is the
-dangerous case (a renamed/removed backend field the client would now read as a default). A backend field the
-Kotlin DTO omits is allowed: the client deliberately reads a subset (`ApiClient`'s JSON ignores unknown keys),
-so adding a backend field never breaks the app.
+## Refresh after an API change
 
-Adding a typed response DTO? Add one line to the `contracts` list in `ApiContractTest`. It is then guarded
-forever — no manual review of field lists, ever again.
-
-## Refreshing the snapshot
-
-Regenerate this file whenever you change a DTO or add an endpoint, then commit it — the diff makes the
-contract change reviewable, and the frontend test re-checks the app against it:
-
-With the API running (`http://localhost:5080`), from the repo root:
-
-**Linux / macOS**
-
-```bash
-curl -s http://localhost:5080/openapi/v1.json -o server/openapi/v1.json
-```
-
-**Windows (PowerShell)**
+From the repository root, with the .NET SDK and PowerShell available:
 
 ```powershell
-Invoke-WebRequest http://localhost:5080/openapi/v1.json -OutFile server\openapi\v1.json
+pwsh -File scripts/refresh-openapi-build.ps1
+npm --prefix dashboard run gen:api
 ```
 
-If a DTO change lands without refreshing this snapshot, `ApiContractTest` keeps checking the app against the
-*old* contract — so refreshing is part of the same vertical slice as the DTO change, exactly like updating a
-test. The drift check itself is automatic; only the regenerate-and-commit step is a deliberate one-liner.
+Install dashboard dependencies first with `npm ci` from `dashboard/`.
+The build-time script temporarily adds the document generator to the API project, runs a build, restores the project file in a finally block and writes the snapshot.
+Use it in a checkout without concurrent builds or edits to that project file.
+It does not start the bot host or prove that live endpoint behavior works.
+
+The alternative `scripts/refresh-openapi.ps1` starts an API, fetches the served document and stops it.
+It is not a read-only download from an already running bot.
+
+Review and submit the snapshot and generated TypeScript together.
+CI regenerates the TypeScript and fails if it differs from the committed types.
+This catches snapshot/type drift; it does not itself prove the snapshot matches an unrefreshed controller change.
