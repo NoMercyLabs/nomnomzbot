@@ -306,7 +306,7 @@ public sealed partial class PlaybackDirector
 
         if (_queue.Head is { } next)
         {
-            await BeginStartAsync(next, nameof(TrackEnded), "next_item", null, ct);
+            await BeginStartAsync(LinedUpOr(next), nameof(TrackEnded), "next_item", null, ct);
             return;
         }
 

@@ -160,7 +160,7 @@ public sealed partial class PlaybackDirector
         await MoveAsync(PlaybackState.Idle, inputName, "start_dropped", item.Id);
 
         if (_queue.Head is { } next)
-            await BeginStartAsync(next, inputName, "next_item", null, ct);
+            await BeginStartAsync(LinedUpOr(next), inputName, "next_item", null, ct);
     }
 
     /// <summary>

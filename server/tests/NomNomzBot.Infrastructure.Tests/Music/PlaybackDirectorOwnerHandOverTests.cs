@@ -11,6 +11,7 @@
 
 using FluentAssertions;
 using NomNomzBot.Domain.Music.ValueObjects;
+using NomNomzBot.Infrastructure.Music;
 using static NomNomzBot.Infrastructure.Tests.Music.PlaybackDirectorTestKit;
 
 namespace NomNomzBot.Infrastructure.Tests.Music;
@@ -26,6 +27,62 @@ public sealed partial class PlaybackDirectorTests
 {
     private const string OwnTrack = "spotify:track:own1";
     private const string OwnNextTrack = "spotify:track:own2";
+
+    /// <summary>
+    /// The song playing belongs to bob, so bob's next request ranks second, and it is already lined up in
+    /// Spotify's own queue when stoney's first request takes the top of the fair queue.
+    /// </summary>
+    private static async Task<(
+        Rig Rig,
+        PlaybackItem LinedUp,
+        PlaybackItem NewHead
+    )> FairInsertAheadOfLinedUp()
+    {
+        FairQueue<PlaybackItem> fairQueue = new();
+        fairQueue.SetNowPlayingOwner("bob");
+        Rig rig = new(fairQueue);
+        await rig.OwnerPlays(rig.Spotify, OwnTrack, 10_000);
+        PlaybackItem linedUp = Item("bob2", owner: "bob");
+        PlaybackItem newHead = Item("stoney1", owner: "stoney");
+        await rig.Request(linedUp);
+        await rig.Request(newHead);
+
+        rig.QueueIds.Should().Equal("stoney1", "bob2");
+        rig.Spotify.Calls.Should().Equal(new EngineCall("QueueNext", "bob2"));
+        return (rig, linedUp, newHead);
+    }
+
+    [Fact]
+    public async Task OwnerHandOver_TrackEnd_ARequestRankedAheadOfTheLinedUpOneNeverSkipsIt()
+    {
+        (Rig rig, PlaybackItem linedUp, PlaybackItem newHead) = await FairInsertAheadOfLinedUp();
+
+        await SpotifyMovesOn(rig, OwnTrack, linedUp.Uri);
+
+        rig.Spotify.Calls.Should()
+            .Equal(new EngineCall("QueueNext", "bob2"), new EngineCall("QueueNext", "stoney1"));
+        rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, linedUp));
+        rig.Director.LastPlayed!.Id.Should().Be("bob2");
+        rig.QueueIds.Should().Equal("stoney1");
+
+        await SpotifyMovesOn(rig, linedUp.Uri, newHead.Uri);
+
+        rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, newHead));
+        rig.QueueIds.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task OwnerHandOver_OwnerSkip_ARequestRankedAheadOfTheLinedUpOneSkipsToTheLinedUpOne()
+    {
+        (Rig rig, PlaybackItem linedUp, _) = await FairInsertAheadOfLinedUp();
+
+        await rig.Director.HandleAsync(new OwnerSkip());
+
+        rig.Spotify.Calls.Should()
+            .Equal(new EngineCall("QueueNext", "bob2"), new EngineCall("Skip"));
+        rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.Spotify, linedUp));
+        rig.QueueIds.Should().Equal("stoney1", "bob2");
+    }
 
     [Fact]
     public async Task OwnerHandOver_OnlySpotify_LinesUpOneRequestAtATimeAndSendsNoPauseSkipOrStart()

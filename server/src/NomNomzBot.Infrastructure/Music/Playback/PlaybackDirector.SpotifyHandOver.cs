@@ -79,6 +79,14 @@ public sealed partial class PlaybackDirector
     private PlaybackItem? LinedUpRow() =>
         _linedUpId is null ? null : _queue.Snapshot.FirstOrDefault(i => i.Id == _linedUpId);
 
+    /// <summary>
+    /// What Spotify plays next. A fair-queue insert can rank a new request above the row already in Spotify's own
+    /// queue, but Spotify still plays that row first and a start is a queue add plus a skip, so starting the new
+    /// head would skip the lined-up song (live 2026-11-08).
+    /// </summary>
+    private PlaybackItem LinedUpOr(PlaybackItem head) =>
+        head.Engine == EngineKind.Spotify && LinedUpRow() is { } linedUp ? linedUp : head;
+
     /// <summary>Spotify plays and its next track just started while a YouTube request is the head.</summary>
     private bool SpotifyMovedOnUnderYouTubeHead(EngineReport report) =>
         report is { Engine: EngineKind.Spotify, IsPlaying: true }
