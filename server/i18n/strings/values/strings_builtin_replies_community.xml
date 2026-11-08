@@ -111,6 +111,8 @@
     <string name="builtin_reply_media_accountunresolved_description">The bot cannot find the account of the person who asks.</string>
     <string name="builtin_reply_media_queued_label">Media queued</string>
     <string name="builtin_reply_media_queued_description">A clip or video goes straight into the queue.</string>
+    <string name="builtin_reply_media_playusage_label">How to use !play</string>
+    <string name="builtin_reply_media_playusage_description">Someone uses !play without a clip or video link.</string>
     <string name="builtin_reply_media_pending_label">Media waiting</string>
     <string name="builtin_reply_media_pending_description">A clip or video waits for a moderator.</string>
     <string name="builtin_reply_media_disabled_label">Media share off</string>

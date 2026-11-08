@@ -111,6 +111,8 @@
     <string name="builtin_reply_media_accountunresolved_description">De bot kan het account van de vrager niet vinden.</string>
     <string name="builtin_reply_media_queued_label">Media in wachtrij</string>
     <string name="builtin_reply_media_queued_description">Een clip of video gaat direct de wachtrij in.</string>
+    <string name="builtin_reply_media_playusage_label">Zo gebruik je !play</string>
+    <string name="builtin_reply_media_playusage_description">Iemand gebruikt !play zonder link naar een clip of video.</string>
     <string name="builtin_reply_media_pending_label">Media wacht</string>
     <string name="builtin_reply_media_pending_description">Een clip of video wacht op een moderator.</string>
     <string name="builtin_reply_media_disabled_label">Media delen uit</string>

@@ -53,6 +53,8 @@
     <string name="builtin_reply_help_linelurk_description">Someone asks what !lurk does.</string>
     <string name="builtin_reply_help_lineunlurk_label">Help for !unlurk</string>
     <string name="builtin_reply_help_lineunlurk_description">Someone asks what !unlurk does.</string>
+    <string name="builtin_reply_help_lineplay_label">Help for !play</string>
+    <string name="builtin_reply_help_lineplay_description">Someone asks what !play does.</string>
     <string name="builtin_reply_help_lineplaylist_label">Help for !playlist</string>
     <string name="builtin_reply_help_lineplaylist_description">Someone asks what !playlist does.</string>
     <string name="builtin_reply_help_linequote_label">Help for !quote</string>

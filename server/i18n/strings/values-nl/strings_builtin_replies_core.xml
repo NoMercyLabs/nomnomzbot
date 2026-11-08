@@ -53,6 +53,8 @@
     <string name="builtin_reply_help_linelurk_description">Iemand vraagt wat !lurk doet.</string>
     <string name="builtin_reply_help_lineunlurk_label">Uitleg over !unlurk</string>
     <string name="builtin_reply_help_lineunlurk_description">Iemand vraagt wat !unlurk doet.</string>
+    <string name="builtin_reply_help_lineplay_label">Uitleg over !play</string>
+    <string name="builtin_reply_help_lineplay_description">Iemand vraagt wat !play doet.</string>
     <string name="builtin_reply_help_lineplaylist_label">Uitleg over !playlist</string>
     <string name="builtin_reply_help_lineplaylist_description">Iemand vraagt wat !playlist doet.</string>
     <string name="builtin_reply_help_linequote_label">Uitleg over !quote</string>
