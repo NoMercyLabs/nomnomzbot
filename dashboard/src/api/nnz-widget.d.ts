@@ -56,6 +56,8 @@ interface NnzChatMessageReceived {
   sourceChannelId?: string | null;
   /** The name of the channel the line came from in shared chat. Empty when it came from this channel. */
   sourceChannelName?: string | null;
+  /** The badges the chatter wears in the channel they typed in (Twitch source_badges), for display only. Null when the line was typed here. Never a source for a role, identity or community read: Badges is. */
+  sourceBadges?: NnzChatBadge[] | null;
 }
 
 /** Published when a channel's stream goes offline (EventSub stream.offline). */
@@ -252,6 +254,8 @@ interface NnzDashboardChatMessageDto {
   recipientDisplayName?: string | null;
   heldStatus?: string | null;
   removed?: string | null;
+  sourceBadges?: NnzChatBadgeDto[] | null;
+  sourceChannelAvatarUrl?: string | null;
 }
 
 interface NnzChatClearedDto {
