@@ -183,7 +183,7 @@ describe('the invite page, signed out', () => {
     await control(wrapper, '[data-action="sign-in"]').trigger('click');
 
     expect(assign).toHaveBeenCalledExactlyOnceWith(
-      `${window.location.origin}/api/v1/auth/twitch?client=web&return_to=%2Fapp&role=broadcaster&invite=WELCOME6`,
+      `${window.location.origin}/api/v1/auth/twitch?client=web&return_to=%2Fapp&return_origin=${encodeURIComponent(window.location.origin)}&role=broadcaster&invite=WELCOME6`,
     );
 
     expect(requestsTo('/api/v1/channels/CH123/billing/invite/redeem')).toHaveLength(0);
