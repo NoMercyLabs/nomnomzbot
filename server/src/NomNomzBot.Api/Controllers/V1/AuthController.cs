@@ -57,7 +57,7 @@ public class AuthController : BaseController
     private readonly IViewAsScope _viewAs;
 
     private ILogger SignInLog =>
-        HttpContext.RequestServices.GetService<ILogger<AuthController>>()
+        HttpContext.RequestServices?.GetService<ILogger<AuthController>>()
         ?? (ILogger)Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
 
     public AuthController(

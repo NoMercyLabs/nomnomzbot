@@ -93,7 +93,12 @@ export function signInUrl(
   role?: LoginRole,
   invite?: string,
 ): string {
-  const query = new URLSearchParams({ client: 'web', return_to: returnTo });
+  // return_origin: some browsers (Brave) send no Referer, so the bot cannot tell which page to come back to.
+  const query = new URLSearchParams({
+    client: 'web',
+    return_to: returnTo,
+    return_origin: window.location.origin,
+  });
 
   if (role) {
     query.set('role', role);

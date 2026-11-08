@@ -122,7 +122,7 @@ describe('the chosen bot', () => {
     switchBot(saas);
 
     expect(signInUrl('twitch', '/app')).toBe(
-      `${saas}/api/v1/auth/twitch?client=web&return_to=%2Fapp`,
+      `${saas}/api/v1/auth/twitch?client=web&return_to=%2Fapp&return_origin=${encodeURIComponent(window.location.origin)}`,
     );
   });
 });

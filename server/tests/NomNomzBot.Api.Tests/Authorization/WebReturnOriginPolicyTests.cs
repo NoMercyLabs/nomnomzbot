@@ -106,4 +106,52 @@ public sealed class WebReturnOriginPolicyTests
 
         Assert.Null(origin);
     }
+
+    /// <summary>
+    /// Brave sends no Referer, and behind the tunnel the bot sees plain http (Stoney, 2026-11-08: signed in on
+    /// nomnomz.bot, landed on api.nomnomz.bot). The dashboard names its own origin in the query instead.
+    /// </summary>
+    private static HttpRequest TunnelSignInWithoutReferer(string returnOrigin)
+    {
+        DefaultHttpContext context = new();
+        context.Request.Scheme = "http";
+        context.Request.Host = new HostString("nomnomz.bot");
+        context.Request.QueryString = QueryString.Create("return_origin", returnOrigin);
+        return context.Request;
+    }
+
+    private static IConfiguration ApiBot() =>
+        new ConfigurationBuilder()
+            .AddInMemoryCollection(
+                new Dictionary<string, string?>
+                {
+                    ["App:BaseUrl"] = "https://api.nomnomz.bot",
+                    ["Cors:Origins:0"] = "https://nomnomz.bot",
+                }
+            )
+            .Build();
+
+    [Fact]
+    public void ASignInWithoutReferer_ReturnsToTheListedOriginTheDashboardNamed()
+    {
+        string? origin = WebReturnOriginPolicy.Capture(
+            TunnelSignInWithoutReferer("https://nomnomz.bot"),
+            ApiBot(),
+            Production()
+        );
+
+        Assert.Equal("https://nomnomz.bot", origin);
+    }
+
+    [Fact]
+    public void ANamedOriginThatIsNotListed_IsRefused()
+    {
+        string? origin = WebReturnOriginPolicy.Capture(
+            TunnelSignInWithoutReferer("https://evil.example"),
+            ApiBot(),
+            Production()
+        );
+
+        Assert.Null(origin);
+    }
 }

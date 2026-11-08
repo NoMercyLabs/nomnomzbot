@@ -96,7 +96,7 @@ describe('redirect sign-in', () => {
     const [signIn] = await load();
 
     expect(signIn.signInUrl('twitch', '/app/commands')).toBe(
-      `${window.location.origin}/api/v1/auth/twitch?client=web&return_to=%2Fapp%2Fcommands`,
+      `${window.location.origin}/api/v1/auth/twitch?client=web&return_to=%2Fapp%2Fcommands&return_origin=${encodeURIComponent(window.location.origin)}`,
     );
   });
 
@@ -104,7 +104,7 @@ describe('redirect sign-in', () => {
     const [signIn] = await load();
 
     expect(signIn.signInUrl('twitch', '/app', 'moderator')).toBe(
-      `${window.location.origin}/api/v1/auth/twitch?client=web&return_to=%2Fapp&role=moderator`,
+      `${window.location.origin}/api/v1/auth/twitch?client=web&return_to=%2Fapp&return_origin=${encodeURIComponent(window.location.origin)}&role=moderator`,
     );
   });
 
@@ -112,7 +112,7 @@ describe('redirect sign-in', () => {
     const [signIn] = await load();
 
     expect(signIn.signInUrl('kick', '/app')).toBe(
-      `${window.location.origin}/api/v1/auth/kick/authorize?client=web&return_to=%2Fapp`,
+      `${window.location.origin}/api/v1/auth/kick/authorize?client=web&return_to=%2Fapp&return_origin=${encodeURIComponent(window.location.origin)}`,
     );
   });
 });

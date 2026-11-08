@@ -54,7 +54,13 @@ public static class WebReturnOriginPolicy
         // A dashboard on another origin navigates the browser straight to the bot, so the host is the
         // bot's own; the page it came from is only in the Referer.
         string? referer = RefererOrigin(request);
-        return IsCrossOriginTarget(referer, request, configuration, environment) ? referer : null;
+        if (IsCrossOriginTarget(referer, request, configuration, environment))
+            return referer;
+
+        // A browser that sends no Referer (Brave) behind a tunnel that reports plain http leaves neither of the
+        // above; the dashboard then names its own origin. Only a listed origin is ever used.
+        string named = request.Query["return_origin"].ToString().TrimEnd('/');
+        return IsCrossOriginTarget(named, request, configuration, environment) ? named : null;
     }
 
     private static string? RefererOrigin(HttpRequest request) =>
