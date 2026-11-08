@@ -31,8 +31,10 @@ COPY dashboard/ ./
 # This image is what dev and self-host users run, so it is built with sign-in open.
 ENV VITE_SIGN_IN_OPEN=true
 
-# build-only = `vite build` alone. The type check and the lint gate run in CI's dashboard job, not here,
-# so a slow or red check cannot stop an image build that CI has already proven. Output: dist/.
+# build-only = `vite build`, then the overlay video player bundle (dist/vendor/nomercy-player.js, served at
+# /vendor/nomercy-player.js for the media-share widget). The type check and the lint gate run in CI's
+# dashboard job, not here, so a slow or red check cannot stop an image build that CI has already proven.
+# Output: dist/.
 RUN npm run build-only
 
 # ---------------------------------------------------------------------------

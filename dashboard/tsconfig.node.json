@@ -4,6 +4,7 @@
   "include": [
     "vite.config.*",
     "vite.site.config.*",
+    "vite.overlay-player.config.*",
     "vitest.config.*",
     "cypress.config.*",
     "playwright.config.*",
