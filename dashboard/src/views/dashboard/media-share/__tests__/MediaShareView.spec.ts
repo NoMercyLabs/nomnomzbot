@@ -261,6 +261,31 @@ describe('Media share page', () => {
     expect(rowOf('r').querySelectorAll('button')).toHaveLength(0);
   });
 
+  it('gives a played row Replay, Play now and Remove, and fires each one', async () => {
+    await open();
+
+    const row = rowOf('h');
+
+    expect(row.querySelector('[data-action="replay"]')).not.toBeNull();
+    expect(row.querySelector('[data-action="play-now"]')).not.toBeNull();
+    expect(row.querySelector('[data-action="remove"]')).not.toBeNull();
+    expect(row.querySelector('[data-action="skip"]')).toBeNull();
+    expect(row.querySelector('[data-action="more"]')).toBeNull();
+
+    await press(row, '[data-action="play-now"]');
+    await settle();
+    await press(row, '[data-action="replay"]');
+    await settle();
+    await press(row, '[data-action="remove"]');
+    await press(document, '[data-confirm-action]');
+
+    expect(calls.map((call) => call.body?.parameters ?? call.path)).toEqual([
+      { command: 'play_now', value: 'h' },
+      { command: 'replay', value: 'h' },
+      '/api/v{version}/media-share/{id}/reject',
+    ]);
+  });
+
   it('shows the playing item in the player card, and Pause, Skip and Stop drive the overlay', async () => {
     await open();
 
@@ -409,7 +434,7 @@ describe('Media share page', () => {
     ]);
   });
 
-  it('groups the queue into waiting, up next and history, and a played row offers only Replay', async () => {
+  it('groups the queue into waiting, up next and history, and a played row offers three controls', async () => {
     await open();
 
     const sections = [...document.body.querySelectorAll<HTMLElement>('[data-queue-section]')];
@@ -422,7 +447,7 @@ describe('Media share page', () => {
       'history',
     ]);
 
-    expect(rowOf('h').querySelectorAll('button')).toHaveLength(1);
+    expect(rowOf('h').querySelectorAll('button')).toHaveLength(3);
   });
 
   it('keeps the settings out of the page until the Settings button opens them', async () => {

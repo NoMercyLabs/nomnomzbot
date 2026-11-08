@@ -41,7 +41,7 @@ public interface IMediaShareService
         CancellationToken ct = default
     );
 
-    /// <summary>Reject an item → rejected (refunds the entry cost if it was charged). Returns the updated request.</summary>
+    /// <summary>Reject an item → rejected (refunds the entry cost if it was charged; a played or skipped item is removed without a refund). Returns the updated request.</summary>
     Task<Result<MediaShareRequestDto>> RejectAsync(
         Guid broadcasterId,
         Guid requestId,

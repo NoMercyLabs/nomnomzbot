@@ -347,6 +347,81 @@ public sealed class MediaSharePlaybackServiceTests
         OnlyCommand(h).RequestId.Should().Be(chosen);
     }
 
+    [Theory]
+    [InlineData(MediaShareStatus.Played)]
+    [InlineData(MediaShareStatus.Skipped)]
+    public async Task PlayNow_OfAFinishedItem_EndsTheCurrentOne_AndLoadsTheFinishedOne(
+        string finished
+    )
+    {
+        Harness h = Build();
+        Guid current = Seed(h, "current", MediaShareStatus.Playing, null);
+        Guid waiting = Seed(h, "waiting", MediaShareStatus.Approved, 1);
+        Guid done = Seed(h, "done", finished, null);
+
+        Result<MediaPlayerStateDto> result = await h.Sut.SendCommandAsync(
+            Channel,
+            Cmd(MediaPlaybackCommands.PlayNow, id: done)
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        StatusOf(h, current).Should().Be(MediaShareStatus.Skipped);
+        StatusOf(h, done).Should().Be(MediaShareStatus.Playing);
+        StatusOf(h, waiting).Should().Be(MediaShareStatus.Approved);
+        MediaPlayerCommandIssuedEvent load = OnlyCommand(h);
+        load.Command.Should().Be("load");
+        load.RequestId.Should().Be(done);
+        load.MediaRef.Should().Be("done");
+        result.Value.RequestId.Should().Be(done);
+    }
+
+    [Fact]
+    public async Task PlayNow_OfARejectedItem_KeepsTheError()
+    {
+        Harness h = Build();
+        Guid rejected = Seed(h, "rejected", MediaShareStatus.Rejected, null);
+
+        Result<MediaPlayerStateDto> result = await h.Sut.SendCommandAsync(
+            Channel,
+            Cmd(MediaPlaybackCommands.PlayNow, id: rejected)
+        );
+
+        result.IsFailure.Should().BeTrue();
+        StatusOf(h, rejected).Should().Be(MediaShareStatus.Rejected);
+    }
+
+    [Theory]
+    [InlineData(MediaShareStatus.Played)]
+    [InlineData(MediaShareStatus.Skipped)]
+    public async Task Reject_OfAFinishedItem_RemovesItFromTheHistory(string finished)
+    {
+        Harness h = Build();
+        Guid done = Seed(h, "done", finished, null);
+
+        Result<MediaShareRequestDto> result = await h.Queue.RejectAsync(Channel, done, Viewer);
+
+        result.IsSuccess.Should().BeTrue();
+        StatusOf(h, done).Should().Be(MediaShareStatus.Rejected);
+        Result<PagedList<MediaShareRequestDto>> history = await h.Queue.GetQueueAsync(
+            Channel,
+            new(finished),
+            new(1, 50)
+        );
+        history.Value.Items.Should().NotContain(r => r.Id == done);
+    }
+
+    [Fact]
+    public async Task Reject_OfAnAlreadyRejectedItem_KeepsTheError()
+    {
+        Harness h = Build();
+        Guid rejected = Seed(h, "rejected", MediaShareStatus.Rejected, null);
+
+        Result<MediaShareRequestDto> result = await h.Queue.RejectAsync(Channel, rejected, Viewer);
+
+        result.IsFailure.Should().BeTrue();
+        result.ErrorCode.Should().Be("VALIDATION_FAILED");
+    }
+
     [Fact]
     public async Task PlayNow_WithoutAnId_Fails()
     {

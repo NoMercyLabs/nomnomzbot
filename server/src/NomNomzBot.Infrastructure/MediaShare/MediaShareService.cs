@@ -244,19 +244,17 @@ public sealed class MediaShareService : IMediaShareService
         MediaShareRequest? entity = await FindAsync(broadcasterId, requestId, ct);
         if (entity is null)
             return Result.Failure<MediaShareRequestDto>("Media request not found.", "NOT_FOUND");
-        if (
-            entity.Status
-            is MediaShareStatus.Rejected
-                or MediaShareStatus.Played
-                or MediaShareStatus.Skipped
-        )
+        if (entity.Status == MediaShareStatus.Rejected)
             return Result.Failure<MediaShareRequestDto>(
                 "That request is already resolved.",
                 "VALIDATION_FAILED"
             );
 
+        // A played or skipped item is removed from the history: it was delivered or already refunded.
+        bool finished = entity.Status is MediaShareStatus.Played or MediaShareStatus.Skipped;
         DateTime now = _clock.GetUtcNow().UtcDateTime;
-        await RefundIfChargedAsync(broadcasterId, entity, ct);
+        if (!finished)
+            await RefundIfChargedAsync(broadcasterId, entity, ct);
         entity.Status = MediaShareStatus.Rejected;
         entity.QueuePosition = null;
         entity.DecidedAt = now;

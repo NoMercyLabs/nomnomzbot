@@ -11,7 +11,8 @@
 <script setup lang="ts">
 // One shared item, with the one primary action its state allows (sleak: one primary per group).
 // Pending: Approve (primary) and Reject. Approved: Play now, Skip, Remove and a menu to move it one place.
-// The playing item lives in the player card. A played or skipped item can be replayed; a rejected one has no controls.
+// The playing item lives in the player card. A played or skipped item can be replayed, played now or removed;
+// a rejected one has no controls.
 import ArrowDown from '~icons/nnz/arrow-forward-down';
 import ArrowUp from '~icons/nnz/arrow-forward-up';
 import Check from '~icons/nnz/check';
@@ -121,7 +122,7 @@ const meta = computed<string>(() => {
         {{ $t("dashboard.mediaShare.queue.reject") }}
       </Button>
       <Button
-        v-if="approved"
+        v-if="approved || replayable"
         variant="outline"
         data-action="play-now"
         @click="$emit('playNow')"
@@ -138,7 +139,7 @@ const meta = computed<string>(() => {
         <Next class="size-5" aria-hidden="true" />
       </IconAction>
       <IconAction
-        v-if="approved"
+        v-if="approved || replayable"
         :label="$t('dashboard.mediaShare.queue.remove')"
         data-action="remove"
         @click="$emit('remove')"

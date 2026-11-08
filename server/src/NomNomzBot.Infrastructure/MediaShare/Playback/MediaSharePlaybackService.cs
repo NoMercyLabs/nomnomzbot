@@ -237,7 +237,7 @@ public sealed class MediaSharePlaybackService(
     {
         if (requestId is null)
             return Result.Failure<MediaPlayerStateDto>(
-                "play_now needs the id of an approved item.",
+                "play_now needs the id of an approved, played or skipped item.",
                 "VALIDATION_FAILED"
             );
 
@@ -247,6 +247,10 @@ public sealed class MediaSharePlaybackService(
             1,
             ct
         );
+        // Not in the queue: a played or skipped item is queued first again, anything else keeps its error.
+        if (moved.IsFailure)
+            moved = await queue.ReplayAsync(broadcasterId, requestId.Value, ct);
+
         if (moved.IsFailure)
             return Result.Failure<MediaPlayerStateDto>(moved.ErrorMessage!, moved.ErrorCode);
 
