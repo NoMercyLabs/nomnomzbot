@@ -56,8 +56,10 @@ approach before you spend time on it.
 3. Run the checks below. All must pass.
 4. Open a pull request against `master` and fill in the template.
 
-To run the bot locally, see [Getting started](README.md#getting-started) and
-[Development](README.md#development) in the README.
+To run the bot locally, see [How to start](README.md#how-to-start), the
+[backend development guide](server/README.md#manual-development), and the
+[dashboard guide](dashboard/README.md). For integration contracts, start with the
+[developer guide](docs/developer-guide.md).
 
 ### Project layout
 
@@ -105,8 +107,10 @@ CI runs the same checks on every push.
 - **Database changes** need a migration in **both** sets: Postgres
   (`server/src/NomNomzBot.Infrastructure/Platform/Persistence/Migrations`) and SQLite
   (`server/src/NomNomzBot.Migrations.Sqlite`). A change in only one set breaks the other database.
-- **API changes** must update `server/openapi/v1.json` with `scripts/refresh-openapi.ps1`. Do not edit
-  that file by hand. Then run `npm run gen:api` in `dashboard/` and commit `src/api/schema.d.ts`. The CI
+- **API changes** must update `server/openapi/v1.json`; prefer `pwsh -File scripts/refresh-openapi-build.ps1`
+  from the repository root, which generates it at build time without starting the bot. The alternative
+  `scripts/refresh-openapi.ps1` starts an API and later stops it, so it is not a read-only refresh.
+  Do not edit the snapshot by hand. Then run `npm run gen:api` in `dashboard/` and commit `src/api/schema.d.ts`. The CI
   dashboard job fails when the generated types and the snapshot disagree.
 
 ### Dashboard

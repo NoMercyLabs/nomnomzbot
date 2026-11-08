@@ -1,6 +1,11 @@
 # NomNomzBot — What the Bot Can Do (Designer Reference)
 
 **For:** the frontend/design track.
+**Status:** historical design inventory, not a current implementation checklist.
+The built/specced labels, counts and permission floors below have drifted.
+For example, the Automation API is implemented and script authoring's current default floor is Moderator.
+Use the [developer documentation](developer-guide.md), current controllers and authorization definitions to verify behavior; a backend capability alone does not establish a completed dashboard workflow.
+
 **Rule of thumb:** every capability in this document is a page, panel, dialog, or component. If it's
 listed here and has no design, that's a gap. Two tiers exist throughout:
 
@@ -122,7 +127,7 @@ the backend answers with the **missing scopes + a one-click re-grant URL**. The 
 The centerpiece editor. A pipeline = blocks (≈23 action types: send chat/reply, TTS, play sound,
 moderation actions, adjust currency, widget event, run code, send webhook, set stream info, …) +
 conditions (~4 evaluators) + control flow (`run_pipeline`, `break`, `continue`) + 90+ template
-variables (`{{user.name}}`, `{{payload.*}}`, pronouns…). Pipelines are triggered by commands, timers,
+variables (`{user.name}`, event-specific values, pronouns…). Pipelines are triggered by commands, timers,
 events, redemptions, webhooks, custom events. Server-side **validate** before save — design a
 validation-errors surface. Read Moderator / manage Editor.
 

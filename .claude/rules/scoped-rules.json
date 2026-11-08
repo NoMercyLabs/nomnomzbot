@@ -527,6 +527,22 @@
    ]
   },
   {
+   "id": "docs-site-is-separate-repo",
+   "paths": [
+    "**/CLAUDE.md"
+   ],
+   "brief": [
+    "\\bdocs?\\b.*\\brepo\\b",
+    "nomnomzbot-docs"
+   ],
+   "text": "The published, user-facing docs site is a separate repo (C:/Projects/NoMercyLabs/nomnomzbot-docs — Astro, src/content/reference/en/**.mdx). .claude/docs/ and docs/ inside nomnomzbot are internal design/planning notes, not the published docs. Any ask about 'the docs' / 'the documentation site' means nomnomzbot-docs — check that repo first.",
+   "source": "Stoney 2026-11-05: \"ik should not have to tell you, update your claude.md file\" (after being pointed at nomnomzbot's internal .claude/docs/ by mistake for 'this week's documentation changes', when the real work — Codex's doc edits — was an uncommitted diff in nomnomzbot-docs)",
+   "covers": [
+    "docs-site-is-separate-repo.md",
+    "The real, user-facing docs site is a separate repo: `C:\\Projects\\NoMercyLabs\\nomnomzbot-docs`"
+   ]
+  },
+  {
    "id": "ps-scripts-ascii",
    "paths": [
     "**/*.ps1"
@@ -842,6 +858,25 @@
    ],
    "text": "Every README and docs page, in this repo and in any repo Arc creates (nomnomzbot-docs included), is written with the nomercylabs:atlas skill loaded: every claim grounded in a file it names, the Atlas README shape, scannable one-idea sentences, and no claim about what a feature will do later.",
    "source": "Stoney 2026-10-28 (translated from Dutch): \"You did not use the documentation skill for the README, did you? Huh?\" (Arc wrote the nomnomzbot-docs README without Atlas after using it for the bot README.) Memory: feedback-every-readme-through-atlas.md"
+  },
+  {
+   "id": "understanding-pages-teachable-shape",
+   "paths": [
+    "**/content/reference/en/understanding/**",
+    "**/docs-work/reviews/reference-understanding-*"
+   ],
+   "brief": [
+    "[Uu]nderstanding gender",
+    "understanding/",
+    "[Pp]ride flag",
+    "[Ss]exual orientation",
+    "[Gg]ender identit"
+   ],
+   "text": "Every page of the 'Understanding gender and sexuality' docs section is a teachable moment, not a glossary: open with a scene a Twitch viewer or streamer knows, teach the idea from the ground up, state only how things are. No 'Common misunderstandings' section, no 'Instead of / Say' table, and a wrong idea is never quoted. Every rule is positive ('use the word a person uses'), never a ban list. Fair to both readers at once: the newcomer and the person the page is about; no judgment of either. One topic per page. Sources: community groups from many regions first, UN and WHO next, US guides last and labeled. The reference page is the rewritten non-binary page. Nothing in the section is published until Stoney lifts his 2026-10-30 rule.",
+   "source": "Stoney 2026-11-02: \"i don't like the whole misunderstanding section, it feels focussed on all the things you should not say and can be interpreted as 'this is what people have been bullying me with'\" and, on the rewrite, \"this is 10 times better ... it must be inviting and welcoming and judgement of any side should remain far away from here as possible. we should be faithful towards both sides\". Memory: understanding-section-teachable-shape.md",
+   "covers": [
+    "understanding-section-teachable-shape.md"
+   ]
   },
   {
    "id": "tests-call-real-code",

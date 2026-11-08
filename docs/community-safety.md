@@ -4,6 +4,10 @@
 **Owner:** NoMercy Labs.
 **Date:** 2026-10-10. Version 2. The Today lists match the bot on this date.
 
+This is a dated design statement. Its Today lists are a historical snapshot, not a current feature guarantee.
+Use the [current user guide](https://docs.nomnomz.bot/reference/overview) for available workflows and their limits.
+Developers should verify enforcement in the current implementation before relying on a design goal as an API guarantee.
+
 ## Contents
 
 - [1. Never punish the wrong person](#1-never-punish-the-wrong-person)
