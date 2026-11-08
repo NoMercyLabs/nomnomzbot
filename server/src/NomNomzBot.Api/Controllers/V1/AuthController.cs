@@ -56,6 +56,10 @@ public class AuthController : BaseController
     private readonly IImpersonationSessionService _impersonation;
     private readonly IViewAsScope _viewAs;
 
+    private ILogger SignInLog =>
+        HttpContext.RequestServices.GetService<ILogger<AuthController>>()
+        ?? (ILogger)Microsoft.Extensions.Logging.Abstractions.NullLogger.Instance;
+
     public AuthController(
         IUserService userService,
         IAuthService authService,
@@ -107,8 +111,23 @@ public class AuthController : BaseController
         string.Equals(client, "web", StringComparison.OrdinalIgnoreCase);
 
     /// <summary>The listed dashboard origin a web flow started from, when it is not the public base URL (see <see cref="WebReturnOriginPolicy"/>).</summary>
-    private string? CaptureReturnOrigin(string? client) =>
-        IsWebClient(client) ? WebReturnOriginPolicy.Capture(Request, _config, _env) : null;
+    private string? CaptureReturnOrigin(string? client)
+    {
+        if (!IsWebClient(client))
+            return null;
+
+        string? origin = WebReturnOriginPolicy.Capture(Request, _config, _env);
+        SignInLog.LogInformation(
+            "Web sign-in starts on host {Host} (proto {Proto}, referer {HasReferer}); return origin {ReturnOrigin}",
+            Request.Headers["X-Forwarded-Host"].ToString() is { Length: > 0 } fh
+                ? fh
+                : Request.Host.Value,
+            Request.Headers["X-Forwarded-Proto"].ToString(),
+            Request.Headers.Referer.Count > 0 ? "yes" : "no",
+            origin ?? "none"
+        );
+        return origin;
+    }
 
     /// <summary>
     /// The origin a finished web flow goes back to: the stored return origin when it is still a listed
@@ -666,7 +685,18 @@ public class AuthController : BaseController
         if (IsWebClient(client))
         {
             string? returnOrigin = flowState.ReturnOrigin;
-            if (WebReturnOriginPolicy.IsCrossOriginTarget(returnOrigin, Request, _config, _env))
+            bool crossOrigin = WebReturnOriginPolicy.IsCrossOriginTarget(
+                returnOrigin,
+                Request,
+                _config,
+                _env
+            );
+            SignInLog.LogInformation(
+                "Web sign-in returns to {Target} (stored return origin {ReturnOrigin})",
+                crossOrigin ? returnOrigin : GetPublicBaseUrl(),
+                returnOrigin ?? "none"
+            );
+            if (crossOrigin && returnOrigin is not null)
             {
                 string code = await _oauthState.IssueLoginHandoffAsync(new(returnOrigin, auth), ct);
                 return Redirect(
