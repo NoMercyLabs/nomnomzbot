@@ -384,7 +384,7 @@ async function sendTest(eventType: string): Promise<void> {
         </PanelCard>
       </div>
     </div>
-    <div v-if="can('widget:write')" data-page-inset class="grid flex-none gap-1 border-t pt-4">
+    <div v-if="can('widget:write')" data-page-inset class="grid flex-none gap-1 pt-4">
       <EditorFooter
         v-model:confirm-open="confirmOpen"
         :delete-label="$t('dashboard.overlays.delete.button')"

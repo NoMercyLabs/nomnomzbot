@@ -308,7 +308,7 @@ function confirmDelete(): void {
 
     <div data-page-inset
          data-slot="script-footer"
-         class="mt-2 flex flex-none border-t pt-4"
+         class="mt-2 flex flex-none pt-4"
     >
       <EditorFooter
         v-model:confirm-open="confirmOpen"

@@ -1133,7 +1133,7 @@ describe('ScriptsView', () => {
     expect(header.textContent).toContain('Edit code');
     expect(header.textContent).not.toContain('Delete');
     expect(footer.querySelector('[data-editor-delete]')?.getAttribute('data-variant')).toBe('ghost');
-    expect(footer.className).toContain('border-t');
+    expect(footer.className).not.toContain('border-t');
   });
 
   it('gives the page one primary action, Edit code, and keeps Run test quiet', async () => {
