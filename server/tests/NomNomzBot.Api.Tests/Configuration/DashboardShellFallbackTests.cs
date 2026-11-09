@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Net;
+using System.Xml.Linq;
 using FluentAssertions;
 using Microsoft.AspNetCore.Builder;
 using Microsoft.AspNetCore.TestHost;
@@ -25,6 +26,8 @@ namespace NomNomzBot.Api.Tests.Configuration;
 public sealed class DashboardShellFallbackTests : IAsyncLifetime
 {
     private const string ShellBody = "<!doctype html><title>shell</title>";
+    private const string PrivacyBody = "<!doctype html><h1>Privacy Policy</h1>";
+    private const string TermsBody = "<!doctype html><h1>Terms of Service</h1>";
     private const string ScriptBody = "// stand-in for the hashed dashboard script";
     private const string EditorBody = "<!doctype html><title>editor page</title>";
     private string _webRoot = string.Empty;
@@ -40,6 +43,8 @@ public sealed class DashboardShellFallbackTests : IAsyncLifetime
         await File.WriteAllTextAsync(Path.Combine(_editorRoot, "index.html"), EditorBody);
         Directory.CreateDirectory(Path.Combine(_webRoot, "assets"));
         await File.WriteAllTextAsync(Path.Combine(_webRoot, "index.html"), ShellBody);
+        await File.WriteAllTextAsync(Path.Combine(_webRoot, "privacy-policy.html"), PrivacyBody);
+        await File.WriteAllTextAsync(Path.Combine(_webRoot, "terms-of-service.html"), TermsBody);
         await File.WriteAllTextAsync(
             Path.Combine(_webRoot, "assets", "index-3KohvHdj.js"),
             ScriptBody
@@ -101,6 +106,66 @@ public sealed class DashboardShellFallbackTests : IAsyncLifetime
         response
             .Headers.CacheControl!.NoStore.Should()
             .BeTrue("a reload must always land the latest deploy");
+    }
+
+    // A policy checker reads the file without running the app, so each legal address has its own written page.
+    [Theory]
+    [InlineData("/privacy-policy", PrivacyBody)]
+    [InlineData("/terms-of-service", TermsBody)]
+    public async Task A_legal_address_serves_its_own_written_page_and_never_stores_it(
+        string address,
+        string body
+    )
+    {
+        HttpResponseMessage response = await _client.GetAsync(address);
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("text/html");
+        (await response.Content.ReadAsStringAsync()).Should().Be(body);
+        response.Headers.CacheControl!.NoStore.Should().BeTrue();
+    }
+
+    private void AskThroughTheProxy()
+    {
+        _client.DefaultRequestHeaders.Add("X-Forwarded-Host", "bot.example");
+        _client.DefaultRequestHeaders.Add("X-Forwarded-Proto", "https");
+    }
+
+    [Fact]
+    public async Task The_sitemap_lists_exactly_the_public_pages_on_the_address_it_was_asked_on()
+    {
+        AskThroughTheProxy();
+
+        HttpResponseMessage response = await _client.GetAsync("/sitemap.xml");
+        XDocument sitemap = XDocument.Parse(await response.Content.ReadAsStringAsync());
+        XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("application/xml");
+        sitemap.Root!.Name.Should().Be(ns + "urlset");
+        sitemap
+            .Descendants(ns + "loc")
+            .Select(loc => loc.Value)
+            .Should()
+            .Equal(
+                "https://bot.example/",
+                "https://bot.example/privacy-policy",
+                "https://bot.example/terms-of-service"
+            );
+    }
+
+    [Fact]
+    public async Task The_robots_file_allows_crawling_and_points_at_the_sitemap()
+    {
+        AskThroughTheProxy();
+
+        HttpResponseMessage response = await _client.GetAsync("/robots.txt");
+
+        response.StatusCode.Should().Be(HttpStatusCode.OK);
+        response.Content.Headers.ContentType!.MediaType.Should().Be("text/plain");
+        (await response.Content.ReadAsStringAsync())
+            .Should()
+            .Be("User-agent: *\nAllow: /\nSitemap: https://bot.example/sitemap.xml\n");
     }
 
     [Fact]

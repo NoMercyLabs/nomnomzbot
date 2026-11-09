@@ -49,11 +49,25 @@ public static class PublicOriginExtensions
         if (!string.IsNullOrWhiteSpace(configuredBaseUrl) && !IsLoopback(configuredBaseUrl))
             return configuredBaseUrl.TrimEnd('/');
 
-        // 2. The forwarded request origin — the scheme + host the browser actually reached us on. Reading the
-        //    X-Forwarded-* headers directly (in addition to Request.Scheme/Host, which UseForwardedHeaders fills
-        //    in from a trusted proxy) means a tunnel works even when the proxy is not in the trusted-proxy list:
-        //    a forged host can only break the attacker's own OAuth flow (the redirect_uri must still match what
-        //    is registered with the provider), never another tenant's.
+        // 2. The forwarded request origin — the scheme + host the browser actually reached us on.
+        string? requestOrigin = request.ResolveRequestOrigin();
+        if (requestOrigin is not null)
+            return requestOrigin;
+
+        // 3. No request host at all (a headless / background context) — fall back to the configured loopback
+        //    base URL, or the self-host default port.
+        return (configuredBaseUrl ?? DefaultLoopbackOrigin).TrimEnd('/');
+    }
+
+    /// <summary>
+    /// The scheme and host this request reached the bot on, or null when it has none. Reading the X-Forwarded-*
+    /// headers directly (in addition to Request.Scheme/Host, which UseForwardedHeaders fills in from a trusted
+    /// proxy) means a tunnel works even when the proxy is not in the trusted-proxy list: a forged host can only
+    /// break the attacker's own OAuth flow (the redirect_uri must still match what is registered with the
+    /// provider), never another tenant's.
+    /// </summary>
+    public static string? ResolveRequestOrigin(this HttpRequest request)
+    {
         string forwardedHost = request.Headers["X-Forwarded-Host"].ToString();
         string forwardedProto = request.Headers["X-Forwarded-Proto"].ToString();
 
@@ -64,12 +78,9 @@ public static class PublicOriginExtensions
             ? forwardedProto.Split(',')[0].Trim()
             : request.Scheme;
 
-        if (!string.IsNullOrWhiteSpace(host) && !string.IsNullOrWhiteSpace(scheme))
-            return $"{scheme}://{host}";
-
-        // 3. No request host at all (a headless / background context) — fall back to the configured loopback
-        //    base URL, or the self-host default port.
-        return (configuredBaseUrl ?? DefaultLoopbackOrigin).TrimEnd('/');
+        return !string.IsNullOrWhiteSpace(host) && !string.IsNullOrWhiteSpace(scheme)
+            ? $"{scheme}://{host}"
+            : null;
     }
 
     /// <summary>

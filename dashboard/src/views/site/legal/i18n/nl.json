@@ -74,6 +74,21 @@
             ]
           },
           {
+            "title": "Google en YouTube",
+            "p": [
+              "Een streamer kan inloggen met Google en een YouTube-kanaal koppelen. Beide zijn optioneel. Als dat gebeurt, geldt het volgende:"
+            ],
+            "list": [
+              "Inloggen met Google: je Google-account-id, je naam en je profielfoto. Wij gebruiken die alleen om je te herkennen en te tonen wie er is ingelogd.",
+              "YouTube-koppeling: je kanaalgegevens, je livestreams, de livechatberichten van je kanaal en de moderatieacties in die chat. Wij gebruiken die om de bot in je livechat te laten werken: om berichten te lezen en te beantwoorden, en om berichten te verwijderen of gebruikers te blokkeren als jij of je moderators daarom vragen of je regels dat bepalen.",
+              "Toegangstokens van Google. Wij bewaren die versleuteld en gebruiken ze alleen om deze verzoeken voor jou te doen.",
+              "Ons gebruik en onze overdracht van informatie die wij van Google-API's ontvangen, volgt de Google API Services User Data Policy, inclusief de Limited Use-eisen: https://developers.google.com/terms/api-services-user-data-policy",
+              "Wij verkopen deze gegevens niet, gebruiken ze niet voor advertenties en geven ze aan niemand anders, behalve aan de mensen die jij op je kanaal toelaat, als de wet dat vereist, of aan de dienstverleners die ons helpen de dienst te draaien.",
+              "NomNomzBot gebruikt YouTube API Services. Door YouTube te koppelen ga je akkoord met de YouTube-servicevoorwaarden: https://www.youtube.com/t/terms. Ook het privacybeleid van Google is van toepassing: https://policies.google.com/privacy",
+              "Je kunt onze toegang altijd intrekken in je Google-account: https://security.google.com/settings/security/permissions. Om gegevens te laten wissen die wij al hebben, dien je een verzoek tot wissen in (zie \"Jouw rechten\")."
+            ]
+          },
+          {
             "title": "Kinderen",
             "p": [
               "NomNomzBot is niet voor kinderen. Elk platform stelt een minimumleeftijd en wij volgen die. Wij bewaren niet bewust gegevens van een kind onder die leeftijd. Meld het ons via {email} en wij wissen ze."

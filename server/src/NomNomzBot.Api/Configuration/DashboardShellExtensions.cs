@@ -9,7 +9,9 @@
 //  SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // -----------------------------------------------------------------------------
 
+using System.Xml.Linq;
 using Microsoft.Extensions.FileProviders;
+using NomNomzBot.Api.Extensions;
 
 namespace NomNomzBot.Api.Configuration;
 
@@ -24,6 +26,9 @@ public static class DashboardShellExtensions
     /// 404 and never the dashboard shell: a client that calls a wrong API route must not receive HTML.
     /// </summary>
     private static readonly string[] BotOwnedPrefixes = ["api", "hubs", "health"];
+
+    /// <summary>The legal documents. The dashboard build writes each as a page that holds its full text.</summary>
+    private static readonly string[] LegalPages = ["privacy-policy", "terms-of-service"];
 
     private const string EditorPath = "/editor";
 
@@ -109,13 +114,44 @@ public static class DashboardShellExtensions
             endpoints.MapFallback($"/{prefix}", () => Results.NotFound()).ExcludeFromDescription();
         }
 
-        return endpoints.MapFallbackToFile(
-            "index.html",
-            new StaticFileOptions
-            {
-                OnPrepareResponse = ctx =>
-                    ctx.Context.Response.Headers.CacheControl = StaticAssetCachePolicy.EntryPoint,
-            }
+        StaticFileOptions entryPoint = new()
+        {
+            OnPrepareResponse = ctx =>
+                ctx.Context.Response.Headers.CacheControl = StaticAssetCachePolicy.EntryPoint,
+        };
+
+        foreach (string page in LegalPages)
+            endpoints.MapFallbackToFile($"/{page}", $"{page}.html", entryPoint);
+
+        endpoints
+            .MapGet("/sitemap.xml", (HttpContext context) => Sitemap(context.Request))
+            .ExcludeFromDescription();
+        endpoints
+            .MapGet("/robots.txt", (HttpContext context) => Robots(context.Request))
+            .ExcludeFromDescription();
+
+        return endpoints.MapFallbackToFile("index.html", entryPoint);
+    }
+
+    // The address the crawler asked on, not App:BaseUrl: a sitemap may only list its own host, and that
+    // setting names the API host where the site runs on another one.
+    private static IResult Sitemap(HttpRequest request)
+    {
+        XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
+        string? origin = request.ResolveRequestOrigin();
+        IEnumerable<XElement> urls = LegalPages
+            .Prepend(string.Empty)
+            .Select(page => new XElement(ns + "url", new XElement(ns + "loc", $"{origin}/{page}")));
+
+        return Results.Text(
+            new XDocument(new XElement(ns + "urlset", urls)).ToString(),
+            "application/xml"
         );
     }
+
+    private static IResult Robots(HttpRequest request) =>
+        Results.Text(
+            $"User-agent: *\nAllow: /\nSitemap: {request.ResolveRequestOrigin()}/sitemap.xml\n",
+            "text/plain"
+        );
 }

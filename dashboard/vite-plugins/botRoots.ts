@@ -31,6 +31,8 @@ export const botRoots: readonly string[] = [
 // Roots the server maps that the dev server must not pass on, each with its reason.
 export const botRootsNotProxied: Readonly<Record<string, string>> = {
   'favicon.ico': 'the bot answers 404 on purpose; the dashboard ships its own icon',
+  'robots.txt': 'for crawlers of the deployed site; nothing should index the dev server',
+  'sitemap.xml': 'for crawlers of the deployed site; nothing should index the dev server',
 };
 
 // These carry a WebSocket (the SignalR hubs, the Automation API live stream).

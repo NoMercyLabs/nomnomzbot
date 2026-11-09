@@ -98,6 +98,21 @@ describe('the legal pages', () => {
     }
   });
 
+  // Google's app review asks for these by name.
+  it('say in the Privacy Policy what the bot does with Google and YouTube data', async () => {
+    const text = (await open('privacy')).text();
+
+    for (const word of [
+      'Google and YouTube',
+      'Limited Use',
+      'https://www.youtube.com/t/terms',
+      'https://policies.google.com/privacy',
+      'https://security.google.com/settings/security/permissions',
+    ]) {
+      expect(text).toContain(word);
+    }
+  });
+
   it.each(['privacy', 'terms'] as const)(
     'have a Dutch %s document with the same sections and the facts filled in',
     async (doc) => {
@@ -114,7 +129,7 @@ describe('the legal pages', () => {
         expect(view.text()).toContain(legalFacts.company);
         expect(view.text()).not.toMatch(/\{\w+\}/);
         expect(view.text()).not.toContain('the Netherlands');
-        expect(view.text()).toContain('23 okt 2026');
+        expect(view.text()).toContain('9 nov 2026');
         expect(view.text()).toContain('geldt de Engelse tekst');
       } finally {
         i18n.global.locale.value = 'en';

@@ -74,6 +74,21 @@
             ]
           },
           {
+            "title": "Google and YouTube",
+            "p": [
+              "A streamer can sign in with Google and can connect a YouTube channel. Both are optional. When they do, this applies:"
+            ],
+            "list": [
+              "Google sign-in: your Google account id, your name and your profile picture. We use them only to recognize you and show who is signed in.",
+              "YouTube connection: your channel details, your live broadcasts, the live chat messages of your channel and the moderation actions in that chat. We use them to run the bot in your live chat: to read and answer messages, and to delete messages or ban users when you or your moderators ask for it or your rules say so.",
+              "Access tokens from Google. We store them encrypted and use them only to make these requests for you.",
+              "Our use and transfer of information received from Google APIs follows the Google API Services User Data Policy, including the Limited Use requirements: https://developers.google.com/terms/api-services-user-data-policy",
+              "We do not sell this data, do not use it for advertising, and do not give it to anyone else, except to the people you allow on your channel, where the law requires it, or to the service providers that help us run the service.",
+              "NomNomzBot uses YouTube API Services. By connecting YouTube you agree to the YouTube Terms of Service: https://www.youtube.com/t/terms. The Google Privacy Policy also applies: https://policies.google.com/privacy",
+              "You can remove our access at any time in your Google account: https://security.google.com/settings/security/permissions. To have the data we already hold erased, make an erasure request (see \"Your rights\")."
+            ]
+          },
+          {
             "title": "Children",
             "p": [
               "NomNomzBot is not for children. Each platform sets a minimum age and we follow it. We do not knowingly keep data of a child below it. Tell us at {email} and we erase it."

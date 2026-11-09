@@ -15,7 +15,7 @@
 export const legalFacts = {
   company: 'NoMercy Labs',
   email: 'legal@nomercy.tv',
-  effective: '2026-10-23T12:00:00Z',
+  effective: '2026-11-09T12:00:00Z',
 } as const satisfies Record<string, string>;
 
 // The address of each document, as the Discord and Twitch app pages and the footer link to it.
