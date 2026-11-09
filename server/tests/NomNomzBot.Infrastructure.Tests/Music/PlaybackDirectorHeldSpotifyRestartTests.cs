@@ -101,6 +101,39 @@ public sealed class PlaybackDirectorHeldSpotifyRestartTests : IDisposable
         public async Task VideoHoldsSpotifyAsync()
         {
             await OwnerPlaysSpotifyAsync();
+            QueueVideo();
+            await TickAsync();
+            await Spotify.EmitAsync(new TrackEnded(EngineKind.Spotify, OwnTrack));
+            await Spotify.EmitAsync(Report(EngineKind.Spotify, OwnNextTrack, true));
+            await Spotify.EmitAsync(Report(EngineKind.Spotify, OwnNextTrack, false));
+            await YouTube.EmitAsync(Report(EngineKind.YouTube, VideoUri, true));
+            State.Engine.Should().Be(EngineKind.YouTube);
+        }
+
+        /// <summary>The owner pressed skip on his own Spotify music with a video at the head.</summary>
+        public async Task OwnerSkipsToAVideoAsync()
+        {
+            await OwnerPlaysSpotifyAsync();
+            QueueVideo();
+            await Registry.SendAsync(Channel, new OwnerSkip());
+            await Spotify.EmitAsync(Report(EngineKind.Spotify, OwnTrack, false));
+            await YouTube.EmitAsync(Report(EngineKind.YouTube, VideoUri, true));
+            State.Engine.Should().Be(EngineKind.YouTube);
+        }
+
+        /// <summary>The owner pressed previous on his own Spotify music, back to an earlier video.</summary>
+        public async Task OwnerGoesBackToAVideoAsync()
+        {
+            await VideoHoldsSpotifyAsync();
+            await YouTube.EmitAsync(new TrackEnded(EngineKind.YouTube, VideoUri));
+            await Spotify.EmitAsync(Report(EngineKind.Spotify, OwnNextTrack, true));
+            await Registry.SendAsync(Channel, new OwnerPrevious());
+            await Spotify.EmitAsync(Report(EngineKind.Spotify, OwnNextTrack, false));
+            await YouTube.EmitAsync(Report(EngineKind.YouTube, VideoUri, true));
+            State.Engine.Should().Be(EngineKind.YouTube);
+        }
+
+        public void QueueVideo() =>
             _store
                 .GetOrCreate(Channel.ToString())
                 .Enqueue(
@@ -117,13 +150,6 @@ public sealed class PlaybackDirectorHeldSpotifyRestartTests : IDisposable
                         ""
                     )
                 );
-            await TickAsync();
-            await Spotify.EmitAsync(new TrackEnded(EngineKind.Spotify, OwnTrack));
-            await Spotify.EmitAsync(Report(EngineKind.Spotify, OwnNextTrack, true));
-            await Spotify.EmitAsync(Report(EngineKind.Spotify, OwnNextTrack, false));
-            await YouTube.EmitAsync(Report(EngineKind.YouTube, VideoUri, true));
-            State.Engine.Should().Be(EngineKind.YouTube);
-        }
     }
 
     private static EngineReport Report(EngineKind engine, string uri, bool playing) =>
@@ -273,6 +299,96 @@ public sealed class PlaybackDirectorHeldSpotifyRestartTests : IDisposable
         await second.TickAsync();
 
         second.Spotify.Calls.Should().BeEmpty();
+        (await HeldFactAsync()).Should().BeNull();
+    }
+
+    /// <summary>The new process finds the fact, gives the page its time, then gives Spotify back once.</summary>
+    private async Task RestartResumesSpotifyOnceAsync()
+    {
+        Life second = NewLife();
+
+        await second.TickAsync();
+        second.Spotify.Calls.Should().NotContain(Resume, "a page gets time to report first");
+
+        _clock.Advance(PastGrace);
+        await second.TickAsync();
+        await second.TickAsync();
+
+        second.Spotify.Calls.Should().Equal(Resume);
+        second.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
+        (await HeldFactAsync()).Should().BeNull();
+    }
+
+    [Fact]
+    public async Task A_restart_during_a_video_the_owner_skipped_to_gives_Spotify_back()
+    {
+        Life first = NewLife();
+        await first.OwnerSkipsToAVideoAsync();
+        (await HeldFactAsync()).Should().Be(_clock.GetUtcNow());
+        first.Registry.Dispose();
+
+        await RestartResumesSpotifyOnceAsync();
+    }
+
+    [Fact]
+    public async Task A_restart_during_a_video_the_owner_went_back_to_gives_Spotify_back()
+    {
+        Life first = NewLife();
+        await first.OwnerGoesBackToAVideoAsync();
+        (await HeldFactAsync()).Should().Be(_clock.GetUtcNow());
+        first.Registry.Dispose();
+
+        await RestartResumesSpotifyOnceAsync();
+    }
+
+    [Fact]
+    public async Task A_skipped_to_video_that_ends_clears_the_fact_so_a_restart_sends_nothing()
+    {
+        Life first = NewLife();
+        await first.OwnerSkipsToAVideoAsync();
+        (await HeldFactAsync()).Should().NotBeNull();
+
+        await first.YouTube.EmitAsync(new TrackEnded(EngineKind.YouTube, VideoUri));
+
+        first.Spotify.Calls.Should().ContainSingle(c => c == Resume);
+        (await HeldFactAsync()).Should().BeNull();
+        Life second = NewLife();
+        await second.TickAsync();
+        _clock.Advance(PastGrace);
+        await second.TickAsync();
+        second.Spotify.Calls.Should().NotContain(Resume);
+    }
+
+    [Fact]
+    public async Task A_gone_back_to_video_that_ends_clears_the_fact_so_a_restart_sends_nothing()
+    {
+        Life first = NewLife();
+        await first.OwnerGoesBackToAVideoAsync();
+        (await HeldFactAsync()).Should().NotBeNull();
+
+        await first.YouTube.EmitAsync(new TrackEnded(EngineKind.YouTube, VideoUri));
+
+        first.Spotify.Calls.Count(c => c == Resume).Should().Be(2, "one return per video");
+        (await HeldFactAsync()).Should().BeNull();
+        Life second = NewLife();
+        await second.TickAsync();
+        _clock.Advance(PastGrace);
+        await second.TickAsync();
+        second.Spotify.Calls.Should().NotContain(Resume);
+    }
+
+    [Fact]
+    public async Task A_skip_that_never_paused_Spotify_leaves_no_fact()
+    {
+        Life first = NewLife();
+        await first.OwnerPlaysSpotifyAsync();
+        first.YouTube.CanStart = false;
+        first.QueueVideo();
+
+        await first.Registry.SendAsync(Channel, new OwnerSkip());
+
+        first.Spotify.Calls.Should().BeEmpty("Spotify plays on when the video cannot start");
+        first.State.Engine.Should().Be(EngineKind.Spotify);
         (await HeldFactAsync()).Should().BeNull();
     }
 

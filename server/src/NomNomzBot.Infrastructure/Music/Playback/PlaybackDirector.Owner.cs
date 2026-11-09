@@ -92,7 +92,7 @@ public sealed partial class PlaybackDirector
             if (State.Item is null && head.Engine != engine)
                 _memory = new(engine, true);
 
-            await BeginStartAsync(head, name, "owner_skip", engine, ct);
+            await BeginStartHoldingSpotifyAsync(head, name, "owner_skip", engine, ct);
             return;
         }
 
@@ -183,7 +183,13 @@ public sealed partial class PlaybackDirector
             _memory = new(engine, true);
 
         _queue.RequeueAtHead(previous);
-        await BeginStartAsync(previous, input.GetType().Name, "previous_item", engine, ct);
+        await BeginStartHoldingSpotifyAsync(
+            previous,
+            input.GetType().Name,
+            "previous_item",
+            engine,
+            ct
+        );
     }
 
     private async Task RestartAsync(EngineKind engine, PlaybackInput input, CancellationToken ct)

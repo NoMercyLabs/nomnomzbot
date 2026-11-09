@@ -42,6 +42,36 @@ public sealed partial class PlaybackDirector
         await _heldSpotify.SaveAsync(_broadcasterId, _time.GetUtcNow(), ct);
     }
 
+    /// <summary>
+    /// Starts the item over <paramref name="stopEngine"/>. The fact is written only when the director owes
+    /// Spotify a Resume, so the owner's own pause is never undone. True when Spotify was paused for it.
+    /// </summary>
+    private async Task<bool> BeginStartHoldingSpotifyAsync(
+        PlaybackItem head,
+        string inputName,
+        string reason,
+        EngineKind stopEngine,
+        CancellationToken ct
+    )
+    {
+        if (
+            stopEngine != EngineKind.Spotify
+            || _memory is not { Engine: EngineKind.Spotify, WasPlaying: true }
+        )
+        {
+            await BeginStartAsync(head, inputName, reason, stopEngine, ct);
+            return false;
+        }
+
+        await RememberSpotifyHeldAsync(ct);
+        await BeginStartAsync(head, inputName, reason, stopEngine, ct);
+        if (_pausedForHandOver == EngineKind.Spotify)
+            return true;
+
+        await ForgetSpotifyHeldAsync(ct);
+        return false;
+    }
+
     private async Task ForgetSpotifyHeldAsync(CancellationToken ct)
     {
         if (_heldSpotify is null || !_heldFactStored)
