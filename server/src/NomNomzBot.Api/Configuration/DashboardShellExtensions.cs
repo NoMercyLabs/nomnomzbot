@@ -133,12 +133,16 @@ public static class DashboardShellExtensions
         return endpoints.MapFallbackToFile("index.html", entryPoint);
     }
 
-    // The address the crawler asked on, not App:BaseUrl: a sitemap may only list its own host, and that
-    // setting names the API host where the site runs on another one.
+    // The host the crawler asked on, not App:BaseUrl: a sitemap may only list its own host, and that setting
+    // names the API host where the site runs on another one. Always https: a crawled site is public, and behind
+    // the tunnel the forwarded scheme describes an inner hop.
+    private static string CrawlerOrigin(HttpRequest request) =>
+        $"https://{new Uri(request.ResolveRequestOrigin()!).Authority}";
+
     private static IResult Sitemap(HttpRequest request)
     {
         XNamespace ns = "http://www.sitemaps.org/schemas/sitemap/0.9";
-        string? origin = request.ResolveRequestOrigin();
+        string origin = CrawlerOrigin(request);
         IEnumerable<XElement> urls = LegalPages
             .Prepend(string.Empty)
             .Select(page => new XElement(ns + "url", new XElement(ns + "loc", $"{origin}/{page}")));
@@ -151,7 +155,7 @@ public static class DashboardShellExtensions
 
     private static IResult Robots(HttpRequest request) =>
         Results.Text(
-            $"User-agent: *\nAllow: /\nSitemap: {request.ResolveRequestOrigin()}/sitemap.xml\n",
+            $"User-agent: *\nAllow: /\nSitemap: {CrawlerOrigin(request)}/sitemap.xml\n",
             "text/plain"
         );
 }

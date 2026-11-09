@@ -128,7 +128,8 @@ public sealed class DashboardShellFallbackTests : IAsyncLifetime
     private void AskThroughTheProxy()
     {
         _client.DefaultRequestHeaders.Add("X-Forwarded-Host", "bot.example");
-        _client.DefaultRequestHeaders.Add("X-Forwarded-Proto", "https");
+        // The live tunnel reports its inner hop, so a crawler's request arrives marked plain http.
+        _client.DefaultRequestHeaders.Add("X-Forwarded-Proto", "http");
     }
 
     [Fact]
