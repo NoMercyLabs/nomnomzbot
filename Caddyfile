@@ -32,17 +32,65 @@
 	}
 }
 
+(api_colours) {
+	to api-blue:5000 api-green:5000
+	lb_policy first
+	health_uri /health/ready
+	health_interval 5s
+	health_timeout 3s
+	health_status 200
+	# Between two active health polls (up to 5s) Caddy can still pick a colour that just got SIGTERM and
+	# already stopped accepting connections. Without a retry that request is a 502 on the dashboard.
+	# lb_try_duration makes Caddy retry a failed dial on the other upstream instead.
+	lb_try_duration 10s
+	lb_try_interval 250ms
+}
+
 :80 {
-	reverse_proxy api-blue:5000 api-green:5000 {
-		lb_policy first
-		health_uri /health/ready
-		health_interval 5s
-		health_timeout 3s
-		health_status 200
-		# Between two active health polls (up to 5s) Caddy can still pick a colour that just got SIGTERM and
-		# already stopped accepting connections. Without a retry that request is a 502 on the dashboard.
-		# lb_try_duration makes Caddy retry a failed dial on the other upstream instead.
-		lb_try_duration 10s
-		lb_try_interval 250ms
+	# A browser opening a page gets the branded error page for a server error. Everything else (API calls,
+	# hubs, health checks) takes the second route and keeps the bot's own response.
+	@page header Accept *text/html*
+
+	handle @page {
+		reverse_proxy {
+			import api_colours
+			@failed status 5xx
+			handle_response @failed {
+				error {rp.status_code}
+			}
+		}
+	}
+
+	handle {
+		reverse_proxy {
+			import api_colours
+		}
+	}
+
+	# Lives here, not in the bot or its files, because it must still answer when both colours are down.
+	# Inline styles only: braces in a body would be read as Caddy placeholders.
+	handle_errors {
+		header @page Content-Type "text/html; charset=utf-8"
+		header @page Cache-Control "no-store"
+		respond @page <<HTML
+			<!doctype html>
+			<html lang="en">
+			<head>
+			<meta charset="utf-8">
+			<meta name="viewport" content="width=device-width, initial-scale=1">
+			<meta name="color-scheme" content="dark">
+			<title>NomNomzBot is having a problem</title>
+			</head>
+			<body style="margin:0;min-height:100vh;display:grid;place-content:center;background:#111111;color:#eeeeee;font-family:system-ui,sans-serif;padding:24px;box-sizing:border-box">
+			<main style="max-width:28rem;display:flex;flex-direction:column;align-items:flex-start;gap:16px">
+			<svg width="48" height="48" viewBox="0 0 24 24" fill="none" aria-hidden="true"><path d="M22 12V15M2 12V15M9 8H7C5.34315 8 4 9.34315 4 11V16C4 17.6569 5.34315 19 7 19H10L12 21L14 19H17C18.6569 19 20 17.6569 20 16V11C20 9.34315 18.6569 8 17 8H15M9 8L8 5M9 8H15M8 5C8.55228 5 9 4.55228 9 4C9 3.44772 8.55228 3 8 3C7.44772 3 7 3.44772 7 4C7 4.55228 7.44772 5 8 5ZM15 8L16 5M16 5C16.5523 5 17 4.55228 17 4C17 3.44772 16.5523 3 16 3C15.4477 3 15 3.44772 15 4C15 4.55228 15.4477 5 16 5ZM10 14V13.5C10 12.6716 9.32843 12 8.5 12C7.67157 12 7 12.6716 7 13.5V14M17 14V13.5C17 12.6716 16.3284 12 15.5 12C14.6716 12 14 12.6716 14 13.5V14" stroke="#eeeeee" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/></svg>
+			<h1 style="margin:0;font-size:1.75rem;line-height:1.2">NomNomzBot is having a problem</h1>
+			<p style="margin:0;color:#b5b5b5;line-height:1.5">The server could not finish this request. Your settings and channel data are safe. Please try again in a minute.</p>
+			<a href="" style="background:#b188d2;color:#17131a;padding:10px 16px;border-radius:8px;text-decoration:none;font-weight:600">Try again</a>
+			<p style="margin:0;color:#8a8a8a;font-size:.875rem">Error {err.status_code}</p>
+			</main>
+			</body>
+			</html>
+			HTML {err.status_code}
 	}
 }
