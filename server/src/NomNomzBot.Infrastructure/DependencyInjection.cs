@@ -410,6 +410,7 @@ public static class DependencyInjection
         // The engine factory is a singleton: each engine command opens its own scope for the scoped providers
         // and the YouTube dispatcher (EngineLease), so no DbContext outlives a command.
         services.AddSingleton<IPlaybackEngineFactory, PlaybackEngineFactory>();
+        services.AddSingleton<IHeldSpotifyStore, HeldSpotifyStore>();
         services.AddSingleton<PlaybackDirectorRegistry>();
         services.AddSingleton<IPlaybackInputSink>(sp =>
             sp.GetRequiredService<PlaybackDirectorRegistry>()

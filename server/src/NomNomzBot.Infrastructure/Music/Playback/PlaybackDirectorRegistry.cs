@@ -32,7 +32,8 @@ public sealed class PlaybackDirectorRegistry(
     TimeProvider time,
     IOutboundSanctionAccessor? sanctions = null,
     IActiveInstanceGate? instanceGate = null,
-    ILogger<PlaybackDirectorRegistry>? logger = null
+    ILogger<PlaybackDirectorRegistry>? logger = null,
+    IHeldSpotifyStore? heldSpotify = null
 ) : IPlaybackInputSink, IPlaybackStateReader, IPlaybackReportSink, IEngineFeed, IDisposable
 {
     private readonly ConcurrentDictionary<Guid, Lazy<ChannelPlayback>> _channels = new();
@@ -142,7 +143,8 @@ public sealed class PlaybackDirectorRegistry(
             new SongRequestPlaybackQueue(queueStore.GetOrCreate(broadcasterId.ToString())),
             time,
             bus,
-            sanctions
+            sanctions,
+            heldSpotify
         );
 
         return new(

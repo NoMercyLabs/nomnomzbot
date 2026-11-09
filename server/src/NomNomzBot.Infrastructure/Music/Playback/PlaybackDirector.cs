@@ -46,6 +46,7 @@ public sealed partial class PlaybackDirector : IDisposable
     private readonly SemaphoreSlim _gate = new(1, 1);
     private readonly Func<EngineSignal, Task> _onSignal;
     private readonly IOutboundSanctionAccessor? _sanctions;
+    private readonly IHeldSpotifyStore? _heldSpotify;
 
     private readonly Dictionary<EngineKind, EngineReport> _reports = [];
     private readonly Dictionary<EngineKind, DateTimeOffset> _lastSent = [];
@@ -78,11 +79,13 @@ public sealed partial class PlaybackDirector : IDisposable
         IPlaybackQueue queue,
         TimeProvider time,
         IEventBus bus,
-        IOutboundSanctionAccessor? sanctions = null
+        IOutboundSanctionAccessor? sanctions = null,
+        IHeldSpotifyStore? heldSpotify = null
     )
     {
         _broadcasterId = broadcasterId;
         _sanctions = sanctions;
+        _heldSpotify = heldSpotify;
         _engines = engines.ToDictionary(e => e.Kind);
         _queue = queue;
         _time = time;
@@ -110,14 +113,17 @@ public sealed partial class PlaybackDirector : IDisposable
         await _gate.WaitAsync(ct);
         try
         {
+            await ObserveHeldRecoveryAsync(input, ct);
             RenewReportDeadline(input);
             await RaiseDueDeadlinesAsync(ct);
-            _ignored = false;
-            await ApplyAsync(input, ct);
+            _ignored = WaitsForHeldRecovery(input);
+            if (!_ignored)
+                await ApplyAsync(input, ct);
             PlaybackInputOutcome outcome = _ignored
                 ? PlaybackInputOutcome.Ignored
                 : PlaybackInputOutcome.Applied;
             await LineUpNextSpotifyAsync(input.GetType().Name, ct);
+            await ForgetFinishedHoldAsync(ct);
 
             return outcome;
         }
@@ -135,6 +141,7 @@ public sealed partial class PlaybackDirector : IDisposable
         try
         {
             await RaiseDueDeadlinesAsync(ct);
+            await ForgetFinishedHoldAsync(ct);
         }
         finally
         {
@@ -148,6 +155,12 @@ public sealed partial class PlaybackDirector : IDisposable
     /// </summary>
     private async Task RaiseDueDeadlinesAsync(CancellationToken ct)
     {
+        if (HeldRecoveryDue())
+        {
+            await FinishHeldRecoveryAsync(ct);
+            return;
+        }
+
         if (ReportDeadlinePassed())
         {
             await LoseVideoAsync(ct);

@@ -130,9 +130,13 @@ public sealed partial class PlaybackDirector
     {
         PlaybackItem head = _queue.Head!;
         _memory = new(EngineKind.Spotify, true);
+        await RememberSpotifyHeldAsync(ct);
         await BeginStartAsync(head, inputName, "youtube_takeover", EngineKind.Spotify, ct);
         if (_pausedForHandOver != EngineKind.Spotify)
+        {
+            await ForgetSpotifyHeldAsync(ct);
             return;
+        }
 
         _spotifyHeldForYouTube = true;
         await CommandAsync(EngineKind.Spotify, inputName, e => e.SeekAsync(0, ct));
