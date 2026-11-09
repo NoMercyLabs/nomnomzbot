@@ -30,6 +30,9 @@ public sealed partial class PlaybackDirector
     /// <summary>True while Spotify is paused by the director for a YouTube run; it resumes at the run's end.</summary>
     private bool _spotifyHeldForYouTube;
 
+    /// <summary>The item whose one renewal while Spotify is paused is used; null when none.</summary>
+    private string? _renewedWhilePausedId;
+
     /// <summary>The video whose last seconds still play after Spotify got the music back; never silenced.</summary>
     private PlaybackItem? _youTubeEnding;
 
@@ -165,9 +168,7 @@ public sealed partial class PlaybackDirector
     /// </summary>
     private async Task<bool> ReturnToSpotifyAsync(string inputName, CancellationToken ct)
     {
-        _spotifyHeldForYouTube = false;
-        _memory = null;
-        _pausedForHandOver = null;
+        ReleaseSpotifyHold();
         EngineReport? paused = _reports.GetValueOrDefault(EngineKind.Spotify);
         bool skip = LinedUpRow() is { } waiting && paused?.Uri != waiting.Uri;
         if (
@@ -188,5 +189,78 @@ public sealed partial class PlaybackDirector
             skip ? "spotify_skipped_to_request" : "spotify_resumed"
         );
         return true;
+    }
+
+    private void ReleaseSpotifyHold()
+    {
+        _spotifyHeldForYouTube = false;
+        _memory = null;
+        _pausedForHandOver = null;
+    }
+
+    /// <summary>The item waits in the queue of a Spotify the director paused: a start alone would not play it.</summary>
+    private bool WaitsInHeldSpotify(PlaybackItem item) =>
+        _spotifyHeldForYouTube
+        && item.Engine == EngineKind.Spotify
+        && _queuedAhead.Contains(item.Id);
+
+    /// <summary>
+    /// Ends the hold for a song Spotify already has: Resume when the paused track is that song, else Skip
+    /// to it. False when the command was blocked; the state then shows the block.
+    /// </summary>
+    private async Task<bool> SendHeldSpotifyToAsync(
+        PlaybackItem item,
+        string inputName,
+        CancellationToken ct
+    )
+    {
+        ReleaseSpotifyHold();
+        bool skip = _reports.GetValueOrDefault(EngineKind.Spotify)?.Uri != item.Uri;
+        if (
+            !await CommandAsync(
+                EngineKind.Spotify,
+                inputName,
+                e => skip ? e.SkipAsync(ct) : e.ResumeAsync(ct)
+            )
+        )
+            return false;
+
+        MarkSent(EngineKind.Spotify);
+        return true;
+    }
+
+    /// <summary>
+    /// A song in the queue of a playing Spotify keeps waiting. A paused Spotify never reaches it, so it
+    /// gets one renewal, then a Resume: the song stays queued and plays when Spotify reaches it.
+    /// </summary>
+    private async Task KeepWaitingOrResumeQueueAsync(
+        PlaybackItem item,
+        string inputName,
+        CancellationToken ct
+    )
+    {
+        EngineReport? last = _reports.GetValueOrDefault(item.Engine);
+        bool paused = _spotifyHeldForYouTube || last is not { IsPlaying: true };
+        if (!paused || _renewedWhilePausedId != item.Id)
+        {
+            _renewedWhilePausedId = paused ? item.Id : null;
+            _startDeadline = _time.GetUtcNow() + StartDeadline;
+            await MoveAsync(State, inputName, "start_still_queued", item.Id);
+            return;
+        }
+
+        _renewedWhilePausedId = null;
+        ReleaseSpotifyHold();
+        if (!await CommandAsync(item.Engine, inputName, e => e.ResumeAsync(ct)))
+            return;
+
+        MarkSent(item.Engine);
+        _ownerReport = last is null ? null : last with { IsPlaying = true };
+        await MoveAsync(
+            PlaybackState.Playing(item.Engine, null),
+            inputName,
+            "spotify_resumed_queue",
+            item.Id
+        );
     }
 }

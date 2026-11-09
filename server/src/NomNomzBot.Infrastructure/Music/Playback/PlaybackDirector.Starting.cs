@@ -33,6 +33,7 @@ public sealed partial class PlaybackDirector
         _stopWait = null;
         _startDeadline = null;
         _pausedForHandOver = null;
+        _renewedWhilePausedId = null;
         PlaybackState starting = PlaybackState.Starting(item.Engine, item);
         if (stopEngine is { } old)
         {
@@ -120,6 +121,14 @@ public sealed partial class PlaybackDirector
             return;
         }
 
+        if (WaitsInHeldSpotify(item))
+        {
+            if (await SendHeldSpotifyToAsync(item, inputName, ct))
+                _startDeadline = _time.GetUtcNow() + StartDeadline;
+
+            return;
+        }
+
         EngineStartResult result = await SendToEngineOnceAsync(engine, item, ct);
         if (result.Accepted)
             _startDeadline = _time.GetUtcNow() + StartDeadline;
@@ -197,8 +206,7 @@ public sealed partial class PlaybackDirector
                 await FollowOwnerMusicAsync(music, name, "waiting_in_spotify_queue", item.Id);
                 break;
             case StartTimeout when await IsStillQueuedAsync(item, ct):
-                _startDeadline = _time.GetUtcNow() + StartDeadline;
-                await MoveAsync(State, name, "start_still_queued", item.Id);
+                await KeepWaitingOrResumeQueueAsync(item, name, ct);
                 break;
             case StartTimeout:
                 // A video that loads late must not start over the music that comes back now.
