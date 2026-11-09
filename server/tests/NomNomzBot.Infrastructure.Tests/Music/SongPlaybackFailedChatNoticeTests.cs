@@ -65,6 +65,7 @@ public sealed class SongPlaybackFailedChatNoticeTests
         sent.Should().ContainSingle();
         sent[0].Should().StartWith("@anda_six ").And.Contain("\"Never Gonna\"");
         sent[0].Should().Contain("next");
+        sent[0].Should().NotContain("video", "the song can be a Spotify track");
     }
 
     [Fact]

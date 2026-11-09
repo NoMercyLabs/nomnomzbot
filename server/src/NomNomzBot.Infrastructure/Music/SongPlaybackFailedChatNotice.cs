@@ -17,7 +17,7 @@ using NomNomzBot.Domain.Platform.Interfaces;
 namespace NomNomzBot.Infrastructure.Music;
 
 /// <summary>
-/// Tells chat when the overlay player could not play a song and the queue skipped it. The requester is the
+/// Tells chat when a player could not play a song and the queue skipped it. The requester is the
 /// request still on its way to the player (it failed before starting) or the one playing (it failed
 /// mid-song); the failure event is published before the playback change that drops it, so both still hold it.
 /// </summary>
@@ -48,7 +48,7 @@ public sealed class SongPlaybackFailedChatNotice : IEventHandler<SongPlaybackFai
             ? requested
             : @event.TrackName;
         string message =
-            $"\"{title}\" could not be played (the video can't play in the overlay player), so song requests moved on to the next one.";
+            $"\"{title}\" could not be played, so song requests moved on to the next one.";
         string? requester = PlayingRequester.Of(
             _queueStore,
             _playbackState.StateOf(@event.BroadcasterId),

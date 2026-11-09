@@ -191,6 +191,11 @@ public sealed partial class PlaybackDirector
             case TrackEnded t when t.Engine == item.Engine && t.Uri == item.Uri:
                 await FailStartAsync(item, name, "player error", "start_failed", ct);
                 break;
+            // Spotify accepted the song and plays the owner's own queue first: it waits its turn (Stoney, 2026-11-09).
+            case StartTimeout
+                when _queuedAhead.Contains(item.Id) && OwnerMusicPlayingOver(item) is { } music:
+                await FollowOwnerMusicAsync(music, name, "waiting_in_spotify_queue", item.Id);
+                break;
             case StartTimeout when await IsStillQueuedAsync(item, ct):
                 _startDeadline = _time.GetUtcNow() + StartDeadline;
                 await MoveAsync(State, name, "start_still_queued", item.Id);
