@@ -125,6 +125,19 @@ public sealed class DashboardShellFallbackTests : IAsyncLifetime
         response.Headers.CacheControl!.NoStore.Should().BeTrue();
     }
 
+    // Google refuses an app's branding when its home page does not link to the privacy policy.
+    [Theory]
+    [InlineData("/privacy-policy")]
+    [InlineData("/terms-of-service")]
+    public async Task The_landing_page_links_to_each_legal_page_in_its_written_html(string address)
+    {
+        string landing = await File.ReadAllTextAsync(
+            Path.Combine(AppContext.BaseDirectory, "Assets", "landing", "index.html")
+        );
+
+        landing.Should().Contain($"<a href=\"{address}\">");
+    }
+
     private void AskThroughTheProxy()
     {
         _client.DefaultRequestHeaders.Add("X-Forwarded-Host", "bot.example");
