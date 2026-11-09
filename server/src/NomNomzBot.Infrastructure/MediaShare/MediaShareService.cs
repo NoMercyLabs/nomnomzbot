@@ -347,8 +347,17 @@ public sealed class MediaShareService : IMediaShareService
         entity.QueuePosition = null;
         await _db.SaveChangesAsync(ct);
 
-        await PublishPlaybackAsync(broadcasterId, entity.Id, MediaShareStatus.Approved, now, ct);
-        return await ReorderAsync(broadcasterId, entity.Id, 1, ct);
+        // The event can start the item at once, so it goes out only after the item holds its first place.
+        Result<MediaShareRequestDto> placed = await ReorderAsync(broadcasterId, entity.Id, 1, ct);
+        if (placed.IsSuccess)
+            await PublishPlaybackAsync(
+                broadcasterId,
+                entity.Id,
+                MediaShareStatus.Approved,
+                now,
+                ct
+            );
+        return placed;
     }
 
     public async Task<Result<PagedList<MediaShareRequestDto>>> GetQueueAsync(

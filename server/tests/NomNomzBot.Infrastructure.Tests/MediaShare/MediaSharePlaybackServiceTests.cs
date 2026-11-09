@@ -39,11 +39,13 @@ public sealed class MediaSharePlaybackServiceTests
     {
         public List<IDomainEvent> Published { get; } = [];
 
+        public Func<IDomainEvent, Task>? OnPublish { get; set; }
+
         public Task PublishAsync<TEvent>(TEvent @event, CancellationToken ct = default)
             where TEvent : class, IDomainEvent
         {
             Published.Add(@event);
-            return Task.CompletedTask;
+            return OnPublish?.Invoke(@event) ?? Task.CompletedTask;
         }
 
         public void PublishFireAndForget<TEvent>(TEvent @event)
@@ -373,6 +375,35 @@ public sealed class MediaSharePlaybackServiceTests
         load.RequestId.Should().Be(done);
         load.MediaRef.Should().Be("done");
         result.Value.RequestId.Should().Be(done);
+    }
+
+    // With an idle overlay attached, the auto-start handler answers the "approved" event with a play command.
+    [Theory]
+    [InlineData(MediaShareStatus.Played)]
+    [InlineData(MediaShareStatus.Skipped)]
+    public async Task PlayNow_OfAFinishedItem_WhileAutoStartAnswers_LoadsThatItemOnce_AndSucceeds(
+        string finished
+    )
+    {
+        Harness h = Build();
+        Guid waiting = Seed(h, "waiting", MediaShareStatus.Approved, 1);
+        Guid done = Seed(h, "done", finished, null);
+        h.Bus.OnPublish = @event =>
+            @event is MediaSharePlaybackChangedEvent { Status: MediaShareStatus.Approved }
+                ? h.Sut.SendCommandAsync(Channel, Cmd(MediaPlaybackCommands.Play))
+                : Task.CompletedTask;
+
+        Result<MediaPlayerStateDto> result = await h.Sut.SendCommandAsync(
+            Channel,
+            Cmd(MediaPlaybackCommands.PlayNow, id: done)
+        );
+
+        result.IsSuccess.Should().BeTrue();
+        StatusOf(h, done).Should().Be(MediaShareStatus.Playing);
+        StatusOf(h, waiting).Should().Be(MediaShareStatus.Approved);
+        MediaPlayerCommandIssuedEvent load = OnlyCommand(h);
+        load.Command.Should().Be("load");
+        load.RequestId.Should().Be(done);
     }
 
     [Fact]

@@ -16,6 +16,7 @@ using Microsoft.Extensions.Time.Testing;
 using NomNomzBot.Api.Hubs;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Overlay;
+using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.MediaShare.Dtos;
 using NomNomzBot.Application.MediaShare.Services;
@@ -133,7 +134,7 @@ public sealed class OverlayHubMediaShareReportTests
         );
 
     private static async Task ReceivedNothingAsync(Rig rig) =>
-        await rig.Playback.DidNotReceiveWithAnyArgs().ReportStateAsync(default, default!, default);
+        await rig.Playback.DidNotReceiveWithAnyArgs().ReportStateAsync(default, default!);
 
     [Fact]
     public async Task The_own_player_widget_report_reaches_the_playback_service_with_every_field()
@@ -154,6 +155,27 @@ public sealed class OverlayHubMediaShareReportTests
                     && r.PositionSeconds == 31
                     && r.DurationSeconds == 213
                     && r.Volume == 70
+                ),
+                Arg.Any<CancellationToken>()
+            );
+    }
+
+    // The overlay gets its item id in the ULID wire form, and sends that same form back.
+    [Fact]
+    public async Task A_request_id_in_the_ulid_wire_form_reaches_the_service_as_that_request()
+    {
+        Rig rig = await ConnectedAsync();
+        using WidgetTestDbContext db = rig.Db;
+
+        bool accepted = await ReportAsync(rig, rig.Player, GuidUlidCodec.Encode(Request), "ended");
+
+        accepted.Should().BeTrue();
+        await rig
+            .Playback.Received(1)
+            .ReportStateAsync(
+                Broadcaster,
+                Arg.Is<MediaPlayerStateReport>(r =>
+                    r.RequestId == Request && r.State == MediaPlayerStates.Ended
                 ),
                 Arg.Any<CancellationToken>()
             );

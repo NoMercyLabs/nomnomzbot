@@ -254,7 +254,11 @@ public sealed class MediaSharePlaybackService(
         if (moved.IsFailure)
             return Result.Failure<MediaPlayerStateDto>(moved.ErrorMessage!, moved.ErrorCode);
 
+        // Auto-start may already have started this item when it was queued again: it is then already loaded.
         MediaShareRequestDto? current = await CurrentAsync(broadcasterId, ct);
+        if (current?.Id == requestId)
+            return Result.Success(store.Get(broadcasterId));
+
         if (current is not null)
             await queue.SkipAsync(broadcasterId, current.Id, ct);
 

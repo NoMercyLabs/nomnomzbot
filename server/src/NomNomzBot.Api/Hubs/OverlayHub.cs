@@ -17,6 +17,7 @@ using NomNomzBot.Api.Hubs.Broadcasters;
 using NomNomzBot.Api.Hubs.Clients;
 using NomNomzBot.Api.Hubs.Dtos;
 using NomNomzBot.Api.Hubs.Overlay;
+using NomNomzBot.Api.Identifiers;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.MediaShare.Dtos;
@@ -525,7 +526,9 @@ public class OverlayHub : Hub<IOverlayClient>
         if (!WidgetAlertRouting.Subscribers(own, "media_share_command").Any())
             return false;
 
-        Guid? parsedRequestId = Guid.TryParse(requestId, out Guid request) ? request : null;
+        Guid? parsedRequestId = GuidUlidCodec.TryDecode(requestId, out Guid request)
+            ? request
+            : null;
         Result reported = await playback.ReportStateAsync(
             broadcasterId,
             new(parsedRequestId, state, positionSeconds, durationSeconds, volume),
