@@ -143,8 +143,8 @@ public sealed partial class PlaybackDirector : IDisposable
     }
 
     /// <summary>
-    /// No timer drives the director, so every input first raises the deadlines that passed; the engine
-    /// polls every few seconds, which bounds how long a start that never confirms can hold the channel.
+    /// Every input first raises the deadlines that passed, so a late input sees them in order; the channel's
+    /// <see cref="PlaybackDeadlineTimer"/> raises them when no input arrives.
     /// </summary>
     private async Task RaiseDueDeadlinesAsync(CancellationToken ct)
     {

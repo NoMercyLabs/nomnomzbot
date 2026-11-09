@@ -264,7 +264,8 @@ public sealed class OverlayAudioRoutingTests
         string connectionId,
         OverlayPresenceRegistry? sharedRegistry = null,
         string? previousConnection = null,
-        IOverlayClient? previousClient = null
+        IOverlayClient? previousClient = null,
+        IPlaybackInputSink? playback = null
     )
     {
         OverlayTicketService tickets = new(new FakeTimeProvider());
@@ -293,7 +294,8 @@ public sealed class OverlayAudioRoutingTests
             notifier,
             Substitute.For<IEventBus>(),
             [],
-            NullLogger<OverlayHub>.Instance
+            NullLogger<OverlayHub>.Instance,
+            playback
         )
         {
             Context = context,
@@ -503,6 +505,60 @@ public sealed class OverlayAudioRoutingTests
                 Arg.Is<OutputAttached>(o => o.PageIsPlaying),
                 Arg.Any<CancellationToken>()
             );
+    }
+
+    [Fact]
+    public async Task The_last_music_page_leaving_tells_the_director_the_output_is_gone()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid musicWidget = await SeedWidgetAsync(db, "music_player");
+        IPlaybackInputSink director = Substitute.For<IPlaybackInputSink>();
+        Joined page = await ConnectedPageAsync(db, "music-conn", playback: director);
+        await page.Hub.JoinWidgetWithSdk(musicWidget.ToString(), "v1");
+
+        await page.Hub.OnDisconnectedAsync(null);
+
+        page.Registry.IsMusicSourceConnected(Broadcaster).Should().BeFalse();
+        await director
+            .Received(1)
+            .SendAsync(Broadcaster, Arg.Any<OutputDetached>(), Arg.Any<CancellationToken>());
+    }
+
+    [Fact]
+    public async Task A_page_that_is_no_music_player_leaving_tells_the_director_nothing()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid audioWidget = await SeedWidgetAsync(db, "audio");
+        IPlaybackInputSink director = Substitute.For<IPlaybackInputSink>();
+        Joined page = await ConnectedPageAsync(db, "audio-conn", playback: director);
+        await page.Hub.JoinWidgetWithSdk(audioWidget.ToString(), "v1");
+
+        await page.Hub.OnDisconnectedAsync(null);
+
+        director.ReceivedCalls().Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task A_replaced_music_page_leaving_tells_the_director_nothing()
+    {
+        using WidgetTestDbContext db = WidgetTestDbContext.New();
+        Guid musicWidget = await SeedWidgetAsync(db, "music_player");
+        IPlaybackInputSink director = Substitute.For<IPlaybackInputSink>();
+        Joined old = await ConnectedPageAsync(db, "old-music", playback: director);
+        await old.Hub.JoinWidgetWithSdk(musicWidget.ToString(), "v1");
+        Joined current = await ConnectedPageAsync(
+            db,
+            "new-music",
+            old.Registry,
+            "old-music",
+            old.Caller,
+            director
+        );
+        await current.Hub.JoinWidgetWithSdk(musicWidget.ToString(), "v1");
+
+        await old.Hub.OnDisconnectedAsync(null);
+
+        director.ReceivedCalls().Should().BeEmpty();
     }
 
     [Fact]

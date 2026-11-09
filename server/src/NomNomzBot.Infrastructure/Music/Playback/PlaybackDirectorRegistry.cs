@@ -10,6 +10,7 @@
 // -----------------------------------------------------------------------------
 
 using System.Collections.Concurrent;
+using Microsoft.Extensions.Logging;
 using NomNomzBot.Application.Common.Interfaces;
 using NomNomzBot.Application.Contracts.Security;
 using NomNomzBot.Domain.Music.Interfaces;
@@ -30,7 +31,8 @@ public sealed class PlaybackDirectorRegistry(
     IEventBus bus,
     TimeProvider time,
     IOutboundSanctionAccessor? sanctions = null,
-    IActiveInstanceGate? instanceGate = null
+    IActiveInstanceGate? instanceGate = null,
+    ILogger<PlaybackDirectorRegistry>? logger = null
 ) : IPlaybackInputSink, IPlaybackStateReader, IPlaybackReportSink, IEngineFeed, IDisposable
 {
     private readonly ConcurrentDictionary<Guid, Lazy<ChannelPlayback>> _channels = new();
@@ -38,7 +40,8 @@ public sealed class PlaybackDirectorRegistry(
     /// <summary>
     /// Blue/green overlap: a standby instance never starts music on its own. A waiting request
     /// (<see cref="RequestAdded"/>) and a player page attaching (<see cref="OutputAttached"/>) are the two inputs
-    /// that make an idle director start the head, so only the active instance acts on them; every other input
+    /// that make an idle director start the head, so only the active instance acts on them. An old instance
+    /// losing its pages at a switchover (<see cref="OutputDetached"/>) must not act either. Every other input
     /// (owner controls, reports) still reaches the director on any instance.
     /// </summary>
     public Task<PlaybackInputOutcome> SendAsync(
@@ -46,7 +49,8 @@ public sealed class PlaybackDirectorRegistry(
         PlaybackInput input,
         CancellationToken ct = default
     ) =>
-        input is RequestAdded or OutputAttached && instanceGate is { IsActiveInstance: false }
+        input is RequestAdded or OutputAttached or OutputDetached
+        && instanceGate is { IsActiveInstance: false }
             ? Task.FromResult(PlaybackInputOutcome.Ignored)
             : ChannelOf(broadcasterId).Director.HandleAsync(input, ct);
 
@@ -119,7 +123,10 @@ public sealed class PlaybackDirectorRegistry(
     {
         foreach (Lazy<ChannelPlayback> channel in _channels.Values)
             if (channel.IsValueCreated)
+            {
+                channel.Value.DeadlineTimer.Dispose();
                 channel.Value.Director.Dispose();
+            }
     }
 
     private ChannelPlayback ChannelOf(Guid broadcasterId) =>
@@ -129,21 +136,25 @@ public sealed class PlaybackDirectorRegistry(
     {
         IReadOnlyList<IPlaybackEngine> built = engines.Create(broadcasterId);
 
+        PlaybackDirector director = new(
+            broadcasterId,
+            built,
+            new SongRequestPlaybackQueue(queueStore.GetOrCreate(broadcasterId.ToString())),
+            time,
+            bus,
+            sanctions
+        );
+
         return new(
-            new PlaybackDirector(
-                broadcasterId,
-                built,
-                new SongRequestPlaybackQueue(queueStore.GetOrCreate(broadcasterId.ToString())),
-                time,
-                bus,
-                sanctions
-            ),
-            built
+            director,
+            built,
+            new PlaybackDeadlineTimer(broadcasterId, director, time, instanceGate, logger)
         );
     }
 
     private sealed record ChannelPlayback(
         PlaybackDirector Director,
-        IReadOnlyList<IPlaybackEngine> Engines
+        IReadOnlyList<IPlaybackEngine> Engines,
+        PlaybackDeadlineTimer DeadlineTimer
     );
 }

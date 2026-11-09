@@ -55,6 +55,7 @@ public class OverlayHub : Hub<IOverlayClient>
     private readonly IEventBus _eventBus;
     private readonly IReadOnlyList<IWidgetSeedProvider> _seedProviders;
     private readonly ILogger<OverlayHub> _logger;
+    private readonly IPlaybackInputSink? _playback;
 
     public OverlayHub(
         IApplicationDbContext db,
@@ -65,9 +66,11 @@ public class OverlayHub : Hub<IOverlayClient>
         IActionRequiredChangeNotifier inbox,
         IEventBus eventBus,
         IEnumerable<IWidgetSeedProvider> seedProviders,
-        ILogger<OverlayHub> logger
+        ILogger<OverlayHub> logger,
+        IPlaybackInputSink? playback = null
     )
     {
+        _playback = playback;
         _seedProviders = seedProviders.ToList();
         _db = db;
         _widgetService = widgetService;
@@ -124,6 +127,8 @@ public class OverlayHub : Hub<IOverlayClient>
     public override async Task OnDisconnectedAsync(Exception? exception)
     {
         Guid? channel = Context.Items["BroadcasterId"] as Guid?;
+        bool wasMusicTarget =
+            channel is Guid target && _presence.GetMusicTarget(target) == Context.ConnectionId;
         foreach (string groupName in _presence.Drop(Context.ConnectionId))
         {
             await Groups.RemoveFromGroupAsync(Context.ConnectionId, groupName);
@@ -137,8 +142,26 @@ public class OverlayHub : Hub<IOverlayClient>
         {
             _registry.ReleaseMusicDemand(broadcasterId, Context.ConnectionId);
             _inbox.NotifyChanged(broadcasterId);
+            if (wasMusicTarget && !_presence.IsMusicSourceConnected(broadcasterId))
+                await TellDirectorOutputIsGoneAsync(broadcasterId);
         }
         await base.OnDisconnectedAsync(exception);
+    }
+
+    /// <summary>A failure here must not stop the disconnect; the report deadline still ends a silent video.</summary>
+    private async Task TellDirectorOutputIsGoneAsync(Guid broadcasterId)
+    {
+        if (_playback is null)
+            return;
+
+        try
+        {
+            await _playback.SendAsync(broadcasterId, new OutputDetached(), CancellationToken.None);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "OutputDetached failed for channel {B}", broadcasterId);
+        }
     }
 
     /// <summary>
