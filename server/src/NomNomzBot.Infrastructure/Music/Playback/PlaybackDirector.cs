@@ -110,6 +110,7 @@ public sealed partial class PlaybackDirector : IDisposable
         await _gate.WaitAsync(ct);
         try
         {
+            RenewReportDeadline(input);
             await RaiseDueDeadlinesAsync(ct);
             _ignored = false;
             await ApplyAsync(input, ct);
@@ -147,6 +148,12 @@ public sealed partial class PlaybackDirector : IDisposable
     /// </summary>
     private async Task RaiseDueDeadlinesAsync(CancellationToken ct)
     {
+        if (ReportDeadlinePassed())
+        {
+            await LoseVideoAsync(ct);
+            return;
+        }
+
         if (State.Kind != PlaybackStateKind.Starting)
             return;
 
@@ -209,6 +216,7 @@ public sealed partial class PlaybackDirector : IDisposable
     {
         PlaybackState from = State;
         State = to;
+        TrackReportDeadline(from, to);
         if (to.Kind != PlaybackStateKind.Blocked)
             _outputWait = null;
         if (to.Kind != PlaybackStateKind.Starting)

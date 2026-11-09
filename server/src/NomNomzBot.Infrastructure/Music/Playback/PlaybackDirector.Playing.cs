@@ -113,6 +113,9 @@ public sealed partial class PlaybackDirector
             case OutputAttached attached when State.Engine is { } engine:
                 await ReattachOutputAsync(engine, attached, ct);
                 break;
+            case OutputDetached detached when _reportDeadline is not null:
+                await OnOutputDetachedAsync(detached);
+                break;
             case RequestAdded when State.Item is null:
                 await MoveAsync(State, input, "waiting_for_track_end");
                 break;

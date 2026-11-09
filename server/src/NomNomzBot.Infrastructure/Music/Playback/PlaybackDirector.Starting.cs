@@ -201,6 +201,10 @@ public sealed partial class PlaybackDirector
                 await MoveAsync(State, name, "start_still_queued", item.Id);
                 break;
             case StartTimeout:
+                // A video that loads late must not start over the music that comes back now.
+                if (item.Engine == EngineKind.YouTube)
+                    await StopBestEffortAsync(EngineKind.YouTube, ct);
+
                 await FailStartAsync(item, name, "did not start", "start_timeout", ct);
                 break;
             default:
