@@ -40,6 +40,9 @@ describe('the legal pages in the build', () => {
     expect(page).toContain('<h1>Privacy Policy</h1>');
     expect(page).toContain('Google and YouTube');
     expect(page).toContain('Limited Use');
+    expect(page).toContain('accesses, uses, stores, shares and deletes Google user data');
+    expect(page).toContain('How long we keep Google user data');
+    expect(page).toContain('How to delete Google user data');
     expect(page).toContain('https://www.youtube.com/t/terms');
     expect(page).toContain('https://policies.google.com/privacy');
     expect(page).toContain('https://security.google.com/settings/security/permissions');
