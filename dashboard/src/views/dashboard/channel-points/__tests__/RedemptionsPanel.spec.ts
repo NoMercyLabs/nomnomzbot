@@ -150,7 +150,7 @@ beforeEach(() => {
   localStorage.clear();
   queue = freshQueue();
   failPosts = false;
-  held = ['reward:read', 'reward:manage'];
+  held = ['reward:read', 'reward:redemption:fulfill', 'reward:redemption:refund'];
   setActivePinia(createPinia());
   i18n.global.mergeLocaleMessage('en', en);
 });
@@ -297,13 +297,35 @@ describe('RedemptionsPanel', () => {
     expect(view.get('[data-redemption-select-all]').element.closest('[data-slot="panel-actions"]')).toBeNull();
   });
 
-  it('gives a role without reward:manage the list but no actions', async () => {
-    held = ['reward:read'];
+  it('gives a moderator, who holds the redemption keys but not reward:manage, every queue action', async () => {
+    const view = await open();
+
+    expect(view.find('[data-redemption-select-all]').exists()).toBe(true);
+    expect(view.find('[data-redemption-complete]').exists()).toBe(true);
+    expect(view.find('[data-redemption-reject]').exists()).toBe(true);
+    expect(view.find('[data-redemption-bulk-complete]').exists()).toBe(true);
+    expect(view.find('[data-redemption-bulk-reject]').exists()).toBe(true);
+  });
+
+  it('shows only the action the role holds', async () => {
+    held = ['reward:read', 'reward:redemption:fulfill'];
+    const view = await open();
+
+    expect(view.find('[data-redemption-complete]').exists()).toBe(true);
+    expect(view.find('[data-redemption-bulk-complete]').exists()).toBe(true);
+    expect(view.find('[data-redemption-reject]').exists()).toBe(false);
+    expect(view.find('[data-redemption-bulk-reject]').exists()).toBe(false);
+  });
+
+  it('gives a role without the redemption keys the list but no actions', async () => {
+    held = ['reward:read', 'reward:manage'];
     const view = await open();
 
     expect(rowIds(view)).toEqual(['d1', 'd4']);
+    expect(view.find('[data-redemption-select-all]').exists()).toBe(false);
     expect(view.find('[data-redemption-complete]').exists()).toBe(false);
     expect(view.find('[data-redemption-reject]').exists()).toBe(false);
     expect(view.find('[data-redemption-bulk-complete]').exists()).toBe(false);
+    expect(view.find('[data-redemption-bulk-reject]').exists()).toBe(false);
   });
 });

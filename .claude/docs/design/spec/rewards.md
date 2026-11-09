@@ -336,8 +336,8 @@ call (including the dashboard's own `SetRedemptionStatusAsync`, whose optimistic
 
 **Role gate.** Every action carries `[RequireAction("<key>")]` (Gate-2, resolved by the seeded
 `ActionDefinitions`, `roles-permissions.md`): `reward:read` (default Moderator, floor Vip),
-`reward:manage` (Broadcaster), `reward:sync` (Broadcaster). The seeder also defines `reward:redemption:read|fulfill|refund`
-(Moderator), but **the controller does not use them** — fulfil / refund / timers are gated by `reward:manage`. Gate-1
+`reward:manage` (Editor), `reward:sync` (Broadcaster), `reward:redemption:fulfill` and `reward:redemption:refund` (Moderator,
+for the two queue decisions). Timers are gated by `reward:manage`. `reward:redemption:read` is seeded but unused. Gate-1
 is `[Authorize]` + tenant resolution.
 
 ### RewardsController — `api/v{version}/channels/{channelId}/rewards`
@@ -355,8 +355,8 @@ is `[Authorize]` + tenant resolution.
 | POST | `/import` | — | `StatusResponseDto<object>` | `reward:sync` |
 | POST | `/{rewardId}/recreate` | — | `StatusResponseDto<RewardDetail>` | `reward:sync` |
 | GET | `/redemptions` | `?status=` + `PageRequestDto` | `PaginatedResponse<RedemptionListItem>` | `reward:read` |
-| POST | `/redemptions/{redemptionId}/fulfill` | — | `StatusResponseDto<object>` | `reward:manage` |
-| POST | `/redemptions/{redemptionId}/refund` | — | `StatusResponseDto<object>` | `reward:manage` |
+| POST | `/redemptions/{redemptionId}/fulfill` | — | `StatusResponseDto<object>` | `reward:redemption:fulfill` |
+| POST | `/redemptions/{redemptionId}/refund` | — | `StatusResponseDto<object>` | `reward:redemption:refund` |
 | GET | `/redemption-timers` | — | `StatusResponseDto<IReadOnlyList<RedemptionTimerDto>>` | `reward:read` |
 | POST | `/redemption-timers/{timerId:guid}/pause` | — | `StatusResponseDto<RedemptionTimerDto>` | `reward:manage` |
 | POST | `/redemption-timers/{timerId:guid}/resume` | — | `StatusResponseDto<RedemptionTimerDto>` | `reward:manage` |
@@ -443,7 +443,7 @@ Nothing here is registered by hand in `NomNomzBot.Infrastructure/DependencyInjec
 6. **Take control re-points the same row** at a recreated bot-owned reward and parks on a title conflict
    (`MIGRATION_PENDING_EXTERNAL_REMOVAL`) instead of failing; the next import finishes it.
 7. **One service, one controller.** Reward lifecycle and the redemption queue both live in `IRewardService`; fulfil
-   and refund are `reward:manage`.
+   and refund are `reward:redemption:fulfill` and `reward:redemption:refund`, so a moderator can work the queue.
 
 ---
 

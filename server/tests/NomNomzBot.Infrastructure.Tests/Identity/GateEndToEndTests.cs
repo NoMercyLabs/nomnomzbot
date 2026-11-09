@@ -141,6 +141,17 @@ public sealed class GateEndToEndTests
     }
 
     [Theory]
+    [InlineData("reward:redemption:fulfill")]
+    [InlineData("reward:redemption:refund")]
+    public async Task A_moderator_and_an_editor_may_decide_a_pending_redemption(string actionKey)
+    {
+        Fixture f = await BuildAsync();
+
+        (await f.Gate2.AuthorizeActionAsync(Moderator, Channel, actionKey)).Value.Should().BeTrue();
+        (await f.Gate2.AuthorizeActionAsync(Editor, Channel, actionKey)).Value.Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData("channel:ccl:write")]
     [InlineData("webhooks:inbound:write")]
     public async Task Gate1_admits_a_moderator_but_gate2_still_denies_the_editor_floored_write(

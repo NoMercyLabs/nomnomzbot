@@ -51,7 +51,9 @@ const queue = useRedemptions(channelId);
 const rewards = useRewards(channelId);
 const decision = useRedemptionDecision(channelId);
 
-const canManage = computed(() => access.can('reward:manage'));
+const canComplete = computed(() => access.can('reward:redemption:fulfill'));
+const canReject = computed(() => access.can('reward:redemption:refund'));
+const canDecide = computed(() => canComplete.value || canReject.value);
 const state = usePanelState(queue);
 
 // The chosen filter is a view preference, so it is kept across reloads and page switches.
@@ -248,7 +250,7 @@ function rejectOpen(open: boolean): void {
             : 'dashboard.channelPoints.redemptions.emptyFilter') }}
         </p>
 
-        <div v-if="canManage && visible.length > 0" class="flex min-h-9 flex-none items-center gap-3 px-3">
+        <div v-if="canDecide && visible.length > 0" class="flex min-h-9 flex-none items-center gap-3 px-3">
           <Checkbox
             data-redemption-select-all
             :model-value="allChosen"
@@ -268,7 +270,7 @@ function rejectOpen(open: boolean): void {
             class="flex min-h-14 items-center gap-3 rounded-[8px] px-3 py-2 hover:bg-accent/50"
           >
             <Checkbox
-              v-if="canManage"
+              v-if="canDecide"
               data-redemption-select
               :model-value="selected.includes(row.redemptionId)"
               :aria-label="$t('dashboard.channelPoints.redemptions.selectRow', { title: row.rewardTitle, name: row.userDisplayName })"
@@ -294,8 +296,8 @@ function rejectOpen(open: boolean): void {
                 {{ row.userInput }}
               </p>
             </div>
-            <div v-if="canManage" class="flex flex-none items-center gap-1.5">
-              <Tooltip>
+            <div v-if="canDecide" class="flex flex-none items-center gap-1.5">
+              <Tooltip v-if="canReject">
                 <TooltipTrigger as-child>
                   <Button
                     variant="ghost"
@@ -309,7 +311,7 @@ function rejectOpen(open: boolean): void {
                 </TooltipTrigger>
                 <TooltipContent>{{ $t('dashboard.channelPoints.redemptions.reject') }}</TooltipContent>
               </Tooltip>
-              <Tooltip>
+              <Tooltip v-if="canComplete">
                 <TooltipTrigger as-child>
                   <Button
                     variant="ghost"
@@ -330,9 +332,10 @@ function rejectOpen(open: boolean): void {
       </div>
     </div>
 
-    <template v-if="canManage" #footer>
+    <template v-if="canDecide" #footer>
       <div class="ml-auto flex items-center gap-2">
         <Button
+          v-if="canReject"
           variant="outline"
           size="sm"
           data-redemption-bulk-reject
@@ -343,6 +346,7 @@ function rejectOpen(open: boolean): void {
           {{ $t('dashboard.channelPoints.redemptions.rejectAll', { count: bulkIds.length }) }}
         </Button>
         <Button
+          v-if="canComplete"
           size="sm"
           data-redemption-bulk-complete
           :disabled="bulkIds.length === 0"

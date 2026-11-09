@@ -118,7 +118,7 @@ public class RewardsController : BaseController
     }
 
     /// <summary>Mark a queued redemption FULFILLED (Helix), removing it from the pending queue.</summary>
-    [RequireAction("reward:manage")]
+    [RequireAction("reward:redemption:fulfill")]
     [HttpPost("redemptions/{redemptionId}/fulfill")]
     public async Task<IActionResult> FulfillRedemption(
         string channelId,
@@ -192,7 +192,7 @@ public class RewardsController : BaseController
     ) => ResultResponse(await _redemptionTimers.CancelAsync(channelId, timerId, ct));
 
     /// <summary>Refund a queued redemption — CANCELED in Helix (the viewer's points are returned).</summary>
-    [RequireAction("reward:manage")]
+    [RequireAction("reward:redemption:refund")]
     [HttpPost("redemptions/{redemptionId}/refund")]
     public async Task<IActionResult> RefundRedemption(
         string channelId,

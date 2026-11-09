@@ -165,7 +165,7 @@ beforeEach(() => {
   calls.length = 0;
   reward = { ...baseReward };
   channelPointsAvailable = true;
-  held = ['reward:read', 'reward:manage'];
+  held = ['reward:read', 'reward:manage', 'reward:redemption:fulfill', 'reward:redemption:refund'];
   setActivePinia(createPinia());
   i18n.global.mergeLocaleMessage('en', en);
 
@@ -692,7 +692,7 @@ describe('ChannelPointsView', () => {
     expect(post?.path).toContain('/redemptions/{redemptionId}/fulfill');
   });
 
-  it('hides the redemption actions from a role without reward:manage', async () => {
+  it('hides the redemption and reward actions from a role that only reads', async () => {
     held = ['reward:read'];
 
     const view = await open();

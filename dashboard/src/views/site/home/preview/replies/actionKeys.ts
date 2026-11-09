@@ -137,6 +137,8 @@ export const ownerActionKeys = [
   'quotes:write',
   'reward:manage',
   'reward:read',
+  'reward:redemption:fulfill',
+  'reward:redemption:refund',
   'roles:manage',
   'roles:read',
   'setup:write',
