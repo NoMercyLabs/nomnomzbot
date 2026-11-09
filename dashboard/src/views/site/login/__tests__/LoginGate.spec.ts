@@ -73,6 +73,7 @@ describe('the login page gate', () => {
     await flushPromises();
 
     expect(wrapper.text()).not.toContain(words.site.login.comingSoon.title);
-    await vi.waitFor(() => expect(fetched).toHaveBeenCalled());
-  });
+    // The real sign-in page loads from scratch here, which takes over a second on a busy machine.
+    await vi.waitFor(() => expect(fetched).toHaveBeenCalled(), { timeout: 15_000 });
+  }, 20_000);
 });
