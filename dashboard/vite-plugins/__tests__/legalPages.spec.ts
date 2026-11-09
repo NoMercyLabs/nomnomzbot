@@ -43,6 +43,13 @@ describe('the legal pages in the build', () => {
     expect(page).toContain('accesses, uses, stores, shares and deletes Google user data');
     expect(page).toContain('How long we keep Google user data');
     expect(page).toContain('How to delete Google user data');
+    expect(page).toContain('youtube.force-ssl');
+    expect(page).toContain('How we protect Google user data');
+    expect(page).toContain('Who receives Google user data');
+    expect(page).toContain('ElevenLabs');
+    expect(page).toContain('train artificial intelligence');
+    expect(page).toContain('Sign-in details stay until');
+    expect(page.indexOf('Google and YouTube user data')).toBeLessThan(page.indexOf('What we handle'));
     expect(page).toContain('https://www.youtube.com/t/terms');
     expect(page).toContain('https://policies.google.com/privacy');
     expect(page).toContain('https://security.google.com/settings/security/permissions');

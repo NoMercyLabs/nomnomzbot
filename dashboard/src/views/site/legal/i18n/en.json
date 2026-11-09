@@ -21,6 +21,25 @@
             ]
           },
           {
+            "title": "Google and YouTube user data",
+            "p": [
+              "A streamer can sign in to NomNomzBot with Google and can connect a YouTube channel. Both are optional. This section explains how NomNomzBot accesses, uses, stores, shares and deletes Google user data:"
+            ],
+            "list": [
+              "What we access with Google sign-in (scopes openid and profile): your Google account id, your name and your profile picture. We do not ask for your email address, and we do not access Gmail, Drive, Calendar or your contacts.",
+              "What we access when you connect YouTube (scopes youtube, youtube.force-ssl and youtube.readonly): your channel id, name and picture, your live broadcasts, the live chat messages in your channel with the name of each sender, the moderation actions in that chat, and, if you use the music features, your playlists, video ratings and channel subscriptions.",
+              "How we use it: to recognize you and show who is signed in, and to run the bot in your live chat. The bot reads and answers messages, deletes messages or bans users when you or your moderators ask for it or your rules say so, and changes your playlists, ratings or subscriptions only when you or a command you set up asks for it. We use Google user data for nothing else.",
+              "How we store it: on our servers in the European Union, in a database that keeps each channel's data apart from other channels.",
+              "How we protect Google user data: access tokens from Google are stored encrypted and are used only to make these requests for you. All data travels over encrypted HTTPS connections.",
+              "Who receives Google user data: the streamer and the moderators the streamer allows; Cloudflare, which carries our web traffic; and, only if the streamer turns on text to speech, the speech provider the streamer selects (Microsoft or ElevenLabs), which receives the text of the message to be read aloud. We also give it to an authority where the law requires it. Nobody else receives it.",
+              "What we never do with it: we do not sell it, do not use it or transfer it for advertising, do not give it to data brokers, do not use it to decide credit or lending, and do not use it to develop, improve or train artificial intelligence or machine learning models.",
+              "How long we keep Google user data: Sign-in details stay until you erase your account. Chat messages and moderation records stay for as long as the channel uses the service, until they are erased. Google access tokens expire on their own. When you disconnect YouTube in the dashboard, we cancel the stored tokens at once and stop using them, and we stop collecting data from your channel.",
+              "How to delete Google user data: you can remove our access at any time in your Google account: https://security.google.com/settings/security/permissions. To have the data we already hold erased, use the data page in the dashboard or write to {email}. We answer within one month. We then delete your chat messages, cancel your connections and anonymize your profile, so nothing can be recovered.",
+              "Our use and transfer of information received from Google APIs follows the Google API Services User Data Policy, including the Limited Use requirements: https://developers.google.com/terms/api-services-user-data-policy",
+              "NomNomzBot uses YouTube API Services. By connecting YouTube you agree to the YouTube Terms of Service: https://www.youtube.com/t/terms. The Google Privacy Policy also applies: https://policies.google.com/privacy"
+            ]
+          },
+          {
             "title": "What we handle",
             "p": [
               "Most of what the bot handles is already public on the platform it comes from, such as Twitch or Discord: names, avatars and chat messages. A name or a message points to a person, so we treat it as personal data and give everyone the rights below, including people who never signed up.",
@@ -71,22 +90,6 @@
             "p": [
               "We protect data with encryption and keep each channel's data apart from other channels. The hosted service stores data in the European Union. The connected platforms and providers process data on their own systems, which can be outside the European Union, under their own safeguards.",
               "If a breach puts people at risk, we tell the supervisory authority and affected people when the law requires it."
-            ]
-          },
-          {
-            "title": "Google and YouTube",
-            "p": [
-              "A streamer can sign in with Google and can connect a YouTube channel. Both are optional. This section explains how NomNomzBot accesses, uses, stores, shares and deletes Google user data:"
-            ],
-            "list": [
-              "Google sign-in: your Google account id, your name and your profile picture. We use them only to recognize you and show who is signed in.",
-              "YouTube connection: your channel details, your live broadcasts, the live chat messages of your channel and the moderation actions in that chat. We use them to run the bot in your live chat: to read and answer messages, and to delete messages or ban users when you or your moderators ask for it or your rules say so.",
-              "Access tokens from Google. We store them encrypted and use them only to make these requests for you.",
-              "How long we keep Google user data: until it is erased. When you disconnect YouTube in the dashboard, we cancel the stored tokens at once and stop using them.",
-              "Our use and transfer of information received from Google APIs follows the Google API Services User Data Policy, including the Limited Use requirements: https://developers.google.com/terms/api-services-user-data-policy",
-              "We do not sell this data, do not use it for advertising, and do not give it to anyone else, except to the people you allow on your channel, where the law requires it, or to the service providers that help us run the service.",
-              "NomNomzBot uses YouTube API Services. By connecting YouTube you agree to the YouTube Terms of Service: https://www.youtube.com/t/terms. The Google Privacy Policy also applies: https://policies.google.com/privacy",
-              "How to delete Google user data: you can remove our access at any time in your Google account: https://security.google.com/settings/security/permissions. To have the data we already hold erased, make an erasure request (see \"Your rights\"). We answer within one month. We then delete your chat messages, cancel your connections and anonymize your profile, so nothing can be recovered."
             ]
           },
           {

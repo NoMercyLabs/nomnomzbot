@@ -21,6 +21,25 @@
             ]
           },
           {
+            "title": "Google- en YouTube-gebruikersgegevens",
+            "p": [
+              "Een streamer kan bij NomNomzBot inloggen met Google en een YouTube-kanaal koppelen. Beide zijn optioneel. Dit deel legt uit hoe NomNomzBot Google-gebruikersgegevens opvraagt, gebruikt, bewaart, deelt en verwijdert:"
+            ],
+            "list": [
+              "Wat wij opvragen bij inloggen met Google (scopes openid en profile): je Google-account-id, je naam en je profielfoto. Wij vragen niet om je e-mailadres en hebben geen toegang tot Gmail, Drive, Agenda of je contacten.",
+              "Wat wij opvragen als je YouTube koppelt (scopes youtube, youtube.force-ssl en youtube.readonly): je kanaal-id, naam en foto, je livestreams, de livechatberichten in je kanaal met de naam van elke afzender, de moderatieacties in die chat en, als je de muziekfuncties gebruikt, je afspeellijsten, videobeoordelingen en kanaalabonnementen.",
+              "Hoe wij ze gebruiken: om je te herkennen en te tonen wie er is ingelogd, en om de bot in je livechat te laten werken. De bot leest en beantwoordt berichten, verwijdert berichten of blokkeert gebruikers als jij of je moderators daarom vragen of je regels dat bepalen, en wijzigt je afspeellijsten, beoordelingen of abonnementen alleen als jij of een door jou ingesteld commando daarom vraagt. Wij gebruiken Google-gebruikersgegevens nergens anders voor.",
+              "Hoe wij ze bewaren: op onze servers in de Europese Unie, in een database die de gegevens van elk kanaal gescheiden houdt van andere kanalen.",
+              "Hoe wij Google-gebruikersgegevens beschermen: toegangstokens van Google worden versleuteld opgeslagen en alleen gebruikt om deze verzoeken voor jou te doen. Alle gegevens gaan over versleutelde HTTPS-verbindingen.",
+              "Wie Google-gebruikersgegevens ontvangt: de streamer en de moderators die de streamer toelaat; Cloudflare, dat ons webverkeer doorgeeft; en, alleen als de streamer tekst-naar-spraak aanzet, de spraakdienst die de streamer kiest (Microsoft of ElevenLabs), die de tekst van het voor te lezen bericht ontvangt. Ook geven wij ze aan een instantie als de wet dat vereist. Niemand anders ontvangt ze.",
+              "Wat wij er nooit mee doen: wij verkopen ze niet, gebruiken of verstrekken ze niet voor advertenties, geven ze niet aan datahandelaren, gebruiken ze niet om over krediet of leningen te beslissen, en gebruiken ze niet om kunstmatige intelligentie of machine-learningmodellen te ontwikkelen, te verbeteren of te trainen.",
+              "Hoe lang wij Google-gebruikersgegevens bewaren: inloggegevens blijven tot je je account wist. Chatberichten en moderatiegegevens blijven zolang het kanaal de dienst gebruikt, tot ze zijn gewist. Toegangstokens van Google verlopen vanzelf. Als je YouTube in het dashboard ontkoppelt, trekken wij de opgeslagen tokens meteen in, gebruiken wij ze niet meer en verzamelen wij geen gegevens meer van je kanaal.",
+              "Google-gebruikersgegevens verwijderen: je kunt onze toegang altijd intrekken in je Google-account: https://security.google.com/settings/security/permissions. Om gegevens te laten wissen die wij al hebben, gebruik je de gegevenspagina in het dashboard of schrijf je naar {email}. Wij antwoorden binnen een maand. Daarna verwijderen wij je chatberichten, trekken wij je koppelingen in en anonimiseren wij je profiel, zodat niets meer te herstellen is.",
+              "Ons gebruik en onze overdracht van informatie die wij van Google-API's ontvangen, volgt de Google API Services User Data Policy, inclusief de Limited Use-eisen: https://developers.google.com/terms/api-services-user-data-policy",
+              "NomNomzBot gebruikt YouTube API Services. Door YouTube te koppelen ga je akkoord met de YouTube-servicevoorwaarden: https://www.youtube.com/t/terms. Ook het privacybeleid van Google is van toepassing: https://policies.google.com/privacy"
+            ]
+          },
+          {
             "title": "Wat wij verwerken",
             "p": [
               "Het meeste wat de bot verwerkt is al openbaar op het platform waar het vandaan komt, zoals Twitch of Discord: namen, avatars en chatberichten. Een naam of een bericht wijst naar een persoon, dus wij behandelen het als persoonsgegevens en geven iedereen de onderstaande rechten, ook mensen die zich nooit hebben aangemeld.",
@@ -71,22 +90,6 @@
             "p": [
               "Wij beschermen gegevens met versleuteling en houden de gegevens van elk kanaal gescheiden van andere kanalen. De gehoste dienst slaat gegevens op in de Europese Unie. De gekoppelde platforms en dienstverleners verwerken gegevens op hun eigen systemen, die buiten de Europese Unie kunnen staan, onder hun eigen waarborgen.",
               "Als een datalek mensen in gevaar brengt, melden wij dat aan de toezichthouder en aan de getroffen mensen wanneer de wet dat vraagt."
-            ]
-          },
-          {
-            "title": "Google en YouTube",
-            "p": [
-              "Een streamer kan inloggen met Google en een YouTube-kanaal koppelen. Beide zijn optioneel. Dit deel legt uit hoe NomNomzBot Google-gebruikersgegevens opvraagt, gebruikt, bewaart, deelt en verwijdert:"
-            ],
-            "list": [
-              "Inloggen met Google: je Google-account-id, je naam en je profielfoto. Wij gebruiken die alleen om je te herkennen en te tonen wie er is ingelogd.",
-              "YouTube-koppeling: je kanaalgegevens, je livestreams, de livechatberichten van je kanaal en de moderatieacties in die chat. Wij gebruiken die om de bot in je livechat te laten werken: om berichten te lezen en te beantwoorden, en om berichten te verwijderen of gebruikers te blokkeren als jij of je moderators daarom vragen of je regels dat bepalen.",
-              "Toegangstokens van Google. Wij bewaren die versleuteld en gebruiken ze alleen om deze verzoeken voor jou te doen.",
-              "Hoe lang wij Google-gebruikersgegevens bewaren: tot ze zijn gewist. Als je YouTube in het dashboard ontkoppelt, trekken wij de opgeslagen tokens meteen in en gebruiken wij ze niet meer.",
-              "Ons gebruik en onze overdracht van informatie die wij van Google-API's ontvangen, volgt de Google API Services User Data Policy, inclusief de Limited Use-eisen: https://developers.google.com/terms/api-services-user-data-policy",
-              "Wij verkopen deze gegevens niet, gebruiken ze niet voor advertenties en geven ze aan niemand anders, behalve aan de mensen die jij op je kanaal toelaat, als de wet dat vereist, of aan de dienstverleners die ons helpen de dienst te draaien.",
-              "NomNomzBot gebruikt YouTube API Services. Door YouTube te koppelen ga je akkoord met de YouTube-servicevoorwaarden: https://www.youtube.com/t/terms. Ook het privacybeleid van Google is van toepassing: https://policies.google.com/privacy",
-              "Google-gebruikersgegevens verwijderen: je kunt onze toegang altijd intrekken in je Google-account: https://security.google.com/settings/security/permissions. Om gegevens te laten wissen die wij al hebben, dien je een verzoek tot wissen in (zie \"Jouw rechten\"). Wij antwoorden binnen een maand. Daarna verwijderen wij je chatberichten, trekken wij je koppelingen in en anonimiseren wij je profiel, zodat niets meer te herstellen is."
             ]
           },
           {
