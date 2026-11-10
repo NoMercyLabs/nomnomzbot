@@ -230,8 +230,8 @@ public sealed partial class PlaybackDirector
     }
 
     /// <summary>
-    /// A song in the queue of a playing Spotify keeps waiting. A paused Spotify never reaches it, so it
-    /// gets one renewal, then a Resume: the song stays queued and plays when Spotify reaches it.
+    /// A song in Spotify's queue keeps waiting; the owner's own pause is never undone. A Spotify the director
+    /// holds for a video never reaches it, so that gets one renewal, then a Resume: the song stays queued.
     /// </summary>
     private async Task KeepWaitingOrResumeQueueAsync(
         PlaybackItem item,
@@ -240,10 +240,9 @@ public sealed partial class PlaybackDirector
     )
     {
         EngineReport? last = _reports.GetValueOrDefault(item.Engine);
-        bool paused = _spotifyHeldForYouTube || last is not { IsPlaying: true };
-        if (!paused || _renewedWhilePausedId != item.Id)
+        if (!_spotifyHeldForYouTube || _renewedWhilePausedId != item.Id)
         {
-            _renewedWhilePausedId = paused ? item.Id : null;
+            _renewedWhilePausedId = _spotifyHeldForYouTube ? item.Id : null;
             _startDeadline = _time.GetUtcNow() + StartDeadline;
             await MoveAsync(State, inputName, "start_still_queued", item.Id);
             return;

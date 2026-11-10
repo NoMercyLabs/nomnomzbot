@@ -49,6 +49,36 @@ public sealed partial class PlaybackDirectorTests
         return (rig, next);
     }
 
+    /// <summary>A line-up Spotify refused leaves the song out of its queue, so the skip sends a start and the hold stays.</summary>
+    private static async Task<(
+        Rig Rig,
+        PlaybackItem Song
+    )> SkippedVideoLeavesASongStartingOnHeldSpotify()
+    {
+        Rig rig = new();
+        PlaybackItem video = Item("yt1", EngineKind.YouTube);
+        PlaybackItem song = Item("sp1");
+        await rig.Spotify.EmitAsync(
+            new EngineReport(EngineKind.Spotify, HeldOwnTrack, true, 10_000, 200_000)
+        );
+        await rig.Request(video);
+        rig.Spotify.StartResult = EngineStartResult.Refused("made-up refusal");
+        await rig.Request(song);
+        await OwnSongEnds(rig, song);
+        await rig.Spotify.EmitAsync(
+            new EngineReport(EngineKind.Spotify, HeldOwnTrack, false, 0, 200_000)
+        );
+        await rig.Plays(rig.YouTube, video);
+
+        await rig.Director.HandleAsync(new OwnerSkip());
+        rig.Spotify.StartResult = EngineStartResult.Ok;
+        await rig.YouTube.EmitAsync(new TrackEnded(EngineKind.YouTube, "YouTube:yt1"));
+        rig.Spotify.Held.Add("sp1");
+
+        rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.Spotify, song));
+        return (rig, song);
+    }
+
     private static Task OwnSongEnds(Rig rig, PlaybackItem _) =>
         rig.Spotify.EmitAsync(new TrackEnded(EngineKind.Spotify, HeldOwnTrack));
 
@@ -122,33 +152,52 @@ public sealed partial class PlaybackDirectorTests
     }
 
     [Fact]
-    public async Task Starting_WhenSpotifyStaysPausedWithTheSongInItsQueue_ResumesWithin20Seconds()
+    public async Task Starting_WhenAHeldSpotifyStaysPausedWithTheSongInItsQueue_ResumesWithin20Seconds()
     {
-        Rig rig = new();
-        PlaybackItem song = Item("a");
-        await rig.Request(song);
-        rig.Spotify.Held.Add("a");
+        (Rig rig, _) = await SkippedVideoLeavesASongStartingOnHeldSpotify();
         EngineReport paused = new(EngineKind.Spotify, HeldOwnTrack, false, 5_000, 200_000);
 
         rig.Clock.Advance(TimeSpan.FromSeconds(10));
         await rig.Spotify.EmitAsync(paused);
+        rig.Spotify.Calls.Should().NotContain(new EngineCall("Resume"));
         rig.Clock.Advance(TimeSpan.FromSeconds(10));
         await rig.Spotify.EmitAsync(paused);
 
-        rig.Spotify.Calls.Should().Equal(new EngineCall("Start", "a"), new EngineCall("Resume"));
+        rig.Spotify.Calls.TakeLast(2)
+            .Should()
+            .Equal(new EngineCall("Start", "sp1"), new EngineCall("Resume"));
         rig.Director.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
-        rig.QueueIds.Should().Equal("a");
+        rig.QueueIds.Should().Equal("sp1");
         rig.Journal.Should().NotContain(e => e.Reason == "start_timeout");
         rig.Bus.Published.Should().NotContain(e => e is SongPlaybackFailedEvent);
     }
 
     [Fact]
-    public async Task Starting_AfterSpotifyResumedOnItsOwnQueue_TheWaitingSongStillPlays()
+    public async Task Starting_WithNoHoldAndTheOwnerPausedSpotify_TheSongKeepsWaitingAndNoResumeIsSent()
     {
         Rig rig = new();
         PlaybackItem song = Item("a");
         await rig.Request(song);
         rig.Spotify.Held.Add("a");
+        EngineReport ownerPaused = new(EngineKind.Spotify, HeldOwnTrack, false, 5_000, 200_000);
+
+        for (int poll = 0; poll < 6; poll++)
+        {
+            rig.Clock.Advance(TimeSpan.FromSeconds(10));
+            await rig.Spotify.EmitAsync(ownerPaused);
+        }
+
+        rig.Spotify.Calls.Should().Equal(new EngineCall("Start", "a"));
+        rig.Director.State.Should().Be(PlaybackState.Starting(EngineKind.Spotify, song));
+        rig.QueueIds.Should().Equal("a");
+        rig.Journal.Should().NotContain(e => e.Reason == "spotify_resumed_queue");
+        rig.Bus.Published.Should().NotContain(e => e is SongPlaybackFailedEvent);
+    }
+
+    [Fact]
+    public async Task Starting_AfterAHeldSpotifyResumedOnItsOwnQueue_TheWaitingSongStillPlays()
+    {
+        (Rig rig, PlaybackItem song) = await SkippedVideoLeavesASongStartingOnHeldSpotify();
         EngineReport paused = new(EngineKind.Spotify, HeldOwnTrack, false, 5_000, 200_000);
         rig.Clock.Advance(TimeSpan.FromSeconds(10));
         await rig.Spotify.EmitAsync(paused);
