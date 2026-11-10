@@ -19,6 +19,8 @@ const ALL_EVENTS: string[] = [
 interface TickerConfig { events: string[]; speed: number; count: number; accentColor: string }
 const cfg = reactive<TickerConfig>({ events: ALL_EVENTS.slice(), speed: 60, count: 20, accentColor: '#9146ff' })
 
+const TEST_SHOW_MS = 10000
+
 interface Chip { id: number; icon: string; text: string }
 const chips = ref<Chip[]>([])
 let seq = 0
@@ -67,10 +69,15 @@ function chipFor(type: string, data: unknown): Chip | null {
 }
 
 function handle(type: string, data: unknown, meta?: NnzEventMeta): void {
-  if (meta && meta.test) return // a dashboard test fire never joins the real ticker
   if (cfg.events.indexOf(type) === -1) return
   const chip: Chip | null = chipFor(type, data)
   if (!chip) return
+  if (meta && meta.test) {
+    // A dashboard test fire is shown for a short time and never stays in the real ticker.
+    chips.value = chips.value.concat([chip])
+    window.setTimeout(() => { chips.value = chips.value.filter((c: Chip) => c.id !== chip.id) }, TEST_SHOW_MS)
+    return
+  }
   const next: Chip[] = chips.value.concat([chip])
   while (next.length > Math.max(1, cfg.count)) next.shift() // retire the oldest past the retained count
   chips.value = next

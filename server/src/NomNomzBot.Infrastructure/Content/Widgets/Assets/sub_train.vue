@@ -13,9 +13,20 @@ const events = ref<number[]>([])
 const now = ref<number>(Date.now())
 let ticker: number | undefined
 
+// A dashboard test fire is shown for a short time and never joins the real train.
+const TEST_SHOW_MS = 10000
+const testCount = ref<number>(0)
+let testTimer: number | undefined
+
+function showTest(n: number): void {
+  testCount.value += Math.max(1, n)
+  if (testTimer) clearTimeout(testTimer)
+  testTimer = window.setTimeout(() => { testCount.value = 0 }, TEST_SHOW_MS)
+}
+
 const count = computed<number>(() => {
   const cutoff = now.value - cfg.windowMs
-  return events.value.filter((t) => t >= cutoff).length
+  return events.value.filter((t) => t >= cutoff).length + testCount.value
 })
 const visible = computed<boolean>(() => count.value > 0)
 
@@ -29,12 +40,12 @@ function add(n: number, t: number): void {
   now.value = Date.now()
 }
 function onSub(_d: unknown, _type: string, meta?: NnzEventMeta): void {
-  if (meta && meta.test) return // a dashboard test fire never extends the real train
+  if (meta && meta.test) return showTest(1)
   add(1, stamp(meta))
 }
 // GiftSubAlertDto (AlertDtos.cs) — camelCase on the wire: count, not amount. A gift of N counts as N.
 function onGift(d: NnzWidgetEventMap['gift'] | null | undefined, _type: string, meta?: NnzEventMeta): void {
-  if (meta && meta.test) return
+  if (meta && meta.test) return showTest(Number(d && d.count) || 1)
   add(Math.max(1, Number(d && d.count) || 1), stamp(meta))
 }
 
@@ -65,6 +76,7 @@ onUnmounted(() => {
   NomNomz.off('resub', onSub)
   NomNomz.off('gift', onGift)
   if (ticker) clearInterval(ticker)
+  if (testTimer) clearTimeout(testTimer)
 })
 </script>
 
