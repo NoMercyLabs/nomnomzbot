@@ -9,8 +9,8 @@
   SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 -->
 <script setup lang="ts">
-// A new overlay: a name and the language its source is written in. The code, settings and events
-// start empty and change in the editor.
+// A new overlay: a name and the language its source is written in. The bot builds it from a starter;
+// the code, settings and events change in the editor.
 import { ref, watch } from 'vue';
 import { useI18n } from 'vue-i18n';
 

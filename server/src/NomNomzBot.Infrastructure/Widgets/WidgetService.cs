@@ -111,8 +111,7 @@ public class WidgetService : IWidgetService
             return Errors.ChannelNotFound<WidgetDetail>(broadcasterId);
 
         // Create always produces a self-authored `custom` widget — the only Source create can yield (gallery
-        // installs go through InstallFromGalleryAsync). No version exists yet: the authored source arrives on the
-        // first compile-on-save, which appends the widget's first WidgetVersion and sets ActiveVersionId.
+        // installs go through InstallFromGalleryAsync).
         Widget widget = new()
         {
             BroadcasterId = broadcasterGuid,
@@ -129,8 +128,16 @@ public class WidgetService : IWidgetService
         await _db.SaveChangesAsync(cancellationToken);
         await PublishConfigChangedAsync(broadcasterGuid, widget.Id, "created", cancellationToken);
 
-        // A brand-new custom widget has no gallery link and no version yet — nothing to look up.
-        return Result.Success(ToDetail(widget, null, null));
+        // The widget starts on the starter for its framework, built as version 1, so its address shows something at
+        // once. A build that cannot run leaves the widget without a version; the editor then opens on the same starter.
+        await SaveProjectAsync(
+            broadcasterId,
+            widget.Id.ToString(),
+            StarterProject(widget.Framework),
+            cancellationToken
+        );
+
+        return await GetAsync(broadcasterId, widget.Id.ToString(), cancellationToken);
     }
 
     public async Task<Result<WidgetDetail>> CloneToEditAsync(
@@ -972,11 +979,9 @@ public class WidgetService : IWidgetService
             .WidgetVersions.Where(v => v.WidgetId == widgetGuid)
             .OrderByDescending(v => v.VersionNumber)
             .FirstOrDefaultAsync(cancellationToken);
+        // A widget with no saved version opens on the starter for its framework. Nothing is stored until the first save.
         if (latest is null)
-            return Result.Failure<ProjectDto>(
-                "This widget has no saved project yet — compile a first version.",
-                "NOT_FOUND"
-            );
+            return Result.Success(StarterProject(widget.Framework));
 
         return Result.Success(ToProjectDto(latest, widget.Framework));
     }
@@ -1609,6 +1614,17 @@ public class WidgetService : IWidgetService
     // Project a stored version's file set + manifest back to the editor's wire shape. A legacy row whose
     // FilesJson/ManifestJson was never backfilled is projected as its one-file scaffold from the compiled SourceCode,
     // so GET always returns a coherent project.
+    private static ProjectDto StarterProject(string framework)
+    {
+        (Dictionary<string, string> files, ProjectManifest manifest) = ProjectScaffold.SingleFile(
+            "widget",
+            framework,
+            WidgetTemplateCatalogue.StarterSource(framework)
+        );
+
+        return new(files, ProjectManifestDto.FromManifest(manifest));
+    }
+
     private static ProjectDto ToProjectDto(WidgetVersion version, string framework)
     {
         Dictionary<string, string>? files = ProjectJson.DeserializeFiles(version.FilesJson);

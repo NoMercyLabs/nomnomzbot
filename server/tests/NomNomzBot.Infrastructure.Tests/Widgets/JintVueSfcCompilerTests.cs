@@ -14,6 +14,7 @@ using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Logging.Abstractions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Widgets.Services;
+using NomNomzBot.Infrastructure.Widgets;
 using NomNomzBot.Infrastructure.Widgets.Bundling;
 
 namespace NomNomzBot.Infrastructure.Tests.Widgets;
@@ -73,6 +74,21 @@ public sealed class JintVueSfcCompilerTests : IClassFixture<VueSfcCompilerFixtur
         output.ModuleCode.Should().MatchRegex("__scopeId = \"data-v-[0-9a-f]{8}\"");
         output.Css.Should().MatchRegex(@"\.counter\[data-v-[0-9a-f]{8}\]");
         output.Css.Should().Contain("var(--");
+    }
+
+    // A new Vue widget is built from this source, so it must compile and keep its follow handler.
+    [Fact]
+    public void The_vue_starter_of_a_new_widget_compiles_and_listens_for_a_follow()
+    {
+        Result<VueSfcOutput> result = _fixture.Compiler.Compile(
+            WidgetTemplateCatalogue.StarterSource("vue"),
+            "index.vue"
+        );
+
+        result.IsSuccess.Should().BeTrue(result.ErrorMessage);
+        result.Value.ModuleCode.Should().Contain("NomNomz.on('follow'");
+        result.Value.ModuleCode.Should().Contain("__sfc_main__.render = render");
+        result.Value.Css.Should().MatchRegex(@"\.stage\[data-v-[0-9a-f]{8}\]");
     }
 
     [Fact]

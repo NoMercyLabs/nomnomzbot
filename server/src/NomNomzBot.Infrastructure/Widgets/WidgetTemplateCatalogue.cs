@@ -135,6 +135,63 @@ public static class WidgetTemplateCatalogue
         </html>
         """;
 
+    private const string BlankVue = """
+        <script setup lang="ts">
+        import { ref, onMounted, onUnmounted } from 'vue'
+
+        // The overlay SDK is the typed global `NomNomz`. A few things you can do:
+        //   NomNomz.on('cheer', (d) => { /* d.displayName, d.bits */ })
+        //   NomNomz.onSettings((s) => { /* dashboard settings changed */ })
+        // Edit this code and save. The overlay reloads by itself.
+        const line = ref<string>('Your widget is live 🎉')
+
+        function onFollow(d: NnzWidgetEventMap['follow'] | null | undefined): void {
+          line.value = '💜 ' + ((d && d.displayName) || 'Someone') + ' followed!'
+        }
+
+        onMounted(() => {
+          if (typeof NomNomz === 'undefined') return
+          NomNomz.on('follow', onFollow)
+        })
+
+        onUnmounted(() => {
+          if (typeof NomNomz === 'undefined') return
+          NomNomz.off('follow', onFollow)
+        })
+        </script>
+
+        <template>
+          <div class="stage"><h1>{{ line }}</h1></div>
+        </template>
+
+        <style scoped>
+        .stage {
+          display: grid;
+          place-items: center;
+          height: 100vh;
+          text-align: center;
+          font-family: system-ui, -apple-system, sans-serif;
+          color: #fff;
+        }
+
+        h1 {
+          margin: 0;
+          font-size: 42px;
+          text-shadow: 0 2px 8px rgba(0, 0, 0, 0.5);
+        }
+        </style>
+        """;
+
+    /// <summary>
+    /// The source a widget with no saved version opens on, so the editor is never blank and the first save builds.
+    /// </summary>
+    public static string StarterSource(string framework)
+    {
+        return string.Equals(framework.Trim(), "vue", StringComparison.OrdinalIgnoreCase)
+            ? BlankVue
+            : Blank;
+    }
+
     public static readonly IReadOnlyList<WidgetTemplate> All =
     [
         new(

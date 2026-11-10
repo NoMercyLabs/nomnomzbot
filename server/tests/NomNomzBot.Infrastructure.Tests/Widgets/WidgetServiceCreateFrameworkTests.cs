@@ -36,12 +36,27 @@ public sealed class WidgetServiceCreateFrameworkTests
 {
     private static readonly FakeTimeProvider Clock = new(new(2026, 10, 4, 12, 0, 0, TimeSpan.Zero));
 
+    // The build tool is absent here: a new widget is still stored, without a first version.
+    private static IWidgetBuildService NoBuildTool()
+    {
+        IWidgetBuildService build = Substitute.For<IWidgetBuildService>();
+        build
+            .BuildAsync(Arg.Any<WidgetBuildInput>(), Arg.Any<CancellationToken>())
+            .Returns(
+                Result.Failure<WidgetBuildOutput>(
+                    "The widget build tool is not installed.",
+                    "WIDGET_BUILD_TOOL_UNAVAILABLE"
+                )
+            );
+        return build;
+    }
+
     private static WidgetService NewService(WidgetTestDbContext db) =>
         new(
             db,
             new ConfigurationBuilder().Build(),
             Substitute.For<IEventBus>(),
-            Substitute.For<IWidgetBuildService>(),
+            NoBuildTool(),
             new WidgetSettingsSchemaProvider(),
             Clock,
             Substitute.For<IMusicService>(),
@@ -107,5 +122,8 @@ public sealed class WidgetServiceCreateFrameworkTests
 
         created.IsSuccess.Should().BeTrue();
         (await db.Widgets.SingleAsync()).Framework.Should().Be(framework);
+        (await db.WidgetVersions.CountAsync())
+            .Should()
+            .Be(0, "a failed first build stores no version");
     }
 }

@@ -366,12 +366,43 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
         read.ErrorCode.Should().Be("NOT_FOUND");
     }
 
+    // A new widget is finished when its address shows something: the starter, built as version 1.
     [Fact]
-    public async Task GetProject_ForAWidgetWithNoVersion_IsNotFound()
+    public async Task Create_BuildsTheStarterAsVersionOne_SoTheNewWidgetIsLiveAtOnce()
     {
         using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
         Guid channel = await SeedChannelAsync(database);
-        Guid widget = await SeedWidgetAsync(database, channel, "vanilla");
+
+        await using WidgetTestDbContext db = database.NewContext();
+        WidgetService service = NewService(db, Substitute.For<IEventBus>());
+        Result<WidgetDetail> created = await service.CreateAsync(
+            channel.ToString(),
+            new() { Name = "Mine", Framework = "vanilla" }
+        );
+
+        created.IsSuccess.Should().BeTrue(created.ErrorMessage);
+        WidgetVersion version = await db.WidgetVersions.AsNoTracking().SingleAsync();
+        version.WidgetId.Should().Be(created.Value.Id);
+        version.VersionNumber.Should().Be(1);
+        version.BuildStatus.Should().Be("success");
+        version.SourceCode.Should().Contain("NomNomz.on('follow'");
+        version.CompiledBundle.Should().NotBeNullOrEmpty();
+        created.Value.ActiveVersionId.Should().Be(version.Id);
+        created.Value.EventSubscriptions.Should().Contain("follow");
+    }
+
+    // A widget made a moment ago has no saved version. The editor must still open, on a starter that builds.
+    [Theory]
+    [InlineData("vanilla", "index.html")]
+    [InlineData("vue", "index.vue")]
+    public async Task GetProject_ForAWidgetWithNoVersion_OpensTheStarterAndItsFirstSaveBuilds(
+        string framework,
+        string entry
+    )
+    {
+        using WidgetSqliteTestDatabase database = WidgetSqliteTestDatabase.Open();
+        Guid channel = await SeedChannelAsync(database);
+        Guid widget = await SeedWidgetAsync(database, channel, framework);
 
         await using WidgetTestDbContext db = database.NewContext();
         WidgetService service = NewService(db, Substitute.For<IEventBus>());
@@ -380,8 +411,33 @@ public sealed class WidgetServiceProjectTests : IClassFixture<VueSfcCompilerFixt
             widget.ToString()
         );
 
-        got.IsFailure.Should().BeTrue();
-        got.ErrorCode.Should().Be("NOT_FOUND");
+        got.IsSuccess.Should().BeTrue();
+        got.Value.Manifest.Entry.Should().Be(entry);
+        got.Value.Manifest.Framework.Should().Be(framework);
+        got.Value.Files.Should().ContainKey(entry);
+        got.Value.Files[entry].Should().Contain("NomNomz.on('follow'");
+        (await db.WidgetVersions.AnyAsync(v => v.WidgetId == widget))
+            .Should()
+            .BeFalse("opening the editor saves nothing");
+
+        Result<WidgetVersionDetail> saved = await service.SaveProjectAsync(
+            channel.ToString(),
+            widget.ToString(),
+            got.Value
+        );
+
+        if (saved.IsFailure)
+        {
+            // esbuild absent (binary-less CI): only then may the first save fail, and it stores nothing.
+            saved.ErrorCode.Should().Be("SERVICE_UNAVAILABLE", saved.ErrorMessage);
+            return;
+        }
+
+        saved.Value.VersionNumber.Should().Be(1);
+        saved.Value.BuildStatus.Should().Be("success");
+        Widget stored = await db.Widgets.AsNoTracking().SingleAsync(w => w.Id == widget);
+        stored.ActiveVersionId.Should().Be(saved.Value.Id);
+        stored.EventSubscriptions.Should().Contain("follow");
     }
 
     [Fact]
