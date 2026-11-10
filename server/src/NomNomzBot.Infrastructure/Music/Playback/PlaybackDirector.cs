@@ -114,6 +114,7 @@ public sealed partial class PlaybackDirector : IDisposable
         try
         {
             await ObserveHeldRecoveryAsync(input, ct);
+            await ObserveSpotifyReturnAsync(input, ct);
             RenewReportDeadline(input);
             await RaiseDueDeadlinesAsync(ct);
             _ignored = WaitsForHeldRecovery(input);
@@ -158,6 +159,12 @@ public sealed partial class PlaybackDirector : IDisposable
         if (HeldRecoveryDue())
         {
             await FinishHeldRecoveryAsync(ct);
+            return;
+        }
+
+        if (SpotifyReturnDue())
+        {
+            await RetrySpotifyReturnAsync(ct);
             return;
         }
 

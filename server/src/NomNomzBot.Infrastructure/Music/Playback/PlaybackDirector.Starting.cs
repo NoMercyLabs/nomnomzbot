@@ -34,6 +34,7 @@ public sealed partial class PlaybackDirector
         _startDeadline = null;
         _pausedForHandOver = null;
         _renewedWhilePausedId = null;
+        DeferSpotifyReturnForVideo(item);
         PlaybackState starting = PlaybackState.Starting(item.Engine, item);
         if (stopEngine is { } old)
         {
@@ -123,8 +124,8 @@ public sealed partial class PlaybackDirector
 
         if (WaitsInHeldSpotify(item))
         {
-            if (await SendHeldSpotifyToAsync(item, inputName, ct))
-                _startDeadline = _time.GetUtcNow() + StartDeadline;
+            await SendHeldSpotifyToAsync(item, ct);
+            _startDeadline = _time.GetUtcNow() + StartDeadline;
 
             return;
         }

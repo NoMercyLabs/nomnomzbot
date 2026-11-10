@@ -192,6 +192,7 @@ public sealed class PlaybackDirectorHeldSpotifyRestartTests : IDisposable
 
         second.Spotify.Calls.Should().Equal(Resume);
         second.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
+        await second.Spotify.EmitAsync(Report(EngineKind.Spotify, OwnNextTrack, true));
         (await HeldFactAsync()).Should().BeNull();
     }
 
@@ -204,6 +205,7 @@ public sealed class PlaybackDirectorHeldSpotifyRestartTests : IDisposable
         _clock.Advance(PastGrace);
         await second.TickAsync();
         second.Spotify.Calls.Should().Equal(Resume);
+        await second.Spotify.EmitAsync(Report(EngineKind.Spotify, OwnNextTrack, true));
 
         Life third = NewLife();
         await third.TickAsync();
@@ -235,6 +237,7 @@ public sealed class PlaybackDirectorHeldSpotifyRestartTests : IDisposable
 
         second.Spotify.Calls.Should().Equal(Resume);
         second.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
+        await second.Spotify.EmitAsync(Report(EngineKind.Spotify, OwnNextTrack, true));
         (await HeldFactAsync()).Should().BeNull();
     }
 
@@ -247,6 +250,7 @@ public sealed class PlaybackDirectorHeldSpotifyRestartTests : IDisposable
         await first.YouTube.EmitAsync(new TrackEnded(EngineKind.YouTube, VideoUri));
 
         first.Spotify.Calls.Should().ContainSingle(c => c == Resume);
+        await first.Spotify.EmitAsync(Report(EngineKind.Spotify, OwnNextTrack, true));
         (await HeldFactAsync()).Should().BeNull();
         Life second = NewLife();
         await second.TickAsync();
@@ -316,6 +320,7 @@ public sealed class PlaybackDirectorHeldSpotifyRestartTests : IDisposable
 
         second.Spotify.Calls.Should().Equal(Resume);
         second.State.Should().Be(PlaybackState.Playing(EngineKind.Spotify, null));
+        await second.Spotify.EmitAsync(Report(EngineKind.Spotify, OwnNextTrack, true));
         (await HeldFactAsync()).Should().BeNull();
     }
 
@@ -351,6 +356,7 @@ public sealed class PlaybackDirectorHeldSpotifyRestartTests : IDisposable
         await first.YouTube.EmitAsync(new TrackEnded(EngineKind.YouTube, VideoUri));
 
         first.Spotify.Calls.Should().ContainSingle(c => c == Resume);
+        await first.Spotify.EmitAsync(Report(EngineKind.Spotify, OwnTrack, true));
         (await HeldFactAsync()).Should().BeNull();
         Life second = NewLife();
         await second.TickAsync();
@@ -369,6 +375,7 @@ public sealed class PlaybackDirectorHeldSpotifyRestartTests : IDisposable
         await first.YouTube.EmitAsync(new TrackEnded(EngineKind.YouTube, VideoUri));
 
         first.Spotify.Calls.Count(c => c == Resume).Should().Be(2, "one return per video");
+        await first.Spotify.EmitAsync(Report(EngineKind.Spotify, OwnNextTrack, true));
         (await HeldFactAsync()).Should().BeNull();
         Life second = NewLife();
         await second.TickAsync();

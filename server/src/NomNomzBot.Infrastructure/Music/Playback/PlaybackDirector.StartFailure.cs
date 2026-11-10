@@ -214,7 +214,11 @@ public sealed partial class PlaybackDirector
         )
             return null;
 
-        if (paused == memory.Engine)
+        if (paused == EngineKind.Spotify && memory.Engine == EngineKind.Spotify)
+        {
+            await SendSpotifyReturnAsync(1, false, ct);
+        }
+        else if (paused == memory.Engine)
         {
             if (!await CommandAsync(memory.Engine, inputName, e => e.ResumeAsync(ct)))
                 return null;

@@ -158,29 +158,20 @@ public sealed partial class PlaybackDirector
         }
 
         PlaybackItem? video = State.Item;
-        if (await ReturnToSpotifyAsync(nameof(TrackEnding), ct))
-            _youTubeEnding = video;
+        await ReturnToSpotifyAsync(nameof(TrackEnding), ct);
+        _youTubeEnding = video;
     }
 
     /// <summary>
     /// Resumes the Spotify song the takeover paused. A lined-up request that arrived after that pause is not
-    /// the paused song, so Spotify skips to it instead.
+    /// the paused song, so Spotify skips to it instead. A send that fails is retried by the deadline timer.
     /// </summary>
-    private async Task<bool> ReturnToSpotifyAsync(string inputName, CancellationToken ct)
+    private async Task ReturnToSpotifyAsync(string inputName, CancellationToken ct)
     {
         ReleaseSpotifyHold();
         EngineReport? paused = _reports.GetValueOrDefault(EngineKind.Spotify);
         bool skip = LinedUpRow() is { } waiting && paused?.Uri != waiting.Uri;
-        if (
-            !await CommandAsync(
-                EngineKind.Spotify,
-                inputName,
-                e => skip ? e.SkipAsync(ct) : e.ResumeAsync(ct)
-            )
-        )
-            return false;
-
-        MarkSent(EngineKind.Spotify);
+        await SendSpotifyReturnAsync(1, skip, ct);
         // After a skip Spotify plays a track no report has named yet; the next poll names it.
         _ownerReport = skip || paused is null ? null : paused with { IsPlaying = true };
         await MoveAsync(
@@ -188,7 +179,6 @@ public sealed partial class PlaybackDirector
             inputName,
             skip ? "spotify_skipped_to_request" : "spotify_resumed"
         );
-        return true;
     }
 
     private void ReleaseSpotifyHold()
@@ -206,27 +196,14 @@ public sealed partial class PlaybackDirector
 
     /// <summary>
     /// Ends the hold for a song Spotify already has: Resume when the paused track is that song, else Skip
-    /// to it. False when the command was blocked; the state then shows the block.
+    /// to it. A send that fails is retried by the deadline timer.
     /// </summary>
-    private async Task<bool> SendHeldSpotifyToAsync(
-        PlaybackItem item,
-        string inputName,
-        CancellationToken ct
-    )
+    private Task SendHeldSpotifyToAsync(PlaybackItem item, CancellationToken ct)
     {
         ReleaseSpotifyHold();
         bool skip = _reports.GetValueOrDefault(EngineKind.Spotify)?.Uri != item.Uri;
-        if (
-            !await CommandAsync(
-                EngineKind.Spotify,
-                inputName,
-                e => skip ? e.SkipAsync(ct) : e.ResumeAsync(ct)
-            )
-        )
-            return false;
 
-        MarkSent(EngineKind.Spotify);
-        return true;
+        return SendSpotifyReturnAsync(1, skip, ct);
     }
 
     /// <summary>
@@ -250,10 +227,7 @@ public sealed partial class PlaybackDirector
 
         _renewedWhilePausedId = null;
         ReleaseSpotifyHold();
-        if (!await CommandAsync(item.Engine, inputName, e => e.ResumeAsync(ct)))
-            return;
-
-        MarkSent(item.Engine);
+        await SendSpotifyReturnAsync(1, false, ct);
         _ownerReport = last is null ? null : last with { IsPlaying = true };
         await MoveAsync(
             PlaybackState.Playing(item.Engine, null),

@@ -154,6 +154,9 @@ public sealed partial class PlaybackDirector
             return;
         }
 
+        if (_spotifyReturnGaveUp && input is RequestAdded && _queue.Head is null)
+            return;
+
         string? signal = null;
         if (_outputWait is { } wait)
         {
@@ -239,6 +242,10 @@ public sealed partial class PlaybackDirector
 
         if (!report.IsPlaying)
         {
+            // Still paused while the return retries: that is our own pause, not the owner's.
+            if (_spotifyReturn is not null && report.Engine == EngineKind.Spotify)
+                return;
+
             if (State.Kind == PlaybackStateKind.Playing && report.Engine != State.Engine)
                 await SilenceForeignAsync(report, ct);
             else

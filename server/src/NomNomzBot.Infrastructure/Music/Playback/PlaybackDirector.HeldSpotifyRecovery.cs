@@ -68,7 +68,9 @@ public sealed partial class PlaybackDirector
         if (_pausedForHandOver == EngineKind.Spotify)
             return true;
 
-        await ForgetSpotifyHeldAsync(ct);
+        if (_spotifyReturn is null)
+            await ForgetSpotifyHeldAsync(ct);
+
         return false;
     }
 
@@ -144,6 +146,7 @@ public sealed partial class PlaybackDirector
     /// <summary>The music is with Spotify again, by whichever path, so the hold is over.</summary>
     private Task ForgetFinishedHoldAsync(CancellationToken ct) =>
         _heldRecoveryDeadline is null
+        && _spotifyReturn is null
         && State
             is {
                 Engine: EngineKind.Spotify,
