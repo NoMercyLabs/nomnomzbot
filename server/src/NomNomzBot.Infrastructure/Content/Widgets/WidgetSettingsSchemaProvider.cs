@@ -159,6 +159,7 @@ public sealed class WidgetSettingsSchemaProvider : IWidgetSettingsSchemaProvider
                         "follower_count",
                         "latest_sub",
                         "sub_count",
+                        "member_count",
                         "top_cheerer"
                     )
                 ),

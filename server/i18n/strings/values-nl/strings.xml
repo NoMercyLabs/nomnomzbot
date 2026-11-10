@@ -5303,6 +5303,7 @@
     <string name="widget_labels_label_option_follower_count">Aantal volgers</string>
     <string name="widget_labels_label_option_latest_sub">Nieuwste abonnee</string>
     <string name="widget_labels_label_option_sub_count">Aantal abonnees</string>
+    <string name="widget_labels_label_option_member_count">Aantal YouTube-leden</string>
     <string name="widget_labels_label_option_top_cheerer">Grootste cheerer</string>
     <string name="widget_chat_box_theme_option_dark">Donker</string>
     <string name="widget_chat_box_theme_option_light">Licht</string>

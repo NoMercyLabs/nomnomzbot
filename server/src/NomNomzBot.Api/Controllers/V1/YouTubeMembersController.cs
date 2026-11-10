@@ -14,6 +14,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using NomNomzBot.Api.Authorization;
 using NomNomzBot.Api.Models;
+using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.YouTube;
 
 namespace NomNomzBot.Api.Controllers.V1;
@@ -47,4 +48,20 @@ public class YouTubeMembersController(IYouTubeMembersService members) : BaseCont
         ResultResponse(
             await members.GetMembersAsync(channelId, pageToken, take ?? DefaultTake, ct)
         );
+
+    /// <summary>
+    /// How many YouTube members the channel has. <c>count</c> is null when the bot cannot read them, so a page
+    /// shows no number instead of a zero.
+    /// </summary>
+    [HttpGet("count")]
+    [RequireAction("community:read")]
+    [ProducesResponseType<StatusResponseDto<YouTubeMemberCountDto>>(StatusCodes.Status200OK)]
+    public async Task<IActionResult> GetMemberCount(Guid channelId, CancellationToken ct)
+    {
+        Result<int> count = await members.GetMemberCountAsync(channelId, ct);
+
+        return ResultResponse(
+            Result.Success(new YouTubeMemberCountDto(count.IsSuccess ? count.Value : null))
+        );
+    }
 }

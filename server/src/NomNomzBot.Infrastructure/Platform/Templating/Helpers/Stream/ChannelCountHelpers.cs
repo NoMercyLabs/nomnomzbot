@@ -11,7 +11,10 @@
 
 namespace NomNomzBot.Infrastructure.Platform.Templating.Helpers.Stream;
 
-/// <summary>The channel's follower, subscriber, editor, moderator and VIP counts, as Twitch reports them.</summary>
+/// <summary>
+/// The channel's follower, subscriber, editor, moderator and VIP counts, as Twitch reports them, and its
+/// member count, as YouTube reports it.
+/// </summary>
 internal sealed class ChannelCountHelpers()
     : StreamHelperGroup(
         "channel",
@@ -34,6 +37,13 @@ internal sealed class ChannelCountHelpers()
             "80",
             StreamSources.Subscribers,
             call => call.Data.SubscriberCountAsync(call.Ct),
+            (count, call) => StreamText.Grouped(count, call.Culture)
+        ),
+        StreamHelperRow.ReadNumber(
+            "channel.members",
+            "12",
+            StreamSources.YouTubeMembers,
+            call => call.Data.YouTubeMemberCountAsync(call.Ct),
             (count, call) => StreamText.Grouped(count, call.Culture)
         ),
         StreamHelperRow.ReadNumber(

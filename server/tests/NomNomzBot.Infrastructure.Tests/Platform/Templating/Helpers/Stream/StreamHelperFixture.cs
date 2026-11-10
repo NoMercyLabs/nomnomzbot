@@ -16,6 +16,7 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Application.Dashboard.Services;
 using NomNomzBot.Application.Raids;
@@ -68,6 +69,7 @@ internal sealed class StreamHelperFixture : IAsyncDisposable
             .AddSingleton(AnalyticsFake())
             .AddSingleton(ChannelsApiFake())
             .AddSingleton(SubscriptionsApiFake())
+            .AddSingleton(YouTubeMembersFake())
             .AddSingleton(ModeratorsApiFake())
             .AddSingleton(TeamsApiFake())
             .AddSingleton(VideosApiFake())
@@ -373,6 +375,22 @@ internal sealed class StreamHelperFixture : IAsyncDisposable
                 Task.FromResult(Result.Success(call.ArgAt<Guid>(0) == ChannelA ? 80 : 2))
             );
         return api;
+    }
+
+    /// <summary>Channel A has 12 YouTube members; channel B's members cannot be read.</summary>
+    private static IYouTubeMembersService YouTubeMembersFake()
+    {
+        IYouTubeMembersService members = Substitute.For<IYouTubeMembersService>();
+        members
+            .GetMemberCountAsync(Arg.Any<Guid>(), Arg.Any<CancellationToken>())
+            .Returns(call =>
+                Task.FromResult(
+                    call.ArgAt<Guid>(0) == ChannelA
+                        ? Result.Success(12)
+                        : Result.Failure<int>("not allowed", "NOT_AVAILABLE")
+                )
+            );
+        return members;
     }
 
     private static ITwitchModeratorsApi ModeratorsApiFake()

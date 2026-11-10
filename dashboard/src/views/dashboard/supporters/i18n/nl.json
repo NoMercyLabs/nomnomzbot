@@ -6,6 +6,8 @@
       "stats": {
         "subscribers": "Abonnees",
         "subscribersContext": "Nu op Twitch",
+        "members": "YouTube-leden",
+        "membersContext": "Nu op YouTube",
         "gifts": "Cadeau-events",
         "bits": "Bits gecheerd",
         "recent": "In de recente activiteit"

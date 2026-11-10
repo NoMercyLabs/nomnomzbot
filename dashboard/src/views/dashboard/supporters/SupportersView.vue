@@ -15,6 +15,7 @@ import { computed } from 'vue';
 import { useI18n } from 'vue-i18n';
 
 import { useHomeStats, useSupporterActivity } from '@/api/home';
+import { useYouTubeMemberCount } from '@/api/youtubeMembers';
 import { useSupporterEvents, type SupporterEvent } from '@/api/supporters';
 import PageBody from '@/components/layout/PageBody.vue';
 import PageHeader from '@/components/layout/PageHeader.vue';
@@ -63,6 +64,9 @@ const cheers = computed<CheerRow[]>(() => cheerRows(activity.data.value ?? []));
 const cheerers = computed(() => topCheerers(cheers.value));
 const gifters = computed(() => topGifters(subscriptions.value));
 const subscriberCount = computed<number>(() => Number(stats.data.value?.subscriberCount ?? 0));
+// Null when the bot could not read the YouTube members: the tile is left out, never shown as 0.
+const members = useYouTubeMemberCount(channelId);
+const memberCount = computed<number | null>(() => members.data.value ?? null);
 
 const shownSubscriptions = useShowMore(subscriptions);
 const shownCheers = useShowMore(cheers);
@@ -123,12 +127,24 @@ function isNamed(person: Person): person is Person & { userId: string; name: str
 <template>
   <PageHeader :title="t('dashboard.supporters.title')" />
   <PageBody>
-    <StatStrip v-if="can('dashboard:read')" class="max-sm:grid-cols-3! max-sm:gap-2!">
+    <!-- A phone shows three tiles in one row; with the YouTube members tile it shows two rows of two. -->
+    <StatStrip
+      v-if="can('dashboard:read')"
+      class="max-sm:gap-2!"
+      :class="memberCount === null ? 'max-sm:grid-cols-3!' : 'max-sm:grid-cols-2!'"
+    >
       <StatTile
         class="max-sm:p-3!"
         :label="t('dashboard.supporters.stats.subscribers')"
         :value="subscriberCount"
         :context="t('dashboard.supporters.stats.subscribersContext')"
+      />
+      <StatTile
+        v-if="memberCount !== null"
+        class="max-sm:p-3!"
+        :label="t('dashboard.supporters.stats.members')"
+        :value="memberCount"
+        :context="t('dashboard.supporters.stats.membersContext')"
       />
       <StatTile
         class="max-sm:p-3!"

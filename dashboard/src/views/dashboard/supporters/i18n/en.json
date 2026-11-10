@@ -6,6 +6,8 @@
       "stats": {
         "subscribers": "Twitch subscribers",
         "subscribersContext": "On Twitch right now",
+        "members": "YouTube members",
+        "membersContext": "On YouTube right now",
         "gifts": "Gift events",
         "bits": "Bits cheered",
         "recent": "In the recent activity"

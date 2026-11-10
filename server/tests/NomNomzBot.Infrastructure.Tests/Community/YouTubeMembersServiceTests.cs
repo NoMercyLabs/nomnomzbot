@@ -12,6 +12,7 @@
 using System.Net;
 using FluentAssertions;
 using Microsoft.Extensions.Logging.Abstractions;
+using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Infrastructure.Community;
@@ -97,10 +98,39 @@ public sealed class YouTubeMembersServiceTests
             new(
                 new SingleHandlerClientFactory(http),
                 tokens,
+                new FakeCache(),
                 NullLogger<YouTubeMembersService>.Instance
             ),
             http
         );
+    }
+
+    private sealed class FakeCache : ICacheService
+    {
+        private readonly Dictionary<string, object?> _store = [];
+
+        public Task<T?> GetAsync<T>(string key, CancellationToken ct = default) =>
+            Task.FromResult(_store.TryGetValue(key, out object? value) ? (T?)value : default);
+
+        public Task SetAsync<T>(
+            string key,
+            T value,
+            TimeSpan? expiry = null,
+            CancellationToken ct = default
+        )
+        {
+            _store[key] = value;
+            return Task.CompletedTask;
+        }
+
+        public Task RemoveAsync(string key, CancellationToken ct = default)
+        {
+            _store.Remove(key);
+            return Task.CompletedTask;
+        }
+
+        public Task<bool> ExistsAsync(string key, CancellationToken ct = default) =>
+            Task.FromResult(_store.ContainsKey(key));
     }
 
     private static bool IsMembers(HttpRequestMessage request) =>
@@ -218,6 +248,66 @@ public sealed class YouTubeMembersServiceTests
         result.IsSuccess.Should().BeTrue();
         result.Value.Access.Should().Be(YouTubeMembersAccess.NotConnected);
         http.RequestUrls.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task The_member_count_of_a_list_that_fits_one_page_is_the_number_of_members_read()
+    {
+        (YouTubeMembersService sut, RecordingHttpHandler http) = Build();
+        http.RespondWhen(
+            IsMembers,
+            HttpStatusCode.OK,
+            MembersPage.Replace("\"nextPageToken\": \"page-2\",", string.Empty)
+        );
+
+        Result<int> count = await sut.GetMemberCountAsync(Channel);
+
+        count.IsSuccess.Should().BeTrue();
+        count.Value.Should().Be(2);
+        http.RequestUrls.Should().ContainSingle("the count does not read the levels");
+        http.RequestUrls[0].Should().Contain("maxResults=1000");
+    }
+
+    [Fact]
+    public async Task The_member_count_of_a_longer_list_is_the_total_YouTube_reports()
+    {
+        (YouTubeMembersService sut, RecordingHttpHandler http) = Build();
+        http.RespondWhen(IsMembers, HttpStatusCode.OK, MembersPage);
+
+        Result<int> count = await sut.GetMemberCountAsync(Channel);
+
+        count.Value.Should().Be(42);
+    }
+
+    [Fact]
+    public async Task The_member_count_is_kept_so_a_second_ask_costs_no_Google_read()
+    {
+        (YouTubeMembersService sut, RecordingHttpHandler http) = Build();
+        http.RespondWhen(IsMembers, HttpStatusCode.OK, MembersPage);
+
+        await sut.GetMemberCountAsync(Channel);
+        Result<int> again = await sut.GetMemberCountAsync(Channel);
+
+        again.Value.Should().Be(42);
+        http.RequestUrls.Should().ContainSingle();
+    }
+
+    [Theory]
+    [InlineData(HttpStatusCode.BadRequest)]
+    [InlineData(HttpStatusCode.Forbidden)]
+    [InlineData(HttpStatusCode.ServiceUnavailable)]
+    public async Task A_member_list_that_cannot_be_read_gives_no_count_never_a_zero_and_is_asked_again(
+        HttpStatusCode status
+    )
+    {
+        (YouTubeMembersService sut, RecordingHttpHandler http) = Build();
+        http.RespondWhen(IsMembers, status);
+
+        Result<int> count = await sut.GetMemberCountAsync(Channel);
+        await sut.GetMemberCountAsync(Channel);
+
+        count.IsFailure.Should().BeTrue();
+        http.RequestUrls.Should().HaveCount(2, "a refusal is not kept");
     }
 
     [Fact]

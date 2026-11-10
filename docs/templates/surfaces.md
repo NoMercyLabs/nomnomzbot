@@ -229,6 +229,7 @@ This page is generated from the helper registry by `TemplateSurfaceAvailability.
 | `channel.language` | Y | Y | Y | Y | Y | Y | V |
 | `channel.localTime` | Y | Y | Y | Y | Y | Y | V |
 | `channel.login` | N | N | N | N | Y | N | V |
+| `channel.members` | Y | Y | Y | Y | Y | Y | V |
 | `channel.mention` | Y | Y | Y | Y | Y | Y | V |
 | `channel.mods.count` | Y | Y | Y | Y | Y | Y | V |
 | `channel.name` | N | N | N | N | Y | N | V |

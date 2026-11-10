@@ -107,6 +107,8 @@ function onCount(d: NnzWidgetEventMap['count']): void {
     subCount = Number(d.value)
     raw.value = String(subCount)
   }
+  // YouTube members: the total comes on every overlay load; no live event changes it between loads.
+  if (cfg.label === 'member_count' && d.metric === 'members') raw.value = String(Number(d.value))
 }
 
 onMounted(() => {

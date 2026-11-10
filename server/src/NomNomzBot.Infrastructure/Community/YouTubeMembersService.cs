@@ -13,6 +13,7 @@ using System.Net;
 using System.Net.Http.Json;
 using System.Text.Json.Serialization;
 using Microsoft.Extensions.Logging;
+using NomNomzBot.Application.Abstractions.Caching;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.YouTube;
 
@@ -28,19 +29,59 @@ namespace NomNomzBot.Infrastructure.Community;
 public sealed class YouTubeMembersService(
     IHttpClientFactory httpClientFactory,
     IYouTubeAccessTokenProvider tokens,
+    ICacheService cache,
     ILogger<YouTubeMembersService> logger
 ) : IYouTubeMembersService
 {
     private const string ApiBase = "https://www.googleapis.com/youtube/v3";
     private const int MaxPageSize = 1000;
 
+    // Every read costs Google quota, and a count is asked on every overlay load and stats refresh.
+    private static readonly TimeSpan CountTtl = TimeSpan.FromMinutes(5);
+
     private readonly HttpClient _http = httpClientFactory.CreateClient("youtube");
 
-    public async Task<Result<YouTubeMembersDto>> GetMembersAsync(
+    public Task<Result<YouTubeMembersDto>> GetMembersAsync(
         Guid broadcasterId,
         string? pageToken,
         int take,
         CancellationToken ct = default
+    ) => PageAsync(broadcasterId, pageToken, take, withLevels: string.IsNullOrEmpty(pageToken), ct);
+
+    public async Task<Result<int>> GetMemberCountAsync(
+        Guid broadcasterId,
+        CancellationToken ct = default
+    )
+    {
+        string key = $"youtube:members:count:{broadcasterId}";
+        if (await cache.GetAsync<MemberCount>(key, ct) is { } kept)
+            return Result.Success(kept.Value);
+
+        Result<YouTubeMembersDto> page = await PageAsync(
+            broadcasterId,
+            null,
+            MaxPageSize,
+            withLevels: false,
+            ct
+        );
+        if (page.IsFailure || page.Value.Access != YouTubeMembersAccess.Allowed)
+            return Result.Failure<int>(
+                page.ErrorMessage ?? "The YouTube members cannot be read.",
+                page.ErrorCode ?? "NOT_AVAILABLE"
+            );
+
+        // A list that fits one page is counted here; a longer one takes the total YouTube reports.
+        int count = page.Value.NextPageToken is null ? page.Value.Members.Count : page.Value.Total;
+        await cache.SetAsync(key, new MemberCount(count), CountTtl, ct);
+        return Result.Success(count);
+    }
+
+    private async Task<Result<YouTubeMembersDto>> PageAsync(
+        Guid broadcasterId,
+        string? pageToken,
+        int take,
+        bool withLevels,
+        CancellationToken ct
     )
     {
         string? accessToken = await tokens.GetAccessTokenAsync(broadcasterId, ct);
@@ -73,7 +114,7 @@ public sealed class YouTubeMembersService(
                 );
         }
 
-        IReadOnlyList<YouTubeMembershipLevelDto> levels = string.IsNullOrEmpty(pageToken)
+        IReadOnlyList<YouTubeMembershipLevelDto> levels = withLevels
             ? await LevelsAsync(accessToken, ct)
             : [];
         List<YouTubeMemberDto> members =
@@ -168,6 +209,9 @@ public sealed class YouTubeMembersService(
             return (null, null);
         }
     }
+
+    /// <summary>The kept count, as a type a cache can hold and tell from "nothing kept".</summary>
+    private sealed record MemberCount(int Value);
 
     private sealed class MemberListResponse
     {

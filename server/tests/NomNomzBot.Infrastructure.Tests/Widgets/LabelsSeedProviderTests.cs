@@ -14,6 +14,7 @@ using System.Text.Json.Nodes;
 using FluentAssertions;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Domain.Identity.Entities;
 using NomNomzBot.Domain.Platform.Interfaces;
@@ -42,6 +43,7 @@ public sealed class LabelsSeedProviderTests : IDisposable
     private readonly ITwitchChannelsApi _channels = Substitute.For<ITwitchChannelsApi>();
     private readonly ITwitchSubscriptionsApi _subscriptions =
         Substitute.For<ITwitchSubscriptionsApi>();
+    private readonly IYouTubeMembersService _members = Substitute.For<IYouTubeMembersService>();
     private readonly IChannelRegistry _registry = Substitute.For<IChannelRegistry>();
     private readonly WidgetSqliteTestDatabase _database = WidgetSqliteTestDatabase.Open();
     private readonly WidgetTestDbContext _ctx;
@@ -67,7 +69,7 @@ public sealed class LabelsSeedProviderTests : IDisposable
                     WentLiveAt = wentLiveAt,
                 }
             );
-        return new(_channels, _subscriptions, _ctx, _registry);
+        return new(_channels, _subscriptions, _members, _ctx, _registry);
     }
 
     private static Widget Labels(string label) =>
@@ -138,6 +140,36 @@ public sealed class LabelsSeedProviderTests : IDisposable
         frames.Should().ContainSingle();
         frames[0].EventType.Should().Be("count");
         frames[0].Data.Should().Be(new CountWidgetEventPayload("subs", 56));
+    }
+
+    // Stoney, 2026-11-10: "all those features we have from twitch to match". A YouTube member is what a Twitch
+    // subscriber is, so the label can show how many there are.
+    [Fact]
+    public async Task Member_count_seeds_the_youtube_total_as_an_absolute_count_frame()
+    {
+        _members
+            .GetMemberCountAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(17));
+
+        IReadOnlyList<WidgetSeedFrame> frames = await Sut()
+            .SeedAsync(Broadcaster, Labels("member_count"), CancellationToken.None);
+
+        frames.Should().ContainSingle();
+        frames[0].EventType.Should().Be("count");
+        frames[0].Data.Should().Be(new CountWidgetEventPayload("members", 17));
+    }
+
+    [Fact]
+    public async Task Members_that_cannot_be_read_give_no_frame_never_a_zero()
+    {
+        _members
+            .GetMemberCountAsync(Broadcaster, Arg.Any<CancellationToken>())
+            .Returns(Result.Failure<int>("not allowed", "NOT_AVAILABLE"));
+
+        IReadOnlyList<WidgetSeedFrame> frames = await Sut()
+            .SeedAsync(Broadcaster, Labels("member_count"), CancellationToken.None);
+
+        frames.Should().BeEmpty();
     }
 
     [Theory]

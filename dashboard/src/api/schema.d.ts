@@ -22578,6 +22578,204 @@ export interface paths {
         };
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/clips": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /** One page of the channel's clips, newest first, and the YouTube uploads left today. */
+        get: {
+            parameters: {
+                query?: {
+                    cursor?: string;
+                };
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfChannelClips"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
+    "/api/v{version}/channels/{channelId}/clips/{clipId}/youtube": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        get?: never;
+        put?: never;
+        /**
+         * Put one clip on the streamer's YouTube channel. `outcome` says what happened; a video is private
+         *     unless the request chooses another privacy.
+         */
+        post: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    clipId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody: {
+                content: {
+                    "application/json": components["schemas"]["YouTubeClipUploadRequest"];
+                    "text/json": components["schemas"]["YouTubeClipUploadRequest"];
+                    "application/*+json": components["schemas"]["YouTubeClipUploadRequest"];
+                };
+            };
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfYouTubeClipUpload"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
     "/api/v{version}/code-scripts": {
         parameters: {
             query?: never;
@@ -90349,6 +90547,102 @@ export interface paths {
         patch?: never;
         trace?: never;
     };
+    "/api/v{version}/channels/{channelId}/community/youtube/members/count": {
+        parameters: {
+            query?: never;
+            header?: never;
+            path?: never;
+            cookie?: never;
+        };
+        /**
+         * How many YouTube members the channel has. `count` is null when the bot cannot read them, so a page
+         *     shows no number instead of a zero.
+         */
+        get: {
+            parameters: {
+                query?: never;
+                header?: never;
+                path: {
+                    channelId: string;
+                    version: string;
+                };
+                cookie?: never;
+            };
+            requestBody?: never;
+            responses: {
+                /** @description OK */
+                200: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfYouTubeMemberCount"];
+                    };
+                };
+                /** @description Bad Request */
+                400: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Unauthorized */
+                401: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Forbidden */
+                403: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Not Found */
+                404: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Too Many Requests */
+                429: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+                /** @description Internal Server Error */
+                500: {
+                    headers: {
+                        [name: string]: unknown;
+                    };
+                    content: {
+                        "application/json": components["schemas"]["StatusResponseOfObject"];
+                    };
+                };
+            };
+        };
+        put?: never;
+        post?: never;
+        delete?: never;
+        options?: never;
+        head?: never;
+        patch?: never;
+        trace?: never;
+    };
 }
 export type webhooks = Record<string, never>;
 export interface components {
@@ -91843,6 +92137,27 @@ export interface components {
         ChannelChatHours: {
             timeZone: string;
             cells: components["schemas"]["ChatHourCell"][];
+        };
+        /** @description One clip in the list a streamer chooses from. */
+        ChannelClip: {
+            id: string;
+            title: string;
+            url: string;
+            thumbnailUrl: string;
+            creatorName: string;
+            /** Format: date-time */
+            createdAt: string;
+            /** Format: int32 */
+            viewCount: number | string;
+            /** Format: double */
+            durationSeconds: number | string;
+        };
+        /** @description A page of clips, the cursor of the next page, and the YouTube uploads the app has left today. */
+        ChannelClips: {
+            clips: components["schemas"]["ChannelClip"][];
+            nextCursor?: null | string;
+            /** Format: int32 */
+            uploadsLeftToday: number | string;
         };
         /**
          * @description Everything the delete-channel confirmation must state BEFORE the button can be pressed — the largest blast
@@ -100295,6 +100610,19 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseOfChannelClips: {
+            status?: string;
+            data?: null | components["schemas"]["ChannelClips"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseOfChannelDeletePreview: {
             status?: string;
             data?: null | components["schemas"]["ChannelDeletePreview"];
@@ -105202,6 +105530,32 @@ export interface components {
             code?: null | string;
             args?: null | unknown[];
         };
+        StatusResponseOfYouTubeClipUpload: {
+            status?: string;
+            data?: null | components["schemas"]["YouTubeClipUpload"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
+        StatusResponseOfYouTubeMemberCount: {
+            status?: string;
+            data?: null | components["schemas"]["YouTubeMemberCount"];
+            message?: null | string;
+            /**
+             * @description The failure's machine-readable `Result.ErrorCode` (e.g. `PROVIDER_NOT_CONFIGURED`) — absent on
+             *     success. Without this the client can only key off the HTTP status, which collapses every 4xx/5xx cause
+             *     into one bucket; a caller that needs to branch on WHY (e.g. open a BYOC onboarding dialog instead of a
+             *     generic error toast) reads this field.
+             */
+            code?: null | string;
+            args?: null | unknown[];
+        };
         StatusResponseOfYouTubeMembers: {
             status?: string;
             data?: null | components["schemas"]["YouTubeMembers"];
@@ -108359,6 +108713,26 @@ export interface components {
             /** Format: double */
             estimatedRevenue?: null | number | string;
         };
+        /**
+         * @description The result of an upload. VideoId and Url are set only when
+         *     Outcome is string YouTubeClipUploadOutcome.Uploaded.
+         */
+        YouTubeClipUpload: {
+            outcome: string;
+            videoId?: null | string;
+            url?: null | string;
+            /** Format: int32 */
+            uploadsLeftToday: number | string;
+        };
+        /**
+         * @description The words the video gets. Privacy is one of YouTubeVideoPrivacy; left
+         *     out, the video is private.
+         */
+        YouTubeClipUploadRequest: {
+            title: string;
+            description?: null | string;
+            privacy?: null | string;
+        };
         /** @description One channel member. The channel id and the picture are null for a member whose own channel is gone. */
         YouTubeMember: {
             channelId?: null | string;
@@ -108370,6 +108744,11 @@ export interface components {
             memberSince?: null | string;
             /** Format: int32 */
             totalMonths: number | string;
+        };
+        /** @description The channel's member count; null when the bot cannot read the members. */
+        YouTubeMemberCount: {
+            /** Format: int32 */
+            count?: null | number | string;
         };
         /**
          * @description One page of members. Access is one of YouTubeMembersAccess;

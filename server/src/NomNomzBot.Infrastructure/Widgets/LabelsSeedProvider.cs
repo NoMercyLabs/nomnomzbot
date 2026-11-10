@@ -15,6 +15,7 @@ using Microsoft.EntityFrameworkCore;
 using NomNomzBot.Application.Abstractions.Persistence;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Application.Widgets.Dtos;
 using NomNomzBot.Application.Widgets.Services;
 using NomNomzBot.Domain.Identity.Entities;
@@ -25,7 +26,8 @@ namespace NomNomzBot.Infrastructure.Widgets;
 
 /// <summary>
 /// Gives `labels` its real value after a reload, one frame per mode in the shape the widget already reads live.
-/// <c>follower_count</c> and <c>sub_count</c> come from Twitch as an absolute <c>count</c> frame. <c>latest_follower</c>
+/// <c>follower_count</c> and <c>sub_count</c> come from Twitch as an absolute <c>count</c> frame, and
+/// <c>member_count</c> the same way from YouTube. <c>latest_follower</c>
 /// and <c>latest_sub</c> come from this channel's newest stored follow, sub or resub row, as a <c>follow</c>,
 /// <c>subscription</c> or <c>resub</c> frame. <c>top_cheerer</c> sends the cheer board of the current stream (offline
 /// gives no frames). A failed Twitch call or an empty source gives no frame, so the label keeps its idle dash instead
@@ -34,6 +36,7 @@ namespace NomNomzBot.Infrastructure.Widgets;
 internal sealed class LabelsSeedProvider(
     ITwitchChannelsApi channels,
     ITwitchSubscriptionsApi subscriptions,
+    IYouTubeMembersService members,
     IApplicationDbContext db,
     IChannelRegistry registry
 ) : IWidgetSeedProvider
@@ -60,6 +63,10 @@ internal sealed class LabelsSeedProvider(
             "sub_count" => CountFrame(
                 "subs",
                 await subscriptions.GetSubscriberCountAsync(broadcasterId, cancellationToken)
+            ),
+            "member_count" => CountFrame(
+                "members",
+                await members.GetMemberCountAsync(broadcasterId, cancellationToken)
             ),
             "latest_follower" => await LatestFollowerAsync(broadcasterId, cancellationToken),
             "latest_sub" => await LatestSubAsync(broadcasterId, cancellationToken),

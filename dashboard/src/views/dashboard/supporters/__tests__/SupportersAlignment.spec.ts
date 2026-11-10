@@ -33,6 +33,9 @@ function event(id: string, type: string, username: string, data: object) {
   } as const satisfies object;
 }
 
+// What the member count read answers; null is "the bot cannot read the YouTube members".
+let memberCount: number | null = null;
+
 vi.mock('@/api/access', () => ({
   useChannelAccess: () => ({
     known: ref(true),
@@ -51,13 +54,15 @@ vi.mock('@/components/layout/UserName.vue', () => ({
 vi.mock('@/api/client', () => ({
   client: {
     use: () => undefined,
-    GET: async () => ({
+    GET: async (path: string) => ({
       data: {
-        data: [
-          event('1', 'channel.subscribe', 'plain', { tier: '1000' }),
-          event('2', 'channel.subscribe', 'gifted', { tier: '1000', isGift: true }),
-          event('3', 'channel.cheer', 'cheerer', { bits: 200 }),
-        ],
+        data: path.endsWith('/members/count')
+          ? { count: memberCount }
+          : [
+              event('1', 'channel.subscribe', 'plain', { tier: '1000' }),
+              event('2', 'channel.subscribe', 'gifted', { tier: '1000', isGift: true }),
+              event('3', 'channel.cheer', 'cheerer', { bits: 200 }),
+            ],
       },
       response: { status: 200, ok: true },
     }),
@@ -75,6 +80,41 @@ afterEach(() => {
   mounted?.unmount();
   mounted = null;
   document.body.innerHTML = '';
+});
+
+// Stoney, 2026-11-10: "all those features we have from twitch to match". The YouTube member count sits beside
+// the Twitch subscriber count, and only when the bot could read it.
+describe('the YouTube members tile', () => {
+  const tiles = async (): Promise<string[]> => {
+    const queryClient = new QueryClient({ defaultOptions: { queries: { retry: false } } });
+
+    mounted = mount(SupportersView, {
+      attachTo: document.body,
+      global: { plugins: [i18n, [VueQueryPlugin, { queryClient }]] },
+    });
+
+    await flushPromises();
+
+    return mounted.findAll('[data-slot="stat-tile"]').map((tile) => tile.text());
+  };
+
+  afterEach(() => {
+    memberCount = null;
+  });
+
+  it('shows the member count the bot read from YouTube', async () => {
+    memberCount = 17;
+
+    const shown = await tiles();
+
+    expect(shown).toHaveLength(4);
+    expect(shown.find((tile) => tile.includes('YouTube members'))).toContain('17');
+    expect(mounted!.find('[data-slot="stat-strip"]').classes()).toContain('max-sm:grid-cols-2!');
+  });
+
+  it('is left out when the bot could not read the members, never shown as 0', async () => {
+    expect((await tiles()).some((tile) => tile.includes('YouTube members'))).toBe(false);
+  });
 });
 
 describe('the sub list rows', () => {

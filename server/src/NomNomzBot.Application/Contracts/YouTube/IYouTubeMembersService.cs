@@ -31,6 +31,12 @@ public interface IYouTubeMembersService
         int take,
         CancellationToken ct = default
     );
+
+    /// <summary>
+    /// The number of current members, kept for a few minutes. A channel whose members cannot be read is a
+    /// failure, so a caller shows no number instead of a zero.
+    /// </summary>
+    Task<Result<int>> GetMemberCountAsync(Guid broadcasterId, CancellationToken ct = default);
 }
 
 /// <summary>Whether the bot may read the channel's members. Text values, so the dashboard reads the word.</summary>
@@ -61,6 +67,9 @@ public sealed record YouTubeMemberDto(
     DateTimeOffset? MemberSince,
     int TotalMonths
 );
+
+/// <summary>The channel's member count; null when the bot cannot read the members.</summary>
+public sealed record YouTubeMemberCountDto(int? Count);
 
 /// <summary>One membership level of the channel.</summary>
 public sealed record YouTubeMembershipLevelDto(string Id, string Name);

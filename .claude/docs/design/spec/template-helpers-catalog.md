@@ -784,6 +784,7 @@ Freshness: `ChannelContext` = Memory; stream metrics = Cached(30 s); Helix = Cac
 | `channel.followers` | `{channel.followers}` | 1,234 | `ITwitchChannelsApi.GetChannelFollowerCountAsync` | L2d |
 | `channel.followers.compact` | `{channel.followers.compact}` | 1.2k | same | L2d |
 | `channel.subs` | `{channel.subs}` | 80 | `ITwitchSubscriptionsApi.GetSubscriberCountAsync` | L2d |
+| `channel.members` | `{channel.members}` | 12 | `IYouTubeMembersService.GetMemberCountAsync` (YouTube members; prints as written when they cannot be read) | L2d |
 | `channel.subPoints` | `{channel.subPoints}` | 92 | `GetSubscriberCountAsync` (points: not checked) | L2d |
 | `channel.language` | `{channel.language}` | en | `ChannelContext.Language` | L2d |
 | `channel.timezone` | `{channel.timezone}` | Europe/Amsterdam | `ChannelContext.Timezone` | L2d |

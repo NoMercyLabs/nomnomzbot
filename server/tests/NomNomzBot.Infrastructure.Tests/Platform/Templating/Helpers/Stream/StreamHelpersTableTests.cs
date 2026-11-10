@@ -96,6 +96,7 @@ public sealed class StreamHelpersTableTests
             { "{channel.followers}", "1,234" },
             { "{channel.followers.compact}", "1.2k" },
             { "{channel.subs}", "80" },
+            { "{channel.members}", "12" },
             { "{channel.language}", "en" },
             { "{channel.timezone}", "Europe/Amsterdam" },
             { "{channel.localTime}", "15:30" },
@@ -167,6 +168,8 @@ public sealed class StreamHelpersTableTests
             { "{channel.raids.outCount:otherstreamer}", "0" },
             // No team, no VOD, no finished stream, no live stream: the token prints as written.
             { "{channel.team}", "{channel.team}" },
+            // YouTube members that cannot be read print as written, never as a 0.
+            { "{channel.members}", "{channel.members}" },
             { "{channel.vod.latest}", "{channel.vod.latest}" },
             { "{stream.last.game}", "{stream.last.game}" },
             { "{stream.uptime.long}", "{stream.uptime.long}" },

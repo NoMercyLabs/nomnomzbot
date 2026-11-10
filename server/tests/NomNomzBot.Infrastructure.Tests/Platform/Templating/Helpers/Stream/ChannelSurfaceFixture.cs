@@ -12,6 +12,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Application.Raids;
 using NSubstitute;
 
@@ -182,7 +183,13 @@ internal static class ChannelSurfaceFixture
                 )
             );
 
+        IYouTubeMembersService members = Substitute.For<IYouTubeMembersService>();
+        members
+            .GetMemberCountAsync(channel, Arg.Any<CancellationToken>())
+            .Returns(Result.Success(12));
+
         services.AddSingleton(subs);
+        services.AddSingleton(members);
         services.AddSingleton(staff);
         services.AddSingleton(teams);
         services.AddSingleton(videos);

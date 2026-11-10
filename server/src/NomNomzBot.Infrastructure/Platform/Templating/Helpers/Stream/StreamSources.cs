@@ -24,6 +24,7 @@ internal static class StreamSources
     public const string ChannelInfo = "channel.info";
     public const string Followers = "channel.followers";
     public const string Subscribers = "channel.subscribers";
+    public const string YouTubeMembers = "channel.youtubeMembers";
     public const string Teams = "channel.teams";
     public const string Staff = "channel.staff";
     public const string Videos = "channel.videos";

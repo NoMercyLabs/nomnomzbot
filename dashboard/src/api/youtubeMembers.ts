@@ -12,10 +12,14 @@
 // The channel's YouTube members: what Twitch subscribers are, on YouTube. Read with the streamer's permission.
 import {
   useInfiniteQuery,
+  useQuery,
   type InfiniteData,
   type UseInfiniteQueryReturnType,
+  type UseQueryReturnType,
 } from '@tanstack/vue-query';
 import { computed, toValue, type MaybeRefOrGetter } from 'vue';
+
+import { numberOrNull } from '@/lib/number';
 
 import { client } from './client';
 import { failed } from './errors';
@@ -58,6 +62,30 @@ async function readPage(channelId: string, pageToken: PageToken): Promise<YouTub
     throw failed('youtube members', response.status, error);
 
   return data?.data ?? null;
+}
+
+async function readCount(channelId: string): Promise<number | null> {
+  const { data, error, response } = await client.GET(
+    '/api/v{version}/channels/{channelId}/community/youtube/members/count',
+    { params: { path: { version, channelId } } },
+  );
+
+  if (error !== undefined)
+    throw failed('youtube members', response.status, error);
+
+  return numberOrNull(data?.data?.count);
+}
+
+// How many YouTube members the channel has; null when the bot cannot read them.
+export function useYouTubeMemberCount(
+  channelId: MaybeRefOrGetter<string | null>,
+): UseQueryReturnType<number | null, Error> {
+  return useQuery({
+    queryKey: computed(() => [...youTubeMembersKey(toValue(channelId)), 'count']),
+    queryFn: (): Promise<number | null> => readCount(toValue(channelId) as string),
+    enabled: computed(() => toValue(channelId) !== null),
+    staleTime: freshFor,
+  });
 }
 
 // Pages of members in the order YouTube gives. `access` on the first page says why there are none.

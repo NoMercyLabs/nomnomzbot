@@ -14,6 +14,7 @@ using NomNomzBot.Application.Abstractions.Templating;
 using NomNomzBot.Application.Common.Models;
 using NomNomzBot.Application.Contracts.Analytics;
 using NomNomzBot.Application.Contracts.Twitch;
+using NomNomzBot.Application.Contracts.YouTube;
 using NomNomzBot.Application.Dashboard.Dtos;
 using NomNomzBot.Application.Dashboard.Services;
 using NomNomzBot.Application.Raids;
@@ -35,7 +36,6 @@ internal sealed class StreamHelperData(
     private const string ItemsKey = "stream.helper.data";
     private const int RecentPageSize = 5;
     private const int HistoryPageSize = 100;
-    private const int StaffPageSize = 100;
     private const int StaffMaxPages = 20;
 
     private readonly object _gate = new();
@@ -142,6 +142,17 @@ internal sealed class StreamHelperData(
                 FetchNumber<ITwitchSubscriptionsApi>(
                     (service, token) =>
                         service.GetSubscriberCountAsync(broadcasterId!.Value, token),
+                    ct
+                )
+        );
+
+    /// <summary>The channel's YouTube members; null when they cannot be read.</summary>
+    public Task<int?> YouTubeMemberCountAsync(CancellationToken ct) =>
+        Keep(
+            "youtubeMembers",
+            () =>
+                FetchNumber<IYouTubeMembersService>(
+                    (service, token) => service.GetMemberCountAsync(broadcasterId!.Value, token),
                     ct
                 )
         );
@@ -285,8 +296,7 @@ internal sealed class StreamHelperData(
         for (int page = 0; page < StaffMaxPages; page++)
         {
             TwitchPage<TItem>? items = await Fetch<TService, TwitchPage<TItem>>(
-                (service, token) =>
-                    read(service, new TwitchPageRequest(cursor, StaffPageSize), token),
+                (service, token) => read(service, new TwitchPageRequest(cursor), token),
                 ct
             );
             if (items is null)
