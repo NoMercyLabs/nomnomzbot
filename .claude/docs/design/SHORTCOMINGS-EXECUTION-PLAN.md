@@ -1683,9 +1683,18 @@ Facts from the live Google docs, read 2026-11-10:
 
 Decision proposed to the owner: remove `youtubepartner` and `youtube.upload` from the Google project, keep 5.
 
-- **S-YT-VERIFY-FILM** The shooting script for Google's demo video: one shot per scope, each ending on the
-  YouTube tab, with the consent screen in English. Done-when: every shot was run on dev first, and the owner
-  has the script and the justification text.
+- **S-YT-VERIFY-FILM** The script and the text are written (`.claude/docs/design/youtube-verification-film.md`,
+  6 shots, 947 characters). What is left is the owner's: remove `youtubepartner` and `youtube.upload` from the
+  Google project, ask Google for access to `members.list`, run each shot once on dev, record the film and
+  submit it. Done-when: Google's Data Access page shows the 5 scopes as verified. A shot that does not run as
+  written is a defect in the page it shows: fix the page, then the script.
+- **S-DEPLOY-DIRECT-GUARD** Incident 2026-11-10: 36 old `nomnomzbot-api:direct-*` images filled the dev box
+  disk (59G, 269M left), the next image could not unpack, the switch rolled back, and the session's deploy
+  script still printed SHIPPED. The fixed script (free-disk check, keep the 3 newest images, SHIPPED only when
+  the box runs the new image) lives in a session scratchpad and dies with it. Put the direct deploy in
+  `scripts/` with those three guards, and add a disk-space check to the health signals the owner sees
+  (a warning under 10G free). Done-when: a test or dry run shows the script refusing a box with under 5G
+  free, and the low-disk warning shows in the dashboard's health panel.
 
 ## OWNER REQUEST 2026-11-10 — the admin section authors the platform's stream content
 
